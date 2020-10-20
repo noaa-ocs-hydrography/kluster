@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cif:FormatInformation xmlns:cif="http://www.caris.com/cif/2.1" version="2.1">
+  <cif:SkipLines>0</cif:SkipLines>
+  <cif:Type>Elevation</cif:Type>
+  <cif:Delimited>
+    <cif:Delimiter>space</cif:Delimiter>
+    <cif:Column>
+      <cif:AttributeName>X</cif:AttributeName>
+      <cif:Multiplier>1</cif:Multiplier>
+      <cif:CoordinateFormat>Ground</cif:CoordinateFormat>
+      <cif:DataType>DOUBLE</cif:DataType>
+      <cif:Index>0</cif:Index>
+    </cif:Column>
+    <cif:Column>
+      <cif:AttributeName>Y</cif:AttributeName>
+      <cif:Multiplier>1</cif:Multiplier>
+      <cif:CoordinateFormat>Ground</cif:CoordinateFormat>
+      <cif:DataType>DOUBLE</cif:DataType>
+      <cif:Index>1</cif:Index>
+    </cif:Column>
+    <cif:Column>
+      <cif:AttributeName>Z</cif:AttributeName>
+      <cif:Multiplier>1</cif:Multiplier>
+      <cif:Orientation>down</cif:Orientation>
+      <cif:Unit>m</cif:Unit>
+      <cif:DataType>DOUBLE</cif:DataType>
+      <cif:Index>2</cif:Index>
+    </cif:Column>
+    <cif:Column>
+      <cif:AttributeName>DEPTH_TPU</cif:AttributeName>
+      <cif:Multiplier>1</cif:Multiplier>
+      <cif:Unit>m</cif:Unit>
+      <cif:DataType>DOUBLE</cif:DataType>
+      <cif:Index>3</cif:Index>
+    </cif:Column>
+  </cif:Delimited>
+</cif:FormatInformation>
