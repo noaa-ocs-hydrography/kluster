@@ -1,6 +1,8 @@
 kluster
 '''''''
 
+Documentation: `readthedocs`_
+
 A distributed multibeam processing system built on the `Pangeo
 ecosystem`_. Supports Kongsberg .all/.kmall formats and POS MV
 post-processed SBET/RMS navigation files. Kluster **will not** read from
@@ -68,12 +70,9 @@ Kluster is designed from the ground up to address this issue, by
 providing processing that can be tailored and deployed in multiple
 different ways depending on the application. In addition, using the
 multiprocessing capabilities of Dask, kluster provides a powerful tool
-that can compete with existing software packages in terms of
-performance.
+that can compete with existing so
 
-3. .. rubric:: Evaluate the latest in
-      :name: evaluate-the-latest-in
-
+.. _readthedocs: https://kluster.readthedocs.io/en/latest/
 .. _Pangeo ecosystem: https://pangeo.io/
 .. _drivers: https://github.com/noaa-ocs-hydrography/drivers
 .. _Dask: https://dask.org/
