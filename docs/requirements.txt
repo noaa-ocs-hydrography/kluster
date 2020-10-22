@@ -1,2 +1,3 @@
 sphinx-automodapi
+sphinx_autodoc_typehints
 numpydoc
