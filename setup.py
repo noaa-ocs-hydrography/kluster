@@ -43,7 +43,6 @@ REQUIRED = [
 # What packages are optional?
 EXTRAS = {
           'entwine export': ['entwine', 'nodejs'],
-          'docs': ['sphinx', 'sphinx-automodapi', 'numpydoc']  # necessary for readthedocs
           }
 
 # The rest you shouldn't have to touch too much :)
