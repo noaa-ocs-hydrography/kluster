@@ -9,6 +9,7 @@ kluster
 .. toctree::
    :maxdepth: 4
 
+   readme
    fqpr_convenience
    fqpr_generation   
    fqpr_sat

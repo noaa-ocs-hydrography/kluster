@@ -34,10 +34,12 @@ release = '0.1.0'
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
+
+# m2r to translate the readme.md to rst
 extensions = ['sphinx_automodapi.automodapi', 
               'sphinx.ext.napoleon', 
               'sphinx.ext.graphviz',
-              'sphinx_autodoc_typehints',
+              'sphinx_autodoc_typehints'
               ]
 numpydoc_show_class_members = False
 graphviz_dot = os.path.normpath(os.path.join(root_p, r"..\..\..\..\..\..\envs\Pydro38_Test\Library\bin\graphviz\dot.exe"))
