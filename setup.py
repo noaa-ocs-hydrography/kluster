@@ -23,7 +23,7 @@ REQUIRED = [
             'fasteners',
             'laspy>=1.7.0',
             'matplotlib>=3.2.1',
-            'mpl_toolkits',
+#            'mpl_toolkits',
             'numba>=0.48.0',
             'numpy>=1.18.4',
             'openpyxl>=3.0.3',
