@@ -2,7 +2,17 @@
 
 Documentation: [readthedocs](https://kluster.readthedocs.io/en/latest/) 
 
-A distributed multibeam processing system built on the [Pangeo ecosystem](https://pangeo.io/). Supports Kongsberg .all/.kmall formats and POS MV post-processed SBET/RMS navigation files.  Kluster **will not** read from multibeam sonars that use the Depth datagram instead of the Range/Angle for .all conversion.  Most modern systems will work.  Kluster has been tested on:
+A distributed multibeam processing system built on the [Pangeo ecosystem](https://pangeo.io/). Supports Kongsberg .all/.kmall multibeam formats, POS MV post-processed SBET/RMS navigation files and Caris svp sound velocity profile files.  
+
+Kluster is:
+
+1. **Scalable** - uses [Dask](https://dask.org/) to provide distributed parallel processing on everything from a laptop to a cloud service (AWS Fargate for example)
+2. **Cloud ready** - uses [Zarr](https://zarr.readthedocs.io/en/stable/) as a cloud ready storage format for converted multibeam records and processed soundings
+3. **Open** - data are presented using [Xarray](http://xarray.pydata.org/en/stable/) objects for easy interactivity and stored with Zarr, all open formats
+4. **Scriptable** - provides a GUI for visualization and processing, but can be run from the command line or scripted easily
+5. **Extensible** - From data conversion to sound velocity correction, kluster is built using modules that can be replaced, enhanced or exchanged as needed.
+
+Kluster **will not** read from multibeam sonars that use the Depth datagram instead of the Range/Angle for .all conversion.  Most modern systems will work.  Kluster has been tested on:
 
 - EM2040/2040c/2040p
 - EM2040 dual tx/dual rx
@@ -16,14 +26,6 @@ Kluster is built from the ground up in Python, and was developed using Python 3.
 - sbet - POSPac sbet/rms file reader
 
 Kluster is a work in progress that has been in development since November 2019 by a small team, and is by no means feature complete.  If you are interested in contributing or have questions, please contact Eric Younkin (eric.g.younkin@noaa.gov)
-
-Kluster is:
-
-1. **Scalable** - uses [Dask](https://dask.org/) to provide distributed parallel processing on everything from a laptop to a cloud service (AWS Fargate for example)
-2. **Cloud ready** - uses [Zarr](https://zarr.readthedocs.io/en/stable/) as a cloud ready storage format for converted multibeam records and processed soundings
-3. **Open** - data are presented using [Xarray](http://xarray.pydata.org/en/stable/) objects for easy interactivity and stored with Zarr, all open formats
-4. **Scriptable** - provides a GUI for visualization and processing, but can be run from the command line or scripted easily
-5. **Extensible** - From data conversion to sound velocity correction, kluster is built using modules that can be replaced, enhanced or exchanged as needed.
 
 ## Why Kluster?
 
