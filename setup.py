@@ -20,7 +20,6 @@ VERSION = '0.1.0'
 REQUIRED = [
             'hstb.drivers'
             'dask>=2.17.2', 
-            'dask distributed>=2.17.0', 
             'fasteners',
             'laspy>=1.7.0',
             'matplotlib>=3.2.1',
