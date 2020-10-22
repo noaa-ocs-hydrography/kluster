@@ -8,5 +8,5 @@ fqpr\_project module
    :skip: reload_data
    :skip: slice_xarray_by_dim
    :skip: reload_surface
-   :skip: reload_surface
-   :skip: reload_surface
+   :skip: BaseSurface
+   :skip: Fqpr

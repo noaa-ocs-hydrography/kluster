@@ -10,14 +10,16 @@ def build_entwine_points(input_las_directory: str, output_folder: str):
     """
     Take in exported LAS files and build entwine point tiles in the given output folder
 
+    Requires the Pydro38_test environment and Entwine to be installed first.
+
     Parameters
     ----------
     input_las_directory
         folder path to the directory of las files
     output_folder
         folder path to where you want to build the entwine point tiles
-
     """
+
     activate_file = retrieve_activate_batch()
     if not os.path.exists(output_folder):
         os.mkdir(output_folder)
@@ -32,16 +34,16 @@ def visualize_entwine(entwine_dir: str):
     """
     Start an HTTP server and use potree to visualize the entwine point tiles in the given entwine_dir
 
-    Requires nodejs/http-server
-    # conda install nodejs -y
-    # npm install http-server -g
+    | Requires nodejs/http-server
+    | # conda install nodejs -y
+    | # npm install http-server -g
 
     Parameters
     ----------
     entwine_dir
         folder path to the entwine point tile directory
-
     """
+
     # start the nodejs http server
     base_path, ent_dir = os.path.split(entwine_dir)
 

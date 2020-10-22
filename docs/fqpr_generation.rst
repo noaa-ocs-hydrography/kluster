@@ -6,3 +6,28 @@ fqpr\_generation module
    :skip: datetime
    :skip: wait
    :skip: perf_counter
+   :skip: Union
+   :skip: Callable
+   :skip: distrib_run_build_orientation_vectors
+   :skip: distrib_run_build_beam_pointing_vector
+   :skip: get_sv_files_from_directory
+   :skip: return_supported_casts_from_list
+   :skip: SoundSpeedProfile
+   :skip: distributed_run_sv_correct
+   :skip: distrib_run_georeference
+   :skip: BatchRead
+   :skip: combine_arrays_to_dataset
+   :skip: compare_and_find_gaps
+   :skip: distrib_zarr_write
+   :skip: divide_arrays_by_time_index
+   :skip: interp_across_chunks
+   :skip: reload_zarr_records
+   :skip: slice_xarray_by_dim
+   :skip: stack_nan_array
+   :skip: DaskProcessSynchronizer
+   :skip: dask_find_or_start_client
+   :skip: get_number_of_workers
+   :skip: return_attitude_rotation_matrix
+   :skip: return_logger
+   :skip: build_entwine_points
+   :skip: sbet_to_xarray

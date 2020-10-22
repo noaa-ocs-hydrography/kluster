@@ -14,40 +14,63 @@ supported_file_formats = ['.svp']
 
 class SoundSpeedProfile:
     """
-    Profile datastore, can accept inputs from:
-    - prof_type = raw_ping, soundspeed cast comes in from xarray Dataset attribute, used with xarray_conversion
-    - prof_type = caris_svp, soundspeed cast comes in as file path to caris .svp file
-
-    ex: raw_ping
-
-    fq.source_dat.raw_ping[0].profile_1583312816
-    Out[7]: '[[0.0, 1489.2000732421875], [0.32, 1489.2000732421875], [0.5, 1488.7000732421875], ...
-    prof = fq.source_dat.raw_ping[0].profile_1583312816
-    z_pos = float(fq.source_dat.xyzrph['waterline']['1583312816']) + float(fq.source_dat.xyzrph['tx_port_z']['1583312816'])
-    ssv = fq.source_dat.raw_ping[0].soundspeed
-    cst = svcorrect.SoundSpeedProfile(fq.source_dat.raw_ping[0].profile_1583312816, z_pos, ssv, prof_time=1583312816,
-                                      prof_name='profile_1583312816', prof_type='raw_ping')
-    cst.profile
-    Out[9]:  {0.0: 1489.2000732421875, 0.32: 1489.2000732421875, 0.5: 1488.7000732421875, ...
-
-    ex: caris_svp
-    z_pos = float(fq.source_dat.xyzrph['waterline']['1583312816']) + float(fq.source_dat.xyzrph['tx_port_z']['1583312816'])
-    ssv = fq.source_dat.raw_ping[0].soundspeed
-    cst = svcorrect.SoundSpeedProfile(r'C:\\Users\\eyou1\\Downloads\\2016_288_021224.svp', z_pos, ssv, prof_type='caris_svp')
-    cst.prof_time
-    Out[14]: 1476411120.0
-    cst.prof_name
-    Out[15]: '2016_288_021224.svp'
-    cst.prof_location
-    Out[16]: [37.58972222222222, -76.10972222222222]
-    cst.profile
-    Out[17]: {1.2: 1505.25, 1.6: 1505.26, 1.81: 1505.27, 2.18: 1505.29, 4.42: 1506.05, 5.38: 1507.08, ...
+    Take in a processed sound velocity profile, and generate ray traced offsets using surface sound speed, beam angles
+    beam azimuths and two way travel time.
 
     Will read from input data and generate profile dict for looking up soundspeed at depth, as well as other cast
     metadata
     """
 
-    def __init__(self, raw_profile, z_val, ss_sound_speed, prof_name=None, prof_time=None, prof_location=None, prof_type='raw_ping'):
+    def __init__(self, raw_profile: str, z_val: float, ss_sound_speed: xr.DataArray, prof_name: str = None,
+                 prof_time: float = None, prof_location: list = None, prof_type: str = 'raw_ping'):
+        """
+        | Profile datastore, can accept inputs from:
+        | - prof_type = raw_ping, soundspeed cast comes in from xarray Dataset attribute, used with xarray_conversion
+        | - prof_type = caris_svp, soundspeed cast comes in as file path to caris .svp file
+
+        | ex: raw_ping
+        | >> fq.source_dat.raw_ping[0].profile_1583312816
+        | '[[0.0, 1489.2000732421875], [0.32, 1489.2000732421875], [0.5, 1488.7000732421875], ...
+        | >> prof = fq.source_dat.raw_ping[0].profile_1583312816
+        | >> z_pos = float(fq.source_dat.xyzrph['waterline']['1583312816']) + float(fq.source_dat.xyzrph['tx_port_z']['1583312816'])
+        | >> ssv = fq.source_dat.raw_ping[0].soundspeed
+        | >> cst = svcorrect.SoundSpeedProfile(fq.source_dat.raw_ping[0].profile_1583312816, z_pos, ssv, prof_time=1583312816, prof_name='profile_1583312816', prof_type='raw_ping')
+
+        | >> cst.profile
+        | {0.0: 1489.2000732421875, 0.32: 1489.2000732421875, 0.5: 1488.7000732421875, ...
+
+        | ex: caris_svp
+        | >> z_pos = float(fq.source_dat.xyzrph['waterline']['1583312816']) + float(fq.source_dat.xyzrph['tx_port_z']['1583312816'])
+        | >> ssv = fq.source_dat.raw_ping[0].soundspeed
+        | >> cst = svcorrect.SoundSpeedProfile(r'C:\\Users\\eyou1\\Downloads\\2016_288_021224.svp', z_pos, ssv, prof_type='caris_svp')
+        | >> cst.prof_time
+        | 1476411120.0
+        | >> cst.prof_name
+        | '2016_288_021224.svp'
+        | >> cst.prof_location
+        | [37.58972222222222, -76.10972222222222]
+        | >> cst.profile
+        | {1.2: 1505.25, 1.6: 1505.26, 1.81: 1505.27, 2.18: 1505.29, 4.42: 1506.05, 5.38: 1507.08, ...
+
+        Parameters
+        ----------
+        raw_profile
+            json dump string of the profile (for the xarray workflow) or a path to a Caris SVP file (for the caris
+            svp workflow)
+        z_val
+            z position relative to the waterline, positive down
+        ss_sound_speed
+            DataArray representing surface sound speed
+        prof_name
+            metadata stored for the cast, identifier for this cast
+        prof_time
+            UTC time of cast
+        prof_location
+            cast location, [latitude in degrees, longitude in degrees]
+        prof_type
+            profile identifier, one of 'raw_ping' or 'caris_svp'
+        """
+
         self.raw_profile = raw_profile
         self.prof_type = prof_type
         self.prof_time = prof_time
@@ -74,9 +97,10 @@ class SoundSpeedProfile:
 
         Returns
         -------
-        int, total size of large attributes in bytes
-
+        int
+            total size of large attributes in bytes
         """
+
         soundspeed_size = sys.getsizeof(np.array(self.ss_sound_speed.values))
         prof_size = sys.getsizeof(self.raw_profile) + sys.getsizeof(self.profile)
         corr_prof_size = sys.getsizeof(self.corr_profile_lkup) + sys.getsizeof(self.corr_profile)
@@ -90,8 +114,10 @@ class SoundSpeedProfile:
 
         Returns
         -------
-        dict, keys are depth and values are soundspeed
+        dict
+            keys are depth and values are soundspeed
         """
+
         if self.prof_type == 'raw_ping':  # profile comes from xarray_conversion raw_ping dataset attribute
             return self.load_from_xarray()
         elif self.prof_type == 'caris_svp':
@@ -106,8 +132,10 @@ class SoundSpeedProfile:
 
         Returns
         -------
-        profdata: dict, keys are depth in meters and values are soundspeed in m/s
+        dict
+            keys are depth in meters and values are soundspeed in m/s
         """
+
         if type(self.raw_profile) == str:   # this is how it should come in, as a json string
             self.raw_profile = json.loads(self.raw_profile)
 
@@ -118,18 +146,21 @@ class SoundSpeedProfile:
         profdata = {float(k): float(v) for k, v in self.raw_profile}
         return OrderedDict(sorted(profdata.items()))
 
-    def _load_caris_svp_data(self, svpdata):
+    def _load_caris_svp_data(self, svpdata: list):
         """
         See load_from_caris_svp, takes in readlines output from svp file, returns dict
 
         Parameters
         ----------
-        svpdata: list, output from readlines call on svp file
+        svpdata
+            output from readlines call on svp file
 
         Returns
         -------
-        profdata: dict, keys are depth in meters and values are soundspeed in m/s
+        dict
+            keys are depth in meters and values are soundspeed in m/s
         """
+
         svpdat = [[float(dproc) for dproc in svp.rstrip().split()] for svp in svpdata]
         # insert zero point in profile with matching soundspeed as first actual layer, for when trans is above the
         #   shallowest point in the cast
@@ -145,8 +176,10 @@ class SoundSpeedProfile:
 
         Returns
         -------
-        profdata: dict, keys are depth in meters and values are soundspeed in m/s
+        dict
+            keys are depth in meters and values are soundspeed in m/s
         """
+
         if os.path.exists(self.raw_profile) and self.raw_profile.endswith('.svp'):
             with open(self.raw_profile, 'r') as svp:
                 version = svp.readline()  # [SVP_VERSION_2]
@@ -185,8 +218,8 @@ class SoundSpeedProfile:
         of the sonar relative to the waterline.  Also need to insert a snapback soundspeed layer equal to the data seen
         by the surface sound velocimeter.  This method will generate a list of lookup tables that equal in length to the
         length of the unique surface soundvelocity entries.
-
         """
+
         unique_ss = sorted(np.unique(self.ss_sound_speed))
         self.corr_profile_lkup = np.searchsorted(unique_ss, self.ss_sound_speed)
         self.corr_profile = []
@@ -196,7 +229,7 @@ class SoundSpeedProfile:
             frst_ss = OrderedDict({0: u})
             self.corr_profile.append(OrderedDict(list(frst_ss.items()) + list(newprof.items())))
 
-    def interpolate_extended_casts(self, max_allowable_depth_distance=100):
+    def interpolate_extended_casts(self, max_allowable_depth_distance: float = 100.0):
         """
         Take max distance parameter, interpolate layers with depth differences greater than that.  This is super
         important as extending a cast from 100m to 1200m to satisfy Kongsberg might result in a change in tens of m/s
@@ -204,13 +237,10 @@ class SoundSpeedProfile:
 
         Parameters
         ----------
-        max_allowable_depth_distance: int, max allowable distance in meters between layer entries.
-
-        Returns
-        -------
-        self.profile: OrderedDict, profile with new interpolated layers wherever necessary
-
+        max_allowable_depth_distance
+            max allowable distance in meters between layer entries.
         """
+
         rslt = []
         for prof in self.corr_profile:
             dpths = np.array(list(prof))
@@ -231,7 +261,7 @@ class SoundSpeedProfile:
             rslt.append(OrderedDict(sorted(prof.items())))
         self.corr_profile = rslt
 
-    def generate_lookup_table(self, max_pointing_angle=90.0, beam_inc=0.02):
+    def generate_lookup_table(self, max_pointing_angle: float = 90.0, beam_inc: float = 0.02):
         """
         Compute a lookup table for all possible launch angles to get acrosstrack/alongtrack distance and travel time.
         Build look up table around approximate launch angles, something like .02 deg increments.  When using table, find
@@ -243,14 +273,12 @@ class SoundSpeedProfile:
 
         Parameters
         ----------
-        max_pointing_angle: float, max angle of the swath
-        beam_inc: float, beam angle increments you want to generate entries for
-
-        Returns
-        -------
-        self.lookup_table: xarray Dataset, generated lookup table allowing for searching by angle/layer
-
+        max_pointing_angle
+            max angle of the swath
+        beam_inc
+            beam angle increments you want to generate entries for
         """
+
         # max_pointing_angle is from boresight, only doing one side as port/stbd are the same
         # print('Generating lookup table to {} deg in {} deg increments'.format(max_pointing_angle, beam_inc))
         starter_angles = np.arange(np.deg2rad(0), np.deg2rad(max_pointing_angle), np.deg2rad(beam_inc), dtype=np.float32)
@@ -388,18 +416,27 @@ class SoundSpeedProfile:
 
         return interp_across
 
-    def run_sv_correct(self, beam_angle, two_way_travel_time, beam_azimuth):
+    def run_sv_correct(self, beam_angle: xr.DataArray, two_way_travel_time: xr.DataArray, beam_azimuth: xr.DataArray):
         """
-        Convenience function for return_interp_beam_xy on self.  See return_interp_beam_xy for more info.
+        Convenience function for run_ray_trace on self.  See run_ray_trace for more info.
+
+        Parameters
+        ----------
+        beam_angle
+            2d array of time/beam angle.  Assumes the second dim contains the actual angles, ex: (time, angle)
+        two_way_travel_time
+            2d array of time/two_way_travel_time.  Assumes the second dim contains the actual traveltime, ex: (time, twtt)
+        beam_azimuth
+            2d array of time/beam azimuth.  Assumes the second dim contains the actual beam azimuth data, ex: (time, azimuth)
         """
 
-        x, y, z = return_interp_beam_xy(self.dim_angle, self.dim_raytime, self.lkup_across_dist, self.lkup_down_dist,
-                                        self.corr_profile_lkup, beam_azimuth, beam_angle, two_way_travel_time,
-                                        subset=None, offsets=None)
+        x, y, z = run_ray_trace(self.dim_angle, self.dim_raytime, self.lkup_across_dist, self.lkup_down_dist,
+                                self.corr_profile_lkup, beam_azimuth, beam_angle, two_way_travel_time,
+                                subset=None, offsets=None)
         return x, y, z
 
 
-def get_sv_files_from_directory(dir_path, search_subdirs=True):
+def get_sv_files_from_directory(dir_path: str, search_subdirs: bool = True):
     """
     Returns a list of all files that have an extension in the global variable supported_file_formats
 
@@ -407,14 +444,17 @@ def get_sv_files_from_directory(dir_path, search_subdirs=True):
 
     Parameters
     ----------
-    dir_path: string, path to the parent directory containing sv files
-    search_subdirs: bool, if True searches all subfolders as well
+    dir_path
+        string, path to the parent directory containing sv files
+    search_subdirs
+        bool, if True searches all subfolders as well
 
     Returns
     -------
-    svfils: list, full file paths to all sv files with approved file extension
-
+    list
+        full file paths to all sv files with approved file extension
     """
+
     svfils = []
     for root, dirs, files in os.walk(dir_path):
         for f in files:
@@ -425,25 +465,27 @@ def get_sv_files_from_directory(dir_path, search_subdirs=True):
     return svfils
 
 
-def return_supported_casts_from_list(list_files):
+def return_supported_casts_from_list(list_files: list):
     """
     Take in a list of files, return all the valid cast files
 
     Parameters
     ----------
-    list_files: list, list of files
+    list_files
+        list of cast file paths
 
     Returns
     -------
-    files from list that have extension in supported_file_formats
-
+    list
+        files from list that have extension in supported_file_formats
     """
+
     if type(list_files) != list:
         raise TypeError('Function expects a list of sv files to be provided.')
     return [x for x in list_files if os.path.splitext(x)[1] in supported_file_formats]
 
 
-def _interp(arr, row_idx, col_idx, msk, interp_factor):
+def _interp(arr: np.ndarray, row_idx: np.array, col_idx: np.array, msk: np.array, interp_factor: np.ndarray):
     """
     See return_interp_beam_xy.  Takes in an array (arr) and some parameters that allow you to interp to the given
     interp factor.  Interp_factor represents location of actual values you are wanting, a ratio you can use to find
@@ -474,17 +516,20 @@ def _interp(arr, row_idx, col_idx, msk, interp_factor):
 
     Parameters
     ----------
-    arr: numpy nDarray, 2d array that you are wanting an interpolated vector from
-    row_idx: numpy array, 1d array of index values for 1st dimension
-    col_idx: numpy array, 1d array of index values for 2nd dimension
-    msk: numpy array, 1d array of index values that mark when you want to interp using the value before the nearest
-         value instead of ahead
-    interp_factor: numpy ndarray, 1d array of values that are the interp ratio to apply to achieve linear
-                   interpolation between the start/end values
+    arr
+        numpy ndarray, 2d array that you are wanting an interpolated vector from
+    row_idx
+        numpy array, 1d array of index values for 1st dimension
+    col_idx
+        numpy array, 1d array of index values for 2nd dimension
+    msk
+        numpy array, 1d array of index values that mark when you want to interp using the value before the nearest value instead of ahead
+    interp_factor
+        numpy ndarray, 1d array of values that are the interp ratio to apply to achieve linear interpolation between the start/end values
 
     Returns
     -------
-    interp_vals: numpy ndarray,
+    np.ndarray
 
     """
     # use the mask and interpolation factor generated above to build across/alongtrack offsets
@@ -495,7 +540,8 @@ def _interp(arr, row_idx, col_idx, msk, interp_factor):
     return interp_vals
 
 
-def _construct_across_down_vals(nearest_raytimes, nearest_across, nearest_down, one_way_travel_time):
+def _construct_across_down_vals(nearest_raytimes: np.ndarray, nearest_across: np.ndarray, nearest_down: np.ndarray,
+                                one_way_travel_time: np.array):
     """
     Using SoundSpeedProfile as a lookup table, find the nearest raytime to the given one_way_travel_time, determine
     the proportional difference, and apply that same factor to across track/depth to get the interpolated xy at
@@ -503,17 +549,23 @@ def _construct_across_down_vals(nearest_raytimes, nearest_across, nearest_down, 
 
     Parameters
     ----------
-    nearest_raytimes: numpy array, first dim is beams, second is cumulative ray time for water column
-    nearest_across: numpy array, first dim is beams, second is cumulative across track distance for water column
-    nearest_down: numpy array, first dim is beams, second is cumulative depth for water column
-    one_way_travel_time: numpy array, one dimensional array of the one way travel time for each beam
+    nearest_raytimes
+        first dim is beams, second is cumulative ray time for water column
+    nearest_across
+        first dim is beams, second is cumulative across track distance for water column
+    nearest_down
+        first dim is beams, second is cumulative depth for water column
+    one_way_travel_time
+        one dimensional array of the one way travel time for each beam
 
     Returns
     -------
-    interp_acrossvals: numpy array, one dimensional array of across track distance for each beam
-    interp_downvals: numpy array, one dimensional array of depth for each beam
-
+    np.array
+        one dimensional array of across track distance for each beam
+    np.array
+        one dimensional array of depth for each beam
     """
+
     # get the index of the closest onewaytraveltime from nearest raytimes
     # self.dim_raytime will have nan for part of profile where beams reflect, angle>90, use nanargmin
     srch_vals = np.nanargmin(np.abs(nearest_raytimes - np.expand_dims(one_way_travel_time, axis=1)), axis=1)
@@ -533,10 +585,30 @@ def _construct_across_down_vals(nearest_raytimes, nearest_across, nearest_down, 
     return interp_acrossvals, interp_downvals
 
 
-def return_interp_beam_xy(dim_angle, dim_raytime, lkup_across_dist, lkup_down_dist, corr_profile_lkup,
-                          beam_azimuth, beam_angle, two_way_travel_time, subset=None, offsets=None):
+def run_ray_trace(dim_angle: np.array, dim_raytime: np.ndarray, lkup_across_dist: np.ndarray,
+                  lkup_down_dist: np.ndarray, corr_profile_lkup: np.ndarray,
+                  beam_azimuth: xr.DataArray, beam_angle: xr.DataArray, two_way_travel_time: xr.DataArray,
+                  subset: np.array = None, offsets: list = None):
     """
-    To better understand inputs, see fqpr_generation.FQPR.build_beam_pointing_vector
+    Convenience function for running svcorrect on provided data.
+
+    | Sources:
+    |    Ray Trace Modeling of Underwater Sound Propagation - Jens M. Hovern
+    |    medwin/clay, fundamentals of acoustical oceanography, ch3
+    |    Underwater Ray Tracing Tutorial in 2D Axisymmetric Geometry - COMSOL
+    |    Barry Gallagher, NOAA hydrographic wizard extraordinaire
+
+    Ray Theory approach - assumes sound propagates along rays normal to wave fronts, refracts when sound speed changes
+    in the water.  Layers of differing sound speed are obtained through sound speed profiler.  Here we make linear
+    approximation, where we assume sound speed changes linearly between layers.
+
+    When searching by half two-way-travel-time, unlikely to find exact time in table.  Find nearest previous time,
+    get the difference in time and multiply by the layer speed to get distance.
+
+    This function supports distributed svcorrect, which must be run without the use of the main SoundSpeedProfile
+    class due to limitations with serializing classes and dask.distributed.  Users should either
+
+    To better understand inputs, see fqpr_generation.Fqpr.get_beam_pointing_vectors
 
     Use the generated lookup table to return across track / along track offsets from given beam angles and travel
     times.  We interpolate the table to get the values at the actual given travel time.  For beam angle, we simply
@@ -547,27 +619,37 @@ def return_interp_beam_xy(dim_angle, dim_raytime, lkup_across_dist, lkup_down_di
 
     Parameters
     ----------
-    dim_angle: numpy 1d array of angles in radians from zero to max swath angle
-    dim_raytime:  numpy 3d array of travel times for each layer in cast (num_unique_ssv, num_angles, num_layers)
-    beam_angle: Xarray DataArray,  2 dimension array of time/beam angle.  Assumes the second dim contains the
-                actual angles, ex: (time, angle)
-    two_way_travel_time: Xarray DataArray, 2 dimension array of time/two_way_travel_time.  Assumes the second dim
-                contains the actual traveltime, ex: (time, twtt)
-    beam_azimuth: Xarray DataArray, 2 dimension array of time/beam azimuth.  Assumes the second dim contains the
-                 actual beam azimuth data, ex: (time, azimuth)
-    lkup_across_dist: numpy 3d array, lookup table for across distance value (num_unique_ssv, num_angles, num_layers)
-    lkup_down_dist: numpy 2d array, lookup table for down distance value (num_unique_ssv, num_layers)
-    corr_profile_lkup: numpy 1d array, we have a number of lookup tables equal to the unique ssv values found in the
-                data set.  This lookup tells you which ssv table applies to which time.
-    subset: numpy array, if provided subsets the corrected profile lookup
+    dim_angle
+        numpy 1d array of angles in radians from zero to max swath angle
+    dim_raytime
+        numpy 3d array of travel times for each layer in cast (num_unique_ssv, num_angles, num_layers)
+    lkup_across_dist
+        numpy 3d array, lookup table for across distance value (num_unique_ssv, num_angles, num_layers)
+    lkup_down_dist
+        numpy 2d array, lookup table for down distance value (num_unique_ssv, num_layers)
+    corr_profile_lkup
+        numpy 1d array, we have a number of lookup tables equal to the unique ssv values found in the data set.  This lookup tells you which ssv table applies to which time.
+    beam_angle
+        2 dimension array of time/beam angle.  Assumes the second dim contains the actual angles, ex: (time, angle)
+    two_way_travel_time
+        2 dimension array of time/two_way_travel_time.  Assumes the second dim contains the actual traveltime, ex: (time, twtt)
+    beam_azimuth
+        2 dimension array of time/beam azimuth.  Assumes the second dim contains the actual beam azimuth data, ex: (time, azimuth)
+    subset
+        numpy array, if provided subsets the corrected profile lookup
+    offsets
+        list of float offsets to be added, [alongtrack offset, acrosstrack offset, depth offset]
 
     Returns
     -------
-    reformed_alongvals: xarray DataArray, (time, along track offset in meters)
-    reformed_acrossvals: xarray DataArray, (time, across track offset in meters)
-    reformed_downvals: xarray DataArray, (time, down distance in meters)
-
+    xr.DataArray
+        xarray DataArray (time, along track offset in meters)
+    xr.DataArray
+        xarray DataArray (time, across track offset in meters)
+    xr.DataArray
+        xarray DataArray (time, down distance in meters)
     """
+
     if lkup_across_dist is None:
         raise ValueError('Generate lookup table first')
     if subset is not None:
@@ -647,71 +729,27 @@ def return_interp_beam_xy(dim_angle, dim_raytime, lkup_across_dist, lkup_down_di
     return np.round(reformed_along, 3), np.round(reformed_across, 3), np.round(reformed_downvals, 3)
 
 
-def run_ray_trace(dim_angle, dim_raytime, lkup_across_dist, lkup_down_dist, corr_profile_lkup, beam_azimuth,
-                  beam_angle, two_way_travel_time, orig_idx, addtl_offsets):
-    """
-    Convenience function for running svcorrect on provided data.
-
-    Sources:
-       *Ray Trace Modeling of Underwater Sound Propagation - Jens M. Hovern
-       medwin/clay, fundamentals of acoustical oceanography, ch3
-       Underwater Ray Tracing Tutorial in 2D Axisymmetric Geometry - COMSOL
-       Barry Gallagher, hydrographic wizard extraordinaire
-
-    Ray Theory approach - assumes sound propagates along rays normal to wave fronts, refracts when sound speed changes
-    in the water.  Layers of differing sound speed are obtained through sound speed profiler.  Here we make linear
-    approximation, where we assume sound speed changes linearly between layers.
-
-    When searching by half two-way-travel-time, unlikely to find exact time in table.  Find nearest previous time,
-    get the difference in time and multiply by the layer speed to get distance.
-
-    Parameters
-    ----------
-    dim_angle: numpy 1d array of angles in radians from zero to max swath angle
-    dim_raytime:  numpy 3d array of travel times for each layer in cast (num_unique_ssv, num_angles, num_layers)
-    beam_angle: Xarray DataArray,  2 dimension array of time/beam angle.  Assumes the second dim contains the
-                actual angles, ex: (time, angle)
-    two_way_travel_time: Xarray DataArray, 2 dimension array of time/two_way_travel_time.  Assumes the second dim
-                contains the actual traveltime, ex: (time, twtt)
-    beam_azimuth: Xarray DataArray, 2 dimension array of time/beam azimuth.  Assumes the second dim contains the
-                 actual beam azimuth data, ex: (time, azimuth)
-    lkup_across_dist: numpy 3d array, lookup table for across distance value (num_unique_ssv, num_angles, num_layers)
-    lkup_down_dist: numpy 2d array, lookup table for down distance value (num_unique_ssv, num_layers)
-    corr_profile_lkup: numpy 1d array, we have a number of lookup tables equal to the unique ssv values found in the
-                data set.  This lookup tells you which ssv table applies to which time.
-    orig_idx: numpy array, if provided subsets the corrected profile lookup
-    addtl_offsets: list, if provided adds to the along/across/down in that order
-
-    Returns
-    -------
-    x: xarray DataArray, (time, along track offset in meters)
-    y: xarray DataArray, (time, across track offset in meters)
-    z: xarray DataArray, (time, down distance in meters)
-
-    """
-    x, y, z = return_interp_beam_xy(dim_angle, dim_raytime, lkup_across_dist, lkup_down_dist, corr_profile_lkup,
-                                    beam_azimuth, beam_angle, two_way_travel_time, subset=orig_idx, offsets=addtl_offsets)
-    return x, y, z
-
-
-def distributed_run_sv_correct(worker_dat):
+def distributed_run_sv_correct(worker_dat: list):
     """
     Convenience function for mapping run_ray_trace across cluster.  Assumes that you are mapping this function with a
     list of data.
 
     Parameters
     ----------
-    worker_dat: list, [[dim_angle, dim_raytime, lkup_across_dist, lkup_down_dist, corr_profile_lkup],
-                       [beam_azimuth, beam_angle], two_way_travel_time, orig_idx, additional_offsets]
+    worker_dat
+        [[dim_angle, dim_raytime, lkup_across_dist, lkup_down_dist, corr_profile_lkup], [beam_azimuth, beam_angle], two_way_travel_time, orig_idx, additional_offsets]
 
     Returns
     -------
-    x: xarray DataArray, (time, along track offset in meters)
-    y: xarray DataArray, (time, across track offset in meters)
-    z: xarray DataArray, (time, down distance in meters)
-
+    xr.DataArray
+        (time, along track offset in meters)
+    xr.DataArray
+        (time, across track offset in meters)
+    xr.DataArray
+        (time, down distance in meters)
     """
+
     x, y, z = run_ray_trace(worker_dat[0][1], worker_dat[0][2], worker_dat[0][3], worker_dat[0][4],
-                            worker_dat[0][5], worker_dat[1][0], worker_dat[1][1], worker_dat[2], worker_dat[3],
-                            worker_dat[4])
+                            worker_dat[0][5], worker_dat[1][0], worker_dat[1][1], worker_dat[2],
+                            subset=worker_dat[3], offsets=worker_dat[4])
     return x, y, z

@@ -3,8 +3,9 @@ import numpy as np
 import json
 import xarray as xr
 import zarr
-from dask.distributed import wait
+from dask.distributed import wait, Client
 from xarray.core.combine import _infer_concat_order_from_positions, _nested_combine
+from typing import Union
 
 from HSTB.kluster.dask_helpers import DaskProcessSynchronizer
 
@@ -15,27 +16,35 @@ class ZarrWrite:
     that they could not handle changes in size/distributed writes very well, so I came up with my own.  This class
     currently supports:
 
-      1. writing to zarr from dask map function, see distrib_zarr_write
-      2. writing data with a larger expand dimension than currently exists in zarr (think new data has more beams)
-      3. writing new variable to existing zarr data store (must match existing data dimensions)
-      4. appending to existing zarr by filling in the last zarr chunk with data and then writing new chunks (only last
+    |  1. writing to zarr from dask map function, see distrib_zarr_write
+    |  2. writing data with a larger expand dimension than currently exists in zarr (think new data has more beams)
+    |  3. writing new variable to existing zarr data store (must match existing data dimensions)
+    |  4. appending to existing zarr by filling in the last zarr chunk with data and then writing new chunks (only last
                 chunk of zarr array is allowed to not be of length equal to zarr chunk size)
     """
-    def __init__(self, zarr_path, desired_chunk_shape, append_dim='time', expand_dim='beam', float_no_data_value=np.nan,
-                 int_no_data_value=999, sync=None):
+    def __init__(self, zarr_path: str, desired_chunk_shape: dict, append_dim: str = 'time', expand_dim: str = 'beam',
+                 float_no_data_value: float = np.nan, int_no_data_value: int = 999, sync: DaskProcessSynchronizer = None):
         """
         Initialize zarr write class
 
         Parameters
         ----------
-        zarr_path: str, full file path to where you want the zarr data store to be written to
-        desired_chunk_shape: dict, keys are dimension names, vals are the chunk size for that dimension
-        append_dim: str, dimension name that you are appending to (generally time)
-        expand_dim: str, dimension name that you need to expand if necessary (generally beam)
-        float_no_data_value: float, no data value for variables that are dtype float
-        int_no_data_value: int, no data value for variables that are dtype int
-
+        zarr_path
+            str, full file path to where you want the zarr data store to be written to
+        desired_chunk_shape
+            dict, keys are dimension names, vals are the chunk size for that dimension
+        append_dim
+            str, dimension name that you are appending to (generally time)
+        expand_dim
+            str, dimension name that you need to expand if necessary (generally beam)
+        float_no_data_value
+            float, no data value for variables that are dtype float
+        int_no_data_value
+            int, no data value for variables that are dtype int
+        sync
+            optional synchronizer object
         """
+
         self.zarr_path = zarr_path
         self.desired_chunk_shape = desired_chunk_shape
         self.append_dim = append_dim
@@ -55,6 +64,7 @@ class ZarrWrite:
         """
         Open the zarr data store, will create a new one if it does not exist.  Get all the existing array names.
         """
+
         self.rootgroup = zarr.open(self.zarr_path, mode='a', synchronizer=self.sync)
         self.get_array_names()
 
@@ -62,21 +72,24 @@ class ZarrWrite:
         """
         Get all the existing array names as a list of strings and set self.zarr_array_names with that list
         """
+
         self.zarr_array_names = [t for t in self.rootgroup.array_keys()]
 
-    def _attributes_only_unique_profile(self, attrs):
+    def _attributes_only_unique_profile(self, attrs: dict):
         """
         Given attribute dict from dataset (attrs) retain only unique sound velocity profiles
 
         Parameters
         ----------
-        attrs: dict, input attribution from converted dataset
+        attrs
+            input attribution from converted dataset
 
         Returns
         -------
-        attrs: dict, attrs with only unique sv profiles
-
+        dict
+            attrs with only unique sv profiles
         """
+
         try:
             new_profs = [x for x in attrs.keys() if x[0:7] == 'profile']
             curr_profs = [x for x in self.rootgroup.attrs.keys() if x[0:7] == 'profile']
@@ -89,19 +102,21 @@ class ZarrWrite:
             pass
         return attrs
 
-    def _attributes_only_unique_settings(self, attrs):
+    def _attributes_only_unique_settings(self, attrs: dict):
         """
         Given attribute dict from dataset (attrs) retain only unique settings dicts
 
         Parameters
         ----------
-        attrs: dict, input attribution from converted dataset
+        attrs
+            input attribution from converted dataset
 
         Returns
         -------
-        attrs: dict, attrs with only unique settings dicts
-
+        dict
+            attrs with only unique settings dicts
         """
+
         try:
             new_settings = [x for x in attrs.keys() if x[0:8] == 'settings']
             curr_settings = [x for x in self.rootgroup.attrs.keys() if x[0:8] == 'settings']
@@ -114,7 +129,7 @@ class ZarrWrite:
             pass
         return attrs
 
-    def _attributes_only_unique_xyzrph(self, attrs):
+    def _attributes_only_unique_xyzrph(self, attrs: dict):
         """
         Given attribute dict from dataset (attrs) retain only unique xyzrph constructs
 
@@ -122,13 +137,15 @@ class ZarrWrite:
 
         Parameters
         ----------
-        attrs: dict, input attribution from converted dataset
+        attrs
+            input attribution from converted dataset
 
         Returns
         -------
-        attrs: dict, attrs with only unique xyzrph timestamped records
-
+        dict
+            attrs with only unique xyzrph timestamped records
         """
+
         try:
             new_xyz = attrs['xyzrph']
             new_tstmps = list(new_xyz[list(new_xyz.keys())[0]].keys())
@@ -149,22 +166,23 @@ class ZarrWrite:
             pass
         return attrs
 
-    def write_attributes(self, attrs):
+    def write_attributes(self, attrs: dict):
         """
         Write out attributes to the zarr data store
 
         Parameters
         ----------
-        attrs: dict, attributes associated with this zarr rootgroup
-
+        attrs
+            attributes associated with this zarr rootgroup
         """
+
         if attrs is not None:
             attrs = self._attributes_only_unique_profile(attrs)
             attrs = self._attributes_only_unique_settings(attrs)
             attrs = self._attributes_only_unique_xyzrph(attrs)
             _my_xarr_to_zarr_writeattributes(self.rootgroup, attrs)
 
-    def _check_merge(self, input_xarr):
+    def _check_merge(self, input_xarr: Union[xr.Dataset, xr.DataArray]):
         """
         A merge is when you have an existing zarr datastore and you want to write a new variable (think array) to it
         that does not currently exist in the datastore.  You need to ensure that the existing dimensions match this
@@ -172,9 +190,10 @@ class ZarrWrite:
 
         Parameters
         ----------
-        input_xarr: xarray Dataset/DataArray, xarray object that we want to write to the zarr data store
-
+        input_xarr
+            xarray object that we want to write to the zarr data store
         """
+
         if self.append_dim in self.rootgroup:
             if (input_xarr[self.append_dim][0] >= np.min(self.rootgroup[self.append_dim])) and (
                     input_xarr[self.append_dim][-1] <= np.max(self.rootgroup[self.append_dim])):
@@ -184,20 +203,22 @@ class ZarrWrite:
         else:
             return False  # zarr didn't have the append dimension, must not be a merge
 
-    def _check_fix_rootgroup_expand_dim(self, xarr):
+    def _check_fix_rootgroup_expand_dim(self, xarr: xr.Dataset):
         """
         Check if this xarr is greater in the exand dimension (probably beam) than the existing rootgroup beam array.  If it is,
         we'll need to expand the rootgroup to cover the max beams of the xarr.
 
         Parameters
         ----------
-        xarr: xarray Dataset, data that we are trying to write to rootgroup
+        xarr
+            data that we are trying to write to rootgroup
 
         Returns
         -------
-        bool, if True expand the rootgroup expand dimension
-
+        bool
+            if True expand the rootgroup expand dimension
         """
+
         if (self.expand_dim in self.rootgroup) and (self.expand_dim in xarr):
             last_expand = self.rootgroup[self.expand_dim].size
             if last_expand < xarr[self.expand_dim].shape[0]:
@@ -207,20 +228,22 @@ class ZarrWrite:
         else:
             return False  # first write
 
-    def _get_arr_nodatavalue(self, arr_dtype):
+    def _get_arr_nodatavalue(self, arr_dtype: np.dtype):
         """
         Given the dtype of the array, determine the appropriate no data value.  Fall back on empty string if not int or
         float.
 
         Parameters
         ----------
-        arr_dtype: numpy dtype, dtype of input array
+        arr_dtype
+            numpy dtype, dtype of input array
 
         Returns
         -------
-        no data value, one of [self.float_no_data_value, self.int_no_data_value, '']
-
+        Union[str, int, float]
+            no data value, one of [self.float_no_data_value, self.int_no_data_value, '']
         """
+
         isfloat = np.issubdtype(arr_dtype, np.floating)
         if isfloat:
             nodata = self.float_no_data_value
@@ -232,16 +255,17 @@ class ZarrWrite:
                 nodata = ''
         return nodata
 
-    def fix_rootgroup_expand_dim(self, xarr):
+    def fix_rootgroup_expand_dim(self, xarr: xr.Dataset):
         """
         Once we've determined that the xarr Dataset expand_dim is greater than the rootgroup expand_dim, expand the
         rootgroup expand_dim to match the xarr.  Fill the empty space with the appropriate no data value.
 
         Parameters
         ----------
-        xarr: xarray Dataset, data that we are trying to write to rootgroup
-
+        xarr
+            data that we are trying to write to rootgroup
         """
+
         curr_expand_dim_size = self.rootgroup[self.expand_dim].size
         for var in self.zarr_array_names:
             newdat = None
@@ -260,23 +284,27 @@ class ZarrWrite:
                 self.rootgroup[var].resize(newshp)
                 self.rootgroup[var][:] = newdat
 
-    def _inflate_expand_dim(self, input_arr, expand_dim_size, nodata):
+    def _inflate_expand_dim(self, input_arr: Union[np.array, zarr.Array, xr.DataArray],
+                            expand_dim_size: int, nodata: Union[int, float, str]):
         """
         Take in the rootgroup and expand the beam dimension to the expand_dim_size, filling the empty space with the
         nodata value.
 
         Parameters
         ----------
-        input_arr: numpy like object, includes zarr.core.Array and xarray.core.dataarray.DataArray, data that we want
-                   to expand to match the expand dim size
-        expand_dim_size: int, size of the expand_dim (probably beam) that we need
-        nodata: one of [self.float_no_data_value, self.int_no_data_value, '']
+        input_arr
+            numpy like object, includes zarr.core.Array and xarray.core.dataarray.DataArray, data that we want to expand to match the expand dim size
+        expand_dim_size
+            size of the expand_dim (probably beam) that we need
+        nodata
+            one of [self.float_no_data_value, self.int_no_data_value, '']
 
         Returns
         -------
-        new_arr, input_arr with expanded beam dimension
-
+        Union[np.array, zarr.Array, xr.DataArray]
+            input_arr with expanded beam dimension
         """
+
         if input_arr.ndim == 3:
             appended_data = np.full((input_arr.shape[0], expand_dim_size - input_arr.shape[1], input_arr.shape[2]), nodata)
         else:
@@ -284,20 +312,21 @@ class ZarrWrite:
         new_arr = np.concatenate((input_arr, appended_data), axis=1)
         return new_arr
 
-    def correct_rootgroup_dims(self, xarr):
+    def correct_rootgroup_dims(self, xarr: xr.Dataset):
         """
         Correct for when the input xarray Dataset shape is greater than the rootgroup shape.  Most likely this is when
         the input xarray Dataset is larger in the beam dimension than the existing rootgroup arrays.
 
         Parameters
         ----------
-        xarr: xarray Dataset, data that we are trying to write to rootgroup
-
+        xarr
+            xarray Dataset, data that we are trying to write to rootgroup
         """
+
         if self._check_fix_rootgroup_expand_dim(xarr):
             self.fix_rootgroup_expand_dim(xarr)
 
-    def _write_adjust_max_beams(self, startingshp):
+    def _write_adjust_max_beams(self, startingshp: tuple):
         """
         The first write in appending to an existing zarr data store will resize that zarr array to the expected size
         of the new data + old data.  We provide the expected shape when we write, but that shape is naive to the
@@ -305,13 +334,15 @@ class ZarrWrite:
 
         Parameters
         ----------
-        startingshp: tuple, expected shape of the appended data + existing data
+        startingshp
+            tuple, expected shape of the appended data + existing data
 
         Returns
         -------
-        startingshp: tuple, same shape, but with beam dimension corrected for the existing data
-
+        tuple
+            same shape, but with beam dimension corrected for the existing data
         """
+
         if len(startingshp) >= 2:
             current_max_beams = self.rootgroup['beam'].shape[0]
             startingshp = list(startingshp)
@@ -319,28 +350,32 @@ class ZarrWrite:
             startingshp = tuple(startingshp)
         return startingshp
 
-    def _write_determine_shape(self, var, dims_of_arrays, finalsize):
+    def _write_determine_shape(self, var: str, dims_of_arrays: dict, finalsize: int = None):
         """
         Given the size information and dimension names for the given variable, determine the axis to append to and the
         expected shape for the rootgroup array.
 
         Parameters
         ----------
-        var: str, name of the array, ex: 'beampointingangle'
-        dims_of_arrays: dict, where keys are array names and values list of dims/shape.  Example:
-                              'beampointingangle': [['time', 'sector', 'beam'], (5000, 3, 400)]
-        finalsize: optional, int, if provided will resize zarr to the expected final size after all writes have been
-                   performed.
+        var
+            name of the array, ex: 'beampointingangle'
+        dims_of_arrays
+            where keys are array names and values list of dims/shape.  Example: 'beampointingangle': [['time', 'sector', 'beam'], (5000, 3, 400)]
+        finalsize
+            will resize zarr to the expected final size after all writes have been performed. If None, will generate
+            desired shape but not be used
 
         Returns
         -------
-        timaxis: int, index of the time dimension
-        timlength: int, length of the time dimension for the input xarray Dataset
-        startingshp: tuple, desired shape for the rootgroup array, might be modified later for total beams if necessary.
-                     if finalsize is None (the case when this is not the first write in a set of distributed writes)
-                     this is still returned but not used.
-
+        int
+            index of the time dimension
+        int
+            length of the time dimension for the input xarray Dataset
+        tuple
+            desired shape for the rootgroup array, might be modified later for total beams if necessary. if finalsize
+            is None (the case when this is not the first write in a set of distributed writes) this is still returned but not used.
         """
+
         if var in ['beam', 'xyz']:
             # only need time dim info for time dependent variables
             timaxis = None
@@ -354,8 +389,8 @@ class ZarrWrite:
                 finalsize if dims_of_arrays[var][1].index(x) == timaxis else x for x in dims_of_arrays[var][1])
         return timaxis, timlength, startingshp
 
-    def _write_existing_rootgroup(self, xarr, data_loc_copy, var, dims_of_arrays, chunksize, timlength, timaxis,
-                                  startingshp):
+    def _write_existing_rootgroup(self, xarr: xr.Dataset, data_loc_copy: list, var_name: str, dims_of_arrays: dict,
+                                  chunksize: tuple, timlength: int, timaxis: int, startingshp: tuple):
         """
         A slightly different operation than _write_new_dataset_rootgroup.  To write to an existing rootgroup array,
         we use the data_loc as an index and create a new zarr array from the xarray Dataarray.  The data_loc is only
@@ -363,22 +398,27 @@ class ZarrWrite:
 
         Parameters
         ----------
-        xarr: xarray Dataset, data to write to zarr
-        data_loc_copy: list, [start time index, end time index] for xarr, ex: [0,1000] if xarr time dimension is
-                       1000 long.
-        var: str, variable name
-        dims_of_arrays: dict, where keys are array names and values list of dims/shape.  Example:
-                        'beampointingangle': [['time', 'sector', 'beam'], (5000, 3, 400)]
-        chunksize: tuple, chunk shape used to create the zarr array
-        timlength: int, length of the time dimension for the input xarray Dataset
-        timaxis: int, index of the time dimension
-        startingshp: tuple, desired shape for the rootgroup array, might be modified later for total beams if necessary.
-                     if finalsize is None (the case when this is not the first write in a set of distributed writes)
-                     this is still returned but not used.
-
+        xarr
+            data to write to zarr
+        data_loc_copy
+            [start time index, end time index] for xarr, ex: [0,1000] if xarr time dimension is 1000 long.
+        var_name
+            variable name
+        dims_of_arrays
+            where keys are array names and values list of dims/shape.  Example: 'beampointingangle': [['time', 'sector', 'beam'], (5000, 3, 400)]
+        chunksize
+            chunk shape used to create the zarr array
+        timlength
+            Length of the time dimension for the input xarray Dataset
+        timaxis
+            index of the time dimension
+        startingshp
+            desired shape for the rootgroup array, might be modified later for total beams if necessary.  if finalsize
+            is None (the case when this is not the first write in a set of distributed writes) this is still returned but not used.
         """
+
         # array to be written
-        newarr = zarr.array(xarr[var].values, shape=dims_of_arrays[var][1], chunks=chunksize)
+        newarr = zarr.array(xarr[var_name].values, shape=dims_of_arrays[var_name][1], chunks=chunksize)
 
         # the last write will often be less than the block size.  This is allowed in the zarr store, but we
         #    need to correct the index for it.
@@ -389,15 +429,16 @@ class ZarrWrite:
         chunk_time_range = slice(data_loc_copy[0], data_loc_copy[1])
         # use the chunk_time_range for writes unless this variable is a non-time dim array (beam for example)
         chunk_idx = tuple(
-            chunk_time_range if dims_of_arrays[var][1].index(i) == timaxis else slice(0, i) for i in
-            dims_of_arrays[var][1])
-        if startingshp is not None and var != 'tx':
+            chunk_time_range if dims_of_arrays[var_name][1].index(i) == timaxis else slice(0, i) for i in
+            dims_of_arrays[var_name][1])
+        if startingshp is not None and var_name != 'tx':
             startingshp = self._write_adjust_max_beams(startingshp)
-            self.rootgroup[var].resize(startingshp)
+            self.rootgroup[var_name].resize(startingshp)
 
-        self.rootgroup[var][chunk_idx] = newarr
+        self.rootgroup[var_name][chunk_idx] = newarr
 
-    def _write_new_dataset_rootgroup(self, xarr, var, dims_of_arrays, chunksize, startingshp):
+    def _write_new_dataset_rootgroup(self, xarr: xr.Dataset, var_name: str, dims_of_arrays: dict, chunksize: tuple,
+                                     startingshp: tuple):
         """
         Create a new rootgroup array from the input xarray Dataarray.  Use startingshp to resize the array to the
         expected shape of the array after ALL writes.  This must be the first write if there are multiple distributed
@@ -405,23 +446,26 @@ class ZarrWrite:
 
         Parameters
         ----------
-        xarr: xarray Dataset, data to write to zarr
-        var: str, variable name
-        dims_of_arrays: dict, where keys are array names and values list of dims/shape.  Example:
-                        'beampointingangle': [['time', 'sector', 'beam'], (5000, 3, 400)]
-        chunksize: tuple, chunk shape used to create the zarr array
-        startingshp: tuple, desired shape for the rootgroup array, might be modified later for total beams if necessary.
-                     if finalsize is None (the case when this is not the first write in a set of distributed writes)
-                     this is still returned but not used.
-
+        xarr
+            data to write to zarr
+        var_name
+            variable name
+        dims_of_arrays
+            where keys are array names and values list of dims/shape.  Example: 'beampointingangle': [['time', 'sector', 'beam'], (5000, 3, 400)]
+        chunksize
+            chunk shape used to create the zarr array
+        startingshp
+            desired shape for the rootgroup array, might be modified later for total beams if necessary. if finalsize
+            is None (the case when this is not the first write in a set of distributed writes) this is still returned but not used.
         """
-        newarr = self.rootgroup.create_dataset(var, shape=dims_of_arrays[var][1], chunks=chunksize,
-                                               dtype=xarr[var].dtype, synchronizer=self.sync,
-                                               fill_value=self._get_arr_nodatavalue(xarr[var].dtype))
-        newarr[:] = xarr[var].values
+
+        newarr = self.rootgroup.create_dataset(var_name, shape=dims_of_arrays[var_name][1], chunks=chunksize,
+                                               dtype=xarr[var_name].dtype, synchronizer=self.sync,
+                                               fill_value=self._get_arr_nodatavalue(xarr[var_name].dtype))
+        newarr[:] = xarr[var_name].values
         newarr.resize(startingshp)
 
-    def write_to_zarr(self, xarr, attrs, dataloc, finalsize=None, merge=False):
+    def write_to_zarr(self, xarr: xr.Dataset, attrs: dict, dataloc: list, finalsize: int = None, merge: bool = False):
         """
         Take the input xarray Dataset and write each variable as arrays in a zarr rootgroup.  Write the attributes out
         to the rootgroup as well.  Dataloc determines the index the incoming data is written to.  A new write might
@@ -430,19 +474,25 @@ class ZarrWrite:
 
         Parameters
         ----------
-        xarr: xarray Dataset, data to write to zarr
-        attrs: dict, attributes we want written to zarr rootgroup
-        dataloc: list, [start time index, end time index] for xarr, ex: [0,1000] if xarr time dimension is 1000 long.
-        finalsize: optional, int, if provided will resize zarr to the expected final size after all writes have been
-                   performed.  (We need to resize the zarr for that expected size before writing)
-        merge: bool, if True, you are passing a Dataset containing a new variable that is not in an existing dataset.
-               Ex: xarr contains variable 'corr_pointing_angle' and that variable is not in the rootgroup
+        xarr
+            xarray Dataset, data to write to zarr
+        attrs
+            attributes we want written to zarr rootgroup
+        dataloc
+            [start time index, end time index] for xarr, ex: [0,1000] if xarr time dimension is 1000 long.
+        finalsize
+            optional, int, if provided will resize zarr to the expected final size after all writes have been
+            performed.  (We need to resize the zarr for that expected size before writing)
+        merge
+            if True, you are passing a Dataset containing a new variable that is not in an existing dataset. Ex: xarr
+            contains variable 'corr_pointing_angle' and that variable is not in the rootgroup
 
         Returns
         -------
-        zarr_path: str, path to zarr data store
-
+        str
+            path to zarr data store
         """
+
         if merge and not self._check_merge(xarr):
             raise ValueError('write_to_zarr: Unable to merge, time not found in existing data store.')
         if finalsize is not None:
@@ -481,36 +531,47 @@ class ZarrWrite:
         return self.zarr_path
 
 
-def _distrib_zarr_write_convenience(zarr_path, xarr, attrs, desired_chunk_shape, dataloc, append_dim='time',
-                                    finalsize=None, merge=False, sync=None):
+def _distrib_zarr_write_convenience(zarr_path: str, xarr: xr.Dataset, attrs: dict, desired_chunk_shape: dict,
+                                    dataloc: list, append_dim: str = 'time', finalsize: int = None, merge: bool = False,
+                                    sync: DaskProcessSynchronizer = None):
     """
     Convenience function for writing with ZarrWrite
 
     Parameters
     ----------
-    zarr_path: str, path to zarr data store
-    xarr: xarray Dataset, data to write to zarr
-    attrs: dict, attributes we want written to zarr rootgroup
-    desired_chunk_shape: dict, variable name: chunk size as tuple, for each variable in the input xarr
-    dataloc: list, [start time index, end time index] for xarr, ex: [0,1000] if xarr time dimension is 1000 long.
-    finalsize: optional, int, if provided will resize zarr to the expected final size after all writes have been
-               performed.  (We need to resize the zarr for that expected size before writing)
-    merge: bool, if True, you are passing a Dataset containing a new variable that is not in an existing dataset.  Ex:
-           xarr contains variable 'corr_pointing_angle' and that variable is not in the rootgroup
-    sync: synchronizer for write, generally a dask.distributed.Lock based sync
+    zarr_path
+        path to zarr data store
+    xarr
+        xarray Dataset, data to write to zarr
+    attrs
+        attributes we want written to zarr rootgroup
+    desired_chunk_shape
+        variable name: chunk size as tuple, for each variable in the input xarr
+    dataloc
+        [start time index, end time index] for xarr, ex: [0,1000] if xarr time dimension is 1000 long.
+    finalsize
+        optional, if provided will resize zarr to the expected final size after all writes have been performed.  (We
+        need to resize the zarr for that expected size before writing)
+    merge
+        if True, you are passing a Dataset containing a new variable that is not in an existing dataset.  Ex: xarr
+         contains variable 'corr_pointing_angle' and that variable is not in the rootgroup
+    sync
+        optional, synchronizer for write, generally a dask.distributed.Lock based sync
 
     Returns
     -------
-    zarr_path: str, path to zarr data store
-
+    str
+        path to zarr data store
     """
+
     zw = ZarrWrite(zarr_path, desired_chunk_shape, append_dim=append_dim, sync=sync)
     zarr_path = zw.write_to_zarr(xarr, attrs, dataloc, finalsize=finalsize, merge=merge)
     return zarr_path
 
 
-def distrib_zarr_write(zarr_path, xarrays, attributes, chunk_sizes, data_locs, sync, client, append_dim='time',
-                       merge=False, skip_dask=False):
+def distrib_zarr_write(zarr_path: str, xarrays: list, attributes: dict, chunk_sizes: dict, data_locs: list,
+                       sync: DaskProcessSynchronizer, client: Client, append_dim: str = 'time',
+                       merge: bool = False, skip_dask: bool = False):
     """
     A function for using the ZarrWrite class to write data to disk.  xarr and attrs are written to the datastore at
     zarr_path.  We use the function (and not the class directly) in Dask when we map it across all the workers.  Dask
@@ -521,23 +582,34 @@ def distrib_zarr_write(zarr_path, xarrays, attributes, chunk_sizes, data_locs, s
 
     Parameters
     ----------
-    zarr_path: str, path to zarr data store
-    xarrays: list, xarray Datasets, data to write to zarr
-    attributes: dict, attributes we want written to zarr rootgroup
-    chunk_sizes: dict, variable name: chunk size as tuple, for each variable in the input xarr
-    data_locs: list of lists, [start time index, end time index] for xarr, ex: [0,1000] if xarr time dimension is 1000
-               long.
-    sync: synchronizer for write, generally a dask.distributed.Lock based sync
-    client: dask.distributed.Client, the client we are submitting the tasks to
-    append_dim: str, dimension name that you are appending to (generally time)
-    merge: bool, if True, you are passing a Dataset containing a new variable that is not in an existing dataset.  Ex:
-           xarr contains variable 'corr_pointing_angle' and that variable is not in the rootgroup
+    zarr_path
+        path to zarr data store
+    xarrays
+        list of xarray Datasets, data to write to zarr
+    attributes
+        attributes we want written to zarr rootgroup
+    chunk_sizes
+        variable name: chunk size as tuple, for each variable in the input xarr
+    data_locs
+        list of lists, [start time index, end time index] for xarr, ex: [0,1000] if xarr time dimension is 1000 long.
+    sync
+        synchronizer for write, generally a dask.distributed.Lock based sync
+    client
+        dask.distributed.Client, the client we are submitting the tasks to
+    append_dim
+        dimension name that you are appending to (generally time)
+    merge
+        if True, you are passing a Dataset containing a new variable that is not in an existing dataset.  Ex: xarr
+        contains variable 'corr_pointing_angle' and that variable is not in the rootgroup
+    skip_dask
+        if True, skip the dask process synchronizer as you are not running dask distributed
 
     Returns
     -------
-    list, futures objects containing the path to the zarr rootgroup.
-
+    list
+        futures objects containing the path to the zarr rootgroup.
     """
+
     if skip_dask:
         for cnt, arr in enumerate(xarrays):
             if cnt == 0:
@@ -558,28 +630,45 @@ def distrib_zarr_write(zarr_path, xarrays, attributes, chunk_sizes, data_locs, s
     return futs
 
 
-def my_open_mfdataset(paths, chnks=None, concat_dim='time', compat='no_conflicts', data_vars='all',
-                      coords='different', join='outer'):
+def my_open_mfdataset(paths: list, chnks: dict = None, concat_dim: str = 'time', compat: str = 'no_conflicts',
+                      data_vars: str = 'all', coords: str = 'different', join: str = 'outer'):
     """
     Trying to address the limitations of the existing xr.open_mfdataset function.  This is my modification using
     the existing function and tweaking to resolve the issues i've found.
 
     (see https://github.com/pydata/xarray/blob/master/xarray/backends/api.py)
 
-    Current issues with open_mfdataset (1/8/2020):
-    1. open_mfdataset only uses the attrs from the first nc file
-    2. open_mfdataset will not run with parallel=True or with the distributed.LocalCluster running
-    3. open_mfdataset infers time order from position.  (I could just sort outside of the function, but i kinda
-         like it this way anyway.  Also a re-indexing would probably resolve this.)
+    | Current issues with open_mfdataset (1/8/2020):
+    | 1. open_mfdataset only uses the attrs from the first nc file
+    | 2. open_mfdataset will not run with parallel=True or with the distributed.LocalCluster running
+    | 3. open_mfdataset infers time order from position.  (I could just sort outside of the function, but i kinda
+    | like it this way anyway.  Also a re-indexing would probably resolve this.)
 
-    Only resolved item=1 so far.  See https://github.com/pydata/xarray/issues/3684
+    Only resolved item = 1 so far.  See https://github.com/pydata/xarray/issues/3684
+
+    Parameters
+    ----------
+    paths
+        list of file paths to existing netcdf stores
+    chnks
+        if provided, used to load dataset into chunks
+    concat_dim
+        dimension to concatenate along
+    compat
+        String indicating how to compare non-concatenated variables of the same name for potential conflicts
+    data_vars
+        which variables will be concatenated
+    coords
+        which coordinate variables will be concatenated
+    join
+        String indicating how to combine differing indexes (excluding dim) in objects
 
     Returns
     -------
-    combined: Xarray Dataset - with attributes, variables, dimensions of combined netCDF files.  Returns dask
-            arrays, compute to access local numpy array.
-
+    xr.Dataset
+        attributes, variables, dimensions of combined netCDF files.  Returns dask arrays, compute to access local numpy array.
     """
+
     # ensure file paths are valid
     pth_chk = np.all([os.path.exists(x) for x in paths])
     if not pth_chk:
@@ -608,16 +697,30 @@ def my_open_mfdataset(paths, chnks=None, concat_dim='time', compat='no_conflicts
     return combined
 
 
-def xarr_to_netcdf(xarr, pth, fname, attrs, idx=None):
+def xarr_to_netcdf(xarr: xr.Dataset, pth: str, fname: str, attrs: dict = None, idx: int = None):
     """
     Takes in an xarray Dataset and pushes it to netcdf.
     For use with the output from combine_xarrs and/or _sequential_to_xarray
 
+    Parameters
+    ----------
+    xarr
+        Dataset to save
+    pth
+        Path to the folder to contain the written netcdf file
+    fname
+        base file name for the netcdf file
+    attrs
+        optional attribution to store in the netcdf store
+    idx
+        optional file name index
+
     Returns
     -------
-    finalpth: str - path to the netcdf file
-
+    str
+        path to the netcdf file
     """
+
     if idx is not None:
         finalpth = os.path.join(pth, os.path.splitext(fname)[0] + '_{}.nc'.format(idx))
     else:
@@ -630,18 +733,29 @@ def xarr_to_netcdf(xarr, pth, fname, attrs, idx=None):
     return finalpth
 
 
-def xarr_to_zarr(xarr, attrs, outputpth, sync):
+def xarr_to_zarr(xarr: xr.Dataset, outputpth: str, attrs: dict = None, sync: DaskProcessSynchronizer = None):
     """
     Takes in an xarray Dataset and pushes it to zarr store.
 
-    Must be run once to generate new store.
-    Successive runs append, see mode flag
+    Must be run once to generate new store.  Successive runs append, see mode flag
+
+    Parameters
+    ----------
+    xarr
+        xarray Dataset to write to zarr
+    outputpth
+        path to the zarr rootgroup folder to write
+    attrs
+        optional attribution to write to zarr
+    sync
+        optional synchronizer object to include
 
     Returns
     -------
-    finalpth: str - path to the zarr group
-
+    str
+        path to the zarr group
     """
+
     # grpname = str(datetime.now().strftime('%H%M%S%f'))
     if attrs is not None:
         xarr.attrs = attrs
@@ -654,20 +768,21 @@ def xarr_to_zarr(xarr, attrs, outputpth, sync):
     return outputpth
 
 
-def _my_xarr_to_zarr_build_arraydimensions(xarr):
+def _my_xarr_to_zarr_build_arraydimensions(xarr: xr.Dataset):
     """
     Build out dimensions/shape of arrays in xarray into a dict so that we can use it with the zarr writer.
 
     Parameters
     ----------
-    xarr: xarray Dataset, one chunk of the final range_angle/attitude/navigation xarray Dataset we are writing
+    xarr
+        xarray Dataset, one chunk of the final range_angle/attitude/navigation xarray Dataset we are writing
 
     Returns
     -------
-    dims_of_arrays: dict, where keys are array names and values list of dims/shape.  Example:
-                    'beampointingangle': [['time', 'sector', 'beam'], (5000, 3, 400)]
-
+    dict
+        where keys are array names and values list of dims/shape.  Example: 'beampointingangle': [['time', 'sector', 'beam'], (5000, 3, 400)]
     """
+
     dims_of_arrays = {}
     arrays_in_xarr = list(xarr.variables.keys())
     for arr in arrays_in_xarr:
@@ -676,15 +791,16 @@ def _my_xarr_to_zarr_build_arraydimensions(xarr):
     return dims_of_arrays
 
 
-def _my_xarr_to_zarr_writeattributes(rootgroup, attrs):
+def _my_xarr_to_zarr_writeattributes(rootgroup: zarr.hierarchy.Group, attrs: dict):
     """
     Take the attributes generated with combine_xr_attributes and write them to the final datastore
 
     Parameters
     ----------
-    rootgroup: zarr group, zarr datastore group for one of range_angle/attitude/navigation
-    attrs: dict, dictionary of combined attributes from xarray datasets, None if no attributes exist
-
+    rootgroup
+        zarr datastore group for one of range_angle/attitude/navigation
+    attrs
+        dictionary of combined attributes from xarray datasets, None if no attributes exist
     """
 
     if attrs is not None:
@@ -710,16 +826,18 @@ def _my_xarr_to_zarr_writeattributes(rootgroup, attrs):
                     rootgroup.attrs[att] = attrs[att]
 
 
-def resize_zarr(zarrpth, finaltimelength=None):
+def resize_zarr(zarrpth: str, finaltimelength: int = None):
     """
     Takes in the path to a zarr group and resizes the time dimension according to the provided finaltimelength
 
     Parameters
     ----------
-    zarrpth: str, path to a zarr group on the filesystem
-    finaltimelength: int, new length for the time dimension
-
+    zarrpth
+        path to a zarr group on the filesystem
+    finaltimelength
+        new length for the time dimension
     """
+
     # the last write will often be less than the block size.  This is allowed in the zarr store, but we
     #    need to correct the index for it.
     rootgroup = zarr.open(zarrpth, mode='r+')
@@ -735,7 +853,7 @@ def resize_zarr(zarrpth, finaltimelength=None):
             rootgroup[varname].resize(tuple(new_shape))
 
 
-def combine_xr_attributes(datasets):
+def combine_xr_attributes(datasets: list):
     """
     xarray open_mfdataset only retains the attributes of the first dataset.  We store profiles and installation
     parameters in datasets as they arise.  We need to combine the attributes across all datasets for our final
@@ -745,14 +863,16 @@ def combine_xr_attributes(datasets):
 
     Parameters
     ----------
-    datasets: list of xarray.Datasets representing range_angle for our workflow.  Can be any dataset object though.  We
-              are just storing attributes in the range_angle one so far.
+    datasets
+        list of xarray.Datasets representing range_angle for our workflow.  Can be any dataset object though.  We are
+        just storing attributes in the range_angle one so far.
 
     Returns
     -------
-    finaldict: dict, contains all unique attributes across all dataset, will append unique prim/secondary serial
-               numbers and ignore duplicate settings entries
+    dict
+        contains all unique attributes across all dataset, will append unique prim/secondary serial numbers and ignore duplicate settings entries
     """
+
     finaldict = {}
 
     buffered_settings = ''
@@ -878,40 +998,46 @@ def combine_xr_attributes(datasets):
     return finaldict
 
 
-def divide_arrays_by_time_index(arrs, idx):
+def divide_arrays_by_time_index(arrs: list, idx: np.array):
     """
     Simple method for indexing a list of arrays
 
     Parameters
     ----------
-    arrs: list of xarray DataArray or Dataset objects
-    idx: numpy array index
+    arrs
+        list of xarray DataArray or Dataset objects
+    idx
+        numpy array index
 
     Returns
     -------
-    list of indexed xarray DataArray or Dataset objects
-
+    list
+        list of indexed xarray DataArray or Dataset objects
     """
+
     dat = []
     for ar in arrs:
         dat.append(ar[idx])
     return dat
 
 
-def combine_arrays_to_dataset(arrs, arrnames):
+def combine_arrays_to_dataset(arrs: list, arrnames: list):
     """
     Build a dataset from a list of Xarray DataArrays, given a list of names for each array.
 
     Parameters
     ----------
-    arrs: list, xarray DataArrays you want in your xarray Dataset
-    arrnames: list, string name identifiers for each array, will be the variable name in the Dataset
+    arrs
+        xarray DataArrays you want in your xarray Dataset
+    arrnames
+        string name identifiers for each array, will be the variable name in the Dataset
 
     Returns
     -------
-    xarray Dataset with variables equal to the provided arrays
-
+    xr.Dataset
+        xarray Dataset with variables equal to the provided arrays
     """
+
     if len(arrs) != len(arrnames):
         raise ValueError('Please provide an equal number of names to dataarrays')
     dat = {a: arrs[arrnames.index(a)] for a in arrnames}
@@ -919,7 +1045,7 @@ def combine_arrays_to_dataset(arrs, arrnames):
     return dset
 
 
-def validate_merge(xarr, rootgroup):
+def _validate_merge(xarr: xr.Dataset, rootgroup: zarr.hierarchy.Group):
     """
     Merge is used when writing a new variable/array to an existing zarr datastore.  We need to ensure that the merge
     is actually going to work before we execute.  Function checks if there is an existing time index that
@@ -927,14 +1053,17 @@ def validate_merge(xarr, rootgroup):
 
     Parameters
     ----------
-    xarr: xarray Dataset object
-    rootgroup: zarr datastore
+    xarr
+        xarray Dataset object
+    rootgroup
+        zarr datastore
 
     Returns
     -------
-    bool, True if merge process is good to go
-
+    bool
+        True if merge process is good to go
     """
+
     if ('time' in xarr) and ('time' in rootgroup):
         if xarr['time'][0] in rootgroup['time']:
             pass
@@ -944,30 +1073,36 @@ def validate_merge(xarr, rootgroup):
     return True
 
 
-def my_xarr_add_attribute(attrs, outputpth, sync):
+def my_xarr_add_attribute(attrs: dict, outputpth: str, sync: DaskProcessSynchronizer = None):
     """
     Add the provided attrs dict to the existing attribution of the zarr instance at outputpth
 
     Parameters
     ----------
-    attrs: dict, dictionary of combined attributes from xarray datasets, None if no attributes exist
-    outputpth: str, path to zarr group to either be created or append to
-    sync: DaskProcessSynchronizer, dask distributed lock for parallel read/writes
+    attrs
+        dictionary of combined attributes from xarray datasets, None if no attributes exist
+    outputpth
+        path to zarr group to either be created or append to
+    sync
+        DaskProcessSynchronizer, dask distributed lock for parallel read/writes
 
     Returns
     -------
-    outputpth: pth, path to the final zarr group
-
+    str
+        path to the final zarr group
     """
+
     # mode 'a' means read/write, create if doesnt exist
     rootgroup = zarr.open(outputpth, mode='a', synchronizer=sync)
     _my_xarr_to_zarr_writeattributes(rootgroup, attrs)
     return outputpth
 
 
-def my_xarr_to_zarr(xarr, attrs, outputpth, sync, dataloc, append_dim='time', finalsize=None, merge=False,
-                    override_chunk_size=None):
+def my_xarr_to_zarr(xarr: xr.Dataset, attrs: dict, outputpth: str, sync: DaskProcessSynchronizer, dataloc: list,
+                    append_dim: str = 'time', finalsize: int = None, merge: bool = False, override_chunk_size: int = None):
     """
+    DEPRECATED - SEE ZarrWrite
+
     I've been unable to get the zarr append/write functionality to work with the dask distributed cluster.  Even when
     using dask's own distributed lock, I've found that the processes are stepping on each other and each array is not
     written in it's entirety.
@@ -983,23 +1118,32 @@ def my_xarr_to_zarr(xarr, attrs, outputpth, sync, dataloc, append_dim='time', fi
 
     Parameters
     ----------
-    xarr: xarray Dataset, one chunk of the final range_angle/attitude/navigation xarray Dataset we are writing
-    attrs: dict, dictionary of combined attributes from xarray datasets, None if no attributes exist
-    outputpth: str, path to zarr group to either be created or append to
-    sync: DaskProcessSynchronizer, dask distributed lock for parallel read/writes
-    dataloc: list, list of start/end time indexes, ex: [100,600] for writing to the 100th time to the 600th time in
-                   this chunk
-    append_dim: str, default is 'time', alter this to change the dimension name you want to append to
-    finalsize: int, if given, resize the zarr group time dimension to this value, if None then do no resizing
-    merge: bool, if True, this is an operation to merge an existing zarr store with a new xarray DataSet that has
-                   equal dimensions, or is a slice of a DataSet that has equal dimensions
-    override_chunk_size: optional, int, if provided will use this as the chunksize of the zarr dataset
+    xarr
+        one chunk of the final range_angle/attitude/navigation xarray Dataset we are writing
+    attrs
+        dictionary of combined attributes from xarray datasets, None if no attributes exist
+    outputpth
+        path to zarr group to either be created or append to
+    sync
+        DaskProcessSynchronizer, dask distributed lock for parallel read/writes
+    dataloc
+        list of start/end time indexes, ex: [100,600] for writing to the 100th time to the 600th time in this chunk
+    append_dim
+        default is 'time', alter this to change the dimension name you want to append to
+    finalsize
+        if given, resize the zarr group time dimension to this value, if None then do no resizing
+    merge
+        if True, this is an operation to merge an existing zarr store with a new xarray DataSet that has equal
+        dimensions, or is a slice of a DataSet that has equal dimensions
+    override_chunk_size
+        int, if provided will use this as the chunksize of the zarr dataset
 
     Returns
     -------
-    outputpth: pth, path to the final zarr group
-
+    str
+        path to the final zarr group
     """
+
     dims_of_arrays = _my_xarr_to_zarr_build_arraydimensions(xarr)
 
     # mode 'a' means read/write, create if doesnt exist
@@ -1007,7 +1151,7 @@ def my_xarr_to_zarr(xarr, attrs, outputpth, sync, dataloc, append_dim='time', fi
     # merge is for merging a new dataset with an existing zarr datastore.  Expect the same time dimension, just new
     #    variables
     if merge:
-        if not validate_merge(xarr, rootgroup):
+        if not _validate_merge(xarr, rootgroup):
             return
 
     existing_arrs = [t for t in rootgroup.array_keys()]
@@ -1073,7 +1217,7 @@ def my_xarr_to_zarr(xarr, attrs, outputpth, sync, dataloc, append_dim='time', fi
     return outputpth
 
 
-def get_new_chunk_locations_zarr(outputpth, data_locs, ideal_chunk_size):
+def get_new_chunk_locations_zarr(outputpth: str, data_locs: list, ideal_chunk_size: int):
     """
     Data locs as created is naive to the existing rootgroup data.  We want data_locs to represent the index of the
     rootgroup where the new data should be written.  So here we take the time dim of the rootgroup and adjust the
@@ -1084,17 +1228,19 @@ def get_new_chunk_locations_zarr(outputpth, data_locs, ideal_chunk_size):
 
     Parameters
     ----------
-    outputpth: str, path to the zarr rootgroup
-    data_locs: list of lists, [start time index, end time index] for xarr, ex: [0,1000] if xarr time dimension is 1000
-               long.
-    ideal_chunk_size: int, chunk size for the array.
+    outputpth
+        str, path to the zarr rootgroup
+    data_locs
+        list of lists, [start time index, end time index] for xarr, ex: [0,1000] if xarr time dimension is 1000 long.
+    ideal_chunk_size
+        int, chunk size for the array.
 
     Returns
     -------
-    data_locs: either the original data_locs if this is a new zarr rootgroup, or an adjusted data_locs for the existing
-               rootgroup data.
-
+    list
+        either the original data_locs if this is a new zarr rootgroup, or an adjusted data_locs for the existing rootgroup data.
     """
+
     if os.path.exists(outputpth):
         rootgroup = zarr.open(outputpth, mode='r')  # only opens if the path exists
         time_arr = rootgroup.time  # we assume that we are appending to the time dim
@@ -1110,21 +1256,25 @@ def get_new_chunk_locations_zarr(outputpth, data_locs, ideal_chunk_size):
         return data_locs
 
 
-def _interp_across_chunks_xarrayinterp(xarr, dimname, chnk_time):
+def _interp_across_chunks_xarrayinterp(xarr: Union[xr.Dataset, xr.DataArray], dimname: str, chnk_time: xr.DataArray):
     """
     Runs xarr interp on an individual chunk, extrapolating to cover boundary case
 
     Parameters
     ----------
-    xarr: xarray DataArray or Dataset, object to be interpolated
-    dimname: str, dimension name to interpolate
-    chnk_time: xarray DataArray, time to interpolate to
+    xarr
+        xarray DataArray or Dataset, object to be interpolated
+    dimname
+        str, dimension name to interpolate
+    chnk_time
+        xarray DataArray, time to interpolate to
 
     Returns
     -------
-    Interpolated xarr object.
-
+    Union[xr.Dataset, xr.DataArray]
+        Interpolated xarr object
     """
+
     if dimname == 'time':
         try:  # dataarray workflow, use 'values' to access the numpy array
             chnk_time = chnk_time.values
@@ -1136,7 +1286,7 @@ def _interp_across_chunks_xarrayinterp(xarr, dimname, chnk_time):
         raise NotImplementedError('Only "time" currently supported dim name')
 
 
-def _interp_across_chunks_construct_times(xarr, new_times, dimname):
+def _interp_across_chunks_construct_times(xarr: Union[xr.Dataset, xr.DataArray], new_times: xr.DataArray, dimname: str):
     """
     Takes in the existing xarray dataarray/dataset (xarr) and returns chunk indexes and times that allow for
     interpolating to the desired xarray dataarray/dataset (given as new_times).  This allows us to interp across
@@ -1144,16 +1294,21 @@ def _interp_across_chunks_construct_times(xarr, new_times, dimname):
 
     Parameters
     ----------
-    xarr: xarray DataArray or Dataset, object to be interpolated
-    new_times: xarray DataArray, times for the array to be interpolated to
-    dimname: str, dimension name to interpolate
+    xarr
+        xarray DataArray or Dataset, object to be interpolated
+    new_times
+        xarray DataArray, times for the array to be interpolated to
+    dimname
+        dimension name to interpolate
 
     Returns
     -------
-    chnk_idxs: list of lists, each element is a list containing time indexes for the chunk, ex: [[0,2000], [2000,4000]]
-    chnkwise_times: list or DataArray, each element is the section of new_times that applies to that chunk
-
+    list
+        list of lists, each element is a list containing time indexes for the chunk, ex: [[0,2000], [2000,4000]]
+    Union[list, xr.DataArray]
+        list or DataArray, each element is the section of new_times that applies to that chunk
     """
+
     # first go ahead and chunk the array if chunks do not exist
     if not xarr.chunks:
         xarr = xarr.chunk()
@@ -1191,7 +1346,8 @@ def _interp_across_chunks_construct_times(xarr, new_times, dimname):
     return chnk_idxs, chnkwise_times
 
 
-def slice_xarray_by_dim(arr, dimname='time', start_time=None, end_time=None):
+def slice_xarray_by_dim(arr: Union[xr.Dataset, xr.DataArray], dimname: str = 'time', start_time: float = None,
+                        end_time: float = None):
     """
     Slice the input xarray dataset/dataarray by provided start_time and end_time. Start/end time do not have to be
     values in the dataarray index to be used, this function will find the nearest times.
@@ -1202,16 +1358,21 @@ def slice_xarray_by_dim(arr, dimname='time', start_time=None, end_time=None):
 
     Parameters
     ----------
-    arr: xarray Dataarray/Dataset with an index of dimname
-    dimname: str, name of dimension to use with selection/slicing
-    start_time: float, start time of slice
-    end_time: float, end time of slice
+    arr
+        xarray Dataarray/Dataset with an index of dimname
+    dimname
+        str, name of dimension to use with selection/slicing
+    start_time
+        float, start time of slice
+    end_time
+        float, end time of slice
 
     Returns
     -------
-    xarray dataarray/dataset sliced to the input start time and end time
-
+    Union[xr.Dataset, xr.DataArray]
+        xarray dataarray/dataset sliced to the input start time and end time
     """
+
     if start_time is None and end_time is None:
         return arr
 
@@ -1235,7 +1396,8 @@ def slice_xarray_by_dim(arr, dimname='time', start_time=None, end_time=None):
     return rnav
 
 
-def interp_across_chunks(xarr, new_times, dimname='time', daskclient=None):
+def interp_across_chunks(xarr: Union[xr.Dataset, xr.DataArray], new_times: xr.DataArray, dimname: str = 'time',
+                         daskclient: Client = None):
     """
     Takes in xarr and interpolates to new_times.  Ideally we could use xarray interp_like or interp, but neither
     of these are implemented with support for chunked dask arrays.  Therefore, we have to determine the times of
@@ -1244,16 +1406,21 @@ def interp_across_chunks(xarr, new_times, dimname='time', daskclient=None):
 
     Parameters
     ----------
-    xarr: xarray DataArray or Dataset, object to be interpolated
-    new_times: xarray DataArray, times for the array to be interpolated to
-    dimname: str, dimension name to interpolate
-    daskclient: dask.distributed.client or None, if running outside of dask cluster
+    xarr
+        xarray DataArray or Dataset, object to be interpolated
+    new_times
+        xarray DataArray, times for the array to be interpolated to
+    dimname
+        dimension name to interpolate
+    daskclient
+        dask.distributed.client or None, if running outside of dask cluster
 
     Returns
     -------
-    newarr: xarray DataArray or Dataset, interpolated xarr
-
+    Union[xr.Dataset, xr.DataArray]
+        xarray DataArray or Dataset, interpolated xarr
     """
+
     if type(xarr) not in [xr.DataArray, xr.Dataset]:
         raise NotImplementedError('Only xarray DataArray and Dataset objects allowed.')
     if len(list(xarr.dims)) > 1:
@@ -1294,7 +1461,7 @@ def interp_across_chunks(xarr, new_times, dimname='time', daskclient=None):
     return newarr
 
 
-def clear_data_vars_from_dataset(dataset, datavars):
+def clear_data_vars_from_dataset(dataset: Union[list, dict, xr.Dataset], datavars: Union[list, str]):
     """
     Some code to handle dropping data variables from xarray Datasets in different containers.  We use lists of Datasets,
     dicts of Datasets and individual Datasets in different places.  Here we can just pass in whatever, drop the
@@ -1302,14 +1469,17 @@ def clear_data_vars_from_dataset(dataset, datavars):
 
     Parameters
     ----------
-    dataset: xarray Dataset, list, or dict of xarray Datasets
-    datavars: str or list, variables we wish to drop from the xarray Dataset
+    dataset
+        xarray Dataset, list, or dict of xarray Datasets
+    datavars
+        str or list, variables we wish to drop from the xarray Dataset
 
     Returns
     -------
-    dataset: original Dataset with dropped variables
-
+    Union[list, dict, xr.Dataset]
+        original Dataset(s) with dropped variables
     """
+
     if type(datavars) == str:
         datavars = [datavars]
 
@@ -1328,24 +1498,28 @@ def clear_data_vars_from_dataset(dataset, datavars):
     return dataset
 
 
-def stack_nan_array(dataarray, stack_dims=('time', 'beam')):
+def stack_nan_array(dataarray: xr.DataArray, stack_dims: tuple = ('time', 'beam')):
     """
     To handle NaN values in our input arrays, we flatten and index only the valid values.  This comes into play with
     beamwise arrays that have NaN where there were no beams.
 
-    See reform_nan_array to rebuild the originaly array
+    See reform_nan_array to rebuild the original array
 
     Parameters
     ----------
-    dataarray: xarray DataArray, array that we need to flatten and index non-NaN values
-    stack_dims: tuple, dims of our input data
+    dataarray
+        xarray DataArray, array that we need to flatten and index non-NaN values
+    stack_dims
+        tuple, dims of our input data
 
     Returns
     -------
-    orig_idx: numpy array, indexes of the original data
-    dataarray_stck: xarray DataArray, multiindexed and flattened
-
+    np.array
+        indexes of the original data
+    xr.DataArray
+        xarray DataArray, multiindexed and flattened
     """
+
     orig_idx = np.where(~np.isnan(dataarray))
     dataarray_stck = dataarray.stack(stck=stack_dims)
     nan_idx = ~np.isnan(dataarray_stck).compute()
@@ -1353,86 +1527,33 @@ def stack_nan_array(dataarray, stack_dims=('time', 'beam')):
     return orig_idx, dataarray_stck
 
 
-def flatten_bool_xarray(datarray: xr.DataArray, cond: xr.DataArray, retain_dim: str = 'time', drop_var: str = None):
-    """
-    Takes in a two dimensional DataArray with core dimension 'time' and a second dimension that has only one valid
-    value according to provided cond.  Outputs DataArray with those values and either only the 'time' dimension
-    (drop_var is the dimension name to drop) or with both dimensions intact.
-
-    tst.raw_ping.tiltangle
-    Out[11]:
-    <xarray.DataArray 'tiltangle' (time: 7836, sector: 16)>
-    dask.array<zarr, shape=(7836, 16), dtype=float64, chunksize=(5000, 16), chunktype=numpy.ndarray>
-    Coordinates:
-      * sector   (sector) <U12 '218_0_070000' '218_0_071000' ... '218_2_090000'
-      * time     (time) float64 1.474e+09 1.474e+09 ... 1.474e+09 1.474e+09
-
-    tst.raw_ping.tiltangle.isel(time=0).values
-    Out[6]:
-    array([ 0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  , -0.38,  0.  ,
-            0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ])
-
-    answer = fqpr_generation.flatten_bool_xarray(tst.raw_ping.tiltangle, tst.raw_ping.ntx > 0,
-                                                 drop_var='sector')
-    answer
-    Out[10]:
-    <xarray.DataArray 'tiltangle' (time: 7836)>
-    dask.array<vindex-merge, shape=(7836,), dtype=float64, chunksize=(7836,), chunktype=numpy.ndarray>
-    Coordinates:
-        * time     (time) float64 1.474e+09 1.474e+09 ... 1.474e+09 1.474e+09
-
-    answer.isel(time=0).values
-    Out[9]: array(-0.38)
-
-    Parameters
-    ----------
-    datarray
-        2 dimensional xarray DataArray
-    cond
-        boolean mask for datarray, see example above
-    retain_dim
-        core dimension of datarray
-    drop_var
-        dimension to drop, optional
-
-    Returns
-    -------
-
-    """
-    datarray = datarray.where(cond)
-    if datarray.ndim == 2:
-        # True/False where non-NaN values are
-        true_idx = np.argmax(datarray.notnull().values, axis=1)
-        data_idx = xr.DataArray(true_idx, coords={retain_dim: datarray.time}, dims=[retain_dim])
-    else:
-        raise ValueError('Only 2 dimensional DataArray objects are supported')
-
-    answer = datarray[0:len(datarray.time), data_idx]
-    if drop_var:
-        answer = answer.drop_vars(drop_var)
-    return answer
-
-
-def reform_nan_array(dataarray_stack, orig_idx, orig_shape, orig_coords, orig_dims):
+def reform_nan_array(dataarray_stack: xr.DataArray, orig_idx: tuple, orig_shape: tuple, orig_coords: xr.DataArray,
+                     orig_dims: tuple):
     """
     To handle NaN values in our input arrays, we flatten and index only the valid values.  Here we rebuild the
     original square shaped arrays we need using one of the original arrays as reference.
 
-    See stack_nan_array
+    See stack_nan_array.  Run this on the stacked output to get the original dimensions back.
 
     Parameters
     ----------
-    dataarray_stack: xarray DataArray, flattened array that we just interpolated
-    orig_idx: tuple, 2 elements, one for 1st dimension indexes and one for 2nd dimension indexes, see np.where
-    orig_shape: tuple, original shape
-    orig_coords: xarray DataArrayCoordinates, original coords
-    orig_dims: tuple, original dims
+    dataarray_stack
+        flattened array that we just interpolated
+    orig_idx
+        2 elements, one for 1st dimension indexes and one for 2nd dimension indexes, see np.where
+    orig_shape
+        original shape of array before stack_nan_array
+    orig_coords
+        coordinates from array before stack_nan_array
+    orig_dims
+        original dims of array before stack_nan_array
 
     Returns
     -------
-    final_arr: xarray DataArray, values of arr, filled to be square with NaN values, coordinates of ref_array
-
+    xr.DataArray
+        values of arr, filled to be square with NaN values, coordinates of ref_array
     """
+
     final_arr = np.empty(orig_shape, dtype=dataarray_stack.dtype)
     final_arr[:] = np.nan
     final_arr[orig_idx] = dataarray_stack
@@ -1440,17 +1561,19 @@ def reform_nan_array(dataarray_stack, orig_idx, orig_shape, orig_coords, orig_di
     return final_arr
 
 
-def reload_zarr_records(pth, skip_dask=False):
+def reload_zarr_records(pth: str, skip_dask: bool = False):
     """
     After writing new data to the zarr data store, you need to refresh the xarray Dataset object so that it
     sees the changes.  We do that here by just re-running open_zarr.
 
     Returns
     -------
-    pth: string, path to xarray Dataset stored as zarr datastore
-    skip_dask: bool, if True, skip the dask process synchronizer as you are not running dask distributed
-
+    pth
+        string, path to xarray Dataset stored as zarr datastore
+    skip_dask
+        if True, skip the dask process synchronizer as you are not running dask distributed
     """
+
     if os.path.exists(pth):
         if not skip_dask:
             return xr.open_zarr(pth, synchronizer=DaskProcessSynchronizer(pth),
@@ -1465,53 +1588,21 @@ def reload_zarr_records(pth, skip_dask=False):
         return None
 
 
-def return_chunk_slices(xarr):
+def return_chunk_slices(xarr: Union[xr.DataArray, xr.Dataset]):
     """
     Xarray objects are chunked for easy parallelism.  When we write to zarr stores, chunks become segregated, so when
     operating on xarray objects, it makes sense to do it one chunk at a time sometimes.  Here we return slices so that
     we can only pull one chunk into memory at a time.
 
-    EX:
-    xarr
-    Out[64]:
-    <xarray.Dataset>
-    Dimensions:  (time: 245236)
-    Coordinates:
-       * time     (time) float64 1.583e+09 1.583e+09 ... 1.583e+09 1.583e+09
-    Data variables:
-       heading  (time) float32 dask.array<chunksize=(20000,), meta=np.ndarray>
-        heave    (time) float32 dask.array<chunksize=(20000,), meta=np.ndarray>
-        pitch    (time) float32 dask.array<chunksize=(20000,), meta=np.ndarray>
-       roll     (time) float32 dask.array<chunksize=(20000,), meta=np.ndarray>
-
-    xarr.chunks
-    Out[67]: Frozen(SortedKeysDict({'time': (20000, 20000, 20000, 20000, 20000, 20000, 20000, 20000, 20000, 20000,
-                                             20000, 20000, 5236)}))
-
-    return_chunk_slices(xarr)
-    Out[66]:
-    [slice(0, 20000, None),
-     slice(20000, 40000, None),
-     slice(40000, 60000, None),
-     slice(60000, 80000, None),
-     slice(80000, 100000, None),
-     slice(100000, 120000, None),
-     slice(120000, 140000, None),
-     slice(140000, 160000, None),
-     slice(160000, 180000, None),
-     slice(180000, 200000, None),
-     slice(200000, 220000, None),
-     slice(220000, 240000, None),
-     slice(240000, 245236, None)]
-
     Parameters
     ----------
-    xarr: xarray Dataset/DataArray object, must be only one dimension currently
+    xarr
+        Dataset/DataArray object, must be only one dimension currently
 
     Returns
     -------
-    list of slices for the indices of each chunk
-
+    list
+        list of slices for the indices of each chunk
     """
 
     try:
@@ -1539,26 +1630,30 @@ def return_chunk_slices(xarr):
     return chunk_slices
 
 
-def _find_gaps_split(datagap_times, existing_gap_times):
+def _find_gaps_split(datagap_times: list, existing_gap_times: list):
     """
     helper for compare_and_find_gaps.  A function to use in a loop to continue splitting gaps until they no longer
     include any existing gaps
 
     datagap_times = [[0,5], [30,40], [70, 82], [90,100]]
+
     existing_gap_times = [[10,15], [35,45], [75,80], [85,95]]
 
     split_dgtime = [[0, 5], [30, 40], [70, 75], [80, 82], [90, 100]]
 
     Parameters
     ----------
-    datagap_times: list, list of two element lists (start time, end time) for the gaps found in the new data
-    existing_gap_times: list, list of two element lists (start time, end time) for the gaps found in the existing data
+    datagap_times
+        list, list of two element lists (start time, end time) for the gaps found in the new data
+    existing_gap_times
+        list, list of two element lists (start time, end time) for the gaps found in the existing data
 
     Returns
     -------
-    split_dgtime: list, list of two element lists (start time, end time) for the new data gaps split around the existing data gaps
-
+    list
+        list of two element lists (start time, end time) for the new data gaps split around the existing data gaps
     """
+
     split = False
     split_dgtime = []
     for dgtime in datagap_times:
@@ -1576,25 +1671,31 @@ def _find_gaps_split(datagap_times, existing_gap_times):
     return split_dgtime
 
 
-def compare_and_find_gaps(source_dat, new_dat, max_gap_length=1.0, dimname='time'):
+def compare_and_find_gaps(source_dat: Union[xr.DataArray, xr.Dataset], new_dat: Union[xr.DataArray, xr.Dataset],
+                          max_gap_length: float = 1.0, dimname: str = 'time'):
     """
-    So far, mostly used with sbets.  Converted SBET would be the new_dat and the existing navigation in Kluster would
-    be the source_dat.  You'd be interested to know if there were gaps in the sbet greater than a certain length that
-    did not coincide with existing gaps related to stopping/starting logging or something.  Here we find gaps in the
-    new_dat of size greater than max_gap_length and trim them to the gaps found in source_dat
+    So far, mostly used with Applanix POSPac SBETs.  Converted SBET would be the new_dat and the existing navigation in
+    Kluster would be the source_dat.  You'd be interested to know if there were gaps in the sbet greater than a certain
+    length that did not coincide with existing gaps related to stopping/starting logging or something.  Here we find
+    gaps in the new_dat of size greater than max_gap_length and trim them to the gaps found in source_dat.
 
     Parameters
     ----------
-    source_dat: xarray DataArray/Dataset, object with dimname as coord that you want to use as the basis for comparison
-    new_dat: xarray DataArray/Dataset that you want to find the gaps in
-    max_gap_length: float, maximum acceptable gap
-    dimname: str, name of the dimension you want to find the gaps in
+    source_dat
+        xarray DataArray/Dataset, object with dimname as coord that you want to use as the basis for comparison
+    new_dat
+        xarray DataArray/Dataset that you want to find the gaps in
+    max_gap_length
+        maximum acceptable gap
+    dimname
+        name of the dimension you want to find the gaps in
 
     Returns
     -------
-    finalgaps: numpy array, nx2 where n is the number of gaps found
-
+    np.array
+        numpy array, nx2 where n is the number of gaps found
     """
+
     # gaps in source, if a gap in the new data is within a gap in the source, it is not a gap
     existing_gaps = np.argwhere(source_dat[dimname].diff(dimname).values > max_gap_length)
     existing_gap_times = [[float(source_dat[dimname][gp]), float(source_dat[dimname][gp + 1])] for gp in existing_gaps]

@@ -36,11 +36,12 @@ def perform_all_processing(filname: str, navfiles: list = None, outfold: str = N
     Fqpr
         Fqpr object containing processed data
     """
-    fq = convert_multibeam(filname, outfold)
+
+    fqpr_inst = convert_multibeam(filname, outfold)
     if navfiles is not None:
-        fq = import_navigation(fq, navfiles, **kwargs)
-    fq = process_multibeam(fq, coord_system=coord_system, vert_ref=vert_ref)
-    return fq
+        fqpr_inst = import_navigation(fqpr_inst, navfiles, **kwargs)
+    fqpr_inst = process_multibeam(fqpr_inst, coord_system=coord_system, vert_ref=vert_ref)
+    return fqpr_inst
 
 
 def convert_multibeam(filname: str, outfold: str = None, client: Client = None, auto_append: bool = False):
@@ -65,15 +66,15 @@ def convert_multibeam(filname: str, outfold: str = None, client: Client = None, 
     -------
     Fqpr
         Fqpr containing converted source data
-
     """
+
     mbes_read = BatchRead(filname, dest=outfold, client=client, auto_append=auto_append)
-    fq = Fqpr(mbes_read)
-    fq.read_from_source()
-    return fq
+    fqpr_inst = Fqpr(mbes_read)
+    fqpr_inst.read_from_source()
+    return fqpr_inst
 
 
-def import_navigation(fq: Fqpr, navfiles: list, errorfiles: list = None, logfiles: list = None,
+def import_navigation(fqpr_inst: Fqpr, navfiles: list, errorfiles: list = None, logfiles: list = None,
                       weekstart_year: int = None, weekstart_week: int = None, override_datum: str = None,
                       override_grid: str = None, override_zone: str = None, override_ellipsoid: str = None,
                       max_gap_length: float = 1.0):
@@ -84,7 +85,7 @@ def import_navigation(fq: Fqpr, navfiles: list, errorfiles: list = None, logfile
 
     Parameters
     ----------
-    fq
+    fqpr_inst
         Fqpr instance containing converted data (converted data must exist for the import to work)
     navfiles:
         list of postprocessed navigation file paths
@@ -116,15 +117,16 @@ def import_navigation(fq: Fqpr, navfiles: list, errorfiles: list = None, logfile
     Fqpr
         Fqpr passed in with additional post processed navigation
     """
-    fq.import_post_processed_navigation(navfiles, errorfiles=errorfiles, logfiles=logfiles,
-                                        weekstart_year=weekstart_year, weekstart_week=weekstart_week,
-                                        override_datum=override_datum, override_grid=override_grid,
-                                        override_zone=override_zone, override_ellipsoid=override_ellipsoid,
-                                        max_gap_length=max_gap_length)
-    return fq
+
+    fqpr_inst.import_post_processed_navigation(navfiles, errorfiles=errorfiles, logfiles=logfiles,
+                                               weekstart_year=weekstart_year, weekstart_week=weekstart_week,
+                                               override_datum=override_datum, override_grid=override_grid,
+                                               override_zone=override_zone, override_ellipsoid=override_ellipsoid,
+                                               max_gap_length=max_gap_length)
+    return fqpr_inst
 
 
-def process_multibeam(fq: Fqpr, run_orientation: bool = True, run_beam_vec: bool = True, run_svcorr: bool = True,
+def process_multibeam(fqpr_inst: Fqpr, run_orientation: bool = True, run_beam_vec: bool = True, run_svcorr: bool = True,
                       run_georef: bool = True, svcasts: list = None, use_epsg: bool = False, use_coord: bool = True,
                       epsg: int = None, coord_system: str = 'NAD83', vert_ref: str = 'waterline'):
     """
@@ -133,7 +135,7 @@ def process_multibeam(fq: Fqpr, run_orientation: bool = True, run_beam_vec: bool
 
     Parameters
     ----------
-    fq
+    fqpr_inst
         Fqpr instance, must contain converted data
     run_orientation
         perform the get_orientation_vectors step
@@ -160,24 +162,24 @@ def process_multibeam(fq: Fqpr, run_orientation: bool = True, run_beam_vec: bool
     -------
     Fqpr
         Fqpr passed in with processed xyz soundings
-
     """
+
     if not use_epsg:
         epsg = None  # epsg is given priority, so if you don't want to use it, set it to None here
     if not use_coord and not use_epsg and run_georef:
         print('process_multibeam: please select either use_coord or use_epsg to process')
 
-    fq.construct_crs(epsg=epsg, datum=coord_system, projected=True)
+    fqpr_inst.construct_crs(epsg=epsg, datum=coord_system, projected=True)
     if run_orientation:
-        fq.get_orientation_vectors()
+        fqpr_inst.get_orientation_vectors()
     if run_beam_vec:
-        fq.get_beam_pointing_vectors()
+        fqpr_inst.get_beam_pointing_vectors()
     if run_svcorr:
-        fq.sv_correct(add_cast_files=svcasts)
+        fqpr_inst.sv_correct(add_cast_files=svcasts)
     if run_georef:
-        fq.georef_xyz(vert_ref=vert_ref)
-        fq.export_pings_to_dataset()
-    return fq
+        fqpr_inst.georef_xyz(vert_ref=vert_ref)
+        fqpr_inst.export_pings_to_dataset()
+    return fqpr_inst
 
 
 def process_and_export_soundings(filname: str, outfold: str = None, coord_system: str = 'NAD83', vert_ref: str = 'waterline'):
@@ -201,21 +203,22 @@ def process_and_export_soundings(filname: str, outfold: str = None, coord_system
     -------
     Fqpr
         Fqpr object containing processed xyz soundings
-
     """
-    fq = perform_all_processing(filname, outfold=outfold, coord_system=coord_system, vert_ref=vert_ref)
-    fq.export_pings_to_file()
-    return fq
+
+    fqpr_inst = perform_all_processing(filname, outfold=outfold, coord_system=coord_system, vert_ref=vert_ref)
+    fqpr_inst.export_pings_to_file()
+    return fqpr_inst
 
 
 def return_georef_xyz(filname: str, coord_system: str = 'NAD83', vert_ref: str = 'waterline'):
     """
-    Using fqpr_generation, process multibeam data and return the georeferenced xyz data
+    Using fqpr_generation, convert and sv correct multibeam file (or directory of files) and return the georeferenced
+    xyz soundings.
 
     Parameters
     ----------
     filname
-        .all file name or directory path of .all files
+        multibeam file path or directory path of multibeam files
     coord_system
         a valid datum identifier that pyproj CRS will accept
     vert_ref
@@ -235,12 +238,12 @@ def return_georef_xyz(filname: str, coord_system: str = 'NAD83', vert_ref: str =
         numpy array of unique times of pings
     """
 
-    fq = perform_all_processing(filname, coord_system=coord_system, vert_ref=vert_ref)
-    u_tms = fq.return_unique_times_across_sectors()
-    dats, ids, tms = fq.reform_2d_vars_across_sectors_at_time(['x', 'y', 'z', 'unc'], u_tms)
+    fqpr_inst = perform_all_processing(filname, coord_system=coord_system, vert_ref=vert_ref)
+    u_tms = fqpr_inst.return_unique_times_across_sectors()
+    dats, ids, tms = fqpr_inst.reform_2d_vars_across_sectors_at_time(['x', 'y', 'z', 'unc'], u_tms)
     x, y, z, unc = dats
 
-    return fq, x, y, z, unc, ids, tms
+    return fqpr_inst, x, y, z, unc, ids, tms
 
 
 def reload_data(converted_folder: str, require_raw_data: bool = True, skip_dask: bool = False):
@@ -248,9 +251,10 @@ def reload_data(converted_folder: str, require_raw_data: bool = True, skip_dask:
     Pick up from a previous session.  Load in all the data that exists for the session using the provided
     converted_folder.  Expects there to be fqpr generated zarr datastore folders in this folder.
 
-    os.listdir(r'C:\\collab\\dasktest\\data_dir\\hassler_acceptance\\refsurf\\converted_093926')
+    os.listdir(r'C:/data_dir/converted_093926')\n
     ['attitude.zarr', 'soundings.zarr', 'navigation.zarr', 'ping_389_1_270000.zarr', 'ping_389_1_290000.zarr',
-    'ping_394_1_310000.zarr', 'ping_394_1_330000.zarr']
+    'ping_394_1_310000.zarr', 'ping_394_1_330000.zarr']\n
+    fqpr = reload_data(r'C:/data_dir/converted_093926')
 
     Parameters
     ----------
@@ -272,42 +276,43 @@ def reload_data(converted_folder: str, require_raw_data: bool = True, skip_dask:
         mbes_read = BatchRead(None, skip_dask=skip_dask)
         mbes_read.final_paths = final_paths
         mbes_read.read_from_zarr_fils(final_paths['ping'], final_paths['attitude'], final_paths['navigation'], final_paths['logfile'])
-        fq = Fqpr(mbes_read)
-        fq.logger.info('****Reloading from file {}****'.format(converted_folder))
-        fq.source_dat.xyzrph = fq.source_dat.raw_ping[0].xyzrph
-        fq.source_dat.tpu_parameters = fq.source_dat.raw_ping[0].tpu_parameters
-        fq.generate_starter_orientation_vectors(None, None)
-        if 'xyz_crs' in fq.source_dat.raw_ping[0].attrs:
-            fq.construct_crs(epsg=fq.source_dat.raw_ping[0].attrs['xyz_crs'])
+        fqpr_inst = Fqpr(mbes_read)
+        fqpr_inst.logger.info('****Reloading from file {}****'.format(converted_folder))
+        fqpr_inst.source_dat.xyzrph = fqpr_inst.source_dat.raw_ping[0].xyzrph
+        fqpr_inst.source_dat.tpu_parameters = fqpr_inst.source_dat.raw_ping[0].tpu_parameters
+        fqpr_inst.generate_starter_orientation_vectors(None, None)
+        if 'xyz_crs' in fqpr_inst.source_dat.raw_ping[0].attrs:
+            fqpr_inst.construct_crs(epsg=fqpr_inst.source_dat.raw_ping[0].attrs['xyz_crs'])
         try:
-            fq.soundings_path = final_paths['soundings'][0]
-            fq.reload_soundings_records(skip_dask=skip_dask)
+            fqpr_inst.soundings_path = final_paths['soundings'][0]
+            fqpr_inst.reload_soundings_records(skip_dask=skip_dask)
         except IndexError:
             print('No soundings dataset found')
         try:
-            fq.ppnav_path = final_paths['ppnav'][0]
-            fq.reload_ppnav_records(skip_dask=skip_dask)
+            fqpr_inst.ppnav_path = final_paths['ppnav'][0]
+            fqpr_inst.reload_ppnav_records(skip_dask=skip_dask)
         except IndexError:
             print('No postprocessed navigation data found')
-        fq.client = mbes_read.client
+        fqpr_inst.client = mbes_read.client
     else:
         # not a valid zarr datastore
         print('reload_data: Unable to open FqprProject {}'.format(converted_folder))
         return None
 
-    if fq is not None:
-        fq.logger.info('Successfully reloaded\n'.format(converted_folder))
-    return fq
+    if fqpr_inst is not None:
+        fqpr_inst.logger.info('Successfully reloaded\n'.format(converted_folder))
+    return fqpr_inst
 
 
 def return_svcorr_xyz(filname: str, outfold: str = None, visualizations: bool = True):
     """
-    Using fqpr_generation, convert and sv correct .all file (or directory of files) and return the xyz
+    Using fqpr_generation, convert and sv correct multibeam file (or directory of files) and return the sound velocity
+    corrected xyz soundings.
 
     Parameters
     ----------
     filname
-        .all file name or directory path of .all files
+        multibeam file path or directory path of multibeam files
     outfold
         full file path to a directory you want to contain all the zarr folders.  Will create this folder if it does not
         exist.
@@ -330,22 +335,22 @@ def return_svcorr_xyz(filname: str, outfold: str = None, visualizations: bool = 
         numpy array of unique times of pings
     """
 
-    fq = convert_multibeam(filname, outfold)
-    fq.get_orientation_vectors()
-    fq.get_beam_pointing_vectors()
-    fq.sv_correct()
+    fqpr_inst = convert_multibeam(filname, outfold)
+    fqpr_inst.get_orientation_vectors()
+    fqpr_inst.get_beam_pointing_vectors()
+    fqpr_inst.sv_correct()
 
     fqv = None
     if visualizations:
-        fqv = FqprVisualizations(fq)
+        fqv = FqprVisualizations(fqpr_inst)
         fqv.visualize_beam_pointing_vectors(corrected=False)
         fqv.visualize_orientation_vector()
 
-    u_tms = fq.return_unique_times_across_sectors()
-    dats, ids, tms = fq.reform_2d_vars_across_sectors_at_time(['alongtrack', 'acrosstrack', 'depthoffset'], u_tms)
+    u_tms = fqpr_inst.return_unique_times_across_sectors()
+    dats, ids, tms = fqpr_inst.reform_2d_vars_across_sectors_at_time(['alongtrack', 'acrosstrack', 'depthoffset'], u_tms)
     x, y, z = dats
 
-    return fq, fqv, x, y, z, tms
+    return fqpr_inst, fqv, x, y, z, tms
 
 
 def generate_new_surface(fqpr_inst: Union[Fqpr, list], resolution: float = 1.0, method: str = 'linear',
@@ -358,10 +363,18 @@ def generate_new_surface(fqpr_inst: Union[Fqpr, list], resolution: float = 1.0, 
 
     If fqpr_inst provided is a list of fqpr instances, will concatenate these instances and build a single surface.
 
+    Returns an instance of the surface class and optionally saves the surface to disk.
+
+    | fqpr = reload_data('C:/data_directory/converted')
+    | # generate a new 8 meter surface using the default linear interpolation and the
+    | # dask client that was created on reload
+    | surf = generate_new_surface(fqpr, resolution=8.0, client=fqpr.client)
+
     Parameters
     ----------
     fqpr_inst
-        instance or list of instances of fqpr_generation.Fqpr class that contains generated soundings data
+        instance or list of instances of fqpr_generation.Fqpr class that contains generated soundings data, see
+        perform_all_processing or reload_data
     resolution
         resolution of the surface in meters
     method
@@ -377,8 +390,8 @@ def generate_new_surface(fqpr_inst: Union[Fqpr, list], resolution: float = 1.0, 
     -------
     BaseSurface
         surface instance for the given soundings data at the given resolution
-
     """
+
     if type(fqpr_inst) is list:
         if not fqpr_inst[0].__getattribute__('soundings'):
             print('generate_new_surface: No georeferenced soundings found')
@@ -403,8 +416,9 @@ def generate_new_surface(fqpr_inst: Union[Fqpr, list], resolution: float = 1.0, 
                              xr.concat([f.soundings.z for f in fqpr_inst], dim='sounding'),
                              xr.concat([f.soundings.unc for f in fqpr_inst], dim='sounding'),
                              int(fqpr_inst[0].soundings.xyz_crs), resolution=resolution)
-    except:
+    except (AttributeError, IndexError):
         print('Expect a list of fqpr instances or a single fqpr instance as input.  Received {}'.format(fqpr_inst))
+        return
 
     bs.construct_base_grid()
     bs.build_histogram(client=client)
@@ -417,6 +431,9 @@ def generate_new_surface(fqpr_inst: Union[Fqpr, list], resolution: float = 1.0, 
 def reload_surface(surface_path: str):
     """
     Simple convenience method for reloading a surface from a path
+
+    | surface_path = 'C:/data_directory/surface.npz'
+    | surf = reload_surface(surface_path)
 
     Parameters
     ----------
@@ -435,31 +452,33 @@ def reload_surface(surface_path: str):
 
 def return_processed_data_folders(converted_folder: str):
     """
-    After processing, you'll have a directory of folders containing the zarr records.  Use this function to return an
+    After processing, you'll have a directory of folders containing the kluster records.  Use this function to return an
     organized dict of which folders correspond to which records.
 
-    converted_folder = C:\\collab\\dasktest\\data_dir\\hassler_acceptance\\refsurf\\converted_093926
+    converted_folder = C:/data_dir/converted_093926
 
-    {'attitude': ['C:\\collab\\dasktest\\data_dir\\EM2040\\converted\\attitude.zarr'],
-     'navigation': ['C:\\collab\\dasktest\\data_dir\\EM2040\\converted\\navigation.zarr'],
-     'ping': ['C:\\collab\\dasktest\\data_dir\\EM2040\\converted\\ping_40107_0_260000.zarr',
-              'C:\\collab\\dasktest\\data_dir\\EM2040\\converted\\ping_40107_1_320000.zarr',
-              'C:\\collab\\dasktest\\data_dir\\EM2040\\converted\\ping_40107_2_290000.zarr'],
-     'soundings': ['C:\\collab\\dasktest\\data_dir\\EM2040\\converted\\soundings.zarr'],
-     'ppnav': [],
-     'logfile': 'C:\\collab\\dasktest\\data_dir\\EM2040\\converted\\logfile_120826.txt'}
+    return_processed_data_folders(converted_folder)
+
+    | {'attitude': ['C:/data_dir/converted_093926/attitude.zarr'],
+    |  'navigation': ['C:/data_dir/converted_093926/navigation.zarr'],
+    |  'ping': ['C:/data_dir/converted_093926/ping_40107_0_260000.zarr',
+    |           'C:/data_dir/converted_093926/ping_40107_1_320000.zarr',
+    |           'C:/data_dir/converted_093926/ping_40107_2_290000.zarr'],
+    |  'soundings': ['C:/data_dir/converted_093926/soundings.zarr'],
+    |  'ppnav': [],
+    |  'logfile': 'C:/data_dir/converted_093926/logfile_120826.txt'}
 
     Parameters
     ----------
     converted_folder
-        path to the folder containing the zarr folders
+        path to the folder containing the kluster processed data folders
 
     Returns
     -------
     final_paths
-        zarr paths according to record type
-
+        directory paths according to record type (ex: navigation, attitude, etc.)
     """
+
     final_paths = {'attitude': [], 'navigation': [], 'ping': [], 'soundings': [], 'ppnav': [], 'logfile': []}
     if os.path.isdir(converted_folder):
         for fldr in os.listdir(converted_folder):
@@ -498,9 +517,9 @@ def reprocess_sounding_selection(fqpr_inst: Fqpr, new_xyzrph: dict = None, subse
     new_xyzrph
         keys are translated entries, vals are dicts with timestamps:values
     subset_time
-        List of unix timestamps in seconds, used as ranges for times that you want to process.
-        ex: subset_time=[1531317999, 1531321000] means only process times that are from 1531317999 to 1531321000
-        ex: subset_time=[[1531317999, 1531318885], [1531318886, 1531321000]] means only process times that are
+        List of utc timestamps in seconds, used as ranges for times that you want to process.\n
+        ex: subset_time=[1531317999, 1531321000] means only process times that are from 1531317999 to 1531321000\n
+        ex: subset_time=[[1531317999, 1531318885], [1531318886, 1531321000]] means only process times that are\n
               from either 1531317999 to 1531318885 or 1531318886 to 1531321000
     turn_off_dask
         if True, close the client and destroy it.  Just closing doesn't work, as it retains the scheduler,
@@ -519,8 +538,8 @@ def reprocess_sounding_selection(fqpr_inst: Fqpr, new_xyzrph: dict = None, subse
     list
         list of numpy arrays, [x (easting in meters), y (northing in meters), z (depth pos down in meters),
         tstmp (xyzrph timestamp for each sounding)
-
     """
+
     if fqpr_inst.soundings is None and (override_datum is None or override_vertical_reference is None):
         raise NotImplementedError('Either fqpr_inst.soundings or override_datum/override_vertical_reference are required for determining the CRS')
     if turn_off_dask and fqpr_inst.client is not None:

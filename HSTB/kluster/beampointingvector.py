@@ -19,8 +19,8 @@ def distrib_run_build_beam_pointing_vector(dat: list):
     -------
     list
         [relative azimuth, beam pointing angle]
-
     """
+
     ans = build_beam_pointing_vectors(dat[0], dat[1], dat[2], dat[3][0], dat[3][1], dat[4], dat[5], dat[6])
     return ans
 
@@ -62,8 +62,8 @@ def build_beam_pointing_vectors(hdng: xr.DataArray, bpa: xr.DataArray, tiltangle
         2dim (time, beam), beam-wise beam azimuth values relative to vessel heading at time of ping
     xr.DataArray
         2 dim (time, beam) values for beampointingangle at each beam
-
     """
+
     hdng = interp_across_chunks(hdng, tstmp)
 
     # main vec (primary head) is accessed using the primary system selection
@@ -98,6 +98,18 @@ def construct_array_relative_beamvector(maintx: xr.DataArray, mainrx: xr.DataArr
 
     x = +FORWARD, y=+STARBOARD, z=+DOWN
 
+    Returns:
+
+    3d beam vector in co-located array ref frame.  Of shape (xyz, time, beam), with 10 times and 200 beams,
+    beamvecs shape would be (3, 10, 200)
+
+    | <xarray.DataArray 'tiltangle' (xyz: 3, time: 10, beam: 200)>
+    | dask.array<concatenate, shape=(3, 10, 200), dtype=float64, chunksize=(1, 10, 200), chunktype=numpy.ndarray>
+    | Coordinates:
+    |   * time     (time) float64 1.496e+09 1.496e+09 ...
+    |   * beam     (beam) int32 0 1 2 3 4 5 6 7 8 ... 194 195 196 197 198 199 200
+    |   * xyz      (xyz) object 'x' 'y' 'z'
+
     Parameters
     ----------
     maintx
@@ -112,17 +124,9 @@ def construct_array_relative_beamvector(maintx: xr.DataArray, mainrx: xr.DataArr
     Returns
     -------
     xr.DataArray
-        3d beam vector in co-located array ref frame.  Of shape (xyz, time, beam), with 10 times and 200 beams,
-        beamvecs shape would be (3, 10, 200)
-
-        <xarray.DataArray 'tiltangle' (xyz: 3, time: 10, beam: 200)>
-        dask.array<concatenate, shape=(3, 10, 200), dtype=float64, chunksize=(1, 10, 200), chunktype=numpy.ndarray>
-        Coordinates:
-          * time     (time) float64 1.496e+09 1.496e+09 ...
-          * beam     (beam) int32 0 1 2 3 4 5 6 7 8 ... 194 195 196 197 198 199 200
-          * xyz      (xyz) object 'x' 'y' 'z'
-
+        3d beam vector in co-located array ref frame
     """
+
     # delta - alignment angle between tx/rx vecs
     delt = np.arccos(xr.dot(maintx, mainrx, dims=['xyz'])) - np.pi / 2
     ysub1 = -np.sin(rx_angle)
@@ -146,6 +150,16 @@ def return_array_geographic_rotation(maintx: xr.DataArray, mainrx: xr.DataArray)
     Use the transmitter/receiver array orientations to build a rotation matrix between the geographic/array rel
     reference frame.
 
+    Returns rotation matrices at each time/beam, of shape (beam, rot_i, time, xyz)
+
+    | <xarray.DataArray 'getitem-82dd48467b1f4e8b4f56bbe5e841cc9f' (beam: 182, rot_i: 3, time: 2, xyz: 3)>
+    | dask.array<transpose, shape=(182, 3, 2, 3), dtype=float64, chunksize=(182, 3, 2, 1), chunktype=numpy.ndarray>
+    | Coordinates:
+    |   * rot_i    (rot_i) int32 0 1 2
+    |   * time     (time) float64 1.496e+09 1.496e+09
+    |   * beam     (beam) int32 0 1 2 3 4 5 6 7 8 ... 174 175 176 177 178 179 180 181
+    |   * xyz      (xyz) <U1 'x' 'y' 'z'
+
     Parameters
     ----------
     maintx
@@ -157,16 +171,8 @@ def return_array_geographic_rotation(maintx: xr.DataArray, mainrx: xr.DataArray)
     -------
     xr.DataArray
         rotation matrices at each time/beam, of shape (beam, rot_i, time, xyz)
-
-        <xarray.DataArray 'getitem-82dd48467b1f4e8b4f56bbe5e841cc9f' (beam: 182, rot_i: 3, time: 2, xyz: 3)>
-        dask.array<transpose, shape=(182, 3, 2, 3), dtype=float64, chunksize=(182, 3, 2, 1), chunktype=numpy.ndarray>
-        Coordinates:
-          * rot_i    (rot_i) int32 0 1 2
-          * time     (time) float64 1.496e+09 1.496e+09
-          * beam     (beam) int32 0 1 2 3 4 5 6 7 8 ... 174 175 176 177 178 179 180 181
-          * xyz      (xyz) <U1 'x' 'y' 'z'
-
     """
+
     # build rotation matrix for going from locally level to geographic coord sys
     x_prime = maintx
     z_prime = cross(x_prime, mainrx, 'xyz')
@@ -200,8 +206,8 @@ def cross(a: xr.DataArray, b: xr.DataArray, spatial_dim: str, output_dtype: np.d
     -------
     xr.DataArray
         cross product of a and b along spatial_dim
-
     """
+
     for d in (a, b):
         if spatial_dim not in d.dims:
             raise ValueError('dimension {} not in {}'.format(spatial_dim, d))
@@ -233,8 +239,8 @@ def build_geographic_beam_vectors(rotgeo: xr.DataArray, beamvecs: xr.DataArray):
     -------
     xr.DataArray
         beam vectors in geographic ref frame, of shape (time, beam, bv_xyz)
-
     """
+
     bv_geo = xr.dot(rotgeo, beamvecs, dims='xyz')
     bv_geo = bv_geo.rename({'rot_i': 'bv_xyz'})
     bv_geo.coords['bv_xyz'] = ['x', 'y', 'z']
@@ -257,8 +263,8 @@ def compute_relative_azimuth(bv_geo: xr.DataArray, heading: xr.DataArray):
     -------
     xr.DataArray
         2dim (time, beam), beam-wise beam azimuth values relative to vessel heading at time of ping
-
     """
+
     # derive azimuth/angle from the newly created geographic beam vectors
     bv_azimuth = np.rad2deg(np.arctan2(bv_geo.sel(bv_xyz='y'), bv_geo.sel(bv_xyz='x')))
     rel_azimuth = np.deg2rad((bv_azimuth - heading + 360) % 360)
@@ -281,8 +287,8 @@ def compute_geo_beam_pointing_angle(bv_geo: xr.DataArray, rx_angle: xr.DataArray
     -------
     xr.DataArray
         2 dim (time, beam) values for beampointingangle at each beam
-
     """
+
     bvangle_divisor = np.sqrt(np.square(bv_geo.sel(bv_xyz='x')) + np.square(bv_geo.sel(bv_xyz='y')))
     # new pointing angle is equal to pi/2 - depression angle (depression angle relative to horiz, pointing
     #    angle is the incidence angle relative to vertical)

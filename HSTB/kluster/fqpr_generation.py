@@ -10,44 +10,50 @@ from pyproj import CRS
 
 from HSTB.kluster.orientation import distrib_run_build_orientation_vectors
 from HSTB.kluster.beampointingvector import distrib_run_build_beam_pointing_vector
-from HSTB.kluster.svcorrect import distributed_run_sv_correct, SoundSpeedProfile, get_sv_files_from_directory, \
-    return_supported_casts_from_list
+from HSTB.kluster.svcorrect import get_sv_files_from_directory, return_supported_casts_from_list, SoundSpeedProfile, \
+    distributed_run_sv_correct
 from HSTB.kluster.georeference import distrib_run_georeference
-
 from HSTB.kluster.xarray_conversion import BatchRead
-from HSTB.kluster.xarray_helpers import interp_across_chunks, stack_nan_array, combine_arrays_to_dataset, \
-    divide_arrays_by_time_index, reload_zarr_records, slice_xarray_by_dim, distrib_zarr_write, \
-    compare_and_find_gaps
-from HSTB.kluster.dask_helpers import dask_find_or_start_client, DaskProcessSynchronizer, get_number_of_workers
+from HSTB.kluster.xarray_helpers import combine_arrays_to_dataset, compare_and_find_gaps, distrib_zarr_write, \
+    divide_arrays_by_time_index, interp_across_chunks, reload_zarr_records, slice_xarray_by_dim, stack_nan_array
+from HSTB.kluster.dask_helpers import DaskProcessSynchronizer, dask_find_or_start_client, get_number_of_workers
 from HSTB.kluster.rotations import return_attitude_rotation_matrix
 from HSTB.kluster.logging_conf import return_logger
 from HSTB.kluster.pdal_entwine import build_entwine_points
-
 from HSTB.drivers.sbet import sbet_to_xarray
-
 
 debug = False
 
 
 class Fqpr:
     """
-    Fully qualified ping record: contains all records built from the raw MBES file and supporting data files
+    Fully qualified ping record: contains all records built from the raw MBES file and supporting data files.  Built
+    around the BatchRead engine which supplies the multibeam data conversion.
+
+    Fqpr processing is built using the method detailed in "Application of Surface Sound Speed Measurements in
+    Post-processing for Multi-Sector Multibeam Echosounders" by J.D. Beaudoin and John Hughes Clarke
+
+    | Processing consists of five main steps:
+    | Fqpr.read_from_source - run xarray_conversion to get xarray Datasets for ping/attitude/navigation records
+    | Fqpr.get_orientation_vectors - Build transmit/receive unit vectors rotated by attitude and mounting angle
+    | Fqpr.get_beam_pointing_vectors - Correct sonar relative beam angles by orientation to get corrected
+    |     beam pointing vectors and azimuths
+    | Fqpr.sv_correct - Use the corrected beam vectors, travel time and sound velocity profile to ray trace the beams
+    | Fqpr.georef_xyz - Using pyproj, transform the vessel relative offsets to georeferenced xyz
+
+    See fqpr_convenience.convert_multibeam, process_multibeam and perform_all_processing for example use.
 
     Parameters
     ----------
     source_dat
         instance of xarray_conversion BatchRead class
-    source
-        drives the read_from_source method to access source_dat
     motion_latency
         optional motion latency adjustment
     address
         passed to dask_find_or_start_client to setup dask cluster
-
     """
-    def __init__(self, source_dat: BatchRead = None, source: str = 'Kongsberg_all', motion_latency: float = 0.0,
-                 address: str = None):
-        self.source = source
+
+    def __init__(self, source_dat: BatchRead = None, motion_latency: float = 0.0, address: str = None):
         self.source_dat = source_dat
         self.intermediate_dat = None
         self.soundings_path = ''
@@ -84,10 +90,10 @@ class Fqpr:
         """
         Initialize the fqpr logger using the source_dat logfile attribute.
 
-        self.logfile is the path to the text log that the logging module uses
-        self.logger is the logging.Logger object
-
+        | self.logfile is the path to the text log that the logging module uses
+        | self.logger is the logging.Logger object
         """
+
         if self.logger is None and self.source_dat.logfile is not None and self.source_dat is not None:
             self.logfile = self.source_dat.logfile
             self.logger = return_logger(__name__, self.logfile)
@@ -96,7 +102,8 @@ class Fqpr:
         """
         Activate rawdat object's appropriate read class
         """
-        if self.source == 'Kongsberg_all' and self.source_dat is not None:
+
+        if self.source_dat is not None:
             self.client = self.source_dat.client  # mbes read is first, pull dask distributed client from it
             if self.source_dat.raw_ping is None:
                 self.source_dat.read()
@@ -112,12 +119,9 @@ class Fqpr:
         ----------
         skip_dask
             if True, will open zarr datastore without Dask synchronizer object
-
         """
-        try:
-            self.soundings = reload_zarr_records(self.soundings_path, skip_dask)
-        except:
-            self.logger.warning("Unable to load soundings from {}".format(self.soundings_path))
+
+        self.soundings = reload_zarr_records(self.soundings_path, skip_dask)
 
     def reload_ppnav_records(self, skip_dask: bool = False):
         """
@@ -127,12 +131,9 @@ class Fqpr:
         ----------
         skip_dask
             if True, will open zarr datastore without Dask synchronizer object
-
         """
-        try:
-            self.ppnav_dat = reload_zarr_records(self.ppnav_path, skip_dask)
-        except:
-            self.logger.warning("Unable to load ppnav_dat from {}".format(self.ppnav_path))
+
+        self.ppnav_dat = reload_zarr_records(self.ppnav_path, skip_dask)
 
     def construct_crs(self, epsg: str = None, datum: str = 'NAD83', projected: bool = True):
         """
@@ -151,8 +152,8 @@ class Fqpr:
             datum identifier i.e. 'WGS84' or 'NAD83'
         projected
             if True uses utm zone projected coordinates
-
         """
+
         if epsg is not None:
             self.xyz_crs = CRS.from_epsg(int(epsg))
         elif epsg is None and not projected:
@@ -173,7 +174,7 @@ class Fqpr:
                 self.logger.error('{} not supported.  Only supports WGS84 and NAD83'.format(datum))
                 raise ValueError('{} not supported.  Only supports WGS84 and NAD83'.format(datum))
 
-    def generate_starter_orientation_vectors(self, txrx: list, tstmp: float):
+    def generate_starter_orientation_vectors(self, txrx: list = None, tstmp: float = None):
         """
         Take in identifiers to find the correct xyzrph entry, and use the heading value to figure out if the
         transmitter/receiver (tx/rx) is oriented backwards.  Otherwise return ideal vectors for representation of
@@ -185,8 +186,8 @@ class Fqpr:
             transmit/receive identifiers for xyzrph dict (['tx', 'rx'])
         tstmp
             timestamp for the appropriate xyzrph entry
-
         """
+
         # we call this when we reload data to get the reversed state.  Just use the first sector as a convenience.
         if txrx is None and tstmp is None:
             sectors = self.source_dat.return_sector_time_indexed_array()
@@ -222,8 +223,8 @@ class Fqpr:
         ----------
         src
             either a list of files to include or the path to a directory containing files
-
         """
+
         if type(src) is str:
             svfils = get_sv_files_from_directory(src)
         elif type(src) is list:
@@ -234,8 +235,10 @@ class Fqpr:
 
         if self.cast_files is None:
             self.cast_files = svfils
-        else:
+        elif isinstance(self.cast_files, list):
             self.cast_files.extend(sv for sv in svfils if sv not in self.cast_files)
+        else:
+            raise ValueError('Found sound velocity casts not provided as a list: {}'.format(self.cast_files))
 
     def setup_casts(self, surf_sound_speed: xr.DataArray, z_pos: float, add_cast_files: Union[str, list] = None):
         """
@@ -255,8 +258,8 @@ class Fqpr:
         -------
         list
             a list of SoundSpeedProfile objects with constructed lookup tables
-
         """
+
         # get the svp files and the casts in the mbes converted data
         if add_cast_files is not None:
             self.get_cast_files(add_cast_files)
@@ -269,7 +272,7 @@ class Fqpr:
                 try:
                     casttime = float(castname.split('_')[1])
                     cst_object = SoundSpeedProfile(data, z_pos, surf_sound_speed, prof_time=casttime,
-                                                   prof_type='raw_ping')
+                                                             prof_type='raw_ping')
                     cst_object.generate_lookup_table()
                     rangeangle_casts.append(cst_object)
                 except ValueError:
@@ -322,8 +325,8 @@ class Fqpr:
             a list of lists of the attributes within the SoundSpeedProfile objects, including constructed lookup
             tables for each waterline value in installation parameters.  Ideally, I could return the objects themselves,
             but you cannot scatter/map custom classes effectively in Dask.
-
         """
+
         self.cast_chunks[sector_index] = {}
 
         ss_by_sec = self.source_dat.raw_ping[sector_index].soundspeed.where(applicable_index, drop=True)
@@ -356,8 +359,8 @@ class Fqpr:
         -------
         list
             list of xarray Datarrays, values are the integer indexes of the pings to use, coords are the time of ping
-
         """
+
         msk = idx_mask.values
         index_timevals = np.arange(np.count_nonzero(msk))
         idx = xr.DataArray(index_timevals, dims=('time',), coords={'time': idx_mask.time[msk]})
@@ -389,7 +392,6 @@ class Fqpr:
         data
             list of lists, each sub-list is [xarray Datarray with times/indices for the chunk, index of the cast that
             applies to that chunk]
-
         """
 
         data = []
@@ -437,8 +439,8 @@ class Fqpr:
         -------
         xr.DataArray
             induced heave (z) value for each ping time
-
         """
+
         if self.source_dat.is_dual_head():  # dual dual systems
             if not self.is_primary_system(ra.sector_identifier):  # secondary head
                 self.logger.info('Building induced heave for secondary system in dual head arrangement')
@@ -509,8 +511,8 @@ class Fqpr:
         -------
         xr.Dataset
             navigation at ping time (latitude, longitude, altitude) with altitude correction
-
         """
+
         x_lever = float(self.source_dat.xyzrph[prefixes[0] + '_x'][timestmp])
         y_lever = float(self.source_dat.xyzrph[prefixes[0] + '_y'][timestmp])
         z_lever = float(self.source_dat.xyzrph[prefixes[0] + '_z'][timestmp])
@@ -559,8 +561,8 @@ class Fqpr:
         -------
         list
             [float, additional x offset, float, additional y offset, float, additional z offset]
-
         """
+
         x_off_ky = prefixes[0] + '_x_' + sec_info['sector']
         x_base_offset = prefixes[0] + '_x'
         if x_off_ky in self.source_dat.xyzrph:
@@ -576,7 +578,7 @@ class Fqpr:
             addtl_y = float(self.source_dat.xyzrph[y_base_offset][timestmp])
 
         z_off_ky = prefixes[0] + '_z_' + sec_info['sector']
-        z_base_offset = prefixes[0] + '_z'
+        # z_base_offset = prefixes[0] + '_z'
         if z_off_ky in self.source_dat.xyzrph:
             addtl_z = float(self.source_dat.xyzrph[z_off_ky][timestmp])
         else:
@@ -605,8 +607,8 @@ class Fqpr:
             number of pings in each chunk
         int
             number of chunks to run at once
-
         """
+
         if self.source_dat is None:
             self.logger.info('Read from data first, source_dat is None')
             return
@@ -626,7 +628,9 @@ class Fqpr:
         # pings_per_chunk, total_chunks = determine_optimal_chunks(self.client, actual_beams_per_ping)
         try:
             totchunks = get_number_of_workers(self.client)
-        except:  # client is closed or not setup, assume 4 chunks at a time for local processing
+        except (AttributeError, RuntimeError):
+            # client is closed or not setup, assume 4 chunks at a time for local processing
+            # AttributeError, client is None, RuntimeError, client is closed
             totchunks = 4
         return self.source_dat.ping_chunksize, totchunks
 
@@ -659,8 +663,8 @@ class Fqpr:
         -------
         list
             list of lists, each list contains future objects for distrib_run_build_orientation_vectors
-
         """
+
         latency = self.motion_latency
         if latency:
             self.logger.info('applying {}ms of latency to attitude...'.format(latency))
@@ -721,8 +725,8 @@ class Fqpr:
         -------
         list
             list of lists, each list contains future objects for distrib_run_build_beam_pointing_vector
-
         """
+
         self.logger.info('preparing to process {} pings'.format(len(tx_tstmp_idx)))
         self.logger.info('transducers mounted backwards - TX: {} RX: {}'.format(self.tx_reversed, self.rx_reversed))
 
@@ -733,7 +737,8 @@ class Fqpr:
             # workflow for data that is not written to disk.  Preference given for data in memory
             tx_rx_futs = [f[0] for f in self.intermediate_dat[sec_ident]['orientation'][timestmp]] * len(idx_by_chunk)
             try:
-                tx_rx_data = self.client.map(divide_arrays_by_time_index, tx_rx_futs, [chnk for chnk in idx_by_chunk])
+                tx_rx_data = self.client.map(divide_arrays_by_time_index,
+                                             tx_rx_futs, [chnk for chnk in idx_by_chunk])
             except:  # client is not setup, run locally
                 tx_rx_data = []
                 for cnt, fut in enumerate(tx_rx_futs):
@@ -790,8 +795,8 @@ class Fqpr:
         -------
         list
             list of lists, each list contains future objects for distributed_run_sv_correct
-
         """
+
         self.logger.info('dividing into {} data chunks for workers...'.format(len(cast_chunks)))
         data_for_workers = []
         if 'bpv' in self.intermediate_dat[sec_ident]:
@@ -858,8 +863,8 @@ class Fqpr:
         -------
         list
             list of lists, each list contains future objects for distrib_run_georeference, see georef_xyz
-
         """
+
         latency = self.motion_latency
         if latency:
             self.logger.info('Applying motion latency of {}ms'.format(latency))
@@ -953,8 +958,8 @@ class Fqpr:
         dict
             chunk sizes for the write, zarr wants explicit chunksizes for each array that cannot change after array
             creation.  chunk sizes can be greater than data size.
-
         """
+
         self.logger.info('Constructing dataset for variable "{}"'.format(variable_name))
 
         # use the raw_ping chunksize to chunk the reformed pings.
@@ -1022,8 +1027,8 @@ class Fqpr:
             raw_ping sector identifier, ex: '40107_1_320000'
         ky
             process key, one of 'orientation', 'bpv', etc.
-
         """
+
         try:
             self.intermediate_dat[sec_ident][ky] = {}
         except (KeyError, TypeError):
@@ -1077,8 +1082,8 @@ class Fqpr:
             log, ex: 'GRS80'
         max_gap_length
             maximum allowable gap in the sbet in seconds, excluding gaps found in raw navigation
-
         """
+
         self.logger.info('****Importing post processed navigation****\n')
         starttime = perf_counter()
 
@@ -1111,7 +1116,7 @@ class Fqpr:
 
         # retain only nav records that are within existing nav times
         navdata = slice_xarray_by_dim(navdata, 'time', start_time=float(self.source_dat.raw_nav.time.min()),
-                                      end_time=float(self.source_dat.raw_nav.time.max()))
+                                                     end_time=float(self.source_dat.raw_nav.time.max()))
         if navdata is None:
             raise ValueError('Unable to find timestamps in SBET that align with the raw navigation.')
         navdata.attrs['reference'] = {'latitude': 'reference point', 'longitude': 'reference point',
@@ -1127,8 +1132,8 @@ class Fqpr:
         outfold = os.path.join(self.source_dat.converted_pth, 'ppnav.zarr')
         chunk_sizes = {k: self.source_dat.nav_chunksize for k in list(navdata.variables.keys())}  # 50000 to match the raw_nav
         sync = DaskProcessSynchronizer(outfold)
-        distrib_zarr_write(outfold, [navdata], navdata.attrs, chunk_sizes, [[0, len(navdata.time)]], sync, self.client,
-                           append_dim='time', merge=False)
+        distrib_zarr_write(outfold, [navdata], navdata.attrs, chunk_sizes, [[0, len(navdata.time)]],
+                                          sync, self.client, append_dim='time', merge=False)
 
         self.ppnav_path = outfold
         self.reload_ppnav_records()
@@ -1149,8 +1154,8 @@ class Fqpr:
             one or more datasets that you want to interpolate and save to the raw ping datastores
         attributes
             optional attributes to write to the zarr datastore
-
         """
+
         if not isinstance(sources, list):
             sources = [sources]
         if attributes is None:
@@ -1174,7 +1179,8 @@ class Fqpr:
                 ping_wise_data = interp_across_chunks(source, raw_ping.time, 'time').chunk(self.source_dat.ping_chunksize)
                 chunk_sizes = {k: self.source_dat.ping_chunksize for k in list(ping_wise_data.variables.keys())}
                 distrib_zarr_write(outfold_sec, [ping_wise_data], attributes, chunk_sizes,
-                                   [[0, len(ping_wise_data.time)]], sync, self.client, append_dim='time', merge=True)
+                                                  [[0, len(ping_wise_data.time)]], sync, self.client,
+                                                  append_dim='time', merge=True)
                 attributes = {}
         self.source_dat.reload_pingrecords(skip_dask=skip_dask)
         endtime = perf_counter()
@@ -1187,13 +1193,15 @@ class Fqpr:
         time of transmit/receive.   Sends the data and calculations to the cluster, receive futures objects back.
         Use the dump_data/delete_futs to interact with the futures object.
 
+        | To process only a section of the dataset, use subset_time.
+        | ex: subset_time=[1531317999, 1531321000] means only process times that are from 1531317999 to 1531321000
+        | ex: subset_time=[[1531317999, 1531318885], [1531318886, 1531321000]] means only process times that are
+                from either 1531317999 to 1531318885 or 1531318886 to 1531321000
+
         Parameters
         ----------
         subset_time
             List of unix timestamps in seconds, used as ranges for times that you want to process.
-            ex: subset_time=[1531317999, 1531321000] means only process times that are from 1531317999 to 1531321000
-            ex: subset_time=[[1531317999, 1531318885], [1531318886, 1531321000]] means only process times that are
-                from either 1531317999 to 1531318885 or 1531318886 to 1531321000
         dump_data
             if True dump the tx/rx vectors to the source_data datastore
         delete_futs
@@ -1202,6 +1210,7 @@ class Fqpr:
             if True, will interpolate attitude/navigation to the ping record and store in the raw_ping datasets.  This
             is not mandatory for processing, but useful for other kluster functions post processing.
         """
+
         if initial_interp:
             needs_interp = []
             if 'latitude' not in list(self.source_dat.raw_ping[0].keys()):
@@ -1240,7 +1249,8 @@ class Fqpr:
                     data_for_workers = self._generate_chunks_orientation(ra, raw_att, idx_by_chunk, twtt_by_idx,
                                                                          applicable_index, timestmp, prefixes)
                     self.intermediate_dat[sec_ident]['orientation'][timestmp] = []
-                    self._submit_data_to_cluster(data_for_workers, distrib_run_build_orientation_vectors, max_chunks_at_a_time, idx_by_chunk,
+                    self._submit_data_to_cluster(data_for_workers, distrib_run_build_orientation_vectors,
+                                                 max_chunks_at_a_time, idx_by_chunk,
                                                  self.intermediate_dat[sec_ident]['orientation'][timestmp])
                 else:
                     self.logger.info('No pings found for {}-{}'.format(sec_ident, timestmp))
@@ -1259,18 +1269,21 @@ class Fqpr:
         ping/receive.  Sends the data and calculations to the cluster, receive futures objects back.
         Use the dump_data/delete_futs to interact with the futures object.
 
+        | To process only a section of the dataset, use subset_time.
+        | ex: subset_time=[1531317999, 1531321000] means only process times that are from 1531317999 to 1531321000
+        | ex: subset_time=[[1531317999, 1531318885], [1531318886, 1531321000]] means only process times that are
+                from either 1531317999 to 1531318885 or 1531318886 to 1531321000
+
         Parameters
         ----------
         subset_time
             List of unix timestamps in seconds, used as ranges for times that you want to process.
-            ex: subset_time=[1531317999, 1531321000] means only process times that are from 1531317999 to 1531321000
-            ex: subset_time=[[1531317999, 1531318885], [1531318886, 1531321000]] means only process times that are
-                from either 1531317999 to 1531318885 or 1531318886 to 1531321000
         dump_data
             if True dump the tx/rx vectors to the source_data datastore
         delete_futs
             if True remove the futures objects after data is dumped.
         """
+
         self.logger.info('****Building beam specific pointing vectors****\n')
         starttime = perf_counter()
         raw_hdng = self.source_dat.raw_att['heading']
@@ -1297,7 +1310,9 @@ class Fqpr:
                 if len(idx_by_chunk[0]):  # if there are pings in this sector that align with this installation parameter record
                     data_for_workers = self._generate_chunks_bpv(raw_hdng, idx_by_chunk, tx_tstmp_idx, applicable_index, sec_ident, timestmp)
                     self.intermediate_dat[sec_ident]['bpv'][timestmp] = []
-                    self._submit_data_to_cluster(data_for_workers, distrib_run_build_beam_pointing_vector, max_chunks_at_a_time, idx_by_chunk,
+                    self._submit_data_to_cluster(data_for_workers,
+                                                 distrib_run_build_beam_pointing_vector,
+                                                 max_chunks_at_a_time, idx_by_chunk,
                                                  self.intermediate_dat[sec_ident]['bpv'][timestmp])
                 else:
                     self.logger.info('No pings found for {}-{}'.format(sec_ident, timestmp))
@@ -1317,6 +1332,11 @@ class Fqpr:
         calculations to the cluster, receive futures objects back.  Use the dump_data/delete_futs to interact with
         the futures object.
 
+        | To process only a section of the dataset, use subset_time.
+        | ex: subset_time=[1531317999, 1531321000] means only process times that are from 1531317999 to 1531321000
+        | ex: subset_time=[[1531317999, 1531318885], [1531318886, 1531321000]] means only process times that are
+                from either 1531317999 to 1531318885 or 1531318886 to 1531321000
+
         Parameters
         ----------
         add_cast_files
@@ -1324,15 +1344,12 @@ class Fqpr:
             the casts in the ping dataset.
         subset_time
             List of unix timestamps in seconds, used as ranges for times that you want to process.
-            ex: subset_time=[1531317999, 1531321000] means only process times that are from 1531317999 to 1531321000
-            ex: subset_time=[[1531317999, 1531318885], [1531318886, 1531321000]] means only process times that are
-                from either 1531317999 to 1531318885 or 1531318886 to 1531321000
         dump_data
             if True dump the tx/rx vectors to the source_data datastore
         delete_futs
             if True remove the futures objects after data is dumped.
-
         """
+
         self.logger.info('****Correcting for sound velocity****\n')
         starttime = perf_counter()
 
@@ -1362,7 +1379,8 @@ class Fqpr:
                     addtl_offsets = self.return_additional_xyz_offsets(prefixes, sec_info, timestmp)
                     data_for_workers = self._generate_chunks_svcorr(cast_objects, cast_chunks, sec_ident, applicable_index, timestmp, addtl_offsets)
                     self.intermediate_dat[sec_ident]['sv_corr'][timestmp] = []
-                    self._submit_data_to_cluster(data_for_workers, distributed_run_sv_correct, max_chunks_at_a_time, [c[0].time for c in cast_chunks],
+                    self._submit_data_to_cluster(data_for_workers, distributed_run_sv_correct,
+                                                 max_chunks_at_a_time, [c[0].time for c in cast_chunks],
                                                  self.intermediate_dat[sec_ident]['sv_corr'][timestmp])
                     self.cast_chunks[s_cnt][timestmp] = cast_chunks
                 else:
@@ -1393,22 +1411,25 @@ class Fqpr:
         Sends the data and calculations to the cluster, receive futures objects back.  Use the dump_data/delete_futs to
         interact with the futures object.
 
+        | To process only a section of the dataset, use subset_time.
+        | ex: subset_time=[1531317999, 1531321000] means only process times that are from 1531317999 to 1531321000
+        | ex: subset_time=[[1531317999, 1531318885], [1531318886, 1531321000]] means only process times that are
+                from either 1531317999 to 1531318885 or 1531318886 to 1531321000
+
         Parameters
         ----------
-        vert_ref: one of ['ellipse', 'vessel', 'waterline']
+        vert_ref
+            one of ['ellipse', 'vessel', 'waterline']
         subset_time
             List of unix timestamps in seconds, used as ranges for times that you want to process.
-            ex: subset_time=[1531317999, 1531321000] means only process times that are from 1531317999 to 1531321000
-            ex: subset_time=[[1531317999, 1531318885], [1531318886, 1531321000]] means only process times that are
-                from either 1531317999 to 1531318885 or 1531318886 to 1531321000
         prefer_pp_nav
             if True will use post-processed navigation/height (SBET)
         dump_data
             if True dump the tx/rx vectors to the source_data datastore
         delete_futs
             if True remove the futures objects after data is dumped.
-
         """
+
         if vert_ref not in ['ellipse', 'vessel', 'waterline']:
             self.logger.error("{} must be one of 'ellipse', 'vessel', 'waterline'".format(vert_ref))
             raise ValueError("{} must be one of 'ellipse', 'vessel', 'waterline'".format(vert_ref))
@@ -1446,8 +1467,9 @@ class Fqpr:
                     data_for_workers = self._generate_chunks_georef(ra, idx_by_chunk, applicable_index, sec_ident,
                                                                     prefixes, timestmp, vert_ref, z_offset, prefer_pp_nav)
                     self.intermediate_dat[sec_ident]['xyz'][timestmp] = []
-                    self._submit_data_to_cluster(data_for_workers, distrib_run_georeference, max_chunks_at_a_time,
-                                                 idx_by_chunk, self.intermediate_dat[sec_ident]['xyz'][timestmp])
+                    self._submit_data_to_cluster(data_for_workers, distrib_run_georeference,
+                                                 max_chunks_at_a_time, idx_by_chunk,
+                                                 self.intermediate_dat[sec_ident]['xyz'][timestmp])
                 else:
                     self.logger.info('No pings found for {}-{}'.format(sec_ident, timestmp))
             if dump_data:
@@ -1481,8 +1503,8 @@ class Fqpr:
             optional, destination file format, default is csv file, options include ['csv', 'las', 'entwine']
         filter_by_detection
             optional, if True will only write soundings that are not rejected
-
         """
+
         if 'x' not in self.source_dat.raw_ping[0]:
             self.logger.error('No xyz data found')
             return
@@ -1621,7 +1643,6 @@ class Fqpr:
         validate
             if True will use assert statement to verify that the number of soundings between pre and post exported
             data is equal
-
         """
 
         self.logger.info('\n****Exporting xyz data to dataset****')
@@ -1713,8 +1734,8 @@ class Fqpr:
             values are the integer indexes of the pings to use, coords are the time of ping
         futures_repo
             where we want to store the futures objects, later used in writing to disk
-
         """
+
         try:
             tot_runs = int(np.ceil(len(data_for_workers) / max_chunks_at_a_time))
             for rn in range(tot_runs):
@@ -1756,8 +1777,8 @@ class Fqpr:
             if True will delete futures after writing data to disk
         skip_dask
             if True will not use the dask.distributed client to submit tasks, will run locally instead
-
         """
+
         ping_chunks = {'time': (self.source_dat.ping_chunksize,), 'beam': (400,), 'xyz': (3,),
                        'tx': (self.source_dat.ping_chunksize, 3), 'rx': (self.source_dat.ping_chunksize, 400, 3),
                        'rel_azimuth': (self.source_dat.ping_chunksize, 400),
@@ -1866,8 +1887,8 @@ class Fqpr:
         -------
         list
             list of numpy arrays for either x,y,z or x,y,z,uncertainty if include_unc
-
         """
+
         if 'x' not in self.source_dat.raw_ping[0]:
             print('return_xyz: unable to find georeferenced xyz for {}'.format(self.source_dat.converted_pth))
             return None
@@ -1911,8 +1932,8 @@ class Fqpr:
         -------
         list
             sector ids as strings
-
         """
+
         ids = []
         for ra in self.source_dat.raw_ping:
             ids.append(ra.sector_identifier)
@@ -1937,8 +1958,8 @@ class Fqpr:
         -------
         bool
             if provided sector_identifier is the primary system, returns true.  else returns false
-
         """
+
         # use the attributes from the first raw_ping record as they all have the same attributes
         primary_sn = str(self.source_dat.raw_ping[0].system_serial_number[0])
         sector_sn = self.parse_sect_info_from_identifier(sector_identifier)['serial_number']
@@ -1959,8 +1980,8 @@ class Fqpr:
         -------
         dict
             dict containing serial number, sector and frequency, all as string
-
         """
+
         sec_info = sector_identifier.split('_')
         return {'serial_number': sec_info[0], 'sector': sec_info[1], 'frequency': sec_info[2]}
 
@@ -1970,18 +1991,12 @@ class Fqpr:
         number/sector index/frequency, so to get the total pings, we just find all the serial number/frequency
         combinations and add the time sizes together
 
-        ex:
-
-        secs = ['241_0_070000', '241_0_090000', '241_1_080000', '241_1_100000', '241_2_070000', '241_2_090000']
-
-        '241_0_070000', '241_0_090000' are active at alternating times, so find the size of the time dimension and add
-        that together to get the total ping count.
-
         Returns
         -------
         int
             total number of pings for this dataset
         """
+
         total_pings = 0
         secs = self.return_sector_ids()
         secs_info = [self.parse_sect_info_from_identifier(s) for s in secs]
@@ -2025,8 +2040,8 @@ class Fqpr:
             1d array containing times for each ping
         np.array
             1d array containing string values indicating the sector each beam value comes from
-
         """
+
         # 2000, an arbitrarily large number to hold all possible beams plus NaNs
         #    these arrays are where we are going to put all the different sectors for each ping counter
         out = np.full((len(variable_selection), total_pings, max_possible_beams), np.nan)
@@ -2087,8 +2102,8 @@ class Fqpr:
             (1, number of pings, number of beams)
         np.ndarray
             (number of variables, number of pings, number of beams) for all non-NaN values in out
-
         """
+
         shortest_arr = int(np.where(actual_var_lengths == np.amin(actual_var_lengths))[0])
         shortest_idx = ~np.isnan(out[shortest_arr])
         self.logger.info('Found some variables with different lengths, resizing to {}'.format(
@@ -2112,11 +2127,11 @@ class Fqpr:
         Do this by finding the ping counter number(s) at that time, and return the full ping(s) associated with that
         ping counter number.
 
-        Interesting Notes:
-        - EM2040c will have multiple pings at the same time with different ping counters.  Sometimes there is a slight
-            time delay.  Most of the time not.  Tracking ping counter solves this
-        - DualHead sonar will have multiple pings at the same time with the same ping counter.  Ugh.  Only way of
-            differentiating is through the serial number associated with that sector.
+        EM2040c will have multiple pings at the same time with different ping counters.  Sometimes there is a slight
+        time delay.  Most of the time not.  Tracking ping counter solves this
+
+        DualHead sonar will have multiple pings at the same time with the same ping counter.  Ugh.  Only way of
+        differentiating is through the serial number associated with that sector.
 
         Parameters
         ----------
@@ -2135,8 +2150,8 @@ class Fqpr:
             1d array containing string values indicating the sector each beam value comes from
         np.array
             1d array containing times for each ping
-
         """
+
         ping_counters = self.source_dat.return_ping_counters_at_time(ping_times)
         secs = self.return_sector_ids()
         total_pings = self.return_total_pings(only_these_counters=ping_counters)
@@ -2200,8 +2215,8 @@ class Fqpr:
             data for given variable names at that time for all sectors (variable, ping)
         np.array
             1d array containing times for each ping
-
         """
+
         ping_counters = self.source_dat.return_ping_counters_at_time(ping_times)
         secs = self.return_sector_ids()
         total_pings = self.return_total_pings(only_these_counters=ping_counters)
@@ -2240,8 +2255,8 @@ class Fqpr:
         -------
         np.array
             1d array of timestamps
-
         """
+
         tims = np.concatenate([ra.time.values for ra in self.source_dat.raw_ping])
         tims.sort()
         return tims
@@ -2255,8 +2270,8 @@ class Fqpr:
         -------
         int
             total number of soundings in the dataset
-
         """
+
         if 'x' not in self.source_dat.raw_ping[0]:
             self.logger.error('No xyz data found')
             return None
@@ -2274,8 +2289,8 @@ class Fqpr:
         -------
         np.array
             1d array of timestamps
-
         """
+
         return np.unique(np.concatenate([ra.time.values for ra in self.source_dat.raw_ping]))
 
     def return_line_dict(self):
@@ -2285,9 +2300,10 @@ class Fqpr:
         Returns
         -------
         dict
-            dictionary of names/start and stop times for all lines,
-            ex: {'0022_20190716_232128_S250.all': [1563319288.304, 1563319774.876]}
+            dictionary of names/start and stop times for all lines, ex: {'0022_20190716_232128_S250.all':
+            [1563319288.304, 1563319774.876]}
         """
+
         return self.source_dat.raw_ping[0].multibeam_files
 
     def calc_min_var(self, varname: str = 'depthoffset'):
@@ -2303,8 +2319,8 @@ class Fqpr:
         -------
         float
             minimum value across all sectors
-
         """
+
         mins = np.array([])
         for ping in self.source_dat.raw_ping:
             mins = np.append(mins, float(ping[varname].min()))
@@ -2323,8 +2339,8 @@ class Fqpr:
         -------
         float
             maximum value across all sectors
-
         """
+
         maxs = np.array([])
         for ping in self.source_dat.raw_ping:
             maxs = np.append(maxs, float(ping[varname].max()))
@@ -2339,8 +2355,8 @@ class Fqpr:
         -------
         np.array
             array of mode settings
-
         """
+
         if 'sub_mode' in self.source_dat.raw_ping[0]:
             mode = np.unique(np.concatenate([np.unique(f.sub_mode) for f in self.source_dat.raw_ping]))
         else:
@@ -2364,8 +2380,8 @@ class Fqpr:
         -------
         np.array
             array of rounded frequencies
-
         """
+
         rounded_freqs = []
         f_idents = self.soundings.frequency_identifier
         lens = np.unique([len(str(id)) for id in f_idents])
@@ -2399,8 +2415,8 @@ class Fqpr:
             latitude at the provided sample rate between start and end times if provided
         xr.DataArray
             longitude at the provided sample rate between start and end times if provided
-
         """
+
         if self.source_dat.raw_nav is None:
             print('Unable to find raw_nav for {}'.format(self.source_dat.converted_pth))
 
@@ -2428,7 +2444,7 @@ def get_ping_times(pingrec_time: xr.DataArray, idx: xr.DataArray):
     -------
     xr.DataArray
         1 dim ping times from the DataSet
-
     """
+
     tx_tstmp_idx = pingrec_time.where(idx, drop=True)
     return tx_tstmp_idx

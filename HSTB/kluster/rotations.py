@@ -1,8 +1,9 @@
 import xarray as xr
+import dask as da
 import numpy as np
 
 
-def build_rot_mat(roll, pitch, yaw, order='rpy', degrees=True):
+def build_rot_mat(roll: xr.DataArray, pitch: xr.DataArray, yaw: xr.DataArray, order: str = 'rpy', degrees: bool = True):
     """
     Make the rotation matrix for a set of angles and return the matrix.
     All file angles are in degrees, so incoming angles are degrees.
@@ -10,21 +11,25 @@ def build_rot_mat(roll, pitch, yaw, order='rpy', degrees=True):
     Intrinsic - each rotation performed on coordinate system as rotated by previous operation
     Intrinsic rotation, rot(rpy) = rot(y)*rot(p)*rot(r)
 
-    Roll pitch yaw assumed to be xarray DataArray, else will try single values
-
     Parameters
     ----------
-    roll: xarray, array of floating point numbers
-    pitch: xarray, array of floating point numbers
-    yaw: xarray, array of floating point numbers
-    order: str, order of rotation
-    degrees: bool, True if incoming angles are in degrees, False if radians
+    roll
+        array of floating point numbers from roll sensor
+    pitch
+        array of floating point numbers from pitch sensor
+    yaw
+        array of floating point numbers from heading sensor
+    order
+        order of rotation, either 'rpy' or 'ypr'
+    degrees
+        True if incoming angles are in degrees, False if radians
 
     Returns
     -------
-    rmat: xarray DataArray, rotation matrix composed of rpy rotations
-
+    xr.DataArray
+        rotation matrix composed of rpy rotations
     """
+
     if type(roll) != xr.DataArray or type(pitch) != xr.DataArray or type(yaw) != xr.DataArray:
         raise TypeError('Expected xarray DataArray object')
 
@@ -69,7 +74,7 @@ def build_rot_mat(roll, pitch, yaw, order='rpy', degrees=True):
     return rmat
 
 
-def build_mounting_angle_mat(roll, pitch, yaw, tstmp):
+def build_mounting_angle_mat(roll: float, pitch: float, yaw: float, tstmp: str):
     """
     Feeds build_rot_mat, difference being this takes in single floating point numbers for rpy as you get from a
     surveyed mount angle data point.
@@ -78,16 +83,21 @@ def build_mounting_angle_mat(roll, pitch, yaw, tstmp):
 
     Parameters
     ----------
-    roll: float, roll angle for rotation matrix
-    pitch: float, pitch angle for rotation matrix
-    yaw: float, yaw angle for rotation matrix
-    tstmp: string, time relevant installation parameter showed up in the multibeam file
+    roll
+        roll angle for rotation matrix
+    pitch
+        pitch angle for rotation matrix
+    yaw
+        yaw angle for rotation matrix
+    tstmp
+        time relevant installation parameter showed up in the multibeam file
 
     Returns
     -------
-    rmat: xarray DataArray, rotation matrix composed of rpy rotations
-
+    xr.DataArray
+        rotation matrix composed of data provided
     """
+
     if type(roll) != float or type(pitch) != float or type(yaw) != float:
         raise TypeError('Expected floating point values for roll,pitch,yaw')
 
@@ -98,7 +108,7 @@ def build_mounting_angle_mat(roll, pitch, yaw, tstmp):
     return build_rot_mat(roll_xarr, pitch_xarr, yaw_xarr, order='rpy', degrees=True)
 
 
-def combine_rotation_matrix(mat_one, mat_two):
+def combine_rotation_matrix(mat_one: xr.DataArray, mat_two: xr.DataArray):
     """
     Composing two rotation matrices is performed by taking the product of the two matrices
 
@@ -108,14 +118,17 @@ def combine_rotation_matrix(mat_one, mat_two):
 
     Parameters
     ----------
-    mat_one: xarray Dataarray, 3dim rotation matrix (time, x, y)
-    mat_two: xarray Dataarray, 3dim rotation matrix (time, x, y)
+    mat_one
+        3dim rotation matrix (time, x, y)
+    mat_two
+        3dim rotation matrix (time, x, y)
 
     Returns
     -------
-    final_rot: dask Array, 3dim rotation matrix (time, x, y) for each time in input matrices
-
+    xr.DataArray
+        3dim rotation matrix (time, x, y) for each time in input matrices
     """
+
     # This is apparently close, but not the right expression.  I can't figure this out right now
     # final_rot = einsum('ijk,jkl->ijk', mat_one, mat_two)
 

@@ -14,6 +14,7 @@ xarray\_conversion module
    :skip: return_zone_from_min_max_long
    :skip: xarr_to_netcdf
    :skip: Client
+   :skip: Future
    :skip: DaskProcessSynchronizer
    :skip: SortedDict
    :skip: ZarrWrite

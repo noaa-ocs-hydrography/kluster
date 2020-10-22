@@ -1,12 +1,17 @@
 import os
 import numpy as np
 import xarray as xr
+from dask.distributed import Client
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
-from scipy.signal import butter, sosfilt, firwin, lfilter, freqz
+from matplotlib.pyplot import Figure, Axes
+from scipy.signal import firwin, lfilter, freqz
+from typing import Union
 
 from HSTB.kluster.fqpr_helpers import return_directory_from_data, return_data, return_surface
 from HSTB.kluster.xarray_helpers import interp_across_chunks
+from HSTB.kluster.fqpr_surface import BaseSurface
+from HSTB.kluster.fqpr_generation import Fqpr
 
 
 class WobbleTest:
@@ -19,12 +24,11 @@ class WobbleTest:
     WobbleTest will generate the high pass filtered mean depth and ping-wise slope, and build the correlation plots
     as described in the paper.
 
-    test = r"C:\data_dir\kluster_converted"
-    fq = fqpr_convenience.reload_data(test)
-    wb = WobbleTest(fq)
-    wb.generate_starting_data()
-    wb.plot_correlation_table()
-
+    | test = r"C:\data_dir\kluster_converted"
+    | fq = fqpr_convenience.reload_data(test)
+    | wb = WobbleTest(fq)
+    | wb.generate_starting_data()
+    | wb.plot_correlation_table()
     """
 
     def __init__(self, fqpr):
@@ -53,14 +57,19 @@ class WobbleTest:
 
         self.correlation_table = None
 
-    def generate_starting_data(self, use_altitude=True):
+    def generate_starting_data(self, use_altitude: bool = True):
         """
         Use the depthoffset (an output from kluster svcorrect) and corr_pointing_angle (an output from kluster
         get_beam_pointing_vectors to build the highpass filtered slope and depth.
 
         High pass filter window is based on the maximum period across all attitude signals (self.max_period).
 
+        Parameters
+        ----------
+        use_altitude
+            If true, will use altitude instead of heave for the plots
         """
+
         print('Generating wobble data for pings')
         utms = self.fqpr.return_unique_times_across_sectors()
         varnames = ['depthoffset', 'corr_pointing_angle']
@@ -111,12 +120,12 @@ class WobbleTest:
                 print("use_altitude option not selected, but data was processed with vert ref: {}".format(self.vert_ref))
                 return
 
-        filterorder = 101
-        self.hpf_depth = return_high_pass_filtered_depth(self.depth, self.max_period, order=filterorder)
+        numtaps = 101  # filter length
+        self.hpf_depth = return_high_pass_filtered_depth(self.depth, self.max_period, numtaps=numtaps)
         self.hpf_port_slope, _ = return_high_pass_filtered_slope(self.beampointingangle[:, 0:200], self.depth[:, 0:200],
-                                                                 self.max_period * 6, order=filterorder)
+                                                                 self.max_period * 6, numtaps=numtaps)
         self.hpf_stbd_slope, _ = return_high_pass_filtered_slope(self.beampointingangle[:, 200:400], self.depth[:, 200:400],
-                                                                 self.max_period * 6, order=filterorder)
+                                                                 self.max_period * 6, numtaps=numtaps)
 
         # want to only include 45 to -45 deg for inner slope
         try:
@@ -129,20 +138,20 @@ class WobbleTest:
 
         self.hpf_inner_slope, _ = return_high_pass_filtered_slope(self.beampointingangle[:, strt:end],
                                                                   self.depth[:, strt:end],
-                                                                  self.max_period * 6, order=filterorder)
+                                                                  self.max_period * 6, numtaps=numtaps)
 
         self.hpf_slope, self.slope_percent_deviation = return_high_pass_filtered_slope(self.beampointingangle,
                                                                                        self.depth, self.max_period * 6,
-                                                                                       order=filterorder)
+                                                                                       numtaps=numtaps)
 
         # filtering process, we remove the bad samples at the beginning, now remove samples from the end of the original
         #   data to match the length of the filtered data
-        self.beampointingangle = self.beampointingangle[:-int(filterorder / 2)]
-        self.depth = self.depth[:-int(filterorder / 2)]
-        self.roll_at_ping_time = self.roll_at_ping_time[:-int(filterorder / 2)]
-        self.rollrate_at_ping_time = self.rollrate_at_ping_time[:-int(filterorder / 2)]
-        self.pitch_at_ping_time = self.pitch_at_ping_time[:-int(filterorder / 2)]
-        self.vert_motion_at_ping_time = self.vert_motion_at_ping_time[:-int(filterorder / 2)]
+        self.beampointingangle = self.beampointingangle[:-int(numtaps / 2)]
+        self.depth = self.depth[:-int(numtaps / 2)]
+        self.roll_at_ping_time = self.roll_at_ping_time[:-int(numtaps / 2)]
+        self.rollrate_at_ping_time = self.rollrate_at_ping_time[:-int(numtaps / 2)]
+        self.pitch_at_ping_time = self.pitch_at_ping_time[:-int(numtaps / 2)]
+        self.vert_motion_at_ping_time = self.vert_motion_at_ping_time[:-int(numtaps / 2)]
         print('Initial data generation complete.')
 
     def _add_regression_line(self, ax: plt.subplot, x: np.array, y: np.array):
@@ -158,6 +167,7 @@ class WobbleTest:
         y
             numpy array, 1d
         """
+
         slopes, intercepts, stderrs, percent_deviation = linear_regression(x, y)
         ax.plot(x, slopes * x + intercepts,
                 label='y = {}x + {}'.format(np.round(slopes, 6), np.round(intercepts, 6)), color='red')
@@ -175,8 +185,8 @@ class WobbleTest:
         ----------
         subplot
             pyplot AxesSubplot instance to add to, if None will generate new instance
-
         """
+
         if subplot is None:
             subplot = plt.subplots(1)[1]
         subplot.plot(self.times, self.slope_percent_deviation)
@@ -189,11 +199,12 @@ class WobbleTest:
 
     def plot_attitude_scaling_one(self, subplot: plt.subplot = None, add_regression: bool = True):
         """
-        This plot (as well as the trimmed plot scaling_two) deal with identifying:
-         1. sensor scaling issues (should not be present in modern systems I think)
-         2. rolling with imperfect sound speed (probably more likely)
+        | This plot (as well as the trimmed plot scaling_two) deal with identifying:
+        |  1. sensor scaling issues (should not be present in modern systems I think)
+        |  2. rolling with imperfect sound speed (probably more likely)
 
         Focusing on the second one:
+
         When the soundspeed at the face is incorrect, roll angles will introduce steering angle error, so your
         beampointingangle will be off.  As the roll changes, the error will change, making this a dynamic error that
         is correlated with roll.
@@ -207,8 +218,8 @@ class WobbleTest:
             pyplot AxesSubplot instance to add to, if None will generate new instance
         add_regression
             bool, if True, will include a regression line
-
         """
+
         if subplot is None:
             subplot = plt.subplots(1)[1]
         subplot.scatter(self.roll_at_ping_time, self.hpf_slope)
@@ -223,9 +234,9 @@ class WobbleTest:
         """
         See attitude_scaling_one, same concept.  We have two plots for a good reason.  If you are trying to
         differentiate between 1. and 2., do the following:
-        - if scaling_one and scaling_two have your artifact, its probably a scaling issue
-        - otherwise, if the plots are different, it most likely is the sound speed one.  Inner swath and outer swath
-          will differ as the swath is curved
+        | - if scaling_one and scaling_two have your artifact, its probably a scaling issue
+        | - otherwise, if the plots are different, it most likely is the sound speed one.  Inner swath and outer swath
+        |   will differ as the swath is curved
 
         Parameters
         ----------
@@ -233,8 +244,8 @@ class WobbleTest:
             pyplot AxesSubplot instance to add to, if None will generate new instance
         add_regression
             bool, if True, will include a regression line
-
         """
+
         if subplot is None:
             subplot = plt.subplots(1)[1]
         subplot.scatter(self.roll_at_ping_time, self.hpf_inner_slope)
@@ -261,8 +272,8 @@ class WobbleTest:
             pyplot AxesSubplot instance to add to, if None will generate new instance
         add_regression
             bool, if True, will include a regression line
-
         """
+
         if subplot is None:
             subplot = plt.subplots(1)[1]
         subplot.scatter(self.rollrate_at_ping_time, self.hpf_slope)
@@ -285,8 +296,8 @@ class WobbleTest:
             pyplot AxesSubplot instance to add to, if None will generate new instance
         add_regression
             bool, if True, will include a regression line
-
         """
+
         if subplot is None:
             subplot = plt.subplots(1)[1]
         subplot.scatter(self.pitch_at_ping_time, self.hpf_slope)
@@ -302,8 +313,10 @@ class WobbleTest:
         Plot to find the x lever arm error, which is determined by looking at the correlation between filtered depth
         and pitch.  X lever arm error affects the induced heave by the following equation:
 
-        Induced Heave Error = -(x_error) * sin(pitch) + (y_error) * sin(roll) * cos(pitch) +
-                              (z_error) * (1 - cos(roll) * cos(pitch))
+        Induced Heave Error = -(x_error) * sin(pitch) + (y_error) * sin(roll) * cos(pitch) + (z_error) * (1 - cos(roll) * cos(pitch))
+
+        Or in isolating the x
+
         Induced Heave Error = -x_error * sin(pitch)
 
         Parameters
@@ -312,8 +325,8 @@ class WobbleTest:
             pyplot AxesSubplot instance to add to, if None will generate new instance
         add_regression
             bool, if True, will include a regression line
-
         """
+
         if subplot is None:
             subplot = plt.subplots(1)[1]
         subplot.scatter(self.pitch_at_ping_time, self.hpf_depth)
@@ -331,6 +344,9 @@ class WobbleTest:
 
         Induced Heave Error = -(x_error) * sin(pitch) + (y_error) * sin(roll) * cos(pitch) +
                               (z_error) * (1 - cos(roll) * cos(pitch))
+
+        or in isloating the y
+
         Induced Heave Error (y) = y_error * sin(roll) * cos(pitch)
 
         Parameters
@@ -339,8 +355,8 @@ class WobbleTest:
             pyplot AxesSubplot instance to add to, if None will generate new instance
         add_regression
             bool, if True, will include a regression line
-
         """
+
         if subplot is None:
             subplot = plt.subplots(1)[1]
         subplot.scatter(self.roll_at_ping_time, self.hpf_depth)
@@ -364,8 +380,8 @@ class WobbleTest:
             pyplot AxesSubplot instance to add to, if None will generate new instance
         add_regression
             bool, if True, will include a regression line
-
         """
+
         if subplot is None:
             subplot = plt.subplots(1)[1]
         subplot.scatter(self.vert_motion_at_ping_time, self.hpf_port_slope)
@@ -388,8 +404,8 @@ class WobbleTest:
             pyplot AxesSubplot instance to add to, if None will generate new instance
         add_regression
             bool, if True, will include a regression line
-
         """
+
         if subplot is None:
             subplot = plt.subplots(1)[1]
         subplot.scatter(self.vert_motion_at_ping_time, self.hpf_stbd_slope)
@@ -405,6 +421,7 @@ class WobbleTest:
         Use the class methods for generating each plot and build a grid of plots.  The table allows the user to
         view multiple results at once, to determine the appropriate course of action.
         """
+
         self.correlation_table = plt.figure(constrained_layout=True)
         gs = GridSpec(3, 3, figure=self.correlation_table)
 
@@ -428,7 +445,7 @@ class WobbleTest:
         self.plot_heave_sound_speed_two(subplot=heave_v_stbd_slope)
 
 
-def calc_order(depth):
+def calc_order(depth: np.array):
     """
     This function takes an array of depths and returns Order 1 and Special Order values based on (b * depth).  The "a"
     factor used in the IHO standards is omitted.  This is because the depth invarient part of the uncertainty should be
@@ -436,7 +453,8 @@ def calc_order(depth):
 
     Parameters
     ----------
-    depth: numpy array, array of depth values
+    depth
+        numpy array, array of depth values
 
     Returns
     -------
@@ -444,8 +462,8 @@ def calc_order(depth):
     order1_max: max value according to IHO order 1
     specialorder_min: min value according to IHO special order
     specialorder_max: max value according to IHO special order
-
     """
+
     order1_max = 0.013 * depth.max()
     order1_min = 0.013 * depth.min()
     specialorder_max = 0.0075 * depth.max()
@@ -453,26 +471,33 @@ def calc_order(depth):
     return order1_min, order1_max, specialorder_min, specialorder_max
 
 
-def difference_grid_and_soundings(bs, linefq, ang):
+def difference_grid_and_soundings(bs: BaseSurface, linefq: Fqpr, ang: xr.DataArray):
     """
     Given base surface instance (bs) and Fqpr instance (linefq) determine the depth difference between the nearest
     soundings to the surface node and the nodal depth.
 
     Parameters
     ----------
-    bs: fqpr_surface BaseSurface instance, represents the reference surface data
-    linefq: fqpr_generation Fqpr instance, represents the accuracy lines
-    ang: xarray DataArray, beam angle for soundings, added in here separately as this is not stored in the xyz_dat
-         dataset so has to be reformed previously.
+    bs
+        fqpr_surface BaseSurface instance, represents the reference surface data
+    linefq
+        fqpr_generation Fqpr instance, represents the accuracy lines
+    ang
+        xarray DataArray, beam angle for soundings, added in here separately as this is not stored in the xyz_dat
+        dataset so has to be reformed previously.
 
     Returns
     -------
-    depth_diff: numpy array, depth difference between grid node and sounding for each sounding
-    grid_depth_at_loc: numpy array, grid depth found for each sounding
-    soundings_beam_at_loc: numpy array, beam numbers for each returned sounding
-    soundings_angle_at_loc: numpy array, angle values for each returned sounding
-
+    np.array
+        depth difference between grid node and sounding for each sounding
+    np.array
+        grid depth found for each sounding
+    np.array
+        beam numbers for each returned sounding
+    np.array
+        angle values for each returned sounding
     """
+
     grid_loc_per_sounding_x, grid_loc_per_sounding_y = bs.calculate_grid_indices(linefq.soundings.x, linefq.soundings.y,
                                                                                  only_nearest=True)
     sounding_idx = grid_loc_per_sounding_x != -1  # soundings that are inside the grid
@@ -488,7 +513,18 @@ def difference_grid_and_soundings(bs, linefq, ang):
     return depth_diff.values, grid_depth_at_loc, soundings_beam_at_loc.values, soundings_angle_at_loc
 
 
-def _plot_firwin_freq_response(b, a=1):
+def _plot_firwin_freq_response(b: np.array, a: int = 1):
+    """
+    Use scipy.signal.freqz to plot the frequency response of the filter
+
+    Parameters
+    ----------
+    b
+        numerator of a linear filter
+    a
+        denominator of a linear filter
+    """
+
     w, h = freqz(b, a)
     h_dB = 20 * np.log10(abs(h))
     plt.subplot(211)
@@ -506,7 +542,18 @@ def _plot_firwin_freq_response(b, a=1):
     plt.subplots_adjust(hspace=0.5)
 
 
-def _plot_firwin_impulse_response(b, a=1):
+def _plot_firwin_impulse_response(b: np.array, a: int = 1):
+    """
+    Use scipy.signal.lfilter to plot the impulse response of the filter
+
+    Parameters
+    ----------
+    b
+        numerator of a linear filter
+    a
+        denominator of a linear filter
+    """
+
     l = len(b)
     impulse = np.repeat(0., l)
     impulse[0] = 1.0
@@ -526,23 +573,34 @@ def _plot_firwin_impulse_response(b, a=1):
     plt.subplots_adjust(hspace=0.5)
 
 
-def build_highpass_filter_coeff(cutoff_freq, order=101, show_freq_response=False, show_impulse_response=False):
+def build_highpass_filter_coeff(cutoff_freq: float, numtaps: int = 101, show_freq_response: bool = False,
+                                show_impulse_response: bool = False):
     """
+    Construct a highpass filter using Scipy
+
     http://mpastell.com/2010/01/18/fir-with-scipy/
 
     Parameters
     ----------
     cutoff_freq
+        cutoff frequency of the filter
+    numtaps
+        filter length, must be odd
     show_freq_response
+        if True, will generate plot of frequency response
+    show_impulse_response
+        if True, will generate plot of impulse response
 
     Returns
     -------
-
+    np.array
+        filter coefficients
     """
-    coef = firwin(order, cutoff=cutoff_freq, window="hanning")
+
+    coef = firwin(numtaps, cutoff=cutoff_freq, window="hanning")
     # Spectral inversion to get highpass from lowpass
     coef = -coef
-    coef[int(order / 2)] = coef[int(order / 2)] + 1
+    coef[int(numtaps / 2)] = coef[int(numtaps / 2)] + 1
 
     if show_freq_response:
         _plot_firwin_freq_response(coef)
@@ -551,20 +609,22 @@ def build_highpass_filter_coeff(cutoff_freq, order=101, show_freq_response=False
     return coef
 
 
-def return_period_of_signal(sig):
+def return_period_of_signal(sig: xr.DataArray):
     """
     Use autocorrelation to find the frequency/period of the signal.  Autocorrelation will generate a copy of the input
     signal, time-lagged, and slide it over the original until it matches.
 
     Parameters
     ----------
-    sig: xarray Dataarray, signal values with coordinates equal to time
+    sig
+        signal values with coordinates equal to time
 
     Returns
     -------
-    float, max period of the input signals
-
+    float
+        max period of the input signals
     """
+
     # generate indices where the signal matches, return is symmetrical so only look at last half
     acf = np.correlate(sig, sig, 'full')[-len(sig):]
     # first index is always zero of course, since the two signals with zero delay will match
@@ -576,7 +636,7 @@ def return_period_of_signal(sig):
     return period
 
 
-def return_high_pass_filtered_depth(z, max_period, order=101):
+def return_high_pass_filtered_depth(z: np.array, max_period: float, numtaps: int = 101):
     """
     Take in two dim array of depth (pings, beams) and return a high pass filtered mean depth for each ping.  Following
     the JHC 'Dynamic Motion Residuals...' paper which suggests using a 4 * max period cutoff.  I've found a 6 * max
@@ -584,29 +644,34 @@ def return_high_pass_filtered_depth(z, max_period, order=101):
 
     Parameters
     ----------
-    z: numpy array (ping, beam) for depth
-    max_period: float, max period of the attitude arrays (roll, pitch, heave)
+    z
+        numpy array (ping, beam) for depth
+    max_period
+        float, max period of the attitude arrays (roll, pitch, heave)
+    numtaps
+        filter length, must be odd
 
     Returns
     -------
-    filt: numpy array (depth) for the HPF ping-wise mean depth
-
+    np.array
+        HPF ping-wise mean depth
     """
+
     meandepth = z.mean(axis=1)
     zerocentered_meandepth = meandepth - meandepth.mean()
 
     # butterworth filter I never quite got to work in a way i understood
-    # sos = butter(order, 1 / max_period, btype='highpass', output='sos')
+    # sos = butter(numtaps, 1 / max_period, btype='highpass', output='sos')
     # filt = sosfilt(sos, meandepth)
 
-    coef = build_highpass_filter_coeff(1 / (max_period * 4), order=order)
+    coef = build_highpass_filter_coeff(1 / (max_period * 4), order=numtaps)
     filt_depth = lfilter(coef, 1.0, zerocentered_meandepth)
     # trim the bad sections from the start of the filtered depth
-    trimfilt_depth = filt_depth[int(order / 2):]
+    trimfilt_depth = filt_depth[int(numtaps / 2):]
     return trimfilt_depth
 
 
-def linear_regression(x, y):
+def linear_regression(x: np.array, y: np.array):
     """
     Wrap numpy's polyfit (degree one) to also generate percent deviation from the standard error of y values
 
@@ -614,17 +679,23 @@ def linear_regression(x, y):
 
     Parameters
     ----------
-    x: numpy array (2d ping/beam or 1d vals) for x vals
-    y: numpy array (2d ping/beam or 1d vals) for y val
+    x
+        numpy array (2d ping/beam or 1d vals) for x vals
+    y
+        numpy array (2d ping/beam or 1d vals) for y val
 
     Returns
     -------
-    slopes: numpy array (ping) slope for each ping
-    intercepts: numpy array (ping) y intercept from regression
-    stderrs: numpy array (ping) standard deviation of the noise in z (standard error of the model)
-    percent_deviation: numpy array (ping) percent deviation of the model
-
+    np.array
+        numpy array (ping) slope for each ping
+    np.array
+        numpy array (ping) y intercept from regression
+    np.array
+        numpy array (ping) standard deviation of the noise in z (standard error of the model)
+    np.array
+        numpy array (ping) percent deviation of the model
     """
+
     slopes = []
     intercepts = []
     stderrs = []
@@ -662,63 +733,77 @@ def linear_regression(x, y):
     return slopes, intercepts, stderrs, percent_deviation
 
 
-def return_high_pass_filtered_slope(y, z, max_period, order=101):
+def return_high_pass_filtered_slope(y: np.array, z: np.array, max_period: float, numtaps: int = 101):
     """
     Perform linear regression on acrosstrack/depth offsets to get ping slope.  High pass filter the slope to retain only
     the signal related to attitude.
 
     Parameters
     ----------
-    y: numpy array (ping, beam) for alongtrack offset rel RP
-    z: numpy array (ping, beam) for depth rel wline
-    max_period: float, max period of the attitude arrays (roll, pitch, heave)
+    y
+        numpy array (ping, beam) for alongtrack offset rel RP
+    z
+        numpy array (ping, beam) for depth rel wline
+    max_period
+        float, max period of the attitude arrays (roll, pitch, heave)
+    numtaps
+        filter length, must be odd
 
     Returns
     -------
-    filt_slope: numpy array (ping) high pass filtered slope for each ping
-    slope: numpy array (ping) slope for each ping
-    intercepts: numpy array (ping) y intercept from regression
-    stderrs: numpy array (ping) standard deviation of the noise in z (standard error of the model)
-    percent_deviation: numpy array (ping) percent deviation of the model
-
+    np.array
+        numpy array (ping) high pass filtered slope for each ping
+    np.array
+        numpy array (ping) percent deviation of the model
     """
+
     slopes, intercepts, stderrs, percent_deviation = linear_regression(y, z)
     zero_centered_slopes = slopes - slopes.mean()
 
     # never got the butterworth filter to work
-    # sos = butter(order, 1 / max_period, btype='highpass', output='sos')
+    # sos = butter(numtaps, 1 / max_period, btype='highpass', output='sos')
     # filt_slopes = sosfilt(sos, zero_centered_slopes)
 
-    coef = build_highpass_filter_coeff(1 / (max_period * 4), order=order)
+    coef = build_highpass_filter_coeff(1 / (max_period * 4), numtaps=numtaps)
     filt_slope = lfilter(coef, 1.0, zero_centered_slopes)
     # trim the bad sections from the start of the filtered depth
-    trimfilt_slope = filt_slope[int(order / 2):]
+    trimfilt_slope = filt_slope[int(numtaps / 2):]
 
     return trimfilt_slope, percent_deviation
 
 
-def _acctest_generate_stats(soundings_xdim, depth_diff, surf_depth, client=None):
+def _acctest_generate_stats(soundings_xdim: np.array, depth_diff: np.array, surf_depth: np.array,
+                            client: Client = None):
     """
     Build the accuracy test statistics for given beam values/angle values and the depths determined previously.
 
     Parameters
     ----------
-    soundings_xdim: numpy array, beam or angle values per sounding
-    depth_diff: numpy array, depth difference between grid node and sounding for each sounding
-    surf_depth: numpy array, grid depth found for each sounding
-    client: optional, dask client instance if you want to do the operation in parallel (CURRENTLY NOT SUPPORTED)
+    soundings_xdim
+        numpy array, beam or angle values per sounding
+    depth_diff
+        numpy array, depth difference between grid node and sounding for each sounding
+    surf_depth
+        numpy array, grid depth found for each sounding
+    client
+        optional, dask client instance if you want to do the operation in parallel (CURRENTLY NOT SUPPORTED)
 
     Returns
     -------
-    dpthdiff_rel_xdim_avg: numpy array, mean depth difference at each beam/angle value
-    dpthdiff_rel_xdim_stddev: numpy array, standard deviation of the soundings at each beam/angle value
-    percentdpth_rel_xdim_avg: numpy array, mean depth difference at each beam/angle value as a percent of grid depth
-    percentdpth_rel_xdim_stddev: numpy array, standard deviation of the soundings at each beam/angle value as a percent
-                                 of grid depth
-    mean_surf_depth = numpy array, mean surface depth at each beam/angle value
-    bins: numpy array, binned range of values for beam/angle
-
+    np.array
+        mean depth difference at each beam/angle value
+    np.array
+        standard deviation of the soundings at each beam/angle value
+    np.array
+        mean depth difference at each beam/angle value as a percent of grid depth
+    np.array
+        standard deviation of the soundings at each beam/angle value as a percent of grid depth
+    np.array
+        mean surface depth at each beam/angle value
+    np.array
+        binned range of values for beam/angle
     """
+
     if client is not None:
         raise NotImplementedError('Not yet ready for dask')
 
@@ -756,7 +841,9 @@ def _acctest_generate_stats(soundings_xdim, depth_diff, surf_depth, client=None)
     return dpth_avg, dpth_stddev, per_dpth_avg, per_dpth_stddev, mean_surf_depth, bins
 
 
-def _acctest_percent_plots(arr_mean, arr_std, xdim, xdim_bins, depth_diff, surf_depth, mode, output_pth, depth_offset=None, show=False):
+def _acctest_percent_plots(arr_mean: np.array, arr_std: np.array, xdim: np.array, xdim_bins: np.array,
+                           depth_diff: np.array, surf_depth: np.array, mode: str, output_pth: str,
+                           depth_offset: float = None, show: bool = False):
     """
     Accuracy plots for percentage based values.  Different enough in comparison with _acctest_plots
     to need a separate function. (unified function was too messy)
@@ -767,23 +854,34 @@ def _acctest_percent_plots(arr_mean, arr_std, xdim, xdim_bins, depth_diff, surf_
 
     Parameters
     ----------
-    arr_mean: numpy array, mean depth difference at each beam/angle value as a percent of grid depth
-    arr_std: numpy array, standard deviation of the soundings at each beam/angle value as a percent of grid depth
-    xdim: numpy array, beam/angle values for each sounding
-    xdim_bins: numpy array, bins for the beam/angle values
-    depth_diff: numpy array, depth difference between grid node and sounding for each sounding
-    surf_depth: numpy array, grid depth found for each sounding
-    mode: str, one of 'beam' or 'angle', determines the plot labels
-    output_pth: str, path to where you want to save the plot
-    depth_offset: float, optional depth offset used to account for vert difference between surf and accuracy lines.  If
-           None, will use the mean diff between them
-    show: bool, if false, does not show the plot (useful when you batch run this many times)
+    arr_mean
+        numpy array, mean depth difference at each beam/angle value as a percent of grid depth
+    arr_std
+        numpy array, standard deviation of the soundings at each beam/angle value as a percent of grid depth
+    xdim
+        numpy array, beam/angle values for each sounding
+    xdim_bins
+        numpy array, bins for the beam/angle values
+    depth_diff
+        numpy array, depth difference between grid node and sounding for each sounding
+    surf_depth
+        numpy array, grid depth found for each sounding
+    mode
+        str, one of 'beam' or 'angle', determines the plot labels
+    output_pth
+        str, path to where you want to save the plot
+    depth_offset
+        float, optional depth offset used to account for vert difference between surf and accuracy lines.  If
+        None, will use the mean diff between them
+    show
+        bool, if false, does not show the plot (useful when you batch run this many times)
 
     Returns
     -------
-    f: matplotlib.pyplot Figure instance for plot
-    a: matplotlib.pyplot axes.Axes instance for plot
-
+    Figure
+        Figure for plot
+    Axes
+        Axes for plot
     """
 
     if mode == 'beam':
@@ -831,7 +929,8 @@ def _acctest_percent_plots(arr_mean, arr_std, xdim, xdim_bins, depth_diff, surf_
     return f, a
 
 
-def _acctest_plots(arr_mean, arr_std, xdim, xdim_bins, depth_diff, surf_depth, mode, output_pth, depth_offset=None, show=False):
+def _acctest_plots(arr_mean: np.array, arr_std: np.array, xdim: np.array, xdim_bins: np.array, depth_diff: np.array,
+                   surf_depth: np.array, mode: str, output_pth: str, depth_offset: float = None, show: bool = False):
     """
     Accuracy plots for sounding/surface difference values.  Different enough in comparison with _acctest_percent_plots
     to need a separate function. (unified function was too messy)
@@ -842,24 +941,36 @@ def _acctest_plots(arr_mean, arr_std, xdim, xdim_bins, depth_diff, surf_depth, m
 
     Parameters
     ----------
-    arr_mean: numpy array, mean depth difference at each beam/angle value
-    arr_std: numpy array, standard deviation of the soundings at each beam/angle value
-    xdim: numpy array, beam/angle values for each sounding
-    xdim_bins: numpy array, bins for the beam/angle values
-    depth_diff: numpy array, depth difference between grid node and sounding for each sounding
-    surf_depth: numpy array, grid depth found for each sounding
-    mode: str, one of 'beam' or 'angle', determines the plot labels
-    output_pth: str, path to where you want to save the plot
-    depth_offset: float, optional depth offset used to account for vert difference between surf and accuracy lines.  If
-               None, will use the mean diff between them
-    show: bool, if false, does not show the plot (useful when you batch run this many times)
+    arr_mean
+        numpy array, mean depth difference at each beam/angle value
+    arr_std
+        numpy array, standard deviation of the soundings at each beam/angle value
+    xdim
+        numpy array, beam/angle values for each sounding
+    xdim_bins
+        numpy array, bins for the beam/angle values
+    depth_diff
+        numpy array, depth difference between grid node and sounding for each sounding
+    surf_depth
+        numpy array, grid depth found for each sounding
+    mode
+        str, one of 'beam' or 'angle', determines the plot labels
+    output_pth
+        str, path to where you want to save the plot
+    depth_offset
+        float, optional depth offset used to account for vert difference between surf and accuracy lines.  If None,
+        will use the mean diff between them
+    show
+        bool, if false, does not show the plot (useful when you batch run this many times)
 
     Returns
     -------
-    f: matplotlib.pyplot Figure instance for plot
-    a: matplotlib.pyplot axes.Axes instance for plot
-
+    Figure
+        Figure for plot
+    Axes
+        Axes for plot
     """
+
     if mode == 'beam':
         xlabel = 'Beam Number'
         ylabel = 'Depth Bias (meters)'
@@ -904,21 +1015,26 @@ def _acctest_plots(arr_mean, arr_std, xdim, xdim_bins, depth_diff, surf_depth, m
     return f, a
 
 
-def accuracy_test(ref_surf_pth, line_pairs, resolution=1, vert_ref='ellipse', output_directory=None):
+def accuracy_test(ref_surf_pth: Union[list, str], line_pairs: list, resolution: int = 1,
+                  vert_ref: str = 'ellipse', output_directory: str = None):
     """
     Accuracy test: takes a reference surface and accuracy test lines and creates plots of depth difference between
     surface and lines for the soundings nearest the grid nodes.  Plots are by beam/by angle averages.
 
     Parameters
     ----------
-    ref_surf_pth: list or str, a path to a zarr store, a path to a directory of .all files, a list of paths to .all
-                  files, a path to a single .all file or a path to an existing surface.
-    line_pairs: list of either a path to a zarr store, a path to a directory of .all files, a list of paths to .all
-                files or a path to a single .all file
-    resolution: int, resolution of the surface (if this is to make a surface)
-    vert_ref: str, one of ['waterline', 'ellipse', 'vessel']
-    output_directory: str, optional, if None, puts the output files where the input line_pairs are.
-
+    ref_surf_pth
+        a path to a zarr store, a path to a directory of multibeam files, a list of paths to multibeam files, a path to
+        a single multibeam file or a path to an existing surface.
+    line_pairs
+        list of either a path to a zarr store, a path to a directory of multibeam files, a list of paths to multibeam
+        files or a path to a single multibeam file
+    resolution
+        int, resolution of the surface (if this is to make a surface)
+    vert_ref
+        str, one of ['waterline', 'ellipse', 'vessel']
+    output_directory
+        str, optional, if None, puts the output files where the input line_pairs are.
     """
 
     bs = return_surface(ref_surf_pth, vert_ref, resolution)
@@ -956,4 +1072,3 @@ def accuracy_test(ref_surf_pth, line_pairs, resolution=1, vert_ref='ellipse', ou
                       output_pth=os.path.join(output_directory, first_fname + '_acc_beam.png'))
         _acctest_plots(d_rel_a_avg, d_rel_a_stddev, filter_angle, angbins, filter_diff, filter_surf, mode='angle',
                       output_pth=os.path.join(output_directory, first_fname + '_acc_angle.png'))
-

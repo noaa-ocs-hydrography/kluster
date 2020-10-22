@@ -14,7 +14,6 @@ class DaskProcessSynchronizer:
     ----------
     path
         Path to a directory on a file system that is shared by all processes.
-        N.B., this should be a *different* path to where you store the array.
     """
 
     def __init__(self, path: str):
@@ -44,8 +43,8 @@ def dask_find_or_start_client(address: str = None, silent: bool = False):
     -------
     dask.distributed.client.Client
         Client instance representing Local Cluster/Networked Cluster operations
-
     """
+
     client = None
     try:
         if address is None:
@@ -85,8 +84,8 @@ def get_max_cluster_allocated_memory(client: Client):
     -------
     float
         sum of max memory across all workers
-
     """
+
     worker_ids = list(client.scheduler_info()['workers'].keys())
     mem_per_worker = [client.scheduler_info()['workers'][wrk]['memory_limit'] for wrk in worker_ids]
     return np.sum(mem_per_worker) / (1024 ** 3)
@@ -105,8 +104,8 @@ def get_number_of_workers(client: Client):
     -------
     int
         total number of workers
-
     """
+
     return len(client.scheduler_info()['workers'])
 
 
@@ -120,6 +119,7 @@ def determine_optimal_chunks(client: Client, beams_per_ping: float, safety_margi
     Parameters
     ----------
     client
+        dask distributed client
     beams_per_ping
         avg number of beams per ping for that sector
     safety_margin
@@ -135,8 +135,8 @@ def determine_optimal_chunks(client: Client, beams_per_ping: float, safety_margi
         length in time dimension of each chunk
     int
         total number of chunks to process
-
     """
+
     nworker = get_number_of_workers(client)
     memsize = get_max_cluster_allocated_memory(client)  # in GB
 
@@ -161,6 +161,7 @@ def split_array_by_number_of_workers(client: Client, dataarray: DataArray, max_l
     Parameters
     ----------
     client
+        dask distributed client
     dataarray
         one dimensional array
     max_len
@@ -172,8 +173,8 @@ def split_array_by_number_of_workers(client: Client, dataarray: DataArray, max_l
         list of numpy arrays representing chunks of the original array
     list
         list of numpy arrays representing indexes of new values from original array
-
     """
+
     numworkers = get_number_of_workers(client)
     split = None
 

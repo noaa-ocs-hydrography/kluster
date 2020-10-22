@@ -1,18 +1,19 @@
 import numpy as np
+from dask.distributed import Client
 import matplotlib.pyplot as plt
 import datetime
 from scipy.interpolate import griddata
 from scipy.spatial import cKDTree
 
-from HSTB.kluster.numba_helpers import hist2d_numba_seq, hist2d_add
+from HSTB.kluster.numba_helpers import hist2d_numba_seq, _hist2d_add
 
 
 class BaseSurface:
     """
     First try at a basic surfacing class, implements single resolution gridding using numpy/scipy methods.  Requires
     1d data either provided in the init or via an npz file saved using this class.
-
     """
+
     def __init__(self, x=None, y=None, z=None, unc=None, crs=None, resolution=1, from_file=None):
         self.x = x
         self.y = y
@@ -54,8 +55,8 @@ class BaseSurface:
         provided are of different lengths.
 
         Data provided from a npz file must work in the load method.
-
         """
+
         nans = None
         if (self.x is not None) and (self.y is not None) and (self.z is not None):
             ndims = np.array([self.x.ndim, self.y.ndim, self.z.ndim])
@@ -82,15 +83,16 @@ class BaseSurface:
             self.z = self.z[shortest_idx]
             self.unc = self.unc[shortest_idx]
 
-    def save(self, fpth):
+    def save(self, fpth: str):
         """
         Save the class attributes to numpy NpzFile
 
         Parameters
         ----------
-        fpth: str, file path to where you want to save your surface data
-
+        fpth
+            str, file path to where you want to save your surface data
         """
+
         # no longer save all the class attributes to file, too much data
         # np.savez(fpth, **vars(self))
 
@@ -110,16 +112,17 @@ class BaseSurface:
         else:
             print('Unable to save surface {}, either depth or density layers not found.'.format(fpth))
 
-    def load(self, fpth):
+    def load(self, fpth: str):
         """
         Load the class attributes from numpy NpzFile.  Non np.array objects get wrapped in array, cast to float in
         that instance.
 
         Parameters
         ----------
-        fpth: str, file path from where you want to load surface data
-
+        fpth
+            str, file path from where you want to load surface data
         """
+
         dat = np.load(fpth, allow_pickle=True)
         kys = list(dat.keys())
         for k in kys:
@@ -130,15 +133,21 @@ class BaseSurface:
             else:
                 self.__setattr__(k, dat[k])
 
-    def get_layer_by_name(self, layername):
+    def get_layer_by_name(self, layername: str):
         """
         Get the layer by the provided name
 
+        Parameters
+        ----------
+        layername
+            name of layer to access, ex: 'depth'
+
         Returns
         -------
-        numpy ndarray (x,y) for the provided layer name
-
+        np.ndarray
+            (x,y) for the provided layer name
         """
+
         if layername in list(self.layer_lookup.keys()):
             return self.__getattribute__(self.layer_lookup[layername])
         else:
@@ -151,8 +160,10 @@ class BaseSurface:
 
         Returns
         -------
-        list, list of str surface layer names (ex: ['depth', 'density', 'uncertainty']
+        list
+            list of str surface layer names (ex: ['depth', 'density', 'uncertainty']
         """
+
         existing_layernames = []
         for lyrname, lyr in self.layer_lookup.items():
             if self.__getattribute__(lyr) is not None:
@@ -163,12 +174,8 @@ class BaseSurface:
         """
         Use the 1d x,y,z,u arrays to build out the extents for each variable.  Important for building out the grid
         later.
-
-        Returns
-        -------
-        min/max for self.x, self.y, self.z, self.unc (stored in self.min_x, self.max_x, etc.)
-
         """
+
         self.max_x = float(np.max(self.x))  # cast to float if inputs are xarray Dataarray
         self.min_x = float(np.min(self.x))
         self.max_y = float(np.max(self.y))
@@ -182,16 +189,8 @@ class BaseSurface:
     def construct_base_grid(self):
         """
         Use the extents to build the basegrid, the mesh grid built from the min/max northing/easting coordinates.
-
-        Returns
-        -------
-        self.x_range: numpy array, x bounds for grid cells
-        self.y_range: numpy array, y bounds for grid cells
-        self.node_x_loc: numpy array, center of cells in x coord
-        self.node_y_loc: numpy array, center of cells in y coord
-        self.basegrid: numpy ndarray (2, num cells x dimension, num cells y dimension), meshgrid
-
         """
+
         self.compute_extents()
 
         rounded_min_x, rounded_max_x = int(self.min_x), int(np.ceil(self.max_x))
@@ -210,20 +209,17 @@ class BaseSurface:
         self.node_y_loc = self.y_range[:-1] + np.diff(self.y_range)/2
         self.basegrid = np.mgrid[rounded_min_x:rounded_max_x:self.resolution, rounded_min_y:rounded_max_y:self.resolution]
 
-    def build_histogram(self, client=None):
+    def build_histogram(self, client: Client = None):
         """
         Use numpy histogram2d to build out the counts for each cell.  Important if we go to filter out cells that have
         insufficient density (soundings per cell)
 
         Parameters
         ----------
-        client: optional dask client, if provided will map to cluster
-
-        Returns
-        -------
-        self.cell_count: numpy ndarray (x,y), sounding count per cell
-
+        client
+            optional dask client, if provided will map to cluster
         """
+
         if self.x_range is None:
             self.construct_base_grid()
 
@@ -244,12 +240,15 @@ class BaseSurface:
             y_futs = client.scatter([self.y[c[0]:c[1]].values for c in chnks])
 
             rslt = client.map(hist2d_numba_seq, x_futs, y_futs, bin_futs, range_futs)
-            summed_rslt = client.submit(hist2d_add, rslt)
+            summed_rslt = client.submit(_hist2d_add, rslt)
             self.cell_count = summed_rslt.result()
         else:
-            self.cell_count = hist2d_numba_seq(self.x.values, self.y.values, bins, self.ranges)
+            try:
+                self.cell_count = hist2d_numba_seq(self.x.values, self.y.values, bins, self.ranges)
+            except AttributeError:  # numpy workflow
+                self.cell_count = hist2d_numba_seq(self.x, self.y, bins, self.ranges)
 
-    def calculate_grid_indices(self, x, y, only_nearest=False, dist_scaling=0.25):
+    def calculate_grid_indices(self, x: np.array, y: np.array, only_nearest: bool = False, dist_scaling: float = 0.25):
         """
         With provided x and y values, return the grid cells those values fall under.  Numpy digitize returns 0 when
         the value is lower than the lowest bin and len(bin) when it is higher than the highest bin.  We return -1 to
@@ -260,17 +259,22 @@ class BaseSurface:
 
         Parameters
         ----------
-        x: numpy array, x values to be binned
-        y: numpy array, y values to be binned
-        only_nearest: bool, if true, returns only those points that fall within resolution/4 distance of the grid node
-        dist_scaling: float, cKDTree query uses a distance_upper_bound of self.resolution times this parameter
+        x
+            numpy array, x values to be binned
+        y
+            numpy array, y values to be binned
+        only_nearest
+            bool, if true, returns only those points that fall within resolution/4 distance of the grid node
+        dist_scaling
+            float, cKDTree query uses a distance_upper_bound of self.resolution times this parameter
 
         Returns
         -------
-        2d array [x, y] containing grid indices for each provided x y pair.  If both are -1, the pair falls outside
-                        of the grid
-
+        np.ndarray
+            2d array [x, y] containing grid indices for each provided x y pair.  If both are -1, the pair falls outside
+            of the grid
         """
+
         if self.surf is None:
             raise ValueError('Must run build_surfaces first')
 
@@ -304,7 +308,7 @@ class BaseSurface:
 
         return digitized_x, digitized_y
 
-    def surf_scipy_griddata(self, arr, method='linear', count_msk=0):
+    def surf_scipy_griddata(self, arr: np.array, method: str = 'linear', count_msk: int = 0):
         """
         Use scipy griddata to interpolate the data according to the given method.  If a count_msk is provided,
         replace cell values with nan if the total soundings per cell is less than count_msk.
@@ -320,37 +324,42 @@ class BaseSurface:
 
         Parameters
         ----------
-        arr: numpy array, array to interp according to basegrid.  Probably one of self.z, self.unc
-        method: str, one of ['linear', 'nearest', 'cubic']
-        count_msk: int, threshold for minimum number of soundings per cell
+        arr
+            numpy array, array to interp according to basegrid.  Probably one of self.z, self.unc
+        method
+            str, one of ['linear', 'nearest', 'cubic']
+        count_msk
+            int, threshold for minimum number of soundings per cell
 
         Returns
         -------
-        surf: numpy ndarray (x,y) for interpolated depth grid
-
+        np.ndarray
+            numpy ndarray (x,y) for interpolated depth grid
         """
+
         if count_msk and self.cell_count is None:
             raise ValueError('Must run build_histogram first and provide a minimum number of soundings per cell')
-        surf = griddata(np.c_[self.x.values, self.y.values], arr.values, (self.basegrid[0], self.basegrid[1]), method=method)
+        try:
+            surf = griddata(np.c_[self.x.values, self.y.values], arr.values, (self.basegrid[0], self.basegrid[1]), method=method)
+        except AttributeError:  # numpy workflow
+            surf = griddata(np.c_[self.x, self.y], arr, (self.basegrid[0], self.basegrid[1]), method=method)
+
         if count_msk:
             surf[self.cell_count < count_msk] = np.nan
         return surf
 
-    def build_surfaces(self, method='linear', count_msk=1):
+    def build_surfaces(self, method: str = 'linear', count_msk: int = 1):
         """
         Build out depth and uncertainty surfaces if uncertainty is provided
 
         Parameters
         ----------
-        method: str, one of ['linear', 'nearest', 'cubic']
-        count_msk: int, required number of soundings per node
-
-        Returns
-        -------
-        self.surf: numpy ndarray (x,y) for interpolated depth grid
-        self.surf_unc: numpy ndarray (x,y) for interpolated uncertainty grid
-
+        method
+            str, one of ['linear', 'nearest', 'cubic']
+        count_msk
+            int, required number of soundings per node
         """
+
         print('Building depth surface...')
         self.surf = self.surf_scipy_griddata(self.z, method=method, count_msk=count_msk)
         if self.unc is not None:
@@ -363,12 +372,16 @@ class BaseSurface:
 
         Returns
         -------
-        surf_x: numpy array, 1d x locations for the grid nodes
-        surf_y: numpy array, 1d y locations for the grid nodes
-        surf_z: numpy 2d array, 2d grid depth values
-        valid_nodes: numpy 2d array, boolean mask for valid nodes with depth
-
+        surf_x
+            numpy array, 1d x locations for the grid nodes
+        surf_y
+            numpy array, 1d y locations for the grid nodes
+        surf_z
+            numpy 2d array, 2d grid depth values
+        valid_nodes
+            numpy 2d array, boolean mask for valid nodes with depth
         """
+
         if self.surf is None:
             raise ValueError('No surface found, please run a gridding mode first')
         valid_nodes = ~np.isnan(self.surf)
@@ -384,8 +397,8 @@ class BaseSurface:
         Parameters
         ----------
         varname: str, one of ['density', 'depth', 'uncertainty']
-
         """
+
         if varname.lower() == 'density':
             if self.cell_count is None:
                 raise ValueError('Must run build_histogram first and provide a minimum number of soundings per cell')
@@ -407,15 +420,3 @@ class BaseSurface:
         plt.title(titl)
         plt.colorbar()
         plt.show()
-
-
-def test():
-    testz = np.array([1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2., 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8, 2.9, 3.0,
-                      3.1, 3.2, 3.3, 3.4, 3.5, 3.6])
-    testx = np.array([1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 5, 5, 5, 5, 5])
-    testy = np.array([1, 2, 3, 4, 5, 1, 2, 3, 4, 5, 1, 2, 3, 4, 5, 1, 2, 3, 4, 5, 1, 2, 3, 4, 5])
-    testbs = BaseSurface(testx, testy, testz)
-    testbs.construct_base_grid(1)
-    testbs.build_histogram()
-    testbs.surf_scipy_griddata()
-    return testbs

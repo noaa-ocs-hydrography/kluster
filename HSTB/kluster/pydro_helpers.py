@@ -8,8 +8,10 @@ def retrieve_noaa_folder_path():
 
     Returns
     -------
-    folder path to the NOAA folder as string
+    str
+        folder path to the NOAA folder as string
     """
+
     folder_path = os.path.realpath(os.path.dirname(__file__))
     if not os.path.exists(folder_path):
         raise RuntimeError("the folder does not exist: %s" % folder_path)
@@ -22,8 +24,10 @@ def retrieve_install_prefix():
 
     Returns
     -------
-    folder path to the base Pydro folder
+    str
+        folder path to the base Pydro folder
     """
+
     noaa_folder = retrieve_noaa_folder_path()
     folder_path = os.path.realpath(os.path.join(noaa_folder, os.pardir, os.pardir, os.pardir, os.pardir))
     if not os.path.exists(folder_path):
@@ -37,8 +41,10 @@ def retrieve_scripts_folder():
 
     Returns
     -------
-    folder path to the Pydro scripts folder
+    str
+        folder path to the Pydro scripts folder
     """
+
     install_prefix = retrieve_install_prefix()
     folder_path = os.path.realpath(os.path.join(install_prefix, "Scripts"))
     if not os.path.exists(folder_path):
@@ -52,8 +58,10 @@ def retrieve_activate_batch():
 
     Returns
     -------
-    file path to the activate batch file
+    str
+        file path to the activate batch file
     """
+
     scripts_prefix = retrieve_scripts_folder()
     file_path = os.path.realpath(os.path.join(scripts_prefix, "activate.bat"))
     if not os.path.exists(file_path):

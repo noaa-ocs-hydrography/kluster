@@ -11,6 +11,7 @@ from HSTB.kluster import fqpr_generation, xarray_conversion
 from HSTB.kluster.fqpr_convenience import return_svcorr_xyz
 from HSTB.kluster.test_datasets import RealFqpr, RealDualheadFqpr, SyntheticFqpr
 from HSTB.kluster.xarray_helpers import interp_across_chunks
+from HSTB.kluster.fqpr_surface import BaseSurface
 
 
 def test_get_orientation_vectors(dset='realdualhead'):
@@ -280,6 +281,26 @@ def test_interp_across_chunks():
     assert np.all(dask_interp_att.heave == expected_att.heave).compute()
     assert np.all(dask_interp_att.pitch == expected_att.pitch).compute()
     assert np.all(dask_interp_att['roll'] == expected_att['roll']).compute()
+
+    print('Passed: interp_across_chunks')
+
+
+def test_basesurface():
+    testz = np.array([1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2., 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8, 2.9, 3.0,
+                      3.1, 3.2, 3.3, 3.4, 3.5, 3.6])
+    testx = np.array([1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 5, 5, 5, 5, 5])
+    testy = np.array([1, 2, 3, 4, 5, 1, 2, 3, 4, 5, 1, 2, 3, 4, 5, 1, 2, 3, 4, 5, 1, 2, 3, 4, 5])
+    testbs = BaseSurface(testx, testy, testz, resolution=1)
+    testbs.construct_base_grid()
+    testbs.build_histogram()
+    testbs.build_surfaces(method='linear', count_msk=1)
+
+    expected_surf = np.array([[1.2, 1.3, 1.4, 1.5],
+                              [1.7, 1.8, 1.9, 2.0],
+                              [2.2, 2.3, 2.4, 2.5],
+                              [2.7, 2.8, 2.9, 3.0]])
+
+    assert np.array_equal(testbs.surf, expected_surf)
 
     print('Passed: interp_across_chunks')
 
