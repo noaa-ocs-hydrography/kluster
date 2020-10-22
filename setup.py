@@ -19,7 +19,7 @@ VERSION = '0.1.0'
 # What packages are required for this module to be executed?
 REQUIRED = [
             'dask>=2.17.2',
-            'dask distributed',
+            'distributed',
             'fasteners',
             'laspy>=1.7.0',
             'matplotlib>=3.2.1',
