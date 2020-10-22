@@ -19,9 +19,10 @@ sphinx:
 
 # docs is defined in conf.py
 python:
-  version: 3.8
-  install:
-    - method: pip
-    extra_requirements:
-        - docs
-  
+   version: 3.8
+   install:
+      - requirements: docs/requirements.txt
+      - method: pip
+        path: .
+        extra_requirements:
+            - docs
