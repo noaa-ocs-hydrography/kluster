@@ -1,4 +1,4 @@
-##### kluster
+# kluster
 
 Documentation: [readthedocs](https://kluster.readthedocs.io/en/latest/) 
 
