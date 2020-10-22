@@ -1,3 +1,4 @@
 sphinx-automodapi
 sphinx_autodoc_typehints
 numpydoc
+-e git+https://github.com/noaa-ocs-hydrography/drivers.git#egg=drivers
