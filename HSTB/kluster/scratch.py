@@ -364,3 +364,20 @@ roll = dg['sample']['KMdefault']['roll_deg']
 
 plt.plot(tme)
 
+############################## accuracy tests ###################################
+from fqpr_sat import accuracy_test
+output_directory = r"C:\collab\dasktest\data_dir\outputtest\acc_test_screengrabs"
+reference_surface = r"C:\collab\dasktest\data_dir\outputtest\hassler_refsurf.npz"
+linepairs = [r"C:\collab\dasktest\data_dir\outputtest\hassler_400_long_fm",
+             r"C:\collab\dasktest\data_dir\outputtest\hassler_400_short_fm",
+             r"C:\collab\dasktest\data_dir\outputtest\hassler_400_long_cw",
+             r"C:\collab\dasktest\data_dir\outputtest\hassler_400_short_cw",
+             r"C:\collab\dasktest\data_dir\outputtest\hassler_300_long_fm",
+             r"C:\collab\dasktest\data_dir\outputtest\hassler_300_short_fm",
+             r"C:\collab\dasktest\data_dir\outputtest\hassler_300_long_cw",
+             r"C:\collab\dasktest\data_dir\outputtest\hassler_300_short_cw",
+             r"C:\collab\dasktest\data_dir\outputtest\hassler_200_long_fm",
+             r"C:\collab\dasktest\data_dir\outputtest\hassler_200_short_fm",
+             r"C:\collab\dasktest\data_dir\outputtest\hassler_200_long_cw",
+             r"C:\collab\dasktest\data_dir\outputtest\hassler_200_short_cw"]
+accuracy_test(reference_surface, linepairs, vert_ref='waterline', output_directory=output_directory)

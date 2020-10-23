@@ -901,27 +901,28 @@ def _acctest_percent_plots(arr_mean: np.array, arr_std: np.array, xdim: np.array
     special = 100 * 0.0075
     f, a = plt.subplots(1, 1)
     plus = arr_mean + 1.96 * arr_std - depth_offset
-    minus = arr_mean - 1.96 * arr_std + depth_offset
+    minus = arr_mean - 1.96 * arr_std - depth_offset
     # plot the soundings
     sval = 100 * depth_diff / surf_depth
-    a.scatter(xdim, sval - depth_offset, c='0.5', alpha=0.1, edgecolors='none')
+    a.scatter(xdim, sval - depth_offset, c='0.5', alpha=0.1, edgecolors='none', label='Soundings')
     # plot 2 std
     a.fill_between(xdim_bins, minus, plus, facecolor='red', interpolate=True, alpha=0.1)
     # plot mean line
-    a.plot(xdim_bins, arr_mean - depth_offset, 'b', linewidth=3)
+    a.plot(xdim_bins, arr_mean - depth_offset, 'b', linewidth=3, label='Mean Depth')
     # set axes
     a.grid()
     a.set_xlim(xdim_bins.min(), xdim_bins.max())
-    a.set_ylim(np.min(sval), np.max(sval))
+    a.set_ylim(-5, 5)
     a.set_xlabel(xlabel)
     a.set_ylabel(ylabel)
-    a.set_title('accuracy test: percent depth bias vs {}, found offset={}%'.format(mode, np.round(depth_offset, 1)))
+    a.set_title('accuracy test: percent depth bias vs {}'.format(mode, np.round(depth_offset, 1)))
     # Order 1 line
-    a.hlines(order1, xdim_bins.min(), xdim_bins.max(), colors='k', linestyles='dashed', linewidth=3, alpha=0.5)
+    a.hlines(order1, xdim_bins.min(), xdim_bins.max(), colors='k', linestyles='dashed', linewidth=3, alpha=0.5, label='Order 1')
     a.hlines(-order1, xdim_bins.min(), xdim_bins.max(), colors='k', linestyles='dashed', linewidth=3, alpha=0.5)
     # Special Order Line
-    a.hlines(special, xdim_bins.min(), xdim_bins.max(), colors='g', linestyles='dashed', linewidth=3, alpha=0.5)
+    a.hlines(special, xdim_bins.min(), xdim_bins.max(), colors='g', linestyles='dashed', linewidth=3, alpha=0.5, label='Special Order')
     a.hlines(-special, xdim_bins.min(), xdim_bins.max(), colors='g', linestyles='dashed', linewidth=3, alpha=0.5)
+    a.legend(loc='upper left')
 
     f.savefig(output_pth)
     if not show:
@@ -988,26 +989,27 @@ def _acctest_plots(arr_mean: np.array, arr_std: np.array, xdim: np.array, xdim_b
 
     f, a = plt.subplots(1, 1)
     plus = arr_mean + 1.96 * arr_std - depth_offset
-    minus = arr_mean - 1.96 * arr_std + depth_offset
+    minus = arr_mean - 1.96 * arr_std - depth_offset
     # plot the soundings
-    a.scatter(xdim, depth_diff - depth_offset, c='0.5', alpha=0.1, edgecolors='none')
+    a.scatter(xdim, depth_diff - depth_offset, c='0.5', alpha=0.1, edgecolors='none', label='Soundings')
     # plot 2 std
     a.fill_between(xdim_bins, minus, plus, facecolor='red', interpolate=True, alpha=0.1)
     # plot mean line
-    a.plot(xdim_bins, arr_mean - depth_offset, 'b', linewidth=3)
+    a.plot(xdim_bins, arr_mean - depth_offset, 'b', linewidth=3, label='Mean Depth')
     # set axes
     a.grid()
     a.set_xlim(xdim_bins.min(), xdim_bins.max())
-    a.set_ylim(np.min(depth_diff), np.max(depth_diff))
+    a.set_ylim(-2, 2)
     a.set_xlabel(xlabel)
     a.set_ylabel(ylabel)
-    a.set_title('accuracy test: depth bias vs {}, found offset={}m'.format(mode, np.round(depth_offset, 1)))
+    a.set_title('accuracy test: depth bias vs {}'.format(mode, np.round(depth_offset, 1)))
     # Order 1 line
-    a.fill_between(xdim_bins, o1_min, o1_max, facecolor='black', alpha=0.5)
+    a.fill_between(xdim_bins, o1_min, o1_max, facecolor='black', alpha=0.5, label='Order 1')
     a.fill_between(xdim_bins, -o1_min, -o1_max, facecolor='black', alpha=0.5)
     # Special Order Line
-    a.fill_between(xdim_bins, so_min, so_max, facecolor='green', alpha=0.1)
+    a.fill_between(xdim_bins, so_min, so_max, facecolor='green', alpha=0.1, label='Special Order')
     a.fill_between(-xdim_bins, -so_min, -so_max, facecolor='green', alpha=0.1)
+    a.legend(loc='upper left')
 
     f.savefig(output_pth)
     if not show:
@@ -1065,10 +1067,10 @@ def accuracy_test(ref_surf_pth: Union[list, str], line_pairs: list, resolution: 
 
         first_fname = os.path.splitext(list(linefq.soundings.multibeam_files.keys())[0])[0]
         _acctest_percent_plots(pd_rel_b_avg, pd_rel_b_stddev, filter_beam, beambins, filter_diff, filter_surf,
-                              mode='beam', output_pth=os.path.join(output_directory, first_fname + '_acc_beampercent.png'))
+                               mode='beam', output_pth=os.path.join(output_directory, first_fname + '_acc_beampercent.png'))
         _acctest_percent_plots(pd_rel_a_avg, pd_rel_a_stddev, filter_angle, angbins, filter_diff, filter_surf,
-                              mode='angle', output_pth=os.path.join(output_directory, first_fname + '_acc_anglepercent.png'))
+                               mode='angle', output_pth=os.path.join(output_directory, first_fname + '_acc_anglepercent.png'))
         _acctest_plots(d_rel_b_avg, d_rel_b_stddev, filter_beam, beambins, filter_diff, filter_surf, mode='beam',
-                      output_pth=os.path.join(output_directory, first_fname + '_acc_beam.png'))
+                       output_pth=os.path.join(output_directory, first_fname + '_acc_beam.png'))
         _acctest_plots(d_rel_a_avg, d_rel_a_stddev, filter_angle, angbins, filter_diff, filter_surf, mode='angle',
-                      output_pth=os.path.join(output_directory, first_fname + '_acc_angle.png'))
+                       output_pth=os.path.join(output_directory, first_fname + '_acc_angle.png'))

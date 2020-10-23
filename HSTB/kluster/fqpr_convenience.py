@@ -3,7 +3,11 @@ import xarray as xr
 import numpy as np
 from dask.distributed import Client
 from typing import Union
+from matplotlib.gridspec import GridSpec
+import matplotlib.pyplot as plt
 
+from HSTB.drivers.par3 import AllRead
+from HSTB.drivers.kmall import kmall
 from HSTB.kluster.xarray_conversion import BatchRead
 from HSTB.kluster.fqpr_generation import Fqpr
 from HSTB.kluster.fqpr_visualizations import FqprVisualizations
@@ -592,3 +596,285 @@ def reprocess_sounding_selection(fqpr_inst: Fqpr, new_xyzrph: dict = None, subse
     if turn_dask_back_on and fqpr_inst.client is None:
         fqpr_inst = reload_data(os.path.dirname(fqpr_inst.source_dat.final_paths['ping'][0]))
     return fqpr_inst, soundings
+
+
+def xyz_from_allfile(filname: str):
+    """
+    function using par to pull out the xyz88 datagram and return the xyz for each ping.  Times returned are a sum of
+    ping time and delay time (to match Kluster, I do this so that times are unique across sector identifiers).
+
+    Parameters
+    ----------
+    filname
+        str, path to .all file
+
+    Returns
+    -------
+    np.array
+        2d numpy array (time, beam) of the alongtrack offsets from the xyz88 record
+    np.array
+        2d numpy array (time, beam) of the acrosstrack offsets from the xyz88 record
+    np.array
+        2d numpy array (time, beam) of the depth offsets from the xyz88 record
+    np.array
+        numpy array of the times from the xyz88 record
+    np.array
+        numpy array of the ping counter index from the xyz88 record
+    """
+
+    pfil = AllRead(filname)
+    pfil.mapfile()
+    num88 = len(pfil.map.packdir['88'])
+
+    dpths = np.zeros((num88, 400))
+    xs = np.zeros((num88, 400))
+    ys = np.zeros((num88, 400))
+    tms = np.zeros(num88)
+    cntrs = np.zeros(num88)
+
+    for i in range(num88):
+        try:
+            rec88 = pfil.getrecord(88, i)
+            rec78 = pfil.getrecord(78, i)
+
+            dpths[i, :] = rec88.data['Depth']
+            ys[i, :] = rec88.data['AcrossTrack']
+            xs[i, :] = rec88.data['AlongTrack']
+            tms[i] = rec88.time + rec78.tx_data.Delay[0]  # match par sequential_read, ping time = timestamp + delay
+            cntrs[i] = rec88.Counter
+
+        except IndexError:
+            break
+
+    # ideally this would do it, but we have to sort by prim/stbd arrays when cntr/times are equal between heads for dual head
+    cntrsorted = np.argsort(cntrs)
+
+    tms = tms[cntrsorted]
+    xs = xs[cntrsorted]
+    ys = ys[cntrsorted]
+    dpths = dpths[cntrsorted]
+    cntrs = cntrs[cntrsorted]
+
+    return xs, ys, dpths, tms, cntrs
+
+
+def xyz_from_kmallfile(filname: str):
+    """
+    function using kmall to pull out the xyz88 datagram and return the xyz for each ping.  Times returned are a sum of
+    ping time and delay time (to match Kluster, I do this so that times are unique across sector identifiers).
+
+    The kmall svcorrected soundings are rel ref point and not tx.  We need to remove the reference point lever arm
+    to get the valid comparison with kluster.  Kluster sv correct is rel tx.
+
+    Parameters
+    ----------
+    filname
+        str, path to .all file
+
+    Returns
+    -------
+    np.array
+        2d numpy array (time, beam) of the alongtrack offsets from the MRZ record
+    np.array
+        2d numpy array (time, beam) of the acrosstrack offsets from the MRZ record
+    np.array
+        2d numpy array (time, beam) of the depth offsets from the MRZ record
+    np.array
+        numpy array of the times from the MRZ record
+    np.array
+        numpy array of the ping counter index from the MRZ record
+    """
+
+    km = kmall(filname)
+    km.index_file()
+    numpings = km.Index['MessageType'].value_counts()["b'#MRZ'"]
+    dpths = np.zeros((numpings, 400))
+    xs = np.zeros((numpings, 400))
+    ys = np.zeros((numpings, 400))
+    tms = np.zeros(numpings)
+    cntrs = np.zeros(numpings)
+
+    install = km.read_first_datagram('IIP')
+    read_count = 0
+    for offset, size, mtype in zip(km.Index['ByteOffset'],
+                                   km.Index['MessageSize'],
+                                   km.Index['MessageType']):
+        km.FID.seek(offset, 0)
+        if mtype == "b'#MRZ'":
+            dg = km.read_EMdgmMRZ()
+            xs[read_count, :] = np.array(dg['sounding']['x_reRefPoint_m'])
+            ys[read_count, :] = np.array(dg['sounding']['y_reRefPoint_m'])
+            # we want depths rel tx to align with our sv correction output
+            dpths[read_count, :] = np.array(dg['sounding']['z_reRefPoint_m']) - \
+                float(install['install_txt']['transducer_1_vertical_location'])
+            tms[read_count] = dg['header']['dgtime']
+            cntrs[read_count] = dg['cmnPart']['pingCnt']
+            read_count += 1
+
+    if read_count != numpings:
+        raise ValueError('kmall index count for MRZ records does not match actual records read')
+    cntrsorted = np.argsort(cntrs)  # ideally this would do it, but we have to sort by prim/stbd arrays when cntr/times
+    # are equal between heads for dual head
+    tms = tms[cntrsorted]
+    xs = xs[cntrsorted]
+    ys = ys[cntrsorted]
+    dpths = dpths[cntrsorted]
+    cntrs = cntrs[cntrsorted]
+
+    return xs, ys, dpths, tms, cntrs
+
+
+def _dual_head_sort(idx: int, my_y: np.array, kongs_y: np.array, prev_index: int):
+    """
+    Big ugly check to see if the par found xyz88 records are in alternating port head/stbd head (or stbd head/port head)
+    order.  Important because we want to compare the result side by side with the Kluster sv corrected data.
+
+    Idea here is to check the mean across track value and see if it is on the left or right (positive or negative).
+    If the Kluster is on the left and the par is on the right, look at the surrounding recs to fix the order.
+
+    Parameters
+    ----------
+    idx
+        int, index for the par/kluster records
+    my_y
+        numpy array, acrosstrack 2d (ping, beam) from kluater/fqpr_generation sv correction
+    kongs_y
+        numpy array, acrosstrack 2d (ping, beam) from par xyz88 read
+    prev_index
+        int, feedback from previous run of _dual_head_sort to guide the surrounding search
+
+    Returns
+    -------
+    int
+        corrected index for port/stbd head order in par module xyz88
+    int
+        feedback for next run
+    """
+
+    ki = idx
+    my_port = my_y[idx].mean()
+    kongs_port = kongs_y[idx].mean()
+
+    my_port = my_port < 0
+    kongs_port = kongs_port < 0
+    if not my_port == kongs_port:
+        print('Found ping that doesnt line up with par, checking nearby pings (should only occur with dual head)')
+        found = False
+        potential_idxs = [-prev_index, 1, -1, 2, -2]
+        for pot_idx in potential_idxs:
+            try:
+                kongs_port = kongs_y[idx + pot_idx].mean() < 0
+                if kongs_port == my_port:
+                    found = True
+                    ki = idx + pot_idx
+                    prev_index = pot_idx
+                    print('- Adjusting {} to {} for par index'.format(idx, ki))
+                    break
+            except IndexError:
+                print('_dual_head_sort: Reached end of par xyz88 records')
+        if not found:
+            raise ValueError('Found ping at {} that does not appear to match nearby kluster processed pings'.format(idx))
+    return ki, prev_index
+
+
+def validation_against_xyz88(filname: str, analysis_mode: str = 'even', numplots: int = 10,
+                             visualizations: bool = False):
+    """
+    Function to take a multibeam file and compare the svcorrected xyz with the converted and sound velocity
+    corrected data generated by Kluster/fqpr_generation.  This is mostly here just to validate the Kluster data,
+    definitely not performant.  Will generate a plot with subplots that are useful for analysis.
+
+    Will take select pings from xyz88 and Kluster and compare them with a plot of differences
+
+    Parameters
+    ----------
+    filname
+        full path to .all file
+    analysis_mode
+        'even' = select pings are evenly distributed, 'random' = select pings are randomly distributed, 'first' = pings will be the first found in the file
+    numplots
+        number of pings to compare
+    visualizations
+        True if you want the matplotlib animations
+
+    Returns
+    -------
+    Fqpr
+        returned here for further analysis if you want it
+    FqprVisualizations
+        returned here to keep the animations alive
+    """
+
+    mbes_extension = os.path.splitext(filname)[1]
+    if mbes_extension == '.all':
+        print('Reading from xyz88/.all file with par Allread...')
+        kongs_x, kongs_y, kongs_z, kongs_tm, kongs_cntrs = xyz_from_allfile(filname)
+    elif mbes_extension == '.kmall':
+        print('Reading from MRZ/.kmall file with kmall reader...')
+        kongs_x, kongs_y, kongs_z, kongs_tm, kongs_cntrs = xyz_from_kmallfile(filname)
+    else:
+        raise NotImplementedError('Only .all and .kmall file types are supported')
+    print('Reading and processing from raw raw_ping/.all file with Kluster...')
+    fq, fqv, my_x, my_y, my_z, my_tm = return_svcorr_xyz(filname, visualizations=visualizations)
+
+    print('Plotting...')
+    if kongs_tm[0] == 0.0:
+        # seen this with EM710 data, the xyz88 dump has zeros arrays at the start, find the first nonzero time
+        #    (assuming it starts in the first 100 times)
+        print('Found empty arrays in xyz88, seems common with EM710 data')
+        first_nonzero = np.where(kongs_tm[:100] != 0.0)[0][0]
+        kongs_x = kongs_x[first_nonzero:]
+        kongs_y = kongs_y[first_nonzero:]
+        kongs_z = kongs_z[first_nonzero:]
+        kongs_tm = kongs_tm[first_nonzero:]
+    if kongs_x.shape != my_x.shape:
+        print('Found incompatible par/Kluster data sets.  Kluster x shape {}, par x shape {}'.format(my_x.shape,
+                                                                                                     kongs_x.shape))
+    if fq.source_dat.is_dual_head():
+        print('WANRING: I have not figured out the comparison of xyz88/kluster generated data with dual head systems.' +
+              'The ping order is different and the ping counters are all the same across heads.')
+
+    # pick some indexes interspersed in the array to visualize
+    if analysis_mode == 'even':
+        idx = np.arange(0, len(kongs_z), int(len(kongs_z) / numplots), dtype=np.int32)
+    elif analysis_mode == 'random':
+        idx = np.random.randint(0, len(kongs_z), size=int(numplots))
+    elif analysis_mode == 'first':
+        idx = np.arange(0, numplots, dtype=np.int32)
+    else:
+        raise ValueError('{} is not a valid analysis mode'.format(analysis_mode))
+
+    # plot some results
+    fig = plt.figure(constrained_layout=True)
+    gs = GridSpec(3, 3, figure=fig)
+    myz_plt = fig.add_subplot(gs[0, :])
+    kongsz_plt = fig.add_subplot(gs[1, :])
+    alongdif_plt = fig.add_subplot(gs[2, 0])
+    acrossdif_plt = fig.add_subplot(gs[2, 1])
+    zvaldif_plt = fig.add_subplot(gs[2, 2])
+
+    fig.suptitle('XYZ88 versus Kluster Processed Data')
+    myz_plt.set_title('Kluster Vertical')
+    kongsz_plt.set_title('XYZ88 Vertical')
+    alongdif_plt.set_title('Kluster/XYZ88 Alongtrack Difference')
+    acrossdif_plt.set_title('Kluster/XYZ88 Acrosstrack Difference')
+    zvaldif_plt.set_title('Kluster/XYZ88 Vertical Difference')
+
+    lbls = []
+    prev_index = 0
+    for i in idx:
+        if fq.source_dat.is_dual_head():
+            ki, prev_index = _dual_head_sort(i, my_y, kongs_y, prev_index)
+        else:
+            ki, prev_index = i, prev_index
+        lbls.append(kongs_tm[ki])
+        myz_plt.plot(my_z[i])
+        kongsz_plt.plot(kongs_z[ki])
+        alongdif_plt.plot(my_x[i] - kongs_x[ki])
+        acrossdif_plt.plot(my_y[i] - kongs_y[ki])
+        zvaldif_plt.plot(my_z[i] - kongs_z[ki])
+
+    myz_plt.legend(labels=lbls, bbox_to_anchor=(1.05, 1), loc="upper left")
+
+    # currently need to retain handle to fqpr to keep the animations going
+    return fq, fqv

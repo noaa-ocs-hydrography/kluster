@@ -1132,8 +1132,13 @@ class Fqpr:
         outfold = os.path.join(self.source_dat.converted_pth, 'ppnav.zarr')
         chunk_sizes = {k: self.source_dat.nav_chunksize for k in list(navdata.variables.keys())}  # 50000 to match the raw_nav
         sync = DaskProcessSynchronizer(outfold)
-        distrib_zarr_write(outfold, [navdata], navdata.attrs, chunk_sizes, [[0, len(navdata.time)]],
-                                          sync, self.client, append_dim='time', merge=False)
+        chunk_idxs = [[0, len(navdata.time)]]
+        try:
+            navdata = self.client.scatter(navdata)
+        except:  # not using dask distributed client
+            pass
+        distrib_zarr_write(outfold, [navdata], navdata.attrs, chunk_sizes, chunk_idxs, sync, self.client,
+                           append_dim='time', merge=False)
 
         self.ppnav_path = outfold
         self.reload_ppnav_records()
@@ -1178,9 +1183,13 @@ class Fqpr:
             for source in sources:
                 ping_wise_data = interp_across_chunks(source, raw_ping.time, 'time').chunk(self.source_dat.ping_chunksize)
                 chunk_sizes = {k: self.source_dat.ping_chunksize for k in list(ping_wise_data.variables.keys())}
-                distrib_zarr_write(outfold_sec, [ping_wise_data], attributes, chunk_sizes,
-                                                  [[0, len(ping_wise_data.time)]], sync, self.client,
-                                                  append_dim='time', merge=True)
+                chunk_idxs = [[0, len(ping_wise_data.time)]]
+                try:
+                    ping_wise_data = self.client.scatter(ping_wise_data)
+                except:  # not using dask distributed client
+                    pass
+                distrib_zarr_write(outfold_sec, [ping_wise_data], attributes, chunk_sizes, chunk_idxs, sync,
+                                   self.client, append_dim='time', merge=True)
                 attributes = {}
         self.source_dat.reload_pingrecords(skip_dask=skip_dask)
         endtime = perf_counter()
