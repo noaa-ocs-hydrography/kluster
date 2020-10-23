@@ -2,6 +2,7 @@ fqpr\_project module
 ====================
 
 .. automodapi:: HSTB.kluster.fqpr_project
+   :no-inheritance-diagram:
    :skip: convert_multibeam
    :skip: dask_find_or_start_client
    :skip: get_attributes_from_fqpr

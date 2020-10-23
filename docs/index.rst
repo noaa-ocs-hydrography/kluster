@@ -6,6 +6,8 @@
 kluster
 =======
 
+Documentation: `readthedocs`_
+
 A distributed multibeam processing system built on the `Pangeo
 ecosystem`_. Supports Kongsberg .all/.kmall multibeam formats, POS MV
 post-processed SBET/RMS navigation files and Caris svp sound velocity
@@ -178,6 +180,7 @@ to examine later using:
 
 ``surf = reload_surface(r"C:\data_dir\surf.npz")``
 
+.. _readthedocs: https://kluster.readthedocs.io/en/latest/
 .. _Pangeo ecosystem: https://pangeo.io/
 .. _drivers: https://github.com/noaa-ocs-hydrography/drivers
 .. _Dask: https://dask.org/
@@ -192,6 +195,7 @@ to examine later using:
    fqpr_sat
    fqpr_surface
    fqpr_project
+   fqpr_visualizations
    xarray_conversion
    orientation
    beampointingvector

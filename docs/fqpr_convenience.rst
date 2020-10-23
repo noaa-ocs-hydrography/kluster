@@ -2,6 +2,7 @@ fqpr\_convenience module
 ========================
 
 .. automodapi:: HSTB.kluster.fqpr_convenience
+   :no-inheritance-diagram:
    :skip: Union
    :skip: Client
    :skip: BatchRead

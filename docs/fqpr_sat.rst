@@ -2,6 +2,7 @@ fqpr\_sat module
 ================
 
 .. automodapi:: HSTB.kluster.fqpr_sat
+   :no-inheritance-diagram:
    :skip: firwin
    :skip: freqz
    :skip: interp_across_chunks

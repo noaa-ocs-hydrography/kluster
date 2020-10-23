@@ -2,6 +2,7 @@ fqpr\_generation module
 =======================
 
 .. automodapi:: HSTB.kluster.fqpr_generation
+   :no-inheritance-diagram:
    :skip: CRS
    :skip: datetime
    :skip: wait

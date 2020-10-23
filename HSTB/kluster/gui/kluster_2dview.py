@@ -123,7 +123,15 @@ class Kluster2dview(FigureCanvasQTAgg):
             xyz = desired_crs.transform_points(ccrs.epsg(int(surf_crs)), lon2d, lat2d)
             lons = xyz[..., 0]
             lats = xyz[..., 1]
-            surfplt = self.axes.pcolormesh(lons, lats, surfz.T, transform=self.map_proj)
+
+            if lyrname != 'depth':
+                vmin, vmax = np.nanmin(surfz), np.nanmax(surfz)
+            else:  # need an outlier resistant min max depth range value
+                twostd = np.nanstd(surfz)
+                med = np.nanmedian(surfz)
+                vmin, vmax = med - twostd, med + twostd
+            print(vmin, vmax)
+            surfplt = self.axes.pcolormesh(lons, lats, surfz.T, vmin=vmin, vmax=vmax, transform=self.map_proj)
             self._add_to_active_layers(surfname, lyrname)
             self._add_to_surface_objects(surfname, lyrname, [lats, lons, surfplt])
             if not self.line_objects and not self.surface_objects:  # if this is the first thing you are loading, jump to it's extents
