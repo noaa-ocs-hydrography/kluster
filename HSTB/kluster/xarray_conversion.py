@@ -16,7 +16,7 @@ from HSTB.drivers import par3, kmall
 from HSTB.drivers import PCSio
 from HSTB.kluster.dask_helpers import dask_find_or_start_client, DaskProcessSynchronizer
 from HSTB.kluster.xarray_helpers import resize_zarr, xarr_to_netcdf, combine_xr_attributes, reload_zarr_records, \
-                                        get_new_chunk_locations_zarr, distrib_zarr_write, ZarrWrite
+                                        get_new_chunk_locations_zarr, distrib_zarr_write, my_xarr_add_attribute
 from HSTB.kluster.logging_conf import return_logger
 
 
@@ -289,7 +289,11 @@ def _sequential_to_xarray(rec: dict):
                         combined_sectors = []
                         for secid in ids:
                             idx = ids.index(secid)
-                            datadtype = rec[r][ky].dtype
+
+                            if ky == 'counter':  # counter is 16bit in raw data, we want 32 to handle zero crossing
+                                datadtype = np.int64
+                            else:
+                                datadtype = rec[r][ky].dtype
 
                             arr = np.array(rec['ping'][ky][msk[idx]])  # that part of the record for the given sect_id
                             tim = rec['ping']['time'][msk[idx]]
@@ -1660,8 +1664,7 @@ class BatchRead:
 
             if save_pths is not None:
                 for pth in save_pths:
-                    zw = ZarrWrite(pth, {})
-                    zw.write_attributes({'xyzrph': self.xyzrph, 'tpu_parameters': self.tpu_parameters})
+                    my_xarr_add_attribute({'xyzrph': self.xyzrph, 'tpu_parameters': self.tpu_parameters}, pth)
             self.logger.info('Constructed offsets successfully')
 
     def _get_nth_chunk_indices(self, chunks: tuple, idx: int):
@@ -1736,6 +1739,27 @@ class BatchRead:
                             lastgoodval = arr[goodvalsearch]
                             arr[start_idx:end_idx] = arr[start_idx:end_idx].fillna(lastgoodval)
         return arr
+
+    def correct_for_counter_reset(self):
+        """
+        Ping counter (at least with the Kongsberg systems) is a 16 bit unsigned integer that will just reset once it
+        reaches 65536.  This zero crossing can happen multiple times in a kluster dataset, as it comprises multiple
+        survey lines.  We need to handle this by reading it as a larger datatype (int64) and add the int16 limit
+        whenever it is reached in the counter record.  This should transform a sawtooth record into a smooth,
+        unique array of values.
+
+        fqpr_generation.reform_2d_vars_across_sectors_at_time, reform_1d_vars_across_sectors_at_time will use this
+        method automatically.  Having duplicate ping counters will mess up the logic we use to reform pings from
+        these sector based datasets.
+        """
+
+        for rp in self.raw_ping:
+            if rp.counter.dtype == np.uint16:  # expects 64bit signed to accomodate zero crossing
+                rp['counter'] = rp.counter.astype(np.int64)
+            zero_crossing = np.where(np.diff(rp['counter']) < 0)[0] + 1
+            for zc in zero_crossing:
+                rp['counter'].load()
+                rp['counter'][zc:] += 65536
 
     def is_dual_head(self):
         """

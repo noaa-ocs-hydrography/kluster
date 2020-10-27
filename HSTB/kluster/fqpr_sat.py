@@ -70,6 +70,9 @@ class WobbleTest:
             If true, will use altitude instead of heave for the plots
         """
 
+        if self.fqpr.source_dat.is_dual_head():
+            raise NotImplementedError('Dual head systems are not currently supported')
+
         print('Generating wobble data for pings')
         utms = self.fqpr.return_unique_times_across_sectors()
         varnames = ['depthoffset', 'corr_pointing_angle']
@@ -92,10 +95,11 @@ class WobbleTest:
 
         self.beampointingangle = np.rad2deg(self.beampointingangle)
 
-        # max period of all the attitude signals, drives the filter coefficients
-        self.max_period = np.max([return_period_of_signal(self.fqpr.source_dat.raw_att['roll']),
-                                  return_period_of_signal(self.fqpr.source_dat.raw_att['pitch']),
-                                  return_period_of_signal(self.fqpr.source_dat.raw_att['heave'])])
+        # max period of all the attitude signals, drives the filter coefficients, just use a slice of attitude to resolve
+        att_slice = np.min([20000, self.fqpr.source_dat.raw_att['roll'].size])
+        self.max_period = np.max([return_period_of_signal(self.fqpr.source_dat.raw_att['roll'][:att_slice]),
+                                  return_period_of_signal(self.fqpr.source_dat.raw_att['pitch'][:att_slice]),
+                                  return_period_of_signal(self.fqpr.source_dat.raw_att['heave'][:att_slice])])
 
         roll_rate = np.abs(np.diff(self.fqpr.source_dat.raw_att['roll']))/np.diff(self.fqpr.source_dat.raw_att['roll'].time)
         roll_rate = np.append(roll_rate, roll_rate[-1])  # extend to retain original shape
@@ -111,14 +115,14 @@ class WobbleTest:
             if self.vert_ref == 'ellipse':
                 self.vert_motion_at_ping_time = self.altitude - self.altitude.mean()
             else:
-                print("use_altitude option selected, but data was processed with vert ref: {}".format(self.vert_ref))
-                return
+                print("WARNING: Choosing to use ellipsoid height, but data was processed with vert ref: {}".format(self.vert_ref))
+                self.vert_motion_at_ping_time = self.heave
         else:
             if self.vert_ref != 'ellipse':
                 self.vert_motion_at_ping_time = self.heave
             else:
-                print("use_altitude option not selected, but data was processed with vert ref: {}".format(self.vert_ref))
-                return
+                print("WARNING: Choosing to use heave, but data was processed with vert ref: {}".format(self.vert_ref))
+                self.vert_motion_at_ping_time = self.altitude - self.altitude.mean()
 
         numtaps = 101  # filter length
         self.hpf_depth = return_high_pass_filtered_depth(self.depth, self.max_period, numtaps=numtaps)
@@ -664,7 +668,7 @@ def return_high_pass_filtered_depth(z: np.array, max_period: float, numtaps: int
     # sos = butter(numtaps, 1 / max_period, btype='highpass', output='sos')
     # filt = sosfilt(sos, meandepth)
 
-    coef = build_highpass_filter_coeff(1 / (max_period * 4), order=numtaps)
+    coef = build_highpass_filter_coeff(1 / (max_period * 4), numtaps=numtaps)
     filt_depth = lfilter(coef, 1.0, zerocentered_meandepth)
     # trim the bad sections from the start of the filtered depth
     trimfilt_depth = filt_depth[int(numtaps / 2):]

@@ -1663,6 +1663,10 @@ class Fqpr:
 
         if outfold is None:
             outfold = os.path.join(self.source_dat.converted_pth, 'soundings.zarr')
+        if os.path.exists(outfold):
+            raise NotImplementedError('Appending/overwriting not currently supported with soundings dataset, no way to '
+                                      'match new data to old data for unstructured points')
+
         sync = DaskProcessSynchronizer(outfold)
 
         vars_of_interest = ('x', 'y', 'z', 'unc', 'detectioninfo')
@@ -1994,11 +1998,21 @@ class Fqpr:
         sec_info = sector_identifier.split('_')
         return {'serial_number': sec_info[0], 'sector': sec_info[1], 'frequency': sec_info[2]}
 
-    def return_total_pings(self, only_these_counters: Union[np.array, int] = None):
+    def return_total_pings(self, only_these_counters: Union[np.array, int] = None, min_time: float = None,
+                           max_time: float = None):
         """
         Use the sector identifiers to determine the total pings for this fqpr instance.  Sectors are split by serial
         number/sector index/frequency, so to get the total pings, we just find all the serial number/frequency
         combinations and add the time sizes together
+
+        Parameters
+        ----------
+        only_these_counters
+            an array or a single ping counter value to subset the raw_ping dataset by.
+        min_time
+            the minimum time desired from the raw_ping dataset
+        max_time
+            the maximum time desired from the raw_ping dataset
 
         Returns
         -------
@@ -2013,6 +2027,10 @@ class Fqpr:
         selected_secs = [secs[secs_info.index(info)] for info in secs_info if info['sector'] == sec_index]
         for sec in selected_secs:
             raw_ping = self.source_dat.return_ping_by_sector(sec)
+            if min_time is not None:
+                raw_ping = raw_ping.where(raw_ping.time >= min_time, drop=True)
+            if max_time is not None:
+                raw_ping = raw_ping.where(raw_ping.time <= max_time, drop=True)
             if only_these_counters is not None:
                 total_pings += np.count_nonzero(np.isin(only_these_counters, raw_ping.counter))
             else:
@@ -2160,7 +2178,7 @@ class Fqpr:
         np.array
             1d array containing times for each ping
         """
-
+        self.source_dat.correct_for_counter_reset()
         ping_counters = self.source_dat.return_ping_counters_at_time(ping_times)
         secs = self.return_sector_ids()
         total_pings = self.return_total_pings(only_these_counters=ping_counters)
@@ -2226,6 +2244,7 @@ class Fqpr:
             1d array containing times for each ping
         """
 
+        self.source_dat.correct_for_counter_reset()
         ping_counters = self.source_dat.return_ping_counters_at_time(ping_times)
         secs = self.return_sector_ids()
         total_pings = self.return_total_pings(only_these_counters=ping_counters)

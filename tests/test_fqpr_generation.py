@@ -298,7 +298,7 @@ def test_basesurface():
 
     assert np.array_equal(testbs.surf, expected_surf)
 
-    print('Passed: interp_across_chunks')
+    print('Passed: basesurface')
 
 
 def build_georef_correct_comparison(dset='realdual', vert_ref='waterline', datum='NAD83'):
