@@ -16,6 +16,7 @@ fqpr\_generation module
    :skip: SoundSpeedProfile
    :skip: distributed_run_sv_correct
    :skip: distrib_run_georeference
+   :skip: distrib_run_calculate_tpu
    :skip: BatchRead
    :skip: combine_arrays_to_dataset
    :skip: compare_and_find_gaps

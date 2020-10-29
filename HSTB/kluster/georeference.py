@@ -13,7 +13,7 @@ def distrib_run_georeference(dat: list):
     Parameters
     ----------
     dat
-        [sv_data, navigation, heading, qualityfactor, heave, waterline, vert_ref, xyz_crs, z_offset]
+        [sv_data, navigation, heading, heave, waterline, vert_ref, xyz_crs, z_offset]
 
     Returns
     -------
@@ -24,18 +24,16 @@ def distrib_run_georeference(dat: list):
     xr.DataArray
         down offset (time, beam)
     xr.DataArray
-        uncertainty (time, beam)
-    xr.DataArray
         corrected heave for TX - RP lever arm, all zeros if in 'ellipse' mode (time)
     xr.DataArray
         corrected altitude for TX - RP lever arm, all zeros if in 'vessel' or 'waterline' mode (time)
-
     """
-    x, y, z, u, hve, alt = georef_by_worker(dat[0], dat[1], dat[2], dat[3], dat[4], dat[5], dat[6], dat[7], dat[8])
-    return x, y, z, u, hve, alt
+
+    x, y, z, hve, alt = georef_by_worker(dat[0], dat[1], dat[2], dat[3], dat[4], dat[5], dat[6], dat[7])
+    return x, y, z, hve, alt
 
 
-def georef_by_worker(sv_corr: list, nav: xr.Dataset, hdng: xr.DataArray, qf: xr.DataArray, heave: xr.DataArray,
+def georef_by_worker(sv_corr: list, nav: xr.Dataset, hdng: xr.DataArray, heave: xr.DataArray,
                      wline: float, vert_ref: str, xyz_crs: CRS, z_offset: float):
     """
     Use the raw attitude/navigation to transform the vessel relative along/across/down offsets to georeferenced
@@ -50,8 +48,6 @@ def georef_by_worker(sv_corr: list, nav: xr.Dataset, hdng: xr.DataArray, qf: xr.
         1d (time) Dataset containing altitude, latitude and longitude
     hdng
         1d (time) heading in degrees
-    qf
-        2d (time, beam) receiver beam pointing angle
     heave
         1d (time) heave in degrees
     wline
@@ -72,23 +68,16 @@ def georef_by_worker(sv_corr: list, nav: xr.Dataset, hdng: xr.DataArray, qf: xr.
     xr.DataArray
         down offset (time, beam)
     xr.DataArray
-        uncertainty (time, beam)
-    xr.DataArray
         corrected heave for TX - RP lever arm, all zeros if in 'ellipse' mode (time)
     xr.DataArray
         corrected altitude for TX - RP lever arm, all zeros if in 'vessel' or 'waterline' mode (time)
-
     """
+
     g = xyz_crs.get_geod()
 
     alongtrack = sv_corr[0]
     acrosstrack = sv_corr[1]
     depthoffset = sv_corr[2] + z_offset
-
-    if qf.attrs['uncertainty_type'] == 'scaled_int':
-        uncert = (qf / 2500) * depthoffset  # 2500 is the scaling factor according to kongs documentation
-    else:
-        uncert = qf * depthoffset
 
     corr_dpth = None
     corr_heave = None
@@ -123,4 +112,4 @@ def georef_by_worker(sv_corr: list, nav: xr.Dataset, hdng: xr.DataArray, qf: xr.
     x = reform_nan_array(np.around(newpos[0], 3), at_idx, alongtrack.shape, alongtrack.coords, alongtrack.dims)
     y = reform_nan_array(np.around(newpos[1], 3), ac_idx, acrosstrack.shape, acrosstrack.coords, acrosstrack.dims)
     z = np.around(corr_dpth, 3)
-    return x, y, z, uncert, corr_heave, corr_altitude
+    return x, y, z, corr_heave, corr_altitude

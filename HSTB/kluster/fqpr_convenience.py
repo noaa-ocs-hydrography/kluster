@@ -131,8 +131,9 @@ def import_navigation(fqpr_inst: Fqpr, navfiles: list, errorfiles: list = None, 
 
 
 def process_multibeam(fqpr_inst: Fqpr, run_orientation: bool = True, run_beam_vec: bool = True, run_svcorr: bool = True,
-                      run_georef: bool = True, svcasts: list = None, use_epsg: bool = False, use_coord: bool = True,
-                      epsg: int = None, coord_system: str = 'NAD83', vert_ref: str = 'waterline'):
+                      run_georef: bool = True, run_tpu: bool = True, svcasts: list = None, use_epsg: bool = False,
+                      use_coord: bool = True, epsg: int = None, coord_system: str = 'NAD83',
+                      vert_ref: str = 'waterline'):
     """
     Use fqpr_generation to process already converted data on the local cluster and generate sound velocity corrected,
     georeferenced soundings in the same data store as the converted data.
@@ -149,6 +150,8 @@ def process_multibeam(fqpr_inst: Fqpr, run_orientation: bool = True, run_beam_ve
         perform the sv_correct step
     run_georef
         perform the georef_xyz step
+    run_tpu
+        perform the calculate_total_uncertainty
     svcasts
         optional list of paths to svp cast files, no need to include if using casts in multibeam file
     use_epsg
@@ -182,7 +185,8 @@ def process_multibeam(fqpr_inst: Fqpr, run_orientation: bool = True, run_beam_ve
         fqpr_inst.sv_correct(add_cast_files=svcasts)
     if run_georef:
         fqpr_inst.georef_xyz(vert_ref=vert_ref)
-        fqpr_inst.export_pings_to_dataset()
+    if run_tpu:
+        fqpr_inst.calculate_total_uncertainty(vert_ref=vert_ref)
     return fqpr_inst
 
 
@@ -244,7 +248,7 @@ def return_georef_xyz(filname: str, coord_system: str = 'NAD83', vert_ref: str =
 
     fqpr_inst = perform_all_processing(filname, coord_system=coord_system, vert_ref=vert_ref)
     u_tms = fqpr_inst.return_unique_times_across_sectors()
-    dats, ids, tms = fqpr_inst.reform_2d_vars_across_sectors_at_time(['x', 'y', 'z', 'unc'], u_tms)
+    dats, ids, tms = fqpr_inst.reform_2d_vars_across_sectors_at_time(['x', 'y', 'z', 'tvu'], u_tms)
     x, y, z, unc = dats
 
     return fqpr_inst, x, y, z, unc, ids, tms
@@ -282,6 +286,7 @@ def reload_data(converted_folder: str, require_raw_data: bool = True, skip_dask:
         mbes_read.read_from_zarr_fils(final_paths['ping'], final_paths['attitude'], final_paths['navigation'], final_paths['logfile'])
         fqpr_inst = Fqpr(mbes_read)
         fqpr_inst.logger.info('****Reloading from file {}****'.format(converted_folder))
+
         fqpr_inst.source_dat.xyzrph = fqpr_inst.source_dat.raw_ping[0].xyzrph
         fqpr_inst.source_dat.tpu_parameters = fqpr_inst.source_dat.raw_ping[0].tpu_parameters
         fqpr_inst.generate_starter_orientation_vectors(None, None)

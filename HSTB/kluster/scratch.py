@@ -44,10 +44,11 @@ for cnt, dset in enumerate(datasets_w_sbets):
     fq.export_pings_to_file()
 
 
-sbet = r"C:\collab\dasktest\data_dir\ra_mbes\2801_em2040\sbet\export_2020_035_2801_A.out"
-logf = r"C:\collab\dasktest\data_dir\ra_mbes\2801_em2040\sbet\export_2020_035_2801_A.log"
-fq = perform_all_processing(r'C:\collab\dasktest\data_dir\ra_mbes\2801_em2040\mbes\2020-035\0005_20200204_213954_2801_300A_035.all',
-                            navfiles=[sbet], logfiles=[logf], vert_ref='waterline')
+sbet = r"C:\collab\dasktest\data_dir\ra_mbes\2801_em2040\pospac\035_sbet.out"
+logf = r"C:\collab\dasktest\data_dir\ra_mbes\2801_em2040\pospac\035_sbet_export.log"
+errorfil = r"C:\collab\dasktest\data_dir\ra_mbes\2801_em2040\pospac\035_smrmsg.out"
+fq = perform_all_processing(r'C:\collab\dasktest\data_dir\ra_mbes\2801_em2040\mbes\2020-035',
+                            navfiles=[sbet], errorfiles=[errorfil], logfiles=[logf], vert_ref='ellipse', outfold=r"C:\collab\dasktest\data_dir\outputtest\rambes35sbet")
 
 
 sbet = r"C:\collab\dasktest\data_dir\val_kmall_patch\sbet_Mission 1.out"
@@ -381,3 +382,14 @@ linepairs = [r"C:\collab\dasktest\data_dir\outputtest\hassler_400_long_fm",
              r"C:\collab\dasktest\data_dir\outputtest\hassler_200_long_cw",
              r"C:\collab\dasktest\data_dir\outputtest\hassler_200_short_cw"]
 accuracy_test(reference_surface, linepairs, vert_ref='waterline', output_directory=output_directory)
+
+
+##################################### tpu module ##########################################
+import tpu
+from fqpr_convenience import reload_data
+fq = reload_data(r"C:\collab\dasktest\data_dir\outputtest\rambes35sbet")
+tvu, thu = tpu.calculate_tpu(fq.source_dat.raw_ping[0]['roll'], fq.source_dat.raw_ping[0].corr_pointing_angle,
+                             fq.source_dat.raw_ping[0].acrosstrack, fq.source_dat.raw_ping[0].depthoffset,
+                             fq.source_dat.tpu_parameters, fq.source_dat.raw_ping[0].qualityfactor,
+                             fq.source_dat.raw_ping[0].north_position_error, fq.source_dat.raw_ping[0].east_position_error,
+                             fq.source_dat.raw_ping[0].down_position_error, qf_type='kongsberg')

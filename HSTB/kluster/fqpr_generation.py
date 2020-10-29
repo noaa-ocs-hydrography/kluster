@@ -13,6 +13,7 @@ from HSTB.kluster.beampointingvector import distrib_run_build_beam_pointing_vect
 from HSTB.kluster.svcorrect import get_sv_files_from_directory, return_supported_casts_from_list, SoundSpeedProfile, \
     distributed_run_sv_correct
 from HSTB.kluster.georeference import distrib_run_georeference
+from HSTB.kluster.tpu import distrib_run_calculate_tpu
 from HSTB.kluster.xarray_conversion import BatchRead
 from HSTB.kluster.xarray_helpers import combine_arrays_to_dataset, compare_and_find_gaps, distrib_zarr_write, \
     divide_arrays_by_time_index, interp_across_chunks, reload_zarr_records, slice_xarray_by_dim, stack_nan_array
@@ -81,6 +82,7 @@ class Fqpr:
         self.bpv_time_complete = ''
         self.sv_time_complete = ''
         self.georef_time_complete = ''
+        self.tpu_time_complete = ''
 
         self.logfile = None
         self.logger = None
@@ -873,23 +875,17 @@ class Fqpr:
 
         if prefer_pp_nav and (self.ppnav_dat is not None):
             self.logger.info('Using post processed navigation...')
-            nav = interp_across_chunks(self.ppnav_dat, tx_tstmp_idx, daskclient=self.client)
+            nav = interp_across_chunks(self.ppnav_dat, tx_tstmp_idx + latency, daskclient=self.client)
         else:
-            nav = interp_across_chunks(self.source_dat.raw_nav, tx_tstmp_idx, daskclient=self.client)
+            nav = interp_across_chunks(self.source_dat.raw_nav, tx_tstmp_idx + latency, daskclient=self.client)
 
         hdng = interp_across_chunks(self.source_dat.raw_att['heading'], tx_tstmp_idx + latency, daskclient=self.client)
         hve = interp_across_chunks(self.source_dat.raw_att['heave'], tx_tstmp_idx + latency, daskclient=self.client)
-        try:  # for .all files, quality factor is an int representing scaled std dev
-            qf = self.source_dat.select_array_from_rangeangle('qualityfactor', sec_ident).where(applicable_index, drop=True)
-            qf.attrs['uncertainty_type'] = 'scaled_int'
-        except:  # for .kmall files, quality factor is a percentage of water depth, see IFREMER formula
-            qf = self.source_dat.select_array_from_rangeangle('qualityfactor_percent', sec_ident).where(applicable_index,
-                                                                                                        drop=True)
-            qf.attrs['uncertainty_type'] = 'ifremer_percentage'
+
         wline = float(self.source_dat.xyzrph['waterline'][str(timestmp)])
 
         if vert_ref == 'ellipse':
-            nav = self.determine_altitude_corr(nav, self.source_dat.raw_att, tx_tstmp_idx, prefixes, timestmp)
+            nav = self.determine_altitude_corr(nav, self.source_dat.raw_att, tx_tstmp_idx + latency, prefixes, timestmp)
         else:
             hve = self.determine_induced_heave(ra, hve, self.source_dat.raw_att, tx_tstmp_idx + latency, prefixes, timestmp)
 
@@ -915,15 +911,99 @@ class Fqpr:
 
             try:
                 fut_nav = self.client.scatter(nav.where(nav['time'] == chnk.time, drop=True))
-                fut_qf = self.client.scatter(qf[chnk])
                 fut_hdng = self.client.scatter(hdng.where(hdng['time'] == chnk.time, drop=True))
                 fut_hve = self.client.scatter(hve.where(hve['time'] == chnk.time, drop=True))
             except:  # client is not setup, run locally
                 fut_nav = nav.where(nav['time'] == chnk.time, drop=True)
-                fut_qf = qf[chnk]
                 fut_hdng = hdng.where(hdng['time'] == chnk.time, drop=True)
                 fut_hve = hve.where(hve['time'] == chnk.time, drop=True)
-            data_for_workers.append([sv_data, fut_nav, fut_hdng, fut_qf, fut_hve, wline, vert_ref, self.xyz_crs, z_offset])
+            data_for_workers.append([sv_data, fut_nav, fut_hdng, fut_hve, wline, vert_ref, self.xyz_crs, z_offset])
+        return data_for_workers
+
+    def _generate_chunks_tpu(self, ra: xr.Dataset, idx_by_chunk: xr.DataArray, applicable_index: xr.DataArray,
+                             vert_ref: str, tpu_parameters: dict):
+        """
+        Take a single sector, and build the data for the distributed system to process.  Georeference requires the
+        sv_corrected acrosstrack/alongtrack/depthoffsets, as well as navigation, heading, heave and the quality
+        factor data to build x/y/z/uncertainty.
+
+        Parameters
+        ----------
+        ra
+            xarray Dataset for the raw_ping instance selected for processing
+        idx_by_chunk
+            xarray Datarray, values are the integer indexes of the pings to use, coords are the time of ping
+        applicable_index
+            xarray Dataarray, boolean mask for the data associated with this installation parameters instance
+        vert_ref
+            one of ['ellipse', 'vessel', 'waterline']
+        tpu_parameters
+            dictionary of scalar uncertainty values used in tpu calculation
+
+        Returns
+        -------
+        list
+            list of lists, each list contains future objects for distrib_run_georeference, see georef_xyz
+        """
+
+        latency = self.motion_latency
+        if latency:
+            self.logger.info('Applying motion latency of {}ms'.format(latency))
+        tx_tstmp_idx = get_ping_times(ra.time, applicable_index)
+        self.logger.info('preparing to process {} pings'.format(len(tx_tstmp_idx)))
+
+        if self.ppnav_dat is None:
+            self.logger.error('_generate_chunks_tpu: postprocessed navigation error must exist for calculate tpu to work')
+            raise ValueError('_generate_chunks_tpu: postprocessed navigation error must exist for calculate tpu to work')
+        elif 'north_position_error' not in self.ppnav_dat:
+            self.logger.error('_generate_chunks_tpu: postprocessed navigation does not contain error arrays')
+            raise ValueError('_generate_chunks_tpu: postprocessed navigation does not contain error arrays')
+
+        if vert_ref == 'waterline':
+            vert_ref = 'tidal'  # change the vert ref identifier to the string that tpu is expecting
+        elif vert_ref == 'vessel':
+            self.logger.error('_generate_chunks_tpu: Unable to calculate tpu with vert_ref=vessel')
+            raise ValueError('_generate_chunks_tpu: Unable to calculate tpu with vert_ref=vessel')
+
+        ppnav = interp_across_chunks(self.ppnav_dat, tx_tstmp_idx + latency, daskclient=self.client)
+        roll = interp_across_chunks(self.source_dat.raw_att['roll'], tx_tstmp_idx + latency, daskclient=self.client)
+
+        corr_point = self.source_dat.select_array_from_rangeangle('corr_pointing_angle', ra.sector_identifier).where(applicable_index, drop=True)
+        acrosstrack = self.source_dat.select_array_from_rangeangle('acrosstrack', ra.sector_identifier).where(applicable_index, drop=True)
+        depthoffset = self.source_dat.select_array_from_rangeangle('depthoffset', ra.sector_identifier).where(applicable_index, drop=True)
+        qf = self.source_dat.select_array_from_rangeangle('qualityfactor', ra.sector_identifier).where(applicable_index, drop=True)
+
+        first_mbes_file = list(ra.multibeam_files.keys())[0]
+        is_kongsberg_all = os.path.splitext(first_mbes_file)[1] == '.all'
+        if is_kongsberg_all:  # for .all files, quality factor is an int representing scaled std dev
+            qf_type = 'kongsberg'
+        else:  # for .kmall files, quality factor is a percentage of water depth, see IFREMER formula
+            qf_type = 'ifremer'
+
+        data_for_workers = []
+        for chnk in idx_by_chunk:
+            if latency:
+                chnk = chnk.assign_coords({'time': chnk.time.time + latency})
+            try:
+                fut_roll = self.client.scatter(roll.where(roll['time'] == chnk.time, drop=True))
+                fut_corr_point = self.client.scatter(corr_point[chnk])
+                fut_acrosstrack = self.client.scatter(acrosstrack[chnk])
+                fut_depthoffset = self.client.scatter(depthoffset[chnk])
+                fut_qualityfactor = self.client.scatter(qf[chnk])
+                fut_npe = self.client.scatter(ppnav.north_position_error.where(ppnav.north_position_error['time'] == chnk.time, drop=True))
+                fut_epe = self.client.scatter(ppnav.east_position_error.where(ppnav.east_position_error['time'] == chnk.time, drop=True))
+                fut_dpe = self.client.scatter(ppnav.down_position_error.where(ppnav.down_position_error['time'] == chnk.time, drop=True))
+            except:  # client is not setup, run locally
+                fut_roll = roll.where(roll['time'] == chnk.time, drop=True)
+                fut_corr_point = corr_point[chnk]
+                fut_acrosstrack = acrosstrack[chnk]
+                fut_depthoffset = depthoffset[chnk]
+                fut_qualityfactor = qf[chnk]
+                fut_npe = ppnav.north_position_error.where(ppnav.north_position_error['time'] == chnk.time, drop=True)
+                fut_epe = ppnav.east_position_error.where(ppnav.east_position_error['time'] == chnk.time, drop=True)
+                fut_dpe = ppnav.down_position_error.where(ppnav.down_position_error['time'] == chnk.time, drop=True)
+            data_for_workers.append([fut_roll, fut_corr_point, fut_acrosstrack, fut_depthoffset, tpu_parameters,
+                                     fut_qualityfactor, fut_npe, fut_epe, fut_dpe, qf_type, vert_ref])
         return data_for_workers
 
     def _generate_chunks_xyzdat(self, variable_name: str, finallength: int, var_dtype: np.dtype,
@@ -936,7 +1016,7 @@ class Fqpr:
         Parameters
         ----------
         variable_name
-            variable identifier for the array to write.  ex: 'z' or 'unc'
+            variable identifier for the array to write.  ex: 'z' or 'tvu'
         finallength
             total number of soundings to write, ends up as the total length of the resulting dataset
         var_dtype
@@ -1000,7 +1080,7 @@ class Fqpr:
         chnks = [[i * chnksize, i * chnksize + chnksize] for i in range(int(finallength / chnksize))]
         chnks[-1][1] = len(vals)
         chnksize_dict = {'sounding': (1000000,), 'beam_idx': (1000000,), 'detectioninfo': (1000000,),
-                         'sector_idx': (1000000,), 'time_idx': (1000000,), 'unc': (1000000,), 'x': (1000000,),
+                         'sector_idx': (1000000,), 'time_idx': (1000000,), 'tvu': (1000000,), 'x': (1000000,),
                          'y': (1000000,), 'z': (1000000,)}
         for c in chnks:
             vrs = {variable_name: (['sounding'], vals[c[0]:c[1]].astype(var_dtype))}
@@ -1116,7 +1196,7 @@ class Fqpr:
 
         # retain only nav records that are within existing nav times
         navdata = slice_xarray_by_dim(navdata, 'time', start_time=float(self.source_dat.raw_nav.time.min()),
-                                                     end_time=float(self.source_dat.raw_nav.time.max()))
+                                      end_time=float(self.source_dat.raw_nav.time.max()))
         if navdata is None:
             raise ValueError('Unable to find timestamps in SBET that align with the raw navigation.')
         navdata.attrs['reference'] = {'latitude': 'reference point', 'longitude': 'reference point',
@@ -1133,11 +1213,12 @@ class Fqpr:
         chunk_sizes = {k: self.source_dat.nav_chunksize for k in list(navdata.variables.keys())}  # 50000 to match the raw_nav
         sync = DaskProcessSynchronizer(outfold)
         chunk_idxs = [[0, len(navdata.time)]]
+        navdata_attrs = navdata.attrs
         try:
             navdata = self.client.scatter(navdata)
         except:  # not using dask distributed client
             pass
-        distrib_zarr_write(outfold, [navdata], navdata.attrs, chunk_sizes, chunk_idxs, sync, self.client,
+        distrib_zarr_write(outfold, [navdata], navdata_attrs, chunk_sizes, chunk_idxs, sync, self.client,
                            append_dim='time', merge=False)
 
         self.ppnav_path = outfold
@@ -1489,6 +1570,69 @@ class Fqpr:
         endtime = perf_counter()
         self.logger.info('****Georeferencing sound velocity corrected beam offsets complete: {}s****\n'.format(round(endtime - starttime, 1)))
 
+    def calculate_total_uncertainty(self, vert_ref: str = 'waterline', subset_time: list = None, dump_data: bool = True,
+                                    delete_futs: bool = True):
+        """
+        Use the tpu module to calculate total horizontal uncertainty and total vertical uncertainty for each sounding.
+        See tpu.py for more information
+
+        | To process only a section of the dataset, use subset_time.
+        | ex: subset_time=[1531317999, 1531321000] means only process times that are from 1531317999 to 1531321000
+        | ex: subset_time=[[1531317999, 1531318885], [1531318886, 1531321000]] means only process times that are
+                from either 1531317999 to 1531318885 or 1531318886 to 1531321000
+
+        Parameters
+        ----------
+        vert_ref
+            one of ['ellipse', 'waterline']
+        subset_time
+            List of unix timestamps in seconds, used as ranges for times that you want to process.
+        dump_data
+            if True dump the tx/rx vectors to the source_data datastore
+        delete_futs
+            if True remove the futures objects after data is dumped.
+        """
+
+        if vert_ref not in ['ellipse', 'waterline']:
+            self.logger.error("{} must be one of 'ellipse', 'waterline'".format(vert_ref))
+            raise ValueError("{} must be one of 'ellipse', 'waterline'".format(vert_ref))
+
+        self.logger.info('****Calculating total uncertainty****\n')
+        starttime = perf_counter()
+
+        skip_dask = False
+        if self.client is None:  # small datasets benefit from just running it without dask distributed
+            skip_dask = True
+
+        sectors = self.source_dat.return_sector_time_indexed_array(subset_time=subset_time)
+        for s_cnt, sector in enumerate(sectors):
+            ra = self.source_dat.raw_ping[s_cnt]
+            sec_ident = ra.sector_identifier
+            sec_info = self.parse_sect_info_from_identifier(sec_ident)
+            self.logger.info('sector info: ' + ', '.join(['{}: {}'.format(k, v) for k, v in sec_info.items()]))
+            self.initialize_intermediate_data(sec_ident, 'tpu')
+            pings_per_chunk, max_chunks_at_a_time = self.get_cluster_params(sec_ident)
+
+            for applicable_index, timestmp, prefixes in sector:
+                self.logger.info('using installation params {}'.format(sec_ident, timestmp))
+                idx_by_chunk = self.return_chunk_indices(applicable_index, pings_per_chunk)
+                if len(idx_by_chunk[0]):  # if there are pings in this sector that align with this installation parameter record
+                    data_for_workers = self._generate_chunks_tpu(ra, idx_by_chunk, applicable_index, vert_ref,
+                                                                 self.source_dat.tpu_parameters)
+                    self.intermediate_dat[sec_ident]['tpu'][timestmp] = []
+                    self._submit_data_to_cluster(data_for_workers, distrib_run_calculate_tpu,
+                                                 max_chunks_at_a_time, idx_by_chunk,
+                                                 self.intermediate_dat[sec_ident]['tpu'][timestmp])
+                else:
+                    self.logger.info('No pings found for {}-{}'.format(sec_ident, timestmp))
+            if dump_data:
+                self.tpu_time_complete = datetime.utcnow().strftime('%c')
+                self.write_intermediate_futs_to_zarr('tpu', only_sec_idx=s_cnt, delete_futs=delete_futs, skip_dask=skip_dask)
+        self.source_dat.reload_pingrecords(skip_dask=skip_dask)
+
+        endtime = perf_counter()
+        self.logger.info('****Calculating total uncertainty complete: {}s****\n'.format(round(endtime - starttime, 1)))
+
     def export_pings_to_file(self, outfold: str = None, file_format: str = 'csv', filter_by_detection: bool = True):
         """
         Uses the output of georef_along_across_depth to build sounding exports.  Currently you can export to csv or las
@@ -1549,9 +1693,9 @@ class Fqpr:
             x_idx, x_stck = stack_nan_array(rp['x'], stack_dims=('time', 'beam'))
             y_idx, y_stck = stack_nan_array(rp['y'], stack_dims=('time', 'beam'))
             z_idx, z_stck = stack_nan_array(rp['z'], stack_dims=('time', 'beam'))
-            if 'unc' in rp:
+            if 'tvu' in rp:
                 uncertainty_included = True
-                unc_idx, unc_stck = stack_nan_array(rp['unc'], stack_dims=('time', 'beam'))
+                unc_idx, unc_stck = stack_nan_array(rp['tvu'], stack_dims=('time', 'beam'))
 
             # build mask with kongsberg detection info
             classification = None
@@ -1669,7 +1813,7 @@ class Fqpr:
 
         sync = DaskProcessSynchronizer(outfold)
 
-        vars_of_interest = ('x', 'y', 'z', 'unc', 'detectioninfo')
+        vars_of_interest = ('x', 'y', 'z', 'tvu', 'detectioninfo')
         dtype_of_interest = (np.float32, np.float32, np.float32, np.float32, np.uint8)
 
         finallength = self.return_sounding_count()
@@ -1800,7 +1944,8 @@ class Fqpr:
                        'acrosstrack': (self.source_dat.ping_chunksize, 400),
                        'depthoffset': (self.source_dat.ping_chunksize, 400),
                        'x': (self.source_dat.ping_chunksize, 400), 'y': (self.source_dat.ping_chunksize, 400),
-                       'z': (self.source_dat.ping_chunksize, 400), 'unc': (self.source_dat.ping_chunksize, 400),
+                       'z': (self.source_dat.ping_chunksize, 400), 'thu': (self.source_dat.ping_chunksize, 400),
+                       'tvu': (self.source_dat.ping_chunksize, 400),
                        'corr_heave': (self.source_dat.ping_chunksize,),
                        'corr_altitude': (self.source_dat.ping_chunksize,)}
 
@@ -1815,7 +1960,7 @@ class Fqpr:
                              {'_compute_beam_vectors_complete': self.bpv_time_complete,
                               'reference': {'rel_azimuth': 'vessel heading',
                                             'corr_pointing_angle': 'vertical in geographic reference frame'},
-                              'units': {'rel_azimuth': 'radians', 'rx': 'radians'}}]
+                              'units': {'rel_azimuth': 'radians', 'corr_pointing_angle': 'radians'}}]
         elif mode == 'sv_corr':
             mode_settings = ['sv_corr', ['alongtrack', 'acrosstrack', 'depthoffset'], 'sv corrected data',
                              {'svmode': 'nearest in time', '_sound_velocity_correct_complete': self.sv_time_complete,
@@ -1824,18 +1969,24 @@ class Fqpr:
                               'units': {'alongtrack': 'meters (+ forward)', 'acrosstrack': 'meters (+ starboard)',
                                         'depthoffset': 'meters (+ down)'}}]
         elif mode == 'georef':
-            mode_settings = ['xyz', ['x', 'y', 'z', 'unc', 'corr_heave', 'corr_altitude'],
+            mode_settings = ['xyz', ['x', 'y', 'z', 'corr_heave', 'corr_altitude'],
                              'georeferenced soundings data',
                              {'xyz_crs': self.xyz_crs.to_epsg(), 'vertical_reference': self.vert_ref,
                               '_georeference_soundings_complete': self.georef_time_complete,
-                              'reference': {'x': 'reference', 'y': 'reference', 'z': 'reference', 'unc': 'None',
+                              'reference': {'x': 'reference', 'y': 'reference', 'z': 'reference',
                                             'corr_heave': 'transmitter', 'corr_altitude': 'transmitter to ellipsoid'},
                               'units': {'x': 'meters (+ forward)', 'y': 'meters (+ starboard)',
-                                        'z': 'meters (+ down)', 'unc': 'meters', 'corr_heave': 'meters (+ down)',
+                                        'z': 'meters (+ down)', 'corr_heave': 'meters (+ down)',
                                         'corr_altitude': 'meters (+ down)'}}]
+        elif mode == 'tpu':
+            mode_settings = ['tpu', ['tvu', 'thu'],
+                             'total horizontal and vertical uncertainty',
+                             {'_total_uncertainty_complete': self.tpu_time_complete,
+                              'reference': {'tvu': 'None', 'thu': 'None'},
+                              'units': {'tvu': 'meters (+ down)', 'thu': 'meters'}}]
         else:
-            self.logger.error('Mode must be one of ["orientation", "bpv", "sv_corr", "georef"]')
-            raise ValueError('Mode must be one of ["orientation", "bpv", "sv_corr", "georef"]')
+            self.logger.error('Mode must be one of ["orientation", "bpv", "sv_corr", "georef", "tpu"]')
+            raise ValueError('Mode must be one of ["orientation", "bpv", "sv_corr", "georef", "tpu"]')
 
         self.logger.info('Writing {} to disk...'.format(mode_settings[2]))
         starttime = perf_counter()
@@ -1906,7 +2057,7 @@ class Fqpr:
             print('return_xyz: unable to find georeferenced xyz for {}'.format(self.source_dat.converted_pth))
             return None
 
-        if 'unc' not in self.source_dat.raw_ping[0] and include_unc:
+        if 'tvu' not in self.source_dat.raw_ping[0] and include_unc:
             print('return_xyz: unable to find uncertainty for {}'.format(self.source_dat.converted_pth))
             return None
 
@@ -1922,8 +2073,8 @@ class Fqpr:
                 xyz[0].append(x_stck)
                 xyz[1].append(y_stck)
                 xyz[2].append(z_stck)
-                if 'unc' in rp and include_unc:
-                    unc_idx, unc_stck = stack_nan_array(rp['unc'], stack_dims=('time', 'beam'))
+                if 'tvu' in rp and include_unc:
+                    unc_idx, unc_stck = stack_nan_array(rp['tvu'], stack_dims=('time', 'beam'))
                     xyz[3].append(unc_stck)
 
         if xyz[0]:

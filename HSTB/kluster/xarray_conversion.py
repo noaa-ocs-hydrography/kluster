@@ -1592,6 +1592,21 @@ class BatchRead:
             return finalpths
         return None
 
+    def _return_runtime_and_installation_settings_dicts(self):
+        """
+        installation and runtime parameters are saved as string (json.dumps) as attributes in each raw_ping
+        dataset.  Use this method to return the dicts that encompass each installation and runtime entry.
+        """
+        settdict = {}
+        setts = [x for x in self.raw_ping[0].attrs if x[0:7] == 'install']
+        for sett in setts:
+            settdict[sett.split('_')[1]] = json.loads(self.raw_ping[0].attrs[sett])
+        runtimesettdict = {}
+        runtimesetts = [x for x in self.raw_ping[0].attrs if x[0:7] == 'runtime']
+        for sett in runtimesetts:
+            runtimesettdict[sett.split('_')[1]] = json.loads(self.raw_ping[0].attrs[sett])
+        return settdict, runtimesettdict
+
     def build_offsets(self, save_pths: list = None):
         """
         Form sorteddict for unique entries in installation parameters across all lines, retaining the xyzrph for each
@@ -1605,10 +1620,7 @@ class BatchRead:
             a list of paths to zarr datastores for writing the xyzrph attribute to if provided
         """
 
-        settdict = {}
-        setts = [x for x in self.raw_ping[0].attrs if x[0:7] == 'install']
-        for sett in setts:
-            settdict[sett.split('_')[1]] = json.loads(self.raw_ping[0].attrs[sett])
+        settdict, runtimesettdict = self._return_runtime_and_installation_settings_dicts()
 
         # self.logger.info('Found {} total Installation Parameters entr(y)s'.format(len(settdict)))
         if len(settdict) > 0:
@@ -1634,37 +1646,12 @@ class BatchRead:
             # translate over the offsets/angles for the transducers following the sonar_translator scheme
             self.sonartype = snrmodels[0]
             self.xyzrph = build_xyzrph(settdict, self.sonartype)
-
-            # generate default tpu parameters
-            heave = 0.05  # 1 sigma standard deviation for the heave data (meters)
-            heave_percent = 0.05  # percentage of the instantaneous heave (percent)
-            x_offset = 0.2  # 1 sigma standard deviation in your measurement of x lever arm (meters)
-            y_offset = 0.2  # 1 sigma standard deviation in your measurement of y lever arm (meters)
-            z_offset = 0.2  # 1 sigma standard deviation in your measurement of z lever arm (meters)
-            svp = 2.0  # 1 sigma standard deviation in sv profile sensor (meters/second)
-            surface_sv = 0.5  # 1 sigma standard deviation in surface sv sensor (meters/second)
-            roll_patch = 0.1  # 1 sigma standard deviation in your roll angle patch test procedure (degrees)
-            pitch_patch = 0.1  # 1 sigma standard deviation in your roll angle patch test procedure (degrees)
-            heading_patch = 0.5  # 1 sigma standard deviation in your roll angle patch test procedure (degrees)
-            latency_patch = 0.0  # 1 sigma standard deviation in your latency calculation (seconds)
-            timing_latency = 0.001  # 1 sigma standard deviation of the timing accuracy of the system (seconds)
-            dynamic_draft = 0.1  # 1 sigma standard deviation of the dynamic draft measurement (meters)
-            separation_model = 0.1  # 1 sigma standard deivation in the sep model (tidal, ellipsoidal, etc) (meters)
-            waterline = 0.02  # 1 sigma standard deviation of the waterline (meters)
-            vessel_speed = 0.1  # 1 sigma standard deviation of the vessel speed (meters/second)
-            horizontal_positioning = 5  # 1 sigma standard deviation of the horizontal positioning (meters)
-
-            self.tpu_parameters = {'heave': heave, 'heave_percent': heave_percent, 'x_offset': x_offset,
-                                   'y_offset': y_offset, 'z_offset': z_offset, 'svp': svp, 'surface_sv': surface_sv,
-                                   'roll_patch': roll_patch, 'pitch_patch': pitch_patch, 'heading_patch': heading_patch,
-                                   'latency_patch': latency_patch, 'timing_latency': timing_latency,
-                                   'dynamic_draft': dynamic_draft, 'separation_model': separation_model,
-                                   'waterline': waterline, 'vessel_speed': vessel_speed,
-                                   'horizontal_positioning': horizontal_positioning}
+            self.tpu_parameters = build_tpu_parameters()
 
             if save_pths is not None:
                 for pth in save_pths:
-                    my_xarr_add_attribute({'xyzrph': self.xyzrph, 'tpu_parameters': self.tpu_parameters}, pth)
+                    my_xarr_add_attribute({'xyzrph': self.xyzrph, 'tpu_parameters': self.tpu_parameters,
+                                           'sonartype': self.sonartype}, pth)
             self.logger.info('Constructed offsets successfully')
 
     def _get_nth_chunk_indices(self, chunks: tuple, idx: int):
@@ -2292,6 +2279,45 @@ def return_chunked_fil(fil: str, startoffset: int = 0, chunksize: int = 20 * 102
         if chunks.index(chnk) < len(chunks) - 1:  # list is a range, skip the last one as prev ended at the last index
             chnkfil.append([fil, chnk, chunks[chunks.index(chnk) + 1]])
     return chnkfil
+
+
+def build_tpu_parameters():
+    """
+    Generate default tpu parameters based on NOAA setup.  Assumes POS MV, vessel surveys as done by NOAA, patch test
+    values commonly seen, etc.
+
+    Returns
+    -------
+    dict
+        keys are parameter names, vals are dicts with scalars for static uncertainty values
+    """
+    # generate default tpu parameters
+    heave = 0.05  # 1 sigma standard deviation for the heave data (meters)
+    heave_percent = 0.05  # percentage of the instantaneous heave (percent)
+    x_offset = 0.2  # 1 sigma standard deviation in your measurement of x lever arm (meters)
+    y_offset = 0.2  # 1 sigma standard deviation in your measurement of y lever arm (meters)
+    z_offset = 0.2  # 1 sigma standard deviation in your measurement of z lever arm (meters)
+    svp = 2.0  # 1 sigma standard deviation in sv profile sensor (meters/second)
+    surface_sv = 0.5  # 1 sigma standard deviation in surface sv sensor (meters/second)
+    roll_patch = 0.1  # 1 sigma standard deviation in your roll angle patch test procedure (degrees)
+    pitch_patch = 0.1  # 1 sigma standard deviation in your roll angle patch test procedure (degrees)
+    heading_patch = 0.5  # 1 sigma standard deviation in your roll angle patch test procedure (degrees)
+    latency_patch = 0.0  # 1 sigma standard deviation in your latency calculation (seconds)
+    timing_latency = 0.001  # 1 sigma standard deviation of the timing accuracy of the system (seconds)
+    dynamic_draft = 0.1  # 1 sigma standard deviation of the dynamic draft measurement (meters)
+    separation_model = 0.1  # 1 sigma standard deivation in the sep model (tidal, ellipsoidal, etc) (meters)
+    waterline = 0.02  # 1 sigma standard deviation of the waterline (meters)
+    vessel_speed = 0.1  # 1 sigma standard deviation of the vessel speed (meters/second)
+    horizontal_positioning = 5  # 1 sigma standard deviation of the horizontal positioning (meters)
+
+    tpu_parameters = {'heave': heave, 'heave_percent': heave_percent, 'x_offset': x_offset,
+                      'y_offset': y_offset, 'z_offset': z_offset, 'svp': svp, 'surface_sv': surface_sv,
+                      'roll_patch': roll_patch, 'pitch_patch': pitch_patch, 'heading_patch': heading_patch,
+                      'latency_patch': latency_patch, 'timing_latency': timing_latency,
+                      'dynamic_draft': dynamic_draft, 'separation_model': separation_model,
+                      'waterline': waterline, 'vessel_speed': vessel_speed,
+                      'horizontal_positioning': horizontal_positioning}
+    return tpu_parameters
 
 
 def build_xyzrph(settdict: dict, sonartype: str):

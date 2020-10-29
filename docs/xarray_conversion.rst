@@ -5,6 +5,7 @@ xarray\_conversion module
    :skip: combine_xr_attributes
    :skip: dask_find_or_start_client
    :skip: distrib_zarr_write
+   :skip: my_xarr_add_attribute
    :skip: get_new_chunk_locations_zarr
    :skip: glob
    :skip: perf_counter
@@ -17,5 +18,4 @@ xarray\_conversion module
    :skip: Future
    :skip: DaskProcessSynchronizer
    :skip: SortedDict
-   :skip: ZarrWrite
    :skip: datetime
