@@ -104,11 +104,12 @@ def georef_by_worker(sv_corr: list, nav: xr.Dataset, hdng: xr.DataArray, heave: 
                 bm_azimuth.values, bm_radius.values)
 
     if xyz_crs.is_projected:
-        georef_transformer = Transformer.from_crs(xyz_crs.geodetic_crs, xyz_crs)
-        try:  # this appears to be valid when using CRS from proj4 string
-            newpos = georef_transformer.transform(pos[0], pos[1], errcheck=True)  # longitude / latitude order (x/y)
-        except ProjError:  # this appears to be valid when using CRS from epsg
-            newpos = georef_transformer.transform(pos[1], pos[0], errcheck=True)  # latitude / longitude order (y/x)
+        # Transformer.transform input order is based on the CRS, see CRS.geodetic_crs.axis_info
+        # - lon, lat - this appears to be valid when using CRS from proj4 string
+        # - lat, lon - this appears to be valid when using CRS from epsg
+        # use the always_xy option to force the transform to expect lon/lat order
+        georef_transformer = Transformer.from_crs(xyz_crs.geodetic_crs, xyz_crs, always_xy=True)
+        newpos = georef_transformer.transform(pos[0], pos[1], errcheck=True)  # longitude / latitude order (x/y)
     else:
         newpos = pos
 
