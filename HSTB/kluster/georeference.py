@@ -1,6 +1,6 @@
 import xarray as xr
 import numpy as np
-from pyproj import Transformer, CRS
+from pyproj import Transformer, CRS, ProjError
 
 from HSTB.kluster.xarray_helpers import stack_nan_array, reform_nan_array
 
@@ -105,7 +105,10 @@ def georef_by_worker(sv_corr: list, nav: xr.Dataset, hdng: xr.DataArray, heave: 
 
     if xyz_crs.is_projected:
         georef_transformer = Transformer.from_crs(xyz_crs.geodetic_crs, xyz_crs)
-        newpos = georef_transformer.transform(pos[0], pos[1], errcheck=True)  # longitude / latitude order (x/y)
+        try:  # this appears to be valid when using CRS from proj4 string
+            newpos = georef_transformer.transform(pos[0], pos[1], errcheck=True)  # longitude / latitude order (x/y)
+        except ProjError:  # this appears to be valid when using CRS from epsg
+            newpos = georef_transformer.transform(pos[1], pos[0], errcheck=True)  # latitude / longitude order (y/x)
     else:
         newpos = pos
 

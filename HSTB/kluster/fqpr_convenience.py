@@ -33,7 +33,7 @@ def perform_all_processing(filname: str, navfiles: list = None, outfold: str = N
     coord_system
         a valid datum identifier that pyproj CRS will accept
     vert_ref
-        the vertical reference point, one of ['ellipse', 'vessel', 'waterline']
+        the vertical reference point, one of ['ellipse', 'waterline']
 
     Returns
     -------
@@ -163,7 +163,7 @@ def process_multibeam(fqpr_inst: Fqpr, run_orientation: bool = True, run_beam_ve
     coord_system
         coord system identifier, anything that pyproj supports can be used here, will be used if use_coord is True
     vert_ref
-        the vertical reference point, one of ['ellipse', 'vessel', 'waterline']
+        the vertical reference point, one of ['ellipse', 'waterline']
 
     Returns
     -------
@@ -176,7 +176,7 @@ def process_multibeam(fqpr_inst: Fqpr, run_orientation: bool = True, run_beam_ve
     if not use_coord and not use_epsg and run_georef:
         print('process_multibeam: please select either use_coord or use_epsg to process')
 
-    fqpr_inst.construct_crs(epsg=epsg, datum=coord_system, projected=True)
+    fqpr_inst.construct_crs(epsg=epsg, datum=coord_system, projected=True, vert_ref=vert_ref)
     if run_orientation:
         fqpr_inst.get_orientation_vectors()
     if run_beam_vec:
@@ -184,9 +184,9 @@ def process_multibeam(fqpr_inst: Fqpr, run_orientation: bool = True, run_beam_ve
     if run_svcorr:
         fqpr_inst.sv_correct(add_cast_files=svcasts)
     if run_georef:
-        fqpr_inst.georef_xyz(vert_ref=vert_ref)
+        fqpr_inst.georef_xyz()
     if run_tpu:
-        fqpr_inst.calculate_total_uncertainty(vert_ref=vert_ref)
+        fqpr_inst.calculate_total_uncertainty()
     return fqpr_inst
 
 
@@ -205,7 +205,7 @@ def process_and_export_soundings(filname: str, outfold: str = None, coord_system
     coord_system
         a valid datum identifier that pyproj CRS will accept
     vert_ref
-        the vertical reference point, one of ['ellipse', 'vessel', 'waterline']
+        the vertical reference point, one of ['ellipse', 'waterline']
 
     Returns
     -------
@@ -230,7 +230,7 @@ def return_georef_xyz(filname: str, coord_system: str = 'NAD83', vert_ref: str =
     coord_system
         a valid datum identifier that pyproj CRS will accept
     vert_ref
-        the vertical reference point, one of ['ellipse', 'vessel', 'waterline']
+        the vertical reference point, one of ['ellipse', 'waterline']
 
     Returns
     -------
@@ -288,7 +288,9 @@ def reload_data(converted_folder: str, require_raw_data: bool = True, skip_dask:
         fqpr_inst.logger.info('****Reloading from file {}****'.format(converted_folder))
 
         fqpr_inst.source_dat.xyzrph = fqpr_inst.source_dat.raw_ping[0].xyzrph
+        fqpr_inst.set_vertical_reference(fqpr_inst.source_dat.raw_ping[0].vertical_reference)
         fqpr_inst.source_dat.tpu_parameters = fqpr_inst.source_dat.raw_ping[0].tpu_parameters
+
         fqpr_inst.generate_starter_orientation_vectors(None, None)
         if 'xyz_crs' in fqpr_inst.source_dat.raw_ping[0].attrs:
             fqpr_inst.construct_crs(epsg=fqpr_inst.source_dat.raw_ping[0].attrs['xyz_crs'])
@@ -555,8 +557,13 @@ def reprocess_sounding_selection(fqpr_inst: Fqpr, new_xyzrph: dict = None, subse
         fqpr_inst.client.close()
         fqpr_inst.client = None
         fqpr_inst = reload_data(os.path.dirname(fqpr_inst.source_dat.final_paths['ping'][0]), skip_dask=True)
+
     if new_xyzrph is not None:
         fqpr_inst.source_dat.xyzrph = new_xyzrph
+
+    if override_vertical_reference:
+        fqpr_inst.set_vertical_reference(override_vertical_reference)
+
     if subset_time is not None:
         if type(subset_time[0]) is not list:  # fix for when user provides just a list of floats [start,end]
             subset_time = [subset_time]
@@ -572,13 +579,8 @@ def reprocess_sounding_selection(fqpr_inst: Fqpr, new_xyzrph: dict = None, subse
         datum = None
         epsg = fqpr_inst.soundings.xyz_crs
 
-    if override_vertical_reference is not None:
-        vert_ref = override_vertical_reference
-    else:
-        vert_ref = fqpr_inst.soundings.vertical_reference
-
     fqpr_inst.construct_crs(epsg=epsg, datum=datum)
-    fqpr_inst.georef_xyz(vert_ref=vert_ref, subset_time=subset_time, dump_data=False)
+    fqpr_inst.georef_xyz(subset_time=subset_time, dump_data=False)
 
     soundings = [[], [], [], []]
     for sector in fqpr_inst.intermediate_dat:

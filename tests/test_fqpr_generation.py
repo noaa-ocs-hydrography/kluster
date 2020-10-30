@@ -224,8 +224,8 @@ def test_georef_xyz(dset='realdualhead'):
     fq.get_orientation_vectors(dump_data=False, delete_futs=False, initial_interp=False)
     fq.get_beam_pointing_vectors(dump_data=False, delete_futs=False)
     fq.sv_correct(dump_data=False, delete_futs=False)
-    fq.construct_crs(datum=datum, projected=True)
-    fq.georef_xyz(vert_ref=vert_ref, dump_data=False, delete_futs=False)
+    fq.construct_crs(datum=datum, projected=True, vert_ref=vert_ref)
+    fq.georef_xyz(dump_data=False, delete_futs=False)
 
     secs = fq.return_sector_ids()
     tstmp = list(fq.intermediate_dat[secs[0]]['xyz'].keys())[0]
@@ -332,8 +332,8 @@ def build_georef_correct_comparison(dset='realdual', vert_ref='waterline', datum
     fq.get_orientation_vectors(dump_data=False, delete_futs=False, initial_interp=False)
     fq.get_beam_pointing_vectors(dump_data=False, delete_futs=False)
     fq.sv_correct(dump_data=False, delete_futs=False)
-    fq.construct_crs(datum=datum, projected=True)
-    fq.georef_xyz(vert_ref=vert_ref, dump_data=False, delete_futs=False)
+    fq.construct_crs(datum=datum, projected=True, vert_ref=vert_ref)
+    fq.georef_xyz(dump_data=False, delete_futs=False)
 
     secs = fq.return_sector_ids()
     tstmp = list(fq.intermediate_dat[secs[0]]['xyz'].keys())[0]

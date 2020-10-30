@@ -100,6 +100,27 @@ class Fqpr:
             self.logfile = self.source_dat.logfile
             self.logger = return_logger(__name__, self.logfile)
 
+    def set_vertical_reference(self, vert_ref: str):
+        """
+        Set the Fqpr instance vertical reference.  This will feed into the georef and calculate tpu processes.
+
+        If the new vert_ref conflicts with an existing written vert_ref, issue a warning.
+
+        Parameters
+        ----------
+        vert_ref
+            vertical reference for the survey, one of ['ellipse', 'waterline']
+        """
+
+        if 'vertical_reference' in self.source_dat.raw_ping[0].attrs:
+            if vert_ref != self.source_dat.raw_ping[0].vertical_reference:
+                self.logger.warning('Setting vertical reference to {} when existing vertical reference is {}')
+                self.logger.warning('You will need to georeference and calculate total uncertainty again')
+        if vert_ref not in ['ellipse', 'waterline']:
+            self.logger.error("Unable to set vertical reference to {}: expected one of ['ellipse', 'waterline']")
+            raise ValueError("Unable to set vertical reference to {}: expected one of ['ellipse', 'waterline']")
+        self.vert_ref = vert_ref
+
     def read_from_source(self):
         """
         Activate rawdat object's appropriate read class
@@ -137,9 +158,12 @@ class Fqpr:
 
         self.ppnav_dat = reload_zarr_records(self.ppnav_path, skip_dask)
 
-    def construct_crs(self, epsg: str = None, datum: str = 'NAD83', projected: bool = True):
+    def construct_crs(self, epsg: str = None, datum: str = 'NAD83', projected: bool = True, vert_ref: str = None):
         """
         Build pyproj crs from several different options, used with georef_across_along_depth.
+
+        Optionally set the vertical reference as well, using set_vertical_reference.  This isn't tied to the pyproj
+        instance, so it can be done separately.
 
         Options include:
         - epsg mode: set epsg to string identifier
@@ -154,6 +178,8 @@ class Fqpr:
             datum identifier i.e. 'WGS84' or 'NAD83'
         projected
             if True uses utm zone projected coordinates
+        vert_ref
+            vertical reference for the survey, one of ['ellipse', 'waterline']
         """
 
         if epsg is not None:
@@ -175,6 +201,8 @@ class Fqpr:
             else:
                 self.logger.error('{} not supported.  Only supports WGS84 and NAD83'.format(datum))
                 raise ValueError('{} not supported.  Only supports WGS84 and NAD83'.format(datum))
+        if vert_ref is not None:
+            self.set_vertical_reference(vert_ref)
 
     def generate_starter_orientation_vectors(self, txrx: list = None, tstmp: float = None):
         """
@@ -833,8 +861,7 @@ class Fqpr:
         return data_for_workers
 
     def _generate_chunks_georef(self, ra: xr.Dataset, idx_by_chunk: xr.DataArray, applicable_index: xr.DataArray,
-                                sec_ident: str, prefixes: str, timestmp: str, vert_ref: str, z_offset: float,
-                                prefer_pp_nav: bool):
+                                prefixes: str, timestmp: str, z_offset: float, prefer_pp_nav: bool):
         """
         Take a single sector, and build the data for the distributed system to process.  Georeference requires the
         sv_corrected acrosstrack/alongtrack/depthoffsets, as well as navigation, heading, heave and the quality
@@ -848,14 +875,10 @@ class Fqpr:
             xarray Datarray, values are the integer indexes of the pings to use, coords are the time of ping
         applicable_index
             xarray Dataarray, boolean mask for the data associated with this installation parameters instance
-        sec_ident
-            sector identifier string
         prefixes
             prefix identifier for the tx/rx, will vary for dual head systems
         timestmp
             timestamp of the installation parameters instance used
-        vert_ref
-            one of ['ellipse', 'vessel', 'waterline']
         z_offset
             reference point to transmitter
         prefer_pp_nav
@@ -868,6 +891,7 @@ class Fqpr:
         """
 
         latency = self.motion_latency
+        sec_ident = ra.sector_identifier
         if latency:
             self.logger.info('Applying motion latency of {}ms'.format(latency))
         tx_tstmp_idx = get_ping_times(ra.time, applicable_index)
@@ -884,7 +908,7 @@ class Fqpr:
 
         wline = float(self.source_dat.xyzrph['waterline'][str(timestmp)])
 
-        if vert_ref == 'ellipse':
+        if self.vert_ref == 'ellipse':
             nav = self.determine_altitude_corr(nav, self.source_dat.raw_att, tx_tstmp_idx + latency, prefixes, timestmp)
         else:
             hve = self.determine_induced_heave(ra, hve, self.source_dat.raw_att, tx_tstmp_idx + latency, prefixes, timestmp)
@@ -917,11 +941,10 @@ class Fqpr:
                 fut_nav = nav.where(nav['time'] == chnk.time, drop=True)
                 fut_hdng = hdng.where(hdng['time'] == chnk.time, drop=True)
                 fut_hve = hve.where(hve['time'] == chnk.time, drop=True)
-            data_for_workers.append([sv_data, fut_nav, fut_hdng, fut_hve, wline, vert_ref, self.xyz_crs, z_offset])
+            data_for_workers.append([sv_data, fut_nav, fut_hdng, fut_hve, wline, self.vert_ref, self.xyz_crs, z_offset])
         return data_for_workers
 
-    def _generate_chunks_tpu(self, ra: xr.Dataset, idx_by_chunk: xr.DataArray, applicable_index: xr.DataArray,
-                             vert_ref: str, tpu_parameters: dict):
+    def _generate_chunks_tpu(self, ra: xr.Dataset, idx_by_chunk: xr.DataArray, applicable_index: xr.DataArray):
         """
         Take a single sector, and build the data for the distributed system to process.  Georeference requires the
         sv_corrected acrosstrack/alongtrack/depthoffsets, as well as navigation, heading, heave and the quality
@@ -935,10 +958,6 @@ class Fqpr:
             xarray Datarray, values are the integer indexes of the pings to use, coords are the time of ping
         applicable_index
             xarray Dataarray, boolean mask for the data associated with this installation parameters instance
-        vert_ref
-            one of ['ellipse', 'vessel', 'waterline']
-        tpu_parameters
-            dictionary of scalar uncertainty values used in tpu calculation
 
         Returns
         -------
@@ -954,16 +973,13 @@ class Fqpr:
 
         if self.ppnav_dat is None:
             self.logger.error('_generate_chunks_tpu: postprocessed navigation error must exist for calculate tpu to work')
-            raise ValueError('_generate_chunks_tpu: postprocessed navigation error must exist for calculate tpu to work')
+            return None
         elif 'north_position_error' not in self.ppnav_dat:
             self.logger.error('_generate_chunks_tpu: postprocessed navigation does not contain error arrays')
-            raise ValueError('_generate_chunks_tpu: postprocessed navigation does not contain error arrays')
+            return None
 
-        if vert_ref == 'waterline':
-            vert_ref = 'tidal'  # change the vert ref identifier to the string that tpu is expecting
-        elif vert_ref == 'vessel':
-            self.logger.error('_generate_chunks_tpu: Unable to calculate tpu with vert_ref=vessel')
-            raise ValueError('_generate_chunks_tpu: Unable to calculate tpu with vert_ref=vessel')
+        if self.vert_ref == 'waterline':
+            self.vert_ref = 'tidal'  # change the vert ref identifier to the string that tpu is expecting
 
         ppnav = interp_across_chunks(self.ppnav_dat, tx_tstmp_idx + latency, daskclient=self.client)
         roll = interp_across_chunks(self.source_dat.raw_att['roll'], tx_tstmp_idx + latency, daskclient=self.client)
@@ -1002,8 +1018,8 @@ class Fqpr:
                 fut_npe = ppnav.north_position_error.where(ppnav.north_position_error['time'] == chnk.time, drop=True)
                 fut_epe = ppnav.east_position_error.where(ppnav.east_position_error['time'] == chnk.time, drop=True)
                 fut_dpe = ppnav.down_position_error.where(ppnav.down_position_error['time'] == chnk.time, drop=True)
-            data_for_workers.append([fut_roll, fut_corr_point, fut_acrosstrack, fut_depthoffset, tpu_parameters,
-                                     fut_qualityfactor, fut_npe, fut_epe, fut_dpe, qf_type, vert_ref])
+            data_for_workers.append([fut_roll, fut_corr_point, fut_acrosstrack, fut_depthoffset, self.source_dat.tpu_parameters,
+                                     fut_qualityfactor, fut_npe, fut_epe, fut_dpe, qf_type, self.vert_ref])
         return data_for_workers
 
     def _generate_chunks_xyzdat(self, variable_name: str, finallength: int, var_dtype: np.dtype,
@@ -1483,8 +1499,7 @@ class Fqpr:
         endtime = perf_counter()
         self.logger.info('****Sound Velocity complete: {}s****\n'.format(round(endtime - starttime, 1)))
 
-    def georef_xyz(self, vert_ref: str = 'waterline', subset_time: list = None, prefer_pp_nav: bool = True,
-                   dump_data: bool = True, delete_futs: bool = True):
+    def georef_xyz(self, subset_time: list = None, prefer_pp_nav: bool = True, dump_data: bool = True, delete_futs: bool = True):
         """
         Use the raw attitude/navigation to transform the vessel relative along/across/down offsets to georeferenced
         soundings.  Will support transformation to geographic and projected coordinate systems and with a vertical
@@ -1508,8 +1523,6 @@ class Fqpr:
 
         Parameters
         ----------
-        vert_ref
-            one of ['ellipse', 'vessel', 'waterline']
         subset_time
             List of unix timestamps in seconds, used as ranges for times that you want to process.
         prefer_pp_nav
@@ -1520,9 +1533,11 @@ class Fqpr:
             if True remove the futures objects after data is dumped.
         """
 
-        if vert_ref not in ['ellipse', 'vessel', 'waterline']:
-            self.logger.error("{} must be one of 'ellipse', 'vessel', 'waterline'".format(vert_ref))
-            raise ValueError("{} must be one of 'ellipse', 'vessel', 'waterline'".format(vert_ref))
+        if self.vert_ref is None:
+            raise ValueError('set_vertical_reference must be run before georef_xyz')
+        if self.vert_ref not in ['ellipse', 'waterline']:
+            self.logger.error("{} must be one of 'ellipse', 'waterline'".format(self.vert_ref))
+            raise ValueError("{} must be one of 'ellipse', 'waterline'".format(self.vert_ref))
         if self.xyz_crs is None:
             self.logger.error('xyz_crs object not found.  Please run Fqpr.construct_crs first.')
             raise ValueError('xyz_crs object not found.  Please run Fqpr.construct_crs first.')
@@ -1531,7 +1546,6 @@ class Fqpr:
         starttime = perf_counter()
 
         self.logger.info('Using pyproj CRS: {}'.format(self.xyz_crs.to_string()))
-        self.vert_ref = vert_ref
 
         if subset_time is not None and dump_data:
             raise NotImplementedError(
@@ -1554,8 +1568,8 @@ class Fqpr:
                 z_offset = float(self.source_dat.xyzrph[prefixes[0] + '_z'][timestmp])
                 idx_by_chunk = self.return_chunk_indices(applicable_index, pings_per_chunk)
                 if len(idx_by_chunk[0]):  # if there are pings in this sector that align with this installation parameter record
-                    data_for_workers = self._generate_chunks_georef(ra, idx_by_chunk, applicable_index, sec_ident,
-                                                                    prefixes, timestmp, vert_ref, z_offset, prefer_pp_nav)
+                    data_for_workers = self._generate_chunks_georef(ra, idx_by_chunk, applicable_index, prefixes,
+                                                                    timestmp, z_offset, prefer_pp_nav)
                     self.intermediate_dat[sec_ident]['xyz'][timestmp] = []
                     self._submit_data_to_cluster(data_for_workers, distrib_run_georeference,
                                                  max_chunks_at_a_time, idx_by_chunk,
@@ -1570,8 +1584,7 @@ class Fqpr:
         endtime = perf_counter()
         self.logger.info('****Georeferencing sound velocity corrected beam offsets complete: {}s****\n'.format(round(endtime - starttime, 1)))
 
-    def calculate_total_uncertainty(self, vert_ref: str = 'waterline', subset_time: list = None, dump_data: bool = True,
-                                    delete_futs: bool = True):
+    def calculate_total_uncertainty(self, subset_time: list = None, dump_data: bool = True, delete_futs: bool = True):
         """
         Use the tpu module to calculate total horizontal uncertainty and total vertical uncertainty for each sounding.
         See tpu.py for more information
@@ -1583,8 +1596,6 @@ class Fqpr:
 
         Parameters
         ----------
-        vert_ref
-            one of ['ellipse', 'waterline']
         subset_time
             List of unix timestamps in seconds, used as ranges for times that you want to process.
         dump_data
@@ -1593,9 +1604,11 @@ class Fqpr:
             if True remove the futures objects after data is dumped.
         """
 
-        if vert_ref not in ['ellipse', 'waterline']:
-            self.logger.error("{} must be one of 'ellipse', 'waterline'".format(vert_ref))
-            raise ValueError("{} must be one of 'ellipse', 'waterline'".format(vert_ref))
+        if self.vert_ref is None:
+            raise ValueError('set_vertical_reference must be run before georef_xyz')
+        if self.vert_ref not in ['ellipse', 'waterline']:
+            self.logger.error("{} must be one of 'ellipse', 'waterline'".format(self.vert_ref))
+            raise ValueError("{} must be one of 'ellipse', 'waterline'".format(self.vert_ref))
 
         self.logger.info('****Calculating total uncertainty****\n')
         starttime = perf_counter()
@@ -1617,12 +1630,12 @@ class Fqpr:
                 self.logger.info('using installation params {}'.format(sec_ident, timestmp))
                 idx_by_chunk = self.return_chunk_indices(applicable_index, pings_per_chunk)
                 if len(idx_by_chunk[0]):  # if there are pings in this sector that align with this installation parameter record
-                    data_for_workers = self._generate_chunks_tpu(ra, idx_by_chunk, applicable_index, vert_ref,
-                                                                 self.source_dat.tpu_parameters)
-                    self.intermediate_dat[sec_ident]['tpu'][timestmp] = []
-                    self._submit_data_to_cluster(data_for_workers, distrib_run_calculate_tpu,
-                                                 max_chunks_at_a_time, idx_by_chunk,
-                                                 self.intermediate_dat[sec_ident]['tpu'][timestmp])
+                    data_for_workers = self._generate_chunks_tpu(ra, idx_by_chunk, applicable_index)
+                    if data_for_workers is not None:
+                        self.intermediate_dat[sec_ident]['tpu'][timestmp] = []
+                        self._submit_data_to_cluster(data_for_workers, distrib_run_calculate_tpu,
+                                                     max_chunks_at_a_time, idx_by_chunk,
+                                                     self.intermediate_dat[sec_ident]['tpu'][timestmp])
                 else:
                     self.logger.info('No pings found for {}-{}'.format(sec_ident, timestmp))
             if dump_data:
@@ -1982,6 +1995,7 @@ class Fqpr:
             mode_settings = ['tpu', ['tvu', 'thu'],
                              'total horizontal and vertical uncertainty',
                              {'_total_uncertainty_complete': self.tpu_time_complete,
+                              'vertical_reference': self.vert_ref,
                               'reference': {'tvu': 'None', 'thu': 'None'},
                               'units': {'tvu': 'meters (+ down)', 'thu': 'meters'}}]
         else:
