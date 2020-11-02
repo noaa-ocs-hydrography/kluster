@@ -388,8 +388,44 @@ accuracy_test(reference_surface, linepairs, vert_ref='waterline', output_directo
 import tpu
 from fqpr_convenience import reload_data
 fq = reload_data(r"C:\collab\dasktest\data_dir\outputtest\rambes35sbet")
-tvu, thu = tpu.calculate_tpu(fq.source_dat.raw_ping[0]['roll'], fq.source_dat.raw_ping[0].corr_pointing_angle,
+tvu, thu = tpu.calculate_tpu(fq.source_dat.raw_ping[0]['roll'], fq.source_dat.raw_ping[0].beampointingangle,
+                             fq.source_dat.raw_ping[0].corr_pointing_angle,
                              fq.source_dat.raw_ping[0].acrosstrack, fq.source_dat.raw_ping[0].depthoffset,
+                             fq.source_dat.raw_ping[0].soundspeed,
                              fq.source_dat.tpu_parameters, fq.source_dat.raw_ping[0].qualityfactor,
                              fq.source_dat.raw_ping[0].north_position_error, fq.source_dat.raw_ping[0].east_position_error,
-                             fq.source_dat.raw_ping[0].down_position_error, qf_type='kongsberg')
+                             fq.source_dat.raw_ping[0].down_position_error, fq.source_dat.raw_ping[0].roll_error,
+                             fq.source_dat.raw_ping[0].pitch_error, fq.source_dat.raw_ping[0].heading_error,
+                             qf_type='kongsberg', vert_ref='ellipse')
+
+self = fq
+subset_time=None
+sectors = self.source_dat.return_sector_time_indexed_array(subset_time=subset_time)
+for s_cnt, sector in enumerate(sectors):
+    ra = self.source_dat.raw_ping[s_cnt]
+    sec_ident = ra.sector_identifier
+    sec_info = self.parse_sect_info_from_identifier(sec_ident)
+    self.logger.info('sector info: ' + ', '.join(['{}: {}'.format(k, v) for k, v in sec_info.items()]))
+    self.initialize_intermediate_data(sec_ident, 'tpu')
+    pings_per_chunk, max_chunks_at_a_time = self.get_cluster_params(sec_ident)
+
+    for applicable_index, timestmp, prefixes in sector:
+        self.logger.info('using installation params {}'.format(sec_ident, timestmp))
+        idx_by_chunk = self.return_chunk_indices(applicable_index, pings_per_chunk)
+        if len(idx_by_chunk[0]):  # if there are pings in this sector that align with this installation parameter record
+            data_for_workers = self._generate_chunks_tpu(ra, idx_by_chunk, applicable_index)
+        break
+    break
+dat = self.client.gather(data_for_workers[0])
+from tpu import Tpu
+
+roll, raw_beam_angles, beam_angles, acrosstrack_offset, depth_offset, surf_sound_speed, tpu_dict, quality_factor, north_position_error, east_position_error, down_position_error, roll_error, pitch_error, heading_error, roll_in_degrees, raw_beam_angles_in_degrees, beam_angles_in_degrees, qf_type, vert_ref = dat[0], dat[1], dat[2], dat[3], dat[4], dat[5], dat[6], dat[7], dat[8], dat[9], dat[10], dat[11], dat[12], dat[13], True, True, False, dat[14], dat[15]
+tp = Tpu(plot_tpu=True)
+if tpu_dict is not None:
+    tp.populate_from_dict(tpu_dict)
+tp.load_from_data(roll, raw_beam_angles, beam_angles, acrosstrack_offset, depth_offset, surf_sound_speed,
+                  quality_factor=quality_factor, north_position_error=north_position_error, east_position_error=east_position_error,
+                  down_position_error=down_position_error, roll_error=roll_error, pitch_error=pitch_error,
+                  heading_error=heading_error, roll_in_degrees=roll_in_degrees, raw_beam_angles_in_degrees=raw_beam_angles_in_degrees,
+                  beam_angles_in_degrees=beam_angles_in_degrees, qf_type=qf_type)
+v, h = tp.generate_total_uncertainties()

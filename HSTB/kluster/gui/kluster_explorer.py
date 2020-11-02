@@ -1,15 +1,10 @@
 import sys
 import os
-import numpy as np
-import traceback
 import pprint
 from collections import OrderedDict
 from datetime import datetime
 
 from PySide2 import QtCore, QtGui, QtWidgets
-
-from HSTB.kluster.fqpr_helpers import get_attributes_from_fqpr
-from HSTB.gui import qtGuiConfig
 
 
 class KlusterExplorer(QtWidgets.QTableWidget):
@@ -409,7 +404,7 @@ class KlusterAttribution(QtWidgets.QTableWidget):
         self.setRowCount(0)
 
 
-class TestWindow(QtWidgets.QMainWindow):
+class MyTestWindow(QtWidgets.QMainWindow):
     """
     Simple Window for viewing the KlusterExplorer for testing
     """
@@ -446,30 +441,6 @@ class TestWindow(QtWidgets.QMainWindow):
 
         self.k_explorer.row_selected.connect(self.k_attribution.display_file_attribution)
 
-        self.gui = qtGuiConfig.GuiConfig(self)
-        self.gui.kluster_explorer[2, 1] = 'test'  # append a row
-        self.gui.kluster_explorer[[3, 4], 2:4] = [["one", "Two"], ["skip", ("Lou", False)]]
-
-        self.gui.kluster_explorer[0, 0] = 'test'
-        self.gui.kluster_explorer[1, 0] = QtGui.QIcon(r"C:\PydroTrunk\Miniconda36\NOAA\site-packages\Python2\HSTB\resources\PydroSplash.jpg")
-        self.gui.kluster_explorer[1, 1] = ('test', QtCore.Qt.Checked)
-        self.gui.kluster_explorer[1, 1] = ('test', 2)
-        self.gui.kluster_explorer[1, 1] = ('test', True)
-        self.gui.kluster_explorer[0, 2] = True
-        self.gui.kluster_explorer[[0,1], 2:4] = [["one", "Two"], ["skip", ("Lou", False)]]
-
-        print(self.gui.windows.kluster_explorer)
-        print(self.gui.kluster_explorer[0])
-        print(self.gui.kluster_explorer[1, 0][-1].name())  # icon name -- only works for themes
-        print(self.gui.kluster_explorer[(0, 1), 0:2])
-        print(self.gui.kluster_explorer[[0, 1], 0:2])
-        print(self.gui.kluster_explorer[0][2])
-        print(self.gui.kluster_explorer[1][1])
-        print(self.gui.kluster_explorer[0:2][1:3])
-        print(self.gui.kluster_explorer[1:, 0])  # should be first column   testing x: notation
-        print(self.gui.kluster_explorer[:, 0])  # also first column - testing : notation
-        print(self.gui.kluster_explorer[1::-1, 0:3])  # should be reversed
-
         layout.layout()
         self.setLayout(layout)
         self.centralWidget().setLayout(layout)
@@ -478,6 +449,6 @@ class TestWindow(QtWidgets.QMainWindow):
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication()
-    test_window = TestWindow()
+    test_window = MyTestWindow()
     test_window.show()
     sys.exit(app.exec_())

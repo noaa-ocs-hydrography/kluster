@@ -2,9 +2,6 @@ import sys
 from queue import Queue
 from PySide2 import QtGui, QtCore, QtWidgets
 
-from HSTB.gui import qtGuiConfig
-
-
 
 class WriteStream(object):
     """
@@ -105,8 +102,6 @@ class OutWindow(QtWidgets.QMainWindow):
         self.k_output.setLineWrapMode(QtWidgets.QTextEdit.FixedPixelWidth)
         self.k_output.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
         layout.addWidget(self.k_output)
-
-        self.gui = qtGuiConfig.GuiConfig(self)
 
         layout.layout()
         self.setLayout(layout)

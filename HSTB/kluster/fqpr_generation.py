@@ -985,8 +985,10 @@ class Fqpr:
         roll = interp_across_chunks(self.source_dat.raw_att['roll'], tx_tstmp_idx + latency, daskclient=self.client)
 
         corr_point = self.source_dat.select_array_from_rangeangle('corr_pointing_angle', ra.sector_identifier).where(applicable_index, drop=True)
+        raw_point = self.source_dat.select_array_from_rangeangle('beampointingangle', ra.sector_identifier).where(applicable_index, drop=True)
         acrosstrack = self.source_dat.select_array_from_rangeangle('acrosstrack', ra.sector_identifier).where(applicable_index, drop=True)
         depthoffset = self.source_dat.select_array_from_rangeangle('depthoffset', ra.sector_identifier).where(applicable_index, drop=True)
+        soundspeed = self.source_dat.select_array_from_rangeangle('soundspeed', ra.sector_identifier).where(applicable_index, drop=True)
         qf = self.source_dat.select_array_from_rangeangle('qualityfactor', ra.sector_identifier).where(applicable_index, drop=True)
 
         first_mbes_file = list(ra.multibeam_files.keys())[0]
@@ -1003,23 +1005,35 @@ class Fqpr:
             try:
                 fut_roll = self.client.scatter(roll.where(roll['time'] == chnk.time, drop=True))
                 fut_corr_point = self.client.scatter(corr_point[chnk])
+                fut_raw_point = self.client.scatter(raw_point[chnk])
                 fut_acrosstrack = self.client.scatter(acrosstrack[chnk])
                 fut_depthoffset = self.client.scatter(depthoffset[chnk])
+                fut_soundspeed = self.client.scatter(soundspeed[chnk])
                 fut_qualityfactor = self.client.scatter(qf[chnk])
                 fut_npe = self.client.scatter(ppnav.north_position_error.where(ppnav.north_position_error['time'] == chnk.time, drop=True))
                 fut_epe = self.client.scatter(ppnav.east_position_error.where(ppnav.east_position_error['time'] == chnk.time, drop=True))
                 fut_dpe = self.client.scatter(ppnav.down_position_error.where(ppnav.down_position_error['time'] == chnk.time, drop=True))
+                fut_rpe = self.client.scatter(ppnav.roll_error.where(ppnav.roll_error['time'] == chnk.time, drop=True))
+                fut_ppe = self.client.scatter(ppnav.pitch_error.where(ppnav.pitch_error['time'] == chnk.time, drop=True))
+                fut_hpe = self.client.scatter(ppnav.heading_error.where(ppnav.heading_error['time'] == chnk.time, drop=True))
             except:  # client is not setup, run locally
                 fut_roll = roll.where(roll['time'] == chnk.time, drop=True)
                 fut_corr_point = corr_point[chnk]
+                fut_raw_point = raw_point[chnk]
                 fut_acrosstrack = acrosstrack[chnk]
                 fut_depthoffset = depthoffset[chnk]
+                fut_soundspeed = soundspeed[chnk]
                 fut_qualityfactor = qf[chnk]
                 fut_npe = ppnav.north_position_error.where(ppnav.north_position_error['time'] == chnk.time, drop=True)
                 fut_epe = ppnav.east_position_error.where(ppnav.east_position_error['time'] == chnk.time, drop=True)
                 fut_dpe = ppnav.down_position_error.where(ppnav.down_position_error['time'] == chnk.time, drop=True)
-            data_for_workers.append([fut_roll, fut_corr_point, fut_acrosstrack, fut_depthoffset, self.source_dat.tpu_parameters,
-                                     fut_qualityfactor, fut_npe, fut_epe, fut_dpe, qf_type, self.vert_ref])
+                fut_rpe = ppnav.roll_error.where(ppnav.roll_error['time'] == chnk.time, drop=True)
+                fut_ppe = ppnav.pitch_error.where(ppnav.pitch_error['time'] == chnk.time, drop=True)
+                fut_hpe = ppnav.heading_error.where(ppnav.heading_error['time'] == chnk.time, drop=True)
+
+            data_for_workers.append([fut_roll, fut_raw_point, fut_corr_point, fut_acrosstrack, fut_depthoffset, fut_soundspeed,
+                                     self.source_dat.tpu_parameters, fut_qualityfactor, fut_npe, fut_epe, fut_dpe,
+                                     fut_rpe, fut_ppe, fut_hpe, qf_type, self.vert_ref])
         return data_for_workers
 
     def _generate_chunks_xyzdat(self, variable_name: str, finallength: int, var_dtype: np.dtype,

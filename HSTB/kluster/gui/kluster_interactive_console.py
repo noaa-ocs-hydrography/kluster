@@ -2,10 +2,7 @@
 # https://pyqtgraph.readthedocs.io/en/latest/widgets/consolewidget.html
 
 from PySide2 import QtWidgets
-import pyqtgraph as pg
 from pyqtgraph import console
-import numpy as np
-import xarray as xr
 import sys
 
 

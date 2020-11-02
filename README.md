@@ -51,6 +51,8 @@ Kluster is not on PyPi, but can be installed using pip alongside the HSTB-driver
 
 `pip install git+https://github.com/noaa-ocs-hydrography/drivers.git#egg=hstb.drivers `
 
+`pip install git+https://github.com/noaa-ocs-hydrography/shared.git#egg=hstb.shared `
+
 `pip install git+https://github.com/noaa-ocs-hydrography/kluster.git#egg=hstb.kluster `
 
 ## Quickstart

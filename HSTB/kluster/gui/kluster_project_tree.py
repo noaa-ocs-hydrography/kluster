@@ -3,7 +3,6 @@ import sys
 from PySide2 import QtCore, QtGui, QtWidgets
 
 from HSTB.kluster.fqpr_project import FqprProject
-from HSTB.gui import qtGuiConfig
 
 
 class KlusterProjectTree(QtWidgets.QTreeView):
@@ -371,8 +370,6 @@ class OutWindow(QtWidgets.QMainWindow):
         layout.addWidget(self.k_tree)
 
         self.k_tree.file_added.connect(self.update_ktree)
-
-        self.gui = qtGuiConfig.GuiConfig(self)
 
         layout.layout()
         self.setLayout(layout)

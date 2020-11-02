@@ -2293,11 +2293,12 @@ def build_tpu_parameters():
     """
     # generate default tpu parameters
     heave = 0.05  # 1 sigma standard deviation for the heave data (meters)
-    heave_percent = 0.05  # percentage of the instantaneous heave (percent)
+    roll_sensor_error = 0.0005  # 1 sigma standard deviation in the roll sensor (degrees)
+    pitch_sensor_error = 0.0005  # 1 sigma standard deviation in the pitch sensor (degrees)
+    heading_sensor_error = 0.02  # 1 sigma standard deviation in the pitch sensor (degrees)
     x_offset = 0.2  # 1 sigma standard deviation in your measurement of x lever arm (meters)
     y_offset = 0.2  # 1 sigma standard deviation in your measurement of y lever arm (meters)
     z_offset = 0.2  # 1 sigma standard deviation in your measurement of z lever arm (meters)
-    svp = 2.0  # 1 sigma standard deviation in sv profile sensor (meters/second)
     surface_sv = 0.5  # 1 sigma standard deviation in surface sv sensor (meters/second)
     roll_patch = 0.1  # 1 sigma standard deviation in your roll angle patch test procedure (degrees)
     pitch_patch = 0.1  # 1 sigma standard deviation in your roll angle patch test procedure (degrees)
@@ -2310,12 +2311,12 @@ def build_tpu_parameters():
     vessel_speed = 0.1  # 1 sigma standard deviation of the vessel speed (meters/second)
     horizontal_positioning = 5  # 1 sigma standard deviation of the horizontal positioning (meters)
 
-    tpu_parameters = {'heave': heave, 'heave_percent': heave_percent, 'x_offset': x_offset,
-                      'y_offset': y_offset, 'z_offset': z_offset, 'svp': svp, 'surface_sv': surface_sv,
-                      'roll_patch': roll_patch, 'pitch_patch': pitch_patch, 'heading_patch': heading_patch,
-                      'latency_patch': latency_patch, 'timing_latency': timing_latency,
-                      'dynamic_draft': dynamic_draft, 'separation_model': separation_model,
-                      'waterline': waterline, 'vessel_speed': vessel_speed,
+    tpu_parameters = {'heave': heave, 'roll_sensor_error': roll_sensor_error, 'pitch_sensor_error': pitch_sensor_error,
+                      'heading_sensor_error': heading_sensor_error, 'x_offset': x_offset, 'y_offset': y_offset,
+                      'z_offset': z_offset, 'surface_sv': surface_sv, 'roll_patch': roll_patch,
+                      'pitch_patch': pitch_patch, 'heading_patch': heading_patch, 'latency_patch': latency_patch,
+                      'timing_latency': timing_latency, 'dynamic_draft': dynamic_draft,
+                      'separation_model': separation_model, 'waterline': waterline, 'vessel_speed': vessel_speed,
                       'horizontal_positioning': horizontal_positioning}
     return tpu_parameters
 

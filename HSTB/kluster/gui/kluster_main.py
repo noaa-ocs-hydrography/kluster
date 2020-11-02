@@ -11,8 +11,6 @@ from HSTB.kluster.fqpr_project import FqprProject
 from HSTB.kluster.fqpr_helpers import return_files_from_path
 from HSTB.shared import RegistryHelpers
 
-from HSTB.gui import qtGuiConfig
-
 # list of icons
 # https://joekuan.wordpress.com/2015/09/23/list-of-qt-icons/
 
@@ -69,7 +67,6 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.iconpath = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'images', 'kluster_img.ico')
         self.setWindowIcon(QtGui.QIcon(self.iconpath))
 
-        self.gui = qtGuiConfig.GuiConfig(self)
         self.convert_thread = kluster_worker.ConversionWorker()
         self.allprocessing_thread = kluster_worker.AllProcessingWorker()
         self.importnav_thread = kluster_worker.ImportNavigationWorker()
