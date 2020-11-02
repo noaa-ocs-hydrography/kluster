@@ -47,7 +47,17 @@ Much of the existing open source software related to multibeam processing has be
 
 ## Installation
 
-Kluster is not on PyPi, but can be installed using pip alongside the HSTB-drivers module that is required.
+Kluster is not on PyPi, but can be installed using pip alongside the HSTB-drivers and HSTB-shared modules that is required.
+
+Some dependencies need to be installed from the conda-forge channel.  I have an example below of how to build this environment using conda.
+
+`conda create -n kluster_test python=3.8.2 `
+
+`conda activate kluster_test `
+
+`conda install -c conda-forge proj `
+
+`conda install -c conda-forge proj-data `
 
 `pip install git+https://github.com/noaa-ocs-hydrography/drivers.git#egg=hstb.drivers `
 
