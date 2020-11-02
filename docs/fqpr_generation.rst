@@ -33,3 +33,4 @@ fqpr\_generation module
    :skip: return_logger
    :skip: build_entwine_points
    :skip: sbet_to_xarray
+   :skip: is_pydro

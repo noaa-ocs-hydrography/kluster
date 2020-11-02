@@ -2,6 +2,22 @@ import os
 from HSTB import __file__
 
 
+def is_pydro():
+    """
+    Quick check to see if kluster is being run from Pydro.  If so, the paths we build in this module will be valid.
+
+    Returns
+    -------
+    True if this environment is within Pydroxl
+    """
+
+    try:
+        retrieve_scripts_folder()
+        return True
+    except RuntimeError:
+        return False
+
+
 def retrieve_noaa_folder_path():
     """
     Helper function to retrieve the path to the NOAA folder in PydroXL

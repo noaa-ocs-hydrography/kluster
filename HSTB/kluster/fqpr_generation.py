@@ -20,6 +20,7 @@ from HSTB.kluster.xarray_helpers import combine_arrays_to_dataset, compare_and_f
 from HSTB.kluster.dask_helpers import DaskProcessSynchronizer, dask_find_or_start_client, get_number_of_workers
 from HSTB.kluster.rotations import return_attitude_rotation_matrix
 from HSTB.kluster.logging_conf import return_logger
+from HSTB.kluster.pydro_helpers import is_pydro
 from HSTB.kluster.pdal_entwine import build_entwine_points
 from HSTB.drivers.sbet import sbet_to_xarray
 
@@ -1689,8 +1690,11 @@ class Fqpr:
             self.logger.error('No xyz data found')
             return
         if file_format not in ['csv', 'las', 'entwine']:
-            self.logger.error('Only csv and las format options supported at this time')
+            self.logger.error('Only csv, las and entwine format options supported at this time')
             return
+        if file_format == 'entwine' and not is_pydro():
+            self.logger.error(
+                'Only pydro environments support entwine tile building.  Please see https://entwine.io/configuration.html for instructions on installing entwine if you wish to use entwine outside of Kluster.  Kluster exported las files will work with the entwine build command')
 
         if outfold is None:
             outfold = self.source_dat.converted_pth
