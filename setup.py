@@ -18,7 +18,6 @@ VERSION = '0.1.0'
 
 # What packages are required for this module to be executed?
 REQUIRED = [
-            'cartopy>=0.18.0',
             'dask>=2.17.2',
             'distributed',
             'fasteners',
@@ -28,6 +27,7 @@ REQUIRED = [
             'numpy>=1.18.4',
             'openpyxl>=3.0.3',
             'pandas>=1.0.4',
+            'pyshp>=2.0',
             'pyopengl>=3.1.5',
             'pyproj>=2.6.1.post1',
             'pyqtgraph>=0.11.0',
@@ -38,6 +38,7 @@ REQUIRED = [
             'vispy>=0.6.4',
             'xarray>=0.15.1',
             'zarr>=2.4.0'
+            'cartopy>=0.18.0'  # leave last to get dependencies
             ]
 
 # What packages are optional?

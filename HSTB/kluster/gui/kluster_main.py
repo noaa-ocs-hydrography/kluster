@@ -181,7 +181,8 @@ class KlusterMain(QtWidgets.QMainWindow):
             f = os.path.normpath(f)
             self.project.add_fqpr(f, skip_dask=True)
             if f not in self.project.fqpr_instances:
-                print('update_on_file_added: Unable to add to Project from existing: {}'.format(f))
+                if not possible_multibeam_files and not possible_surface_files:
+                    print('update_on_file_added: Unable to add to Project from existing: {}'.format(f))
             else:
                 new_projects.append(f)
         if new_projects:

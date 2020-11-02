@@ -59,6 +59,8 @@ Some dependencies need to be installed from the conda-forge channel.  I have an 
 
 `conda install -c conda-forge proj-data `
 
+`conda install -c conda-forge cartopy `
+
 `pip install git+https://github.com/noaa-ocs-hydrography/drivers.git#egg=hstb.drivers `
 
 `pip install git+https://github.com/noaa-ocs-hydrography/shared.git#egg=hstb.shared `
@@ -79,7 +81,11 @@ Once the Kluster window appears, simply:
 
 - Drag a multibeam file (Kongsberg .all/.kmall) into the Project Tree window.  You can also drag in multiple files, but maybe stick with just one for this test.
 - Create a folder and point to it as the 'output directory for the converted data' and hit OK.  Monitor the results in the Output tab at the bottom.  View the data in the 2d view.  Select a line in the Explorer tab at the bottom and view the Attribute tab for some details on the dataset.
-- Once conversion is complete, run 'Process' - 'All Processing' and leave the default options.  This will run through all the steps and generate georeferenced soundings.
+- Once conversion is complete, run 'Process' - 'All Processing' and leave the default options (unless you want to change the coordinate system).  This will run through all the steps and generate georeferenced soundings.  This assumes there is a sound velocity profile in the kongsberg files.
+- Select a line in the 'Explorer' window and click the 'Attribute' tab to view the xarray attribution for the ping records
+- Select the '3d view' tab and click a line in the 'Project Tree' to view the soundings in 3d
+- Select the 'Attitude' tab and click a line in the 'Project Tree' to view the realtime attitude of the line
+- Select the 'Console' tab at the bottom and right click the converted data path under 'Converted' in the 'Project Tree' and click 'Load in console' to get access to the xarray Datasets in the console.  Try 'first_sector.soundspeed.plot()' to plot the surface sound speed used for the first sector!
 - Use 'File' - 'Export Soundings' to generate csv files for the processed soundings (x, y, z, uncertainty)
 - Use 'Process' - 'New Surface' to generate a single resolution surface using the processed sounding set.  Visualize the surface by checking one of the layers in the 'Project Tree' under 'Surfaces'.  Use the magnifying glass in 2d view if you need to zoom in to see the surface.  Surfaces are saved in the numpy compressed file format, and can be easily read using numpy.
 

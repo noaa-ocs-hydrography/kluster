@@ -254,7 +254,7 @@ def return_georef_xyz(filname: str, coord_system: str = 'NAD83', vert_ref: str =
     return fqpr_inst, x, y, z, unc, ids, tms
 
 
-def reload_data(converted_folder: str, require_raw_data: bool = True, skip_dask: bool = False):
+def reload_data(converted_folder: str, require_raw_data: bool = True, skip_dask: bool = False, silent: bool = False):
     """
     Pick up from a previous session.  Load in all the data that exists for the session using the provided
     converted_folder.  Expects there to be fqpr generated zarr datastore folders in this folder.
@@ -272,6 +272,8 @@ def reload_data(converted_folder: str, require_raw_data: bool = True, skip_dask:
         if True, raise exception if you can't find the raw data
     skip_dask
         if True, will not start/find the dask client.  Only use this if you are just reading attribution
+    silent
+        if True, will not print messages
 
     Returns
     -------
@@ -307,7 +309,8 @@ def reload_data(converted_folder: str, require_raw_data: bool = True, skip_dask:
         fqpr_inst.client = mbes_read.client
     else:
         # not a valid zarr datastore
-        print('reload_data: Unable to open FqprProject {}'.format(converted_folder))
+        if not silent:
+            print('reload_data: Unable to open FqprProject {}'.format(converted_folder))
         return None
 
     if fqpr_inst is not None:

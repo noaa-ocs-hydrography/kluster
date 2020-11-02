@@ -134,7 +134,7 @@ class FqprProject:
         """
 
         if type(pth) == str:
-            fq = reload_data(pth, skip_dask=skip_dask)
+            fq = reload_data(pth, skip_dask=skip_dask, silent=True)
         else:  # fq is the new Fqpr instance, pth is the output path that is saved as an attribute
             fq = pth
             pth = os.path.normpath(fq.source_dat.raw_ping[0].output_path)

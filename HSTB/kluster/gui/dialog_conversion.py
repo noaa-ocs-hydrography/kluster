@@ -102,7 +102,6 @@ class ConversionDialog(QtWidgets.QDialog):
                 suffix = '_XXXXXX'
             file_structure = '{}\n'.format(self.output_pth + suffix)
             file_structure += r' - {}\attitude.zarr'.format(self.output_pth + suffix) + '\n'
-            file_structure += r' - {}\fqpr.zarr'.format(self.output_pth + suffix) + '\n'
             file_structure += r' - {}\navigation.zarr'.format(self.output_pth + suffix) + '\n'
             file_structure += r' - {}\ping_xxxx.zarr'.format(self.output_pth + suffix) + '\n'
             file_structure += r' - {}\logfile_XXXX.txt'.format(self.output_pth + suffix) + '\n'
