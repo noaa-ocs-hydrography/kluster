@@ -325,8 +325,8 @@ class Tpu:
         """
         If the class plot_tpu is enabled, generate these plots along with the calculated values
         """
-        
-        horiz_components = ['north_position', 'east_position', 'sounder_horizontal', 'total_horizontal_uncertainty']
+
+        horiz_components = ['distance_rms', 'antenna_lever_arm', 'sounder_horizontal', 'total_horizontal_uncertainty']
         vert_components = ['sounder_vertical', 'roll', 'refraction', 'sbet_down', 'separation_model', 'heave',
                            'dynamic_draft', 'waterline', 'total_vertical_uncertainty']
         drive_plots_to_file = isinstance(self.plot_tpu, str)
@@ -394,6 +394,22 @@ class Tpu:
         ref_var = (first_component + ((self.acrosstrack_offset ** 2) * (second_component + third_component))) * (self.surface_sv ** 2)
         return ref_var
 
+    def _calculate_distance_variance(self):
+        """
+        Calculate the distance variance, the radial positioning error related to positioning system
+        """
+        return (self.north_position_error ** 2) + (self.east_position_error ** 2)
+
+    def _calculate_antenna_to_transducer_variance(self):
+        """
+        Determine the horizontal error related to the antenna transducer lever arm
+        """
+
+        xy = (self.north_position_error ** 2) + (self.east_position_error ** 2)
+        heading = (self.tx_to_antenna_x ** 2 + self.tx_to_antenna_y ** 2) * self.heading_sensor_error
+        rollpitch = (self.roll_sensor_error ** 2 + self.pitch_sensor_error ** 2) * self.tx_to_antenna_z
+        return xy + heading + rollpitch
+
     def _calculate_total_depth_uncertainty(self, vert_ref, v_unc):
         """
         Pick the appropriate depth uncertainty calculation based on the provided vertical reference
@@ -411,12 +427,16 @@ class Tpu:
         """
         Calculate the total horizontal uncertainty
         """
+
+        d_var = self._calculate_distance_variance()
+        leverarm_var = self._calculate_antenna_to_transducer_variance()
+
         if self.plot_tpu:
-            self.plot_components['north_position'] = self.north_position_error
-            self.plot_components['east_position'] = self.east_position_error
+            self.plot_components['distance_rms'] = d_var ** 0.5
+            self.plot_components['antenna_lever_arm'] = leverarm_var ** 0.5
         if self.north_position_error is None or self.east_position_error is None:
             raise ValueError('tpu: you must provide horizontal positioning error to calculate ellipsoidally referenced depth error')
-        return (h_unc ** 2 + self.north_position_error ** 2 + self.east_position_error ** 2) ** 0.5
+        return (h_unc ** 2 + d_var + leverarm_var) ** 0.5
 
     def _calculate_sonar_uncertainty(self):
         """
