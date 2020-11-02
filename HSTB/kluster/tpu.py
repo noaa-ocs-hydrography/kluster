@@ -1,3 +1,4 @@
+import os
 import numpy as np
 import xarray as xr
 from typing import Union
@@ -13,7 +14,7 @@ def distrib_run_calculate_tpu(dat: list):
     ----------
     dat
         [roll, raw_beam_angles, beam_angles, acrosstrack_offset, depth_offset, soundspeed, tpu_dict, quality_factor, north_position_error,
-        east_position_error, down_position_error, qf_type, vert_ref]
+        east_position_error, down_position_error, qf_type, vert_ref, tpu_image]
 
     Returns
     -------
@@ -25,7 +26,7 @@ def distrib_run_calculate_tpu(dat: list):
 
     tvu, thu = calculate_tpu(dat[0], dat[1], dat[2], dat[3], dat[4], dat[5], dat[6], dat[7], dat[8], dat[9], dat[10],
                              dat[11], dat[12], dat[13], roll_in_degrees=True, raw_beam_angles_in_degrees=True,
-                             beam_angles_in_degrees=False, qf_type=dat[14], vert_ref=dat[15])
+                             beam_angles_in_degrees=False, qf_type=dat[14], vert_ref=dat[15], tpu_image=dat[16])
     return tvu, thu
 
 
@@ -39,7 +40,7 @@ def calculate_tpu(roll: Union[xr.DataArray, np.array], raw_beam_angles: Union[xr
                   roll_error: Union[xr.DataArray, np.array] = None, pitch_error: Union[xr.DataArray, np.array] = None,
                   heading_error: Union[xr.DataArray, np.array] = None, roll_in_degrees: bool = True,
                   raw_beam_angles_in_degrees: bool = True, beam_angles_in_degrees: bool = False,
-                  qf_type: str = 'ifremer', vert_ref: str = 'ellipse'):
+                  qf_type: str = 'ifremer', vert_ref: str = 'ellipse', tpu_image: Union[str, bool] = False):
     """
     Use the Tpu class to calculate total propagated uncertainty (horizontal and vertical) for the provided sounder
     data.  Designed to be used with Kluster.
@@ -85,6 +86,9 @@ def calculate_tpu(roll: Union[xr.DataArray, np.array], raw_beam_angles: Union[xr
         whether or not the provided quality factor is Ifremer ('ifremer') or Kongsberg std dev ('kongsberg')
     vert_ref
         vertical reference of the survey, one of 'ellipse' or 'tidal'
+    tpu_image
+        either False to generate no image, or True to generate and show an image, or a string path if the image is to
+        be saved directly to file
 
     Returns
     -------
@@ -94,7 +98,7 @@ def calculate_tpu(roll: Union[xr.DataArray, np.array], raw_beam_angles: Union[xr
         total horizontal uncertainty in meters for each sounding (time, beam)
     """
 
-    tp = Tpu()
+    tp = Tpu(plot_tpu=tpu_image)
     if tpu_dict is not None:
         tp.populate_from_dict(tpu_dict)
     tp.load_from_data(roll, raw_beam_angles, beam_angles, acrosstrack_offset, depth_offset, surf_sound_speed,
@@ -321,9 +325,21 @@ class Tpu:
         """
         If the class plot_tpu is enabled, generate these plots along with the calculated values
         """
+        
         horiz_components = ['north_position', 'east_position', 'sounder_horizontal', 'total_horizontal_uncertainty']
         vert_components = ['sounder_vertical', 'roll', 'refraction', 'sbet_down', 'separation_model', 'heave',
                            'dynamic_draft', 'waterline', 'total_vertical_uncertainty']
+        drive_plots_to_file = isinstance(self.plot_tpu, str)
+
+        if drive_plots_to_file:
+            plt.ioff()  # turn off interactive plotting
+            if os.path.isdir(self.plot_tpu):
+                horiz_fname = os.path.join(self.plot_tpu, 'horizontal_tpu_sample.png')
+                vert_fname = os.path.join(self.plot_tpu, 'vertical_tpu_sample.png')
+            elif os.path.isfile(self.plot_tpu):
+                horiz_fname = os.path.join(os.path.splitext(self.plot_tpu)[0] + '_horizontal.png')
+                vert_fname = os.path.join(os.path.splitext(self.plot_tpu)[0] + '_vertical.png')
+
         horiz_figure = plt.figure()
         plt.title('horizontal_uncertainty (1sigma)')
         plt.ylabel('meters')
@@ -332,6 +348,8 @@ class Tpu:
             if horz in self.plot_components:
                 plt.plot(self.plot_components[horz], label=horz)
         plt.legend()
+        if drive_plots_to_file:
+            plt.savefig(horiz_fname)
 
         vert_figure = plt.figure()
         plt.ylabel('meters')
@@ -341,6 +359,8 @@ class Tpu:
             if vert in self.plot_components:
                 plt.plot(self.plot_components[vert], label=vert)
         plt.legend()
+        if drive_plots_to_file:
+            plt.savefig(vert_fname)
 
     def _calculate_roll_variance(self):
         """

@@ -1000,7 +1000,12 @@ class Fqpr:
             qf_type = 'ifremer'
 
         data_for_workers = []
-        for chnk in idx_by_chunk:
+
+        # set the first chunk to build the tpu sample image, provide a path to the folder to save in
+        image_generation = [False] * len(idx_by_chunk)
+        image_generation[0] = os.path.join(self.source_dat.converted_pth, 'ping_' + ra.sector_identifier + '.zarr')
+
+        for cnt, chnk in enumerate(idx_by_chunk):
             if latency:
                 chnk = chnk.assign_coords({'time': chnk.time.time + latency})
             try:
@@ -1034,7 +1039,7 @@ class Fqpr:
 
             data_for_workers.append([fut_roll, fut_raw_point, fut_corr_point, fut_acrosstrack, fut_depthoffset, fut_soundspeed,
                                      self.source_dat.tpu_parameters, fut_qualityfactor, fut_npe, fut_epe, fut_dpe,
-                                     fut_rpe, fut_ppe, fut_hpe, qf_type, self.vert_ref])
+                                     fut_rpe, fut_ppe, fut_hpe, qf_type, self.vert_ref, image_generation[cnt]])
         return data_for_workers
 
     def _generate_chunks_xyzdat(self, variable_name: str, finallength: int, var_dtype: np.dtype,
