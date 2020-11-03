@@ -102,6 +102,32 @@ class ZarrWrite:
             pass
         return attrs
 
+    def _attributes_only_unique_runtime(self, attrs: dict):
+        """
+        Given attribute dict from dataset (attrs) retain only unique runtime settings dicts
+
+        Parameters
+        ----------
+        attrs
+            input attribution from converted dataset
+
+        Returns
+        -------
+        dict
+            attrs with only unique runtime settings dicts
+        """
+        try:
+            new_settings = [x for x in attrs.keys() if x[0:7] == 'runtime']
+            curr_settings = [x for x in self.rootgroup.attrs.keys() if x[0:7] == 'runtime']
+            current_vals = [self.rootgroup.attrs[p] for p in curr_settings]
+            for sett in new_settings:
+                val = attrs[sett]
+                if val in current_vals:
+                    attrs.pop(sett)
+        except:
+            pass
+        return attrs
+
     def _attributes_only_unique_settings(self, attrs: dict):
         """
         Given attribute dict from dataset (attrs) retain only unique settings dicts
@@ -116,10 +142,9 @@ class ZarrWrite:
         dict
             attrs with only unique settings dicts
         """
-
         try:
-            new_settings = [x for x in attrs.keys() if x[0:8] == 'settings']
-            curr_settings = [x for x in self.rootgroup.attrs.keys() if x[0:8] == 'settings']
+            new_settings = [x for x in attrs.keys() if x[0:7] == 'install']
+            curr_settings = [x for x in self.rootgroup.attrs.keys() if x[0:7] == 'install']
             current_vals = [self.rootgroup.attrs[p] for p in curr_settings]
             for sett in new_settings:
                 val = attrs[sett]
@@ -175,10 +200,10 @@ class ZarrWrite:
         attrs
             attributes associated with this zarr rootgroup
         """
-
         if attrs is not None:
             attrs = self._attributes_only_unique_profile(attrs)
             attrs = self._attributes_only_unique_settings(attrs)
+            attrs = self._attributes_only_unique_runtime(attrs)
             attrs = self._attributes_only_unique_xyzrph(attrs)
             _my_xarr_to_zarr_writeattributes(self.rootgroup, attrs)
 
@@ -570,7 +595,7 @@ def _distrib_zarr_write_convenience(zarr_path: str, xarr: xr.Dataset, attrs: dic
 
 
 def distrib_zarr_write(zarr_path: str, xarrays: list, attributes: dict, chunk_sizes: dict, data_locs: list,
-                       sync: DaskProcessSynchronizer, client: Client, append_dim: str = 'time',
+                       finalsize: int, sync: DaskProcessSynchronizer, client: Client, append_dim: str = 'time',
                        merge: bool = False, skip_dask: bool = False):
     """
     A function for using the ZarrWrite class to write data to disk.  xarr and attrs are written to the datastore at
@@ -592,6 +617,8 @@ def distrib_zarr_write(zarr_path: str, xarrays: list, attributes: dict, chunk_si
         variable name: chunk size as tuple, for each variable in the input xarr
     data_locs
         list of lists, [start time index, end time index] for xarr, ex: [0,1000] if xarr time dimension is 1000 long.
+    finalsize
+        the final size of the time dimension of the written data, we resize the zarr to this size on the first write
     sync
         synchronizer for write, generally a dask.distributed.Lock based sync
     client
@@ -614,13 +641,13 @@ def distrib_zarr_write(zarr_path: str, xarrays: list, attributes: dict, chunk_si
         for cnt, arr in enumerate(xarrays):
             if cnt == 0:
                 futs = [_distrib_zarr_write_convenience(zarr_path, arr, attributes, chunk_sizes, data_locs[cnt],
-                        append_dim=append_dim, finalsize=data_locs[-1][1], merge=merge, sync=sync)]
+                        append_dim=append_dim, finalsize=finalsize, merge=merge, sync=sync)]
             else:
                 futs.append([_distrib_zarr_write_convenience(zarr_path, xarrays[cnt], None, chunk_sizes, data_locs[cnt],
                              append_dim=append_dim, merge=merge, sync=sync)])
     else:
         futs = [client.submit(_distrib_zarr_write_convenience, zarr_path, xarrays[0], attributes, chunk_sizes, data_locs[0],
-                              append_dim=append_dim, finalsize=data_locs[-1][1], merge=merge, sync=sync)]
+                              append_dim=append_dim, finalsize=finalsize, merge=merge, sync=sync)]
         wait(futs)
         if len(xarrays) > 1:
             for i in range(len(xarrays) - 1):
@@ -1217,43 +1244,65 @@ def my_xarr_to_zarr(xarr: xr.Dataset, attrs: dict, outputpth: str, sync: DaskPro
     return outputpth
 
 
-def get_new_chunk_locations_zarr(outputpth: str, data_locs: list, ideal_chunk_size: int):
+def get_write_indices_zarr(output_pth: str, input_time_arrays: list, index_dim='time'):
     """
-    Data locs as created is naive to the existing rootgroup data.  We want data_locs to represent the index of the
-    rootgroup where the new data should be written.  So here we take the time dim of the rootgroup and adjust the
-    data_locs accordingly.
+    In Kluster, we parallel process the multibeam data and write it out to zarr chunks.  Here we need to figure out
+    if the input data should be appended or if it should overwrite existing data.  This is controlled by the returned
+    list of data locations.
 
-    If the data locs don't correspond with this chunk size, we have a problem, as there isn't any way to rechunk zarr
-    arrays.
+    Take the dimension we are using as the index (usually time) and see where the input arrays fit in
 
     Parameters
     ----------
-    outputpth
+    output_pth
         str, path to the zarr rootgroup
-    data_locs
-        list of lists, [start time index, end time index] for xarr, ex: [0,1000] if xarr time dimension is 1000 long.
-    ideal_chunk_size
-        int, chunk size for the array.
+    input_time_arrays
+        list of xarray DataArray, the time dimension for each input array
+    index_dim
+        str identifier for the dimension name that we are using as the index.  Generally time.
 
     Returns
     -------
     list
-        either the original data_locs if this is a new zarr rootgroup, or an adjusted data_locs for the existing rootgroup data.
+        write indices to use to write the input_time_arrays to the zarr datastore at outputpth
+    int
+        final size of the rootgroup after the write, needed to resize zarr to the appropriate length
     """
 
-    if os.path.exists(outputpth):
-        rootgroup = zarr.open(outputpth, mode='r')  # only opens if the path exists
-        time_arr = rootgroup.time  # we assume that we are appending to the time dim
-        arr_size = time_arr.shape[0]
+    write_indices = []
+    running_total = 0
+    zarr_time = np.array([])
+    mintimes = [float(i.min()) for i in input_time_arrays]
+    if not (np.diff(mintimes) > 0).all():  # input arrays are not time sorted
+        raise NotImplementedError('get_write_indices_zarr: input arrays are out of order in time')
 
-        first_chunk = data_locs[0]
-        if np.diff(first_chunk)[0] != ideal_chunk_size and len(data_locs) > 1:
-            # if this is the case, we would have to adjust all the data_locs to the actual zarr chunk size
-            raise NotImplementedError('get_new_chunk_locations_zarr: rechunking data locations not currently supported.')
-        new_data_locs = [[dl[0] + arr_size, dl[1] + arr_size] for dl in data_locs]
-        return new_data_locs
-    else:
-        return data_locs
+    if os.path.exists(output_pth):
+        rootgroup = zarr.open(output_pth, mode='r')  # only opens if the path exists
+        zarr_time = rootgroup[index_dim]
+        if np.array([mt < np.min(zarr_time) for mt in mintimes]).any():
+            raise NotImplementedError('get_write_indices_zarr: array provided that is prior to already written data.  You must write data in order.')
+
+        for input_time in input_time_arrays:
+            input_is_in_zarr = np.isin(input_time, zarr_time)
+            if input_is_in_zarr.any():  # this input array is at least partly in this datastore already
+                if not input_is_in_zarr.all():  # this input array is only partly in this datastore
+                    raise NotImplementedError('get_write_indices_zarr: processed data is only partly within the existing zarr dataset, must be entirely within or without')
+                else:  # input data is entirely within the existing zarr data
+                    zarr_is_in_input = np.where(np.isin(zarr_time, input_time))[0]
+                    is_continuous = np.diff(zarr_is_in_input)
+                    is_continuous_chk = np.all(is_continuous == is_continuous[0])
+                    if not is_continuous_chk:
+                        raise ValueError('get_write_indices_zarr: appear to be gaps in the input data, this is currently not supported')
+                    write_indices.append([zarr_is_in_input[0], zarr_is_in_input[-1] + 1])
+            else:  # zarr datastore exists, but this data is not in it.  Append to the existing datastore
+                write_indices.append([len(zarr_time) + running_total, len(zarr_time) + len(input_time) + running_total])
+                running_total += len(input_time)
+    else:  # datastore doesn't exist, we just return the write indices equal to the shape of the input arrays
+        for input_time in input_time_arrays:
+            write_indices.append([0 + running_total, len(input_time) + running_total])
+            running_total += len(input_time)
+    final_size = np.max([write_indices[-1][-1], len(zarr_time)])
+    return write_indices, final_size
 
 
 def _interp_across_chunks_xarrayinterp(xarr: Union[xr.Dataset, xr.DataArray], dimname: str, chnk_time: xr.DataArray):

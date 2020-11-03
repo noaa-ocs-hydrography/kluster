@@ -26,6 +26,7 @@ fqpr\_generation module
    :skip: reload_zarr_records
    :skip: slice_xarray_by_dim
    :skip: stack_nan_array
+   :skip: get_write_indices_zarr
    :skip: DaskProcessSynchronizer
    :skip: dask_find_or_start_client
    :skip: get_number_of_workers

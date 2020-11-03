@@ -48,7 +48,7 @@ def perform_all_processing(filname: str, navfiles: list = None, outfold: str = N
     return fqpr_inst
 
 
-def convert_multibeam(filname: str, outfold: str = None, client: Client = None, auto_append: bool = False):
+def convert_multibeam(filname: str, outfold: str = None, client: Client = None):
     """
     Use fqpr_generation to process multibeam data on the local cluster and generate a new Fqpr instance saved to the
     provided output folder.
@@ -62,9 +62,6 @@ def convert_multibeam(filname: str, outfold: str = None, client: Client = None, 
         not exist.  If not provided will automatically create folder next to lines.
     client
         if you have already created a Client, pass it in here to use it
-    auto_append
-        set if you want to append to an existing zarr datastore, ask for this explicitly because it is currently a bit
-        dangerous, will cause problems if you mix vessels or lines are added out of order
 
     Returns
     -------
@@ -72,7 +69,7 @@ def convert_multibeam(filname: str, outfold: str = None, client: Client = None, 
         Fqpr containing converted source data
     """
 
-    mbes_read = BatchRead(filname, dest=outfold, client=client, auto_append=auto_append)
+    mbes_read = BatchRead(filname, dest=outfold, client=client)
     fqpr_inst = Fqpr(mbes_read)
     fqpr_inst.read_from_source()
     return fqpr_inst
@@ -290,7 +287,8 @@ def reload_data(converted_folder: str, require_raw_data: bool = True, skip_dask:
         fqpr_inst.logger.info('****Reloading from file {}****'.format(converted_folder))
 
         fqpr_inst.source_dat.xyzrph = fqpr_inst.source_dat.raw_ping[0].xyzrph
-        fqpr_inst.set_vertical_reference(fqpr_inst.source_dat.raw_ping[0].vertical_reference)
+        if 'vertical_reference' in fqpr_inst.source_dat.raw_ping[0].attrs:
+            fqpr_inst.set_vertical_reference(fqpr_inst.source_dat.raw_ping[0].vertical_reference)
         fqpr_inst.source_dat.tpu_parameters = fqpr_inst.source_dat.raw_ping[0].tpu_parameters
 
         fqpr_inst.generate_starter_orientation_vectors(None, None)

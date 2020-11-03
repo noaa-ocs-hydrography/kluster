@@ -16,7 +16,8 @@ from HSTB.kluster.georeference import distrib_run_georeference
 from HSTB.kluster.tpu import distrib_run_calculate_tpu
 from HSTB.kluster.xarray_conversion import BatchRead
 from HSTB.kluster.xarray_helpers import combine_arrays_to_dataset, compare_and_find_gaps, distrib_zarr_write, \
-    divide_arrays_by_time_index, interp_across_chunks, reload_zarr_records, slice_xarray_by_dim, stack_nan_array
+    divide_arrays_by_time_index, interp_across_chunks, reload_zarr_records, slice_xarray_by_dim, stack_nan_array, \
+    get_write_indices_zarr
 from HSTB.kluster.dask_helpers import DaskProcessSynchronizer, dask_find_or_start_client, get_number_of_workers
 from HSTB.kluster.rotations import return_attitude_rotation_matrix
 from HSTB.kluster.logging_conf import return_logger
@@ -1248,13 +1249,13 @@ class Fqpr:
         outfold = os.path.join(self.source_dat.converted_pth, 'ppnav.zarr')
         chunk_sizes = {k: self.source_dat.nav_chunksize for k in list(navdata.variables.keys())}  # 50000 to match the raw_nav
         sync = DaskProcessSynchronizer(outfold)
-        chunk_idxs = [[0, len(navdata.time)]]
+        data_locs, finalsize = get_write_indices_zarr(outfold, [navdata.time])
         navdata_attrs = navdata.attrs
         try:
             navdata = self.client.scatter(navdata)
         except:  # not using dask distributed client
             pass
-        distrib_zarr_write(outfold, [navdata], navdata_attrs, chunk_sizes, chunk_idxs, sync, self.client,
+        distrib_zarr_write(outfold, [navdata], navdata_attrs, chunk_sizes, data_locs, finalsize, sync, self.client,
                            append_dim='time', merge=False)
 
         self.ppnav_path = outfold
@@ -1300,17 +1301,131 @@ class Fqpr:
             for source in sources:
                 ping_wise_data = interp_across_chunks(source, raw_ping.time, 'time').chunk(self.source_dat.ping_chunksize)
                 chunk_sizes = {k: self.source_dat.ping_chunksize for k in list(ping_wise_data.variables.keys())}
-                chunk_idxs = [[0, len(ping_wise_data.time)]]
+                data_locs, finalsize = get_write_indices_zarr(outfold_sec, [ping_wise_data.time])
                 try:
                     ping_wise_data = self.client.scatter(ping_wise_data)
                 except:  # not using dask distributed client
                     pass
-                distrib_zarr_write(outfold_sec, [ping_wise_data], attributes, chunk_sizes, chunk_idxs, sync,
+                distrib_zarr_write(outfold_sec, [ping_wise_data], attributes, chunk_sizes, data_locs, finalsize, sync,
                                    self.client, append_dim='time', merge=True)
                 attributes = {}
         self.source_dat.reload_pingrecords(skip_dask=skip_dask)
         endtime = perf_counter()
         self.logger.info('****Interpolation complete: {}s****\n'.format(round(endtime - starttime, 1)))
+
+    def _validate_get_orientation_vectors(self):
+        """
+        Validation routine for running get_orientation_vectors.  Ensures you have all the data you need before kicking
+        off the process
+        """
+        req = 'traveltime'
+        if req not in list(self.source_dat.raw_ping[0].keys()):
+            err = 'get_orientation_vectors: unable to find {}'.format(req)
+            err += ' in ping data {}.  You must run read_from_source first.'.format(self.source_dat.raw_ping[0].sector_identifier)
+            self.logger.error(err)
+            raise ValueError(err)
+        if self.source_dat.raw_att is None:
+            err = 'get_orientation_vectors: unable to find raw attitude. You must run read_from_source first.'
+            self.logger.error(err)
+            raise ValueError(err)
+
+    def _validate_get_beam_pointing_vectors(self):
+        """
+        Validation routine for running get_beam_pointing_vectors.  Ensures you have all the data you need before kicking
+        off the process
+        """
+
+        # first check to see if there is any data in memory.  If so, we just assume that you have the data you need.
+        if self.intermediate_dat is not None:
+            for rawping in self.source_dat.raw_ping:
+                if 'orientation' in self.intermediate_dat[rawping.sector_identifier]:
+                    print('get_beam_pointing_vectors: in memory workflow')
+                    return
+
+        required = ['tx', 'rx', 'beampointingangle', 'tiltangle']
+        for req in required:
+            if req not in list(self.source_dat.raw_ping[0].keys()):
+                err = 'get_beam_pointing_vectors: unable to find {}'.format(req)
+                err += ' in ping data {}.  You must run get_orientation_vectors first.'.format(self.source_dat.raw_ping[0].sector_identifier)
+                self.logger.error(err)
+                raise ValueError(err)
+
+    def _validate_sv_correct(self):
+        """
+        Validation routine for running sv_correct.  Ensures you have all the data you need before kicking
+        off the process
+        """
+
+        # first check to see if there is any data in memory.  If so, we just assume that you have the data you need.
+        if self.intermediate_dat is not None:
+            for rawping in self.source_dat.raw_ping:
+                if 'bpv' in self.intermediate_dat[rawping.sector_identifier]:
+                    print('sv_correct: in memory workflow')
+                    return
+
+        required = ['rel_azimuth', 'corr_pointing_angle']
+        for req in required:
+            if req not in list(self.source_dat.raw_ping[0].keys()):
+                err = 'sv_correct: unable to find {}'.format(req)
+                err += ' in ping data {}.  You must run get_beam_pointing_vectors first.'.format(
+                    self.source_dat.raw_ping[0].sector_identifier)
+                self.logger.error(err)
+                raise ValueError(err)
+
+    def _validate_georef_xyz(self):
+        """
+        Validation routine for running georef_xyz.  Ensures you have all the data you need before kicking
+        off the process
+        """
+        if self.vert_ref is None:
+            self.logger.error("georef_xyz: set_vertical_reference must be run before georef_xyz")
+            raise ValueError('georef_xyz: set_vertical_reference must be run before georef_xyz')
+        if self.vert_ref not in ['ellipse', 'waterline']:
+            self.logger.error("georef_xyz: {} must be one of 'ellipse', 'waterline'".format(self.vert_ref))
+            raise ValueError("georef_xyz: {} must be one of 'ellipse', 'waterline'".format(self.vert_ref))
+        if self.xyz_crs is None:
+            self.logger.error('georef_xyz: xyz_crs object not found.  Please run Fqpr.construct_crs first.')
+            raise ValueError('georef_xyz: xyz_crs object not found.  Please run Fqpr.construct_crs first.')
+
+        # first check to see if there is any data in memory.  If so, we just assume that you have the data you need.
+        if self.intermediate_dat is not None:
+            for rawping in self.source_dat.raw_ping:
+                if 'sv_corr' in self.intermediate_dat[rawping.sector_identifier]:
+                    print('georef_xyz: in memory workflow')
+                    return
+
+        required = ['alongtrack', 'acrosstrack', 'depthoffset']
+        for req in required:
+            if req not in list(self.source_dat.raw_ping[0].keys()):
+                err = 'georef_xyz: unable to find {}'.format(req)
+                err += ' in ping data {}.  You must run sv_correct first.'.format(
+                    self.source_dat.raw_ping[0].sector_identifier)
+                self.logger.error(err)
+                raise ValueError(err)
+
+    def _validate_calculate_total_uncertainty(self):
+        """
+        Validation routine for running calculate_total_uncertainty.  Ensures you have all the data you need before kicking
+        off the process
+        """
+
+        # no in memory workflow built just yet
+
+        if self.vert_ref is None:
+            self.logger.error('calculate_total_uncertainty: set_vertical_reference must be run before calculate_total_uncertainty')
+            raise ValueError('calculate_total_uncertainty: set_vertical_reference must be run before calculate_total_uncertainty')
+        if self.vert_ref not in ['ellipse', 'waterline']:
+            self.logger.error("calculate_total_uncertainty: {} must be one of 'ellipse', 'waterline'".format(self.vert_ref))
+            raise ValueError("calculate_total_uncertainty: {} must be one of 'ellipse', 'waterline'".format(self.vert_ref))
+
+        required = ['corr_pointing_angle', 'beampointingangle', 'acrosstrack', 'depthoffset', 'soundspeed', 'qualityfactor']
+        for req in required:
+            if req not in list(self.source_dat.raw_ping[0].keys()):
+                err = 'calculate_total_uncertainty: unable to find {}'.format(req)
+                err += ' in ping data {}.  You must run georef_xyz first.'.format(
+                    self.source_dat.raw_ping[0].sector_identifier)
+                self.logger.error(err)
+                raise ValueError(err)
 
     def get_orientation_vectors(self, subset_time: list = None, dump_data: bool = True, delete_futs: bool = True,
                                 initial_interp: bool = True):
@@ -1337,6 +1452,7 @@ class Fqpr:
             is not mandatory for processing, but useful for other kluster functions post processing.
         """
 
+        self._validate_get_orientation_vectors()
         if initial_interp:
             needs_interp = []
             if 'latitude' not in list(self.source_dat.raw_ping[0].keys()):
@@ -1349,8 +1465,6 @@ class Fqpr:
         self.logger.info('****Building tx/rx vectors at time of transmit/receive****\n')
         starttime = perf_counter()
 
-        if subset_time is not None and dump_data:
-            raise NotImplementedError('Currently not supporting processing subsets and dumping to disk, the indexing is complicated')
         skip_dask = False
         if self.client is None:  # small datasets benefit from just running it without dask distributed
             skip_dask = True
@@ -1410,12 +1524,11 @@ class Fqpr:
             if True remove the futures objects after data is dumped.
         """
 
+        self._validate_get_beam_pointing_vectors()
         self.logger.info('****Building beam specific pointing vectors****\n')
         starttime = perf_counter()
         raw_hdng = self.source_dat.raw_att['heading']
 
-        if subset_time is not None and dump_data:
-            raise NotImplementedError('Currently not supporting processing subsets and dumping to disk, the indexing is a pain')
         skip_dask = False
         if self.client is None:  # small datasets benefit from just running it without dask distributed
             skip_dask = True
@@ -1476,11 +1589,10 @@ class Fqpr:
             if True remove the futures objects after data is dumped.
         """
 
+        self._validate_sv_correct()
         self.logger.info('****Correcting for sound velocity****\n')
         starttime = perf_counter()
 
-        if subset_time is not None and dump_data:
-            raise NotImplementedError('Currently not supporting processing subsets and dumping to disk, the indexing is a pain')
         skip_dask = False
         if self.client is None:  # small datasets benefit from just running it without dask distributed
             skip_dask = True
@@ -1553,23 +1665,12 @@ class Fqpr:
             if True remove the futures objects after data is dumped.
         """
 
-        if self.vert_ref is None:
-            raise ValueError('set_vertical_reference must be run before georef_xyz')
-        if self.vert_ref not in ['ellipse', 'waterline']:
-            self.logger.error("{} must be one of 'ellipse', 'waterline'".format(self.vert_ref))
-            raise ValueError("{} must be one of 'ellipse', 'waterline'".format(self.vert_ref))
-        if self.xyz_crs is None:
-            self.logger.error('xyz_crs object not found.  Please run Fqpr.construct_crs first.')
-            raise ValueError('xyz_crs object not found.  Please run Fqpr.construct_crs first.')
-
+        self._validate_georef_xyz()
         self.logger.info('****Georeferencing sound velocity corrected beam offsets****\n')
         starttime = perf_counter()
 
         self.logger.info('Using pyproj CRS: {}'.format(self.xyz_crs.to_string()))
 
-        if subset_time is not None and dump_data:
-            raise NotImplementedError(
-                'Currently not supporting processing subsets and dumping to disk, the indexing is a pain')
         skip_dask = False
         if self.client is None:  # small datasets benefit from just running it without dask distributed
             skip_dask = True
@@ -1624,12 +1725,7 @@ class Fqpr:
             if True remove the futures objects after data is dumped.
         """
 
-        if self.vert_ref is None:
-            raise ValueError('set_vertical_reference must be run before georef_xyz')
-        if self.vert_ref not in ['ellipse', 'waterline']:
-            self.logger.error("{} must be one of 'ellipse', 'waterline'".format(self.vert_ref))
-            raise ValueError("{} must be one of 'ellipse', 'waterline'".format(self.vert_ref))
-
+        self._validate_calculate_total_uncertainty()
         self.logger.info('****Calculating total uncertainty****\n')
         starttime = perf_counter()
 
@@ -1844,6 +1940,7 @@ class Fqpr:
         if outfold is None:
             outfold = os.path.join(self.source_dat.converted_pth, 'soundings.zarr')
         if os.path.exists(outfold):
+            self.logger.error('export_pings_to_dataset: dataset exists already ({}), please remove and run'.format(outfold))
             raise NotImplementedError('Appending/overwriting not currently supported with soundings dataset, no way to '
                                       'match new data to old data for unstructured points')
 
@@ -1891,8 +1988,9 @@ class Fqpr:
                                                                                           dtype_of_interest[cnt],
                                                                                           add_idx_vars=add_idx_vars,
                                                                                           s_index=s_index)
-            fpths = distrib_zarr_write(outfold, data_for_workers, exist_attrs, chunk_sizes, write_chnk_idxs, sync,
-                                       self.client, append_dim='sounding', merge=merge)
+            final_size = write_chnk_idxs[-1][-1]
+            fpths = distrib_zarr_write(outfold, data_for_workers, exist_attrs, chunk_sizes, write_chnk_idxs, final_size,
+                                       sync, self.client, append_dim='sounding', merge=merge)
 
         self.soundings_path = outfold
         self.reload_soundings_records()
@@ -2042,25 +2140,20 @@ class Fqpr:
             ra = self.source_dat.raw_ping[s_cnt]
             sec_ident = ra.sector_identifier
             outfold_sec = os.path.join(outfold, 'ping_' + sec_ident + '.zarr')
-            offset = 0
             futs_data = []
-            chunks = []
             for applicable_index, timestmp, prefixes in sector:  # for each unique install parameter entry in that sector
                 if timestmp in self.intermediate_dat[sec_ident][mode_settings[0]]:
                     futs = self.intermediate_dat[sec_ident][mode_settings[0]][timestmp]
-                    curr_idx = 0
                     for f in futs:
                         try:
                             futs_data.extend([self.client.submit(combine_arrays_to_dataset, f[0], mode_settings[1])])
                         except:  # client is not setup or closed, this is if you want to run on just your machine
                             futs_data.extend([combine_arrays_to_dataset(f[0], mode_settings[1])])
-                        futs_timlength = f[1]
-                        chunks.append([offset + curr_idx, offset + curr_idx + futs_timlength])
-                        curr_idx = curr_idx + futs_timlength
-                    offset = offset + curr_idx
             if futs_data:
-                fpths = distrib_zarr_write(outfold_sec, futs_data, mode_settings[3], ping_chunks, chunks, sync,
-                                           self.client, merge=True, skip_dask=skip_dask)
+                time_arrs = self.client.gather(self.client.map(_return_xarray_time, futs_data))
+                data_locs, finalsize = get_write_indices_zarr(outfold_sec, time_arrs)
+                fpths = distrib_zarr_write(outfold_sec, futs_data, mode_settings[3], ping_chunks, data_locs, finalsize,
+                                           sync, self.client, merge=True, skip_dask=skip_dask)
             if delete_futs:
                 del self.intermediate_dat[sec_ident][mode_settings[0]]
 
@@ -2664,3 +2757,21 @@ def get_ping_times(pingrec_time: xr.DataArray, idx: xr.DataArray):
 
     tx_tstmp_idx = pingrec_time.where(idx, drop=True)
     return tx_tstmp_idx
+
+
+def _return_xarray_time(xarrs: Union[xr.DataArray, xr.Dataset]):
+    """
+    Access xarray object and return the time dimension.
+
+    Parameters
+    ----------
+    xarrs
+        Dataset or DataArray that we want the time array from
+
+    Returns
+    -------
+    xarray DataArray
+        time array
+    """
+
+    return xarrs['time']

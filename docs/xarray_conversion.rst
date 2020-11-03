@@ -6,7 +6,7 @@ xarray\_conversion module
    :skip: dask_find_or_start_client
    :skip: distrib_zarr_write
    :skip: my_xarr_add_attribute
-   :skip: get_new_chunk_locations_zarr
+   :skip: get_write_indices_zarr
    :skip: glob
    :skip: perf_counter
    :skip: reload_zarr_records

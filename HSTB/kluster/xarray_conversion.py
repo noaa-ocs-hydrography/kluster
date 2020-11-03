@@ -16,7 +16,7 @@ from HSTB.drivers import par3, kmall
 from HSTB.drivers import PCSio
 from HSTB.kluster.dask_helpers import dask_find_or_start_client, DaskProcessSynchronizer
 from HSTB.kluster.xarray_helpers import resize_zarr, xarr_to_netcdf, combine_xr_attributes, reload_zarr_records, \
-                                        get_new_chunk_locations_zarr, distrib_zarr_write, my_xarr_add_attribute
+                                        get_write_indices_zarr, distrib_zarr_write, my_xarr_add_attribute
 from HSTB.kluster.logging_conf import return_logger
 
 
@@ -545,15 +545,33 @@ def _return_xarray_timelength(xarrs: Union[xr.DataArray, xr.Dataset]):
     Parameters
     ----------
     xarrs
-        Dataset or DataArray that we want the sectors from
+        Dataset or DataArray that we want the timelength from
 
     Returns
     -------
-    list
-        sector identifiers as string within a list
+    int
+        length of time dimension
     """
 
     return xarrs.dims['time']
+
+
+def _return_xarray_time(xarrs: Union[xr.DataArray, xr.Dataset]):
+    """
+    Access xarray object and return the time dimension.
+
+    Parameters
+    ----------
+    xarrs
+        Dataset or DataArray that we want the time array from
+
+    Returns
+    -------
+    xarray DataArray
+        time array
+    """
+
+    return xarrs['time']
 
 
 def _assess_need_for_split_correction(cur_xarr: xr.Dataset, next_xarr: xr.Dataset):
@@ -811,11 +829,11 @@ def batch_read_configure_options(ping_chunksize: int, nav_chunksize: int, att_ch
                   'latitude': (nav_chunksize,), 'longitude': (nav_chunksize,)}
     opts = {
         'ping': {'chunksize': ping_chunksize, 'chunks': ping_chunks, 'combine_attributes': True, 'output_arrs': [],
-                 'final_pths': None, 'final_attrs': None},
+                 'time_arrs': [], 'final_pths': None, 'final_attrs': None},
         'attitude': {'chunksize': att_chunksize, 'chunks': att_chunks, 'combine_attributes': False, 'output_arrs': [],
-                     'final_pths': None, 'final_attrs': None},
+                     'time_arrs': [], 'final_pths': None, 'final_attrs': None},
         'navigation': {'chunksize': nav_chunksize, 'chunks': nav_chunks, 'combine_attributes': False, 'output_arrs': [],
-                       'final_pths': None, 'final_attrs': None}}
+                       'time_arrs': [], 'final_pths': None, 'final_attrs': None}}
     return opts
 
 
@@ -904,7 +922,7 @@ class BatchRead:
     """
 
     def __new__(cls, filfolder, dest=None, address=None, client=None, minchunksize=40000000, max_chunks=20,
-                filtype='zarr', skip_dask=False, dashboard=False, auto_append=False):
+                filtype='zarr', skip_dask=False, dashboard=False):
         if not batch_read_enabled:
             print('Dask and Xarray are required dependencies to run BatchRead.  Please ensure you have these modules first.')
             return None
@@ -913,7 +931,7 @@ class BatchRead:
 
     def __init__(self, filfolder: Union[str, list] = None, dest: str = None, address: str = None, client: Client = None,
                  minchunksize: int = 40000000, max_chunks: int = 20, filtype: str = 'zarr', skip_dask: bool = False,
-                 dashboard: bool = False, auto_append: bool = False):
+                 dashboard: bool = False):
         """
         Parameters
         ----------
@@ -940,15 +958,11 @@ class BatchRead:
             store without the overhead of dask
         dashboard
             if True, will open a web browser with the dask dashboard
-        auto_append
-            if True will assume you want to append to an existing data storage folder, if False will not allow you to
-            add to existing converted data, will create a new folder with timestamp suffix if converted data exists.
         """
 
         self.filfolder = filfolder
         self.dest = dest
         self.filtype = filtype
-        self.auto_append = auto_append
         self.convert_minchunksize = minchunksize
         self.convert_maxchunks = max_chunks
         self.address = address
@@ -1198,11 +1212,7 @@ class BatchRead:
             raise ValueError('Directory provided, but no .all or .kmall files found: {}'.format(self.filfolder))
 
         if self.dest is not None:  # path was provided, lets make sure it is an empty folder
-            if os.path.exists(self.dest):
-                if os.listdir(self.dest) and not self.auto_append:  # not an empty folder, if you have auto_append enabled this is ok
-                    self.dest = self.dest + '_{}'.format(datetime.now().strftime('%H%M%S'))
-                    os.makedirs(self.dest)
-            else:
+            if not os.path.exists(self.dest):
                 os.makedirs(self.dest)
             converted_pth = self.dest
         else:
@@ -1287,6 +1297,8 @@ class BatchRead:
         -------
         list
             futures representing data merged according to balanced_data
+        list
+            xarray DataArrays for the time dimension of each returned future
         int
             size of chunks operated on by workers, shortened if greater than the total size
         int
@@ -1296,7 +1308,7 @@ class BatchRead:
         xlens = self.client.gather(self.client.map(_return_xarray_timelength, input_xarrs))
         balanced_data, totallength = _return_xarray_constant_blocks(xlens, input_xarrs, chunksize)
         self.logger.info('Rebalancing {} total {} records across {} blocks of size {}'.format(totallength, datatype,
-                                                                                          len(balanced_data), chunksize))
+                                                                                              len(balanced_data), chunksize))
 
         # if the chunksize is greater than the total amount of records, adjust to the total amount of records.
         #   This is to prevent empty values being written to the zarr datastore
@@ -1307,8 +1319,9 @@ class BatchRead:
 
         # merge old arrays to get new ones of chunksize
         output_arrs = self.client.map(_merge_constant_blocks, balanced_data)
+        time_arrs = self.client.gather(self.client.map(_return_xarray_time, output_arrs))
         del balanced_data
-        return output_arrs, chunksize, totallength
+        return output_arrs, time_arrs, chunksize, totallength
 
     def _batch_read_sequential_and_trim(self, chnks_flat: list):
         """
@@ -1504,14 +1517,11 @@ class BatchRead:
             output_pth = os.path.join(converted_pth, datatype + '_' + secid + '.zarr')
             opts[datatype]['final_attrs']['sector_identifier'] = secid
 
-        # build out the instructions for each worker, start/end/xarray object
-        data_locs = [[i * opts[datatype]['chunksize'], (i + 1) * opts[datatype]['chunksize']] for i in
-                     range(len(opts[datatype]['output_arrs']))]
         # correct for existing data if it exists in the zarr data store
-        data_locs = get_new_chunk_locations_zarr(output_pth, data_locs, self.chunksize_lkup[datatype])
+        data_locs, finalsize = get_write_indices_zarr(output_pth, opts[datatype]['time_arrs'])
         sync = DaskProcessSynchronizer(output_pth)
         fpths = distrib_zarr_write(output_pth, opts[datatype]['output_arrs'], opts[datatype]['final_attrs'],
-                                   opts[datatype]['chunks'], data_locs, sync, self.client)
+                                   opts[datatype]['chunks'], data_locs, finalsize, sync, self.client)
         fpth = fpths[0]  # Pick the first element, all are identical so it doesnt really matter
         return fpth
 
@@ -1561,7 +1571,7 @@ class BatchRead:
 
                 if datatype == 'ping':
                     combattrs['multibeam_files'] = fil_start_end_times  # override with start/end time dict
-                    combattrs['output_path'] = self.converted_pth  # override with start/end time dict
+                    combattrs['output_path'] = self.converted_pth
                     combattrs['_conversion_complete'] = datetime.utcnow().strftime('%c')
                     sectors = self.client.gather(self.client.map(_return_xarray_sectors, input_xarrs))
                     totalsecs = sorted(np.unique([s for secs in sectors for s in secs]))
@@ -1574,14 +1584,14 @@ class BatchRead:
                         if len(input_xarrs_by_sec) > 1:
                             # rebalance to get equal chunksize in time dimension (sector/beams are constant across)
                             input_xarrs_by_sec = self._batch_read_correct_block_boundaries(input_xarrs_by_sec)
-                        opts[datatype]['output_arrs'], opts[datatype]['chunksize'], totallen = self._batch_read_merge_blocks(input_xarrs_by_sec, datatype, opts[datatype]['chunksize'])
+                        opts[datatype]['output_arrs'], opts[datatype]['time_arrs'], opts[datatype]['chunksize'], totallen = self._batch_read_merge_blocks(input_xarrs_by_sec, datatype, opts[datatype]['chunksize'])
                         del input_xarrs_by_sec
                         finalpths[datatype].append(self._batch_read_write('zarr', datatype, opts, self.converted_pth, secid=sec))
                         del opts
                 else:
                     opts = batch_read_configure_options(self.ping_chunksize, self.nav_chunksize, self.att_chunksize)
                     opts[datatype]['final_attrs'] = combattrs
-                    opts[datatype]['output_arrs'], opts[datatype]['chunksize'], totallen = self._batch_read_merge_blocks(input_xarrs, datatype, opts[datatype]['chunksize'])
+                    opts[datatype]['output_arrs'], opts[datatype]['time_arrs'], opts[datatype]['chunksize'], totallen = self._batch_read_merge_blocks(input_xarrs, datatype, opts[datatype]['chunksize'])
                     del input_xarrs
                     finalpths[datatype].append(self._batch_read_write('zarr', datatype, opts, self.converted_pth))
                     del opts
