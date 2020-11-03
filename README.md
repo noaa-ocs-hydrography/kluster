@@ -1,6 +1,7 @@
 # kluster
 
 [![Build Status](https://travis-ci.com/noaa-ocs-hydrography/kluster.svg?branch=master)](https://travis-ci.com/noaa-ocs-hydrography/kluster)
+[![Documentation Status](https://readthedocs.org/projects/kluster/badge/?version=latest)](https://kluster.readthedocs.io/en/latest/?badge=latest)
 
 Documentation: [readthedocs](https://kluster.readthedocs.io/en/latest/) 
 
