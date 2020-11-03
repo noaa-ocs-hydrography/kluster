@@ -5,7 +5,7 @@ from time import perf_counter
 import xarray as xr
 import numpy as np
 import laspy
-from dask.distributed import wait
+from dask.distributed import wait, progress
 from pyproj import CRS
 
 from HSTB.kluster.orientation import distrib_run_build_orientation_vectors
@@ -1313,11 +1313,60 @@ class Fqpr:
         endtime = perf_counter()
         self.logger.info('****Interpolation complete: {}s****\n'.format(round(endtime - starttime, 1)))
 
-    def _validate_get_orientation_vectors(self):
+    def _validate_subset_time(self, subset_time: list, dump_data: bool):
+        """
+        Validation routine for the subset_time processing option.  A quirk of writing to zarr datastores, is we can't
+        just write the 50th element without writing the first 49 first.  So all our writes have to be checked to
+        make sure we don't leave a time gap when compared to the converted data.  This validation routine checks that.
+
+        Parameters
+        ----------
+        subset_time
+            List of unix timestamps in seconds, used as ranges for times that you want to process.
+        dump_data
+            if True dump the tx/rx vectors to the source_data datastore
+        """
+        if subset_time is not None and dump_data:
+            if isinstance(subset_time[0], list):
+                first_subset_time = subset_time[0][0]
+                last_subset_time = subset_time[-1][-1]
+            else:
+                first_subset_time = subset_time[0]
+                last_subset_time = subset_time[-1]
+            for ra in self.source_dat.raw_ping:
+                secid = ra.sector_identifier
+                # check to see if this sector is within the subset time
+                if np.logical_and(ra.time <= last_subset_time, ra.time >= first_subset_time).any():
+                    # nothing written to disk yet, first run has to include the first time
+                    if 'tx' not in list(ra.keys()):
+                        if first_subset_time > np.min(ra.time):
+                            msg = 'get_orientation_vectors: {}: If your first run of this function uses subset_time, it must include the first ping.'.format(secid)
+                            raise NotImplementedError(msg)
+                    # data written already, just make sure we aren't creating a gap
+                    else:
+                        try:
+                            last_written_time = ra.time[np.where(np.isnan(ra.tx.values))[0][0]]
+                        except IndexError:  # no NaNs, array is complete so we are all good here
+                            continue
+
+                        if first_subset_time > last_written_time:
+                            msg = 'get_orientation_vectors: {}: saved arrays must not have a time gap, subset_time must start at the last written time.'.format(secid)
+                            raise NotImplementedError(msg)
+
+    def _validate_get_orientation_vectors(self, subset_time: list, dump_data: bool):
         """
         Validation routine for running get_orientation_vectors.  Ensures you have all the data you need before kicking
         off the process
+
+        Parameters
+        ----------
+        subset_time
+            List of unix timestamps in seconds, used as ranges for times that you want to process.
+        dump_data
+            if True dump the tx/rx vectors to the source_data datastore
         """
+
+        self._validate_subset_time(subset_time, dump_data)
         req = 'traveltime'
         if req not in list(self.source_dat.raw_ping[0].keys()):
             err = 'get_orientation_vectors: unable to find {}'.format(req)
@@ -1329,11 +1378,19 @@ class Fqpr:
             self.logger.error(err)
             raise ValueError(err)
 
-    def _validate_get_beam_pointing_vectors(self):
+    def _validate_get_beam_pointing_vectors(self, subset_time: list, dump_data: bool):
         """
         Validation routine for running get_beam_pointing_vectors.  Ensures you have all the data you need before kicking
         off the process
+
+        Parameters
+        ----------
+        subset_time
+            List of unix timestamps in seconds, used as ranges for times that you want to process.
+        dump_data
+            if True dump the tx/rx vectors to the source_data datastore
         """
+        self._validate_subset_time(subset_time, dump_data)
 
         # first check to see if there is any data in memory.  If so, we just assume that you have the data you need.
         if self.intermediate_dat is not None:
@@ -1350,11 +1407,19 @@ class Fqpr:
                 self.logger.error(err)
                 raise ValueError(err)
 
-    def _validate_sv_correct(self):
+    def _validate_sv_correct(self, subset_time: list, dump_data: bool):
         """
         Validation routine for running sv_correct.  Ensures you have all the data you need before kicking
         off the process
+
+        Parameters
+        ----------
+        subset_time
+            List of unix timestamps in seconds, used as ranges for times that you want to process.
+        dump_data
+            if True dump the tx/rx vectors to the source_data datastore
         """
+        self._validate_subset_time(subset_time, dump_data)
 
         # first check to see if there is any data in memory.  If so, we just assume that you have the data you need.
         if self.intermediate_dat is not None:
@@ -1372,11 +1437,20 @@ class Fqpr:
                 self.logger.error(err)
                 raise ValueError(err)
 
-    def _validate_georef_xyz(self):
+    def _validate_georef_xyz(self, subset_time: list, dump_data: bool):
         """
         Validation routine for running georef_xyz.  Ensures you have all the data you need before kicking
         off the process
+
+        Parameters
+        ----------
+        subset_time
+            List of unix timestamps in seconds, used as ranges for times that you want to process.
+        dump_data
+            if True dump the tx/rx vectors to the source_data datastore
         """
+        self._validate_subset_time(subset_time, dump_data)
+
         if self.vert_ref is None:
             self.logger.error("georef_xyz: set_vertical_reference must be run before georef_xyz")
             raise ValueError('georef_xyz: set_vertical_reference must be run before georef_xyz')
@@ -1403,11 +1477,20 @@ class Fqpr:
                 self.logger.error(err)
                 raise ValueError(err)
 
-    def _validate_calculate_total_uncertainty(self):
+    def _validate_calculate_total_uncertainty(self, subset_time: list, dump_data: bool):
         """
         Validation routine for running calculate_total_uncertainty.  Ensures you have all the data you need before kicking
         off the process
+
+        Parameters
+        ----------
+        subset_time
+            List of unix timestamps in seconds, used as ranges for times that you want to process.
+        dump_data
+            if True dump the tx/rx vectors to the source_data datastore
         """
+
+        self._validate_subset_time(subset_time, dump_data)
 
         # no in memory workflow built just yet
 
@@ -1452,7 +1535,7 @@ class Fqpr:
             is not mandatory for processing, but useful for other kluster functions post processing.
         """
 
-        self._validate_get_orientation_vectors()
+        self._validate_get_orientation_vectors(subset_time, dump_data)
         if initial_interp:
             needs_interp = []
             if 'latitude' not in list(self.source_dat.raw_ping[0].keys()):
@@ -1481,7 +1564,7 @@ class Fqpr:
             pings_per_chunk, max_chunks_at_a_time = self.get_cluster_params(sec_ident)
 
             for applicable_index, timestmp, prefixes in sector:
-                self.logger.info('using installation params {}-{}'.format(sec_ident, timestmp))
+                self.logger.info('using installation params {}'.format(timestmp))
                 self.generate_starter_orientation_vectors(prefixes, timestmp)
                 twtt_by_idx = self.source_dat.select_array_from_rangeangle('traveltime', ra.sector_identifier).where(applicable_index, drop=True)
                 idx_by_chunk = self.return_chunk_indices(applicable_index, pings_per_chunk)
@@ -1524,7 +1607,7 @@ class Fqpr:
             if True remove the futures objects after data is dumped.
         """
 
-        self._validate_get_beam_pointing_vectors()
+        self._validate_get_beam_pointing_vectors(subset_time, dump_data)
         self.logger.info('****Building beam specific pointing vectors****\n')
         starttime = perf_counter()
         raw_hdng = self.source_dat.raw_att['heading']
@@ -1543,7 +1626,7 @@ class Fqpr:
             pings_per_chunk, max_chunks_at_a_time = self.get_cluster_params(sec_ident)
 
             for applicable_index, timestmp, prefixes in sector:
-                self.logger.info('using installation params {}-{}'.format(sec_ident, timestmp))
+                self.logger.info('using installation params {}'.format(timestmp))
                 tx_tstmp_idx = get_ping_times(ra.time, applicable_index)
                 idx_by_chunk = self.return_chunk_indices(applicable_index, pings_per_chunk)
                 if len(idx_by_chunk[0]):  # if there are pings in this sector that align with this installation parameter record
@@ -1589,7 +1672,7 @@ class Fqpr:
             if True remove the futures objects after data is dumped.
         """
 
-        self._validate_sv_correct()
+        self._validate_sv_correct(subset_time, dump_data)
         self.logger.info('****Correcting for sound velocity****\n')
         starttime = perf_counter()
 
@@ -1608,7 +1691,7 @@ class Fqpr:
             pings_per_chunk, max_chunks_at_a_time = self.get_cluster_params(sec_ident)
 
             for applicable_index, timestmp, prefixes in sector:
-                self.logger.info('using installation params {}-{}'.format(sec_ident, timestmp))
+                self.logger.info('using installation params {}'.format(timestmp))
                 idx_by_chunk = self.return_chunk_indices(applicable_index, pings_per_chunk)
                 if len(idx_by_chunk[0]):  # if there are pings in this sector that align with this installation parameter record
                     cast_objects = self.setup_casts_for_sec_by_index(s_cnt, applicable_index, prefixes, timestmp, add_cast_files)
@@ -1665,7 +1748,7 @@ class Fqpr:
             if True remove the futures objects after data is dumped.
         """
 
-        self._validate_georef_xyz()
+        self._validate_georef_xyz(subset_time, dump_data)
         self.logger.info('****Georeferencing sound velocity corrected beam offsets****\n')
         starttime = perf_counter()
 
@@ -1685,7 +1768,7 @@ class Fqpr:
             pings_per_chunk, max_chunks_at_a_time = self.get_cluster_params(sec_ident)
 
             for applicable_index, timestmp, prefixes in sector:
-                self.logger.info('using installation params {}'.format(sec_ident, timestmp))
+                self.logger.info('using installation params {}'.format(timestmp))
                 z_offset = float(self.source_dat.xyzrph[prefixes[0] + '_z'][timestmp])
                 idx_by_chunk = self.return_chunk_indices(applicable_index, pings_per_chunk)
                 if len(idx_by_chunk[0]):  # if there are pings in this sector that align with this installation parameter record
@@ -1725,7 +1808,7 @@ class Fqpr:
             if True remove the futures objects after data is dumped.
         """
 
-        self._validate_calculate_total_uncertainty()
+        self._validate_calculate_total_uncertainty(subset_time, dump_data)
         self.logger.info('****Calculating total uncertainty****\n')
         starttime = perf_counter()
 
@@ -1743,7 +1826,7 @@ class Fqpr:
             pings_per_chunk, max_chunks_at_a_time = self.get_cluster_params(sec_ident)
 
             for applicable_index, timestmp, prefixes in sector:
-                self.logger.info('using installation params {}'.format(sec_ident, timestmp))
+                self.logger.info('using installation params {}'.format(timestmp))
                 idx_by_chunk = self.return_chunk_indices(applicable_index, pings_per_chunk)
                 if len(idx_by_chunk[0]):  # if there are pings in this sector that align with this installation parameter record
                     data_for_workers = self._generate_chunks_tpu(ra, idx_by_chunk, applicable_index)
@@ -2033,6 +2116,7 @@ class Fqpr:
                 start_r = rn * max_chunks_at_a_time
                 end_r = min(start_r + max_chunks_at_a_time, len(data_for_workers))  # clamp for last run
                 futs = self.client.map(kluster_function, data_for_workers[start_r:end_r])
+                progress(futs)
                 endtimes = [len(c) for c in idx_by_chunk[start_r:end_r]]
                 futs_with_endtime = [[f, endtimes[cnt]] for cnt, f in enumerate(futs)]
                 futures_repo.extend(futs_with_endtime)
@@ -2134,7 +2218,7 @@ class Fqpr:
 
         sectors = self.source_dat.return_sector_time_indexed_array()
         for s_cnt, sector in enumerate(sectors):  # for each sector
-            if only_sec_idx is not None:
+            if only_sec_idx is not None:  # isolate just one sector
                 if s_cnt != only_sec_idx:
                     continue
             ra = self.source_dat.raw_ping[s_cnt]

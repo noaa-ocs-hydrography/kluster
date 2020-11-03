@@ -1,6 +1,6 @@
 import os
 from glob import glob
-from dask.distributed import Client, Future
+from dask.distributed import Client, Future, progress
 import matplotlib.pyplot as plt
 import webbrowser
 from time import perf_counter
@@ -1342,6 +1342,7 @@ class BatchRead:
 
         # recfutures is a list of futures representing dicts from sequential read
         recfutures = self.client.map(_run_sequential_read, chnks_flat)
+        progress(recfutures)
         maxnums = self.client.map(_sequential_gather_max_beams, recfutures)
         maxnum = np.max(self.client.gather(maxnums))
         newrecfutures = self.client.map(_sequential_trim_to_max_beam_number, recfutures, [maxnum] * len(recfutures))
@@ -1560,6 +1561,7 @@ class BatchRead:
 
             # xarrfutures is a list of futures representing xarray structures for each file chunk
             xarrfutures = self.client.map(_sequential_to_xarray, newrecfutures)
+            progress(xarrfutures)
             del newrecfutures
 
             finalpths = {'ping': [], 'attitude': [], 'navigation': []}
