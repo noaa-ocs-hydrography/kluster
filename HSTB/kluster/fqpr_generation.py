@@ -116,11 +116,11 @@ class Fqpr:
 
         if 'vertical_reference' in self.source_dat.raw_ping[0].attrs:
             if vert_ref != self.source_dat.raw_ping[0].vertical_reference:
-                self.logger.warning('Setting vertical reference to {} when existing vertical reference is {}')
+                self.logger.warning('Setting vertical reference to {} when existing vertical reference is {}'.format(vert_ref, self.source_dat.raw_ping[0].vertical_reference))
                 self.logger.warning('You will need to georeference and calculate total uncertainty again')
         if vert_ref not in ['ellipse', 'waterline']:
-            self.logger.error("Unable to set vertical reference to {}: expected one of ['ellipse', 'waterline']")
-            raise ValueError("Unable to set vertical reference to {}: expected one of ['ellipse', 'waterline']")
+            self.logger.error("Unable to set vertical reference to {}: expected one of ['ellipse', 'waterline']".format(vert_ref))
+            raise ValueError("Unable to set vertical reference to {}: expected one of ['ellipse', 'waterline']".format(vert_ref))
         self.vert_ref = vert_ref
 
     def read_from_source(self):
@@ -184,6 +184,7 @@ class Fqpr:
             vertical reference for the survey, one of ['ellipse', 'waterline']
         """
 
+        datum = datum.upper()
         if epsg is not None:
             self.xyz_crs = CRS.from_epsg(int(epsg))
         elif epsg is None and not projected:
@@ -973,17 +974,12 @@ class Fqpr:
         tx_tstmp_idx = get_ping_times(ra.time, applicable_index)
         self.logger.info('preparing to process {} pings'.format(len(tx_tstmp_idx)))
 
-        if self.ppnav_dat is None:
-            self.logger.error('_generate_chunks_tpu: postprocessed navigation error must exist for calculate tpu to work')
+        if 'qualityfactor' not in self.source_dat.raw_ping[0]:
+            self.logger.error("_generate_chunks_tpu: sonar uncertainty ('qualityfactor') must exist to calculate uncertainty")
             return None
-        elif 'north_position_error' not in self.ppnav_dat:
-            self.logger.error('_generate_chunks_tpu: postprocessed navigation does not contain error arrays')
-            return None
+        if self.ppnav_dat is not None:
+            ppnav = interp_across_chunks(self.ppnav_dat, tx_tstmp_idx + latency, daskclient=self.client)
 
-        if self.vert_ref == 'waterline':
-            self.vert_ref = 'tidal'  # change the vert ref identifier to the string that tpu is expecting
-
-        ppnav = interp_across_chunks(self.ppnav_dat, tx_tstmp_idx + latency, daskclient=self.client)
         roll = interp_across_chunks(self.source_dat.raw_att['roll'], tx_tstmp_idx + latency, daskclient=self.client)
 
         corr_point = self.source_dat.select_array_from_rangeangle('corr_pointing_angle', ra.sector_identifier).where(applicable_index, drop=True)
@@ -1017,12 +1013,20 @@ class Fqpr:
                 fut_depthoffset = self.client.scatter(depthoffset[chnk])
                 fut_soundspeed = self.client.scatter(soundspeed[chnk])
                 fut_qualityfactor = self.client.scatter(qf[chnk])
-                fut_npe = self.client.scatter(ppnav.north_position_error.where(ppnav.north_position_error['time'] == chnk.time, drop=True))
-                fut_epe = self.client.scatter(ppnav.east_position_error.where(ppnav.east_position_error['time'] == chnk.time, drop=True))
-                fut_dpe = self.client.scatter(ppnav.down_position_error.where(ppnav.down_position_error['time'] == chnk.time, drop=True))
-                fut_rpe = self.client.scatter(ppnav.roll_error.where(ppnav.roll_error['time'] == chnk.time, drop=True))
-                fut_ppe = self.client.scatter(ppnav.pitch_error.where(ppnav.pitch_error['time'] == chnk.time, drop=True))
-                fut_hpe = self.client.scatter(ppnav.heading_error.where(ppnav.heading_error['time'] == chnk.time, drop=True))
+                try:  # pospac uncertainty available
+                    fut_npe = self.client.scatter(ppnav.north_position_error.where(ppnav.north_position_error['time'] == chnk.time, drop=True))
+                    fut_epe = self.client.scatter(ppnav.east_position_error.where(ppnav.east_position_error['time'] == chnk.time, drop=True))
+                    fut_dpe = self.client.scatter(ppnav.down_position_error.where(ppnav.down_position_error['time'] == chnk.time, drop=True))
+                    fut_rpe = self.client.scatter(ppnav.roll_error.where(ppnav.roll_error['time'] == chnk.time, drop=True))
+                    fut_ppe = self.client.scatter(ppnav.pitch_error.where(ppnav.pitch_error['time'] == chnk.time, drop=True))
+                    fut_hpe = self.client.scatter(ppnav.heading_error.where(ppnav.heading_error['time'] == chnk.time, drop=True))
+                except:  # rely on static values
+                    fut_npe = None
+                    fut_epe = None
+                    fut_dpe = None
+                    fut_rpe = None
+                    fut_ppe = None
+                    fut_hpe = None
             except:  # client is not setup, run locally
                 fut_roll = roll.where(roll['time'] == chnk.time, drop=True)
                 fut_corr_point = corr_point[chnk]
@@ -1031,24 +1035,33 @@ class Fqpr:
                 fut_depthoffset = depthoffset[chnk]
                 fut_soundspeed = soundspeed[chnk]
                 fut_qualityfactor = qf[chnk]
-                fut_npe = ppnav.north_position_error.where(ppnav.north_position_error['time'] == chnk.time, drop=True)
-                fut_epe = ppnav.east_position_error.where(ppnav.east_position_error['time'] == chnk.time, drop=True)
-                fut_dpe = ppnav.down_position_error.where(ppnav.down_position_error['time'] == chnk.time, drop=True)
-                fut_rpe = ppnav.roll_error.where(ppnav.roll_error['time'] == chnk.time, drop=True)
-                fut_ppe = ppnav.pitch_error.where(ppnav.pitch_error['time'] == chnk.time, drop=True)
-                fut_hpe = ppnav.heading_error.where(ppnav.heading_error['time'] == chnk.time, drop=True)
+                try:  # pospac uncertainty available
+                    fut_npe = ppnav.north_position_error.where(ppnav.north_position_error['time'] == chnk.time, drop=True)
+                    fut_epe = ppnav.east_position_error.where(ppnav.east_position_error['time'] == chnk.time, drop=True)
+                    fut_dpe = ppnav.down_position_error.where(ppnav.down_position_error['time'] == chnk.time, drop=True)
+                    fut_rpe = ppnav.roll_error.where(ppnav.roll_error['time'] == chnk.time, drop=True)
+                    fut_ppe = ppnav.pitch_error.where(ppnav.pitch_error['time'] == chnk.time, drop=True)
+                    fut_hpe = ppnav.heading_error.where(ppnav.heading_error['time'] == chnk.time, drop=True)
+                except:  # rely on static values
+                    fut_npe = None
+                    fut_epe = None
+                    fut_dpe = None
+                    fut_rpe = None
+                    fut_ppe = None
+                    fut_hpe = None
 
             data_for_workers.append([fut_roll, fut_raw_point, fut_corr_point, fut_acrosstrack, fut_depthoffset, fut_soundspeed,
                                      self.source_dat.tpu_parameters, fut_qualityfactor, fut_npe, fut_epe, fut_dpe,
                                      fut_rpe, fut_ppe, fut_hpe, qf_type, self.vert_ref, image_generation[cnt]])
         return data_for_workers
 
-    def _generate_chunks_xyzdat(self, variable_name: str, finallength: int, var_dtype: np.dtype,
-                                add_idx_vars: bool = True, s_index: list = None):
+    def _generate_chunks_xyzdat_old(self, variable_name: str, finallength: int, var_dtype: np.dtype,
+                                    add_idx_vars: bool = True, s_index: list = None):
         """
-        Merge the desired vars across sectors to reform pings, and build the data for the distributed system to process.
-        Export_xyzdat requires a full dataset flattened to a 'soundings' dimension but retaining the sectorwise
-        indexing.
+        Flatten and chunk the non-NaN values for each sector.  Currently an issue with beam number, beam number saved
+        this way is from zero for each sector.
+
+        DEPRECATED: See the new _generate_chunks_xyzdat
 
         Parameters
         ----------
@@ -1116,7 +1129,7 @@ class Fqpr:
         chnksize = np.min([finallength, 1000000])
         chnks = [[i * chnksize, i * chnksize + chnksize] for i in range(int(finallength / chnksize))]
         chnks[-1][1] = len(vals)
-        chnksize_dict = {'sounding': (1000000,), 'beam_idx': (1000000,), 'detectioninfo': (1000000,),
+        chnksize_dict = {'sounding': (1000000,), 'beam_idx': (1000000,), 'thu': (1000000,),
                          'sector_idx': (1000000,), 'time_idx': (1000000,), 'tvu': (1000000,), 'x': (1000000,),
                          'y': (1000000,), 'z': (1000000,)}
         for c in chnks:
@@ -1127,6 +1140,64 @@ class Fqpr:
                 vrs['sector_idx'] = (['sounding'], sec_ids[c[0]:c[1]].astype(np.uint8))
                 vrs['beam_idx'] = (['sounding'], bms[c[0]:c[1]].astype(np.uint16))
             ds = xr.Dataset(data_vars=vrs)
+            data_for_workers.append(self.client.scatter(ds))
+
+        return data_for_workers, chnks, chnksize_dict
+
+    def _generate_chunks_xyzdat(self, variable_name: str):
+        """
+        Merge the desired vars across sectors to reform pings, and build the data for the distributed system to process.
+        Export_xyzdat requires a full dataset flattened to a 'soundings' dimension but retaining the sectorwise
+        indexing.
+
+        Parameters
+        ----------
+        variable_name
+            variable identifier for the array to write.  ex: 'z' or 'tvu'
+
+        Returns
+        -------
+        list
+            each element is a future object pointing to a dataset to write out in memory
+        list
+            chunk indices for each chunk
+        dict
+            chunk sizes for the write, zarr wants explicit chunksizes for each array that cannot change after array
+            creation.  chunk sizes can be greater than data size.
+        """
+
+        if variable_name not in self.source_dat.raw_ping[0]:
+            self.logger.warning('Skipping variable "{}", not found in dataset.'.format(variable_name))
+            return None, None, None
+        self.logger.info('Constructing dataset for variable "{}"'.format(variable_name))
+
+        # use the raw_ping chunksize to chunk the reformed pings.
+        data_for_workers = []
+        unique_times_across_sectors = self.return_unique_times_across_sectors()
+        var_data, sectors, tims = self.reform_2d_vars_across_sectors_at_time([variable_name], unique_times_across_sectors)
+
+        # flatten to get the 1d sounding data
+        tims = np.tile(np.expand_dims(tims, 1), (1, var_data.shape[2])).ravel()
+        beams = np.tile(np.arange(0, var_data.shape[2], 1), (var_data.shape[1], 1)).ravel().astype(np.uint16)
+        counter = np.repeat(np.arange(0, var_data.shape[1], 1)[:, np.newaxis], var_data.shape[2], axis=1).ravel().astype(np.uint32)
+        var_data = var_data.ravel()
+        sectors = sectors.ravel()
+
+        finallength = len(var_data)
+
+        # 1000000 soundings gets you about 1MB chunks, which is what zarr recommends
+        chnksize = np.min([finallength, 1000000])
+        chnks = [[i * chnksize, i * chnksize + chnksize] for i in range(int(finallength / chnksize))]
+        chnks[-1][1] = finallength
+        chnksize_dict = {'beam_number': (1000000,), 'sector': (1000000,), 'time': (1000000,), 'ping_counter': (1000000,),
+                         'thu': (1000000,), 'tvu': (1000000,), 'x': (1000000,), 'y': (1000000,), 'z': (1000000,)}
+        dtype_dict = {'x': np.float64, 'y': np.float64, 'z': np.float32, 'tvu': np.float32, 'thu': np.float32}
+
+        for c in chnks:
+            vrs = {variable_name: (['time'], var_data[c[0]:c[1]].astype(dtype_dict[variable_name]))}
+            coords = {'beam_number': (['time'], beams[c[0]:c[1]]), 'time': tims[c[0]:c[1]],
+                      'sector': (['time'], sectors[c[0]:c[1]]), 'ping_counter': (['time'], counter[c[0]:c[1]])}
+            ds = xr.Dataset(vrs, coords)
             data_for_workers.append(self.client.scatter(ds))
 
         return data_for_workers, chnks, chnksize_dict
@@ -1995,7 +2066,7 @@ class Fqpr:
         self.logger.info('****Exporting xyz data to {} complete: {}s****\n'.format(file_format,
                                                                                    round(endtime - starttime, 1)))
 
-    def export_pings_to_dataset(self, outfold: str = None, validate: bool = False):
+    def _export_pings_to_dataset_old(self, outfold: str = None, validate: bool = False):
         """
         Write out data variable by variable to the final sounding data store.  First write will write out the useful
         indexes as well (time, sector, etc.).  Requires existence of georeferenced soundings to perform this function.
@@ -2003,6 +2074,10 @@ class Fqpr:
         We no longer reform pings from the sector datasets, we just write them out sector by sector.  This means that
         the sounding set is not necessarily organized geographically or in time order.  I don't think this matters,
         but i'll leave this here in case future me wants to embarass past me.
+
+        Future me: this causes the beams that are indexed from 0 to max beam for each SECTOR to be included as is in the
+        dataset.  We want beams indexed from 0 to max beam for each PING.  which means we need to reform the pings to
+        get the actual beam number.  Which leads to the new export_pings_to_dataset method.  This is outdated.
 
         Parameters
         ----------
@@ -2024,13 +2099,12 @@ class Fqpr:
             outfold = os.path.join(self.source_dat.converted_pth, 'soundings.zarr')
         if os.path.exists(outfold):
             self.logger.error('export_pings_to_dataset: dataset exists already ({}), please remove and run'.format(outfold))
-            raise NotImplementedError('Appending/overwriting not currently supported with soundings dataset, no way to '
-                                      'match new data to old data for unstructured points')
+            raise NotImplementedError('export_pings_to_dataset: dataset exists already ({}), please remove and run'.format(outfold))
 
         sync = DaskProcessSynchronizer(outfold)
 
-        vars_of_interest = ('x', 'y', 'z', 'tvu', 'detectioninfo')
-        dtype_of_interest = (np.float32, np.float32, np.float32, np.float32, np.uint8)
+        vars_of_interest = ('x', 'y', 'z', 'tvu', 'thu')
+        dtype_of_interest = (np.float32, np.float32, np.float32, np.float32, np.float32)
 
         finallength = self.return_sounding_count()
 
@@ -2038,8 +2112,7 @@ class Fqpr:
         #    sense of our new indexes seems good.
         exist_attrs = self.source_dat.raw_ping[0].attrs.copy()
         secs = self.return_sector_ids()
-        exist_attrs['serial_number_identifier'] = [int(self.parse_sect_info_from_identifier(f)['serial_number']) for f
-                                                   in secs]
+        exist_attrs['serial_number_identifier'] = [int(self.parse_sect_info_from_identifier(f)['serial_number']) for f in secs]
         exist_attrs['frequency_identifier'] = [int(self.parse_sect_info_from_identifier(f)['frequency']) for f in secs]
         exist_attrs['sector_identifier'] = [int(self.parse_sect_info_from_identifier(f)['sector']) for f in secs]
         exist_attrs['xyzdat_export_time'] = datetime.utcnow().strftime('%c')
@@ -2067,7 +2140,7 @@ class Fqpr:
             if v == 'detectioninfo':
                 s_index = sounding_index
 
-            data_for_workers, write_chnk_idxs, chunk_sizes = self._generate_chunks_xyzdat(v, finallength,
+            data_for_workers, write_chnk_idxs, chunk_sizes = self._generate_chunks_xyzdat_old(v, finallength,
                                                                                           dtype_of_interest[cnt],
                                                                                           add_idx_vars=add_idx_vars,
                                                                                           s_index=s_index)
@@ -2078,9 +2151,78 @@ class Fqpr:
         self.soundings_path = outfold
         self.reload_soundings_records()
 
-        if validate:
+        if validate:  # ensure the sounding count matches
             pre_soundings_count = np.sum([np.count_nonzero(~np.isnan(f.x)) for f in self.source_dat.raw_ping])
             post_soundings_count = self.soundings.sounding.shape[0]
+            assert pre_soundings_count == post_soundings_count
+            self.logger.info('export_pings_to_dataset validated successfully')
+
+        endtime = perf_counter()
+        self.logger.info('****Exporting xyz data to dataset complete: {}s****\n'.format(round(endtime - starttime, 1)))
+
+    def export_pings_to_dataset(self, outfold: str = None, validate: bool = False):
+        """
+        Write out data variable by variable to the final sounding data store.  Requires existence of georeferenced
+        soundings to perform this function.
+
+        Use reform_2d_vars_across_sectors_at_time to build the arrays before exporting.  Only necessary to attain
+        the actual beam number of each sounding.  This is the difference between this method and the original.
+
+        Parameters
+        ----------
+        outfold
+            destination directory for the xyz exports
+        validate
+            if True will use assert statement to verify that the number of soundings between pre and post exported
+            data is equal
+        """
+
+        self.logger.info('\n****Exporting xyz data to dataset****')
+        starttime = perf_counter()
+
+        if 'x' not in self.source_dat.raw_ping[0]:
+            self.logger.error('No xyz data found')
+            return
+
+        if outfold is None:
+            outfold = os.path.join(self.source_dat.converted_pth, 'soundings.zarr')
+        if os.path.exists(outfold):
+            self.logger.error(
+                'export_pings_to_dataset: dataset exists already ({}), please remove and run'.format(outfold))
+            raise NotImplementedError(
+                'export_pings_to_dataset: dataset exists already ({}), please remove and run'.format(outfold))
+
+        sync = DaskProcessSynchronizer(outfold)
+
+        vars_of_interest = ('x', 'y', 'z', 'tvu', 'thu')
+
+        # build the attributes we want in the final array.  Everything from the raw_ping plus what we need to make
+        #    sense of our new indexes seems good.
+        exist_attrs = self.source_dat.raw_ping[0].attrs.copy()
+        secs = self.return_sector_ids()
+        exist_attrs['serial_number_identifier'] = [int(self.parse_sect_info_from_identifier(f)['serial_number']) for f in secs]
+        exist_attrs['frequency_identifier'] = [int(self.parse_sect_info_from_identifier(f)['frequency']) for f in secs]
+        exist_attrs['sector_identifier'] = [int(self.parse_sect_info_from_identifier(f)['sector']) for f in secs]
+        exist_attrs['xyzdat_export_time'] = datetime.utcnow().strftime('%c')
+
+        for cnt, v in enumerate(vars_of_interest):
+            merge = False
+            if cnt != 0:
+                # after the first write where we create the dataset, we need to flag subsequent writes as merge
+                merge = True
+
+            data_for_workers, write_chnk_idxs, chunk_sizes = self._generate_chunks_xyzdat(v)
+            if data_for_workers is not None:
+                final_size = write_chnk_idxs[-1][-1]
+                fpths = distrib_zarr_write(outfold, data_for_workers, exist_attrs, chunk_sizes, write_chnk_idxs,
+                                           final_size, sync, self.client, append_dim='time', merge=merge)
+        self.soundings_path = outfold
+        self.reload_soundings_records()
+
+        if validate:
+            # ensure the sounding count matches
+            pre_soundings_count = np.sum([np.count_nonzero(~np.isnan(f.x)) for f in self.source_dat.raw_ping])
+            post_soundings_count = self.soundings.time.shape[0]
             assert pre_soundings_count == post_soundings_count
             self.logger.info('export_pings_to_dataset validated successfully')
 
@@ -2403,7 +2545,7 @@ class Fqpr:
         return total_pings
 
     def _reform_build_pings(self, total_pings: int, secs: list, ping_counters: np.array, variable_selection: list,
-                            max_possible_beams: int = 3000):
+                            max_possible_beams: int = 3000, min_time: float = None, max_time: float = None):
         """
         Admittedly kind of a messy way to reform pings from the split up sector Dataset.  We use the ping counter and
         time of ping to do this.  Find all the beams associated with the counter/time and toss them into an array, that
@@ -2423,6 +2565,10 @@ class Fqpr:
         max_possible_beams
             some arbitrarily large number of beams to ensure that you capture all beams + NaNs for empty beams in
             square sector arrays
+        min_time
+            limit accessible pings by minimum time
+        max_time
+            limit accessible pings by maximum time
 
         Returns
         -------
@@ -2437,7 +2583,7 @@ class Fqpr:
         # 2000, an arbitrarily large number to hold all possible beams plus NaNs
         #    these arrays are where we are going to put all the different sectors for each ping counter
         out = np.full((len(variable_selection), total_pings, max_possible_beams), np.nan)
-        out_sec = np.empty((1, total_pings, max_possible_beams))
+        out_sec = np.empty((1, total_pings, max_possible_beams), dtype=np.uint16)
         out_tms = np.full((1, total_pings, len(secs)), np.nan)
 
         # make the second dim long enough for duplicate ping counters in dual head
@@ -2450,6 +2596,10 @@ class Fqpr:
         for s_cnt, sec in enumerate(secs):
             # counter_idxs is the ping counter index for where this sector is active
             counter_times = self.source_dat.return_active_sectors_for_ping_counter(s_cnt, ping_counters)
+            if min_time is not None:
+                counter_times[counter_times < min_time] = 0.0
+            if max_time is not None:
+                counter_times[counter_times > max_time] = 0.0
             counter_idxs = np.array(np.where(counter_times != 0)).ravel()
 
             if np.any(counter_times):
@@ -2546,12 +2696,18 @@ class Fqpr:
         self.source_dat.correct_for_counter_reset()
         ping_counters = self.source_dat.return_ping_counters_at_time(ping_times)
         secs = self.return_sector_ids()
-        total_pings = self.return_total_pings(only_these_counters=ping_counters)
+        if isinstance(ping_times, float):
+            min_time, max_time = ping_times, ping_times
+        else:
+            min_time, max_time = ping_times[0], ping_times[-1]
+
+        total_pings = self.return_total_pings(only_these_counters=ping_counters, min_time=min_time, max_time=max_time)
 
         # after merging sectors, shape of final array should be as follows
         expected_shape = (len(variable_selection), int(total_pings), maxbeamnumber)
         expected_sec_shape = (1, int(total_pings), maxbeamnumber)
-        out, out_tms, out_sec = self._reform_build_pings(total_pings, secs, ping_counters, variable_selection)
+        out, out_tms, out_sec = self._reform_build_pings(total_pings, secs, ping_counters, variable_selection,
+                                                         min_time=min_time, max_time=max_time)
 
         # reform pings using the expected shape
         if np.any(out):
@@ -2612,6 +2768,10 @@ class Fqpr:
         self.source_dat.correct_for_counter_reset()
         ping_counters = self.source_dat.return_ping_counters_at_time(ping_times)
         secs = self.return_sector_ids()
+        if isinstance(ping_times, float):
+            min_time, max_time = ping_times, ping_times
+        else:
+            min_time, max_time = ping_times[0], ping_times[-1]
         total_pings = self.return_total_pings(only_these_counters=ping_counters)
 
         if serial_number is not None:
@@ -2628,6 +2788,8 @@ class Fqpr:
 
         for s_cnt, sec in enumerate(secs):
             counter_times = self.source_dat.return_active_sectors_for_ping_counter(s_cnt, ping_counters)
+            counter_times[counter_times < min_time] = 0.0
+            counter_times[counter_times > max_time] = 0.0
             counter_idxs = np.array(np.where(counter_times != 0)).ravel()
             if np.any(counter_times):
                 time_idx = counter_times[counter_times != 0]

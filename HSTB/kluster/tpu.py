@@ -85,7 +85,7 @@ def calculate_tpu(roll: Union[xr.DataArray, np.array], raw_beam_angles: Union[xr
     qf_type
         whether or not the provided quality factor is Ifremer ('ifremer') or Kongsberg std dev ('kongsberg')
     vert_ref
-        vertical reference of the survey, one of 'ellipse' or 'tidal'
+        vertical reference of the survey, one of 'ellipse' or 'tidal' or 'waterline'
     tpu_image
         either False to generate no image, or True to generate and show an image, or a string path if the image is to
         be saved directly to file
@@ -153,7 +153,8 @@ class Tpu:
         self.separation_model = 0.1  # 1 sigma standard deivation in the sep model (tidal, ellipsoidal, etc) (meters)
         self.waterline = 0.02  # 1 sigma standard deviation of the waterline (meters)
         self.vessel_speed = 0.1  # 1 sigma standard deviation of the vessel speed (meters/second)
-        self.horizontal_positioning = 5  # 1 sigma standard deviation of the horizontal positioning (meters)
+        self.horizontal_positioning = 1.5  # 1 sigma standard deviation of the horizontal positioning (meters)
+        self.vertical_positioning = 0.8  # 1 sigma standard deviation of the horizontal positioning (meters)
 
         # vectors from sensors necessary for computation
         self.kongsberg_quality_factor = None
@@ -284,9 +285,12 @@ class Tpu:
         self.north_position_error = north_position_error
         self.east_position_error = east_position_error
         self.down_position_error = down_position_error
-        self.sbet_roll_error = np.deg2rad(roll_error)
-        self.sbet_pitch_error = np.deg2rad(pitch_error)
-        self.sbet_heading_error = np.deg2rad(heading_error)
+        if self.sbet_roll_error is not None:
+            self.sbet_roll_error = np.deg2rad(roll_error)
+        if self.sbet_pitch_error is not None:
+            self.sbet_pitch_error = np.deg2rad(pitch_error)
+        if self.sbet_heading_error is not None:
+            self.sbet_heading_error = np.deg2rad(heading_error)
 
     def generate_total_uncertainties(self, vert_ref: str = 'ellipse', sigma: int = 2):
         """
@@ -326,8 +330,8 @@ class Tpu:
         If the class plot_tpu is enabled, generate these plots along with the calculated values
         """
 
-        horiz_components = ['distance_rms', 'antenna_lever_arm', 'sounder_horizontal', 'total_horizontal_uncertainty']
-        vert_components = ['sounder_vertical', 'roll', 'refraction', 'sbet_down', 'separation_model', 'heave',
+        horiz_components = ['distance_rms', 'sounder_horizontal', 'total_horizontal_uncertainty']
+        vert_components = ['sounder_vertical', 'roll', 'refraction', 'down_position', 'separation_model', 'heave',
                            'dynamic_draft', 'waterline', 'total_vertical_uncertainty']
         drive_plots_to_file = isinstance(self.plot_tpu, str)
 
@@ -340,7 +344,7 @@ class Tpu:
                 horiz_fname = os.path.join(os.path.splitext(self.plot_tpu)[0] + '_horizontal.png')
                 vert_fname = os.path.join(os.path.splitext(self.plot_tpu)[0] + '_vertical.png')
 
-        horiz_figure = plt.figure()
+        horiz_figure = plt.figure(figsize=(12, 9))
         plt.title('horizontal_uncertainty (1sigma)')
         plt.ylabel('meters')
         plt.xlabel('ping')
@@ -351,7 +355,7 @@ class Tpu:
         if drive_plots_to_file:
             plt.savefig(horiz_fname)
 
-        vert_figure = plt.figure()
+        vert_figure = plt.figure(figsize=(12, 9))
         plt.ylabel('meters')
         plt.xlabel('ping')
         plt.title('vertical_uncertainty (1sigma)')
@@ -381,7 +385,8 @@ class Tpu:
         A lazy interpretation of the heave error equation in Hare's paper.  With our surveys being ERS mainly, this
         probably won't see much use.
         """
-        return self.heave ** 2
+        hve = np.full((self.acrosstrack_offset.shape[0], 1), self.heave, dtype=np.float32)
+        return hve ** 2
 
     def _calculate_refraction_variance(self):
         """
@@ -398,16 +403,30 @@ class Tpu:
         """
         Calculate the distance variance, the radial positioning error related to positioning system
         """
-        return (self.north_position_error ** 2) + (self.east_position_error ** 2)
+        if self.north_position_error is not None and self.east_position_error is not None:
+            xy = (self.north_position_error ** 2) + (self.east_position_error ** 2)
+        else:
+            xy = (self.horizontal_positioning ** 2) + (self.horizontal_positioning ** 2)
+        return xy
 
     def _calculate_antenna_to_transducer_variance(self):
         """
         Determine the horizontal error related to the antenna transducer lever arm
         """
 
-        xy = (self.north_position_error ** 2) + (self.east_position_error ** 2)
-        heading = (self.tx_to_antenna_x ** 2 + self.tx_to_antenna_y ** 2) * self.heading_sensor_error
-        rollpitch = (self.roll_sensor_error ** 2 + self.pitch_sensor_error ** 2) * self.tx_to_antenna_z
+        if self.north_position_error is not None and self.east_position_error is not None:
+            xy = (self.north_position_error ** 2) + (self.east_position_error ** 2)
+        else:
+            xy = (self.horizontal_positioning ** 2) + (self.horizontal_positioning ** 2)
+        if self.sbet_heading_error is not None:
+            heading = (self.tx_to_antenna_x ** 2 + self.tx_to_antenna_y ** 2) * self.sbet_heading_error
+        else:
+            heading = (self.tx_to_antenna_x ** 2 + self.tx_to_antenna_y ** 2) * self.heading_sensor_error
+        if self.sbet_pitch_error is not None:
+            rollpitch = (self.roll_sensor_error ** 2 + self.sbet_pitch_error ** 2) * self.tx_to_antenna_z
+        else:
+            rollpitch = (self.roll_sensor_error ** 2 + self.pitch_sensor_error ** 2) * self.tx_to_antenna_z
+
         return xy + heading + rollpitch
 
     def _calculate_total_depth_uncertainty(self, vert_ref, v_unc):
@@ -417,10 +436,10 @@ class Tpu:
 
         if vert_ref == 'ellipse':
             dpth_unc = self._total_depth_unc_ref_ellipse(v_unc)
-        elif vert_ref == 'tidal':
+        elif vert_ref in ['tidal', 'waterline']:
             dpth_unc = self._total_depth_unc_ref_waterlevels(v_unc)
         else:
-            raise NotImplementedError('tpu: vert_ref must be one of "ellipse", "tidal".  found: {}'.format(vert_ref))
+            raise NotImplementedError('tpu: vert_ref must be one of "ellipse", "tidal", "waterline".  found: {}'.format(vert_ref))
         return dpth_unc
 
     def _calculate_total_horizontal_uncertainty(self, h_unc):
@@ -429,14 +448,15 @@ class Tpu:
         """
 
         d_var = self._calculate_distance_variance()
-        leverarm_var = self._calculate_antenna_to_transducer_variance()
+        # leverarm_var = self._calculate_antenna_to_transducer_variance()
+        if isinstance(d_var, float):
+            d_var = np.full((h_unc.shape[0], 1), d_var, dtype=np.float32)
 
         if self.plot_tpu:
             self.plot_components['distance_rms'] = d_var ** 0.5
-            self.plot_components['antenna_lever_arm'] = leverarm_var ** 0.5
-        if self.north_position_error is None or self.east_position_error is None:
-            raise ValueError('tpu: you must provide horizontal positioning error to calculate ellipsoidally referenced depth error')
-        return (h_unc ** 2 + d_var + leverarm_var) ** 0.5
+            # self.plot_components['antenna_lever_arm'] = leverarm_var ** 0.5
+        # return (h_unc ** 2 + d_var + leverarm_var) ** 0.5
+        return (h_unc ** 2 + d_var) ** 0.5
 
     def _calculate_sonar_uncertainty(self):
         """
@@ -471,17 +491,20 @@ class Tpu:
         if self.plot_tpu:
             self.plot_components['roll'] = np.nanmedian(r_var, axis=1) ** 0.5
             self.plot_components['refraction'] = np.nanmedian(refract_var, axis=1) ** 0.5
-        if vert_ref == 'tidal':
+        if vert_ref in ['tidal', 'waterline']:
             hve_var = self._calculate_heave_variance()
             self.plot_components['heave'] = hve_var ** 0.5
-            sbet_down = 0
+            downpos = 0
         elif vert_ref == 'ellipse':
-            sbet_down = self.down_position_error ** 2
-            self.plot_components['sbet_down'] = sbet_down ** 0.5
+            if self.down_position_error is not None:
+                downpos = self.down_position_error ** 2
+            else:
+                downpos = self.vertical_positioning ** 2
+            self.plot_components['down_position'] = downpos ** 0.5
             hve_var = 0
         else:
-            raise NotImplementedError('tpu: vert_ref must be one of "ellipse", "tidal".  found: {}'.format(vert_ref))
-        return (v_unc ** 2 + r_var + hve_var + sbet_down + refract_var) ** 0.5
+            raise NotImplementedError('tpu: vert_ref must be one of "ellipse", "tidal", "waterline".  found: {}'.format(vert_ref))
+        return (v_unc ** 2 + r_var + hve_var + downpos + refract_var) ** 0.5
 
     def _total_depth_unc_ref_waterlevels(self, v_unc):
         """

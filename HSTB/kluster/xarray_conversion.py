@@ -1752,13 +1752,42 @@ class BatchRead:
         these sector based datasets.
         """
 
-        for rp in self.raw_ping:
+        # first pass to find the times where we have zero crossings
+        unique_zero_crossings = []
+        zero_crossings_by_rawping = []
+        for cnt, rp in enumerate(self.raw_ping):
             if rp.counter.dtype == np.uint16:  # expects 64bit signed to accomodate zero crossing
                 rp['counter'] = rp.counter.astype(np.int64)
-            zero_crossing = np.where(np.diff(rp['counter']) < 0)[0] + 1
-            for zc in zero_crossing:
-                rp['counter'].load()
-                rp['counter'][zc:] += 65536
+            zero_crossing = np.where(np.diff(rp['counter']) < 0)[0] + 1  # find the negative spike (65535 to 0) of reset
+            zero_crossings_by_rawping.append(zero_crossing)  # store the zerocrossings
+            for cz in zero_crossing:
+                newcz = True
+                cztime = float(rp['time'][cz])  # time of zero crossing
+                # filter out duplicates, ping records can see the crossing at slightly different times
+                for existcz in unique_zero_crossings:
+                    if np.abs(existcz - cztime) < 2:
+                        newcz = False
+                if newcz:
+                    unique_zero_crossings.append(cztime)
+
+        # here we correct the arrays that have zero crossings and we bump up those that have times after one or more
+        #  of our unique zero crossings.  This way all ping records get adjusted the same
+        if unique_zero_crossings:
+            self.logger.info('Found {} ping counter resets, correcting...'.format(len(unique_zero_crossings)))
+            unique_zero_crossings.sort()
+            for cnt, rp in enumerate(self.raw_ping):
+                rp['counter'].load()  # have to load to affect the array in place
+                zero_crossing = zero_crossings_by_rawping[cnt]
+                needs_applying = unique_zero_crossings.copy()
+                for zc in zero_crossing:
+                    cztime = float(rp['time'][zc])
+                    for uzc in unique_zero_crossings:
+                        if np.abs(cztime - uzc) < 2 and uzc in needs_applying:
+                            needs_applying.remove(uzc)
+                    rp['counter'][rp.time >= cztime] += 65536
+                if needs_applying:
+                    for zc in needs_applying:
+                        rp['counter'][rp.time >= zc] += 65536
 
     def is_dual_head(self):
         """
@@ -2321,7 +2350,8 @@ def build_tpu_parameters():
     separation_model = 0.1  # 1 sigma standard deivation in the sep model (tidal, ellipsoidal, etc) (meters)
     waterline = 0.02  # 1 sigma standard deviation of the waterline (meters)
     vessel_speed = 0.1  # 1 sigma standard deviation of the vessel speed (meters/second)
-    horizontal_positioning = 5  # 1 sigma standard deviation of the horizontal positioning (meters)
+    horizontal_positioning = 1.5  # 1 sigma standard deviation of the horizontal positioning (meters)
+    vertical_positioning = 0.8  # 1 sigma standard deviation of the horizontal positioning (meters)
 
     tpu_parameters = {'heave': heave, 'roll_sensor_error': roll_sensor_error, 'pitch_sensor_error': pitch_sensor_error,
                       'heading_sensor_error': heading_sensor_error, 'x_offset': x_offset, 'y_offset': y_offset,
@@ -2329,7 +2359,7 @@ def build_tpu_parameters():
                       'pitch_patch': pitch_patch, 'heading_patch': heading_patch, 'latency_patch': latency_patch,
                       'timing_latency': timing_latency, 'dynamic_draft': dynamic_draft,
                       'separation_model': separation_model, 'waterline': waterline, 'vessel_speed': vessel_speed,
-                      'horizontal_positioning': horizontal_positioning}
+                      'horizontal_positioning': horizontal_positioning, 'vertical_positioning': vertical_positioning}
     return tpu_parameters
 
 

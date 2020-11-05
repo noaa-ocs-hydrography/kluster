@@ -3,7 +3,7 @@ import numpy as np
 import json
 import xarray as xr
 import zarr
-from dask.distributed import wait, Client
+from dask.distributed import wait, Client, progress
 from xarray.core.combine import _infer_concat_order_from_positions, _nested_combine
 from typing import Union
 
@@ -648,11 +648,13 @@ def distrib_zarr_write(zarr_path: str, xarrays: list, attributes: dict, chunk_si
     else:
         futs = [client.submit(_distrib_zarr_write_convenience, zarr_path, xarrays[0], attributes, chunk_sizes, data_locs[0],
                               append_dim=append_dim, finalsize=finalsize, merge=merge, sync=sync)]
+        progress(futs)
         wait(futs)
         if len(xarrays) > 1:
             for i in range(len(xarrays) - 1):
                 futs.append(client.submit(_distrib_zarr_write_convenience, zarr_path, xarrays[i + 1], None, chunk_sizes,
                                           data_locs[i + 1], append_dim=append_dim, merge=merge, sync=sync))
+                progress(futs)
                 wait(futs)
     return futs
 
