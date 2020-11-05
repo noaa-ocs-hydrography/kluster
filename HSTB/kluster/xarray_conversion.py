@@ -28,8 +28,9 @@ sonar_translator = {'em122': [None, 'tx', 'rx', None], 'em302': [None, 'tx', 'rx
                     'em2040_dual_rx': [None, 'tx', 'rx_port', 'rx_stbd'],
                     'em2040_dual_tx': ['tx_port', 'tx_stbd', 'rx_port', 'rx_stbd'],
                     # EM2040c is represented in the .all file as em2045
-                    'em2045': [None, 'txrx', None, None], 'em3002': [None, 'tx', 'rx', None],
-                    'em2040p': [None, 'txrx', None, None], 'me70bo': ['txrx', None, None, None]}
+                    'em2045': [None, 'txrx', None, None], 'em2045_dual': [None, 'txrx_port', 'txrx_stbd', None],
+                    'em3002': [None, 'tx', 'rx', None], 'em2040p': [None, 'txrx', None, None],
+                    'me70bo': ['txrx', None, None, None]}
 
 install_parameter_modifier = {'em2040_dual_tx': {'rx_port': {'0': {'x': 0.011, 'y': 0.0, 'z': -0.006},
                                                              '1': {'x': 0.011, 'y': 0.0, 'z': -0.006},
@@ -1788,6 +1789,7 @@ class BatchRead:
                 if needs_applying:
                     for zc in needs_applying:
                         rp['counter'][rp.time >= zc] += 65536
+            self.logger.info('Correction complete.')
 
     def is_dual_head(self):
         """
@@ -2075,11 +2077,12 @@ class BatchRead:
 
         lever_prefix = []
         for ra in self.raw_ping:
+            serial_ident = ra.sector_identifier.split('_')[0]
             # dual head logic
             if len(leverarms) > 1:
-                if ra.sector_identifier[0:3] == str(ra.system_serial_number[0]):
+                if serial_ident == str(ra.system_serial_number[0]):
                     lever_prefix.append(leverarms[0])
-                elif ra.sector_identifier[0:3] == str(ra.secondary_system_serial_number[0]):
+                elif serial_ident == str(ra.secondary_system_serial_number[0]):
                     lever_prefix.append(leverarms[1])
                 else:
                     self.logger.error('Found serial number attribute not included in sector')
@@ -2386,29 +2389,38 @@ def build_xyzrph(settdict: dict, sonartype: str):
         xyzrph[tme] = {}
         for val in [v for v in sonar_translator[sonartype] if v is not None]:  # tx, rx, etc.
             ky = sonar_translator[sonartype].index(val)  # 0, 1, 2, etc
-            if val == 'txrx':
+            if val.find('txrx') != -1:
                 # for right now, if you have a sonar like the 2040c where rx and tx are basically in the same
                 #   physical container (with the same offsets), just make the tx and rx entries the same
-                xyzrph[tme]['tx_x'] = settdict[tme]['transducer_{}_along_location'.format(ky)]
-                xyzrph[tme]['tx_y'] = settdict[tme]['transducer_{}_athwart_location'.format(ky)]
-                xyzrph[tme]['tx_z'] = settdict[tme]['transducer_{}_vertical_location'.format(ky)]
-                xyzrph[tme]['tx_r'] = settdict[tme]['transducer_{}_roll_angle'.format(ky)]
-                xyzrph[tme]['tx_p'] = settdict[tme]['transducer_{}_pitch_angle'.format(ky)]
-                xyzrph[tme]['tx_h'] = settdict[tme]['transducer_{}_heading_angle'.format(ky)]
-                xyzrph[tme]['rx_r'] = settdict[tme]['transducer_{}_roll_angle'.format(ky)]
-                xyzrph[tme]['rx_p'] = settdict[tme]['transducer_{}_pitch_angle'.format(ky)]
-                xyzrph[tme]['rx_h'] = settdict[tme]['transducer_{}_heading_angle'.format(ky)]
+                if val == 'txrx_port':
+                    tx_ident = 'tx_port'
+                    rx_ident = 'rx_port'
+                elif val == 'txrx_stbd':
+                    tx_ident = 'tx_stbd'
+                    rx_ident = 'rx_stbd'
+                else:
+                    tx_ident = 'tx'
+                    rx_ident = 'rx'
+                xyzrph[tme][tx_ident + '_x'] = settdict[tme]['transducer_{}_along_location'.format(ky)]
+                xyzrph[tme][tx_ident + '_y'] = settdict[tme]['transducer_{}_athwart_location'.format(ky)]
+                xyzrph[tme][tx_ident + '_z'] = settdict[tme]['transducer_{}_vertical_location'.format(ky)]
+                xyzrph[tme][tx_ident + '_r'] = settdict[tme]['transducer_{}_roll_angle'.format(ky)]
+                xyzrph[tme][tx_ident + '_p'] = settdict[tme]['transducer_{}_pitch_angle'.format(ky)]
+                xyzrph[tme][tx_ident + '_h'] = settdict[tme]['transducer_{}_heading_angle'.format(ky)]
+                xyzrph[tme][rx_ident + '_r'] = settdict[tme]['transducer_{}_roll_angle'.format(ky)]
+                xyzrph[tme][rx_ident + '_p'] = settdict[tme]['transducer_{}_pitch_angle'.format(ky)]
+                xyzrph[tme][rx_ident + '_h'] = settdict[tme]['transducer_{}_heading_angle'.format(ky)]
                 try:  # kmall workflow, rx offset is tacked on to the trans1 record
-                    xyzrph[tme]['rx_x'] = str(float(settdict[tme]['transducer_{}_along_location'.format(ky)]) +\
-                                              float(settdict[tme]['transducer_{}_rx_forward'.format(ky)]))
-                    xyzrph[tme]['rx_y'] = str(float(settdict[tme]['transducer_{}_athwart_location'.format(ky)]) +\
-                                              float(settdict[tme]['transducer_{}_rx_starboard'.format(ky)]))
-                    xyzrph[tme]['rx_z'] = str(float(settdict[tme]['transducer_{}_vertical_location'.format(ky)]) +\
-                                              float(settdict[tme]['transducer_{}_rx_down'.format(ky)]))
+                    xyzrph[tme][rx_ident + '_x'] = str(float(settdict[tme]['transducer_{}_along_location'.format(ky)]) +\
+                                                       float(settdict[tme]['transducer_{}_rx_forward'.format(ky)]))
+                    xyzrph[tme][rx_ident + '_y'] = str(float(settdict[tme]['transducer_{}_athwart_location'.format(ky)]) +\
+                                                       float(settdict[tme]['transducer_{}_rx_starboard'.format(ky)]))
+                    xyzrph[tme][rx_ident + '_z'] = str(float(settdict[tme]['transducer_{}_vertical_location'.format(ky)]) +\
+                                                       float(settdict[tme]['transducer_{}_rx_down'.format(ky)]))
                 except KeyError:
-                    xyzrph[tme]['rx_x'] = settdict[tme]['transducer_{}_along_location'.format(ky)]
-                    xyzrph[tme]['rx_y'] = settdict[tme]['transducer_{}_athwart_location'.format(ky)]
-                    xyzrph[tme]['rx_z'] = settdict[tme]['transducer_{}_vertical_location'.format(ky)]
+                    xyzrph[tme][rx_ident + '_x'] = settdict[tme]['transducer_{}_along_location'.format(ky)]
+                    xyzrph[tme][rx_ident + '_y'] = settdict[tme]['transducer_{}_athwart_location'.format(ky)]
+                    xyzrph[tme][rx_ident + '_z'] = settdict[tme]['transducer_{}_vertical_location'.format(ky)]
             else:
                 xyzrph[tme][val + '_x'] = settdict[tme]['transducer_{}_along_location'.format(ky)]
                 xyzrph[tme][val + '_y'] = settdict[tme]['transducer_{}_athwart_location'.format(ky)]

@@ -101,13 +101,10 @@ class WobbleTest:
                                   return_period_of_signal(self.fqpr.source_dat.raw_att['pitch'][:att_slice]),
                                   return_period_of_signal(self.fqpr.source_dat.raw_att['heave'][:att_slice])])
 
-        roll_rate = np.abs(np.diff(self.fqpr.source_dat.raw_att['roll']))/np.diff(self.fqpr.source_dat.raw_att['roll'].time)
-        roll_rate = np.append(roll_rate, roll_rate[-1])  # extend to retain original shape
-        roll_rate = xr.DataArray(roll_rate, coords=[self.fqpr.source_dat.raw_att['roll'].time], dims=['time'])
-
         # we want the roll/pitch/heave at the same times as depth/pointingangle
         self.roll_at_ping_time = interp_across_chunks(self.fqpr.source_dat.raw_att['roll'], self.times).values
-        self.rollrate_at_ping_time = interp_across_chunks(roll_rate, self.times).values
+        self.rollrate_at_ping_time = np.abs(np.diff(self.roll_at_ping_time))/np.diff(self.times)
+        self.rollrate_at_ping_time = np.append(self.rollrate_at_ping_time, self.rollrate_at_ping_time[-1])  # extend to retain original shape
         self.pitch_at_ping_time = interp_across_chunks(self.fqpr.source_dat.raw_att['pitch'], self.times).values
 
         self.vert_ref = self.fqpr.source_dat.raw_ping[0].vertical_reference

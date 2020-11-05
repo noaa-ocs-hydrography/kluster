@@ -633,10 +633,11 @@ def xyz_from_allfile(filname: str):
     pfil = AllRead(filname)
     pfil.mapfile()
     num88 = len(pfil.map.packdir['88'])
+    numbeams = pfil.getrecord(88, 0).data['Depth'].shape[0]
 
-    dpths = np.zeros((num88, 400))
-    xs = np.zeros((num88, 400))
-    ys = np.zeros((num88, 400))
+    dpths = np.zeros((num88, numbeams))
+    xs = np.zeros((num88, numbeams))
+    ys = np.zeros((num88, numbeams))
     tms = np.zeros(num88)
     cntrs = np.zeros(num88)
 
@@ -696,9 +697,11 @@ def xyz_from_kmallfile(filname: str):
     km = kmall(filname)
     km.index_file()
     numpings = km.Index['MessageType'].value_counts()["b'#MRZ'"]
-    dpths = np.zeros((numpings, 400))
-    xs = np.zeros((numpings, 400))
-    ys = np.zeros((numpings, 400))
+    numbeams = len(km.read_first_datagram('MRZ')['sounding']['z_reRefPoint_m'])
+
+    dpths = np.zeros((numpings, numbeams))
+    xs = np.zeros((numpings, numbeams))
+    ys = np.zeros((numpings, numbeams))
     tms = np.zeros(numpings)
     cntrs = np.zeros(numpings)
 
