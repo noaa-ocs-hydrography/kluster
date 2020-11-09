@@ -40,7 +40,7 @@ def build_beam_pointing_vectors(hdng: xr.DataArray, bpa: xr.DataArray, tiltangle
     Parameters
     ----------
     hdng
-        1d (time) heading in degrees
+        1d (time) heading in degrees at ping time
     bpa
         2d (time, beam) receiver beam pointing angle
     tiltangle
@@ -63,8 +63,6 @@ def build_beam_pointing_vectors(hdng: xr.DataArray, bpa: xr.DataArray, tiltangle
     xr.DataArray
         2 dim (time, beam) values for beampointingangle at each beam
     """
-
-    hdng = interp_across_chunks(hdng, tstmp)
 
     # main vec (primary head) is accessed using the primary system selection
     rx_angle = np.deg2rad(bpa)

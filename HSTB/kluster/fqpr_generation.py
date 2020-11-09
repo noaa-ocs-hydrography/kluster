@@ -518,7 +518,7 @@ class Fqpr:
         hve = hve - rot_lever[:, 2]
         return hve
 
-    def determine_altitude_corr(self, nav: xr.Dataset, raw_att: xr.Dataset, tx_tstmp_idx: xr.DataArray,
+    def determine_altitude_corr(self, alt: xr.DataArray, raw_att: xr.Dataset, tx_tstmp_idx: xr.DataArray,
                                 prefixes: str, timestmp: str):
         """
         We use the nav as provided by the POSMV.  This will be at the reference point designated by the POSMV.  As we
@@ -529,8 +529,8 @@ class Fqpr:
 
         Parameters
         ----------
-        nav
-            navigation at ping time (latitude, longitude, altitude)
+        alt
+            altitude at ping time
         raw_att
             raw attitude Dataset including roll, pitch, yaw
         tx_tstmp_idx
@@ -567,11 +567,11 @@ class Fqpr:
             # The only additional z offset that should be included is the induced heave seen when rotating lever arms.
             #      Keep that diff by subtracting the original lever arm.
             rot_lever[:, 2] = rot_lever[:, 2] - rp_to_tx_leverarm[2]
-            nav['altitude'] = nav['altitude'] + rot_lever[:, 2].values
+            alt = alt + rot_lever[:, 2].values
         else:
             self.logger.info('no altitude correction for RP at TX')
 
-        return nav
+        return alt
 
     def return_additional_xyz_offsets(self, prefixes: str, sec_info: dict, timestmp: str):
         """
@@ -759,12 +759,17 @@ class Fqpr:
         list
             list of lists, each list contains future objects for distrib_run_build_beam_pointing_vector
         """
-
+        latency = self.motion_latency
         self.logger.info('preparing to process {} pings'.format(len(tx_tstmp_idx)))
         self.logger.info('transducers mounted backwards - TX: {} RX: {}'.format(self.tx_reversed, self.rx_reversed))
 
         bpa = self.source_dat.select_array_from_rangeangle('beampointingangle', sec_ident).where(applicable_index, drop=True)
         tilt = self.source_dat.select_array_from_rangeangle('tiltangle', sec_ident).where(applicable_index, drop=True)
+        if 'heading' in self.source_dat.raw_ping[0]:
+            self.logger.info('Using pre-interpolated heading saved to disk...')
+            heading = self.source_dat.select_array_from_rangeangle('heading', sec_ident).where(applicable_index, drop=True)
+        else:
+            heading = interp_across_chunks(raw_hdng, tx_tstmp_idx + latency, daskclient=self.client)
 
         if 'orientation' in self.intermediate_dat[sec_ident]:
             # workflow for data that is not written to disk.  Preference given for data in memory
@@ -788,12 +793,12 @@ class Fqpr:
         data_for_workers = []
         for cnt, chnk in enumerate(idx_by_chunk):
             try:
-                fut_hdng = self.client.scatter(slice_xarray_by_dim(raw_hdng, start_time=chnk.time.min() - 1, end_time=chnk.time.max() + 1))
+                fut_hdng = self.client.scatter(heading[chnk])
                 fut_tx_tstmp_idx = self.client.scatter(tx_tstmp_idx[chnk])
                 fut_bpa = self.client.scatter(bpa[chnk])
                 fut_tilt = self.client.scatter(tilt[chnk])
             except:  # client is not setup, run locally
-                fut_hdng = slice_xarray_by_dim(raw_hdng, start_time=chnk.time.min() - 1, end_time=chnk.time.max() + 1)
+                fut_hdng = heading[chnk]
                 fut_tx_tstmp_idx = tx_tstmp_idx[chnk]
                 fut_bpa = bpa[chnk]
                 fut_tilt = tilt[chnk]
@@ -900,19 +905,34 @@ class Fqpr:
         tx_tstmp_idx = get_ping_times(ra.time, applicable_index)
         self.logger.info('preparing to process {} pings'.format(len(tx_tstmp_idx)))
 
-        if prefer_pp_nav and (self.ppnav_dat is not None):
+        if ('latitude' in ra) and ('longitude' in ra) and ('altitude' in ra):
+            self.logger.info('Using pre-interpolated attitude/navigation saved to disk...')
+            lat = self.source_dat.select_array_from_rangeangle('latitude', sec_ident).where(applicable_index, drop=True)
+            lon = self.source_dat.select_array_from_rangeangle('longitude', sec_ident).where(applicable_index, drop=True)
+            alt = self.source_dat.select_array_from_rangeangle('altitude', sec_ident).where(applicable_index, drop=True)
+        elif prefer_pp_nav and (self.ppnav_dat is not None):
             self.logger.info('Using post processed navigation...')
             nav = interp_across_chunks(self.ppnav_dat, tx_tstmp_idx + latency, daskclient=self.client)
+            lat = nav.latitude
+            lon = nav.longitude
+            alt = nav.altitude
         else:
             nav = interp_across_chunks(self.source_dat.raw_nav, tx_tstmp_idx + latency, daskclient=self.client)
+            lat = nav.latitude
+            lon = nav.longitude
+            alt = nav.altitude
 
-        hdng = interp_across_chunks(self.source_dat.raw_att['heading'], tx_tstmp_idx + latency, daskclient=self.client)
-        hve = interp_across_chunks(self.source_dat.raw_att['heave'], tx_tstmp_idx + latency, daskclient=self.client)
+        if ('heading' in ra) and ('heave' in ra):
+            hdng = self.source_dat.select_array_from_rangeangle('heading', sec_ident).where(applicable_index, drop=True)
+            hve = self.source_dat.select_array_from_rangeangle('heave', sec_ident).where(applicable_index, drop=True)
+        else:
+            hdng = interp_across_chunks(self.source_dat.raw_att['heading'], tx_tstmp_idx + latency, daskclient=self.client)
+            hve = interp_across_chunks(self.source_dat.raw_att['heave'], tx_tstmp_idx + latency, daskclient=self.client)
 
         wline = float(self.source_dat.xyzrph['waterline'][str(timestmp)])
 
         if self.vert_ref == 'ellipse':
-            nav = self.determine_altitude_corr(nav, self.source_dat.raw_att, tx_tstmp_idx + latency, prefixes, timestmp)
+            alt = self.determine_altitude_corr(alt, self.source_dat.raw_att, tx_tstmp_idx + latency, prefixes, timestmp)
         else:
             hve = self.determine_induced_heave(ra, hve, self.source_dat.raw_att, tx_tstmp_idx + latency, prefixes, timestmp)
 
@@ -935,16 +955,19 @@ class Fqpr:
                     sv_data = self.client.scatter([altrack[chnk], actrack[chnk], dpthoff[chnk]])
                 except:  # client is not setup, run locally
                     sv_data = [altrack[chnk], actrack[chnk], dpthoff[chnk]]
-
             try:
-                fut_nav = self.client.scatter(nav.where(nav['time'] == chnk.time, drop=True))
-                fut_hdng = self.client.scatter(hdng.where(hdng['time'] == chnk.time, drop=True))
-                fut_hve = self.client.scatter(hve.where(hve['time'] == chnk.time, drop=True))
+                fut_alt = self.client.scatter(alt[chnk])
+                fut_lon = self.client.scatter(lon[chnk])
+                fut_lat = self.client.scatter(lat[chnk])
+                fut_hdng = self.client.scatter(hdng[chnk])
+                fut_hve = self.client.scatter(hve[chnk])
             except:  # client is not setup, run locally
-                fut_nav = nav.where(nav['time'] == chnk.time, drop=True)
-                fut_hdng = hdng.where(hdng['time'] == chnk.time, drop=True)
-                fut_hve = hve.where(hve['time'] == chnk.time, drop=True)
-            data_for_workers.append([sv_data, fut_nav, fut_hdng, fut_hve, wline, self.vert_ref, self.xyz_crs, z_offset])
+                fut_alt = alt[chnk]
+                fut_lon = lon[chnk]
+                fut_lat = lat[chnk]
+                fut_hdng = hdng[chnk]
+                fut_hve = hve[chnk]
+            data_for_workers.append([sv_data, fut_alt, fut_lon, fut_lat, fut_hdng, fut_hve, wline, self.vert_ref, self.xyz_crs, z_offset])
         return data_for_workers
 
     def _generate_chunks_tpu(self, ra: xr.Dataset, idx_by_chunk: xr.DataArray, applicable_index: xr.DataArray):
@@ -1598,7 +1621,8 @@ class Fqpr:
         subset_time
             List of unix timestamps in seconds, used as ranges for times that you want to process.
         dump_data
-            if True dump the tx/rx vectors to the source_data datastore
+            if True dump the tx/rx vectors to the source_data datastore.  Set this to false for an entirely in memory
+            workflow
         delete_futs
             if True remove the futures objects after data is dumped.
         initial_interp
@@ -1609,9 +1633,14 @@ class Fqpr:
         self._validate_get_orientation_vectors(subset_time, dump_data)
         if initial_interp:
             needs_interp = []
-            if 'latitude' not in list(self.source_dat.raw_ping[0].keys()):
+            if ('latitude' not in list(self.source_dat.raw_ping[0].keys())) or \
+                    ('altitude' not in list(self.source_dat.raw_ping[0].keys())) or \
+                    ('latitude' not in list(self.source_dat.raw_ping[0].keys())):
                 needs_interp.append(self.source_dat.raw_nav)
-            if 'roll' not in list(self.source_dat.raw_ping[0].keys()):
+            if ('roll' not in list(self.source_dat.raw_ping[0].keys())) or \
+                    ('pitch' not in list(self.source_dat.raw_ping[0].keys())) or \
+                    ('heave' not in list(self.source_dat.raw_ping[0].keys())) or \
+                    ('heading' not in list(self.source_dat.raw_ping[0].keys())):
                 needs_interp.append(self.source_dat.raw_att)
             if needs_interp:
                 self.interp_to_ping_record(needs_interp, {'attitude_source': 'multibeam', 'navigation_source': 'multibeam'})
@@ -1673,7 +1702,8 @@ class Fqpr:
         subset_time
             List of unix timestamps in seconds, used as ranges for times that you want to process.
         dump_data
-            if True dump the tx/rx vectors to the source_data datastore
+            if True dump the tx/rx vectors to the source_data datastore.  Set this to false for an entirely in memory
+            workflow
         delete_futs
             if True remove the futures objects after data is dumped.
         """
@@ -1738,7 +1768,8 @@ class Fqpr:
         subset_time
             List of unix timestamps in seconds, used as ranges for times that you want to process.
         dump_data
-            if True dump the tx/rx vectors to the source_data datastore
+            if True dump the tx/rx vectors to the source_data datastore.  Set this to false for an entirely in memory
+            workflow
         delete_futs
             if True remove the futures objects after data is dumped.
         """
@@ -1814,7 +1845,8 @@ class Fqpr:
         prefer_pp_nav
             if True will use post-processed navigation/height (SBET)
         dump_data
-            if True dump the tx/rx vectors to the source_data datastore
+            if True dump the tx/rx vectors to the source_data datastore.  Set this to false for an entirely in memory
+            workflow
         delete_futs
             if True remove the futures objects after data is dumped.
         """
@@ -1874,7 +1906,8 @@ class Fqpr:
         subset_time
             List of unix timestamps in seconds, used as ranges for times that you want to process.
         dump_data
-            if True dump the tx/rx vectors to the source_data datastore
+            if True dump the tx/rx vectors to the source_data datastore.  Set this to false for an entirely in memory
+            workflow
         delete_futs
             if True remove the futures objects after data is dumped.
         """

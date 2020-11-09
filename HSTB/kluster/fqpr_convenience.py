@@ -15,7 +15,7 @@ from HSTB.kluster.fqpr_surface import BaseSurface
 
 
 def perform_all_processing(filname: str, navfiles: list = None, outfold: str = None, coord_system: str = 'NAD83',
-                           vert_ref: str = 'waterline', **kwargs):
+                           vert_ref: str = 'waterline', orientation_initial_interpolation: bool = True, **kwargs):
     """
     Use fqpr_generation to process multibeam data on the local cluster and generate a sound velocity corrected,
     georeferenced xyz with uncertainty in csv files in the provided output folder.
@@ -34,6 +34,8 @@ def perform_all_processing(filname: str, navfiles: list = None, outfold: str = N
         a valid datum identifier that pyproj CRS will accept
     vert_ref
         the vertical reference point, one of ['ellipse', 'waterline']
+    orientation_initial_interpolation
+        see process_multibeam
 
     Returns
     -------
@@ -44,7 +46,8 @@ def perform_all_processing(filname: str, navfiles: list = None, outfold: str = N
     fqpr_inst = convert_multibeam(filname, outfold)
     if navfiles is not None:
         fqpr_inst = import_navigation(fqpr_inst, navfiles, **kwargs)
-    fqpr_inst = process_multibeam(fqpr_inst, coord_system=coord_system, vert_ref=vert_ref)
+    fqpr_inst = process_multibeam(fqpr_inst, coord_system=coord_system, vert_ref=vert_ref,
+                                  orientation_initial_interpolation=orientation_initial_interpolation)
     return fqpr_inst
 
 
@@ -127,8 +130,9 @@ def import_navigation(fqpr_inst: Fqpr, navfiles: list, errorfiles: list = None, 
     return fqpr_inst
 
 
-def process_multibeam(fqpr_inst: Fqpr, run_orientation: bool = True, run_beam_vec: bool = True, run_svcorr: bool = True,
-                      run_georef: bool = True, run_tpu: bool = True, svcasts: list = None, use_epsg: bool = False,
+def process_multibeam(fqpr_inst: Fqpr, run_orientation: bool = True, orientation_initial_interpolation: bool = True,
+                      run_beam_vec: bool = True, run_svcorr: bool = True, run_georef: bool = True,
+                      run_tpu: bool = True, svcasts: list = None, use_epsg: bool = False,
                       use_coord: bool = True, epsg: int = None, coord_system: str = 'NAD83',
                       vert_ref: str = 'waterline'):
     """
@@ -141,6 +145,10 @@ def process_multibeam(fqpr_inst: Fqpr, run_orientation: bool = True, run_beam_ve
         Fqpr instance, must contain converted data
     run_orientation
         perform the get_orientation_vectors step
+    orientation_initial_interpolation
+        If true and running orientation, this will interpolate the raw attitude and navigation to ping time and save
+        it in the respective arrays.  Otherwise, each processing step will do the interpolation on it's own.  Turn this
+        off for the in memory workflow, ex: tests turn this off as we don't want to save to disk
     run_beam_vec
         perform the get_beam_pointing_vectors step
     run_svcorr
@@ -175,7 +183,7 @@ def process_multibeam(fqpr_inst: Fqpr, run_orientation: bool = True, run_beam_ve
 
     fqpr_inst.construct_crs(epsg=epsg, datum=coord_system, projected=True, vert_ref=vert_ref)
     if run_orientation:
-        fqpr_inst.get_orientation_vectors()
+        fqpr_inst.get_orientation_vectors(initial_interp=orientation_initial_interpolation)
     if run_beam_vec:
         fqpr_inst.get_beam_pointing_vectors()
     if run_svcorr:
