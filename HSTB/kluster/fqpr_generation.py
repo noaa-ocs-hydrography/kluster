@@ -920,7 +920,10 @@ class Fqpr:
             nav = interp_across_chunks(self.source_dat.raw_nav, tx_tstmp_idx + latency, daskclient=self.client)
             lat = nav.latitude
             lon = nav.longitude
-            alt = nav.altitude
+            if 'altitude' in nav:  # for seapath systems, there is no altitude in the record
+                alt = nav.altitude
+            else:
+                alt = None
 
         if ('heading' in ra) and ('heave' in ra):
             hdng = self.source_dat.select_array_from_rangeangle('heading', sec_ident).where(applicable_index, drop=True)
@@ -956,13 +959,19 @@ class Fqpr:
                 except:  # client is not setup, run locally
                     sv_data = [altrack[chnk], actrack[chnk], dpthoff[chnk]]
             try:
-                fut_alt = self.client.scatter(alt[chnk])
+                if alt is None:
+                    fut_alt = alt
+                else:
+                    fut_alt = self.client.scatter(alt[chnk])
                 fut_lon = self.client.scatter(lon[chnk])
                 fut_lat = self.client.scatter(lat[chnk])
                 fut_hdng = self.client.scatter(hdng[chnk])
                 fut_hve = self.client.scatter(hve[chnk])
             except:  # client is not setup, run locally
-                fut_alt = alt[chnk]
+                if alt is None:
+                    fut_alt = alt
+                else:
+                    fut_alt = alt[chnk]
                 fut_lon = lon[chnk]
                 fut_lat = lat[chnk]
                 fut_hdng = hdng[chnk]
@@ -1554,6 +1563,10 @@ class Fqpr:
         if self.xyz_crs is None:
             self.logger.error('georef_xyz: xyz_crs object not found.  Please run Fqpr.construct_crs first.')
             raise ValueError('georef_xyz: xyz_crs object not found.  Please run Fqpr.construct_crs first.')
+        if self.vert_ref == 'ellipse':
+            if 'altitude' not in self.source_dat.raw_ping[0] and 'altitude' not in self.source_dat.raw_nav:
+                self.logger.error('georef_xyz: You must provide altitude for vert_ref=ellipse, not found in raw navigation or ping records.')
+                raise ValueError('georef_xyz: You must provide altitude for vert_ref=ellipse, not found in raw navigation or ping records.')
 
         # first check to see if there is any data in memory.  If so, we just assume that you have the data you need.
         if self.intermediate_dat is not None:
@@ -1594,6 +1607,13 @@ class Fqpr:
         if self.vert_ref not in ['ellipse', 'waterline']:
             self.logger.error("calculate_total_uncertainty: {} must be one of 'ellipse', 'waterline'".format(self.vert_ref))
             raise ValueError("calculate_total_uncertainty: {} must be one of 'ellipse', 'waterline'".format(self.vert_ref))
+        if self.vert_ref == 'ellipse':
+            if self.ppnav_dat is None:
+                self.logger.error("calculate_total_uncertainty: with vert_ref={} you must provide post processed navigation".format(self.vert_ref))
+                raise ValueError("calculate_total_uncertainty: with vert_ref={} you must provide post processed navigation".format(self.vert_ref))
+            elif 'down_position_error' not in self.ppnav_dat:
+                self.logger.error("calculate_total_uncertainty: with vert_ref={} you must provide sbet error".format(self.vert_ref))
+                raise ValueError("calculate_total_uncertainty: with vert_ref={} you must provide sbet error".format(self.vert_ref))
 
         required = ['corr_pointing_angle', 'beampointingangle', 'acrosstrack', 'depthoffset', 'soundspeed', 'qualityfactor']
         for req in required:
