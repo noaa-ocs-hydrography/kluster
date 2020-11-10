@@ -179,12 +179,12 @@ class KlusterMain(QtWidgets.QMainWindow):
                 surfaces.extend(possible_surface_files)
 
             f = os.path.normpath(f)
-            self.project.add_fqpr(f, skip_dask=True)
-            if f not in self.project.fqpr_instances:
+            fqpr_entry = self.project.add_fqpr(f, skip_dask=True)
+            if fqpr_entry is None:  # no fqpr instance successfully loaded
                 if not possible_multibeam_files and not possible_surface_files:
                     print('update_on_file_added: Unable to add to Project from existing: {}'.format(f))
             else:
-                new_projects.append(f)
+                new_projects.append(fqpr_entry)
         if new_projects:
             self.redraw(new_projects=new_projects)
 
@@ -210,8 +210,8 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.project_tree.refresh_project(proj=self.project)
         if new_projects is not None:
             for proj in new_projects:
-                for ln in self.project.return_project_lines(proj=proj):
-                    lats, lons = self.project.return_line_navigation(ln, samplerate=1)
+                for ln in self.project.return_project_lines(proj=proj, relative_path=True):
+                    lats, lons = self.project.return_line_navigation(ln, samplerate=5)
                     self.two_d.add_line(ln, lats, lons)
             self.two_d.set_extents_from_lines()
         if add_surface is not None and surface_layer_name:
@@ -232,10 +232,9 @@ class KlusterMain(QtWidgets.QMainWindow):
         pth: str, path to the Fqpr top level folder
 
         """
-        f = os.path.normpath(pth)
-        for ln in self.project.return_project_lines(proj=f):
+        for ln in self.project.return_project_lines(proj=pth, relative_path=True):
             self.two_d.remove_line(ln)
-        self.project.remove_fqpr(f)
+        self.project.remove_fqpr(pth, relative_path=True)
         self.project_tree.refresh_project(self.project)
 
     def open_fqpr(self, pth):
@@ -260,7 +259,8 @@ class KlusterMain(QtWidgets.QMainWindow):
         pth: str, path to the fqpr_generation saved data
 
         """
-        self.console.runCmd('data = reload_data(r"{}", skip_dask=True)'.format(pth))
+        absolute_fqpath = self.project._absolute_path_from_relative(pth)
+        self.console.runCmd('data = reload_data(r"{}", skip_dask=True)'.format(absolute_fqpath))
         self.console.runCmd('first_sector = data.source_dat.raw_ping[0]')
         self.console.runCmd('nav = data.source_dat.raw_nav')
         self.console.runCmd('ppnav = data.ppnav_dat')
@@ -279,12 +279,12 @@ class KlusterMain(QtWidgets.QMainWindow):
         pth: str, path to the Fqpr top level folder
 
         """
-        f = os.path.normpath(pth)
-        self.project.remove_surface(f)
+
+        self.project.remove_surface(pth)
         self.project_tree.refresh_project(self.project)
-        if f in self.two_d.active_layers:
-            for lyr in self.two_d.active_layers[f]:
-                self.redraw(remove_surface=f, surface_layer_name=lyr)
+        if pth in self.two_d.active_layers:
+            for lyr in self.two_d.active_layers[pth]:
+                self.redraw(remove_surface=pth, surface_layer_name=lyr)
 
     def no_threads_running(self):
         """
@@ -365,12 +365,11 @@ class KlusterMain(QtWidgets.QMainWindow):
         # fil is now the output path of the Fqpr instance
         fq = self.convert_thread.fq
         if fq is not None:
-            fil = os.path.normpath(fq.source_dat.raw_ping[0].output_path)
-            self.project.add_fqpr(fq)
-            if fil not in self.project.fqpr_instances:
+            fqpr_entry = self.project.add_fqpr(fq)
+            if fqpr_entry is None:
                 print('kluster_convert_multibeam: Unable to add to Project from conversion: {}'.format(fil))
             else:
-                self.redraw(new_projects=[fil])
+                self.redraw(new_projects=[fqpr_entry])
         else:
             print('kluster_convert_multibeam: Unable to convert {}'.format(self.convert_thread.mbes_files))
 
@@ -567,6 +566,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         Close all open Fqpr instances and surfaces
 
         """
+
         # go to list so you avoid the dreaded dict changed size during iteration error
         surf_to_close = []
         for surf in self.project.surface_instances:
@@ -579,6 +579,7 @@ class KlusterMain(QtWidgets.QMainWindow):
             fq_to_close.append(fq)
         for fq in fq_to_close:
             self.close_fqpr(fq)
+        self.project.path = None
 
         self.project_tree.configure()
         self.two_d.set_extents_from_lines()
@@ -896,11 +897,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         """
         Connect menu action 'Save Project' with file dialog and save_project
         """
-        msg, fil = RegistryHelpers.GetFilenameFromUserQT(self, RegistryKey='kluster', Title='Save Project File',
-                                                         AppName='klusterproj', bMulti=False, bSave=True,
-                                                         fFilter='kluster project file (*.json)')
-        if msg:
-            self.project.save_project(fil)
+        self.project.save_project()
 
     def _action_export(self):
         """

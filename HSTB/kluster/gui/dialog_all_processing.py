@@ -87,7 +87,7 @@ class AllProcessingDialog(QtWidgets.QDialog):
         self.vertref_msg = QtWidgets.QLabel('Vertical Reference:')
         self.hlayout_four_three.addWidget(self.vertref_msg)
         self.georef_vertref = QtWidgets.QComboBox()
-        self.georef_vertref.addItems(['ellipse', 'vessel', 'waterline'])
+        self.georef_vertref.addItems(['waterline', 'ellipse'])
         self.georef_vertref.setMaximumWidth(100)
         self.hlayout_four_three.addWidget(self.georef_vertref)
         self.hlayout_four_three.addStretch(1)

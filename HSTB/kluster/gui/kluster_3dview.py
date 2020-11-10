@@ -60,7 +60,7 @@ class Kluster3dview(gl.GLViewWidget):
         z: numpy array, z value
 
         """
-        pts = np.c_[x, y, z]
+        pts = np.c_[x, y, -z]
 
         cmap = cm.get_cmap('viridis', 100)
         normz = (z/np.max(z) * 99).astype(np.int16)

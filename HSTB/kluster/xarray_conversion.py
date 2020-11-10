@@ -321,7 +321,7 @@ def _sequential_to_xarray(rec: dict):
 
                         # these records are by time/sector/beam.  Have to combine recs to build correct array shape
                         if ky in ['beampointingangle', 'txsector_beam', 'detectioninfo', 'qualityfactor',
-                                  'qualityfactor_percent', 'traveltime']:
+                                  'qualityfactor', 'traveltime']:
                             beam_idx = [i for i in range(combined_sectors.shape[2])]
                             recs_to_merge[r][ky] = xr.DataArray(combined_sectors,
                                                                 coords=[ids, alltims, beam_idx],
@@ -823,7 +823,7 @@ def batch_read_configure_options(ping_chunksize: int, nav_chunksize: int, att_ch
                    'ntx': (ping_chunksize,), 'qualityfactor': (ping_chunksize, 400), 'samplerate': (ping_chunksize,),
                    'soundspeed': (ping_chunksize,), 'modetwo': (ping_chunksize,), 'tiltangle': (ping_chunksize,),
                    'traveltime': (ping_chunksize, 400), 'waveformid': (ping_chunksize,),
-                   'yawpitchstab': (ping_chunksize,), 'rxid': (ping_chunksize,), 'qualityfactor_percent': (ping_chunksize,)}
+                   'yawpitchstab': (ping_chunksize,), 'rxid': (ping_chunksize,), 'qualityfactor': (ping_chunksize,)}
     att_chunks = {'time': (att_chunksize,), 'heading': (att_chunksize,), 'heave': (att_chunksize,),
                   'pitch': (att_chunksize,), 'roll': (att_chunksize,)}
     nav_chunks = {'time': (nav_chunksize,), 'alongtrackvelocity': (nav_chunksize,), 'altitude': (nav_chunksize,),

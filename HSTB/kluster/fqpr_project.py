@@ -4,6 +4,7 @@ import xarray as xr
 import json
 from typing import Union
 
+from HSTB.drivers import par3, kmall
 from HSTB.kluster.fqpr_generation import Fqpr
 from HSTB.kluster.dask_helpers import dask_find_or_start_client
 from HSTB.kluster.fqpr_convenience import reload_data, convert_multibeam, reload_surface
@@ -39,6 +40,9 @@ class FqprProject:
 
     def __init__(self):
         self.client = None
+        self.path = None
+        self.file_format = 1.0
+
         self.surface_instances = {}
         self.surface_layers = {}
 
@@ -62,6 +66,44 @@ class FqprProject:
         self.point_cloud_for_line = {}
         self.node_vals_for_surf = {}
 
+    def _path_relative_to_project(self, pth: str):
+        """
+        Return the relative path for the provided pth from the project file
+
+        Parameters
+        ----------
+        pth
+            absolute file path
+
+        Returns
+        -------
+        str
+            relative file path from the project file
+        """
+        if self.path is None:
+            raise ValueError('FqprProject: path to project file not setup, is currently undefined.')
+        return os.path.relpath(pth, os.path.dirname(self.path))
+
+    def _absolute_path_from_relative(self, pth: str):
+        """
+        see _path_relative_to_project, will convert the returned relative path from that method to an absolute file
+        path
+
+        Parameters
+        ----------
+        pth
+            relative file path from the directory containing the project file
+
+        Returns
+        -------
+        str
+            absolute file path
+        """
+
+        if self.path is None:
+            raise ValueError('FqprProject: path to project file not setup, is currently undefined.')
+        return os.path.abspath(os.path.join(os.path.dirname(self.path), pth))
+
     def get_dask_client(self):
         """
         Project is the holder of the Dask client object.  Use this method to return the current Client.  Client is
@@ -72,19 +114,40 @@ class FqprProject:
             self.client = dask_find_or_start_client()
         return self.client
 
-    def save_project(self, projfile: str):
+    def setup_new_project(self, pth: str):
         """
-        Save the current FqprProject instance to file.  Use open_project to reload this instance.
+        Automatically run on adding new fqpr instances.  Will save the project file in the same directory as the data
+
+        Give the path to the project folder, all stored paths to fqpr instances will be relative to this path
 
         Parameters
         ----------
-        projfile
-            path to the project file
-        """
+        pth
+            path to the folder where you want a new project or existing project file
 
-        with open(projfile, 'w') as pf:
-            fqpr_paths = self.return_fqpr_paths()
-            json.dump({'fqpr_paths': fqpr_paths}, pf, sort_keys=True, indent=4)
+        """
+        if self.path is None:
+            if os.path.isdir(pth):  # user provided a directory
+                self.path = os.path.join(pth, 'kluster_project.json')
+            else:
+                self.path = pth
+            if os.path.exists(self.path):  # an existing project
+                self.open_project(self.path, skip_dask=True)
+
+    def save_project(self):
+        """
+        Save the current FqprProject instance to file.  Use open_project to reload this instance.
+
+        """
+        if self.path is None:
+            raise EnvironmentError('kluster_project save_project - no data found, you must add data before saving a project')
+        with open(self.path, 'w') as pf:
+            data = {}
+            data['fqpr_paths'] = self.return_fqpr_paths()
+            data['surface_paths'] = self.return_surface_paths()
+            data['file_format'] = self.file_format
+            json.dump(data, pf, sort_keys=True, indent=4)
+        print('Project saved to {}'.format(self.path))
 
     def load_project_file(self, projfile: str):
         """
@@ -101,8 +164,14 @@ class FqprProject:
             loaded project file data
         """
 
+        if os.path.split(projfile)[1] != 'kluster_project.json':
+            raise IOError('Expected a file named kluster_project.json, found {}'.format(projfile))
         with open(projfile, 'r') as pf:
             data = json.load(pf)
+        # now translate the relative paths to absolute
+        self.path = projfile
+        data['fqpr_paths'] = [self._absolute_path_from_relative(f) for f in data['fqpr_paths']]
+        data['surface_paths'] = [self._absolute_path_from_relative(f) for f in data['surface_paths']]
         return data
 
     def open_project(self, projfile: str, skip_dask: bool = False):
@@ -118,8 +187,12 @@ class FqprProject:
         """
 
         data = self.load_project_file(projfile)
+        self.path = projfile
+        self.file_format = data['file_format']
         for pth in data['fqpr_paths']:
-            self.add_fqpr(pth, skip_dask=skip_dask)
+            fqpr_entry = self.add_fqpr(pth, skip_dask=skip_dask)
+        for pth in data['surface_paths']:
+            self.add_surface(pth)
 
     def add_fqpr(self, pth: Union[str, Fqpr], skip_dask: bool = False):
         """
@@ -131,20 +204,30 @@ class FqprProject:
             path to the top level folder for the Fqpr project or the already loaded Fqpr instance itself
         skip_dask
             if True will skip auto starting a dask LocalCluster
+
+        Returns
+        -------
+        str
+            project entry in the dictionary, will be the relative path to the kluster data store from the project file
         """
 
         if type(pth) == str:
             fq = reload_data(pth, skip_dask=skip_dask, silent=True)
-        else:  # fq is the new Fqpr instance, pth is the output path that is saved as an attribute
+        else:  # pth is the new Fqpr instance, pull the actual path from the Fqpr attribution
             fq = pth
             pth = os.path.normpath(fq.source_dat.raw_ping[0].output_path)
         if fq is not None:
-            self.fqpr_instances[pth] = fq
-            self.fqpr_attrs[pth] = get_attributes_from_fqpr(fq, include_mode=False)
-            self.regenerate_fqpr_lines(pth)
+            if self.path is None:
+                self.setup_new_project(os.path.dirname(pth))
+            relpath = self._path_relative_to_project(pth)
+            self.fqpr_instances[relpath] = fq
+            self.fqpr_attrs[relpath] = get_attributes_from_fqpr(fq, include_mode=False)
+            self.regenerate_fqpr_lines(relpath)
             print('Successfully added {}'.format(pth))
+            return relpath
+        return None
 
-    def remove_fqpr(self, pth: str):
+    def remove_fqpr(self, pth: str, relative_path: bool = False):
         """
         Remove an attached Fqpr instance from the project by path to Fqpr converted folder
 
@@ -152,14 +235,21 @@ class FqprProject:
         ----------
         pth
             path to the top level folder for the Fqpr project
+        relative_path
+            if True, pth is a relative path (relative to self.path)
         """
 
-        if pth in self.fqpr_instances:
-            self.fqpr_instances.pop(pth)
-            self.fqpr_attrs.pop(pth)
-            for linename in self.fqpr_lines[pth]:
+        if relative_path:
+            relpath = pth
+        else:
+            relpath = self._path_relative_to_project(pth)
+
+        if relpath in self.fqpr_instances:
+            self.fqpr_instances.pop(relpath)
+            self.fqpr_attrs.pop(relpath)
+            for linename in self.fqpr_lines[relpath]:
                 self.convert_path_lookup.pop(linename)
-            self.fqpr_lines.pop(pth)
+            self.fqpr_lines.pop(relpath)
 
     def add_surface(self, pth: Union[str, BaseSurface]):
         """
@@ -179,7 +269,10 @@ class FqprProject:
             basesurf = pth
             pth = os.path.normpath(basesurf.output_path)
         if basesurf is not None:
-            self.surface_instances[pth] = basesurf
+            if self.path is None:
+                self.setup_new_project(os.path.dirname(pth))
+            relpath = self._path_relative_to_project(pth)
+            self.surface_instances[relpath] = basesurf
             print('Successfully added {}'.format(pth))
 
     def remove_surface(self, pth: Union[str, BaseSurface]):
@@ -190,9 +283,9 @@ class FqprProject:
         ----------
         pth: str, path to the surface file
         """
-
-        if pth in self.surface_instances:
-            self.surface_instances.pop(pth)
+        relpath = self._path_relative_to_project(pth)
+        if relpath in self.surface_instances:
+            self.surface_instances.pop(relpath)
 
     def build_point_cloud_for_line(self, line: str):
         """
@@ -260,7 +353,6 @@ class FqprProject:
         converted_pth
             path to the Fqpr object
         """
-
         for fq_name, fq_inst in self.fqpr_instances.items():
             if fq_name == converted_pth:
                 self.fqpr_lines[fq_name] = fq_inst.return_line_dict()
@@ -289,17 +381,29 @@ class FqprProject:
             print('return_line_owner: Unable to find project for line {}'.format(line))
             return None
 
+    def return_surface_paths(self):
+        """
+        Get the absolute paths to all loaded surface instances
+
+        Returns
+        -------
+        list
+            list of str paths to all surface instances
+        """
+        pths = list(self.surface_instances.keys())
+        return pths
+
     def return_fqpr_paths(self):
         """
-        Get the paths to all loaded fqpr instances
+        Get the absolute paths to all loaded fqpr instances
 
         Returns
         -------
         list
             list of str paths to all fqpr instances
         """
-
-        return list(self.fqpr_instances.keys())
+        pths = list(self.fqpr_instances.keys())
+        return pths
 
     def return_fqpr_instances(self):
         """
@@ -313,7 +417,7 @@ class FqprProject:
 
         return list(self.fqpr_instances.values())
 
-    def return_project_lines(self, proj: str = None):
+    def return_project_lines(self, proj: str = None, relative_path: bool = True):
         """
         Return the lines associated with the provided Fqpr path (proj) or all projects/lines
 
@@ -321,6 +425,8 @@ class FqprProject:
         ----------
         proj
             optional, str, Fqpr path if you only want lines associated with that project
+        relative_path
+            if True, proj is a relative path (relative to self.path)
 
         Returns
         -------
@@ -330,7 +436,10 @@ class FqprProject:
 
         if proj is not None:
             if type(proj) is str:
-                return self.fqpr_lines[proj]
+                if relative_path:
+                    return self.fqpr_lines[proj]
+                else:
+                    return self.fqpr_lines[self._absolute_path_from_relative(proj)]
             else:
                 print('return_project_lines: expected a string path to be provided to the kluster fqpr datastore')
                 return None
@@ -451,5 +560,38 @@ def create_new_project(mbes_files: Union[str, list], output_folder: str = None):
 
     fq = convert_multibeam(mbes_files, output_folder)
     fqp = FqprProject()
-    fqp.add_fqpr(fq, skip_dask=False)
+    fqpr_entry = fqp.add_fqpr(fq, skip_dask=False)
     return fqp
+
+
+def gather_multibeam_info(multibeam_file: str):
+    """
+    fast method to read info from a multibeam file without reading the whole file.  Supports .all and .kmall files
+
+    the secondary serial number will be zero for all systems except dual head.  Dual head records the secondary head
+    serial number (starboard head) as the secondary serial number.  For non dual head systems, the primary serial
+    number is all that is needed.
+
+    Parameters
+    ----------
+    multibeam_file
+        file path to a multibeam file
+
+    Returns
+    -------
+    list
+        [start time (utc seconds), end time (utc seconds), primary serial number, secondary serial number, sonar model number]
+    """
+
+    fileext = os.path.splitext(multibeam_file)[1]
+    if fileext == '.all':
+        aread = par3.AllRead(multibeam_file)
+        start_end = aread.fast_read_start_end_time()
+        serialnums = aread.fast_read_serial_number()
+    elif fileext == '.kmall':
+        km = kmall.kmall(multibeam_file)
+        start_end = km.fast_read_start_end_time()
+        serialnums = km.fast_read_serial_number()
+    else:
+        raise IOError('File ({}) is not a valid multibeam file'.format(multibeam_file))
+    return start_end + serialnums

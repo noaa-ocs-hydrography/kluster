@@ -132,7 +132,7 @@ def import_navigation(fqpr_inst: Fqpr, navfiles: list, errorfiles: list = None, 
 
 def process_multibeam(fqpr_inst: Fqpr, run_orientation: bool = True, orientation_initial_interpolation: bool = True,
                       run_beam_vec: bool = True, run_svcorr: bool = True, run_georef: bool = True,
-                      run_tpu: bool = True, svcasts: list = None, use_epsg: bool = False,
+                      svcasts: list = None, use_epsg: bool = False,
                       use_coord: bool = True, epsg: int = None, coord_system: str = 'NAD83',
                       vert_ref: str = 'waterline'):
     """
@@ -155,8 +155,6 @@ def process_multibeam(fqpr_inst: Fqpr, run_orientation: bool = True, orientation
         perform the sv_correct step
     run_georef
         perform the georef_xyz step
-    run_tpu
-        perform the calculate_total_uncertainty
     svcasts
         optional list of paths to svp cast files, no need to include if using casts in multibeam file
     use_epsg
@@ -190,7 +188,6 @@ def process_multibeam(fqpr_inst: Fqpr, run_orientation: bool = True, orientation
         fqpr_inst.sv_correct(add_cast_files=svcasts)
     if run_georef:
         fqpr_inst.georef_xyz()
-    if run_tpu:
         fqpr_inst.calculate_total_uncertainty()
     return fqpr_inst
 

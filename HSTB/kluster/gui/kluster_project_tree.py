@@ -378,8 +378,8 @@ class OutWindow(QtWidgets.QMainWindow):
 
     def update_ktree(self, fil):
         for f in fil:
-            self.project.add_fqpr(f, skip_dask=True)
-            if f not in self.project.fqpr_instances:
+            fqpr_entry = self.project.add_fqpr(f, skip_dask=True)
+            if fqpr_entry is None:
                 print('update_ktree: Unable to add to Project: {}'.format(f))
 
         self.k_tree.refresh_project(self.project)
