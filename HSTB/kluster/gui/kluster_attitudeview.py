@@ -233,7 +233,7 @@ if __name__ == '__main__':
     test_window = KlusterAttitudeView()
 
     try:
-        fq = reload_data(r"C:\collab\dasktest\data_dir\hassler_acceptance\refsurf\converted")
+        fq = reload_data(r"C:\collab\dasktest\data_dir\hassler_acceptance\refsurf\converted", show_progress=False)
         att_dat = fq.source_dat.raw_att
     except AttributeError:  # cant find the converted data, use this test data instead
         roll_dat = np.rad2deg(np.sin(np.linspace(-np.pi, np.pi, 2000)))

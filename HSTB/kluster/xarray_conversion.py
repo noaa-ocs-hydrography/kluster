@@ -20,9 +20,6 @@ from HSTB.kluster.xarray_helpers import resize_zarr, xarr_to_netcdf, combine_xr_
 from HSTB.kluster.logging_conf import return_logger
 
 
-# this was a flag that I used to set when dask/xarray failed to import
-batch_read_enabled = True
-
 sonar_translator = {'em122': [None, 'tx', 'rx', None], 'em302': [None, 'tx', 'rx', None],
                     'em710': [None, 'tx', 'rx', None], 'em2040': [None, 'tx', 'rx', None],
                     'em2040_dual_rx': [None, 'tx', 'rx_port', 'rx_stbd'],
@@ -922,17 +919,9 @@ class BatchRead:
     |     xyzrph:                          {'antenna_x': {'1495563079': '0.000'}, '...
     """
 
-    def __new__(cls, filfolder, dest=None, address=None, client=None, minchunksize=40000000, max_chunks=20,
-                filtype='zarr', skip_dask=False, dashboard=False):
-        if not batch_read_enabled:
-            print('Dask and Xarray are required dependencies to run BatchRead.  Please ensure you have these modules first.')
-            return None
-        else:
-            return super(BatchRead, cls).__new__(cls)
-
     def __init__(self, filfolder: Union[str, list] = None, dest: str = None, address: str = None, client: Client = None,
                  minchunksize: int = 40000000, max_chunks: int = 20, filtype: str = 'zarr', skip_dask: bool = False,
-                 dashboard: bool = False):
+                 dashboard: bool = False, show_progress: bool = True):
         """
         Parameters
         ----------
@@ -959,6 +948,8 @@ class BatchRead:
             store without the overhead of dask
         dashboard
             if True, will open a web browser with the dask dashboard
+        show_progress
+            If true, uses dask.distributed.progress.  Disabled for GUI, as it generates too much text
         """
 
         self.filfolder = filfolder
@@ -967,6 +958,7 @@ class BatchRead:
         self.convert_minchunksize = minchunksize
         self.convert_maxchunks = max_chunks
         self.address = address
+        self.show_progress = show_progress
         self.raw_ping = None
         self.raw_att = None
         self.raw_nav = None
@@ -1343,7 +1335,8 @@ class BatchRead:
 
         # recfutures is a list of futures representing dicts from sequential read
         recfutures = self.client.map(_run_sequential_read, chnks_flat)
-        progress(recfutures)
+        if self.show_progress:
+            progress(recfutures)
         maxnums = self.client.map(_sequential_gather_max_beams, recfutures)
         maxnum = np.max(self.client.gather(maxnums))
         newrecfutures = self.client.map(_sequential_trim_to_max_beam_number, recfutures, [maxnum] * len(recfutures))
@@ -1523,7 +1516,8 @@ class BatchRead:
         data_locs, finalsize = get_write_indices_zarr(output_pth, opts[datatype]['time_arrs'])
         sync = DaskProcessSynchronizer(output_pth)
         fpths = distrib_zarr_write(output_pth, opts[datatype]['output_arrs'], opts[datatype]['final_attrs'],
-                                   opts[datatype]['chunks'], data_locs, finalsize, sync, self.client)
+                                   opts[datatype]['chunks'], data_locs, finalsize, sync, self.client,
+                                   show_progress=self.show_progress)
         fpth = fpths[0]  # Pick the first element, all are identical so it doesnt really matter
         return fpth
 
@@ -1562,7 +1556,8 @@ class BatchRead:
 
             # xarrfutures is a list of futures representing xarray structures for each file chunk
             xarrfutures = self.client.map(_sequential_to_xarray, newrecfutures)
-            progress(xarrfutures)
+            if self.show_progress:
+                progress(xarrfutures)
             del newrecfutures
 
             finalpths = {'ping': [], 'attitude': [], 'navigation': []}

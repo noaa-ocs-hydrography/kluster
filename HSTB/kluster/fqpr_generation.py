@@ -54,9 +54,11 @@ class Fqpr:
         optional motion latency adjustment
     address
         passed to dask_find_or_start_client to setup dask cluster
+    show_progress
+        If true, uses dask.distributed.progress.  Disabled for GUI, as it generates too much text
     """
 
-    def __init__(self, source_dat: BatchRead = None, motion_latency: float = 0.0, address: str = None):
+    def __init__(self, source_dat: BatchRead = None, motion_latency: float = 0.0, address: str = None, show_progress: bool = True):
         self.source_dat = source_dat
         self.intermediate_dat = None
         self.soundings_path = ''
@@ -69,6 +71,7 @@ class Fqpr:
 
         self.client = None
         self.address = address
+        self.show_progress = show_progress
         self.cast_files = None
         self.soundspeedprofiles = None
         self.cast_chunks = None
@@ -1359,7 +1362,7 @@ class Fqpr:
         except:  # not using dask distributed client
             pass
         distrib_zarr_write(outfold, [navdata], navdata_attrs, chunk_sizes, data_locs, finalsize, sync, self.client,
-                           append_dim='time', merge=False)
+                           append_dim='time', merge=False, show_progress=self.show_progress)
 
         self.ppnav_path = outfold
         self.reload_ppnav_records()
@@ -1410,7 +1413,7 @@ class Fqpr:
                 except:  # not using dask distributed client
                     pass
                 distrib_zarr_write(outfold_sec, [ping_wise_data], attributes, chunk_sizes, data_locs, finalsize, sync,
-                                   self.client, append_dim='time', merge=True)
+                                   self.client, append_dim='time', merge=True, show_progress=self.show_progress)
                 attributes = {}
         self.source_dat.reload_pingrecords(skip_dask=skip_dask)
         endtime = perf_counter()
@@ -2199,7 +2202,8 @@ class Fqpr:
                                                                                           s_index=s_index)
             final_size = write_chnk_idxs[-1][-1]
             fpths = distrib_zarr_write(outfold, data_for_workers, exist_attrs, chunk_sizes, write_chnk_idxs, final_size,
-                                       sync, self.client, append_dim='sounding', merge=merge)
+                                       sync, self.client, append_dim='sounding', merge=merge,
+                                       show_progress=self.show_progress)
 
         self.soundings_path = outfold
         self.reload_soundings_records()
@@ -2268,7 +2272,8 @@ class Fqpr:
             if data_for_workers is not None:
                 final_size = write_chnk_idxs[-1][-1]
                 fpths = distrib_zarr_write(outfold, data_for_workers, exist_attrs, chunk_sizes, write_chnk_idxs,
-                                           final_size, sync, self.client, append_dim='time', merge=merge)
+                                           final_size, sync, self.client, append_dim='time', merge=merge,
+                                           show_progress=self.show_progress)
         self.soundings_path = outfold
         self.reload_soundings_records()
 
@@ -2311,7 +2316,8 @@ class Fqpr:
                 start_r = rn * max_chunks_at_a_time
                 end_r = min(start_r + max_chunks_at_a_time, len(data_for_workers))  # clamp for last run
                 futs = self.client.map(kluster_function, data_for_workers[start_r:end_r])
-                progress(futs)
+                if self.show_progress:
+                    progress(futs)
                 endtimes = [len(c) for c in idx_by_chunk[start_r:end_r]]
                 futs_with_endtime = [[f, endtimes[cnt]] for cnt, f in enumerate(futs)]
                 futures_repo.extend(futs_with_endtime)
@@ -2432,7 +2438,7 @@ class Fqpr:
                 time_arrs = self.client.gather(self.client.map(_return_xarray_time, futs_data))
                 data_locs, finalsize = get_write_indices_zarr(outfold_sec, time_arrs)
                 fpths = distrib_zarr_write(outfold_sec, futs_data, mode_settings[3], ping_chunks, data_locs, finalsize,
-                                           sync, self.client, merge=True, skip_dask=skip_dask)
+                                           sync, self.client, merge=True, skip_dask=skip_dask, show_progress=self.show_progress)
             if delete_futs:
                 del self.intermediate_dat[sec_ident][mode_settings[0]]
 

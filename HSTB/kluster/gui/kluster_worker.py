@@ -25,7 +25,8 @@ class ConversionWorker(QtCore.QThread):
 
     def run(self):
         self.started.emit(True)
-        self.fq = convert_multibeam(self.mbes_files, self.output_folder, self.client)
+        # turn off progress, it creates too much clutter in the output window
+        self.fq = convert_multibeam(self.mbes_files, self.output_folder, self.client, show_progress=False)
         self.finished.emit(True)
 
 

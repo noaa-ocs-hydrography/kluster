@@ -596,7 +596,7 @@ def _distrib_zarr_write_convenience(zarr_path: str, xarr: xr.Dataset, attrs: dic
 
 def distrib_zarr_write(zarr_path: str, xarrays: list, attributes: dict, chunk_sizes: dict, data_locs: list,
                        finalsize: int, sync: DaskProcessSynchronizer, client: Client, append_dim: str = 'time',
-                       merge: bool = False, skip_dask: bool = False):
+                       merge: bool = False, skip_dask: bool = False, show_progress: bool = True):
     """
     A function for using the ZarrWrite class to write data to disk.  xarr and attrs are written to the datastore at
     zarr_path.  We use the function (and not the class directly) in Dask when we map it across all the workers.  Dask
@@ -630,6 +630,8 @@ def distrib_zarr_write(zarr_path: str, xarrays: list, attributes: dict, chunk_si
         contains variable 'corr_pointing_angle' and that variable is not in the rootgroup
     skip_dask
         if True, skip the dask process synchronizer as you are not running dask distributed
+    show_progress
+        If true, uses dask.distributed.progress.  Disabled for GUI, as it generates too much text
 
     Returns
     -------
@@ -648,13 +650,15 @@ def distrib_zarr_write(zarr_path: str, xarrays: list, attributes: dict, chunk_si
     else:
         futs = [client.submit(_distrib_zarr_write_convenience, zarr_path, xarrays[0], attributes, chunk_sizes, data_locs[0],
                               append_dim=append_dim, finalsize=finalsize, merge=merge, sync=sync)]
-        progress(futs)
+        if show_progress:
+            progress(futs)
         wait(futs)
         if len(xarrays) > 1:
             for i in range(len(xarrays) - 1):
                 futs.append(client.submit(_distrib_zarr_write_convenience, zarr_path, xarrays[i + 1], None, chunk_sizes,
                                           data_locs[i + 1], append_dim=append_dim, merge=merge, sync=sync))
-                progress(futs)
+                if show_progress:
+                    progress(futs)
                 wait(futs)
     return futs
 

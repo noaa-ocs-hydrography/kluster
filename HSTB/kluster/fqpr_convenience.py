@@ -15,7 +15,8 @@ from HSTB.kluster.fqpr_surface import BaseSurface
 
 
 def perform_all_processing(filname: str, navfiles: list = None, outfold: str = None, coord_system: str = 'NAD83',
-                           vert_ref: str = 'waterline', orientation_initial_interpolation: bool = True, **kwargs):
+                           vert_ref: str = 'waterline', orientation_initial_interpolation: bool = True,
+                           show_progress: bool = True, **kwargs):
     """
     Use fqpr_generation to process multibeam data on the local cluster and generate a sound velocity corrected,
     georeferenced xyz with uncertainty in csv files in the provided output folder.
@@ -36,6 +37,8 @@ def perform_all_processing(filname: str, navfiles: list = None, outfold: str = N
         the vertical reference point, one of ['ellipse', 'waterline']
     orientation_initial_interpolation
         see process_multibeam
+    show_progress
+        If true, uses dask.distributed.progress.  Disabled for GUI, as it generates too much text
 
     Returns
     -------
@@ -43,7 +46,7 @@ def perform_all_processing(filname: str, navfiles: list = None, outfold: str = N
         Fqpr object containing processed data
     """
 
-    fqpr_inst = convert_multibeam(filname, outfold)
+    fqpr_inst = convert_multibeam(filname, outfold, show_progress=show_progress)
     if navfiles is not None:
         fqpr_inst = import_navigation(fqpr_inst, navfiles, **kwargs)
     fqpr_inst = process_multibeam(fqpr_inst, coord_system=coord_system, vert_ref=vert_ref,
@@ -51,7 +54,7 @@ def perform_all_processing(filname: str, navfiles: list = None, outfold: str = N
     return fqpr_inst
 
 
-def convert_multibeam(filname: str, outfold: str = None, client: Client = None):
+def convert_multibeam(filname: str, outfold: str = None, client: Client = None, show_progress: bool = True):
     """
     Use fqpr_generation to process multibeam data on the local cluster and generate a new Fqpr instance saved to the
     provided output folder.
@@ -65,6 +68,8 @@ def convert_multibeam(filname: str, outfold: str = None, client: Client = None):
         not exist.  If not provided will automatically create folder next to lines.
     client
         if you have already created a Client, pass it in here to use it
+    show_progress
+        If true, uses dask.distributed.progress.  Disabled for GUI, as it generates too much text
 
     Returns
     -------
@@ -72,8 +77,8 @@ def convert_multibeam(filname: str, outfold: str = None, client: Client = None):
         Fqpr containing converted source data
     """
 
-    mbes_read = BatchRead(filname, dest=outfold, client=client)
-    fqpr_inst = Fqpr(mbes_read)
+    mbes_read = BatchRead(filname, dest=outfold, client=client, show_progress=show_progress)
+    fqpr_inst = Fqpr(mbes_read, show_progress=show_progress)
     fqpr_inst.read_from_source()
     return fqpr_inst
 
@@ -256,7 +261,8 @@ def return_georef_xyz(filname: str, coord_system: str = 'NAD83', vert_ref: str =
     return fqpr_inst, x, y, z, unc, ids, tms
 
 
-def reload_data(converted_folder: str, require_raw_data: bool = True, skip_dask: bool = False, silent: bool = False):
+def reload_data(converted_folder: str, require_raw_data: bool = True, skip_dask: bool = False, silent: bool = False,
+                show_progress: bool = True):
     """
     Pick up from a previous session.  Load in all the data that exists for the session using the provided
     converted_folder.  Expects there to be fqpr generated zarr datastore folders in this folder.
@@ -276,6 +282,8 @@ def reload_data(converted_folder: str, require_raw_data: bool = True, skip_dask:
         if True, will not start/find the dask client.  Only use this if you are just reading attribution
     silent
         if True, will not print messages
+    show_progress
+        If true, uses dask.distributed.progress.  Disabled for GUI, as it generates too much text
 
     Returns
     -------
@@ -285,10 +293,10 @@ def reload_data(converted_folder: str, require_raw_data: bool = True, skip_dask:
 
     final_paths = return_processed_data_folders(converted_folder)
     if (require_raw_data and final_paths['ping'] and final_paths['attitude'] and final_paths['navigation']) or (final_paths['ping'] or final_paths['soundings']):
-        mbes_read = BatchRead(None, skip_dask=skip_dask)
+        mbes_read = BatchRead(None, skip_dask=skip_dask, show_progress=show_progress)
         mbes_read.final_paths = final_paths
         mbes_read.read_from_zarr_fils(final_paths['ping'], final_paths['attitude'], final_paths['navigation'], final_paths['logfile'])
-        fqpr_inst = Fqpr(mbes_read)
+        fqpr_inst = Fqpr(mbes_read, show_progress=show_progress)
         fqpr_inst.logger.info('****Reloading from file {}****'.format(converted_folder))
 
         fqpr_inst.source_dat.xyzrph = fqpr_inst.source_dat.raw_ping[0].xyzrph

@@ -111,7 +111,7 @@ if __name__ == '__main__':
     try:
         test_window_one = Kluster3dview()
         from HSTB.kluster.fqpr_convenience import reload_data
-        fq = reload_data(r"C:\collab\dasktest\data_dir\hassler_acceptance\refsurf\converted")
+        fq = reload_data(r"C:\collab\dasktest\data_dir\hassler_acceptance\refsurf\converted", show_progress=False)
         test_window_one.add_point_dataset(fq.soundings.x.values, fq.soundings.y.values, fq.soundings.z.values)
         fq.client.close()
         test_window_one.show()
