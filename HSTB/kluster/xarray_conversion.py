@@ -1641,6 +1641,14 @@ class BatchRead:
             if snrmodels[0] not in sonar_translator:
                 self.logger.error('Sonar model not understood "{}"'.format(snrmodels[0]))
                 raise NotImplementedError('Sonar model not understood "{}"'.format(snrmodels[0]))
+            active_system = np.unique([settdict[x]['active_position_system_number'] for x in settdict])
+            if len(active_system) > 1:
+                self.logger.error('Found the active positioning system changed across files, found: {}'.format(active_system))
+                raise NotImplementedError('Found the active positioning system changed across files, found: {}'.format(active_system))
+            input_datum = np.unique([settdict[x]['position_1_datum'] for x in settdict])
+            if len(input_datum) > 1:
+                self.logger.error('Found the input position datum changed across files, found: {}'.format(input_datum))
+                raise NotImplementedError('Found multiple sonars types in data provided: {}'.format(input_datum))
 
             mintime = min(list(settdict.keys()))
             minactual = self.raw_ping[0].time.min().compute()
@@ -1658,8 +1666,8 @@ class BatchRead:
 
             if save_pths is not None:
                 for pth in save_pths:
-                    my_xarr_add_attribute({'xyzrph': self.xyzrph, 'tpu_parameters': self.tpu_parameters,
-                                           'sonartype': self.sonartype}, pth)
+                    my_xarr_add_attribute({'input_datum': input_datum[0], 'xyzrph': self.xyzrph,
+                                           'tpu_parameters': self.tpu_parameters, 'sonartype': self.sonartype}, pth)
             self.logger.info('Constructed offsets successfully')
 
     def _get_nth_chunk_indices(self, chunks: tuple, idx: int):

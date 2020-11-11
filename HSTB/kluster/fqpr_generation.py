@@ -189,7 +189,10 @@ class Fqpr:
 
         datum = datum.upper()
         if epsg is not None:
-            self.xyz_crs = CRS.from_epsg(int(epsg))
+            try:
+                self.xyz_crs = CRS.from_epsg(int(epsg))
+            except:  # if the CRS we generate here has no epsg, when we save it to disk we save the proj string
+                self.xyz_crs = CRS.from_string(epsg)
         elif epsg is None and not projected:
             if datum == 'NAD83':
                 self.xyz_crs = CRS.from_epsg(6319)
@@ -908,6 +911,18 @@ class Fqpr:
         tx_tstmp_idx = get_ping_times(ra.time, applicable_index)
         self.logger.info('preparing to process {} pings'.format(len(tx_tstmp_idx)))
 
+        try:
+            if ra.input_datum == 'NAD83':
+                input_datum = CRS.from_epsg(6319)
+            elif ra.input_datum == 'WGS84':
+                input_datum = CRS.from_epsg(4326)
+            else:
+                self.logger.error('{} not supported.  Only supports WGS84 and NAD83'.format(ra.input_datum))
+                raise ValueError('{} not supported.  Only supports WGS84 and NAD83'.format(ra.input_datum))
+        except AttributeError:
+            self.logger.warning('No input datum attribute found, assuming WGS84')
+            input_datum = CRS.from_epsg(4326)
+
         if ('latitude' in ra) and ('longitude' in ra) and ('altitude' in ra):
             self.logger.info('Using pre-interpolated attitude/navigation saved to disk...')
             lat = self.source_dat.select_array_from_rangeangle('latitude', sec_ident).where(applicable_index, drop=True)
@@ -979,7 +994,8 @@ class Fqpr:
                 fut_lat = lat[chnk]
                 fut_hdng = hdng[chnk]
                 fut_hve = hve[chnk]
-            data_for_workers.append([sv_data, fut_alt, fut_lon, fut_lat, fut_hdng, fut_hve, wline, self.vert_ref, self.xyz_crs, z_offset])
+            data_for_workers.append([sv_data, fut_alt, fut_lon, fut_lat, fut_hdng, fut_hve, wline, self.vert_ref,
+                                     input_datum, self.xyz_crs, z_offset])
         return data_for_workers
 
     def _generate_chunks_tpu(self, ra: xr.Dataset, idx_by_chunk: xr.DataArray, applicable_index: xr.DataArray):
@@ -2381,9 +2397,12 @@ class Fqpr:
                               'units': {'alongtrack': 'meters (+ forward)', 'acrosstrack': 'meters (+ starboard)',
                                         'depthoffset': 'meters (+ down)'}}]
         elif mode == 'georef':
+            crs = self.xyz_crs.to_epsg()
+            if crs is None:  # gets here if there is no valid EPSG for this transformation
+                crs = self.xyz_crs.to_string()
             mode_settings = ['xyz', ['x', 'y', 'z', 'corr_heave', 'corr_altitude'],
                              'georeferenced soundings data',
-                             {'xyz_crs': self.xyz_crs.to_epsg(), 'vertical_reference': self.vert_ref,
+                             {'xyz_crs': crs, 'vertical_reference': self.vert_ref,
                               '_georeference_soundings_complete': self.georef_time_complete,
                               'reference': {'x': 'reference', 'y': 'reference', 'z': 'reference',
                                             'corr_heave': 'transmitter', 'corr_altitude': 'transmitter to ellipsoid'},

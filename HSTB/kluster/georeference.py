@@ -29,12 +29,12 @@ def distrib_run_georeference(dat: list):
         corrected altitude for TX - RP lever arm, all zeros if in 'vessel' or 'waterline' mode (time)
     """
 
-    x, y, z, hve, alt = georef_by_worker(dat[0], dat[1], dat[2], dat[3], dat[4], dat[5], dat[6], dat[7], dat[8], dat[9])
+    x, y, z, hve, alt = georef_by_worker(dat[0], dat[1], dat[2], dat[3], dat[4], dat[5], dat[6], dat[7], dat[8], dat[9], dat[10])
     return x, y, z, hve, alt
 
 
 def georef_by_worker(sv_corr: list, alt: xr.DataArray, lon: xr.DataArray, lat: xr.DataArray, hdng: xr.DataArray,
-                     heave: xr.DataArray, wline: float, vert_ref: str, xyz_crs: CRS, z_offset: float):
+                     heave: xr.DataArray, wline: float, vert_ref: str, input_crs: CRS, xyz_crs: CRS, z_offset: float):
     """
     Use the raw attitude/navigation to transform the vessel relative along/across/down offsets to georeferenced
     soundings.  Will support transformation to geographic and projected coordinate systems and with a vertical
@@ -58,8 +58,10 @@ def georef_by_worker(sv_corr: list, alt: xr.DataArray, lon: xr.DataArray, lat: x
         waterline offset from reference point
     vert_ref
         vertical reference point, one of ['ellipse', 'vessel', 'waterline']
+    input_crs
+        pyproj CRS object, input coordinate reference system information for this run
     xyz_crs
-        pyproj CRS object, coordinate reference system information for this run
+        pyproj CRS object, destination coordinate reference system information for this run
     z_offset
         lever arm from reference point to transmitter
 
@@ -115,7 +117,7 @@ def georef_by_worker(sv_corr: list, alt: xr.DataArray, lon: xr.DataArray, lat: x
         # - lon, lat - this appears to be valid when using CRS from proj4 string
         # - lat, lon - this appears to be valid when using CRS from epsg
         # use the always_xy option to force the transform to expect lon/lat order
-        georef_transformer = Transformer.from_crs(xyz_crs.geodetic_crs, xyz_crs, always_xy=True)
+        georef_transformer = Transformer.from_crs(input_crs, xyz_crs, always_xy=True)
         newpos = georef_transformer.transform(pos[0], pos[1], errcheck=True)  # longitude / latitude order (x/y)
     else:
         newpos = pos
