@@ -2345,11 +2345,11 @@ def build_tpu_parameters():
     latency_patch = 0.0  # 1 sigma standard deviation in your latency calculation (seconds)
     timing_latency = 0.001  # 1 sigma standard deviation of the timing accuracy of the system (seconds)
     dynamic_draft = 0.1  # 1 sigma standard deviation of the dynamic draft measurement (meters)
-    separation_model = 0.1  # 1 sigma standard deivation in the sep model (tidal, ellipsoidal, etc) (meters)
+    separation_model = 0.0  # 1 sigma standard deivation in the sep model (tidal, ellipsoidal, etc) (meters)
     waterline = 0.02  # 1 sigma standard deviation of the waterline (meters)
     vessel_speed = 0.1  # 1 sigma standard deviation of the vessel speed (meters/second)
     horizontal_positioning = 1.5  # 1 sigma standard deviation of the horizontal positioning (meters)
-    vertical_positioning = 0.8  # 1 sigma standard deviation of the horizontal positioning (meters)
+    vertical_positioning = 1.0  # 1 sigma standard deviation of the horizontal positioning (meters)
 
     tpu_parameters = {'heave': heave, 'roll_sensor_error': roll_sensor_error, 'pitch_sensor_error': pitch_sensor_error,
                       'heading_sensor_error': heading_sensor_error, 'x_offset': x_offset, 'y_offset': y_offset,

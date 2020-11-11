@@ -150,11 +150,11 @@ class Tpu:
         self.latency_patch = 0.0  # 1 sigma standard deviation in your latency calculation (seconds)
         self.timing_latency = 0.001  # 1 sigma standard deviation of the timing accuracy of the system (seconds)
         self.dynamic_draft = 0.1  # 1 sigma standard deviation of the dynamic draft measurement (meters)
-        self.separation_model = 0.1  # 1 sigma standard deivation in the sep model (tidal, ellipsoidal, etc) (meters)
+        self.separation_model = 0.0  # 1 sigma standard deivation in the sep model (tidal, ellipsoidal, etc) (meters)
         self.waterline = 0.02  # 1 sigma standard deviation of the waterline (meters)
         self.vessel_speed = 0.1  # 1 sigma standard deviation of the vessel speed (meters/second)
         self.horizontal_positioning = 1.5  # 1 sigma standard deviation of the horizontal positioning (meters)
-        self.vertical_positioning = 0.8  # 1 sigma standard deviation of the horizontal positioning (meters)
+        self.vertical_positioning = 1.0  # 1 sigma standard deviation of the horizontal positioning (meters)
 
         # vectors from sensors necessary for computation
         self.kongsberg_quality_factor = None
@@ -499,7 +499,7 @@ class Tpu:
             if self.down_position_error is not None:
                 downpos = self.down_position_error ** 2
             else:
-                downpos = self.vertical_positioning ** 2
+                downpos = np.full((v_unc.shape[0], 1), self.vertical_positioning ** 2, dtype=np.float32)
             self.plot_components['down_position'] = downpos ** 0.5
             hve_var = 0
         else:
@@ -529,8 +529,6 @@ class Tpu:
         related uncertainty values
         """
 
-        if self.down_position_error is None:
-            raise ValueError('tpu: you must provide vertical positioning error to calculate ellipsoidally referenced depth error')
         d_measured = self._total_depth_measurement_error(v_unc, 'ellipse')
         self.separation_model = np.full((v_unc.shape[0], 1), self.separation_model, dtype=np.float32)
 

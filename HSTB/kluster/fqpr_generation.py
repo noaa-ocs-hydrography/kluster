@@ -1610,13 +1610,6 @@ class Fqpr:
         if self.vert_ref not in ['ellipse', 'waterline']:
             self.logger.error("calculate_total_uncertainty: {} must be one of 'ellipse', 'waterline'".format(self.vert_ref))
             raise ValueError("calculate_total_uncertainty: {} must be one of 'ellipse', 'waterline'".format(self.vert_ref))
-        if self.vert_ref == 'ellipse':
-            if self.ppnav_dat is None:
-                self.logger.error("calculate_total_uncertainty: with vert_ref={} you must provide post processed navigation".format(self.vert_ref))
-                raise ValueError("calculate_total_uncertainty: with vert_ref={} you must provide post processed navigation".format(self.vert_ref))
-            elif 'down_position_error' not in self.ppnav_dat:
-                self.logger.error("calculate_total_uncertainty: with vert_ref={} you must provide sbet error".format(self.vert_ref))
-                raise ValueError("calculate_total_uncertainty: with vert_ref={} you must provide sbet error".format(self.vert_ref))
 
         required = ['corr_pointing_angle', 'beampointingangle', 'acrosstrack', 'depthoffset', 'soundspeed', 'qualityfactor']
         for req in required:
