@@ -21,6 +21,9 @@ class KlusterProjectTree(QtWidgets.QTreeView):
     close_surface = QtCore.Signal(str)
     load_console_fqpr = QtCore.Signal(str)
     load_console_surface = QtCore.Signal(str)
+    visualize_orientation = QtCore.Signal(str)
+    visualize_beam_vectors = QtCore.Signal(str)
+    visualize_corrected_beam_vectors = QtCore.Signal(str)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -44,6 +47,8 @@ class KlusterProjectTree(QtWidgets.QTreeView):
 
         # set up the context menu per item
         self.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+        self.right_click_menu_converted = None
+        self.right_click_menu_surfaces = None
         self.setup_menu()
 
         self.categories = ['Converted', 'Surfaces']
@@ -57,13 +62,27 @@ class KlusterProjectTree(QtWidgets.QTreeView):
         """
         Setup the menu that is generated on right clicking in the project tree.
         """
-        self.right_click_menu = QtWidgets.QMenu('menu', self)
+        self.right_click_menu_converted = QtWidgets.QMenu('menu', self)
+        self.right_click_menu_surfaces = QtWidgets.QMenu('menu', self)
+
         close_dat = QtWidgets.QAction('Close', self)
         close_dat.triggered.connect(self.close_item_event)
         load_in_console = QtWidgets.QAction('Load in console', self)
         load_in_console.triggered.connect(self.load_in_console_event)
-        self.right_click_menu.addAction(close_dat)
-        self.right_click_menu.addAction(load_in_console)
+        visualize_orientation = QtWidgets.QAction('Visualize Vessel Orientation', self)
+        visualize_orientation.triggered.connect(self.visualize_orientation_event)
+        visualize_beam_vectors = QtWidgets.QAction('Visualize Beam Vectors (raw)', self)
+        visualize_beam_vectors.triggered.connect(self.visualize_beam_vectors_event)
+        visualize_corrected_beam_vectors = QtWidgets.QAction('Visualize Beam Vectors (corrected)', self)
+        visualize_corrected_beam_vectors.triggered.connect(self.visualize_corrected_beam_vectors_event)
+
+        self.right_click_menu_converted.addAction(close_dat)
+        self.right_click_menu_converted.addAction(load_in_console)
+        self.right_click_menu_converted.addAction(visualize_orientation)
+        self.right_click_menu_converted.addAction(visualize_beam_vectors)
+        self.right_click_menu_converted.addAction(visualize_corrected_beam_vectors)
+
+        self.right_click_menu_surfaces.addAction(close_dat)
 
     def show_context_menu(self):
         """
@@ -73,8 +92,10 @@ class KlusterProjectTree(QtWidgets.QTreeView):
         """
         index = self.currentIndex()
         mid_lvl_name = index.parent().data()
-        if mid_lvl_name in self.categories:
-            self.right_click_menu.exec_(QtGui.QCursor.pos())
+        if mid_lvl_name == 'Converted':
+            self.right_click_menu_converted.exec_(QtGui.QCursor.pos())
+        elif mid_lvl_name == 'Surfaces':
+            self.right_click_menu_surfaces.exec_(QtGui.QCursor.pos())
 
     def load_in_console_event(self, e):
         """
@@ -113,6 +134,57 @@ class KlusterProjectTree(QtWidgets.QTreeView):
             self.close_fqpr.emit(sel_data)
         elif mid_lvl_name == 'Surfaces':
             self.close_surface.emit(sel_data)
+
+    def visualize_orientation_event(self, e):
+        """
+        If user right clicks on a project tree item and selects visualize orientation, triggers this event.  Emit signals depending
+        on what kind of item the user selects.
+
+        Parameters
+        ----------
+        e: QEvent on menu button click
+
+        """
+        index = self.currentIndex()
+        mid_lvl_name = index.parent().data()
+        sel_data = index.data()
+
+        if mid_lvl_name == 'Converted':
+            self.visualize_orientation.emit(sel_data)
+
+    def visualize_beam_vectors_event(self, e):
+        """
+        If user right clicks on a project tree item and selects visualize beam vectors, triggers this event.  Emit signals depending
+        on what kind of item the user selects.
+
+        Parameters
+        ----------
+        e: QEvent on menu button click
+
+        """
+        index = self.currentIndex()
+        mid_lvl_name = index.parent().data()
+        sel_data = index.data()
+
+        if mid_lvl_name == 'Converted':
+            self.visualize_beam_vectors.emit(sel_data)
+
+    def visualize_corrected_beam_vectors_event(self, e):
+        """
+        If user right clicks on a project tree item and selects visualize corrected beam vectors, triggers this event.  Emit signals depending
+        on what kind of item the user selects.
+
+        Parameters
+        ----------
+        e: QEvent on menu button click
+
+        """
+        index = self.currentIndex()
+        mid_lvl_name = index.parent().data()
+        sel_data = index.data()
+
+        if mid_lvl_name == 'Converted':
+            self.visualize_corrected_beam_vectors.emit(sel_data)
 
     def dragEnterEvent(self, e):
         """

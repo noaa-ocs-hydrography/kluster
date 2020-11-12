@@ -285,11 +285,11 @@ class Tpu:
         self.north_position_error = north_position_error
         self.east_position_error = east_position_error
         self.down_position_error = down_position_error
-        if self.sbet_roll_error is not None:
+        if roll_error is not None:
             self.sbet_roll_error = np.deg2rad(roll_error)
-        if self.sbet_pitch_error is not None:
+        if pitch_error is not None:
             self.sbet_pitch_error = np.deg2rad(pitch_error)
-        if self.sbet_heading_error is not None:
+        if heading_error is not None:
             self.sbet_heading_error = np.deg2rad(heading_error)
 
     def generate_total_uncertainties(self, vert_ref: str = 'ellipse', sigma: int = 2):

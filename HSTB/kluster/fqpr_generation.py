@@ -89,6 +89,8 @@ class Fqpr:
         self.georef_time_complete = ''
         self.tpu_time_complete = ''
 
+        self.backup_fqpr = {}
+
         self.logfile = None
         self.logger = None
         self.initialize_log()
@@ -1383,7 +1385,7 @@ class Fqpr:
         self.ppnav_path = outfold
         self.reload_ppnav_records()
 
-        self.interp_to_ping_record(self.ppnav_dat, {'navigation_source': 'sbet'})
+        self.interp_to_ping_record(self.ppnav_dat, {'navigation_source': 'sbet', 'input_datum': self.ppnav_dat.datum})
 
         endtime = perf_counter()
         self.logger.info('****Importing post processed navigation complete: {}s****\n'.format(round(endtime - starttime, 1)))
@@ -2614,6 +2616,54 @@ class Fqpr:
             else:
                 total_pings += raw_ping.time.size
         return total_pings
+
+    def subset_by_time(self, mintime: float, maxtime: float):
+        """
+        We save the line start/end time as an attribute within each raw_ping record.  Use this method to pull out
+        just the data that is within the mintime/maxtime range (inclusive mintime, exclusive maxtime).  The class will
+        then only have access to data within that time period.
+
+        To return to the full original dataset, use restore_subset
+
+        Parameters
+        ----------
+        mintime
+            minimum time of the subset
+        maxtime
+            maximum time of the subset
+        """
+
+        if self.backup_fqpr != {}:
+            self.restore_subset()
+        self.backup_fqpr['raw_ping'] = [ping.copy() for ping in self.source_dat.raw_ping]
+        self.backup_fqpr['raw_att'] = self.source_dat.raw_att.copy()
+        self.backup_fqpr['raw_nav'] = self.source_dat.raw_nav.copy()
+
+        slice_raw_ping = []
+        for ra in self.source_dat.raw_ping:
+            slice_ra = slice_xarray_by_dim(ra, dimname='time', start_time=mintime, end_time=maxtime)
+            slice_raw_ping.append(slice_ra)
+        self.source_dat.raw_ping = slice_raw_ping
+        self.source_dat.raw_nav = slice_xarray_by_dim(self.source_dat.raw_nav, dimname='time', start_time=mintime, end_time=maxtime)
+        self.source_dat.raw_att = slice_xarray_by_dim(self.source_dat.raw_att, dimname='time', start_time=mintime, end_time=maxtime)
+        if self.ppnav_dat is not None:
+            self.backup_fqpr['ppnav'] = self.ppnav_dat.copy()
+            self.ppnav_dat = slice_xarray_by_dim(self.ppnav_dat, dimname='time', start_time=mintime, end_time=maxtime)
+
+    def restore_subset(self):
+        """
+        Restores the original data if subset_by_time has been run.
+        """
+        if self.backup_fqpr != {}:
+            self.source_dat.raw_nav = self.backup_fqpr['raw_nav']
+            self.source_dat.raw_ping = self.backup_fqpr['raw_ping']
+            self.source_dat.raw_att = self.backup_fqpr['raw_att']
+            if 'ppnav' in self.backup_fqpr:
+                self.ppnav_dat = self.backup_fqpr['ppnav']
+            self.backup_fqpr = {}
+        else:
+            self.logger.error('restore_subset: no subset found to restore from')
+            raise ValueError('restore_subset: no subset found to restore from')
 
     def _reform_build_pings(self, total_pings: int, secs: list, ping_counters: np.array, variable_selection: list,
                             max_possible_beams: int = 3000, min_time: float = None, max_time: float = None):

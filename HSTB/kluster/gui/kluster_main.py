@@ -85,6 +85,9 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.project_tree.close_surface.connect(self.close_surface)
         self.project_tree.load_console_fqpr.connect(self.load_console_fqpr)
         self.project_tree.load_console_surface.connect(self.load_console_surface)
+        self.project_tree.visualize_orientation.connect(self.visualize_orientation)
+        self.project_tree.visualize_beam_vectors.connect(self.visualize_beam_vectors)
+        self.project_tree.visualize_corrected_beam_vectors.connect(self.visualize_corrected_beam_vectors)
         self.explorer.row_selected.connect(self.attribute.display_file_attribution)
         self.two_d.box_select.connect(self.select_line_by_box)
         self.convert_thread.finished.connect(self._kluster_convert_multibeam_results)
@@ -269,6 +272,15 @@ class KlusterMain(QtWidgets.QMainWindow):
     def load_console_surface(self, pth):
         pass
 
+    def visualize_orientation(self, pth):
+        self.project.build_visualizations(pth, 'orientation')
+
+    def visualize_beam_vectors(self, pth):
+        self.project.build_visualizations(pth, 'beam_vectors')
+
+    def visualize_corrected_beam_vectors(self, pth):
+        self.project.build_visualizations(pth, 'corrected_beam_vectors')
+
     def close_surface(self, pth):
         """
         With the given path to the surface instance, remove the loaded data associated with the surface and remove it from
@@ -367,7 +379,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         if fq is not None:
             fqpr_entry = self.project.add_fqpr(fq)
             if fqpr_entry is None:
-                print('kluster_convert_multibeam: Unable to add to Project from conversion: {}'.format(fil))
+                print('kluster_convert_multibeam: Unable to add to Project from conversion: {}'.format(fq))
             else:
                 self.redraw(new_projects=[fqpr_entry])
         else:

@@ -11,6 +11,7 @@ from HSTB.kluster.fqpr_convenience import reload_data, convert_multibeam, reload
 from HSTB.kluster.fqpr_helpers import get_attributes_from_fqpr
 from HSTB.kluster.fqpr_surface import BaseSurface
 from HSTB.kluster.xarray_helpers import slice_xarray_by_dim
+from HSTB.kluster.fqpr_visualizations import FqprVisualizations
 
 
 class FqprProject:
@@ -61,6 +62,9 @@ class FqprProject:
         # converted folder path per line name, see regenerate_fqpr_lines
         # ex: {'0001_20170822_144548_S5401_X.all': 'C:\\collab\\dasktest\\data_dir\\EM2040\\convert1'}
         self.convert_path_lookup = {}
+
+        # visuzlizations storage, required so that the visualizations continue to update after generated
+        self.visualizations = {}
 
         self.buffered_fqpr_navigation = {}
         self.point_cloud_for_line = {}
@@ -343,21 +347,48 @@ class FqprProject:
                 line_att = slice_xarray_by_dim(line_att, dimname='time', start_time=line_start_time, end_time=line_end_time)
         return line_att
 
-    def regenerate_fqpr_lines(self, converted_pth: str):
+    def regenerate_fqpr_lines(self, pth: str):
         """
         After adding a new Fqpr object, we want to get the line information from the attributes so that we can quickly
         access how many lines are in a project, and the time boundaries of these lines.
 
         Parameters
         ----------
-        converted_pth
+        pth
             path to the Fqpr object
         """
         for fq_name, fq_inst in self.fqpr_instances.items():
-            if fq_name == converted_pth:
+            if fq_name == pth:
                 self.fqpr_lines[fq_name] = fq_inst.return_line_dict()
                 for linename in self.fqpr_lines[fq_name]:
-                    self.convert_path_lookup[linename] = converted_pth
+                    self.convert_path_lookup[linename] = pth
+
+    def build_visualizations(self, pth: str, visualization_type: str):
+        """
+        Take the provided project path and create visualizations of that project
+
+        Parameters
+        ----------
+        pth
+            path to the Fqpr object
+        visualization_type
+            one of 'orientation', 'beam_vectors', 'corrected_beam_vectors'
+        """
+
+        for fq_name, fq_inst in self.fqpr_instances.items():
+            if fq_name == pth:
+                fq_viz = FqprVisualizations(fq_inst)
+                if visualization_type == 'orientation':
+                    fq_viz.visualize_orientation_vector()
+                    self.visualizations['orientation'] = fq_viz
+                elif visualization_type == 'beam_vectors':
+                    fq_viz.visualize_beam_pointing_vectors(corrected=False)
+                    self.visualizations['beam_vectors'] = fq_viz
+                elif visualization_type == 'corrected_beam_vectors':
+                    fq_viz.visualize_beam_pointing_vectors(corrected=True)
+                    self.visualizations['corrected_beam_vectors'] = fq_viz
+                else:
+                    raise ValueError("Expected one of 'orientation', 'beam_vectors', 'corrected_beam_vectors', got {}".format(visualization_type))
 
     def return_line_owner(self, line: str):
         """

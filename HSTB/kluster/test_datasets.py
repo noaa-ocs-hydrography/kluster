@@ -113,8 +113,8 @@ class SyntheticFqpr:
 
 class RealDualheadFqpr:
     """
-    Class holding the real data that I took from a .all file (0022_20190716_232128_S250.all).  Covers a ping and
-    the attitude values associated with them.  Dual tx/dual rx from the Hassler 2040.
+    Class holding the real data that I took from a Hassler EM2040 dual head .all file (0022_20190716_232128_S250.all).
+    Covers a ping and the attitude values associated with them.
     """
 
     def __init__(self,
@@ -538,6 +538,7 @@ class RealDualheadFqpr:
                                            -64.04999542236328, -64.1199951171875, -64.18000030517578, -64.23999786376953,
                                            -64.30999755859375, -64.3699951171875, -64.43000030517578, -64.48999786376953)),
                  synth_soundspeed=(1541.5999755859375, 1541.5999755859375, 1541.5999755859375, 1541.5999755859375),
+                 synth_counter=(35353, 35352, 35353, 35352),
                  synth_traveltime=((0.06553955376148224, 0.06547509878873825, 0.06550399214029312, 0.06534574180841446,
                                     0.06526543200016022, 0.0648433044552803, 0.06493043154478073, 0.06453239917755127,
                                     0.06443223357200623, 0.06447990238666534, 0.06427512317895889, 0.06410351395606995,
@@ -2756,6 +2757,7 @@ class RealDualheadFqpr:
         self.synth_nav_time = synth_nav_time
         self.synth_beampointingangle = synth_beampointingangle
         self.synth_qualityfactor = synth_qualityfactor
+        self.synth_counter = synth_counter
         self.synth_soundspeed = synth_soundspeed
         self.synth_tiltangle = synth_tiltangle
         self.synth_traveltime = synth_traveltime
@@ -2870,6 +2872,7 @@ class RealDualheadFqpr:
         dataset = []
         for cnt, sec in enumerate(sec_vals):
             ntx = xr.DataArray(np.array([self.synth_ntx[cnt]]), dims=['time'], coords={'time': tme_coord})
+            counter = xr.DataArray(np.array([self.synth_counter[cnt]]), dims=['time'], coords={'time': tme_coord})
             soundspeed = xr.DataArray(np.array([self.synth_soundspeed[cnt]]), dims=['time'], coords={'time': tme_coord})
 
             tiltangle = xr.DataArray(np.array([self.synth_tiltangle[cnt]]), dims=['time'], coords={'time': tme_coord})
@@ -2892,6 +2895,7 @@ class RealDualheadFqpr:
             quality_factor = xr.DataArray(qf_data, dims=['time', 'beam'], coords={'time': tme_coord, 'beam': bm_vals})
 
             dataset.append(xr.Dataset({'ntx': (['time'], ntx),
+                                       'counter': (['time'], counter),
                                        'tiltangle': (['time'], tiltangle),
                                        'soundspeed': (['time'], soundspeed),
                                        'traveltime': (['time', 'beam'], twoway_travel_time),
@@ -2954,7 +2958,9 @@ class RealFqpr:
     """
 
     def __init__(self,
-                 synth_ra_time=(1495563084.457, 1495563084.948),
+                 synth_ra_time=((1495563084.457, 1495563084.459206, 1495563084.457, 1495563084.459206, 1495563084.457,
+                                 1495563084.459206), (1495563084.948, 1495563084.950206, 1495563084.948,
+                                                      1495563084.950206, 1495563084.948, 1495563084.950206)),
                  synth_att_time=(1495563084.440, 1495563084.451, 1495563084.461, 1495563084.47, 1495563084.481,
                                  1495563084.941, 1495563084.951, 1495563084.961, 1495563084.971, 1495563084.981,
                                  1495563084.991),
@@ -3436,6 +3442,8 @@ class RealFqpr:
                                             999.0, 999.0, 999.0, 999.0, 999.0, 999.0, 999.0, 999.0, 999.0, 999.0, 999.0,
                                             999.0, 999.0, 999.0, 999.0, 999.0, 999.0, 999.0))),
                  synth_soundspeed=(1488.599976, 1488.599976),
+                 synth_counter=((61986, 61987, 61986, 61987, 61986, 61987),
+                                (61988, 61989, 61988, 61989, 61988, 61989)),
                  synth_traveltime=(((0.3374375104904175, 0.3357412815093994, 0.33404624462127686, 0.33235231041908264,
                                      0.3306598961353302, 0.3289688229560852, 0.32727906107902527, 0.32559049129486084,
                                      0.32390353083610535, 0.32221800088882446, 0.3205338716506958, 0.31885120272636414,
@@ -5676,6 +5684,7 @@ class RealFqpr:
         self.synth_beampointingangle = synth_beampointingangle
         self.synth_qualityfactor = synth_qualityfactor
         self.synth_soundspeed = synth_soundspeed
+        self.synth_counter = synth_counter
         self.synth_tiltangle = synth_tiltangle
         self.synth_traveltime = synth_traveltime
         self.synth_ntx = synth_ntx
@@ -5744,11 +5753,9 @@ class RealFqpr:
             xarray_conversion normally.
 
         """
-        tme_vals = list(self.synth_ra_time)
         sec_vals = self.secs
 
-        if len(self.synth_beampointingangle) != len(self.secs) or \
-                len(self.synth_beampointingangle[0]) != len(self.synth_ra_time):
+        if len(self.synth_beampointingangle) != len(self.secs):
             raise ValueError('Found odd number of beams in synth_beampointingangle, should be a multiplier of provided '
                              'ra time')
 
@@ -5756,12 +5763,15 @@ class RealFqpr:
         for cnt, sec in enumerate(sec_vals):
             num_beams = int(len(self.synth_beampointingangle[cnt][0]))
             bm_vals = [i for i in range(num_beams)]
+            tme_vals = [i[cnt] for i in self.synth_ra_time]
+            counter_vals = [i[cnt] for i in self.synth_counter]
 
             tme_coord = xr.DataArray(np.array(tme_vals), dims=['time'], coords=np.array([tme_vals]))
             beam_coord = xr.DataArray(np.array(bm_vals), dims=['beam'], coords=np.array([bm_vals]))
 
             ntx = xr.DataArray(np.array(self.synth_ntx), dims=['time'], coords={'time': tme_coord})
             soundspeed = xr.DataArray(np.array(self.synth_soundspeed), dims=['time'], coords={'time': tme_coord})
+            counter = xr.DataArray(np.array(counter_vals), dims=['time'], coords={'time': tme_coord})
 
             tiltangle = xr.DataArray(np.array(self.synth_tiltangle[cnt]), dims=['time'], coords={'time': tme_coord})
 
@@ -5784,6 +5794,7 @@ class RealFqpr:
                                           coords={'time': tme_coord, 'beam': bm_vals})
 
             dataset.append(xr.Dataset({'ntx': (['time'], ntx),
+                                       'counter': (['time'], counter),
                                        'tiltangle': (['time'], tiltangle),
                                        'soundspeed': (['time'], soundspeed),
                                        'traveltime': (['time', 'beam'], twoway_travel_time),
