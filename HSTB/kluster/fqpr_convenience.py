@@ -15,7 +15,7 @@ from HSTB.kluster.fqpr_surface import BaseSurface
 
 
 def perform_all_processing(filname: str, navfiles: list = None, outfold: str = None, coord_system: str = 'NAD83',
-                           vert_ref: str = 'waterline', orientation_initial_interpolation: bool = True,
+                           vert_ref: str = 'waterline', orientation_initial_interpolation: bool = False,
                            show_progress: bool = True, **kwargs):
     """
     Use fqpr_generation to process multibeam data on the local cluster and generate a sound velocity corrected,
@@ -135,7 +135,7 @@ def import_navigation(fqpr_inst: Fqpr, navfiles: list, errorfiles: list = None, 
     return fqpr_inst
 
 
-def process_multibeam(fqpr_inst: Fqpr, run_orientation: bool = True, orientation_initial_interpolation: bool = True,
+def process_multibeam(fqpr_inst: Fqpr, run_orientation: bool = True, orientation_initial_interpolation: bool = False,
                       run_beam_vec: bool = True, run_svcorr: bool = True, run_georef: bool = True,
                       svcasts: list = None, use_epsg: bool = False,
                       use_coord: bool = True, epsg: int = None, coord_system: str = 'NAD83',
@@ -299,21 +299,21 @@ def reload_data(converted_folder: str, require_raw_data: bool = True, skip_dask:
         fqpr_inst = Fqpr(mbes_read, show_progress=show_progress)
         fqpr_inst.logger.info('****Reloading from file {}****'.format(converted_folder))
 
-        fqpr_inst.source_dat.xyzrph = fqpr_inst.source_dat.raw_ping[0].xyzrph
-        if 'vertical_reference' in fqpr_inst.source_dat.raw_ping[0].attrs:
-            fqpr_inst.set_vertical_reference(fqpr_inst.source_dat.raw_ping[0].vertical_reference)
-        fqpr_inst.source_dat.tpu_parameters = fqpr_inst.source_dat.raw_ping[0].tpu_parameters
+        fqpr_inst.multibeam.xyzrph = fqpr_inst.multibeam.raw_ping[0].xyzrph
+        if 'vertical_reference' in fqpr_inst.multibeam.raw_ping[0].attrs:
+            fqpr_inst.set_vertical_reference(fqpr_inst.multibeam.raw_ping[0].vertical_reference)
+        fqpr_inst.multibeam.tpu_parameters = fqpr_inst.multibeam.raw_ping[0].tpu_parameters
 
         fqpr_inst.generate_starter_orientation_vectors(None, None)
-        if 'xyz_crs' in fqpr_inst.source_dat.raw_ping[0].attrs:
-            fqpr_inst.construct_crs(epsg=fqpr_inst.source_dat.raw_ping[0].attrs['xyz_crs'])
+        if 'xyz_crs' in fqpr_inst.multibeam.raw_ping[0].attrs:
+            fqpr_inst.construct_crs(epsg=fqpr_inst.multibeam.raw_ping[0].attrs['xyz_crs'])
         try:
             fqpr_inst.soundings_path = final_paths['soundings'][0]
             fqpr_inst.reload_soundings_records(skip_dask=skip_dask)
         except IndexError:
             print('No soundings dataset found')
         try:
-            fqpr_inst.ppnav_path = final_paths['ppnav'][0]
+            fqpr_inst.navigation_path = final_paths['ppnav'][0]
             fqpr_inst.reload_ppnav_records(skip_dask=skip_dask)
         except IndexError:
             print('No postprocessed navigation data found')
@@ -518,7 +518,7 @@ def return_processed_data_folders(converted_folder: str):
 
 
 def reprocess_sounding_selection(fqpr_inst: Fqpr, new_xyzrph: dict = None, subset_time: list = None,
-                                 turn_off_dask: bool = True, turn_dask_back_on: bool = False,
+                                 georeference: bool = False, turn_off_dask: bool = True, turn_dask_back_on: bool = False,
                                  override_datum: str = None, override_vertical_reference: str = None):
     """
     Designed to feed a patch test tool.  This function will reprocess all the soundings within the given subset
@@ -546,6 +546,9 @@ def reprocess_sounding_selection(fqpr_inst: Fqpr, new_xyzrph: dict = None, subse
         ex: subset_time=[1531317999, 1531321000] means only process times that are from 1531317999 to 1531321000\n
         ex: subset_time=[[1531317999, 1531318885], [1531318886, 1531321000]] means only process times that are\n
               from either 1531317999 to 1531318885 or 1531318886 to 1531321000
+    georeference
+        if True, will georeference the soundings, else will return the vessel coordinate system aligned sv corrected
+        offsets (forward, starboard, down)
     turn_off_dask
         if True, close the client and destroy it.  Just closing doesn't work, as it retains the scheduler,
         which will try and find workers that don't exist when you run a process
@@ -565,15 +568,17 @@ def reprocess_sounding_selection(fqpr_inst: Fqpr, new_xyzrph: dict = None, subse
         tstmp (xyzrph timestamp for each sounding)
     """
 
-    if fqpr_inst.soundings is None and (override_datum is None or override_vertical_reference is None):
-        raise NotImplementedError('Either fqpr_inst.soundings or override_datum/override_vertical_reference are required for determining the CRS')
+    if 'xyz_crs' not in fqpr_inst.multibeam.raw_ping[0].attrs and georeference:
+        raise ValueError('xyz_crs object not found.  Please run Fqpr.construct_crs first')
+    if 'vertical_reference' not in fqpr_inst.multibeam.raw_ping[0].attrs and georeference:
+        raise NotImplementedError('set_vertical_reference must be run before georeferencing')
     if turn_off_dask and fqpr_inst.client is not None:
         fqpr_inst.client.close()
         fqpr_inst.client = None
-        fqpr_inst = reload_data(os.path.dirname(fqpr_inst.source_dat.final_paths['ping'][0]), skip_dask=True)
+        fqpr_inst = reload_data(os.path.dirname(fqpr_inst.multibeam.final_paths['ping'][0]), skip_dask=True)
 
     if new_xyzrph is not None:
-        fqpr_inst.source_dat.xyzrph = new_xyzrph
+        fqpr_inst.multibeam.xyzrph = new_xyzrph
 
     if override_vertical_reference:
         fqpr_inst.set_vertical_reference(override_vertical_reference)
@@ -585,22 +590,25 @@ def reprocess_sounding_selection(fqpr_inst: Fqpr, new_xyzrph: dict = None, subse
     fqpr_inst.get_orientation_vectors(subset_time=subset_time, dump_data=False)
     fqpr_inst.get_beam_pointing_vectors(subset_time=subset_time, dump_data=False)
     fqpr_inst.sv_correct(subset_time=subset_time, dump_data=False)
+    if georeference:
+        if override_datum is not None:
+            datum = override_datum
+            epsg = None
+        else:
+            datum = None
+            epsg = fqpr_inst.multibeam.raw_ping[0].xyz_crs
 
-    if override_datum is not None:
-        datum = override_datum
-        epsg = None
+        fqpr_inst.construct_crs(epsg=epsg, datum=datum)
+        fqpr_inst.georef_xyz(subset_time=subset_time, dump_data=False)
+        data_store = 'xyz'
     else:
-        datum = None
-        epsg = fqpr_inst.soundings.xyz_crs
-
-    fqpr_inst.construct_crs(epsg=epsg, datum=datum)
-    fqpr_inst.georef_xyz(subset_time=subset_time, dump_data=False)
+        data_store = 'sv_corr'
 
     soundings = [[], [], [], []]
     for sector in fqpr_inst.intermediate_dat:
-        if 'xyz' in fqpr_inst.intermediate_dat[sector]:
-            for tstmp in fqpr_inst.intermediate_dat[sector]['xyz']:
-                dat = fqpr_inst.intermediate_dat[sector]['xyz'][tstmp]
+        if data_store in fqpr_inst.intermediate_dat[sector]:
+            for tstmp in fqpr_inst.intermediate_dat[sector][data_store]:
+                dat = fqpr_inst.intermediate_dat[sector][data_store][tstmp]
                 for d in dat:
                     x_vals = np.ravel(d[0][0])
                     y_vals = np.ravel(d[0][1])
@@ -615,7 +623,7 @@ def reprocess_sounding_selection(fqpr_inst: Fqpr, new_xyzrph: dict = None, subse
 
     soundings = [np.concatenate(s, axis=0) for s in soundings]
     if turn_dask_back_on and fqpr_inst.client is None:
-        fqpr_inst = reload_data(os.path.dirname(fqpr_inst.source_dat.final_paths['ping'][0]))
+        fqpr_inst = reload_data(os.path.dirname(fqpr_inst.multibeam.final_paths['ping'][0]))
     return fqpr_inst, soundings
 
 
@@ -854,7 +862,7 @@ def validation_against_xyz88(filname: str, analysis_mode: str = 'even', numplots
     if kongs_x.shape != my_x.shape:
         print('Found incompatible par/Kluster data sets.  Kluster x shape {}, par x shape {}'.format(my_x.shape,
                                                                                                      kongs_x.shape))
-    if fq.source_dat.is_dual_head():
+    if fq.multibeam.is_dual_head():
         print('WANRING: I have not figured out the comparison of xyz88/kluster generated data with dual head systems.' +
               'The ping order is different and the ping counters are all the same across heads.')
 
@@ -887,7 +895,7 @@ def validation_against_xyz88(filname: str, analysis_mode: str = 'even', numplots
     lbls = []
     prev_index = 0
     for i in idx:
-        if fq.source_dat.is_dual_head():
+        if fq.multibeam.is_dual_head():
             ki, prev_index = _dual_head_sort(i, my_y, kongs_y, prev_index)
         else:
             ki, prev_index = i, prev_index

@@ -57,7 +57,7 @@ class WobbleTest:
 
         self.correlation_table = None
 
-    def generate_starting_data(self, use_altitude: bool = True):
+    def generate_starting_data(self, use_altitude: bool = True, filter_rugged: bool = False):
         """
         Use the depthoffset (an output from kluster svcorrect) and corr_pointing_angle (an output from kluster
         get_beam_pointing_vectors to build the highpass filtered slope and depth.
@@ -68,9 +68,11 @@ class WobbleTest:
         ----------
         use_altitude
             If true, will use altitude instead of heave for the plots
+        filter_rugged
+            if True, will filter out data that has percent deviation greater than 5
         """
 
-        if self.fqpr.source_dat.is_dual_head():
+        if self.fqpr.multibeam.is_dual_head():
             raise NotImplementedError('Dual head systems are not currently supported')
 
         print('Generating wobble data for pings')
@@ -96,18 +98,18 @@ class WobbleTest:
         self.beampointingangle = np.rad2deg(self.beampointingangle)
 
         # max period of all the attitude signals, drives the filter coefficients, just use a slice of attitude to resolve
-        att_slice = np.min([20000, self.fqpr.source_dat.raw_att['roll'].size])
-        self.max_period = np.max([return_period_of_signal(self.fqpr.source_dat.raw_att['roll'][:att_slice]),
-                                  return_period_of_signal(self.fqpr.source_dat.raw_att['pitch'][:att_slice]),
-                                  return_period_of_signal(self.fqpr.source_dat.raw_att['heave'][:att_slice])])
+        att_slice = np.min([20000, self.fqpr.multibeam.raw_att['roll'].size])
+        self.max_period = np.max([return_period_of_signal(self.fqpr.multibeam.raw_att['roll'][:att_slice]),
+                                  return_period_of_signal(self.fqpr.multibeam.raw_att['pitch'][:att_slice]),
+                                  return_period_of_signal(self.fqpr.multibeam.raw_att['heave'][:att_slice])])
 
         # we want the roll/pitch/heave at the same times as depth/pointingangle
-        self.roll_at_ping_time = interp_across_chunks(self.fqpr.source_dat.raw_att['roll'], self.times).values
+        self.roll_at_ping_time = interp_across_chunks(self.fqpr.multibeam.raw_att['roll'], self.times).values
         self.rollrate_at_ping_time = np.abs(np.diff(self.roll_at_ping_time))/np.diff(self.times)
         self.rollrate_at_ping_time = np.append(self.rollrate_at_ping_time, self.rollrate_at_ping_time[-1])  # extend to retain original shape
-        self.pitch_at_ping_time = interp_across_chunks(self.fqpr.source_dat.raw_att['pitch'], self.times).values
+        self.pitch_at_ping_time = interp_across_chunks(self.fqpr.multibeam.raw_att['pitch'], self.times).values
 
-        self.vert_ref = self.fqpr.source_dat.raw_ping[0].vertical_reference
+        self.vert_ref = self.fqpr.multibeam.raw_ping[0].vertical_reference
         if use_altitude:
             if self.vert_ref == 'ellipse':
                 self.vert_motion_at_ping_time = self.altitude - self.altitude.mean()
@@ -147,12 +149,33 @@ class WobbleTest:
 
         # filtering process, we remove the bad samples at the beginning, now remove samples from the end of the original
         #   data to match the length of the filtered data
+        self.times = self.times[:-int(numtaps / 2)]
+        self.slope_percent_deviation = self.slope_percent_deviation[:-int(numtaps / 2)]
         self.beampointingangle = self.beampointingangle[:-int(numtaps / 2)]
         self.depth = self.depth[:-int(numtaps / 2)]
         self.roll_at_ping_time = self.roll_at_ping_time[:-int(numtaps / 2)]
         self.rollrate_at_ping_time = self.rollrate_at_ping_time[:-int(numtaps / 2)]
         self.pitch_at_ping_time = self.pitch_at_ping_time[:-int(numtaps / 2)]
         self.vert_motion_at_ping_time = self.vert_motion_at_ping_time[:-int(numtaps / 2)]
+
+        # filter out data that fails the percent deviation test
+        if filter_rugged:
+            filt = self.slope_percent_deviation < 5
+            self.times = self.times[filt]
+            self.hpf_slope = self.hpf_slope[filt]
+            self.hpf_stbd_slope = self.hpf_stbd_slope[filt]
+            self.hpf_port_slope = self.hpf_port_slope[filt]
+            self.hpf_depth = self.hpf_depth[filt]
+            self.hpf_inner_slope = self.hpf_inner_slope[filt]
+
+            self.beampointingangle = self.beampointingangle[filt]
+            self.depth = self.depth[filt]
+            self.roll_at_ping_time = self.roll_at_ping_time[filt]
+            self.rollrate_at_ping_time = self.rollrate_at_ping_time[filt]
+            self.pitch_at_ping_time = self.pitch_at_ping_time[filt]
+            self.vert_motion_at_ping_time = self.vert_motion_at_ping_time[filt]
+            self.slope_percent_deviation = self.slope_percent_deviation[filt]
+
         print('Initial data generation complete.')
 
     def _add_regression_line(self, ax: plt.subplot, x: np.array, y: np.array):
@@ -168,6 +191,10 @@ class WobbleTest:
         y
             numpy array, 1d
         """
+        # nan not allowed for regression line
+        filter_nan = np.logical_or(np.isnan(x), np.isnan(y))
+        x = x[~filter_nan]
+        y = y[~filter_nan]
 
         slopes, intercepts, stderrs, percent_deviation = linear_regression(x, y)
         ax.plot(x, slopes * x + intercepts,
@@ -334,7 +361,7 @@ class WobbleTest:
         subplot.set_ylim(-self.hpf_depth.max() * 4, self.hpf_depth.max() * 4)
         subplot.set_title('X Sonar Offset Error')
         subplot.set_xlabel('Pitch (deg)')
-        subplot.set_ylabel('Mean Depth (m)')
+        subplot.set_ylabel('Highpassfilter Depth (m)')
         if add_regression:
             self._add_regression_line(subplot, self.pitch_at_ping_time, self.hpf_depth)
 
@@ -364,7 +391,7 @@ class WobbleTest:
         subplot.set_ylim(-self.hpf_depth.max() * 4, self.hpf_depth.max() * 4)
         subplot.set_title('Y Sonar Offset Error')
         subplot.set_xlabel('Roll (deg)')
-        subplot.set_ylabel('Mean Depth (m)')
+        subplot.set_ylabel('Highpassfilter Depth (m)')
         if add_regression:
             self._add_regression_line(subplot, self.roll_at_ping_time, self.hpf_depth)
 

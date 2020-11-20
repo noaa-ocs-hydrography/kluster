@@ -219,7 +219,7 @@ class FqprProject:
             fq = reload_data(pth, skip_dask=skip_dask, silent=True)
         else:  # pth is the new Fqpr instance, pull the actual path from the Fqpr attribution
             fq = pth
-            pth = os.path.normpath(fq.source_dat.raw_ping[0].output_path)
+            pth = os.path.normpath(fq.multibeam.raw_ping[0].output_path)
         if fq is not None:
             if self.path is None:
                 self.setup_new_project(os.path.dirname(pth))
@@ -311,7 +311,7 @@ class FqprProject:
         if line not in self.point_cloud_for_line:
             fq_inst = self.return_line_owner(line)
             if fq_inst is not None:
-                line_start_time, line_end_time = fq_inst.source_dat.raw_ping[0].multibeam_files[line]
+                line_start_time, line_end_time = fq_inst.multibeam.raw_ping[0].multibeam_files[line]
                 xyz = fq_inst.return_xyz(start_time=line_start_time, end_time=line_end_time, include_unc=False)
                 if xyz is not None:
                     self.point_cloud_for_line[line] = xyz
@@ -340,10 +340,10 @@ class FqprProject:
         line_att = None
         fq_inst = self.return_line_owner(line)
         if fq_inst is not None:
-            line_att = fq_inst.source_dat.raw_att
+            line_att = fq_inst.multibeam.raw_att
             if subset:
                 # attributes are all the same across raw_ping datasets, just use the first
-                line_start_time, line_end_time = fq_inst.source_dat.raw_ping[0].multibeam_files[line]
+                line_start_time, line_end_time = fq_inst.multibeam.raw_ping[0].multibeam_files[line]
                 line_att = slice_xarray_by_dim(line_att, dimname='time', start_time=line_start_time, end_time=line_end_time)
         return line_att
 
@@ -514,7 +514,7 @@ class FqprProject:
         if line not in self.buffered_fqpr_navigation:
             fq_inst = self.return_line_owner(line)
             if fq_inst is not None:
-                line_start_time, line_end_time = fq_inst.source_dat.raw_ping[0].multibeam_files[line]
+                line_start_time, line_end_time = fq_inst.multibeam.raw_ping[0].multibeam_files[line]
                 lat, lon = fq_inst.return_downsampled_navigation(sample=samplerate, start_time=line_start_time,
                                                                  end_time=line_end_time)
                 # convert to numpy
@@ -593,36 +593,3 @@ def create_new_project(mbes_files: Union[str, list], output_folder: str = None):
     fqp = FqprProject()
     fqpr_entry = fqp.add_fqpr(fq, skip_dask=False)
     return fqp
-
-
-def gather_multibeam_info(multibeam_file: str):
-    """
-    fast method to read info from a multibeam file without reading the whole file.  Supports .all and .kmall files
-
-    the secondary serial number will be zero for all systems except dual head.  Dual head records the secondary head
-    serial number (starboard head) as the secondary serial number.  For non dual head systems, the primary serial
-    number is all that is needed.
-
-    Parameters
-    ----------
-    multibeam_file
-        file path to a multibeam file
-
-    Returns
-    -------
-    list
-        [start time (utc seconds), end time (utc seconds), primary serial number, secondary serial number, sonar model number]
-    """
-
-    fileext = os.path.splitext(multibeam_file)[1]
-    if fileext == '.all':
-        aread = par3.AllRead(multibeam_file)
-        start_end = aread.fast_read_start_end_time()
-        serialnums = aread.fast_read_serial_number()
-    elif fileext == '.kmall':
-        km = kmall.kmall(multibeam_file)
-        start_end = km.fast_read_start_end_time()
-        serialnums = km.fast_read_serial_number()
-    else:
-        raise IOError('File ({}) is not a valid multibeam file'.format(multibeam_file))
-    return start_end + serialnums

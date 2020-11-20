@@ -196,6 +196,8 @@ to examine later using:
    fqpr_surface
    fqpr_project
    fqpr_visualizations
+   fqpr_intelligence
+   monitor
    xarray_conversion
    orientation
    beampointingvector

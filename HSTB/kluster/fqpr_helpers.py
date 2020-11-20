@@ -207,13 +207,13 @@ def get_attributes_from_fqpr(fqpr_instance: Fqpr, include_mode: bool = True):
         if fqpr_instance.soundings is not None:
             newattrs = fqpr_instance.soundings.attrs
         else:
-            newattrs = fqpr_instance.source_dat.raw_ping[0].attrs
+            newattrs = fqpr_instance.multibeam.raw_ping[0].attrs
     else:
-        newattrs = fqpr_instance.source_dat.raw_ping[0].attrs
+        newattrs = fqpr_instance.multibeam.raw_ping[0].attrs
 
     try:
         # update for the min/max nav attributes in raw_nav
-        for k, v in fqpr_instance.source_dat.raw_nav.attrs.items():
+        for k, v in fqpr_instance.multibeam.raw_nav.attrs.items():
             newattrs[k] = v
     except AttributeError:
         print('Unable to read from Navigation')

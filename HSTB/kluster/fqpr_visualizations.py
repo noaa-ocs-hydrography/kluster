@@ -69,7 +69,7 @@ class FqprVisualizations:
         else:
             raise ValueError('Unrecognized mode, must be either "svcorr" or "georef"')
 
-        modechks = [[v in sec] for v in [xvar, yvar, zvar] for sec in self.fqpr.source_dat.raw_ping]
+        modechks = [[v in sec] for v in [xvar, yvar, zvar] for sec in self.fqpr.multibeam.raw_ping]
         if not np.any(modechks):
             raise ValueError('{}: Unable to find one or more variables in the raw_ping records'.format(mode))
         return xvar, yvar, zvar
@@ -106,17 +106,17 @@ class FqprVisualizations:
             sec_idx = self.fqpr.return_sector_ids()
         for sec in sec_idx:
             if tme is not None:
-                if tme not in self.fqpr.source_dat.raw_ping[sec].time:
-                    x = self.fqpr.source_dat.select_array_from_rangeangle(xvar, sec).sel(time=tme).stack(stck=('time', 'beam')).values
-                    y = self.fqpr.source_dat.select_array_from_rangeangle(yvar, sec).sel(time=tme).stack(stck=('time', 'beam')).values
-                    z = self.fqpr.source_dat.select_array_from_rangeangle(zvar, sec).sel(time=tme).stack(stck=('time', 'beam')).values
+                if tme not in self.fqpr.multibeam.raw_ping[sec].time:
+                    x = self.fqpr.multibeam.select_array_from_rangeangle(xvar, sec).sel(time=tme).stack(stck=('time', 'beam')).values
+                    y = self.fqpr.multibeam.select_array_from_rangeangle(yvar, sec).sel(time=tme).stack(stck=('time', 'beam')).values
+                    z = self.fqpr.multibeam.select_array_from_rangeangle(zvar, sec).sel(time=tme).stack(stck=('time', 'beam')).values
                 else:
                     print('Unable to find time {} in sector {}'.format(tme, sec))
                     continue
             else:
-                x = self.fqpr.source_dat.select_array_from_rangeangle(xvar, sec).stack(stck=('time', 'beam')).values
-                y = self.fqpr.source_dat.select_array_from_rangeangle(yvar, sec).stack(stck=('time', 'beam')).values
-                z = self.fqpr.source_dat.select_array_from_rangeangle(zvar, sec).stack(stck=('time', 'beam')).values
+                x = self.fqpr.multibeam.select_array_from_rangeangle(xvar, sec).stack(stck=('time', 'beam')).values
+                y = self.fqpr.multibeam.select_array_from_rangeangle(yvar, sec).stack(stck=('time', 'beam')).values
+                z = self.fqpr.multibeam.select_array_from_rangeangle(zvar, sec).stack(stck=('time', 'beam')).values
 
             x = x[~np.isnan(x)]
             y = y[~np.isnan(y)]
@@ -162,21 +162,21 @@ class FqprVisualizations:
         for cnt, sec in enumerate(sec_idx):
             if tme is not None:
                 try:
-                    times_this_sector = tme[np.isin(tme, self.fqpr.source_dat.raw_ping[cnt].time)]
+                    times_this_sector = tme[np.isin(tme, self.fqpr.multibeam.raw_ping[cnt].time)]
                 except TypeError:  # float is provided
                     tme = np.array(tme)
-                    times_this_sector = tme[tme in self.fqpr.source_dat.raw_ping[cnt].time]
+                    times_this_sector = tme[tme in self.fqpr.multibeam.raw_ping[cnt].time]
                 if np.any(times_this_sector):
-                    x = self.fqpr.source_dat.select_array_from_rangeangle(xvar, sec).sel(time=times_this_sector).stack(stck=('time', 'beam')).values
-                    y = self.fqpr.source_dat.select_array_from_rangeangle(yvar, sec).sel(time=times_this_sector).stack(stck=('time', 'beam')).values
-                    z = self.fqpr.source_dat.select_array_from_rangeangle(zvar, sec).sel(time=times_this_sector).stack(stck=('time', 'beam')).values
+                    x = self.fqpr.multibeam.select_array_from_rangeangle(xvar, sec).sel(time=times_this_sector).stack(stck=('time', 'beam')).values
+                    y = self.fqpr.multibeam.select_array_from_rangeangle(yvar, sec).sel(time=times_this_sector).stack(stck=('time', 'beam')).values
+                    z = self.fqpr.multibeam.select_array_from_rangeangle(zvar, sec).sel(time=times_this_sector).stack(stck=('time', 'beam')).values
                 else:
                     print('Unable to find time {} in sector {}'.format(tme, sec))
                     continue
             else:
-                x = self.fqpr.source_dat.select_array_from_rangeangle(xvar, sec).stack(stck=('time', 'beam')).values
-                y = self.fqpr.source_dat.select_array_from_rangeangle(yvar, sec).stack(stck=('time', 'beam')).values
-                z = self.fqpr.source_dat.select_array_from_rangeangle(zvar, sec).stack(stck=('time', 'beam')).values
+                x = self.fqpr.multibeam.select_array_from_rangeangle(xvar, sec).stack(stck=('time', 'beam')).values
+                y = self.fqpr.multibeam.select_array_from_rangeangle(yvar, sec).stack(stck=('time', 'beam')).values
+                z = self.fqpr.multibeam.select_array_from_rangeangle(zvar, sec).stack(stck=('time', 'beam')).values
 
             x = x[~np.isnan(x)]
             y = y[~np.isnan(y)]
@@ -222,11 +222,11 @@ class FqprVisualizations:
         """
 
         if tme is not None:
-            tx = self.fqpr.source_dat.raw_ping[sec_idx].tx.sel(time=tme).values
-            rx = self.fqpr.source_dat.raw_ping[sec_idx].rx.sel(time=tme).values
+            tx = self.fqpr.multibeam.raw_ping[sec_idx].tx.sel(time=tme).values
+            rx = self.fqpr.multibeam.raw_ping[sec_idx].rx.sel(time=tme).values
         else:
-            tx = self.fqpr.source_dat.raw_ping[sec_idx].tx.isel(time=0).values
-            rx = self.fqpr.source_dat.raw_ping[sec_idx].rx.isel(time=0).values
+            tx = self.fqpr.multibeam.raw_ping[sec_idx].tx.isel(time=0).values
+            rx = self.fqpr.multibeam.raw_ping[sec_idx].rx.isel(time=0).values
         # rx = rx[~np.all(np.isnan(rx), axis=1)]  # dont include the nan vector entries
         rx = np.nanmean(rx, axis=0)
         origin = [0, 0, 0]
@@ -274,8 +274,8 @@ class FqprVisualizations:
             sec_idx = 0
 
         self.orientation_objects = {}
-        self.fqpr.source_dat.raw_ping[sec_idx]['tx'] = self.fqpr.source_dat.raw_ping[sec_idx]['tx'].compute()
-        self.fqpr.source_dat.raw_ping[sec_idx]['rx'] = self.fqpr.source_dat.raw_ping[sec_idx]['rx'].compute()
+        self.fqpr.multibeam.raw_ping[sec_idx]['tx'] = self.fqpr.multibeam.raw_ping[sec_idx]['tx'].compute()
+        self.fqpr.multibeam.raw_ping[sec_idx]['rx'] = self.fqpr.multibeam.raw_ping[sec_idx]['rx'].compute()
 
         fig = plt.figure(figsize=(10, 8))
         self.orientation_figure = fig.add_subplot(111, projection='3d')
@@ -290,15 +290,15 @@ class FqprVisualizations:
         self.orientation_objects['tx_vec'] = self.orientation_figure.text2D(0, 0.11, '', color='blue')
         self.orientation_objects['rx_vec'] = self.orientation_figure.text2D(0, 0.10, '', color='red')
 
-        tme_interval = (self.fqpr.source_dat.raw_ping[sec_idx].time.values[1] -
-                        self.fqpr.source_dat.raw_ping[sec_idx].time.values[0]) * 1000
+        tme_interval = (self.fqpr.multibeam.raw_ping[sec_idx].time.values[1] -
+                        self.fqpr.multibeam.raw_ping[sec_idx].time.values[0]) * 1000
         print('Animating with frame interval of {}'.format(int(tme_interval)))
 
         self.orientation_sector = sec_idx
         self.orientation_quiver = self.orientation_figure.quiver(*self._generate_orientation_vector(sec_idx),
                                                                  color=['blue', 'red'])
         self.orientation_anim = FuncAnimation(fig, self._update_orientation_vector,
-                                              frames=self.fqpr.source_dat.raw_ping[sec_idx].time.values,
+                                              frames=self.fqpr.multibeam.raw_ping[sec_idx].time.values,
                                               interval=tme_interval)
 
     def _generate_bpv_arrs(self, dat: list):
@@ -347,7 +347,7 @@ class FqprVisualizations:
 
         if self.bpv_quiver is not None:
             self.bpv_quiver.remove()
-        if self.fqpr.source_dat.is_dual_head():
+        if self.fqpr.multibeam.is_dual_head():
             pouterang = [round(np.rad2deg(self.bpv_dat[0, idx, 0]), 3), round(np.rad2deg(self.bpv_dat[0, idx + 1, 0]), 3)]
             poutertt = [round(self.bpv_dat[1, idx, 0], 3), round(self.bpv_dat[1, idx + 1, 0], 3)]
             pinnerang = [round(np.rad2deg(self.bpv_dat[0, idx, -1]), 3), round(np.rad2deg(self.bpv_dat[0, idx + 1, -1]), 3)]
@@ -436,14 +436,14 @@ class FqprVisualizations:
             if True uses the 'corr_pointing_angle', else raw beam pointing angle 'beampointingangle'
         """
 
-        if not corrected and ('beampointingangle' not in self.fqpr.source_dat.raw_ping[0]):
+        if not corrected and ('beampointingangle' not in self.fqpr.multibeam.raw_ping[0]):
             raise ValueError('Unable to plot the raw beampointingangle, not found in source data')
-        elif corrected and ('corr_pointing_angle' not in self.fqpr.source_dat.raw_ping[0]):
+        elif corrected and ('corr_pointing_angle' not in self.fqpr.multibeam.raw_ping[0]):
             raise ValueError('Unable to plot the corrected corr_pointing_angle, not found in source data')
 
         self.bpv_objects = {}
         unique_times = self.fqpr.return_unique_times_across_sectors()
-        line_bounds = list(self.fqpr.source_dat.raw_ping[0].multibeam_files.values())[0]
+        line_bounds = list(self.fqpr.multibeam.raw_ping[0].multibeam_files.values())[0]
         msk = np.logical_and(line_bounds[0] < unique_times, unique_times < line_bounds[1])
         unique_times = unique_times[msk]
 
@@ -472,7 +472,7 @@ class FqprVisualizations:
                                                                                                   'traveltime'],
                                                                                                  unique_times)
 
-        if self.fqpr.source_dat.is_dual_head():
+        if self.fqpr.multibeam.is_dual_head():
             frames = [int(i * 2) for i in range(int(self.bpv_dat.shape[1]/2))]
             interval = 60 * 2
         else:

@@ -442,7 +442,7 @@ def test_reform_2d(dset='real'):
         assert ping_sectors.size == 4
 
         for cnt, pingsec in enumerate(ping_sectors):
-            assert (data[0][cnt][:] == fq.source_dat.raw_ping[pingsec].beampointingangle.values).all()
+            assert (data[0][cnt][:] == fq.multibeam.raw_ping[pingsec].beampointingangle.values).all()
 
 
 def test_basesurface():
@@ -514,18 +514,18 @@ def build_georef_correct_comparison(dset='realdual', vert_ref='waterline', datum
                         loaded_ang_data[i].values[0]] for i in range(int(len(loaded_xyz_data)))]
 
         # apply waterline, z lever arm and z phase center offsets to get at the actual waterline rel value
-        depth_wline_addtl = [-float(fq.source_dat.xyzrph['waterline'][tstmp]) +
-                             float(fq.source_dat.xyzrph['tx_port_z'][tstmp]) +
-                             float(fq.source_dat.xyzrph['tx_port_z_1'][tstmp]),
-                             -float(fq.source_dat.xyzrph['waterline'][tstmp]) +
-                             float(fq.source_dat.xyzrph['tx_port_z'][tstmp]) +
-                             float(fq.source_dat.xyzrph['tx_port_z_1'][tstmp]),
-                             -float(fq.source_dat.xyzrph['waterline'][tstmp]) +
-                             float(fq.source_dat.xyzrph['tx_stbd_z'][tstmp]) +
-                             float(fq.source_dat.xyzrph['tx_stbd_z_1'][tstmp]),
-                             -float(fq.source_dat.xyzrph['waterline'][tstmp]) +
-                             float(fq.source_dat.xyzrph['tx_stbd_z'][tstmp]) +
-                             float(fq.source_dat.xyzrph['tx_stbd_z_1'][tstmp])]
+        depth_wline_addtl = [-float(fq.multibeam.xyzrph['waterline'][tstmp]) +
+                             float(fq.multibeam.xyzrph['tx_port_z'][tstmp]) +
+                             float(fq.multibeam.xyzrph['tx_port_z_1'][tstmp]),
+                             -float(fq.multibeam.xyzrph['waterline'][tstmp]) +
+                             float(fq.multibeam.xyzrph['tx_port_z'][tstmp]) +
+                             float(fq.multibeam.xyzrph['tx_port_z_1'][tstmp]),
+                             -float(fq.multibeam.xyzrph['waterline'][tstmp]) +
+                             float(fq.multibeam.xyzrph['tx_stbd_z'][tstmp]) +
+                             float(fq.multibeam.xyzrph['tx_stbd_z_1'][tstmp]),
+                             -float(fq.multibeam.xyzrph['waterline'][tstmp]) +
+                             float(fq.multibeam.xyzrph['tx_stbd_z'][tstmp]) +
+                             float(fq.multibeam.xyzrph['tx_stbd_z_1'][tstmp])]
 
         # kongsberg angles are rel horiz, here is what I came up with to get vert rel angles (to match kluster)
         xyz_88_corrangle = [90 - np.array(synth_dat.xyz88_corrangle[0]), 90 - np.array(synth_dat.xyz88_corrangle[1]),
@@ -553,7 +553,7 @@ def build_georef_correct_comparison(dset='realdual', vert_ref='waterline', datum
                 loaded_data.append([along, across, dpth, angle])
 
         # in the future, include sec index to get the additional phase center offsets included here
-        depth_wline_addtl = -float(fq.source_dat.xyzrph['waterline'][tstmp]) + float(fq.source_dat.xyzrph['tx_z'][tstmp])
+        depth_wline_addtl = -float(fq.multibeam.xyzrph['waterline'][tstmp]) + float(fq.multibeam.xyzrph['tx_z'][tstmp])
 
         # kongsberg angles are rel horiz, here is what I came up with to get vert rel angles (to match kluster)
         xyz_88_corrangle = []
