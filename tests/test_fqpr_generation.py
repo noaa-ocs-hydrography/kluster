@@ -3,9 +3,9 @@ import xarray as xr
 import matplotlib.pyplot as plt
 import logging
 
-import os
+import sys
 print(sys.path)
-print(sys.modules)
+
 
 
 from HSTB.kluster import fqpr_generation, xarray_conversion
