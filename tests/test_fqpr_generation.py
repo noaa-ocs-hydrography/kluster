@@ -5,9 +5,9 @@ import logging
 
 import os
 print('HELLO')
-print(os.path.exists(r'/home/travis/build/noaa-ocs-hydrography/kluster/HSTB/__init__.py'))
 print(os.listdir(r'/home/travis/build/noaa-ocs-hydrography/kluster/HSTB'))
-print(os.listdir(r'/home/travis/build/noaa-ocs-hydrography/kluster/HSTB/drivers'))
+print(os.listdir(r'/home/travis/build/noaa-ocs-hydrography/kluster'))
+print(os.listdir(r'/home/travis/build/noaa-ocs-hydrography'))
 
 
 from HSTB.kluster import fqpr_generation, xarray_conversion
