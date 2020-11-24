@@ -8,7 +8,7 @@ branches:
     - master
 
 install:
-  - pip install git+https://github.com/noaa-ocs-hydrography/kluster.git#egg=hstb.kluster
+  - pip install git+https://github.com/noaa-ocs-hydrography/kluster.git#egg=kluster
   - pip install -r requirements.txt
 
 script: pytest tests
