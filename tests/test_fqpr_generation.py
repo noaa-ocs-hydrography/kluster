@@ -3,7 +3,12 @@ import xarray as xr
 import matplotlib.pyplot as plt
 import logging
 
-from HSTB import drivers
+import os
+print('HELLO')
+print(os.path.exists(r'/home/travis/build/noaa-ocs-hydrography/kluster/HSTB/__init__.py'))
+print(os.listdir(r'/home/travis/build/noaa-ocs-hydrography/kluster/HSTB'))
+print(os.listdir(r'/home/travis/build/noaa-ocs-hydrography/kluster/HSTB/drivers'))
+
 
 from HSTB.kluster import fqpr_generation, xarray_conversion
 from HSTB.kluster.tests.test_datasets import RealFqpr, RealDualheadFqpr, SyntheticFqpr
