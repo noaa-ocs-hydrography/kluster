@@ -5,6 +5,7 @@ import logging
 
 import os
 print('HELLO')
+print(os.listdir(r'/home/travis/build/noaa-ocs-hydrography/kluster/HSTB/kluster'))
 print(os.listdir(r'/home/travis/build/noaa-ocs-hydrography/kluster/HSTB'))
 print(os.listdir(r'/home/travis/build/noaa-ocs-hydrography/kluster'))
 print(os.listdir(r'/home/travis/build/noaa-ocs-hydrography'))
