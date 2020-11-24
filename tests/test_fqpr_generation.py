@@ -4,12 +4,8 @@ import matplotlib.pyplot as plt
 import logging
 
 import os
-print('HELLO')
-print(os.listdir(r'/home/travis/build/noaa-ocs-hydrography/kluster/HSTB/kluster'))
-print(os.listdir(r'/home/travis/build/noaa-ocs-hydrography/kluster/HSTB'))
-print(os.listdir(r'/home/travis/build/noaa-ocs-hydrography/kluster'))
-print(os.listdir(r'/home/travis/build/noaa-ocs-hydrography'))
-print(os.listdir(r'/home/travis/build'))
+print(sys.path)
+print(sys.modules)
 
 
 from HSTB.kluster import fqpr_generation, xarray_conversion
