@@ -7,6 +7,12 @@ branches:
   only:
     - master
 
+before_script:
+  # this all exists because there are two HSTB folders the way it installs, the one with kluster and the one with drivers
+  # here we tell it to remove the starting directory from the path so it finds the site-packages HSTB that has drivers
+  - PATH=`echo $PATH | sed -e 's/:\/home\/travis\/build\/noaa-ocs-hydrography\/kluster\/$//'`
+  - cd ..
+
 install:
   - pip install git+https://github.com/noaa-ocs-hydrography/kluster.git#egg=kluster
   - pip install -r requirements.txt
