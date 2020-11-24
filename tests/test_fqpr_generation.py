@@ -9,6 +9,7 @@ print(os.listdir(r'/home/travis/build/noaa-ocs-hydrography/kluster/HSTB/kluster'
 print(os.listdir(r'/home/travis/build/noaa-ocs-hydrography/kluster/HSTB'))
 print(os.listdir(r'/home/travis/build/noaa-ocs-hydrography/kluster'))
 print(os.listdir(r'/home/travis/build/noaa-ocs-hydrography'))
+print(os.listdir(r'/home/travis/build'))
 
 
 from HSTB.kluster import fqpr_generation, xarray_conversion
