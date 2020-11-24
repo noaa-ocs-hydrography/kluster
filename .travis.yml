@@ -11,4 +11,4 @@ install:
   - pip install git+https://github.com/noaa-ocs-hydrography/kluster.git#egg=kluster
   - pip install git+https://github.com/noaa-ocs-hydrography/drivers.git#egg=drivers
 
-# script: pytest  kluster/tests
+script: pytest tests
