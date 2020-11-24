@@ -10,6 +10,9 @@ def distrib_run_calculate_tpu(dat: list):
     Convenience function for mapping calculate_tpu across cluster.  Assumes that you are mapping this function with a
     list of data.
 
+    distrib functions also return a processing status array, here a beamwise array = 5, which states that all
+    processed beams are at the 'tpu' status level
+
     Parameters
     ----------
     dat
@@ -18,16 +21,19 @@ def distrib_run_calculate_tpu(dat: list):
 
     Returns
     -------
-    xr.DataArray
-        total vertical uncertainty (time, beam)
-    xr.DataArray
-        total horizontal uncertainty (time, beam)
+    list
+        [total vertical uncertainty (time, beam), total horizontal uncertainty (time, beam), processing_status]
     """
 
-    tvu, thu = calculate_tpu(dat[0], dat[1], dat[2], dat[3], dat[4], dat[5], dat[6], dat[7], dat[8], dat[9], dat[10],
-                             dat[11], dat[12], dat[13], roll_in_degrees=True, raw_beam_angles_in_degrees=True,
-                             beam_angles_in_degrees=False, qf_type=dat[14], vert_ref=dat[15], tpu_image=dat[16])
-    return tvu, thu
+    ans = calculate_tpu(dat[0], dat[1], dat[2], dat[3], dat[4], dat[5], dat[6], dat[7], dat[8], dat[9], dat[10],
+                        dat[11], dat[12], dat[13], roll_in_degrees=True, raw_beam_angles_in_degrees=True,
+                        beam_angles_in_degrees=False, qf_type=dat[14], vert_ref=dat[15], tpu_image=dat[16])
+    # return processing status = 4 for all affected soundings
+    processing_status = xr.DataArray(np.full_like(dat[1], 5, dtype=np.uint8),
+                                     coords={'time': dat[1].coords['time'], 'beam': dat[1].coords['beam']},
+                                     dims=['time', 'beam'])
+    ans.append(processing_status)
+    return ans
 
 
 def calculate_tpu(roll: Union[xr.DataArray, np.array], raw_beam_angles: Union[xr.DataArray, np.array],
@@ -92,10 +98,9 @@ def calculate_tpu(roll: Union[xr.DataArray, np.array], raw_beam_angles: Union[xr
 
     Returns
     -------
-    Union[xr.DataArray, np.array]
-        total vertical uncertainty in meters for each sounding (time, beam)
-    Union[xr.DataArray, np.array]
-        total horizontal uncertainty in meters for each sounding (time, beam)
+    list
+        [total vertical uncertainty in meters for each sounding (time, beam),
+        total horizontal uncertainty in meters for each sounding (time, beam)]
     """
 
     tp = Tpu(plot_tpu=tpu_image)
@@ -107,7 +112,7 @@ def calculate_tpu(roll: Union[xr.DataArray, np.array], raw_beam_angles: Union[xr
                       heading_error=heading_error, roll_in_degrees=roll_in_degrees, raw_beam_angles_in_degrees=raw_beam_angles_in_degrees,
                       beam_angles_in_degrees=beam_angles_in_degrees, qf_type=qf_type)
     tvu, thu = tp.generate_total_uncertainties(vert_ref=vert_ref)
-    return tvu, thu
+    return [tvu, thu]
 
 
 class Tpu:

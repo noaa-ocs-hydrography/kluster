@@ -11,6 +11,9 @@ def distrib_run_build_orientation_vectors(dat: list):
     Convenience function for mapping build_orientation_vectors across cluster.  Assumes that you are mapping this
     function with a list of data.
 
+    distrib functions also return a processing status array, here a beamwise array = 1, which states that all
+    processed beams are at the 'orientation' status level
+
     Parameters
     ----------
     dat
@@ -19,10 +22,15 @@ def distrib_run_build_orientation_vectors(dat: list):
     Returns
     -------
     list
-        [tx_vectors, rx_vectors]
+        [tx_vectors, rx_vectors, processing_status]
 
     """
     ans = build_orientation_vectors(dat[0], dat[1], dat[2], dat[3], dat[4], dat[5])
+    # return processing status = 1 for all affected soundings
+    processing_status = xr.DataArray(np.full_like(dat[1], 1, dtype=np.uint8),
+                                     coords={'time': dat[1].coords['time'], 'beam': dat[1].coords['beam']},
+                                     dims=['time', 'beam'])
+    ans.append(processing_status)
     return ans
 
 
@@ -55,10 +63,9 @@ def build_orientation_vectors(raw_att: xr.Dataset, twtt: xr.DataArray, tx_tstmp_
 
     Returns
     -------
-    xr.DataArray
-        2 dim (time, xyz) representing tx 3d orientation in space across time
-    xr.DataArray
-        3 dim (time, beam, xyz) representing rx 3d orientation in space across time/beam
+    list
+        [xr.DataArray 2 dim (time, xyz) representing tx 3d orientation in space across time,
+         xr.DataArray 3 dim (time, beam, xyz) representing rx 3d orientation in space across time/beam]
 
     """
     # generate rotation matrices for the transmit array at time of ping
@@ -97,7 +104,7 @@ def build_orientation_vectors(raw_att: xr.Dataset, twtt: xr.DataArray, tx_tstmp_
     tx_vecs = final_tx_vec.chunk({'xyz': 3})
     rx_vecs = final_rx_vec.chunk({'xyz': 3})
 
-    return tx_vecs, rx_vecs
+    return [tx_vecs, rx_vecs]
 
 
 def get_receive_times(pingtime: xr.DataArray, twtt: xr.DataArray):

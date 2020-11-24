@@ -1,8 +1,6 @@
 import numpy as np
 import xarray as xr
 
-from HSTB.kluster.dask_helpers import dask_find_or_start_client
-
 
 class SyntheticFqpr:
     """

@@ -10,6 +10,9 @@ def distrib_run_georeference(dat: list):
     Convenience function for mapping build_beam_pointing_vectors across cluster.  Assumes that you are mapping this
     function with a list of data.
 
+    distrib functions also return a processing status array, here a beamwise array = 4, which states that all
+    processed beams are at the 'georeference' status level
+
     Parameters
     ----------
     dat
@@ -17,20 +20,21 @@ def distrib_run_georeference(dat: list):
 
     Returns
     -------
-    xr.DataArray
-        northing (time, beam)
-    xr.DataArray
-        easting (time, beam)
-    xr.DataArray
-        depth from vertical reference (time, beam)
-    xr.DataArray
-        corrected heave for TX - RP lever arm, all zeros if in 'ellipse' mode (time)
-    xr.DataArray
-        corrected altitude for TX - RP lever arm, all zeros if in 'vessel' or 'waterline' mode (time)
+    list
+        [xr.DataArray alongtrack offset (time, beam), xr.DataArray acrosstrack offset (time, beam),
+         xr.DataArray down offset (time, beam), xr.DataArray corrected heave for TX - RP lever arm, all zeros if in 'ellipse' mode (time),
+         xr.DataArray corrected altitude for TX - RP lever arm, all zeros if in 'vessel' or 'waterline' mode (time),
+         processing_status]
     """
 
-    x, y, z, hve, alt = georef_by_worker(dat[0], dat[1], dat[2], dat[3], dat[4], dat[5], dat[6], dat[7], dat[8], dat[9], dat[10])
-    return x, y, z, hve, alt
+    ans = georef_by_worker(dat[0], dat[1], dat[2], dat[3], dat[4], dat[5], dat[6], dat[7], dat[8], dat[9], dat[10])
+    # return processing status = 4 for all affected soundings
+    processing_status = xr.DataArray(np.full_like(dat[0][0], 4, dtype=np.uint8),
+                                     coords={'time': dat[0][0].coords['time'],
+                                             'beam': dat[0][0].coords['beam']},
+                                     dims=['time', 'beam'])
+    ans.append(processing_status)
+    return ans
 
 
 def georef_by_worker(sv_corr: list, alt: xr.DataArray, lon: xr.DataArray, lat: xr.DataArray, hdng: xr.DataArray,
@@ -67,16 +71,10 @@ def georef_by_worker(sv_corr: list, alt: xr.DataArray, lon: xr.DataArray, lat: x
 
     Returns
     -------
-    xr.DataArray
-        alongtrack offset (time, beam)
-    xr.DataArray
-        acrosstrack offset (time, beam)
-    xr.DataArray
-        down offset (time, beam)
-    xr.DataArray
-        corrected heave for TX - RP lever arm, all zeros if in 'ellipse' mode (time)
-    xr.DataArray
-        corrected altitude for TX - RP lever arm, all zeros if in 'vessel' or 'waterline' mode (time)
+    list
+        [xr.DataArray alongtrack offset (time, beam), xr.DataArray acrosstrack offset (time, beam),
+         xr.DataArray down offset (time, beam), xr.DataArray corrected heave for TX - RP lever arm, all zeros if in 'ellipse' mode (time),
+         xr.DataArray corrected altitude for TX - RP lever arm, all zeros if in 'vessel' or 'waterline' mode (time)]
     """
 
     g = xyz_crs.get_geod()
@@ -125,4 +123,4 @@ def georef_by_worker(sv_corr: list, alt: xr.DataArray, lon: xr.DataArray, lat: x
     x = reform_nan_array(np.around(newpos[0], 3), at_idx, alongtrack.shape, alongtrack.coords, alongtrack.dims)
     y = reform_nan_array(np.around(newpos[1], 3), ac_idx, acrosstrack.shape, acrosstrack.coords, acrosstrack.dims)
     z = np.around(corr_dpth, 3)
-    return x, y, z, corr_heave, corr_altitude
+    return [x, y, z, corr_heave, corr_altitude]

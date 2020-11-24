@@ -4,7 +4,6 @@ import xarray as xr
 import json
 from typing import Union
 
-from HSTB.drivers import par3, kmall
 from HSTB.kluster.fqpr_generation import Fqpr
 from HSTB.kluster.dask_helpers import dask_find_or_start_client
 from HSTB.kluster.fqpr_convenience import reload_data, convert_multibeam, reload_surface
@@ -570,6 +569,21 @@ class FqprProject:
                     lines_in_box.append(fq_line)
         return lines_in_box
 
+    def return_project_status(self):
+        """
+        Return the processing status for each fqpr instance in the project
+
+        Returns
+        -------
+        dict
+            dict of dicts, see docstring for example
+        """
+
+        status_dict = {}
+        for fqpr_name, fqpr_inst in self.fqpr_instances.items():
+            status_dict[fqpr_name] = fqpr_inst.return_processing_status()
+        return status_dict
+
 
 def create_new_project(mbes_files: Union[str, list], output_folder: str = None):
     """
@@ -593,3 +607,23 @@ def create_new_project(mbes_files: Union[str, list], output_folder: str = None):
     fqp = FqprProject()
     fqpr_entry = fqp.add_fqpr(fq, skip_dask=False)
     return fqp
+
+
+def open_project(project_path: str):
+    """
+    Load from a saved fqpr_project file
+
+    Parameters
+    ----------
+    project_path
+        path to a saved FqprProject json file
+
+    Returns
+    -------
+    FqprProject
+        FqprProject instance intialized from the loaded json file
+    """
+
+    fqpr_proj = FqprProject()
+    fqpr_proj.open_project(project_path)
+    return fqpr_proj

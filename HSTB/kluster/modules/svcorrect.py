@@ -642,12 +642,9 @@ def run_ray_trace(dim_angle: np.array, dim_raytime: np.ndarray, lkup_across_dist
 
     Returns
     -------
-    xr.DataArray
-        xarray DataArray (time, along track offset in meters)
-    xr.DataArray
-        xarray DataArray (time, across track offset in meters)
-    xr.DataArray
-        xarray DataArray (time, down distance in meters)
+    list
+        [xarray DataArray (time, along track offset in meters), xarray DataArray (time, across track offset in meters),
+         xarray DataArray (time, down distance in meters)]
     """
 
     if lkup_across_dist is None:
@@ -726,13 +723,16 @@ def run_ray_trace(dim_angle: np.array, dim_raytime: np.ndarray, lkup_across_dist
     reformed_along = reform_nan_array(newalong, beam_idx, orig_shape, orig_coords, orig_dims)
     del newacross, newalong, interp_downvals
 
-    return np.round(reformed_along, 3), np.round(reformed_across, 3), np.round(reformed_downvals, 3)
+    return [np.round(reformed_along, 3), np.round(reformed_across, 3), np.round(reformed_downvals, 3)]
 
 
 def distributed_run_sv_correct(worker_dat: list):
     """
     Convenience function for mapping run_ray_trace across cluster.  Assumes that you are mapping this function with a
     list of data.
+
+    distrib functions also return a processing status array, here a beamwise array = 3, which states that all
+    processed beams are at the 'soundvelocity' status level
 
     Parameters
     ----------
@@ -741,15 +741,18 @@ def distributed_run_sv_correct(worker_dat: list):
 
     Returns
     -------
-    xr.DataArray
-        (time, along track offset in meters)
-    xr.DataArray
-        (time, across track offset in meters)
-    xr.DataArray
-        (time, down distance in meters)
+    list
+        [xr.DataArray (time, along track offset in meters), xr.DataArray (time, across track offset in meters),
+         xr.DataArray (time, down distance in meters), processing_status]
     """
 
-    x, y, z = run_ray_trace(worker_dat[0][1], worker_dat[0][2], worker_dat[0][3], worker_dat[0][4],
-                            worker_dat[0][5], worker_dat[1][0], worker_dat[1][1], worker_dat[2],
-                            subset=worker_dat[3], offsets=worker_dat[4])
-    return x, y, z
+    ans = run_ray_trace(worker_dat[0][1], worker_dat[0][2], worker_dat[0][3], worker_dat[0][4],
+                        worker_dat[0][5], worker_dat[1][0], worker_dat[1][1], worker_dat[2],
+                        subset=worker_dat[3], offsets=worker_dat[4])
+    # return processing status = 3 for all affected soundings
+    processing_status = xr.DataArray(np.full_like(worker_dat[2], 3, dtype=np.uint8),
+                                     coords={'time': worker_dat[2].coords['time'],
+                                             'beam': worker_dat[2].coords['beam']},
+                                     dims=['time', 'beam'])
+    ans.append(processing_status)
+    return ans

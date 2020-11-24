@@ -2,13 +2,14 @@ import xarray as xr
 import numpy as np
 import pandas as pd
 
-from HSTB.kluster.xarray_helpers import interp_across_chunks
-
 
 def distrib_run_build_beam_pointing_vector(dat: list):
     """
     Convenience function for mapping build_beam_pointing_vectors across cluster.  Assumes that you are mapping this
     function with a list of data.
+
+    distrib functions also return a processing status array, here a beamwise array = 2, which states that all
+    processed beams are at the 'beamvector' status level
 
     Parameters
     ----------
@@ -18,10 +19,15 @@ def distrib_run_build_beam_pointing_vector(dat: list):
     Returns
     -------
     list
-        [relative azimuth, beam pointing angle]
+        [relative azimuth, beam pointing angle, processing_status]
     """
 
     ans = build_beam_pointing_vectors(dat[0], dat[1], dat[2], dat[3][0], dat[3][1], dat[4], dat[5], dat[6])
+    # return processing status = 2 for all affected soundings
+    processing_status = xr.DataArray(np.full_like(dat[1], 2, dtype=np.uint8),
+                                     coords={'time': dat[1].coords['time'], 'beam': dat[1].coords['beam']},
+                                     dims=['time', 'beam'])
+    ans.append(processing_status)
     return ans
 
 
@@ -80,7 +86,7 @@ def build_beam_pointing_vectors(hdng: xr.DataArray, bpa: xr.DataArray, tiltangle
     rel_azimuth = compute_relative_azimuth(bv_geo, hdng)
     new_pointing_angle = compute_geo_beam_pointing_angle(bv_geo, rx_angle)
 
-    return rel_azimuth, new_pointing_angle
+    return [rel_azimuth, new_pointing_angle]
 
 
 def construct_array_relative_beamvector(maintx: xr.DataArray, mainrx: xr.DataArray, tx_angle: xr.DataArray,

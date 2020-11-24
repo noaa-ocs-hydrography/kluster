@@ -318,7 +318,7 @@ def _sequential_to_xarray(rec: dict):
 
                         # these records are by time/sector/beam.  Have to combine recs to build correct array shape
                         if ky in ['beampointingangle', 'txsector_beam', 'detectioninfo', 'qualityfactor',
-                                  'qualityfactor', 'traveltime']:
+                                  'traveltime', 'processing_status']:
                             beam_idx = [i for i in range(combined_sectors.shape[2])]
                             recs_to_merge[r][ky] = xr.DataArray(combined_sectors,
                                                                 coords=[ids, alltims, beam_idx],
@@ -820,7 +820,7 @@ def batch_read_configure_options(ping_chunksize: int, nav_chunksize: int, att_ch
                    'ntx': (ping_chunksize,), 'qualityfactor': (ping_chunksize, 400), 'samplerate': (ping_chunksize,),
                    'soundspeed': (ping_chunksize,), 'modetwo': (ping_chunksize,), 'tiltangle': (ping_chunksize,),
                    'traveltime': (ping_chunksize, 400), 'waveformid': (ping_chunksize,),
-                   'yawpitchstab': (ping_chunksize,), 'rxid': (ping_chunksize,), 'qualityfactor': (ping_chunksize,)}
+                   'yawpitchstab': (ping_chunksize,), 'rxid': (ping_chunksize,), 'processing_status': (ping_chunksize, 400)}
     att_chunks = {'time': (att_chunksize,), 'heading': (att_chunksize,), 'heave': (att_chunksize,),
                   'pitch': (att_chunksize,), 'roll': (att_chunksize,)}
     nav_chunks = {'time': (nav_chunksize,), 'alongtrackvelocity': (nav_chunksize,), 'altitude': (nav_chunksize,),
@@ -1521,6 +1521,29 @@ class BatchRead:
         fpth = fpths[0]  # Pick the first element, all are identical so it doesnt really matter
         return fpth
 
+    def _batch_read_ping_specific_attribution(self, combattrs: dict):
+        """
+        Add in the ping record specific attribution
+
+        Parameters
+        ----------
+        combattrs
+            dictionary of basic attribution we want to add to
+
+        Returns
+        -------
+        dict
+            new dict with ping specific attribution included
+        """
+
+        fil_start_end_times = self._gather_file_level_metadata(self.fils)
+        combattrs['multibeam_files'] = fil_start_end_times  # override with start/end time dict
+        combattrs['output_path'] = self.converted_pth
+        combattrs['_conversion_complete'] = datetime.utcnow().strftime('%c')
+        combattrs['status_lookup'] = {0: 'converted', 1: 'orientation', 2: 'beamvector', 3: 'soundvelocity',
+                                      4: 'georeference', 5: 'tpu'}
+        return combattrs
+
     def batch_read_by_sector(self, output_mode: str = 'zarr'):
         """
         General converter for .all files leveraging xarray and dask.distributed
@@ -1550,7 +1573,6 @@ class BatchRead:
             self._batch_read_file_setup()
             self.logger.info('****Running Kongsberg .all converter****')
 
-            fil_start_end_times = self._gather_file_level_metadata(self.fils)
             chnks_flat = self._batch_read_chunk_generation(self.fils)
             newrecfutures = self._batch_read_sequential_and_trim(chnks_flat)
 
@@ -1568,9 +1590,7 @@ class BatchRead:
                 combattrs = combine_xr_attributes(finalattrs)
 
                 if datatype == 'ping':
-                    combattrs['multibeam_files'] = fil_start_end_times  # override with start/end time dict
-                    combattrs['output_path'] = self.converted_pth
-                    combattrs['_conversion_complete'] = datetime.utcnow().strftime('%c')
+                    combattrs = self._batch_read_ping_specific_attribution(combattrs)
                     sectors = self.client.gather(self.client.map(_return_xarray_sectors, input_xarrs))
                     totalsecs = sorted(np.unique([s for secs in sectors for s in secs]))
                     for sec in totalsecs:

@@ -141,6 +141,76 @@ class BrowseListWidget(QtWidgets.QWidget):
         self.files_updated.emit(True)
 
 
+class CollapsibleWidget(QtWidgets.QWidget):
+    """
+    Transcribed to pyside from https://github.com/MichaelVoelkel/qt-collapsible-section/blob/master/Section.cpp
+    """
+    def __init__(self, parent: None, title: str, animation_duration: int):
+        super().__init__(parent=parent)
+        self.animation_duration = animation_duration
+        self.title = title
+
+        self.toggle_button = QtWidgets.QToolButton()
+        self.header_line = QtWidgets.QFrame()
+        self.toggle_animation = QtCore.QParallelAnimationGroup()
+        self.content_area = QtWidgets.QScrollArea()
+        self.main_layout = QtWidgets.QGridLayout()
+
+        self.toggle_button.setStyleSheet("QToolButton { border: none; }")
+        self.toggle_button.setToolButtonStyle(QtCore.Qt.ToolButtonTextBesideIcon)
+        self.toggle_button.setArrowType(QtCore.Qt.RightArrow)
+        self.toggle_button.setText(str(title))
+        self.toggle_button.setCheckable(True)
+        self.toggle_button.setChecked(False)
+
+        self.header_line.setFrameShape(QtWidgets.QFrame.HLine)
+        self.header_line.setFrameShadow(QtWidgets.QFrame.Sunken)
+        self.header_line.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Maximum)
+
+        self.content_area.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Fixed)
+        self.content_area.setMaximumHeight(0)
+        self.content_area.setMinimumHeight(0)
+
+        self.toggle_animation.addAnimation(QtCore.QPropertyAnimation(self, b'minimumHeight'))
+        self.toggle_animation.addAnimation(QtCore.QPropertyAnimation(self, b'maximumHeight'))
+        self.toggle_animation.addAnimation(QtCore.QPropertyAnimation(self.content_area, b'maximumHeight'))
+
+        self.main_layout.setVerticalSpacing(0)
+        self.main_layout.setContentsMargins(0, 0, 0, 0)
+
+        self.main_layout.addWidget(self.toggle_button, 0, 0, 1, 1, QtCore.Qt.AlignLeft)
+        self.main_layout.addWidget(self.header_line, 0, 2, 1, 1)
+        self.main_layout.addWidget(self.content_area, 1, 0, 1, 3)
+        self.setLayout(self.main_layout)
+
+        self.toggle_button.toggled.connect(self.toggle)
+
+    def toggle(self, is_collapsed):
+        if is_collapsed:
+            self.toggle_button.setArrowType(QtCore.Qt.DownArrow)
+            self.toggle_animation.setDirection(QtCore.QAbstractAnimation.Forward)
+        else:
+            self.toggle_button.setArrowType(QtCore.Qt.RightArrow)
+            self.toggle_animation.setDirection(QtCore.QAbstractAnimation.Backward)
+        self.toggle_animation.start()
+
+    def setContentLayout(self, contentLayout):
+        self.content_area.destroy()
+        self.content_area.setLayout(contentLayout)
+        collapsed_height = self.sizeHint().height() - self.content_area.maximumHeight()
+        content_height = contentLayout.sizeHint().height()
+        for i in range(self.toggle_animation.animationCount() - 1):
+            collapse_animation = self.toggle_animation.animationAt(i)
+            collapse_animation.setDuration(self.animation_duration)
+            collapse_animation.setStartValue(collapsed_height)
+            collapse_animation.setEndValue(collapsed_height + content_height)
+
+        content_animation = self.toggle_animation.animationAt(self.toggle_animation.animationCount() - 1)
+        content_animation.setDuration(self.animation_duration)
+        content_animation.setStartValue(0)
+        content_animation.setEndValue(content_height)
+
+
 class OutWindow(QtWidgets.QMainWindow):
     """
     Simple Window for viewing the widget for testing
@@ -155,9 +225,16 @@ class OutWindow(QtWidgets.QMainWindow):
         layout = QtWidgets.QHBoxLayout()
         self.top_widget.setLayout(layout)
 
-        self.widg = BrowseListWidget(self)
-        self.widg.files_updated.connect(self.print_out_files)
-        layout.addWidget(self.widg)
+        # self.widg = BrowseListWidget(self)
+        # self.widg.files_updated.connect(self.print_out_files)
+        # layout.addWidget(self.widg)
+
+        self.collapse = CollapsibleWidget(self, 'collapse', 300)
+        self.datalayout = QtWidgets.QVBoxLayout()
+        self.datalayout.addWidget(QtWidgets.QLabel('Some text in Section', self.collapse))
+        self.datalayout.addWidget(QtWidgets.QPushButton('Some text in Section', self.collapse))
+        self.collapse.setContentLayout(self.datalayout)
+        layout.addWidget(self.collapse)
 
         layout.layout()
         self.setLayout(layout)
