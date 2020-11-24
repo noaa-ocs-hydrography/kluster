@@ -1,7 +1,7 @@
 orientation module
 ==================
 
-.. automodapi:: HSTB.kluster.orientation
+.. automodapi:: HSTB.kluster.modules.orientation
    :skip: combine_rotation_matrix
    :skip: interp_across_chunks
    :skip: reform_nan_array

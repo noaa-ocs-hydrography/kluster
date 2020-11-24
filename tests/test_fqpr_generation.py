@@ -3,6 +3,8 @@ import xarray as xr
 import matplotlib.pyplot as plt
 import logging
 
+from HSTB import drivers
+
 from HSTB.kluster import fqpr_generation, xarray_conversion
 from HSTB.kluster.tests.test_datasets import RealFqpr, RealDualheadFqpr, SyntheticFqpr
 from HSTB.kluster.xarray_helpers import interp_across_chunks
