@@ -2839,8 +2839,8 @@ class Fqpr:
         finalout = finalout.reshape(expected_shape)
         return finalout, expected_shape, expected_sec_shape, final_idx
 
-    def reform_2d_vars_across_sectors_at_time(self, variable_selection: list, ping_times: Union[np.array, float],
-                                              maxbeamnumber: int = 400):
+    def reform_2d_vars_across_sectors_at_time(self, variable_selection: list, ping_times: Union[np.array, float] = None,
+                                              maxbeamnumber: int = 400, as_dataset=False):
         """
         Take specific variable names and a time, return the array across all sectors merged into one block.
 
@@ -2861,16 +2861,22 @@ class Fqpr:
             time to select the dataset by
         maxbeamnumber
             maximum number of beams for the system
+        as_dataset
+            if True, will return an Xarray Dataset
 
         Returns
         -------
-        np.array
-            data for given variable names at that time for all sectors
+        Union[list, xr.Dataset]
+            list of numpy arrays (data of shape (len(variable_selection), pings, beam), sector identifiers, times)
+            or an xarray Dataset containing this information
         np.array
             1d array containing string values indicating the sector each beam value comes from
         np.array
             1d array containing times for each ping
         """
+        if ping_times is None:
+            ping_times = self.return_unique_times_across_sectors()
+
         self.multibeam.correct_for_counter_reset()
         ping_counters = self.multibeam.return_ping_counters_at_time(ping_times)
         secs = self.return_sector_ids()
@@ -2922,10 +2928,17 @@ class Fqpr:
                 except ValueError:
                     self.logger.error('duplicated ping times do not match ping indices!  Unable to proceed.')
                     return None, None, None
-            return finalout, finalsec, finaltms
+            if as_dataset:
+                dataset_variables = {x: (['time', 'beam'], finalout[cnt, :, :]) for cnt, x in enumerate(variable_selection)}
+                dataset_variables['sector_identifier'] = (['time', 'beam'], finalsec[0, :, :])
+                coords = {'time': finaltms, 'beam': np.arange(finalsec.shape[2])}
+                dset = xr.Dataset(dataset_variables, coords, {'sectors': [ra.sector_identifier for ra in self.multibeam.raw_ping]})
+                return dset
+            else:
+                return (finalout, finalsec, finaltms)
         else:
             self.logger.error('Unable to find records for {} for time {}'.format(variable_selection, ping_times))
-            return None, None, None
+            return None
 
     def reform_1d_vars_across_sectors_at_time(self, variable_selection: list, ping_times: Union[np.array, float],
                                               serial_number: str = None):

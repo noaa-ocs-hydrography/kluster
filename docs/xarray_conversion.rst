@@ -19,3 +19,4 @@ xarray\_conversion module
    :skip: DaskProcessSynchronizer
    :skip: SortedDict
    :skip: datetime
+   :skip: progress

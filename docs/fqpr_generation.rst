@@ -35,3 +35,4 @@ fqpr\_generation module
    :skip: build_entwine_points
    :skip: sbet_to_xarray
    :skip: is_pydro
+   :skip: progress
