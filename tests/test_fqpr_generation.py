@@ -6,10 +6,10 @@ import logging
 import sys, os
 print(sys.path)
 print(os.getcwd())
-print(os.listdir(os.getcwd())
-print(os.listdir(os.dirname(os.getcwd()))
-print(os.listdir(os.dirname(os.dirname(os.getcwd())))
-print(os.listdir(os.dirname(os.dirname(os.dirname(os.getcwd()))))
+print(os.listdir(os.getcwd()))
+print(os.listdir(os.path.dirname(os.getcwd())))
+print(os.listdir(os.path.dirname(os.path.dirname(os.getcwd()))))
+print(os.listdir(os.path.dirname(os.path.dirname(os.path.dirname(os.getcwd())))))
 
 
 
