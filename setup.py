@@ -39,7 +39,6 @@ REQUIRED = [
             'shapely>=1.7.0',
             'sortedcontainers',
             'vispy>=0.6.4',
-            'watchdog>=0.10.2',
             'xarray>=0.15.1',
             'zarr>=2.4.0'
             'cartopy>=0.18.0'  # leave last to get dependencies
