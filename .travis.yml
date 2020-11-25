@@ -9,6 +9,6 @@ branches:
 
 install:
   - pip install git+https://github.com/noaa-ocs-hydrography/kluster.git#egg=kluster
-  - pip install git+https://github.com/noaa-ocs-hydrography/drivers.git#egg=drivers
+  - pip install -r requirements.txt
 
 script: pytest tests

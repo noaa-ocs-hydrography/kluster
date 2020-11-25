@@ -21,10 +21,6 @@ sphinx:
 python:
    version: 3.8
    install:
+      - requirements: requirements.txt
       - method: pip
         path: .
-        extra_requirements:
-          - sphinx-automodapi
-          - sphinx_autodoc_typehints
-          - numpydoc
-          - git+https://github.com/noaa-ocs-hydrography/drivers.git#egg=drivers
