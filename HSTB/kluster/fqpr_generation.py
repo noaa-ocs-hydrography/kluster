@@ -16,6 +16,7 @@ from HSTB.kluster.modules.svcorrect import get_sv_files_from_directory, return_s
 from HSTB.kluster.modules.georeference import distrib_run_georeference
 from HSTB.kluster.modules.tpu import distrib_run_calculate_tpu
 from HSTB.kluster.xarray_conversion import BatchRead
+from HSTB.kluster.fqpr_visualizations import FqprVisualizations
 from HSTB.kluster.xarray_helpers import combine_arrays_to_dataset, compare_and_find_gaps, distrib_zarr_write, \
     divide_arrays_by_time_index, interp_across_chunks, reload_zarr_records, slice_xarray_by_dim, stack_nan_array, \
     get_write_indices_zarr
@@ -91,6 +92,9 @@ class Fqpr:
         self.backup_fqpr = {}
         self.subset_mintime = 0
         self.subset_maxtime = 0
+
+        # plotting module
+        self.plot = FqprVisualizations(self)
 
         self.logfile = None
         self.logger = None

@@ -7,6 +7,4 @@ fqpr\_visualizations module
    :skip: FFMpegWriter
    :skip: Axes3D
    :skip: LinearSegmentedColormap
-   :skip: Fqpr
-
    

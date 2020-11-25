@@ -6,8 +6,6 @@ import matplotlib.cm as cm
 from matplotlib.colors import LinearSegmentedColormap
 from mpl_toolkits.mplot3d import Axes3D  # need this, is used in backend
 
-from HSTB.kluster.fqpr_generation import Fqpr
-
 
 class FqprVisualizations:
     """
@@ -17,7 +15,7 @@ class FqprVisualizations:
     Processed fqpr_generation.Fqpr instance is passed in as argument
     """
 
-    def __init__(self, fqpr: Fqpr):
+    def __init__(self, fqpr):
         """
 
         Parameters

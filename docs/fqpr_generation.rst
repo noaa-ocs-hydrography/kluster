@@ -36,3 +36,4 @@ fqpr\_generation module
    :skip: sbet_to_xarray
    :skip: is_pydro
    :skip: progress
+   :skip: FqprVisualizations
