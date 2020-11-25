@@ -9,9 +9,9 @@ branches:
 
 install:
   - pip install git+https://github.com/noaa-ocs-hydrography/kluster.git#egg=kluster
-  - pip install --target=/home/travis/build/noaa-ocs-hydrography git+https://github.com/noaa-ocs-hydrography/drivers.git#egg=drivers
+  - pip install --target=/home/travis/build/noaa-ocs-hydrography/kluster/drivers git+https://github.com/noaa-ocs-hydrography/drivers.git#egg=drivers
 
 before_script:
-  - cp -R /home/travis/build/noaa-ocs-hydrography/HSTB/* /home/travis/build/noaa-ocs-hydrography/kluster/HSTB/
+  - cp -R /home/travis/build/noaa-ocs-hydrography/kluster/drivers/HSTB/ /home/travis/build/noaa-ocs-hydrography/kluster/HSTB/
 
 script: pytest tests

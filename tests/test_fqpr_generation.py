@@ -2,17 +2,13 @@ import numpy as np
 import xarray as xr
 import matplotlib.pyplot as plt
 import logging
-
 import sys, os
+
 print(sys.path)
 print(os.getcwd())
 print(os.listdir(os.path.join(os.getcwd(), 'HSTB')))
-print(os.listdir(os.getcwd()))
-print(os.listdir(os.path.dirname(os.getcwd())))
-print(os.listdir(os.path.dirname(os.path.dirname(os.getcwd()))))
-print(os.listdir(os.path.dirname(os.path.dirname(os.path.dirname(os.getcwd())))))
-
-
+print(os.listdir(os.path.join(os.getcwd(), 'HSTB', 'kluster')))
+print(os.listdir(os.path.join(os.getcwd(), 'HSTB', 'drivers')))
 
 from HSTB.kluster import fqpr_generation, xarray_conversion
 from HSTB.kluster.tests.test_datasets import RealFqpr, RealDualheadFqpr, SyntheticFqpr
