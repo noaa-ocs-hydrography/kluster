@@ -8,6 +8,9 @@ print(sys.path)
 print(os.getcwd())
 print(os.listdir(os.getcwd())
 print(os.listdir(os.dirname(os.getcwd()))
+print(os.listdir(os.dirname(os.dirname(os.getcwd())))
+print(os.listdir(os.dirname(os.dirname(os.dirname(os.getcwd()))))
+
 
 
 from HSTB.kluster import fqpr_generation, xarray_conversion
