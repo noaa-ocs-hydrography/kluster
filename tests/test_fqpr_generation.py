@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import logging
 
 from HSTB.kluster import fqpr_generation, xarray_conversion
-from HSTB.kluster.tests.test_datasets import RealFqpr, RealDualheadFqpr, SyntheticFqpr
+from .test_datasets import RealFqpr, RealDualheadFqpr, SyntheticFqpr  # relative import as tests directory can vary in location depending on how kluster is installed
 from HSTB.kluster.xarray_helpers import interp_across_chunks
 from HSTB.kluster.fqpr_surface import BaseSurface
 
