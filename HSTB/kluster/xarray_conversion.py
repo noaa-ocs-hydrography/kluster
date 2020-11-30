@@ -27,6 +27,7 @@ sonar_translator = {'em122': [None, 'tx', 'rx', None], 'em302': [None, 'tx', 'rx
                     # EM2040c is represented in the .all file as em2045
                     'em2045': [None, 'txrx', None, None], 'em2045_dual': [None, 'txrx_port', 'txrx_stbd', None],
                     'em3002': [None, 'tx', 'rx', None], 'em2040p': [None, 'txrx', None, None],
+                    'em3020': [None, 'tx', 'rx', None],
                     'me70bo': ['txrx', None, None, None]}
 
 install_parameter_modifier = {'em2040_dual_tx': {'rx_port': {'0': {'x': 0.011, 'y': 0.0, 'z': -0.006},
@@ -1239,10 +1240,11 @@ class BatchRead:
         for f in fils:
             finalchunksize = determine_good_chunksize(f, self.convert_minchunksize, self.convert_maxchunks)
             chnks.append(return_chunked_fil(f, 0, finalchunksize))
-            self.logger.info('{}: Using {} chunks of size {}'.format(f, self.convert_maxchunks, finalchunksize))
 
         # chnks_flat is now a list of lists representing chunks of each file
         chnks_flat = [c for subc in chnks for c in subc]
+        self.logger.info('{} files, Using {} chunks in parallel'.format(len(fils), len(chnks_flat)))
+
         return chnks_flat
 
     def _gather_file_level_metadata(self, fils: list):
@@ -2114,7 +2116,7 @@ class BatchRead:
                 lever_prefix.append(leverarms[0])
         return lever_prefix
 
-    def select_array_from_rangeangle(self, ra_var: str, ra_sector: str):
+    def select_array_from_rangeangle(self, ra_var: str, ra_sector: str, filter_nan: bool = True):
         """
         Given variable name and sectors, return DataArray specified by var reduced to dimensions specified by sectors.
 
@@ -2127,6 +2129,8 @@ class BatchRead:
             variable name to identify xarray DataArray to return
         ra_sector
             string name for sectors to subset DataArray by
+        filter_nan
+            if true, will filter out the values that equal 999 (the fill value for the beam wise arrays)
 
         Returns
         -------
@@ -2137,7 +2141,7 @@ class BatchRead:
         for ra in self.raw_ping:
             if ra.sector_identifier == ra_sector:
                 sec_dat = ra[ra_var].where(ra.ntx > 0).astype(np.float32)
-                if sec_dat.ndim == 2:
+                if sec_dat.ndim == 2 and filter_nan:
                     # for (time, beam) dimensional arrays, also replace 999.0 in the beam dimension with nan
                     #    to make downstream calculations a bit easier (see pad_to_dense)
                     return sec_dat.where(sec_dat != 999.0)

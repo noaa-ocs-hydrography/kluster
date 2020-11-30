@@ -323,6 +323,12 @@ class FqprVisualizations:
         bpa = np.array(dat[0]).ravel()
         tt = np.array(dat[1]).ravel()
 
+        valid_bpa = ~np.isnan(bpa)
+        valid_tt = ~np.isnan(tt)
+        valid_idx = np.logical_and(valid_bpa, valid_tt)
+        bpa = bpa[valid_idx]
+        tt = tt[valid_idx]
+
         maxbeams = bpa.shape[0]
         u = np.sin(bpa) * tt
         v = np.cos(bpa) * tt
@@ -342,20 +348,35 @@ class FqprVisualizations:
         idx
             int, ping counter index
         """
+        angles = self.bpv_dat[0, idx, :]
+        traveltime = self.bpv_dat[1, idx, :]
+        valid_bpa = ~np.isnan(angles)
+        valid_tt = ~np.isnan(traveltime)
+        valid_idx = np.logical_and(valid_bpa, valid_tt)
+        angles = angles[valid_idx]
+        traveltime = traveltime[valid_idx]
 
         if self.bpv_quiver is not None:
             self.bpv_quiver.remove()
         if self.fqpr.multibeam.is_dual_head():
-            pouterang = [round(np.rad2deg(self.bpv_dat[0, idx, 0]), 3), round(np.rad2deg(self.bpv_dat[0, idx + 1, 0]), 3)]
-            poutertt = [round(self.bpv_dat[1, idx, 0], 3), round(self.bpv_dat[1, idx + 1, 0], 3)]
-            pinnerang = [round(np.rad2deg(self.bpv_dat[0, idx, -1]), 3), round(np.rad2deg(self.bpv_dat[0, idx + 1, -1]), 3)]
-            pinnertt = [round(self.bpv_dat[1, idx, -1], 3), round(self.bpv_dat[1, idx + 1, -1], 3)]
+            nextangles = self.bpv_dat[0, idx + 1, :]
+            nexttraveltime = self.bpv_dat[1, idx + 1, :]
+            nextvalid_bpa = ~np.isnan(nextangles)
+            nextvalid_tt = ~np.isnan(nexttraveltime)
+            nextvalid_idx = np.logical_and(nextvalid_bpa, nextvalid_tt)
+            nextangles = nextangles[nextvalid_idx]
+            nexttraveltime = nexttraveltime[nextvalid_idx]
+
+            pouterang = [str(round(np.rad2deg(angles[0]), 3)), str(round(np.rad2deg(nextangles[0]), 3))]
+            poutertt = [str(round(traveltime[0], 3)), str(round(nexttraveltime[0], 3))]
+            pinnerang = [str(round(np.rad2deg(angles[-1]), 3)), str(round(np.rad2deg(nextangles[-1]), 3))]
+            pinnertt = [str(round(traveltime[-1], 3)), str(round(nexttraveltime[-1], 3))]
             idx = [idx, idx + 1]
         else:
-            pouterang = round(self.bpv_dat[0, idx, 0], 3)
-            poutertt = round(self.bpv_dat[1, idx, 0], 3)
-            pinnerang = round(self.bpv_dat[0, idx, -1], 3)
-            pinnertt = round(self.bpv_dat[1, idx, -1], 3)
+            pouterang = str(round(np.rad2deg(angles[0]), 3))
+            poutertt = str(round(traveltime[0], 3))
+            pinnerang = str(round(np.rad2deg(angles[-1]), 3))
+            pinnertt = str(round(traveltime[-1], 3))
 
         self.bpv_quiver = self.bpv_figure.quiver(*self._generate_bpv_arrs(self.bpv_dat[:, idx, :]),
                                                  color=self._generate_bpv_colors(self.bpv_datsec[0, idx, :].ravel()),

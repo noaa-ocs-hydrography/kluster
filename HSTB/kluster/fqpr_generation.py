@@ -2033,7 +2033,8 @@ class Fqpr:
         endtime = perf_counter()
         self.logger.info('****Calculating total uncertainty complete: {}s****\n'.format(round(endtime - starttime, 1)))
 
-    def export_pings_to_file(self, output_directory: str = None, file_format: str = 'csv', filter_by_detection: bool = True):
+    def export_pings_to_file(self, output_directory: str = None, file_format: str = 'csv', csv_delimiter=',',
+                             filter_by_detection: bool = True):
         """
         Uses the output of georef_along_across_depth to build sounding exports.  Currently you can export to csv or las
         file formats, see file_format argument.
@@ -2054,6 +2055,8 @@ class Fqpr:
             optional, destination directory for the xyz exports, otherwise will auto export next to converted data
         file_format
             optional, destination file format, default is csv file, options include ['csv', 'las', 'entwine']
+        csv_delimiter
+            optional, if you choose file_format=csv, this will control the delimiter
         filter_by_detection
             optional, if True will only write soundings that are not rejected
         """
@@ -2133,13 +2136,15 @@ class Fqpr:
                     unc = unc_stck
 
             if file_format == 'csv':
-                dest_path = os.path.join(fldr_path, rp.sector_identifier + '.xyz')
+                dest_path = os.path.join(fldr_path, rp.sector_identifier + '.csv')
 
                 self.logger.info('writing to {}'.format(dest_path))
                 if uncertainty_included:
-                    np.savetxt(dest_path, np.c_[x, y, z, unc], ['%3.3f', '%2.3f', '%4.3f', '%4.3f'])
+                    np.savetxt(dest_path, np.c_[x, y, z, unc], fmt=['%3.3f', '%2.3f', '%4.3f', '%4.3f'],
+                               delimiter=csv_delimiter, header='easting, northing, depth, uncertainty', comments='')
                 else:
-                    np.savetxt(dest_path, np.c_[x, y, z], ['%3.3f', '%2.3f', '%4.3f'])
+                    np.savetxt(dest_path, np.c_[x, y, z], fmt=['%3.3f', '%2.3f', '%4.3f'], delimiter=csv_delimiter,
+                               header='easting, northing, depth', comments='')
             elif file_format in ['las', 'entwine']:
                 dest_path = os.path.join(fldr_path, rp.sector_identifier + '.las')
                 self.logger.info('writing to {}'.format(dest_path))
@@ -2787,7 +2792,7 @@ class Fqpr:
             if np.any(counter_times):
                 time_idx = counter_times[counter_times != 0]
                 for v_cnt, dattype in enumerate(variable_selection):
-                    dat = self.multibeam.select_array_from_rangeangle(dattype, sec).sel(time=time_idx)
+                    dat = self.multibeam.select_array_from_rangeangle(dattype, sec, filter_nan=True).sel(time=time_idx)
                     data_end[v_cnt, counter_idxs] += dat.shape[1]
                     out[v_cnt, counter_idxs, data_strt[v_cnt, counter_idxs[0]]:data_end[v_cnt, counter_idxs[0]]] = dat
                     if v_cnt == 0:
@@ -2878,6 +2883,20 @@ class Fqpr:
         np.array
             1d array containing times for each ping
         """
+        if len(self.multibeam.raw_ping) == 1:
+            finalout = []
+            for v in variable_selection:
+                data = self.multibeam.select_array_from_rangeangle(v, self.multibeam.raw_ping[0].sector_identifier)
+                finalout.append(data)
+            finalout = xr.merge(finalout)
+            if as_dataset:
+                return finalout
+            else:
+                finalout, finalsec, finaltms = finalout.to_array().values, \
+                                               np.zeros((1, finalout.time.shape[0], finalout.beam.shape[0])), \
+                                               finalout.time.values
+                return finalout, finalsec, finaltms
+
         if ping_times is None:
             ping_times = self.return_unique_times_across_sectors()
 
@@ -2932,6 +2951,7 @@ class Fqpr:
                 except ValueError:
                     self.logger.error('duplicated ping times do not match ping indices!  Unable to proceed.')
                     return None, None, None
+
             if as_dataset:
                 dataset_variables = {x: (['time', 'beam'], finalout[cnt, :, :]) for cnt, x in enumerate(variable_selection)}
                 dataset_variables['sector_identifier'] = (['time', 'beam'], finalsec[0, :, :])
@@ -2939,7 +2959,7 @@ class Fqpr:
                 dset = xr.Dataset(dataset_variables, coords, {'sectors': [ra.sector_identifier for ra in self.multibeam.raw_ping]})
                 return dset
             else:
-                return (finalout, finalsec, finaltms)
+                return finalout, finalsec, finaltms
         else:
             self.logger.error('Unable to find records for {} for time {}'.format(variable_selection, ping_times))
             return None
