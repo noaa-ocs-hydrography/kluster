@@ -28,20 +28,20 @@ REQUIRED = [
             'numba==0.51.2',
             'openpyxl==3.0.3',
             'psutil==5.7.3',
-            # 'numpy==1.19.4',
-            # 'pandas==1.1.4',
-            # 'pyshp==2.1.2',
+            'numpy==1.19.4',
+            'pandas==1.1.4',
+            'pyshp==2.1.2',
             'vispy==0.6.4',
             'pyopengl==3.1.5',
             'pyproj==2.6.1.post1',
             'pyqtgraph==0.11.0',
             's3fs==0.5.1',
-            # 'scipy==1.5.3',
-            # 'shapely==1.7.1',
+            'scipy==1.5.3',
+            'shapely==1.7.1',
             'sortedcontainers==2.3.0',
             'watchdog==0.10.4',
-            # 'xarray==0.16.2',
-            'zarr==2.5.0'
+            'xarray==0.16.2',
+            'zarr==2.5.0',
             'cartopy==0.17.0'  # leave last to get dependencies
             ]
 
