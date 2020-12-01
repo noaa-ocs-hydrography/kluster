@@ -59,11 +59,11 @@ Some dependencies need to be installed from the conda-forge channel.  I have an 
 
 `conda activate kluster_test `
 
-`conda install -c conda-forge proj `
+`conda install -c conda-forge proj=7.0 `
 
 `conda install -c conda-forge proj-data `
 
-`conda install -c conda-forge cartopy `
+`conda install -c conda-forge cartopy=0.17.0 `
 
 `pip install git+https://github.com/noaa-ocs-hydrography/drivers.git#egg=hstb.drivers `
 

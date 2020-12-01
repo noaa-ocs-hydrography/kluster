@@ -18,31 +18,31 @@ VERSION = '0.1.1'
 
 # What packages are required for this module to be executed?
 REQUIRED = [
-            'bokeh>=1.0.0',
-            'dask>=2.17.2',
-            'distributed>=2.0',
+            'bokeh==1.0.0',
+            'dask==2.17.2',
+            'distributed==2.0',
             'fasteners',
-            'laspy>=1.7.0',
-            'matplotlib>=3.2.1',
-            'numba>=0.48.0',
-            'numpy>=1.18.4',
-            'openpyxl>=3.0.3',
-            'pandas>=1.0.4',
+            'laspy==1.7.0',
+            'matplotlib==3.3.3',
+            'numba==0.48.0',
+            'numpy==1.19.4',
+            'openpyxl==3.0.3',
+            'pandas==1.0.4',
             'psutil',
-            'pyshp>=2.0',
-            'pyopengl>=3.1.5',
-            'pyproj>=2.6.1.post1',
-            'pyqtgraph>=0.11.0',
-            'PySide2>=5.13.2',
-            's3fs>=0.4.0',
-            'scipy>=1.3.2',
-            'shapely>=1.7.0',
+            'pyshp==2.0',
+            'pyopengl==3.1.5',
+            'pyproj==2.6.1.post1',
+            'pyqtgraph==0.11.0',
+            'PySide2==5.13.2',
+            's3fs==0.4.0',
+            'scipy==1.5.3',
+            'shapely==1.7.0',
             'sortedcontainers',
-            'vispy>=0.6.4',
-            'watchdog>=0.10.2',
-            'xarray>=0.15.1',
-            'zarr>=2.4.0'
-            'cartopy>=0.18.0'  # leave last to get dependencies
+            'vispy==0.6.4',
+            'watchdog==0.10.2',
+            'xarray==0.15.1',
+            'zarr==2.4.0'
+            'cartopy==0.18.0'  # leave last to get dependencies
             ]
 
 # What packages are optional?
