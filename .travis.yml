@@ -23,6 +23,7 @@ install:
   - conda install -c conda-forge proj=7.0
   - conda install -c conda-forge proj-data
   - conda install -c conda-forge cartopy=0.17.0
+  - conda install git pip
   - type -a pip
   - type -a conda
   - pip install git+https://github.com/noaa-ocs-hydrography/kluster.git#egg=hstb.kluster
