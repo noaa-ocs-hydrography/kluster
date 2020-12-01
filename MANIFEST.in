@@ -2,4 +2,3 @@ include README.md LICENSE
 graft HSTB/kluster/gui
 graft HSTB/kluster/images
 graft HSTB/kluster/modules
-graft HSTB/kluster/tests
