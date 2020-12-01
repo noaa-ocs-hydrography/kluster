@@ -14,10 +14,10 @@ install:
   - hash -r
   - conda config --set always_yes yes --set changeps1 no
   - conda update -q conda
+  
   # Useful for debugging any issues with conda
   - conda info -a
-
-  # Replace dep1 dep2 ... with your dependencies
+  
   - conda create -q -n test-environment python=3.8.2
   - conda activate test-environment
   - conda install -c conda-forge proj=7.0
