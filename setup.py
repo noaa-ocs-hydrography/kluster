@@ -41,8 +41,8 @@ REQUIRED = [
             'sortedcontainers==2.3.0',
             'watchdog==0.10.4',
             'xarray==0.16.2',
-            'zarr==2.5.0',
-            'cartopy==0.18.0'  # leave last to get dependencies
+            'zarr==2.5.0'
+            # 'cartopy==0.18.0'  Required for GUI, but must be conda installed with PROJ
             ]
 
 # What packages are optional?
