@@ -42,7 +42,7 @@ REQUIRED = [
             'watchdog==0.10.4',
             'xarray==0.16.2',
             'zarr==2.5.0',
-            'cartopy==0.17.0'  # leave last to get dependencies
+            'cartopy==0.18.0'  # leave last to get dependencies
             ]
 
 # What packages are optional?
