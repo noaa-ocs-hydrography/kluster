@@ -217,6 +217,11 @@ def get_orientation_vectors(dset='realdualhead'):
         expected_tx_vector = expected_tx_per_sec * int(len(synth.raw_ping) / 2)
     else:
         expected_tx_vector = expected_tx_per_sec
+    print('ORIENTATION')
+    print([f for f in expected_tx_vector])
+    print([f for f in txvecdata])
+    print([f for f in expected_rx_per_sector_first_beam])
+    print([f for f in rxvecdata])
     assert np.array_equal(expected_tx_vector, txvecdata)
 
     # check for the expected rx orientation vectors
@@ -318,6 +323,14 @@ def sv_correct(dset='realdualhead'):
     y_data = np.array([ld[1].isel(time=0).values[0] for ld in loaded_data], dtype=np.float32)
     z_data = np.array([ld[2].isel(time=0).values[0] for ld in loaded_data], dtype=np.float32)
 
+    print('SVCORR')
+    print([f for f in x_data])
+    print([f for f in expected_x])
+    print([f for f in y_data])
+    print([f for f in expected_y])
+    print([f for f in z_data])
+    print([f for f in expected_z])
+
     # beam azimuth check
     assert np.array_equal(x_data, expected_x)
 
@@ -377,6 +390,14 @@ def georef_xyz(dset='realdualhead'):
     x_data = np.array([ld[0].isel(time=0).values[0] for ld in loaded_xyz_data], dtype=np.float32)
     y_data = np.array([ld[1].isel(time=0).values[0] for ld in loaded_xyz_data], dtype=np.float32)
     z_data = np.array([ld[2].isel(time=0).values[0] for ld in loaded_xyz_data], dtype=np.float32)
+
+    print('GEOREF')
+    print([f for f in x_data])
+    print([f for f in expected_x])
+    print([f for f in y_data])
+    print([f for f in expected_y])
+    print([f for f in z_data])
+    print([f for f in expected_z])
 
     # easting
     # same version of PROJ but installed through kluster github instructions get different answers.  Haven't figured this
