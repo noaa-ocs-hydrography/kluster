@@ -18,11 +18,12 @@ Kluster is:
 4. **Scriptable** - provides a GUI for visualization and processing, but can be run from the command line or scripted easily
 5. **Extensible** - From data conversion to sound velocity correction, kluster is built using modules that can be replaced, enhanced or exchanged as needed.
 
-Kluster **will not** read from multibeam sonars that use the Depth datagram instead of the Range/Angle for .all conversion.  Most modern systems will work.  Kluster has been tested on:
+Kluster has been tested on:
 
 - EM2040/2040c/2040p
 - EM2040 dual tx/dual rx
 - EM710
+- EM3002
 - EM122
 
 Kluster is built from the ground up in Python, and was developed using Python 3.8.  Kluster includes modules developed by the hydrographic community such as (see [drivers](https://github.com/noaa-ocs-hydrography/drivers)):
