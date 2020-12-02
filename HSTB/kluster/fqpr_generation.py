@@ -100,6 +100,26 @@ class Fqpr:
         self.logger = None
         self.initialize_log()
 
+    def close(self):
+        """
+        Must forcibly close the logging handlers to allow the data written to disk to be moved or deleted.
+        """
+        if self.logger is not None:
+            handlers = self.logger.handlers[:]
+            for handler in handlers:
+                handler.flush()
+                handler.close()
+                self.logger.removeHandler(handler)
+            self.logger = None
+        if self.multibeam is not None:
+            if self.multibeam.logger is not None:
+                handlers = self.multibeam.logger.handlers[:]
+                for handler in handlers:
+                    handler.flush()
+                    handler.close()
+                    self.multibeam.logger.removeHandler(handler)
+                self.multibeam.logger = None
+
     def initialize_log(self):
         """
         Initialize the fqpr logger using the multibeam logfile attribute.

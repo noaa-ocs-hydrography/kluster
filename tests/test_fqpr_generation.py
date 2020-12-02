@@ -1,3 +1,4 @@
+import os, shutil
 import numpy as np
 import xarray as xr
 import matplotlib.pyplot as plt
@@ -6,10 +7,154 @@ import logging
 from HSTB.kluster import fqpr_generation, xarray_conversion
 from .test_datasets import RealFqpr, RealDualheadFqpr, SyntheticFqpr  # relative import as tests directory can vary in location depending on how kluster is installed
 from HSTB.kluster.xarray_helpers import interp_across_chunks
-from HSTB.kluster.fqpr_surface import BaseSurface
+from HSTB.kluster.fqpr_convenience import *
 
 
-def test_get_orientation_vectors(dset='realdualhead'):
+def test_get_orientation_vectors():
+    """
+    get_orientation_vectors test for the em2040 dataset
+    """
+
+    get_orientation_vectors(dset='real')
+
+
+def test_get_orientation_vectors_dualhead():
+    """
+    get_orientation_vectors test for the em2040 dualrx/dualtx dataset
+    """
+
+    get_orientation_vectors(dset='realdualhead')
+
+
+def test_build_beam_pointing_vector():
+    """
+    build_beam_pointing_vector test for the em2040 dataset
+    """
+
+    build_beam_pointing_vector(dset='real')
+
+
+def test_build_beam_pointing_vector_dualhead():
+    """
+    build_beam_pointing_vector test for the em2040 dualrx/dualtx dataset
+    """
+
+    build_beam_pointing_vector(dset='realdualhead')
+
+
+def test_sv_correct():
+    """
+    sv_correct test for the em2040 dataset
+    """
+
+    sv_correct(dset='real')
+
+
+def test_sv_correct_dualhead():
+    """
+    sv_correct test for the em2040 dualrx/dualtx dataset
+    """
+
+    sv_correct(dset='realdualhead')
+
+
+def test_georef_xyz():
+    """
+    georef_xyz test for the em2040 dataset
+    """
+
+    georef_xyz(dset='real')
+
+
+def test_georef_xyz_dualhead():
+    """
+    georef_xyz test for the em2040 dualrx/dualtx dataset
+    """
+
+    georef_xyz(dset='realdualhead')
+
+
+def test_find_testfile():
+    """
+    Find the test file we use for the next tests
+    """
+    testfile_path, expected_output = get_testfile_paths()
+    if not os.path.exists(testfile_path):
+        print('test_find_testfile: could not find {}'.format(testfile_path))
+    assert os.path.exists(testfile_path)
+
+
+def test_convert_testfile():
+    """
+    Run xarray conversion on the test file
+    """
+    testfile_path, expected_output = get_testfile_paths()
+    out = convert_multibeam(testfile_path)
+    number_of_sectors = len(out.multibeam.raw_ping)
+    firstbeam_angle = float(out.multibeam.raw_ping[0].isel(time=0).isel(beam=0).beampointingangle.values)
+    firstbeam_traveltime = float(out.multibeam.raw_ping[0].isel(time=0).isel(beam=0).traveltime.values)
+    first_counter = int(out.multibeam.raw_ping[0].isel(time=0).counter.values)
+    first_dinfo = int(out.multibeam.raw_ping[0].isel(time=0).isel(beam=0).detectioninfo.values)
+    first_mode = str(out.multibeam.raw_ping[0].isel(time=0).mode.values)
+    first_modetwo = str(out.multibeam.raw_ping[0].isel(time=0).modetwo.values)
+    first_ntx = int(out.multibeam.raw_ping[0].isel(time=0).ntx.values)
+    firstbeam_procstatus = int(out.multibeam.raw_ping[0].isel(time=0).isel(beam=0).processing_status.values)
+    firstbeam_qualityfactor = int(out.multibeam.raw_ping[0].isel(time=0).isel(beam=0).qualityfactor.values)
+    first_soundspeed = float(out.multibeam.raw_ping[0].isel(time=0).soundspeed.values)
+    first_tiltangle = float(out.multibeam.raw_ping[0].isel(time=0).tiltangle.values)
+    first_yawpitch = str(out.multibeam.raw_ping[0].isel(time=0).yawpitchstab.values)
+
+    datapath = out.multibeam.converted_pth
+    out.close()
+    out = None
+    clear_testfile_data(datapath)
+
+    assert number_of_sectors == 6
+    assert firstbeam_angle == 74.58000183105469
+    assert firstbeam_traveltime == 0.3370774984359741
+    assert first_counter == 61966
+    assert first_dinfo == 2
+    assert first_mode == 'FM'
+    assert first_modetwo == '__FM'
+    assert first_ntx == 3
+    assert firstbeam_procstatus == 0
+    assert firstbeam_qualityfactor == 12
+    assert first_soundspeed == 1488.5999755859375
+    assert first_tiltangle == -0.6200000047683716
+    assert first_yawpitch == 'PY'
+
+
+def get_testfile_paths():
+    """
+    return the necessary paths for the testfile tests
+
+    Returns
+    -------
+    str
+        absolute file path to the test file
+    str
+        absolute folder path to the expected output folder
+    """
+    testfile = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'test_data', '0009_20170523_181119_FA2806.all')
+    expected_output = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'test_data', 'converted')
+    return testfile, expected_output
+
+
+def clear_testfile_data(expected_output: str):
+    """
+    remove the converted data
+
+    Parameters
+    ----------
+    expected_output
+        path to the converted data folder
+    """
+
+    if os.path.exists(expected_output):
+        shutil.rmtree(expected_output)
+
+
+def get_orientation_vectors(dset='realdualhead'):
     """
     Automated test of fqpr_generation get_orientation_vectors
 
@@ -21,18 +166,20 @@ def test_get_orientation_vectors(dset='realdualhead'):
     Parameters
     ----------
     dset: str, specify which dataset you want to use, one of 'real' and 'realdualhead'
-
     """
+
     if dset == 'real':
         synth = load_dataset(RealFqpr())
-        expected_tx_per_sec = np.array([[0.6136555921172974, -0.7895255928982701, 0.008726535498373935],
-                                        [0.6236867410029571, -0.7816427427545967, 0.007033618996063356]])
-        expected_rx_per_sector_first_beam = [np.array([0.7834063124935767, 0.6195440420293157, -0.04939361832457566]),
-                                             np.array([0.7835067418224286, 0.6194772694894388, -0.048632274311522526]),
-                                             np.array([0.786992303627918, 0.616656032517831, -0.019453832264897088]),
-                                             np.array([0.7869914430005911, 0.6166568778070365, -0.019461852355958494]),
-                                             np.array([0.7869506383086127, 0.6166968512681303, -0.019841534760212512]),
-                                             np.array([0.7869495956077067, 0.6166978700669955, -0.01985122232251618])]
+        expected_tx_per_sec = [np.array([[0.6136555921172974, -0.7895255928982701, 0.008726535498373935],
+                                         [0.6236867410029571, -0.7816427427545967, 0.007033618996063356]]),
+                               np.array([[0.613685928094153, -0.7895020134473463,  0.008726535498373935],
+                                         [0.6237170343842772, -0.781618915691147,  0.0069951163448448775]])]
+        expected_rx_per_sector_first_beam = [np.array([0.7834063124935756, 0.619544042029317, -0.04939361832457566]),
+                                             np.array([0.7834583892797623, 0.6195095013529376, -0.04899928571515261]),
+                                             np.array([0.7869923036279147, 0.6166560325178352, -0.019453832264897088]),
+                                             np.array([0.7869519629389651, 0.6166955568118332, -0.019829226789081136]),
+                                             np.array([0.78695063830861, 0.6166968512681338, -0.019841534760212512]),
+                                             np.array([0.7869099965548044, 0.6167364637993844, -0.02021859397554979])]
     elif dset == 'realdualhead':
         synth = load_dataset(RealDualheadFqpr())
         expected_tx_per_sec = [np.array([[-0.8173967230596009, -0.5756459946918305, -0.022232663846213512]]),
@@ -66,10 +213,9 @@ def test_get_orientation_vectors(dset='realdualhead'):
     rxvecdata = [ld[1].values[0][0] for ld in loaded_data]
 
     # check for the expected tx orientation vectors
-    if dset != 'realdualhead':
-        expected_tx_vector = [expected_tx_per_sec] * len(synth.raw_ping)
+    if dset == 'real':
+        expected_tx_vector = expected_tx_per_sec * int(len(synth.raw_ping) / 2)
     else:
-        # can't simply expect each sector to have the same tx vector, two tx's in dual head sonar...gotta write it all out
         expected_tx_vector = expected_tx_per_sec
     assert np.array_equal(expected_tx_vector, txvecdata)
 
@@ -79,7 +225,7 @@ def test_get_orientation_vectors(dset='realdualhead'):
     print('Passed: get_orientation_vectors')
 
 
-def test_build_beam_pointing_vector(dset='realdualhead'):
+def build_beam_pointing_vector(dset='realdualhead'):
     """
     Automated test of fqpr_generation build_beam_pointing_vector
 
@@ -91,14 +237,14 @@ def test_build_beam_pointing_vector(dset='realdualhead'):
     Parameters
     ----------
     dset: str, specify which dataset you want to use, one of 'real' and 'realdualhead'
-
     """
+
     if dset == 'real':
         synth = load_dataset(RealFqpr())
-        expected_ba = [4.697702770857325, 4.701442008565216, 4.707855899184765, 4.718268102552111, 1.5583690576936515,
-                       1.5526471079672053]
-        expected_bda = [1.209080718248996, 1.209595123811155, 0.6905748987012734, 0.6905384444662406,
-                        -0.6950466227093792, -0.6951468071954617]
+        expected_ba = [4.697702770857325, 4.701437294692664, 4.707855899184765, 4.7182675125582785, 1.5583690576936515,
+                       1.5526518951478496]
+        expected_bda = [1.209080718248996, 1.2092288516914702, 0.6905748987012734, 0.6901709706812572,
+                        -0.6950466227093793, -0.6955145505056424]
     elif dset == 'realdualhead':
         synth = load_dataset(RealDualheadFqpr())
         expected_ba = np.array([4.722867225444818, 4.714469418825591, 4.7409403464076965, 4.725275412543552])
@@ -129,7 +275,7 @@ def test_build_beam_pointing_vector(dset='realdualhead'):
     print('Passed: build_beam_pointing_vector')
 
 
-def test_sv_correct(dset='realdualhead'):
+def sv_correct(dset='realdualhead'):
     """
     Automated test of fqpr_generation sv_correct
 
@@ -141,14 +287,13 @@ def test_sv_correct(dset='realdualhead'):
     Parameters
     ----------
     dset: str, specify which dataset you want to use, one of 'real' and 'realdualhead'
-
-   """
+    """
 
     if dset == 'real':
         synth = load_dataset(RealFqpr())
-        expected_x = np.array([-3.42, -2.515, -0.336, 0.436, 0.939, 1.372], dtype=np.float32)
-        expected_y = np.array([-232.884, -229.799, -74.056, -74.079, 75.626, 75.647], dtype=np.float32)
-        expected_z = np.array([91.12, 89.728, 90.258, 90.285, 91.246, 91.279], dtype=np.float32)
+        expected_x = np.array([-3.42, -2.516, -0.336, 0.435, 0.939, 1.372], dtype=np.float32)
+        expected_y = np.array([-232.884, -229.769, -74.056, -74.048, 75.626, 75.679], dtype=np.float32)
+        expected_z = np.array([91.12, 89.805, 90.258, 90.311, 91.246, 91.253], dtype=np.float32)
     elif dset == 'realdualhead':
         synth = load_dataset(RealDualheadFqpr())
         expected_x = np.array([1.086, 0.692, 0.738, 0.567], dtype=np.float32)
@@ -185,7 +330,7 @@ def test_sv_correct(dset='realdualhead'):
     print('Passed: sv_correct')
 
 
-def test_georef_xyz(dset='realdualhead'):
+def georef_xyz(dset='realdualhead'):
     """
     Automated test of fqpr_generation sv_correct
 
@@ -197,7 +342,6 @@ def test_georef_xyz(dset='realdualhead'):
     Parameters
     ----------
     dset: str, specify which dataset you want to use, one of 'real' and 'realdualhead'
-
     """
 
     vert_ref = 'waterline'
