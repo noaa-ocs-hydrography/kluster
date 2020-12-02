@@ -2053,7 +2053,7 @@ class Fqpr:
         endtime = perf_counter()
         self.logger.info('****Calculating total uncertainty complete: {}s****\n'.format(round(endtime - starttime, 1)))
 
-    def export_pings_to_file(self, output_directory: str = None, file_format: str = 'csv', csv_delimiter=',',
+    def export_pings_to_file(self, output_directory: str = None, file_format: str = 'csv', csv_delimiter=' ',
                              filter_by_detection: bool = True):
         """
         Uses the output of georef_along_across_depth to build sounding exports.  Currently you can export to csv or las

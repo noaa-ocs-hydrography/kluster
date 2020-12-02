@@ -249,7 +249,10 @@ class KlusterExplorer(QtWidgets.QTableWidget):
                 newline_attr = OrderedDict([(h, '') for h in self.headr])
                 newline_attr['Source'] = os.path.split(attrs['output_path'])[1]
                 newline_attr['Name'] = ln[0]
-                newline_attr['Survey Identifier'] = ', '.join(attrs['survey_number'])
+                if 'survey_number' in attrs:
+                    newline_attr['Survey Identifier'] = ', '.join(attrs['survey_number'])
+                else:
+                    newline_attr['Survey Identifier'] = ''
                 min_line_time = ln[1][0]
                 max_line_time = ln[1][1]
                 newline_attr['Min Time'] = datetime.utcfromtimestamp(min_line_time).strftime('%D %H%M%S')
