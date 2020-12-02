@@ -417,30 +417,33 @@ def generate_new_surface(fqpr_inst: Union[Fqpr, list], resolution: float = 1.0, 
         surface instance for the given soundings data at the given resolution
     """
 
-    if type(fqpr_inst) is list:
-        if not fqpr_inst[0].__getattribute__('soundings'):
-            print('generate_new_surface: No georeferenced soundings found')
-            return None
-        if len(fqpr_inst) == 1:
-            fqpr_inst = fqpr_inst[0]
-    else:
-        if not fqpr_inst.__getattribute__('soundings'):
-            print('generate_new_surface: No georeferenced soundings found')
-            return None
+    if not isinstance(fqpr_inst, list):
+        fqpr_inst = [fqpr_inst]
 
     try:
-        if type(fqpr_inst) is not list:
-            bs = BaseSurface(fqpr_inst.soundings.x, fqpr_inst.soundings.y, fqpr_inst.soundings.z, fqpr_inst.soundings.unc,
-                             fqpr_inst.soundings.xyz_crs, resolution=resolution)
-        else:
-            unique_crs = np.unique([f.soundings.xyz_crs for f in fqpr_inst])
-            if len(unique_crs) > 1:
-                print('Found multiple EPSG codes in the input data, data must be of the same code: {}'.format(unique_crs))
-            bs = BaseSurface(xr.concat([f.soundings.x for f in fqpr_inst], dim='sounding'),
-                             xr.concat([f.soundings.y for f in fqpr_inst], dim='sounding'),
-                             xr.concat([f.soundings.z for f in fqpr_inst], dim='sounding'),
-                             xr.concat([f.soundings.unc for f in fqpr_inst], dim='sounding'),
-                             int(fqpr_inst[0].soundings.xyz_crs), resolution=resolution)
+        all_have_soundings = np.all(['x' in rp for f in fqpr_inst for rp in f.multibeam.raw_ping])
+    except AttributeError:
+        print('generate_new_surface: Invalid Fqpr instances passed in, could not find instance.multibeam.raw_ping[0].x')
+        return None
+
+    if not all_have_soundings:
+        print('generate_new_surface: No georeferenced soundings found')
+        return None
+
+    try:
+        unique_crs = np.unique([f.xyz_crs for f in fqpr_inst])
+        if len(unique_crs) > 1:
+            print('generate_new_surface: Found multiple EPSG codes in the input data, data must be of the same code: {}'.format(unique_crs))
+            return None
+        if unique_crs[0].to_epsg() is None:
+            print('generate_new_surface: No valid EPSG for {}'.format(fqpr_inst[0].xyz_crs.to_proj4()))
+            return None
+
+        x_vals = xr.concat([rp.x for m in fqpr_inst for rp in m.multibeam.raw_ping], dim='time').stack(stk=('time','beam')).dropna('stk')
+        y_vals = xr.concat([rp.y for m in fqpr_inst for rp in m.multibeam.raw_ping], dim='time').stack(stk=('time', 'beam')).dropna('stk')
+        z_vals = xr.concat([rp.z for m in fqpr_inst for rp in m.multibeam.raw_ping], dim='time').stack(stk=('time', 'beam')).dropna('stk')
+        tvu_vals = xr.concat([rp.tvu for m in fqpr_inst for rp in m.multibeam.raw_ping], dim='time').stack(stk=('time', 'beam')).dropna('stk')
+        bs = BaseSurface(x_vals, y_vals, z_vals, tvu_vals, unique_crs[0].to_epsg(), resolution=resolution)
     except (AttributeError, IndexError):
         print('Expect a list of fqpr instances or a single fqpr instance as input.  Received {}'.format(fqpr_inst))
         return

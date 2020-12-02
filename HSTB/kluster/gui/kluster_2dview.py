@@ -130,7 +130,7 @@ class Kluster2dview(FigureCanvasQTAgg):
                 twostd = np.nanstd(surfz)
                 med = np.nanmedian(surfz)
                 vmin, vmax = med - twostd, med + twostd
-            print(vmin, vmax)
+            # print(vmin, vmax)
             surfplt = self.axes.pcolormesh(lons, lats, surfz.T, vmin=vmin, vmax=vmax, transform=self.map_proj)
             self._add_to_active_layers(surfname, lyrname)
             self._add_to_surface_objects(surfname, lyrname, [lats, lons, surfplt])
