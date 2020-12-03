@@ -7,7 +7,7 @@ from PySide2 import QtGui, QtCore, QtWidgets
 from HSTB.kluster.gui import dialog_vesselview, kluster_explorer, kluster_project_tree, kluster_3dview, kluster_attitudeview, \
     kluster_output_window, kluster_2dview, dialog_conversion, dialog_all_processing, dialog_daskclient, dialog_surface, \
     dialog_export, kluster_worker, kluster_interactive_console, dialog_importnav
-from HSTB.kluster.fqpr_project import FqprProject
+from HSTB.kluster.fqpr_project import FqprProject, return_project_data
 from HSTB.kluster.fqpr_helpers import return_files_from_path
 from HSTB.shared import RegistryHelpers
 
@@ -172,7 +172,8 @@ class KlusterMain(QtWidgets.QMainWindow):
 
         multibeamfiles = []
         surfaces = []
-        new_projects = []
+        projects = []
+        new_fqprs = []
 
         for f in fil:
             possible_multibeam_files = return_files_from_path(f, file_ext='.all')
@@ -180,6 +181,9 @@ class KlusterMain(QtWidgets.QMainWindow):
             if possible_multibeam_files or possible_surface_files:
                 multibeamfiles.extend(possible_multibeam_files)
                 surfaces.extend(possible_surface_files)
+            if os.path.split(f)[1] == 'kluster_project.json':
+                print('Please open this project file {} using Open Project'.format(f))
+                continue
 
             f = os.path.normpath(f)
             fqpr_entry = self.project.add_fqpr(f, skip_dask=True)
@@ -187,9 +191,9 @@ class KlusterMain(QtWidgets.QMainWindow):
                 if not possible_multibeam_files and not possible_surface_files:
                     print('update_on_file_added: Unable to add to Project from existing: {}'.format(f))
             else:
-                new_projects.append(fqpr_entry)
-        if new_projects:
-            self.redraw(new_projects=new_projects)
+                new_fqprs.append(fqpr_entry)
+        if new_fqprs:
+            self.redraw(new_fqprs=new_fqprs)
 
         if multibeamfiles:  # go ahead and convert if the user dragged in some multibeam files
             self.kluster_convert_multibeam(multibeamfiles)
@@ -198,22 +202,22 @@ class KlusterMain(QtWidgets.QMainWindow):
                 self.project.add_surface(surf)
             self.redraw()
 
-    def redraw(self, new_projects=None, add_surface=None, remove_surface=None, surface_layer_name=''):
+    def redraw(self, new_fqprs=None, add_surface=None, remove_surface=None, surface_layer_name=''):
         """
         After adding new projects or surfaces, refresh the widgets to display the new data
 
         Parameters
         ----------
-        new_projects: list, list of str file paths to converted fqpr instances
+        new_fqprs: list, list of str file paths to converted fqpr instances
         add_surface: optional, str, path to new surface to add
         remove_surface: optional, str, path to existing surface to hide
         surface_layer_name: optional, str, name of the layer of the surface to add or hide
 
         """
         self.project_tree.refresh_project(proj=self.project)
-        if new_projects is not None:
-            for proj in new_projects:
-                for ln in self.project.return_project_lines(proj=proj, relative_path=True):
+        if new_fqprs is not None:
+            for fq in new_fqprs:
+                for ln in self.project.return_project_lines(proj=fq, relative_path=True):
                     lats, lons = self.project.return_line_navigation(ln, samplerate=5)
                     self.two_d.add_line(ln, lats, lons)
             self.two_d.set_extents_from_lines()

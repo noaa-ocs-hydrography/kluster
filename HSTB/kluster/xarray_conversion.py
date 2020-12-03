@@ -1243,7 +1243,7 @@ class BatchRead:
 
         # chnks_flat is now a list of lists representing chunks of each file
         chnks_flat = [c for subc in chnks for c in subc]
-        self.logger.info('{} files, Using {} chunks in parallel'.format(len(fils), len(chnks_flat)))
+        self.logger.info('{} file(s), Using {} chunk(s) in parallel'.format(len(fils), len(chnks_flat)))
 
         return chnks_flat
 

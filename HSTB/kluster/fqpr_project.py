@@ -627,3 +627,23 @@ def open_project(project_path: str):
     fqpr_proj = FqprProject()
     fqpr_proj.open_project(project_path)
     return fqpr_proj
+
+
+def return_project_data(project_path: str):
+    """
+    Return the data contained in the provided project file
+
+    Parameters
+    ----------
+    project_path
+        path to a saved FqprProject json file
+
+    Returns
+    -------
+    dict
+        dict of the provided project data, ex: {'file_format': 1.0, 'fqpr_paths': ['C:\\collab\\dasktest\\data_dir\\outputtest\\tj_patch_test_710'], 'surface_paths': []}
+    """
+
+    fqp = FqprProject()
+    data = fqp.load_project_file(project_path)
+    return data
