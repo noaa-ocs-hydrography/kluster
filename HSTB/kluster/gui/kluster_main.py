@@ -36,7 +36,7 @@ class KlusterMain(QtWidgets.QMainWindow):
 
         self.widget_obj_names = []
 
-        self.project = FqprProject()
+        self.project = FqprProject(is_gui=True)
 
         self.project_tree = kluster_project_tree.KlusterProjectTree(self)
         self.tree_dock = self.dock_this_widget('Project Tree', 'project_dock', self.project_tree)

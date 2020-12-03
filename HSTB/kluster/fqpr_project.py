@@ -38,9 +38,18 @@ class FqprProject:
     |    fqp.add_fqpr(pd, skip_dask=True)
     """
 
-    def __init__(self):
+    def __init__(self, is_gui: bool = False):
+        """
+
+        Parameters
+        ----------
+        is_gui
+             if True, this project is attached to a gui, so we disable progress so that we aren't filling up the output window
+        """
+
         self.client = None
         self.path = None
+        self.is_gui = is_gui
         self.file_format = 1.0
 
         self.surface_instances = {}
@@ -215,7 +224,7 @@ class FqprProject:
         """
 
         if type(pth) == str:
-            fq = reload_data(pth, skip_dask=skip_dask, silent=True)
+            fq = reload_data(pth, skip_dask=skip_dask, silent=True, show_progress=not self.is_gui)
         else:  # pth is the new Fqpr instance, pull the actual path from the Fqpr attribution
             fq = pth
             pth = os.path.normpath(fq.multibeam.raw_ping[0].output_path)
