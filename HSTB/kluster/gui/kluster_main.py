@@ -385,7 +385,7 @@ class KlusterMain(QtWidgets.QMainWindow):
             if fqpr_entry is None:
                 print('kluster_convert_multibeam: Unable to add to Project from conversion: {}'.format(fq))
             else:
-                self.redraw(new_projects=[fqpr_entry])
+                self.redraw(new_fqprs=[fqpr_entry])
         else:
             print('kluster_convert_multibeam: Unable to convert {}'.format(self.convert_thread.mbes_files))
 
