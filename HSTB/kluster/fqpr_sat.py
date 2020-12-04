@@ -8,7 +8,8 @@ from matplotlib.pyplot import Figure, Axes
 from scipy.signal import firwin, lfilter, freqz
 from typing import Union
 
-from HSTB.kluster.fqpr_helpers import return_directory_from_data, return_data, return_surface
+from HSTB.kluster.fqpr_helpers import return_directory_from_data
+from HSTB.kluster.fqpr_convenience import return_data, return_surface
 from HSTB.kluster.xarray_helpers import interp_across_chunks
 from HSTB.kluster.fqpr_surface import BaseSurface
 from HSTB.kluster.fqpr_generation import Fqpr

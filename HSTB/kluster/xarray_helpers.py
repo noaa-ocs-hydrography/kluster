@@ -844,19 +844,31 @@ def _my_xarr_to_zarr_writeattributes(rootgroup: zarr.hierarchy.Group, attrs: dic
                 attrs[att] = attrs[att].tolist()
 
             if att not in rootgroup.attrs:
-                rootgroup.attrs[att] = attrs[att]
+                try:
+                    rootgroup.attrs[att] = attrs[att]
+                except:
+                    print('Unable to assign {} to key {}'.format(attrs[att], att))
             else:
                 if isinstance(attrs[att], list):
-                    for sub_att in attrs[att]:
-                        if sub_att not in rootgroup.attrs[att]:
-                            rootgroup.attrs[att].append(attrs[att])
+                    try:
+                        for sub_att in attrs[att]:
+                            if sub_att not in rootgroup.attrs[att]:
+                                rootgroup.attrs[att].append(attrs[att])
+                    except:
+                        print('Unable to append to {} with value {}'.format(att, attrs[att]))
                 elif isinstance(attrs[att], dict):
                     # have to load update and save to update dict attributes for some reason
-                    dat = rootgroup.attrs[att]
-                    dat.update(attrs[att])
-                    rootgroup.attrs[att] = dat
+                    try:
+                        dat = rootgroup.attrs[att]
+                        dat.update(attrs[att])
+                        rootgroup.attrs[att] = dat
+                    except:
+                        print('Unable to update {} with value {}'.format(att, dat))
                 else:
-                    rootgroup.attrs[att] = attrs[att]
+                    try:
+                        rootgroup.attrs[att] = attrs[att]
+                    except:
+                        print('Unable to replace {} with value {}'.format(att, dat))
 
 
 def resize_zarr(zarrpth: str, finaltimelength: int = None):

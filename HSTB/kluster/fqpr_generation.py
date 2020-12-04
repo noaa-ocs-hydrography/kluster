@@ -2,7 +2,6 @@ import os
 from typing import Union, Callable
 from datetime import datetime
 from time import perf_counter
-from copy import deepcopy
 import xarray as xr
 import numpy as np
 import laspy
@@ -21,6 +20,7 @@ from HSTB.kluster.xarray_helpers import combine_arrays_to_dataset, compare_and_f
     divide_arrays_by_time_index, interp_across_chunks, reload_zarr_records, slice_xarray_by_dim, stack_nan_array, \
     get_write_indices_zarr
 from HSTB.kluster.dask_helpers import DaskProcessSynchronizer, dask_find_or_start_client, get_number_of_workers
+from HSTB.kluster.fqpr_helpers import epsg_determinator
 from HSTB.kluster.rotations import return_attitude_rotation_matrix
 from HSTB.kluster.logging_conf import return_logger
 from HSTB.kluster.pydro_helpers import is_pydro
@@ -222,19 +222,24 @@ class Fqpr:
         elif epsg is None and not projected:
             datum = datum.upper()
             if datum == 'NAD83':
-                self.xyz_crs = CRS.from_epsg(6319)
+                self.xyz_crs = CRS.from_epsg(epsg_determinator('nad83(2011)'))
             elif datum == 'WGS84':
-                self.xyz_crs = CRS.from_epsg(4326)
+                self.xyz_crs = CRS.from_epsg(epsg_determinator('wgs84'))
             else:
                 self.logger.error('{} not supported.  Only supports WGS84 and NAD83'.format(datum))
                 raise ValueError('{} not supported.  Only supports WGS84 and NAD83'.format(datum))
         elif epsg is None and projected:
             datum = datum.upper()
-            zone = self.multibeam.return_utm_zone_number()
+            zone = self.multibeam.return_utm_zone_number()  # this will be the zone and hemi concatenated, '10N'
+            try:
+                zone, hemi = int(zone[:-1]), str(zone[-1:])
+            except:
+                raise ValueError('construct_crs: found invalid projected zone/hemisphere identifier: {}, expected something like "10N"'.format(zone))
+
             if datum == 'NAD83':
-                self.xyz_crs = CRS.from_proj4('+proj=utm +zone={} +ellps=GRS80 +datum=NAD83'.format(zone))
+                self.xyz_crs = CRS.from_epsg(epsg_determinator('nad83(2011)', zone=zone, hemisphere=hemi))
             elif datum == 'WGS84':
-                self.xyz_crs = CRS.from_proj4('+proj=utm +zone={} +ellps=WGS84 +datum=WGS84'.format(zone))
+                self.xyz_crs = CRS.from_epsg(epsg_determinator('wgs84', zone=zone, hemisphere=hemi))
             else:
                 self.logger.error('{} not supported.  Only supports WGS84 and NAD83'.format(datum))
                 raise ValueError('{} not supported.  Only supports WGS84 and NAD83'.format(datum))
@@ -942,13 +947,13 @@ class Fqpr:
             if ra.input_datum == 'NAD83':
                 input_datum = CRS.from_epsg(6319)
             elif ra.input_datum == 'WGS84':
-                input_datum = CRS.from_epsg(4326)
+                input_datum = CRS.from_epsg(7911)
             else:
                 self.logger.error('{} not supported.  Only supports WGS84 and NAD83'.format(ra.input_datum))
                 raise ValueError('{} not supported.  Only supports WGS84 and NAD83'.format(ra.input_datum))
         except AttributeError:
             self.logger.warning('No input datum attribute found, assuming WGS84')
-            input_datum = CRS.from_epsg(4326)
+            input_datum = CRS.from_epsg(7911)
 
         # if they have already interpolated and saved data to disk, use it.  But if motion latency is set, we ignore
         if ('latitude' in ra) and ('longitude' in ra) and ('altitude' in ra) and not self.motion_latency:
