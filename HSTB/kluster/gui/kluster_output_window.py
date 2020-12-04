@@ -56,7 +56,7 @@ class KlusterOutput(QtWidgets.QTextEdit):
         self.setWindowTitle("Output")
         self.setObjectName('kluster_output')
         self.setReadOnly(True)
-        self.setStyleSheet(('font: 11pt "Consolas";'))
+        # self.setStyleSheet(('font: 11pt "Consolas";'))
 
         self.queue = Queue()
         self.queue_thread = QtCore.QThread()

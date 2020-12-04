@@ -1,5 +1,3 @@
-import xarray as xr
-import numpy as np
 from PySide2 import QtWidgets
 
 from HSTB.kluster.gui.common_widgets import BrowseListWidget

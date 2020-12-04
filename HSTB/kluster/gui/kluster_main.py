@@ -7,7 +7,7 @@ from PySide2 import QtGui, QtCore, QtWidgets
 from HSTB.kluster.gui import dialog_vesselview, kluster_explorer, kluster_project_tree, kluster_3dview, kluster_attitudeview, \
     kluster_output_window, kluster_2dview, dialog_conversion, dialog_all_processing, dialog_daskclient, dialog_surface, \
     dialog_export, kluster_worker, kluster_interactive_console, dialog_importnav
-from HSTB.kluster.fqpr_project import FqprProject, return_project_data
+from HSTB.kluster.fqpr_project import FqprProject
 from HSTB.kluster.fqpr_helpers import return_files_from_path
 from HSTB.shared import RegistryHelpers
 

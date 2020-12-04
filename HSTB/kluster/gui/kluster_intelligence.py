@@ -21,7 +21,7 @@ class IntelViewer(QtWidgets.QTableWidget):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.headr = []
-        self.setStyleSheet('font: 10.5pt "Consolas";')
+        # self.setStyleSheet('font: 10.5pt "Consolas";')
 
         self.setDragEnabled(True)  # enable support for dragging table items
         self.setAcceptDrops(True)  # enable drop events
@@ -372,7 +372,7 @@ class IntelTab(QtWidgets.QTabWidget):
     def __init__(self):
         super().__init__()
         self.setSizePolicy(QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Preferred)
-        self.setStyleSheet(('font: 10.5pt "Consolas";'))
+        # self.setStyleSheet(('font: 10.5pt "Consolas";'))
 
 
 class IntelOutput(kluster_output_window.KlusterOutput):
