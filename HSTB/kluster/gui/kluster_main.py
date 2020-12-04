@@ -32,7 +32,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.start_vert_size = 600
 
         # self.resize(self.start_horiz_size, self.start_vert_size)
-        
+
         self.setWindowTitle('Kluster')
         self.setDockNestingEnabled(True)
 
