@@ -3234,7 +3234,8 @@ class Fqpr:
     def return_processing_status(self):
         """
         Returns the processing status for this Fqpr instance.  Processing status is simply the lowest status for each
-        line segment in the processed multibeam.
+        line segment in the processed multibeam.  We don't store anything in a line by line basis, so this has to be
+        recreated basically.
 
         | fqpr_inst.return_processing_status()
         |
@@ -3262,6 +3263,53 @@ class Fqpr:
                     line_status = slice_xarray_by_dim(ra.processing_status, 'time', times[0], times[1])
                     status_set[ln][ra.sector_identifier] = ra.status_lookup[str(int(line_status.min()))]
         return status_set
+
+    def return_processing_dashboard(self):
+        """
+        Return the necessary data for a dashboard like view of this fqpr instance.  Currently we are concerned with
+        the total multibeam files associated with instance, and the processing status of each sector at a sounding level.
+
+        The returned dict object looks something like this:
+
+        {'sounding_status': {'40072_0_260000': {'converted': 0, 'orientation': 0, 'beamvector': 0, 'soundvelocity': 0,
+                                                'georeference': 0, 'tpu': 7536046},
+                             '40072_0_290000': {'converted': 0, 'orientation': 0, 'beamvector': 0, 'soundvelocity': 0,
+                                                'georeference': 0, 'tpu': 7536046}, ...
+         'last_run': {'40072_0_260000': {'_conversion_complete': 'Tue Nov 24 12:42:41 2020', '_compute_orientation_complete': 'Tue Nov 24 12:44:21 2020',
+                                         '_compute_beam_vectors_complete': 'Tue Nov 24 12:46:20 2020', '_sound_velocity_correct_complete': 'Tue Nov 24 12:48:25 2020',
+                                         '_georeference_soundings_complete': 'Tue Nov 24 12:50:04 2020', '_total_uncertainty_complete': 'Tue Nov 24 12:51:55 2020'},
+                      '40072_0_290000': {'_conversion_complete': 'Tue Nov 24 12:42:41 2020', '_compute_orientation_complete': 'Tue Nov 24 12:44:40 2020',
+                                         '_compute_beam_vectors_complete': 'Tue Nov 24 12:46:40 2020', '_sound_velocity_correct_complete': 'Tue Nov 24 12:48:39 2020',
+                                         '_georeference_soundings_complete': 'Tue Nov 24 12:50:21 2020', '_total_uncertainty_complete': 'Tue Nov 24 12:52:14 2020'}, ...
+         'multibeam_files': {'0000_202003_S222_EM2040.all': [1584426535.491, 1584426638.015], '0001_202003_S222_EM2040.all': [1584427154.74, 1584427341.396],
+                             '0002_202003_S222_EM2040.all': [1584427786.983, 1584427894.186], '0003_202003_S222_EM2040.all': [1584428272.65, 1584428465.862], ...
+
+        Returns
+        -------
+        dict
+            processing status at the sector level
+        """
+
+        dashboard = {}
+        dashboard['sounding_status'] = {}
+        dashboard['last_run'] = {}
+        status_lookup = self.multibeam.raw_ping[0].status_lookup
+        dashboard['multibeam_files'] = self.multibeam.raw_ping[0].multibeam_files
+        for ra in self.multibeam.raw_ping:
+
+            dashboard['sounding_status'][ra.sector_identifier] = {i: 0 for i in list(status_lookup.values())}
+            unique_status, cnts = np.unique(ra.processing_status, return_counts=True)
+            for i in list(status_lookup.keys()):
+                if int(i) in unique_status:
+                    dashboard['sounding_status'][ra.sector_identifier][status_lookup[str(i)]] = cnts[list(unique_status).index(int(i))]
+
+            dashboard['last_run'][ra.sector_identifier] = {'_conversion_complete': '', '_compute_orientation_complete': '',
+                                                           '_compute_beam_vectors_complete': '', '_sound_velocity_correct_complete': '',
+                                                           '_georeference_soundings_complete': '', '_total_uncertainty_complete': ''}
+            for ky in list(dashboard['last_run'][ra.sector_identifier].keys()):
+                if ky in ra.attrs:
+                    dashboard['last_run'][ra.sector_identifier][ky] = ra.attrs[ky]
+        return dashboard
 
 
 def get_ping_times(pingrec_time: xr.DataArray, idx: xr.DataArray):

@@ -145,10 +145,13 @@ class CollapsibleWidget(QtWidgets.QWidget):
     """
     Transcribed to pyside from https://github.com/MichaelVoelkel/qt-collapsible-section/blob/master/Section.cpp
     """
-    def __init__(self, parent: None, title: str, animation_duration: int):
+    def __init__(self, parent: None, title: str, animation_duration: int, set_expanded_height: int = 0):
         super().__init__(parent=parent)
+
+        self.parent = parent
         self.animation_duration = animation_duration
         self.title = title
+        self.set_expanded_height = set_expanded_height
 
         self.toggle_button = QtWidgets.QToolButton()
         self.header_line = QtWidgets.QFrame()
@@ -198,7 +201,10 @@ class CollapsibleWidget(QtWidgets.QWidget):
         self.content_area.destroy()
         self.content_area.setLayout(contentLayout)
         collapsed_height = self.sizeHint().height() - self.content_area.maximumHeight()
-        content_height = contentLayout.sizeHint().height()
+        if not self.set_expanded_height:
+            content_height = contentLayout.sizeHint().height()
+        else:
+            content_height = self.set_expanded_height
         for i in range(self.toggle_animation.animationCount() - 1):
             collapse_animation = self.toggle_animation.animationAt(i)
             collapse_animation.setDuration(self.animation_duration)
@@ -229,13 +235,14 @@ class OutWindow(QtWidgets.QMainWindow):
         # self.widg.files_updated.connect(self.print_out_files)
         # layout.addWidget(self.widg)
 
-        self.collapse = CollapsibleWidget(self, 'collapse', 300)
+        self.collapse = CollapsibleWidget(self, 'collapse', 100)
         self.datalayout = QtWidgets.QVBoxLayout()
         self.datalayout.addWidget(QtWidgets.QLabel('Some text in Section', self.collapse))
         self.datalayout.addWidget(QtWidgets.QPushButton('Some text in Section', self.collapse))
         self.collapse.setContentLayout(self.datalayout)
         layout.addWidget(self.collapse)
 
+        self.datalayout.layout()
         layout.layout()
         self.setLayout(layout)
         self.centralWidget().setLayout(layout)

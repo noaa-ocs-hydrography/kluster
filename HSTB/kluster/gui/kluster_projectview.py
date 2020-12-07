@@ -1,14 +1,157 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from PySide2 import QtCore, QtGui, QtWidgets
 from collections import OrderedDict
+import os
 
+from HSTB.kluster.fqpr_generation import Fqpr
 from HSTB.kluster.fqpr_project import FqprProject
+from HSTB.kluster.gui.common_widgets import CollapsibleWidget
 from HSTB.shared import RegistryHelpers
 
 
-class KlusterFqprView(QtWidgets.QTableWidget):
-    def __init__(self):
-        pass
+class MultibeamTable(QtWidgets.QWidget):
+    def __init__(self, multibeam_dict: dict, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.vlayout = QtWidgets.QVBoxLayout()
+        self.table = QtWidgets.QTableWidget()
+        self.vlayout.addWidget(self.table)
+        self.setLayout(self.vlayout)
+
+        self.table.setSortingEnabled(True)
+        self.table.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
+        self.table.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
+        self.table.setColumnCount(3)
+        self.table.setColumnWidth(0, 350)
+        self.table.setColumnWidth(1, 200)
+        self.table.setColumnWidth(2, 200)
+
+        self.table.setHorizontalHeaderLabels(['Multibeam File Name', 'Multibeam Start Time', 'Multibeam End Time'])
+        self.table.horizontalHeader().setSectionResizeMode(0, QtWidgets.QHeaderView.Stretch)
+
+        self.multibeam_dict = multibeam_dict
+        self.populate()
+        self.setMinimumHeight(600)
+        self.vlayout.layout()
+
+    def populate(self):
+        for mbesfile, times in self.multibeam_dict.items():
+            next_row = self.table.rowCount()
+            self.table.insertRow(next_row)
+            self.table.setItem(next_row, 0, QtWidgets.QTableWidgetItem(mbesfile))
+            self.table.setItem(next_row, 1, QtWidgets.QTableWidgetItem(datetime.fromtimestamp(times[0], tz=timezone.utc).strftime('%c')))
+            self.table.setItem(next_row, 2, QtWidgets.QTableWidgetItem(datetime.fromtimestamp(times[1], tz=timezone.utc).strftime('%c')))
+
+
+class StatusTable(QtWidgets.QWidget):
+    def __init__(self, status_dict: dict, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.vlayout = QtWidgets.QVBoxLayout()
+        self.table = QtWidgets.QTableWidget()
+        self.vlayout.addWidget(self.table)
+        self.setLayout(self.vlayout)
+
+        self.table.setSortingEnabled(True)
+        self.table.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
+        self.table.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
+
+        self.status_dict = status_dict
+        self.headr = ['SerialNumber_SectorNumber_Frequency'] + list(self.status_dict[list(self.status_dict.keys())[0]].keys())
+
+        self.table.setColumnCount(len(self.headr))
+        self.table.setColumnWidth(0, 250)
+        for i in range(len(self.headr) - 1):
+            self.table.setColumnWidth(i + 1, 100)
+
+        self.table.setHorizontalHeaderLabels(self.headr)
+        # self.table.horizontalHeader().setSectionResizeMode(0, QtWidgets.QHeaderView.Stretch)
+
+        self.populate()
+        self.setMinimumHeight(300)
+        self.vlayout.layout()
+
+    def populate(self):
+        for sector, counts in self.status_dict.items():
+            status_values = list(counts.values())
+            next_row = self.table.rowCount()
+            self.table.insertRow(next_row)
+            self.table.setItem(next_row, 0, QtWidgets.QTableWidgetItem(sector))
+            for cnt, val in enumerate(status_values):
+                self.table.setItem(next_row, cnt + 1, QtWidgets.QTableWidgetItem(str(val)))
+
+
+class LastRunTable(QtWidgets.QWidget):
+    def __init__(self, lastrun_dict: dict, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.vlayout = QtWidgets.QVBoxLayout()
+        self.table = QtWidgets.QTableWidget()
+        self.vlayout.addWidget(self.table)
+        self.setLayout(self.vlayout)
+
+        self.table.setSortingEnabled(True)
+        self.table.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
+        self.table.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
+
+        self.lastrun_dict = lastrun_dict
+        self.headr = ['SerialNumber_SectorNumber_Frequency'] + [x[1:] + '_utc' for x in list(self.lastrun_dict[list(self.lastrun_dict.keys())[0]].keys())]
+
+        self.table.setColumnCount(len(self.headr))
+        self.table.setColumnWidth(0, 250)
+        self.table.setColumnWidth(1, 160)
+        self.table.setColumnWidth(2, 200)
+        self.table.setColumnWidth(3, 215)
+        self.table.setColumnWidth(4, 215)
+        self.table.setColumnWidth(5, 230)
+        self.table.setColumnWidth(6, 200)
+
+        self.table.setHorizontalHeaderLabels(self.headr)
+        # self.table.horizontalHeader().setSectionResizeMode(0, QtWidgets.QHeaderView.Stretch)
+
+        self.populate()
+        self.setMinimumHeight(300)
+        self.vlayout.layout()
+
+    def populate(self):
+        for sector, counts in self.lastrun_dict.items():
+            lastrun_values = list(counts.values())
+            next_row = self.table.rowCount()
+            self.table.insertRow(next_row)
+            self.table.setItem(next_row, 0, QtWidgets.QTableWidgetItem(sector))
+            for cnt, val in enumerate(lastrun_values):
+                self.table.setItem(next_row, cnt + 1, QtWidgets.QTableWidgetItem(val))
+
+
+class KlusterFqprView(QtWidgets.QWidget):
+    def __init__(self, parent, fqpr_inst: Fqpr, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.parent = parent
+        self.fqpr_inst = fqpr_inst
+        self.dashboard_data = fqpr_inst.return_processing_dashboard()
+
+        self.vlayout = QtWidgets.QVBoxLayout()
+        self.tree = QtWidgets.QTreeWidget()
+        self.tree.setHeaderHidden(True)
+
+        mfile = QtWidgets.QTreeWidgetItem(['multibeam files'])
+        l1 = QtWidgets.QTreeWidgetItem(mfile)
+        self.mfile_table = MultibeamTable(self.dashboard_data['multibeam_files'])
+        self.tree.setItemWidget(l1, 0, self.mfile_table)
+        self.tree.addTopLevelItem(mfile)
+
+        sstatus = QtWidgets.QTreeWidgetItem(['sounding status'])
+        l2 = QtWidgets.QTreeWidgetItem(sstatus)
+        self.soundingstatus_table = StatusTable(self.dashboard_data['sounding_status'])
+        self.tree.setItemWidget(l2, 0, self.soundingstatus_table)
+        self.tree.addTopLevelItem(sstatus)
+
+        lrun = QtWidgets.QTreeWidgetItem(['last run process'])
+        l3 = QtWidgets.QTreeWidgetItem(lrun)
+        self.lastrun_table = LastRunTable(self.dashboard_data['last_run'])
+        self.tree.setItemWidget(l3, 0, self.lastrun_table)
+        self.tree.addTopLevelItem(lrun)
+
+        self.vlayout.addWidget(self.tree)
+        self.setLayout(self.vlayout)
 
 
 class KlusterProjectView(QtWidgets.QWidget):
@@ -23,6 +166,8 @@ class KlusterProjectView(QtWidgets.QWidget):
 
         self.project_file = None
         self.project = None
+        self.loaded_fqpr_views = []
+        self.loaded_collapsible = []
 
         self.mainlayout = QtWidgets.QVBoxLayout()
 
@@ -37,7 +182,22 @@ class KlusterProjectView(QtWidgets.QWidget):
         self.hlayout.addWidget(self.openproj_button)
         self.mainlayout.addLayout(self.hlayout)
 
+        scroll = QtWidgets.QScrollArea()
+        scroll.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
+
+        scroll_content = QtWidgets.QWidget()
+        scroll_layout = QtWidgets.QVBoxLayout(scroll_content)
+        scroll_content.setLayout(scroll_layout)
+
+        self.datalayout = QtWidgets.QVBoxLayout()
+        scroll_layout.addLayout(self.datalayout)
+
+        scroll.setWidget(scroll_content)
+        scroll.setWidgetResizable(True)
+        self.mainlayout.addWidget(scroll)
+
         self.setLayout(self.mainlayout)
+        self.setMinimumSize(1000, 600)
 
         self.newproj_button.clicked.connect(self.new_project)
         self.openproj_button.clicked.connect(self.open_project)
@@ -53,6 +213,7 @@ class KlusterProjectView(QtWidgets.QWidget):
                                                          DefaultFile='kluster_project.json')
         if pth is not None:
             self.fil_text.setText(pth)
+        self.build_from_project(pth)
 
     def open_project(self):
         """
@@ -64,49 +225,41 @@ class KlusterProjectView(QtWidgets.QWidget):
                                                          AppName='klusterintel', fFilter="*.json", bSave=False)
         if pth is not None:
             self.fil_text.setText(pth)
+        self.build_from_project(pth)
 
-    def update_from_dict(self, dict_attributes: OrderedDict):
-        """
-        Add a new row to the table, where the column values are the matching keys between dict_attributes and the
-        self.headr.
+    def build_from_project(self, project_path: str):
+        if os.path.exists(project_path):
+            self.clear_project()
+            self.project_file = project_path
+            self.project = FqprProject(is_gui=True)
+            self.project.open_project(self.project_file, skip_dask=True)
 
-        Parameters
-        ----------
-        dict_attributes
-            new row to be added
-        """
+            for fqpr_name, fqpr_inst in self.project.fqpr_instances.items():
+                fqprview = KlusterFqprView(self, fqpr_inst)
+                new_expand = CollapsibleWidget(self, fqpr_name, 100, set_expanded_height=800)
+                new_layout = QtWidgets.QVBoxLayout()
+                new_layout.addWidget(fqprview)
+                new_expand.setContentLayout(new_layout)
+                self.datalayout.addWidget(new_expand)
 
-        if dict_attributes and self.headr:  # headr is only populated when extending this class
-            next_row = self.rowCount()
-            self.insertRow(next_row)
-            for col_index, ky in enumerate(self.headr):
-                data = dict_attributes[ky]
-                if isinstance(data, datetime):
-                    data = data.strftime('%D %H:%M:%S')
-                elif isinstance(data, list):
-                    for cnt, d in enumerate(data):
-                        if isinstance(d, datetime):
-                            data[cnt] = d.strftime('%D %H:%M:%S')
-                data_item = QtWidgets.QTableWidgetItem(str(data))
-                self.setItem(next_row, col_index, data_item)
+                self.loaded_fqpr_views.append(fqprview)
+                self.loaded_collapsible.append(new_expand)
+            self.datalayout.addStretch()
+            self.datalayout.layout()
+        else:
+            print('Unable to load from file, does not exist: {}'.format(project_path))
 
-    def remove_row(self, unique_id: int):
-        """
-        Remove a row based on the provided unique_id
+    def clear_project(self):
+        clear_layout(self.datalayout)
 
-        Parameters
-        ----------
-        unique_id
-            unique id for the row to be removed
-        """
-        uid_column_index = self.headr.index('unique_id')
-        total_rows = self.rowCount()
-        remove_these_rows = []
-        for i in range(total_rows):
-            if self.item(i, uid_column_index).text() == str(unique_id):
-                remove_these_rows.append(i)
-        for i in sorted(remove_these_rows, reverse=True):  # remove from bottom up to not mess up index
-            self.removeRow(i)
+
+def clear_layout(data_layout):
+    while data_layout.count():
+        child = data_layout.takeAt(0)
+        if child.widget() is not None:
+            child.widget().deleteLater()
+        elif child.layout() is not None:
+            clear_layout(child.layout())
 
 
 class OutWindow(QtWidgets.QMainWindow):

@@ -5,7 +5,7 @@ from collections import OrderedDict
 from PySide2 import QtGui, QtCore, QtWidgets
 
 from HSTB.shared import RegistryHelpers
-from HSTB.kluster.gui import kluster_output_window
+from HSTB.kluster.gui import kluster_output_window, kluster_projectview
 from HSTB.kluster import fqpr_project, fqpr_intelligence, monitor
 
 
@@ -599,6 +599,7 @@ class KlusterIntelligence(QtWidgets.QMainWindow):
         self.intelligence = fqpr_intelligence.FqprIntel(project=self.project)
 
         self.monitor_dashboard = MonitorDashboard(self)
+        self.project_view = kluster_projectview.KlusterProjectView(self)
 
         self.multibeam_intel = MultibeamIntel()
         self.nav_intel = NavIntel()
@@ -631,7 +632,7 @@ class KlusterIntelligence(QtWidgets.QMainWindow):
         self.setCentralWidget(self.top_widget)
 
         self.intel_tab.addTab(QtWidgets.QWidget(), 'Actions')
-        self.intel_tab.addTab(QtWidgets.QWidget(), 'Current Project')
+        self.intel_tab.addTab(self.project_view, 'Project')
         self.intel_tab.addTab(self.multibeam_intel, 'Multibeam')
         self.intel_tab.addTab(self.nav_intel, 'Processed Navigation')
         self.intel_tab.addTab(self.naverror_intel, 'Processed Nav Error')
