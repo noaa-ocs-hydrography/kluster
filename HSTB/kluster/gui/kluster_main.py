@@ -270,10 +270,9 @@ class KlusterMain(QtWidgets.QMainWindow):
         """
         absolute_fqpath = self.project._absolute_path_from_relative(pth)
         self.console.runCmd('data = reload_data(r"{}", skip_dask=True)'.format(absolute_fqpath))
-        self.console.runCmd('first_sector = data.source_dat.raw_ping[0]')
-        self.console.runCmd('nav = data.source_dat.raw_nav')
-        self.console.runCmd('ppnav = data.ppnav_dat')
-        self.console.runCmd('att = data.source_dat.raw_att')
+        self.console.runCmd('first_sector = data.multibeam.raw_ping[0]')
+        self.console.runCmd('nav = data.multibeam.raw_nav')
+        self.console.runCmd('att = data.multibeam.raw_att')
 
     def load_console_surface(self, pth):
         pass
@@ -613,9 +612,12 @@ class KlusterMain(QtWidgets.QMainWindow):
         pth: str, path to the parent Fqpr project folder
 
         """
-        data = self.project.load_project_file(pth)
+        data = self.project._load_project_file(pth)
         for pth in data['fqpr_paths']:
             self.open_fqpr(pth)
+        for pth in data['surface_paths']:
+            self.project.add_surface(pth)
+        self.redraw()
 
     def open_dask_dashboard(self):
         """

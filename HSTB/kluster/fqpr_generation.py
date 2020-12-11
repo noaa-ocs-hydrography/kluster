@@ -25,7 +25,7 @@ from HSTB.kluster.rotations import return_attitude_rotation_matrix
 from HSTB.kluster.logging_conf import return_logger
 from HSTB.kluster.pydro_helpers import is_pydro
 from HSTB.kluster.pdal_entwine import build_entwine_points
-from HSTB.drivers.sbet import sbet_to_xarray
+from HSTB.drivers.sbet import sbets_to_xarray, sbet_fast_read_start_end_time, smrmsg_fast_read_start_end_time
 
 
 class Fqpr:
@@ -1325,178 +1325,6 @@ class Fqpr:
                 self.intermediate_dat[sec_ident] = {}
                 self.intermediate_dat[sec_ident][ky] = {}
 
-    def import_post_processed_navigation(self, navfiles: list, errorfiles: list = None, logfiles: list = None,
-                                         weekstart_year: int = None, weekstart_week: int = None,
-                                         override_datum: str = None, override_grid: str = None,
-                                         override_zone: str = None, override_ellipsoid: str = None,
-                                         max_gap_length: float = 1.0):
-        """
-        Load from post processed navigation files (currently just SBET and SMRMSG) to get lat/lon/altitude as well
-        as 3d error for further processing.  Will save to a zarr rootgroup alongside the raw navigation, so you can
-        compare and select as you wish.
-
-        No interpolation is done, but it will slice the incoming data to the time extents of the raw navigation and
-        identify time gaps larger than the provided max_gap_length in seconds.
-
-        Parameters
-        ----------
-        navfiles
-            list of postprocessed navigation file paths
-        errorfiles
-            list of postprocessed error file paths.  If provided, must be same number as nav files
-        logfiles
-            list of export log file paths associated with navfiles.  If provided, must be same number as nav files
-        weekstart_year
-            if you aren't providing a logfile, must provide the year of the sbet here
-        weekstart_week
-            if you aren't providing a logfile, must provide the week of the sbet here
-        override_datum
-            provide a string datum identifier if you want to override what is read from the log or you don't have a
-            log, ex: 'NAD83 (2011)'
-        override_grid
-            provide a string grid identifier if you want to override what is read from the log or you don't have a log,
-            ex: 'Universal Transverse Mercator'
-        override_zone
-            provide a string zone identifier if you want to override what is read from the log or you don't have a log,
-             ex: 'UTM North 20 (66W to 60W)'
-        override_ellipsoid
-            provide a string ellipsoid identifier if you want to override what is read from the log or you don't have a
-            log, ex: 'GRS80'
-        max_gap_length
-            maximum allowable gap in the sbet in seconds, excluding gaps found in raw navigation
-        """
-
-        self.logger.info('****Importing post processed navigation****\n')
-        starttime = perf_counter()
-
-        if self.multibeam is None:
-            raise ValueError('Expect multibeam records before importing post processed navigation')
-
-        if errorfiles is not None:
-            if len(navfiles) != len(errorfiles):
-                raise ValueError('Expect the same number of nav/error files: \n\n{}\n{}'.format(navfiles, errorfiles))
-            err = errorfiles
-        else:
-            err = [None] * len(navfiles)
-
-        if logfiles is not None:
-            if len(navfiles) != len(logfiles):
-                raise ValueError('Expect the same number of nav/log files: \n\n{}\n{}'.format(navfiles, logfiles))
-            log = logfiles
-        else:
-            log = [None] * len(navfiles)
-
-        newdata = []
-        for cnt, nav in enumerate(navfiles):
-            newdata.append(sbet_to_xarray(nav, smrmsgfile=err[cnt], logfile=log[cnt], weekstart_year=weekstart_year,
-                                          weekstart_week=weekstart_week, override_datum=override_datum,
-                                          override_grid=override_grid, override_zone=override_zone,
-                                          override_ellipsoid=override_ellipsoid))
-        navdata = xr.concat(newdata, dim='time')
-        del newdata
-        navdata = navdata.sortby('time', ascending=True)  # sbet files might be in any time order
-
-        # retain only nav records that are within existing nav times
-        navdata = slice_xarray_by_dim(navdata, 'time', start_time=float(self.multibeam.raw_nav.time.min()),
-                                      end_time=float(self.multibeam.raw_nav.time.max()))
-        if navdata is None:
-            raise ValueError('Unable to find timestamps in SBET that align with the raw navigation.')
-        navdata.attrs['reference'] = {'latitude': 'reference point', 'longitude': 'reference point',
-                                      'altitude': 'reference point'}
-
-        # find gaps that don't line up with existing nav gaps (like time between multibeam files)
-        gaps = compare_and_find_gaps(self.multibeam.raw_nav, navdata, max_gap_length=max_gap_length, dimname='time')
-        if gaps:
-            self.logger.info('Found gaps > {} in comparison between post processed navigation and realtime.'.format(max_gap_length))
-            for gp in gaps:
-                self.logger.info('mintime: {}, maxtime: {}, gap length {}'.format(gp[0], gp[1], gp[1] - gp[0]))
-
-        outfold = os.path.join(self.multibeam.converted_pth, 'ppnav.zarr')
-        chunk_sizes = {k: self.multibeam.nav_chunksize for k in list(navdata.variables.keys())}  # 50000 to match the raw_nav
-        sync = DaskProcessSynchronizer(outfold)
-        data_locs, finalsize = get_write_indices_zarr(outfold, [navdata.time])
-        navdata_attrs = navdata.attrs
-        try:
-            navdata = self.client.scatter(navdata)
-        except:  # not using dask distributed client
-            pass
-        distrib_zarr_write(outfold, [navdata], navdata_attrs, chunk_sizes, data_locs, finalsize, sync, self.client,
-                           append_dim='time', merge=False, show_progress=self.show_progress)
-        self.navigation_path = outfold
-        self.reload_ppnav_records()
-
-        self.interp_to_ping_record(self.navigation, {'navigation_source': 'sbet', 'input_datum': self.navigation.datum})
-
-        endtime = perf_counter()
-        self.logger.info('****Importing post processed navigation complete: {}s****\n'.format(round(endtime - starttime, 1)))
-
-    def interp_to_ping_record(self, sources: Union[xr.Dataset, list], attributes: dict = None):
-        """
-        Take in a dataset that is not at ping time (raw navigation, attitude, etc.) and interpolate it to ping time
-        and save it to the raw ping datasets.
-
-        Parameters
-        ----------
-        sources
-            one or more datasets that you want to interpolate and save to the raw ping datastores
-        attributes
-            optional attributes to write to the zarr datastore
-        """
-
-        if not isinstance(sources, list):
-            sources = [sources]
-        if attributes is None:
-            attributes = {}
-
-        for src in sources:
-            self.logger.info('****Performing interpolation of {}****\n'.format(list(src.keys())))
-        starttime = perf_counter()
-
-        skip_dask = False
-        if self.client is None:  # small datasets benefit from just running it without dask distributed
-            skip_dask = True
-
-        sectors = self.return_sector_ids()
-        for sec in sectors:
-            raw_ping = self.multibeam.return_ping_by_sector(sec)
-            outfold_sec = os.path.join(self.multibeam.converted_pth, 'ping_' + sec + '.zarr')
-            sync = DaskProcessSynchronizer(outfold_sec)
-
-            for source in sources:
-                ping_wise_data = interp_across_chunks(source, raw_ping.time, 'time').chunk(self.multibeam.ping_chunksize)
-                chunk_sizes = {k: self.multibeam.ping_chunksize for k in list(ping_wise_data.variables.keys())}
-                data_locs, finalsize = get_write_indices_zarr(outfold_sec, [ping_wise_data.time])
-                try:
-                    ping_wise_data = self.client.scatter(ping_wise_data)
-                except:  # not using dask distributed client
-                    pass
-                distrib_zarr_write(outfold_sec, [ping_wise_data], attributes, chunk_sizes, data_locs, finalsize, sync,
-                                   self.client, append_dim='time', merge=True, show_progress=self.show_progress)
-                attributes = {}
-        self.multibeam.reload_pingrecords(skip_dask=skip_dask)
-        endtime = perf_counter()
-        self.logger.info('****Interpolation complete: {}s****\n'.format(round(endtime - starttime, 1)))
-
-    def initial_att_nav_interpolation(self):
-        """
-        We provide as an optional step in self.get_orientation_vectors (or run separately) the ability to interpolate
-        the raw attitude and navigation to the ping record times and save these records to disk.  Otherwise,
-        each time attitude/navigation is needed by the processing module, it will be interpolated then.
-        """
-
-        needs_interp = []
-        if ('latitude' not in list(self.multibeam.raw_ping[0].keys())) or \
-                ('altitude' not in list(self.multibeam.raw_ping[0].keys())) or \
-                ('latitude' not in list(self.multibeam.raw_ping[0].keys())):
-            needs_interp.append(self.multibeam.raw_nav)
-        if ('roll' not in list(self.multibeam.raw_ping[0].keys())) or \
-                ('pitch' not in list(self.multibeam.raw_ping[0].keys())) or \
-                ('heave' not in list(self.multibeam.raw_ping[0].keys())) or \
-                ('heading' not in list(self.multibeam.raw_ping[0].keys())):
-            needs_interp.append(self.multibeam.raw_att)
-        if needs_interp:
-            self.interp_to_ping_record(needs_interp, {'attitude_source': 'multibeam', 'navigation_source': 'multibeam'})
-
     def _validate_subset_time(self, subset_time: list, dump_data: bool):
         """
         Validation routine for the subset_time processing option.  A quirk of writing to zarr datastores, is we can't
@@ -1697,6 +1525,224 @@ class Fqpr:
                     self.multibeam.raw_ping[0].sector_identifier)
                 self.logger.error(err)
                 raise ValueError(err)
+
+    def _validate_post_processed_navigation(self, navfiles: list, errorfiles: list = None, logfiles: list = None):
+        """
+        Validate the input navigation files to ensure the import_post_processed_navigation process will work.  The big
+        things to check include ensuring that navfiles/errorfiles/logfiles are all the same size (as they should be
+        one to one) and that there are no files that we are importing that exist in the input dataset.  We check the
+        latter by comparing file names and start/end times.
+
+        Might be that we need to dig deeper, compare whole records to ensure we get no duplicates.  That might be a
+        feature for a later date.
+
+        Parameters
+        ----------
+        navfiles
+            list of postprocessed navigation file paths
+        errorfiles
+            list of postprocessed error file paths.  If provided, must be same number as nav files
+        logfiles
+            list of export log file paths associated with navfiles.  If provided, must be same number as nav files
+
+        Returns
+        -------
+        navfiles
+            verified list of postprocessed navigation file paths with duplicates removed
+        errorfiles
+            verified list of postprocessed error file paths with duplicates removed
+        logfiles
+            verified list of export log file paths associated with navfiles with duplicates removed
+        """
+
+        if self.multibeam is None:
+            raise ValueError('Expect multibeam records before importing post processed navigation')
+
+        if errorfiles is not None:
+            if len(navfiles) != len(errorfiles):
+                raise ValueError('Expect the same number of nav/error files: \n\n{}\n{}'.format(navfiles, errorfiles))
+        else:
+            errorfiles = [None] * len(navfiles)
+
+        if logfiles is not None:
+            if len(navfiles) != len(logfiles):
+                raise ValueError('Expect the same number of nav/log files: \n\n{}\n{}'.format(navfiles, logfiles))
+        else:
+            logfiles = [None] * len(navfiles)
+
+        # remove any duplicate files, these would be files that already exist in the Fqpr instance.  Check by comparing
+        #  file name and the start/end time of the navfile.
+        if self.navigation is not None:
+            duplicate_navfiles = []
+            for new_file in navfiles:
+                root, filename = os.path.split(new_file)
+                if filename in self.navigation.nav_files:
+                    new_file_times = sbet_fast_read_start_end_time(new_file)
+                    if self.navigation.nav_files[filename] == new_file_times:
+                        duplicate_navfiles.append(new_file)
+            for fil in duplicate_navfiles:
+                print('{} is already a converted navigation file within this dataset'.format(fil))
+                navfiles_index = navfiles.index(fil)
+                if errorfiles is not None:
+                    errorfiles.remove(errorfiles[navfiles_index])
+                if logfiles is not None:
+                    logfiles.remove(logfiles[navfiles_index])
+                navfiles.remove(fil)
+
+        return navfiles, errorfiles, logfiles
+
+    def import_post_processed_navigation(self, navfiles: list, errorfiles: list = None, logfiles: list = None,
+                                         weekstart_year: int = None, weekstart_week: int = None,
+                                         override_datum: str = None, override_grid: str = None,
+                                         override_zone: str = None, override_ellipsoid: str = None,
+                                         max_gap_length: float = 1.0):
+        """
+        Load from post processed navigation files (currently just SBET and SMRMSG) to get lat/lon/altitude as well
+        as 3d error for further processing.  Will save to a zarr rootgroup alongside the raw navigation, so you can
+        compare and select as you wish.
+
+        No interpolation is done, but it will slice the incoming data to the time extents of the raw navigation and
+        identify time gaps larger than the provided max_gap_length in seconds.
+
+        Parameters
+        ----------
+        navfiles
+            list of postprocessed navigation file paths
+        errorfiles
+            list of postprocessed error file paths.  If provided, must be same number as nav files
+        logfiles
+            list of export log file paths associated with navfiles.  If provided, must be same number as nav files
+        weekstart_year
+            if you aren't providing a logfile, must provide the year of the sbet here
+        weekstart_week
+            if you aren't providing a logfile, must provide the week of the sbet here
+        override_datum
+            provide a string datum identifier if you want to override what is read from the log or you don't have a
+            log, ex: 'NAD83 (2011)'
+        override_grid
+            provide a string grid identifier if you want to override what is read from the log or you don't have a log,
+            ex: 'Universal Transverse Mercator'
+        override_zone
+            provide a string zone identifier if you want to override what is read from the log or you don't have a log,
+             ex: 'UTM North 20 (66W to 60W)'
+        override_ellipsoid
+            provide a string ellipsoid identifier if you want to override what is read from the log or you don't have a
+            log, ex: 'GRS80'
+        max_gap_length
+            maximum allowable gap in the sbet in seconds, excluding gaps found in raw navigation
+        """
+
+        self.logger.info('****Importing post processed navigation****\n')
+        starttime = perf_counter()
+
+        navfiles, errorfiles, logfiles = self._validate_post_processed_navigation(navfiles, errorfiles, logfiles)
+        if not navfiles:
+            raise ValueError('import_post_processed_navigation: No valid navigation files to import')
+
+        navdata = sbets_to_xarray(navfiles, smrmsgfiles=errorfiles, logfiles=logfiles, weekstart_year=weekstart_year,
+                                  weekstart_week=weekstart_week, override_datum=override_datum, override_grid=override_grid,
+                                  override_zone=override_zone, override_ellipsoid=override_ellipsoid)
+
+        # retain only nav records that are within existing nav times
+        navdata = slice_xarray_by_dim(navdata, 'time', start_time=float(self.multibeam.raw_nav.time.min()),
+                                      end_time=float(self.multibeam.raw_nav.time.max()))
+        if navdata is None:
+            raise ValueError('Unable to find timestamps in SBET that align with the raw navigation.')
+        navdata.attrs['reference'] = {'latitude': 'reference point', 'longitude': 'reference point',
+                                      'altitude': 'reference point'}
+
+        # find gaps that don't line up with existing nav gaps (like time between multibeam files)
+        gaps = compare_and_find_gaps(self.multibeam.raw_nav, navdata, max_gap_length=max_gap_length, dimname='time')
+        if gaps:
+            self.logger.info('Found gaps > {} in comparison between post processed navigation and realtime.'.format(max_gap_length))
+            for gp in gaps:
+                self.logger.info('mintime: {}, maxtime: {}, gap length {}'.format(gp[0], gp[1], gp[1] - gp[0]))
+
+        outfold = os.path.join(self.multibeam.converted_pth, 'ppnav.zarr')
+        chunk_sizes = {k: self.multibeam.nav_chunksize for k in list(navdata.variables.keys())}  # 50000 to match the raw_nav
+        sync = DaskProcessSynchronizer(outfold)
+        data_locs, finalsize = get_write_indices_zarr(outfold, [navdata.time])
+        navdata_attrs = navdata.attrs
+        try:
+            navdata = self.client.scatter(navdata)
+        except:  # not using dask distributed client
+            pass
+        distrib_zarr_write(outfold, [navdata], navdata_attrs, chunk_sizes, data_locs, finalsize, sync, self.client,
+                           append_dim='time', merge=False, show_progress=self.show_progress)
+        self.navigation_path = outfold
+        self.reload_ppnav_records()
+
+        # self.interp_to_ping_record(self.navigation, {'navigation_source': 'sbet', 'input_datum': self.navigation.datum})
+
+        endtime = perf_counter()
+        self.logger.info('****Importing post processed navigation complete: {}s****\n'.format(round(endtime - starttime, 1)))
+
+    def interp_to_ping_record(self, sources: Union[xr.Dataset, list], attributes: dict = None):
+        """
+        Take in a dataset that is not at ping time (raw navigation, attitude, etc.) and interpolate it to ping time
+        and save it to the raw ping datasets.
+
+        Parameters
+        ----------
+        sources
+            one or more datasets that you want to interpolate and save to the raw ping datastores
+        attributes
+            optional attributes to write to the zarr datastore
+        """
+
+        if not isinstance(sources, list):
+            sources = [sources]
+        if attributes is None:
+            attributes = {}
+
+        for src in sources:
+            self.logger.info('****Performing interpolation of {}****\n'.format(list(src.keys())))
+        starttime = perf_counter()
+
+        skip_dask = False
+        if self.client is None:  # small datasets benefit from just running it without dask distributed
+            skip_dask = True
+
+        sectors = self.return_sector_ids()
+        for sec in sectors:
+            raw_ping = self.multibeam.return_ping_by_sector(sec)
+            outfold_sec = os.path.join(self.multibeam.converted_pth, 'ping_' + sec + '.zarr')
+            sync = DaskProcessSynchronizer(outfold_sec)
+
+            for source in sources:
+                ping_wise_data = interp_across_chunks(source, raw_ping.time, 'time').chunk(self.multibeam.ping_chunksize)
+                chunk_sizes = {k: self.multibeam.ping_chunksize for k in list(ping_wise_data.variables.keys())}
+                data_locs, finalsize = get_write_indices_zarr(outfold_sec, [ping_wise_data.time])
+                try:
+                    ping_wise_data = self.client.scatter(ping_wise_data)
+                except:  # not using dask distributed client
+                    pass
+                distrib_zarr_write(outfold_sec, [ping_wise_data], attributes, chunk_sizes, data_locs, finalsize, sync,
+                                   self.client, append_dim='time', merge=True, show_progress=self.show_progress)
+                attributes = {}
+        self.multibeam.reload_pingrecords(skip_dask=skip_dask)
+        endtime = perf_counter()
+        self.logger.info('****Interpolation complete: {}s****\n'.format(round(endtime - starttime, 1)))
+
+    def initial_att_nav_interpolation(self):
+        """
+        We provide as an optional step in self.get_orientation_vectors (or run separately) the ability to interpolate
+        the raw attitude and navigation to the ping record times and save these records to disk.  Otherwise,
+        each time attitude/navigation is needed by the processing module, it will be interpolated then.
+        """
+
+        needs_interp = []
+        if ('latitude' not in list(self.multibeam.raw_ping[0].keys())) or \
+                ('altitude' not in list(self.multibeam.raw_ping[0].keys())) or \
+                ('latitude' not in list(self.multibeam.raw_ping[0].keys())):
+            needs_interp.append(self.multibeam.raw_nav)
+        if ('roll' not in list(self.multibeam.raw_ping[0].keys())) or \
+                ('pitch' not in list(self.multibeam.raw_ping[0].keys())) or \
+                ('heave' not in list(self.multibeam.raw_ping[0].keys())) or \
+                ('heading' not in list(self.multibeam.raw_ping[0].keys())):
+            needs_interp.append(self.multibeam.raw_att)
+        if needs_interp:
+            self.interp_to_ping_record(needs_interp, {'attitude_source': 'multibeam', 'navigation_source': 'multibeam'})
 
     def get_orientation_vectors(self, subset_time: list = None, dump_data: bool = True, delete_futs: bool = True,
                                 initial_interp: bool = True):

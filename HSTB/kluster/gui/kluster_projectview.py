@@ -10,6 +10,10 @@ from HSTB.shared import RegistryHelpers
 
 
 class MultibeamTable(QtWidgets.QWidget):
+    """
+    Contains the QTableWidget that displays all the information related to the multibeam files in the project
+    """
+
     def __init__(self, multibeam_dict: dict, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.vlayout = QtWidgets.QVBoxLayout()
@@ -43,6 +47,9 @@ class MultibeamTable(QtWidgets.QWidget):
 
 
 class StatusTable(QtWidgets.QWidget):
+    """
+    Contains the QTableWidget that has all the information about the processed status of each sounding in the project
+    """
     def __init__(self, status_dict: dict, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.vlayout = QtWidgets.QVBoxLayout()
@@ -161,9 +168,10 @@ class KlusterProjectView(QtWidgets.QWidget):
 
     file_added = QtCore.Signal(str)
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, parent=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
+        self.parent = parent
         self.project_file = None
         self.project = None
         self.loaded_fqpr_views = []
@@ -202,6 +210,24 @@ class KlusterProjectView(QtWidgets.QWidget):
         self.newproj_button.clicked.connect(self.new_project)
         self.openproj_button.clicked.connect(self.open_project)
 
+    def _load_from_project(self):
+        """
+        Build out the gui from the loaded project.  Each fqpr instance gets it's own collapsible section
+        """
+
+        for fqpr_name, fqpr_inst in self.project.fqpr_instances.items():
+            fqprview = KlusterFqprView(self, fqpr_inst)
+            new_expand = CollapsibleWidget(self, fqpr_name, 100, set_expanded_height=800)
+            new_layout = QtWidgets.QVBoxLayout()
+            new_layout.addWidget(fqprview)
+            new_expand.setContentLayout(new_layout)
+            self.datalayout.addWidget(new_expand)
+
+            self.loaded_fqpr_views.append(fqprview)
+            self.loaded_collapsible.append(new_expand)
+        self.datalayout.addStretch()
+        self.datalayout.layout()
+
     def new_project(self):
         """
         Get the file path to a new project
@@ -211,9 +237,22 @@ class KlusterProjectView(QtWidgets.QWidget):
         msg, pth = RegistryHelpers.GetFilenameFromUserQT(self, RegistryKey='klusterintel', Title='Create a new Kluster project',
                                                          AppName='klusterintel', fFilter="*.json", bSave=True,
                                                          DefaultFile='kluster_project.json')
-        if pth is not None:
-            self.fil_text.setText(pth)
-        self.build_from_project(pth)
+        if pth:
+            # the project name is mandatory, just so that we can find it later, I ask for a file path for the project
+            #    file and override the filename, kind of messy but works for now
+            if os.path.exists(pth):
+                os.remove(pth)
+            directory, filename = os.path.split(pth)
+            project_file = os.path.join(directory, 'kluster_project.json')
+
+            self.fil_text.setText(project_file)
+            self.project_file = project_file
+            self.project = FqprProject(is_gui=True)
+            self.project.new_project_from_directory(directory)
+            if self.parent:
+                self.parent.set_project(self.project)
+
+            self._load_from_project()
 
     def open_project(self):
         """
@@ -223,37 +262,56 @@ class KlusterProjectView(QtWidgets.QWidget):
         # dirpath will be None or a string
         msg, pth = RegistryHelpers.GetFilenameFromUserQT(self, RegistryKey='klusterintel', Title='Open an existing Kluster project',
                                                          AppName='klusterintel', fFilter="*.json", bSave=False)
-        if pth is not None:
+        if pth:
             self.fil_text.setText(pth)
-        self.build_from_project(pth)
+            self.build_from_project(pth)
+
+    def close_project(self):
+        self.fil_text.setText('')
+        self.project = None
+        if self.parent:
+            self.parent.set_project(self.project)
 
     def build_from_project(self, project_path: str):
+        """
+        Load from a new project file, will close the active project and repopulate the gui
+
+        Parameters
+        ----------
+        project_path
+            path to a kluster project, kluster_project.json file
+        """
+
         if os.path.exists(project_path):
             self.clear_project()
             self.project_file = project_path
             self.project = FqprProject(is_gui=True)
             self.project.open_project(self.project_file, skip_dask=True)
+            if self.parent:
+                self.parent.set_project(self.project)
 
-            for fqpr_name, fqpr_inst in self.project.fqpr_instances.items():
-                fqprview = KlusterFqprView(self, fqpr_inst)
-                new_expand = CollapsibleWidget(self, fqpr_name, 100, set_expanded_height=800)
-                new_layout = QtWidgets.QVBoxLayout()
-                new_layout.addWidget(fqprview)
-                new_expand.setContentLayout(new_layout)
-                self.datalayout.addWidget(new_expand)
-
-                self.loaded_fqpr_views.append(fqprview)
-                self.loaded_collapsible.append(new_expand)
-            self.datalayout.addStretch()
-            self.datalayout.layout()
+            self._load_from_project()
+            print('Loaded {}'.format(project_path))
         else:
             print('Unable to load from file, does not exist: {}'.format(project_path))
 
     def clear_project(self):
+        """
+        Clear the datalayout layout widget
+        """
         clear_layout(self.datalayout)
 
 
-def clear_layout(data_layout):
+def clear_layout(data_layout: QtWidgets.QLayout):
+    """
+    Delete all widgets in a layout
+
+    Parameters
+    ----------
+    data_layout
+        layout we want to clear
+    """
+
     while data_layout.count():
         child = data_layout.takeAt(0)
         if child.widget() is not None:
@@ -276,7 +334,7 @@ class OutWindow(QtWidgets.QMainWindow):
         layout = QtWidgets.QHBoxLayout()
         self.top_widget.setLayout(layout)
 
-        self.k_view = KlusterProjectView(self)
+        self.k_view = KlusterProjectView()
         self.k_view.setObjectName('kluster_projectview')
         layout.addWidget(self.k_view)
 

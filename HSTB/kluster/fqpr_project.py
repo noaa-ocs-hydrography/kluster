@@ -115,17 +115,7 @@ class FqprProject:
             raise ValueError('FqprProject: path to project file not setup, is currently undefined.')
         return os.path.abspath(os.path.join(os.path.dirname(self.path), pth))
 
-    def get_dask_client(self):
-        """
-        Project is the holder of the Dask client object.  Use this method to return the current Client.  Client is
-        currently setup with kluster_main.start_dask_client or kluster_main.open_dask_dashboard
-        """
-
-        if self.client is None:
-            self.client = dask_find_or_start_client()
-        return self.client
-
-    def setup_new_project(self, pth: str):
+    def _setup_new_project(self, pth: str):
         """
         Automatically run on adding new fqpr instances.  Will save the project file in the same directory as the data
 
@@ -145,24 +135,9 @@ class FqprProject:
             if os.path.exists(self.path):  # an existing project
                 self.open_project(self.path, skip_dask=True)
 
-    def save_project(self):
+    def _load_project_file(self, projfile: str):
         """
-        Save the current FqprProject instance to file.  Use open_project to reload this instance.
-
-        """
-        if self.path is None:
-            raise EnvironmentError('kluster_project save_project - no data found, you must add data before saving a project')
-        with open(self.path, 'w') as pf:
-            data = {}
-            data['fqpr_paths'] = self.return_fqpr_paths()
-            data['surface_paths'] = self.return_surface_paths()
-            data['file_format'] = self.file_format
-            json.dump(data, pf, sort_keys=True, indent=4)
-        print('Project saved to {}'.format(self.path))
-
-    def load_project_file(self, projfile: str):
-        """
-        Load from saved json project file, return the data in the file.
+        Load from saved json project file, return the data in the file.  Used in open project.
 
         Parameters
         ----------
@@ -185,6 +160,51 @@ class FqprProject:
         data['surface_paths'] = [self._absolute_path_from_relative(f) for f in data['surface_paths']]
         return data
 
+    def get_dask_client(self):
+        """
+        Project is the holder of the Dask client object.  Use this method to return the current Client.  Client is
+        currently setup with kluster_main.start_dask_client or kluster_main.open_dask_dashboard
+        """
+
+        if self.client is None:
+            self.client = dask_find_or_start_client()
+        return self.client
+
+    def new_project_from_directory(self, directory_path: str):
+        """
+        Take in a path to a directory where we want to build a new project.  This can be an empty project (if the
+        directory provided is empty) or a populated project with the converted data in the provided directory.
+
+        Parameters
+        ----------
+        directory_path
+            Path to a directory that is either empty or has converted data in it
+        """
+
+        for fil in os.listdir(directory_path):
+            full_path = os.path.join(directory_path, fil)
+            if os.path.isdir(full_path):
+                self.add_fqpr(full_path, skip_dask=True)
+            elif os.path.isfile(full_path):
+                self.add_surface(full_path)
+        self.path = os.path.join(directory_path, 'kluster_project.json')
+        self.save_project()
+
+    def save_project(self):
+        """
+        Save the current FqprProject instance to file.  Use open_project to reload this instance.
+
+        """
+        if self.path is None:
+            raise EnvironmentError('kluster_project save_project - no data found, you must add data before saving a project')
+        with open(self.path, 'w') as pf:
+            data = {}
+            data['fqpr_paths'] = self.return_fqpr_paths()
+            data['surface_paths'] = self.return_surface_paths()
+            data['file_format'] = self.file_format
+            json.dump(data, pf, sort_keys=True, indent=4)
+        print('Project saved to {}'.format(self.path))
+
     def open_project(self, projfile: str, skip_dask: bool = False):
         """
         Open a project from file.  See save_project for how to generate this file.
@@ -197,7 +217,7 @@ class FqprProject:
             if True, will not autostart a dask client. client is necessary for conversion/processing
         """
 
-        data = self.load_project_file(projfile)
+        data = self._load_project_file(projfile)
         self.path = projfile
         self.file_format = data['file_format']
         for pth in data['fqpr_paths']:
@@ -229,7 +249,7 @@ class FqprProject:
             pth = os.path.normpath(fq.multibeam.raw_ping[0].output_path)
         if fq is not None:
             if self.path is None:
-                self.setup_new_project(os.path.dirname(pth))
+                self._setup_new_project(os.path.dirname(pth))
             relpath = self._path_relative_to_project(pth)
             self.fqpr_instances[relpath] = fq
             self.fqpr_attrs[relpath] = get_attributes_from_fqpr(fq, include_mode=False)
@@ -281,7 +301,7 @@ class FqprProject:
             pth = os.path.normpath(basesurf.output_path)
         if basesurf is not None:
             if self.path is None:
-                self.setup_new_project(os.path.dirname(pth))
+                self._setup_new_project(os.path.dirname(pth))
             relpath = self._path_relative_to_project(pth)
             self.surface_instances[relpath] = basesurf
             print('Successfully added {}'.format(pth))
@@ -399,7 +419,7 @@ class FqprProject:
 
     def return_line_owner(self, line: str):
         """
-        Return the Fqpr instance that contains the provided line
+        Return the Fqpr instance that contains the provided multibeam line
 
         Parameters
         ----------
@@ -592,8 +612,57 @@ class FqprProject:
             status_dict[fqpr_name] = fqpr_inst.return_processing_status()
         return status_dict
 
+    def return_project_folder(self):
+        """
+        Return the project folder, the folder that contains the project file
 
-def create_new_project(mbes_files: Union[str, list], output_folder: str = None):
+        Returns
+        -------
+        str
+            either None (if the project hasn't been set up yet) or the folder containing the kluster_project.json file
+        """
+        if self.path:
+            return os.path.dirname(self.path)
+        else:
+            return None
+
+    def get_fqpr_by_serial_number(self, primary_serial_number: int, secondary_serial_number: int):
+        """
+        Find the fqpr instance that matches the provided serial number.  Should just be one instance in a project with
+        the same serial number, if there are more, that is going to be a problem.
+
+        Parameters
+        ----------
+        primary_serial_number
+            primary serial number for the system you want to find, primary serial number will just be the serial number
+            of the port system for dual head kongsberg
+        secondary_serial_number
+            secondary serial number for the system you want to find, this will be zero if not dual head, otherwise it
+            is the serial number of the starboard head
+
+        Returns
+        -------
+        str
+            folder path to the fqpr instance
+        Fqpr
+            fqpr instance that matches the serial numbers provided
+        """
+
+        out_path = None
+        out_instance = None
+        matches = 0
+        for fqpr_path, fqpr_instance in self.fqpr_instances.items():
+            if primary_serial_number in fqpr_instance.multibeam.raw_ping[0].system_serial_number:
+                if secondary_serial_number in fqpr_instance.multibeam.raw_ping[0].secondary_system_serial_number:
+                    out_path = fqpr_path
+                    out_instance = fqpr_instance
+                    matches += 1
+        if matches > 1:
+            raise ValueError("Found {} matches by serial number, project should not have multiple fqpr instances with the same serial number".format(matches))
+        return out_path, out_instance
+
+
+def create_new_project(output_folder: str = None):
     """
     Create a new FqprProject by taking in multibeam files, converting them, making a new Fqpr instance and loading that
     Fqpr into a new FqprProject.
@@ -610,10 +679,13 @@ def create_new_project(mbes_files: Union[str, list], output_folder: str = None):
     FqprProject
         project instance, with one new Fqpr instance loaded in
     """
-
-    fq = convert_multibeam(mbes_files, output_folder)
+    expected_project_file = os.path.join(output_folder, 'kluster_project.json')
+    if os.path.exists(expected_project_file):
+        print('create_new_project: Found existing project in this directory, please remove and re-create')
+        print('{}'.format(expected_project_file))
+        return None
     fqp = FqprProject()
-    fqpr_entry = fqp.add_fqpr(fq, skip_dask=False)
+    fqp.new_project_from_directory(output_folder)
     return fqp
 
 
@@ -653,5 +725,5 @@ def return_project_data(project_path: str):
     """
 
     fqp = FqprProject()
-    data = fqp.load_project_file(project_path)
+    data = fqp._load_project_file(project_path)
     return data

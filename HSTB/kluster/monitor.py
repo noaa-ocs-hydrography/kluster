@@ -25,6 +25,9 @@ class DirectoryMonitor:
 
     This file will push the new file using the _newfile setter to any class that has a method bound to this class,
     see self.bind_to
+
+    dm = DirectoryMonitor(r'C:\data_dir\tj_patch_test', is_recursive=True)
+    dm.start()
     """
 
     def __init__(self, directory_path: str, is_recursive: bool = True):
@@ -151,7 +154,6 @@ class DirectoryMonitor:
         newfile
             absolute file path to the new file that has been created/deleted, see file_event to determine which
         """
-
         self._newfile = newfile
         for callback in self._observers:
             callback(self._newfile, self.file_event)

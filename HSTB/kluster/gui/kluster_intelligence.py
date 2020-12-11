@@ -9,6 +9,61 @@ from HSTB.kluster.gui import kluster_output_window, kluster_projectview
 from HSTB.kluster import fqpr_project, fqpr_intelligence, monitor
 
 
+class ActionTab(QtWidgets.QWidget):
+    """
+    Action tab displays all of the actions we have queued up from the intelligence module, shows the text/tooltip
+    attributes that we built in the kluster_intelligence module
+    """
+    def __init__(self, parent=None, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.parent = parent
+        self.vlayout = QtWidgets.QVBoxLayout()
+        self.table = QtWidgets.QTableWidget()
+        self.vlayout.addWidget(self.table)
+        self.setLayout(self.vlayout)
+
+        self.table.setColumnCount(3)
+        self.table.setColumnWidth(0, 350)
+        self.table.setColumnWidth(1, 200)
+        self.table.setColumnWidth(2, 200)
+
+        self.table.setHorizontalHeaderLabels(['Action', 'Progress', 'Function'])
+        self.table.horizontalHeader().setSectionResizeMode(0, QtWidgets.QHeaderView.Stretch)
+
+        self.setMinimumHeight(600)
+
+        self.actions = []
+
+    def update_actions(self, actions: list):
+        """
+        Currently whenever we receive new actions, we clear out all the actions and start over
+
+        Parameters
+        ----------
+        actions
+            list of fqpr_intelligence.FqprAction objects
+        """
+
+        self.actions = actions
+        self.clear_actions()
+        for cnt, action in enumerate(self.actions):
+            self.add_action(cnt, action)
+
+    def clear_actions(self):
+        self.table.clearContents()
+        self.table.setRowCount(0)
+
+    def add_action(self, rowcnt, action):
+        self.table.insertRow(rowcnt)
+        att_item = QtWidgets.QTableWidgetItem(action.text)
+        att_item.setToolTip(action.tooltip_text)
+        self.table.setItem(rowcnt, 0, att_item)
+
+    def execute_action(self):
+        pass
+
+
 class IntelViewer(QtWidgets.QTableWidget):
     """
     QTableWidget to display the data from an fqpr_intelligence IntelModule.
@@ -595,9 +650,10 @@ class KlusterIntelligence(QtWidgets.QMainWindow):
 
         self.widget_obj_names = []
 
-        self.project = fqpr_project.FqprProject()
+        self.project = None
         self.intelligence = fqpr_intelligence.FqprIntel(project=self.project)
 
+        self.action_tab = ActionTab(self)
         self.monitor_dashboard = MonitorDashboard(self)
         self.project_view = kluster_projectview.KlusterProjectView(self)
 
@@ -616,12 +672,31 @@ class KlusterIntelligence(QtWidgets.QMainWindow):
         self.setup_signals()
 
         self.seen_files = []
+        self.intelligence.bind_to(self.action_tab.update_actions)
 
     def sizeHint(self):
         return QtCore.QSize(1200, 600)
 
     def minimumSizeHint(self):
         return QtCore.QSize(600, 400)
+
+    def set_project(self, project: fqpr_project.FqprProject):
+        """
+        Setting the project here means we also need to set the intelligence module project as well.  The intelligence
+        module holds all of the data for us, we just ask it to update the gui when it receives/generates new information
+
+        Parameters
+        ----------
+        project
+            new project instance to attach to the intelligence module
+
+        Returns
+        -------
+
+        """
+        self.project = project
+        self.intelligence = fqpr_intelligence.FqprIntel(project=self.project)
+        self.intelligence.bind_to(self.action_tab.update_actions)
 
     def setup_widgets(self):
         """
@@ -631,7 +706,7 @@ class KlusterIntelligence(QtWidgets.QMainWindow):
         # hide the central widget so that we can have an application with all dockable widgets
         self.setCentralWidget(self.top_widget)
 
-        self.intel_tab.addTab(QtWidgets.QWidget(), 'Actions')
+        self.intel_tab.addTab(self.action_tab, 'Actions')
         self.intel_tab.addTab(self.project_view, 'Project')
         self.intel_tab.addTab(self.multibeam_intel, 'Multibeam')
         self.intel_tab.addTab(self.nav_intel, 'Processed Navigation')
