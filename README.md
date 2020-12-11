@@ -32,7 +32,7 @@ Kluster is built from the ground up in Python, and was developed using Python 3.
 - par3 - Kongsberg .all file reader
 - sbet - POSPac sbet/rms file reader
 
-Kluster is a work in progress that has been in development since November 2019 by a small team, and is by no means feature complete.  If you are interested in contributing or have questions, please contact Eric Younkin (eric.g.younkin@noaa.gov)
+Kluster is a work in progress that has been in development since November 2019 by a small 'team', and is by no means feature complete.  If you are interested in contributing or have questions, please contact Eric Younkin (eric.g.younkin@noaa.gov)
 
 ## Why Kluster?
 
@@ -55,6 +55,8 @@ Much of the existing open source software related to multibeam processing has be
 Kluster is not on PyPi, but can be installed using pip alongside the HSTB-drivers and HSTB-shared modules that is required.
 
 Some dependencies need to be installed from the conda-forge channel.  I have an example below of how to build this environment using conda.
+
+Perform these in order:
 
 `conda create -n kluster_test python=3.8.2 `
 
