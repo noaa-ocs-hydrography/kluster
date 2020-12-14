@@ -26,7 +26,7 @@ class ExportDialog(QtWidgets.QDialog):
         self.start_msg = QtWidgets.QLabel('Export to: ')
         self.hlayout_one.addWidget(self.start_msg)
         self.export_opts = QtWidgets.QComboBox()
-        self.export_opts.addItems(['csv'])
+        self.export_opts.addItems(['csv', 'las', 'entwine'])
         self.export_opts.setMaximumWidth(100)
         self.hlayout_one.addWidget(self.export_opts)
         self.hlayout_one.addStretch()

@@ -76,7 +76,7 @@ class ImportNavigationWorker(QtCore.QThread):
         self.finished.emit(True)
 
 
-class ExportCsvWorker(QtCore.QThread):
+class ExportWorker(QtCore.QThread):
     """
     Executes code in a seperate thread.
     """
@@ -88,12 +88,14 @@ class ExportCsvWorker(QtCore.QThread):
         super().__init__(parent)
         self.fq_chunks = None
         self.fqpr_instances = []
+        self.export_type = ''
 
-    def populate(self, fq_chunks):
+    def populate(self, fq_chunks, export_type):
         self.fq_chunks = fq_chunks
+        self.export_type = export_type
 
     def export_process(self, fq):
-        fq.export_pings_to_file()
+        fq.export_pings_to_file(file_format=self.export_type)
         return fq
 
     def run(self):

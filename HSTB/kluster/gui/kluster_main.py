@@ -73,7 +73,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.allprocessing_thread = kluster_worker.AllProcessingWorker()
         self.importnav_thread = kluster_worker.ImportNavigationWorker()
         self.surface_thread = kluster_worker.SurfaceWorker()
-        self.export_thread = kluster_worker.ExportCsvWorker()
+        self.export_thread = kluster_worker.ExportWorker()
         self.allthreads = [self.convert_thread, self.allprocessing_thread, self.importnav_thread, self.surface_thread,
                            self.export_thread]
 
@@ -169,12 +169,12 @@ class KlusterMain(QtWidgets.QMainWindow):
              folders, str path to multibeam file, list of str paths to multibeam files, str path to multibeam file
              directory, list of str paths to multibeam file directory
         """
+
         if type(fil) is str and fil != '':
             fil = [fil]
 
         multibeamfiles = []
         surfaces = []
-        projects = []
         new_fqprs = []
 
         for f in fil:
@@ -560,7 +560,7 @@ class KlusterMain(QtWidgets.QMainWindow):
             cancelled = False
             if dlog.exec_():
                 export_type = dlog.export_opts.currentText()
-                if not dlog.canceled and export_type == 'csv':
+                if not dlog.canceled and export_type in ['csv', 'las', 'entwine']:
                     fq_chunks = []
                     for fq in fqprs:
                         if fq not in self.project.fqpr_instances:
@@ -571,7 +571,7 @@ class KlusterMain(QtWidgets.QMainWindow):
                             fq_inst.client = self.project.get_dask_client()
                             fq_chunks.append([fq_inst])
                     if fq_chunks:
-                        self.export_thread.populate(fq_chunks)
+                        self.export_thread.populate(fq_chunks, export_type)
                         self.export_thread.start()
                 else:
                     cancelled = True
