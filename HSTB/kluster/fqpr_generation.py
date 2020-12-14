@@ -2242,8 +2242,8 @@ class Fqpr:
                     classification[np.where(classification < 2)] = 1  # 1 = Unclassified according to LAS spec
                     classification[np.where(classification == 2)] = 7  # 7 = Low Point (noise) according to LAS spec
                     outfile.classification = classification.astype(np.int8)
-                if unc is not None:  # putting it in Intensity for now as integer mm, Intensity is an int16 field
-                    outfile.intensity = (unc.values * 1000).astype(np.int16)
+                # if unc is not None:  # putting it in Intensity for now as integer mm, Intensity is an int16 field
+                #     outfile.intensity = (unc.values * 1000).astype(np.int16)
                 outfile.close()
 
         if file_format == 'entwine':

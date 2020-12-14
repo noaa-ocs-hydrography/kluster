@@ -17,7 +17,7 @@ from HSTB.kluster.fqpr_helpers import return_directory_from_data
 
 def perform_all_processing(filname: str, navfiles: list = None, outfold: str = None, coord_system: str = 'NAD83',
                            vert_ref: str = 'waterline', orientation_initial_interpolation: bool = False,
-                           show_progress: bool = True, **kwargs):
+                           skip_dask: bool = False, show_progress: bool = True, **kwargs):
     """
     Use fqpr_generation to process multibeam data on the local cluster and generate a sound velocity corrected,
     georeferenced xyz with uncertainty in csv files in the provided output folder.
@@ -38,6 +38,9 @@ def perform_all_processing(filname: str, navfiles: list = None, outfold: str = N
         the vertical reference point, one of ['ellipse', 'waterline']
     orientation_initial_interpolation
         see process_multibeam
+    skip_dask
+        if True, will not start/find the dask client.  Useful for small datasets where parallel processing actually
+        makes the process slower
     show_progress
         If true, uses dask.distributed.progress.  Disabled for GUI, as it generates too much text
 
@@ -47,7 +50,7 @@ def perform_all_processing(filname: str, navfiles: list = None, outfold: str = N
         Fqpr object containing processed data
     """
 
-    fqpr_inst = convert_multibeam(filname, outfold, show_progress=show_progress)
+    fqpr_inst = convert_multibeam(filname, outfold, skip_dask=skip_dask, show_progress=show_progress)
     if navfiles is not None:
         fqpr_inst = import_navigation(fqpr_inst, navfiles, **kwargs)
     fqpr_inst = process_multibeam(fqpr_inst, coord_system=coord_system, vert_ref=vert_ref,
@@ -55,7 +58,8 @@ def perform_all_processing(filname: str, navfiles: list = None, outfold: str = N
     return fqpr_inst
 
 
-def convert_multibeam(filname: str, outfold: str = None, client: Client = None, show_progress: bool = True):
+def convert_multibeam(filname: str, outfold: str = None, client: Client = None, skip_dask: bool = False,
+                      show_progress: bool = True):
     """
     Use fqpr_generation to process multibeam data on the local cluster and generate a new Fqpr instance saved to the
     provided output folder.
@@ -69,6 +73,9 @@ def convert_multibeam(filname: str, outfold: str = None, client: Client = None, 
         not exist.  If not provided will automatically create folder next to lines.
     client
         if you have already created a Client, pass it in here to use it
+    skip_dask
+        if True, will not start/find the dask client.  Useful for small datasets where parallel processing actually
+        makes the process slower
     show_progress
         If true, uses dask.distributed.progress.  Disabled for GUI, as it generates too much text
 
@@ -78,7 +85,7 @@ def convert_multibeam(filname: str, outfold: str = None, client: Client = None, 
         Fqpr containing converted source data
     """
 
-    mbes_read = BatchRead(filname, dest=outfold, client=client, show_progress=show_progress)
+    mbes_read = BatchRead(filname, dest=outfold, client=client, skip_dask=skip_dask, show_progress=show_progress)
     fqpr_inst = Fqpr(mbes_read, show_progress=show_progress)
     fqpr_inst.read_from_source()
     return fqpr_inst
