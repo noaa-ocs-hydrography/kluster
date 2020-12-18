@@ -24,7 +24,7 @@ REQUIRED = [
             'fasteners==0.14.1',
             'laspy==1.7.0',
             'PySide2==5.15.2',  # dev environment has 5.13.2, but there are no wheels for py38 on that version
-            'matplotlib==3.2.1',
+            'matplotlib==3.3.3',
             'numba==0.51.2',
             'openpyxl==3.0.3',
             'psutil==5.7.3',
