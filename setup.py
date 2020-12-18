@@ -24,7 +24,7 @@ REQUIRED = [
             'fasteners==0.14.1',
             'laspy==1.7.0',
             'PySide2==5.15.2',  # dev environment has 5.13.2, but there are no wheels for py38 on that version
-            'matplotlib==3.3.3',
+            'matplotlib==3.3.3',  # >=3.3.3 required, FuncAnimation and Pyside2/matplotlib do not play well in 3.2.1
             'numba==0.51.2',
             'openpyxl==3.0.3',
             'psutil==5.7.3',
@@ -42,7 +42,7 @@ REQUIRED = [
             'watchdog==0.10.4',
             'xarray==0.16.2',
             'zarr==2.5.0'
-            # 'cartopy==0.18.0'  Required for GUI, but must be conda installed with PROJ
+            # 'cartopy==0.17.0'  Required for GUI, but must be conda installed with PROJ
             ]
 
 # What packages are optional?
