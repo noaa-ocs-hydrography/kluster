@@ -6,8 +6,6 @@ fqpr\_intelligence module
    :skip: datetime
    :skip: timezone
    :skip: OrderedDict
-   :skip: kmall
-   :skip: par3
-   :skip: sbet
-   :skip: svp
-   :skip: monitor
+   :skip: get_close_matches
+   :skip: deepcopy
+   :skip: FunctionType

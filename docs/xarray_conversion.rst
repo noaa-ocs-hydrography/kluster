@@ -20,3 +20,4 @@ xarray\_conversion module
    :skip: SortedDict
    :skip: datetime
    :skip: progress
+   :skip: Union

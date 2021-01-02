@@ -2,6 +2,7 @@ svcorrect module
 ================
 
 .. automodapi:: HSTB.kluster.modules.svcorrect
+   :no-inheritance-diagram:
    :skip: OrderedDict
    :skip: build_rot_mat
    :skip: julian_day_time_to_utctimestamp

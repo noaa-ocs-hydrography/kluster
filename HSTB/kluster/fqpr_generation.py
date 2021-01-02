@@ -2565,20 +2565,20 @@ class Fqpr:
         Return the necessary data for a dashboard like view of this fqpr instance.  Currently we are concerned with
         the total multibeam files associated with instance, and the processing status of each sector at a sounding level.
 
-        The returned dict object looks something like this:
-
-        {'sounding_status': {'40072_0_260000': {'converted': 0, 'orientation': 0, 'beamvector': 0, 'soundvelocity': 0,
-                                                'georeference': 0, 'tpu': 7536046},
-                             '40072_0_290000': {'converted': 0, 'orientation': 0, 'beamvector': 0, 'soundvelocity': 0,
-                                                'georeference': 0, 'tpu': 7536046}, ...
-         'last_run': {'40072_0_260000': {'_conversion_complete': 'Tue Nov 24 12:42:41 2020', '_compute_orientation_complete': 'Tue Nov 24 12:44:21 2020',
-                                         '_compute_beam_vectors_complete': 'Tue Nov 24 12:46:20 2020', '_sound_velocity_correct_complete': 'Tue Nov 24 12:48:25 2020',
-                                         '_georeference_soundings_complete': 'Tue Nov 24 12:50:04 2020', '_total_uncertainty_complete': 'Tue Nov 24 12:51:55 2020'},
-                      '40072_0_290000': {'_conversion_complete': 'Tue Nov 24 12:42:41 2020', '_compute_orientation_complete': 'Tue Nov 24 12:44:40 2020',
-                                         '_compute_beam_vectors_complete': 'Tue Nov 24 12:46:40 2020', '_sound_velocity_correct_complete': 'Tue Nov 24 12:48:39 2020',
-                                         '_georeference_soundings_complete': 'Tue Nov 24 12:50:21 2020', '_total_uncertainty_complete': 'Tue Nov 24 12:52:14 2020'}, ...
-         'multibeam_files': {'0000_202003_S222_EM2040.all': [1584426535.491, 1584426638.015], '0001_202003_S222_EM2040.all': [1584427154.74, 1584427341.396],
-                             '0002_202003_S222_EM2040.all': [1584427786.983, 1584427894.186], '0003_202003_S222_EM2040.all': [1584428272.65, 1584428465.862], ...
+        | The returned dict object looks something like this:
+        |
+        | {'sounding_status': {'40072_0_260000': {'converted': 0, 'orientation': 0, 'beamvector': 0, 'soundvelocity': 0,
+        |                                         'georeference': 0, 'tpu': 7536046},
+        |                      '40072_0_290000': {'converted': 0, 'orientation': 0, 'beamvector': 0, 'soundvelocity': 0,
+        |                                         'georeference': 0, 'tpu': 7536046}, ...
+        |  'last_run': {'40072_0_260000': {'_conversion_complete': 'Tue Nov 24 12:42:41 2020', '_compute_orientation_complete': 'Tue Nov 24 12:44:21 2020',
+        |                                  '_compute_beam_vectors_complete': 'Tue Nov 24 12:46:20 2020', '_sound_velocity_correct_complete': 'Tue Nov 24 12:48:25 2020',
+        |                                  '_georeference_soundings_complete': 'Tue Nov 24 12:50:04 2020', '_total_uncertainty_complete': 'Tue Nov 24 12:51:55 2020'},
+        |               '40072_0_290000': {'_conversion_complete': 'Tue Nov 24 12:42:41 2020', '_compute_orientation_complete': 'Tue Nov 24 12:44:40 2020',
+        |                                  '_compute_beam_vectors_complete': 'Tue Nov 24 12:46:40 2020', '_sound_velocity_correct_complete': 'Tue Nov 24 12:48:39 2020',
+        |                                  '_georeference_soundings_complete': 'Tue Nov 24 12:50:21 2020', '_total_uncertainty_complete': 'Tue Nov 24 12:52:14 2020'}, ...
+        |  'multibeam_files': {'0000_202003_S222_EM2040.all': [1584426535.491, 1584426638.015], '0001_202003_S222_EM2040.all': [1584427154.74, 1584427341.396],
+        |                      '0002_202003_S222_EM2040.all': [1584427786.983, 1584427894.186], '0003_202003_S222_EM2040.all': [1584428272.65, 1584428465.862], ...
 
         Returns
         -------

@@ -1,10 +1,10 @@
-fqpr\_visualizations module
+visualizations module
 ===========================
 
-.. automodapi:: HSTB.kluster.fqpr_visualizations
+.. automodapi:: HSTB.kluster.modules.visualizations
    :no-inheritance-diagram:
    :skip: FuncAnimation
    :skip: FFMpegWriter
    :skip: Axes3D
    :skip: LinearSegmentedColormap
-   
+   :skip: stack_nan_array

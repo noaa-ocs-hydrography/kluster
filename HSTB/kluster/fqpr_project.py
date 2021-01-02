@@ -6,7 +6,7 @@ from typing import Union
 
 from HSTB.kluster.fqpr_generation import Fqpr
 from HSTB.kluster.dask_helpers import dask_find_or_start_client
-from HSTB.kluster.fqpr_convenience import reload_data, convert_multibeam, reload_surface, get_attributes_from_fqpr
+from HSTB.kluster.fqpr_convenience import reload_data, reload_surface, get_attributes_from_fqpr
 from HSTB.kluster.fqpr_surface import BaseSurface
 from HSTB.kluster.xarray_helpers import slice_xarray_by_dim
 

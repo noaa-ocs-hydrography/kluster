@@ -5,7 +5,10 @@ fqpr\_convenience module
    :no-inheritance-diagram:
    :skip: Union
    :skip: Client
+   :skip: GridSpec
+   :skip: AllRead
+   :skip: kmall
    :skip: BatchRead
    :skip: Fqpr
-   :skip: FqprVisualizations
+   :skip: return_directory_from_data
    :skip: BaseSurface

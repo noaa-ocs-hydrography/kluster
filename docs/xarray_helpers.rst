@@ -6,3 +6,5 @@ xarray\_helpers module
    :skip: wait
    :skip: DaskProcessSynchronizer
    :skip: Client
+   :skip: progress
+   :skip: Union

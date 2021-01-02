@@ -195,7 +195,6 @@ to examine later using:
    fqpr_sat
    fqpr_surface
    fqpr_project
-   fqpr_visualizations
    fqpr_intelligence
    monitor
    xarray_conversion
@@ -204,6 +203,8 @@ to examine later using:
    svcorrect
    georeference
    tpu
+   visualizations
+   export
    rotations
    pdal_entwine
    dask_helpers

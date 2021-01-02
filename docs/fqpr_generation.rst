@@ -32,8 +32,11 @@ fqpr\_generation module
    :skip: get_number_of_workers
    :skip: return_attitude_rotation_matrix
    :skip: return_logger
-   :skip: build_entwine_points
-   :skip: sbet_to_xarray
-   :skip: is_pydro
    :skip: progress
    :skip: FqprVisualizations
+   :skip: epsg_determinator
+   :skip: get_beamwise_interpolation
+   :skip: sbet_fast_read_start_end_time
+   :skip: sbets_to_xarray
+   :skip: CRSError
+   :skip: FqprExport
