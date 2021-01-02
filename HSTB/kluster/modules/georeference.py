@@ -89,9 +89,9 @@ def georef_by_worker(sv_corr: list, alt: xr.DataArray, lon: xr.DataArray, lat: x
     corr_heave = None
     corr_altitude = None
     if vert_ref == 'ellipse':
-        corr_altitude = - alt
+        corr_altitude = alt
         corr_heave = xr.zeros_like(corr_altitude)
-        corr_dpth = (depthoffset + corr_altitude.values[:, None]).astype(np.float32)
+        corr_dpth = (depthoffset - corr_altitude.values[:, None]).astype(np.float32)
     elif vert_ref == 'vessel':
         corr_heave = heave
         corr_altitude = xr.zeros_like(corr_heave)

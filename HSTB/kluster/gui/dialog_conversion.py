@@ -36,9 +36,9 @@ class ConversionDialog(QtWidgets.QDialog):
 
         self.hlayout_three = QtWidgets.QHBoxLayout()
         self.mbesfiles = BrowseListWidget(self)
-        self.mbesfiles.setup(registry_key='kluster', app_name='klusterbrowse', supported_file_extension='.all',
-                             multiselect=True, filebrowse_title='Select .all files',
-                             filebrowse_filter='Kongsberg (*.all)')
+        self.mbesfiles.setup(registry_key='kluster', app_name='klusterbrowse', supported_file_extension=['.kmall', '.all'],
+                             multiselect=True, filebrowse_title='Select multibeam files',
+                             filebrowse_filter='Kongsberg (*.kmall *.all)')
         self.hlayout_three.addWidget(self.mbesfiles)
 
         self.status_msg = QtWidgets.QLabel('')

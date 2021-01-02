@@ -944,6 +944,8 @@ class OptionsWidget(QtWidgets.QWidget):
         Take the input xyzrph dict (from fqpr_generation processing) and build the records we need to update sensor
         positions in the scene.
 
+        fqpr = fully qualified ping record, the term for the datastore in kluster
+
         Parameters
         ----------
         xyzrph: dict, dictionary of survey systems and the xyz and rollpitchheading values that go with each

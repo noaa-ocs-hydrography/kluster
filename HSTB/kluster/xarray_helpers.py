@@ -456,7 +456,7 @@ class ZarrWrite:
         chunk_idx = tuple(
             chunk_time_range if dims_of_arrays[var_name][1].index(i) == timaxis else slice(0, i) for i in
             dims_of_arrays[var_name][1])
-        if startingshp is not None and var_name != 'tx':
+        if startingshp is not None:
             startingshp = self._write_adjust_max_beams(startingshp)
             self.rootgroup[var_name].resize(startingshp)
 
@@ -651,15 +651,15 @@ def distrib_zarr_write(zarr_path: str, xarrays: list, attributes: dict, chunk_si
         futs = [client.submit(_distrib_zarr_write_convenience, zarr_path, xarrays[0], attributes, chunk_sizes, data_locs[0],
                               append_dim=append_dim, finalsize=finalsize, merge=merge, sync=sync)]
         if show_progress:
-            progress(futs)
+            progress(futs, multi=False)
         wait(futs)
         if len(xarrays) > 1:
             for i in range(len(xarrays) - 1):
                 futs.append(client.submit(_distrib_zarr_write_convenience, zarr_path, xarrays[i + 1], None, chunk_sizes,
                                           data_locs[i + 1], append_dim=append_dim, merge=merge, sync=sync))
-                if show_progress:
-                    progress(futs)
-                wait(futs)
+            if show_progress:
+                progress(futs, multi=False)
+            wait(futs)
     return futs
 
 
@@ -1455,9 +1455,10 @@ def slice_xarray_by_dim(arr: Union[xr.Dataset, xr.DataArray], dimname: str = 'ti
 
     if start_time is not None and end_time is not None:
         if nearest_end == nearest_start:
-            # if this is true, you have start/end times that are outside the scope of the data.  The start/end times will
-            #  be equal to either the start of the dataset or the end of the dataset, depending on when they fall
-            return None
+            if (nearest_end == float(arr[dimname][-1])) or (nearest_end == float(arr[dimname][0])):
+                # if this is true, you have start/end times that are outside the scope of the data.  The start/end times will
+                #  be equal to either the start of the dataset or the end of the dataset, depending on when they fall
+                return None
     rnav = arr.sel(time=slice(nearest_start, nearest_end))
     rnav = rnav.chunk(rnav.sizes)  # do this to get past the unify chunks issue, since you are slicing here, you end up with chunks of different sizes
     return rnav
@@ -1628,7 +1629,7 @@ def reform_nan_array(dataarray_stack: xr.DataArray, orig_idx: tuple, orig_shape:
     return final_arr
 
 
-def reload_zarr_records(pth: str, skip_dask: bool = False):
+def reload_zarr_records(pth: str, skip_dask: bool = False, sort_by: str = None):
     """
     After writing new data to the zarr data store, you need to refresh the xarray Dataset object so that it
     sees the changes.  We do that here by just re-running open_zarr.
@@ -1639,17 +1640,23 @@ def reload_zarr_records(pth: str, skip_dask: bool = False):
         string, path to xarray Dataset stored as zarr datastore
     skip_dask
         if True, skip the dask process synchronizer as you are not running dask distributed
+    sort_by
+        optional, will sort by the dimension provided, if provided (ex: 'time')
     """
 
     if os.path.exists(pth):
         if not skip_dask:
-            return xr.open_zarr(pth, synchronizer=DaskProcessSynchronizer(pth),
+            data = xr.open_zarr(pth, synchronizer=DaskProcessSynchronizer(pth),
                                 mask_and_scale=False, decode_coords=False, decode_times=False,
                                 decode_cf=False, concat_characters=False)
         else:
-            return xr.open_zarr(pth, synchronizer=None,
+            data = xr.open_zarr(pth, synchronizer=None,
                                 mask_and_scale=False, decode_coords=False, decode_times=False,
                                 decode_cf=False, concat_characters=False)
+        if sort_by:
+            return data.sortby(sort_by)
+        else:
+            return data
     else:
         print('Unable to reload, no paths found: {}'.format(pth))
         return None
@@ -1801,3 +1808,41 @@ def compare_and_find_gaps(source_dat: Union[xr.DataArray, xr.Dataset], new_dat: 
         finalgaps.append(dgtime)
 
     return np.array(finalgaps)
+
+
+def get_beamwise_interpolation(pingtime: xr.DataArray, additional: xr.DataArray, interp_this: xr.DataArray):
+    """
+    Given ping time and beamwise time addition (delay), return a 2d interpolated version of the provided 1d Dataarray.
+
+    We want this to be efficient, so first we stack and get the unique times to interpolate.  Retain the index of where
+    these unique times go in the original array
+
+    Then reform the array, populating the indices with the interpolated values.  Should be faster than brute force
+    interpolating all of the data, especially since we expect a lot of duplication (delay values are the same within
+    a sector)
+
+    Parameters
+    ----------
+    pingtime
+        1dim array of timestamps representing time of ping
+    additional
+        2dim (time/beam) array of timestamps representing additional delay
+    interp_this
+        1dim DataArray (time) that we want to interpolate to pingtime + additional
+
+    Returns
+    -------
+    xr.DataArray
+        2dim array, the interpolated array at pingtime + additional
+    """
+
+    beam_tstmp = pingtime + additional
+    rx_tstmp_idx, rx_tstmp_stck = stack_nan_array(beam_tstmp, stack_dims=('time', 'beam'))
+    unique_rx_times, inv_idx = np.unique(rx_tstmp_stck.values, return_inverse=True)
+    rx_interptimes = xr.DataArray(unique_rx_times, coords=[unique_rx_times], dims=['time']).chunk()
+
+    interpolated_flattened = interp_across_chunks(interp_this, rx_interptimes.compute())
+    reformed_interpolated = reform_nan_array(interpolated_flattened.isel(time=inv_idx), rx_tstmp_idx, beam_tstmp.shape,
+                                             beam_tstmp.coords, beam_tstmp.dims)
+
+    return reformed_interpolated

@@ -4,9 +4,9 @@ from datetime import datetime
 from time import perf_counter
 import xarray as xr
 import numpy as np
-import laspy
 from dask.distributed import wait, progress
 from pyproj import CRS
+from pyproj.exceptions import CRSError
 
 from HSTB.kluster.modules.orientation import distrib_run_build_orientation_vectors
 from HSTB.kluster.modules.beampointingvector import distrib_run_build_beam_pointing_vector
@@ -15,17 +15,16 @@ from HSTB.kluster.modules.svcorrect import get_sv_files_from_directory, return_s
 from HSTB.kluster.modules.georeference import distrib_run_georeference
 from HSTB.kluster.modules.tpu import distrib_run_calculate_tpu
 from HSTB.kluster.xarray_conversion import BatchRead
-from HSTB.kluster.fqpr_visualizations import FqprVisualizations
+from HSTB.kluster.modules.visualizations import FqprVisualizations
+from HSTB.kluster.modules.export import FqprExport
 from HSTB.kluster.xarray_helpers import combine_arrays_to_dataset, compare_and_find_gaps, distrib_zarr_write, \
     divide_arrays_by_time_index, interp_across_chunks, reload_zarr_records, slice_xarray_by_dim, stack_nan_array, \
-    get_write_indices_zarr
+    get_write_indices_zarr, get_beamwise_interpolation
 from HSTB.kluster.dask_helpers import DaskProcessSynchronizer, dask_find_or_start_client, get_number_of_workers
 from HSTB.kluster.fqpr_helpers import epsg_determinator
 from HSTB.kluster.rotations import return_attitude_rotation_matrix
 from HSTB.kluster.logging_conf import return_logger
-from HSTB.kluster.pydro_helpers import is_pydro
-from HSTB.kluster.pdal_entwine import build_entwine_points
-from HSTB.drivers.sbet import sbets_to_xarray, sbet_fast_read_start_end_time, smrmsg_fast_read_start_end_time
+from HSTB.drivers.sbet import sbets_to_xarray, sbet_fast_read_start_end_time
 
 
 class Fqpr:
@@ -95,6 +94,8 @@ class Fqpr:
 
         # plotting module
         self.plot = FqprVisualizations(self)
+        # export module
+        self.export = FqprExport(self)
 
         self.logfile = None
         self.logger = None
@@ -176,7 +177,7 @@ class Fqpr:
             if True, will open zarr datastore without Dask synchronizer object
         """
 
-        self.soundings = reload_zarr_records(self.soundings_path, skip_dask)
+        self.soundings = reload_zarr_records(self.soundings_path, skip_dask, sort_by='time')
 
     def reload_ppnav_records(self, skip_dask: bool = False):
         """
@@ -188,7 +189,7 @@ class Fqpr:
             if True, will open zarr datastore without Dask synchronizer object
         """
 
-        self.navigation = reload_zarr_records(self.navigation_path, skip_dask)
+        self.navigation = reload_zarr_records(self.navigation_path, skip_dask, sort_by='time')
 
     def construct_crs(self, epsg: str = None, datum: str = 'NAD83', projected: bool = True, vert_ref: str = None):
         """
@@ -217,7 +218,7 @@ class Fqpr:
         if epsg is not None:
             try:
                 self.xyz_crs = CRS.from_epsg(int(epsg))
-            except:  # if the CRS we generate here has no epsg, when we save it to disk we save the proj string
+            except CRSError:  # if the CRS we generate here has no epsg, when we save it to disk we save the proj string
                 self.xyz_crs = CRS.from_string(epsg)
         elif epsg is None and not projected:
             datum = datum.upper()
@@ -262,7 +263,7 @@ class Fqpr:
 
         # we call this when we reload data to get the reversed state.  Just use the first sector as a convenience.
         if txrx is None and tstmp is None:
-            sectors = self.multibeam.return_sector_time_indexed_array()
+            sectors = self.multibeam.return_system_time_indexed_array()
             for s_cnt, sector in enumerate(sectors):
                 for applicable_index, timestmp, prefixes in sector:
                     txrx = prefixes
@@ -344,7 +345,7 @@ class Fqpr:
                 try:
                     casttime = float(castname.split('_')[1])
                     cst_object = SoundSpeedProfile(data, z_pos, surf_sound_speed, prof_time=casttime,
-                                                             prof_type='raw_ping')
+                                                   prof_type='raw_ping')
                     cst_object.generate_lookup_table()
                     rangeangle_casts.append(cst_object)
                 except ValueError:
@@ -365,10 +366,10 @@ class Fqpr:
         new_casts = [cst for cst in rangeangle_casts if cst.prof_time not in cast_tstmps]
         return final_casts + new_casts
 
-    def setup_casts_for_sec_by_index(self, sector_index: int, applicable_index: xr.DataArray, prefixes: str,
-                                     timestmp: str, add_cast_files: Union[str, list] = None):
+    def setup_casts_for_system_by_index(self, system_index: int, applicable_index: xr.DataArray, prefixes: str,
+                                        timestmp: str, add_cast_files: Union[str, list] = None):
         """
-        Generate cast objects for the given sector across all values given for waterline
+        Generate cast objects for the given system across all values given for waterline
 
         Originally started with building all casts for the first sector and using those cast objects across all other
         sectors (as the z pos is basically the same) but ran into the issue where different sectors would start at
@@ -380,8 +381,8 @@ class Fqpr:
 
         Parameters
         ----------
-        sector_index
-            index of sector
+        system_index
+            index of system, grouped by serial number (only multiple if this is a dual head system)
         applicable_index
             boolean mask for the data associated with this installation parameters instance
         prefixes
@@ -399,12 +400,12 @@ class Fqpr:
             but you cannot scatter/map custom classes effectively in Dask.
         """
 
-        self.cast_chunks[sector_index] = {}
+        self.cast_chunks[system_index] = {}
 
-        ss_by_sec = self.multibeam.raw_ping[sector_index].soundspeed.where(applicable_index, drop=True)
+        ss_by_system = self.multibeam.raw_ping[system_index].soundspeed.where(applicable_index, drop=True)
         # this should be the transducer to waterline, positive down
         z_pos = -float(self.multibeam.xyzrph[prefixes[0] + '_z'][timestmp]) + float(self.multibeam.xyzrph['waterline'][timestmp])
-        cst = self.setup_casts(ss_by_sec, z_pos, add_cast_files)
+        cst = self.setup_casts(ss_by_system, z_pos, add_cast_files)
         cast_size = np.sum([c.__sizeof__() for c in cst])
         cast_data = [[c.prof_time, c.dim_angle, c.dim_raytime, c.lkup_across_dist, c.lkup_down_dist, c.corr_profile_lkup] for c in cst]
         self.logger.info('built {} total cast objects, total size = {} bytes'.format(len(cst), cast_size))
@@ -423,7 +424,7 @@ class Fqpr:
         Parameters
         ----------
         idx_mask
-            the applicable_index generated from return_sector_time_indexed_array
+            the applicable_index generated from return_system_time_indexed_array
         pings_per_chunk
             number of pings in each worker chunk
 
@@ -513,8 +514,9 @@ class Fqpr:
             induced heave (z) value for each ping time
         """
 
+        is_primary_system = int(ra.system_identifier) == int(ra.system_serial_number[0])
         if self.multibeam.is_dual_head():  # dual dual systems
-            if not self.is_primary_system(ra.sector_identifier):  # secondary head
+            if not is_primary_system:  # secondary head
                 self.logger.info('Building induced heave for secondary system in dual head arrangement')
 
                 # lever arms for secondary head to ref pt
@@ -612,7 +614,7 @@ class Fqpr:
 
         return alt
 
-    def return_additional_xyz_offsets(self, prefixes: str, sec_info: dict, timestmp: str):
+    def return_additional_xyz_offsets(self, ra: xr.Dataset, prefixes: str, timestmp: str, idx_by_chunk: list):
         """
         Apply tx to reference point offset to beams.
 
@@ -622,12 +624,14 @@ class Fqpr:
 
         Parameters
         ----------
+        ra
+            xarray dataset for the rawping dataset we are working with
         prefixes
             prefix identifier for the tx/rx, will vary for dual head systems
-        sec_info
-            sector info, see parse_sect_info_from_identifier
         timestmp
             timestamp for the appropriate xyzrph record
+        idx_by_chunk
+            list of xarray Datarrays, values are the integer indexes of the pings to use, coords are the time of ping
 
         Returns
         -------
@@ -635,43 +639,51 @@ class Fqpr:
             [float, additional x offset, float, additional y offset, float, additional z offset]
         """
 
-        x_off_ky = prefixes[0] + '_x_' + sec_info['sector']
         x_base_offset = prefixes[0] + '_x'
-        if x_off_ky in self.multibeam.xyzrph:
-            addtl_x = float(self.multibeam.xyzrph[x_base_offset][timestmp]) + float(self.multibeam.xyzrph[x_off_ky][timestmp])
-        else:
-            addtl_x = float(self.multibeam.xyzrph[x_base_offset][timestmp])
-
-        y_off_ky = prefixes[0] + '_y_' + sec_info['sector']
         y_base_offset = prefixes[0] + '_y'
-        if y_off_ky in self.multibeam.xyzrph:
-            addtl_y = float(self.multibeam.xyzrph[y_base_offset][timestmp]) + float(self.multibeam.xyzrph[y_off_ky][timestmp])
-        else:
-            addtl_y = float(self.multibeam.xyzrph[y_base_offset][timestmp])
 
-        z_off_ky = prefixes[0] + '_z_' + sec_info['sector']
+        # z included at cast creation, we will apply this in georeference bathy
         # z_base_offset = prefixes[0] + '_z'
-        if z_off_ky in self.multibeam.xyzrph:
-            addtl_z = float(self.multibeam.xyzrph[z_off_ky][timestmp])
-        else:
-            addtl_z = 0  # z included at cast creation, we will apply this for real in georeference bathy
+        addtl_offsets = []
+        for cnt, chnk in enumerate(idx_by_chunk):
+            sector_by_beam = ra.txsector_beam[chnk].values
+            x_offsets_by_beam = np.zeros(sector_by_beam.shape, dtype=np.float32)
+            y_offsets_by_beam = np.zeros(sector_by_beam.shape, dtype=np.float32)
+            z_offsets_by_beam = np.zeros(sector_by_beam.shape, dtype=np.float32)
 
-        total_offsets = [addtl_x, addtl_y, addtl_z]
-        self.logger.info('Applying offsets: {}'.format(total_offsets))
-        return total_offsets
+            sector_possibilities = np.unique(sector_by_beam)
+            for sector in sector_possibilities:
+                x_off_ky = prefixes[0] + '_x_' + str(sector)
+                y_off_ky = prefixes[0] + '_y_' + str(sector)
+                z_off_ky = prefixes[0] + '_z_' + str(sector)
 
-    def get_cluster_params(self, sector_identifier: str):
+                if x_off_ky in self.multibeam.xyzrph:
+                    addtl_x = float(self.multibeam.xyzrph[x_base_offset][timestmp]) + float(self.multibeam.xyzrph[x_off_ky][timestmp])
+                else:
+                    addtl_x = float(self.multibeam.xyzrph[x_base_offset][timestmp])
+                x_offsets_by_beam[sector_by_beam == sector] = addtl_x
+
+                if y_off_ky in self.multibeam.xyzrph:
+                    addtl_y = float(self.multibeam.xyzrph[y_base_offset][timestmp]) + float(self.multibeam.xyzrph[y_off_ky][timestmp])
+                else:
+                    addtl_y = float(self.multibeam.xyzrph[y_base_offset][timestmp])
+                y_offsets_by_beam[sector_by_beam == sector] = addtl_y
+
+                if z_off_ky in self.multibeam.xyzrph:
+                    addtl_z = float(self.multibeam.xyzrph[z_off_ky][timestmp])
+                else:
+                    addtl_z = 0
+                z_offsets_by_beam[sector_by_beam == sector] = addtl_z
+            addtl_offsets.append([x_offsets_by_beam, y_offsets_by_beam, z_offsets_by_beam])
+        return addtl_offsets
+
+    def get_cluster_params(self):
         """
         Attempt to figure out what the chunk size and number of chunks at a time parameters should be given the dims
         of the dataset.  It's pretty rough, definitely needs something more sophisticated, but this serves as a place
         holder.
 
         Basically uses the avg number of beams per ping and the worker memory size to get the chunk sizes (in time)
-
-        Parameters
-        ----------
-        sector_identifier
-            identifier for the sector in format 'serialnumber_sectornumber_freq', ex: '125125_0_200000'
 
         Returns
         -------
@@ -706,21 +718,19 @@ class Fqpr:
             totchunks = 4
         return self.multibeam.ping_chunksize, totchunks
 
-    def _generate_chunks_orientation(self, ra: xr.Dataset, raw_att: xr.Dataset, idx_by_chunk: xr.DataArray,
-                                     applicable_index: xr.DataArray, timestmp: str, prefixes: str):
+    def _generate_chunks_orientation(self, ra: xr.Dataset, idx_by_chunk: list, applicable_index: xr.DataArray,
+                                     timestmp: str, prefixes: str):
         """
-        Take a single sector, and build the data for the distributed system to process.
+        Take a single system, and build the data for the distributed system to process.
         distrib_run_build_orientation_vectors requires the attitude, two way travel time, ping time index, and the
         starting orientation of the tx and rx.
 
         Parameters
         ----------
         ra
-            the raw_ping associated with this sector
-        raw_att
-            raw attitude Dataset including roll, pitch, yaw
+            the raw_ping associated with this system
         idx_by_chunk
-            values are the integer indexes of the pings to use, coords are the time of ping
+            list of dataarrays, values are the integer indexes of the pings to use, coords are the time of ping
         applicable_index
             boolean mask for the data associated with this installation parameters instance
         timestmp
@@ -734,6 +744,7 @@ class Fqpr:
             list of lists, each list contains future objects for distrib_run_build_orientation_vectors
         """
 
+        raw_att = self.multibeam.raw_att
         latency = self.motion_latency
         if latency:
             self.logger.info('applying {}ms of latency to attitude...'.format(latency))
@@ -755,40 +766,37 @@ class Fqpr:
         self.logger.info('transducer {} mounting angles: roll={} pitch={} yaw={}'.format(prefixes[1], rx_roll_mountingangle,
                                                                                          rx_pitch_mountingangle, rx_yaw_mountingangle))
 
-        twtt_by_idx = self.multibeam.select_array_from_rangeangle('traveltime', ra.sector_identifier).where(applicable_index, drop=True)
-
+        twtt_by_idx = ra.traveltime.where(applicable_index, drop=True)
+        delay_by_idx = ra.delay.where(applicable_index, drop=True)
         data_for_workers = []
         for chnk in idx_by_chunk:
             try:
                 worker_att = self.client.scatter(slice_xarray_by_dim(raw_att, start_time=chnk.time.min() - 1, end_time=chnk.time.max() + 1))
                 worker_twtt = self.client.scatter(twtt_by_idx[chnk])
+                worker_delay = self.client.scatter(delay_by_idx[chnk])
                 worker_tx_tstmp_idx = self.client.scatter(tx_tstmp_idx[chnk])
             except:  # get here if client is closed or doesnt exist
                 worker_att = slice_xarray_by_dim(raw_att, start_time=chnk.time.min() - 1, end_time=chnk.time.max() + 1)
                 worker_twtt = twtt_by_idx[chnk]
+                worker_delay = delay_by_idx[chnk]
                 worker_tx_tstmp_idx = tx_tstmp_idx[chnk]
-            data_for_workers.append([worker_att, worker_twtt, worker_tx_tstmp_idx, tx_orientation, rx_orientation, latency])
+            data_for_workers.append([worker_att, worker_twtt, worker_delay, worker_tx_tstmp_idx, tx_orientation, rx_orientation, latency])
         return data_for_workers
 
-    def _generate_chunks_bpv(self, raw_hdng: xr.DataArray, idx_by_chunk: xr.DataArray, tx_tstmp_idx: xr.DataArray,
-                             applicable_index: xr.DataArray, sec_ident: str, timestmp: str):
+    def _generate_chunks_bpv(self, ra: xr.Dataset, idx_by_chunk: list, applicable_index: xr.DataArray, timestmp: str):
         """
-        Take a single sector, and build the data for the distributed system to process.
+        Take a single system, and build the data for the distributed system to process.
         distrib_run_build_beam_pointing_vector requires the heading, beampointingangle, tx tiltangle, tx/rx orientation,
         ping time index, and indicators whether or not the sonar heads were installed in a reverse fashion.
 
         Parameters
         ----------
-        raw_hdng
-            heading for entire time of all input data
+        ra
+            the raw_ping associated with this system
         idx_by_chunk
-            values are the integer indexes of the pings to use, coords are the time of ping
-        tx_tstmp_idx
-            1d array of ping times
+            list of dataarrays, values are the integer indexes of the pings to use, coords are the time of ping
         applicable_index
             boolean mask for the data associated with this installation parameters instance
-        sec_ident
-            sector identifier string
         timestmp
             timestamp of the installation parameters instance used
 
@@ -798,31 +806,29 @@ class Fqpr:
             list of lists, each list contains future objects for distrib_run_build_beam_pointing_vector
         """
         latency = self.motion_latency
+        tx_tstmp_idx = get_ping_times(ra.time, applicable_index)
         self.logger.info('preparing to process {} pings'.format(len(tx_tstmp_idx)))
         self.logger.info('transducers mounted backwards - TX: {} RX: {}'.format(self.tx_reversed, self.rx_reversed))
 
-        bpa = self.multibeam.select_array_from_rangeangle('beampointingangle', sec_ident).where(applicable_index, drop=True)
-        tilt = self.multibeam.select_array_from_rangeangle('tiltangle', sec_ident).where(applicable_index, drop=True)
-        if 'heading' in self.multibeam.raw_ping[0]:
-            self.logger.info('Using pre-interpolated heading saved to disk...')
-            heading = self.multibeam.select_array_from_rangeangle('heading', sec_ident).where(applicable_index, drop=True)
-        else:
-            heading = interp_across_chunks(raw_hdng, tx_tstmp_idx + latency, daskclient=self.client)
+        bpa = ra.beampointingangle.where(applicable_index, drop=True)
+        tilt = ra.tiltangle.where(applicable_index, drop=True)
 
-        if 'orientation' in self.intermediate_dat[sec_ident]:
+        delay = ra.delay.where(applicable_index, drop=True)
+        heading = get_beamwise_interpolation(tx_tstmp_idx + latency, delay, self.multibeam.raw_att.heading)
+
+        if 'orientation' in self.intermediate_dat[ra.system_identifier]:
             # workflow for data that is not written to disk.  Preference given for data in memory
-            tx_rx_futs = [f[0] for f in self.intermediate_dat[sec_ident]['orientation'][timestmp]] * len(idx_by_chunk)
+            tx_rx_futs = [f[0] for f in self.intermediate_dat[ra.system_identifier]['orientation'][timestmp]] * len(idx_by_chunk)
             try:
-                tx_rx_data = self.client.map(divide_arrays_by_time_index,
-                                             tx_rx_futs, [chnk for chnk in idx_by_chunk])
+                tx_rx_data = self.client.map(divide_arrays_by_time_index, tx_rx_futs, [chnk for chnk in idx_by_chunk])
             except:  # client is not setup, run locally
                 tx_rx_data = []
                 for cnt, fut in enumerate(tx_rx_futs):
                     tx_rx_data.append(divide_arrays_by_time_index(fut, idx_by_chunk[cnt]))
         else:
             # workflow for data that is written to disk
-            tx_idx = self.multibeam.select_array_from_rangeangle('tx', sec_ident).where(applicable_index, drop=True)
-            rx_idx = self.multibeam.select_array_from_rangeangle('rx', sec_ident).where(applicable_index, drop=True)
+            tx_idx = ra.tx.where(applicable_index, drop=True)
+            rx_idx = ra.rx.where(applicable_index, drop=True)
             try:
                 tx_rx_data = self.client.scatter([[tx_idx[chnk], rx_idx[chnk]] for chnk in idx_by_chunk])
             except:  # client is not setup, run locally
@@ -832,19 +838,16 @@ class Fqpr:
         for cnt, chnk in enumerate(idx_by_chunk):
             try:
                 fut_hdng = self.client.scatter(heading[chnk])
-                fut_tx_tstmp_idx = self.client.scatter(tx_tstmp_idx[chnk])
                 fut_bpa = self.client.scatter(bpa[chnk])
                 fut_tilt = self.client.scatter(tilt[chnk])
             except:  # client is not setup, run locally
                 fut_hdng = heading[chnk]
-                fut_tx_tstmp_idx = tx_tstmp_idx[chnk]
                 fut_bpa = bpa[chnk]
                 fut_tilt = tilt[chnk]
-            data_for_workers.append([fut_hdng, fut_bpa, fut_tilt, tx_rx_data[cnt], fut_tx_tstmp_idx, self.tx_reversed,
-                                     self.rx_reversed])
+            data_for_workers.append([fut_hdng, fut_bpa, fut_tilt, tx_rx_data[cnt], self.tx_reversed, self.rx_reversed])
         return data_for_workers
 
-    def _generate_chunks_svcorr(self, casts: list, cast_chunks: list, sec_ident: str, applicable_index: xr.DataArray,
+    def _generate_chunks_svcorr(self, ra: xr.Dataset, casts: list, cast_chunks: list, applicable_index: xr.DataArray,
                                 timestmp: str, addtl_offsets: list):
         """
         Take a single sector, and build the data for the distributed system to process.  Svcorrect requires the
@@ -852,14 +855,14 @@ class Fqpr:
 
         Parameters
         ----------
+        ra
+            xarray dataset for the rawping dataset we are working with
         casts
             a list of the attributes within the SoundSpeedProfile object associated with this sector, including
             constructed lookup tables for each waterline value in installation parameters.
         cast_chunks
             list of lists, each sub-list is [timestamps for the chunk, index of the chunk in the original array, index
             of the cast that applies to that chunk]
-        sec_ident
-            sector identifier string
         applicable_index
             xarray Dataarray, boolean mask for the data associated with this installation parameters instance
         timestmp
@@ -875,9 +878,9 @@ class Fqpr:
 
         self.logger.info('dividing into {} data chunks for workers...'.format(len(cast_chunks)))
         data_for_workers = []
-        if 'bpv' in self.intermediate_dat[sec_ident]:
+        if 'bpv' in self.intermediate_dat[ra.system_identifier]:
             # workflow for data that is not written to disk.  Preference given for data in memory
-            bpv_futs = [f[0] for f in self.intermediate_dat[sec_ident]['bpv'][timestmp]] * len(cast_chunks)
+            bpv_futs = [f[0] for f in self.intermediate_dat[ra.system_identifier]['bpv'][timestmp]] * len(cast_chunks)
             try:
                 bpv_data = self.client.map(divide_arrays_by_time_index, bpv_futs, [d[0] for d in cast_chunks])
             except:  # client is not setup, run locally
@@ -886,24 +889,25 @@ class Fqpr:
                     bpv_data.append(divide_arrays_by_time_index(fut, cast_chunks[cnt][0]))
         else:
             # workflow for data that is written to disk, break it up according to cast_chunks
-            rel_azimuth_idx = self.multibeam.select_array_from_rangeangle('rel_azimuth', sec_ident).where(applicable_index, drop=True)
-            corr_angle_idx = self.multibeam.select_array_from_rangeangle('corr_pointing_angle', sec_ident).where(applicable_index, drop=True)
+            rel_azimuth_idx = ra.rel_azimuth.where(applicable_index, drop=True)
+            corr_angle_idx = ra.corr_pointing_angle.where(applicable_index, drop=True)
             try:
                 bpv_data = self.client.scatter([[rel_azimuth_idx[d[0]], corr_angle_idx[d[0]]] for d in cast_chunks])
             except:  # client is not setup, run locally
                 bpv_data = [[rel_azimuth_idx[d[0]], corr_angle_idx[d[0]]] for d in cast_chunks]
 
-        twtt = self.multibeam.select_array_from_rangeangle('traveltime', sec_ident).where(applicable_index, drop=True)
+        twtt = ra.traveltime.where(applicable_index, drop=True)
         try:
             twtt_data = self.client.scatter([twtt[d[0]] for d in cast_chunks])
             casts = self.client.scatter(casts)
+            addtl_offsets = self.client.scatter(addtl_offsets)
         except:  # client is not setup, run locally
             twtt_data = [twtt[d[0]] for d in cast_chunks]
 
         # data_idx = self.client.scatter([d[0].values for d in cast_chunks])
 
         for cnt, dat in enumerate(cast_chunks):
-            data_for_workers.append([casts[dat[1]], bpv_data[cnt], twtt_data[cnt], None, addtl_offsets])
+            data_for_workers.append([casts[dat[1]], bpv_data[cnt], twtt_data[cnt], None, addtl_offsets[cnt]])
         return data_for_workers
 
     def _generate_chunks_georef(self, ra: xr.Dataset, idx_by_chunk: xr.DataArray, applicable_index: xr.DataArray,
@@ -937,7 +941,7 @@ class Fqpr:
         """
 
         latency = self.motion_latency
-        sec_ident = ra.sector_identifier
+        sys_ident = ra.system_identifier
         if latency:
             self.logger.info('Applying motion latency of {}ms'.format(latency))
         tx_tstmp_idx = get_ping_times(ra.time, applicable_index)
@@ -958,9 +962,9 @@ class Fqpr:
         # if they have already interpolated and saved data to disk, use it.  But if motion latency is set, we ignore
         if ('latitude' in ra) and ('longitude' in ra) and ('altitude' in ra) and not self.motion_latency:
             self.logger.info('Using pre-interpolated attitude/navigation saved to disk...')
-            lat = self.multibeam.select_array_from_rangeangle('latitude', sec_ident).where(applicable_index, drop=True)
-            lon = self.multibeam.select_array_from_rangeangle('longitude', sec_ident).where(applicable_index, drop=True)
-            alt = self.multibeam.select_array_from_rangeangle('altitude', sec_ident).where(applicable_index, drop=True)
+            lat = ra.latitude.where(applicable_index, drop=True)
+            lon = ra.longitude.where(applicable_index, drop=True)
+            alt = ra.altitude.where(applicable_index, drop=True)
         elif prefer_pp_nav and (self.navigation is not None):
             self.logger.info('Using post processed navigation...')
             nav = interp_across_chunks(self.navigation, tx_tstmp_idx + latency, daskclient=self.client)
@@ -968,6 +972,7 @@ class Fqpr:
             lon = nav.longitude
             alt = nav.altitude
         else:
+            self.logger.info('Using raw navigation...')
             nav = interp_across_chunks(self.multibeam.raw_nav, tx_tstmp_idx + latency, daskclient=self.client)
             lat = nav.latitude
             lon = nav.longitude
@@ -977,11 +982,12 @@ class Fqpr:
                 alt = None
 
         if ('heading' in ra) and ('heave' in ra) and not self.motion_latency:
-            hdng = self.multibeam.select_array_from_rangeangle('heading', sec_ident).where(applicable_index, drop=True)
-            hve = self.multibeam.select_array_from_rangeangle('heave', sec_ident).where(applicable_index, drop=True)
+            hdng = ra.heading.where(applicable_index, drop=True)
+            hve = ra.heave.where(applicable_index, drop=True)
         else:
-            hdng = interp_across_chunks(self.multibeam.raw_att['heading'], tx_tstmp_idx + latency, daskclient=self.client)
-            hve = interp_across_chunks(self.multibeam.raw_att['heave'], tx_tstmp_idx + latency, daskclient=self.client)
+            rawatt = interp_across_chunks(self.multibeam.raw_att, tx_tstmp_idx + latency, daskclient=self.client)
+            hdng = rawatt.heading
+            hve = rawatt.heave
 
         wline = float(self.multibeam.xyzrph['waterline'][str(timestmp)])
 
@@ -990,17 +996,17 @@ class Fqpr:
         else:
             hve = self.determine_induced_heave(ra, hve, self.multibeam.raw_att, tx_tstmp_idx + latency, prefixes, timestmp)
 
-        if 'sv_corr' not in self.intermediate_dat[sec_ident]:
-            altrack = self.multibeam.select_array_from_rangeangle('alongtrack', sec_ident).where(applicable_index, drop=True)
-            actrack = self.multibeam.select_array_from_rangeangle('acrosstrack', sec_ident).where(applicable_index, drop=True)
-            dpthoff = self.multibeam.select_array_from_rangeangle('depthoffset', sec_ident).where(applicable_index, drop=True)
+        if 'sv_corr' not in self.intermediate_dat[ra.system_identifier]:
+            altrack = ra.alongtrack.where(applicable_index, drop=True)
+            actrack = ra.acrosstrack.where(applicable_index, drop=True)
+            dpthoff = ra.depthoffset.where(applicable_index, drop=True)
 
         data_for_workers = []
 
         for chnk in idx_by_chunk:
-            if 'sv_corr' in self.intermediate_dat[sec_ident]:
+            if 'sv_corr' in self.intermediate_dat[ra.system_identifier]:
                 # workflow for data that is not written to disk.  Preference given for data in memory
-                sv_data = self.intermediate_dat[sec_ident]['sv_corr'][timestmp][0][0]
+                sv_data = self.intermediate_dat[ra.system_identifier]['sv_corr'][timestmp][0][0]
             else:
                 try:  # workflow for data that is written to disk
                     sv_data = self.client.scatter([altrack[chnk], actrack[chnk], dpthoff[chnk]])
@@ -1069,12 +1075,12 @@ class Fqpr:
 
         roll = interp_across_chunks(self.multibeam.raw_att['roll'], tx_tstmp_idx + latency, daskclient=self.client)
 
-        corr_point = self.multibeam.select_array_from_rangeangle('corr_pointing_angle', ra.sector_identifier).where(applicable_index, drop=True)
-        raw_point = self.multibeam.select_array_from_rangeangle('beampointingangle', ra.sector_identifier).where(applicable_index, drop=True)
-        acrosstrack = self.multibeam.select_array_from_rangeangle('acrosstrack', ra.sector_identifier).where(applicable_index, drop=True)
-        depthoffset = self.multibeam.select_array_from_rangeangle('depthoffset', ra.sector_identifier).where(applicable_index, drop=True)
-        soundspeed = self.multibeam.select_array_from_rangeangle('soundspeed', ra.sector_identifier).where(applicable_index, drop=True)
-        qf = self.multibeam.select_array_from_rangeangle('qualityfactor', ra.sector_identifier).where(applicable_index, drop=True)
+        corr_point = ra.corr_pointing_angle.where(applicable_index, drop=True)
+        raw_point = ra.beampointingangle.where(applicable_index, drop=True)
+        acrosstrack = ra.acrosstrack.where(applicable_index, drop=True)
+        depthoffset = ra.depthoffset.where(applicable_index, drop=True)
+        soundspeed = ra.soundspeed.where(applicable_index, drop=True)
+        qf = ra.qualityfactor.where(applicable_index, drop=True)
 
         first_mbes_file = list(ra.multibeam_files.keys())[0]
         is_kongsberg_all = os.path.splitext(first_mbes_file)[1] == '.all'
@@ -1087,7 +1093,7 @@ class Fqpr:
 
         # set the first chunk to build the tpu sample image, provide a path to the folder to save in
         image_generation = [False] * len(idx_by_chunk)
-        image_generation[0] = os.path.join(self.multibeam.converted_pth, 'ping_' + ra.sector_identifier + '.zarr')
+        image_generation[0] = os.path.join(self.multibeam.converted_pth, 'ping_' + ra.system_identifier + '.zarr')
 
         for cnt, chnk in enumerate(idx_by_chunk):
             try:
@@ -1149,153 +1155,6 @@ class Fqpr:
                                      fut_rpe, fut_ppe, fut_hpe, qf_type, self.vert_ref, image_generation[cnt]])
         return data_for_workers
 
-    def _generate_chunks_xyzdat_old(self, variable_name: str, finallength: int, var_dtype: np.dtype,
-                                    add_idx_vars: bool = True, s_index: list = None):
-        """
-        Flatten and chunk the non-NaN values for each sector.  Currently an issue with beam number, beam number saved
-        this way is from zero for each sector.
-
-        DEPRECATED: See the new _generate_chunks_xyzdat
-
-        Parameters
-        ----------
-        variable_name
-            variable identifier for the array to write.  ex: 'z' or 'tvu'
-        finallength
-            total number of soundings to write, ends up as the total length of the resulting dataset
-        var_dtype
-            pass in a numpy dtype to astype the array before writing
-        add_idx_vars
-            if True, write out the supporting arrays as well.  Only need to do this once, generally the first run.
-        s_index
-            list of the valid indices for variable if we need to subset.  Detectioninfo will have non-NaN values for
-            all soundings, but if we get bad values in beam vector generation, we might have NaNs interspersed in the
-            xyz arrays.  Use s_index to shorten the given variable (detectioninfo) to the non-NaN indices of the other
-            arrays.
-
-        Returns
-        -------
-        list
-            each element is a future object pointing to a dataset to write out in memory
-        list
-            chunk indices for each chunk
-        dict
-            chunk sizes for the write, zarr wants explicit chunksizes for each array that cannot change after array
-            creation.  chunk sizes can be greater than data size.
-        """
-
-        self.logger.info('Constructing dataset for variable "{}"'.format(variable_name))
-
-        # use the raw_ping chunksize to chunk the reformed pings.
-        data_for_workers = []
-        sector_possible = self.return_sector_ids()
-
-        # get the non NaN data for the variable name across all raw_pings (all sectors)
-        if s_index is None:
-            vals = np.concatenate([self.multibeam.select_array_from_rangeangle(variable_name, rp.sector_identifier)
-                                   for rp in self.multibeam.raw_ping])
-            actual_soundings_idx = ~np.isnan(vals)
-        else:
-            vals = np.concatenate([rp[variable_name].stack(stck=('time', 'beam')) for rp in self.multibeam.raw_ping])
-            actual_soundings_idx = np.concatenate(s_index)
-
-        # only need to do this once, all the other var writes will just be the variable specified
-        if add_idx_vars:
-            sec_ids = np.concatenate(
-                [[sector_possible.index(rp.sector_identifier)] * rp.time.shape[0] for rp in self.multibeam.raw_ping])
-            tms = np.concatenate([rp.time.values for rp in self.multibeam.raw_ping])
-
-            self.logger.info('Constructing dataset for variable "beam_idx"')
-            bms = np.tile(self.multibeam.raw_ping[0].beam.values, (vals.shape[0], 1))
-            bms = bms[actual_soundings_idx]
-
-            self.logger.info('Constructing dataset for variable "sector_idx"')
-            sec_ids = np.tile(np.expand_dims(sec_ids, 1), (1, len(self.multibeam.raw_ping[0].beam.values)))
-            sec_ids = sec_ids[actual_soundings_idx]
-
-            self.logger.info('Constructing dataset for variable "time_idx"')
-            tms = np.tile(np.expand_dims(tms, 1), (1, len(self.multibeam.raw_ping[0].beam.values)))
-            tms = tms[actual_soundings_idx]
-
-        vals = vals[actual_soundings_idx]
-
-        # 1000000 soundings gets you about 1MB chunks, which is what zarr recommends
-        chnksize = np.min([finallength, 1000000])
-        chnks = [[i * chnksize, i * chnksize + chnksize] for i in range(int(finallength / chnksize))]
-        chnks[-1][1] = len(vals)
-        chnksize_dict = {'sounding': (1000000,), 'beam_idx': (1000000,), 'thu': (1000000,),
-                         'sector_idx': (1000000,), 'time_idx': (1000000,), 'tvu': (1000000,), 'x': (1000000,),
-                         'y': (1000000,), 'z': (1000000,)}
-        for c in chnks:
-            vrs = {variable_name: (['sounding'], vals[c[0]:c[1]].astype(var_dtype))}
-            if add_idx_vars:
-                vrs['sounding'] = np.arange(c[0], c[1], dtype=np.int64)
-                vrs['time_idx'] = (['sounding'], tms[c[0]:c[1]])
-                vrs['sector_idx'] = (['sounding'], sec_ids[c[0]:c[1]].astype(np.uint8))
-                vrs['beam_idx'] = (['sounding'], bms[c[0]:c[1]].astype(np.uint16))
-            ds = xr.Dataset(data_vars=vrs)
-            data_for_workers.append(self.client.scatter(ds))
-
-        return data_for_workers, chnks, chnksize_dict
-
-    def _generate_chunks_xyzdat(self, variable_name: str):
-        """
-        Merge the desired vars across sectors to reform pings, and build the data for the distributed system to process.
-        Export_xyzdat requires a full dataset flattened to a 'soundings' dimension but retaining the sectorwise
-        indexing.
-
-        Parameters
-        ----------
-        variable_name
-            variable identifier for the array to write.  ex: 'z' or 'tvu'
-
-        Returns
-        -------
-        list
-            each element is a future object pointing to a dataset to write out in memory
-        list
-            chunk indices for each chunk
-        dict
-            chunk sizes for the write, zarr wants explicit chunksizes for each array that cannot change after array
-            creation.  chunk sizes can be greater than data size.
-        """
-
-        if variable_name not in self.multibeam.raw_ping[0]:
-            self.logger.warning('Skipping variable "{}", not found in dataset.'.format(variable_name))
-            return None, None, None
-        self.logger.info('Constructing dataset for variable "{}"'.format(variable_name))
-
-        # use the raw_ping chunksize to chunk the reformed pings.
-        data_for_workers = []
-        unique_times_across_sectors = self.return_unique_times_across_sectors()
-        var_data, sectors, tims = self.reform_2d_vars_across_sectors_at_time([variable_name], unique_times_across_sectors)
-
-        # flatten to get the 1d sounding data
-        tims = np.tile(np.expand_dims(tims, 1), (1, var_data.shape[2])).ravel()
-        beams = np.tile(np.arange(0, var_data.shape[2], 1), (var_data.shape[1], 1)).ravel().astype(np.uint16)
-        counter = np.repeat(np.arange(0, var_data.shape[1], 1)[:, np.newaxis], var_data.shape[2], axis=1).ravel().astype(np.uint32)
-        var_data = var_data.ravel()
-        sectors = sectors.ravel()
-
-        finallength = len(var_data)
-
-        # 1000000 soundings gets you about 1MB chunks, which is what zarr recommends
-        chnksize = np.min([finallength, 1000000])
-        chnks = [[i * chnksize, i * chnksize + chnksize] for i in range(int(finallength / chnksize))]
-        chnks[-1][1] = finallength
-        chnksize_dict = {'beam_number': (1000000,), 'sector': (1000000,), 'time': (1000000,), 'ping_counter': (1000000,),
-                         'thu': (1000000,), 'tvu': (1000000,), 'x': (1000000,), 'y': (1000000,), 'z': (1000000,)}
-        dtype_dict = {'x': np.float64, 'y': np.float64, 'z': np.float32, 'tvu': np.float32, 'thu': np.float32}
-
-        for c in chnks:
-            vrs = {variable_name: (['time'], var_data[c[0]:c[1]].astype(dtype_dict[variable_name]))}
-            coords = {'beam_number': (['time'], beams[c[0]:c[1]]), 'time': tims[c[0]:c[1]],
-                      'sector': (['time'], sectors[c[0]:c[1]]), 'ping_counter': (['time'], counter[c[0]:c[1]])}
-            ds = xr.Dataset(vrs, coords)
-            data_for_workers.append(self.client.scatter(ds))
-
-        return data_for_workers, chnks, chnksize_dict
-
     def initialize_intermediate_data(self, sec_ident: str, ky: str):
         """
         self.intermediate_dat is the storage for all the futures generated by the main processes
@@ -1346,13 +1205,13 @@ class Fqpr:
                 first_subset_time = subset_time[0]
                 last_subset_time = subset_time[-1]
             for ra in self.multibeam.raw_ping:
-                secid = ra.sector_identifier
+                sysid = ra.system_identifier
                 # check to see if this sector is within the subset time
                 if np.logical_and(ra.time <= last_subset_time, ra.time >= first_subset_time).any():
                     # nothing written to disk yet, first run has to include the first time
                     if 'tx' not in list(ra.keys()):
                         if first_subset_time > np.min(ra.time):
-                            msg = 'get_orientation_vectors: {}: If your first run of this function uses subset_time, it must include the first ping.'.format(secid)
+                            msg = 'get_orientation_vectors: {}: If your first run of this function uses subset_time, it must include the first ping.'.format(sysid)
                             raise NotImplementedError(msg)
                     # data written already, just make sure we aren't creating a gap
                     else:
@@ -1362,7 +1221,7 @@ class Fqpr:
                             continue
 
                         if first_subset_time > last_written_time:
-                            msg = 'get_orientation_vectors: {}: saved arrays must not have a time gap, subset_time must start at the last written time.'.format(secid)
+                            msg = 'get_orientation_vectors: {}: saved arrays must not have a time gap, subset_time must start at the last written time.'.format(sysid)
                             raise NotImplementedError(msg)
 
     def _validate_get_orientation_vectors(self, subset_time: list, dump_data: bool):
@@ -1407,7 +1266,7 @@ class Fqpr:
         # first check to see if there is any data in memory.  If so, we just assume that you have the data you need.
         if self.intermediate_dat is not None:
             for rawping in self.multibeam.raw_ping:
-                if 'orientation' in self.intermediate_dat[rawping.sector_identifier]:
+                if 'orientation' in self.intermediate_dat[rawping.system_identifier]:
                     print('get_beam_pointing_vectors: in memory workflow')
                     return
 
@@ -1415,7 +1274,7 @@ class Fqpr:
         for req in required:
             if req not in list(self.multibeam.raw_ping[0].keys()):
                 err = 'get_beam_pointing_vectors: unable to find {}'.format(req)
-                err += ' in ping data {}.  You must run get_orientation_vectors first.'.format(self.multibeam.raw_ping[0].sector_identifier)
+                err += ' in ping data {}.  You must run get_orientation_vectors first.'.format(self.multibeam.raw_ping[0].system_identifier)
                 self.logger.error(err)
                 raise ValueError(err)
 
@@ -1436,7 +1295,7 @@ class Fqpr:
         # first check to see if there is any data in memory.  If so, we just assume that you have the data you need.
         if self.intermediate_dat is not None:
             for rawping in self.multibeam.raw_ping:
-                if 'bpv' in self.intermediate_dat[rawping.sector_identifier]:
+                if 'bpv' in self.intermediate_dat[rawping.system_identifier]:
                     print('sv_correct: in memory workflow')
                     return
 
@@ -1445,7 +1304,7 @@ class Fqpr:
             if req not in list(self.multibeam.raw_ping[0].keys()):
                 err = 'sv_correct: unable to find {}'.format(req)
                 err += ' in ping data {}.  You must run get_beam_pointing_vectors first.'.format(
-                    self.multibeam.raw_ping[0].sector_identifier)
+                    self.multibeam.raw_ping[0].system_identifier)
                 self.logger.error(err)
                 raise ValueError(err)
 
@@ -1480,7 +1339,7 @@ class Fqpr:
         # first check to see if there is any data in memory.  If so, we just assume that you have the data you need.
         if self.intermediate_dat is not None:
             for rawping in self.multibeam.raw_ping:
-                if 'sv_corr' in self.intermediate_dat[rawping.sector_identifier]:
+                if 'sv_corr' in self.intermediate_dat[rawping.system_identifier]:
                     print('georef_xyz: in memory workflow')
                     return
 
@@ -1489,7 +1348,7 @@ class Fqpr:
             if req not in list(self.multibeam.raw_ping[0].keys()):
                 err = 'georef_xyz: unable to find {}'.format(req)
                 err += ' in ping data {}.  You must run sv_correct first.'.format(
-                    self.multibeam.raw_ping[0].sector_identifier)
+                    self.multibeam.raw_ping[0].system_identifier)
                 self.logger.error(err)
                 raise ValueError(err)
 
@@ -1522,7 +1381,7 @@ class Fqpr:
             if req not in list(self.multibeam.raw_ping[0].keys()):
                 err = 'calculate_total_uncertainty: unable to find {}'.format(req)
                 err += ' in ping data {}.  You must run georef_xyz first.'.format(
-                    self.multibeam.raw_ping[0].sector_identifier)
+                    self.multibeam.raw_ping[0].system_identifier)
                 self.logger.error(err)
                 raise ValueError(err)
 
@@ -1703,21 +1562,18 @@ class Fqpr:
         if self.client is None:  # small datasets benefit from just running it without dask distributed
             skip_dask = True
 
-        sectors = self.return_sector_ids()
-        for sec in sectors:
-            raw_ping = self.multibeam.return_ping_by_sector(sec)
-            outfold_sec = os.path.join(self.multibeam.converted_pth, 'ping_' + sec + '.zarr')
-            sync = DaskProcessSynchronizer(outfold_sec)
-
+        for rp in self.multibeam.raw_ping:
+            outfold_sys = os.path.join(self.multibeam.converted_pth, 'ping_' + rp.system_identifier + '.zarr')
+            sync = DaskProcessSynchronizer(outfold_sys)
             for source in sources:
-                ping_wise_data = interp_across_chunks(source, raw_ping.time, 'time').chunk(self.multibeam.ping_chunksize)
+                ping_wise_data = interp_across_chunks(source, rp.time, 'time').chunk(self.multibeam.ping_chunksize)
                 chunk_sizes = {k: self.multibeam.ping_chunksize for k in list(ping_wise_data.variables.keys())}
-                data_locs, finalsize = get_write_indices_zarr(outfold_sec, [ping_wise_data.time])
+                data_locs, finalsize = get_write_indices_zarr(outfold_sys, [ping_wise_data.time])
                 try:
                     ping_wise_data = self.client.scatter(ping_wise_data)
                 except:  # not using dask distributed client
                     pass
-                distrib_zarr_write(outfold_sec, [ping_wise_data], attributes, chunk_sizes, data_locs, finalsize, sync,
+                distrib_zarr_write(outfold_sys, [ping_wise_data], attributes, chunk_sizes, data_locs, finalsize, sync,
                                    self.client, append_dim='time', merge=True, show_progress=self.show_progress)
                 attributes = {}
         self.multibeam.reload_pingrecords(skip_dask=skip_dask)
@@ -1745,7 +1601,7 @@ class Fqpr:
             self.interp_to_ping_record(needs_interp, {'attitude_source': 'multibeam', 'navigation_source': 'multibeam'})
 
     def get_orientation_vectors(self, subset_time: list = None, dump_data: bool = True, delete_futs: bool = True,
-                                initial_interp: bool = True):
+                                initial_interp: bool = False):
         """
         Using attitude angles, mounting angles, build the tx/rx vectors that represent the orientation of the tx/rx at
         time of transmit/receive.   Sends the data and calculations to the cluster, receive futures objects back.
@@ -1782,47 +1638,44 @@ class Fqpr:
             skip_dask = True
 
         # sectors lets us loop through...
-        #  - each frequency/sector number/serial number combination, which corresponds to each raw_ping dataset
+        #  - each serial number, which corresponds to each raw_ping dataset
         #    - within each raw_ping, the installation parameter records, as there may be multiple (recording changes
         #      in waterline or something like that)
-        sectors = self.multibeam.return_sector_time_indexed_array(subset_time=subset_time)
-        raw_att = self.multibeam.raw_att
+        systems = self.multibeam.return_system_time_indexed_array(subset_time=subset_time)
 
-        # for each frequency/sector number/serial number combination...
-        for s_cnt, sector in enumerate(sectors):
+        # for each serial number combination...only one loop here unless you have a dual head system
+        for s_cnt, system in enumerate(systems):
             ra = self.multibeam.raw_ping[s_cnt]  # raw ping record
-            sec_ident = ra.sector_identifier  # serialnumber_sectornumber_frequency
-            sec_info = self.parse_sect_info_from_identifier(sec_ident)  # dict of these values
-            self.logger.info('sector info: ' + ', '.join(['{}: {}'.format(k, v) for k, v in sec_info.items()]))
+            sys_ident = ra.system_identifier
+            self.logger.info('Operating on system serial number = {}'.format(sys_ident))
             # when we process, we store the futures in self.intermediate_dat, so we can access it later
-            self.initialize_intermediate_data(sec_ident, 'orientation')
+            self.initialize_intermediate_data(sys_ident, 'orientation')
             # get the settings we want to use for this sector, controls the amount of data we pass at once
-            pings_per_chunk, max_chunks_at_a_time = self.get_cluster_params(sec_ident)
+            pings_per_chunk, max_chunks_at_a_time = self.get_cluster_params()
 
             # for each installation parameters record...
-            for applicable_index, timestmp, prefixes in sector:
+            for applicable_index, timestmp, prefixes in system:
                 self.logger.info('using installation params {}'.format(timestmp))
                 self.generate_starter_orientation_vectors(prefixes, timestmp)
                 idx_by_chunk = self.return_chunk_indices(applicable_index, pings_per_chunk)
-                if len(idx_by_chunk[0]):  # if there are pings in this sector that align with this installation parameter record
+                if len(idx_by_chunk[0]):  # if there are pings in this system that align with this installation parameter record
                     # build out a list, where each element is a list of data that distrib_run_build_orientation_vectors is expecting
-                    data_for_workers = self._generate_chunks_orientation(ra, raw_att, idx_by_chunk, applicable_index,
-                                                                         timestmp, prefixes)
+                    data_for_workers = self._generate_chunks_orientation(ra, idx_by_chunk, applicable_index, timestmp, prefixes)
                     # clear out the intermediate data just in case there is old data there
-                    self.intermediate_dat[sec_ident]['orientation'][timestmp] = []
+                    self.intermediate_dat[sys_ident]['orientation'][timestmp] = []
                     # send the data to the cluster (or process without dask) where we run distrib_run_build_orientation_vectors
                     # on each element of data_for_workers with max_chunks_at_a_time and idx_by_chunk describing the indices of the
                     # chunk relative to the whole record
                     self._submit_data_to_cluster(data_for_workers, distrib_run_build_orientation_vectors,
                                                  max_chunks_at_a_time, idx_by_chunk,
-                                                 self.intermediate_dat[sec_ident]['orientation'][timestmp])
+                                                 self.intermediate_dat[sys_ident]['orientation'][timestmp])
                 else:
-                    self.logger.info('No pings found for {}-{}'.format(sec_ident, timestmp))
+                    self.logger.info('No pings found for {}-{}'.format(sys_ident, timestmp))
             if dump_data:
                 self.orientation_time_complete = datetime.utcnow().strftime('%c')
                 # if we are saving the data to disk, just pass in the key ('orientation') to get the futures from
                 #   self.intermediate_dat and write those to disk
-                self.write_intermediate_futs_to_zarr('orientation', only_sec_idx=s_cnt, delete_futs=delete_futs, skip_dask=skip_dask)
+                self.write_intermediate_futs_to_zarr('orientation', only_sys_idx=s_cnt, delete_futs=delete_futs, skip_dask=skip_dask)
         # after each full processing step, reload the raw_ping datasets to get the new metadata
         self.multibeam.reload_pingrecords(skip_dask=skip_dask)
         if self.subset_mintime and self.subset_maxtime:
@@ -1857,37 +1710,34 @@ class Fqpr:
         self._validate_get_beam_pointing_vectors(subset_time, dump_data)
         self.logger.info('****Building beam specific pointing vectors****\n')
         starttime = perf_counter()
-        raw_hdng = self.multibeam.raw_att['heading']
 
         skip_dask = False
         if self.client is None:  # small datasets benefit from just running it without dask distributed
             skip_dask = True
 
-        sectors = self.multibeam.return_sector_time_indexed_array(subset_time=subset_time)
-        for s_cnt, sector in enumerate(sectors):
+        systems = self.multibeam.return_system_time_indexed_array(subset_time=subset_time)
+        for s_cnt, system in enumerate(systems):
             ra = self.multibeam.raw_ping[s_cnt]
-            sec_ident = ra.sector_identifier
-            sec_info = self.parse_sect_info_from_identifier(sec_ident)
-            self.logger.info('sector info: ' + ', '.join(['{}: {}'.format(k, v) for k, v in sec_info.items()]))
-            self.initialize_intermediate_data(sec_ident, 'bpv')
-            pings_per_chunk, max_chunks_at_a_time = self.get_cluster_params(sec_ident)
+            sys_ident = ra.system_identifier
+            self.logger.info('Operating on system serial number = {}'.format(sys_ident))
+            self.initialize_intermediate_data(sys_ident, 'bpv')
+            pings_per_chunk, max_chunks_at_a_time = self.get_cluster_params()
 
-            for applicable_index, timestmp, prefixes in sector:
+            for applicable_index, timestmp, prefixes in system:
                 self.logger.info('using installation params {}'.format(timestmp))
-                tx_tstmp_idx = get_ping_times(ra.time, applicable_index)
+                self.generate_starter_orientation_vectors(prefixes, timestmp)
                 idx_by_chunk = self.return_chunk_indices(applicable_index, pings_per_chunk)
-                if len(idx_by_chunk[0]):  # if there are pings in this sector that align with this installation parameter record
-                    data_for_workers = self._generate_chunks_bpv(raw_hdng, idx_by_chunk, tx_tstmp_idx, applicable_index, sec_ident, timestmp)
-                    self.intermediate_dat[sec_ident]['bpv'][timestmp] = []
-                    self._submit_data_to_cluster(data_for_workers,
-                                                 distrib_run_build_beam_pointing_vector,
+                if len(idx_by_chunk[0]):  # if there are pings in this system that align with this installation parameter record
+                    data_for_workers = self._generate_chunks_bpv(ra, idx_by_chunk, applicable_index, timestmp)
+                    self.intermediate_dat[sys_ident]['bpv'][timestmp] = []
+                    self._submit_data_to_cluster(data_for_workers, distrib_run_build_beam_pointing_vector,
                                                  max_chunks_at_a_time, idx_by_chunk,
-                                                 self.intermediate_dat[sec_ident]['bpv'][timestmp])
+                                                 self.intermediate_dat[sys_ident]['bpv'][timestmp])
                 else:
-                    self.logger.info('No pings found for {}-{}'.format(sec_ident, timestmp))
+                    self.logger.info('No pings found for {}-{}'.format(sys_ident, timestmp))
             if dump_data:
                 self.bpv_time_complete = datetime.utcnow().strftime('%c')
-                self.write_intermediate_futs_to_zarr('bpv', only_sec_idx=s_cnt, delete_futs=delete_futs, skip_dask=skip_dask)
+                self.write_intermediate_futs_to_zarr('bpv', only_sys_idx=s_cnt, delete_futs=delete_futs, skip_dask=skip_dask)
         self.multibeam.reload_pingrecords(skip_dask=skip_dask)
         if self.subset_mintime and self.subset_maxtime:
             self.subset_by_time(self.subset_mintime, self.subset_maxtime)
@@ -1930,35 +1780,34 @@ class Fqpr:
         if self.client is None:  # small datasets benefit from just running it without dask distributed
             skip_dask = True
 
-        sectors = self.multibeam.return_sector_time_indexed_array(subset_time=subset_time)
+        systems = self.multibeam.return_system_time_indexed_array(subset_time=subset_time)
         self.cast_chunks = {}
-        for s_cnt, sector in enumerate(sectors):
+        for s_cnt, system in enumerate(systems):
             ra = self.multibeam.raw_ping[s_cnt]
-            sec_ident = ra.sector_identifier
-            sec_info = self.parse_sect_info_from_identifier(sec_ident)
-            self.logger.info('sector info: ' + ', '.join(['{}: {}'.format(k, v) for k, v in sec_info.items()]))
-            self.initialize_intermediate_data(sec_ident, 'sv_corr')
-            pings_per_chunk, max_chunks_at_a_time = self.get_cluster_params(sec_ident)
+            sys_ident = ra.system_identifier
+            self.logger.info('Operating on system serial number = {}'.format(sys_ident))
+            self.initialize_intermediate_data(sys_ident, 'sv_corr')
+            pings_per_chunk, max_chunks_at_a_time = self.get_cluster_params()
 
-            for applicable_index, timestmp, prefixes in sector:
+            for applicable_index, timestmp, prefixes in system:
                 self.logger.info('using installation params {}'.format(timestmp))
                 idx_by_chunk = self.return_chunk_indices(applicable_index, pings_per_chunk)
                 if len(idx_by_chunk[0]):  # if there are pings in this sector that align with this installation parameter record
-                    cast_objects = self.setup_casts_for_sec_by_index(s_cnt, applicable_index, prefixes, timestmp, add_cast_files)
+                    cast_objects = self.setup_casts_for_system_by_index(s_cnt, applicable_index, prefixes, timestmp, add_cast_files)
                     cast_times = [c[0] for c in cast_objects]
                     cast_chunks = self.return_cast_idx_nearestintime(cast_times, idx_by_chunk)
-                    addtl_offsets = self.return_additional_xyz_offsets(prefixes, sec_info, timestmp)
-                    data_for_workers = self._generate_chunks_svcorr(cast_objects, cast_chunks, sec_ident, applicable_index, timestmp, addtl_offsets)
-                    self.intermediate_dat[sec_ident]['sv_corr'][timestmp] = []
+                    addtl_offsets = self.return_additional_xyz_offsets(ra, prefixes, timestmp, idx_by_chunk)
+                    data_for_workers = self._generate_chunks_svcorr(ra, cast_objects, cast_chunks, applicable_index, timestmp, addtl_offsets)
+                    self.intermediate_dat[ra.system_identifier]['sv_corr'][timestmp] = []
                     self._submit_data_to_cluster(data_for_workers, distributed_run_sv_correct,
                                                  max_chunks_at_a_time, [c[0].time for c in cast_chunks],
-                                                 self.intermediate_dat[sec_ident]['sv_corr'][timestmp])
+                                                 self.intermediate_dat[ra.system_identifier]['sv_corr'][timestmp])
                     self.cast_chunks[s_cnt][timestmp] = cast_chunks
                 else:
-                    self.logger.info('No pings found for {}-{}'.format(sec_ident, timestmp))
+                    self.logger.info('No pings found for {}-{}'.format(ra.system_identifier, timestmp))
             if dump_data:
                 self.sv_time_complete = datetime.utcnow().strftime('%c')
-                self.write_intermediate_futs_to_zarr('sv_corr', only_sec_idx=s_cnt, delete_futs=delete_futs, skip_dask=skip_dask)
+                self.write_intermediate_futs_to_zarr('sv_corr', only_sys_idx=s_cnt, delete_futs=delete_futs, skip_dask=skip_dask)
         self.multibeam.reload_pingrecords(skip_dask=skip_dask)
         if self.subset_mintime and self.subset_maxtime:
             self.subset_by_time(self.subset_mintime, self.subset_maxtime)
@@ -2012,31 +1861,30 @@ class Fqpr:
         if self.client is None:  # small datasets benefit from just running it without dask distributed
             skip_dask = True
 
-        sectors = self.multibeam.return_sector_time_indexed_array(subset_time=subset_time)
-        for s_cnt, sector in enumerate(sectors):
+        systems = self.multibeam.return_system_time_indexed_array(subset_time=subset_time)
+        for s_cnt, system in enumerate(systems):
             ra = self.multibeam.raw_ping[s_cnt]
-            sec_ident = ra.sector_identifier
-            sec_info = self.parse_sect_info_from_identifier(sec_ident)
-            self.logger.info('sector info: ' + ', '.join(['{}: {}'.format(k, v) for k, v in sec_info.items()]))
-            self.initialize_intermediate_data(sec_ident, 'xyz')
-            pings_per_chunk, max_chunks_at_a_time = self.get_cluster_params(sec_ident)
+            sys_ident = ra.system_identifier
+            self.logger.info('Operating on system serial number = {}'.format(sys_ident))
+            self.initialize_intermediate_data(sys_ident, 'xyz')
+            pings_per_chunk, max_chunks_at_a_time = self.get_cluster_params()
 
-            for applicable_index, timestmp, prefixes in sector:
+            for applicable_index, timestmp, prefixes in system:
                 self.logger.info('using installation params {}'.format(timestmp))
                 z_offset = float(self.multibeam.xyzrph[prefixes[0] + '_z'][timestmp])
                 idx_by_chunk = self.return_chunk_indices(applicable_index, pings_per_chunk)
                 if len(idx_by_chunk[0]):  # if there are pings in this sector that align with this installation parameter record
                     data_for_workers = self._generate_chunks_georef(ra, idx_by_chunk, applicable_index, prefixes,
                                                                     timestmp, z_offset, prefer_pp_nav)
-                    self.intermediate_dat[sec_ident]['xyz'][timestmp] = []
+                    self.intermediate_dat[sys_ident]['xyz'][timestmp] = []
                     self._submit_data_to_cluster(data_for_workers, distrib_run_georeference,
                                                  max_chunks_at_a_time, idx_by_chunk,
-                                                 self.intermediate_dat[sec_ident]['xyz'][timestmp])
+                                                 self.intermediate_dat[sys_ident]['xyz'][timestmp])
                 else:
-                    self.logger.info('No pings found for {}-{}'.format(sec_ident, timestmp))
+                    self.logger.info('No pings found for {}-{}'.format(sys_ident, timestmp))
             if dump_data:
                 self.georef_time_complete = datetime.utcnow().strftime('%c')
-                self.write_intermediate_futs_to_zarr('georef', only_sec_idx=s_cnt, delete_futs=delete_futs, skip_dask=skip_dask)
+                self.write_intermediate_futs_to_zarr('georef', only_sys_idx=s_cnt, delete_futs=delete_futs, skip_dask=skip_dask)
         self.multibeam.reload_pingrecords(skip_dask=skip_dask)
         if self.subset_mintime and self.subset_maxtime:
             self.subset_by_time(self.subset_mintime, self.subset_maxtime)
@@ -2073,30 +1921,29 @@ class Fqpr:
         if self.client is None:  # small datasets benefit from just running it without dask distributed
             skip_dask = True
 
-        sectors = self.multibeam.return_sector_time_indexed_array(subset_time=subset_time)
-        for s_cnt, sector in enumerate(sectors):
+        systems = self.multibeam.return_system_time_indexed_array(subset_time=subset_time)
+        for s_cnt, system in enumerate(systems):
             ra = self.multibeam.raw_ping[s_cnt]
-            sec_ident = ra.sector_identifier
-            sec_info = self.parse_sect_info_from_identifier(sec_ident)
-            self.logger.info('sector info: ' + ', '.join(['{}: {}'.format(k, v) for k, v in sec_info.items()]))
-            self.initialize_intermediate_data(sec_ident, 'tpu')
-            pings_per_chunk, max_chunks_at_a_time = self.get_cluster_params(sec_ident)
+            sys_ident = ra.system_identifier
+            self.logger.info('Operating on system serial number = {}'.format(sys_ident))
+            self.initialize_intermediate_data(sys_ident, 'tpu')
+            pings_per_chunk, max_chunks_at_a_time = self.get_cluster_params()
 
-            for applicable_index, timestmp, prefixes in sector:
+            for applicable_index, timestmp, prefixes in system:
                 self.logger.info('using installation params {}'.format(timestmp))
                 idx_by_chunk = self.return_chunk_indices(applicable_index, pings_per_chunk)
                 if len(idx_by_chunk[0]):  # if there are pings in this sector that align with this installation parameter record
                     data_for_workers = self._generate_chunks_tpu(ra, idx_by_chunk, applicable_index)
                     if data_for_workers is not None:
-                        self.intermediate_dat[sec_ident]['tpu'][timestmp] = []
+                        self.intermediate_dat[sys_ident]['tpu'][timestmp] = []
                         self._submit_data_to_cluster(data_for_workers, distrib_run_calculate_tpu,
                                                      max_chunks_at_a_time, idx_by_chunk,
-                                                     self.intermediate_dat[sec_ident]['tpu'][timestmp])
+                                                     self.intermediate_dat[sys_ident]['tpu'][timestmp])
                 else:
-                    self.logger.info('No pings found for {}-{}'.format(sec_ident, timestmp))
+                    self.logger.info('No pings found for {}-{}'.format(sys_ident, timestmp))
             if dump_data:
                 self.tpu_time_complete = datetime.utcnow().strftime('%c')
-                self.write_intermediate_futs_to_zarr('tpu', only_sec_idx=s_cnt, delete_futs=delete_futs, skip_dask=skip_dask)
+                self.write_intermediate_futs_to_zarr('tpu', only_sys_idx=s_cnt, delete_futs=delete_futs, skip_dask=skip_dask)
         self.multibeam.reload_pingrecords(skip_dask=skip_dask)
         if self.subset_mintime and self.subset_maxtime:
             self.subset_by_time(self.subset_mintime, self.subset_maxtime)
@@ -2105,7 +1952,7 @@ class Fqpr:
         self.logger.info('****Calculating total uncertainty complete: {}s****\n'.format(round(endtime - starttime, 1)))
 
     def export_pings_to_file(self, output_directory: str = None, file_format: str = 'csv', csv_delimiter=' ',
-                             filter_by_detection: bool = True):
+                             filter_by_detection: bool = True, z_pos_down: bool = True, export_by_identifiers: bool = True):
         """
         Uses the output of georef_along_across_depth to build sounding exports.  Currently you can export to csv or las
         file formats, see file_format argument.
@@ -2130,230 +1977,14 @@ class Fqpr:
             optional, if you choose file_format=csv, this will control the delimiter
         filter_by_detection
             optional, if True will only write soundings that are not rejected
+        z_pos_down
+            if True, will export soundings with z positive down (this is the native Kluster convention)
+        export_by_identifiers
+            if True, will generate separate files for each combination of serial number/sector/frequency
         """
-
-        if 'x' not in self.multibeam.raw_ping[0]:
-            self.logger.error('No xyz data found')
-            return
-        if file_format not in ['csv', 'las', 'entwine']:
-            self.logger.error('Only csv, las and entwine format options supported at this time')
-            return
-        if file_format == 'entwine' and not is_pydro():
-            self.logger.error(
-                'Only pydro environments support entwine tile building.  Please see https://entwine.io/configuration.html for instructions on installing entwine if you wish to use entwine outside of Kluster.  Kluster exported las files will work with the entwine build command')
-
-        if output_directory is None:
-            output_directory = self.multibeam.converted_pth
-
-        self.logger.info('****Exporting xyz data to {}****'.format(file_format))
-        starttime = perf_counter()
-
-        tstmp = datetime.now().strftime('%Y%m%d_%H%M%S')
-
-        if file_format == 'csv':
-            fldrname = 'csv_export'
-        elif file_format in ['las', 'entwine']:
-            fldrname = 'las_export'
-        try:
-            fldr_path = os.path.join(output_directory, fldrname)
-            os.mkdir(fldr_path)
-        except FileExistsError:
-            fldr_path = os.path.join(output_directory, fldrname + '_{}'.format(tstmp))
-            os.mkdir(fldr_path)
-
-        for rp in self.multibeam.raw_ping:
-            self.logger.info('Operating on sector {}'.format(rp.sector_identifier))
-            if filter_by_detection and 'detectioninfo' not in rp:
-                self.logger.error('Unable to filter by detection type, detectioninfo not found')
-                return
-
-            uncertainty_included = False
-            x_idx, x_stck = stack_nan_array(rp['x'], stack_dims=('time', 'beam'))
-            y_idx, y_stck = stack_nan_array(rp['y'], stack_dims=('time', 'beam'))
-            z_idx, z_stck = stack_nan_array(rp['z'], stack_dims=('time', 'beam'))
-            if 'tvu' in rp:
-                uncertainty_included = True
-                unc_idx, unc_stck = stack_nan_array(rp['tvu'], stack_dims=('time', 'beam'))
-
-            # build mask with kongsberg detection info
-            classification = None
-            valid_detections = None
-            if 'detectioninfo' in rp:
-                dinfo = self.multibeam.select_array_from_rangeangle('detectioninfo', rp.sector_identifier)
-                filter_stck = dinfo.values[x_idx]
-                # filter_idx, filter_stck = stack_nan_array(dinfo, stack_dims=('time', 'beam'))
-                valid_detections = filter_stck != 2
-                tot = len(filter_stck)
-                tot_valid = np.count_nonzero(valid_detections)
-                tot_invalid = tot - tot_valid
-                self.logger.info('{}: {} total soundings, {} retained, {} filtered'.format(rp.sector_identifier, tot, tot_valid,
-                                                                                tot_invalid))
-            # filter points by mask
-            unc = None
-            if filter_by_detection and valid_detections is not None:
-                x = x_stck[valid_detections]
-                y = y_stck[valid_detections]
-                z = z_stck[valid_detections]
-                classification = filter_stck[valid_detections]
-                if uncertainty_included:
-                    unc = unc_stck[valid_detections]
-            else:
-                x = x_stck
-                y = y_stck
-                z = z_stck
-                if 'detectioninfo' in rp:
-                    classification = filter_stck
-                if uncertainty_included:
-                    unc = unc_stck
-
-            if file_format == 'csv':
-                dest_path = os.path.join(fldr_path, rp.sector_identifier + '.csv')
-
-                self.logger.info('writing to {}'.format(dest_path))
-                if uncertainty_included:
-                    np.savetxt(dest_path, np.c_[x, y, z, unc], fmt=['%3.3f', '%2.3f', '%4.3f', '%4.3f'],
-                               delimiter=csv_delimiter, header='easting, northing, depth, uncertainty', comments='')
-                else:
-                    np.savetxt(dest_path, np.c_[x, y, z], fmt=['%3.3f', '%2.3f', '%4.3f'], delimiter=csv_delimiter,
-                               header='easting, northing, depth', comments='')
-            elif file_format in ['las', 'entwine']:
-                dest_path = os.path.join(fldr_path, rp.sector_identifier + '.las')
-                self.logger.info('writing to {}'.format(dest_path))
-                x = np.round(x.values, 2)
-                y = np.round(y.values, 2)
-                z = np.round(z.values, 3)
-                gps_time = rp.time[x_idx[0]]
-                if filter_by_detection and valid_detections is not None:
-                    gps_time = gps_time[valid_detections]
-                hdr = laspy.header.Header(file_version=1.4, point_format=3)  # pt format 3 includes GPS time
-                hdr.x_scale = 0.01  # xyz precision, las stores data as int
-                hdr.y_scale = 0.01
-                hdr.z_scale = 0.001
-                # offset apparently used to store only differences, but you still write the actual value?  needs more understanding.
-                hdr.x_offset = np.floor(float(x.min()))
-                hdr.y_offset = np.floor(float(y.min()))
-                hdr.z_offset = np.floor(float(z.min()))
-                outfile = laspy.file.File(dest_path, mode='w', header=hdr)
-                outfile.x = x
-                outfile.y = y
-                outfile.z = z
-                outfile.gps_time = gps_time
-                if classification is not None:
-                    classification[np.where(classification < 2)] = 1  # 1 = Unclassified according to LAS spec
-                    classification[np.where(classification == 2)] = 7  # 7 = Low Point (noise) according to LAS spec
-                    outfile.classification = classification.astype(np.int8)
-                # if unc is not None:  # putting it in Intensity for now as integer mm, Intensity is an int16 field
-                #     outfile.intensity = (unc.values * 1000).astype(np.int16)
-                outfile.close()
-
-        if file_format == 'entwine':
-            las_fldr = fldr_path
-            try:
-                fldr_path = os.path.join(output_directory, 'entwine_export')
-                os.mkdir(fldr_path)
-            except FileExistsError:
-                fldr_path = os.path.join(output_directory, 'entwine_export_{}'.format(tstmp))
-                os.mkdir(fldr_path)
-            build_entwine_points(las_fldr, fldr_path)
-
-        endtime = perf_counter()
-        self.logger.info('****Exporting xyz data to {} complete: {}s****\n'.format(file_format,
-                                                                                   round(endtime - starttime, 1)))
-
-    def _export_pings_to_dataset_old(self, outfold: str = None, validate: bool = False):
-        """
-        Write out data variable by variable to the final sounding data store.  First write will write out the useful
-        indexes as well (time, sector, etc.).  Requires existence of georeferenced soundings to perform this function.
-
-        We no longer reform pings from the sector datasets, we just write them out sector by sector.  This means that
-        the sounding set is not necessarily organized geographically or in time order.  I don't think this matters,
-        but i'll leave this here in case future me wants to embarass past me.
-
-        Future me: this causes the beams that are indexed from 0 to max beam for each SECTOR to be included as is in the
-        dataset.  We want beams indexed from 0 to max beam for each PING.  which means we need to reform the pings to
-        get the actual beam number.  Which leads to the new export_pings_to_dataset method.  This is outdated.
-
-        Parameters
-        ----------
-        outfold
-            destination directory for the xyz exports
-        validate
-            if True will use assert statement to verify that the number of soundings between pre and post exported
-            data is equal
-        """
-
-        self.logger.info('\n****Exporting xyz data to dataset****')
-        starttime = perf_counter()
-
-        if 'x' not in self.multibeam.raw_ping[0]:
-            self.logger.error('No xyz data found')
-            return
-
-        if outfold is None:
-            outfold = os.path.join(self.multibeam.converted_pth, 'soundings.zarr')
-        if os.path.exists(outfold):
-            self.logger.error('export_pings_to_dataset: dataset exists already ({}), please remove and run'.format(outfold))
-            raise NotImplementedError('export_pings_to_dataset: dataset exists already ({}), please remove and run'.format(outfold))
-
-        sync = DaskProcessSynchronizer(outfold)
-
-        vars_of_interest = ('x', 'y', 'z', 'tvu', 'thu')
-        dtype_of_interest = (np.float32, np.float32, np.float32, np.float32, np.float32)
-
-        finallength = self.return_sounding_count()
-
-        # build the attributes we want in the final array.  Everything from the raw_ping plus what we need to make
-        #    sense of our new indexes seems good.
-        exist_attrs = self.multibeam.raw_ping[0].attrs.copy()
-        secs = self.return_sector_ids()
-        exist_attrs['serial_number_identifier'] = [int(self.parse_sect_info_from_identifier(f)['serial_number']) for f in secs]
-        exist_attrs['frequency_identifier'] = [int(self.parse_sect_info_from_identifier(f)['frequency']) for f in secs]
-        exist_attrs['sector_identifier'] = [int(self.parse_sect_info_from_identifier(f)['sector']) for f in secs]
-        exist_attrs['xyzdat_export_time'] = datetime.utcnow().strftime('%c')
-
-        detectioninfo_len = np.sum([np.count_nonzero(~np.isnan(self.multibeam.select_array_from_rangeangle('detectioninfo', ra.sector_identifier))) for ra in self.multibeam.raw_ping])
-        x_len = np.sum([np.count_nonzero(~np.isnan(ra.x)) for ra in self.multibeam.raw_ping])
-
-        sounding_index = None
-        if detectioninfo_len != x_len:
-            self.logger.warning('Found uneven arrays, only including detection info where there are valid soundings:')
-            self.logger.warning('soundings: {}'.format(x_len))
-            self.logger.warning('detectioninfo: {}'.format(detectioninfo_len))
-            sounding_index = [~np.isnan(ra.x.stack(stck=('time', 'beam'))) for ra in self.multibeam.raw_ping]
-
-        for cnt, v in enumerate(vars_of_interest):
-            add_idx_vars = False
-            merge = False
-            s_index = None
-            if cnt == 0:
-                # for the first one, write the beam/time/sec index variable arrays as well
-                add_idx_vars = True
-            else:
-                # after the first write where we create the dataset, we need to flag subsequent writes as merge
-                merge = True
-            if v == 'detectioninfo':
-                s_index = sounding_index
-
-            data_for_workers, write_chnk_idxs, chunk_sizes = self._generate_chunks_xyzdat_old(v, finallength,
-                                                                                          dtype_of_interest[cnt],
-                                                                                          add_idx_vars=add_idx_vars,
-                                                                                          s_index=s_index)
-            final_size = write_chnk_idxs[-1][-1]
-            fpths = distrib_zarr_write(outfold, data_for_workers, exist_attrs, chunk_sizes, write_chnk_idxs, final_size,
-                                       sync, self.client, append_dim='sounding', merge=merge,
-                                       show_progress=self.show_progress)
-
-        self.soundings_path = outfold
-        self.reload_soundings_records()
-
-        if validate:  # ensure the sounding count matches
-            pre_soundings_count = np.sum([np.count_nonzero(~np.isnan(f.x)) for f in self.multibeam.raw_ping])
-            post_soundings_count = self.soundings.sounding.shape[0]
-            assert pre_soundings_count == post_soundings_count
-            self.logger.info('export_pings_to_dataset validated successfully')
-
-        endtime = perf_counter()
-        self.logger.info('****Exporting xyz data to dataset complete: {}s****\n'.format(round(endtime - starttime, 1)))
+        self.export.export_pings_to_file(output_directory=output_directory, file_format=file_format,
+                                         csv_delimiter=csv_delimiter, filter_by_detection=filter_by_detection,
+                                         z_pos_down=z_pos_down, export_by_identifiers=export_by_identifiers)
 
     def export_pings_to_dataset(self, outfold: str = None, validate: bool = False):
         """
@@ -2371,59 +2002,7 @@ class Fqpr:
             if True will use assert statement to verify that the number of soundings between pre and post exported
             data is equal
         """
-
-        self.logger.info('\n****Exporting xyz data to dataset****')
-        starttime = perf_counter()
-
-        if 'x' not in self.multibeam.raw_ping[0]:
-            self.logger.error('No xyz data found')
-            return
-
-        if outfold is None:
-            outfold = os.path.join(self.multibeam.converted_pth, 'soundings.zarr')
-        if os.path.exists(outfold):
-            self.logger.error(
-                'export_pings_to_dataset: dataset exists already ({}), please remove and run'.format(outfold))
-            raise NotImplementedError(
-                'export_pings_to_dataset: dataset exists already ({}), please remove and run'.format(outfold))
-
-        sync = DaskProcessSynchronizer(outfold)
-
-        vars_of_interest = ('x', 'y', 'z', 'tvu', 'thu')
-
-        # build the attributes we want in the final array.  Everything from the raw_ping plus what we need to make
-        #    sense of our new indexes seems good.
-        exist_attrs = self.multibeam.raw_ping[0].attrs.copy()
-        secs = self.return_sector_ids()
-        exist_attrs['serial_number_identifier'] = [int(self.parse_sect_info_from_identifier(f)['serial_number']) for f in secs]
-        exist_attrs['frequency_identifier'] = [int(self.parse_sect_info_from_identifier(f)['frequency']) for f in secs]
-        exist_attrs['sector_identifier'] = [int(self.parse_sect_info_from_identifier(f)['sector']) for f in secs]
-        exist_attrs['xyzdat_export_time'] = datetime.utcnow().strftime('%c')
-
-        for cnt, v in enumerate(vars_of_interest):
-            merge = False
-            if cnt != 0:
-                # after the first write where we create the dataset, we need to flag subsequent writes as merge
-                merge = True
-
-            data_for_workers, write_chnk_idxs, chunk_sizes = self._generate_chunks_xyzdat(v)
-            if data_for_workers is not None:
-                final_size = write_chnk_idxs[-1][-1]
-                fpths = distrib_zarr_write(outfold, data_for_workers, exist_attrs, chunk_sizes, write_chnk_idxs,
-                                           final_size, sync, self.client, append_dim='time', merge=merge,
-                                           show_progress=self.show_progress)
-        self.soundings_path = outfold
-        self.reload_soundings_records()
-
-        if validate:
-            # ensure the sounding count matches
-            pre_soundings_count = np.sum([np.count_nonzero(~np.isnan(f.x)) for f in self.multibeam.raw_ping])
-            post_soundings_count = self.soundings.time.shape[0]
-            assert pre_soundings_count == post_soundings_count
-            self.logger.info('export_pings_to_dataset validated successfully')
-
-        endtime = perf_counter()
-        self.logger.info('****Exporting xyz data to dataset complete: {}s****\n'.format(round(endtime - starttime, 1)))
+        self.export.export_pings_to_dataset(outfold=outfold, validate=validate)
 
     def _submit_data_to_cluster(self, data_for_workers: list, kluster_function: Callable, max_chunks_at_a_time: int,
                                 idx_by_chunk: xr.DataArray, futures_repo: list):
@@ -2455,7 +2034,7 @@ class Fqpr:
                 end_r = min(start_r + max_chunks_at_a_time, len(data_for_workers))  # clamp for last run
                 futs = self.client.map(kluster_function, data_for_workers[start_r:end_r])
                 if self.show_progress:
-                    progress(futs)
+                    progress(futs, multi=False)
                 endtimes = [len(c) for c in idx_by_chunk[start_r:end_r]]
                 futs_with_endtime = [[f, endtimes[cnt]] for cnt, f in enumerate(futs)]
                 futures_repo.extend(futs_with_endtime)
@@ -2466,7 +2045,7 @@ class Fqpr:
                 data = kluster_function(dat)
                 futures_repo.append([data, endtime])
 
-    def write_intermediate_futs_to_zarr(self, mode: str, only_sec_idx: int = None, outfold: str = None,
+    def write_intermediate_futs_to_zarr(self, mode: str, only_sys_idx: int = None, outfold: str = None,
                                         delete_futs: bool = False, skip_dask: bool = False):
         """
         Flush some of the intermediate data that was mapped to the cluster (and lives in futures objects) to disk, puts
@@ -2481,7 +2060,7 @@ class Fqpr:
         ----------
         mode
             one of ['orientation', 'bpv', sv_corr', 'georef']
-        only_sec_idx
+        only_sys_idx
             optional, if this is not None, will only write the futures associated with the sector that has the given
             index
         outfold
@@ -2495,7 +2074,7 @@ class Fqpr:
 
         ping_chunks = {'time': (self.multibeam.ping_chunksize,), 'beam': (400,), 'xyz': (3,),
                        'processing_status': (self.multibeam.ping_chunksize, 400),
-                       'tx': (self.multibeam.ping_chunksize, 3), 'rx': (self.multibeam.ping_chunksize, 400, 3),
+                       'tx': (self.multibeam.ping_chunksize, 400, 3), 'rx': (self.multibeam.ping_chunksize, 400, 3),
                        'rel_azimuth': (self.multibeam.ping_chunksize, 400),
                        'corr_pointing_angle': (self.multibeam.ping_chunksize, 400),
                        'alongtrack': (self.multibeam.ping_chunksize, 400),
@@ -2538,7 +2117,7 @@ class Fqpr:
                                             'corr_heave': 'transmitter', 'corr_altitude': 'transmitter to ellipsoid'},
                               'units': {'x': 'meters (+ forward)', 'y': 'meters (+ starboard)',
                                         'z': 'meters (+ down)', 'corr_heave': 'meters (+ down)',
-                                        'corr_altitude': 'meters (+ down)'}}]
+                                        'corr_altitude': 'meters (+ up)'}}]
         elif mode == 'tpu':
             mode_settings = ['tpu', ['tvu', 'thu', 'processing_status'],
                              'total horizontal and vertical uncertainty',
@@ -2559,18 +2138,18 @@ class Fqpr:
         if self.client is not None:
             sync = DaskProcessSynchronizer(outfold)
 
-        sectors = self.multibeam.return_sector_time_indexed_array()
-        for s_cnt, sector in enumerate(sectors):  # for each sector
-            if only_sec_idx is not None:  # isolate just one sector
-                if s_cnt != only_sec_idx:
+        systems = self.multibeam.return_system_time_indexed_array()
+        for s_cnt, system in enumerate(systems):  # for each sector
+            if only_sys_idx is not None:  # isolate just one sector
+                if s_cnt != only_sys_idx:
                     continue
             ra = self.multibeam.raw_ping[s_cnt]
-            sec_ident = ra.sector_identifier
-            outfold_sec = os.path.join(outfold, 'ping_' + sec_ident + '.zarr')
+            sys_ident = ra.system_identifier
+            outfold_sys = os.path.join(outfold, 'ping_' + sys_ident + '.zarr')
             futs_data = []
-            for applicable_index, timestmp, prefixes in sector:  # for each unique install parameter entry in that sector
-                if timestmp in self.intermediate_dat[sec_ident][mode_settings[0]]:
-                    futs = self.intermediate_dat[sec_ident][mode_settings[0]][timestmp]
+            for applicable_index, timestmp, prefixes in system:  # for each unique install parameter entry in that sector
+                if timestmp in self.intermediate_dat[sys_ident][mode_settings[0]]:
+                    futs = self.intermediate_dat[sys_ident][mode_settings[0]][timestmp]
                     for f in futs:
                         try:
                             futs_data.extend([self.client.submit(combine_arrays_to_dataset, f[0], mode_settings[1])])
@@ -2581,11 +2160,11 @@ class Fqpr:
                     time_arrs = self.client.gather(self.client.map(_return_xarray_time, futs_data))
                 else:
                     time_arrs = [_return_xarray_time(tr) for tr in futs_data]
-                data_locs, finalsize = get_write_indices_zarr(outfold_sec, time_arrs)
-                fpths = distrib_zarr_write(outfold_sec, futs_data, mode_settings[3], ping_chunks, data_locs, finalsize,
+                data_locs, finalsize = get_write_indices_zarr(outfold_sys, time_arrs)
+                fpths = distrib_zarr_write(outfold_sys, futs_data, mode_settings[3], ping_chunks, data_locs, finalsize,
                                            sync, self.client, merge=True, skip_dask=skip_dask, show_progress=self.show_progress)
             if delete_futs:
-                del self.intermediate_dat[sec_ident][mode_settings[0]]
+                del self.intermediate_dat[sys_ident][mode_settings[0]]
 
         endtime = perf_counter()
         self.logger.info('Writing {} to disk complete: {}s\n'.format(mode_settings[2], round(endtime - starttime, 1)))
@@ -2621,21 +2200,22 @@ class Fqpr:
             print('return_xyz: unable to find uncertainty for {}'.format(self.multibeam.converted_pth))
             return None
 
+        if start_time is not None or start_time is not None:
+            self.subset_by_time(start_time, end_time)
+
         data = []
         xyz = [[], [], [], []]
         for rp in self.multibeam.raw_ping:
-            rp_sliced = slice_xarray_by_dim(rp, 'time', start_time=start_time, end_time=end_time)
-            if rp_sliced is not None:
-                x_idx, x_stck = stack_nan_array(rp_sliced['x'], stack_dims=('time', 'beam'))
-                y_idx, y_stck = stack_nan_array(rp_sliced['y'], stack_dims=('time', 'beam'))
-                z_idx, z_stck = stack_nan_array(rp_sliced['z'], stack_dims=('time', 'beam'))
+            x_idx, x_stck = stack_nan_array(rp['x'], stack_dims=('time', 'beam'))
+            y_idx, y_stck = stack_nan_array(rp['y'], stack_dims=('time', 'beam'))
+            z_idx, z_stck = stack_nan_array(rp['z'], stack_dims=('time', 'beam'))
 
-                xyz[0].append(x_stck)
-                xyz[1].append(y_stck)
-                xyz[2].append(z_stck)
-                if 'tvu' in rp and include_unc:
-                    unc_idx, unc_stck = stack_nan_array(rp['tvu'], stack_dims=('time', 'beam'))
-                    xyz[3].append(unc_stck)
+            xyz[0].append(x_stck)
+            xyz[1].append(y_stck)
+            xyz[2].append(z_stck)
+            if 'tvu' in rp and include_unc:
+                unc_idx, unc_stck = stack_nan_array(rp['tvu'], stack_dims=('time', 'beam'))
+                xyz[3].append(unc_stck)
 
         if xyz[0]:
             if include_unc and xyz[3]:
@@ -2643,83 +2223,17 @@ class Fqpr:
             else:
                 data = [np.concatenate(xyz[0]), np.concatenate(xyz[1]), np.concatenate(xyz[2])]
 
+        if start_time is not None or start_time is not None:
+            self.restore_subset()
+
         return data
 
-    def return_sector_ids(self):
+    def return_total_pings(self, min_time: float = None, max_time: float = None):
         """
-        Return a list containing the sector ids across all sectors in the fqpr
-
-        dual head sonars will have pings that are the same in time and ping counter.  Only serial number can be
-        used to distinguish.  All we need to do is ensure primary comes first in the loop.
-
-        Returns
-        -------
-        list
-            sector ids as strings
-        """
-
-        ids = []
-        for ra in self.multibeam.raw_ping:
-            ids.append(ra.sector_identifier)
-        if self.multibeam.is_dual_head():
-            primary_sn = str(self.multibeam.raw_ping[0].system_serial_number[0])
-            ids.sort(key=lambda x: x.split('_')[0] == primary_sn, reverse=True)
-        return ids
-
-    def is_primary_system(self, sector_identifier: str):
-        """
-        Take the provided sector identifier string and return boolean for whether or not it is primary system.  We'll
-        know because primary/secondary system identifer is stored as an attribute in the raw_ping datasets.
-
-        Will return True for all sectors if this is not a dual head (only dual head has secondary system)
+        Get the total ping count, optionally within the provided mintime maxtime range
 
         Parameters
         ----------
-        sector_identifier
-            identifier for the sector in format 'serialnumber_sectornumber_freq', ex: '125125_0_200000'
-
-        Returns
-        -------
-        bool
-            if provided sector_identifier is the primary system, returns true.  else returns false
-        """
-
-        # use the attributes from the first raw_ping record as they all have the same attributes
-        primary_sn = str(self.multibeam.raw_ping[0].system_serial_number[0])
-        sector_sn = self.parse_sect_info_from_identifier(sector_identifier)['serial_number']
-        return primary_sn == sector_sn
-
-    def parse_sect_info_from_identifier(self, sector_identifier: str):
-        """
-        Take the format used for sector ids and return the encoded info.
-
-        EX: '40111_1_290000' => serial number = 40111, sector index = 1, frequency = 290000 hz
-
-        Parameters
-        ----------
-        sector_identifier
-            identifier for the sector in format 'serialnumber_sectornumber_freq', ex: '125125_0_200000'
-
-        Returns
-        -------
-        dict
-            dict containing serial number, sector and frequency, all as string
-        """
-
-        sec_info = sector_identifier.split('_')
-        return {'serial_number': sec_info[0], 'sector': sec_info[1], 'frequency': sec_info[2]}
-
-    def return_total_pings(self, only_these_counters: Union[np.array, int] = None, min_time: float = None,
-                           max_time: float = None):
-        """
-        Use the sector identifiers to determine the total pings for this fqpr instance.  Sectors are split by serial
-        number/sector index/frequency, so to get the total pings, we just find all the serial number/frequency
-        combinations and add the time sizes together
-
-        Parameters
-        ----------
-        only_these_counters
-            an array or a single ping counter value to subset the raw_ping dataset by.
         min_time
             the minimum time desired from the raw_ping dataset
         max_time
@@ -2732,25 +2246,61 @@ class Fqpr:
         """
 
         total_pings = 0
-        secs = self.return_sector_ids()
-        secs_info = [self.parse_sect_info_from_identifier(s) for s in secs]
-        sec_index = secs_info[0]['sector']
-        selected_secs = [secs[secs_info.index(info)] for info in secs_info if info['sector'] == sec_index]
-        for sec in selected_secs:
-            raw_ping = self.multibeam.return_ping_by_sector(sec)
-            if min_time is not None:
-                raw_ping = raw_ping.where(raw_ping.time >= min_time, drop=True)
-            if max_time is not None:
-                raw_ping = raw_ping.where(raw_ping.time <= max_time, drop=True)
-            if only_these_counters is not None:
-                total_pings += np.count_nonzero(np.isin(only_these_counters, raw_ping.counter))
-            else:
-                total_pings += raw_ping.time.size
-        if total_pings < only_these_counters.shape[0]:  # for when we get less pings than counters, happens with blowouts
-            total_pings = only_these_counters.shape[0]
+        if min_time is not None or max_time is not None:
+            if min_time is None:
+                min_time = np.min([rp.time.values[0] for rp in self.multibeam.raw_ping])
+            if max_time is None:
+                max_time = np.max([rp.time.values[-1] for rp in self.multibeam.raw_ping])
+            for ra in self.multibeam.raw_ping:
+                slice_ra = slice_xarray_by_dim(ra, dimname='time', start_time=min_time, end_time=max_time)
+                try:
+                    total_pings += slice_ra.time.shape[0]
+                except AttributeError:  # no pings in this slice
+                    pass
+        else:
+            for rp in self.multibeam.raw_ping:
+                total_pings += rp.time.shape[0]
+
         return total_pings
 
-    def subset_by_time(self, mintime: float, maxtime: float):
+    def return_total_soundings(self, min_time: float = None, max_time: float = None):
+        """
+        Return the number of soundings in all systems within this fqpr instance, optionally within the provided mintime maxtime range
+
+        Parameters
+        ----------
+        min_time
+            the minimum time desired from the raw_ping dataset
+        max_time
+            the maximum time desired from the raw_ping dataset
+
+        Returns
+        -------
+        int
+            total number of soundings in the dataset
+        """
+
+        totalcount = 0
+        if min_time is not None or max_time is not None:
+            if min_time is None:
+                min_time = np.min([rp.time.values[0] for rp in self.multibeam.raw_ping])
+            if max_time is None:
+                max_time = np.max([rp.time.values[-1] for rp in self.multibeam.raw_ping])
+            for ra in self.multibeam.raw_ping:
+                slice_ra = slice_xarray_by_dim(ra, dimname='time', start_time=min_time, end_time=max_time)
+                try:
+                    totalcount += np.count_nonzero(~np.isnan(slice_ra.frequency))
+                except AttributeError:  # no pings in this slice
+                    pass
+        else:
+            # count all the valid entries for each sounding in the frequency variable.  Use frequency because it is cheaper
+            #   to load into memory vs the float32 variables
+            for rp in self.multibeam.raw_ping:
+                totalcount += np.count_nonzero(~np.isnan(rp.frequency))
+
+        return totalcount
+
+    def subset_by_time(self, mintime: float = None, maxtime: float = None):
         """
         We save the line start/end time as an attribute within each raw_ping record.  Use this method to pull out
         just the data that is within the mintime/maxtime range (inclusive mintime, exclusive maxtime).  The class will
@@ -2761,10 +2311,17 @@ class Fqpr:
         Parameters
         ----------
         mintime
-            minimum time of the subset
+            minimum time of the subset, if not provided and maxtime is, use the minimum time of the datasets
         maxtime
-            maximum time of the subset
+            maximum time of the subset, if not provided and mintime is, use the maximum time of the datasets
         """
+
+        if mintime is None and maxtime is not None:
+            mintime = np.min([rp.time.values[0] for rp in self.multibeam.raw_ping])
+        if maxtime is None and mintime is not None:
+            maxtime = np.max([rp.time.values[-1] for rp in self.multibeam.raw_ping])
+        if mintime is None and maxtime is None:
+            raise ValueError('subset_by_time: either mintime or maxtime must be provided to subset by time')
 
         if self.backup_fqpr != {}:
             self.restore_subset()
@@ -2802,125 +2359,7 @@ class Fqpr:
             self.logger.error('restore_subset: no subset found to restore from')
             raise ValueError('restore_subset: no subset found to restore from')
 
-    def _reform_build_pings(self, total_pings: int, secs: list, ping_counters: np.array, variable_selection: list,
-                            max_possible_beams: int = 3000, min_time: float = None, max_time: float = None):
-        """
-        Admittedly kind of a messy way to reform pings from the split up sector Dataset.  We use the ping counter and
-        time of ping to do this.  Find all the beams associated with the counter/time and toss them into an array, that
-        has a max length of max_possible_beams.  Make sure max_possible_beams is large enough to contain beams + NaNs,
-        the more sectors you have, the more beam padding you'll have.
-
-        Parameters
-        ----------
-        total_pings
-            expected number of pings
-        secs
-            sector ids for all sectors
-        ping_counters
-            ping counters for all pings
-        variable_selection
-            strings for all variables you want to reform across sectors
-        max_possible_beams
-            some arbitrarily large number of beams to ensure that you capture all beams + NaNs for empty beams in
-            square sector arrays
-        min_time
-            limit accessible pings by minimum time
-        max_time
-            limit accessible pings by maximum time
-
-        Returns
-        -------
-        np.array
-            data for given variable names at that time for all sectors
-        np.array
-            1d array containing times for each ping
-        np.array
-            1d array containing string values indicating the sector each beam value comes from
-        """
-
-        # 2000, an arbitrarily large number to hold all possible beams plus NaNs
-        #    these arrays are where we are going to put all the different sectors for each ping counter
-        out = np.full((len(variable_selection), total_pings, max_possible_beams), np.nan)
-        out_sec = np.empty((1, total_pings, max_possible_beams), dtype=np.uint16)
-        out_tms = np.full((1, total_pings, len(secs)), np.nan)
-
-        # make the second dim long enough for duplicate ping counters in dual head
-        #    these arrays serve as indexes for pushing sectors into the out arrays
-        data_strt = np.zeros((len(variable_selection), len(ping_counters) * 4), dtype=int)
-        data_end = np.zeros((len(variable_selection), len(ping_counters) * 4), dtype=int)
-
-        # build the out arrays by just shoving in blocks of ping/beam data, NaNs and all.  We use the expected shape
-        #    and numpy isnan later to reform the 400 beam pings later on
-        for s_cnt, sec in enumerate(secs):
-            # counter_idxs is the ping counter index for where this sector is active
-            counter_times = self.multibeam.return_active_sectors_for_ping_counter(s_cnt, ping_counters)
-            if min_time is not None:
-                counter_times[counter_times < min_time] = 0.0
-            if max_time is not None:
-                counter_times[counter_times > max_time] = 0.0
-            counter_idxs = np.array(np.where(counter_times != 0)).ravel()
-
-            if np.any(counter_times):
-                time_idx = counter_times[counter_times != 0]
-                for v_cnt, dattype in enumerate(variable_selection):
-                    dat = self.multibeam.select_array_from_rangeangle(dattype, sec, filter_nan=True).sel(time=time_idx)
-                    data_end[v_cnt, counter_idxs] += dat.shape[1]
-                    out[v_cnt, counter_idxs, data_strt[v_cnt, counter_idxs[0]]:data_end[v_cnt, counter_idxs[0]]] = dat
-                    if v_cnt == 0:
-                        out_tms[v_cnt, counter_idxs, s_cnt] = time_idx
-                        out_sec[v_cnt, counter_idxs, data_strt[v_cnt, counter_idxs[0]]:data_end[v_cnt, counter_idxs[0]]] = s_cnt
-                    data_strt[v_cnt, counter_idxs] = data_end[v_cnt, counter_idxs]
-
-        return out, out_tms, out_sec
-
-    def _reform_correct_for_different_lengths(self, out: np.array, variable_selection: tuple,
-                                              actual_var_lengths: np.array, maxbeamnumber: int):
-        """
-        Finding instances of variables having a different amount of NaNs built in to them.  I saw this on the EM2040
-        dual head system on the Hassler, where some Data78 instances had traveltime, but no beampointingangle.  It is
-        kind of strange.  Here we just take the shortest variable (after NaNs are removed) and use that as the index
-        for the other variables.
-
-        Parameters
-        ----------
-        out
-            (number of variables, number of pings, 2000) for the dataset still containing NaN
-        variable_selection
-            str identifiers for each variable, ex: 'x' or 'traveltime'
-        actual_var_lengths
-            number of nans found for each variable in out
-        maxbeamnumber
-            maximum number of beams for this system
-
-        Returns
-        -------
-        np.ndarray
-            (number of variables, number of pings, number of beams) for the dataset without NaN
-        tuple
-            (number of variables, number of pings, number of beams)
-        tuple
-            (1, number of pings, number of beams)
-        np.ndarray
-            (number of variables, number of pings, number of beams) for all non-NaN values in out
-        """
-
-        shortest_arr = int(np.where(actual_var_lengths == np.amin(actual_var_lengths))[0])
-        shortest_idx = ~np.isnan(out[shortest_arr])
-        self.logger.info('Found some variables with different lengths, resizing to {}'.format(
-            variable_selection[shortest_arr]))
-        final_idx = np.zeros_like(out, dtype=bool)
-        for cnt, i in enumerate(actual_var_lengths):
-            self.logger.info('{}: {}'.format(variable_selection[cnt], i))
-            final_idx[cnt] = shortest_idx
-        finalout = out[final_idx]
-        revised_pingcount = int(len(finalout) / len(variable_selection) / maxbeamnumber)
-        expected_shape = (len(variable_selection), revised_pingcount, maxbeamnumber)
-        expected_sec_shape = (1, revised_pingcount, maxbeamnumber)
-        finalout = finalout.reshape(expected_shape)
-        return finalout, expected_shape, expected_sec_shape, final_idx
-
-    def reform_2d_vars_across_sectors_at_time(self, variable_selection: list, ping_times: Union[np.array, float] = None,
-                                              maxbeamnumber: int = 400, as_dataset=False):
+    def subset_variables(self, variable_selection: list, ping_times: Union[np.array, float, tuple] = None):
         """
         Take specific variable names and a time, return the array across all sectors merged into one block.
 
@@ -2938,210 +2377,56 @@ class Fqpr:
         variable_selection
             variable names you want from the fqpr sectors
         ping_times
-            time to select the dataset by
-        maxbeamnumber
-            maximum number of beams for the system
-        as_dataset
-            if True, will return an Xarray Dataset
+            time to select the dataset by, can either be an array of times (will use the min/max of the array to subset),
+            a float for a single time, or a tuple of (min time, max time).  If None, will use the min/max of the dataset
 
         Returns
         -------
-        Union[list, xr.Dataset]
-            list of numpy arrays (data of shape (len(variable_selection), pings, beam), sector identifiers, times)
-            or an xarray Dataset containing this information
-        np.array
-            1d array containing string values indicating the sector each beam value comes from
-        np.array
-            1d array containing times for each ping
+        xr.Dataset
+            Dataset with the
         """
-        if len(self.multibeam.raw_ping) == 1:
-            finalout = []
-            for v in variable_selection:
-                data = self.multibeam.select_array_from_rangeangle(v, self.multibeam.raw_ping[0].sector_identifier)
-                finalout.append(data)
-            finalout = xr.merge(finalout)
-            if as_dataset:
-                return finalout
-            else:
-                finalout, finalsec, finaltms = finalout.to_array().values, \
-                                               np.zeros((1, finalout.time.shape[0], finalout.beam.shape[0])), \
-                                               finalout.time.values
-                return finalout, finalsec, finaltms
 
         if ping_times is None:
-            ping_times = self.return_unique_times_across_sectors()
+            ping_times = (np.min([rp.time.values[0] for rp in self.multibeam.raw_ping]),
+                          np.max([rp.time.values[-1] for rp in self.multibeam.raw_ping]))
 
-        self.multibeam.correct_for_counter_reset()
-        ping_counters = self.multibeam.return_ping_counters_at_time(ping_times)
-        secs = self.return_sector_ids()
         if isinstance(ping_times, float):
             min_time, max_time = ping_times, ping_times
+        elif isinstance(ping_times, tuple):
+            min_time, max_time = ping_times
         else:
             min_time, max_time = float(np.min(ping_times)), float(np.max(ping_times))
 
-        total_pings = self.return_total_pings(only_these_counters=ping_counters, min_time=min_time, max_time=max_time)
+        self.subset_by_time(min_time, max_time)
 
-        # after merging sectors, shape of final array should be as follows
-        expected_shape = (len(variable_selection), int(total_pings), maxbeamnumber)
-        expected_sec_shape = (1, int(total_pings), maxbeamnumber)
-        out, out_tms, out_sec = self._reform_build_pings(total_pings, secs, ping_counters, variable_selection,
-                                                         min_time=min_time, max_time=max_time)
-
-        # reform pings using the expected shape
-        if np.any(out):
-            final_idx = ~np.isnan(out)
-            finalout = out[final_idx]
-            finaltms = np.nanmin(out_tms, axis=2).ravel()
-            try:
-                finalout = finalout.reshape(expected_shape)
-                finalsec = out_sec[np.expand_dims(final_idx[0], axis=0)].reshape(expected_sec_shape)
-            except ValueError:
-                # no good, we couldn't predict the shape, either we got the ping count wrong (they skipped a ping or
-                # something) or the beam count isn't 400.  Try letting numpy figure out ping / beam count
-                try:
-                    new_shape = (expected_shape[0], -1, expected_shape[2])
-                    finalout = finalout.reshape(new_shape)
-                    finalsec = out_sec[np.expand_dims(final_idx[0], axis=0)].reshape(new_shape)
-                    print('Expected shape {}, ended up using {} by autodetecting the ping count (pings={})'.format(expected_shape, new_shape, finalout.shape[1]))
-                except ValueError:
-                    new_shape = (expected_shape[0], expected_shape[1], -1)
-                    finalout = finalout.reshape(new_shape)
-                    finalsec = out_sec[np.expand_dims(final_idx[0], axis=0)].reshape((1, finalout.shape[1], finalout.shape[2]))
-                    print('Expected shape {}, ended up using {} by autodetecting the beam number (beams={})'.format(expected_shape, new_shape, finalout.shape[2]))
-
-            if finaltms.shape[0] != finalout.shape[1]:
-                print('After resampling, expected time dim equal to total pings {}, found {}'.format(finalout.shape[1],
-                                                                                                     finaltms.shape[0]))
-            if np.isnan(finaltms).any():
-                print('Found pings at the same time, duplicating ping times by ping index...')
-                actual_beam_number = finalout.shape[2]
-                pings_per_time = np.count_nonzero(final_idx, axis=2) / actual_beam_number
-                try:
-                    finaltms = finaltms[~np.isnan(finaltms)]
-                    finaltms = np.repeat(finaltms, pings_per_time[pings_per_time != 0].astype(np.int))
-                except ValueError:
-                    self.logger.error('duplicated ping times do not match ping indices!  Unable to proceed.')
-                    return None, None, None
-
-            if as_dataset:
-                dataset_variables = {x: (['time', 'beam'], finalout[cnt, :, :]) for cnt, x in enumerate(variable_selection)}
-                dataset_variables['sector_identifier'] = (['time', 'beam'], finalsec[0, :, :])
-                coords = {'time': finaltms, 'beam': np.arange(finalsec.shape[2])}
-                dset = xr.Dataset(dataset_variables, coords, {'sectors': [ra.sector_identifier for ra in self.multibeam.raw_ping]})
-                return dset
+        dataset_variables = {}
+        times = np.concatenate([rp.time.values for rp in self.multibeam.raw_ping]).flatten()
+        systems = np.concatenate([[rp.system_identifier] * rp.time.shape[0] for rp in self.multibeam.raw_ping]).flatten().astype(np.int32)
+        for var in variable_selection:
+            if self.multibeam.raw_ping[0][var].ndim == 2:
+                if self.multibeam.raw_ping[0][var].dims == ('time', 'beam'):
+                    dataset_variables[var] = (['time', 'beam'], np.concatenate([rp[var] for rp in self.multibeam.raw_ping]))
+                else:
+                    raise ValueError('Only time and beam dimensions are suppoted, found {} for {}'.format(self.multibeam.raw_ping[0][var].dims,
+                                                                                                          var))
+            elif self.multibeam.raw_ping[0][var].ndim == 1:
+                if self.multibeam.raw_ping[0][var].dims == ('time',):
+                    dataset_variables[var] = (['time'], np.concatenate([rp[var] for rp in self.multibeam.raw_ping]))
+                else:
+                    raise ValueError('Only time and beam dimensions are suppoted, found {} for {}'.format(self.multibeam.raw_ping[0][var].dims,
+                                                                                                          var))
             else:
-                return finalout, finalsec, finaltms
-        else:
-            self.logger.error('Unable to find records for {} for time {}'.format(variable_selection, ping_times))
-            return None
+                raise ValueError('Only 2 and 1 dimension variables are supported, {}} is {} dim'.format(var,
+                                                                                                        self.multibeam.raw_ping[0][var].ndim))
 
-    def reform_1d_vars_across_sectors_at_time(self, variable_selection: list, ping_times: Union[np.array, float],
-                                              serial_number: str = None):
-        """
-        Method for taking one dimensional (time) variable names and returning the values at the given times (ping_times)
-        across all sectors.  ping_times can be from any/all sector(s)
+        dataset_variables['system_identifier'] = (['time'], systems)
+        coords = {'time': times, 'beam': np.arange(dataset_variables[var][1].shape[1])}
+        dset = xr.Dataset(dataset_variables, coords)
+        dset = dset.sortby('time')
 
-        An optional serial number can be provided to isolate one system in dual head configuration
+        self.restore_subset()
 
-        Parameters
-        ----------
-        variable_selection
-            variable names you want from the fqpr sectors
-        ping_times
-            time to select the dataset by
-        serial_number
-            serial number identifier for dual head systems, if not provided will prefer the first serial number found
-
-        Returns
-        -------
-        np.array
-            data for given variable names at that time for all sectors (variable, ping)
-        np.array
-            1d array containing times for each ping
-        """
-
-        self.multibeam.correct_for_counter_reset()
-        ping_counters = self.multibeam.return_ping_counters_at_time(ping_times)
-        secs = self.return_sector_ids()
-        if isinstance(ping_times, float):
-            min_time, max_time = ping_times, ping_times
-        else:
-            min_time, max_time = ping_times[0], ping_times[-1]
-        total_pings = self.return_total_pings(only_these_counters=ping_counters)
-
-        if serial_number is not None:
-            ser_num = str(serial_number)
-        else:
-            ser_num = self.parse_sect_info_from_identifier(secs[0])['serial_number']
-        secs = [s for s in secs if self.parse_sect_info_from_identifier(s)['serial_number'] == ser_num]
-        if not secs:
-            print('No sectors found matching serial number {}'.format(ser_num))
-            return
-
-        out = np.full((len(variable_selection), total_pings), np.nan)
-        out_tms = np.full((1, total_pings), np.nan)
-
-        for s_cnt, sec in enumerate(secs):
-            counter_times = self.multibeam.return_active_sectors_for_ping_counter(s_cnt, ping_counters)
-            counter_times[counter_times < min_time] = 0.0
-            counter_times[counter_times > max_time] = 0.0
-            counter_idxs = np.array(np.where(counter_times != 0)).ravel()
-            if np.any(counter_times):
-                time_idx = counter_times[counter_times != 0]
-                for v_cnt, dattype in enumerate(variable_selection):
-                    dat = self.multibeam.select_array_from_rangeangle(dattype, sec).sel(time=time_idx)
-                    out[v_cnt, counter_idxs] = dat
-                    if v_cnt == 0:
-                        out_tms[v_cnt, counter_idxs] = time_idx
-        return out, out_tms
-
-    def return_times_across_sectors(self):
-        """
-        Return all the times that are within at least one sector in the fqpr dataset.  If a time shows up twice
-        (EM2040c will do this, with two sectors and no delay between them), return the array sorted so that the time
-        shows up twice in the returned array as well.
-
-        Returns
-        -------
-        np.array
-            1d array of timestamps
-        """
-
-        tims = np.concatenate([ra.time.values for ra in self.multibeam.raw_ping])
-        tims.sort()
-        return tims
-
-    def return_sounding_count(self):
-        """
-        Return the number of soundings in the processed georeference data.  Requires georeferenced processed data
-        in this Fqpr instance
-
-        Returns
-        -------
-        int
-            total number of soundings in the dataset
-        """
-
-        if 'x' not in self.multibeam.raw_ping[0]:
-            self.logger.error('No xyz data found')
-            return None
-
-        totalcount = 0
-        for rp in self.multibeam.raw_ping:
-            totalcount += np.count_nonzero(~np.isnan(rp.x.values))
-        return totalcount
-
-    def return_unique_times_across_sectors(self):
-        """
-        Return all the unique times that are within at least one sector in the fqpr dataset
-
-        Returns
-        -------
-        np.array
-            1d array of timestamps
-        """
-
-        return np.unique(np.concatenate([ra.time.values for ra in self.multibeam.raw_ping]))
+        return dset
 
     def return_line_dict(self):
         """
@@ -3220,7 +2505,7 @@ class Fqpr:
                 self.logger.info('{}: {} times'.format(mode[idx], cnts))
         return mode
 
-    def return_rounded_freq(self):
+    def return_rounded_frequency(self):
         """
         Returns the frequency rounded to match the freq settings commonly given with sonar manufacturer settings.  If
         you have entries like [270000, 290000, 310000, 330000], it returns [300000].  If its something like [69000, 71000]
@@ -3232,15 +2517,13 @@ class Fqpr:
             array of rounded frequencies
         """
 
-        rounded_freqs = []
-        f_idents = self.soundings.frequency_identifier
-        lens = np.unique([len(str(id)) for id in f_idents])
-        for l in lens:  # all freqs are of the same length (should be true)
-            freqs = [f for f in f_idents if len(str(f)) == l]
-            digits = -(len(str(freqs[0])) - 1)
-            rounded_freqs.extend(list(np.unique([np.around(f, digits) for f in freqs])))
-        if len(rounded_freqs) > 1:
-            self.logger.info('Found multiple unique rounded frequencies: {}'.format(rounded_freqs))
+        freq_numbers = np.unique([np.unique(rp.frequency) for rp in self.multibeam.raw_ping])
+        lens = np.max(np.unique([len(str(id)) for id in freq_numbers]))
+
+        freqs = [f for f in freq_numbers if len(str(f)) == lens]
+        digits = -(len(str(freqs[0])) - 1)
+        rounded_freqs = list(np.unique([np.around(f, digits) for f in freqs]))
+
         return rounded_freqs
 
     def return_downsampled_navigation(self, sample: float = 0.01, start_time: float = None, end_time: float = None):
@@ -3277,39 +2560,6 @@ class Fqpr:
 
         return sampl_nav.latitude, sampl_nav.longitude
 
-    def return_processing_status(self):
-        """
-        Returns the processing status for this Fqpr instance.  Processing status is simply the lowest status for each
-        line segment in the processed multibeam.  We don't store anything in a line by line basis, so this has to be
-        recreated basically.
-
-        | fqpr_inst.return_processing_status()
-        |
-        | {'0049_20201014_001343_RonaldBrown.all': {'mintime': 1602634423.504, 'maxtime': 1602635018.443,
-        |                                           '116_0_011000': 'tpu', '116_0_012200': 'tpu', '116_1_011600': 'tpu',
-        |                                           '116_1_013400': 'tpu', '116_2_010400': 'tpu', '116_2_012800': 'tpu',
-        |                                           '116_3_011000': 'tpu', '116_3_012200': 'tpu'},...
-
-        Returns
-        -------
-        dict
-            keys are the line names and the values are dicts of minimum line time, maximum line time, and the processing
-            status for each sector
-        """
-
-        status_set = {ln: {'mintime': val[0], 'maxtime': val[1]} for ln, val in self.multibeam.raw_ping[0].multibeam_files.items()}
-        for ra in self.multibeam.raw_ping:
-            unique_status, cnts = np.unique(ra.processing_status, return_counts=True)
-            if len(unique_status) == 1:  # if all soundings have the same state, we skip the line wise query
-                for ln in list(ra.multibeam_files.keys()):
-                    status_set[ln][ra.sector_identifier] = ra.status_lookup[str(int(unique_status))]
-            else:  # find the lowest status of each line
-                print('{}: Found multiple processing statuses'.format(ra.sector_identifier))
-                for ln, times in ra.multibeam_files.items():
-                    line_status = slice_xarray_by_dim(ra.processing_status, 'time', times[0], times[1])
-                    status_set[ln][ra.sector_identifier] = ra.status_lookup[str(int(line_status.min()))]
-        return status_set
-
     def return_processing_dashboard(self):
         """
         Return the necessary data for a dashboard like view of this fqpr instance.  Currently we are concerned with
@@ -3342,19 +2592,18 @@ class Fqpr:
         status_lookup = self.multibeam.raw_ping[0].status_lookup
         dashboard['multibeam_files'] = self.multibeam.raw_ping[0].multibeam_files
         for ra in self.multibeam.raw_ping:
-
-            dashboard['sounding_status'][ra.sector_identifier] = {i: 0 for i in list(status_lookup.values())}
+            dashboard['sounding_status'][ra.system_identifier] = {i: 0 for i in list(status_lookup.values())}
             unique_status, cnts = np.unique(ra.processing_status, return_counts=True)
             for i in list(status_lookup.keys()):
                 if int(i) in unique_status:
-                    dashboard['sounding_status'][ra.sector_identifier][status_lookup[str(i)]] = cnts[list(unique_status).index(int(i))]
+                    dashboard['sounding_status'][ra.system_identifier][status_lookup[str(i)]] = cnts[list(unique_status).index(int(i))]
 
-            dashboard['last_run'][ra.sector_identifier] = {'_conversion_complete': '', '_compute_orientation_complete': '',
+            dashboard['last_run'][ra.system_identifier] = {'_conversion_complete': '', '_compute_orientation_complete': '',
                                                            '_compute_beam_vectors_complete': '', '_sound_velocity_correct_complete': '',
                                                            '_georeference_soundings_complete': '', '_total_uncertainty_complete': ''}
-            for ky in list(dashboard['last_run'][ra.sector_identifier].keys()):
+            for ky in list(dashboard['last_run'][ra.system_identifier].keys()):
                 if ky in ra.attrs:
-                    dashboard['last_run'][ra.sector_identifier][ky] = ra.attrs[ky]
+                    dashboard['last_run'][ra.system_identifier][ky] = ra.attrs[ky]
         return dashboard
 
 

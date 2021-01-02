@@ -17,7 +17,7 @@ def distrib_run_build_orientation_vectors(dat: list):
     Parameters
     ----------
     dat
-        [raw_att, twtt, fut_tx_tstmp_idx, tx_orientation, rx_orientation, latency]
+        [raw_att, twtt, delay, fut_tx_tstmp_idx, tx_orientation, rx_orientation, latency]
 
     Returns
     -------
@@ -25,7 +25,7 @@ def distrib_run_build_orientation_vectors(dat: list):
         [tx_vectors, rx_vectors, processing_status]
 
     """
-    ans = build_orientation_vectors(dat[0], dat[1], dat[2], dat[3], dat[4], dat[5])
+    ans = build_orientation_vectors(dat[0], dat[1], dat[2], dat[3], dat[4], dat[5], dat[6])
     # return processing status = 1 for all affected soundings
     processing_status = xr.DataArray(np.full_like(dat[1], 1, dtype=np.uint8),
                                      coords={'time': dat[1].coords['time'], 'beam': dat[1].coords['beam']},
@@ -34,7 +34,7 @@ def distrib_run_build_orientation_vectors(dat: list):
     return ans
 
 
-def build_orientation_vectors(raw_att: xr.Dataset, twtt: xr.DataArray, tx_tstmp_idx: xr.DataArray,
+def build_orientation_vectors(raw_att: xr.Dataset, twtt: xr.DataArray, delay: xr.DataArray, tx_tstmp_idx: xr.DataArray,
                               tx_orientation: list, rx_orientation: list, latency: float = 0):
     """
     Using attitude angles, mounting angles, build the tx/rx vectors that represent the orientation of the tx/rx at
@@ -50,6 +50,8 @@ def build_orientation_vectors(raw_att: xr.Dataset, twtt: xr.DataArray, tx_tstmp_
         raw attitude Dataset including roll, pitch, yaw
     twtt
         2dim (time/beam) array of timestamps representing time traveling through water for each beam
+    delay
+        2dim (time/beam) array of delays for each beam (must be added to ping time)
     tx_tstmp_idx
         1D ping times from the DataSet
     tx_orientation
@@ -69,13 +71,14 @@ def build_orientation_vectors(raw_att: xr.Dataset, twtt: xr.DataArray, tx_tstmp_
 
     """
     # generate rotation matrices for the transmit array at time of ping
-    txatt = interp_across_chunks(raw_att, tx_tstmp_idx + latency)
-    tx_att_times, tx_attitude_rotation = return_attitude_rotation_matrix(txatt)
+    new_tx_tstmp_idx, tx_inv_idx, tx_interptimes = get_times(tx_tstmp_idx + latency, delay)
+    txatt = interp_across_chunks(raw_att, tx_interptimes.compute())
+    tx_att_times, tx_attitude_rotation = return_attitude_rotation_matrix(txatt, time_index=tx_inv_idx)
 
     # generate rotation matrices for receive array at time of receive, ping + twtt
-    rx_tstmp_idx, inv_idx, rx_interptimes = get_receive_times(tx_tstmp_idx + latency, twtt)
+    rx_tstmp_idx, rx_inv_idx, rx_interptimes = get_times(tx_tstmp_idx + latency, twtt + delay)
     rxatt = interp_across_chunks(raw_att, rx_interptimes.compute())
-    rx_att_times, rx_attitude_rotation = return_attitude_rotation_matrix(rxatt, time_index=inv_idx)
+    rx_att_times, rx_attitude_rotation = return_attitude_rotation_matrix(rxatt, time_index=rx_inv_idx)
 
     # Build orientation matrices for mounting angles
     tx_mount_rotation = return_mounting_rotation_matrix(tx_orientation[1], tx_orientation[2], tx_orientation[3],
@@ -88,9 +91,13 @@ def build_orientation_vectors(raw_att: xr.Dataset, twtt: xr.DataArray, tx_tstmp_
 
     # the final vectors are just the rotations applied to the starter vectors.
     # you will see a np.float32 cast for the starter vectors to avoid ending up with float64 (mem hog)
+
     final_tx_vec = xr.DataArray(final_tx_rot.data @ np.float32(tx_orientation[0]),
                                 coords={'time': tx_att_times - latency, 'xyz': ['x', 'y', 'z']},
                                 dims=['time', 'xyz'])
+    final_tx_vec = reform_nan_array(final_tx_vec, new_tx_tstmp_idx, twtt.shape + (3,),
+                                    [twtt.coords['time'], twtt.coords['beam'], final_tx_vec['xyz']],
+                                    twtt.dims + ('xyz',))
     final_rx_vec = xr.DataArray(final_rx_rot.data @ np.float32(rx_orientation[0]),
                                 coords={'time': rx_att_times - latency, 'xyz': ['x', 'y', 'z']},
                                 dims=['time', 'xyz'])
@@ -107,9 +114,9 @@ def build_orientation_vectors(raw_att: xr.Dataset, twtt: xr.DataArray, tx_tstmp_
     return [tx_vecs, rx_vecs]
 
 
-def get_receive_times(pingtime: xr.DataArray, twtt: xr.DataArray):
+def get_times(pingtime: xr.DataArray, additional: xr.DataArray):
     """
-    Given ping time and two way travel time, return the time of receive for each beam.  Provides unique times, as
+    Given ping time and beamwise time addition, return the time for each beam.  Provides unique times, as
     by just adding ping time and twtt, you might end up with duplicate times.  To get back to beamwise times, an
     index is provided that you can select by.
 
@@ -117,8 +124,8 @@ def get_receive_times(pingtime: xr.DataArray, twtt: xr.DataArray):
     ----------
     pingtime
         1dim array of timestamps representing time of ping
-    twtt
-        2dim (time/beam) array of timestamps representing time traveling through water for each beam
+    additional
+        2dim (time/beam) array of timestamps representing additional delay
 
     Returns
     -------
@@ -130,7 +137,7 @@ def get_receive_times(pingtime: xr.DataArray, twtt: xr.DataArray):
         1 dim array of timestamps for unique times of receive
 
     """
-    rx_tstmp = pingtime + twtt
+    rx_tstmp = pingtime + additional
     rx_tstmp_idx, rx_tstmp_stck = stack_nan_array(rx_tstmp, stack_dims=('time', 'beam'))
     unique_rx_times, inv_idx = np.unique(rx_tstmp_stck.values, return_inverse=True)
     rx_interptimes = xr.DataArray(unique_rx_times, coords=[unique_rx_times], dims=['time']).chunk()

@@ -714,9 +714,14 @@ def run_ray_trace(dim_angle: np.array, dim_raytime: np.ndarray, lkup_across_dist
     del interp_acrossvals
 
     if offsets:
-        newacross = newacross + offsets[1]
-        newalong = newalong + offsets[0]
-        interp_downvals = interp_downvals + offsets[2]
+        try:  # offsets provided as a numpy array
+            newacross = newacross + offsets[1].ravel()
+            newalong = newalong + offsets[0].ravel()
+            interp_downvals = interp_downvals + offsets[2].ravel()
+        except:  # offsets provided as float
+            newacross = newacross + offsets[1]
+            newalong = newalong + offsets[0]
+            interp_downvals = interp_downvals + offsets[2]
 
     reformed_across = reform_nan_array(newacross, beam_idx, orig_shape, orig_coords, orig_dims)
     reformed_downvals = reform_nan_array(interp_downvals, beam_idx, orig_shape, orig_coords, orig_dims)

@@ -6,7 +6,7 @@ from PySide2 import QtGui, QtCore, QtWidgets
 
 from HSTB.kluster.gui import dialog_vesselview, kluster_explorer, kluster_project_tree, kluster_3dview, kluster_attitudeview, \
     kluster_output_window, kluster_2dview, dialog_conversion, dialog_all_processing, dialog_daskclient, dialog_surface, \
-    dialog_export, kluster_worker, kluster_interactive_console, dialog_importnav
+    dialog_export, kluster_worker, kluster_interactive_console, dialog_importnav, dialog_basicplot
 from HSTB.kluster.fqpr_project import FqprProject
 from HSTB.kluster.fqpr_helpers import return_files_from_path
 from HSTB.shared import RegistryHelpers
@@ -38,7 +38,8 @@ class KlusterMain(QtWidgets.QMainWindow):
 
         self.widget_obj_names = []
 
-        self.project = FqprProject(is_gui=True)
+        # fqpr = fully qualified ping record, the term for the datastore in kluster
+        self.project = FqprProject(is_gui=False)
 
         self.project_tree = kluster_project_tree.KlusterProjectTree(self)
         self.tree_dock = self.dock_this_widget('Project Tree', 'project_dock', self.project_tree)
@@ -65,6 +66,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.console_dock = self.dock_this_widget('Console', 'console_dock', self.console)
 
         self.vessel_win = None
+        self.basicplots_win = None
 
         self.iconpath = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'images', 'kluster_img.ico')
         self.setWindowIcon(QtGui.QIcon(self.iconpath))
@@ -134,6 +136,9 @@ class KlusterMain(QtWidgets.QMainWindow):
         surface_action = QtWidgets.QAction('New Surface', self)
         surface_action.triggered.connect(self._action_surface_generation)
 
+        basicplots_action = QtWidgets.QAction('Basic Plots', self)
+        basicplots_action.triggered.connect(self._action_basicplots)
+
         menubar = self.menuBar()
         file = menubar.addMenu("File")
         file.addAction(new_proj_action)
@@ -156,12 +161,17 @@ class KlusterMain(QtWidgets.QMainWindow):
         process.addAction(all_process_action)
         process.addAction(surface_action)
 
+        visual = menubar.addMenu('Visualize')
+        visual.addAction(basicplots_action)
+
     def update_on_file_added(self, fil=''):
         """
         Adding a new path to a fqpr data store will update all the child widgets.  Will also load the data and add it
         to this class' project.
 
         Menubar Convert Multibeam will just run this method with empty fil to get to the convert dialog
+
+        fqpr = fully qualified ping record, the term for the datastore in kluster
 
         Parameters
         ----------
@@ -178,8 +188,8 @@ class KlusterMain(QtWidgets.QMainWindow):
         new_fqprs = []
 
         for f in fil:
-            possible_multibeam_files = return_files_from_path(f, file_ext='.all')
-            possible_surface_files = return_files_from_path(f, file_ext='.npz')
+            possible_multibeam_files = return_files_from_path(f, file_ext=('.kmall', '.all'))
+            possible_surface_files = return_files_from_path(f, file_ext=('.npz',))
             if possible_multibeam_files or possible_surface_files:
                 multibeamfiles.extend(possible_multibeam_files)
                 surfaces.extend(possible_surface_files)
@@ -270,7 +280,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         """
         absolute_fqpath = self.project._absolute_path_from_relative(pth)
         self.console.runCmd('data = reload_data(r"{}", skip_dask=True)'.format(absolute_fqpath))
-        self.console.runCmd('first_sector = data.multibeam.raw_ping[0]')
+        self.console.runCmd('first_system = data.multibeam.raw_ping[0]')
         self.console.runCmd('nav = data.multibeam.raw_nav')
         self.console.runCmd('att = data.multibeam.raw_att')
 
@@ -324,7 +334,7 @@ class KlusterMain(QtWidgets.QMainWindow):
 
         If you have a data container selected, it will populate from it's xyzrph attribute.
         """
-        fqprs = self.project_tree.return_selected_fqprs()
+        fqprs = self.return_selected_fqprs()
 
         self.vessel_win = None
         self.vessel_win = dialog_vesselview.VesselWidget()
@@ -334,6 +344,20 @@ class KlusterMain(QtWidgets.QMainWindow):
             self.vessel_win.xyzrph = first_fqpr_instance.source_dat.xyzrph
             self.vessel_win.load_from_existing_xyzrph()
         self.vessel_win.show()
+
+    def kluster_basic_plots(self):
+        """
+        Runs the basic plots dialog, for plotting the variables using the xarray/matplotlib functionality
+        """
+        fqprs = self.return_selected_fqprs()
+
+        self.basicplots_win = None
+        self.basicplots_win = dialog_basicplot.BasicPlotDialog()
+
+        if fqprs:
+            self.basicplots_win.data_widget.new_fqpr_path(fqprs[0])
+            self.basicplots_win.data_widget.initialize_controls()
+        self.basicplots_win.show()
 
     def kluster_convert_multibeam(self, fil):
         """
@@ -357,7 +381,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         else:
             dlog = dialog_conversion.ConversionDialog()
             dlog.show()
-            dlog.update_multibeam_files(return_files_from_path(fil, file_ext='.all'))
+            dlog.update_multibeam_files(return_files_from_path(fil, file_ext=('.kmall', '.all')))
             cancelled = False
             if dlog.exec_():
                 output_folder = dlog.output_pth
@@ -404,7 +428,7 @@ class KlusterMain(QtWidgets.QMainWindow):
             print('Processing is already occurring.  Please wait for the process to finish')
             cancelled = True
         else:
-            fqprs = self.project_tree.return_selected_fqprs()
+            fqprs = self.return_selected_fqprs()
             dlog = dialog_all_processing.AllProcessingDialog()
             dlog.update_fqpr_instances(addtl_files=fqprs)
             cancelled = False
@@ -415,10 +439,11 @@ class KlusterMain(QtWidgets.QMainWindow):
                     fqprs = mbes_opts.pop('fqpr_inst')
                     fq_chunks = []
                     for fq in fqprs:
-                        if fq not in self.project.fqpr_instances:
-                            self.project.add_fqpr(fq)
-                        if fq in self.project.fqpr_instances:
-                            fq_inst = self.project.fqpr_instances[fq]
+                        relfq = self.project.path_relative_to_project(fq)
+                        if relfq not in self.project.fqpr_instances:
+                            self.update_on_file_added(fq)
+                        if relfq in self.project.fqpr_instances:
+                            fq_inst = self.project.fqpr_instances[relfq]
                             # use the project client, or start a new LocalCluster if client is None
                             fq_inst.client = self.project.get_dask_client()
                             fq_chunks.append([fq_inst, mbes_opts])
@@ -457,7 +482,7 @@ class KlusterMain(QtWidgets.QMainWindow):
             print('Processing is already occurring.  Please wait for the process to finish')
             cancelled = True
         else:
-            fqprs = self.project_tree.return_selected_fqprs()
+            fqprs = self.return_selected_fqprs()
             dlog = dialog_importnav.ImportNavigationDialog()
             dlog.update_fqpr_instances(addtl_files=fqprs)
             cancelled = False
@@ -468,10 +493,11 @@ class KlusterMain(QtWidgets.QMainWindow):
                     fqprs = nav_opts.pop('fqpr_inst')
                     fq_chunks = []
                     for fq in fqprs:
-                        if fq not in self.project.fqpr_instances:
-                            self.project.add_fqpr(fq)
-                        if fq in self.project.fqpr_instances:
-                            fq_inst = self.project.fqpr_instances[fq]
+                        relfq = self.project.path_relative_to_project(fq)
+                        if relfq not in self.project.fqpr_instances:
+                            self.update_on_file_added(fq)
+                        if relfq in self.project.fqpr_instances:
+                            fq_inst = self.project.fqpr_instances[relfq]
                             # use the project client, or start a new LocalCluster if client is None
                             fq_inst.client = self.project.get_dask_client()
                             fq_chunks.append([fq_inst, nav_opts])
@@ -511,7 +537,7 @@ class KlusterMain(QtWidgets.QMainWindow):
             cancelled = True
         else:
             cancelled = False
-            fqprs = self.project_tree.return_selected_fqprs()
+            fqprs = self.return_selected_fqprs()
             dlog = dialog_surface.SurfaceDialog()
             dlog.update_fqpr_instances(addtl_files=fqprs)
             if dlog.exec_():
@@ -520,16 +546,21 @@ class KlusterMain(QtWidgets.QMainWindow):
                 if opts is not None and not cancelled:
                     surface_opts = opts
                     fqprs = surface_opts.pop('fqpr_inst')
-                    fqpr_objects = []
+                    fq_chunks = []
                     for fq in fqprs:
-                        if fq not in self.project.fqpr_instances:
-                            self.project.add_fqpr(fq)
-                        fqpr_objects.append(self.project.fqpr_instances[fq])
+                        relfq = self.project.path_relative_to_project(fq)
+                        if relfq not in self.project.fqpr_instances:
+                            self.update_on_file_added(fq)
+                        if relfq in self.project.fqpr_instances:
+                            fq_inst = self.project.fqpr_instances[relfq]
+                            # use the project client, or start a new LocalCluster if client is None
+                            fq_inst.client = self.project.get_dask_client()
+                            fq_chunks.extend([fq_inst])
 
                     opts['client'] = self.project.get_dask_client()
                     if not dlog.canceled:
                         # if the project has a client, use it here.  If None, BatchRead starts a new LocalCluster
-                        self.surface_thread.populate(fqpr_objects, opts)
+                        self.surface_thread.populate(fq_chunks, opts)
                         self.surface_thread.start()
         if cancelled:
             print('kluster_surface_generation: Processing was cancelled')
@@ -544,7 +575,7 @@ class KlusterMain(QtWidgets.QMainWindow):
             self.project.add_surface(fq_surf)
             self.redraw()
         else:
-            print('kluster_all_processing: Unable to complete process')
+            print('kluster_surface_generation: Unable to complete process')
 
     def kluster_export(self):
         """
@@ -554,24 +585,29 @@ class KlusterMain(QtWidgets.QMainWindow):
             print('Processing is already occurring.  Please wait for the process to finish')
             cancelled = True
         else:
-            fqprs = self.project_tree.return_selected_fqprs()
+            fqprs = self.return_selected_fqprs()
             dlog = dialog_export.ExportDialog()
             dlog.update_fqpr_instances(addtl_files=fqprs)
             cancelled = False
             if dlog.exec_():
                 export_type = dlog.export_opts.currentText()
+                delimiter = dlog.csvdelimiter_dropdown.currentText()
+                filterset = dlog.filter_chk.isChecked()
+                separateset = dlog.byidentifier_chk.isChecked()
+                z_pos_down = dlog.zdirect_check.isChecked()
                 if not dlog.canceled and export_type in ['csv', 'las', 'entwine']:
                     fq_chunks = []
                     for fq in fqprs:
-                        if fq not in self.project.fqpr_instances:
-                            self.project.add_fqpr(fq)
-                        if fq in self.project.fqpr_instances:
-                            fq_inst = self.project.fqpr_instances[fq]
+                        relfq = self.project.path_relative_to_project(fq)
+                        if relfq not in self.project.fqpr_instances:
+                            self.update_on_file_added(fq)
+                        if relfq in self.project.fqpr_instances:
+                            fq_inst = self.project.fqpr_instances[relfq]
                             # use the project client, or start a new LocalCluster if client is None
                             fq_inst.client = self.project.get_dask_client()
                             fq_chunks.append([fq_inst])
                     if fq_chunks:
-                        self.export_thread.populate(fq_chunks, export_type)
+                        self.export_thread.populate(fq_chunks, export_type, z_pos_down, delimiter, filterset, separateset)
                         self.export_thread.start()
                 else:
                     cancelled = True
@@ -885,6 +921,12 @@ class KlusterMain(QtWidgets.QMainWindow):
         """
         self.kluster_vessel_offsets()
 
+    def _action_basicplots(self):
+        """
+        Connect menu action 'Basic Plots' with basicplots dialog
+        """
+        self.kluster_basic_plots()
+
     def _action_all_processing(self):
         """
         Connect menu action 'All processing' with all processing dialog
@@ -934,6 +976,19 @@ class KlusterMain(QtWidgets.QMainWindow):
         settings = QtCore.QSettings("NOAA", "Kluster")
         self.restoreGeometry(settings.value("Kluster/geometry"))
         self.restoreState(settings.value("Kluster/windowState"), version=0)
+
+    def return_selected_fqprs(self):
+        """
+        Return absolute paths to fqprs selected
+
+        Returns
+        -------
+        list
+            absolute path to the fqprs selected in the GUI
+        """
+        fqprs = self.project_tree.return_selected_fqprs()
+        fqprs = [self.project.absolute_path_from_relative(f) for f in fqprs]
+        return fqprs
 
     def closeEvent(self, event):
         """

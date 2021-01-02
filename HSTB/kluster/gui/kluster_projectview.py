@@ -132,6 +132,8 @@ class KlusterFqprView(QtWidgets.QWidget):
         super().__init__(*args, **kwargs)
 
         self.parent = parent
+
+        # fqpr = fully qualified ping record, the term for the datastore in kluster
         self.fqpr_inst = fqpr_inst
         self.dashboard_data = fqpr_inst.return_processing_dashboard()
 

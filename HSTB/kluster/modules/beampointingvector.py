@@ -22,7 +22,7 @@ def distrib_run_build_beam_pointing_vector(dat: list):
         [relative azimuth, beam pointing angle, processing_status]
     """
 
-    ans = build_beam_pointing_vectors(dat[0], dat[1], dat[2], dat[3][0], dat[3][1], dat[4], dat[5], dat[6])
+    ans = build_beam_pointing_vectors(dat[0], dat[1], dat[2], dat[3][0], dat[3][1], dat[4], dat[5])
     # return processing status = 2 for all affected soundings
     processing_status = xr.DataArray(np.full_like(dat[1], 2, dtype=np.uint8),
                                      coords={'time': dat[1].coords['time'], 'beam': dat[1].coords['beam']},
@@ -32,8 +32,7 @@ def distrib_run_build_beam_pointing_vector(dat: list):
 
 
 def build_beam_pointing_vectors(hdng: xr.DataArray, bpa: xr.DataArray, tiltangle: xr.DataArray, tx_vecs: xr.DataArray,
-                                rx_vecs: xr.DataArray, tstmp: xr.DataArray, tx_reversed: bool = False,
-                                rx_reversed: bool = False):
+                                rx_vecs: xr.DataArray, tx_reversed: bool = False, rx_reversed: bool = False):
     """
     Beam pointing vector is the beam specific vector that arises from the intersection of the tx ping and rx cone
     of sensitivity.  Points at that area.  Is in the geographic coordinate system, built using the tx/rx at time of
@@ -46,7 +45,7 @@ def build_beam_pointing_vectors(hdng: xr.DataArray, bpa: xr.DataArray, tiltangle
     Parameters
     ----------
     hdng
-        1d (time) heading in degrees at ping time
+        2d (time, beam) heading in degrees at ping time for each beam
     bpa
         2d (time, beam) receiver beam pointing angle
     tiltangle
@@ -55,8 +54,6 @@ def build_beam_pointing_vectors(hdng: xr.DataArray, bpa: xr.DataArray, tiltangle
         2 dim (time, xyz) representing tx 3d orientation in space across time
     rx_vecs
         3 dim (time, beam, xyz) representing rx 3d orientation in space across time/beam
-    tstmp
-        1 dim ping times from the DataSet
     tx_reversed
         if true, the transmitter was installed 180° offset in yaw (i.e. backwards)
     rx_reversed

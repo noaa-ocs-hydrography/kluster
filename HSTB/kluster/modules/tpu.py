@@ -112,7 +112,7 @@ def calculate_tpu(roll: Union[xr.DataArray, np.array], raw_beam_angles: Union[xr
                       heading_error=heading_error, roll_in_degrees=roll_in_degrees, raw_beam_angles_in_degrees=raw_beam_angles_in_degrees,
                       beam_angles_in_degrees=beam_angles_in_degrees, qf_type=qf_type)
     tvu, thu = tp.generate_total_uncertainties(vert_ref=vert_ref)
-    return [tvu, thu]
+    return [tvu.astype(np.float32), thu.astype(np.float32)]
 
 
 class Tpu:
@@ -381,7 +381,7 @@ class Tpu:
         if self.sbet_roll_error is not None:
             roll_variance = (self.acrosstrack_offset ** 2) * (self.sbet_roll_error ** 2) * (rpatch ** 2)
         else:
-            print('Roll_variance: falling back to static value')
+            # print('Roll_variance: falling back to static value')
             roll_variance = (self.acrosstrack_offset ** 2) * (rsensor ** 2) * (rpatch ** 2)
         return roll_variance
 

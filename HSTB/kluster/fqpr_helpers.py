@@ -56,7 +56,7 @@ def epsg_determinator(datum: str, zone: int = None, hemisphere: str = None):
     raise ValueError('epsg_determinator: no valid epsg for datum={} zone={} hemisphere={}'.format(datum, zone, hemisphere))
 
 
-def return_files_from_path(pth: str, file_ext: str = '.all'):
+def return_files_from_path(pth: str, file_ext: tuple = ('.all',)):
     """
     Input files can be entered into an xarray_conversion.BatchRead instance as either a list, a path to a directory
     of multibeam files or as a path to a single file.  Here we return all the files in each of these scenarios as a list
@@ -79,13 +79,13 @@ def return_files_from_path(pth: str, file_ext: str = '.all'):
 
     if type(pth) == list:
         if len(pth) == 1 and os.path.isdir(pth[0]):  # a list one element long that is a path to a directory
-            return [os.path.join(pth[0], p) for p in os.listdir(pth[0]) if os.path.splitext(p)[1] == file_ext]
+            return [os.path.join(pth[0], p) for p in os.listdir(pth[0]) if os.path.splitext(p)[1] in file_ext]
         else:
-            return [p for p in pth if os.path.splitext(p)[1] == file_ext]
+            return [p for p in pth if os.path.splitext(p)[1] in file_ext]
     elif os.path.isdir(pth):
-        return [os.path.join(pth, p) for p in os.listdir(pth) if os.path.splitext(p)[1] == file_ext]
+        return [os.path.join(pth, p) for p in os.listdir(pth) if os.path.splitext(p)[1] in file_ext]
     elif os.path.isfile(pth):
-        if os.path.splitext(pth)[1] == file_ext:
+        if os.path.splitext(pth)[1] in file_ext:
             return [pth]
         else:
             return []

@@ -121,7 +121,7 @@ def determine_optimal_chunks(client: Client, beams_per_ping: float, safety_margi
     client
         dask distributed client
     beams_per_ping
-        avg number of beams per ping for that sector
+        avg number of beams per ping
     safety_margin
         made up number to ensure we don't expect 100% of the memory to be available
     chunks_per_worker

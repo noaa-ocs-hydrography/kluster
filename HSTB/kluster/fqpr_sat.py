@@ -15,6 +15,12 @@ from HSTB.kluster.fqpr_surface import BaseSurface
 from HSTB.kluster.fqpr_generation import Fqpr
 
 
+class SatTest:
+    def __init__(self, fqpr):
+        self.fqpr = fqpr
+        self.wobble = WobbleTest(fqpr)
+
+
 class WobbleTest:
     """
     Implementation of 'Dynamic Motion Residuals in Swath Sonar Data: Ironing out the Creases' using Kluster processed

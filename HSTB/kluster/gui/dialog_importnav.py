@@ -9,6 +9,8 @@ class ImportNavigationDialog(QtWidgets.QDialog):
     """
     Dialog contains all the processing steps post-conversion.  Use return_processing_options to get the kwargs to feed
     the fqpr_convenience.process_multibeam function.
+
+    fqpr = fully qualified ping record, the term for the datastore in kluster
     """
     def __init__(self, parent=None):
         super().__init__(parent)

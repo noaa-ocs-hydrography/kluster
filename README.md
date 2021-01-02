@@ -24,6 +24,7 @@ Kluster has been tested on:
 - EM2040 dual tx/dual rx
 - EM710
 - EM3002
+- EM302
 - EM122
 
 Kluster is built from the ground up in Python, and was developed using Python 3.8.  Kluster includes modules developed by the hydrographic community such as (see [drivers](https://github.com/noaa-ocs-hydrography/drivers)):
@@ -91,8 +92,9 @@ Once the Kluster window appears, simply:
 - Select the '3d view' tab and click a line in the 'Project Tree' to view the soundings in 3d
 - Select the 'Attitude' tab and click a line in the 'Project Tree' to view the realtime attitude of the line
 - Select the 'Console' tab at the bottom and right click the converted data path under 'Converted' in the 'Project Tree' and click 'Load in console' to get access to the xarray Datasets in the console.  Try 'first_sector.soundspeed.plot()' to plot the surface sound speed used for the first sector!
-- Use 'File' - 'Export Soundings' to generate csv files for the processed soundings (x, y, z, uncertainty)
-- Use 'Process' - 'New Surface' to generate a single resolution surface using the processed sounding set.  Visualize the surface by checking one of the layers in the 'Project Tree' under 'Surfaces'.  Use the magnifying glass in 2d view if you need to zoom in to see the surface.  Surfaces are saved in the numpy compressed file format, and can be easily read using numpy.
+- Select a converted container in Project Tree and use 'File' - 'Export Soundings' to generate csv files for the processed soundings (x, y, z, uncertainty)
+- Select a converted container in Project Tree and use 'Process' - 'New Surface' to generate a single resolution surface using the processed sounding set.  Visualize the surface by checking one of the layers in the 'Project Tree' under 'Surfaces'.  Use the magnifying glass in 2d view if you need to zoom in to see the surface.  Surfaces are saved in the numpy compressed file format, and can be easily read using numpy.
+- Select a converted container in Project Tree and use 'Visualize' - 'Basic Plots' to plot all the converted and Kluster made datasets.
 
 You can also reload the generated multibeam data and surface by:
 

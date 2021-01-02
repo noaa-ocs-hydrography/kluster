@@ -9,7 +9,6 @@ from HSTB.kluster.dask_helpers import dask_find_or_start_client
 from HSTB.kluster.fqpr_convenience import reload_data, convert_multibeam, reload_surface, get_attributes_from_fqpr
 from HSTB.kluster.fqpr_surface import BaseSurface
 from HSTB.kluster.xarray_helpers import slice_xarray_by_dim
-from HSTB.kluster.fqpr_visualizations import FqprVisualizations
 
 
 class FqprProject:
@@ -70,14 +69,11 @@ class FqprProject:
         # ex: {'0001_20170822_144548_S5401_X.all': 'C:\\collab\\dasktest\\data_dir\\EM2040\\convert1'}
         self.convert_path_lookup = {}
 
-        # visuzlizations storage, required so that the visualizations continue to update after generated
-        self.visualizations = {}
-
         self.buffered_fqpr_navigation = {}
         self.point_cloud_for_line = {}
         self.node_vals_for_surf = {}
 
-    def _path_relative_to_project(self, pth: str):
+    def path_relative_to_project(self, pth: str):
         """
         Return the relative path for the provided pth from the project file
 
@@ -95,9 +91,9 @@ class FqprProject:
             raise ValueError('FqprProject: path to project file not setup, is currently undefined.')
         return os.path.relpath(pth, os.path.dirname(self.path))
 
-    def _absolute_path_from_relative(self, pth: str):
+    def absolute_path_from_relative(self, pth: str):
         """
-        see _path_relative_to_project, will convert the returned relative path from that method to an absolute file
+        see path_relative_to_project, will convert the returned relative path from that method to an absolute file
         path
 
         Parameters
@@ -156,8 +152,8 @@ class FqprProject:
             data = json.load(pf)
         # now translate the relative paths to absolute
         self.path = projfile
-        data['fqpr_paths'] = [self._absolute_path_from_relative(f) for f in data['fqpr_paths']]
-        data['surface_paths'] = [self._absolute_path_from_relative(f) for f in data['surface_paths']]
+        data['fqpr_paths'] = [self.absolute_path_from_relative(f) for f in data['fqpr_paths']]
+        data['surface_paths'] = [self.absolute_path_from_relative(f) for f in data['surface_paths']]
         return data
 
     def get_dask_client(self):
@@ -243,6 +239,12 @@ class FqprProject:
         """
 
         if type(pth) == str:
+            if self.path is None:
+                self._setup_new_project(os.path.dirname(pth))
+            relpath = self.path_relative_to_project(pth)
+            if relpath in self.fqpr_instances:
+                print('Converted instance "{}" already in project'.format(pth))
+                return None
             fq = reload_data(pth, skip_dask=skip_dask, silent=True, show_progress=not self.is_gui)
         else:  # pth is the new Fqpr instance, pull the actual path from the Fqpr attribution
             fq = pth
@@ -250,7 +252,7 @@ class FqprProject:
         if fq is not None:
             if self.path is None:
                 self._setup_new_project(os.path.dirname(pth))
-            relpath = self._path_relative_to_project(pth)
+            relpath = self.path_relative_to_project(pth)
             self.fqpr_instances[relpath] = fq
             self.fqpr_attrs[relpath] = get_attributes_from_fqpr(fq, include_mode=False)
             self.regenerate_fqpr_lines(relpath)
@@ -273,7 +275,7 @@ class FqprProject:
         if relative_path:
             relpath = pth
         else:
-            relpath = self._path_relative_to_project(pth)
+            relpath = self.path_relative_to_project(pth)
 
         if relpath in self.fqpr_instances:
             self.fqpr_instances.pop(relpath)
@@ -302,7 +304,7 @@ class FqprProject:
         if basesurf is not None:
             if self.path is None:
                 self._setup_new_project(os.path.dirname(pth))
-            relpath = self._path_relative_to_project(pth)
+            relpath = self.path_relative_to_project(pth)
             self.surface_instances[relpath] = basesurf
             print('Successfully added {}'.format(pth))
 
@@ -314,7 +316,7 @@ class FqprProject:
         ----------
         pth: str, path to the surface file
         """
-        relpath = self._path_relative_to_project(pth)
+        relpath = self.path_relative_to_project(pth)
         if relpath in self.surface_instances:
             self.surface_instances.pop(relpath)
 
@@ -404,16 +406,12 @@ class FqprProject:
 
         for fq_name, fq_inst in self.fqpr_instances.items():
             if fq_name == pth:
-                fq_viz = FqprVisualizations(fq_inst)
                 if visualization_type == 'orientation':
-                    fq_viz.visualize_orientation_vector()
-                    self.visualizations['orientation'] = fq_viz
+                    fq_inst.plot.visualize_orientation_vector()
                 elif visualization_type == 'beam_vectors':
-                    fq_viz.visualize_beam_pointing_vectors(corrected=False)
-                    self.visualizations['beam_vectors'] = fq_viz
+                    fq_inst.plot.visualize_beam_pointing_vectors(corrected=False)
                 elif visualization_type == 'corrected_beam_vectors':
-                    fq_viz.visualize_beam_pointing_vectors(corrected=True)
-                    self.visualizations['corrected_beam_vectors'] = fq_viz
+                    fq_inst.plot.visualize_beam_pointing_vectors(corrected=True)
                 else:
                     raise ValueError("Expected one of 'orientation', 'beam_vectors', 'corrected_beam_vectors', got {}".format(visualization_type))
 
@@ -497,7 +495,7 @@ class FqprProject:
                 if relative_path:
                     return self.fqpr_lines[proj]
                 else:
-                    return self.fqpr_lines[self._absolute_path_from_relative(proj)]
+                    return self.fqpr_lines[self.absolute_path_from_relative(proj)]
             else:
                 print('return_project_lines: expected a string path to be provided to the kluster fqpr datastore')
                 return None
@@ -596,21 +594,6 @@ class FqprProject:
                         (line_min_lon > min_lon):
                     lines_in_box.append(fq_line)
         return lines_in_box
-
-    def return_project_status(self):
-        """
-        Return the processing status for each fqpr instance in the project
-
-        Returns
-        -------
-        dict
-            dict of dicts, see docstring for example
-        """
-
-        status_dict = {}
-        for fqpr_name, fqpr_inst in self.fqpr_instances.items():
-            status_dict[fqpr_name] = fqpr_inst.return_processing_status()
-        return status_dict
 
     def return_project_folder(self):
         """

@@ -1,4 +1,4 @@
-import sys
+import sys, os
 from queue import Queue
 from PySide2 import QtGui, QtCore, QtWidgets
 
@@ -72,9 +72,29 @@ class KlusterOutput(QtWidgets.QTextEdit):
 
     @QtCore.Slot(str)
     def append_text(self, text):
+        """
+        add text as it shows up in the buffer, ordinarily this means moving the cursor to the end of the line and inserting
+        the new text.
+
+        For the dask progressbar though, we want to just overwrite the current line
+
+        ex: '[#####                                   ] | 14% Completed |  1.6s'
+
+        Parameters
+        ----------
+        text
+            text to insert
+        """
         cursor = self.textCursor()
-        cursor.movePosition(QtGui.QTextCursor.End)
-        cursor.insertText(text)
+        if text.lstrip()[0:2] in ['[#', '[ ']:
+            # try and see if we need to continue a previous bar, so you dont get a list of 100% progress bars
+            cursor.select(QtGui.QTextCursor.LineUnderCursor)
+            cursor.removeSelectedText()
+            cursor.deletePreviousChar()
+            cursor.insertText(text)
+        else:
+            cursor.movePosition(QtGui.QTextCursor.End)
+            cursor.insertText(text)
         self.setTextCursor(cursor)
 
     def __del__(self):

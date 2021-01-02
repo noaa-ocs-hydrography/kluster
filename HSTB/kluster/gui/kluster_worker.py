@@ -26,7 +26,7 @@ class ConversionWorker(QtCore.QThread):
     def run(self):
         self.started.emit(True)
         # turn off progress, it creates too much clutter in the output window
-        self.fq = convert_multibeam(self.mbes_files, self.output_folder, self.client, show_progress=False)
+        self.fq = convert_multibeam(self.mbes_files, self.output_folder, self.client, show_progress=True)
         self.finished.emit(True)
 
 
@@ -41,6 +41,7 @@ class AllProcessingWorker(QtCore.QThread):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.fq_chunks = None
+        # fqpr = fully qualified ping record, the term for the datastore in kluster
         self.fqpr_instances = []
 
     def populate(self, fq_chunks):
@@ -89,13 +90,27 @@ class ExportWorker(QtCore.QThread):
         self.fq_chunks = None
         self.fqpr_instances = []
         self.export_type = ''
+        self.z_pos_down = False
+        self.delimiter = ' '
+        self.filterset = False
+        self.separateset = False
 
-    def populate(self, fq_chunks, export_type):
+    def populate(self, fq_chunks, export_type, z_pos_down, delimiter, filterset, separateset):
         self.fq_chunks = fq_chunks
         self.export_type = export_type
+        self.z_pos_down = z_pos_down
+        if delimiter == 'comma':
+            self.delimiter = ','
+        elif delimiter == 'space':
+            self.delimiter = ' '
+        else:
+            raise ValueError('ExportWorker: Expected either "comma" or "space", received {}'.format(delimiter))
+        self.filterset = filterset
+        self.separateset = separateset
 
     def export_process(self, fq):
-        fq.export_pings_to_file(file_format=self.export_type)
+        fq.export_pings_to_file(file_format=self.export_type, csv_delimiter=self.delimiter, filter_by_detection=self.filterset,
+                                z_pos_down=self.z_pos_down, export_by_identifiers=self.separateset)
         return fq
 
     def run(self):

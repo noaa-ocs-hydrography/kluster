@@ -14,6 +14,8 @@ class SurfaceDialog(QtWidgets.QDialog):
         self.input_msg = QtWidgets.QLabel('Run surface generation on the following:')
 
         self.hlayout_zero = QtWidgets.QHBoxLayout()
+
+        # fqpr = fully qualified ping record, the term for the datastore in kluster
         self.input_fqpr = BrowseListWidget(self)
         self.input_fqpr.sizeHint()
         self.input_fqpr.setup(mode='directory', registry_key='kluster', app_name='klusterbrowse',

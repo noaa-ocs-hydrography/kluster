@@ -1,7 +1,6 @@
 import os
 from glob import glob
 from dask.distributed import Client, Future, progress
-import matplotlib.pyplot as plt
 import webbrowser
 from time import perf_counter
 from sortedcontainers import SortedDict
@@ -58,7 +57,7 @@ install_parameter_modifier = {'em2040_dual_tx': {'rx_port': {'0': {'x': 0.011, '
                                           'tx': {'0': {'x': 0.002, 'y': -0.1042, 'z': -0.0149},
                                                  '1': {'x': 0.002, 'y': 0.0, 'z': -0.006},
                                                  '2': {'x': 0.002, 'y': 0.1042, 'z': -0.0149}}},
-                             }
+                              }
 
 
 def _xarr_is_bit_set(da: xr.DataArray, bitpos: int):
@@ -114,56 +113,11 @@ def _run_sequential_read(fildata: list):
         return km.sequential_read_records(start_ptr=offset, end_ptr=endpt, serial_translator=serial_translator)
 
 
-def _sequential_gather_max_beams(rec: dict):
+def _build_serial_mask(rec: dict):
     """
-    Takes in the output from read_sequential, outputs the maximum beam count from the beampointingangle dataset.  Used
-    later for trimming to the max beam dimension across all datasets
-
-    Parameters
-    ----------
-    rec
-        dict as returned by sequential_read_records
-
-    Returns
-    -------
-    int
-        max of indices of the last beam across all records
-    """
-
-    last_real_beam = np.argmax(rec['ping']['beampointingangle'] == 999, axis=1)
-    return np.max(last_real_beam)
-
-
-def _sequential_trim_to_max_beam_number(rec: dict, max_beam_num: int):
-    """
-    Takes in the output from read_sequential, returns the records trimmed to the max beam number provided.
-
-    Parameters
-    ----------
-    rec
-        dict as returned by sequential_read_records
-    max_beam_num
-        int, max beam number across all records/workers
-
-    Returns
-    -------
-    dict
-        original rec with beam dimension trimmed to max_beam_num
-    """
-
-    for dgram in rec:
-        if dgram == 'ping':
-            for rectype in rec[dgram]:
-                if rec[dgram][rectype].ndim == 2:
-                    rec[dgram][rectype] = rec[dgram][rectype][:, 0:max_beam_num]
-    return rec
-
-
-def _build_sector_mask(rec: dict):
-    """
-    Range/Angle datagram is going to have duplicate times, which are no good for our Xarray dataset.  Duplicates are
-    found at the same time but with different sectors, serial numbers (dualheadsystem) and/or frequency.  Split up the
-    records by these three elements and use them as the sector identifier
+    Range/Angle datagram is going to have multiple systems inside of it when dual head.  Not good for downstream processing
+    that becomes much more complex tracking these.  Here we build the mask that allows us to separate into two datasets by
+    serial number if required
 
     Parameters
     ----------
@@ -179,33 +133,18 @@ def _build_sector_mask(rec: dict):
         index of where each sector_id identifier shows up in the data
     """
 
-    # serial_nums = [rec['73'][x][0] for x in ['serial#', 'serial#2'] if rec['73'][x][0] != 0]
     serial_nums = list(np.unique(rec['ping']['serial_num']))
-    sector_nums = [i for i in range(rec['ping']['ntx'][0] + 1)]
-    freqs = [f for f in np.unique(rec['ping']['frequency'])]
     sector_ids = []
     id_mask = []
 
     for x in serial_nums:
         ser_mask = np.where(rec['ping']['serial_num'] == float(x))[0]
-        for y in sector_nums:
-            sec_mask = np.where(rec['ping']['txsectorid'] == float(y))[0]
-            for z in freqs:
-                f_mask = np.where(rec['ping']['frequency'] == z)[0]
-                totmask = [x for x in ser_mask if (x in sec_mask) and (x in f_mask)]
-                if len(totmask) > 0:
-                    # z (freq identifier) must be length 6 or else you end up with dtype=object that messes up
-                    #    serialization later.  Zero pad to solve this
-                    if len(str(int(z))) < 6:
-                        z = '0' + str(int(z))
-                    else:
-                        z = str(int(z))
-                    sector_ids.append(str(x) + '_' + str(y) + '_' + z)
-                    id_mask.append(totmask)
+        sector_ids.append(str(x))
+        id_mask.append(ser_mask)
     return sector_ids, id_mask
 
 
-def _assign_reference_points(fileformat: str, finalraw: xr.Dataset, finalatt: xr.Dataset, finalnav: xr.Dataset):
+def _assign_reference_points(fileformat: str, finalraw: dict, finalatt: xr.Dataset, finalnav: xr.Dataset):
     """
     Use what we've learned from reading these multibeam data definition documents to record the relevant information
     about each variable.  Logs this info as attributes in the final xarray dataset.  'reference' refers to the
@@ -216,7 +155,7 @@ def _assign_reference_points(fileformat: str, finalraw: xr.Dataset, finalatt: xr
     fileformat
         multibeam file format (all, kmall supported currently)
     finalraw
-        xarray dataset containing the ping records
+        dict of xarray Datasets corresponding to each serial number in the file
     finalatt
         xarray dataset containing the attitude records
     finalnav
@@ -224,8 +163,8 @@ def _assign_reference_points(fileformat: str, finalraw: xr.Dataset, finalatt: xr
 
     Returns
     -------
-    xr.Dataset
-        finalraw dataset with new attribution
+    dict
+        dict of xarray Datasets corresponding to each serial number in the file
     xr.Dataset
         finalatt dataset with new attribution
     xr.Dataset
@@ -242,9 +181,10 @@ def _assign_reference_points(fileformat: str, finalraw: xr.Dataset, finalatt: xr
                                            'pitch': 'reference point', 'roll': 'reference point'}
             finalatt.attrs['units'] = {'heading': 'degrees', 'heave': 'meters (+ down)', 'pitch': 'degrees',
                                        'roll': 'degrees'}
-            finalraw.attrs['reference'] = {'beampointingangle': 'receiver', 'tiltangle': 'transmitter',
-                                           'traveltime': 'None'}
-            finalraw.attrs['units'] = {'beampointingangle': 'degrees', 'tiltangle': 'degrees', 'traveltime': 'seconds'}
+            for systemid in finalraw:
+                finalraw[systemid].attrs['reference'] = {'beampointingangle': 'receiver', 'tiltangle': 'transmitter',
+                                                         'traveltime': 'None'}
+                finalraw[systemid].attrs['units'] = {'beampointingangle': 'degrees', 'tiltangle': 'degrees', 'traveltime': 'seconds'}
             return finalraw, finalatt, finalnav
         else:
             raise ValueError('Did not recognize format "{}" during xarray conversion'.format(fileformat))
@@ -278,22 +218,23 @@ def _sequential_to_xarray(rec: dict):
         return
     recs_to_merge = {}
     alltims = np.unique(rec['ping']['time'])  # after mask/splitting data, should get something for each unique time
+    if len(alltims) != rec['ping']['time'].shape[0]:
+        print('Found {} != {}'.format(len(alltims), rec['ping']['time'].shape[0]))
+        raise ValueError('xarray_conversion: Found duplicate times in this chunk, not allowed for xarray conversion')
+
     for r in rec:
         if r not in ['installation_params', 'profile', 'format']:  # These are going to be added as attributes later
-            recs_to_merge[r] = xr.Dataset()
-            if r == 'ping':  # R&A is the only datagram we use that requires splitting by sector/serial#/freq
-                ids, msk = _build_sector_mask(rec)  # get the identifiers and mask for each sector/serial#/freq
+            if r == 'ping':  # R&A is the only datagram we use that requires splitting by serial#
+                ids, msk = _build_serial_mask(rec)  # get the identifiers and mask for each serial#
+                recs_to_merge[r] = {systemid: xr.Dataset() for systemid in ids}
                 for ky in rec[r]:
-                    if ky not in ['time', 'serial_num', 'frequency', 'txsectorid']:
-                        combined_sectors = []
-                        for secid in ids:
-                            idx = ids.index(secid)
-
+                    if ky not in ['time', 'serial_num']:
+                        for systemid in ids:
+                            idx = ids.index(systemid)
                             if ky == 'counter':  # counter is 16bit in raw data, we want 32 to handle zero crossing
                                 datadtype = np.int64
                             else:
                                 datadtype = rec[r][ky].dtype
-
                             arr = np.array(rec['ping'][ky][msk[idx]])  # that part of the record for the given sect_id
                             tim = rec['ping']['time'][msk[idx]]
 
@@ -303,68 +244,42 @@ def _sequential_to_xarray(rec: dict):
                                 arr = arr[:-1]
                                 tim = tim[:-1]
 
-                            try:
-                                arr = np.squeeze(np.array(arr), axis=1)  # Tx_data is handled this way to get 1D
-                            except ValueError:
-                                pass
-
-                            # use the mask to build a zero-padded array with zeros for all times that have no data
-                            paddedshp = list(arr.shape)
-                            paddedshp[0] = alltims.shape[0]
-                            padded_sector = np.zeros(paddedshp, dtype=datadtype)
-                            padded_sector[np.where(np.isin(alltims, tim))] = arr
-                            combined_sectors.append(padded_sector)
-
-                        combined_sectors = np.array(combined_sectors)
-
-                        # these records are by time/sector/beam.  Have to combine recs to build correct array shape
-                        if ky in ['beampointingangle', 'txsector_beam', 'detectioninfo', 'qualityfactor',
-                                  'traveltime', 'processing_status']:
-                            beam_idx = [i for i in range(combined_sectors.shape[2])]
-                            recs_to_merge[r][ky] = xr.DataArray(combined_sectors,
-                                                                coords=[ids, alltims, beam_idx],
-                                                                dims=['sector', 'time', 'beam'])
-                        #  everything else isn't by beam, proceed normally
-                        else:
-                            if combined_sectors.ndim == 3:
-                                combined_sectors = np.squeeze(combined_sectors, axis=2)
-                            recs_to_merge[r][ky] = xr.DataArray(combined_sectors,
-                                                                coords=[ids, alltims],
-                                                                dims=['sector', 'time'])
+                            # these records are by time/beam.  Have to combine recs to build correct array shape
+                            if ky in ['beampointingangle', 'txsector_beam', 'detectioninfo', 'qualityfactor',
+                                      'traveltime', 'processing_status', 'tiltangle', 'delay', 'frequency']:
+                                beam_idx = np.arange(arr.shape[1])
+                                recs_to_merge[r][systemid][ky] = xr.DataArray(arr.astype(datadtype), coords=[tim, beam_idx], dims=['time', 'beam'])
+                            #  everything else isn't by beam, proceed normally
+                            else:
+                                recs_to_merge[r][systemid][ky] = xr.DataArray(arr.astype(datadtype), coords=[tim], dims=['time'])
             else:
+                recs_to_merge[r] = xr.Dataset()
                 for ky in rec[r]:
                     if ky in ['heading', 'heave', 'pitch', 'roll', 'altitude']:
                         recs_to_merge[r][ky] = xr.DataArray(np.float32(rec[r][ky]), coords=[rec[r]['time']], dims=['time'])
                     elif ky not in ['time', 'runtime_settings']:
                         recs_to_merge[r][ky] = xr.DataArray(rec[r][ky], coords=[rec[r]['time']], dims=['time'])
 
-    # occasionally get duplicate time values, possibly from overlap in parallel read
-    _, index = np.unique(recs_to_merge['ping']['time'], return_index=True)
-    recs_to_merge['ping'] = recs_to_merge['ping'].isel(time=index)
+    for systemid in recs_to_merge['ping']:
+        if 'mode' not in recs_to_merge['ping'][systemid]:
+            #  .all workflow, where the mode/modetwo stuff is not in the ping record, so you have to merge the two
+            # take range/angle rec and merge runtime on to that index
+            chk = True
+            if 'runtime_params' not in list(recs_to_merge.keys()) or (recs_to_merge['runtime_params'].time.shape[0] == 0):
+                chk = False
+            if not chk:
+                # rec82 (runtime params) isn't mandatory, but all datasets need to have the same variables or else the
+                #    combine_nested isn't going to work.  So if it isn't in rec (or it is empty) put in an empty dataset here
+                #    to be interpolated through later after merge
+                recs_to_merge['runtime_params'] = xr.Dataset(data_vars={'mode': (['time'], np.array([''])),
+                                                                        'modetwo': (['time'], np.array([''])),
+                                                                        'yawpitchstab': (['time'], np.array(['']))},
+                                                             coords={'time': np.array([float(recs_to_merge['ping'][systemid].time[0])])})
 
-    if 'mode' not in recs_to_merge['ping']:
-        #  .all workflow, where the mode/modetwo stuff is not in the ping record, so you have to merge the two
-        # take range/angle rec and merge runtime on to that index
-        chk = True
-        if 'runtime_params' not in list(recs_to_merge.keys()):
-            chk = False
-        elif not np.any(rec['runtime_params']['time']):
-            chk = False
-        if not chk:
-            # rec82 (runtime params) isn't mandatory, but all datasets need to have the same variables or else the
-            #    combine_nested isn't going to work.  So if it isn't in rec (or it is empty) put in an empty dataset here
-            #    to be interpolated through later after merge
-            recs_to_merge['runtime_params'] = xr.Dataset(data_vars={'mode': (['time'], np.array([''])),
-                                                                    'modetwo': (['time'], np.array([''])),
-                                                                    'yawpitchstab': (['time'], np.array(['']))},
-                                                         coords={'time': np.array([float(recs_to_merge['ping'].time[0])])})
-
-        _, index = np.unique(recs_to_merge['runtime_params']['time'], return_index=True)
-        recs_to_merge['runtime_params'] = recs_to_merge['runtime_params'].isel(time=index)
-        recs_to_merge['runtime_params'] = recs_to_merge['runtime_params'].reindex_like(recs_to_merge['ping'], method='nearest')
-        finalraw = xr.merge([recs_to_merge[r] for r in recs_to_merge if r in ['ping', 'runtime_params']], join='inner')
-    else:
-        finalraw = recs_to_merge['ping']
+            _, index = np.unique(recs_to_merge['runtime_params']['time'], return_index=True)
+            recs_to_merge['runtime_params'] = recs_to_merge['runtime_params'].isel(time=index)
+            recs_to_merge['runtime_params'] = recs_to_merge['runtime_params'].reindex_like(recs_to_merge['ping'][systemid], method='nearest')
+            recs_to_merge['ping'][systemid] = xr.merge([recs_to_merge['ping'][systemid], recs_to_merge['runtime_params']], join='inner')
 
     # attitude and nav are returned separately in their own datasets
     #  retain only unique values and recs where time != 0 (this occassionally seems to happen on read)
@@ -396,7 +311,8 @@ def _sequential_to_xarray(rec: dict):
         for t in rec['profile']['time']:
             idx = np.where(rec['profile']['time'] == t)
             profile = np.dstack([rec['profile']['depth'][idx][0], rec['profile']['soundspeed'][idx][0]])[0]
-            finalraw.attrs['profile_{}'.format(int(t))] = json.dumps(profile.tolist())
+            for systemid in recs_to_merge['ping']:
+                recs_to_merge['ping'][systemid].attrs['profile_{}'.format(int(t))] = json.dumps(profile.tolist())
 
     # add on attribute for installation parameters, basically the same way as you do for the ss profile, except it
     #   has no coordinate to index by.  Also, use json.dumps to avoid the issues with serializing lists/dicts with
@@ -406,20 +322,21 @@ def _sequential_to_xarray(rec: dict):
     #   are needed to identify pings and which offsets to use (TXPORT=Transducer0, TXSTARBOARD=Transducer1,
     #   RXPORT=Transducer2, RXSTARBOARD=Transudcer3)
 
-    if 'installation_params' in rec:
-        finalraw.attrs['system_serial_number'] = np.unique(rec['installation_params']['serial_one'])
-        finalraw.attrs['secondary_system_serial_number'] = np.unique(rec['installation_params']['serial_two'])
-        for t in rec['installation_params']['time']:
-            idx = np.where(rec['installation_params']['time'] == t)
-            finalraw.attrs['installsettings_{}'.format(int(t))] = json.dumps(rec['installation_params']['installation_settings'][idx][0])
-    if 'runtime_params' in rec:
-        for t in rec['runtime_params']['time']:
-            idx = np.where(rec['runtime_params']['time'] == t)
-            finalraw.attrs['runtimesettings_{}'.format(int(t))] = json.dumps(rec['runtime_params']['runtime_settings'][idx][0])
+    for systemid in recs_to_merge['ping']:
+        recs_to_merge['ping'][systemid] = recs_to_merge['ping'][systemid].sortby('time')
+        if 'installation_params' in rec:
+            recs_to_merge['ping'][systemid].attrs['system_serial_number'] = np.unique(rec['installation_params']['serial_one'])
+            recs_to_merge['ping'][systemid].attrs['secondary_system_serial_number'] = np.unique(rec['installation_params']['serial_two'])
+            for t in rec['installation_params']['time']:
+                idx = np.where(rec['installation_params']['time'] == t)
+                recs_to_merge['ping'][systemid].attrs['installsettings_{}'.format(int(t))] = json.dumps(rec['installation_params']['installation_settings'][idx][0])
+        if 'runtime_params' in rec:
+            for t in rec['runtime_params']['time']:
+                idx = np.where(rec['runtime_params']['time'] == t)
+                recs_to_merge['ping'][systemid].attrs['runtimesettings_{}'.format(int(t))] = json.dumps(rec['runtime_params']['runtime_settings'][idx][0])
 
-    # get the order of dimensions right
-    finalraw = finalraw.transpose('time', 'sector', 'beam')
     # assign reference point and metadata
+    finalraw = recs_to_merge['ping']
     finalraw, finalatt, finalnav = _assign_reference_points(rec['format'], finalraw, finalatt, finalnav)
 
     return finalraw, finalatt, finalnav
@@ -445,16 +362,54 @@ def _divide_xarray_futs(xarrfuture: xr.Dataset, mode: str = 'ping'):
     return xarrfuture[idx]
 
 
-def _divide_xarray_return_sector(xarrfuture: xr.Dataset, secid: str):
+def _return_xarray_mintime(xarrs: Union[xr.DataArray, xr.Dataset, dict]):
+    """
+    Access xarray object and return the length of the time dimension.
+
+    Parameters
+    ----------
+    xarrs
+        Dataset or DataArray that we want the minimum time from
+
+    Returns
+    -------
+    bool
+        True if fut is data, False if not
+    """
+    try:
+        return float(xarrs.time.min())
+    except:  # dict provided, raw ping split by system identifier
+        return float(list(xarrs.values())[0].time.min())
+
+
+def _return_xarray_timelength(xarrs: Union[xr.DataArray, xr.Dataset]):
+    """
+    Access xarray object and return the length of the time dimension.
+
+    Parameters
+    ----------
+    xarrs
+        Dataset or DataArray that we want the timelength from
+
+    Returns
+    -------
+    int
+        length of time dimension
+    """
+
+    return xarrs.dims['time']
+
+
+def _divide_xarray_return_system(xarr: dict, sysid: str):
     """
     Take in a ping xarray Dataset and return just the secid sector
 
     Parameters
     ----------
-    xarrfuture
-        xarray Dataset from _sequential_to_xarray
-    secid
-        sector identifier that you are searching for (will be in format serialnumber_sector_frequency
+    xarr
+        dict of xarray Datasets
+    sysid
+        system identifier that you are searching for
 
     Returns
     -------
@@ -462,20 +417,12 @@ def _divide_xarray_return_sector(xarrfuture: xr.Dataset, secid: str):
         selected datatype specified by mode
     """
 
-    if 'sector' not in xarrfuture.dims:
-        return None
-    if secid not in xarrfuture.sector.values:
+    if sysid not in list(xarr.keys()):
         return None
 
-    xarr_by_sec = xarrfuture.sel(sector=secid).drop('sector')
+    xarr_by_sysid = xarr[sysid]
 
-    # the where statement i do next seems to drop all the variable dtype info.  I seem to have to reset that
-    varnames = list(xarr_by_sec.variables.keys())
-    xarr_valid_pings = xarr_by_sec.where(xarr_by_sec.ntx != 0, drop=True)
-    for v in varnames:
-        xarr_valid_pings[v] = xarr_valid_pings[v].astype(xarr_by_sec[v].dtype)
-
-    return xarr_valid_pings
+    return xarr_by_sysid
 
 
 def _divide_xarray_indicate_empty_future(fut: xr.Dataset):
@@ -501,60 +448,6 @@ def _divide_xarray_indicate_empty_future(fut: xr.Dataset):
         return True
 
 
-def _return_xarray_mintime(xarrs: Union[xr.DataArray, xr.Dataset]):
-    """
-    Access xarray object and return the length of the time dimension.
-
-    Parameters
-    ----------
-    xarrs
-        Dataset or DataArray that we want the minimum time from
-
-    Returns
-    -------
-    bool
-        True if fut is data, False if not
-    """
-
-    return float(xarrs.time.min())
-
-
-def _return_xarray_sectors(xarrs: Union[xr.DataArray, xr.Dataset]):
-    """
-    Return the sector names for the given xarray object
-
-    Parameters
-    ----------
-    xarrs
-        Dataset or DataArray that we want the sectors from
-
-    Returns
-    -------
-    list
-        sector identifiers as string within a list
-    """
-
-    return xarrs.sector.values
-
-
-def _return_xarray_timelength(xarrs: Union[xr.DataArray, xr.Dataset]):
-    """
-    Access xarray object and return the length of the time dimension.
-
-    Parameters
-    ----------
-    xarrs
-        Dataset or DataArray that we want the timelength from
-
-    Returns
-    -------
-    int
-        length of time dimension
-    """
-
-    return xarrs.dims['time']
-
-
 def _return_xarray_time(xarrs: Union[xr.DataArray, xr.Dataset]):
     """
     Access xarray object and return the time dimension.
@@ -571,66 +464,6 @@ def _return_xarray_time(xarrs: Union[xr.DataArray, xr.Dataset]):
     """
 
     return xarrs['time']
-
-
-def _assess_need_for_split_correction(cur_xarr: xr.Dataset, next_xarr: xr.Dataset):
-    """
-    Taking blocks from workers, if the block after the current one has a start time equal to the current end time,
-    you have a ping that stretches across the block.  You can't end up with duplicate times, so flag this one as needing
-    correction.
-
-    Parameters
-    ----------
-    cur_xarr
-        xarray Dataset, the current one in queue for assessment
-    next_xarr
-        xarray Dataset, the next one in time order
-
-    Returns
-    -------
-    bool
-        True if needing split correction
-    """
-
-    if next_xarr is not None:
-        cur_rec = cur_xarr.isel(time=-1)
-        try:
-            next_rec = next_xarr.isel(time=0)
-        except ValueError:
-            # get here if you selected the first record prior to this method
-            next_rec = next_xarr
-        # if the first time on the next array equals the last one on the current one....you gotta fix the
-        #    sector-pings
-        if float(cur_rec.time) == float(next_rec.time):
-            return True
-        else:
-            return False
-    else:
-        return False
-
-
-def _correct_for_splits(cur_xarr: xr.Dataset, trim_the_array: bool):
-    """
-    If assess need for split correction finds that a chunk boundary has cut off a ping, remove that ping here.  The
-    next chunk will have that full ping.
-
-    Parameters
-    ----------
-    cur_xarr
-        xarray Dataset, the current one in queue for assessment
-    trim_the_array
-        if True we remove the first time record (see _assess_need_for_split_correction)
-
-    Returns
-    -------
-    xr.Dataset
-        corrected version of cur_xarr
-    """
-
-    if trim_the_array:
-        print('remove first: {} to {}'.format(len(cur_xarr.time), slice(1, len(cur_xarr.time))))
-        cur_xarr = cur_xarr.isel(time=slice(1, len(cur_xarr.time)))
-    return cur_xarr
 
 
 def _return_xarray_constant_blocks(xlens: list, xarrfutures: list, rec_length: int):
@@ -696,6 +529,24 @@ def _return_xarray_constant_blocks(xlens: list, xarrfutures: list, rec_length: i
     return newxarrs, totallen
 
 
+def _return_xarray_system_ids(xarrs: dict):
+    """
+    Return the system ids for the given xarray object
+
+    Parameters
+    ----------
+    xarrs
+        Dataset or DataArray that we want the sectors from
+
+    Returns
+    -------
+    list
+        system identifiers as string within a list
+    """
+
+    return list(xarrs.keys())
+
+
 def _merge_constant_blocks(newblocks: list):
     """
     Accepts output from _return_xarray_constant_blocks and performs a nested concat/merge on given blocks.
@@ -716,14 +567,74 @@ def _merge_constant_blocks(newblocks: list):
     return finalarr
 
 
-def gather_dataset_attributes(dataset: xr.Dataset):
+def _assess_need_for_split_correction(cur_xarr: xr.Dataset, next_xarr: xr.Dataset):
+    """
+    Taking blocks from workers, if the block after the current one has a start time equal to the current end time,
+    you have a ping that stretches across the block.  You can't end up with duplicate times, so flag this one as needing
+    correction.
+
+    Parameters
+    ----------
+    cur_xarr
+        xarray Dataset, the current one in queue for assessment
+    next_xarr
+        xarray Dataset, the next one in time order
+
+    Returns
+    -------
+    bool
+        True if needing split correction
+    """
+
+    if next_xarr is not None:
+        cur_rec = cur_xarr.isel(time=-1)
+        try:
+            next_rec = next_xarr.isel(time=0)
+        except ValueError:
+            # get here if you selected the first record prior to this method
+            next_rec = next_xarr
+        # if the first time on the next array equals the last one on the current one....you gotta fix the
+        #    sector-pings
+        if float(cur_rec.time) == float(next_rec.time):
+            return True
+        else:
+            return False
+    else:
+        return False
+
+
+def _correct_for_splits(cur_xarr: xr.Dataset, trim_the_array: bool):
+    """
+    If assess need for split correction finds that a chunk boundary has cut off a ping, remove that ping here.  The
+    next chunk will have that full ping.
+
+    Parameters
+    ----------
+    cur_xarr
+        xarray Dataset, the current one in queue for assessment
+    trim_the_array
+        if True we remove the first time record (see _assess_need_for_split_correction)
+
+    Returns
+    -------
+    xr.Dataset
+        corrected version of cur_xarr
+    """
+
+    if trim_the_array:
+        print('remove first: {} to {}'.format(len(cur_xarr.time), slice(1, len(cur_xarr.time))))
+        cur_xarr = cur_xarr.isel(time=slice(1, len(cur_xarr.time)))
+    return cur_xarr
+
+
+def gather_dataset_attributes(dataset: dict):
     """
     Return the attributes within an Xarray DataSet
 
     Parameters
     ----------
-    dataset
-        Xarray DataSet with attribution
+    dict
+        dict of ping records by serial number
 
     Returns
     -------
@@ -731,7 +642,7 @@ def gather_dataset_attributes(dataset: xr.Dataset):
         attributes within dataset
     """
 
-    attrs = dataset.attrs
+    attrs = list(dataset.values())[0].attrs
     return attrs
 
 
@@ -816,10 +727,11 @@ def batch_read_configure_options(ping_chunksize: int, nav_chunksize: int, att_ch
     """
 
     ping_chunks = {'time': (ping_chunksize,), 'beam': (400,), 'xyz': (3,),
-                   'beampointingangle': (ping_chunksize, 400), 'counter': (ping_chunksize,),
-                   'detectioninfo': (ping_chunksize,), 'mode': (ping_chunksize,), 'nrx': (ping_chunksize,),
+                   'beampointingangle': (ping_chunksize, 400), 'counter': (ping_chunksize,), 'delay': (ping_chunksize, 400),
+                   'detectioninfo': (ping_chunksize, 400), 'frequency': (ping_chunksize, 400), 'mode': (ping_chunksize,),
                    'ntx': (ping_chunksize,), 'qualityfactor': (ping_chunksize, 400), 'samplerate': (ping_chunksize,),
-                   'soundspeed': (ping_chunksize,), 'modetwo': (ping_chunksize,), 'tiltangle': (ping_chunksize,),
+                   'serial_num': (ping_chunksize,), 'soundspeed': (ping_chunksize,), 'txsector_beam': (ping_chunksize, 400),
+                   'modetwo': (ping_chunksize,), 'tiltangle': (ping_chunksize, 400),
                    'traveltime': (ping_chunksize, 400), 'waveformid': (ping_chunksize,),
                    'yawpitchstab': (ping_chunksize,), 'rxid': (ping_chunksize,), 'processing_status': (ping_chunksize, 400)}
     att_chunks = {'time': (att_chunksize,), 'heading': (att_chunksize,), 'heave': (att_chunksize,),
@@ -1004,7 +916,7 @@ class BatchRead:
             self.logger.error(self.filtype + ' is not a supported format.')
             raise NotImplementedError(self.filtype + ' is not a supported format.')
 
-        final_pths = self.batch_read_by_sector(self.filtype)
+        final_pths = self.batch_read(self.filtype)
 
         if final_pths is not None:
             self.final_paths = final_pths
@@ -1014,9 +926,9 @@ class BatchRead:
             elif self.filtype == 'zarr':
                 # kind of dumb, right now I read to get the data, build offsets, save them to the datastore and then
                 #   read again.  It isn't that bad though, read is just opening metadata, so it takes less than a second
-                self.read_from_zarr_fils(final_pths['ping'], final_pths['attitude'], final_pths['navigation'], self.logfile)
+                self.read_from_zarr_fils(final_pths['ping'], final_pths['attitude'][0], final_pths['navigation'][0], self.logfile)
                 self.build_offsets(save_pths=final_pths['ping'])  # write offsets to ping rootgroup
-                self.read_from_zarr_fils(final_pths['ping'], final_pths['attitude'], final_pths['navigation'], self.logfile)
+                self.read_from_zarr_fils(final_pths['ping'], final_pths['attitude'][0], final_pths['navigation'][0], self.logfile)
                 self.xyzrph = self.raw_ping[0].xyzrph  # read offsets back to populate self.xyzrph
         else:
             self.logger.error('Unable to start/connect to the Dask distributed cluster.')
@@ -1066,13 +978,13 @@ class BatchRead:
         if 'ping' in self.final_paths:
             self.raw_ping = []
             for pth in self.final_paths['ping']:
-                xarr = reload_zarr_records(pth, skip_dask=skip_dask)
+                xarr = reload_zarr_records(pth, skip_dask=skip_dask, sort_by='time')
                 self.raw_ping.append(xarr)
         else:
             # self.logger.warning('Unable to reload ping records (normal for in memory processing), no paths found: {}'.format(self.final_paths))
             pass
 
-    def read_from_zarr_fils(self, ping_pth: str, attitude_pth: str, navigation_pth: str, logfile_pth: str):
+    def read_from_zarr_fils(self, ping_pth: list, attitude_pth: str, navigation_pth: str, logfile_pth: str):
         """
         Read from the generated zarr datastore constructed with read()
 
@@ -1088,7 +1000,7 @@ class BatchRead:
         Parameters
         ----------
         ping_pth
-            path to the ping zarr group
+            list of paths to each ping zarr group (by system)
         attitude_pth
             path to the attitude zarr group
         navigation_pth
@@ -1097,79 +1009,68 @@ class BatchRead:
             path to the text log file used by logging
         """
 
-        self.raw_ping = []
+        self.raw_ping = None
         self.raw_nav = None
         self.raw_att = None
 
         self.logfile = logfile_pth
         self.initialize_log()
 
-        if type(ping_pth) != list:
-            ping_pth = [ping_pth]
-        if type(attitude_pth) != list:
-            attitude_pth = [attitude_pth]
-        if type(navigation_pth) != list:
-            navigation_pth = [navigation_pth]
+        if self.converted_pth is None:
+            self.converted_pth = os.path.dirname(ping_pth[0])
+        if self.client is None:
+            skip_dask = True
+        else:
+            skip_dask = False
+        try:
+            self.raw_ping = [reload_zarr_records(pth, skip_dask, sort_by='time') for pth in ping_pth]
+            # interp_these = ['mode', 'modetwo', 'yawpitchstab']
+            # for variable in interp_these:
+            #     if variable in finalarr:
+            #         empty_str = np.where(finalarr[variable] == '')[0]
+            #         if empty_str.any():
+            #             print('Found empty block of {} parameters'.format(interp_these))
+            #             finalarr[variable].load()
+            #             print(finalarr[variable])
+            #             groups_empty = np.split(empty_str, np.where(np.diff(empty_str) != 1)[0] + 1)
+            #             for gp in groups_empty:
+            #                 try:  # fill with the value previous to the empty chunk
+            #                     fill_with = finalarr[variable][gp[0] - 1]
+            #                 except IndexError:  # fill with the value after the empty chunk
+            #                     try:
+            #                         fill_with = finalarr[variable][gp[-1] + 1]
+            #                     except IndexError:
+            #                         print('Found no value to replace empty chunk')
+            #                         continue
+            #                 if fill_with:
+            #                     finalarr[variable][gp] = fill_with
+            #                     print(finalarr.time.values[gp[0]], finalarr.time.values[gp[-1]])
+        except ValueError:
+            self.logger.error('Unable to read from {}'.format(ping_pth))
 
-        for ra in ping_pth:
-            if self.converted_pth is None:
-                self.converted_pth = os.path.dirname(ra)
-            if self.client is None:
-                skip_dask = True
-            else:
-                skip_dask = False
-            if ra is not None:
-                try:
-                    xarr = reload_zarr_records(ra, skip_dask)
-                    self.raw_ping.append(xarr)
-                except ValueError:
-                    self.logger.error('Unable to read from {}'.format(ra))
-            else:
-                self.logger.error('No raw_ping paths found')
+        if self.converted_pth is None:
+            self.converted_pth = os.path.dirname(attitude_pth)
+        if self.client is None:
+            skip_dask = True
+        else:
+            skip_dask = False
+        try:
+            self.raw_att = reload_zarr_records(attitude_pth, skip_dask, sort_by='time')
+            self.raw_att = self.raw_att.isel(time=np.unique(self.raw_att.time, return_index=True)[1])
+        except (ValueError, AttributeError):
+            self.logger.error('Unable to read from {}'.format(attitude_pth))
 
-        if len(attitude_pth) > 1:
-            self.logger.error('Only one attitude data store can be read at a time at this time.')
-            raise NotImplementedError('Only one attitude data store can be read at a time at this time.')
-        elif len(attitude_pth) == 0:
-            self.logger.error('No attitude paths found')
-        for at in attitude_pth:
-            if self.converted_pth is None:
-                self.converted_pth = os.path.dirname(at)
-            if self.client is None:
-                skip_dask = True
-            else:
-                skip_dask = False
-            if at is not None:
-                try:
-                    self.raw_att = reload_zarr_records(at, skip_dask)
-                    self.raw_att = self.raw_att.isel(time=np.unique(self.raw_att.time, return_index=True)[1])
-                except (ValueError, AttributeError):
-                    self.logger.error('Unable to read from {}'.format(at))
-            else:
-                self.logger.error('No attitude paths found')
-
-        if len(navigation_pth) > 1:
-            self.logger.error('Only one navigation data store can be read at a time at this time.')
-            raise NotImplementedError('Only one navigation data store can be read at a time at this time.')
-        elif len(navigation_pth) == 0:
-            self.logger.error('No navigation paths found')
-        for nv in navigation_pth:
-            if self.converted_pth is None:
-                self.converted_pth = os.path.dirname(nv)
-            if self.client is None:
-                skip_dask = True
-            else:
-                skip_dask = False
-            if nv is not None:
-                try:
-                    self.raw_nav = reload_zarr_records(nv, skip_dask)
-                    # this kind of sucks, but for some reason I have yet to figure out, I occassionally get a duplicate entry
-                    #    after all the parallel reading and merging in nav.
-                    self.raw_nav = self.raw_nav.isel(time=np.unique(self.raw_nav.time, return_index=True)[1])
-                except (ValueError, AttributeError):
-                    self.logger.error('Unable to read from {}'.format(nv))
-            else:
-                self.logger.error('No navigation paths found')
+        if self.converted_pth is None:
+            self.converted_pth = os.path.dirname(navigation_pth)
+        if self.client is None:
+            skip_dask = True
+        else:
+            skip_dask = False
+        try:
+            self.raw_nav = reload_zarr_records(navigation_pth, skip_dask, sort_by='time')
+            self.raw_nav = self.raw_nav.isel(time=np.unique(self.raw_nav.time, return_index=True)[1])
+        except (ValueError, AttributeError):
+            self.logger.error('Unable to read from {}'.format(navigation_pth))
 
     def initialize_log(self):
         """
@@ -1318,11 +1219,9 @@ class BatchRead:
         del balanced_data
         return output_arrs, time_arrs, chunksize, totallength
 
-    def _batch_read_sequential_and_trim(self, chnks_flat: list):
+    def _batch_read_sequential(self, chnks_flat: list):
         """
-        Kongsberg sonars have dynamic sectors, where the number of beams in each sector varies over time.  As a result,
-        we pad the beam arrays to a total size of 400.  At this point though, since we can now learn max beams across
-        sectors/time, we want to trim to just the max beam count in each sector.
+        Run sequential_read methods on the provided chunks
 
         Parameters
         ----------
@@ -1338,35 +1237,8 @@ class BatchRead:
         # recfutures is a list of futures representing dicts from sequential read
         recfutures = self.client.map(_run_sequential_read, chnks_flat)
         if self.show_progress:
-            progress(recfutures)
-        maxnums = self.client.map(_sequential_gather_max_beams, recfutures)
-        maxnum = np.max(self.client.gather(maxnums))
-        newrecfutures = self.client.map(_sequential_trim_to_max_beam_number, recfutures, [maxnum] * len(recfutures))
-        del recfutures, maxnums, maxnum
-        return newrecfutures
-
-    def _batch_read_correct_block_boundaries(self, input_xarrs: list):
-        """
-        See _correct_for_splits.  Handle cases where sectors are split across worker blocks/files and
-        must be repaired in order to avoid duplicate timestamps.
-
-        Parameters
-        ----------
-        input_xarrs
-            xarray Dataset object from _sequential_to_xarray
-
-        Returns
-        -------
-        list
-            xarray Dataset futures representing the input_xarrs corrected for splits between files/blocks
-        """
-
-        base_xarrfut = input_xarrs
-        next_xarrfut = input_xarrs[1:] + [None]
-        trim_arr = self.client.map(_assess_need_for_split_correction, base_xarrfut, next_xarrfut)
-        input_xarrs = self.client.map(_correct_for_splits, base_xarrfut, [trim_arr[-1]] + trim_arr[:-1])
-        del trim_arr, base_xarrfut, next_xarrfut
-        return input_xarrs
+            progress(recfutures, multi=False)
+        return recfutures
 
     def _batch_read_sort_futures_by_time(self, input_xarrs: list):
         """
@@ -1393,31 +1265,7 @@ class BatchRead:
             input_xarrs = [input_xarrs[i] for i in idx]
         return input_xarrs
 
-    def _batch_read_return_xarray_by_sector(self, input_xarrs: list, sec: str):
-        """
-        Take in the sector identifier (sec) and only return xarray objects with that sector in them, also selecting
-        only that sector.
-
-        Parameters
-        ----------
-        input_xarrs
-            xarray Dataset objects from _sequential_to_xarray
-        sec
-            sector identifier
-
-        Returns
-        -------
-        list
-            input_xarrs selected sector, with xarrs dropped if they didn't contain the sector
-        """
-
-        list_of_secs = [sec] * len(input_xarrs)
-        input_xarrs_by_sec = self.client.map(_divide_xarray_return_sector, input_xarrs, list_of_secs)
-        empty_mask = self.client.gather(self.client.map(_divide_xarray_indicate_empty_future, input_xarrs_by_sec))
-        valid_input_xarrs = [in_xarr for cnt, in_xarr in enumerate(input_xarrs_by_sec) if empty_mask[cnt]]
-        return valid_input_xarrs
-
-    def _batch_read_write(self, output_mode: str, datatype: str, opts: list, converted_pth: str, secid: str = None):
+    def _batch_read_write(self, output_mode: str, datatype: str, opts: list, converted_pth: str, sysid: str = None):
         """
         Write out the xarray Dataset(s) to the specified data storage type
 
@@ -1431,8 +1279,8 @@ class BatchRead:
             output of batch_read_configure_options, contains output arrays and options for writing
         converted_pth
             path to the output datastore
-        secid
-            sector name if writing by sector to zarr datastore
+        sysid
+            system name if writing by sector to zarr datastore
 
         Returns
         -------
@@ -1444,7 +1292,7 @@ class BatchRead:
         if output_mode == 'netcdf':
             fpths = self._batch_read_write_netcdf(datatype, opts, converted_pth)
         elif output_mode == 'zarr':
-            fpths = self._batch_read_write_zarr(datatype, opts, converted_pth, secid=secid)
+            fpths = self._batch_read_write_zarr(datatype, opts, converted_pth, sysid=sysid)
 
         if fpths:
             fpthsout = self.client.gather(fpths)
@@ -1485,7 +1333,7 @@ class BatchRead:
                                 output_attributes, fname_idxs)
         return fpths
 
-    def _batch_read_write_zarr(self, datatype: str, opts: dict, converted_pth: str, secid: str = None):
+    def _batch_read_write_zarr(self, datatype: str, opts: dict, converted_pth: str, sysid: str = None):
         """
         Take in list of xarray futures (output_arrs) and write them to a single Zarr datastore.  Each array will become
         a Zarr array within the root Zarr group.  Zarr chunksize on read is determined by the chunks written, so the
@@ -1499,8 +1347,8 @@ class BatchRead:
             nested dictionary containing settings and input/output arrays depending on datatype, see self.batch_read
         converted_pth
             path to the directory that will contain the written netcdf files
-        secid
-            sector identifier
+        sysid
+            system identifier
 
         Returns
         -------
@@ -1508,11 +1356,11 @@ class BatchRead:
             str path to written zarr datastore/group.  I use the first element of the list of fpths as all returned elements of fpths are identical.
         """
 
-        if secid is None:
+        if sysid is None:
             output_pth = os.path.join(converted_pth, datatype + '.zarr')
         else:
-            output_pth = os.path.join(converted_pth, datatype + '_' + secid + '.zarr')
-            opts[datatype]['final_attrs']['sector_identifier'] = secid
+            output_pth = os.path.join(converted_pth, datatype + '_' + sysid + '.zarr')
+            opts[datatype]['final_attrs']['system_identifier'] = sysid
 
         # correct for existing data if it exists in the zarr data store
         data_locs, finalsize = get_write_indices_zarr(output_pth, opts[datatype]['time_arrs'])
@@ -1522,6 +1370,29 @@ class BatchRead:
                                    show_progress=self.show_progress)
         fpth = fpths[0]  # Pick the first element, all are identical so it doesnt really matter
         return fpth
+
+    def _batch_read_correct_block_boundaries(self, input_xarrs: list):
+        """
+        See _correct_for_splits.  Handle cases where sectors are split across worker blocks/files and
+        must be repaired in order to avoid duplicate timestamps.
+
+        Parameters
+        ----------
+        input_xarrs
+            xarray Dataset object from _sequential_to_xarray
+
+        Returns
+        -------
+        list
+            xarray Dataset futures representing the input_xarrs corrected for splits between files/blocks
+        """
+
+        base_xarrfut = input_xarrs
+        next_xarrfut = input_xarrs[1:] + [None]
+        trim_arr = self.client.map(_assess_need_for_split_correction, base_xarrfut, next_xarrfut)
+        input_xarrs = self.client.map(_correct_for_splits, base_xarrfut, [trim_arr[-1]] + trim_arr[:-1])
+        del trim_arr, base_xarrfut, next_xarrfut
+        return input_xarrs
 
     def _batch_read_ping_specific_attribution(self, combattrs: dict):
         """
@@ -1546,7 +1417,7 @@ class BatchRead:
                                       4: 'georeference', 5: 'tpu'}
         return combattrs
 
-    def batch_read_by_sector(self, output_mode: str = 'zarr'):
+    def batch_read(self, output_mode: str = 'zarr'):
         """
         General converter for .all files leveraging xarray and dask.distributed
         See batch_read, same process but working on memory efficiency
@@ -1576,12 +1447,12 @@ class BatchRead:
             self.logger.info('****Running Kongsberg .all converter****')
 
             chnks_flat = self._batch_read_chunk_generation(self.fils)
-            newrecfutures = self._batch_read_sequential_and_trim(chnks_flat)
+            newrecfutures = self._batch_read_sequential(chnks_flat)
 
             # xarrfutures is a list of futures representing xarray structures for each file chunk
             xarrfutures = self.client.map(_sequential_to_xarray, newrecfutures)
             if self.show_progress:
-                progress(xarrfutures)
+                progress(xarrfutures, multi=False)
             del newrecfutures
 
             finalpths = {'ping': [], 'attitude': [], 'navigation': []}
@@ -1593,20 +1464,19 @@ class BatchRead:
 
                 if datatype == 'ping':
                     combattrs = self._batch_read_ping_specific_attribution(combattrs)
-                    sectors = self.client.gather(self.client.map(_return_xarray_sectors, input_xarrs))
-                    totalsecs = sorted(np.unique([s for secs in sectors for s in secs]))
-                    for sec in totalsecs:
-                        self.logger.info('Operating on sector {}, s/n {}, freq {}'.format(sec.split('_')[1], sec.split('_')[0],
-                                                                                      sec.split('_')[2]))
-                        input_xarrs_by_sec = self._batch_read_return_xarray_by_sector(input_xarrs, sec)
+                    system_ids = self.client.gather(self.client.map(_return_xarray_system_ids, input_xarrs))
+                    totalsystems = sorted(np.unique([s for system in system_ids for s in system]))
+                    for system in totalsystems:
+                        self.logger.info('Operating on system identifier {}'.format(system))
+                        input_xarrs_by_system = self._batch_read_return_xarray_by_system(input_xarrs, system)
                         opts = batch_read_configure_options(self.ping_chunksize, self.nav_chunksize, self.att_chunksize)
                         opts['ping']['final_attrs'] = combattrs
-                        if len(input_xarrs_by_sec) > 1:
+                        if len(input_xarrs_by_system) > 1:
                             # rebalance to get equal chunksize in time dimension (sector/beams are constant across)
-                            input_xarrs_by_sec = self._batch_read_correct_block_boundaries(input_xarrs_by_sec)
-                        opts[datatype]['output_arrs'], opts[datatype]['time_arrs'], opts[datatype]['chunksize'], totallen = self._batch_read_merge_blocks(input_xarrs_by_sec, datatype, opts[datatype]['chunksize'])
-                        del input_xarrs_by_sec
-                        finalpths[datatype].append(self._batch_read_write('zarr', datatype, opts, self.converted_pth, secid=sec))
+                            input_xarrs_by_system = self._batch_read_correct_block_boundaries(input_xarrs_by_system)
+                        opts[datatype]['output_arrs'], opts[datatype]['time_arrs'], opts[datatype]['chunksize'], totallen = self._batch_read_merge_blocks(input_xarrs_by_system, datatype, opts[datatype]['chunksize'])
+                        del input_xarrs_by_system
+                        finalpths[datatype].append(self._batch_read_write('zarr', datatype, opts, self.converted_pth, sysid=system))
                         del opts
                 else:
                     opts = batch_read_configure_options(self.ping_chunksize, self.nav_chunksize, self.att_chunksize)
@@ -1637,7 +1507,29 @@ class BatchRead:
             runtimesettdict[sett.split('_')[1]] = json.loads(self.raw_ping[0].attrs[sett])
         return settdict, runtimesettdict
 
-    def build_offsets(self, save_pths: list = None):
+    def _batch_read_return_xarray_by_system(self, input_xarrs: list, sysid: str):
+        """
+        Take in the system identifier sysid and only return xarray objects with that sector in them
+
+        Parameters
+        ----------
+        input_xarrs
+            xarray Dataset objects from _sequential_to_xarray
+        sysid
+            system identifier
+
+        Returns
+        -------
+        list
+            input_xarrs selected sector, with xarrs dropped if they didn't contain the sector
+        """
+
+        input_xarrs_by_sec = self.client.map(_divide_xarray_return_system, input_xarrs, [sysid] * len(input_xarrs))
+        empty_mask = self.client.gather(self.client.map(_divide_xarray_indicate_empty_future, input_xarrs_by_sec))
+        valid_input_xarrs = [in_xarr for cnt, in_xarr in enumerate(input_xarrs_by_sec) if empty_mask[cnt]]
+        return valid_input_xarrs
+
+    def build_offsets(self, save_pths: str = None):
         """
         Form sorteddict for unique entries in installation parameters across all lines, retaining the xyzrph for each
         transducer/receiver.  key values depend on type of sonar, see sonar_translator
@@ -1673,7 +1565,7 @@ class BatchRead:
                 raise NotImplementedError('Found multiple sonars types in data provided: {}'.format(input_datum))
 
             mintime = min(list(settdict.keys()))
-            minactual = self.raw_ping[0].time.min().compute()
+            minactual = np.min([rp.time.min().compute() for rp in self.raw_ping])
             if float(mintime) > float(minactual):
                 self.logger.warning('Installation Parameters minimum time: {}'.format(mintime))
                 self.logger.warning('Actual data minimum time: {}'.format(float(minactual)))
@@ -1687,9 +1579,9 @@ class BatchRead:
             self.tpu_parameters = build_tpu_parameters()
 
             if save_pths is not None:
-                for pth in save_pths:
+                for svpth in save_pths:
                     my_xarr_add_attribute({'input_datum': input_datum[0], 'xyzrph': self.xyzrph,
-                                           'tpu_parameters': self.tpu_parameters, 'sonartype': self.sonartype}, pth)
+                                           'tpu_parameters': self.tpu_parameters, 'sonartype': self.sonartype}, svpth)
             self.logger.info('Constructed offsets successfully')
 
     def _get_nth_chunk_indices(self, chunks: tuple, idx: int):
@@ -2000,44 +1892,6 @@ class BatchRead:
                     cntrs = np.concatenate([cntrs, ra.sel(time=overlap).counter.values])
         return np.unique(cntrs)
 
-    def return_active_sectors_for_ping_counter(self, rangeangle_idx: int, ping_counters: Union[int, np.array]):
-        """
-        Take in the ping counter number(s) and return all the times the ping counter exists in the given rangeangle
-
-        If by_counter is True, will return array of the same size as the ping_counters input (i.e. all the active
-        times for this sector for each ping counter value)
-
-        If by_counter is False, will return array of the same size as the ping_times input (i.e. all the active
-        times for this sector for each ping time value)
-
-        Parameters
-        ----------
-        rangeangle_idx
-            index to select the range angle dataset
-        ping_counters
-            ping counter number(s)
-
-        Returns
-        -------
-        np.array
-            size equal to given ping_counters array, with elements filled with ping time if that ping counter/ping time is in the given range angle dataset
-        """
-
-        # sector we are examining
-        ra = self.raw_ping[rangeangle_idx]
-        # msk = np.logical_and(ping_times.min() <= ra.time, ra.time <= ping_times.max())
-        # ra = ra.where(msk, drop=True)
-
-        # boolean mask of which ping counter values are in the provided ping counters
-        ra_cntr_msk = np.isin(ra.counter, ping_counters)
-        # boolean mask of which provided ping counters are in the ping counter values
-        p_cntr_msk = np.isin(ping_counters, ra.counter)
-
-        ans = np.zeros_like(ping_counters, dtype=np.float64)
-
-        ans[p_cntr_msk] = ra.time[ra_cntr_msk].values
-        return ans
-
     def return_all_profiles(self):
         """
         Return dict of attribute_name/data for each sv profile in the ping dataset
@@ -2081,95 +1935,7 @@ class BatchRead:
         closest_tim = str(int(_closest_prior_key_value(sett_tims, time_idx)))
         return float(json.loads(self.raw_ping[0].attrs['settings_' + closest_tim])['waterline_vertical_location'])
 
-    def return_xyz_prefixes_for_sectors(self):
-        """
-        self.raw_ping contains Datasets broken up by sector.  This method will return the prefixes you need to get
-        the offsets/angles from self.xyzrph depending on model/dual-head
-
-        Returns
-        -------
-        List
-            list of two element lists containing the prefixes needed for tx/rx offsets and angles
-        """
-
-        if 'tx_r' in self.xyzrph:
-            leverarms = [['tx', 'rx']]
-        elif 'tx_port_r' in self.xyzrph:
-            leverarms = [['tx_port', 'rx_port'], ['tx_stbd', 'rx_stbd']]
-        else:
-            self.logger.error('Not supporting this sonartype yet.')
-            raise NotImplementedError('Not supporting this sonartype yet.')
-
-        lever_prefix = []
-        for ra in self.raw_ping:
-            serial_ident = ra.sector_identifier.split('_')[0]
-            # dual head logic
-            if len(leverarms) > 1:
-                if serial_ident == str(ra.system_serial_number[0]):
-                    lever_prefix.append(leverarms[0])
-                elif serial_ident == str(ra.secondary_system_serial_number[0]):
-                    lever_prefix.append(leverarms[1])
-                else:
-                    self.logger.error('Found serial number attribute not included in sector')
-                    raise NotImplementedError('Found serial number attribute not included in sector')
-            else:
-                lever_prefix.append(leverarms[0])
-        return lever_prefix
-
-    def select_array_from_rangeangle(self, ra_var: str, ra_sector: str, filter_nan: bool = True):
-        """
-        Given variable name and sectors, return DataArray specified by var reduced to dimensions specified by sectors.
-
-        Using the ntx array as a key (identifies sectors/freq that are pinging at that time) returned array will have
-        NaN for all unused sector/freq combinations
-
-        Parameters
-        ----------
-        ra_var
-            variable name to identify xarray DataArray to return
-        ra_sector
-            string name for sectors to subset DataArray by
-        filter_nan
-            if true, will filter out the values that equal 999 (the fill value for the beam wise arrays)
-
-        Returns
-        -------
-        xr.DataArray
-            dataarray corresponding to the given variable and sector
-        """
-
-        for ra in self.raw_ping:
-            if ra.sector_identifier == ra_sector:
-                sec_dat = ra[ra_var].where(ra.ntx > 0).astype(np.float32)
-                if sec_dat.ndim == 2 and filter_nan:
-                    # for (time, beam) dimensional arrays, also replace 999.0 in the beam dimension with nan
-                    #    to make downstream calculations a bit easier (see pad_to_dense)
-                    return sec_dat.where(sec_dat != 999.0)
-                else:
-                    return sec_dat
-        return None
-
-    def return_ping_by_sector(self, secid: str):
-        """
-        Given sector identifier (secid), return the correct ping Dataset from the list
-
-        Parameters
-        ----------
-        secid
-            name of the sector you want
-
-        Returns
-        -------
-        xr.Dataset
-            Dataset for the right sector
-        """
-
-        for ra in self.raw_ping:
-            if ra.sector_identifier == secid:
-                return ra
-        return None
-
-    def return_sector_time_indexed_array(self, subset_time: list = None):
+    def return_system_time_indexed_array(self, subset_time: list = None):
         """
         Most of the processing involves matching static, timestamped offsets or angles to time series data.  Given that
         we might have a list of sectors and a list of timestamped offsets, need to iterate through all of this in each
@@ -2186,8 +1952,8 @@ class BatchRead:
             list of indices for each sector that are within the provided subset
         """
 
-        resulting_sectors = []
-        prefixes = self.return_xyz_prefixes_for_sectors()
+        resulting_systems = []
+        prefixes = self.return_xyz_prefixes_for_systems()
         for cnt, ra in enumerate(self.raw_ping):
             txrx = prefixes[cnt]
             tstmps = self.return_xyzrph_sorted_timestamps(txrx[0] + '_x')
@@ -2219,8 +1985,43 @@ class BatchRead:
                         final_tx_idx = np.logical_or(final_tx_idx, start_msk)
                     tx_idx = final_tx_idx
                 resulting_tstmps.append([tx_idx, tstmp, txrx])
-            resulting_sectors.append(resulting_tstmps)
-        return resulting_sectors
+            resulting_systems.append(resulting_tstmps)
+        return resulting_systems
+
+    def return_xyz_prefixes_for_systems(self):
+        """
+        self.raw_ping contains Datasets broken up by system.  This method will return the prefixes you need to get
+        the offsets/angles from self.xyzrph depending on dual-head
+
+        Returns
+        -------
+        List
+            list of two element lists containing the prefixes needed for tx/rx offsets and angles
+        """
+
+        if 'tx_r' in self.xyzrph:
+            leverarms = [['tx', 'rx']]
+        elif 'tx_port_r' in self.xyzrph:
+            leverarms = [['tx_port', 'rx_port'], ['tx_stbd', 'rx_stbd']]
+        else:
+            self.logger.error('Not supporting this sonartype yet.')
+            raise NotImplementedError('Not supporting this sonartype yet.')
+
+        lever_prefix = []
+        for ra in self.raw_ping:
+            systemident = ra.system_identifier
+            # dual head logic
+            if len(leverarms) > 1:
+                if systemident == str(ra.system_serial_number[0]):
+                    lever_prefix.append(leverarms[0])
+                elif systemident == str(ra.secondary_system_serial_number[0]):
+                    lever_prefix.append(leverarms[1])
+                else:
+                    self.logger.error('Found serial number attribute not included in sector')
+                    raise NotImplementedError('Found serial number attribute not included in sector')
+            else:
+                lever_prefix.append(leverarms[0])
+        return lever_prefix
 
     def get_minmax_extents(self):
         """
@@ -2250,27 +2051,6 @@ class BatchRead:
         zne = return_zone_from_min_max_long(minlon, maxlon, minlat)
         return zne
 
-    def show_description(self):
-        """
-        Display xarray Dataset description
-        """
-
-        print(self.raw_ping[0].info)
-
-    def generate_plots(self):
-        """
-        | Generate some example plots showing the abilities of the xarray plotting engine
-        | - plot detection info for beams/sector/times
-        | - plot roll/pitch/heave on 3 row plot
-        """
-
-        self.raw_ping.detectioninfo.plot(x='beam', y='time', col='sector', col_wrap=3)
-
-        fig, axes = plt.subplots(nrows=3)
-        self.raw_ping['roll'].plot(ax=axes[0])
-        self.raw_ping['pitch'].plot(ax=axes[1])
-        self.raw_ping['heading'].plot(ax=axes[2])
-
 
 def determine_good_chunksize(fil: str, minchunksize: int = 40000000, max_chunks: int = 20):
     """
@@ -2297,9 +2077,7 @@ def determine_good_chunksize(fil: str, minchunksize: int = 40000000, max_chunks:
     # get number of chunks at minchunksize
     min_chunks = filesize / minchunksize
     if filesize <= minchunksize:
-        # really small files can be below the given minchunksize in size.  Just use 4 chunks per in this case
-        finalchunksize = int(filesize / 4)
-        max_chunks = 4
+        finalchunksize = int(filesize)
     elif min_chunks <= max_chunks:
         # small files can use the minchunksize and be under the maxchunks per file
         # take remainder of min_chunks and glob it on to the chunksize

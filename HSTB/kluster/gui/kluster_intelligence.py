@@ -651,6 +651,8 @@ class KlusterIntelligence(QtWidgets.QMainWindow):
         self.widget_obj_names = []
 
         self.project = None
+
+        # fqpr = fully qualified ping record, the term for the datastore in kluster
         self.intelligence = fqpr_intelligence.FqprIntel(project=self.project)
 
         self.action_tab = ActionTab(self)
@@ -685,6 +687,7 @@ class KlusterIntelligence(QtWidgets.QMainWindow):
         Setting the project here means we also need to set the intelligence module project as well.  The intelligence
         module holds all of the data for us, we just ask it to update the gui when it receives/generates new information
 
+        fqpr = fully qualified ping record, the term for the datastore in kluster
         Parameters
         ----------
         project

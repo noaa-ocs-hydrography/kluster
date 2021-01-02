@@ -9,6 +9,8 @@ class KlusterProjectTree(QtWidgets.QTreeView):
     """
     Tree widget to view the surfaces and converted data folders/lines associated with a FqprProject.
 
+    fqpr = fully qualified ping record, the term for the datastore in kluster
+
     """
     # signals must be defined on the class, not the instance of the class
     file_added = QtCore.Signal(object)

@@ -231,6 +231,8 @@ class KlusterExplorer(QtWidgets.QTableWidget):
 
         Will return the selection of attributes that are needed to populate the table
 
+        fqpr = fully qualified ping record, the term for the datastore in kluster
+
         Parameters
         ----------
         attrs: dict, fqpr_generation.FPQR attribution

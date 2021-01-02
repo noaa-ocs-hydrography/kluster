@@ -7,6 +7,8 @@ class AllProcessingDialog(QtWidgets.QDialog):
     """
     Dialog contains all the processing steps post-conversion.  Use return_processing_options to get the kwargs to feed
     the fqpr_convenience.process_multibeam function.
+
+    fqpr = fully qualified ping record, the term for the datastore in kluster
     """
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -138,11 +140,11 @@ class AllProcessingDialog(QtWidgets.QDialog):
 
     def update_fqpr_instances(self, addtl_files=None):
         """
-        Used through kluster_main to update the list_widget with new multibeam files to process
+        Used through kluster_main to update the list_widget with new fqpr processed instances to process
 
         Parameters
         ----------
-        addtl_files: optional, list, list of multibeam files (string file paths)
+        addtl_files: optional, list, list of folder paths to converted data (string folder paths)
 
         """
         if addtl_files is not None:

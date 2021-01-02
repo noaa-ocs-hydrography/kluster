@@ -5,12 +5,12 @@ from dask.distributed import Client
 from typing import Union
 from matplotlib.gridspec import GridSpec
 import matplotlib.pyplot as plt
+# import openpyxl
 
 from HSTB.drivers.par3 import AllRead
 from HSTB.drivers.kmall import kmall
 from HSTB.kluster.xarray_conversion import BatchRead
 from HSTB.kluster.fqpr_generation import Fqpr
-from HSTB.kluster.fqpr_visualizations import FqprVisualizations
 from HSTB.kluster.fqpr_surface import BaseSurface
 from HSTB.kluster.fqpr_helpers import return_directory_from_data
 
@@ -21,6 +21,8 @@ def perform_all_processing(filname: str, navfiles: list = None, outfold: str = N
     """
     Use fqpr_generation to process multibeam data on the local cluster and generate a sound velocity corrected,
     georeferenced xyz with uncertainty in csv files in the provided output folder.
+
+    fqpr = fully qualified ping record, the term for the datastore in kluster
 
     Parameters
     ----------
@@ -64,6 +66,8 @@ def convert_multibeam(filname: str, outfold: str = None, client: Client = None, 
     Use fqpr_generation to process multibeam data on the local cluster and generate a new Fqpr instance saved to the
     provided output folder.
 
+    fqpr = fully qualified ping record, the term for the datastore in kluster
+
     Parameters
     ----------
     filname
@@ -99,6 +103,8 @@ def import_navigation(fqpr_inst: Fqpr, navfiles: list, errorfiles: list = None, 
     Convenience function for importing post processed navigation from sbet/smrmsg files, for use in georeferencing
     xyz data.  Converted attitude must exist before importing navigation, timestamps are used to figure out what
     part of the new nav to keep.
+
+    fqpr = fully qualified ping record, the term for the datastore in kluster
 
     Parameters
     ----------
@@ -151,6 +157,8 @@ def process_multibeam(fqpr_inst: Fqpr, run_orientation: bool = True, orientation
     """
     Use fqpr_generation to process already converted data on the local cluster and generate sound velocity corrected,
     georeferenced soundings in the same data store as the converted data.
+
+    fqpr = fully qualified ping record, the term for the datastore in kluster
 
     Parameters
     ----------
@@ -209,6 +217,8 @@ def process_and_export_soundings(filname: str, outfold: str = None, coord_system
     """
     Use fqpr_generation to process multibeam data on the local cluster and generate a sound velocity corrected,
     georeferenced xyz with uncertainty in csv files in the provided output folder.
+
+    fqpr = fully qualified ping record, the term for the datastore in kluster
 
     Parameters
     ----------
@@ -280,6 +290,8 @@ def reload_data(converted_folder: str, require_raw_data: bool = True, skip_dask:
     'ping_394_1_310000.zarr', 'ping_394_1_330000.zarr']\n
     fqpr = reload_data(r'C:/data_dir/converted_093926')
 
+    fqpr = fully qualified ping record, the term for the datastore in kluster
+
     Parameters
     ----------
     converted_folder
@@ -300,10 +312,13 @@ def reload_data(converted_folder: str, require_raw_data: bool = True, skip_dask:
     """
 
     final_paths = return_processed_data_folders(converted_folder)
+    if final_paths is None:
+        return None
+
     if (require_raw_data and final_paths['ping'] and final_paths['attitude'] and final_paths['navigation']) or (final_paths['ping'] or final_paths['soundings']):
         mbes_read = BatchRead(None, skip_dask=skip_dask, show_progress=show_progress)
         mbes_read.final_paths = final_paths
-        mbes_read.read_from_zarr_fils(final_paths['ping'], final_paths['attitude'], final_paths['navigation'], final_paths['logfile'])
+        mbes_read.read_from_zarr_fils(final_paths['ping'], final_paths['attitude'][0], final_paths['navigation'][0], final_paths['logfile'][0])
         fqpr_inst = Fqpr(mbes_read, show_progress=show_progress)
         fqpr_inst.logger.info('****Reloading from file {}****'.format(converted_folder))
 
@@ -337,7 +352,7 @@ def reload_data(converted_folder: str, require_raw_data: bool = True, skip_dask:
     return fqpr_inst
 
 
-def return_svcorr_xyz(filname: str, outfold: str = None, visualizations: bool = True):
+def return_svcorr_xyz(filname: str, outfold: str = None, visualizations: bool = False):
     """
     Using fqpr_generation, convert and sv correct multibeam file (or directory of files) and return the sound velocity
     corrected xyz soundings.
@@ -356,16 +371,8 @@ def return_svcorr_xyz(filname: str, outfold: str = None, visualizations: bool = 
     -------
     Fqpr
         Fqpr object containing svcorrected offsets
-    FqprVisualizations
-        FqprVisualizations object, returned here to keep the animations alive
-    np.array
-        2d numpy array (time, beam) of the alongtrack offsets
-    np.array
-        2d numpy array (time, beam) of the acrosstrack offsets
-    np.array
-        2d numpy array (time, beam) of the depth offsets
-    np.array
-        numpy array of unique times of pings
+    xr.Dataset
+        Dataset of the variables + time + system identifier
     """
 
     fqpr_inst = convert_multibeam(filname, outfold)
@@ -373,17 +380,13 @@ def return_svcorr_xyz(filname: str, outfold: str = None, visualizations: bool = 
     fqpr_inst.get_beam_pointing_vectors()
     fqpr_inst.sv_correct()
 
-    fqv = None
     if visualizations:
-        fqv = FqprVisualizations(fqpr_inst)
-        fqv.visualize_beam_pointing_vectors(corrected=False)
-        fqv.visualize_orientation_vector()
+        fqpr_inst.plot.visualize_beam_pointing_vectors(corrected=False)
+        fqpr_inst.plot.visualize_orientation_vector()
 
-    u_tms = fqpr_inst.return_unique_times_across_sectors()
-    dats, ids, tms = fqpr_inst.reform_2d_vars_across_sectors_at_time(['alongtrack', 'acrosstrack', 'depthoffset'], u_tms)
-    x, y, z = dats
+    dset = fqpr_inst.subset_variables(['alongtrack', 'acrosstrack', 'depthoffset'])
 
-    return fqpr_inst, fqv, x, y, z, tms
+    return fqpr_inst, dset
 
 
 def generate_new_surface(fqpr_inst: Union[Fqpr, list], resolution: float = 1.0, method: str = 'linear',
@@ -515,7 +518,7 @@ def return_processed_data_folders(converted_folder: str):
         directory paths according to record type (ex: navigation, attitude, etc.)
     """
 
-    final_paths = {'attitude': [], 'navigation': [], 'ping': [], 'soundings': [], 'ppnav': [], 'logfile': []}
+    final_paths = {'attitude': [], 'navigation': [], 'ping': [], 'soundings': [], 'ppnav': [], 'logfile': ''}
     if os.path.isdir(converted_folder):
         for fldr in os.listdir(converted_folder):
             fldrpath = os.path.join(converted_folder, fldr)
@@ -525,6 +528,13 @@ def return_processed_data_folders(converted_folder: str):
                         final_paths[ky].append(fldrpath)
                     elif ky in ['logfile']:
                         final_paths[ky] = fldrpath
+
+    for ky in ['attitude', 'navigation', 'soundings', 'ppnav']:
+        if len(final_paths[ky]) > 1:
+            print(len(final_paths[ky]))
+            print('return_processed_data_folders: Only one {} folder is allowed in a data store'.format(ky))
+            print('found {}'.format(final_paths[ky]))
+            return None
     return final_paths
 
 
@@ -820,6 +830,52 @@ def _dual_head_sort(idx: int, my_y: np.array, kongs_y: np.array, prev_index: int
     return ki, prev_index
 
 
+def _single_head_sort(idx: int, my_x: np.array, kongs_x: np.array):
+    """
+    Big ugly check to see if the par found xyz88 records are in alternating port head/stbd head (or stbd head/port head)
+    order.  Important because we want to compare the result side by side with the Kluster sv corrected data.
+
+    Idea here is to check the mean across track value and see if it is on the left or right (positive or negative).
+    If the Kluster is on the left and the par is on the right, look at the surrounding recs to fix the order.
+
+    Parameters
+    ----------
+    idx
+        int, index for the par/kluster records
+    my_x
+        numpy array, acrosstrack 2d (ping, beam) from kluater/fqpr_generation sv correction
+    kongs_x
+        numpy array, acrosstrack 2d (ping, beam) from par xyz88 read
+
+    Returns
+    -------
+    int
+        corrected index for port/stbd head order in par module xyz88
+    int
+        feedback for next run
+    """
+
+    my_alongtrack = float(my_x[idx].mean())
+    kongs_alongtrack = kongs_x[idx].mean()
+
+    previous_index = idx - 1
+    if previous_index >= 0:
+        kongs_alongtrack_pre = kongs_x[idx-1].mean()
+    else:
+        kongs_alongtrack_pre = 999
+
+    post_index = idx + 1
+    if post_index < kongs_x.shape[0]:
+        kongs_alongtrack_post = kongs_x[idx+1].mean()
+    else:
+        kongs_alongtrack_post = 999
+
+    closest_index = np.argmin(np.abs(my_alongtrack - np.array([kongs_alongtrack, kongs_alongtrack_pre, kongs_alongtrack_post])))
+    correct_idx = [idx, idx - 1, idx + 1][closest_index]
+
+    return correct_idx
+
+
 def validation_against_xyz88(filname: str, analysis_mode: str = 'even', numplots: int = 10,
                              visualizations: bool = False):
     """
@@ -844,8 +900,6 @@ def validation_against_xyz88(filname: str, analysis_mode: str = 'even', numplots
     -------
     Fqpr
         returned here for further analysis if you want it
-    FqprVisualizations
-        returned here to keep the animations alive
     """
 
     mbes_extension = os.path.splitext(filname)[1]
@@ -858,7 +912,7 @@ def validation_against_xyz88(filname: str, analysis_mode: str = 'even', numplots
     else:
         raise NotImplementedError('Only .all and .kmall file types are supported')
     print('Reading and processing from raw raw_ping/.all file with Kluster...')
-    fq, fqv, my_x, my_y, my_z, my_tm = return_svcorr_xyz(filname, visualizations=visualizations)
+    fq, dset = return_svcorr_xyz(filname, visualizations=visualizations)
 
     print('Plotting...')
     if kongs_tm[0] == 0.0:
@@ -870,8 +924,8 @@ def validation_against_xyz88(filname: str, analysis_mode: str = 'even', numplots
         kongs_y = kongs_y[first_nonzero:]
         kongs_z = kongs_z[first_nonzero:]
         kongs_tm = kongs_tm[first_nonzero:]
-    if kongs_x.shape != my_x.shape:
-        print('Found incompatible par/Kluster data sets.  Kluster x shape {}, par x shape {}'.format(my_x.shape,
+    if kongs_x.shape != dset.alongtrack.shape:
+        print('Found incompatible par/Kluster data sets.  Kluster x shape {}, par x shape {}'.format(dset.alongtrack.shape,
                                                                                                      kongs_x.shape))
     if fq.multibeam.is_dual_head():
         print('WANRING: I have not figured out the comparison of xyz88/kluster generated data with dual head systems.' +
@@ -907,20 +961,21 @@ def validation_against_xyz88(filname: str, analysis_mode: str = 'even', numplots
     prev_index = 0
     for i in idx:
         if fq.multibeam.is_dual_head():
-            ki, prev_index = _dual_head_sort(i, my_y, kongs_y, prev_index)
+            ki, prev_index = _dual_head_sort(i, dset.acrosstrack, kongs_y, prev_index)
+        elif (np.abs(kongs_tm[i - 1] - kongs_tm[i]) > 0.01) or (np.abs(kongs_tm[i + 1] - kongs_tm[i]) > 0.01):  # dual ping
+            ki = _single_head_sort(i, dset.alongtrack, kongs_x)
         else:
-            ki, prev_index = i, prev_index
+            ki = i
         lbls.append(kongs_tm[ki])
-        myz_plt.plot(my_z[i])
+        myz_plt.plot(dset.depthoffset[i])
         kongsz_plt.plot(kongs_z[ki])
-        alongdif_plt.plot(my_x[i] - kongs_x[ki])
-        acrossdif_plt.plot(my_y[i] - kongs_y[ki])
-        zvaldif_plt.plot(my_z[i] - kongs_z[ki])
+        alongdif_plt.plot(dset.alongtrack[i] - kongs_x[ki])
+        acrossdif_plt.plot(dset.acrosstrack[i] - kongs_y[ki])
+        zvaldif_plt.plot(dset.depthoffset[i] - kongs_z[ki])
 
     myz_plt.legend(labels=lbls, bbox_to_anchor=(1.05, 1), loc="upper left")
 
-    # currently need to retain handle to fqpr to keep the animations going
-    return fq, fqv
+    return fq
 
 
 def return_data(pth: Union[list, str], coord_system: str = 'NAD83', vert_ref: str = 'waterline',
@@ -1079,33 +1134,33 @@ def get_attributes_from_fqpr(fqpr_instance, include_mode: bool = True):
         newattrs['mode'] = str(translated_mode)
     return newattrs
 
-
-def write_all_attributes_to_excel(list_dir_paths: list, output_excel: str):
-    """
-    Using get_attributes_from_zarr_stores, write an excel document, where each row contains the attributes from
-    each provided fqpr_generation made fqpr zarr store.
-
-    Parameters
-    ----------
-    list_dir_paths
-        list of strings for paths to each converted folder containing the zarr folders
-    output_excel
-        path to the newly created excel file
-    """
-
-    attrs = get_attributes_from_zarr_stores(list_dir_paths)
-    headers = list(attrs[0].keys())
-
-    wb = openpyxl.Workbook()
-    for name in wb.get_sheet_names():
-        if name == 'Sheet':
-            temp = wb.get_sheet_by_name('Sheet')
-            wb.remove_sheet(temp)
-    ws = wb.create_sheet('Kluster Attributes')
-
-    for cnt, h in enumerate(headers):
-        ws[chr(ord('@') + cnt + 1) + '1'] = h
-    for row_indx, att in enumerate(attrs):
-        for cnt, key in enumerate(att):
-            ws[chr(ord('@') + cnt + 1) + str(row_indx + 2)] = str(att[key])
-    wb.save(output_excel)
+#
+# def write_all_attributes_to_excel(list_dir_paths: list, output_excel: str):
+#     """
+#     Using get_attributes_from_zarr_stores, write an excel document, where each row contains the attributes from
+#     each provided fqpr_generation made fqpr zarr store.
+#
+#     Parameters
+#     ----------
+#     list_dir_paths
+#         list of strings for paths to each converted folder containing the zarr folders
+#     output_excel
+#         path to the newly created excel file
+#     """
+#
+#     attrs = get_attributes_from_zarr_stores(list_dir_paths)
+#     headers = list(attrs[0].keys())
+#
+#     wb = openpyxl.Workbook()
+#     for name in wb.get_sheet_names():
+#         if name == 'Sheet':
+#             temp = wb.get_sheet_by_name('Sheet')
+#             wb.remove_sheet(temp)
+#     ws = wb.create_sheet('Kluster Attributes')
+#
+#     for cnt, h in enumerate(headers):
+#         ws[chr(ord('@') + cnt + 1) + '1'] = h
+#     for row_indx, att in enumerate(attrs):
+#         for cnt, key in enumerate(att):
+#             ws[chr(ord('@') + cnt + 1) + str(row_indx + 2)] = str(att[key])
+#     wb.save(output_excel)

@@ -101,7 +101,9 @@ def test_convert_testfile():
     firstbeam_procstatus = int(out.multibeam.raw_ping[0].isel(time=0).isel(beam=0).processing_status.values)
     firstbeam_qualityfactor = int(out.multibeam.raw_ping[0].isel(time=0).isel(beam=0).qualityfactor.values)
     first_soundspeed = float(out.multibeam.raw_ping[0].isel(time=0).soundspeed.values)
-    first_tiltangle = float(out.multibeam.raw_ping[0].isel(time=0).tiltangle.values)
+    first_tiltangle = float(out.multibeam.raw_ping[0].isel(time=0).isel(beam=0).tiltangle.values)
+    first_delay = float(out.multibeam.raw_ping[0].isel(time=0).isel(beam=0).delay.values)
+    first_frequency = float(out.multibeam.raw_ping[0].isel(time=0).isel(beam=0).frequency.values)
     first_yawpitch = str(out.multibeam.raw_ping[0].isel(time=0).yawpitchstab.values)
 
     datapath = out.multibeam.converted_pth
@@ -109,18 +111,20 @@ def test_convert_testfile():
     out = None
     clear_testfile_data(datapath)
 
-    assert number_of_sectors == 6
-    assert firstbeam_angle == 74.58000183105469
-    assert firstbeam_traveltime == 0.3370774984359741
-    assert first_counter == 61966
+    assert number_of_sectors == 1
+    assert firstbeam_angle == 74.63999938964844
+    assert firstbeam_traveltime == 0.33608949184417725
+    assert first_counter == 61967
     assert first_dinfo == 2
     assert first_mode == 'FM'
     assert first_modetwo == '__FM'
     assert first_ntx == 3
     assert firstbeam_procstatus == 0
-    assert firstbeam_qualityfactor == 12
+    assert firstbeam_qualityfactor == 42
     assert first_soundspeed == 1488.5999755859375
-    assert first_tiltangle == -0.6200000047683716
+    assert first_tiltangle == -0.4399999976158142
+    assert first_delay == 0.002206037985160947
+    assert first_frequency == 275000.0
     assert first_yawpitch == 'PY'
 
 
@@ -170,26 +174,14 @@ def get_orientation_vectors(dset='realdualhead'):
 
     if dset == 'real':
         synth = load_dataset(RealFqpr())
-        expected_tx_per_sec = [np.array([[0.6136555921172974, -0.7895255928982701, 0.008726535498373935],
-                                         [0.6236867410029571, -0.7816427427545967, 0.007033618996063356]]),
-                               np.array([[0.613685928094153, -0.7895020134473463,  0.008726535498373935],
-                                         [0.6237170343842772, -0.781618915691147,  0.0069951163448448775]])]
-        expected_rx_per_sector_first_beam = [np.array([0.7834063124935756, 0.619544042029317, -0.04939361832457566]),
-                                             np.array([0.7834583892797623, 0.6195095013529376, -0.04899928571515261]),
-                                             np.array([0.7869923036279147, 0.6166560325178352, -0.019453832264897088]),
-                                             np.array([0.7869519629389651, 0.6166955568118332, -0.019829226789081136]),
-                                             np.array([0.78695063830861, 0.6166968512681338, -0.019841534760212512]),
-                                             np.array([0.7869099965548044, 0.6167364637993844, -0.02021859397554979])]
+        expected_tx = [np.array([0.6136555921172974, -0.7895255928982701, 0.008726535498373935])]
+        expected_rx = [np.array([0.7834063072490661, 0.6195440454987808, -0.04939365798750035])]
     elif dset == 'realdualhead':
         synth = load_dataset(RealDualheadFqpr())
-        expected_tx_per_sec = [np.array([[-0.8173967230596009, -0.5756459946918305, -0.022232663846213512]]),
-                               np.array([[-0.8173967230596009, -0.5756459946918305, -0.022232663846213512]]),
-                               np.array([[-0.818098137098556, -0.5749317404941526, -0.013000579640495315]]),
-                               np.array([[-0.818098137098556, -0.5749317404941526, -0.013000579640495315]])]
-        expected_rx_per_sector_first_beam = [np.array([0.5707206057741382, -0.8178136286558314, 0.07388380848347877]),
-                                             np.array([0.5707251090313201, -0.8178104859878021, 0.07388380848347877]),
-                                             np.array([0.5752302545527056, -0.8157217016726686, -0.060896177270015645]),
-                                             np.array([0.5752302545527056, -0.8157217016726686, -0.060896177270015645])]
+        expected_tx = [np.array([-0.8173967230596009, -0.5756459946918305, -0.022232663846213512]),
+                       np.array([-0.818098137098556, -0.5749317404941526, -0.013000579640495315])]
+        expected_rx = [np.array([0.5707251056249292, -0.8178104883650188, 0.07388380848347877]),
+                       np.array([0.5752302545527056, -0.8157217016726686, -0.060896177270015645])]
     else:
         raise NotImplementedError('mode not recognized')
 
@@ -202,20 +194,15 @@ def get_orientation_vectors(dset='realdualhead'):
     fq.get_orientation_vectors(dump_data=False, delete_futs=False, initial_interp=False)
 
     # arrays of computed vectors
-    secs = fq.return_sector_ids()
-    tstmp = list(fq.intermediate_dat[secs[0]]['orientation'].keys())[0]
+    sysid = [rp.system_identifier for rp in fq.multibeam.raw_ping]
+    tstmp = list(fq.intermediate_dat[sysid[0]]['orientation'].keys())[0]
     # since we kept data in memory, we can now get the result of get_orientation_vectors using result()
-    loaded_data = [fq.intermediate_dat[s]['orientation'][tstmp][0][0] for s in fq.return_sector_ids()]
+    loaded_data = [fq.intermediate_dat[s]['orientation'][tstmp][0][0] for s in sysid]
 
     # we examine the tx vector for each sector (not beam based) and the rx vector for each sector's first beam (rx
     #     vectors change per beam, as attitude changes based on beam traveltime)
-    txvecdata = [ld[0].values for ld in loaded_data]
+    txvecdata = [ld[0].values[0][0] for ld in loaded_data]
     rxvecdata = [ld[1].values[0][0] for ld in loaded_data]
-
-    if dset == 'real':
-        expected_tx_vector = expected_tx_per_sec * int(len(synth.raw_ping) / 2)
-    else:
-        expected_tx_vector = expected_tx_per_sec
 
     print('ORIENTATION {}'.format(dset))
     print([x for y in txvecdata for x in y.flatten()])
@@ -223,40 +210,25 @@ def get_orientation_vectors(dset='realdualhead'):
 
     # check for the expected tx orientation vectors
     try:
-        assert np.array_equal(expected_tx_vector, txvecdata)
+        assert np.array_equal(expected_tx, txvecdata)
     except AssertionError:  # seeing slight variation between github env answer and pydro38 answer
         if dset == 'real':
-            expected_tx_per_sec = [np.array([[0.6136555921172974, -0.7895255928982701, 0.008726535498373935],
-                                             [0.6236867410029571, -0.7816427427545967, 0.007033618996063356]]),
-                                   np.array([[0.613685928094153, -0.7895020134473463,  0.008726535498373935],
-                                             [0.6237170343842772, -0.7816189156911472,  0.0069951163448448775]])]
-            expected_tx_vector = expected_tx_per_sec * int(len(synth.raw_ping) / 2)
+            expected_tx = [np.array([0.6136555921172974, -0.7895255928982701, 0.008726535498373935])]
         else:
-            expected_tx_vector = [np.array([[-0.8173967230596009, -0.5756459946918305, -0.022232663846213512]]),
-                                  np.array([[-0.8173967230596009, -0.5756459946918305, -0.022232663846213512]]),
-                                  np.array([[-0.818098137098556, -0.5749317404941526, -0.013000579640495315]]),
-                                  np.array([[-0.818098137098556, -0.5749317404941526, -0.013000579640495315]])]
-        assert np.array_equal(expected_tx_vector, txvecdata)
+            expected_tx = [np.array([-0.8173967230596009, -0.5756459946918305, -0.022232663846213512]),
+                                  np.array([-0.8173967230596009, -0.5756459946918305, -0.022232663846213512])]
+        assert np.array_equal(expected_tx, txvecdata)
 
     # check for the expected rx orientation vectors
     try:
-        assert np.array_equal(expected_rx_per_sector_first_beam, rxvecdata)
+        assert np.array_equal(expected_rx, rxvecdata)
     except AssertionError:  # seeing slight variation between github env answer and pydro38 answer
         if dset == 'real':
-            expected_rx_per_sector_first_beam = [
-                np.array([0.7834063124935756, 0.619544042029317, -0.04939361832457566]),
-                np.array([0.7834583892797623, 0.6195095013529376, -0.04899928571515261]),
-                np.array([0.7869923036279147, 0.6166560325178352, -0.019453832264897088]),
-                np.array([0.7869519629389651, 0.6166955568118332, -0.019829226789081136]),
-                np.array([0.78695063830861, 0.6166968512681338, -0.019841534760212512]),
-                np.array([0.7869099965548044, 0.6167364637993844, -0.02021859397554979])]
+            expected_rx = [np.array([0.7834063124935756, 0.619544042029317, -0.04939361832457566])]
         else:
-            expected_rx_per_sector_first_beam = [
-                np.array([0.5707206057741382, -0.8178136286558314, 0.07388380848347877]),
-                np.array([0.5707251090313201, -0.8178104859878021, 0.07388380848347877]),
-                np.array([0.5752302545527056, -0.8157217016726686, -0.060896177270015645]),
-                np.array([0.5752302545527056, -0.8157217016726686, -0.060896177270015645])]
-        assert np.array_equal(expected_rx_per_sector_first_beam, rxvecdata)
+            expected_rx = [np.array([0.5707206057741382, -0.8178136286558314, 0.07388380848347877]),
+                           np.array([0.5707251090313201, -0.8178104859878021, 0.07388380848347877])]
+        assert np.array_equal(expected_rx, rxvecdata)
 
     print('Passed: get_orientation_vectors')
 
@@ -277,14 +249,14 @@ def build_beam_pointing_vector(dset='realdualhead'):
 
     if dset == 'real':
         synth = load_dataset(RealFqpr())
-        expected_ba = [4.697702770857325, 4.701437294692664, 4.707855899184765, 4.7182675125582785, 1.5583690576936515,
-                       1.5526518951478496]
-        expected_bda = [1.209080718248996, 1.2092288516914702, 0.6905748987012734, 0.6901709706812572,
-                        -0.6950466227093793, -0.6955145505056424]
+        expected_ba = [np.array([4.697702878191307, 4.697679369354361, 4.697655798111743])]
+        expected_bda = [np.array([1.209080677036444, 1.2074367547912856, 1.2057926824074374])]
     elif dset == 'realdualhead':
         synth = load_dataset(RealDualheadFqpr())
-        expected_ba = np.array([4.722867225444818, 4.714469418825591, 4.7409403464076965, 4.725275412543552])
-        expected_bda = np.array([1.2056359109924677, 1.2049044014648185, 0.5250013986289013, 0.5239366227760862])
+        expected_ba = [np.array([4.7144694193229295, 4.714486234983295, 4.714503034301336]),
+                       np.array([4.72527541256665, 4.725306685935214, 4.725337688174256])]
+        expected_bda = [np.array([1.2049043892451596, 1.20385629874863, 1.2028083855561609]),
+                        np.array([0.5239366688735714, 0.5181768253459791, 0.5124169874635531])]
     else:
         raise NotImplementedError('mode not recognized')
 
@@ -295,16 +267,18 @@ def build_beam_pointing_vector(dset='realdualhead'):
     fq.get_orientation_vectors(dump_data=False, delete_futs=False, initial_interp=False)
     fq.get_beam_pointing_vectors(dump_data=False, delete_futs=False)
 
-    secs = fq.return_sector_ids()
-    tstmp = list(fq.intermediate_dat[secs[0]]['bpv'].keys())[0]
-    loaded_data = [fq.intermediate_dat[s]['bpv'][tstmp][0][0] for s in fq.return_sector_ids()]
+    # arrays of computed vectors
+    sysid = [rp.system_identifier for rp in fq.multibeam.raw_ping]
+    tstmp = list(fq.intermediate_dat[sysid[0]]['bpv'].keys())[0]
+    # since we kept data in memory, we can now get the result of get_orientation_vectors using result()
+    loaded_data = [fq.intermediate_dat[s]['bpv'][tstmp][0][0] for s in sysid]
 
-    ba_data = [ld[0].isel(time=0).values[0] for ld in loaded_data]
-    bda_data = [ld[1].isel(time=0).values[0] for ld in loaded_data]
+    ba_data = [ld[0].isel(time=0).values[0:3] for ld in loaded_data]
+    bda_data = [ld[1].isel(time=0).values[0:3] for ld in loaded_data]
 
     print('BEAMPOINTING {}'.format(dset))
-    print([f for f in ba_data])
-    print([f for f in bda_data])
+    print([x for y in ba_data for x in y.flatten()])
+    print([x for y in bda_data for x in y.flatten()])
 
     # beam azimuth check
     assert np.array_equal(ba_data, expected_ba)
@@ -331,14 +305,17 @@ def sv_correct(dset='realdualhead'):
 
     if dset == 'real':
         synth = load_dataset(RealFqpr())
-        expected_x = np.array([-3.42, -2.516, -0.336, 0.435, 0.939, 1.372], dtype=np.float32)
-        expected_y = np.array([-232.884, -229.769, -74.056, -74.048, 75.626, 75.679], dtype=np.float32)
-        expected_z = np.array([91.12, 89.805, 90.258, 90.311, 91.246, 91.253], dtype=np.float32)
+        expected_x = [np.array([-3.42, -3.406, -3.392])]
+        expected_y = [np.array([-232.884, -231.591, -230.268])]
+        expected_z = [np.array([91.12, 90.974, 90.904])]
     elif dset == 'realdualhead':
         synth = load_dataset(RealDualheadFqpr())
-        expected_x = np.array([1.086, 0.692, 0.738, 0.567], dtype=np.float32)
-        expected_y = np.array([-60.159, -59.925,  -9.306,  -9.283], dtype=np.float32)
-        expected_z = np.array([18.365, 18.307, 18.853, 18.866], dtype=np.float32)
+        expected_x = [np.array([0.692, 0.693, 0.693]),
+                      np.array([0.567, 0.566, 0.564])]
+        expected_y = [np.array([-59.993, -59.946, -59.849]),
+                      np.array([-9.351, -9.219, -9.079])]
+        expected_z = [np.array([18.301, 18.339, 18.356]),
+                      np.array([18.86, 18.871, 18.883])]
     else:
         raise NotImplementedError('mode not recognized')
 
@@ -350,18 +327,20 @@ def sv_correct(dset='realdualhead'):
     fq.get_beam_pointing_vectors(dump_data=False, delete_futs=False)
     fq.sv_correct(dump_data=False, delete_futs=False)
 
-    secs = fq.return_sector_ids()
-    tstmp = list(fq.intermediate_dat[secs[0]]['sv_corr'].keys())[0]
-    loaded_data = [fq.intermediate_dat[s]['sv_corr'][tstmp][0][0] for s in fq.return_sector_ids()]
+    # arrays of computed vectors
+    sysid = [rp.system_identifier for rp in fq.multibeam.raw_ping]
+    tstmp = list(fq.intermediate_dat[sysid[0]]['sv_corr'].keys())[0]
+    # since we kept data in memory, we can now get the result of get_orientation_vectors using result()
+    loaded_data = [fq.intermediate_dat[s]['sv_corr'][tstmp][0][0] for s in sysid]
 
-    x_data = np.array([ld[0].isel(time=0).values[0] for ld in loaded_data], dtype=np.float32)
-    y_data = np.array([ld[1].isel(time=0).values[0] for ld in loaded_data], dtype=np.float32)
-    z_data = np.array([ld[2].isel(time=0).values[0] for ld in loaded_data], dtype=np.float32)
+    x_data = [ld[0].isel(time=0).values[0:3] for ld in loaded_data]
+    y_data = [ld[1].isel(time=0).values[0:3] for ld in loaded_data]
+    z_data = [ld[2].isel(time=0).values[0:3] for ld in loaded_data]
 
     print('SVCORR {}'.format(dset))
-    print([f for f in x_data])
-    print([f for f in y_data])
-    print([f for f in z_data])
+    print([x for y in x_data for x in y.flatten()])
+    print([x for y in y_data for x in y.flatten()])
+    print([x for y in z_data for x in y.flatten()])
 
     # forward offset check
     assert np.array_equal(x_data, expected_x)
@@ -408,14 +387,17 @@ def georef_xyz(dset='realdualhead'):
 
     if dset == 'real':
         synth = load_dataset(RealFqpr())
-        expected_x = np.array([539017.75, 539018.9, 539111.9, 539111.25, 539201.9, 539201.56], dtype=np.float32)
-        expected_y = np.array([5292788.5, 5292791.5, 5292916.0, 5292916.5, 5293035.5, 5293036.0], dtype=np.float32)
-        expected_z = np.array([91.77, 90.455, 90.908, 90.961, 91.896, 91.903], dtype=np.float32)
+        expected_x = [np.array([539017.742, 539018.517, 539019.31], dtype=np.float64)]
+        expected_y = [np.array([5292788.288, 5292789.323, 5292790.381], dtype=np.float64)]
+        expected_z = [np.array([91.77, 91.624, 91.554], dtype=np.float32)]
     elif dset == 'realdualhead':
         synth = load_dataset(RealDualheadFqpr())
-        expected_x = np.array([492984.8, 492984.84, 492942.94, 492943.03], dtype=np.float32)
-        expected_y = np.array([3365067.8, 3365068.2, 3365096.8, 3365096.8], dtype=np.float32)
-        expected_z = np.array([22.147, 22.089, 22.684, 22.697], dtype=np.float32)
+        expected_x = [np.array([492984.907, 492984.868, 492984.787], dtype=np.float64),
+                      np.array([492943.083, 492942.974, 492942.86], dtype=np.float64)]
+        expected_y = [np.array([3365068.224, 3365068.25, 3365068.304], dtype=np.float64),
+                      np.array([3365096.742, 3365096.817, 3365096.898], dtype=np.float64)]
+        expected_z = [np.array([22.083, 22.121, 22.138], dtype=np.float32),
+                      np.array([22.691, 22.702, 22.714], dtype=np.float32)]
     else:
         raise NotImplementedError('mode not recognized')
 
@@ -429,18 +411,20 @@ def georef_xyz(dset='realdualhead'):
     fq.construct_crs(datum=datum, projected=True, vert_ref=vert_ref)
     fq.georef_xyz(dump_data=False, delete_futs=False)
 
-    secs = fq.return_sector_ids()
-    tstmp = list(fq.intermediate_dat[secs[0]]['xyz'].keys())[0]
-    loaded_xyz_data = [fq.intermediate_dat[s]['xyz'][tstmp][0][0] for s in fq.return_sector_ids()]
+    # arrays of computed vectors
+    sysid = [rp.system_identifier for rp in fq.multibeam.raw_ping]
+    tstmp = list(fq.intermediate_dat[sysid[0]]['xyz'].keys())[0]
+    # since we kept data in memory, we can now get the result of get_orientation_vectors using result()
+    loaded_data = [fq.intermediate_dat[s]['xyz'][tstmp][0][0] for s in sysid]
 
-    x_data = np.array([ld[0].isel(time=0).values[0] for ld in loaded_xyz_data], dtype=np.float32)
-    y_data = np.array([ld[1].isel(time=0).values[0] for ld in loaded_xyz_data], dtype=np.float32)
-    z_data = np.array([ld[2].isel(time=0).values[0] for ld in loaded_xyz_data], dtype=np.float32)
+    x_data = [ld[0].isel(time=0).values[0:3] for ld in loaded_data]
+    y_data = [ld[1].isel(time=0).values[0:3] for ld in loaded_data]
+    z_data = [ld[2].isel(time=0).values[0:3] for ld in loaded_data]
 
     print('GEOREF {}'.format(dset))
-    print([f for f in x_data])
-    print([f for f in y_data])
-    print([f for f in z_data])
+    print([x for y in x_data for x in y.flatten()])
+    print([x for y in y_data for x in y.flatten()])
+    print([x for y in z_data for x in y.flatten()])
 
     # easting
     # same version of PROJ but installed through kluster github instructions get different answers.  Haven't figured this
@@ -514,170 +498,6 @@ def test_interp_across_chunks():
     assert np.all(dask_interp_att['roll'] == expected_att['roll']).compute()
 
     print('Passed: interp_across_chunks')
-
-
-def test_reform_2d(dset='real'):
-    """
-    Automated test of fqpr_generation reform_2d_vars_across_sectors_at_time
-
-    Will run using the 'real' dataset or 'realdualhead' included in the test_datasets file.
-
-    No current support for the synthetic dataset, need to look at adding that in.  I've yet to find a reason to do so
-    though, now that I have the real pings.
-
-    Parameters
-    ----------
-    dset: str, specify which dataset you want to use, one of 'real' and 'realdualhead'
-
-    """
-    if dset == 'real':
-        synth = load_dataset(RealFqpr())
-        expected_sector_ids = np.array([[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                                         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                                         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                                         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                                         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                                         0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
-                                         2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
-                                         2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
-                                         2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
-                                         2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
-                                         2, 2, 2, 2, 2, 2, 2, 2, 2, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
-                                         4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
-                                         4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
-                                         4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
-                                         4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
-                                         4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
-                                         4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
-                                         4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
-                                         4, 4, 4, 4]])
-        expected_reformed_angles = [72.05999755859375, 71.94999694824219, 71.83999633789062, 71.72999572753906,
-                                    71.61000061035156, 71.5, 71.37999725341797, 71.15999603271484, 71.04000091552734,
-                                    70.91999816894531, 70.79999542236328, 70.68000030517578, 70.54999542236328,
-                                    70.1500015258789, 70.0199966430664, 69.88999938964844, 69.7699966430664,
-                                    69.62999725341797, 69.5, 69.3699951171875, 69.22999572753906, 69.0999984741211,
-                                    68.95999908447266, 68.81999969482422, 68.68000030517578, 68.54000091552734,
-                                    68.38999938964844, 68.25, 68.0999984741211, 67.94999694824219, 67.79999542236328,
-                                    67.54000091552734, 67.38999938964844, 67.22999572753906, 67.08000183105469,
-                                    66.90999603271484, 66.75, 66.58999633789062, 66.31999969482422, 66.15999603271484,
-                                    65.98999786376953, 65.80999755859375, 65.63999938964844, 65.45999908447266,
-                                    65.18000030517578, 65.0, 64.81999969482422, 64.63999938964844, 64.04000091552734,
-                                    63.849998474121094, 63.65999984741211, 63.459999084472656, 63.27000045776367,
-                                    63.06999969482422, 62.8599967956543, 62.65999984741211, 62.44999694824219,
-                                    62.23999786376953, 62.029998779296875, 61.80999755859375, 61.599998474121094,
-                                    61.369998931884766, 61.14999771118164, 60.91999816894531, 60.689998626708984,
-                                    60.459999084472656, 60.21999740600586, 59.97999954223633, 59.73999786376953,
-                                    59.48999786376953, 59.25, 58.98999786376953, 58.73999786376953, 58.47999954223633,
-                                    58.209999084472656, 57.939998626708984, 57.56999969482422, 57.29999923706055,
-                                    57.02000045776367, 56.73999786376953, 56.44999694824219, 56.15999984741211,
-                                    55.86000061035156, 55.44999694824219, 55.14999771118164, 54.84000015258789,
-                                    54.529998779296875, 54.209999084472656, 53.88999938964844, 53.55999755859375,
-                                    53.119998931884766, 52.779998779296875, 52.439998626708984, 52.099998474121094,
-                                    51.73999786376953, 51.38999938964844, 51.02000045776367, 50.55999755859375,
-                                    50.18000030517578, 49.79999923706055, 49.41999816894531, 49.029998779296875,
-                                    48.62999725341797, 48.22999954223633, 47.709999084472656, 47.29999923706055,
-                                    46.87999725341797, 46.45000076293945, 46.02000045776367, 45.56999969482422,
-                                    45.12999725341797, 44.66999816894531, 44.099998474121094, 43.63999938964844,
-                                    43.15999984741211, 42.68000030517578, 42.189998626708984, 41.689998626708984,
-                                    41.189998626708984, 40.68000030517578, 40.15999984741211, 39.529998779296875,
-                                    38.98999786376953, 38.45000076293945, 37.89999771118164, 37.34000015258789,
-                                    36.779998779296875, 36.20000076293945, 35.619998931884766, 35.029998779296875,
-                                    34.31999969482422, 33.709999084472656, 33.09000015258789, 32.46999740600586,
-                                    31.829999923706055, 31.189998626708984, 30.53999900817871, 29.8799991607666,
-                                    29.219999313354492, 28.53999900817871, 27.85999870300293, 27.049999237060547,
-                                    26.349998474121094, 25.639999389648438, 24.93000030517578, 24.19999885559082,
-                                    23.469999313354492, 22.729999542236328, 21.979999542236328, 21.219999313354492,
-                                    20.459999084472656, 19.689998626708984, 18.90999984741211, 18.119998931884766,
-                                    17.329999923706055, 16.529998779296875, 15.729999542236328, 14.809999465942383,
-                                    13.989999771118164, 13.170000076293945, 12.34000015258789, 11.50999927520752,
-                                    10.670000076293945, 9.829999923706055, 8.989999771118164, 8.139999389648438,
-                                    7.289999961853027, 6.429999828338623, 5.579999923706055, 4.71999979019165,
-                                    3.859999895095825, 2.990000009536743, 2.129999876022339, 1.2699999809265137,
-                                    0.3999999761581421, -0.4599999785423279, -1.3299999237060547, -2.190000057220459,
-                                    -3.049999952316284, -3.9099998474121094, -4.769999980926514, -5.619999885559082,
-                                    -6.46999979019165, -7.319999694824219, -8.170000076293945, -9.010000228881836,
-                                    -9.84000015258789, -10.679999351501465, -11.5, -12.329999923706055,
-                                    -13.029999732971191, -13.84000015258789, -14.649999618530273, -15.449999809265137,
-                                    -16.239999771118164, -17.029998779296875, -17.809999465942383, -18.579999923706055,
-                                    -19.34000015258789, -20.100000381469727, -20.850000381469727, -21.59000015258789,
-                                    -22.31999969482422, -23.049999237060547, -23.76999855041504, -24.35999870300293,
-                                    -25.06999969482422, -25.760000228881836, -26.439998626708984, -27.119998931884766,
-                                    -27.78999900817871, -28.44999885559082, -29.099998474121094, -29.739999771118164,
-                                    -30.369998931884766, -31.0, -31.510000228881836, -32.11000061035156,
-                                    -32.709999084472656, -33.30999755859375, -33.88999938964844, -34.46999740600586,
-                                    -35.029998779296875, -35.59000015258789, -36.13999938964844, -36.689998626708984,
-                                    -37.119998931884766, -37.64999771118164, -38.16999816894531, -38.68000030517578,
-                                    -39.18000030517578, -39.68000030517578, -40.16999816894531, -40.64999771118164,
-                                    -41.12999725341797, -41.48999786376953, -41.95000076293945, -42.39999771118164,
-                                    -42.849998474121094, -43.290000915527344, -43.72999954223633, -44.14999771118164,
-                                    -44.56999969482422, -44.87999725341797, -45.28999710083008, -45.689998626708984,
-                                    -46.09000015258789, -46.47999954223633, -46.86000061035156, -47.23999786376953,
-                                    -47.619998931884766, -47.87999725341797, -48.25, -48.599998474121094,
-                                    -48.959999084472656, -49.29999923706055, -49.64999771118164, -49.97999954223633,
-                                    -50.20000076293945, -50.529998779296875, -50.849998474121094, -51.16999816894531,
-                                    -51.47999954223633, -51.78999710083008, -52.099998474121094, -52.39999771118164,
-                                    -52.57999801635742, -52.869998931884766, -53.15999984741211, -53.439998626708984,
-                                    -53.71999740600586, -54.0, -54.27000045776367, -54.53999710083008,
-                                    -54.69999694824219, -54.959999084472656, -55.21999740600586, -55.46999740600586,
-                                    -55.71999740600586, -55.96999740600586, -56.209999084472656, -56.44999694824219,
-                                    -56.689998626708984, -56.91999816894531, -57.14999771118164, -57.37999725341797,
-                                    -57.599998474121094, -57.81999969482422, -58.03999710083008, -58.2599983215332,
-                                    -58.46999740600586, -58.68000030517578, -58.88999938964844, -59.09000015258789,
-                                    -59.29999923706055, -59.5, -59.689998626708984, -59.88999938964844,
-                                    -60.07999801635742, -60.27000045776367, -60.459999084472656, -60.63999938964844,
-                                    -60.81999969482422, -61.0099983215332, -61.18000030517578, -60.94999694824219,
-                                    -61.119998931884766, -61.29999923706055, -61.46999740600586, -61.62999725341797,
-                                    -61.79999923706055, -61.959999084472656, -62.12999725341797, -62.28999710083008,
-                                    -62.439998626708984, -62.599998474121094, -62.65999984741211, -62.80999755859375,
-                                    -62.959999084472656, -63.1099967956543, -63.2599983215332, -63.39999771118164,
-                                    -63.54999923706055, -63.689998626708984, -63.82999801635742, -63.96999740600586,
-                                    -64.01000213623047, -64.1500015258789, -64.27999877929688, -64.41999816894531,
-                                    -64.54999542236328, -64.68000030517578, -64.80999755859375, -64.93999481201172,
-                                    -65.05999755859375, -65.18999481201172, -65.30999755859375, -65.33000183105469,
-                                    -65.45999908447266, -65.58000183105469, -65.69999694824219, -65.80999755859375,
-                                    -65.93000030517578, -66.04000091552734, -66.15999603271484, -66.2699966430664,
-                                    -66.37999725341797, -66.48999786376953, -66.5999984741211, -66.70999908447266,
-                                    -66.81999969482422, -66.93000030517578, -67.02999877929688, -67.13999938964844,
-                                    -67.23999786376953, -67.33999633789062, -67.43999481201172, -67.54000091552734,
-                                    -67.63999938964844, -67.73999786376953, -67.83999633789062, -67.93000030517578,
-                                    -68.02999877929688, -68.1199951171875, -68.22000122070312, -68.30999755859375,
-                                    -68.4000015258789, -68.5, -68.58999633789062, -68.66999816894531,
-                                    -68.76000213623047, -68.8499984741211, -68.93999481201172, -69.02999877929688,
-                                    -68.83000183105469, -68.91999816894531, -69.0, -69.08000183105469, -69.16999816894531,
-                                    -69.25, -69.33000183105469, -69.40999603271484, -69.48999786376953, -69.56999969482422,
-                                    -69.6500015258789, -69.72000122070312, -69.79999542236328, -69.87999725341797,
-                                    -69.94999694824219, -70.02999877929688, -70.0999984741211, -70.08000183105469,
-                                    -70.1500015258789, -70.22000122070312, -70.29000091552734, -70.3699951171875,
-                                    -70.43999481201172, -70.51000213623047, -70.58000183105469, -70.63999938964844]
-    elif dset == 'realdualhead':
-        synth = load_dataset(RealDualheadFqpr())
-    else:
-        raise NotImplementedError('mode not recognized')
-
-    fq = fqpr_generation.Fqpr(synth)
-    fq.logger = logging.getLogger()
-    fq.logger.setLevel(logging.INFO)
-    fq.read_from_source()
-    test_time = fq.return_unique_times_across_sectors()
-
-    if dset == 'real':
-        data, secs, times = fq.reform_2d_vars_across_sectors_at_time(['beampointingangle'], test_time[0])
-        assert len(times) == 1
-        assert times[0] == test_time[0]
-        assert (secs[0] == expected_sector_ids).all()
-        assert (data[0] == expected_reformed_angles).all()
-    elif dset == 'realdualhead':
-        # should only be one time here
-        data, secs, times = fq.reform_2d_vars_across_sectors_at_time(['beampointingangle'], test_time)
-        assert len(test_time) == 1
-        assert len(np.unique(times)) == 1
-
-        # secs here should be uniform for each returned ping
-        ping_sectors = np.unique(secs[0, :, :], axis=1)[:, 0]
-        assert ping_sectors.size == 4
-
-        for cnt, pingsec in enumerate(ping_sectors):
-            assert (data[0][cnt][:] == fq.multibeam.raw_ping[pingsec].beampointingangle.values).all()
 
 
 def test_basesurface():
