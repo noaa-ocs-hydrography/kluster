@@ -627,14 +627,14 @@ def _correct_for_splits(cur_xarr: xr.Dataset, trim_the_array: bool):
     return cur_xarr
 
 
-def gather_dataset_attributes(dataset: dict):
+def gather_dataset_attributes(dataset: Union[dict, list, xr.Dataset]):
     """
     Return the attributes within an Xarray DataSet
 
     Parameters
     ----------
-    dict
-        dict of ping records by serial number
+    dataset
+        dict of ping records by serial number or list of datasets or a single dataset
 
     Returns
     -------
@@ -642,7 +642,16 @@ def gather_dataset_attributes(dataset: dict):
         attributes within dataset
     """
 
-    attrs = list(dataset.values())[0].attrs
+    if isinstance(dataset, dict):
+        serialnum = list(dataset.keys())[0]
+        dset = dataset[serialnum]
+    else:
+        dset = dataset
+
+    if isinstance(dset, list):
+        attrs = dset[0].attrs
+    else:
+        attrs = dset.attrs
     return attrs
 
 
