@@ -5,9 +5,233 @@ import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation, FFMpegWriter
 import matplotlib.cm as cm
 from matplotlib.colors import LinearSegmentedColormap
-from mpl_toolkits.mplot3d import Axes3D  # need this, is used in backend
+import mpl_toolkits.axes_grid1
+import matplotlib.widgets
+
+from mpl_toolkits.mplot3d import Axes3D  # need this, is used in backend for 3d plots
 
 from HSTB.kluster.xarray_helpers import stack_nan_array
+
+
+class Player(FuncAnimation):
+    """
+    Matplotlib FuncAnimation player that includes the ability to start/stop/speed up/slow down/skip frames.  Relies on the
+    frames passed in, frames must be the values of the dimension you want to animate on.
+    """
+    def __init__(self, fig, func, frames=None, init_func=None, fargs=None, save_count=None, pos=(0.125, 0.92), **kwargs):
+        self.i = 0
+        self.min = frames[0]
+        self.max = frames[-1]
+        self.runs = True
+        self.forwards = True
+        self.fig = fig
+        self.func = func
+        self.frames = frames
+        self.setup(pos)
+        self.added_speed = 0
+        FuncAnimation.__init__(self, self.fig, self.update, frames=self.play(), init_func=init_func, fargs=fargs, save_count=save_count, **kwargs )
+
+        self._observers = []
+        self.fig.canvas.mpl_connect('close_event', self.close_event)
+
+    def close_event(self, evt):
+        """
+        Called when the Player is closed, by closing the window.  Will call any observers that the player has been
+        bound to.
+        """
+        self.runs = False
+        for callback in self._observers:
+            callback()
+
+    def bind_to(self, callback):
+        """
+        Pass in a method as callback, method will be triggered on close
+
+        Parameters
+        ----------
+        callback
+            method that is run on Player being closed
+        """
+
+        self._observers.append(callback)
+
+    def clear_observers(self):
+        """
+        Clear any functions that have been bound to the player
+        """
+        self._observers = []
+
+    def play(self):
+        """
+        Return the next frame.  If self.forwards, that would be the frame after the current one.  Otherwise, returns the
+        frame before the current one.  If you hit the beginning or end of the dataset, stops the player.
+        """
+        while self.runs:
+            # self.i is the frame index as an integer
+            self.i = self.i + self.forwards - (not self.forwards)
+            try:
+                # i_frame is the frame value at that index (self.frames is generally a numpy array of times)
+                i_frame = self.frames[self.i]
+            except:
+                if self.i < 0:
+                    self.i = 0
+                else:
+                    self.i = len(self.frames) - 1
+                i_frame = self.frames[self.i]
+            if self.min < i_frame < self.max:
+                yield i_frame
+            else:  # end of dataset
+                self.stop()
+                yield i_frame
+
+    def start(self):
+        """
+        Start playing the animation by signaling the funcanimation event_source
+        """
+        self.runs = True
+        self.event_source.start()
+
+    def stop(self, event=None):
+        """
+        Stop playing the animation by signaling the funcanimation event_source
+        """
+        self.runs = False
+        self.event_source.stop()
+
+    def forward(self, event=None):
+        """
+        Start playing the animation in the forward direction
+        """
+        self.forwards = True
+        self.start()
+
+    def backward(self, event=None):
+        """
+        Start playing the animation in the backwards direction
+        """
+        self.forwards = False
+        self.start()
+
+    def oneforward(self, event=None):
+        """
+        Skip forward one frame, stopping the animation and freezing on that frame
+        """
+        self.forwards = True
+        self.onestep()
+
+    def onebackward(self, event=None):
+        """
+        Skip backwards one frame, stopping the animation and freezing on that frame
+        """
+        self.forwards = False
+        self.onestep()
+
+    def speedup(self, e):
+        """
+        Increases the speed of the animation by decreasing the time between frames
+        """
+        curr_interval = self.event_source.interval
+        if curr_interval > 100:
+            self.event_source.interval -= 20
+        if curr_interval > 20:
+            self.event_source.interval -= 10
+        elif curr_interval > 1:
+            self.event_source.interval = max(1, self.event_source.interval - 1)
+
+    def slowdown(self, e):
+        """
+        Decreases the speed of the animation by increasing the time between frames
+        """
+        curr_interval = self.event_source.interval
+        if curr_interval > 100:
+            self.event_source.interval += 20
+        if curr_interval > 20:
+            self.event_source.interval += 10
+        elif curr_interval >= 1:
+            self.event_source.interval += 1
+
+    def onestep(self):
+        """
+        Stop the animation and freeze on the next frame, direction depends on self.forwards
+        """
+        self.stop()
+        i_frame = self.frames[self.i]
+        if self.min < i_frame < self.max:
+            self.i = self.i + self.forwards - (not self.forwards)
+        elif i_frame == self.min and self.forwards:
+            self.i += 1
+        elif i_frame == self.max and not self.forwards:
+            self.i -= 1
+        self.func(self.frames[self.i])
+        self.slider.set_val(self.frames[self.i])
+        self.fig.canvas.draw_idle()
+
+    def setup(self, pos: tuple):
+        """
+        Build out the widgets for the player.  player widgets are in one horizontal row, include the player controls
+        (start, stop, skip frame, etc.) and the slider bar, which tracks the position in the dataset
+
+        Parameters
+        ----------
+        pos
+            tuple of position (left position, bottom position) to place the player bar
+        """
+
+        playerax = self.fig.add_axes([pos[0],pos[1], 0.64, 0.04])
+        divider = mpl_toolkits.axes_grid1.make_axes_locatable(playerax)
+        onebax = divider.append_axes("right", size="80%", pad=0.05)
+        bax = divider.append_axes("right", size="80%", pad=0.05)
+        sax = divider.append_axes("right", size="80%", pad=0.05)
+        fax = divider.append_axes("right", size="80%", pad=0.05)
+        ofax = divider.append_axes("right", size="100%", pad=0.05)
+        onefwdax = divider.append_axes("right", size="80%", pad=0.05)
+        sliderax = divider.append_axes("right", size="500%", pad=0.07)
+
+        self.button_slow = matplotlib.widgets.Button(playerax, label='<<')
+        self.button_oneback = matplotlib.widgets.Button(onebax, label='$\u29CF$')
+        self.button_back = matplotlib.widgets.Button(bax, label='$\u25C0$')
+        self.button_stop = matplotlib.widgets.Button(sax, label='$\u25A0$')
+        self.button_forward = matplotlib.widgets.Button(fax, label='$\u25B6$')
+        self.button_oneforward = matplotlib.widgets.Button(ofax, label='$\u29D0$')
+        self.button_fast = matplotlib.widgets.Button(onefwdax, label='>>')
+
+        self.button_slow.on_clicked(self.slowdown)
+        self.button_oneback.on_clicked(self.onebackward)
+        self.button_back.on_clicked(self.backward)
+        self.button_stop.on_clicked(self.stop)
+        self.button_forward.on_clicked(self.forward)
+        self.button_oneforward.on_clicked(self.oneforward)
+        self.button_fast.on_clicked(self.speedup)
+
+        self.slider = matplotlib.widgets.Slider(sliderax, '', self.min, self.max, valinit=self.frames[self.i])
+        self.slider.on_changed(self.set_pos)
+
+    def set_pos(self, slider_time: float):
+        """
+        Triggered on clicking within the slider to jump to a specific time.  slider_time is not an exact coordinate (not
+        within self.frames), its an interpolated value based on where you click in the slider.  Ugh!  We have to find
+        the nearest real value to zoom to.
+
+        Parameters
+        ----------
+        slider_time
+            interpolated value of self.frames based on position of where you click
+        """
+
+        idx = (np.abs(self.frames - slider_time)).argmin()
+        self.i = min(int(idx), len(self.frames) - 1)
+        self.func(self.frames[self.i])
+
+    def update(self, i_frame: float):
+        """
+        Triggered on each tick of the animation.  Updates the slider to the actual frame that we are on.
+
+        Parameters
+        ----------
+        i_frame
+            value of the dim being animated, corresponds to the current value (generally the current time of the animation)
+        """
+        self.slider.set_val(i_frame)
 
 
 class FqprVisualizations:
@@ -263,7 +487,7 @@ class FqprVisualizations:
 
         self.orientation_quiver.remove()
         self.orientation_quiver = self.orientation_figure.quiver(*vecdata, color=['blue', 'red'])
-        self.orientation_objects['time'].set_text('Time: {:0.3f}'.format(time))
+        # self.orientation_objects['time'].set_text('Time: {:0.3f}'.format(time))
         self.orientation_objects['tx_vec'].set_text('TX Vector: x:{:0.3f}, y:{:0.3f}, z:{:0.3f}'.format(tx_x, tx_y, tx_z))
         self.orientation_objects['rx_vec'].set_text('RX Vector: x:{:0.3f}, y:{:0.3f}, z:{:0.3f}'.format(rx_x, rx_y, rx_z))
 
@@ -299,20 +523,18 @@ class FqprVisualizations:
         self.orientation_figure.set_ylabel('+ Starboard')
         self.orientation_figure.set_zlabel('+ Down')
 
-        self.orientation_objects['time'] = self.orientation_figure.text2D(-0.1, 0.11, '')
+        # self.orientation_objects['time'] = self.orientation_figure.text2D(-0.1, 0.11, '')
         self.orientation_objects['tx_vec'] = self.orientation_figure.text2D(0, 0.11, '', color='blue')
         self.orientation_objects['rx_vec'] = self.orientation_figure.text2D(0, 0.10, '', color='red')
-
-        max_range = np.min([100, self.fqpr.multibeam.raw_ping[system_index].time.shape[0]])
-        tme_interval = np.mean(np.diff(self.fqpr.multibeam.raw_ping[system_index].time[0:max_range])) * 1000
-        print('Animating with frame interval of {}ms per record'.format(int(tme_interval)))
 
         self.orientation_system = system_index
         self.orientation_quiver = self.orientation_figure.quiver(*self._generate_orientation_vector(system_index),
                                                                  color=['blue', 'red'])
-        self.orientation_anim = FuncAnimation(fig, self._update_orientation_vector,
-                                              frames=self.fqpr.multibeam.raw_ping[system_index].time.values,
-                                              interval=tme_interval)
+
+        self.orientation_anim = Player(fig, self._update_orientation_vector,
+                                       frames=self.fqpr.multibeam.raw_ping[system_index].time.values,
+                                       pos=(0.125, 0.02))
+        self.orientation_anim.bind_to(self._orientation_cleanup)
 
     def _generate_bpv_arrs(self, dat: xr.Dataset):
         """
@@ -357,7 +579,7 @@ class FqprVisualizations:
         y = np.zeros(maxbeams)
         return x, y, u, v
 
-    def _update_corr_bpv(self, time_idx: int):
+    def _update_corr_bpv(self, time_val: float):
         """
         Update method for visualize_beam_pointing_vectors, runs on each frame of the animation
 
@@ -365,11 +587,11 @@ class FqprVisualizations:
 
         Parameters
         ----------
-        time_idx
-            int, ping counter index
+        time_val
+            ping time value
         """
 
-        subset = self.proc_bpv_dat.isel(time=time_idx)
+        subset = self.proc_bpv_dat.sel(time=time_val)
         angles = subset.corr_pointing_angle.values
         traveltime = subset.traveltime.values
         valid_bpa = ~np.isnan(angles)
@@ -381,38 +603,46 @@ class FqprVisualizations:
         if self.proc_bpv_quiver is not None:
             self.proc_bpv_quiver.remove()
         if self.fqpr.multibeam.is_dual_head():
-            subset_next = self.proc_bpv_dat.isel(time=time_idx + 1)
-            nextangles = subset_next.corr_pointing_angle.values
-            nexttraveltime = subset_next.traveltime.values
-            nextvalid_bpa = ~np.isnan(nextangles)
-            nextvalid_tt = ~np.isnan(nexttraveltime)
-            nextvalid_idx = np.logical_and(nextvalid_bpa, nextvalid_tt)
-            nextangles = nextangles[nextvalid_idx]
-            nexttraveltime = nexttraveltime[nextvalid_idx]
+            newidx = np.where(self.proc_bpv_dat.time == time_val)[0] + 1
+            try:
+                subset_next = self.proc_bpv_dat.isel(time=newidx)
+                nextangles = subset_next.corr_pointing_angle.values
+                nexttraveltime = subset_next.traveltime.values
+                nextvalid_bpa = ~np.isnan(nextangles)
+                nextvalid_tt = ~np.isnan(nexttraveltime)
+                nextvalid_idx = np.logical_and(nextvalid_bpa, nextvalid_tt)
+                nextangles = nextangles[nextvalid_idx]
+                nexttraveltime = nexttraveltime[nextvalid_idx]
 
-            pouterang = [str(round(np.rad2deg(angles[0]), 3)), str(round(np.rad2deg(nextangles[0]), 3))]
-            poutertt = [str(round(traveltime[0], 3)), str(round(nexttraveltime[0], 3))]
-            pinnerang = [str(round(np.rad2deg(angles[-1]), 3)), str(round(np.rad2deg(nextangles[-1]), 3))]
-            pinnertt = [str(round(traveltime[-1], 3)), str(round(nexttraveltime[-1], 3))]
-            idx = [time_idx, time_idx + 1]
+                pouterang = [str(round(np.rad2deg(angles[0]), 3)), str(round(np.rad2deg(nextangles[0]), 3))]
+                poutertt = [str(round(traveltime[0], 3)), str(round(nexttraveltime[0], 3))]
+                pinnerang = [str(round(np.rad2deg(angles[-1]), 3)), str(round(np.rad2deg(nextangles[-1]), 3))]
+                pinnertt = [str(round(traveltime[-1], 3)), str(round(nexttraveltime[-1], 3))]
+                idx = [time_val, float(subset_next.time.values)]
+            except IndexError:  # EOF
+                pouterang = str(round(np.rad2deg(angles[0]), 3))
+                poutertt = str(round(traveltime[0], 3))
+                pinnerang = str(round(np.rad2deg(angles[-1]), 3))
+                pinnertt = str(round(traveltime[-1], 3))
+                idx = time_val
         else:
             pouterang = str(round(np.rad2deg(angles[0]), 3))
             poutertt = str(round(traveltime[0], 3))
             pinnerang = str(round(np.rad2deg(angles[-1]), 3))
             pinnertt = str(round(traveltime[-1], 3))
-            idx = time_idx
+            idx = time_val
 
-        self.proc_bpv_quiver = self.proc_bpv_figure.quiver(*self._generate_bpv_arrs(self.proc_bpv_dat.isel(time=idx)),
-                                                           color=self._generate_bpv_colors(self.proc_bpv_dat.isel(time=idx)),
+        self.proc_bpv_quiver = self.proc_bpv_figure.quiver(*self._generate_bpv_arrs(self.proc_bpv_dat.sel(time=idx)),
+                                                           color=self._generate_bpv_colors(self.proc_bpv_dat.sel(time=idx)),
                                                            units='xy', scale=1)
-        self.proc_bpv_objects['Time'].set_text('Ping: {}'.format(idx))
+        # self.proc_bpv_objects['Time'].set_text('Time: {}'.format(idx))
 
         self.proc_bpv_objects['Port_outer_angle'].set_text('Port outermost angle: {}°'.format(pouterang))
         self.proc_bpv_objects['Port_outer_traveltime'].set_text('Port outermost traveltime: {}s'.format(poutertt))
         self.proc_bpv_objects['Starboard_outer_angle'].set_text('Starboard outermost angle: {}°'.format(pinnerang))
         self.proc_bpv_objects['Starboard_outer_traveltime'].set_text('Starboard outermost traveltime: {}s'.format(pinnertt))
 
-    def _update_uncorr_bpv(self, time_idx: int):
+    def _update_uncorr_bpv(self, time_val: float):
         """
         Update method for visualize_beam_pointing_vectors, runs on each frame of the animation
 
@@ -420,11 +650,11 @@ class FqprVisualizations:
 
         Parameters
         ----------
-        time_idx
-            int, ping counter index
+        time_val
+            ping time value
         """
 
-        subset = self.raw_bpv_dat.isel(time=time_idx)
+        subset = self.raw_bpv_dat.sel(time=time_val)
         angles = subset.beampointingangle.values
         traveltime = subset.traveltime.values
         valid_bpa = ~np.isnan(angles)
@@ -436,31 +666,39 @@ class FqprVisualizations:
         if self.raw_bpv_quiver is not None:
             self.raw_bpv_quiver.remove()
         if self.fqpr.multibeam.is_dual_head():
-            subset_next = self.raw_bpv_dat.isel(time=time_idx + 1)
-            nextangles = subset_next.beampointingangle.values
-            nexttraveltime = subset_next.traveltime.values
-            nextvalid_bpa = ~np.isnan(nextangles)
-            nextvalid_tt = ~np.isnan(nexttraveltime)
-            nextvalid_idx = np.logical_and(nextvalid_bpa, nextvalid_tt)
-            nextangles = nextangles[nextvalid_idx]
-            nexttraveltime = nexttraveltime[nextvalid_idx]
+            newidx = np.where(self.proc_bpv_dat.time == time_val)[0] + 1
+            try:
+                subset_next = self.raw_bpv_dat.isel(time=newidx + 1)
+                nextangles = subset_next.beampointingangle.values
+                nexttraveltime = subset_next.traveltime.values
+                nextvalid_bpa = ~np.isnan(nextangles)
+                nextvalid_tt = ~np.isnan(nexttraveltime)
+                nextvalid_idx = np.logical_and(nextvalid_bpa, nextvalid_tt)
+                nextangles = nextangles[nextvalid_idx]
+                nexttraveltime = nexttraveltime[nextvalid_idx]
 
-            pouterang = [str(round(np.rad2deg(angles[0]), 3)), str(round(np.rad2deg(nextangles[0]), 3))]
-            poutertt = [str(round(traveltime[0], 3)), str(round(nexttraveltime[0], 3))]
-            pinnerang = [str(round(np.rad2deg(angles[-1]), 3)), str(round(np.rad2deg(nextangles[-1]), 3))]
-            pinnertt = [str(round(traveltime[-1], 3)), str(round(nexttraveltime[-1], 3))]
-            idx = [time_idx, time_idx + 1]
+                pouterang = [str(round(np.rad2deg(angles[0]), 3)), str(round(np.rad2deg(nextangles[0]), 3))]
+                poutertt = [str(round(traveltime[0], 3)), str(round(nexttraveltime[0], 3))]
+                pinnerang = [str(round(np.rad2deg(angles[-1]), 3)), str(round(np.rad2deg(nextangles[-1]), 3))]
+                pinnertt = [str(round(traveltime[-1], 3)), str(round(nexttraveltime[-1], 3))]
+                idx = [time_val, float(subset_next.time.values)]
+            except IndexError:  # EOF
+                pouterang = str(round(np.rad2deg(angles[0]), 3))
+                poutertt = str(round(traveltime[0], 3))
+                pinnerang = str(round(np.rad2deg(angles[-1]), 3))
+                pinnertt = str(round(traveltime[-1], 3))
+                idx = time_val
         else:
             pouterang = str(round(np.rad2deg(angles[0]), 3))
             poutertt = str(round(traveltime[0], 3))
             pinnerang = str(round(np.rad2deg(angles[-1]), 3))
             pinnertt = str(round(traveltime[-1], 3))
-            idx = time_idx
+            idx = time_val
 
-        self.raw_bpv_quiver = self.raw_bpv_figure.quiver(*self._generate_bpv_arrs(self.raw_bpv_dat.isel(time=idx)),
-                                                         color=self._generate_bpv_colors(self.raw_bpv_dat.isel(time=idx)),
+        self.raw_bpv_quiver = self.raw_bpv_figure.quiver(*self._generate_bpv_arrs(self.raw_bpv_dat.sel(time=idx)),
+                                                         color=self._generate_bpv_colors(self.raw_bpv_dat.sel(time=idx)),
                                                          units='xy', scale=1)
-        self.raw_bpv_objects['Time'].set_text('Ping: {}'.format(idx))
+        # self.raw_bpv_objects['Time'].set_text('Time: {}'.format(idx))
 
         self.raw_bpv_objects['Port_outer_angle'].set_text('Port outermost angle: {}°'.format(pouterang))
         self.raw_bpv_objects['Port_outer_traveltime'].set_text('Port outermost traveltime: {}s'.format(poutertt))
@@ -550,7 +788,7 @@ class FqprVisualizations:
             obj['Starboard_outer_angle'] = self.proc_bpv_figure.text(0.35, 0.40, '')
             obj['Starboard_outer_traveltime'] = self.proc_bpv_figure.text(0.35, 0.35, '')
 
-            self.proc_bpv_dat = self.fqpr.subset_variables(['corr_pointing_angle', 'traveltime', 'txsector_beam'])
+            self.proc_bpv_dat = self.fqpr.subset_variables(['corr_pointing_angle', 'traveltime', 'txsector_beam'], skip_subset_by_time=True)
             dat = self.proc_bpv_dat
         else:
             fg = plt.figure('Raw Beam Vectors', figsize=(10, 8))
@@ -571,25 +809,51 @@ class FqprVisualizations:
             obj['Starboard_outer_angle'] = self.raw_bpv_figure.text(0.35, 0.40, '')
             obj['Starboard_outer_traveltime'] = self.raw_bpv_figure.text(0.35, 0.35, '')
 
-            self.raw_bpv_dat = self.fqpr.subset_variables(['beampointingangle', 'traveltime', 'txsector_beam'])
+            self.raw_bpv_dat = self.fqpr.subset_variables(['beampointingangle', 'traveltime', 'txsector_beam'], skip_subset_by_time=True)
             self.raw_bpv_dat['beampointingangle'] = np.deg2rad(self.raw_bpv_dat['beampointingangle'])
             dat = self.raw_bpv_dat
 
-        max_range = np.min([100, dat.time.shape[0]])
-        tme_interval = np.mean(np.diff(dat.time[0:max_range])) * 1000
-
         if self.fqpr.multibeam.is_dual_head():  # for dual head, we end up plotting two records each time
-            frames = [int(i * 2) for i in range(int(dat.time.shape[0] / 2))]
-            tme_interval = tme_interval * 2
+            frames = dat.time.values[::2]
         else:
-            frames = [i for i in range(int(dat.time.shape[0]))]
-
-        print('Animating with frame interval of {}ms per record'.format(int(tme_interval)))
+            frames = dat.time.values
 
         if not corrected:
-            self.raw_bpv_anim = FuncAnimation(fg, self._update_uncorr_bpv, frames=frames, interval=tme_interval)
+            self.raw_bpv_anim = Player(fg, self._update_uncorr_bpv, frames=frames, pos=(0.125, 0.02))
+            self.raw_bpv_anim.bind_to(self._uncorr_cleanup)
         else:
-            self.proc_bpv_anim = FuncAnimation(fg, self._update_corr_bpv, frames=frames, interval=tme_interval)
+            self.proc_bpv_anim = Player(fg, self._update_corr_bpv, frames=frames, pos=(0.125, 0.02))
+            self.proc_bpv_anim.bind_to(self._corr_cleanup)
+
+    def _orientation_cleanup(self):
+        """
+        Delete all the data associated with the orientation animation on closing the animation
+        """
+        self.orientation_system = None
+        self.orientation_quiver = None
+        self.orientation_figure = None
+        self.orientation_objects = None
+        self.orientation_anim = None
+
+    def _uncorr_cleanup(self):
+        """
+        Delete all the data associated with the uncorrected beam animation on closing the animation
+        """
+        self.raw_bpv_quiver = None
+        self.raw_bpv_dat = None
+        self.raw_bpv_figure = None
+        self.raw_bpv_objects = None
+        self.raw_bpv_anim = None
+
+    def _corr_cleanup(self):
+        """
+        Delete all the data associated with the corrected beam animation on closing the animation
+        """
+        self.proc_bpv_quiver = None
+        self.proc_bpv_dat = None
+        self.proc_bpv_figure = None
+        self.proc_bpv_objects = None
+        self.proc_bpv_anim = None
 
 
 def save_animation_mpeg(anim_instance: FuncAnimation, output_pth: str):

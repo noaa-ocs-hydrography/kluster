@@ -20,8 +20,8 @@ class BasicPlotDialog(QtWidgets.QDialog):
         self.recent_plot = None
 
         self.variable_translator = {'acrosstrack': 'SoundVelocity_AcrossTrack', 'alongtrack': 'SoundVelocity_AlongTrack',
-                                    'beampointingangle': 'Uncorrected_Beam_Angle', 'corr_altitude': 'Altitude_Correction',
-                                    'corr_heave': 'Heave_Correction', 'corr_pointing_angle': 'Corrected_Beam_Angle',
+                                    'beampointingangle': 'Uncorrected_Beam_Angle', 'corr_altitude': 'Corrected_Altitude',
+                                    'corr_heave': 'Corrected_Heave', 'corr_pointing_angle': 'Corrected_Beam_Angle',
                                     'counter': 'Ping_Counter', 'delay': 'Beam_Delay', 'depthoffset': 'SoundVelocity_Depth',
                                     'detectioninfo': 'Beam_Filter', 'frequency': 'Beam_Frequency', 'mode': 'Ping_Mode',
                                     'modetwo': 'Ping_Mode_Two', 'processing_status': 'Processing_Status',
@@ -32,8 +32,8 @@ class BasicPlotDialog(QtWidgets.QDialog):
                                     'x': 'Georeferenced_Easting', 'y': 'Georeferenced_Northing',
                                     'yawpitchstab': 'Yaw_Pitch_Stabilization', 'z': 'Georeferenced_Depth'}
         self.variable_reverse_lookup = {'SoundVelocity_AcrossTrack': 'acrosstrack', 'SoundVelocity_AlongTrack': 'alongtrack',
-                                        'Uncorrected_Beam_Angle': 'beampointingangle', 'Altitude_Correction': 'corr_altitude',
-                                        'Heave_Correction': 'corr_heave', 'Corrected_Beam_Angle': 'corr_pointing_angle',
+                                        'Uncorrected_Beam_Angle': 'beampointingangle', 'Corrected_Altitude': 'corr_altitude',
+                                        'Corrected_Heave': 'corr_heave', 'Corrected_Beam_Angle': 'corr_pointing_angle',
                                         'Ping_Counter': 'counter', 'Beam_Delay': 'delay',
                                         'SoundVelocity_Depth': 'depthoffset', 'Beam_Filter': 'detectioninfo',
                                         'Beam_Frequency': 'frequency', 'Ping_Mode': 'mode', 'Ping_Mode_Two': 'modetwo',
@@ -49,7 +49,8 @@ class BasicPlotDialog(QtWidgets.QDialog):
         self.custom_plot_lookup = {'sound_velocity_correct': ['2d scatter, color by depth', '2d scatter, color by sector',
                                                               '3d scatter, color by depth', '3d scatter, color by sector'],
                                    'georeferenced': ['2d scatter, color by depth', '2d scatter, color by sector',
-                                                     '3d scatter, color by depth', '3d scatter, color by sector']}
+                                                     '3d scatter, color by depth', '3d scatter, color by sector'],
+                                   'animations': ['Uncorrected Beam Vectors', 'Corrected Beam Vectors', 'Vessel Orientation']}
 
         self.setWindowTitle('Basic Plot')
         layout = QtWidgets.QVBoxLayout()
@@ -235,7 +236,7 @@ class BasicPlotDialog(QtWidgets.QDialog):
                     dset = dset[0]  # grab the first multibeam dataset (dual head will have two) for the lookup
                     variable_names = [self.variable_translator[nm] for nm in list(dset.variables.keys()) if nm in self.variable_translator]
                 elif ky == 'custom':
-                    variable_names = ['sound_velocity_correct', 'georeferenced']
+                    variable_names = ['sound_velocity_correct', 'georeferenced', 'animations']
                 else:
                     variable_names = [nm for nm in list(dset.variables.keys()) if nm not in ['time']]
 
@@ -393,11 +394,15 @@ class BasicPlotDialog(QtWidgets.QDialog):
             elif plottype == '2d scatter, color by sector':
                 data.plot.soundings_plot_2d(custom_vartype, color_by='sector')
             elif plottype == '3d scatter, color by depth':
-                print(custom_vartype, 'depth')
                 data.plot.soundings_plot_3d(custom_vartype, color_by='depth')
             elif plottype == '3d scatter, color by sector':
-                print(custom_vartype, 'sector')
                 data.plot.soundings_plot_3d(custom_vartype, color_by='sector')
+            elif plottype == 'Uncorrected Beam Vectors':
+                data.plot.visualize_beam_pointing_vectors(False)
+            elif plottype == 'Corrected Beam Vectors':
+                data.plot.visualize_beam_pointing_vectors(True)
+            elif plottype == 'Vessel Orientation':
+                data.plot.visualize_orientation_vector()
 
             if dataset_name != 'custom' and plottype not in ['Image', 'Contour']:
                 self.recent_plot[cnt].legend()
@@ -455,10 +460,8 @@ class BasicPlotDialog(QtWidgets.QDialog):
         plot_expl = ''
 
         if source == 'multibeam':
-            source_expl = 'Source = From the raw multibeam data.'
-            if variable == 'Altitude_Correction':
-                variable_expl = 'Variable = If this dataset is processed to the waterline this will be zero.  Otherwise, the altitude correction is the attitude rotated lever arm between the reference point of the altitude and the transmitter.'
-            elif variable == 'Beam_Delay':
+            source_expl = 'Source = From the raw multibeam data.'            
+            if variable == 'Beam_Delay':
                 variable_expl = 'Variable = The time delay applied to each sector, expanded to the beam dimension.  Comes from the multibeam raw data.  Generally fairly small, or zero.'
             elif variable == 'Beam_Filter':
                 variable_expl = 'Variable = The accepted/rejected state of each beam.  2 = rejected, 1 = phase detection, 0 = amplitude detection.  See Kongsberg "detectioninfo".'
@@ -476,14 +479,16 @@ class BasicPlotDialog(QtWidgets.QDialog):
                 variable_expl = 'Variable = The raw uncertainty record that comes from the multibeam.  Corresponds to the Kongsberg detectioninfo (.all) detectiontype (.kmall).  See datagram description for more information.'
             elif variable == 'Corrected_Beam_Angle':
                 variable_expl = 'Variable = The result of running Compute Beam Vectors in Kluster.  This is the raw beam angles corrected for attitude and mounting angles, relative to nadir (straight down from sonar).'
+            elif variable == 'Corrected_Altitude':
+                variable_expl = 'Variable = If this dataset is processed to the waterline this will be zero.  Otherwise, the altitude correction is the attitude rotated lever arm between the reference point of the altitude and the transmitter, if non-zero.  This will be the original altitude plus this correction.'
+            elif variable == 'Corrected_Heave':
+                variable_expl = 'Variable = If this dataset is processed to the ellipse this will be zero.  Otherwise, the heave correction is the attitude rotated lever arm between the reference point of the heave and the transmitter, if non-zero. This will be the original heave plus this correction.'
             elif variable == 'Georeferenced_Depth':
                 variable_expl = 'Variable = The result of running Georeference in Kluster.  This is the sound velocity offsets projected into the coordinate reference system you chose.  Depth is in meters from the vertical reference you chose.'
             elif variable == 'Georeferenced_Easting':
                 variable_expl = 'Variable = The result of running Georeference in Kluster.  This is the sound velocity offsets projected into the coordinate reference system you chose.  Easting is in meters.'
             elif variable == 'Georeferenced_Northing':
                 variable_expl = 'Variable = The result of running Georeference in Kluster.  This is the sound velocity offsets projected into the coordinate reference system you chose.  Northing is in meters.'
-            elif variable == 'Heave_Correction':
-                variable_expl = 'Variable = If this dataset is processed to the ellipse this will be zero.  Otherwise, the heave correction is the attitude rotated lever arm between the reference point of the heave and the transmitter. (Generally only applies to dual head systems)'
             elif variable == 'Ping_Counter':
                 variable_expl = 'Variable = The identification number assigned to each ping.  For Kongsberg .all, this is a 16bit number, so you will see it reset at 65536.'
             elif variable == 'Ping_Mode':
@@ -540,6 +545,8 @@ class BasicPlotDialog(QtWidgets.QDialog):
                 variable_expl = 'Variable = From the Kluster processed georeferenced northing/easting/depth'
             elif variable == 'sound_velocity_correct':
                 variable_expl = 'Variable = From the Kluster processed sound velocity corrected alongtrack offset/acrosstrack offset/depth offset'
+            elif variable == 'animations':
+                variable_expl = 'Variable = Build custom animations from the Kluster processed data'
 
         if plottype == 'Line':
             plot_expl = 'Plot = Line plot connecting the points in the variable, will connect points across gaps in data.  Use scatter to see the gaps.'
@@ -559,6 +566,12 @@ class BasicPlotDialog(QtWidgets.QDialog):
             plot_expl = 'Plot = 3d scatter plot of variable, colored by depth'
         elif plottype == '3d scatter, color by sector':
             plot_expl = 'Plot = 3d scatter plot of variable, colored by the sector each beam belongs to'
+        elif plottype == 'Uncorrected Beam Vectors':
+            plot_expl = 'Plot = Animation of uncorrected beam angles versus traveltime, will show the effects of attitude and mounting angles.'
+        elif plottype == 'Corrected Beam Vectors':
+            plot_expl = 'Plot = Animation of corrected beam angles versus traveltime, corrected for attitude and mounting angles.'
+        elif plottype == 'Vessel Orientation':
+            plot_expl = 'Plot = Animation of Vessel Orientation, corrected for attitude and mounting angles.  TX vector represents the transmitter, RX vector represents the receiver.'
 
         if plot_expl and variable_expl and source_expl:
             self.explanation.setText('{}\n\n{}\n\n{}'.format(source_expl, variable_expl, plot_expl))

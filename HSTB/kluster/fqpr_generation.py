@@ -1077,6 +1077,10 @@ class Fqpr:
 
         corr_point = ra.corr_pointing_angle.where(applicable_index, drop=True)
         raw_point = ra.beampointingangle.where(applicable_index, drop=True)
+        if self.rx_reversed:
+            # if reversed, we have to reverse the raw angles to match the already reversed corr angles
+            #  also load the numpy array, as leaving it as an xarray seems to cause problems with xarray ops later
+            raw_point = raw_point[..., ::-1].values
         acrosstrack = ra.acrosstrack.where(applicable_index, drop=True)
         depthoffset = ra.depthoffset.where(applicable_index, drop=True)
         soundspeed = ra.soundspeed.where(applicable_index, drop=True)
@@ -1931,6 +1935,7 @@ class Fqpr:
 
             for applicable_index, timestmp, prefixes in system:
                 self.logger.info('using installation params {}'.format(timestmp))
+                self.generate_starter_orientation_vectors(prefixes, timestmp)  # have to include this to know if rx is reversed to reverse raw beam angles
                 idx_by_chunk = self.return_chunk_indices(applicable_index, pings_per_chunk)
                 if len(idx_by_chunk[0]):  # if there are pings in this sector that align with this installation parameter record
                     data_for_workers = self._generate_chunks_tpu(ra, idx_by_chunk, applicable_index)
@@ -2359,7 +2364,7 @@ class Fqpr:
             self.logger.error('restore_subset: no subset found to restore from')
             raise ValueError('restore_subset: no subset found to restore from')
 
-    def subset_variables(self, variable_selection: list, ping_times: Union[np.array, float, tuple] = None):
+    def subset_variables(self, variable_selection: list, ping_times: Union[np.array, float, tuple] = None, skip_subset_by_time: bool = False):
         """
         Take specific variable names and a time, return the array across all sectors merged into one block.
 
@@ -2379,6 +2384,8 @@ class Fqpr:
         ping_times
             time to select the dataset by, can either be an array of times (will use the min/max of the array to subset),
             a float for a single time, or a tuple of (min time, max time).  If None, will use the min/max of the dataset
+        skip_subset_by_time
+            if True, will not run the subset by time method
 
         Returns
         -------
@@ -2386,18 +2393,19 @@ class Fqpr:
             Dataset with the
         """
 
-        if ping_times is None:
-            ping_times = (np.min([rp.time.values[0] for rp in self.multibeam.raw_ping]),
-                          np.max([rp.time.values[-1] for rp in self.multibeam.raw_ping]))
+        if not skip_subset_by_time:
+            if ping_times is None:
+                ping_times = (np.min([rp.time.values[0] for rp in self.multibeam.raw_ping]),
+                              np.max([rp.time.values[-1] for rp in self.multibeam.raw_ping]))
 
-        if isinstance(ping_times, float):
-            min_time, max_time = ping_times, ping_times
-        elif isinstance(ping_times, tuple):
-            min_time, max_time = ping_times
-        else:
-            min_time, max_time = float(np.min(ping_times)), float(np.max(ping_times))
+            if isinstance(ping_times, float):
+                min_time, max_time = ping_times, ping_times
+            elif isinstance(ping_times, tuple):
+                min_time, max_time = ping_times
+            else:
+                min_time, max_time = float(np.min(ping_times)), float(np.max(ping_times))
 
-        self.subset_by_time(min_time, max_time)
+            self.subset_by_time(min_time, max_time)
 
         dataset_variables = {}
         times = np.concatenate([rp.time.values for rp in self.multibeam.raw_ping]).flatten()
@@ -2424,7 +2432,8 @@ class Fqpr:
         dset = xr.Dataset(dataset_variables, coords)
         dset = dset.sortby('time')
 
-        self.restore_subset()
+        if not skip_subset_by_time:
+            self.restore_subset()
 
         return dset
 

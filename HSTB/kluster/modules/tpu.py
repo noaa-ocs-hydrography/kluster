@@ -1,4 +1,4 @@
-import os
+import os, sys
 import numpy as np
 import xarray as xr
 from typing import Union
@@ -29,8 +29,8 @@ def distrib_run_calculate_tpu(dat: list):
                         dat[11], dat[12], dat[13], roll_in_degrees=True, raw_beam_angles_in_degrees=True,
                         beam_angles_in_degrees=False, qf_type=dat[14], vert_ref=dat[15], tpu_image=dat[16])
     # return processing status = 4 for all affected soundings
-    processing_status = xr.DataArray(np.full_like(dat[1], 5, dtype=np.uint8),
-                                     coords={'time': dat[1].coords['time'], 'beam': dat[1].coords['beam']},
+    processing_status = xr.DataArray(np.full_like(dat[2], 5, dtype=np.uint8),
+                                     coords={'time': dat[2].coords['time'], 'beam': dat[2].coords['beam']},
                                      dims=['time', 'beam'])
     ans.append(processing_status)
     return ans
