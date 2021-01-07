@@ -28,7 +28,7 @@ REQUIRED = [
             'numba==0.51.2',
             'openpyxl==3.0.3',
             'psutil==5.7.3',
-            'numpy==1.19.4',
+            'numpy==1.19.5',  # cannot be 1.19.4, see https://tinyurl.com/y3dm3h86
             'pandas==1.1.4',
             'pyshp==2.1.2',
             'vispy==0.6.4',
