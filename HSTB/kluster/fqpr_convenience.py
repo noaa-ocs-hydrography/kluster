@@ -318,7 +318,7 @@ def reload_data(converted_folder: str, require_raw_data: bool = True, skip_dask:
     if (require_raw_data and final_paths['ping'] and final_paths['attitude'] and final_paths['navigation']) or (final_paths['ping'] or final_paths['soundings']):
         mbes_read = BatchRead(None, skip_dask=skip_dask, show_progress=show_progress)
         mbes_read.final_paths = final_paths
-        mbes_read.read_from_zarr_fils(final_paths['ping'], final_paths['attitude'][0], final_paths['navigation'][0], final_paths['logfile'][0])
+        mbes_read.read_from_zarr_fils(final_paths['ping'], final_paths['attitude'][0], final_paths['navigation'][0], final_paths['logfile'])
         fqpr_inst = Fqpr(mbes_read, show_progress=show_progress)
         fqpr_inst.logger.info('****Reloading from file {}****'.format(converted_folder))
 

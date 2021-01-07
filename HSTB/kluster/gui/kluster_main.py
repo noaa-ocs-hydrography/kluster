@@ -337,8 +337,8 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.vessel_win = dialog_vesselview.VesselWidget()
 
         if fqprs:
-            first_fqpr_instance = self.project.fqpr_instances[fqprs[0]]
-            self.vessel_win.xyzrph = first_fqpr_instance.source_dat.xyzrph
+            fqpr = self.project.fqpr_instances[self.project.path_relative_to_project(fqprs[0])]
+            self.vessel_win.xyzrph = fqpr.multibeam.xyzrph
             self.vessel_win.load_from_existing_xyzrph()
         self.vessel_win.show()
 

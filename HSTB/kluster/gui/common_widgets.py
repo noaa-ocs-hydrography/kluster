@@ -60,6 +60,21 @@ class PlotDataHandler(QtWidgets.QWidget):
         self.hlayout_two.addWidget(self.trim_time_end_lbl)
         self.trim_time_end = QtWidgets.QLineEdit('', self)
         self.hlayout_two.addWidget(self.trim_time_end)
+        self.trim_time_datetime_start_lbl = QtWidgets.QLabel('Start time (utc)')
+        self.trim_time_datetime_start_lbl.hide()
+        self.hlayout_two.addWidget(self.trim_time_datetime_start_lbl)
+        self.trim_time_datetime_start = QtWidgets.QDateTimeEdit(self)
+        self.trim_time_datetime_start.setDisplayFormat("MM/dd/yyyy hh:mm:ss")
+        self.trim_time_datetime_start.hide()
+        self.hlayout_two.addWidget(self.trim_time_datetime_start)
+        self.trim_time_datetime_end_lbl = QtWidgets.QLabel('End time (utc)')
+        self.trim_time_datetime_end_lbl.hide()
+        self.hlayout_two.addWidget(self.trim_time_datetime_end_lbl)
+        self.trim_time_datetime_end = QtWidgets.QDateTimeEdit(self)
+        self.trim_time_datetime_end.setDisplayFormat("MM/dd/yyyy hh:mm:ss")
+        self.trim_time_datetime_end.hide()
+        self.hlayout_two.addWidget(self.trim_time_datetime_end)
+        self.hlayout_two.addStretch()
         self.trim_time_check.setLayout(self.hlayout_two)
 
         self.trim_line_check = QtWidgets.QGroupBox('Trim by line')
@@ -123,6 +138,8 @@ class PlotDataHandler(QtWidgets.QWidget):
         self.sliderbar.mouse_move.connect(self.update_from_slider)
         self.trim_time_start.textChanged.connect(self.update_from_trim_time)
         self.trim_time_end.textChanged.connect(self.update_from_trim_time)
+        self.trim_time_datetime_start.dateTimeChanged.connect(self.update_from_trim_datetime)
+        self.trim_time_datetime_end.dateTimeChanged.connect(self.update_from_trim_datetime)
         self.trim_lines.currentTextChanged.connect(self.update_from_line)
         self.trim_time_check.toggled.connect(self.trim_time_toggled)
         self.trim_line_check.toggled.connect(self.trim_line_toggled)
@@ -188,13 +205,42 @@ class PlotDataHandler(QtWidgets.QWidget):
             self.warning_message.setText('')
             self._set_new_times(set_mintime, set_maxtime)
 
+    def update_from_trim_datetime(self, e):
+        if self.fqpr is not None and self.trim_time_check.isChecked():
+            try:
+                set_datetime = self.trim_time_datetime_start.dateTime().toPython()
+                set_datetime = set_datetime.replace(tzinfo=timezone.utc)
+                set_mintime = int(float(set_datetime.timestamp()))
+                if not self.fqpr_maxtime >= set_mintime >= self.fqpr_mintime:
+                    self.warning_message.setText('Invalid start time, must be inbetween max and minimum time')
+                    return
+            except ValueError:
+                self.warning_message.setText(
+                    'Invalid start time, must be a number: {}'.format(self.trim_time_start.text()))
+                return
+            try:
+                set_datetime = self.trim_time_datetime_end.dateTime().toPython()
+                set_datetime = set_datetime.replace(tzinfo=timezone.utc)
+                set_maxtime = int(float(set_datetime.timestamp()))
+                if not self.fqpr_maxtime >= set_maxtime >= self.fqpr_mintime:
+                    self.warning_message.setText('Invalid end time, must be inbetween max and minimum time')
+                    return
+            except ValueError:
+                self.warning_message.setText('Invalid end time, must be a number: {}'.format(self.trim_time_end.text()))
+                return
+
+            self.warning_message.setText('')
+            self._set_new_times(set_mintime, set_maxtime)
+
     def trim_time_toggled(self, state):
         if state:
             self.trim_line_check.setChecked(False)
-            starttme = str(self.slider_mintime)
-            endtme = str(self.slider_maxtime)
-            self.trim_time_start.setText(starttme)
-            self.trim_time_end.setText(endtme)
+            starttme = self.slider_mintime
+            endtme = self.slider_maxtime
+            self.trim_time_start.setText(str(starttme))
+            self.trim_time_end.setText(str(endtme))
+            self.trim_time_datetime_start.setDateTime(QtCore.QDateTime.fromSecsSinceEpoch(int(starttme), QtCore.QTimeZone(0)))
+            self.trim_time_datetime_end.setDateTime(QtCore.QDateTime.fromSecsSinceEpoch(int(endtme), QtCore.QTimeZone(0)))
 
     def trim_line_toggled(self, state):
         if state:
@@ -245,8 +291,24 @@ class PlotDataHandler(QtWidgets.QWidget):
 
     def update_translate_mode(self, mode):
         if mode == 'utc seconds':
+            self.trim_time_datetime_start_lbl.hide()
+            self.trim_time_start_lbl.show()
+            self.trim_time_datetime_start.hide()
+            self.trim_time_start.show()
+            self.trim_time_datetime_end_lbl.hide()
+            self.trim_time_end_lbl.show()
+            self.trim_time_datetime_end.hide()
+            self.trim_time_end.show()
             self.translate_time = False
         elif mode == 'utc datetime':
+            self.trim_time_datetime_start_lbl.show()
+            self.trim_time_start_lbl.hide()
+            self.trim_time_datetime_start.show()
+            self.trim_time_start.hide()
+            self.trim_time_datetime_end_lbl.show()
+            self.trim_time_end_lbl.hide()
+            self.trim_time_datetime_end.show()
+            self.trim_time_end.hide()
             self.translate_time = True
 
         if self.fqpr is not None:
