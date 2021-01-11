@@ -159,7 +159,7 @@ class AllProcessingDialog(QtWidgets.QDialog):
         if not self.canceled:
             opts = {'fqpr_inst': self.fqpr_inst, 'run_orientation': self.ovec_check.isChecked(),
                     'run_beam_vec': self.bvec_check.isChecked(), 'run_svcorr': self.svcorr_check.isChecked(),
-                    'svcasts': self.addtl_cast_files, 'run_georef': self.georef_check.isChecked(),
+                    'add_cast_files': self.addtl_cast_files, 'run_georef': self.georef_check.isChecked(),
                     'use_epsg': self.epsg_radio.isChecked(), 'epsg': self.epsg_val.text(),
                     'use_coord': self.auto_utm_radio.isChecked(), 'coord_system': self.auto_utm_val.currentText(),
                     'vert_ref': self.georef_vertref.currentText()}

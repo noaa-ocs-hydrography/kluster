@@ -17,6 +17,7 @@ from HSTB.kluster.fqpr_helpers import return_directory_from_data
 
 def perform_all_processing(filname: str, navfiles: list = None, outfold: str = None, coord_system: str = 'NAD83',
                            vert_ref: str = 'waterline', orientation_initial_interpolation: bool = False,
+                           add_cast_files: Union[str, list] = None,
                            skip_dask: bool = False, show_progress: bool = True, **kwargs):
     """
     Use fqpr_generation to process multibeam data on the local cluster and generate a sound velocity corrected,
@@ -40,6 +41,8 @@ def perform_all_processing(filname: str, navfiles: list = None, outfold: str = N
         the vertical reference point, one of ['ellipse', 'waterline']
     orientation_initial_interpolation
         see process_multibeam
+    add_cast_files
+        see process_multibeam
     skip_dask
         if True, will not start/find the dask client.  Useful for small datasets where parallel processing actually
         makes the process slower
@@ -55,7 +58,7 @@ def perform_all_processing(filname: str, navfiles: list = None, outfold: str = N
     fqpr_inst = convert_multibeam(filname, outfold, skip_dask=skip_dask, show_progress=show_progress)
     if navfiles is not None:
         fqpr_inst = import_navigation(fqpr_inst, navfiles, **kwargs)
-    fqpr_inst = process_multibeam(fqpr_inst, coord_system=coord_system, vert_ref=vert_ref,
+    fqpr_inst = process_multibeam(fqpr_inst, add_cast_files=add_cast_files, coord_system=coord_system, vert_ref=vert_ref,
                                   orientation_initial_interpolation=orientation_initial_interpolation)
     return fqpr_inst
 
@@ -151,7 +154,7 @@ def import_navigation(fqpr_inst: Fqpr, navfiles: list, errorfiles: list = None, 
 
 def process_multibeam(fqpr_inst: Fqpr, run_orientation: bool = True, orientation_initial_interpolation: bool = False,
                       run_beam_vec: bool = True, run_svcorr: bool = True, run_georef: bool = True,
-                      svcasts: list = None, use_epsg: bool = False,
+                      add_cast_files: Union[str, list] = None, use_epsg: bool = False,
                       use_coord: bool = True, epsg: int = None, coord_system: str = 'NAD83',
                       vert_ref: str = 'waterline'):
     """
@@ -176,8 +179,9 @@ def process_multibeam(fqpr_inst: Fqpr, run_orientation: bool = True, orientation
         perform the sv_correct step
     run_georef
         perform the georef_xyz step
-    svcasts
-        optional list of paths to svp cast files, no need to include if using casts in multibeam file
+    add_cast_files
+        either a list of files to include or the path to a directory containing files.  These are in addition to
+        the casts in the ping dataset.
     use_epsg
         if True, will use the epsg code to build the CRS to use
     use_coord
@@ -206,7 +210,7 @@ def process_multibeam(fqpr_inst: Fqpr, run_orientation: bool = True, orientation
     if run_beam_vec:
         fqpr_inst.get_beam_pointing_vectors()
     if run_svcorr:
-        fqpr_inst.sv_correct(add_cast_files=svcasts)
+        fqpr_inst.sv_correct(add_cast_files=add_cast_files)
     if run_georef:
         fqpr_inst.georef_xyz()
         fqpr_inst.calculate_total_uncertainty()

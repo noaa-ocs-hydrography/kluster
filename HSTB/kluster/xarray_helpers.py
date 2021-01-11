@@ -22,7 +22,7 @@ class ZarrWrite:
     |  4. appending to existing zarr by filling in the last zarr chunk with data and then writing new chunks (only last
                 chunk of zarr array is allowed to not be of length equal to zarr chunk size)
     """
-    def __init__(self, zarr_path: str, desired_chunk_shape: dict, append_dim: str = 'time', expand_dim: str = 'beam',
+    def __init__(self, zarr_path: str, desired_chunk_shape: dict = None, append_dim: str = 'time', expand_dim: str = 'beam',
                  float_no_data_value: float = np.nan, int_no_data_value: int = 999, sync: DaskProcessSynchronizer = None):
         """
         Initialize zarr write class
@@ -97,6 +97,13 @@ class ZarrWrite:
             for prof in new_profs:
                 val = attrs[prof]
                 if val in current_vals:
+                    try:  # find matching attribute key if exists
+                        tstmp = prof.split('_')[1]
+                        matching_attr = 'attributes_{}'.format(tstmp)
+                        if matching_attr in attrs:
+                            attrs.pop(matching_attr)
+                    except:
+                        pass
                     attrs.pop(prof)
         except:
             pass
@@ -926,6 +933,7 @@ def combine_xr_attributes(datasets: list):
     fnames = []
     survey_nums = []
     cast_dump = {}
+    attrs_dump = {}
 
     if type(datasets) != list:
         datasets = [datasets]
@@ -1014,6 +1022,8 @@ def combine_xr_attributes(datasets: list):
             #   cast time).
             elif k[0:7] == 'profile':
                 cast_dump[k] = v
+            elif k[0:11] == 'attributes_':
+                attrs_dump[k] = v
             elif k[0:3] == 'min':
                 if k in finaldict:
                     finaldict[k] = np.min([v, finaldict[k]])
@@ -1037,9 +1047,12 @@ def combine_xr_attributes(datasets: list):
         sorted_kys = sorted(cast_dump)
         unique_casts = []
         for k in sorted_kys:
+            tstmp = k.split('_')[1]
+            matching_attr = 'attributes_{}'.format(tstmp)
             if cast_dump[k] not in unique_casts:
                 unique_casts.append(cast_dump[k])
                 finaldict[k] = cast_dump[k]
+                finaldict[matching_attr] = attrs_dump[matching_attr]
     return finaldict
 
 

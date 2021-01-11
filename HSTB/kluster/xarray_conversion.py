@@ -312,7 +312,10 @@ def _sequential_to_xarray(rec: dict):
             idx = np.where(rec['profile']['time'] == t)
             profile = np.dstack([rec['profile']['depth'][idx][0], rec['profile']['soundspeed'][idx][0]])[0]
             for systemid in recs_to_merge['ping']:
-                recs_to_merge['ping'][systemid].attrs['profile_{}'.format(int(t))] = json.dumps(profile.tolist())
+                cst_name = 'profile_{}'.format(int(t))
+                attrs_name = 'attributes_{}'.format(int(t))
+                recs_to_merge['ping'][systemid].attrs[cst_name] = json.dumps(profile.tolist())
+                recs_to_merge['ping'][systemid].attrs[attrs_name] = json.dumps({'location': [], 'source': 'multibeam'})
 
     # add on attribute for installation parameters, basically the same way as you do for the ss profile, except it
     #   has no coordinate to index by.  Also, use json.dumps to avoid the issues with serializing lists/dicts with
@@ -1913,7 +1916,7 @@ class BatchRead:
             dictionary of attribute_name/data for each sv profile
         """
 
-        prof_keys = [x for x in self.raw_ping[0].attrs.keys() if x[0:7] == 'profile']
+        prof_keys = [x for x in self.raw_ping[0].attrs.keys() if x[0:8] == 'profile_']
         if prof_keys:
             return {p: self.raw_ping[0].attrs[p] for p in prof_keys}
         else:

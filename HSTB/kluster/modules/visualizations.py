@@ -1,7 +1,11 @@
+import os
 import numpy as np
 import xarray as xr
+import json
+from datetime import datetime
 
 import matplotlib.pyplot as plt
+from matplotlib.pyplot import get_current_fig_manager
 from matplotlib.animation import FuncAnimation, FFMpegWriter
 import matplotlib.cm as cm
 from matplotlib.colors import LinearSegmentedColormap
@@ -18,7 +22,8 @@ class Player(FuncAnimation):
     Matplotlib FuncAnimation player that includes the ability to start/stop/speed up/slow down/skip frames.  Relies on the
     frames passed in, frames must be the values of the dimension you want to animate on.
     """
-    def __init__(self, fig, func, frames=None, init_func=None, fargs=None, save_count=None, pos=(0.125, 0.92), **kwargs):
+    def __init__(self, fig, func, frames=None, init_func=None, fargs=None, save_count=None, save_pth=None, pos=(0.125, 0.92), **kwargs):
+        self.save_pth = save_pth
         self.i = 0
         self.min = frames[0]
         self.max = frames[-1]
@@ -32,6 +37,8 @@ class Player(FuncAnimation):
         FuncAnimation.__init__(self, self.fig, self.update, frames=self.play(), init_func=init_func, fargs=fargs, save_count=save_count, **kwargs )
 
         self._observers = []
+
+        get_current_fig_manager().toolbar.save_figure = self.save_event
         self.fig.canvas.mpl_connect('close_event', self.close_event)
 
     def close_event(self, evt):
@@ -42,6 +49,24 @@ class Player(FuncAnimation):
         self.runs = False
         for callback in self._observers:
             callback()
+
+    def save_event(self):
+        """
+        Called when the user hits the save button on the Player toolbar.  Uses the FFMpegWriter to save each frame to a new
+        animation.  Takes forever to run, probably need to thread this later with a progress count.
+        """
+        if self.save_pth is not None:
+            print('\nSaving animation...')
+            ffwriter = FFMpegWriter()
+            base_dir, filepth = os.path.split(self.save_pth)
+            if os.path.exists(self.save_pth):
+                self.save_pth = os.path.join(base_dir, os.path.splitext(filepth)[0] + '_{}.mpeg'.format(datetime.now().strftime('%H%M%S')))
+            if not os.path.exists(base_dir):
+                os.makedirs(base_dir)
+            self.save(self.save_pth, writer=ffwriter)
+            print('Animation saved to {}'.format(self.save_pth))
+        else:
+            print('No save path provided to animation')
 
     def bind_to(self, callback):
         """
@@ -426,6 +451,78 @@ class FqprVisualizations:
 
         return fig
 
+    def plot_sound_velocity_profiles(self):
+        profs = self.fqpr.multibeam.return_all_profiles()
+        for name, data in profs.items():
+            data = json.loads(data)
+            dpth = np.array([d[0] for d in data])
+            sv = np.array([d[1] for d in data])
+            plt.plot(sv, dpth, label=name)
+        plt.gca().invert_yaxis()
+        plt.legend()
+        plt.title('Sound Velocity Profiles')
+        plt.xlabel('Sound Velocity (meters/second)')
+        plt.ylabel('Depth (meters)')
+
+    def plot_sound_velocity_map(self):
+        print('Building Sound Velocity Profile map...')
+        nav = self.fqpr.multibeam.raw_nav
+        navlen = nav.time.shape[0]
+
+        # if navlen < 1000:
+        #     subset = np.arange(0, navlen)
+        # else:
+        #     subset = np.linspace(0, navlen, num=1000, dtype=np.int, endpoint=False)
+        #
+        # line_long = nav.longitude[subset]
+        # line_lat = nav.latitude[subset]
+
+        minlon = 999
+        maxlon = -999
+        minlat = 999
+        maxlat = -999
+        print('Plotting lines...')
+        for line, times in self.fqpr.multibeam.raw_ping[0].multibeam_files.items():
+            lats, lons = self.fqpr.return_downsampled_navigation(sample=0.5, start_time=times[0], end_time=times[1])
+            plt.plot(lons, lats, c='blue', alpha=0.5)
+
+            minlon = min(np.min(lons), minlon)
+            maxlon = max(np.max(lons), maxlon)
+            minlat = min(np.min(lats), minlat)
+            maxlat = max(np.max(lats), maxlat)
+
+        lonrange = maxlon - minlon
+        latrange = maxlat - minlat
+        datarange = max(lonrange, latrange)
+
+        profs = self.fqpr.multibeam.return_all_profiles()
+        all_lats = []
+        all_longs = []
+        for name, data in profs.items():
+            casttime = float(name.split('_')[1])
+            position = json.loads(self.fqpr.multibeam.raw_ping[0].attrs['attributes_{}'.format(int(casttime))])['location']
+            if not position:
+                print('building cast position for cast {}'.format(name))
+                if casttime <= nav.time.min():
+                    position = [float(nav.latitude[0].values), float(nav.longitude[0].values)]
+                elif casttime >= nav.time.max():
+                    position = [float(nav.latitude[-1].values), float(nav.longitude[-1].values)]
+                else:
+                    interpnav = nav.interp(time=casttime)
+                    position = [float(interpnav.latitude.values), float(interpnav.longitude.values)]
+            print('Plotting cast at position {}'.format(position))
+            plt.scatter(position[1], position[0], label=name)
+            all_lats.append(position[0])
+            all_longs.append(position[1])
+
+        plt.legend()
+        plt.title('Sound Velocity Map')
+        plt.xlabel('Longitude (degrees)')
+        plt.ylabel('Latitude (degrees)')
+
+        plt.ylim(min(minlat - 0.5 * datarange, np.min(all_lats) - 0.01), max(maxlat + 0.5 * datarange, np.max(all_lats) + 0.01))
+        plt.xlim(min(minlon - 0.5 * datarange, np.min(all_longs) - 0.01), max(maxlon + 0.5 * datarange, np.max(all_longs) + 0.01))
+
     def _generate_orientation_vector(self, system_index: int = 0, tme: float = None):
         """
         Generate tx/rx vector data for given time value, return with values to be used with matplotlib quiver
@@ -531,8 +628,10 @@ class FqprVisualizations:
         self.orientation_quiver = self.orientation_figure.quiver(*self._generate_orientation_vector(system_index),
                                                                  color=['blue', 'red'])
 
-        self.orientation_anim = Player(fig, self._update_orientation_vector,
-                                       frames=self.fqpr.multibeam.raw_ping[system_index].time.values,
+        outfold = self.fqpr.multibeam.converted_pth  # parent folder to all the currently written data
+        frames = self.fqpr.multibeam.raw_ping[system_index].time.values
+        self.orientation_anim = Player(fig, self._update_orientation_vector, frames=frames,
+                                       save_count=len(frames), save_pth=os.path.join(outfold, 'vessel_orientation.mpeg'),
                                        pos=(0.125, 0.02))
         self.orientation_anim.bind_to(self._orientation_cleanup)
 
@@ -818,11 +917,14 @@ class FqprVisualizations:
         else:
             frames = dat.time.values
 
+        outfold = self.fqpr.multibeam.converted_pth  # parent folder to all the currently written data
         if not corrected:
-            self.raw_bpv_anim = Player(fg, self._update_uncorr_bpv, frames=frames, pos=(0.125, 0.02))
+            self.raw_bpv_anim = Player(fg, self._update_uncorr_bpv, frames=frames, save_count=len(frames),
+                                       save_pth=os.path.join(outfold, 'raw_beam_vectors.mpeg'), pos=(0.125, 0.02))
             self.raw_bpv_anim.bind_to(self._uncorr_cleanup)
         else:
-            self.proc_bpv_anim = Player(fg, self._update_corr_bpv, frames=frames, pos=(0.125, 0.02))
+            self.proc_bpv_anim = Player(fg, self._update_corr_bpv, frames=frames, save_count=len(frames),
+                                        save_pth=os.path.join(outfold, 'corrected_beam_vectors.mpeg'), pos=(0.125, 0.02))
             self.proc_bpv_anim.bind_to(self._corr_cleanup)
 
     def _orientation_cleanup(self):

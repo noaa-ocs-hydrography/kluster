@@ -14,7 +14,7 @@ URL = 'https://github.com/noaa-ocs-hydrography/kluster'
 EMAIL = 'eric.g.younkin@noaa.gov'
 AUTHOR = 'Eric Younkin'
 REQUIRES_PYTHON = '>=3.8.2'
-VERSION = '0.2.3'
+VERSION = '0.2.4'
 
 # What packages are required for this module to be executed?
 REQUIRED = [

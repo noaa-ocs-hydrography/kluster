@@ -4,6 +4,7 @@ from datetime import datetime
 from time import perf_counter
 import xarray as xr
 import numpy as np
+import json
 from dask.distributed import wait, progress
 from pyproj import CRS
 from pyproj.exceptions import CRSError
@@ -11,7 +12,7 @@ from pyproj.exceptions import CRSError
 from HSTB.kluster.modules.orientation import distrib_run_build_orientation_vectors
 from HSTB.kluster.modules.beampointingvector import distrib_run_build_beam_pointing_vector
 from HSTB.kluster.modules.svcorrect import get_sv_files_from_directory, return_supported_casts_from_list, SoundSpeedProfile, \
-    distributed_run_sv_correct
+    distributed_run_sv_correct, cast_data_from_file
 from HSTB.kluster.modules.georeference import distrib_run_georeference
 from HSTB.kluster.modules.tpu import distrib_run_calculate_tpu
 from HSTB.kluster.xarray_conversion import BatchRead
@@ -19,7 +20,7 @@ from HSTB.kluster.modules.visualizations import FqprVisualizations
 from HSTB.kluster.modules.export import FqprExport
 from HSTB.kluster.xarray_helpers import combine_arrays_to_dataset, compare_and_find_gaps, distrib_zarr_write, \
     divide_arrays_by_time_index, interp_across_chunks, reload_zarr_records, slice_xarray_by_dim, stack_nan_array, \
-    get_write_indices_zarr, get_beamwise_interpolation
+    get_write_indices_zarr, get_beamwise_interpolation, ZarrWrite
 from HSTB.kluster.dask_helpers import DaskProcessSynchronizer, dask_find_or_start_client, get_number_of_workers
 from HSTB.kluster.fqpr_helpers import epsg_determinator
 from HSTB.kluster.rotations import return_attitude_rotation_matrix
@@ -71,7 +72,6 @@ class Fqpr:
         self.client = None
         self.address = address
         self.show_progress = show_progress
-        self.cast_files = None
         self.soundspeedprofiles = None
         self.cast_chunks = None
 
@@ -288,7 +288,7 @@ class Fqpr:
         else:
             self.ideal_rx_vec = np.array([0, 1, 0])
 
-    def get_cast_files(self, src: Union[str, list]):
+    def import_sound_velocity_files(self, src: Union[str, list]):
         """
         Load to self.cast_files the file paths to the sv casts of interest.
 
@@ -306,14 +306,36 @@ class Fqpr:
             self.logger.error('Provided source is neither a path or a list of files.  Please provide one of those.')
             raise TypeError('Provided source is neither a path or a list of files.  Please provide one of those.')
 
-        if self.cast_files is None:
-            self.cast_files = svfils
-        elif isinstance(self.cast_files, list):
-            self.cast_files.extend(sv for sv in svfils if sv not in self.cast_files)
-        else:
-            raise ValueError('Found sound velocity casts not provided as a list: {}'.format(self.cast_files))
+        # include additional casts from sv files as SoundSpeedProfile objects
+        if svfils is not None:
+            attr_dict = {}
+            cast_dict = {}
+            for f in svfils:
+                data, locs, times, name = cast_data_from_file(f)
+                for cnt, dat in enumerate(data):
+                    cst_name = 'profile_{}'.format(int(times[cnt]))
+                    attrs_name = 'attributes_{}'.format(int(times[cnt]))
+                    if cst_name not in self.multibeam.raw_ping[0].attrs:
+                        attr_dict[attrs_name] = json.dumps({'location': locs[cnt], 'source': name})
+                        cast_dict[cst_name] = json.dumps([list(d) for d in dat.items()])
 
-    def setup_casts(self, surf_sound_speed: xr.DataArray, z_pos: float, add_cast_files: Union[str, list] = None):
+            outfold = self.multibeam.converted_pth  # parent folder to all the currently written data
+            for ra in self.multibeam.raw_ping:
+                sys_ident = ra.system_identifier
+                outfold_sys = os.path.join(outfold, 'ping_' + sys_ident + '.zarr')
+                zw = ZarrWrite(outfold_sys)
+                zw.write_attributes(cast_dict)
+                zw.write_attributes(attr_dict)
+
+            skip_dask = False
+            if self.client is None:  # small datasets benefit from just running it without dask distributed
+                skip_dask = True
+            self.multibeam.reload_pingrecords(skip_dask=skip_dask)
+            self.logger.info('Successfully imported {} new casts'.format(len(cast_dict)))
+        else:
+            self.logger.warning('Unable to import casts from {}'.format(src))
+
+    def setup_casts(self, surf_sound_speed: xr.DataArray, z_pos: float):
         """
         Using all the profiles in the rangeangle dataset as well as externally provided casts as files, generate
         SoundSpeedProfile objects and build the lookup tables.
@@ -324,8 +346,6 @@ class Fqpr:
             1dim array of surface sound speed values, coords = timestamp
         z_pos
             z value of the transducer position in the watercolumn from the waterline
-        add_cast_files
-            optional - either a list of sv files or the path to a directory of files
 
         Returns
         -------
@@ -334,8 +354,6 @@ class Fqpr:
         """
 
         # get the svp files and the casts in the mbes converted data
-        if add_cast_files is not None:
-            self.get_cast_files(add_cast_files)
         mbes_profs = self.multibeam.return_all_profiles()
 
         # convert to SoundSpeedProfile objects
@@ -349,25 +367,13 @@ class Fqpr:
                     cst_object.generate_lookup_table()
                     rangeangle_casts.append(cst_object)
                 except ValueError:
-                    self.logger.error('Profile attribute name in ping DataSet must include timestamp, ex: "profile_1495599960"')
-                    raise ValueError('Profile attribute name in ping DataSet must include timestamp, ex: "profile_1495599960"')
+                    self.logger.error('Profile attribute name in ping DataSet must include timestamp, ex: "profile_1495599960", found: {}'.format(castname))
+                    raise ValueError('Profile attribute name in ping DataSet must include timestamp, ex: "profile_1495599960", found: {}'.format(castname))
 
-        # include additional casts from sv files as SoundSpeedProfile objects
-        additional_casts = []
-        if self.cast_files is not None:
-            for f in self.cast_files:
-                cst_object = SoundSpeedProfile(f, z_pos, surf_sound_speed, prof_type='caris_svp')
-                cst_object.generate_lookup_table()
-                additional_casts.append(cst_object)
-
-        # retain all the casts that are unique in time, preferring the svp file ones (they have location and stuff)
-        final_casts = additional_casts
-        cast_tstmps = [cst.prof_time for cst in final_casts]
-        new_casts = [cst for cst in rangeangle_casts if cst.prof_time not in cast_tstmps]
-        return final_casts + new_casts
+        return rangeangle_casts
 
     def setup_casts_for_system_by_index(self, system_index: int, applicable_index: xr.DataArray, prefixes: str,
-                                        timestmp: str, add_cast_files: Union[str, list] = None):
+                                        timestmp: str):
         """
         Generate cast objects for the given system across all values given for waterline
 
@@ -389,8 +395,6 @@ class Fqpr:
             prefix identifier for the tx/rx, will vary for dual head systems
         timestmp
             timestamp of the installation parameters instance used
-        add_cast_files
-            optional - either a list of sv files or the path to a directory of files
 
         Returns
         -------
@@ -405,7 +409,7 @@ class Fqpr:
         ss_by_system = self.multibeam.raw_ping[system_index].soundspeed.where(applicable_index, drop=True)
         # this should be the transducer to waterline, positive down
         z_pos = -float(self.multibeam.xyzrph[prefixes[0] + '_z'][timestmp]) + float(self.multibeam.xyzrph['waterline'][timestmp])
-        cst = self.setup_casts(ss_by_system, z_pos, add_cast_files)
+        cst = self.setup_casts(ss_by_system, z_pos)
         cast_size = np.sum([c.__sizeof__() for c in cst])
         cast_data = [[c.prof_time, c.dim_angle, c.dim_raytime, c.lkup_across_dist, c.lkup_down_dist, c.corr_profile_lkup] for c in cst]
         self.logger.info('built {} total cast objects, total size = {} bytes'.format(len(cst), cast_size))
@@ -1749,7 +1753,7 @@ class Fqpr:
         endtime = perf_counter()
         self.logger.info('****Beam Pointing Vector generation complete: {}s****\n'.format(round(endtime - starttime, 1)))
 
-    def sv_correct(self, add_cast_files: list = None, subset_time: list = None, dump_data: bool = True,
+    def sv_correct(self, add_cast_files: Union[str, list] = None, subset_time: list = None, dump_data: bool = True,
                    delete_futs: bool = True):
         """
         Apply sv cast/surface sound speed to raytrace.  Generates xyz for each beam.
@@ -1784,6 +1788,9 @@ class Fqpr:
         if self.client is None:  # small datasets benefit from just running it without dask distributed
             skip_dask = True
 
+        if add_cast_files:
+            self.import_sound_velocity_files(add_cast_files)
+
         systems = self.multibeam.return_system_time_indexed_array(subset_time=subset_time)
         self.cast_chunks = {}
         for s_cnt, system in enumerate(systems):
@@ -1797,7 +1804,7 @@ class Fqpr:
                 self.logger.info('using installation params {}'.format(timestmp))
                 idx_by_chunk = self.return_chunk_indices(applicable_index, pings_per_chunk)
                 if len(idx_by_chunk[0]):  # if there are pings in this sector that align with this installation parameter record
-                    cast_objects = self.setup_casts_for_system_by_index(s_cnt, applicable_index, prefixes, timestmp, add_cast_files)
+                    cast_objects = self.setup_casts_for_system_by_index(s_cnt, applicable_index, prefixes, timestmp)
                     cast_times = [c[0] for c in cast_objects]
                     cast_chunks = self.return_cast_idx_nearestintime(cast_times, idx_by_chunk)
                     addtl_offsets = self.return_additional_xyz_offsets(ra, prefixes, timestmp, idx_by_chunk)

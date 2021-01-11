@@ -121,7 +121,13 @@ class SoundSpeedProfile:
         if self.prof_type == 'raw_ping':  # profile comes from xarray_conversion raw_ping dataset attribute
             return self.load_from_xarray()
         elif self.prof_type == 'caris_svp':
-            return self.load_from_caris_svp()
+            svpdata, self.prof_location, self.prof_time, self.prof_name = cast_data_from_file(self.raw_profile)
+            if len(svpdata) > 1:
+                print('WARNING: Found multiple casts in file {}, only using the first for this object'.format(self.raw_profile))
+                svpdata = svpdata[0]
+                self.prof_location = self.prof_location[0]
+                self.prof_time = self.prof_time[0]
+            return svpdata
         else:
             raise ValueError('Unrecognized format: {}'.format(self.prof_type))
 
@@ -145,72 +151,6 @@ class SoundSpeedProfile:
 
         profdata = {float(k): float(v) for k, v in self.raw_profile}
         return OrderedDict(sorted(profdata.items()))
-
-    def _load_caris_svp_data(self, svpdata: list):
-        """
-        See load_from_caris_svp, takes in readlines output from svp file, returns dict
-
-        Parameters
-        ----------
-        svpdata
-            output from readlines call on svp file
-
-        Returns
-        -------
-        dict
-            keys are depth in meters and values are soundspeed in m/s
-        """
-
-        svpdat = [[float(dproc) for dproc in svp.rstrip().split()] for svp in svpdata]
-        # insert zero point in profile with matching soundspeed as first actual layer, for when trans is above the
-        #   shallowest point in the cast
-        svpdat = [[0.0, svpdat[0][1]]] + svpdat
-
-        profdata = {k: v for k, v in svpdat}
-        return OrderedDict(sorted(profdata.items()))
-
-    def load_from_caris_svp(self):
-        """
-        Here we load from a caris svp file to generate the cast data.  We want a dictionary where we can look up the
-        depth and get a soundspeed.
-
-        Returns
-        -------
-        dict
-            keys are depth in meters and values are soundspeed in m/s
-        """
-
-        if os.path.exists(self.raw_profile) and self.raw_profile.endswith('.svp'):
-            with open(self.raw_profile, 'r') as svp:
-                version = svp.readline()  # [SVP_VERSION_2]
-                name = svp.readline()  # 2016_288_021224.svp
-                header = svp.readline()  # Section 2016-288 02:12 37:35:23 -076:06:35
-                svpdata = svp.readlines()
-                try:
-                    jdate, tme, lat, lon = [header.split()[i] for i in [1, 2, 3, 4]]
-                except IndexError:
-                    error = 'Error reading {}\n'.format(self.raw_profile)
-                    error += 'Please verify that the svp file has the correct header'
-                    raise IOError(error)
-
-                jdate = jdate.split('-')
-                tme = tme.split(':')
-                if self.prof_location is None:
-                    self.prof_location = [parse_dms_to_dd(lat), parse_dms_to_dd(lon)]
-                if self.prof_time is None:
-                    if len(tme) == 3:
-                        self.prof_time = julian_day_time_to_utctimestamp(int(jdate[0]), int(jdate[1]), int(tme[0]),
-                                                                         int(tme[1]), int(tme[2]))
-                    elif len(tme) == 2:
-                        self.prof_time = julian_day_time_to_utctimestamp(int(jdate[0]), int(jdate[1]), int(tme[0]),
-                                                                         int(tme[1]), 0)
-                    else:
-                        raise ValueError('Unrecognized timestamp: {}'.format(tme))
-                if self.prof_name is None:
-                    self.prof_name = os.path.split(name.rstrip())[1]
-                return self._load_caris_svp_data(svpdata)
-        else:
-            raise IOError('Not a valid caris svp file: {}'.format(self.raw_profile))
 
     def adjust_for_z(self):
         """
@@ -483,6 +423,151 @@ def return_supported_casts_from_list(list_files: list):
     if type(list_files) != list:
         raise TypeError('Function expects a list of sv files to be provided.')
     return [x for x in list_files if os.path.splitext(x)[1] in supported_file_formats]
+
+
+def cast_data_from_file(profile_file: str):
+    """
+    Read from the provided sound velocity file and return the data, method depends on file format
+
+    Currently only svp file is supported
+
+    Parameters
+    ----------
+    profile_file
+        file containing the sound velocity data
+
+    Returns
+    -------
+    OrderedDict
+        dict of (depth, soundvelocity) values
+    list
+        [Latitude in degrees of cast location, Longitude in degrees of cast location]
+    float
+        time of cast in UTC seconds
+    """
+
+    if profile_file.endswith('.svp'):
+        return _load_from_caris_svp(profile_file)
+
+
+def _load_caris_svp_data(svpdata: list):
+    """
+    See load_from_caris_svp, takes in readlines output from svp file, returns dict
+
+    Parameters
+    ----------
+    svpdata
+        output from readlines call on svp file
+
+    Returns
+    -------
+    dict
+        keys are depth in meters and values are soundspeed in m/s
+    """
+
+    svpdat = [[float(dproc) for dproc in svp.rstrip().split()] for svp in svpdata]
+    # insert zero point in profile with matching soundspeed as first actual layer, for when trans is above the
+    #   shallowest point in the cast
+    svpdat = [[0.0, svpdat[0][1]]] + svpdat
+
+    profdata = {k: v for k, v in svpdat}
+    return OrderedDict(sorted(profdata.items()))
+
+
+def _parse_single_svp_cast(filname: str, svpdata: list):
+    """
+    Take in a list of lines corresponding to one svp cast in an svp file (which can have multiple casts) and return the
+    processed data.
+
+    Parameters
+    ----------
+    filname
+        absolute file path to the svp file
+    svpdata
+        list of lines from reading the svp file that correspond to a single cast + header
+
+    Returns
+    -------
+    OrderedDict
+        dict of (depth, soundvelocity) values
+    list
+        [Latitude in degrees of cast location, Longitude in degrees of cast location]
+    float
+        time of cast in UTC seconds
+    """
+
+    header = svpdata[0]  # Section 2016-288 02:12 37:35:23 -076:06:35
+    svpdata = svpdata[1:]
+    try:
+        jdate, tme, lat, lon = [header.split()[i] for i in [1, 2, 3, 4]]
+    except IndexError:
+        error = 'Error reading {}\n'.format(filname)
+        error += 'Please verify that the svp file has the correct header'
+        raise IOError(error)
+    try:
+        svpdata = _load_caris_svp_data(svpdata)
+    except:
+        error = 'Error reading {}\n'.format(filname)
+        error += 'Unable to parse sound velocity profile data'
+        raise IOError(error)
+
+    jdate = jdate.split('-')
+    tme = tme.split(':')
+    prof_location = [parse_dms_to_dd(lat), parse_dms_to_dd(lon)]
+    if len(tme) == 3:
+        prof_time = julian_day_time_to_utctimestamp(int(jdate[0]), int(jdate[1]), int(tme[0]), int(tme[1]), int(tme[2]))
+    elif len(tme) == 2:
+        prof_time = julian_day_time_to_utctimestamp(int(jdate[0]), int(jdate[1]), int(tme[0]), int(tme[1]), 0)
+    else:
+        raise ValueError('Unrecognized timestamp: {}'.format(tme))
+
+    return svpdata, prof_location, prof_time
+
+
+def _load_from_caris_svp(profile_file: str):
+    """
+    Here we load from a caris svp file to generate the cast data.  We want a dictionary where we can look up the
+    depth and get a soundspeed.
+
+    Parameters
+    ----------
+    profile_file
+        absolute file path to a caris svp file
+
+    Returns
+    -------
+    dict
+        keys are depth in meters and values are soundspeed in m/s
+    """
+
+    if os.path.exists(profile_file) and profile_file.endswith('.svp'):
+        with open(profile_file, 'r') as svp:
+            cast_datasets = []
+            end_cast_idx = 0
+            all_lines = svp.readlines()
+            version = all_lines[0]  # [SVP_VERSION_2]
+            name = all_lines[1]  # 2016_288_021224.svp
+            prof_name = os.path.split(name.rstrip())[1]
+            all_lines = all_lines[2:]
+
+            for cnt, lne in enumerate(all_lines):
+                if lne[0:8].lstrip() == 'Section ' and cnt != 0:
+                    cast_datasets.append(all_lines[end_cast_idx:cnt])
+                    end_cast_idx = cnt
+            cast_datasets.append(all_lines[end_cast_idx:])
+
+            profiles = []
+            locations = []
+            times = []
+            for cast in cast_datasets:
+                svpdata, prof_location, prof_time = _parse_single_svp_cast(profile_file, cast)
+                profiles.append(svpdata)
+                locations.append(prof_location)
+                times.append(prof_time)
+
+            return profiles, locations, times, prof_name
+    else:
+        raise IOError('Not a valid caris svp file: {}'.format(profile_file))
 
 
 def _interp(arr: np.ndarray, row_idx: np.array, col_idx: np.array, msk: np.array, interp_factor: np.ndarray):
