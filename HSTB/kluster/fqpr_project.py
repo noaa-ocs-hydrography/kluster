@@ -239,12 +239,11 @@ class FqprProject:
         """
 
         if type(pth) == str:
-            if self.path is None:
-                self._setup_new_project(os.path.dirname(pth))
-            relpath = self.path_relative_to_project(pth)
-            if relpath in self.fqpr_instances:
-                print('Converted instance "{}" already in project'.format(pth))
-                return None
+            if self.path is not None:
+                relpath = self.path_relative_to_project(pth)
+                if relpath in self.fqpr_instances:
+                    print('Instance "{}" already in project'.format(pth))
+                    return None
             fq = reload_data(pth, skip_dask=skip_dask, silent=True, show_progress=not self.is_gui)
         else:  # pth is the new Fqpr instance, pull the actual path from the Fqpr attribution
             fq = pth
@@ -253,6 +252,9 @@ class FqprProject:
             if self.path is None:
                 self._setup_new_project(os.path.dirname(pth))
             relpath = self.path_relative_to_project(pth)
+            if relpath in self.fqpr_instances:
+                print('Instance "{}" already in project'.format(pth))
+                return None
             self.fqpr_instances[relpath] = fq
             self.fqpr_attrs[relpath] = get_attributes_from_fqpr(fq, include_mode=False)
             self.regenerate_fqpr_lines(relpath)

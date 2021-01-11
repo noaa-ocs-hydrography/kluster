@@ -2168,7 +2168,7 @@ def build_tpu_parameters():
     waterline = 0.02  # 1 sigma standard deviation of the waterline (meters)
     vessel_speed = 0.1  # 1 sigma standard deviation of the vessel speed (meters/second)
     horizontal_positioning = 1.5  # 1 sigma standard deviation of the horizontal positioning (meters)
-    vertical_positioning = 1.0  # 1 sigma standard deviation of the horizontal positioning (meters)
+    vertical_positioning = 1.0  # 1 sigma standard deviation of the vertical positioning (meters)
 
     tpu_parameters = {'heave': heave, 'roll_sensor_error': roll_sensor_error, 'pitch_sensor_error': pitch_sensor_error,
                       'heading_sensor_error': heading_sensor_error, 'x_offset': x_offset, 'y_offset': y_offset,
