@@ -580,9 +580,9 @@ class BasicPlotDialog(QtWidgets.QDialog):
         elif plottype == 'Vessel Orientation':
             plot_expl = 'Plot = Animation of Vessel Orientation, corrected for attitude and mounting angles.  TX vector represents the transmitter, RX vector represents the receiver.'
         elif plottype == 'Plot Profiles':
-            plot_expl = 'Plot = Plot of depth versus sound velocity values in each sound velocity profile.  All profiles from Kongsberg multibeam have been extended to 12000 meters.  Zoom in to see the shallow values.  Only shows casts within the specified time range'
+            plot_expl = 'Plot = Plot of depth versus sound velocity values in each sound velocity profile.  All profiles from Kongsberg multibeam have been extended to 12000 meters.  Zoom in to see the shallow values.  Shows all casts regardless of specified time range'
         elif plottype == 'Profile Map':
-            plot_expl = 'Plot = Plot all lines and sound velocity profiles taken within the specified time range.  Casts from multibeam have a position equal to the position of the vessel at the time of the cast.'
+            plot_expl = 'Plot = Plot all lines within the specified time range and all sound velocity profiles.  Casts from multibeam have a position equal to the position of the vessel at the time of the cast.'
 
         if plot_expl and variable_expl and source_expl:
             self.explanation.setText('{}\n\n{}\n\n{}'.format(source_expl, variable_expl, plot_expl))

@@ -53,7 +53,13 @@ Much of the existing open source software related to multibeam processing has be
 
 ## Installation
 
-Kluster is not on PyPi, but can be installed using pip alongside the HSTB-drivers and HSTB-shared modules that is required.
+Kluster is not on PyPi, but can be installed using pip alongside the HSTB-drivers and HSTB-shared modules that are required.
+
+(For Windows Users) Download and install Visual Studio Build Tools 2019 (If you have not already): [MSVC Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/)
+
+Download and install conda (If you have not already): [conda installation](https://docs.conda.io/projects/conda/en/latest/user-guide/install/)
+
+Download and install git (If you have not already): [git installation](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git)
 
 Some dependencies need to be installed from the conda-forge channel.  I have an example below of how to build this environment using conda.
 
@@ -63,9 +69,7 @@ Perform these in order:
 
 `conda activate kluster_test `
 
-`conda install -c conda-forge proj=7.0 `
-
-`conda install -c conda-forge cartopy=0.17.0 `
+`conda install -c conda-forge proj=7.0 cartopy=0.17.0 numpy=1.19.5 vispy=0.6.4`
 
 `pip install git+https://github.com/noaa-ocs-hydrography/kluster.git#egg=hstb.kluster `
 
@@ -86,7 +90,7 @@ Start the main GUI by running kluster_main, which will be in the gui directory w
 Once the Kluster window appears, simply:
 
 - Drag a multibeam file (Kongsberg .all/.kmall) into the Project Tree window.  You can also drag in multiple files, but maybe stick with just one for this test.
-- Create a folder and point to it as the 'output directory for the converted data' and hit OK.  Monitor the results in the Output tab at the bottom.  View the data in the 2d view.  Select a line in the Explorer tab at the bottom and view the Attribute tab for some details on the dataset.
+- Create a new empty folder and point to it as the 'output directory for the converted data' and hit OK.  Monitor the results in the Output tab at the bottom.  View the data in the 2d view.  Select a line in the Explorer tab at the bottom and view the Attribute tab for some details on the dataset.
 - Once conversion is complete, run 'Process' - 'All Processing' and leave the default options (unless you want to change the coordinate system).  This will run through all the steps and generate georeferenced soundings.  This assumes there is a sound velocity profile in the kongsberg files.
 - Select a line in the 'Explorer' window and click the 'Attribute' tab to view the xarray attribution for the ping records
 - Select the '3d view' tab and click a line in the 'Project Tree' to view the soundings in 3d
