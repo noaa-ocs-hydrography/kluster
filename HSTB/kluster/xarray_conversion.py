@@ -315,7 +315,9 @@ def _sequential_to_xarray(rec: dict):
                 cst_name = 'profile_{}'.format(int(t))
                 attrs_name = 'attributes_{}'.format(int(t))
                 recs_to_merge['ping'][systemid].attrs[cst_name] = json.dumps(profile.tolist())
-                recs_to_merge['ping'][systemid].attrs[attrs_name] = json.dumps({'location': [], 'source': 'multibeam'})
+                nearestnav = finalnav.sel(time=int(t), method='nearest')
+                castlocation = [float(nearestnav.latitude), float(nearestnav.longitude)]
+                recs_to_merge['ping'][systemid].attrs[attrs_name] = json.dumps({'location': castlocation, 'source': 'multibeam'})
 
     # add on attribute for installation parameters, basically the same way as you do for the ss profile, except it
     #   has no coordinate to index by.  Also, use json.dumps to avoid the issues with serializing lists/dicts with

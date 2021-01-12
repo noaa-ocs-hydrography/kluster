@@ -46,7 +46,8 @@ class BasicPlotDialog(QtWidgets.QDialog):
                                         'Georeferenced_Depth': 'z'}
         self.plot_lookup = {2: ['Histogram', 'Image', 'Contour'],
                             1: ['Line', 'Histogram', 'Scatter']}
-        self.custom_plot_lookup = {'sound_velocity_correct': ['2d scatter, color by depth', '2d scatter, color by sector',
+        self.custom_plot_lookup = {'sound_velocity_profiles': ['Plot Profiles', 'Profile Map'],
+                                   'sound_velocity_correct': ['2d scatter, color by depth', '2d scatter, color by sector',
                                                               '3d scatter, color by depth', '3d scatter, color by sector'],
                                    'georeferenced': ['2d scatter, color by depth', '2d scatter, color by sector',
                                                      '3d scatter, color by depth', '3d scatter, color by sector'],
@@ -236,7 +237,7 @@ class BasicPlotDialog(QtWidgets.QDialog):
                     dset = dset[0]  # grab the first multibeam dataset (dual head will have two) for the lookup
                     variable_names = [self.variable_translator[nm] for nm in list(dset.variables.keys()) if nm in self.variable_translator]
                 elif ky == 'custom':
-                    variable_names = ['sound_velocity_correct', 'georeferenced', 'animations']
+                    variable_names = ['sound_velocity_profiles', 'sound_velocity_correct', 'georeferenced', 'animations']
                 else:
                     variable_names = [nm for nm in list(dset.variables.keys()) if nm not in ['time']]
 
@@ -403,6 +404,10 @@ class BasicPlotDialog(QtWidgets.QDialog):
                 data.plot.visualize_beam_pointing_vectors(True)
             elif plottype == 'Vessel Orientation':
                 data.plot.visualize_orientation_vector()
+            elif plottype == 'Profile Map':
+                data.plot.plot_sound_velocity_map()
+            elif plottype == 'Plot Profiles':
+                data.plot.plot_sound_velocity_profiles()
 
             if dataset_name != 'custom' and plottype not in ['Image', 'Contour']:
                 self.recent_plot[cnt].legend()
@@ -545,6 +550,8 @@ class BasicPlotDialog(QtWidgets.QDialog):
                 variable_expl = 'Variable = From the Kluster processed georeferenced northing/easting/depth'
             elif variable == 'sound_velocity_correct':
                 variable_expl = 'Variable = From the Kluster processed sound velocity corrected alongtrack offset/acrosstrack offset/depth offset'
+            elif variable == 'sound_velocity_profiles':
+                variable_expl = 'Variable = Build plots from the imported sound velocity profiles (casts), including those in the raw multibeam data.'
             elif variable == 'animations':
                 variable_expl = 'Variable = Build custom animations from the Kluster processed data'
 
@@ -572,6 +579,10 @@ class BasicPlotDialog(QtWidgets.QDialog):
             plot_expl = 'Plot = Animation of corrected beam angles versus traveltime, corrected for attitude and mounting angles.'
         elif plottype == 'Vessel Orientation':
             plot_expl = 'Plot = Animation of Vessel Orientation, corrected for attitude and mounting angles.  TX vector represents the transmitter, RX vector represents the receiver.'
+        elif plottype == 'Plot Profiles':
+            plot_expl = 'Plot = Plot of depth versus sound velocity values in each sound velocity profile.  All profiles from Kongsberg multibeam have been extended to 12000 meters.  Zoom in to see the shallow values.  Only shows casts within the specified time range'
+        elif plottype == 'Profile Map':
+            plot_expl = 'Plot = Plot all lines and sound velocity profiles taken within the specified time range.  Casts from multibeam have a position equal to the position of the vessel at the time of the cast.'
 
         if plot_expl and variable_expl and source_expl:
             self.explanation.setText('{}\n\n{}\n\n{}'.format(source_expl, variable_expl, plot_expl))

@@ -451,45 +451,92 @@ class FqprVisualizations:
 
         return fig
 
-    def plot_sound_velocity_profiles(self):
+    def plot_sound_velocity_profiles(self, filter_by_time: bool = False):
+        """
+        Get all the sound velocity profiles attached to this fqpr instance and plot the values by depth/sv.  If the
+        fqpr instance is a subset (see fqpr_generation.Fqpr.subset_by_time) then only get the casts within the dataset
+        time range (with a small buffer applied)
+
+        Parameters
+        ----------
+        filter_by_time
+            if True, will only include casts within the time range of the dataset (use if Fqpr.subset_by_time and you only
+            want to show the casts within the time range of the subset)
+        """
+
+        sv = None
         profs = self.fqpr.multibeam.return_all_profiles()
-        for name, data in profs.items():
-            data = json.loads(data)
-            dpth = np.array([d[0] for d in data])
-            sv = np.array([d[1] for d in data])
-            plt.plot(sv, dpth, label=name)
+
+        if filter_by_time:
+            min_search_time = float(self.fqpr.multibeam.raw_nav.time[0].values - 5)
+            max_search_time = float(self.fqpr.multibeam.raw_nav.time[-1].values + 5)
+
+        if profs:
+            fig = plt.figure()
+
+            for name, data in profs.items():
+                casttime = float(name.split('_')[1])
+                # filter cast by mintime/maxtime to only get casts in the subset range, if we have subsetted this fqpr instance
+                if filter_by_time and not (min_search_time < casttime < max_search_time):
+                    continue
+                data = json.loads(data)
+                dpth = np.array([d[0] for d in data])
+                sv = np.array([d[1] for d in data])
+                plt.plot(sv, dpth, label=name)
+        if sv is not None:
+            plt.legend()
+        else:
+            print('No sound velocity profiles found')
         plt.gca().invert_yaxis()
-        plt.legend()
         plt.title('Sound Velocity Profiles')
         plt.xlabel('Sound Velocity (meters/second)')
         plt.ylabel('Depth (meters)')
 
-    def plot_sound_velocity_map(self):
+    def plot_sound_velocity_map(self, filter_casts_by_time: bool = False):
+        """
+        Plot a latitutde/longitude overview of all multibeam lines within the current Fqpr time range and all applicable
+        casts.  Plot cast positions as a scatter plot on top of the multibeam lines.
+
+        Parameters
+        ----------
+        filter_casts_by_time
+            if True, will only include casts within the time range of the dataset (use if Fqpr.subset_by_time and you only
+            want to show the casts within the time range of the subset)
+        """
+
         print('Building Sound Velocity Profile map...')
         nav = self.fqpr.multibeam.raw_nav
-        navlen = nav.time.shape[0]
-
-        # if navlen < 1000:
-        #     subset = np.arange(0, navlen)
-        # else:
-        #     subset = np.linspace(0, navlen, num=1000, dtype=np.int, endpoint=False)
-        #
-        # line_long = nav.longitude[subset]
-        # line_lat = nav.latitude[subset]
 
         minlon = 999
         maxlon = -999
         minlat = 999
         maxlat = -999
         print('Plotting lines...')
-        for line, times in self.fqpr.multibeam.raw_ping[0].multibeam_files.items():
-            lats, lons = self.fqpr.return_downsampled_navigation(sample=0.5, start_time=times[0], end_time=times[1])
-            plt.plot(lons, lats, c='blue', alpha=0.5)
+        fig = plt.figure()
 
-            minlon = min(np.min(lons), minlon)
-            maxlon = max(np.max(lons), maxlon)
-            minlat = min(np.min(lats), minlat)
-            maxlat = max(np.max(lats), maxlat)
+        # these times based on the Fqpr subset time, which restricts the source dataset times
+        min_search_time = float(self.fqpr.multibeam.raw_nav.time[0].values - 5)
+        max_search_time = float(self.fqpr.multibeam.raw_nav.time[-1].values + 5)
+
+        for line, times in self.fqpr.multibeam.raw_ping[0].multibeam_files.items():
+            # if the line start/end is within the time range...
+            if max_search_time >= times[0] >= min_search_time or max_search_time >= times[-1] >= min_search_time:
+                times[0] = max(times[0], self.fqpr.multibeam.raw_nav.time[0])
+                times[1] = min(times[1], self.fqpr.multibeam.raw_nav.time[-1])
+                try:
+                    lats, lons = self.fqpr.return_downsampled_navigation(sample=0.5, start_time=times[0], end_time=times[1])
+                    plt.plot(lons, lats, c='blue', alpha=0.5)
+
+                    minlon = min(np.min(lons), minlon)
+                    maxlon = max(np.max(lons), maxlon)
+                    minlat = min(np.min(lats), minlat)
+                    maxlat = max(np.max(lats), maxlat)
+                except AttributeError:  # no nav at this time range
+                    print('Error reading Line {}'.format(line))
+
+        if minlon == 999:
+            print('Found no lines within this time range to plot: {} to {}'.format(min_search_time, max_search_time))
+            return
 
         lonrange = maxlon - minlon
         latrange = maxlat - minlat
@@ -500,28 +547,37 @@ class FqprVisualizations:
         all_longs = []
         for name, data in profs.items():
             casttime = float(name.split('_')[1])
+            # filter cast by mintime/maxtime to only get casts in the subset range, if we have subsetted this fqpr instance
+            if filter_casts_by_time and not (min_search_time < casttime < max_search_time):
+                continue
             position = json.loads(self.fqpr.multibeam.raw_ping[0].attrs['attributes_{}'.format(int(casttime))])['location']
-            if not position:
+            if not position:  # should never get here, but this will get a fall back position of nearest nav point to the cast time
                 print('building cast position for cast {}'.format(name))
+                # search times have a buffer, if the casttime is within the buffer but less than the dataset time, use the min dataset time
                 if casttime <= nav.time.min():
                     position = [float(nav.latitude[0].values), float(nav.longitude[0].values)]
                 elif casttime >= nav.time.max():
                     position = [float(nav.latitude[-1].values), float(nav.longitude[-1].values)]
                 else:
-                    interpnav = nav.interp(time=casttime)
+                    interpnav = nav.interp(time=casttime, method='nearest')
                     position = [float(interpnav.latitude.values), float(interpnav.longitude.values)]
             print('Plotting cast at position {}'.format(position))
             plt.scatter(position[1], position[0], label=name)
             all_lats.append(position[0])
             all_longs.append(position[1])
 
-        plt.legend()
         plt.title('Sound Velocity Map')
         plt.xlabel('Longitude (degrees)')
         plt.ylabel('Latitude (degrees)')
 
-        plt.ylim(min(minlat - 0.5 * datarange, np.min(all_lats) - 0.01), max(maxlat + 0.5 * datarange, np.max(all_lats) + 0.01))
-        plt.xlim(min(minlon - 0.5 * datarange, np.min(all_longs) - 0.01), max(maxlon + 0.5 * datarange, np.max(all_longs) + 0.01))
+        if all_longs and all_lats:  # found some casts, so we make sure they are within the plot range
+            plt.ylim(min(minlat - 0.5 * datarange, np.min(all_lats) - 0.01), max(maxlat + 0.5 * datarange, np.max(all_lats) + 0.01))
+            plt.xlim(min(minlon - 0.5 * datarange, np.min(all_longs) - 0.01), max(maxlon + 0.5 * datarange, np.max(all_longs) + 0.01))
+            plt.legend()
+        else:
+            plt.ylim(minlat - 0.5 * datarange, maxlat + 0.5 * datarange)
+            plt.xlim(minlon - 0.5 * datarange, maxlon + 0.5 * datarange)
+            print('No sound velocity profiles found within the given time range')
 
     def _generate_orientation_vector(self, system_index: int = 0, tme: float = None):
         """

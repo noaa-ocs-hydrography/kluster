@@ -214,6 +214,10 @@ def process_multibeam(fqpr_inst: Fqpr, run_orientation: bool = True, orientation
     if run_georef:
         fqpr_inst.georef_xyz()
         fqpr_inst.calculate_total_uncertainty()
+
+    # dask processes appear to suffer from memory leaks regardless of how carefully we track and wait on futures, reset the client here to clear memory after processing
+    fqpr_inst.client.restart()
+
     return fqpr_inst
 
 

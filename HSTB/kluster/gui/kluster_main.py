@@ -9,6 +9,7 @@ from HSTB.kluster.gui import dialog_vesselview, kluster_explorer, kluster_projec
     dialog_export, kluster_worker, kluster_interactive_console, dialog_importnav, dialog_basicplot
 from HSTB.kluster.fqpr_project import FqprProject
 from HSTB.kluster.fqpr_helpers import return_files_from_path
+from HSTB.kluster import __version__ as kluster_version
 from HSTB.shared import RegistryHelpers
 
 # list of icons
@@ -33,7 +34,7 @@ class KlusterMain(QtWidgets.QMainWindow):
 
         # self.resize(self.start_horiz_size, self.start_vert_size)
 
-        self.setWindowTitle('Kluster')
+        self.setWindowTitle('Kluster {}.{}.{}'.format(kluster_version.VERSION[0], kluster_version.VERSION[1], kluster_version.VERSION[1]))
         self.setDockNestingEnabled(True)
 
         self.widget_obj_names = []
