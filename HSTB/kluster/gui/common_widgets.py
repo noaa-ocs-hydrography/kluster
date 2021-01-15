@@ -358,9 +358,11 @@ class PlotDataHandler(QtWidgets.QWidget):
             self.trim_lines.clear()
             self.trim_lines.addItems(sorted(list(self.fqpr_line_dict.keys())))
 
-            self.ping_count.setText(str(self.fqpr.return_total_pings()))
+            totalpings = self.fqpr.return_total_pings()
+            self.ping_count.setText(str(totalpings))
 
             self.fqpr_loaded.emit(True)
+            self.ping_count_changed.emit(totalpings)
         else:
             self.fqpr_mintime = 0
             self.fqpr_maxtime = 0
@@ -379,6 +381,7 @@ class PlotDataHandler(QtWidgets.QWidget):
             self.trim_lines.clear()
             self.ping_count.setText('')
 
+            self.ping_count_changed.emit(0)
             self.fqpr_loaded.emit(False)
 
     def return_trim_times(self):

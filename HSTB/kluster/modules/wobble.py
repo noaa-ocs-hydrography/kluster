@@ -1,24 +1,11 @@
-import os
 import numpy as np
 import xarray as xr
-from dask.distributed import Client
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
-from matplotlib.pyplot import Figure, Axes
 from scipy.signal import firwin, lfilter, freqz
-from typing import Union
+from scipy.optimize import curve_fit
 
-from HSTB.kluster.fqpr_helpers import return_directory_from_data
-from HSTB.kluster.fqpr_convenience import return_data, return_surface
 from HSTB.kluster.xarray_helpers import interp_across_chunks
-from HSTB.kluster.fqpr_surface import BaseSurface
-from HSTB.kluster.fqpr_generation import Fqpr
-
-
-class SatTest:
-    def __init__(self, fqpr):
-        self.fqpr = fqpr
-        self.wobble = WobbleTest(fqpr)
 
 
 class WobbleTest:
@@ -33,6 +20,7 @@ class WobbleTest:
 
     | test = r"C:\data_dir\kluster_converted"
     | fq = fqpr_convenience.reload_data(test)
+    | fq.subset_by_time(mintime, maxtime)  # subset by the time of interest, will make this a bit faster
     | wb = WobbleTest(fq)
     | wb.generate_starting_data()
     | wb.plot_correlation_table()
@@ -40,8 +28,6 @@ class WobbleTest:
 
     def __init__(self, fqpr):
         self.fqpr = fqpr
-        self.records = None
-        self.sectors = None
         self.times = None
         self.depth = None
         self.beampointingangle = None
@@ -64,7 +50,13 @@ class WobbleTest:
 
         self.correlation_table = None
 
-    def generate_starting_data(self, use_altitude: bool = True, filter_rugged: bool = False):
+        try:
+            self.sonartype = self.fqpr.multibeam.raw_ping[0].sonartype
+            self.serialnum = self.fqpr.multibeam.raw_ping[0].system_identifier
+        except:
+            raise ValueError('WobbleTest: Unable to read from provided fqpr instance: {}'.format(self.fqpr))
+
+    def generate_starting_data(self, filter_rugged: bool = False):
         """
         Use the depthoffset (an output from kluster svcorrect) and corr_pointing_angle (an output from kluster
         get_beam_pointing_vectors to build the highpass filtered slope and depth.
@@ -73,36 +65,31 @@ class WobbleTest:
 
         Parameters
         ----------
-        use_altitude
-            If true, will use altitude instead of heave for the plots
         filter_rugged
             if True, will filter out data that has percent deviation greater than 5
         """
 
-        if self.fqpr.multibeam.is_dual_head():
-            raise NotImplementedError('Dual head systems are not currently supported')
-
         print('Generating wobble data for pings')
-        utms = self.fqpr.return_unique_times_across_sectors()
-        varnames = ['depthoffset', 'corr_pointing_angle']
+        varnames = ['depthoffset', 'corr_pointing_angle', 'corr_heave', 'corr_altitude']
         try:
             # fqpr_generation stores ping records in separate datasets for frequency/sector/serial number.  Use
             #   reform_vars to rebuild the ping/beam arrays
-            self.records, self.sectors, self.times = self.fqpr.reform_2d_vars_across_sectors_at_time(varnames, utms)
+            dset = self.fqpr.subset_variables(varnames, skip_subset_by_time=True)
         except KeyError:
             print("Unable to find 'corr_pointing_angle' and 'depthoffset' in given fqpr instance.  Are you sure you've run svcorrect?")
             return
-        varnames = ['corr_heave', 'corr_altitude']
-        try:
-            onedrecords, _ = self.fqpr.reform_1d_vars_across_sectors_at_time(varnames, utms)
-        except KeyError:
-            print("Unable to find 'corr_heave' and 'corr_altitude' in given fqpr instance.  Are you sure you've run georef?")
-            return
 
-        self.depth, self.beampointingangle = self.records[0, :, :], self.records[1, :, :]
-        self.heave, self.altitude = onedrecords[0, :], onedrecords[1, :]
+        self.times = dset.time
+        self.depth = dset.depthoffset
+        self.beampointingangle = dset.corr_pointing_angle
+        if self.fqpr.multibeam.raw_ping[0].units['corr_pointing_angle'] == 'radians':
+            self.beampointingangle = np.rad2deg(self.beampointingangle)
+        self.heave = dset.corr_heave
+        self.altitude = dset.corr_altitude
 
-        self.beampointingangle = np.rad2deg(self.beampointingangle)
+        # not sure about the logic here, but we'll say the port slope is the port transducer for dual head, etc.
+        maxbeam = self.depth.shape[1]
+        nadir_beam = int(maxbeam / 2)
 
         # max period of all the attitude signals, drives the filter coefficients, just use a slice of attitude to resolve
         att_slice = np.min([20000, self.fqpr.multibeam.raw_att['roll'].size])
@@ -110,31 +97,28 @@ class WobbleTest:
                                   return_period_of_signal(self.fqpr.multibeam.raw_att['pitch'][:att_slice]),
                                   return_period_of_signal(self.fqpr.multibeam.raw_att['heave'][:att_slice])])
 
+        print('Building attitude at ping time...')
         # we want the roll/pitch/heave at the same times as depth/pointingangle
         self.roll_at_ping_time = interp_across_chunks(self.fqpr.multibeam.raw_att['roll'], self.times).values
-        self.rollrate_at_ping_time = np.abs(np.diff(self.roll_at_ping_time))/np.diff(self.times)
-        self.rollrate_at_ping_time = np.append(self.rollrate_at_ping_time, self.rollrate_at_ping_time[-1])  # extend to retain original shape
+        self.rollrate_at_ping_time = abs(smooth_signal(np.diff(self.roll_at_ping_time)/np.diff(self.times), window_len=30, maintain_input_shape=True))
+        self.rollrate_at_ping_time = np.append(self.rollrate_at_ping_time, self.rollrate_at_ping_time[-1])  # extend to match rollatpingtime
+
         self.pitch_at_ping_time = interp_across_chunks(self.fqpr.multibeam.raw_att['pitch'], self.times).values
 
         self.vert_ref = self.fqpr.multibeam.raw_ping[0].vertical_reference
-        if use_altitude:
-            if self.vert_ref == 'ellipse':
-                self.vert_motion_at_ping_time = self.altitude - self.altitude.mean()
-            else:
-                print("WARNING: Choosing to use ellipsoid height, but data was processed with vert ref: {}".format(self.vert_ref))
-                self.vert_motion_at_ping_time = self.heave
+        if self.vert_ref == 'ellipse':
+            self.vert_motion_at_ping_time = self.altitude - self.altitude.mean()
+            print('Using corrected altitude to represent vertical motion')
         else:
-            if self.vert_ref != 'ellipse':
-                self.vert_motion_at_ping_time = self.heave
-            else:
-                print("WARNING: Choosing to use heave, but data was processed with vert ref: {}".format(self.vert_ref))
-                self.vert_motion_at_ping_time = self.altitude - self.altitude.mean()
+            self.vert_motion_at_ping_time = self.heave - self.heave.mean()
+            print('Using corrected heave to represent vertical motion')
 
+        print('Building high pass filtered depth and slope...')
         numtaps = 101  # filter length
         self.hpf_depth = return_high_pass_filtered_depth(self.depth, self.max_period, numtaps=numtaps)
-        self.hpf_port_slope, _ = return_high_pass_filtered_slope(self.beampointingangle[:, 0:200], self.depth[:, 0:200],
+        self.hpf_port_slope, _ = return_high_pass_filtered_slope(self.beampointingangle[:, 0:nadir_beam], self.depth[:, 0:nadir_beam],
                                                                  self.max_period * 6, numtaps=numtaps)
-        self.hpf_stbd_slope, _ = return_high_pass_filtered_slope(self.beampointingangle[:, 200:400], self.depth[:, 200:400],
+        self.hpf_stbd_slope, _ = return_high_pass_filtered_slope(self.beampointingangle[:, nadir_beam:maxbeam], self.depth[:, nadir_beam:maxbeam],
                                                                  self.max_period * 6, numtaps=numtaps)
 
         # want to only include 45 to -45 deg for inner slope
@@ -146,6 +130,7 @@ class WobbleTest:
             strt = 0
             end = self.beampointingangle.shape[-1]
 
+        print('Building inner/full slopes....')
         self.hpf_inner_slope, _ = return_high_pass_filtered_slope(self.beampointingangle[:, strt:end],
                                                                   self.depth[:, strt:end],
                                                                   self.max_period * 6, numtaps=numtaps)
@@ -197,6 +182,11 @@ class WobbleTest:
             numpy array, 1d
         y
             numpy array, 1d
+
+        Returns
+        -------
+        str
+            regression line slope rounded to 6 places as string
         """
         # nan not allowed for regression line
         filter_nan = np.logical_or(np.isnan(x), np.isnan(y))
@@ -204,9 +194,11 @@ class WobbleTest:
         y = y[~filter_nan]
 
         slopes, intercepts, stderrs, percent_deviation = linear_regression(x, y)
+        slope_label = np.round(slopes, 6)
         ax.plot(x, slopes * x + intercepts,
-                label='y = {}x + {}'.format(np.round(slopes, 6), np.round(intercepts, 6)), color='red')
+                label='y = {}x + {}'.format(slope_label, np.round(intercepts, 6)), color='red')
         ax.legend()
+        return slope_label
 
     def plot_allowable_percent_deviation(self, subplot: plt.subplot = None):
         """
@@ -312,12 +304,14 @@ class WobbleTest:
         if subplot is None:
             subplot = plt.subplots(1)[1]
         subplot.scatter(self.rollrate_at_ping_time, self.hpf_slope)
-        subplot.set_ylim(-self.hpf_slope.max() * 4, self.hpf_slope.max() * 4)
+        maxslope = self.hpf_slope.max()
+        subplot.set_ylim(-maxslope * 4, maxslope * 4)
         subplot.set_title('Attitude Time Latency')
         subplot.set_xlabel('Roll Rate (deg/s)')
         subplot.set_ylabel('Ping Slope (deg)')
         if add_regression:
-            self._add_regression_line(subplot, self.rollrate_at_ping_time, self.hpf_slope)
+            slope = self._add_regression_line(subplot, self.rollrate_at_ping_time, self.hpf_slope)
+            subplot.text(0, maxslope * 3.5, 'calculated latency = {} seconds'.format(slope))
 
     def plot_yaw_alignment(self, subplot: plt.subplot = None, add_regression: bool = True):
         """
@@ -479,73 +473,7 @@ class WobbleTest:
         heave_v_stbd_slope = self.correlation_table.add_subplot(gs[2, 2])
         self.plot_heave_sound_speed_two(subplot=heave_v_stbd_slope)
 
-
-def calc_order(depth: np.array):
-    """
-    This function takes an array of depths and returns Order 1 and Special Order values based on (b * depth).  The "a"
-    factor used in the IHO standards is omitted.  This is because the depth invarient part of the uncertainty should be
-    zero because the system is being evaluated against itself.
-
-    Parameters
-    ----------
-    depth
-        numpy array, array of depth values
-
-    Returns
-    -------
-    order1_min: min value according to IHO order 1
-    order1_max: max value according to IHO order 1
-    specialorder_min: min value according to IHO special order
-    specialorder_max: max value according to IHO special order
-    """
-
-    order1_max = 0.013 * depth.max()
-    order1_min = 0.013 * depth.min()
-    specialorder_max = 0.0075 * depth.max()
-    specialorder_min = 0.0075 * depth.min()
-    return order1_min, order1_max, specialorder_min, specialorder_max
-
-
-def difference_grid_and_soundings(bs: BaseSurface, linefq: Fqpr, ang: xr.DataArray):
-    """
-    Given base surface instance (bs) and Fqpr instance (linefq) determine the depth difference between the nearest
-    soundings to the surface node and the nodal depth.
-
-    Parameters
-    ----------
-    bs
-        fqpr_surface BaseSurface instance, represents the reference surface data
-    linefq
-        fqpr_generation Fqpr instance, represents the accuracy lines
-    ang
-        xarray DataArray, beam angle for soundings, added in here separately as this is not stored in the xyz_dat
-        dataset so has to be reformed previously.
-
-    Returns
-    -------
-    np.array
-        depth difference between grid node and sounding for each sounding
-    np.array
-        grid depth found for each sounding
-    np.array
-        beam numbers for each returned sounding
-    np.array
-        angle values for each returned sounding
-    """
-
-    grid_loc_per_sounding_x, grid_loc_per_sounding_y = bs.calculate_grid_indices(linefq.soundings.x, linefq.soundings.y,
-                                                                                 only_nearest=True)
-    sounding_idx = grid_loc_per_sounding_x != -1  # soundings that are inside the grid
-    grid_depth_at_loc = bs.surf[grid_loc_per_sounding_x[sounding_idx], grid_loc_per_sounding_y[sounding_idx]]
-    empty_grid_idx = np.isnan(grid_depth_at_loc)
-
-    grid_depth_at_loc = grid_depth_at_loc[~empty_grid_idx]
-    soundings_depth_at_loc = linefq.soundings.z[sounding_idx][~empty_grid_idx]
-    soundings_beam_at_loc = linefq.soundings.beam_idx[sounding_idx][~empty_grid_idx]
-    soundings_angle_at_loc = np.rad2deg(ang[sounding_idx][~empty_grid_idx])
-    depth_diff = soundings_depth_at_loc - grid_depth_at_loc
-
-    return depth_diff.values, grid_depth_at_loc, soundings_beam_at_loc.values, soundings_angle_at_loc
+        self.correlation_table.suptitle('{} (SN{}): WobbleTest Dashboard'.format(self.sonartype, self.serialnum))
 
 
 def _plot_firwin_freq_response(b: np.array, a: int = 1):
@@ -660,6 +588,8 @@ def return_period_of_signal(sig: xr.DataArray):
         max period of the input signals
     """
 
+    # center the signal at zero to get this logic to work, as we use positive/negative peaks
+    sig = sig - np.mean(sig)
     # generate indices where the signal matches, return is symmetrical so only look at last half
     acf = np.correlate(sig, sig, 'full')[-len(sig):]
     # first index is always zero of course, since the two signals with zero delay will match
@@ -807,305 +737,95 @@ def return_high_pass_filtered_slope(y: np.array, z: np.array, max_period: float,
     return trimfilt_slope, percent_deviation
 
 
-def _acctest_generate_stats(soundings_xdim: np.array, depth_diff: np.array, surf_depth: np.array,
-                            client: Client = None):
+def _sinfunc(t, A, w, p, c):
     """
-    Build the accuracy test statistics for given beam values/angle values and the depths determined previously.
+    Build sin func from parameters for fit_sin
+    """
+    return A * np.sin(w * t + p) + c
+
+
+def fit_sin(x, y):
+    """
+    Fit sin to the input time sequence, and return fitting parameters "amp", "omega", "phase", "offset", "freq", "period" and "fitfunc"
+
+    res = fit_sin(x, y)
+    plt.plot(res['fitfunc'](x, res['amp'], res['omega'], res['phase'], res['offset']))
 
     Parameters
     ----------
-    soundings_xdim
-        numpy array, beam or angle values per sounding
-    depth_diff
-        numpy array, depth difference between grid node and sounding for each sounding
-    surf_depth
-        numpy array, grid depth found for each sounding
-    client
-        optional, dask client instance if you want to do the operation in parallel (CURRENTLY NOT SUPPORTED)
+    x
+    y
+
+    Returns
+    -------
+
+    """
+
+    ff = np.fft.fftfreq(len(x), (x[1]-x[0]))   # assume uniform spacing
+    Fyy = abs(np.fft.fft(y))
+    guess_freq = abs(ff[np.argmax(Fyy[1:])+1])   # excluding the zero frequency "peak", which is related to offset
+    guess_amp = np.std(y) * 2.**0.5
+    guess_offset = np.mean(y)
+    guess = np.array([guess_amp, 2. * np.pi * guess_freq, 0., guess_offset])
+    popt, pcov = curve_fit(_sinfunc, x, y, p0=guess)
+    A, w, p, c = popt
+    f = w/(2. * np.pi)
+
+    return {"amp": A, "omega": w, "phase": p, "offset": c, "freq": f, "period": 1. / f, "fitfunc": _sinfunc, "maxcov": np.max(pcov), "rawres": (guess, popt, pcov)}
+
+
+def smooth_signal(x: np.array, window_len: int = 20, window: str = 'hanning', maintain_input_shape: bool = True):
+    """
+    smooth the data using a window with requested size. This method is based on the convolution of a scaled window with
+    the signal. The signal is prepared by introducing reflected copies of the signal (with the window size) in both
+    ends so that transient parts are minimized in the begining and end part of the output signal.
+    | 
+    | ex:
+    | t=linspace(-2,2,0.1)
+    | x=sin(t)+randn(len(t))*0.1
+    | y=smooth_signal(x)
+
+    Parameters
+    ----------
+    x
+        signal to smooth
+    window_len
+        the dimension of the smoothing window; should be an odd integer
+    window
+        the type of window from 'flat', 'hanning', 'hamming', 'bartlett', 'blackman'. flat window will produce a moving average smoothing.
+    maintain_input_shape
+        if True, will modify return to match input shape
 
     Returns
     -------
     np.array
-        mean depth difference at each beam/angle value
-    np.array
-        standard deviation of the soundings at each beam/angle value
-    np.array
-        mean depth difference at each beam/angle value as a percent of grid depth
-    np.array
-        standard deviation of the soundings at each beam/angle value as a percent of grid depth
-    np.array
-        mean surface depth at each beam/angle value
-    np.array
-        binned range of values for beam/angle
+        smoothed signal
+
     """
 
-    if client is not None:
-        raise NotImplementedError('Not yet ready for dask')
+    if x.ndim != 1:
+        raise ValueError("smooth only accepts 1 dimension arrays.")
 
-    bins = np.arange(int(soundings_xdim.min()), np.ceil(soundings_xdim.max()) + 1, 1)
-    bins_dig = np.sort(np.digitize(soundings_xdim, bins))
-    unique_bins, u_idx = np.unique(bins_dig, return_index=True)
-    percentdpth_rel_xdim_avg = []
-    percentdpth_rel_xdim_stddev = []
-    dpthdiff_rel_xdim_avg = []
-    dpthdiff_rel_xdim_stddev = []
-    mean_surf_depth = []
+    if x.size < window_len:
+        raise ValueError("Input vector needs to be bigger than window size.")
 
-    if len(bins) != len(unique_bins):
-        bins = bins[unique_bins]  # eliminate empty bins where there are no beams/angles
-    split_diff = np.split(depth_diff, u_idx[1:])
-    split_dpth = np.split(surf_depth, u_idx[1:])
-    if client is None:
-        for i in range(len(split_diff)):
-            split_diff_chnk = split_diff[i]
-            split_dpth_chunk = split_dpth[i]
-            dpthdiff_rel_xdim_avg.append(split_diff_chnk.mean())
-            dpthdiff_rel_xdim_stddev.append(split_diff_chnk.std())
-            percentdpth_rel_xdim_avg.append(100 * (split_diff_chnk / split_dpth_chunk).mean())
-            percentdpth_rel_xdim_stddev.append(100 * (split_diff_chnk / split_dpth_chunk).std())
-            mean_surf_depth.append(split_dpth_chunk.mean())
+    if window_len < 3:
+        return x
+
+    if window not in ['flat', 'hanning', 'hamming', 'bartlett', 'blackman']:
+        raise ValueError("Window is on of 'flat', 'hanning', 'hamming', 'bartlett', 'blackman'")
+
+    s = np.r_[x[window_len - 1:0:-1], x, x[-2:-window_len - 1:-1]]
+    # print(len(s))
+    if window == 'flat':  # moving average
+        w = np.ones(window_len, 'd')
     else:
-        raise NotImplementedError('Not yet ready for dask')
+        w = eval('np.' + window + '(window_len)')
 
-    dpth_avg = np.array(dpthdiff_rel_xdim_avg)
-    dpth_stddev = np.array(np.array(dpthdiff_rel_xdim_stddev))
-    per_dpth_avg = np.array(percentdpth_rel_xdim_avg)
-    per_dpth_stddev = np.array(percentdpth_rel_xdim_stddev)
-    mean_surf_depth = np.array(mean_surf_depth)
+    y = np.convolve(w / w.sum(), s, mode='valid')
 
-    return dpth_avg, dpth_stddev, per_dpth_avg, per_dpth_stddev, mean_surf_depth, bins
-
-
-def _acctest_percent_plots(arr_mean: np.array, arr_std: np.array, xdim: np.array, xdim_bins: np.array,
-                           depth_diff: np.array, surf_depth: np.array, mode: str, output_pth: str,
-                           depth_offset: float = None, show: bool = False):
-    """
-    Accuracy plots for percentage based values.  Different enough in comparison with _acctest_plots
-    to need a separate function. (unified function was too messy)
-
-    Plot the given mean/std for beam or angle based binned values as a blue line, the sounding depth difference
-    as a percent of surface depth as a point cloud and the 2 standard deviation fill values.  Include horizontal
-    lines for the IHO spec values.
-
-    Parameters
-    ----------
-    arr_mean
-        numpy array, mean depth difference at each beam/angle value as a percent of grid depth
-    arr_std
-        numpy array, standard deviation of the soundings at each beam/angle value as a percent of grid depth
-    xdim
-        numpy array, beam/angle values for each sounding
-    xdim_bins
-        numpy array, bins for the beam/angle values
-    depth_diff
-        numpy array, depth difference between grid node and sounding for each sounding
-    surf_depth
-        numpy array, grid depth found for each sounding
-    mode
-        str, one of 'beam' or 'angle', determines the plot labels
-    output_pth
-        str, path to where you want to save the plot
-    depth_offset
-        float, optional depth offset used to account for vert difference between surf and accuracy lines.  If
-        None, will use the mean diff between them
-    show
-        bool, if false, does not show the plot (useful when you batch run this many times)
-
-    Returns
-    -------
-    Figure
-        Figure for plot
-    Axes
-        Axes for plot
-    """
-
-    if mode == 'beam':
-        xlabel = 'Beam Number'
-        ylabel = 'Depth Bias (% Water Depth)'
-    elif mode == 'angle':
-        xlabel = 'Angle (Degrees)'
-        ylabel = 'Depth Bias (% Water Depth)'
-    else:
-        raise ValueError('Mode must be one of beam or angle')
-
-    if depth_offset is None:
-        # get average depthdiff as vert offset between surf and accuracy lines
-        depth_offset = np.mean(arr_mean)
-
-    order1 = 100 * 0.013
-    special = 100 * 0.0075
-    f, a = plt.subplots(1, 1)
-    plus = arr_mean + 1.96 * arr_std - depth_offset
-    minus = arr_mean - 1.96 * arr_std - depth_offset
-    # plot the soundings
-    sval = 100 * depth_diff / surf_depth
-    a.scatter(xdim, sval - depth_offset, c='0.5', alpha=0.1, edgecolors='none', label='Soundings')
-    # plot 2 std
-    a.fill_between(xdim_bins, minus, plus, facecolor='red', interpolate=True, alpha=0.1)
-    # plot mean line
-    a.plot(xdim_bins, arr_mean - depth_offset, 'b', linewidth=3, label='Mean Depth')
-    # set axes
-    a.grid()
-    a.set_xlim(xdim_bins.min(), xdim_bins.max())
-    a.set_ylim(-5, 5)
-    a.set_xlabel(xlabel)
-    a.set_ylabel(ylabel)
-    a.set_title('accuracy test: percent depth bias vs {}'.format(mode, np.round(depth_offset, 1)))
-    # Order 1 line
-    a.hlines(order1, xdim_bins.min(), xdim_bins.max(), colors='k', linestyles='dashed', linewidth=3, alpha=0.5, label='Order 1')
-    a.hlines(-order1, xdim_bins.min(), xdim_bins.max(), colors='k', linestyles='dashed', linewidth=3, alpha=0.5)
-    # Special Order Line
-    a.hlines(special, xdim_bins.min(), xdim_bins.max(), colors='g', linestyles='dashed', linewidth=3, alpha=0.5, label='Special Order')
-    a.hlines(-special, xdim_bins.min(), xdim_bins.max(), colors='g', linestyles='dashed', linewidth=3, alpha=0.5)
-    a.legend(loc='upper left')
-
-    f.savefig(output_pth)
-    if not show:
-        plt.close(f)
-    return f, a
-
-
-def _acctest_plots(arr_mean: np.array, arr_std: np.array, xdim: np.array, xdim_bins: np.array, depth_diff: np.array,
-                   surf_depth: np.array, mode: str, output_pth: str, depth_offset: float = None, show: bool = False):
-    """
-    Accuracy plots for sounding/surface difference values.  Different enough in comparison with _acctest_percent_plots
-    to need a separate function. (unified function was too messy)
-
-    Plot the given mean/std for beam or angle based binned values as a blue line, the sounding depth difference
-    as a percent of surface depth as a point cloud and the 2 standard deviation fill values.  Include fill for the IHO
-    spec values.
-
-    Parameters
-    ----------
-    arr_mean
-        numpy array, mean depth difference at each beam/angle value
-    arr_std
-        numpy array, standard deviation of the soundings at each beam/angle value
-    xdim
-        numpy array, beam/angle values for each sounding
-    xdim_bins
-        numpy array, bins for the beam/angle values
-    depth_diff
-        numpy array, depth difference between grid node and sounding for each sounding
-    surf_depth
-        numpy array, grid depth found for each sounding
-    mode
-        str, one of 'beam' or 'angle', determines the plot labels
-    output_pth
-        str, path to where you want to save the plot
-    depth_offset
-        float, optional depth offset used to account for vert difference between surf and accuracy lines.  If None,
-        will use the mean diff between them
-    show
-        bool, if false, does not show the plot (useful when you batch run this many times)
-
-    Returns
-    -------
-    Figure
-        Figure for plot
-    Axes
-        Axes for plot
-    """
-
-    if mode == 'beam':
-        xlabel = 'Beam Number'
-        ylabel = 'Depth Bias (meters)'
-    elif mode == 'angle':
-        xlabel = 'Angle (Degrees)'
-        ylabel = 'Depth Bias (meters)'
-    else:
-        raise ValueError('Mode must be one of beam or angle')
-
-    if depth_offset is None:
-        # get average depthdiff as vert offset between surf and accuracy lines
-        depth_offset = np.mean(arr_mean)
-
-    o1_min, o1_max, so_min, so_max = calc_order(surf_depth)
-
-    f, a = plt.subplots(1, 1)
-    plus = arr_mean + 1.96 * arr_std - depth_offset
-    minus = arr_mean - 1.96 * arr_std - depth_offset
-    # plot the soundings
-    a.scatter(xdim, depth_diff - depth_offset, c='0.5', alpha=0.1, edgecolors='none', label='Soundings')
-    # plot 2 std
-    a.fill_between(xdim_bins, minus, plus, facecolor='red', interpolate=True, alpha=0.1)
-    # plot mean line
-    a.plot(xdim_bins, arr_mean - depth_offset, 'b', linewidth=3, label='Mean Depth')
-    # set axes
-    a.grid()
-    a.set_xlim(xdim_bins.min(), xdim_bins.max())
-    a.set_ylim(-2, 2)
-    a.set_xlabel(xlabel)
-    a.set_ylabel(ylabel)
-    a.set_title('accuracy test: depth bias vs {}'.format(mode, np.round(depth_offset, 1)))
-    # Order 1 line
-    a.fill_between(xdim_bins, o1_min, o1_max, facecolor='black', alpha=0.5, label='Order 1')
-    a.fill_between(xdim_bins, -o1_min, -o1_max, facecolor='black', alpha=0.5)
-    # Special Order Line
-    a.fill_between(xdim_bins, so_min, so_max, facecolor='green', alpha=0.1, label='Special Order')
-    a.fill_between(-xdim_bins, -so_min, -so_max, facecolor='green', alpha=0.1)
-    a.legend(loc='upper left')
-
-    f.savefig(output_pth)
-    if not show:
-        plt.close(f)
-    return f, a
-
-
-def accuracy_test(ref_surf_pth: Union[list, str], line_pairs: list, resolution: int = 1,
-                  vert_ref: str = 'ellipse', output_directory: str = None):
-    """
-    Accuracy test: takes a reference surface and accuracy test lines and creates plots of depth difference between
-    surface and lines for the soundings nearest the grid nodes.  Plots are by beam/by angle averages.
-
-    Parameters
-    ----------
-    ref_surf_pth
-        a path to a zarr store, a path to a directory of multibeam files, a list of paths to multibeam files, a path to
-        a single multibeam file or a path to an existing surface.
-    line_pairs
-        list of either a path to a zarr store, a path to a directory of multibeam files, a list of paths to multibeam
-        files or a path to a single multibeam file
-    resolution
-        int, resolution of the surface (if this is to make a surface)
-    vert_ref
-        str, one of ['waterline', 'ellipse', 'vessel']
-    output_directory
-        str, optional, if None, puts the output files where the input line_pairs are.
-    """
-
-    bs = return_surface(ref_surf_pth, vert_ref, resolution)
-    for lines in line_pairs:
-        if output_directory is None:
-            output_directory = return_directory_from_data(lines)
-        print('Operating on {}'.format(lines))
-        linefq = return_data(lines, vert_ref)
-        pingmode = linefq.return_unique_mode()
-        freq = linefq.return_rounded_freq()
-        print('mode: {}, freq: {}'.format(pingmode, freq))
-
-        u_tms = linefq.return_unique_times_across_sectors()
-        # Im returning detectioninfo here as well because I keep getting some instances where detection info is all
-        #   nan for a ping.  Checking against detection info will match the indexing used with xyz_dat
-        dat, ids, tms = linefq.reform_2d_vars_across_sectors_at_time(['corr_pointing_angle', 'detectioninfo'], u_tms)
-        line_fq_ang = dat[0].ravel()
-        depth_diff, surf_depth, soundings_beam, soundings_angle = difference_grid_and_soundings(bs, linefq, line_fq_ang.ravel())
-        d_rel_a_avg, d_rel_a_stddev, pd_rel_a_avg, pd_rel_a_stddev, ang_mean_surf, angbins = _acctest_generate_stats(soundings_angle, depth_diff, surf_depth)
-        d_rel_b_avg, d_rel_b_stddev, pd_rel_b_avg, pd_rel_b_stddev, beam_mean_surf, beambins = _acctest_generate_stats(soundings_beam, depth_diff, surf_depth)
-
-        # for plots, we limit to max 10000 soundings, the plot chokes with more than that
-        soundings_filter = int(np.ceil(len(soundings_beam) / 30000))
-        filter_beam = soundings_beam[::soundings_filter]
-        filter_angle = soundings_angle[::soundings_filter]
-        filter_diff = depth_diff[::soundings_filter]
-        filter_surf = surf_depth[::soundings_filter]
-
-        first_fname = os.path.splitext(list(linefq.soundings.multibeam_files.keys())[0])[0]
-        _acctest_percent_plots(pd_rel_b_avg, pd_rel_b_stddev, filter_beam, beambins, filter_diff, filter_surf,
-                               mode='beam', output_pth=os.path.join(output_directory, first_fname + '_acc_beampercent.png'))
-        _acctest_percent_plots(pd_rel_a_avg, pd_rel_a_stddev, filter_angle, angbins, filter_diff, filter_surf,
-                               mode='angle', output_pth=os.path.join(output_directory, first_fname + '_acc_anglepercent.png'))
-        _acctest_plots(d_rel_b_avg, d_rel_b_stddev, filter_beam, beambins, filter_diff, filter_surf, mode='beam',
-                       output_pth=os.path.join(output_directory, first_fname + '_acc_beam.png'))
-        _acctest_plots(d_rel_a_avg, d_rel_a_stddev, filter_angle, angbins, filter_diff, filter_surf, mode='angle',
-                       output_pth=os.path.join(output_directory, first_fname + '_acc_angle.png'))
+    if maintain_input_shape:
+        y = y[int(window_len/2-1):-int(np.ceil(window_len/2))]
+        if x.shape[0] != y.shape[0]:
+            raise ValueError('Unable to match input array size! {} != {}'.format(x.shape, y.shape))
+    return y

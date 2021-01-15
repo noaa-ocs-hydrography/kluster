@@ -53,7 +53,7 @@ class BasicPlotDialog(QtWidgets.QDialog):
                                                      '3d scatter, color by depth', '3d scatter, color by sector'],
                                    'animations': ['Uncorrected Beam Vectors', 'Corrected Beam Vectors', 'Vessel Orientation']}
 
-        self.setWindowTitle('Basic Plot')
+        self.setWindowTitle('Basic Plots')
         layout = QtWidgets.QVBoxLayout()
 
         self.data_widget = common_widgets.PlotDataHandler()
@@ -126,7 +126,6 @@ class BasicPlotDialog(QtWidgets.QDialog):
 
         layout.addWidget(self.data_widget)
         layout.addWidget(self.hline)
-        layout.addStretch()
 
         self.vlayout_left.addLayout(self.hlayout_one)
         self.vlayout_left.addLayout(self.hlayout_two)
@@ -457,6 +456,10 @@ class BasicPlotDialog(QtWidgets.QDialog):
                 self.fqpr.restore_subset()
 
     def refresh_explanation(self):
+        """
+        Update the help text control (self.explanation) with an explanation of what the plot is, based on the
+        set source/variable/plottype control.
+        """
         source = self.dataset_dropdown.currentText()
         variable = self.variable_dropdown.currentText()
         plottype = self.plottype_dropdown.currentText()
@@ -544,6 +547,18 @@ class BasicPlotDialog(QtWidgets.QDialog):
                 variable_expl = 'Variable = From the imported post processed navigation, the logged latitude data from the navigation system in degrees.'
             elif variable == 'longitude':
                 variable_expl = 'Variable = From the imported post processed navigation, the logged longitude data from the navigation system in degrees.'
+            elif variable == 'down_position_error':
+                variable_expl = 'Variable = From the imported post processed navigation, the logged down position error from the navigation system in meters.'
+            elif variable == 'east_position_error':
+                variable_expl = 'Variable = From the imported post processed navigation, the logged east position error data from the navigation system in meters.'
+            elif variable == 'north_position_error':
+                variable_expl = 'Variable = From the imported post processed navigation, the logged north position error data from the navigation system in meters.'
+            elif variable == 'roll_error':
+                variable_expl = 'Variable = From the imported post processed navigation, the logged roll error data from the navigation system in degrees.'
+            elif variable == 'pitch_error':
+                variable_expl = 'Variable = From the imported post processed navigation, the logged pitch error data from the navigation system in degrees.'
+            elif variable == 'heading_error':
+                variable_expl = 'Variable = From the imported post processed navigation, the logged heading error data from the navigation system in degrees.'
         elif source == 'custom':
             source_expl = 'Source = Custom Kluster plots from all converted and processed data'
             if variable == 'georeferenced':

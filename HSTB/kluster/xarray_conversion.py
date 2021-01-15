@@ -1000,16 +1000,7 @@ class BatchRead:
 
     def read_from_zarr_fils(self, ping_pth: list, attitude_pth: str, navigation_pth: str, logfile_pth: str):
         """
-        Read from the generated zarr datastore constructed with read()
-
-        All the keyword arguments set to False are there to correctly read the saved zarr arrays.  Mask_and_scale i've
-        yet to configure properly, it will replace values equal to the fill_value attribute with NaN.  Even when
-        fill_value is non-zero, it seems to replace zeros with NaN.  Setting it to false prevents this.  You can read
-        more here:  http://xarray.pydata.org/en/stable/generated/xarray.open_zarr.html
-
-        If you are running this outside of the normal dask-enabled workflow, self.client will be None and you will not
-        have the distributed sync object.  I do this with reading attributes from the zarr datastore where I just need
-        to open for a minute to get the attributes.
+        Read from the generated zarr datastores constructed with read()
 
         Parameters
         ----------

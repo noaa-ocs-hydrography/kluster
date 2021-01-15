@@ -6,7 +6,7 @@ from PySide2 import QtGui, QtCore, QtWidgets
 
 from HSTB.kluster.gui import dialog_vesselview, kluster_explorer, kluster_project_tree, kluster_3dview, kluster_attitudeview, \
     kluster_output_window, kluster_2dview, dialog_conversion, dialog_all_processing, dialog_daskclient, dialog_surface, \
-    dialog_export, kluster_worker, kluster_interactive_console, dialog_importnav, dialog_basicplot
+    dialog_export, kluster_worker, kluster_interactive_console, dialog_importnav, dialog_basicplot, dialog_advancedplot
 from HSTB.kluster.fqpr_project import FqprProject
 from HSTB.kluster.fqpr_helpers import return_files_from_path
 from HSTB.kluster import __version__ as kluster_version
@@ -68,6 +68,7 @@ class KlusterMain(QtWidgets.QMainWindow):
 
         self.vessel_win = None
         self.basicplots_win = None
+        self.advancedplots_win = None
 
         self.iconpath = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'images', 'kluster_img.ico')
         self.setWindowIcon(QtGui.QIcon(self.iconpath))
@@ -136,6 +137,8 @@ class KlusterMain(QtWidgets.QMainWindow):
 
         basicplots_action = QtWidgets.QAction('Basic Plots', self)
         basicplots_action.triggered.connect(self._action_basicplots)
+        advancedplots_action = QtWidgets.QAction('Advanced Plots', self)
+        advancedplots_action.triggered.connect(self._action_advancedplots)
 
         menubar = self.menuBar()
         file = menubar.addMenu("File")
@@ -161,6 +164,7 @@ class KlusterMain(QtWidgets.QMainWindow):
 
         visual = menubar.addMenu('Visualize')
         visual.addAction(basicplots_action)
+        visual.addAction(advancedplots_action)
 
     def update_on_file_added(self, fil=''):
         """
@@ -356,6 +360,20 @@ class KlusterMain(QtWidgets.QMainWindow):
             self.basicplots_win.data_widget.new_fqpr_path(fqprs[0])
             self.basicplots_win.data_widget.initialize_controls()
         self.basicplots_win.show()
+
+    def kluster_advanced_plots(self):
+        """
+        Runs the advanced plots dialog, for plotting the sat tests and other more sophisticated stuff
+        """
+        fqprs = self.return_selected_fqprs()
+
+        self.advancedplots_win = None
+        self.advancedplots_win = dialog_advancedplot.AdvancedPlotDialog()
+
+        if fqprs:
+            self.advancedplots_win.data_widget.new_fqpr_path(fqprs[0])
+            self.advancedplots_win.data_widget.initialize_controls()
+        self.advancedplots_win.show()
 
     def kluster_convert_multibeam(self, fil):
         """
@@ -925,6 +943,12 @@ class KlusterMain(QtWidgets.QMainWindow):
         """
         self.kluster_basic_plots()
 
+    def _action_advancedplots(self):
+        """
+        Connect menu action 'Advanced Plots' with basicplots dialog
+        """
+        self.kluster_advanced_plots()
+
     def _action_all_processing(self):
         """
         Connect menu action 'All processing' with all processing dialog
@@ -999,8 +1023,12 @@ class KlusterMain(QtWidgets.QMainWindow):
         super(KlusterMain, self).closeEvent(event)
 
 
-if __name__ == '__main__':
+def main():
     app = QtWidgets.QApplication()
     window = KlusterMain()
     window.show()
     sys.exit(app.exec_())
+
+
+if __name__ == '__main__':
+    main()

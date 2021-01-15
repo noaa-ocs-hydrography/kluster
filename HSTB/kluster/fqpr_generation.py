@@ -2358,6 +2358,7 @@ class Fqpr:
         """
         Restores the original data if subset_by_time has been run.
         """
+
         if self.backup_fqpr != {}:
             self.multibeam.raw_nav = self.backup_fqpr['raw_nav']
             self.multibeam.raw_ping = self.backup_fqpr['raw_ping']
@@ -2415,27 +2416,33 @@ class Fqpr:
             self.subset_by_time(min_time, max_time)
 
         dataset_variables = {}
+        maxbeams = 0
         times = np.concatenate([rp.time.values for rp in self.multibeam.raw_ping]).flatten()
         systems = np.concatenate([[rp.system_identifier] * rp.time.shape[0] for rp in self.multibeam.raw_ping]).flatten().astype(np.int32)
         for var in variable_selection:
             if self.multibeam.raw_ping[0][var].ndim == 2:
                 if self.multibeam.raw_ping[0][var].dims == ('time', 'beam'):
                     dataset_variables[var] = (['time', 'beam'], np.concatenate([rp[var] for rp in self.multibeam.raw_ping]))
+                    newmaxbeams = self.multibeam.raw_ping[0][var].shape[1]
+                    if maxbeams and maxbeams != newmaxbeams:
+                        raise ValueError('Found multiple max beam number values for the different ping datasets, {} and {}, beam shapes must match'.format(maxbeams, newmaxbeams))
+                    else:
+                        maxbeams = newmaxbeams
                 else:
-                    raise ValueError('Only time and beam dimensions are suppoted, found {} for {}'.format(self.multibeam.raw_ping[0][var].dims,
-                                                                                                          var))
+                    raise ValueError('Only time and beam dimensions are suppoted, found {} for {}'.format(self.multibeam.raw_ping[0][var].dims, var))
             elif self.multibeam.raw_ping[0][var].ndim == 1:
                 if self.multibeam.raw_ping[0][var].dims == ('time',):
                     dataset_variables[var] = (['time'], np.concatenate([rp[var] for rp in self.multibeam.raw_ping]))
                 else:
-                    raise ValueError('Only time and beam dimensions are suppoted, found {} for {}'.format(self.multibeam.raw_ping[0][var].dims,
-                                                                                                          var))
+                    raise ValueError('Only time dimension is suppoted, found {} for {}'.format(self.multibeam.raw_ping[0][var].dims, var))
             else:
-                raise ValueError('Only 2 and 1 dimension variables are supported, {}} is {} dim'.format(var,
-                                                                                                        self.multibeam.raw_ping[0][var].ndim))
+                raise ValueError('Only 2 and 1 dimension variables are supported, {}} is {} dim'.format(var, self.multibeam.raw_ping[0][var].ndim))
 
         dataset_variables['system_identifier'] = (['time'], systems)
-        coords = {'time': times, 'beam': np.arange(dataset_variables[var][1].shape[1])}
+        if maxbeams:  # when variables are a mix of time time/beam dimensions
+            coords = {'time': times, 'beam': np.arange(maxbeams)}
+        else:  # when variables are just time dimension
+            coords = {'time': times}
         dset = xr.Dataset(dataset_variables, coords)
         dset = dset.sortby('time')
 

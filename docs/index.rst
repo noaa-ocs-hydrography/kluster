@@ -192,7 +192,6 @@ to examine later using:
 
    fqpr_convenience
    fqpr_generation   
-   fqpr_sat
    fqpr_surface
    fqpr_project
    fqpr_intelligence
@@ -204,6 +203,8 @@ to examine later using:
    georeference
    tpu
    visualizations
+   sat
+   wobble
    export
    rotations
    pdal_entwine

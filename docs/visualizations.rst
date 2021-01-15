@@ -8,3 +8,5 @@ visualizations module
    :skip: Axes3D
    :skip: LinearSegmentedColormap
    :skip: stack_nan_array
+   :skip: get_current_fig_manager
+   :skip: datetime

@@ -40,3 +40,5 @@ fqpr\_generation module
    :skip: sbets_to_xarray
    :skip: CRSError
    :skip: FqprExport
+   :skip: cast_data_from_file
+   :skip: ZarrWrite

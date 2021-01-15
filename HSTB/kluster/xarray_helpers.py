@@ -1647,6 +1647,15 @@ def reload_zarr_records(pth: str, skip_dask: bool = False, sort_by: str = None):
     After writing new data to the zarr data store, you need to refresh the xarray Dataset object so that it
     sees the changes.  We do that here by just re-running open_zarr.
 
+    All the keyword arguments set to False are there to correctly read the saved zarr arrays.  Mask_and_scale i've
+    yet to configure properly, it will replace values equal to the fill_value attribute with NaN.  Even when
+    fill_value is non-zero, it seems to replace zeros with NaN.  Setting it to false prevents this.  You can read
+    more here:  http://xarray.pydata.org/en/stable/generated/xarray.open_zarr.html
+
+    If you are running this outside of the normal dask-enabled workflow, self.client will be None and you will not
+    have the distributed sync object.  I do this with reading attributes from the zarr datastore where I just need
+    to open for a minute to get the attributes.
+
     Returns
     -------
     pth
