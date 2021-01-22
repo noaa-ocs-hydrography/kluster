@@ -34,7 +34,7 @@ class KlusterMain(QtWidgets.QMainWindow):
 
         # self.resize(self.start_horiz_size, self.start_vert_size)
 
-        self.setWindowTitle('Kluster {}.{}.{}'.format(kluster_version.VERSION[0], kluster_version.VERSION[1], kluster_version.VERSION[2]))
+        self.setWindowTitle('Kluster {}'.format(kluster_version))
         self.setDockNestingEnabled(True)
 
         self.widget_obj_names = []
