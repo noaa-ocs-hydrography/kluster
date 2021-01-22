@@ -201,6 +201,11 @@ class FqprExport:
             if True, will export soundings with z positive down (this is the native Kluster convention)
         export_by_identifiers
             if True, will generate separate files for each combination of serial number/sector/frequency
+
+        Returns
+        -------
+        list
+            list of written file paths
         """
 
         if 'x' not in self.fqpr.multibeam.raw_ping[0]:
@@ -220,19 +225,20 @@ class FqprExport:
 
         if file_format == 'csv':
             fldr_path = create_folder(output_directory, 'csv_export')
-            self._export_pings_to_csv(output_directory=fldr_path, csv_delimiter=csv_delimiter,
-                                      filter_by_detection=filter_by_detection, z_pos_down=z_pos_down,
-                                      export_by_identifiers=export_by_identifiers)
+            written_files = self._export_pings_to_csv(output_directory=fldr_path, csv_delimiter=csv_delimiter,
+                                                      filter_by_detection=filter_by_detection, z_pos_down=z_pos_down,
+                                                      export_by_identifiers=export_by_identifiers)
         elif file_format == 'las':
             fldr_path = create_folder(output_directory, 'las_export')
-            self._export_pings_to_las(output_directory=fldr_path, filter_by_detection=filter_by_detection,
-                                      z_pos_down=z_pos_down, export_by_identifiers=export_by_identifiers)
+            written_files = self._export_pings_to_las(output_directory=fldr_path, filter_by_detection=filter_by_detection,
+                                                      z_pos_down=z_pos_down, export_by_identifiers=export_by_identifiers)
         elif file_format == 'entwine':
             fldr_path = create_folder(output_directory, 'las_export')
             entwine_fldr_path = create_folder(output_directory, 'entwine_export')
-            self.export_pings_to_entwine(output_directory=entwine_fldr_path, las_export_folder=fldr_path,
-                                         filter_by_detection=filter_by_detection, z_pos_down=z_pos_down,
-                                         export_by_identifiers=export_by_identifiers)
+            written_files = self.export_pings_to_entwine(output_directory=entwine_fldr_path, las_export_folder=fldr_path,
+                                                         filter_by_detection=filter_by_detection, z_pos_down=z_pos_down,
+                                                         export_by_identifiers=export_by_identifiers)
+        return written_files
 
     def _export_pings_to_csv(self, output_directory: str = None, csv_delimiter=' ', filter_by_detection: bool = True,
                              z_pos_down: bool = True, export_by_identifiers: bool = True):
@@ -251,9 +257,15 @@ class FqprExport:
             if True, will export soundings with z positive down (this is the native Kluster convention)
         export_by_identifiers
             if True, will generate separate files for each combination of serial number/sector/frequency
+
+        Returns
+        -------
+        list
+            list of written file paths
         """
 
         starttime = perf_counter()
+        written_files = []
 
         for rp in self.fqpr.multibeam.raw_ping:
             self.fqpr.logger.info('Operating on system {}'.format(rp.system_identifier))
@@ -271,6 +283,7 @@ class FqprExport:
                         export_data = self._generate_export_data(sec_subset_rp, filter_by_detection=filter_by_detection, z_pos_down=z_pos_down)
                         self._csv_write(export_data[0], export_data[1], export_data[2], export_data[3], export_data[7],
                                         dest_path, csv_delimiter)
+                        written_files.append(dest_path)
 
             else:
                 dest_path = os.path.join(output_directory, rp.system_identifier + '.csv')
@@ -278,9 +291,11 @@ class FqprExport:
                 export_data = self._generate_export_data(rp, filter_by_detection=filter_by_detection, z_pos_down=z_pos_down)
                 self._csv_write(export_data[0], export_data[1], export_data[2], export_data[3], export_data[7],
                                 dest_path, csv_delimiter)
+                written_files.append(dest_path)
 
         endtime = perf_counter()
         self.fqpr.logger.info('****Exporting xyz data to csv complete: {}s****\n'.format(round(endtime - starttime, 1)))
+        return written_files
 
     def _csv_write(self, x: xr.DataArray, y: xr.DataArray, z: xr.DataArray, uncertainty: xr.DataArray,
                    uncertainty_included: bool, dest_path: str, delimiter: str):
@@ -348,9 +363,16 @@ class FqprExport:
             if True, will export soundings with z positive down (this is the native Kluster convention)
         export_by_identifiers
             if True, will generate separate files for each combination of serial number/sector/frequency
+
+        Returns
+        -------
+        list
+            list of written file paths
         """
 
         starttime = perf_counter()
+        written_files = []
+
         for rp in self.fqpr.multibeam.raw_ping:
             self.fqpr.logger.info('Operating on system {}'.format(rp.system_identifier))
             if filter_by_detection and 'detectioninfo' not in rp:
@@ -367,15 +389,18 @@ class FqprExport:
                         export_data = self._generate_export_data(sec_subset_rp, filter_by_detection=filter_by_detection, z_pos_down=z_pos_down)
                         self._las_write(export_data[0], export_data[1], export_data[2], export_data[3],
                                         export_data[5], export_data[7], dest_path)
+                        written_files.append(dest_path)
             else:
                 dest_path = os.path.join(output_directory, rp.system_identifier + '.las')
                 self.fqpr.logger.info('writing to {}'.format(dest_path))
                 export_data = self._generate_export_data(rp, filter_by_detection=filter_by_detection, z_pos_down=z_pos_down)
                 self._las_write(export_data[0], export_data[1], export_data[2], export_data[3],
                                 export_data[5], export_data[7], dest_path)
+                written_files.append(dest_path)
 
         endtime = perf_counter()
         self.fqpr.logger.info('****Exporting xyz data to las complete: {}s****\n'.format(round(endtime - starttime, 1)))
+        return written_files
 
     def _las_write(self, x: xr.DataArray, y: xr.DataArray, z: xr.DataArray, uncertainty: xr.DataArray,
                    classification: np.array, uncertainty_included: bool, dest_path: str):
@@ -456,12 +481,18 @@ class FqprExport:
             if True, will export soundings with z positive down (this is the native Kluster convention)
         export_by_identifiers
             if True, will generate separate files for each combination of serial number/sector/frequency
+
+        Returns
+        -------
+        list
+            one element long list containing the entwine directory path
         """
 
         self._export_pings_to_las(output_directory=las_export_folder, filter_by_detection=filter_by_detection,
                                   z_pos_down=z_pos_down, export_by_identifiers=export_by_identifiers)
 
         build_entwine_points(las_export_folder, output_directory)
+        return [las_export_folder]
 
     def export_pings_to_dataset(self, outfold: str = None, validate: bool = False):
         """

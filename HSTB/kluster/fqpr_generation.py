@@ -1993,10 +1993,16 @@ class Fqpr:
             if True, will export soundings with z positive down (this is the native Kluster convention)
         export_by_identifiers
             if True, will generate separate files for each combination of serial number/sector/frequency
+
+        Returns
+        -------
+        list
+            list of written file paths
         """
-        self.export.export_pings_to_file(output_directory=output_directory, file_format=file_format,
-                                         csv_delimiter=csv_delimiter, filter_by_detection=filter_by_detection,
-                                         z_pos_down=z_pos_down, export_by_identifiers=export_by_identifiers)
+        written_files = self.export.export_pings_to_file(output_directory=output_directory, file_format=file_format,
+                                                         csv_delimiter=csv_delimiter, filter_by_detection=filter_by_detection,
+                                                         z_pos_down=z_pos_down, export_by_identifiers=export_by_identifiers)
+        return written_files
 
     def export_pings_to_dataset(self, outfold: str = None, validate: bool = False):
         """

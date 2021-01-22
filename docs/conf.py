@@ -2,6 +2,8 @@ import os
 p, f = os.path.split(__file__)
 root_p = os.path.normpath(p)
 
+from HSTB.kluster import __version__ as kluster_version
+
 # Configuration file for the Sphinx documentation builder.
 #
 # This file only contains a selection of the most common options. For a full
@@ -26,7 +28,7 @@ copyright = '2020, Eric Younkin'
 author = 'Eric Younkin'
 
 # The full version, including alpha/beta/rc tags
-release = '0.2.6'
+release = kluster_version
 
 
 # -- General configuration ---------------------------------------------------

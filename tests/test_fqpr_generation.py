@@ -10,6 +10,9 @@ from HSTB.kluster.xarray_helpers import interp_across_chunks
 from HSTB.kluster.fqpr_convenience import *
 
 
+datapath = ''
+
+
 def test_get_orientation_vectors():
     """
     get_orientation_vectors test for the em2040 dataset
@@ -84,48 +87,103 @@ def test_find_testfile():
     assert os.path.exists(testfile_path)
 
 
-def test_convert_testfile():
+def test_process_testfile():
     """
     Run xarray conversion on the test file
     """
+    global datapath
+
     testfile_path, expected_output = get_testfile_paths()
     out = convert_multibeam(testfile_path)
-    number_of_sectors = len(out.multibeam.raw_ping)
-    firstbeam_angle = float(out.multibeam.raw_ping[0].isel(time=0).isel(beam=0).beampointingangle.values)
-    firstbeam_traveltime = float(out.multibeam.raw_ping[0].isel(time=0).isel(beam=0).traveltime.values)
-    first_counter = int(out.multibeam.raw_ping[0].isel(time=0).counter.values)
-    first_dinfo = int(out.multibeam.raw_ping[0].isel(time=0).isel(beam=0).detectioninfo.values)
-    first_mode = str(out.multibeam.raw_ping[0].isel(time=0).mode.values)
-    first_modetwo = str(out.multibeam.raw_ping[0].isel(time=0).modetwo.values)
-    first_ntx = int(out.multibeam.raw_ping[0].isel(time=0).ntx.values)
-    firstbeam_procstatus = int(out.multibeam.raw_ping[0].isel(time=0).isel(beam=0).processing_status.values)
-    firstbeam_qualityfactor = int(out.multibeam.raw_ping[0].isel(time=0).isel(beam=0).qualityfactor.values)
-    first_soundspeed = float(out.multibeam.raw_ping[0].isel(time=0).soundspeed.values)
-    first_tiltangle = float(out.multibeam.raw_ping[0].isel(time=0).isel(beam=0).tiltangle.values)
-    first_delay = float(out.multibeam.raw_ping[0].isel(time=0).isel(beam=0).delay.values)
-    first_frequency = float(out.multibeam.raw_ping[0].isel(time=0).isel(beam=0).frequency.values)
-    first_yawpitch = str(out.multibeam.raw_ping[0].isel(time=0).yawpitchstab.values)
+    out = process_multibeam(out)
 
-    datapath = out.multibeam.converted_pth
-    out.close()
-    out = None
-    clear_testfile_data(datapath)
+    number_of_sectors = len(out.multibeam.raw_ping)
+    rp = out.multibeam.raw_ping[0].isel(time=0).isel(beam=0)
+    firstbeam_angle = rp.beampointingangle.values
+    firstbeam_traveltime = rp.traveltime.values
+    first_counter = rp.counter.values
+    first_dinfo = rp.detectioninfo.values
+    first_mode = rp.mode.values
+    first_modetwo = rp.modetwo.values
+    first_ntx = rp.ntx.values
+    firstbeam_procstatus = rp.processing_status.values
+    firstbeam_qualityfactor = rp.qualityfactor.values
+    first_soundspeed = rp.soundspeed.values
+    first_tiltangle = rp.tiltangle.values
+    first_delay = rp.delay.values
+    first_frequency = rp.frequency.values
+    first_yawpitch = rp.yawpitchstab.values
+    firstcorr_angle = rp.corr_pointing_angle.values
+    firstcorr_altitude = rp.corr_altitude.values
+    firstcorr_heave = rp.corr_heave.values
+    firstdepth_offset = rp.depthoffset.values
+    first_status = rp.processing_status.values
+    firstrel_azimuth = rp.rel_azimuth.values
+    firstrx = rp.rx.values
+    firstthu = rp.thu.values
+    firsttvu = rp.tvu.values
+    firsttx = rp.tx.values
+    firstx = rp.x.values
+    firsty = rp.y.values
+    firstz = rp.z.values
 
     assert number_of_sectors == 1
-    assert firstbeam_angle == 74.63999938964844
-    assert firstbeam_traveltime == 0.33608949184417725
+    assert firstbeam_angle == np.float32(74.64)
+    assert firstbeam_traveltime == np.float32(0.3360895)
     assert first_counter == 61967
     assert first_dinfo == 2
     assert first_mode == 'FM'
     assert first_modetwo == '__FM'
     assert first_ntx == 3
-    assert firstbeam_procstatus == 0
+    assert firstbeam_procstatus == 5
     assert firstbeam_qualityfactor == 42
-    assert first_soundspeed == 1488.5999755859375
-    assert first_tiltangle == -0.4399999976158142
-    assert first_delay == 0.002206037985160947
-    assert first_frequency == 275000.0
+    assert first_soundspeed == np.float32(1488.6)
+    assert first_tiltangle == np.float32(-0.44)
+    assert first_delay == np.float32(0.002206038)
+    assert first_frequency == 275000
     assert first_yawpitch == 'PY'
+    assert firstcorr_angle == np.float32(1.2028906)
+    assert firstcorr_altitude == np.float32(0.0)
+    assert firstcorr_heave == np.float32(-0.06)
+    assert firstdepth_offset == np.float32(92.086)
+    assert first_status == 5
+    assert firstrel_azimuth == np.float32(4.703383)
+    assert np.array_equal(firstrx, np.array([0.7870753, 0.60869384, -0.100021675], dtype=np.float32))
+    assert firstthu == np.float32(8.858568)
+    assert firsttvu == np.float32(2.4994893)
+    assert np.array_equal(firsttx, np.array([0.6074468, -0.79435784, 0.0020107413], dtype=np.float32))
+    assert firstx == 539028.432
+    assert firsty == 5292783.953
+    assert firstz == np.float32(92.666)
+
+    datapath = out.multibeam.converted_pth
+    out.close()
+    out = None
+
+
+def test_export_files():
+    if not os.path.exists(datapath):
+        print('Please run test_process_testfile first')
+    out = reload_data(datapath)
+    pths_one = out.export_pings_to_file(file_format='csv', filter_by_detection=True, export_by_identifiers=True)
+    pths_two = out.export_pings_to_file(file_format='csv', filter_by_detection=True, export_by_identifiers=False)
+    pths_three = out.export_pings_to_file(file_format='las', filter_by_detection=True, export_by_identifiers=True)
+    pths_four = out.export_pings_to_file(file_format='las', filter_by_detection=True, export_by_identifiers=False)
+
+    assert len(pths_one) == 6
+    assert len(pths_two) == 1
+    assert len(pths_three) == 6
+    assert len(pths_four) == 1
+
+    out.close()
+    out = None
+
+
+def test_cleanup_after_tests():
+    if not os.path.exists(datapath):
+        print('Please run test_process_testfile first')
+    clear_testfile_data(datapath)
+    assert not os.path.exists(datapath)
 
 
 def get_testfile_paths():
