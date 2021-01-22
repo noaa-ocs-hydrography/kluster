@@ -779,7 +779,7 @@ def smooth_signal(x: np.array, window_len: int = 20, window: str = 'hanning', ma
     smooth the data using a window with requested size. This method is based on the convolution of a scaled window with
     the signal. The signal is prepared by introducing reflected copies of the signal (with the window size) in both
     ends so that transient parts are minimized in the begining and end part of the output signal.
-    | 
+    |
     | ex:
     | t=linspace(-2,2,0.1)
     | x=sin(t)+randn(len(t))*0.1

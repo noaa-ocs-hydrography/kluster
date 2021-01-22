@@ -209,26 +209,10 @@ def get_orientation_vectors(dset='realdualhead'):
     print([x for y in rxvecdata for x in y.flatten()])
 
     # check for the expected tx orientation vectors
-    try:
-        assert np.array_equal(expected_tx, txvecdata)
-    except AssertionError:  # seeing slight variation between github env answer and pydro38 answer
-        if dset == 'real':
-            expected_tx = [np.array([0.6136555921172974, -0.7895255928982701, 0.008726535498373935])]
-        else:
-            expected_tx = [np.array([-0.8173967230596009, -0.5756459946918305, -0.022232663846213512]),
-                                  np.array([-0.8173967230596009, -0.5756459946918305, -0.022232663846213512])]
-        assert np.array_equal(expected_tx, txvecdata)
+    assert np.array_equal(expected_tx, txvecdata)
 
     # check for the expected rx orientation vectors
-    try:
-        assert np.array_equal(expected_rx, rxvecdata)
-    except AssertionError:  # seeing slight variation between github env answer and pydro38 answer
-        if dset == 'real':
-            expected_rx = [np.array([0.7834063124935756, 0.619544042029317, -0.04939361832457566])]
-        else:
-            expected_rx = [np.array([0.5707206057741382, -0.8178136286558314, 0.07388380848347877]),
-                           np.array([0.5707251090313201, -0.8178104859878021, 0.07388380848347877])]
-        assert np.array_equal(expected_rx, rxvecdata)
+    assert np.array_equal(expected_rx, rxvecdata)
 
     print('Passed: get_orientation_vectors')
 
@@ -346,24 +330,10 @@ def sv_correct(dset='realdualhead'):
     assert np.array_equal(x_data, expected_x)
 
     # acrosstrack offset check
-    try:
-        assert np.array_equal(y_data, expected_y)
-    except AssertionError:  # seeing slight variation between github env answer and pydro38 answer
-        if dset == 'real':
-            expected_y = np.array([-232.884, -229.768, -74.056, -74.048, 75.626, 75.679], dtype=np.float32)
-        else:
-            expected_y = np.array([-60.159, -59.925, -9.306, -9.283], dtype=np.float32)
-        assert np.array_equal(y_data, expected_y)
+    assert np.array_equal(y_data, expected_y)
 
     # depth offset check
-    try:
-        assert np.array_equal(z_data, expected_z)
-    except AssertionError:  # seeing slight variation between github env answer and pydro38 answer
-        if dset == 'real':
-            expected_z = np.array([91.12, 89.806, 90.258, 90.311, 91.246, 91.253], dtype=np.float32)
-        else:
-            expected_z = np.array([18.365, 18.307, 18.853, 18.866], dtype=np.float32)
-        assert np.array_equal(z_data, expected_z)
+    assert np.array_equal(z_data, expected_z)
 
     print('Passed: sv_correct')
 
@@ -427,42 +397,14 @@ def georef_xyz(dset='realdualhead'):
     print([x for y in z_data for x in y.flatten()])
 
     # easting
-    # same version of PROJ but installed through kluster github instructions get different answers.  Haven't figured this
-    #    out yet.
-    try:  # the expected result seen with the Pydro38 environment
-        assert np.array_equal(x_data, expected_x)
-    except AssertionError:  # the answer I get when running a new environment following kluster github instructions
-        if dset == 'realdualhead':
-            assert np.array_equal(x_data,
-                                  np.array([492984.8, 492984.84, 492942.94, 492943.03], dtype=np.float32))
-        else:
-            assert np.array_equal(x_data,
-                                  np.array([539017.75, 539018.94, 539111.9, 539111.25, 539201.9, 539201.56],
-                                           dtype=np.float32))
+    assert np.array_equal(x_data, expected_x)
 
     # northing
-    try:
-        assert np.array_equal(y_data, expected_y)
-    except AssertionError:
-        if dset == 'realdualhead':
-            assert np.array_equal(y_data,
-                                  np.array([3365067.8, 3365068.2, 3365096.8, 3365096.8], dtype=np.float32))
-        else:
-            assert np.array_equal(y_data,
-                                  np.array([5292788.5, 5292791.5, 5292916.0, 5292916.5, 5293035.5, 5293036.0],
-                                           dtype=np.float32))
+    assert np.array_equal(y_data, expected_y)
 
     # depth
-    try:
-        assert np.array_equal(z_data, expected_z)
-    except AssertionError:
-        if dset == 'realdualhead':
-            assert np.array_equal(z_data,
-                                  np.array([22.147, 22.089, 22.684, 22.697], dtype=np.float32))
-        else:
-            assert np.array_equal(z_data,
-                                  np.array([91.77, 90.456, 90.908, 90.961, 91.896, 91.903], dtype=np.float32))
-
+    assert np.array_equal(z_data, expected_z)
+    
     print('Passed: georef_xyz')
 
 

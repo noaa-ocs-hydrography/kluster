@@ -204,14 +204,14 @@ class FqprExport:
         """
 
         if 'x' not in self.fqpr.multibeam.raw_ping[0]:
-            self.fqpr.logger.error('No xyz data found')
+            self.fqpr.logger.error('export_pings_to_file: No xyz data found, please run All Processing - Georeference Soundings first.')
             return
         if file_format not in ['csv', 'las', 'entwine']:
-            self.fqpr.logger.error('Only csv, las and entwine format options supported at this time')
+            self.fqpr.logger.error('export_pings_to_file: Only csv, las and entwine format options supported at this time')
             return
         if file_format == 'entwine' and not is_pydro():
             self.fqpr.logger.error(
-             'Only pydro environments support entwine tile building.  Please see https://entwine.io/configuration.html for instructions on installing entwine if you wish to use entwine outside of Kluster.  Kluster exported las files will work with the entwine build command')
+             'export_pings_to_file: Only pydro environments support entwine tile building.  Please see https://entwine.io/configuration.html for instructions on installing entwine if you wish to use entwine outside of Kluster.  Kluster exported las files will work with the entwine build command')
 
         if output_directory is None:
             output_directory = self.fqpr.multibeam.converted_pth
@@ -242,7 +242,7 @@ class FqprExport:
         Parameters
         ----------
         output_directory
-            optional, destination directory for the xyz exports, otherwise will auto export next to converted data
+            destination directory for the xyz exports, otherwise will auto export next to converted data
         csv_delimiter
             optional, if you choose file_format=csv, this will control the delimiter
         filter_by_detection
@@ -258,7 +258,7 @@ class FqprExport:
         for rp in self.fqpr.multibeam.raw_ping:
             self.fqpr.logger.info('Operating on system {}'.format(rp.system_identifier))
             if filter_by_detection and 'detectioninfo' not in rp:
-                self.fqpr.logger.error('Unable to filter by detection type, detectioninfo not found')
+                self.fqpr.logger.error('_export_pings_to_csv: Unable to filter by detection type, detectioninfo not found')
                 return
             rp = rp.stack({'sounding': ('time', 'beam')})
             if export_by_identifiers:
@@ -341,7 +341,7 @@ class FqprExport:
         Parameters
         ----------
         output_directory
-            optional, destination directory for the xyz exports, otherwise will auto export next to converted data
+            destination directory for the xyz exports, otherwise will auto export next to converted data
         filter_by_detection
             optional, if True will only write soundings that are not rejected
         z_pos_down
@@ -354,8 +354,9 @@ class FqprExport:
         for rp in self.fqpr.multibeam.raw_ping:
             self.fqpr.logger.info('Operating on system {}'.format(rp.system_identifier))
             if filter_by_detection and 'detectioninfo' not in rp:
-                self.fqpr.logger.error('Unable to filter by detection type, detectioninfo not found')
+                self.fqpr.logger.error('_export_pings_to_las: Unable to filter by detection type, detectioninfo not found')
                 return
+            rp = rp.stack({'sounding': ('time', 'beam')})
             if export_by_identifiers:
                 for freq in np.unique(rp.frequency):
                     subset_rp = rp.where(rp.frequency == freq, drop=True)
@@ -364,21 +365,20 @@ class FqprExport:
                         dest_path = os.path.join(output_directory, '{}_{}_{}.las'.format(rp.system_identifier, secid, freq))
                         self.fqpr.logger.info('writing to {}'.format(dest_path))
                         export_data = self._generate_export_data(sec_subset_rp, filter_by_detection=filter_by_detection, z_pos_down=z_pos_down)
-                        self._las_write(export_data[0], export_data[1], export_data[2], export_data[3], sec_subset_rp.time[export_data[4][0]],
-                                        filter_by_detection, export_data[5], export_data[6], export_data[7], dest_path)
+                        self._las_write(export_data[0], export_data[1], export_data[2], export_data[3],
+                                        export_data[5], export_data[7], dest_path)
             else:
                 dest_path = os.path.join(output_directory, rp.system_identifier + '.las')
                 self.fqpr.logger.info('writing to {}'.format(dest_path))
                 export_data = self._generate_export_data(rp, filter_by_detection=filter_by_detection, z_pos_down=z_pos_down)
-                self._las_write(export_data[0], export_data[1], export_data[2], export_data[3], rp.time[export_data[4][0]],
-                                filter_by_detection, export_data[5], export_data[6], export_data[7], dest_path)
+                self._las_write(export_data[0], export_data[1], export_data[2], export_data[3],
+                                export_data[5], export_data[7], dest_path)
 
         endtime = perf_counter()
         self.fqpr.logger.info('****Exporting xyz data to las complete: {}s****\n'.format(round(endtime - starttime, 1)))
 
-    def _las_write(self, x: xr.DataArray, y: xr.DataArray, z: xr.DataArray, uncertainty: xr.DataArray, rp_time: xr.DataArray,
-                   filter_by_detection: bool, classification: np.array, valid_detections: np.array, uncertainty_included: bool,
-                   dest_path: str):
+    def _las_write(self, x: xr.DataArray, y: xr.DataArray, z: xr.DataArray, uncertainty: xr.DataArray,
+                   classification: np.array, uncertainty_included: bool, dest_path: str):
         """
         Write the data to LAS format
 
@@ -396,14 +396,8 @@ class FqprExport:
         uncertainty
             uncertainty variable stacked in the time/beam dimension to create 1 dim representation.  rejected soundings removed
             if filter_by_detection
-        rp_time
-            time variable 1d
-        filter_by_detection
-            if True will only write soundings that are not rejected
         classification
             if detectioninfo exists, this is the integer classification for each sounding
-        valid_detections
-            if detectioninfo exists, boolean mask for the valid detections
         uncertainty_included
             if tvu exists, True
         dest_path
@@ -413,9 +407,7 @@ class FqprExport:
         x = np.round(x.values, 2)
         y = np.round(y.values, 2)
         z = np.round(z.values, 3)
-        gps_time = rp_time
-        if filter_by_detection and valid_detections is not None:
-            gps_time = gps_time[valid_detections]
+
         hdr = laspy.header.Header(file_version=1.4, point_format=3)  # pt format 3 includes GPS time
         hdr.x_scale = 0.01  # xyz precision, las stores data as int
         hdr.y_scale = 0.01
@@ -428,7 +420,6 @@ class FqprExport:
         outfile.x = x
         outfile.y = y
         outfile.z = z
-        outfile.gps_time = gps_time
         if classification is not None:
             classification[np.where(classification < 2)] = 1  # 1 = Unclassified according to LAS spec
             classification[np.where(classification == 2)] = 7  # 7 = Low Point (noise) according to LAS spec
@@ -456,7 +447,7 @@ class FqprExport:
         Parameters
         ----------
         output_directory
-            optional, destination directory for the entwine point tiles
+            destination directory for the entwine point tiles
         las_export_folder
             Folder to export the las files to
         filter_by_detection

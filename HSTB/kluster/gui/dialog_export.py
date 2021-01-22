@@ -23,6 +23,7 @@ class ExportDialog(QtWidgets.QDialog):
         self.input_fqpr.sizeHint()
         self.input_fqpr.setup(mode='directory', registry_key='kluster', app_name='klusterbrowse',
                               filebrowse_title='Select input processed folder')
+        self.input_fqpr.setMinimumWidth(600)
         self.hlayout_zero.addWidget(self.input_fqpr)
 
         self.hlayout_one = QtWidgets.QHBoxLayout()
