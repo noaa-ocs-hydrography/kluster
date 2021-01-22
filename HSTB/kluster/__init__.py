@@ -4,4 +4,4 @@ normal_path = os.path.dirname(__file__)
 old_path = os.path.normpath(normal_path.replace("Python3", "Python2", 1))
 __path__ = [normal_path, old_path]
 
-from __version__ import __version__
+from HSTB.kluster.__version__ import __version__
