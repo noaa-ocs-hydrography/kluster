@@ -69,7 +69,7 @@ Perform these in order:
 
 `conda activate kluster_test `
 
-`conda install -c conda-forge proj=7.0 cartopy=0.17.0 numpy=1.19.5 vispy=0.6.4`
+`conda install -c conda-forge cartopy=0.18.0 proj=0.7.2 vispy=0.6.4 pyside2=5.13.2`
 
 `pip install git+https://github.com/noaa-ocs-hydrography/kluster.git#egg=hstb.kluster `
 

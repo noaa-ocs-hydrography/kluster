@@ -19,30 +19,30 @@ VERSION = ''
 # What packages are required for this module to be executed?
 REQUIRED = [
             'bokeh==2.2.3',
-            'dask==2.17.2',
-            'distributed==2.30.1',
+            'dask==2021.1.0',
+            'distributed==2021.1.0',
             'fasteners==0.14.1',
             'laspy==1.7.0',
-            'PySide2==5.15.2',  # dev environment has 5.13.2, but there are no wheels for py38 on that version
+            'PySide2==5.13.2'  # import error with matplotlib 3.3.3 with pyside 5.15.2, sticking with 5.13.2 for now
             'matplotlib==3.3.3',  # >=3.3.3 required, FuncAnimation and Pyside2/matplotlib do not play well in 3.2.1
-            'numba==0.51.2',
+            'numba==0.52.0',
             'openpyxl==3.0.3',
-            'psutil==5.7.3',
+            'psutil==5.8.0',
             'numpy==1.19.5',  # cannot be 1.19.4, see https://tinyurl.com/y3dm3h86
-            'pandas==1.1.4',
-            'pyshp==2.1.2',
+            'pandas==1.2.1',
+            'pyshp==2.1.3',
             'vispy==0.6.4',
             'pyopengl==3.1.5',
-            'pyproj==2.6.1.post1',
-            'pyqtgraph==0.11.0',
+            'pyproj==3.0.0.post1',
+            'pyqtgraph==0.11.1',
             's3fs==0.5.1',
-            'scipy==1.5.3',
+            'scipy==1.6.0',
             'shapely==1.7.1',
             'sortedcontainers==2.3.0',
-            'watchdog==0.10.4',
+            'watchdog==1.0.2',
             'xarray==0.16.2',
-            'zarr==2.5.0'
-            # 'cartopy==0.17.0'  Required for GUI, but must be conda installed with PROJ
+            'zarr==2.6.1'
+            # 'cartopy==0.18.0'  Required for GUI, but must be conda installed with PROJ
             ]
 
 # What packages are optional?
