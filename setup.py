@@ -30,7 +30,7 @@ REQUIRED = [
             'numpy==1.19.5',  # cannot be 1.19.4, see https://tinyurl.com/y3dm3h86
             'pandas==1.2.1',
             'pyshp==2.1.3',
-            'pyepsg=0.4.0',  # cartopy requirement not installed with conda install, duplicates pyproj functionality...
+            'pyepsg==0.4.0',  # cartopy requirement not installed with conda install, duplicates pyproj functionality...
             'vispy==0.6.4',
             'pyopengl==3.1.5',
             'pyproj==3.0.0.post1',
