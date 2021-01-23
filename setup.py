@@ -23,7 +23,6 @@ REQUIRED = [
             'distributed==2021.1.0',
             'fasteners==0.14.1',
             'laspy==1.7.0',
-            'PySide2==5.13.2',  # import error with matplotlib 3.3.3 with pyside 5.15.2, sticking with 5.13.2 for now
             'matplotlib==3.3.3',  # >=3.3.3 required, FuncAnimation and Pyside2/matplotlib do not play well in 3.2.1
             'numba==0.52.0',
             'openpyxl==3.0.3',
@@ -42,6 +41,7 @@ REQUIRED = [
             'watchdog==1.0.2',
             'xarray==0.16.2',
             'zarr==2.6.1'
+            # 'PySide2==5.13.2',  # import error with matplotlib 3.3.3 with pyside 5.15.2, sticking with 5.13.2 for now, just no distro in pip
             # 'cartopy==0.18.0'  Required for GUI, but must be conda installed with PROJ
             ]
 
