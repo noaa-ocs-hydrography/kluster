@@ -30,6 +30,7 @@ REQUIRED = [
             'numpy==1.19.5',  # cannot be 1.19.4, see https://tinyurl.com/y3dm3h86
             'pandas==1.2.1',
             'pyshp==2.1.3',
+            'pyepsg=0.4.0',  # cartopy requirement not installed with conda install, duplicates pyproj functionality...
             'vispy==0.6.4',
             'pyopengl==3.1.5',
             'pyproj==3.0.0.post1',
@@ -41,7 +42,13 @@ REQUIRED = [
             'watchdog==1.0.2',
             'xarray==0.16.2',
             'zarr==2.6.1'
-            # 'PySide2==5.13.2',  # import error with matplotlib 3.3.3 with pyside 5.15.2, sticking with 5.13.2 for now, just no distro in pip
+            
+            # Pyside stuff
+            #  first had to downgrade to PySide2 5.14.1 to avoid shiboken import errors https://bugreports.qt.io/browse/PYSIDE-1257
+            #   supposed to be fixed in 5.15.2 but apparently people still see it not working    
+            #  also hit an import error with matplotlib 3.3.3 with pyside 5.15.2, sticking with 5.13.2 for now
+            
+            # 'PySide2==5.13.2',  installed with conda, no distro in pip
             # 'cartopy==0.18.0'  Required for GUI, but must be conda installed with PROJ
             ]
 
