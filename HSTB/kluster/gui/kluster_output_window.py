@@ -3,47 +3,34 @@ from queue import Queue
 from PySide2 import QtGui, QtCore, QtWidgets
 
 
-class WriteStream(object):
-    """
-    The new Stream Object which replaces the default stream associated with sys.stdout
-    This object just puts data in a queue!
+class OutputWrapper(QtCore.QObject):
+    outputWritten = QtCore.Signal(object, object)
 
-    Parameters
-    ----------
-    queue: queue.Queue object for holding stdout/stderr data
-    """
-    def __init__(self, queue):
-        self.queue = queue
+    def __init__(self, parent, stdout=True):
+        QtCore.QObject.__init__(self, parent)
+        if stdout:
+            self._stream = sys.stdout
+            sys.stdout = self
+        else:
+            self._stream = sys.stderr
+            sys.stderr = self
+        self._stdout = stdout
 
     def write(self, text):
-        self.queue.put(text)
+        # self._stream.write(text)
+        self.outputWritten.emit(text, self._stdout)
 
-    def flush(self):
-        pass
+    def __getattr__(self, name):
+        return getattr(self._stream, name)
 
-
-class MyReceiver(QtCore.QObject):
-    """
-    A QObject (to be run in a QThread) which sits waiting for data to come through a queue.Queue().  It blocks until
-    data is available, and one it has got something from the queue, it sends it to the "MainThread" by emitting a Qt
-    Signal
-
-    Parameters
-    ----------
-    queue: queue.Queue object for holding stdout/stderr data, this will monitor
-    """
-
-    mysignal = QtCore.Signal(str)
-
-    def __init__(self, queue, *args, **kwargs):
-        QtCore.QObject.__init__(self, *args, **kwargs)
-        self.queue = queue
-
-    @QtCore.Slot()
-    def run(self):
-        while True:
-            text = self.queue.get()
-            self.mysignal.emit(text)
+    def __del__(self):
+        try:
+            if self._stdout:
+                sys.stdout = self._stream
+            else:
+                sys.stderr = self._stream
+        except AttributeError:
+            pass
 
 
 class KlusterOutput(QtWidgets.QTextEdit):
@@ -58,20 +45,12 @@ class KlusterOutput(QtWidgets.QTextEdit):
         self.setReadOnly(True)
         # self.setStyleSheet(('font: 11pt "Consolas";'))
 
-        self.queue = Queue()
-        self.queue_thread = QtCore.QThread()
-        self.queue_receiver = MyReceiver(self.queue)
-        self.queue_receiver.mysignal.connect(self.append_text)
-        self.queue_receiver.moveToThread(self.queue_thread)
+        self.stdout_obj = OutputWrapper(self, True)
+        self.stdout_obj.outputWritten.connect(self.append_text)
+        self.stderr_obj = OutputWrapper(self, False)
+        self.stderr_obj.outputWritten.connect(self.append_text)
 
-        self.queue_thread.started.connect(self.queue_receiver.run)
-        self.queue_thread.start()
-
-        sys.stdout = WriteStream(self.queue)
-        sys.stderr = WriteStream(self.queue)
-
-    @QtCore.Slot(str)
-    def append_text(self, text):
+    def append_text(self, text, stdout):
         """
         add text as it shows up in the buffer, ordinarily this means moving the cursor to the end of the line and inserting
         the new text.
@@ -84,6 +63,8 @@ class KlusterOutput(QtWidgets.QTextEdit):
         ----------
         text
             text to insert
+        stdout
+            if True, is stdout
         """
         cursor = self.textCursor()
         if text.lstrip()[0:2] in ['[#', '[ ']:

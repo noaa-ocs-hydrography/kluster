@@ -9,7 +9,11 @@ class BasicPlotDialog(QtWidgets.QDialog):
     """
     Using the PlotDataHandler, allow the user to provide Kluster converted data and plot a variable across the whole
     time range or a subset of time (see PlotDataHandler for subsetting time)
+
+    BasicPlot holds the calls that are just generic xarray.Dataset.plot calls.  If you need something fancy, it should
+    be put in AdvancedPlot, as there are no controls in BasicPlot for additional files/settings.
     """
+
     def __init__(self, parent=None):
         super().__init__(parent)
 

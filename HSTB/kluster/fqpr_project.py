@@ -3,6 +3,8 @@ import numpy as np
 import xarray as xr
 import json
 from typing import Union
+from datetime import datetime, timezone
+from types import FunctionType
 
 from HSTB.kluster.fqpr_generation import Fqpr
 from HSTB.kluster.dask_helpers import dask_find_or_start_client
@@ -53,25 +55,33 @@ class FqprProject:
         self.surface_instances = {}
         self.surface_layers = {}
 
+        # all paths are relative to the project file location...
+
         # fqpr_generation.FQPR instances per converted folder path, see add_fqpr
-        # ex: {'C:\\collab\\dasktest\\data_dir\\EM2040\\convert1': <HSTB.kluster.fqpr_generation.Fqpr at 0x25f910e8eb0>}
+        # ex: {'EM2040\\convert1': <HSTB.kluster.fqpr_generation.Fqpr at 0x25f910e8eb0>}
         self.fqpr_instances = {}
 
         # line names and start/stop times per line per converted folder path, see regenerate_fqpr_lines
-        # ex: {'C:\\collab\\dasktest\\data_dir\\EM2040\\convert1': {'0001_20170822_144548_S5401_X.all': [1503413148.045, 1503413720.475]}
+        # ex: {'EM2040\\convert1': {'0001_20170822_144548_S5401_X.all': [1503413148.045, 1503413720.475]}
         self.fqpr_lines = {}
 
         # fqpr attribution per converted folder path, see add_fqpr
-        # ex: {'C:\\collab\\dasktest\\data_dir\\EM2040\\convert1': {'frequency_identifier': [260000, 320000, 290000], ...}
+        # ex: {'EM2040\\convert1': {'frequency_identifier': [260000, 320000, 290000], ...}
         self.fqpr_attrs = {}
 
         # converted folder path per line name, see regenerate_fqpr_lines
-        # ex: {'0001_20170822_144548_S5401_X.all': 'C:\\collab\\dasktest\\data_dir\\EM2040\\convert1'}
+        # ex: {'0001_20170822_144548_S5401_X.all': 'EM2040\\convert1'}
         self.convert_path_lookup = {}
+
+        # project settings, like the chosen vertical reference
+        # ex: {'use_epsg': True, 'epsg': 26910, ...}
+        self.settings = {}
 
         self.buffered_fqpr_navigation = {}
         self.point_cloud_for_line = {}
         self.node_vals_for_surf = {}
+
+        self._project_observers = []
 
     def path_relative_to_project(self, pth: str):
         """
@@ -128,8 +138,8 @@ class FqprProject:
                 self.path = os.path.join(pth, 'kluster_project.json')
             else:
                 self.path = pth
-            if os.path.exists(self.path):  # an existing project
-                self.open_project(self.path, skip_dask=True)
+            # if os.path.exists(self.path):  # an existing project
+            #     self.open_project(self.path, skip_dask=True)
 
     def _load_project_file(self, projfile: str):
         """
@@ -155,6 +165,19 @@ class FqprProject:
         data['fqpr_paths'] = [self.absolute_path_from_relative(f) for f in data['fqpr_paths']]
         data['surface_paths'] = [self.absolute_path_from_relative(f) for f in data['surface_paths']]
         return data
+
+    def _bind_to_project_updated(self, callback: FunctionType):
+        """
+        Connect the provided callback function to the observers list.  callback is called when add_fqpr/remove_fqpr is
+        used.
+
+        Parameters
+        ----------
+        callback
+            function to be called when the add/remove is called
+        """
+
+        self._project_observers.append(callback)
 
     def get_dask_client(self):
         """
@@ -189,8 +212,8 @@ class FqprProject:
     def save_project(self):
         """
         Save the current FqprProject instance to file.  Use open_project to reload this instance.
-
         """
+
         if self.path is None:
             raise EnvironmentError('kluster_project save_project - no data found, you must add data before saving a project')
         with open(self.path, 'w') as pf:
@@ -198,6 +221,7 @@ class FqprProject:
             data['fqpr_paths'] = self.return_fqpr_paths()
             data['surface_paths'] = self.return_surface_paths()
             data['file_format'] = self.file_format
+            data.update(self.settings)
             json.dump(data, pf, sort_keys=True, indent=4)
         print('Project saved to {}'.format(self.path))
 
@@ -216,10 +240,52 @@ class FqprProject:
         data = self._load_project_file(projfile)
         self.path = projfile
         self.file_format = data['file_format']
+
         for pth in data['fqpr_paths']:
-            fqpr_entry = self.add_fqpr(pth, skip_dask=skip_dask)
+            if os.path.exists(pth):
+                self.add_fqpr(pth, skip_dask=skip_dask)
+            else:  # invalid path
+                print('Unable to find converted data: {}'.format(pth))
+
         for pth in data['surface_paths']:
-            self.add_surface(pth)
+            if os.path.exists(pth):
+                self.add_surface(pth)
+            else:  # invalid path
+                print('Unable to find surface: {}'.format(pth))
+
+        data.pop('fqpr_paths')
+        data.pop('surface_paths')
+        data.pop('file_format')
+        # rest of the data belongs in settings
+        self.settings = data
+
+    def close(self):
+        """
+        close project and clear all data.  have to close the fqpr instances with the fqpr close method.
+        """
+        for fq in self.fqpr_instances:
+            fq.close()
+
+        self.path = None
+        self.surface_instances = {}
+        self.surface_layers = {}
+        self.fqpr_instances = {}
+        self.fqpr_lines = {}
+        self.fqpr_attrs = {}
+        self.convert_path_lookup = {}
+        self.buffered_fqpr_navigation = {}
+        self.point_cloud_for_line = {}
+        self.node_vals_for_surf = {}
+
+    def set_settings(self, settings: dict):
+        self.settings = settings
+        if 'use_epsg' in settings:
+            for relpath, fqpr_instance in self.fqpr_instances.items():
+                if settings['use_epsg']:
+                    changed = fqpr_instance.construct_crs(str(settings['epsg']), settings['coord_system'], True, settings['vert_ref'])
+                else:
+                    changed = fqpr_instance.construct_crs(None, settings['coord_system'], True, settings['vert_ref'])
+        self.save_project()
 
     def add_fqpr(self, pth: Union[str, Fqpr], skip_dask: bool = False):
         """
@@ -236,6 +302,8 @@ class FqprProject:
         -------
         str
             project entry in the dictionary, will be the relative path to the kluster data store from the project file
+        bool
+            False if the fqpr was already in the project, True if added
         """
 
         if type(pth) == str:
@@ -247,12 +315,19 @@ class FqprProject:
             if self.path is None:
                 self._setup_new_project(os.path.dirname(pth))
             relpath = self.path_relative_to_project(pth)
+            if relpath in self.fqpr_instances:
+                already_in = True
+            else:
+                already_in = False
             self.fqpr_instances[relpath] = fq
             self.fqpr_attrs[relpath] = get_attributes_from_fqpr(fq, include_mode=False)
             self.regenerate_fqpr_lines(relpath)
+
+            for callback in self._project_observers:
+                callback(True)
             print('Successfully added {}'.format(pth))
-            return relpath
-        return None
+            return relpath, already_in
+        return None, False
 
     def remove_fqpr(self, pth: str, relative_path: bool = False):
         """
@@ -272,11 +347,14 @@ class FqprProject:
             relpath = self.path_relative_to_project(pth)
 
         if relpath in self.fqpr_instances:
+            self.fqpr_instances[relpath].close()
             self.fqpr_instances.pop(relpath)
             self.fqpr_attrs.pop(relpath)
             for linename in self.fqpr_lines[relpath]:
                 self.convert_path_lookup.pop(linename)
             self.fqpr_lines.pop(relpath)
+            for callback in self._project_observers:
+                callback(True)
 
     def add_surface(self, pth: Union[str, BaseSurface]):
         """
@@ -290,8 +368,11 @@ class FqprProject:
         """
 
         if type(pth) == str:
-            basesurf = reload_surface(pth)
-            pth = os.path.normpath(pth)
+            if os.path.splitext(pth)[1] == '.npz':
+                basesurf = reload_surface(pth)
+                pth = os.path.normpath(pth)
+            else:
+                basesurf = None
         else:  # fq is the new Fqpr instance, pth is the output path that is saved as an attribute
             basesurf = pth
             pth = os.path.normpath(basesurf.output_path)
@@ -302,15 +383,23 @@ class FqprProject:
             self.surface_instances[relpath] = basesurf
             print('Successfully added {}'.format(pth))
 
-    def remove_surface(self, pth: Union[str, BaseSurface]):
+    def remove_surface(self, pth: str, relative_path: bool = False):
         """
         Remove an attached BaseSurface instance from the project by path to Fqpr converted folder
 
         Parameters
         ----------
-        pth: str, path to the surface file
+        pth
+            path to the surface file
+        relative_path
+            if True, pth is a relative path (relative to self.path)
         """
-        relpath = self.path_relative_to_project(pth)
+
+        if relative_path:
+            relpath = pth
+        else:
+            relpath = self.path_relative_to_project(pth)
+
         if relpath in self.surface_instances:
             self.surface_instances.pop(relpath)
 
@@ -603,7 +692,7 @@ class FqprProject:
         else:
             return None
 
-    def get_fqpr_by_serial_number(self, primary_serial_number: int, secondary_serial_number: int):
+    def get_fqpr_by_serial_number(self, primary_serial_number: int, secondary_serial_number: int, same_day_as: datetime = None):
         """
         Find the fqpr instance that matches the provided serial number.  Should just be one instance in a project with
         the same serial number, if there are more, that is going to be a problem.
@@ -616,6 +705,8 @@ class FqprProject:
         secondary_serial_number
             secondary serial number for the system you want to find, this will be zero if not dual head, otherwise it
             is the serial number of the starboard head
+        same_day_as
+            optional, if provided wil only return an Fqpr instance if it is on the same day as the provided datetime object
 
         Returns
         -------
@@ -631,6 +722,10 @@ class FqprProject:
         for fqpr_path, fqpr_instance in self.fqpr_instances.items():
             if primary_serial_number in fqpr_instance.multibeam.raw_ping[0].system_serial_number:
                 if secondary_serial_number in fqpr_instance.multibeam.raw_ping[0].secondary_system_serial_number:
+                    if same_day_as:
+                        fq_day = datetime.fromtimestamp(fqpr_instance.multibeam.raw_ping[0].time.values[0], tz=timezone.utc)
+                        if fq_day.timetuple().tm_yday != same_day_as.timetuple().tm_yday:
+                            continue
                     out_path = fqpr_path
                     out_instance = fqpr_instance
                     matches += 1

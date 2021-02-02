@@ -181,7 +181,7 @@ class PlotDataHandler(QtWidgets.QWidget):
 
     def update_from_trim_time(self, e):
         """
-        User typed in a new time range
+        User typed in a new start time or end time
         """
         if self.fqpr is not None and self.trim_time_check.isChecked():
             try:
@@ -206,6 +206,9 @@ class PlotDataHandler(QtWidgets.QWidget):
             self._set_new_times(set_mintime, set_maxtime)
 
     def update_from_trim_datetime(self, e):
+        """
+        User entered a new start or end datetime
+        """
         if self.fqpr is not None and self.trim_time_check.isChecked():
             try:
                 set_datetime = self.trim_time_datetime_start.dateTime().toPython()
@@ -233,6 +236,16 @@ class PlotDataHandler(QtWidgets.QWidget):
             self._set_new_times(set_mintime, set_maxtime)
 
     def trim_time_toggled(self, state):
+        """
+        Triggered if the 'trim by time' checkbox is checked.  Automatically turns off the 'trim by line' checkbox
+        and populates the trim time controls
+
+        Parameters
+        ----------
+        state
+            if True, the 'trim by time' checkbox has been checked
+        """
+
         if state:
             self.trim_line_check.setChecked(False)
             starttme = self.slider_mintime
@@ -243,14 +256,32 @@ class PlotDataHandler(QtWidgets.QWidget):
             self.trim_time_datetime_end.setDateTime(QtCore.QDateTime.fromSecsSinceEpoch(int(endtme), QtCore.QTimeZone(0)))
 
     def trim_line_toggled(self, state):
+        """
+        Triggered if the 'trim by line' checkbox is checked.  Automatically turns off the 'trim by time' checkbox and
+        populates the trim by line controls
+
+        Parameters
+        ----------
+        state
+            if True, the 'trim by line' checkbox has been checked
+        """
+
         if state:
             self.trim_time_check.setChecked(False)
             self.update_from_line(None)
 
-    def _set_new_times(self, starttime, endtime):
+    def _set_new_times(self, starttime: int, endtime: int):
         """
         Set the slider range and the associated text controls
+
+        Parameters
+        ----------
+        starttime
+            start time of the selection in utc seconds
+        endtime
+            end time of the selection in utc seconds
         """
+
         set_minslider_position = int(starttime - self.fqpr_mintime)
         set_maxslider_position = int(endtime - self.fqpr_mintime)
 
@@ -263,6 +294,17 @@ class PlotDataHandler(QtWidgets.QWidget):
         self.ping_count_changed.emit(pingcount)
 
     def _set_display_range(self, mintime, maxtime):
+        """
+        Set the control that displays the selected time range
+
+        Parameters
+        ----------
+        mintime
+            start time of the selection in utc seconds
+        maxtime
+            end time of the selection in utc seconds
+        """
+
         if self.translate_time:
             self.display_range.setText(str('({}, {})'.format(datetime.fromtimestamp(mintime, tz=timezone.utc).strftime('%c'),
                                                              datetime.fromtimestamp(maxtime, tz=timezone.utc).strftime('%c'))))
@@ -270,6 +312,17 @@ class PlotDataHandler(QtWidgets.QWidget):
             self.display_range.setText(str('({}, {})'.format(mintime, maxtime)))
 
     def _set_display_minmax(self, mintime, maxtime):
+        """
+        Set the controls that display the start and end time of the range
+
+        Parameters
+        ----------
+        mintime
+            start time of the selection in utc seconds
+        maxtime
+            end time of the selection in utc seconds
+        """
+
         if self.translate_time:
             self.display_start_time.setText(datetime.fromtimestamp(mintime, tz=timezone.utc).strftime('%c'))
             self.display_end_time.setText(datetime.fromtimestamp(maxtime, tz=timezone.utc).strftime('%c'))
@@ -289,7 +342,16 @@ class PlotDataHandler(QtWidgets.QWidget):
                 self.warning_message.setText('')
                 self._set_new_times(linetimes[0], linetimes[1])
 
-    def update_translate_mode(self, mode):
+    def update_translate_mode(self, mode: str):
+        """
+        Driven by the mode dropdown control, goes between showing times in utc seconds and showing times as a datetime
+
+        Parameters
+        ----------
+        mode
+            dropdown selection
+        """
+
         if mode == 'utc seconds':
             self.trim_time_datetime_start_lbl.hide()
             self.trim_time_start_lbl.show()
@@ -320,7 +382,7 @@ class PlotDataHandler(QtWidgets.QWidget):
         User selected a new fqpr instance (fqpr = the converted datastore, see file_browse)
         """
         try:
-            self.fqpr = reload_data(fqpr_path, skip_dask=True)
+            self.fqpr = reload_data(fqpr_path, skip_dask=True, silent=True)
             self.fil_text.setText(fqpr_path)
 
             if self.fqpr is not None:

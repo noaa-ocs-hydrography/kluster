@@ -1,4 +1,4 @@
-import sys
+import sys, os
 
 from PySide2 import QtCore, QtGui, QtWidgets
 
@@ -50,7 +50,7 @@ class KlusterProjectTree(QtWidgets.QTreeView):
         self.right_click_menu_surfaces = None
         self.setup_menu()
 
-        self.categories = ['Converted', 'Surfaces']
+        self.categories = ['Project', 'Converted', 'Surfaces']
         self.tree_data = {}
 
         self.clicked.connect(self.item_selected)
@@ -182,7 +182,7 @@ class KlusterProjectTree(QtWidgets.QTreeView):
             self.model.appendRow(parent)
             self.setFirstColumnSpanned(cnt, self.rootIndex(), True)
 
-    def _add_new_fqpr_from_proj(self, parent, line_data):
+    def _add_new_fqpr_from_proj(self, parent: QtGui.QStandardItem, line_data):
         """
         Read from the kluster_main FqprProject (provided here is the line_data from that project) and add the lines
         that are not currently in project tree.  self.tree_data contains the record of the data in the tree.
@@ -205,6 +205,17 @@ class KlusterProjectTree(QtWidgets.QTreeView):
                     line_child = QtGui.QStandardItem(fq_line)
                     proj_child.appendRow([line_child])
                 self.tree_data['Converted'].append(fq_proj)
+            else:  # see if there are new lines to display
+                idx = self.tree_data['Converted'][1:].index(fq_proj)
+                proj_child = parent.child(idx)
+                tst = proj_child.rowCount()
+                tsttwo = len(line_data[fq_proj])
+                if proj_child.rowCount() != len(line_data[fq_proj]):  # new lines
+                    tree_lines = [proj_child.child(rw).text() for rw in range(proj_child.rowCount())]
+                    for fq_line in line_data[fq_proj]:
+                        if fq_line not in tree_lines:
+                            line_child = QtGui.QStandardItem(fq_line)
+                            proj_child.appendRow([line_child])
 
     def _add_new_surf_from_proj(self, parent, surf_data):
         """
@@ -283,6 +294,17 @@ class KlusterProjectTree(QtWidgets.QTreeView):
                 self.tree_data['Surfaces'].pop(idx + 1)
                 parent.removeRow(idx)
 
+    def _setup_project(self, parent, proj_directory):
+        if len(self.tree_data['Project']) == 1:
+            proj_child = QtGui.QStandardItem(proj_directory)
+            parent.appendRow(proj_child)
+            self.tree_data['Project'].append(proj_directory)
+        else:
+            parent.removeRow(0)
+            proj_child = QtGui.QStandardItem(proj_directory)
+            parent.appendRow(proj_child)
+            self.tree_data['Project'][1] = proj_directory
+
     def refresh_project(self, proj):
         """
         Loading from a FqprProject will update the tree, triggered on dragging in a converted data folder
@@ -302,6 +324,10 @@ class KlusterProjectTree(QtWidgets.QTreeView):
                 surf_data = proj.surface_instances
                 self._add_new_surf_from_proj(parent, surf_data)
                 self._remove_surf_not_in_proj(parent, surf_data)
+            elif c == 'Project':
+                if proj.path is not None:
+                    proj_directory = os.path.dirname(proj.path)
+                    self._setup_project(parent, proj_directory)
 
     def item_selected(self, index):
         """
@@ -389,7 +415,7 @@ class OutWindow(QtWidgets.QMainWindow):
 
     def update_ktree(self, fil):
         for f in fil:
-            fqpr_entry = self.project.add_fqpr(f, skip_dask=True)
+            fqpr_entry, already_in = self.project.add_fqpr(f, skip_dask=True)
             if fqpr_entry is None:
                 print('update_ktree: Unable to add to Project: {}'.format(f))
 

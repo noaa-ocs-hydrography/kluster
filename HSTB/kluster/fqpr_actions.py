@@ -1,28 +1,55 @@
 import os, sys
+import dask
+from HSTB.kluster import fqpr_convenience, fqpr_generation
 
 
 class FqprAction:
+    """
+    Action class holds the function you are going to run and the arguments, as well as some helpful attributes to describe
+    the action.  fqpr_intelligence builds the actions depending on the available files.  Functions within the action
+    should always be one of the convenience functions, just to keep everything straight.
+
+    fqpr = fully qualified ping record, the term for the datastore in kluster, see fqpr_generation
+
+    EX: fqpr_intelligence holds multibeam files that do not exist in the given fqpr instances in the project.  fqpr_intelligence
+    builds a new FqprAction that has function=fqpr_convenience.convert_multibeam, with the multibeam files as arguments.  The action is executed
+    by fqpr_intelligence.FqprIntel and the files are converted.
+    """
     def __init__(self, priority=None, action_type=None, text=None, tooltip_text=None, input_files=None, output_destination=None,
-                 function=None, arguments=None):
-        self.priority = priority
-        self.action_type = action_type
-        self.text = text
-        self.tooltip_text = tooltip_text
-        self.input_files = input_files
-        self.output_destination = output_destination
+                 function=None, args=None, kwargs=None):
+        self.priority = priority  # int, lower numbers executed first
+        self.action_type = action_type  # str, something like 'multibeam' or 'navigation'
+        self.text = text  # str, text description of the action
+        self.tooltip_text = tooltip_text  # str, summary of the action for the tooltip
+        self.input_files = input_files  # list, list of str paths to the input files, empty for actions like 'process multibeam' that has no files associated with it
+        self.output_destination = output_destination  # str, folder path to the fqpr instance that this action is attached to
 
-        self.function = function
-        self.arguments = arguments
+        self.function = function  # function to run
+        self.args = args  # function args
+        self.kwargs = kwargs  # function kwargs
 
-        self.output = None
-        self.is_running = False
+        self.output = None  # return of the function
+        self.is_running = False  # True if action is running
+
+    def __str__(self):
+        return '{}'.format(self.text)
+
+    def __repr__(self):
+        return 'FqprAction (Priority {}, {}): {}'.format(self.priority, self.action_type, self.text)
 
     def set(self, key, value):
         self.__setattr__(key, value)
 
     def execute(self):
+        """
+        Run the action.  See gui.kluster_worker.ActionWorker if you are running in gui, will use the worker to run
+        in a thread.  Otherwise executed directly by FqprIntel.execute_action (which uses the actioncontainer execute method)
+        """
         self.is_running = True
-        self.output = self.function(*self.arguments)
+        if self.kwargs:
+            self.output = self.function(*self.args, **self.kwargs)
+        else:
+            self.output = self.function(*self.args)
         self.is_running = False
 
     def print_summary(self):
@@ -30,10 +57,22 @@ class FqprAction:
 
 
 class FqprActionContainer:
+    """
+    ActionContainer attached to the fqpr_intelligence.FqprIntel object.  Holds the FqprActions and manages the adding/
+    removing/updating/executing of actions.
+
+    fqpr = fully qualified ping record, the term for the datastore in kluster, see fqpr_generation
+    """
+
     def __init__(self, parent=None):
-        self.parent = parent
-        self.actions = []
-        self._observers = []
+        self.parent = parent  # fqpr_intelligence.FqprIntel
+        self.actions = []  # list of FqprActions
+        self.unmatched = {}  # dict of unmatched files: reason unmatched
+        self._observers = []  # list of functions bound to the class that are executed when actions list changes
+
+    def __repr__(self):
+        unique_types = list(set([x.action_type for x in self.actions]))
+        return 'FqprActionContainer: {} actions of types: {}'.format(len(self.actions), unique_types)
 
     def _update_actions(self):
         """
@@ -41,7 +80,15 @@ class FqprActionContainer:
         """
         self.actions = sorted(self.actions, key=lambda i: i.priority)
         for callback in self._observers:
-            callback(self.actions)
+            callback(self.actions, None)
+
+    def update_unmatched(self, new_unmatched: dict):
+        """
+        Update the unmatched files dict, used to provide a tooltip in the action gui
+        """
+        self.unmatched = new_unmatched
+        for callback in self._observers:
+            callback(None, self.unmatched)
 
     def add_action(self, action: FqprAction):
         """
@@ -67,7 +114,26 @@ class FqprActionContainer:
         self.actions.remove(action)
         self._update_actions()
 
+    def clear(self):
+        """
+        Clear all actions and trigger any observers using the _update_actions method
+        """
+        self.actions = []
+        self._update_actions()
+        self.update_unmatched({})
+
     def update_action(self, action: FqprAction, **kwargs):
+        """
+        Update an existing action with new arguments.  Example would be if you have a conversion action and the
+        quantity of multibeam files changes.  Action would be updated with the new list of files to convert.
+
+        Parameters
+        ----------
+        action
+            FqprAction to update
+        kwargs
+            dict of keyword arguments to update
+        """
         if action in self.actions:
             action = self.actions[self.actions.index(action)]
             for key, value in kwargs.items():
@@ -78,6 +144,21 @@ class FqprActionContainer:
                         print('Unable to set action {} to {}'.format(key, value))
             self._update_actions()
 
+    def update_action_from_list(self, action_type, action_destination_list):
+        existing_actions = self.return_actions_by_type(action_type)
+
+        removed_actions = []
+        for action in existing_actions:
+            if action.output_destination not in action_destination_list:
+                removed_actions.append(action)
+        for removed_action in removed_actions:
+            self.remove_action(removed_action)
+
+        existing_actions = self.return_actions_by_type(action_type)
+        existing_action_destinations = [a.output_destination for a in existing_actions]
+
+        return existing_actions, existing_action_destinations
+
     def clear_actions_by_type(self, action_type: str):
         """
         Remove all actions from the actions buffer that are of the provided type
@@ -85,7 +166,7 @@ class FqprActionContainer:
         Parameters
         ----------
         action_type
-            one of 'multibeam', 'svp', 'navigation'
+            one of 'multibeam', 'svp', 'navigation', 'processing'
         """
 
         if self.actions:
@@ -99,7 +180,7 @@ class FqprActionContainer:
         Parameters
         ----------
         action_type
-            one of 'multibeam', 'svp', 'navigation'
+            one of 'multibeam', 'svp', 'navigation', 'processing'
 
         Returns
         -------
@@ -112,3 +193,293 @@ class FqprActionContainer:
             actions = [a for a in self.actions if a.action_type == action_type]
         return actions
 
+    def get_next_action(self):
+        """
+        Actions are sorted on update, so the first action in the list is always the highest priority one
+
+        Returns
+        -------
+        FqprAction
+            highest priority action
+        """
+        if self.actions:
+            return self.actions[0]
+
+    def execute_action(self, idx: int = 0):
+        """
+        Run the action selected from the action list using the provided index.  Removes the action after execution.
+        Return is generally the affected fqpr_instance.
+
+        Parameters
+        ----------
+        idx
+            index of the action in the actions list
+
+        Returns
+        -------
+
+        """
+        action = self.actions[idx]
+        if action:
+            action.execute()
+            output = action.output
+            self.remove_action(action)
+            return output
+        else:
+            print('FqprActionContainer: no actions found.')
+
+
+def build_multibeam_action(destination: str, line_list: list, client: dask.distributed.Client = None):
+    """
+    Construct a convert multibeam action using the provided data
+
+    Parameters
+    ----------
+    destination
+        path to the output folder that the converted data will be saved to
+    line_list
+        list of multibeam file paths
+    client
+        optional, dask distributed client if using dask
+
+    Returns
+    -------
+    FqprAction
+        newly generated multibeam conversion action
+    """
+
+    args = [line_list, destination, client, False, True]
+    action = FqprAction(priority=1, action_type='multibeam', output_destination=destination, input_files=line_list,
+                        text='Convert {} multibeam lines to {}'.format(len(line_list), destination),
+                        tooltip_text='\n'.join(line_list), function=fqpr_convenience.convert_multibeam, args=args)
+    return action
+
+
+def update_kwargs_for_multibeam(destination: str, line_list: list, client: dask.distributed.Client = None):
+    """
+    Build a dictionary of updated settings for an existing multibeam action, use this with FqprActionContainer to
+    update the action.
+
+    Parameters
+    ----------
+    destination
+        path to the output folder that the converted data will be saved to
+    line_list
+        list of multibeam file paths
+    client
+        optional, dask distributed client if using dask
+
+    Returns
+    -------
+    dict
+        updated args and kwargs for the multibeam action
+    """
+
+    args = [line_list, destination, client, False, True]
+    update_settings = {'input_files': line_list, 'text': 'Convert {} multibeam lines to {}'.format(len(line_list), destination),
+                       'tooltip_text': '\n'.join(line_list), 'args': args}
+    return update_settings
+
+
+def build_nav_action(destination: str, fqpr_instance: fqpr_generation.Fqpr, navfiles: list, error_files: list, log_files: list):
+    """
+    Generate a new import navigation (from POSPac SBET) action
+
+    Parameters
+    ----------
+    destination
+        file path to the converted Fqpr instance
+    fqpr_instance
+        Fqpr object that we are importing the nav into
+    navfiles
+        list of post processed navigation files (.sbet)
+    error_files
+        list of post processed navigation error files (.smrmsg)
+    log_files
+        list of post processed navigation export files (.log)
+
+    Returns
+    -------
+    FqprAction
+        newly generated multibeam conversion action
+    """
+
+    args = [fqpr_instance, navfiles]
+    kwargs = {'errorfiles': error_files, 'logfiles': log_files}
+    action = FqprAction(priority=2, action_type='navigation', output_destination=destination,
+                        input_files=navfiles + error_files + log_files, text='Import navigation to {}'.format(destination),
+                        tooltip_text='\n'.join(navfiles), function=fqpr_convenience.import_navigation,
+                        args=args, kwargs=kwargs)
+    return action
+
+
+def update_kwargs_for_navigation(destination: str, fqpr_instance: fqpr_generation.Fqpr, navfiles: list, error_files: list,
+                                 log_files: list):
+    """
+    Build a dictionary of updated settings for an existing import navigation action, use this with FqprActionContainer to
+    update the action.
+
+    Parameters
+    ----------
+    destination
+        file path to the converted Fqpr instance
+    fqpr_instance
+        Fqpr object that we are importing the nav into
+    navfiles
+        list of post processed navigation files (.sbet)
+    error_files
+        list of post processed navigation error files (.smrmsg)
+    log_files
+        list of post processed navigation export files (.log)
+
+    Returns
+    -------
+    dict
+        updated args and kwargs for the navigation action
+    """
+
+    args = [fqpr_instance, navfiles]
+    kwargs = {'errorfiles': error_files, 'logfiles': log_files}
+    update_settings = {'input_files': navfiles + error_files + log_files, 'text': 'Import navigation to {}'.format(destination),
+                       'tooltip_text': '\n'.join(navfiles), 'args': args, 'kwargs': kwargs}
+    return update_settings
+
+
+def build_svp_action(destination: str, fqpr_instance: fqpr_generation.Fqpr, svfiles: list):
+    """
+    Generate a new sound velocity import action, supports caris svp files
+
+    Parameters
+    ----------
+    destination
+        file path to the converted Fqpr instance
+    fqpr_instance
+        Fqpr object that we are importing the nav into
+    svfiles
+        list of sound velocity profile files (.svp)
+
+    Returns
+    -------
+    FqprAction
+        newly generated multibeam conversion action
+    """
+
+    args = [fqpr_instance, svfiles]
+    action = FqprAction(priority=3, action_type='svp', output_destination=destination,
+                        input_files=svfiles, text='Import sound velocity to {}'.format(destination),
+                        tooltip_text='\n'.join(svfiles), function=fqpr_convenience.import_sound_velocity,
+                        args=args)
+    return action
+
+
+def update_kwargs_for_svp(destination: str, fqpr_instance: fqpr_generation.Fqpr, svfiles: list):
+    """
+    Build a dictionary of updated settings for an existing import sound velocity action, use this with FqprActionContainer to
+    update the action.
+
+    Parameters
+    ----------
+    destination
+        file path to the converted Fqpr instance
+    fqpr_instance
+        Fqpr object that we are importing the nav into
+    svfiles
+        list of sound velocity profile files (.svp)
+
+    Returns
+    -------
+    dict
+        updated args for the svp action
+    """
+
+    args = [fqpr_instance, svfiles]
+    update_settings = {'input_files': svfiles, 'text': 'Import sound velocity to {}'.format(destination),
+                       'tooltip_text': '\n'.join(svfiles), 'args': args}
+    return update_settings
+
+
+def build_processing_action(destination: str, args: list, kwargs: dict, settings: dict = None):
+    """
+    Generate a new processing action, using the return from fqpr_generation.Fqpr.return_next_action.  This method will
+    provide the correct sequence of processing steps that this Fqpr instance needs.
+
+    Parameters
+    ----------
+    destination
+        file path to the converted Fqpr instance
+    args
+        args for the convert_multibeam function
+    kwargs
+        keyword args for the convert_multibeam function
+    settings
+        optional settings dictionary used to override kwargs (default processing options)
+
+    Returns
+    -------
+    FqprAction
+        newly generated multibeam conversion action
+    """
+
+    # update the default processing kwargs for settings
+    if settings:
+        for ky, val in settings.items():
+            kwargs[ky] = val
+
+    if kwargs['run_orientation'] and kwargs['run_beam_vec'] and kwargs['run_svcorr'] and kwargs['run_georef']:
+        text = 'Run all processing on {}'.format(os.path.split(destination)[1])
+    elif kwargs['run_beam_vec'] and kwargs['run_svcorr'] and kwargs['run_georef']:
+        text = 'Process {} starting with beam correction'.format(os.path.split(destination)[1])
+    elif kwargs['run_svcorr'] and kwargs['run_georef']:
+        text = 'Process {} starting with sound velocity'.format(os.path.split(destination)[1])
+    elif kwargs['run_georef']:
+        text = 'Process {} starting with georeferencing'.format(os.path.split(destination)[1])
+    else:
+        text = 'Process {} with custom setup'.format(os.path.split(destination)[1])
+
+    action = FqprAction(priority=5, action_type='processing', output_destination=destination,
+                        input_files=[], text=text,
+                        tooltip_text='{}'.format(destination), function=fqpr_convenience.process_multibeam,
+                        args=args, kwargs=kwargs)
+    return action
+
+
+def update_kwargs_for_processing(destination: str, args: list, kwargs: dict, settings: dict = None):
+    """
+    Build a dictionary of updated settings for an existing processing action, use this with FqprActionContainer to
+    update the action.
+
+    Parameters
+    ----------
+    destination
+        file path to the converted Fqpr instance
+    args
+        args for the convert_multibeam function
+    kwargs
+        keyword args for the convert_multibeam function
+    settings
+        optional settings dictionary used to override kwargs (default processing options)
+
+    Returns
+    -------
+    dict
+        updated args for the svp action
+    """
+
+    # update the default processing kwargs for settings
+    if settings:
+        for ky, val in settings.items():
+            kwargs[ky] = val
+
+    if kwargs['run_orientation'] and kwargs['run_beam_vec'] and kwargs['run_svcorr'] and kwargs['run_georef']:
+        text = 'Run all processing on {}'.format(os.path.split(destination)[1])
+    elif kwargs['run_beam_vec'] and kwargs['run_svcorr'] and kwargs['run_georef']:
+        text = 'Process {} starting with beam correction'.format(os.path.split(destination)[1])
+    elif kwargs['run_svcorr'] and kwargs['run_georef']:
+        text = 'Process {} starting with sound velocity'.format(os.path.split(destination)[1])
+    elif kwargs['run_georef']:
+        text = 'Process {} starting with georeferencing'.format(os.path.split(destination)[1])
+    else:
+        text = 'Process {} with custom setup'.format(os.path.split(destination)[1])
+
+    update_settings = {'text': text, 'args': args, 'kwargs': kwargs}
+    return update_settings

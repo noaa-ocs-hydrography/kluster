@@ -9,6 +9,10 @@ from HSTB.kluster.gui import kluster_output_window, kluster_projectview
 from HSTB.kluster import fqpr_project, fqpr_intelligence, monitor
 
 
+# DEPRECATED AS WE HAVE INTEGRATED KLUSTER INTELLIGENCE/ACTIONS INTO KLUSTER_MAIN/KLUSTER_ACTIONS
+
+# STILL SERVES AS A USEFUL WAY TO VISUALIZE THE DATA IN EACH INTEL MODULE
+
 class ActionTab(QtWidgets.QWidget):
     """
     Action tab displays all of the actions we have queued up from the intelligence module, shows the text/tooltip
@@ -650,7 +654,7 @@ class KlusterIntelligence(QtWidgets.QMainWindow):
 
         self.widget_obj_names = []
 
-        self.project = None
+        self.project = fqpr_project.FqprProject(is_gui=False)  # is_gui controls the progress bar text, used to disable it for gui, no longer
 
         # fqpr = fully qualified ping record, the term for the datastore in kluster
         self.intelligence = fqpr_intelligence.FqprIntel(project=self.project)
@@ -674,7 +678,7 @@ class KlusterIntelligence(QtWidgets.QMainWindow):
         self.setup_signals()
 
         self.seen_files = []
-        self.intelligence.bind_to(self.action_tab.update_actions)
+        self.intelligence.bind_to_action_update(self.action_tab.update_actions)
 
     def sizeHint(self):
         return QtCore.QSize(1200, 600)
@@ -699,7 +703,7 @@ class KlusterIntelligence(QtWidgets.QMainWindow):
         """
         self.project = project
         self.intelligence = fqpr_intelligence.FqprIntel(project=self.project)
-        self.intelligence.bind_to(self.action_tab.update_actions)
+        self.intelligence.bind_to_action_update(self.action_tab.update_actions)
 
     def setup_widgets(self):
         """

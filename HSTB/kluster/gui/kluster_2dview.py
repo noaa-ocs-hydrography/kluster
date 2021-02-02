@@ -45,7 +45,7 @@ class Kluster2dview(FigureCanvasQTAgg):
         self.navi_toolbar = NavigationToolbar2QT(self.fig.canvas, self)
         self.rs = RectangleSelector(self.axes, self.line_select_callback, drawtype='box', useblit=False,
                                     button=[1], minspanx=5, minspany=5, spancoords='pixels', interactive=True)
-        self.set_extent(40, -40, 30, -30)
+        self.set_extent(90, -90, 100, -100)
 
     def set_extent(self, max_lat, min_lat, max_lon, min_lon, buffer=True):
         self.data_extents['min_lat'] = np.min([min_lat, self.data_extents['min_lat']])
@@ -56,26 +56,29 @@ class Kluster2dview(FigureCanvasQTAgg):
         if self.data_extents['min_lat'] != 999 and self.data_extents['max_lat'] != -999 and self.data_extents[
                              'min_lon'] != 999 and self.data_extents['max_lon'] != -999:
             if buffer:
-                lat_buffer = np.max([(max_lat - min_lat) * 1.5, 1])
-                lon_buffer = np.max([(max_lon - min_lon) * 1.5, 1])
+                lat_buffer = np.max([(max_lat - min_lat) * 0.5, 0.5])
+                lon_buffer = np.max([(max_lon - min_lon) * 0.5, 0.5])
             else:
                 lat_buffer = 0
                 lon_buffer = 0
-            self.axes.set_extent([np.clip(min_lon - lon_buffer, -180, 180), np.clip(max_lon + lon_buffer, -180, 180),
+            self.axes.set_extent([np.clip(min_lon - lon_buffer, -179.999999999, 179.999999999), np.clip(max_lon + lon_buffer, -179.999999999, 179.999999999),
                                   np.clip(min_lat - lat_buffer, -90, 90), np.clip(max_lat + lat_buffer, -90, 90)],
                                  crs=ccrs.Geodetic())
 
     def add_line(self, line_name, lats, lons):
+        if line_name in self.line_objects:
+            return
         lne = self.axes.plot(lons, lats, color='blue', linewidth=2, transform=ccrs.Geodetic())
         self.line_objects[line_name] = [lats, lons, lne[0]]
         self.refresh_screen()
 
-    def remove_line(self, line_name):
+    def remove_line(self, line_name, refresh=True):
         if line_name in self.line_objects:
             lne = self.line_objects[line_name][2]
             lne.remove()
             self.line_objects.pop(line_name)
-        self.refresh_screen()
+        if refresh:
+            self.refresh_screen()
 
     def add_surface(self, surfname, lyrname, surfx, surfy, surfz, surf_crs):
         try:
@@ -204,7 +207,7 @@ class Kluster2dview(FigureCanvasQTAgg):
             lons.append(self.line_objects[ln][1])
 
         if not lats or not lons:
-            self.set_extent(40, -40, 30, -30)
+            self.set_extent(90, -90, 100, -100)
         else:
             lats = np.concatenate(lats)
             lons = np.concatenate(lons)
@@ -221,7 +224,7 @@ class Kluster2dview(FigureCanvasQTAgg):
                 lons.append(self.surface_objects[surf][lyrs][1])
 
         if not lats or not lons:
-            self.set_extent(40, -40, 30, -30)
+            self.set_extent(90, -90, 100, -100)
         else:
             lats = np.concatenate(lats)
             lons = np.concatenate(lons)

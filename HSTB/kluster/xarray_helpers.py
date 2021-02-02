@@ -603,7 +603,8 @@ def _distrib_zarr_write_convenience(zarr_path: str, xarr: xr.Dataset, attrs: dic
 
 def distrib_zarr_write(zarr_path: str, xarrays: list, attributes: dict, chunk_sizes: dict, data_locs: list,
                        finalsize: int, sync: DaskProcessSynchronizer, client: Client, append_dim: str = 'time',
-                       merge: bool = False, skip_dask: bool = False, show_progress: bool = True):
+                       merge: bool = False, write_in_parallel: bool = False, skip_dask: bool = False,
+                       show_progress: bool = True):
     """
     A function for using the ZarrWrite class to write data to disk.  xarr and attrs are written to the datastore at
     zarr_path.  We use the function (and not the class directly) in Dask when we map it across all the workers.  Dask
@@ -635,6 +636,11 @@ def distrib_zarr_write(zarr_path: str, xarrays: list, attributes: dict, chunk_si
     merge
         if True, you are passing a Dataset containing a new variable that is not in an existing dataset.  Ex: xarr
         contains variable 'corr_pointing_angle' and that variable is not in the rootgroup
+    write_in_parallel
+        if True and skip_dask is False, will use the first write to set up the zarr datastore, and all subsequent
+        writes will be done in parallel.  We have this as optional, because on government machines (I suspect due to
+        the antivirus scans) this can occassionally fail, where parallel writes generate permission denied errors.
+        For now we leave this default off.
     skip_dask
         if True, skip the dask process synchronizer as you are not running dask distributed
     show_progress
@@ -646,7 +652,7 @@ def distrib_zarr_write(zarr_path: str, xarrays: list, attributes: dict, chunk_si
         futures objects containing the path to the zarr rootgroup.
     """
 
-    if skip_dask:
+    if skip_dask:  # run the zarr write process without submitting to a dask client
         for cnt, arr in enumerate(xarrays):
             if cnt == 0:
                 futs = [_distrib_zarr_write_convenience(zarr_path, arr, attributes, chunk_sizes, data_locs[cnt],
@@ -664,9 +670,12 @@ def distrib_zarr_write(zarr_path: str, xarrays: list, attributes: dict, chunk_si
             for i in range(len(xarrays) - 1):
                 futs.append(client.submit(_distrib_zarr_write_convenience, zarr_path, xarrays[i + 1], None, chunk_sizes,
                                           data_locs[i + 1], append_dim=append_dim, merge=merge, sync=sync))
-            if show_progress:
-                progress(futs, multi=False)
-            wait(futs)
+                if not write_in_parallel:  # wait on each future, write one data chunk at a time
+                    wait(futs)
+            if write_in_parallel:  # don't wait on the futures until you append all of them
+                if show_progress:
+                    progress(futs, multi=False)
+                wait(futs)
     return futs
 
 
@@ -863,7 +872,7 @@ def _my_xarr_to_zarr_writeattributes(rootgroup: zarr.hierarchy.Group, attrs: dic
                                 rootgroup.attrs[att].append(attrs[att])
                     except:
                         print('Unable to append to {} with value {}'.format(att, attrs[att]))
-                elif isinstance(attrs[att], dict):
+                elif isinstance(attrs[att], dict) and att != 'status_lookup':
                     # have to load update and save to update dict attributes for some reason
                     try:
                         dat = rootgroup.attrs[att]
@@ -896,7 +905,7 @@ def resize_zarr(zarrpth: str, finaltimelength: int = None):
     if finaltimelength is None:
         finaltimelength = np.count_nonzero(~np.isnan(rootgroup['time']))
     for var in rootgroup.arrays():
-        if var[0] not in ['beam', 'sector']:
+        if var[0] not in ['beam', 'sector', 'xyz']:
             varname = var[0]
             dims = rootgroup[varname].attrs['_ARRAY_DIMENSIONS']
             time_index = dims.index('time')
@@ -1323,7 +1332,7 @@ def get_write_indices_zarr(output_pth: str, input_time_arrays: list, index_dim='
                     is_continuous = np.diff(zarr_is_in_input)
                     is_continuous_chk = np.all(is_continuous == is_continuous[0])
                     if not is_continuous_chk:
-                        raise ValueError('get_write_indices_zarr: appear to be gaps in the input data, this is currently not supported')
+                        raise ValueError('get_write_indices_zarr: Found data not in time order, multibeam files must be converted in time order')
                     write_indices.append([zarr_is_in_input[0], zarr_is_in_input[-1] + 1])
             else:  # zarr datastore exists, but this data is not in it.  Append to the existing datastore
                 write_indices.append([len(zarr_time) + running_total, len(zarr_time) + len(input_time) + running_total])

@@ -83,25 +83,29 @@ Here we will show how to process through a GUI or through a console.
 
 1. ##### Kluster through the GUI
 
-Start the main GUI by running kluster_main, which will be in the gui directory within the kluster site-package:
+Start the main GUI by running the kluster gui module:
 
-`C:\\>python ..\Lib\site-packages\HSTB\kluster\gui\kluster_main.py`
+`C:\>python -m HSTB.kluster.gui`
 
 Once the Kluster window appears, simply:
 
-- Drag a multibeam file (Kongsberg .all/.kmall) into the Project Tree window.  You can also drag in multiple files, but maybe stick with just one for this test.
-- Create a new empty folder and point to it as the 'output directory for the converted data' and hit OK.  Monitor the results in the Output tab at the bottom.  View the data in the 2d view.  Select a line in the Explorer tab at the bottom and view the Attribute tab for some details on the dataset.
-- Once conversion is complete, run 'Process' - 'All Processing' and leave the default options (unless you want to change the coordinate system).  This will run through all the steps and generate georeferenced soundings.  This assumes there is a sound velocity profile in the kongsberg files.
-- Select a line in the 'Explorer' window and click the 'Attribute' tab to view the xarray attribution for the ping records
-- Select the '3d view' tab and click a line in the 'Project Tree' to view the soundings in 3d
-- Select the 'Attitude' tab and click a line in the 'Project Tree' to view the realtime attitude of the line
-- Select the 'Console' tab at the bottom and right click the converted data path under 'Converted' in the 'Project Tree' and click 'Load in console' to get access to the xarray Datasets in the console.  Try 'first_sector.soundspeed.plot()' to plot the surface sound speed used for the first sector!
+- Go to 'Setup - Set Project Settings' and make sure the default settings look good for your system.
+- Create a new project ('File' - 'New Project') and point to a new empty folder, if you want to put all your processed data somewhere.  Otherwise, processed data will be created next to the raw multibeam files. 
+- Drag a multibeam file (Kongsberg .all/.kmall) into the 'Project Tree' window.  You can also drag in multiple files, but maybe stick with just one for this test.
+- You will see a new action in the 'Actions' tab.  Hit process to convert the multibeam data.
+- Drag in SBET/SMRMSG/POSPac Export Log files or Caris SVP files, and note the new actions that pop up.
+- Use the 'Actions' tab - 'Unmatched Files' to get information on why some files might not be matched with converted data (mouse over to view the ToolTip).
+- Select a Converted data instance in 'Project Tree' and look at the 'Attributes tab' to get all the processed data attribution. 
+- Select the '3d view' tab and click a line in the 'Project Tree' to view the soundings in 3d.
+- Select the 'Attitude' tab and click a line in the 'Project Tree' to view the realtime attitude of the line.
+- Select the 'Console' tab at the bottom and right click the converted data path under 'Converted' in the 'Project Tree' and click 'Load in console' to get access to the xarray Datasets in the console.  Try 'first_system.soundspeed.plot()' to plot the surface sound speed used for the sonar!
 - Select a converted container in Project Tree and use 'File' - 'Export Soundings' to generate csv files for the processed soundings (x, y, z, uncertainty)
 - Select a converted container in Project Tree and use 'Process' - 'New Surface' to generate a single resolution surface using the processed sounding set.  Visualize the surface by checking one of the layers in the 'Project Tree' under 'Surfaces'.  Use the magnifying glass in 2d view if you need to zoom in to see the surface.  Surfaces are saved in the numpy compressed file format, and can be easily read using numpy.
 - Select a converted container in Project Tree and use 'Visualize' - 'Basic Plots' to plot all the converted and Kluster made datasets.
 
 You can also reload the generated multibeam data and surface by:
 
+- Going to 'File' - 'Open Project' and opening the kluster json file that is generated when you process data.
 - dragging in the output directory (see the second bullet above) to the Project Tree to load the multibeam records
 - dragging in the surface .npz file to the Project Tree to load the surface
 

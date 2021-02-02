@@ -59,13 +59,13 @@ def dask_find_or_start_client(address: str = None, silent: bool = False):
         if address is None:
             # client = Client(processes=False)
             # client = Client(threads_per_worker=1)
+            if not silent:
+                print('Starting local cluster client...')
             client = Client()
-            if not silent:
-                print('Started local cluster client...')
         else:
-            client = Client(address=address)
             if not silent:
-                print('Started client on address {}...'.format(address))
+                print('Starting client on address {}...'.format(address))
+            client = Client(address=address)
     if client is not None:
         print(client)
     return client

@@ -3,6 +3,8 @@ import matplotlib.pyplot as plt
 from shapely.geometry import LineString
 from shapely.affinity import rotate
 
+# Experimenting with drawing out the beams in relation to the vessel, not currently used in Kluster
+
 
 # - X = + Forward, Y = + Starboard, Z = + Down
 # - roll = + Port Up, pitch = + Bow Up, gyro = + Clockwise

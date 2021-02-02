@@ -1265,7 +1265,6 @@ class BatchRead:
         mintims = self.client.gather(self.client.map(_return_xarray_mintime, input_xarrs))
         sort_mintims = sorted(mintims)
         if mintims != sort_mintims:
-            self.logger.info('Resorting futures to time index: {}'.format(sort_mintims))
             idx = [mintims.index(t) for t in sort_mintims]
             input_xarrs = [input_xarrs[i] for i in idx]
         return input_xarrs
@@ -1417,6 +1416,7 @@ class BatchRead:
         fil_start_end_times = self._gather_file_level_metadata(self.fils)
         combattrs['multibeam_files'] = fil_start_end_times  # override with start/end time dict
         combattrs['output_path'] = self.converted_pth
+        combattrs['current_processing_status'] = 0
         combattrs['_conversion_complete'] = datetime.utcnow().strftime('%c')
         combattrs['status_lookup'] = {0: 'converted', 1: 'orientation', 2: 'beamvector', 3: 'soundvelocity',
                                       4: 'georeference', 5: 'tpu'}

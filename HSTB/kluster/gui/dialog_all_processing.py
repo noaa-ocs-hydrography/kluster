@@ -3,6 +3,9 @@ from PySide2 import QtWidgets
 from HSTB.kluster.gui.common_widgets import BrowseListWidget
 
 
+# DEPRECATED AS WE HAVE MOVED TO FQPRINTELLIGENCE/FQPRACTIONS TO CONTROL CONVERSION
+
+
 class AllProcessingDialog(QtWidgets.QDialog):
     """
     Dialog contains all the processing steps post-conversion.  Use return_processing_options to get the kwargs to feed

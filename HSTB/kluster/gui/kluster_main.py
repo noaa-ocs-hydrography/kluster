@@ -5,10 +5,10 @@ import webbrowser
 from PySide2 import QtGui, QtCore, QtWidgets
 
 from HSTB.kluster.gui import dialog_vesselview, kluster_explorer, kluster_project_tree, kluster_3dview, kluster_attitudeview, \
-    kluster_output_window, kluster_2dview, dialog_conversion, dialog_all_processing, dialog_daskclient, dialog_surface, \
-    dialog_export, kluster_worker, kluster_interactive_console, dialog_importnav, dialog_basicplot, dialog_advancedplot
+    kluster_output_window, kluster_2dview, kluster_actions, kluster_monitor, dialog_daskclient, dialog_surface, \
+    dialog_export, kluster_worker, kluster_interactive_console, dialog_basicplot, dialog_advancedplot, dialog_project_settings
 from HSTB.kluster.fqpr_project import FqprProject
-from HSTB.kluster.fqpr_helpers import return_files_from_path
+from HSTB.kluster.fqpr_intelligence import FqprIntel
 from HSTB.kluster import __version__ as kluster_version
 from HSTB.shared import RegistryHelpers
 
@@ -29,10 +29,10 @@ class KlusterMain(QtWidgets.QMainWindow):
         """
         super().__init__()
 
-        self.start_horiz_size = 800
-        self.start_vert_size = 600
+        self.start_horiz_size = 1360
+        self.start_vert_size = 768
 
-        # self.resize(self.start_horiz_size, self.start_vert_size)
+        self.resize(self.start_horiz_size, self.start_vert_size)
 
         self.setWindowTitle('Kluster {}'.format(kluster_version))
         self.setDockNestingEnabled(True)
@@ -40,7 +40,8 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.widget_obj_names = []
 
         # fqpr = fully qualified ping record, the term for the datastore in kluster
-        self.project = FqprProject(is_gui=False)
+        self.project = FqprProject(is_gui=False)  # is_gui controls the progress bar text, used to disable it for gui, no longer
+        self.intel = FqprIntel(self.project, self)
 
         self.project_tree = kluster_project_tree.KlusterProjectTree(self)
         self.tree_dock = self.dock_this_widget('Project Tree', 'project_dock', self.project_tree)
@@ -63,6 +64,12 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.attitude = kluster_attitudeview.KlusterAttitudeView(self)
         self.attitude_dock = self.dock_this_widget('Attitude', 'attitude_dock', self.attitude)
 
+        self.actions = kluster_actions.KlusterActions(self)
+        self.actions_dock = self.dock_this_widget('Actions', 'actions_dock', self.actions)
+
+        self.monitor = kluster_monitor.KlusterMonitor(self)
+        self.monitor_dock = self.dock_this_widget('Monitor', 'monitor_dock', self.monitor)
+
         self.console = kluster_interactive_console.KlusterConsole(self)
         self.console_dock = self.dock_this_widget('Console', 'console_dock', self.console)
 
@@ -73,13 +80,13 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.iconpath = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'images', 'kluster_img.ico')
         self.setWindowIcon(QtGui.QIcon(self.iconpath))
 
-        self.convert_thread = kluster_worker.ConversionWorker()
-        self.allprocessing_thread = kluster_worker.AllProcessingWorker()
-        self.importnav_thread = kluster_worker.ImportNavigationWorker()
+        self.action_thread = kluster_worker.ActionWorker()
         self.surface_thread = kluster_worker.SurfaceWorker()
         self.export_thread = kluster_worker.ExportWorker()
-        self.allthreads = [self.convert_thread, self.allprocessing_thread, self.importnav_thread, self.surface_thread,
-                           self.export_thread]
+        self.allthreads = [self.action_thread, self.surface_thread, self.export_thread]
+
+        # connect FqprActionContainer with actions pane, called whenever actions changes
+        self.intel.bind_to_action_update(self.actions.update_actions)
 
         self.project_tree.file_added.connect(self.update_on_file_added)
         self.project_tree.line_selected.connect(self.tree_line_selected)
@@ -91,18 +98,41 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.project_tree.close_surface.connect(self.close_surface)
         self.project_tree.load_console_fqpr.connect(self.load_console_fqpr)
         self.project_tree.load_console_surface.connect(self.load_console_surface)
-        self.explorer.row_selected.connect(self.attribute.display_file_attribution)
+        self.actions.execute_action.connect(self.intel.execute_action)
+        self.actions.exclude_queued_file.connect(self._action_remove_file)
+        self.actions.exclude_unmatched_file.connect(self._action_remove_file)
+        self.actions.undo_exclude_file.connect(self._action_add_files)
         self.two_d.box_select.connect(self.select_line_by_box)
-        self.convert_thread.finished.connect(self._kluster_convert_multibeam_results)
-        self.allprocessing_thread.finished.connect(self._kluster_all_processing_results)
-        self.importnav_thread.finished.connect(self._kluster_import_nav_results)
+        self.action_thread.finished.connect(self._kluster_execute_action_results)
         self.surface_thread.finished.connect(self._kluster_surface_genertaion_results)
+        self.monitor.monitor_file_event.connect(self.intel._handle_monitor_event)
+        self.monitor.monitor_start.connect(self._create_new_project_if_not_exist)
 
         self.setup_menu()
         self.setup_widgets()
         self.read_settings()
 
-        self.show()
+        # settings, like the chosen vertical reference
+        # ex: {'use_epsg': True, 'epsg': 26910, ...}
+        self.settings = {}
+        self._load_previously_used_settings()
+
+    def _load_previously_used_settings(self):
+        try:
+            settings = QtCore.QSettings("NOAA", "Kluster")
+            self.settings['use_epsg'] = settings.value('Kluster/proj_settings_epsgradio').lower() == 'true'
+            self.settings['epsg'] = settings.value('Kluster/proj_settings_epsgval')
+            self.settings['use_coord'] = settings.value('Kluster/proj_settings_utmradio').lower() == 'true'
+            self.settings['coord_system'] = settings.value('Kluster/proj_settings_utmval')
+            self.settings['vert_ref'] = settings.value('Kluster/proj_settings_vertref')
+
+            if self.project.path is not None:
+                self.project.set_settings(self.settings)
+            self.intel.set_settings(self.settings)
+        except AttributeError:
+            # no settings exist yet for this app, .lower failed
+            self.settings = {'use_epsg': False, 'epsg': '', 'use_coord': True,
+                             'coord_system': 'NAD83', 'vert_ref': 'waterline'}
 
     def setup_menu(self):
         """
@@ -110,28 +140,27 @@ class KlusterMain(QtWidgets.QMainWindow):
 
         """
         new_proj_action = QtWidgets.QAction('New Project', self)
-        new_proj_action.triggered.connect(self.new_project)
+        new_proj_action.triggered.connect(self._action_new_project)
         open_proj_action = QtWidgets.QAction('Open Project', self)
         open_proj_action.triggered.connect(self._action_open_project)
         save_proj_action = QtWidgets.QAction('Save Project', self)
         save_proj_action.triggered.connect(self._action_save_project)
+        close_proj_action = QtWidgets.QAction('Close Project', self)
+        close_proj_action.triggered.connect(self.close_project)
         export_action = QtWidgets.QAction('Export Soundings', self)
         export_action.triggered.connect(self._action_export)
 
         view_dashboard_action = QtWidgets.QAction('Dashboard', self)
         view_dashboard_action.triggered.connect(self.open_dask_dashboard)
+        view_reset_action = QtWidgets.QAction('Reset Layout', self)
+        view_reset_action.triggered.connect(self.reset_settings)
 
+        set_project_settings = QtWidgets.QAction('Set Project Settings', self)
+        set_project_settings.triggered.connect(self.set_project_settings)
         setup_client_action = QtWidgets.QAction('Dask Client', self)
         setup_client_action.triggered.connect(self.start_dask_client)
         vessel_view_action = QtWidgets.QAction('Vessel Offsets', self)
         vessel_view_action.triggered.connect(self._action_vessel_view)
-
-        conv_multi_action = QtWidgets.QAction('Convert Multibeam', self)
-        conv_multi_action.triggered.connect(self._action_conversion)
-        import_nav_action = QtWidgets.QAction('Import Navigation', self)
-        import_nav_action.triggered.connect(self._action_import_navigation)
-        all_process_action = QtWidgets.QAction('All Processing', self)
-        all_process_action.triggered.connect(self._action_all_processing)
         surface_action = QtWidgets.QAction('New Surface', self)
         surface_action.triggered.connect(self._action_surface_generation)
 
@@ -145,21 +174,20 @@ class KlusterMain(QtWidgets.QMainWindow):
         file.addAction(new_proj_action)
         file.addAction(open_proj_action)
         file.addAction(save_proj_action)
+        file.addAction(close_proj_action)
         file.addSeparator()
         file.addAction(export_action)
 
         view = menubar.addMenu('View')
         view.addAction(view_dashboard_action)
+        view.addAction(view_reset_action)
 
         setup = menubar.addMenu('Setup')
-        # setup.addAction('Coordinate Reference System')
+        setup.addAction(set_project_settings)
         setup.addAction(vessel_view_action)
         setup.addAction(setup_client_action)
 
         process = menubar.addMenu('Process')
-        process.addAction(conv_multi_action)
-        process.addAction(import_nav_action)
-        process.addAction(all_process_action)
         process.addAction(surface_action)
 
         visual = menubar.addMenu('Visualize')
@@ -185,35 +213,33 @@ class KlusterMain(QtWidgets.QMainWindow):
         if type(fil) is str and fil != '':
             fil = [fil]
 
-        multibeamfiles = []
         surfaces = []
         new_fqprs = []
 
         for f in fil:
-            possible_multibeam_files = return_files_from_path(f, file_ext=('.kmall', '.all'))
-            possible_surface_files = return_files_from_path(f, file_ext=('.npz',))
-            if possible_multibeam_files or possible_surface_files:
-                multibeamfiles.extend(possible_multibeam_files)
-                surfaces.extend(possible_surface_files)
+            f = os.path.normpath(f)
             if os.path.split(f)[1] == 'kluster_project.json':
                 print('Please open this project file {} using Open Project'.format(f))
                 continue
-
-            f = os.path.normpath(f)
-            fqpr_entry = self.project.add_fqpr(f, skip_dask=True)
-            if fqpr_entry is None:  # no fqpr instance successfully loaded
-                if not possible_multibeam_files and not possible_surface_files:
-                    print('update_on_file_added: Unable to add to Project from existing: {}'.format(f))
-            else:
-                new_fqprs.append(fqpr_entry)
+            updated_type, new_data = self.intel.add_file(f)
+            if new_data is None:
+                if os.path.splitext(f)[1] == '.npz':
+                    self.project.add_surface(f)
+                else:
+                    fqpr_entry, already_in = self.project.add_fqpr(f, skip_dask=False)
+                    if fqpr_entry is None:  # no fqpr instance successfully loaded
+                        print('update_on_file_added: Unable to add to Project from existing: {}'.format(f))
+                    else:
+                        new_fqprs.append(fqpr_entry)
         if new_fqprs:
             self.redraw(new_fqprs=new_fqprs)
+        else:
+            self.redraw()
 
-        if multibeamfiles:  # go ahead and convert if the user dragged in some multibeam files
-            self.kluster_convert_multibeam(multibeamfiles)
-        if surfaces:
-            for surf in surfaces:
-                self.project.add_surface(surf)
+    def refresh_project(self, fqpr=None):
+        if fqpr:
+            self.redraw(new_fqprs=[fqpr])
+        else:
             self.redraw()
 
     def redraw(self, new_fqprs=None, add_surface=None, remove_surface=None, surface_layer_name=''):
@@ -280,7 +306,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         pth: str, path to the fqpr_generation saved data
 
         """
-        absolute_fqpath = self.project._absolute_path_from_relative(pth)
+        absolute_fqpath = self.project.absolute_path_from_relative(pth)
         self.console.runCmd('data = reload_data(r"{}", skip_dask=True)'.format(absolute_fqpath))
         self.console.runCmd('first_system = data.multibeam.raw_ping[0]')
         self.console.runCmd('nav = data.multibeam.raw_nav')
@@ -288,6 +314,16 @@ class KlusterMain(QtWidgets.QMainWindow):
 
     def load_console_surface(self, pth):
         pass
+
+    def _action_remove_file(self, filname):
+        self.intel.remove_file(filname)
+
+    def _action_add_files(self, list_of_files):
+        for fil in list_of_files:
+            if os.path.exists(fil):
+                self.intel.add_file(fil)
+            else:
+                print('Unable to find {}'.format(fil))
 
     def visualize_orientation(self, pth):
         self.project.build_visualizations(pth, 'orientation')
@@ -309,7 +345,7 @@ class KlusterMain(QtWidgets.QMainWindow):
 
         """
 
-        self.project.remove_surface(pth)
+        self.project.remove_surface(pth, relative_path=True)
         self.project_tree.refresh_project(self.project)
         if pth in self.two_d.active_layers:
             for lyr in self.two_d.active_layers[pth]:
@@ -375,168 +411,31 @@ class KlusterMain(QtWidgets.QMainWindow):
             self.advancedplots_win.data_widget.initialize_controls()
         self.advancedplots_win.show()
 
-    def kluster_convert_multibeam(self, fil):
-        """
-        Runs the kluster conversion driven by the conversion dialog on the given files/directory path.  Expects fil to
-        either be a path to a multibeam file, a list of files or a path to a directory of multibeam files.
-
-        Parameters
-        ----------
-        fil: str or list, multibeam file(s)/directory of multibeam files.  if fil is an empty string, will open up a
-              blank conversion dialog.
-
-        Returns
-        -------
-        fil: str or list, same as input fil, but if the conversion succeeds, this will be overriden with the path to
-             the converted data
-
-        """
+    def kluster_execute_action(self, action_container, action_index):
+        cancelled = False
         if not self.no_threads_running():
             print('Processing is already occurring.  Please wait for the process to finish')
             cancelled = True
+        if not cancelled:
+            self.output_window.clear()
+            self.action_thread.populate(action_container, action_index)
+            self.action_thread.start()
+
+    def _kluster_execute_action_results(self):
+        # fqpr is now the output path of the Fqpr instance
+        fqpr = self.action_thread.result
+        if fqpr is not None:
+            fqpr_entry, already_in = self.project.add_fqpr(fqpr)
+            self.project.save_project()
+            self.intel.update_intel_for_action_results(action_type=self.action_thread.action_type)
+
+            if already_in and self.action_thread.action_type != 'multibeam':
+                self.refresh_project()
+                self.refresh_explorer(self.project.fqpr_instances[fqpr_entry])
+            else:  # new fqpr, or conversion actions always need a full refresh
+                self.refresh_project(fqpr=fqpr_entry)
         else:
-            dlog = dialog_conversion.ConversionDialog()
-            dlog.show()
-            dlog.update_multibeam_files(return_files_from_path(fil, file_ext=('.kmall', '.all')))
-            cancelled = False
-            if dlog.exec_():
-                output_folder = dlog.output_pth
-                mbes_files = dlog.multibeam_files
-                if output_folder is not None and not dlog.cancelled:
-                    # if the project has a client, use it here.  If None, BatchRead starts a new LocalCluster
-                    self.convert_thread.populate(mbes_files, output_folder, self.project.get_dask_client())
-                    self.convert_thread.start()
-                else:
-                    # dialog was cancelled
-                    cancelled = True
-
-        if cancelled:
-            print('kluster_convert_multibeam: Conversion was cancelled')
-
-    def _kluster_convert_multibeam_results(self):
-        """
-        This method is run on the conclusion of the convert_thread operation.  We want to make sure the converted data
-        converted, and exists in the project.  If it does, go ahead and draw it on the 2d widget.
-
-        """
-        # fil is now the output path of the Fqpr instance
-        fq = self.convert_thread.fq
-        if fq is not None:
-            fqpr_entry = self.project.add_fqpr(fq)
-            if fqpr_entry is None:
-                print('kluster_convert_multibeam: Unable to add to Project from conversion: {}'.format(fq))
-            else:
-                self.redraw(new_fqprs=[fqpr_entry])
-        else:
-            print('kluster_convert_multibeam: Unable to convert {}'.format(self.convert_thread.mbes_files))
-
-    def kluster_all_processing(self):
-        """
-        Takes all the selected fqpr instances in the project tree and runs the all processing dialog to process those
-        instances.  Dialog allows for adding/removing instances.
-
-        If a dask client hasn't been setup in this Kluster run, we auto setup a dask LocalCluster for processing
-
-        Refreshes the project at the end to load in the new attribution
-
-        """
-        if not self.no_threads_running():
-            print('Processing is already occurring.  Please wait for the process to finish')
-            cancelled = True
-        else:
-            fqprs = self.return_selected_fqprs()
-            dlog = dialog_all_processing.AllProcessingDialog()
-            dlog.update_fqpr_instances(addtl_files=fqprs)
-            cancelled = False
-            if dlog.exec_():
-                opts = dlog.return_processing_options()
-                if opts is not None and not dlog.canceled:
-                    mbes_opts = opts
-                    fqprs = mbes_opts.pop('fqpr_inst')
-                    fq_chunks = []
-                    for fq in fqprs:
-                        relfq = self.project.path_relative_to_project(fq)
-                        if relfq not in self.project.fqpr_instances:
-                            self.update_on_file_added(fq)
-                        if relfq in self.project.fqpr_instances:
-                            fq_inst = self.project.fqpr_instances[relfq]
-                            # use the project client, or start a new LocalCluster if client is None
-                            fq_inst.client = self.project.get_dask_client()
-                            fq_chunks.append([fq_inst, mbes_opts])
-                    if fq_chunks:
-                        self.allprocessing_thread.populate(fq_chunks)
-                        self.allprocessing_thread.start()
-                else:
-                    cancelled = True
-        if cancelled:
-            print('kluster_all_processing: Processing was cancelled')
-
-    def _kluster_all_processing_results(self):
-        """
-        Method is run when the allprocessing thread signals completion.  All we need to do here is refresh the project
-        and display.
-        """
-        fq_inst = self.allprocessing_thread.fqpr_instances
-        if fq_inst:
-            for fq in fq_inst:
-                self.project.add_fqpr(fq)
-                self.refresh_explorer(fq)
-        else:
-            print('kluster_all_processing: Unable to complete process')
-
-    def kluster_import_nav(self):
-        """
-        Takes all the selected fqpr instances in the project tree and runs the import navigation dialog to process those
-        instances.  Dialog allows for adding/removing instances.
-
-        If a dask client hasn't been setup in this Kluster run, we auto setup a dask LocalCluster for processing
-
-        Refreshes the project at the end to load in the new attribution
-
-        """
-        if not self.no_threads_running():
-            print('Processing is already occurring.  Please wait for the process to finish')
-            cancelled = True
-        else:
-            fqprs = self.return_selected_fqprs()
-            dlog = dialog_importnav.ImportNavigationDialog()
-            dlog.update_fqpr_instances(addtl_files=fqprs)
-            cancelled = False
-            if dlog.exec_():
-                opts = dlog.return_processing_options()
-                if opts is not None and not dlog.canceled:
-                    nav_opts = opts
-                    fqprs = nav_opts.pop('fqpr_inst')
-                    fq_chunks = []
-                    for fq in fqprs:
-                        relfq = self.project.path_relative_to_project(fq)
-                        if relfq not in self.project.fqpr_instances:
-                            self.update_on_file_added(fq)
-                        if relfq in self.project.fqpr_instances:
-                            fq_inst = self.project.fqpr_instances[relfq]
-                            # use the project client, or start a new LocalCluster if client is None
-                            fq_inst.client = self.project.get_dask_client()
-                            fq_chunks.append([fq_inst, nav_opts])
-                    if fq_chunks:
-                        self.importnav_thread.populate(fq_chunks)
-                        self.importnav_thread.start()
-                else:
-                    cancelled = True
-        if cancelled:
-            print('kluster_import_navigation: Processing was cancelled')
-
-    def _kluster_import_nav_results(self):
-        """
-        Method is run when the import navigation thread signals completion.  All we need to do here is refresh the project
-        and display.
-        """
-        fq_inst = self.importnav_thread.fqpr_instances
-        if fq_inst:
-            for fq in fq_inst:
-                self.project.add_fqpr(fq)
-                self.refresh_explorer(fq)
-        else:
-            print('kluster_import_navigation: Unable to complete process')
+            print('kluster_action: no data returned from action execution: {}'.format(fqpr))
 
     def kluster_surface_generation(self):
         """
@@ -576,6 +475,7 @@ class KlusterMain(QtWidgets.QMainWindow):
                     opts['client'] = self.project.get_dask_client()
                     if not dlog.canceled:
                         # if the project has a client, use it here.  If None, BatchRead starts a new LocalCluster
+                        self.output_window.clear()
                         self.surface_thread.populate(fq_chunks, opts)
                         self.surface_thread.start()
         if cancelled:
@@ -623,6 +523,7 @@ class KlusterMain(QtWidgets.QMainWindow):
                             fq_inst.client = self.project.get_dask_client()
                             fq_chunks.append([fq_inst])
                     if fq_chunks:
+                        self.output_window.clear()
                         self.export_thread.populate(fq_chunks, export_type, z_pos_down, delimiter, filterset, separateset)
                         self.export_thread.start()
                 else:
@@ -630,12 +531,45 @@ class KlusterMain(QtWidgets.QMainWindow):
         if cancelled:
             print('kluster_export: Export was cancelled')
 
-    def new_project(self):
+    def _create_new_project_if_not_exist(self, pth):
+        if self.project.path is None:
+            self.project._setup_new_project(pth)
+
+    def new_project(self, directory):
+        """
+
+        """
+        self.close_project()
+        self.project._setup_new_project(directory)
+        if self.settings:
+            self.project.set_settings(self.settings)
+        else:
+            self.project.save_project()
+
+        self.redraw()
+
+    def open_project(self, pth):
+        """
+        Open a project from project file
+
+        Parameters
+        ----------
+        pth: str, path to the parent Fqpr project folder
+
+        """
+        self.close_project()
+        data = self.project._load_project_file(pth)
+        for pth in data['fqpr_paths']:
+            self.open_fqpr(pth)
+        for pth in data['surface_paths']:
+            self.project.add_surface(pth)
+
+        self.redraw()
+
+    def close_project(self):
         """
         Close all open Fqpr instances and surfaces
-
         """
-
         # go to list so you avoid the dreaded dict changed size during iteration error
         surf_to_close = []
         for surf in self.project.surface_instances:
@@ -648,28 +582,15 @@ class KlusterMain(QtWidgets.QMainWindow):
             fq_to_close.append(fq)
         for fq in fq_to_close:
             self.close_fqpr(fq)
-        self.project.path = None
 
         self.project_tree.configure()
         self.two_d.set_extents_from_lines()
         self.explorer.clear_explorer_data()
         self.attribute.clear_attribution_data()
+        self.monitor.stop_all_monitoring()
 
-    def open_project(self, pth):
-        """
-        Open a project from project file
-
-        Parameters
-        ----------
-        pth: str, path to the parent Fqpr project folder
-
-        """
-        data = self.project._load_project_file(pth)
-        for pth in data['fqpr_paths']:
-            self.open_fqpr(pth)
-        for pth in data['surface_paths']:
-            self.project.add_surface(pth)
-        self.redraw()
+        self.project.close()
+        self.intel.clear()
 
     def open_dask_dashboard(self):
         """
@@ -688,6 +609,17 @@ class KlusterMain(QtWidgets.QMainWindow):
         if dlog.exec_():
             client = dlog.cl
             self.project.client = client
+
+    def set_project_settings(self):
+        dlog = dialog_project_settings.ProjectSettingsDialog()
+        dlog.read_settings()
+        if dlog.exec_() and not dlog.canceled:
+            settings = dlog.return_processing_options()
+            self.settings = settings
+            if self.project.path is not None:
+                self.project.set_settings(settings)
+            self.intel.set_settings(settings)
+            dlog.save_settings()
 
     def dockwidget_is_visible(self, widg):
         """
@@ -774,10 +706,12 @@ class KlusterMain(QtWidgets.QMainWindow):
         converted_pth: str, path to converted Fqpr object
 
         """
+
         self.two_d.reset_colors()
         self.three_d.clear_plot_area()
         self.explorer.clear_explorer_data()
         linenames = self.project.return_project_lines(proj=os.path.normpath(converted_pth))
+        self.attribute.display_file_attribution(self.project.fqpr_instances[converted_pth].multibeam.raw_ping[0].attrs)
         for cnt, ln in enumerate(linenames):
             self._line_selected(ln, idx=cnt)
         self.two_d.change_line_colors(linenames, 'r')
@@ -893,19 +827,36 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.addDockWidget(QtCore.Qt.TopDockWidgetArea, self.two_d_dock)
         self.addDockWidget(QtCore.Qt.TopDockWidgetArea, self.three_d_dock)
         self.addDockWidget(QtCore.Qt.TopDockWidgetArea, self.attitude_dock)
+        self.addDockWidget(QtCore.Qt.TopDockWidgetArea, self.actions_dock)
+        self.addDockWidget(QtCore.Qt.TopDockWidgetArea, self.monitor_dock)
         self.splitDockWidget(self.tree_dock, self.two_d_dock, QtCore.Qt.Horizontal)
+        self.splitDockWidget(self.two_d_dock, self.actions_dock, QtCore.Qt.Horizontal)
         self.tabifyDockWidget(self.two_d_dock, self.three_d_dock)
         self.tabifyDockWidget(self.two_d_dock, self.attitude_dock)
+        self.tabifyDockWidget(self.actions_dock, self.monitor_dock)
 
         self.addDockWidget(QtCore.Qt.BottomDockWidgetArea, self.explorer_dock)
         self.addDockWidget(QtCore.Qt.BottomDockWidgetArea, self.output_window_dock)
         self.addDockWidget(QtCore.Qt.BottomDockWidgetArea, self.attribute_dock)
         self.addDockWidget(QtCore.Qt.BottomDockWidgetArea, self.console_dock)
         self.splitDockWidget(self.explorer_dock, self.attribute_dock, QtCore.Qt.Horizontal)
-        self.tabifyDockWidget(self.explorer_dock, self.output_window_dock)
         self.tabifyDockWidget(self.explorer_dock, self.console_dock)
+        self.tabifyDockWidget(self.explorer_dock, self.output_window_dock)
 
+        window_width = self.width()
+        horiz_docks = [self.tree_dock, self.two_d_dock, self.actions_dock]
+        self.resizeDocks(horiz_docks, [window_width * .2, window_width * .7, window_width * .2], QtCore.Qt.Horizontal)
+
+        # cant seem to get this to work, size percentage remains at 50% regardless, horizontal resizing works though
+        #
+        # window_height = self.height()
+        # vert_docks = [self.tree_dock, self.two_d_dock, self.actions_dock, self.explorer_dock, self.attribute_dock]
+        # docksizes = [window_height * .7, window_height * .7, window_height * .7, window_height * .3, window_height * .3]
+        # self.resizeDocks(vert_docks, docksizes, QtCore.Qt.Vertical)
+
+        # have these on top of the tab list
         self.two_d_dock.raise_()
+        self.actions_dock.raise_()
 
     def dockwidget_setup_undocked_flags(self, isfloating):
         """
@@ -925,12 +876,6 @@ class KlusterMain(QtWidgets.QMainWindow):
             widget.setWindowFlags(self.windowFlags() & ~QtCore.Qt.WindowStaysOnTopHint)
         widget.show()
 
-    def _action_conversion(self):
-        """
-        Connect menu action 'convert multibeam' with conversion dialog
-        """
-        self.kluster_convert_multibeam('')
-
     def _action_vessel_view(self):
         """
         Connect menu action 'Vessel Offsets' with vessel view dialog
@@ -949,23 +894,20 @@ class KlusterMain(QtWidgets.QMainWindow):
         """
         self.kluster_advanced_plots()
 
-    def _action_all_processing(self):
-        """
-        Connect menu action 'All processing' with all processing dialog
-        """
-        self.kluster_all_processing()
-
-    def _action_import_navigation(self):
-        """
-        Connect menu action 'Import Navigation' with import navigation dialog
-        """
-        self.kluster_import_nav()
-
     def _action_surface_generation(self):
         """
         Connect menu action 'New Surface' with surface dialog
         """
         self.kluster_surface_generation()
+
+    def _action_new_project(self):
+        """
+        Connect menu action 'Open Project' with file dialog and open_project
+        """
+        msg, folder = RegistryHelpers.GetDirFromUserQT(self, RegistryKey='kluster', Title='Select folder to create a new project from',
+                                                       AppName='klusterproj')
+        if msg:
+            self.new_project(folder)
 
     def _action_open_project(self):
         """
@@ -992,12 +934,26 @@ class KlusterMain(QtWidgets.QMainWindow):
     def read_settings(self):
         """
         Read the settings saved in the registry
-
         """
         # from currentuser\software\noaa\kluster in registry
+        self.monitor.read_settings()
         settings = QtCore.QSettings("NOAA", "Kluster")
         self.restoreGeometry(settings.value("Kluster/geometry"))
         self.restoreState(settings.value("Kluster/windowState"), version=0)
+
+    def reset_settings(self):
+        """
+        Restore the default settings
+        """
+        # setUpdatesEnabled should be the freeze/thaw wx equivalent i think, but does not appear to do anything here
+        # self.setUpdatesEnabled(False)
+        settings = QtCore.QSettings("NOAA", "Kluster")
+        settings.clear()
+        self.restoreGeometry(settings.value("Kluster/geometry"))
+        self.restoreState(settings.value("Kluster/windowState"), version=0)
+        self.setup_widgets()
+        # self.setUpdatesEnabled(True)
+        print('Reset interface settings to default')
 
     def return_selected_fqprs(self):
         """
@@ -1017,6 +973,9 @@ class KlusterMain(QtWidgets.QMainWindow):
         override the close event for the mainwindow, attach saving settings
 
         """
+
+        self.monitor.save_settings()
+        self.close_project()
         settings = QtCore.QSettings("NOAA", "Kluster")
         settings.setValue('Kluster/geometry', self.saveGeometry())
         settings.setValue('Kluster/windowState', self.saveState(version=0))

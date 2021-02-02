@@ -152,6 +152,33 @@ def import_navigation(fqpr_inst: Fqpr, navfiles: list, errorfiles: list = None, 
     return fqpr_inst
 
 
+def import_sound_velocity(fqpr_inst: Fqpr, sv_files: Union[str, list]):
+    """
+    Convenience function for passing in an instance of fqpr_generation.Fqpr and importing the provided sound velocity
+    profile files as attributes.  Allows you to then run sv_correct and automatically select from the saved cast file
+    attributes.
+
+    Currently only supports .svp files following the Caris svp file format.  If you have an unsupported file type, please
+    submit an issue to have it added.  File format should include depth and soundvelocity arrays as well as cast location
+    and time.
+
+    Parameters
+    ----------
+    fqpr_inst
+        Fqpr instance containing converted data (converted data must exist for the import to work)
+    sv_files
+        either a list of files to include or the path to a directory containing sv files (only supporting .svp currently)
+
+    Returns
+    -------
+    Fqpr
+        Fqpr passed in with additional post processed navigation
+    """
+
+    fqpr_inst.import_sound_velocity_files(sv_files)
+    return fqpr_inst
+
+
 def process_multibeam(fqpr_inst: Fqpr, run_orientation: bool = True, orientation_initial_interpolation: bool = False,
                       run_beam_vec: bool = True, run_svcorr: bool = True, run_georef: bool = True,
                       add_cast_files: Union[str, list] = None, use_epsg: bool = False,
@@ -216,7 +243,8 @@ def process_multibeam(fqpr_inst: Fqpr, run_orientation: bool = True, orientation
         fqpr_inst.calculate_total_uncertainty()
 
     # dask processes appear to suffer from memory leaks regardless of how carefully we track and wait on futures, reset the client here to clear memory after processing
-    fqpr_inst.client.restart()
+    # tried just restarting client after every process, sometimes this crashes the whole program unexpectedly (dask 2.17.2)
+    # fqpr_inst.client.restart()
 
     return fqpr_inst
 
@@ -328,7 +356,8 @@ def reload_data(converted_folder: str, require_raw_data: bool = True, skip_dask:
         mbes_read.final_paths = final_paths
         mbes_read.read_from_zarr_fils(final_paths['ping'], final_paths['attitude'][0], final_paths['navigation'][0], final_paths['logfile'])
         fqpr_inst = Fqpr(mbes_read, show_progress=show_progress)
-        fqpr_inst.logger.info('****Reloading from file {}****'.format(converted_folder))
+        if not silent:
+            fqpr_inst.logger.info('****Reloading from file {}****'.format(converted_folder))
 
         fqpr_inst.multibeam.xyzrph = fqpr_inst.multibeam.raw_ping[0].xyzrph
         if 'vertical_reference' in fqpr_inst.multibeam.raw_ping[0].attrs:
@@ -342,12 +371,14 @@ def reload_data(converted_folder: str, require_raw_data: bool = True, skip_dask:
             fqpr_inst.soundings_path = final_paths['soundings'][0]
             fqpr_inst.reload_soundings_records(skip_dask=skip_dask)
         except IndexError:
-            print('No soundings dataset found')
+            if not silent:
+                print('No soundings dataset found')
         try:
             fqpr_inst.navigation_path = final_paths['ppnav'][0]
             fqpr_inst.reload_ppnav_records(skip_dask=skip_dask)
         except IndexError:
-            print('No postprocessed navigation data found')
+            if not silent:
+                print('No postprocessed navigation data found')
         fqpr_inst.client = mbes_read.client
     else:
         # not a valid zarr datastore
@@ -355,7 +386,7 @@ def reload_data(converted_folder: str, require_raw_data: bool = True, skip_dask:
             print('reload_data: Unable to open FqprProject {}'.format(converted_folder))
         return None
 
-    if fqpr_inst is not None:
+    if fqpr_inst is not None and not silent:
         fqpr_inst.logger.info('Successfully reloaded\n'.format(converted_folder))
     return fqpr_inst
 
@@ -493,7 +524,11 @@ def reload_surface(surface_path: str):
         surface loaded from the file path provided
 
     """
-    bs = BaseSurface(from_file=surface_path)
+    try:
+        bs = BaseSurface(from_file=surface_path)
+    except:
+        print('reload_surface: Unable to load surface from {}'.format(surface_path))
+        bs = None
     return bs
 
 

@@ -9,6 +9,9 @@ class AdvancedPlotDialog(QtWidgets.QDialog):
     """
     Using the PlotDataHandler, allow the user to provide Kluster converted data and plot a variable across the whole
     time range or a subset of time (see PlotDataHandler for subsetting time)
+
+    AdvancedPlot is where plots live that aren't generic inherit-from-xarray/matplotlib type plots.  All of those
+    basic plots are in BasicPlot.
     """
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -158,23 +161,15 @@ class AdvancedPlotDialog(QtWidgets.QDialog):
             self.datasets = {}
             if self.fqpr.multibeam.raw_ping:
                 self.datasets['multibeam'] = self.fqpr.multibeam.raw_ping
-            else:
-                print('No multibeam dataset(s) found in {}'.format(self.fqpr.multibeam.converted_pth))
 
             if self.fqpr.multibeam.raw_att:
                 self.datasets['attitude'] = self.fqpr.multibeam.raw_att
-            else:
-                print('No attitude dataset found in {}'.format(self.fqpr.multibeam.converted_pth))
 
             if self.fqpr.multibeam.raw_nav:
                 self.datasets['raw navigation'] = self.fqpr.multibeam.raw_nav
-            else:
-                print('No raw navigation dataset found in {}'.format(self.fqpr.multibeam.converted_pth))
 
             if self.fqpr.navigation:
                 self.datasets['processed navigation'] = self.fqpr.navigation
-            else:
-                print('No processed navigation dataset found in {}'.format(self.fqpr.multibeam.converted_pth))
 
             self.plot_type_dropdown.clear()
             self.plot_type_dropdown.addItems(self.plottypes)

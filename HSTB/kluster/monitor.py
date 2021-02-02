@@ -26,7 +26,8 @@ class DirectoryMonitor:
     This file will push the new file using the _newfile setter to any class that has a method bound to this class,
     see self.bind_to
 
-    dm = DirectoryMonitor(r'C:\data_dir\tj_patch_test', is_recursive=True)
+    dm = DirectoryMonitor(r'C:\\data_dir\\tj_patch_test', is_recursive=True)
+
     dm.start()
     """
 
@@ -114,11 +115,12 @@ class DirectoryMonitor:
             try:
                 tst = open(fil)
                 tst.close()
-                self.file_event = self.file_buffer[fil]
-                self.newfile = fil
-                self.file_buffer.pop(fil)
             except:
-                pass
+                print('File not ready...')
+                continue
+            self.file_event = self.file_buffer[fil]
+            self.newfile = fil
+            self.file_buffer.pop(fil)
 
     def start(self):
         """
@@ -139,7 +141,7 @@ class DirectoryMonitor:
     @property
     def newfile(self):
         """
-        newfile property
+        newly found file by the monitor object, is the full file path
         """
 
         return self._newfile
@@ -252,5 +254,8 @@ class WatchBuffer(Thread):
         self.runtime = runtime
 
     def run(self):
+        """
+        Run the timed function every x runtime seconds
+        """
         while not self.stopped.wait(self.runtime):
             self.timed_func()

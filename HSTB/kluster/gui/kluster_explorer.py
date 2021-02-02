@@ -344,7 +344,10 @@ class KlusterAttribution(QtWidgets.QTableWidget):
         self.viewport().setAcceptDrops(False)
         self.setDropIndicatorShown(True)
 
-        self.setSortingEnabled(True)
+        # sorting would be nice but it does not work with how we have the attribute name on one row and the value name
+        #   across multiple rows, where the attribute column would be blank.
+        # self.setSortingEnabled(True)
+
         self.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
         self.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
         self.setDragDropMode(QtWidgets.QAbstractItemView.NoDragDrop)

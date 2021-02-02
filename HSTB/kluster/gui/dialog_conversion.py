@@ -6,6 +6,8 @@ from HSTB.shared import RegistryHelpers
 from HSTB.kluster.gui.common_widgets import BrowseListWidget
 
 
+# DEPRECATED AS WE HAVE MOVED TO FQPRINTELLIGENCE/FQPRACTIONS TO CONTROL CONVERSION
+
 class ConversionDialog(QtWidgets.QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)

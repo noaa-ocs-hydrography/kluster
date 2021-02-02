@@ -224,17 +224,17 @@ class FqprExport:
         self.fqpr.logger.info('****Exporting xyz data to {}****'.format(file_format))
 
         if file_format == 'csv':
-            fldr_path = create_folder(output_directory, 'csv_export')
+            fldr_path = _create_folder(output_directory, 'csv_export')
             written_files = self._export_pings_to_csv(output_directory=fldr_path, csv_delimiter=csv_delimiter,
                                                       filter_by_detection=filter_by_detection, z_pos_down=z_pos_down,
                                                       export_by_identifiers=export_by_identifiers)
         elif file_format == 'las':
-            fldr_path = create_folder(output_directory, 'las_export')
+            fldr_path = _create_folder(output_directory, 'las_export')
             written_files = self._export_pings_to_las(output_directory=fldr_path, filter_by_detection=filter_by_detection,
                                                       z_pos_down=z_pos_down, export_by_identifiers=export_by_identifiers)
         elif file_format == 'entwine':
-            fldr_path = create_folder(output_directory, 'las_export')
-            entwine_fldr_path = create_folder(output_directory, 'entwine_export')
+            fldr_path = _create_folder(output_directory, 'las_export')
+            entwine_fldr_path = _create_folder(output_directory, 'entwine_export')
             written_files = self.export_pings_to_entwine(output_directory=entwine_fldr_path, las_export_folder=fldr_path,
                                                          filter_by_detection=filter_by_detection, z_pos_down=z_pos_down,
                                                          export_by_identifiers=export_by_identifiers)
@@ -561,7 +561,7 @@ class FqprExport:
         self.fqpr.logger.info('****Exporting xyz data to dataset complete: {}s****\n'.format(round(endtime - starttime, 1)))
 
 
-def create_folder(output_directory, fldrname):
+def _create_folder(output_directory, fldrname):
     tstmp = datetime.now().strftime('%Y%m%d_%H%M%S')
     try:
         fldr_path = os.path.join(output_directory, fldrname)

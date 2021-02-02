@@ -1,9 +1,9 @@
 from PySide2 import QtCore
 
-from HSTB.kluster.fqpr_convenience import convert_multibeam, process_multibeam, generate_new_surface, import_navigation
+from HSTB.kluster.fqpr_convenience import generate_new_surface
 
 
-class ConversionWorker(QtCore.QThread):
+class ActionWorker(QtCore.QThread):
     """
     Executes code in a seperate thread.
     """
@@ -13,67 +13,21 @@ class ConversionWorker(QtCore.QThread):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.mbes_files = None
-        self.output_folder = None
-        self.client = None
-        self.fq = None
+        self.action_container = None
+        self.action_index = None
 
-    def populate(self, mbes_files, output_folder, client):
-        self.mbes_files = mbes_files
-        self.output_folder = output_folder
-        self.client = client
+        self.result = None
+        self.action_type = None
+
+    def populate(self, action_container, action_index):
+        self.action_container = action_container
+        self.action_index = action_index
 
     def run(self):
         self.started.emit(True)
         # turn off progress, it creates too much clutter in the output window
-        self.fq = convert_multibeam(self.mbes_files, self.output_folder, self.client, show_progress=True)
-        self.finished.emit(True)
-
-
-class AllProcessingWorker(QtCore.QThread):
-    """
-    Executes code in a seperate thread.
-    """
-
-    started = QtCore.Signal(bool)
-    finished = QtCore.Signal(bool)
-
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.fq_chunks = None
-        # fqpr = fully qualified ping record, the term for the datastore in kluster
-        self.fqpr_instances = []
-
-    def populate(self, fq_chunks):
-        self.fq_chunks = fq_chunks
-
-    def run(self):
-        self.started.emit(True)
-        for chnk in self.fq_chunks:
-            self.fqpr_instances.append(process_multibeam(chnk[0], **chnk[1]))
-        self.finished.emit(True)
-
-
-class ImportNavigationWorker(QtCore.QThread):
-    """
-    Executes code in a seperate thread.
-    """
-
-    started = QtCore.Signal(bool)
-    finished = QtCore.Signal(bool)
-
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.fq_chunks = None
-        self.fqpr_instances = []
-
-    def populate(self, fq_chunks):
-        self.fq_chunks = fq_chunks
-
-    def run(self):
-        self.started.emit(True)
-        for chnk in self.fq_chunks:
-            self.fqpr_instances.append(import_navigation(chnk[0], **chnk[1]))
+        self.action_type = self.action_container.actions[self.action_index].action_type
+        self.result = self.action_container.execute_action(self.action_index)
         self.finished.emit(True)
 
 

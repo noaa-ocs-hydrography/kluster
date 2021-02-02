@@ -213,14 +213,21 @@ class Fqpr:
             if True uses utm zone projected coordinates
         vert_ref
             vertical reference for the survey, one of ['ellipse', 'waterline']
+
+        Returns
+        -------
+        bool
+            If true, the CRS was successfully constructed and was different from the original
         """
 
-        if epsg is not None:
+        orig_crs = self.xyz_crs
+        orig_vert_ref = self.vert_ref
+        if epsg:
             try:
                 self.xyz_crs = CRS.from_epsg(int(epsg))
             except CRSError:  # if the CRS we generate here has no epsg, when we save it to disk we save the proj string
                 self.xyz_crs = CRS.from_string(epsg)
-        elif epsg is None and not projected:
+        elif not epsg and not projected:
             datum = datum.upper()
             if datum == 'NAD83':
                 self.xyz_crs = CRS.from_epsg(epsg_determinator('nad83(2011)'))
@@ -229,7 +236,7 @@ class Fqpr:
             else:
                 self.logger.error('{} not supported.  Only supports WGS84 and NAD83'.format(datum))
                 raise ValueError('{} not supported.  Only supports WGS84 and NAD83'.format(datum))
-        elif epsg is None and projected:
+        elif not epsg and projected:
             datum = datum.upper()
             zone = self.multibeam.return_utm_zone_number()  # this will be the zone and hemi concatenated, '10N'
             try:
@@ -244,8 +251,17 @@ class Fqpr:
             else:
                 self.logger.error('{} not supported.  Only supports WGS84 and NAD83'.format(datum))
                 raise ValueError('{} not supported.  Only supports WGS84 and NAD83'.format(datum))
+
         if vert_ref is not None:
             self.set_vertical_reference(vert_ref)
+
+        if ((orig_crs != self.xyz_crs) or (orig_vert_ref != self.vert_ref)) and orig_crs is not None:  # successfully changed the CRS, orig would be none when this is run on reloading data
+            if self.multibeam.raw_ping[0].current_processing_status >= 4:  # have to start over at georeference now
+                self.write_attribute_to_ping_records({'current_processing_status': 3})
+            self.multibeam.reload_pingrecords(skip_dask=self.client is None)
+            return True
+        else:
+            return False
 
     def generate_starter_orientation_vectors(self, txrx: list = None, tstmp: float = None):
         """
@@ -288,6 +304,14 @@ class Fqpr:
         else:
             self.ideal_rx_vec = np.array([0, 1, 0])
 
+    def write_attribute_to_ping_records(self, attr_dict: dict):
+        outfold = self.multibeam.converted_pth  # parent folder to all the currently written data
+        for ra in self.multibeam.raw_ping:
+            sys_ident = ra.system_identifier
+            outfold_sys = os.path.join(outfold, 'ping_' + sys_ident + '.zarr')
+            zw = ZarrWrite(outfold_sys)
+            zw.write_attributes(attr_dict)
+
     def import_sound_velocity_files(self, src: Union[str, list]):
         """
         Load to self.cast_files the file paths to the sv casts of interest.
@@ -295,11 +319,14 @@ class Fqpr:
         Parameters
         ----------
         src
-            either a list of files to include or the path to a directory containing files
+            either a list of files to include or the path to a directory containing sv files (only supporting .svp currently)
         """
 
         if type(src) is str:
-            svfils = get_sv_files_from_directory(src)
+            if os.path.isdir(src):
+                svfils = get_sv_files_from_directory(src)
+            else:
+                svfils = [src]
         elif type(src) is list:
             svfils = return_supported_casts_from_list(src)
         else:
@@ -319,18 +346,12 @@ class Fqpr:
                         attr_dict[attrs_name] = json.dumps({'location': locs[cnt], 'source': name})
                         cast_dict[cst_name] = json.dumps([list(d) for d in dat.items()])
 
-            outfold = self.multibeam.converted_pth  # parent folder to all the currently written data
-            for ra in self.multibeam.raw_ping:
-                sys_ident = ra.system_identifier
-                outfold_sys = os.path.join(outfold, 'ping_' + sys_ident + '.zarr')
-                zw = ZarrWrite(outfold_sys)
-                zw.write_attributes(cast_dict)
-                zw.write_attributes(attr_dict)
+            self.write_attribute_to_ping_records(cast_dict)
+            self.write_attribute_to_ping_records(attr_dict)
+            if self.multibeam.raw_ping[0].current_processing_status >= 3:  # have to start over at sound velocity now
+                self.write_attribute_to_ping_records({'current_processing_status': 2})
 
-            skip_dask = False
-            if self.client is None:  # small datasets benefit from just running it without dask distributed
-                skip_dask = True
-            self.multibeam.reload_pingrecords(skip_dask=skip_dask)
+            self.multibeam.reload_pingrecords(skip_dask=self.client is None)
             self.logger.info('Successfully imported {} new casts'.format(len(cast_dict)))
         else:
             self.logger.warning('Unable to import casts from {}'.format(src))
@@ -1504,7 +1525,8 @@ class Fqpr:
 
         navfiles, errorfiles, logfiles = self._validate_post_processed_navigation(navfiles, errorfiles, logfiles)
         if not navfiles:
-            raise ValueError('import_post_processed_navigation: No valid navigation files to import')
+            print('import_post_processed_navigation: No valid navigation files to import')
+            return
 
         navdata = sbets_to_xarray(navfiles, smrmsgfiles=errorfiles, logfiles=logfiles, weekstart_year=weekstart_year,
                                   weekstart_week=weekstart_week, override_datum=override_datum, override_grid=override_grid,
@@ -1517,6 +1539,8 @@ class Fqpr:
             raise ValueError('Unable to find timestamps in SBET that align with the raw navigation.')
         navdata.attrs['reference'] = {'latitude': 'reference point', 'longitude': 'reference point',
                                       'altitude': 'reference point'}
+        if self.multibeam.raw_ping[0].current_processing_status >= 4:  # have to start over at georeference now
+            self.write_attribute_to_ping_records({'current_processing_status': 3})
 
         # find gaps that don't line up with existing nav gaps (like time between multibeam files)
         gaps = compare_and_find_gaps(self.multibeam.raw_nav, navdata, max_gap_length=max_gap_length, dimname='time')
@@ -1538,6 +1562,7 @@ class Fqpr:
                            append_dim='time', merge=False, show_progress=self.show_progress)
         self.navigation_path = outfold
         self.reload_ppnav_records()
+        self.multibeam.reload_pingrecords(skip_dask=self.client is None)
 
         # self.interp_to_ping_record(self.navigation, {'navigation_source': 'sbet', 'input_datum': self.navigation.datum})
 
@@ -2061,7 +2086,7 @@ class Fqpr:
             for cnt, dat in enumerate(data_for_workers):
                 endtime = len(idx_by_chunk[cnt])
                 data = kluster_function(dat)
-                futures_repo.append([data, endtime])
+                futures_repo.append(get_write_indices_zarr()[data, endtime])
 
     def write_intermediate_futs_to_zarr(self, mode: str, only_sys_idx: int = None, outfold: str = None,
                                         delete_futs: bool = False, skip_dask: bool = False):
@@ -2107,18 +2132,21 @@ class Fqpr:
         if mode == 'orientation':
             mode_settings = ['orientation', ['tx', 'rx', 'processing_status'], 'orientation vectors',
                              {'_compute_orientation_complete': self.orientation_time_complete,
+                              'current_processing_status': 1,
                               'reference': {'tx': 'unit vector', 'rx': 'unit vector'},
                               'units': {'tx': ['+ forward', '+ starboard', '+ down'],
                                         'rx': ['+ forward', '+ starboard', '+ down']}}]
         elif mode == 'bpv':
             mode_settings = ['bpv', ['rel_azimuth', 'corr_pointing_angle', 'processing_status'], 'beam pointing vectors',
                              {'_compute_beam_vectors_complete': self.bpv_time_complete,
+                              'current_processing_status': 2,
                               'reference': {'rel_azimuth': 'vessel heading',
                                             'corr_pointing_angle': 'vertical in geographic reference frame'},
                               'units': {'rel_azimuth': 'radians', 'corr_pointing_angle': 'radians'}}]
         elif mode == 'sv_corr':
             mode_settings = ['sv_corr', ['alongtrack', 'acrosstrack', 'depthoffset', 'processing_status'], 'sv corrected data',
                              {'svmode': 'nearest in time', '_sound_velocity_correct_complete': self.sv_time_complete,
+                              'current_processing_status': 3,
                               'reference': {'alongtrack': 'reference', 'acrosstrack': 'reference',
                                             'depthoffset': 'transmitter'},
                               'units': {'alongtrack': 'meters (+ forward)', 'acrosstrack': 'meters (+ starboard)',
@@ -2131,6 +2159,7 @@ class Fqpr:
                              'georeferenced soundings data',
                              {'xyz_crs': crs, 'vertical_reference': self.vert_ref,
                               '_georeference_soundings_complete': self.georef_time_complete,
+                              'current_processing_status': 4,
                               'reference': {'x': 'reference', 'y': 'reference', 'z': 'reference',
                                             'corr_heave': 'transmitter', 'corr_altitude': 'transmitter to ellipsoid'},
                               'units': {'x': 'meters (+ forward)', 'y': 'meters (+ starboard)',
@@ -2141,6 +2170,7 @@ class Fqpr:
                              'total horizontal and vertical uncertainty',
                              {'_total_uncertainty_complete': self.tpu_time_complete,
                               'vertical_reference': self.vert_ref,
+                              'current_processing_status': 5,
                               'reference': {'tvu': 'None', 'thu': 'None'},
                               'units': {'tvu': 'meters (+ down)', 'thu': 'meters'}}]
         else:
@@ -2317,6 +2347,25 @@ class Fqpr:
                 totalcount += np.count_nonzero(~np.isnan(rp.frequency))
 
         return totalcount
+
+    def return_cast_dict(self):
+        """
+        Return a dictionary object combining the profile data and the attribution for each cast
+
+        Returns
+        -------
+        dict
+            dictionary of all the data for each profile, key is profile attribute name, ex: 'profile_1495563079'
+        """
+        return_dict = {}
+        for attribute in self.multibeam.raw_ping[0].attrs:
+            if attribute.find('profile') != -1:
+                cast_time = attribute.split('_')[1]
+                attribution = json.loads(self.multibeam.raw_ping[0].attrs['attributes_' + cast_time])
+                attribution['time'] = int(cast_time)
+                attribution['data'] = json.loads(self.multibeam.raw_ping[0].attrs[attribute])
+                return_dict[attribute] = attribution
+        return return_dict
 
     def subset_by_time(self, mintime: float = None, maxtime: float = None):
         """
@@ -2619,11 +2668,8 @@ class Fqpr:
             processing status at the sector level
         """
 
-        dashboard = {}
-        dashboard['sounding_status'] = {}
-        dashboard['last_run'] = {}
+        dashboard = {'sounding_status': {}, 'last_run': {}, 'multibeam_files': self.multibeam.raw_ping[0].multibeam_files}
         status_lookup = self.multibeam.raw_ping[0].status_lookup
-        dashboard['multibeam_files'] = self.multibeam.raw_ping[0].multibeam_files
         for ra in self.multibeam.raw_ping:
             dashboard['sounding_status'][ra.system_identifier] = {i: 0 for i in list(status_lookup.values())}
             unique_status, cnts = np.unique(ra.processing_status, return_counts=True)
@@ -2638,6 +2684,48 @@ class Fqpr:
                 if ky in ra.attrs:
                     dashboard['last_run'][ra.system_identifier][ky] = ra.attrs[ky]
         return dashboard
+
+    def return_next_action(self):
+        """
+        Determine the next action to take, building the arguments for the fqpr_convenience.process_multibeam function.
+        Uses the processing status, which is updated as a process is completed at a sounding level.
+
+        0 = conversion
+        1 = orientation
+        2 = beam vectors
+        3 = sound velocity
+        4 = georeference
+        5 = tpu
+
+        Used in fqpr_intelligence in generating processing actions to take as data is converted/updated.
+
+        Needs some more sophistication with time ranges (i.e. navigation was added, but only for xxxxxx.xx-xxxxxxxx.xx
+        time range, only process this segment)
+        """
+
+        min_status = self.multibeam.raw_ping[0].current_processing_status
+        args = [self]
+        kwargs = {}
+
+        if min_status < 5:
+            kwargs['run_orientation'] = False
+            kwargs['run_beam_vec'] = False
+            kwargs['run_svcorr'] = False
+            kwargs['run_georef'] = True  # georef includes tpu
+            kwargs['use_epsg'] = False
+            kwargs['use_coord'] = True
+            kwargs['epsg'] = None
+            kwargs['coord_system'] = 'NAD83'
+            kwargs['vert_ref'] = 'waterline'
+        if min_status < 3:
+            kwargs['run_svcorr'] = True
+            kwargs['add_cast_files'] = []
+        if min_status < 2:
+            kwargs['run_orientation'] = True
+            kwargs['orientation_initial_interpolation'] = False
+            kwargs['run_beam_vec'] = True
+
+        return args, kwargs
 
 
 def get_ping_times(pingrec_time: xr.DataArray, idx: xr.DataArray):
