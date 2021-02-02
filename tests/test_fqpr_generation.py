@@ -106,27 +106,21 @@ def test_intelligence():
     assert len(fintel.action_container.actions) == 1
 
     action = fintel.action_container.actions[0]
-    assert action.text == 'Convert 1 multibeam lines to C:\\PydroXL_19\\NOAA\\site-packages\\Python38\\HSTB\\kluster\\test_data\\em2040_40111_05_23_2017'
-    assert action.output_destination == 'C:\\PydroXL_19\\NOAA\\site-packages\\Python38\\HSTB\\kluster\\test_data\\em2040_40111_05_23_2017'
+    assert action.text[0:25] == 'Convert 1 multibeam lines'
     assert action.action_type == 'multibeam'
     assert action.priority == 1
     assert action.is_running == False
-    assert action.tooltip_text == 'C:\\PydroXL_19\\NOAA\\site-packages\\Python38\\HSTB\\kluster\\test_data\\0009_20170523_181119_FA2806.all'
-    assert action.input_files == ['C:\\PydroXL_19\\NOAA\\site-packages\\Python38\\HSTB\\kluster\\test_data\\0009_20170523_181119_FA2806.all']
+    assert len(action.input_files) == 1
     assert action.kwargs is None
-    assert action.args == [['C:\\PydroXL_19\\NOAA\\site-packages\\Python38\\HSTB\\kluster\\test_data\\0009_20170523_181119_FA2806.all'],
-                           'C:\\PydroXL_19\\NOAA\\site-packages\\Python38\\HSTB\\kluster\\test_data\\em2040_40111_05_23_2017',
-                           None, False, True]
+    assert action.args[2:] == [None, False, True]
 
     fintel.execute_action()
     action = fintel.action_container.actions[0]
-    assert action.text == 'Run all processing on em2040_40111_05_23_2017'
-    assert action.output_destination == 'C:\\PydroXL_19\\NOAA\\site-packages\\Python38\\HSTB\\kluster\\test_data\\em2040_40111_05_23_2017'
+    assert action.text[0:21] == 'Run all processing on'
     assert action.action_type == 'processing'
     assert action.priority == 5
-    assert action.is_running == False
-    assert action.tooltip_text == 'C:\\PydroXL_19\\NOAA\\site-packages\\Python38\\HSTB\\kluster\\test_data\\em2040_40111_05_23_2017'
-    assert action.input_files == []
+    assert action.is_running is False
+    assert len(action.input_files) == 0
     assert action.kwargs == {'run_orientation': True, 'orientation_initial_interpolation': False, 'run_beam_vec': True,
                              'run_svcorr': True, 'add_cast_files': [], 'run_georef': True, 'use_epsg': False, 'use_coord': True,
                              'epsg': None, 'coord_system': 'NAD83', 'vert_ref': 'waterline'}

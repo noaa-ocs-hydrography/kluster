@@ -806,14 +806,14 @@ class Fqpr:
         for chnk in idx_by_chunk:
             try:
                 worker_att = self.client.scatter(slice_xarray_by_dim(raw_att, start_time=chnk.time.min() - 1, end_time=chnk.time.max() + 1))
-                worker_twtt = self.client.scatter(twtt_by_idx[chnk])
-                worker_delay = self.client.scatter(delay_by_idx[chnk])
-                worker_tx_tstmp_idx = self.client.scatter(tx_tstmp_idx[chnk])
+                worker_twtt = self.client.scatter(twtt_by_idx[chnk.values])
+                worker_delay = self.client.scatter(delay_by_idx[chnk.values])
+                worker_tx_tstmp_idx = self.client.scatter(tx_tstmp_idx[chnk.values])
             except:  # get here if client is closed or doesnt exist
                 worker_att = slice_xarray_by_dim(raw_att, start_time=chnk.time.min() - 1, end_time=chnk.time.max() + 1)
-                worker_twtt = twtt_by_idx[chnk]
-                worker_delay = delay_by_idx[chnk]
-                worker_tx_tstmp_idx = tx_tstmp_idx[chnk]
+                worker_twtt = twtt_by_idx[chnk.values]
+                worker_delay = delay_by_idx[chnk.values]
+                worker_tx_tstmp_idx = tx_tstmp_idx[chnk.values]
             data_for_workers.append([worker_att, worker_twtt, worker_delay, worker_tx_tstmp_idx, tx_orientation, rx_orientation, latency])
         return data_for_workers
 
@@ -871,13 +871,13 @@ class Fqpr:
         data_for_workers = []
         for cnt, chnk in enumerate(idx_by_chunk):
             try:
-                fut_hdng = self.client.scatter(heading[chnk])
-                fut_bpa = self.client.scatter(bpa[chnk])
-                fut_tilt = self.client.scatter(tilt[chnk])
+                fut_hdng = self.client.scatter(heading[chnk.values])
+                fut_bpa = self.client.scatter(bpa[chnk.values])
+                fut_tilt = self.client.scatter(tilt[chnk.values])
             except:  # client is not setup, run locally
-                fut_hdng = heading[chnk]
-                fut_bpa = bpa[chnk]
-                fut_tilt = tilt[chnk]
+                fut_hdng = heading[chnk.values]
+                fut_bpa = bpa[chnk.values]
+                fut_tilt = tilt[chnk.values]
             data_for_workers.append([fut_hdng, fut_bpa, fut_tilt, tx_rx_data[cnt], self.tx_reversed, self.rx_reversed])
         return data_for_workers
 
@@ -1135,12 +1135,12 @@ class Fqpr:
 
         for cnt, chnk in enumerate(idx_by_chunk):
             try:
-                fut_corr_point = self.client.scatter(corr_point[chnk])
-                fut_raw_point = self.client.scatter(raw_point[chnk])
-                fut_acrosstrack = self.client.scatter(acrosstrack[chnk])
-                fut_depthoffset = self.client.scatter(depthoffset[chnk])
-                fut_soundspeed = self.client.scatter(soundspeed[chnk])
-                fut_qualityfactor = self.client.scatter(qf[chnk])
+                fut_corr_point = self.client.scatter(corr_point[chnk.values])
+                fut_raw_point = self.client.scatter(raw_point[chnk.values])
+                fut_acrosstrack = self.client.scatter(acrosstrack[chnk.values])
+                fut_depthoffset = self.client.scatter(depthoffset[chnk.values])
+                fut_soundspeed = self.client.scatter(soundspeed[chnk.values])
+                fut_qualityfactor = self.client.scatter(qf[chnk.values])
 
                 # latency workflow is kind of strange.  We want to get data where the time equals the chunk time.  Which
                 #   means we have to apply the latency to the chunk time.  But then we need to remove the latency from the
@@ -1163,12 +1163,12 @@ class Fqpr:
                     fut_ppe = None
                     fut_hpe = None
             except:  # client is not setup, run locally
-                fut_corr_point = corr_point[chnk]
-                fut_raw_point = raw_point[chnk]
-                fut_acrosstrack = acrosstrack[chnk]
-                fut_depthoffset = depthoffset[chnk]
-                fut_soundspeed = soundspeed[chnk]
-                fut_qualityfactor = qf[chnk]
+                fut_corr_point = corr_point[chnk.values]
+                fut_raw_point = raw_point[chnk.values]
+                fut_acrosstrack = acrosstrack[chnk.values]
+                fut_depthoffset = depthoffset[chnk.values]
+                fut_soundspeed = soundspeed[chnk.values]
+                fut_qualityfactor = qf[chnk.values]
 
                 if latency:
                     chnk = chnk.assign_coords({'time': chnk.time.time + latency})
