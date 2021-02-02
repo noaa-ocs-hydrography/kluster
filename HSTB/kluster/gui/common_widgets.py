@@ -293,7 +293,7 @@ class PlotDataHandler(QtWidgets.QWidget):
         self.ping_count.setText(str(pingcount))
         self.ping_count_changed.emit(pingcount)
 
-    def _set_display_range(self, mintime, maxtime):
+    def _set_display_range(self, mintime: int, maxtime: int):
         """
         Set the control that displays the selected time range
 
@@ -311,7 +311,7 @@ class PlotDataHandler(QtWidgets.QWidget):
         else:
             self.display_range.setText(str('({}, {})'.format(mintime, maxtime)))
 
-    def _set_display_minmax(self, mintime, maxtime):
+    def _set_display_minmax(self, mintime: int, maxtime: int):
         """
         Set the controls that display the start and end time of the range
 
@@ -377,7 +377,7 @@ class PlotDataHandler(QtWidgets.QWidget):
             self._set_display_range(self.slider_mintime, self.slider_maxtime)
             self._set_display_minmax(self.fqpr_mintime, self.fqpr_maxtime)
 
-    def new_fqpr_path(self, fqpr_path):
+    def new_fqpr_path(self, fqpr_path: str):
         """
         User selected a new fqpr instance (fqpr = the converted datastore, see file_browse)
         """

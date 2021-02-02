@@ -5,6 +5,10 @@ from HSTB.kluster.dask_helpers import dask_find_or_start_client
 
 
 class DaskClientStart(QtWidgets.QDialog):
+    """
+    Widget that allows you to manually start the dask client if you need to run it in a specific way.  If you don't
+    use this, we just autostart a default LocalCluster.
+    """
     def __init__(self, parent=None):
         super().__init__(parent)
 
@@ -90,6 +94,11 @@ class DaskClientStart(QtWidgets.QDialog):
         self.remote_box.setChecked(False)
 
     def setup_client(self):
+        """
+        Start a new dask client with the options you have here.  Save to the cl attribute so the main window can pull
+        it out after user hits OK.
+        """
+
         if self.local_box.isChecked() or self.remote_box.isChecked():
             self.accept()
             if self.local_box.isChecked():

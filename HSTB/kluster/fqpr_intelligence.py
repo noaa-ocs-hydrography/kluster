@@ -115,6 +115,17 @@ class FqprIntel(LoggerClass):
             self.remove_file(filepath)
 
     def set_settings(self, settings: dict):
+        """
+        Set new settings for the FqprIntel object, triggers a regenerate actions action, to see if there are new
+        actions related to the new settings.  For instance, changing to vert_ref=ellipse would then trigger new
+        georeferencing actions to process using the new vertical reference.
+
+        Parameters
+        ----------
+        settings
+            dictionary of processing settings
+        """
+
         self.settings = settings
         self.regenerate_actions()
 
@@ -492,6 +503,15 @@ class FqprIntel(LoggerClass):
             print('FqprIntel: no project loaded, no processing actions constructed.')
 
     def _build_unmatched_list(self):
+        """
+        Get all unmatched files from all included intel modules
+
+        Returns
+        -------
+        dict
+            dictionary of all unmatched files (key) and the reason each is unmatched (value)
+        """
+
         output = OrderedDict()
         output.update(self.multibeam_intel.unmatched_files)
         output.update(self.nav_intel.unmatched_files)

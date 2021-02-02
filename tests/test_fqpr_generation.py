@@ -1,10 +1,8 @@
 import os, shutil
-import numpy as np
-import xarray as xr
-import matplotlib.pyplot as plt
+import time
 import logging
 
-from HSTB.kluster import fqpr_generation, xarray_conversion
+from HSTB.kluster import fqpr_generation, fqpr_project, xarray_conversion, fqpr_intelligence
 from .test_datasets import RealFqpr, RealDualheadFqpr, SyntheticFqpr  # relative import as tests directory can vary in location depending on how kluster is installed
 from HSTB.kluster.xarray_helpers import interp_across_chunks
 from HSTB.kluster.fqpr_convenience import *
@@ -87,9 +85,64 @@ def test_find_testfile():
     assert os.path.exists(testfile_path)
 
 
+def test_intelligence():
+    """
+    Test fqpr intelligence by kicking off a folder monitoring session, finding the test multibeam file, and checking
+    the resulting actions to see if the conversion action matches expectations.
+    """
+
+    global datapath
+
+    testfile_path, expected_output = get_testfile_paths()
+    proj = fqpr_project.create_new_project(os.path.dirname(testfile_path))
+    proj_path = os.path.join(os.path.dirname(testfile_path), 'kluster_project.json')
+    fintel = fqpr_intelligence.FqprIntel(proj)
+    fintel.start_folder_monitor(os.path.dirname(testfile_path), is_recursive=True)
+    time.sleep(3)  # pause until the folder monitoring finds the multibeam file
+
+    assert os.path.exists(proj_path)
+    os.remove(proj_path)
+    assert str(fintel.action_container) == "FqprActionContainer: 1 actions of types: ['multibeam']"
+    assert len(fintel.action_container.actions) == 1
+
+    action = fintel.action_container.actions[0]
+    assert action.text == 'Convert 1 multibeam lines to C:\\PydroXL_19\\NOAA\\site-packages\\Python38\\HSTB\\kluster\\test_data\\em2040_40111_05_23_2017'
+    assert action.output_destination == 'C:\\PydroXL_19\\NOAA\\site-packages\\Python38\\HSTB\\kluster\\test_data\\em2040_40111_05_23_2017'
+    assert action.action_type == 'multibeam'
+    assert action.priority == 1
+    assert action.is_running == False
+    assert action.tooltip_text == 'C:\\PydroXL_19\\NOAA\\site-packages\\Python38\\HSTB\\kluster\\test_data\\0009_20170523_181119_FA2806.all'
+    assert action.input_files == ['C:\\PydroXL_19\\NOAA\\site-packages\\Python38\\HSTB\\kluster\\test_data\\0009_20170523_181119_FA2806.all']
+    assert action.kwargs is None
+    assert action.args == [['C:\\PydroXL_19\\NOAA\\site-packages\\Python38\\HSTB\\kluster\\test_data\\0009_20170523_181119_FA2806.all'],
+                           'C:\\PydroXL_19\\NOAA\\site-packages\\Python38\\HSTB\\kluster\\test_data\\em2040_40111_05_23_2017',
+                           None, False, True]
+
+    fintel.execute_action()
+    action = fintel.action_container.actions[0]
+    assert action.text == 'Run all processing on em2040_40111_05_23_2017'
+    assert action.output_destination == 'C:\\PydroXL_19\\NOAA\\site-packages\\Python38\\HSTB\\kluster\\test_data\\em2040_40111_05_23_2017'
+    assert action.action_type == 'processing'
+    assert action.priority == 5
+    assert action.is_running == False
+    assert action.tooltip_text == 'C:\\PydroXL_19\\NOAA\\site-packages\\Python38\\HSTB\\kluster\\test_data\\em2040_40111_05_23_2017'
+    assert action.input_files == []
+    assert action.kwargs == {'run_orientation': True, 'orientation_initial_interpolation': False, 'run_beam_vec': True,
+                             'run_svcorr': True, 'add_cast_files': [], 'run_georef': True, 'use_epsg': False, 'use_coord': True,
+                             'epsg': None, 'coord_system': 'NAD83', 'vert_ref': 'waterline'}
+    assert isinstance(action.args[0], fqpr_generation.Fqpr)
+
+    fintel.clear()
+    datapath = action.args[0].multibeam.converted_pth
+    action.args[0].close()
+    action.args[0] = None
+
+    cleanup_after_tests()
+
+
 def test_process_testfile():
     """
-    Run xarray conversion on the test file
+    Run conversion and basic processing on the test file
     """
     global datapath
 
@@ -177,9 +230,16 @@ def test_export_files():
 
     out.close()
     out = None
+    cleanup_after_tests()
 
 
-def test_cleanup_after_tests():
+def cleanup_after_tests():
+    """
+    Clean up after test_intelligence and test_process_testfile
+    """
+
+    global datapath
+
     if not os.path.exists(datapath):
         print('Please run test_process_testfile first')
     clear_testfile_data(datapath)
@@ -197,6 +257,7 @@ def get_testfile_paths():
     str
         absolute folder path to the expected output folder
     """
+
     testfile = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'test_data', '0009_20170523_181119_FA2806.all')
     expected_output = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'test_data', 'converted')
     return testfile, expected_output
@@ -214,6 +275,9 @@ def clear_testfile_data(expected_output: str):
 
     if os.path.exists(expected_output):
         shutil.rmtree(expected_output)
+    proj_file = os.path.join(os.path.dirname(expected_output), 'kluster_project.json')
+    if os.path.exists(proj_file):
+        os.remove(proj_file)
 
 
 def get_orientation_vectors(dset='realdualhead'):

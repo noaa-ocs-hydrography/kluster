@@ -5,6 +5,9 @@ from HSTB.shared import RegistryHelpers
 
 
 class SurfaceDialog(QtWidgets.QDialog):
+    """
+    Dialog for selecting surfacing options that we want to use to generate a new surface.
+    """
     def __init__(self, parent=None):
         super().__init__(parent)
 

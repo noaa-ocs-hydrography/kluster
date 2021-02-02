@@ -144,7 +144,26 @@ class FqprActionContainer:
                         print('Unable to set action {} to {}'.format(key, value))
             self._update_actions()
 
-    def update_action_from_list(self, action_type, action_destination_list):
+    def update_action_from_list(self, action_type: str, action_destination_list: list):
+        """
+        Remove any actions that have destinations not in the action_destination_list.  This method allows us to remove
+        actions that no longer apply.
+
+        Parameters
+        ----------
+        action_type
+            type of action, ex: 'multibeam'
+        action_destination_list
+            list of valid destinations to filter the actions by
+
+        Returns
+        -------
+        list
+            list of valid actions that match the provided action type (after removing actions)
+        list
+            list of destinations from all valid actions
+        """
+
         existing_actions = self.return_actions_by_type(action_type)
 
         removed_actions = []

@@ -18,7 +18,7 @@ import numpy as np
 
 class Kluster2dview(FigureCanvasQTAgg):
     """
-    Map view using cartopy/matplotlib to view lines and surfaces with a map context.
+    Map view using cartopy/matplotlib to view multibeam tracklines and surfaces with a map context.
     """
     box_select = QtCore.Signal(float, float, float, float)
 
@@ -47,7 +47,24 @@ class Kluster2dview(FigureCanvasQTAgg):
                                     button=[1], minspanx=5, minspany=5, spancoords='pixels', interactive=True)
         self.set_extent(90, -90, 100, -100)
 
-    def set_extent(self, max_lat, min_lat, max_lon, min_lon, buffer=True):
+    def set_extent(self, max_lat: float, min_lat: float, max_lon: float, min_lon: float, buffer: bool = True):
+        """
+        Set the extent of the 2d window
+
+        Parameters
+        ----------
+        max_lat
+            set the maximum latitude of the displayed map
+        min_lat
+            set the minimum latitude of the displayed map
+        max_lon
+            set the maximum longitude of the displayed map
+        min_lon
+            set the minimum longitude of the displayed map
+        buffer
+            if True, will extend the extents by half the current width/height
+        """
+
         self.data_extents['min_lat'] = np.min([min_lat, self.data_extents['min_lat']])
         self.data_extents['max_lat'] = np.max([max_lat, self.data_extents['max_lat']])
         self.data_extents['min_lon'] = np.min([min_lon, self.data_extents['min_lon']])
@@ -65,7 +82,20 @@ class Kluster2dview(FigureCanvasQTAgg):
                                   np.clip(min_lat - lat_buffer, -90, 90), np.clip(max_lat + lat_buffer, -90, 90)],
                                  crs=ccrs.Geodetic())
 
-    def add_line(self, line_name, lats, lons):
+    def add_line(self, line_name: str, lats: np.ndarray, lons: np.ndarray):
+        """
+        Draw a new multibeam trackline on the cartopy display, unless it is already there
+
+        Parameters
+        ----------
+        line_name
+            name of the multibeam line
+        lats
+            numpy array of latitude values to plot
+        lons
+            numpy array of longitude values to plot
+        """
+
         if line_name in self.line_objects:
             return
         lne = self.axes.plot(lons, lats, color='blue', linewidth=2, transform=ccrs.Geodetic())
@@ -73,6 +103,18 @@ class Kluster2dview(FigureCanvasQTAgg):
         self.refresh_screen()
 
     def remove_line(self, line_name, refresh=True):
+        """
+        Remove a multibeam line from the cartopy display
+
+        Parameters
+        ----------
+        line_name
+            name of the multibeam line
+        refresh
+            optional screen refresh, True most of the time, unless you want to remove multiple lines and then refresh
+            at the end
+        """
+
         if line_name in self.line_objects:
             lne = self.line_objects[line_name][2]
             lne.remove()

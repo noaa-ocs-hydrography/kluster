@@ -305,6 +305,15 @@ class Fqpr:
             self.ideal_rx_vec = np.array([0, 1, 0])
 
     def write_attribute_to_ping_records(self, attr_dict: dict):
+        """
+        Convenience method that allows you to write the provided attribute dictionary to each ping dataset
+
+        Parameters
+        ----------
+        attr_dict
+            dictionary of attributes that you want stored in the ping datasets
+        """
+
         outfold = self.multibeam.converted_pth  # parent folder to all the currently written data
         for ra in self.multibeam.raw_ping:
             sys_ident = ra.system_identifier
@@ -2086,7 +2095,7 @@ class Fqpr:
             for cnt, dat in enumerate(data_for_workers):
                 endtime = len(idx_by_chunk[cnt])
                 data = kluster_function(dat)
-                futures_repo.append(get_write_indices_zarr()[data, endtime])
+                futures_repo.append([data, endtime])
 
     def write_intermediate_futs_to_zarr(self, mode: str, only_sys_idx: int = None, outfold: str = None,
                                         delete_futs: bool = False, skip_dask: bool = False):
