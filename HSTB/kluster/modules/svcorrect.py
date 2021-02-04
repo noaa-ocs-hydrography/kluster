@@ -874,7 +874,7 @@ def _process_cast_for_ssv(cast_depth: np.ndarray, cast_sv: np.ndarray, max_allow
 
     # later layers can't have sound velocity that exceeds the max allowed sv layer, breaks the gradient calculation
     if (cast_sv >= max_allowed_sv).any():
-        first_invalid_layer = np.where(cast_sv >= max_allowed_sv)[0]
+        first_invalid_layer = np.where(cast_sv >= max_allowed_sv)[0][0]
         layer_previous = first_invalid_layer - 1
         sv1, sv2 = cast_sv[layer_previous], cast_sv[first_invalid_layer]
         dpth1, dpth2 = cast_depth[layer_previous], cast_depth[first_invalid_layer]
