@@ -104,6 +104,9 @@ class Fqpr:
         """
         Must forcibly close the logging handlers to allow the data written to disk to be moved or deleted.
         """
+        if self.client is not None:
+            if self.client.status in ("running", "connecting"):
+                self.client.close()
         if self.logger is not None:
             handlers = self.logger.handlers[:]
             for handler in handlers:
