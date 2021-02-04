@@ -85,55 +85,6 @@ def test_find_testfile():
     assert os.path.exists(testfile_path)
 
 
-# def test_intelligence():
-#     """
-#     Test fqpr intelligence by kicking off a folder monitoring session, finding the test multibeam file, and checking
-#     the resulting actions to see if the conversion action matches expectations.
-#     """
-#
-#     global datapath
-#
-#     testfile_path, expected_output = get_testfile_paths()
-#     proj = fqpr_project.create_new_project(os.path.dirname(testfile_path))
-#     proj_path = os.path.join(os.path.dirname(testfile_path), 'kluster_project.json')
-#     fintel = fqpr_intelligence.FqprIntel(proj)
-#     fintel.start_folder_monitor(os.path.dirname(testfile_path), is_recursive=True)
-#     time.sleep(3)  # pause until the folder monitoring finds the multibeam file
-#
-#     assert os.path.exists(proj_path)
-#     os.remove(proj_path)
-#     assert str(fintel.action_container) == "FqprActionContainer: 1 actions of types: ['multibeam']"
-#     assert len(fintel.action_container.actions) == 1
-#
-#     action = fintel.action_container.actions[0]
-#     assert action.text[0:25] == 'Convert 1 multibeam lines'
-#     assert action.action_type == 'multibeam'
-#     assert action.priority == 1
-#     assert action.is_running == False
-#     assert len(action.input_files) == 1
-#     assert action.kwargs is None
-#     assert action.args[2:] == [None, False, True]
-#
-#     fintel.execute_action()
-#     action = fintel.action_container.actions[0]
-#     assert action.text[0:21] == 'Run all processing on'
-#     assert action.action_type == 'processing'
-#     assert action.priority == 5
-#     assert action.is_running is False
-#     assert len(action.input_files) == 0
-#     assert action.kwargs == {'run_orientation': True, 'orientation_initial_interpolation': False, 'run_beam_vec': True,
-#                              'run_svcorr': True, 'add_cast_files': [], 'run_georef': True, 'use_epsg': False, 'use_coord': True,
-#                              'epsg': None, 'coord_system': 'NAD83', 'vert_ref': 'waterline'}
-#     assert isinstance(action.args[0], fqpr_generation.Fqpr)
-#
-#     fintel.clear()
-#     datapath = action.args[0].multibeam.converted_pth
-#     action.args[0].close()
-#     action.args[0] = None
-#
-#     cleanup_after_tests()
-
-
 def test_process_testfile():
     """
     Run conversion and basic processing on the test file
@@ -224,6 +175,55 @@ def test_export_files():
 
     out.close()
     out = None
+    cleanup_after_tests()
+
+
+def test_intelligence():
+    """
+    Test fqpr intelligence by kicking off a folder monitoring session, finding the test multibeam file, and checking
+    the resulting actions to see if the conversion action matches expectations.
+    """
+
+    global datapath
+
+    testfile_path, expected_output = get_testfile_paths()
+    proj = fqpr_project.create_new_project(os.path.dirname(testfile_path))
+    proj_path = os.path.join(os.path.dirname(testfile_path), 'kluster_project.json')
+    fintel = fqpr_intelligence.FqprIntel(proj)
+    fintel.start_folder_monitor(os.path.dirname(testfile_path), is_recursive=True)
+    time.sleep(3)  # pause until the folder monitoring finds the multibeam file
+
+    assert os.path.exists(proj_path)
+    os.remove(proj_path)
+    assert str(fintel.action_container) == "FqprActionContainer: 1 actions of types: ['multibeam']"
+    assert len(fintel.action_container.actions) == 1
+
+    action = fintel.action_container.actions[0]
+    assert action.text[0:25] == 'Convert 1 multibeam lines'
+    assert action.action_type == 'multibeam'
+    assert action.priority == 1
+    assert action.is_running == False
+    assert len(action.input_files) == 1
+    assert action.kwargs is None
+    assert action.args[2:] == [None, False, True]
+
+    fintel.execute_action()
+    action = fintel.action_container.actions[0]
+    assert action.text[0:21] == 'Run all processing on'
+    assert action.action_type == 'processing'
+    assert action.priority == 5
+    assert action.is_running is False
+    assert len(action.input_files) == 0
+    assert action.kwargs == {'run_orientation': True, 'orientation_initial_interpolation': False, 'run_beam_vec': True,
+                             'run_svcorr': True, 'add_cast_files': [], 'run_georef': True, 'use_epsg': False, 'use_coord': True,
+                             'epsg': None, 'coord_system': 'NAD83', 'vert_ref': 'waterline'}
+    assert isinstance(action.args[0], fqpr_generation.Fqpr)
+
+    fintel.clear()
+    datapath = action.args[0].multibeam.converted_pth
+    action.args[0].close()
+    action.args[0] = None
+
     cleanup_after_tests()
 
 
