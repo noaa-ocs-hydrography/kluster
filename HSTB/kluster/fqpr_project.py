@@ -263,7 +263,7 @@ class FqprProject:
         """
         close project and clear all data.  have to close the fqpr instances with the fqpr close method.
         """
-        for fq, fqinst in self.fqpr_instances:
+        for fq, fqinst in self.fqpr_instances.items():
             fqinst.close()
 
         self.path = None

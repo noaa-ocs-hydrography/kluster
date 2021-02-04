@@ -3,10 +3,10 @@ import time
 import logging
 
 from HSTB.kluster import fqpr_generation, fqpr_project, xarray_conversion, fqpr_intelligence
-from .test_datasets import RealFqpr, RealDualheadFqpr, SyntheticFqpr  # relative import as tests directory can vary in location depending on how kluster is installed
+from .test_datasets import RealFqpr, RealDualheadFqpr, \
+    SyntheticFqpr  # relative import as tests directory can vary in location depending on how kluster is installed
 from HSTB.kluster.xarray_helpers import interp_across_chunks
 from HSTB.kluster.fqpr_convenience import *
-
 
 datapath = ''
 
@@ -190,7 +190,7 @@ def test_intelligence():
     proj = fqpr_project.create_new_project(os.path.dirname(testfile_path))
     proj_path = os.path.join(os.path.dirname(testfile_path), 'kluster_project.json')
     fintel = fqpr_intelligence.FqprIntel(proj)
-    fintel.start_folder_monitor(os.path.dirname(testfile_path), is_recursive=True)
+    fintel.add_file(testfile_path)
     time.sleep(3)  # pause until the folder monitoring finds the multibeam file
 
     assert os.path.exists(proj_path)
@@ -215,7 +215,8 @@ def test_intelligence():
     assert action.is_running is False
     assert len(action.input_files) == 0
     assert action.kwargs == {'run_orientation': True, 'orientation_initial_interpolation': False, 'run_beam_vec': True,
-                             'run_svcorr': True, 'add_cast_files': [], 'run_georef': True, 'use_epsg': False, 'use_coord': True,
+                             'run_svcorr': True, 'add_cast_files': [], 'run_georef': True, 'use_epsg': False,
+                             'use_coord': True,
                              'epsg': None, 'coord_system': 'NAD83', 'vert_ref': 'waterline'}
     assert isinstance(action.args[0], fqpr_generation.Fqpr)
 
@@ -519,7 +520,7 @@ def georef_xyz(dset='realdualhead'):
 
     # depth
     assert np.array_equal(z_data, expected_z)
-    
+
     print('Passed: georef_xyz')
 
 
@@ -534,11 +535,12 @@ def test_interp_across_chunks():
     dask_interp_att = interp_across_chunks(att, times_interp_to, dimname='time', daskclient=synth.client)
     interp_att = interp_across_chunks(att, times_interp_to, dimname='time')
 
-    expected_att = xr.Dataset({'heading': (['time'], np.array([307.8539977551496, 307.90348427192055, 308.6139892100822])),
-                               'heave': (['time'], np.array([0.009999999776482582, 0.009608692733222632, -0.009999999776482582])),
-                               'roll': (['time'], np.array([0.4400004684929343, 0.07410809820512047, -4.433999538421631])),
-                               'pitch': (['time'], np.array([-0.5, -0.5178477924436871, -0.3760000467300415]))},
-                              coords={'time': np.array([1495563084.455, 1495563084.49, 1495563084.975])})
+    expected_att = xr.Dataset(
+        {'heading': (['time'], np.array([307.8539977551496, 307.90348427192055, 308.6139892100822])),
+         'heave': (['time'], np.array([0.009999999776482582, 0.009608692733222632, -0.009999999776482582])),
+         'roll': (['time'], np.array([0.4400004684929343, 0.07410809820512047, -4.433999538421631])),
+         'pitch': (['time'], np.array([-0.5, -0.5178477924436871, -0.3760000467300415]))},
+        coords={'time': np.array([1495563084.455, 1495563084.49, 1495563084.975])})
 
     # make sure the dask/non-dask methods line up
     assert np.all(dask_interp_att.time == interp_att.time).compute()
@@ -650,18 +652,22 @@ def build_georef_correct_comparison(dset='realdual', vert_ref='waterline', datum
         loaded_data = []
         for tme in [0, 1]:
             for secs in [[0, 2, 4], [1, 3, 5]]:
-                dpth = np.concatenate([loaded_xyz_data[secs[0]][2].values[tme][~np.isnan(loaded_xyz_data[secs[0]][2].values[tme])],
-                                       loaded_xyz_data[secs[1]][2].values[tme][~np.isnan(loaded_xyz_data[secs[1]][2].values[tme])],
-                                       loaded_xyz_data[secs[2]][2].values[tme][~np.isnan(loaded_xyz_data[secs[2]][2].values[tme])]])
-                along = np.concatenate([loaded_sv_data[secs[0]][0].values[tme][~np.isnan(loaded_sv_data[secs[0]][0].values[tme])],
-                                        loaded_sv_data[secs[1]][0].values[tme][~np.isnan(loaded_sv_data[secs[1]][0].values[tme])],
-                                        loaded_sv_data[secs[2]][0].values[tme][~np.isnan(loaded_sv_data[secs[2]][0].values[tme])]])
-                across = np.concatenate([loaded_sv_data[secs[0]][1].values[tme][~np.isnan(loaded_sv_data[secs[0]][1].values[tme])],
-                                         loaded_sv_data[secs[1]][1].values[tme][~np.isnan(loaded_sv_data[secs[1]][1].values[tme])],
-                                         loaded_sv_data[secs[2]][1].values[tme][~np.isnan(loaded_sv_data[secs[2]][1].values[tme])]])
-                angle = np.concatenate([loaded_ang_data[secs[0]].values[tme][~np.isnan(loaded_ang_data[secs[0]].values[tme])],
-                                        loaded_ang_data[secs[1]].values[tme][~np.isnan(loaded_ang_data[secs[1]].values[tme])],
-                                        loaded_ang_data[secs[2]].values[tme][~np.isnan(loaded_ang_data[secs[2]].values[tme])]])
+                dpth = np.concatenate(
+                    [loaded_xyz_data[secs[0]][2].values[tme][~np.isnan(loaded_xyz_data[secs[0]][2].values[tme])],
+                     loaded_xyz_data[secs[1]][2].values[tme][~np.isnan(loaded_xyz_data[secs[1]][2].values[tme])],
+                     loaded_xyz_data[secs[2]][2].values[tme][~np.isnan(loaded_xyz_data[secs[2]][2].values[tme])]])
+                along = np.concatenate(
+                    [loaded_sv_data[secs[0]][0].values[tme][~np.isnan(loaded_sv_data[secs[0]][0].values[tme])],
+                     loaded_sv_data[secs[1]][0].values[tme][~np.isnan(loaded_sv_data[secs[1]][0].values[tme])],
+                     loaded_sv_data[secs[2]][0].values[tme][~np.isnan(loaded_sv_data[secs[2]][0].values[tme])]])
+                across = np.concatenate(
+                    [loaded_sv_data[secs[0]][1].values[tme][~np.isnan(loaded_sv_data[secs[0]][1].values[tme])],
+                     loaded_sv_data[secs[1]][1].values[tme][~np.isnan(loaded_sv_data[secs[1]][1].values[tme])],
+                     loaded_sv_data[secs[2]][1].values[tme][~np.isnan(loaded_sv_data[secs[2]][1].values[tme])]])
+                angle = np.concatenate(
+                    [loaded_ang_data[secs[0]].values[tme][~np.isnan(loaded_ang_data[secs[0]].values[tme])],
+                     loaded_ang_data[secs[1]].values[tme][~np.isnan(loaded_ang_data[secs[1]].values[tme])],
+                     loaded_ang_data[secs[2]].values[tme][~np.isnan(loaded_ang_data[secs[2]].values[tme])]])
                 loaded_data.append([along, across, dpth, angle])
 
         # in the future, include sec index to get the additional phase center offsets included here
