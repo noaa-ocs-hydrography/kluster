@@ -45,8 +45,9 @@ class KlusterActions(QtWidgets.QTreeView):
         self.exclude_buffer = []
 
         self.start_button = QtWidgets.QPushButton('Start Process')
-        self.start_button.setMaximumWidth(100)
-        self.start_button.setMinimumHeight(25)
+        self.start_button.setMinimumWidth(120)
+        self.start_button.setMaximumWidth(150)
+        self.start_button.setMinimumHeight(30)
         self.start_button.clicked.connect(self.start_process)
         self.start_button.setDisabled(True)
 
