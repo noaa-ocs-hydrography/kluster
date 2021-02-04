@@ -221,7 +221,7 @@ def test_intelligence():
 
     fintel.clear()
     datapath = action.args[0].multibeam.converted_pth
-    action.args[0].close()
+    proj.close()
     action.args[0] = None
 
     cleanup_after_tests()
