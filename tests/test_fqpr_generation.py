@@ -192,16 +192,16 @@ def test_process_testfile():
     assert firstcorr_angle == np.float32(1.2028906)
     assert firstcorr_altitude == np.float32(0.0)
     assert firstcorr_heave == np.float32(-0.06)
-    assert firstdepth_offset == np.float32(92.086)
+    assert firstdepth_offset == np.float32(92.162)
     assert first_status == 5
     assert firstrel_azimuth == np.float32(4.703383)
     assert np.array_equal(firstrx, np.array([0.7870753, 0.60869384, -0.100021675], dtype=np.float32))
-    assert firstthu == np.float32(8.858568)
-    assert firsttvu == np.float32(2.4994893)
+    assert firstthu == np.float32(8.857684)
+    assert firsttvu == np.float32(2.5005076)
     assert np.array_equal(firsttx, np.array([0.6074468, -0.79435784, 0.0020107413], dtype=np.float32))
-    assert firstx == 539028.432
-    assert firsty == 5292783.953
-    assert firstz == np.float32(92.666)
+    assert firstx == 539028.45
+    assert firsty == 5292783.977
+    assert firstz == np.float32(92.742)
 
     datapath = out.multibeam.converted_pth
     out.close()
@@ -234,8 +234,7 @@ def cleanup_after_tests():
 
     global datapath
 
-    if not os.path.exists(datapath):
-        print('Please run test_process_testfile first')
+    assert os.path.exists(datapath)
     clear_testfile_data(datapath)
     assert not os.path.exists(datapath)
 
@@ -405,17 +404,17 @@ def sv_correct(dset='realdualhead'):
 
     if dset == 'real':
         synth = load_dataset(RealFqpr())
-        expected_x = [np.array([-3.42, -3.406, -3.392])]
-        expected_y = [np.array([-232.884, -231.591, -230.268])]
-        expected_z = [np.array([91.12, 90.974, 90.904])]
+        expected_x = [np.array([-3.419, -3.406, -3.392])]
+        expected_y = [np.array([-232.877, -231.562, -230.249])]
+        expected_z = [np.array([91.139, 91.049, 90.955])]
     elif dset == 'realdualhead':
         synth = load_dataset(RealDualheadFqpr())
         expected_x = [np.array([0.692, 0.693, 0.693]),
-                      np.array([0.567, 0.566, 0.564])]
-        expected_y = [np.array([-59.993, -59.946, -59.849]),
-                      np.array([-9.351, -9.219, -9.079])]
-        expected_z = [np.array([18.301, 18.339, 18.356]),
-                      np.array([18.86, 18.871, 18.883])]
+                      np.array([0.567, 0.565, 0.564])]
+        expected_y = [np.array([-59.992, -59.945, -59.848]),
+                      np.array([-9.351, -9.215, -9.078])]
+        expected_z = [np.array([18.305, 18.342, 18.359]),
+                      np.array([18.861, 18.873, 18.883])]
     else:
         raise NotImplementedError('mode not recognized')
 
@@ -473,17 +472,17 @@ def georef_xyz(dset='realdualhead'):
 
     if dset == 'real':
         synth = load_dataset(RealFqpr())
-        expected_x = [np.array([539017.742, 539018.517, 539019.31], dtype=np.float64)]
-        expected_y = [np.array([5292788.288, 5292789.323, 5292790.381], dtype=np.float64)]
-        expected_z = [np.array([91.77, 91.624, 91.554], dtype=np.float32)]
+        expected_x = [np.array([539017.745, 539018.535, 539019.322], dtype=np.float64)]
+        expected_y = [np.array([5292788.295, 5292789.346, 5292790.396], dtype=np.float64)]
+        expected_z = [np.array([91.789, 91.699, 91.605], dtype=np.float32)]
     elif dset == 'realdualhead':
         synth = load_dataset(RealDualheadFqpr())
-        expected_x = [np.array([492984.907, 492984.868, 492984.787], dtype=np.float64),
-                      np.array([492943.083, 492942.974, 492942.86], dtype=np.float64)]
-        expected_y = [np.array([3365068.224, 3365068.25, 3365068.304], dtype=np.float64),
-                      np.array([3365096.742, 3365096.817, 3365096.898], dtype=np.float64)]
-        expected_z = [np.array([22.083, 22.121, 22.138], dtype=np.float32),
-                      np.array([22.691, 22.702, 22.714], dtype=np.float32)]
+        expected_x = [np.array([492984.906, 492984.867, 492984.787], dtype=np.float64),
+                      np.array([492943.083, 492942.971, 492942.859], dtype=np.float64)]
+        expected_y = [np.array([3365068.225, 3365068.25, 3365068.305], dtype=np.float64),
+                      np.array([3365096.742, 3365096.82, 3365096.898], dtype=np.float64)]
+        expected_z = [np.array([22.087, 22.124, 22.141], dtype=np.float32),
+                      np.array([22.692, 22.704, 22.714], dtype=np.float32)]
     else:
         raise NotImplementedError('mode not recognized')
 

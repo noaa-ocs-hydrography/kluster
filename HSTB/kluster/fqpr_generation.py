@@ -73,7 +73,6 @@ class Fqpr:
         self.address = address
         self.show_progress = show_progress
         self.soundspeedprofiles = None
-        self.cast_chunks = None
 
         self.tx_vecs = None
         self.rx_vecs = None
@@ -365,85 +364,78 @@ class Fqpr:
         else:
             self.logger.warning('Unable to import casts from {}'.format(src))
 
-    def setup_casts(self, surf_sound_speed: xr.DataArray, z_pos: float):
-        """
-        Using all the profiles in the rangeangle dataset as well as externally provided casts as files, generate
-        SoundSpeedProfile objects and build the lookup tables.
-
-        Parameters
-        ----------
-        surf_sound_speed
-            1dim array of surface sound speed values, coords = timestamp
-        z_pos
-            z value of the transducer position in the watercolumn from the waterline
-
-        Returns
-        -------
-        list
-            a list of SoundSpeedProfile objects with constructed lookup tables
-        """
-
-        # get the svp files and the casts in the mbes converted data
-        mbes_profs = self.multibeam.return_all_profiles()
-
-        # convert to SoundSpeedProfile objects
-        rangeangle_casts = []
-        if mbes_profs:
-            for castname, data in mbes_profs.items():
-                try:
-                    casttime = float(castname.split('_')[1])
-                    cst_object = SoundSpeedProfile(data, z_pos, surf_sound_speed, prof_time=casttime,
-                                                   prof_type='raw_ping')
-                    cst_object.generate_lookup_table()
-                    rangeangle_casts.append(cst_object)
-                except ValueError:
-                    self.logger.error('Profile attribute name in ping DataSet must include timestamp, ex: "profile_1495599960", found: {}'.format(castname))
-                    raise ValueError('Profile attribute name in ping DataSet must include timestamp, ex: "profile_1495599960", found: {}'.format(castname))
-
-        return rangeangle_casts
-
-    def setup_casts_for_system_by_index(self, system_index: int, applicable_index: xr.DataArray, prefixes: str,
-                                        timestmp: str):
-        """
-        Generate cast objects for the given system across all values given for waterline
-
-        Originally started with building all casts for the first sector and using those cast objects across all other
-        sectors (as the z pos is basically the same) but ran into the issue where different sectors would start at
-        different times in the file.
-
-        Also, we don't return the whole class, as it has things in it that cause dask to freeze on scatter.  Dask
-        apparently really only guarantees to work with numpy/numpy derivatives.  So we have to return the attributes
-        that are necessary for sv correct.
-
-        Parameters
-        ----------
-        system_index
-            index of system, grouped by serial number (only multiple if this is a dual head system)
-        applicable_index
-            boolean mask for the data associated with this installation parameters instance
-        prefixes
-            prefix identifier for the tx/rx, will vary for dual head systems
-        timestmp
-            timestamp of the installation parameters instance used
-
-        Returns
-        -------
-        list
-            a list of lists of the attributes within the SoundSpeedProfile objects, including constructed lookup
-            tables for each waterline value in installation parameters.  Ideally, I could return the objects themselves,
-            but you cannot scatter/map custom classes effectively in Dask.
-        """
-
-        self.cast_chunks[system_index] = {}
-
-        ss_by_system = self.multibeam.raw_ping[system_index].soundspeed.where(applicable_index, drop=True)
-        # this should be the transducer to waterline, positive down
-        z_pos = -float(self.multibeam.xyzrph[prefixes[0] + '_z'][timestmp]) + float(self.multibeam.xyzrph['waterline'][timestmp])
-        cst = self.setup_casts(ss_by_system, z_pos)
-        cast_size = np.sum([c.__sizeof__() for c in cst])
-        cast_data = [[c.prof_time, c.dim_angle, c.dim_raytime, c.lkup_across_dist, c.lkup_down_dist, c.corr_profile_lkup] for c in cst]
-        self.logger.info('built {} total cast objects, total size = {} bytes'.format(len(cst), cast_size))
-        return cast_data
+    # def setup_casts(self, surf_sound_speed: xr.DataArray, z_pos: float):
+    #     """
+    #     Using all the profiles in the rangeangle dataset as well as externally provided casts as files, generate
+    #     SoundSpeedProfile objects and build the lookup tables.
+    #
+    #     Parameters
+    #     ----------
+    #     surf_sound_speed
+    #         1dim array of surface sound speed values, coords = timestamp
+    #     z_pos
+    #         z value of the transducer position in the watercolumn from the waterline
+    #
+    #     Returns
+    #     -------
+    #     list
+    #         a list of SoundSpeedProfile objects with constructed lookup tables
+    #     """
+    #
+    #     # get the svp files and the casts in the mbes converted data
+    #     mbes_profs = self.multibeam.return_all_profiles()
+    #
+    #     # convert to SoundSpeedProfile objects
+    #     rangeangle_casts = []
+    #     if mbes_profs:
+    #         for castname, data in mbes_profs.items():
+    #             try:
+    #                 casttime = float(castname.split('_')[1])
+    #                 cst_object = SoundSpeedProfile(data, z_pos, surf_sound_speed, prof_time=casttime,
+    #                                                prof_type='raw_ping')
+    #                 cst_object.generate_lookup_table()
+    #                 rangeangle_casts.append(cst_object)
+    #             except ValueError:
+    #                 self.logger.error('Profile attribute name in ping DataSet must include timestamp, ex: "profile_1495599960", found: {}'.format(castname))
+    #                 raise ValueError('Profile attribute name in ping DataSet must include timestamp, ex: "profile_1495599960", found: {}'.format(castname))
+    #
+    #     return rangeangle_casts
+    #
+    # def return_casts_for_system(self, system_index: int):
+    #     """
+    #     Generate cast objects for the given system across all values given for waterline
+    #
+    #     Originally started with building all casts for the first sector and using those cast objects across all other
+    #     sectors (as the z pos is basically the same) but ran into the issue where different sectors would start at
+    #     different times in the file.
+    #
+    #     Also, we don't return the whole class, as it has things in it that cause dask to freeze on scatter.  Dask
+    #     apparently really only guarantees to work with numpy/numpy derivatives.  So we have to return the attributes
+    #     that are necessary for sv correct.
+    #
+    #     Parameters
+    #     ----------
+    #     system_index
+    #         index of system, grouped by serial number (only multiple if this is a dual head system)
+    #
+    #     Returns
+    #     -------
+    #     list
+    #         a list of lists of the attributes within the SoundSpeedProfile objects, including constructed lookup
+    #         tables for each waterline value in installation parameters.  Ideally, I could return the objects themselves,
+    #         but you cannot scatter/map custom classes effectively in Dask.
+    #     """
+    #
+    #     mbes_profs, prof_times = self.multibeam.return_all_profiles()
+    #     # ss_by_system = self.multibeam.raw_ping[system_index].soundspeed.where(applicable_index, drop=True)
+    #     # this should be the transducer to waterline, positive down
+    #     # z_pos = -float(self.multibeam.xyzrph[prefixes[0] + '_z'][timestmp]) + float(self.multibeam.xyzrph['waterline'][timestmp])
+    #
+    #     # cst = self.setup_casts(ss_by_system, z_pos)
+    #     # cast_size = np.sum([c.__sizeof__() for c in cst])
+    #     # cast_data = [[c.prof_time, c.dim_angle, c.dim_raytime, c.lkup_across_dist, c.lkup_down_dist, c.corr_profile_lkup] for c in cst]
+    #     # self.logger.info('built {} total cast objects, total size = {} bytes'.format(len(cst), cast_size))
+    #     return mbes_profs, prof_times
 
     def return_chunk_indices(self, idx_mask: xr.DataArray, pings_per_chunk: int):
         """
@@ -497,7 +489,7 @@ class Fqpr:
         Returns
         -------
         data
-            list of lists, each sub-list is [xarray Datarray with times/indices for the chunk, index of the cast that
+            list of lists, each sub-list is [xarray Datarray with times/indices for the chunk, integer index of the cast that
             applies to that chunk]
         """
 
@@ -882,7 +874,7 @@ class Fqpr:
         return data_for_workers
 
     def _generate_chunks_svcorr(self, ra: xr.Dataset, casts: list, cast_chunks: list, applicable_index: xr.DataArray,
-                                timestmp: str, addtl_offsets: list):
+                                prefixes: str, timestmp: str, addtl_offsets: list):
         """
         Take a single sector, and build the data for the distributed system to process.  Svcorrect requires the
         relative azimuth (to ship heading) and the corrected beam pointing angle (corrected for attitude/mounting angle)
@@ -892,13 +884,14 @@ class Fqpr:
         ra
             xarray dataset for the rawping dataset we are working with
         casts
-            a list of the attributes within the SoundSpeedProfile object associated with this sector, including
-            constructed lookup tables for each waterline value in installation parameters.
+            list of [depth values, sv values] for each cast
         cast_chunks
-            list of lists, each sub-list is [timestamps for the chunk, index of the chunk in the original array, index
-            of the cast that applies to that chunk]
+            list of lists, each sub-list is [xarray Datarray with times/indices for the chunk, integer index of the cast that
+            applies to that chunk]
         applicable_index
             xarray Dataarray, boolean mask for the data associated with this installation parameters instance
+        prefixes
+            prefix identifier for the tx/rx, will vary for dual head systems
         timestmp
             timestamp of the installation parameters instance used
         total offsets
@@ -931,17 +924,22 @@ class Fqpr:
                 bpv_data = [[rel_azimuth_idx[d[0]], corr_angle_idx[d[0]]] for d in cast_chunks]
 
         twtt = ra.traveltime.where(applicable_index, drop=True)
+        ss_by_system = ra.soundspeed.where(applicable_index, drop=True)
+
+        # this should be the transducer to waterline, positive down
+        z_pos = -float(self.multibeam.xyzrph[prefixes[0] + '_z'][timestmp]) + float(self.multibeam.xyzrph['waterline'][timestmp])
+
         try:
             twtt_data = self.client.scatter([twtt[d[0]] for d in cast_chunks])
+            ss_data = self.client.scatter([ss_by_system[d[0]] for d in cast_chunks])
             casts = self.client.scatter(casts)
             addtl_offsets = self.client.scatter(addtl_offsets)
         except:  # client is not setup, run locally
             twtt_data = [twtt[d[0]] for d in cast_chunks]
-
-        # data_idx = self.client.scatter([d[0].values for d in cast_chunks])
+            ss_data = [ss_by_system[d[0]] for d in cast_chunks]
 
         for cnt, dat in enumerate(cast_chunks):
-            data_for_workers.append([casts[dat[1]], bpv_data[cnt], twtt_data[cnt], None, addtl_offsets[cnt]])
+            data_for_workers.append([casts[dat[1]], bpv_data[cnt], twtt_data[cnt], ss_data[cnt], z_pos, addtl_offsets[cnt]])
         return data_for_workers
 
     def _generate_chunks_georef(self, ra: xr.Dataset, idx_by_chunk: xr.DataArray, applicable_index: xr.DataArray,
@@ -1826,28 +1824,25 @@ class Fqpr:
             self.import_sound_velocity_files(add_cast_files)
 
         systems = self.multibeam.return_system_time_indexed_array(subset_time=subset_time)
-        self.cast_chunks = {}
         for s_cnt, system in enumerate(systems):
             ra = self.multibeam.raw_ping[s_cnt]
             sys_ident = ra.system_identifier
             self.logger.info('Operating on system serial number = {}'.format(sys_ident))
             self.initialize_intermediate_data(sys_ident, 'sv_corr')
             pings_per_chunk, max_chunks_at_a_time = self.get_cluster_params()
+            casts, cast_times, castlocations = self.multibeam.return_all_profiles()
 
             for applicable_index, timestmp, prefixes in system:
                 self.logger.info('using installation params {}'.format(timestmp))
                 idx_by_chunk = self.return_chunk_indices(applicable_index, pings_per_chunk)
                 if len(idx_by_chunk[0]):  # if there are pings in this sector that align with this installation parameter record
-                    cast_objects = self.setup_casts_for_system_by_index(s_cnt, applicable_index, prefixes, timestmp)
-                    cast_times = [c[0] for c in cast_objects]
                     cast_chunks = self.return_cast_idx_nearestintime(cast_times, idx_by_chunk)
                     addtl_offsets = self.return_additional_xyz_offsets(ra, prefixes, timestmp, idx_by_chunk)
-                    data_for_workers = self._generate_chunks_svcorr(ra, cast_objects, cast_chunks, applicable_index, timestmp, addtl_offsets)
+                    data_for_workers = self._generate_chunks_svcorr(ra, casts, cast_chunks, applicable_index, prefixes, timestmp, addtl_offsets)
                     self.intermediate_dat[ra.system_identifier]['sv_corr'][timestmp] = []
                     self._submit_data_to_cluster(data_for_workers, distributed_run_sv_correct,
                                                  max_chunks_at_a_time, [c[0].time for c in cast_chunks],
                                                  self.intermediate_dat[ra.system_identifier]['sv_corr'][timestmp])
-                    self.cast_chunks[s_cnt][timestmp] = cast_chunks
                 else:
                     self.logger.info('No pings found for {}-{}'.format(ra.system_identifier, timestmp))
             if dump_data:

@@ -1905,15 +1905,33 @@ class BatchRead:
 
         Returns
         -------
-        dict
-            dictionary of attribute_name/data for each sv profile
+        list
+            list of [depth values, sv values] for each profile
+        list
+            list of times in utc seconds for each profile
+        list
+            list of [latitude, longitude] for each profile
         """
 
+        casts = []
+        casttimes = []
+        castlocations = []
         prof_keys = [x for x in self.raw_ping[0].attrs.keys() if x[0:8] == 'profile_']
         if prof_keys:
-            return {p: self.raw_ping[0].attrs[p] for p in prof_keys}
+            for prof in prof_keys:
+                castdata = json.loads(self.raw_ping[0].attrs[prof])
+                casts.append(np.array(castdata).T.tolist())
+                tme = int(prof.split('_')[1])
+                casttimes.append(tme)
+                try:
+                    matching_attribute = json.loads(self.raw_ping[0].attrs['attributes_{}'.format(tme)])
+                    castlocations = matching_attribute['location']
+                except KeyError:
+                    print('Missing attributes record for {}'.format(prof))
+                    castlocations.append(None)
+            return casts, casttimes, castlocations
         else:
-            return {}
+            return None, None
 
     def return_waterline(self, time_idx: Union[int, str, float]):
         """
