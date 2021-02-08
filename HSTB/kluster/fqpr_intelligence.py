@@ -377,6 +377,12 @@ class FqprIntel(LoggerClass):
 
         return updated_type, uid
 
+    def update_actions_client(self):
+        """
+        Trigger updating the dask distributed client instance in all actions
+        """
+        self.action_container.update_actions_client(self.project.client)
+
     def _regenerate_multibeam_actions(self):
         """
         Update, add or remove multibeam actions based on the current multibeam intel line groups.  This gets run after every time

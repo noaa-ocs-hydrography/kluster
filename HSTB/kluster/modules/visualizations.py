@@ -465,26 +465,21 @@ class FqprVisualizations:
         """
 
         sv = None
-        profs = self.fqpr.multibeam.return_all_profiles()
+        profnames, casts, cast_times, castlocations = self.fqpr.multibeam.return_all_profiles()
 
         if filter_by_time:
             min_search_time = float(self.fqpr.multibeam.raw_nav.time[0].values - 5)
             max_search_time = float(self.fqpr.multibeam.raw_nav.time[-1].values + 5)
 
-        if profs:
+        if profnames:
             fig = plt.figure()
 
-            for name, data in profs.items():
-                casttime = float(name.split('_')[1])
+            for profname, cast, casttime, castloc in zip(profnames, casts, cast_times, castlocations):
                 # filter cast by mintime/maxtime to only get casts in the subset range, if we have subsetted this fqpr instance
                 if filter_by_time and not (min_search_time < casttime < max_search_time):
                     continue
-                data = json.loads(data)
-                dpth = np.array([d[0] for d in data])
-                sv = np.array([d[1] for d in data])
-                plt.plot(sv, dpth, label=name)
-        if sv is not None:
-            plt.legend()
+                plt.plot(cast[1], cast[0], label=profname)
+                plt.legend()
         else:
             print('No sound velocity profiles found')
         plt.gca().invert_yaxis()
@@ -541,30 +536,27 @@ class FqprVisualizations:
         lonrange = maxlon - minlon
         latrange = maxlat - minlat
         datarange = max(lonrange, latrange)
-
-        profs = self.fqpr.multibeam.return_all_profiles()
+        profnames, casts, cast_times, castlocations = self.fqpr.multibeam.return_all_profiles()
         all_lats = []
         all_longs = []
-        for name, data in profs.items():
-            casttime = float(name.split('_')[1])
+        for profname, cast, casttime, castloc in zip(profnames, casts, cast_times, castlocations):
             # filter cast by mintime/maxtime to only get casts in the subset range, if we have subsetted this fqpr instance
             if filter_casts_by_time and not (min_search_time < casttime < max_search_time):
                 continue
-            position = json.loads(self.fqpr.multibeam.raw_ping[0].attrs['attributes_{}'.format(int(casttime))])['location']
-            if not position:  # should never get here, but this will get a fall back position of nearest nav point to the cast time
-                print('building cast position for cast {}'.format(name))
+            if not castloc:  # should never get here, but this will get a fall back position of nearest nav point to the cast time
+                print('building cast position for cast {}'.format(profname))
                 # search times have a buffer, if the casttime is within the buffer but less than the dataset time, use the min dataset time
                 if casttime <= nav.time.min():
-                    position = [float(nav.latitude[0].values), float(nav.longitude[0].values)]
+                    castloc = [float(nav.latitude[0].values), float(nav.longitude[0].values)]
                 elif casttime >= nav.time.max():
-                    position = [float(nav.latitude[-1].values), float(nav.longitude[-1].values)]
+                    castloc = [float(nav.latitude[-1].values), float(nav.longitude[-1].values)]
                 else:
                     interpnav = nav.interp(time=casttime, method='nearest')
-                    position = [float(interpnav.latitude.values), float(interpnav.longitude.values)]
-            print('Plotting cast at position {}'.format(position))
-            plt.scatter(position[1], position[0], label=name)
-            all_lats.append(position[0])
-            all_longs.append(position[1])
+                    castloc = [float(interpnav.latitude.values), float(interpnav.longitude.values)]
+            print('Plotting cast at position {}'.format(castloc))
+            plt.scatter(castloc[1], castloc[0], label=profname)
+            all_lats.append(castloc[0])
+            all_longs.append(castloc[1])
 
         plt.title('Sound Velocity Map')
         plt.xlabel('Longitude (degrees)')

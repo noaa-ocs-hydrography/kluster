@@ -1906,6 +1906,8 @@ class BatchRead:
         Returns
         -------
         list
+            list of profile names
+        list
             list of [depth values, sv values] for each profile
         list
             list of times in utc seconds for each profile
@@ -1925,13 +1927,13 @@ class BatchRead:
                 casttimes.append(tme)
                 try:
                     matching_attribute = json.loads(self.raw_ping[0].attrs['attributes_{}'.format(tme)])
-                    castlocations = matching_attribute['location']
+                    castlocations.append(matching_attribute['location'])
                 except KeyError:
                     print('Missing attributes record for {}'.format(prof))
                     castlocations.append(None)
-            return casts, casttimes, castlocations
+            return prof_keys, casts, casttimes, castlocations
         else:
-            return None, None
+            return None, None, None, None
 
     def return_waterline(self, time_idx: Union[int, str, float]):
         """

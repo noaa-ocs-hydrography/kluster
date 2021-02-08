@@ -1516,6 +1516,9 @@ def interp_across_chunks(xarr: Union[xr.Dataset, xr.DataArray], new_times: xr.Da
     if len(list(xarr.dims)) > 1:
         raise NotImplementedError('Only one dimensional data is currently supported.')
 
+    # chunking and scattering large arrays takes way too long, we load here to avoid this
+    xarr = xarr.load()
+
     # with heading you have to deal with zero crossing, occassionaly see lines where you end up interpolating heading
     #  from 0 to 360, which gets you something around 180deg.  Take the 360 complement and interp that, return it back
     #  to 0-360 domain after
@@ -1538,6 +1541,7 @@ def interp_across_chunks(xarr: Union[xr.Dataset, xr.DataArray], new_times: xr.Da
             interp_arrs.append(_interp_across_chunks_xarrayinterp(xar, dimname, chnkwise_times[ct]))
         newarr = xr.concat(interp_arrs, dimname)
     else:
+        xarrs_chunked = daskclient.scatter(xarrs_chunked)
         interp_futs = daskclient.map(_interp_across_chunks_xarrayinterp, xarrs_chunked, [dimname] * len(chnkwise_times),
                                      chnkwise_times)
         newarr = daskclient.submit(xr.concat, interp_futs, dimname).result()

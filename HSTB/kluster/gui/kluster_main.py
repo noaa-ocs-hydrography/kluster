@@ -226,7 +226,7 @@ class KlusterMain(QtWidgets.QMainWindow):
                 if os.path.splitext(f)[1] == '.npz':
                     self.project.add_surface(f)
                 else:
-                    fqpr_entry, already_in = self.project.add_fqpr(f, skip_dask=False)
+                    fqpr_entry, already_in = self.project.add_fqpr(f, skip_dask=True)
                     if fqpr_entry is None:  # no fqpr instance successfully loaded
                         print('update_on_file_added: Unable to add to Project from existing: {}'.format(f))
                     else:
@@ -411,8 +411,21 @@ class KlusterMain(QtWidgets.QMainWindow):
             self.advancedplots_win.data_widget.initialize_controls()
         self.advancedplots_win.show()
 
-    def kluster_execute_action(self, action_container, action_index):
+    def kluster_execute_action(self, action_container: list, action_index: int = 0):
+        """
+        Run the next action in the fqpr_action ActionContainer.  The next action will always be the highest priority
+        one, i.e. first in the list.  Therefore the default action_index will always be zero
+
+        Parameters
+        ----------
+        action_container
+            fqpr_actions.FqprActionContainer instance for the GUI
+        action_index
+            integer index in the action list to run
+        """
+
         cancelled = False
+        self.project.get_dask_client()  # start dask if it has not been started already
         if not self.no_threads_running():
             print('Processing is already occurring.  Please wait for the process to finish')
             cancelled = True
@@ -422,6 +435,11 @@ class KlusterMain(QtWidgets.QMainWindow):
             self.action_thread.start()
 
     def _kluster_execute_action_results(self):
+        """
+        Read the results of the executed action.  Multibeam actions can generate new converted data that would need
+        to be showin in the project window.
+        """
+
         # fqpr is now the output path of the Fqpr instance
         fqpr = self.action_thread.result
         if fqpr is not None:
@@ -445,8 +463,8 @@ class KlusterMain(QtWidgets.QMainWindow):
         If a dask client hasn't been setup in this Kluster run, we auto setup a dask LocalCluster for processing
 
         Refreshes the project at the end to load in the new surface
-
         """
+
         if not self.no_threads_running():
             print('Processing is already occurring.  Please wait for the process to finish')
             cancelled = True
@@ -486,6 +504,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         Method is run when the surface_thread signals completion.  All we need to do here is add the surface to the project
         and display.
         """
+
         fq_surf = self.surface_thread.fqpr_surface
         if fq_surf is not None:
             self.project.add_surface(fq_surf)
@@ -497,6 +516,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         """
         Trigger export on all the fqprs provided.  Currently only supports export of xyz to csv file(s)
         """
+
         if not self.no_threads_running():
             print('Processing is already occurring.  Please wait for the process to finish')
             cancelled = True
@@ -532,13 +552,28 @@ class KlusterMain(QtWidgets.QMainWindow):
             print('kluster_export: Export was cancelled')
 
     def _create_new_project_if_not_exist(self, pth):
+        """
+        Setup a new project with the provided project path, if the project has not been setup already
+
+        Parameters
+        ----------
+        pth
+            folder path to the directory you want to create the project in
+        """
+
         if self.project.path is None:
             self.project._setup_new_project(pth)
 
-    def new_project(self, directory):
+    def new_project(self, directory: str):
+        """
+        Create a new project file in the directory provided
+
+        Parameters
+        ----------
+        directory
+            path to the folder containing the new project you want to create
         """
 
-        """
         self.close_project()
         self.project._setup_new_project(directory)
         if self.settings:
@@ -555,8 +590,8 @@ class KlusterMain(QtWidgets.QMainWindow):
         Parameters
         ----------
         pth: str, path to the parent Fqpr project folder
-
         """
+
         self.close_project()
         data = self.project._load_project_file(pth)
         for pth in data['fqpr_paths']:
@@ -570,6 +605,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         """
         Close all open Fqpr instances and surfaces
         """
+
         # go to list so you avoid the dreaded dict changed size during iteration error
         surf_to_close = []
         for surf in self.project.surface_instances:
@@ -597,20 +633,26 @@ class KlusterMain(QtWidgets.QMainWindow):
         Opens the bokeh dashboard in a web browser to view progress.  Either
         start a new LocalCluster client if there is no client yet OR get the existing client you've setup.
         """
-        if self.project.client is None:
-            self.project.get_dask_client()
+
+        self.project.get_dask_client()
         webbrowser.open_new(self.project.client.dashboard_link)
 
     def start_dask_client(self):
         """
         Set the project up with a new Client object, either LocalCluster or a client to a remote cluster
         """
+
         dlog = dialog_daskclient.DaskClientStart()
         if dlog.exec_():
             client = dlog.cl
             self.project.client = client
 
     def set_project_settings(self):
+        """
+        Triggered on hitting OK in the project settings dialog.  Takes the provided settings and saves it to the project
+        and intel instance.
+        """
+
         dlog = dialog_project_settings.ProjectSettingsDialog()
         dlog.read_settings()
         if dlog.exec_() and not dlog.canceled:

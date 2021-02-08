@@ -1,5 +1,5 @@
 import os, sys
-import dask
+from dask.distributed import Client
 from HSTB.kluster import fqpr_convenience, fqpr_generation
 
 
@@ -89,6 +89,31 @@ class FqprActionContainer:
         self.unmatched = new_unmatched
         for callback in self._observers:
             callback(None, self.unmatched)
+
+    def update_actions_client(self, client: Client):
+        """
+        On executing an action, we trigger this to update the action with the new client that we might have
+        generated AFTER building the action originally.
+
+        Parameters
+        ----------
+        client
+            dask distributed client instance
+        """
+
+        for action in self.actions:
+            for cnt, ar in enumerate(action.args):
+                if isinstance(ar, Client):
+                    action[cnt] = client
+                elif isinstance(ar, fqpr_generation.Fqpr):
+                    ar.client = client
+                    ar.multibeam.client = client
+                    action.args[cnt] = ar
+            if 'client' in action.kwargs:
+                action.kwargs['client'] = client
+            if 'fqpr_inst' in action.kwargs:
+                action.kwargs['fqpr_inst'].client = client
+                action.kwargs['fqpr_inst'].multibeam.client = client
 
     def add_action(self, action: FqprAction):
         """
@@ -248,7 +273,7 @@ class FqprActionContainer:
             print('FqprActionContainer: no actions found.')
 
 
-def build_multibeam_action(destination: str, line_list: list, client: dask.distributed.Client = None):
+def build_multibeam_action(destination: str, line_list: list, client: Client = None):
     """
     Construct a convert multibeam action using the provided data
 
@@ -274,7 +299,7 @@ def build_multibeam_action(destination: str, line_list: list, client: dask.distr
     return action
 
 
-def update_kwargs_for_multibeam(destination: str, line_list: list, client: dask.distributed.Client = None):
+def update_kwargs_for_multibeam(destination: str, line_list: list, client: Client = None):
     """
     Build a dictionary of updated settings for an existing multibeam action, use this with FqprActionContainer to
     update the action.

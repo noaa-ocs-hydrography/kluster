@@ -1020,6 +1020,7 @@ class Fqpr:
             hdng = ra.heading.where(applicable_index, drop=True)
             hve = ra.heave.where(applicable_index, drop=True)
         else:
+            self.logger.info('Using raw attitude...')
             rawatt = interp_across_chunks(self.multibeam.raw_att, tx_tstmp_idx + latency, daskclient=self.client)
             hdng = rawatt.heading
             hve = rawatt.heave
@@ -1833,7 +1834,7 @@ class Fqpr:
             self.logger.info('Operating on system serial number = {}'.format(sys_ident))
             self.initialize_intermediate_data(sys_ident, 'sv_corr')
             pings_per_chunk, max_chunks_at_a_time = self.get_cluster_params()
-            casts, cast_times, castlocations = self.multibeam.return_all_profiles()
+            profnames, casts, cast_times, castlocations = self.multibeam.return_all_profiles()
 
             for applicable_index, timestmp, prefixes in system:
                 self.logger.info('using installation params {}'.format(timestmp))

@@ -243,8 +243,8 @@ def process_multibeam(fqpr_inst: Fqpr, run_orientation: bool = True, orientation
         fqpr_inst.calculate_total_uncertainty()
 
     # dask processes appear to suffer from memory leaks regardless of how carefully we track and wait on futures, reset the client here to clear memory after processing
-    # tried just restarting client after every process, sometimes this crashes the whole program unexpectedly (dask 2.17.2)
-    # fqpr_inst.client.restart()
+    if fqpr_inst.client is not None:
+        fqpr_inst.client.restart()
 
     return fqpr_inst
 

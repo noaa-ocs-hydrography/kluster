@@ -183,10 +183,15 @@ class FqprProject:
         """
         Project is the holder of the Dask client object.  Use this method to return the current Client.  Client is
         currently setup with kluster_main.start_dask_client or kluster_main.open_dask_dashboard
+
+        If the client does not exist, we set it here and then set the client to the Fqpr and BatchRead instance
         """
 
         if self.client is None:
             self.client = dask_find_or_start_client()
+            for fqname, fqinstance in self.fqpr_instances.items():
+                fqinstance.client = self.client
+                fqinstance.multibeam.client = self.client
         return self.client
 
     def new_project_from_directory(self, directory_path: str):
