@@ -8,7 +8,6 @@ from datetime import datetime
 from HSTB.kluster.pydro_helpers import is_pydro
 from HSTB.kluster.pdal_entwine import build_entwine_points
 from HSTB.kluster.xarray_helpers import distrib_zarr_write
-from HSTB.kluster.dask_helpers import DaskProcessSynchronizer
 
 
 class FqprExport:
@@ -526,8 +525,6 @@ class FqprExport:
             raise NotImplementedError(
                 'export_pings_to_dataset: dataset exists already ({}), please remove and run'.format(outfold))
 
-        sync = DaskProcessSynchronizer(outfold)
-
         vars_of_interest = ('x', 'y', 'z', 'tvu', 'thu')
 
         # build the attributes we want in the final array.  Everything from the raw_ping plus what we need to make
@@ -545,7 +542,7 @@ class FqprExport:
             if data_for_workers is not None:
                 final_size = write_chnk_idxs[-1][-1]
                 fpths = distrib_zarr_write(outfold, data_for_workers, exist_attrs, chunk_sizes, write_chnk_idxs,
-                                           final_size, sync, self.fqpr.client, append_dim='time', merge=merge,
+                                           final_size, self.fqpr.client, append_dim='time', merge=merge,
                                            show_progress=self.fqpr.show_progress)
         self.fqpr.soundings_path = outfold
         self.fqpr.reload_soundings_records()

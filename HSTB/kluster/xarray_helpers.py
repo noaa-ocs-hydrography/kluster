@@ -7,8 +7,6 @@ from dask.distributed import wait, Client, progress
 from xarray.core.combine import _infer_concat_order_from_positions, _nested_combine
 from typing import Union
 
-from HSTB.kluster.dask_helpers import DaskProcessSynchronizer
-
 
 class ZarrWrite:
     """
@@ -23,7 +21,7 @@ class ZarrWrite:
                 chunk of zarr array is allowed to not be of length equal to zarr chunk size)
     """
     def __init__(self, zarr_path: str, desired_chunk_shape: dict = None, append_dim: str = 'time', expand_dim: str = 'beam',
-                 float_no_data_value: float = np.nan, int_no_data_value: int = 999, sync: DaskProcessSynchronizer = None):
+                 float_no_data_value: float = np.nan, int_no_data_value: int = 999):
         """
         Initialize zarr write class
 
@@ -41,8 +39,6 @@ class ZarrWrite:
             float, no data value for variables that are dtype float
         int_no_data_value
             int, no data value for variables that are dtype int
-        sync
-            optional synchronizer object
         """
 
         self.zarr_path = zarr_path
@@ -52,7 +48,6 @@ class ZarrWrite:
         self.float_no_data_value = float_no_data_value
         self.int_no_data_value = int_no_data_value
 
-        self.sync = sync
         self.rootgroup = None
         self.zarr_array_names = []
 
@@ -65,7 +60,8 @@ class ZarrWrite:
         Open the zarr data store, will create a new one if it does not exist.  Get all the existing array names.
         """
 
-        self.rootgroup = zarr.open(self.zarr_path, mode='a', synchronizer=self.sync)
+        sync = zarr.ProcessSynchronizer(self.zarr_path + '.sync')
+        self.rootgroup = zarr.open(self.zarr_path, mode='a', synchronizer=sync)
         self.get_array_names()
 
     def get_array_names(self):
@@ -491,8 +487,9 @@ class ZarrWrite:
             is None (the case when this is not the first write in a set of distributed writes) this is still returned but not used.
         """
 
+        sync = zarr.ProcessSynchronizer(self.zarr_path + '.sync')
         newarr = self.rootgroup.create_dataset(var_name, shape=dims_of_arrays[var_name][1], chunks=chunksize,
-                                               dtype=xarr[var_name].dtype, synchronizer=self.sync,
+                                               dtype=xarr[var_name].dtype, synchronizer=sync,
                                                fill_value=self._get_arr_nodatavalue(xarr[var_name].dtype))
         newarr[:] = xarr[var_name].values
         newarr.resize(startingshp)
@@ -564,8 +561,7 @@ class ZarrWrite:
 
 
 def _distrib_zarr_write_convenience(zarr_path: str, xarr: xr.Dataset, attrs: dict, desired_chunk_shape: dict,
-                                    dataloc: list, append_dim: str = 'time', finalsize: int = None, merge: bool = False,
-                                    sync: DaskProcessSynchronizer = None):
+                                    dataloc: list, append_dim: str = 'time', finalsize: int = None, merge: bool = False):
     """
     Convenience function for writing with ZarrWrite
 
@@ -587,8 +583,6 @@ def _distrib_zarr_write_convenience(zarr_path: str, xarr: xr.Dataset, attrs: dic
     merge
         if True, you are passing a Dataset containing a new variable that is not in an existing dataset.  Ex: xarr
          contains variable 'corr_pointing_angle' and that variable is not in the rootgroup
-    sync
-        optional, synchronizer for write, generally a dask.distributed.Lock based sync
 
     Returns
     -------
@@ -596,13 +590,13 @@ def _distrib_zarr_write_convenience(zarr_path: str, xarr: xr.Dataset, attrs: dic
         path to zarr data store
     """
 
-    zw = ZarrWrite(zarr_path, desired_chunk_shape, append_dim=append_dim, sync=sync)
+    zw = ZarrWrite(zarr_path, desired_chunk_shape, append_dim=append_dim)
     zarr_path = zw.write_to_zarr(xarr, attrs, dataloc, finalsize=finalsize, merge=merge)
     return zarr_path
 
 
 def distrib_zarr_write(zarr_path: str, xarrays: list, attributes: dict, chunk_sizes: dict, data_locs: list,
-                       finalsize: int, sync: DaskProcessSynchronizer, client: Client, append_dim: str = 'time',
+                       finalsize: int, client: Client, append_dim: str = 'time',
                        merge: bool = False, write_in_parallel: bool = False, skip_dask: bool = False,
                        show_progress: bool = True):
     """
@@ -627,8 +621,6 @@ def distrib_zarr_write(zarr_path: str, xarrays: list, attributes: dict, chunk_si
         list of lists, [start time index, end time index] for xarr, ex: [0,1000] if xarr time dimension is 1000 long.
     finalsize
         the final size of the time dimension of the written data, we resize the zarr to this size on the first write
-    sync
-        synchronizer for write, generally a dask.distributed.Lock based sync
     client
         dask.distributed.Client, the client we are submitting the tasks to
     append_dim
@@ -642,7 +634,7 @@ def distrib_zarr_write(zarr_path: str, xarrays: list, attributes: dict, chunk_si
         the antivirus scans) this can occassionally fail, where parallel writes generate permission denied errors.
         For now we leave this default off.
     skip_dask
-        if True, skip the dask process synchronizer as you are not running dask distributed
+        if True, skip the dask client mapping as you are not running dask distributed
     show_progress
         If true, uses dask.distributed.progress.  Disabled for GUI, as it generates too much text
 
@@ -656,20 +648,20 @@ def distrib_zarr_write(zarr_path: str, xarrays: list, attributes: dict, chunk_si
         for cnt, arr in enumerate(xarrays):
             if cnt == 0:
                 futs = [_distrib_zarr_write_convenience(zarr_path, arr, attributes, chunk_sizes, data_locs[cnt],
-                        append_dim=append_dim, finalsize=finalsize, merge=merge, sync=sync)]
+                        append_dim=append_dim, finalsize=finalsize, merge=merge)]
             else:
                 futs.append([_distrib_zarr_write_convenience(zarr_path, xarrays[cnt], None, chunk_sizes, data_locs[cnt],
-                             append_dim=append_dim, merge=merge, sync=sync)])
+                             append_dim=append_dim, merge=merge)])
     else:
         futs = [client.submit(_distrib_zarr_write_convenience, zarr_path, xarrays[0], attributes, chunk_sizes, data_locs[0],
-                              append_dim=append_dim, finalsize=finalsize, merge=merge, sync=sync)]
+                              append_dim=append_dim, finalsize=finalsize, merge=merge)]
         if show_progress:
             progress(futs, multi=False)
         wait(futs)
         if len(xarrays) > 1:
             for i in range(len(xarrays) - 1):
                 futs.append(client.submit(_distrib_zarr_write_convenience, zarr_path, xarrays[i + 1], None, chunk_sizes,
-                                          data_locs[i + 1], append_dim=append_dim, merge=merge, sync=sync))
+                                          data_locs[i + 1], append_dim=append_dim, merge=merge))
                 if not write_in_parallel:  # wait on each future, write one data chunk at a time
                     wait(futs)
             if write_in_parallel:  # don't wait on the futures until you append all of them
@@ -782,7 +774,7 @@ def xarr_to_netcdf(xarr: xr.Dataset, pth: str, fname: str, attrs: dict = None, i
     return finalpth
 
 
-def xarr_to_zarr(xarr: xr.Dataset, outputpth: str, attrs: dict = None, sync: DaskProcessSynchronizer = None):
+def xarr_to_zarr(xarr: xr.Dataset, outputpth: str, attrs: dict = None):
     """
     Takes in an xarray Dataset and pushes it to zarr store.
 
@@ -796,8 +788,6 @@ def xarr_to_zarr(xarr: xr.Dataset, outputpth: str, attrs: dict = None, sync: Das
         path to the zarr rootgroup folder to write
     attrs
         optional attribution to write to zarr
-    sync
-        optional synchronizer object to include
 
     Returns
     -------
@@ -812,6 +802,7 @@ def xarr_to_zarr(xarr: xr.Dataset, outputpth: str, attrs: dict = None, sync: Das
     if not os.path.exists(outputpth):
         xarr.to_zarr(outputpth, mode='w-', compute=False)
     else:
+        sync = zarr.ProcessSynchronizer(outputpth + '.sync')
         xarr.to_zarr(outputpth, mode='a', synchronizer=sync, compute=False, append_dim='time')
 
     return outputpth
@@ -1140,7 +1131,7 @@ def _validate_merge(xarr: xr.Dataset, rootgroup: zarr.hierarchy.Group):
     return True
 
 
-def my_xarr_add_attribute(attrs: dict, outputpth: str, sync: DaskProcessSynchronizer = None):
+def my_xarr_add_attribute(attrs: dict, outputpth: str):
     """
     Add the provided attrs dict to the existing attribution of the zarr instance at outputpth
 
@@ -1150,8 +1141,6 @@ def my_xarr_add_attribute(attrs: dict, outputpth: str, sync: DaskProcessSynchron
         dictionary of combined attributes from xarray datasets, None if no attributes exist
     outputpth
         path to zarr group to either be created or append to
-    sync
-        DaskProcessSynchronizer, dask distributed lock for parallel read/writes
 
     Returns
     -------
@@ -1160,12 +1149,13 @@ def my_xarr_add_attribute(attrs: dict, outputpth: str, sync: DaskProcessSynchron
     """
 
     # mode 'a' means read/write, create if doesnt exist
+    sync = zarr.ProcessSynchronizer(outputpth + '.sync')
     rootgroup = zarr.open(outputpth, mode='a', synchronizer=sync)
     _my_xarr_to_zarr_writeattributes(rootgroup, attrs)
     return outputpth
 
 
-def my_xarr_to_zarr(xarr: xr.Dataset, attrs: dict, outputpth: str, sync: DaskProcessSynchronizer, dataloc: list,
+def my_xarr_to_zarr(xarr: xr.Dataset, attrs: dict, outputpth: str, dataloc: list,
                     append_dim: str = 'time', finalsize: int = None, merge: bool = False, override_chunk_size: int = None):
     """
     DEPRECATED - SEE ZarrWrite
@@ -1191,8 +1181,6 @@ def my_xarr_to_zarr(xarr: xr.Dataset, attrs: dict, outputpth: str, sync: DaskPro
         dictionary of combined attributes from xarray datasets, None if no attributes exist
     outputpth
         path to zarr group to either be created or append to
-    sync
-        DaskProcessSynchronizer, dask distributed lock for parallel read/writes
     dataloc
         list of start/end time indexes, ex: [100,600] for writing to the 100th time to the 600th time in this chunk
     append_dim
@@ -1210,7 +1198,7 @@ def my_xarr_to_zarr(xarr: xr.Dataset, attrs: dict, outputpth: str, sync: DaskPro
     str
         path to the final zarr group
     """
-
+    sync = zarr.ProcessSynchronizer(outputpth + '.sync')
     dims_of_arrays = _my_xarr_to_zarr_build_arraydimensions(xarr)
 
     # mode 'a' means read/write, create if doesnt exist
@@ -1680,8 +1668,9 @@ def reload_zarr_records(pth: str, skip_dask: bool = False, sort_by: str = None):
     """
 
     if os.path.exists(pth):
+        sync = zarr.ProcessSynchronizer(pth + '.sync')
         if not skip_dask:
-            data = xr.open_zarr(pth, synchronizer=DaskProcessSynchronizer(pth),
+            data = xr.open_zarr(pth, synchronizer=sync,
                                 mask_and_scale=False, decode_coords=False, decode_times=False,
                                 decode_cf=False, concat_characters=False)
         else:

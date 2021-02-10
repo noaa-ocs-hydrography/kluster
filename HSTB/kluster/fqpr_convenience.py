@@ -566,7 +566,7 @@ def return_processed_data_folders(converted_folder: str):
         for fldr in os.listdir(converted_folder):
             fldrpath = os.path.join(converted_folder, fldr)
             for ky in list(final_paths.keys()):
-                if fldr.find(ky) != -1:
+                if fldr.find(ky) != -1 and fldr.find('sync') == -1:  # exclude any sync folders from the zarr process file lock
                     if os.path.isdir(fldrpath):
                         final_paths[ky].append(fldrpath)
                     elif ky in ['logfile']:

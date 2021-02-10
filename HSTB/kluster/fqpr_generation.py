@@ -21,7 +21,7 @@ from HSTB.kluster.modules.export import FqprExport
 from HSTB.kluster.xarray_helpers import combine_arrays_to_dataset, compare_and_find_gaps, distrib_zarr_write, \
     divide_arrays_by_time_index, interp_across_chunks, reload_zarr_records, slice_xarray_by_dim, stack_nan_array, \
     get_write_indices_zarr, get_beamwise_interpolation, ZarrWrite
-from HSTB.kluster.dask_helpers import DaskProcessSynchronizer, dask_find_or_start_client, get_number_of_workers
+from HSTB.kluster.dask_helpers import dask_find_or_start_client, get_number_of_workers
 from HSTB.kluster.fqpr_helpers import epsg_determinator
 from HSTB.kluster.rotations import return_attitude_rotation_matrix
 from HSTB.kluster.logging_conf import return_logger
@@ -1562,14 +1562,13 @@ class Fqpr:
 
         outfold = os.path.join(self.multibeam.converted_pth, 'ppnav.zarr')
         chunk_sizes = {k: self.multibeam.nav_chunksize for k in list(navdata.variables.keys())}  # 50000 to match the raw_nav
-        sync = DaskProcessSynchronizer(outfold)
         data_locs, finalsize = get_write_indices_zarr(outfold, [navdata.time])
         navdata_attrs = navdata.attrs
         try:
             navdata = self.client.scatter(navdata)
         except:  # not using dask distributed client
             pass
-        distrib_zarr_write(outfold, [navdata], navdata_attrs, chunk_sizes, data_locs, finalsize, sync, self.client,
+        distrib_zarr_write(outfold, [navdata], navdata_attrs, chunk_sizes, data_locs, finalsize, self.client,
                            append_dim='time', merge=False, show_progress=self.show_progress)
         self.navigation_path = outfold
         self.reload_ppnav_records()
@@ -1608,7 +1607,6 @@ class Fqpr:
 
         for rp in self.multibeam.raw_ping:
             outfold_sys = os.path.join(self.multibeam.converted_pth, 'ping_' + rp.system_identifier + '.zarr')
-            sync = DaskProcessSynchronizer(outfold_sys)
             for source in sources:
                 ping_wise_data = interp_across_chunks(source, rp.time, 'time').chunk(self.multibeam.ping_chunksize)
                 chunk_sizes = {k: self.multibeam.ping_chunksize for k in list(ping_wise_data.variables.keys())}
@@ -1617,7 +1615,7 @@ class Fqpr:
                     ping_wise_data = self.client.scatter(ping_wise_data)
                 except:  # not using dask distributed client
                     pass
-                distrib_zarr_write(outfold_sys, [ping_wise_data], attributes, chunk_sizes, data_locs, finalsize, sync,
+                distrib_zarr_write(outfold_sys, [ping_wise_data], attributes, chunk_sizes, data_locs, finalsize,
                                    self.client, append_dim='time', merge=True, show_progress=self.show_progress)
                 attributes = {}
         self.multibeam.reload_pingrecords(skip_dask=skip_dask)
@@ -2190,9 +2188,6 @@ class Fqpr:
 
         if outfold is None:
             outfold = self.multibeam.converted_pth  # parent folder to all the currently written data
-        sync = None
-        if self.client is not None:
-            sync = DaskProcessSynchronizer(outfold)
 
         systems = self.multibeam.return_system_time_indexed_array()
         for s_cnt, system in enumerate(systems):  # for each sector
@@ -2218,7 +2213,7 @@ class Fqpr:
                     time_arrs = [_return_xarray_time(tr) for tr in futs_data]
                 data_locs, finalsize = get_write_indices_zarr(outfold_sys, time_arrs)
                 fpths = distrib_zarr_write(outfold_sys, futs_data, mode_settings[3], ping_chunks, data_locs, finalsize,
-                                           sync, self.client, merge=True, skip_dask=skip_dask, show_progress=self.show_progress)
+                                           self.client, merge=True, skip_dask=skip_dask, show_progress=self.show_progress)
             if delete_futs:
                 del self.intermediate_dat[sys_ident][mode_settings[0]]
 

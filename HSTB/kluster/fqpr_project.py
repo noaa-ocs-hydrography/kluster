@@ -189,9 +189,9 @@ class FqprProject:
 
         if self.client is None:
             self.client = dask_find_or_start_client()
-            for fqname, fqinstance in self.fqpr_instances.items():
-                fqinstance.client = self.client
-                fqinstance.multibeam.client = self.client
+        for fqname, fqinstance in self.fqpr_instances.items():
+            fqinstance.client = self.client
+            fqinstance.multibeam.client = self.client
         return self.client
 
     def new_project_from_directory(self, directory_path: str):

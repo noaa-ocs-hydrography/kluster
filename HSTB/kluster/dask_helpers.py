@@ -1,4 +1,5 @@
 import os
+import psutil
 import numpy as np
 from dask.distributed import get_client, Client, Lock
 from xarray import DataArray
@@ -56,16 +57,23 @@ def dask_find_or_start_client(address: str = None, silent: bool = False):
             if not silent:
                 print('Using existing client on address {}...'.format(address))
     except ValueError:
+        logical_core_count = psutil.cpu_count(True)
+        mem_total_gb = psutil.virtual_memory().total / 1000000000
+        # currently trying to support >8 workers is a mem hog.  Limit to 8, maybe expose this in the gui somewhere
+
+        if mem_total_gb > 24:  # basic test to see if we have enough memory, using an approx necessary amount of memory
+            num_workers = min(logical_core_count, 8)
+        else:  # if you have less, just limit to 4 workers
+            num_workers = min(logical_core_count, 4)
+
         if address is None:
-            # client = Client(processes=False)
-            # client = Client(threads_per_worker=1)
             if not silent:
                 print('Starting local cluster client...')
-            client = Client()
+            client = Client(n_workers=num_workers, threads_per_worker=1)
         else:
             if not silent:
                 print('Starting client on address {}...'.format(address))
-            client = Client(address=address)
+            client = Client(address=address, n_workers=num_workers, threads_per_worker=1)
     if client is not None:
         print(client)
     return client

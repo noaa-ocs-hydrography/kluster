@@ -13,7 +13,7 @@ from typing import Union
 from HSTB.kluster.dms import return_zone_from_min_max_long
 from HSTB.drivers import par3, kmall
 from HSTB.drivers import PCSio
-from HSTB.kluster.dask_helpers import dask_find_or_start_client, DaskProcessSynchronizer
+from HSTB.kluster.dask_helpers import dask_find_or_start_client
 from HSTB.kluster.xarray_helpers import resize_zarr, xarr_to_netcdf, combine_xr_attributes, reload_zarr_records, \
                                         get_write_indices_zarr, distrib_zarr_write, my_xarr_add_attribute
 from HSTB.kluster.logging_conf import return_logger
@@ -1368,9 +1368,8 @@ class BatchRead:
 
         # correct for existing data if it exists in the zarr data store
         data_locs, finalsize = get_write_indices_zarr(output_pth, opts[datatype]['time_arrs'])
-        sync = DaskProcessSynchronizer(output_pth)
         fpths = distrib_zarr_write(output_pth, opts[datatype]['output_arrs'], opts[datatype]['final_attrs'],
-                                   opts[datatype]['chunks'], data_locs, finalsize, sync, self.client,
+                                   opts[datatype]['chunks'], data_locs, finalsize, self.client,
                                    show_progress=self.show_progress)
         fpth = fpths[0]  # Pick the first element, all are identical so it doesnt really matter
         return fpth
