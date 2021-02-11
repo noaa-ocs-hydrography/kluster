@@ -216,12 +216,17 @@ class KlusterMain(QtWidgets.QMainWindow):
         surfaces = []
         new_fqprs = []
 
+        for f in fil:  # first pass to weed out a potential project, want to load that first
+            fnorm = os.path.normpath(f)
+            if os.path.split(fnorm)[1] == 'kluster_project.json':
+                self.open_project(fnorm)
+                fil.remove(f)
+
         for f in fil:
             f = os.path.normpath(f)
-            if os.path.split(f)[1] == 'kluster_project.json':
-                print('Please open this project file {} using Open Project'.format(f))
-                continue
-            updated_type, new_data = self.intel.add_file(f)
+            updated_type, new_data, new_project = self.intel.add_file(f)
+            if new_project:  # user added a data file when there was no project, so we loaded or created a new one
+                new_fqprs.extend([fqpr for fqpr in self.project.fqpr_instances.keys() if fqpr not in new_fqprs])
             if new_data is None:
                 if os.path.splitext(f)[1] == '.npz':
                     self.project.add_surface(f)
@@ -229,6 +234,8 @@ class KlusterMain(QtWidgets.QMainWindow):
                     fqpr_entry, already_in = self.project.add_fqpr(f, skip_dask=True)
                     if fqpr_entry is None:  # no fqpr instance successfully loaded
                         print('update_on_file_added: Unable to add to Project from existing: {}'.format(f))
+                    if already_in:
+                        print('{} already exists in {}'.format(f, self.project.path))
                     else:
                         new_fqprs.append(fqpr_entry)
         if new_fqprs:
@@ -425,7 +432,6 @@ class KlusterMain(QtWidgets.QMainWindow):
         """
 
         cancelled = False
-        self.project.get_dask_client()  # start dask if it has not been started already
         if not self.no_threads_running():
             print('Processing is already occurring.  Please wait for the process to finish')
             cancelled = True
@@ -576,9 +582,9 @@ class KlusterMain(QtWidgets.QMainWindow):
 
         self.close_project()
         self.project._setup_new_project(directory)
-        if self.settings:
+        if self.settings:  # set_settings will set the project settings and save the project
             self.project.set_settings(self.settings)
-        else:
+        else:  # just save the project
             self.project.save_project()
 
         self.redraw()

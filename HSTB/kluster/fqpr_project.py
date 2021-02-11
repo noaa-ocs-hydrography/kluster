@@ -187,7 +187,7 @@ class FqprProject:
         If the client does not exist, we set it here and then set the client to the Fqpr and BatchRead instance
         """
 
-        if self.client is None:
+        if self.client is None or (self.client.status != 'running'):
             self.client = dask_find_or_start_client()
         for fqname, fqinstance in self.fqpr_instances.items():
             fqinstance.client = self.client

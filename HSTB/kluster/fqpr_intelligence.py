@@ -269,15 +269,15 @@ class FqprIntel(LoggerClass):
             the updated_type that matches this file
         OrderedDict
             attributes associated with one of the gather_xxxx functions
+        bool
+            True if a new project was created or loaded
         """
-
-        if self.project.path is None:
-            self.project._setup_new_project(os.path.dirname(infile))
 
         infile = os.path.normpath(infile)
         fileext = os.path.splitext(infile)[1]
         updated_type = ''
         new_data = None
+        new_project = False
 
         rerun_mbes_file_match = False
         rerun_nav_file_match = False
@@ -298,6 +298,18 @@ class FqprIntel(LoggerClass):
             if not silent:
                 self.print_msg('File is not of a supported type: {}'.format(infile), logging.ERROR)
 
+        # added files so lets load the existing project or setup a new one if there is no existing project
+        if new_data:
+            if self.project.path is None:
+                parent_dir = os.path.dirname(infile)
+                potential_project_file = os.path.join(parent_dir, 'kluster_project.json')
+                if os.path.exists(potential_project_file):
+                    self.project.open_project(potential_project_file, skip_dask=True)
+                    new_project = True
+                else:
+                    self.project._setup_new_project(os.path.dirname(infile))
+                    new_project = True
+
         # added files, so lets rebuild the matches for the appropriate category
         if rerun_mbes_file_match:
             self.match_multibeam_files_to_project()
@@ -311,7 +323,7 @@ class FqprIntel(LoggerClass):
         if updated_type:
             self.update_matches()
 
-        return updated_type, new_data
+        return updated_type, new_data, new_project
 
     def remove_file(self, infile: str):
         """
@@ -845,6 +857,8 @@ class FqprIntel(LoggerClass):
         All actions return the new fqpr instance, so we overwrite the project Fqpr instance reference with this new one.
         """
         if self.action_container.actions:
+            self.project.get_dask_client()  # start dask if it has not been started already
+            self.action_container.update_actions_client(self.project.client)
             action = self.action_container.actions[idx]
             action_type = action.action_type
             if self.parent is not None:  # running from GUI

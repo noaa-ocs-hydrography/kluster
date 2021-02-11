@@ -101,19 +101,21 @@ class FqprActionContainer:
             dask distributed client instance
         """
 
-        for action in self.actions:
-            for cnt, ar in enumerate(action.args):
-                if isinstance(ar, Client):
-                    action[cnt] = client
-                elif isinstance(ar, fqpr_generation.Fqpr):
-                    ar.client = client
-                    ar.multibeam.client = client
-                    action.args[cnt] = ar
-            if 'client' in action.kwargs:
-                action.kwargs['client'] = client
-            if 'fqpr_inst' in action.kwargs:
-                action.kwargs['fqpr_inst'].client = client
-                action.kwargs['fqpr_inst'].multibeam.client = client
+        if client:
+            for action in self.actions:
+                for cnt, ar in enumerate(action.args):
+                    if isinstance(ar, Client):
+                        action.args[cnt] = client
+                    elif isinstance(ar, fqpr_generation.Fqpr):
+                        ar.client = client
+                        ar.multibeam.client = client
+                        action.args[cnt] = ar
+                if action.kwargs:
+                    if 'client' in action.kwargs:
+                        action.kwargs['client'] = client
+                    if 'fqpr_inst' in action.kwargs:
+                        action.kwargs['fqpr_inst'].client = client
+                        action.kwargs['fqpr_inst'].multibeam.client = client
 
     def add_action(self, action: FqprAction):
         """

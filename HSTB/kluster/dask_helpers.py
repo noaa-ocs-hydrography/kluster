@@ -56,7 +56,7 @@ def dask_find_or_start_client(address: str = None, silent: bool = False):
             client = get_client(address=address)
             if not silent:
                 print('Using existing client on address {}...'.format(address))
-    except ValueError:
+    except ValueError:  # no global client found and no address provided
         logical_core_count = psutil.cpu_count(True)
         mem_total_gb = psutil.virtual_memory().total / 1000000000
         # currently trying to support >8 workers is a mem hog.  Limit to 8, maybe expose this in the gui somewhere
