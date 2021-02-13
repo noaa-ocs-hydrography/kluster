@@ -13,6 +13,7 @@ from HSTB.kluster.xarray_conversion import BatchRead
 from HSTB.kluster.fqpr_generation import Fqpr
 from HSTB.kluster.fqpr_surface import BaseSurface
 from HSTB.kluster.fqpr_helpers import return_directory_from_data
+from HSTB.kluster.fqpr_surface_v3 import QuadManager
 
 
 def perform_all_processing(filname: str, navfiles: list = None, outfold: str = None, coord_system: str = 'NAD83',
@@ -504,6 +505,97 @@ def generate_new_surface(fqpr_inst: Union[Fqpr, list], resolution: float = 1.0, 
     if output_path is not None:
         bs.save(output_path)
     return bs
+
+
+def generate_new_vr_surface(fqpr_inst: Union[Fqpr, list], max_points_per_quad: int = 5, max_grid_size: int = 128,
+                            min_grid_size: int = 1, output_path: str = None, export_path: str = None):
+    """
+    Using the fqpr_surface_v3 QuadManager class, generate a new variable resolution surface for the provided Kluster
+    fqpr instance(s)
+
+    If fqpr_inst is provided and is not a list, generates a surface based on that specific fqpr converted instance.
+
+    If fqpr_inst provided is a list of fqpr instances, will concatenate these instances and build a single surface.
+
+    Returns an instance of the surface class and optionally saves the surface to disk.
+
+    Parameters
+    ----------
+    fqpr_inst
+        instance or list of instances of fqpr_generation.Fqpr class that contains generated soundings data, see
+        perform_all_processing or reload_data
+    max_points_per_quad
+        maximum number of points allowed per quad, before splitting the quad
+    max_grid_size
+        max size of the quad allowed before splitting
+    min_grid_size
+        minimum size of the quad allowed, will not split any further than this
+    output_path
+        if provided, will save the QuadTree to this path, with data saved as stacked numpy (npy) files
+    export_path
+        if provided, will export the QuadTree to csv
+
+    Returns
+    -------
+    QuadManager
+        QuadManager instance for the newly created surface
+    """
+
+    if not isinstance(fqpr_inst, list):
+        fqpr_inst = [fqpr_inst]
+
+    try:
+        all_have_soundings = np.all(['x' in rp for f in fqpr_inst for rp in f.multibeam.raw_ping])
+    except AttributeError:
+        print('generate_new_vr_surface: Invalid Fqpr instances passed in, could not find instance.multibeam.raw_ping[0].x')
+        return None
+
+    if not all_have_soundings:
+        print('generate_new_vr_surface: No georeferenced soundings found')
+        return None
+
+    try:
+        unique_crs = np.unique([f.xyz_crs for f in fqpr_inst])
+        if len(unique_crs) > 1:
+            print('generate_new_vr_surface: Found multiple EPSG codes in the input data, data must be of the same code: {}'.format(unique_crs))
+            return None
+        unique_vertref = np.unique([f.multibeam.raw_ping[0].vertical_reference for f in fqpr_inst])
+        if len(unique_vertref) > 1:
+            print('generate_new_vr_surface: Found multiple vertical references in the input data, data must be of the same reference: {}'.format(unique_vertref))
+            return None
+        if unique_crs[0].to_epsg() is None:
+            print('generate_new_vr_surface: No valid EPSG for {}'.format(fqpr_inst[0].xyz_crs.to_proj4()))
+            return None
+    except (AttributeError, IndexError):
+        print('Expect a list of fqpr instances or a single fqpr instance as input.  Received {}'.format(fqpr_inst))
+        return
+
+    print('Preparing data...')
+    rps = []
+    for f in fqpr_inst:
+        for rp in f.multibeam.raw_ping:
+            rp = rp.drop_vars([nms for nms in rp.variables if nms not in ['x', 'y', 'z', 'tvu', 'thu']])
+            rps.append(rp)
+    if len(rps) == 1:
+        dataset = rp.drop_vars([nms for nms in rp.variables if nms not in ['x', 'y', 'z', 'tvu', 'thu']]).stack({'sounding': ('time', 'beam')})
+    else:
+        dataset = xr.concat(rps, dim='time', data_vars=['x', 'y', 'z', 'tvu', 'thu']).stack({'sounding': ('time', 'beam')})
+    dataset = dataset.compute()
+
+    print('Building tree...')
+    qm = QuadManager()
+    coordsys = unique_crs[0]
+    vertref = unique_vertref[0]
+    containername = [os.path.split(f.multibeam.raw_ping[0].output_path)[1] for f in fqpr_inst]
+    multibeamlist = [list(f.multibeam.raw_ping[0].multibeam_files.keys()) for f in fqpr_inst]
+    qm.create(dataset, container_name=containername, multibeam_file_list=multibeamlist, coordinate_system=coordsys,
+              vertical_reference=vertref, max_points_per_quad=max_points_per_quad, max_grid_size=max_grid_size,
+              min_grid_size=min_grid_size)
+    if output_path:
+        qm.save(output_path)
+    if export_path:
+        qm.export(export_path)
+    return qm
 
 
 def reload_surface(surface_path: str):

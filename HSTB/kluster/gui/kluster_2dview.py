@@ -3,6 +3,7 @@ from PySide2 import QtCore, QtGui, QtWidgets
 
 # apparently there is some problem with PySide2 + Pyinstaller, for future reference
 # https://stackoverflow.com/questions/56182256/figurecanvas-not-interpreted-as-qtwidget-after-using-pyinstaller/62055972#62055972
+
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg, NavigationToolbar2QT
 from matplotlib.figure import Figure
 from matplotlib.widgets import RectangleSelector
@@ -82,7 +83,7 @@ class Kluster2dview(FigureCanvasQTAgg):
                                   np.clip(min_lat - lat_buffer, -90, 90), np.clip(max_lat + lat_buffer, -90, 90)],
                                  crs=ccrs.Geodetic())
 
-    def add_line(self, line_name: str, lats: np.ndarray, lons: np.ndarray):
+    def add_line(self, line_name: str, lats: np.ndarray, lons: np.ndarray, refresh: bool = False):
         """
         Draw a new multibeam trackline on the cartopy display, unless it is already there
 
@@ -94,15 +95,24 @@ class Kluster2dview(FigureCanvasQTAgg):
             numpy array of latitude values to plot
         lons
             numpy array of longitude values to plot
+        refresh
+            set to True if you want to show the line after adding here, kluster will redraw the screen after adding
+            lines itself
         """
 
         if line_name in self.line_objects:
             return
-        lne = self.axes.plot(lons, lats, color='blue', linewidth=2, transform=ccrs.Geodetic())
+        # this is about 3x slower, use transform_points instead
+        # lne = self.axes.plot(lons, lats, color='blue', linewidth=2, transform=ccrs.Geodetic())
+        ret = self.axes.projection.transform_points(ccrs.Geodetic(), lons, lats)
+        x = ret[..., 0]
+        y = ret[..., 1]
+        lne = self.axes.plot(x, y, color='blue', linewidth=2)
         self.line_objects[line_name] = [lats, lons, lne[0]]
-        self.refresh_screen()
+        if refresh:
+            self.refresh_screen()
 
-    def remove_line(self, line_name, refresh=True):
+    def remove_line(self, line_name, refresh=False):
         """
         Remove a multibeam line from the cartopy display
 
@@ -278,13 +288,17 @@ class Kluster2dview(FigureCanvasQTAgg):
         self.axes.relim()
         self.axes.autoscale_view()
 
-        self.fig.canvas.draw()
+        self.fig.canvas.draw_idle()
         self.fig.canvas.flush_events()
 
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication()
     f = Kluster2dview()
-    #f.add_line('test', [40, 45, 50], [-10, 10, 20])
+    f.add_line('test1', np.linspace(40, 50, 100), np.linspace(0, 10, 100))
+    f.add_line('test2', np.linspace(10, 12, 100), np.linspace(-40, -30, 100))
+    f.add_line('test3', np.linspace(-10, -30, 100), np.linspace(10, 0, 100))
+    f.add_line('test4', np.linspace(20, -20, 100), np.linspace(-30, 0, 100))
+    f.set_extents_from_lines()
     f.show()
     sys.exit(app.exec_())

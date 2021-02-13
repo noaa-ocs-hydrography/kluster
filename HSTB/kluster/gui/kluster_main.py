@@ -261,6 +261,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         surface_layer_name: optional, str, name of the layer of the surface to add or hide
 
         """
+
         self.project_tree.refresh_project(proj=self.project)
         if new_fqprs is not None:
             for fq in new_fqprs:
@@ -288,6 +289,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         """
         for ln in self.project.return_project_lines(proj=pth, relative_path=True):
             self.two_d.remove_line(ln)
+        self.two_d.refresh_screen()
         self.project.remove_fqpr(pth, relative_path=True)
         self.project_tree.refresh_project(self.project)
 
