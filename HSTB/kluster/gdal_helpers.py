@@ -1,11 +1,8 @@
 from typing import Union
-import numpy as np
 
-import osgeo
 from osgeo import gdal
 from osgeo.osr import SpatialReference
 from pyproj.crs import CRS
-from pyproj.enums import WktVersion
 
 
 def pyproj_crs_to_osgeo(proj_crs: Union[CRS, int]):
@@ -28,10 +25,7 @@ def pyproj_crs_to_osgeo(proj_crs: Union[CRS, int]):
     if isinstance(proj_crs, int):
         proj_crs = CRS.from_epsg(proj_crs)
     osr_crs = SpatialReference()
-    if osgeo.version_info.major < 3:
-        osr_crs.ImportFromWkt(proj_crs.to_wkt(WktVersion.WKT1_GDAL))
-    else:
-        osr_crs.ImportFromWkt(proj_crs.to_wkt())
+    osr_crs.ImportFromWkt(proj_crs.to_wkt())
     return osr_crs
 
 
