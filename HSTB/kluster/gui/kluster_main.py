@@ -62,8 +62,8 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.attribute = kluster_explorer.KlusterAttribution(self)
         self.attribute_dock = self.dock_this_widget("Attribute", 'attribute_dock', self.attribute)
 
-        self.attitude = kluster_attitudeview.KlusterAttitudeView(self)
-        self.attitude_dock = self.dock_this_widget('Attitude', 'attitude_dock', self.attitude)
+        # self.attitude = kluster_attitudeview.KlusterAttitudeView(self)
+        # self.attitude_dock = self.dock_this_widget('Attitude', 'attitude_dock', self.attitude)
 
         self.actions = kluster_actions.KlusterActions(self)
         self.actions_dock = self.dock_this_widget('Actions', 'actions_dock', self.actions)
@@ -772,14 +772,14 @@ class KlusterMain(QtWidgets.QMainWindow):
             if xyz is not None:
                 self.three_d.add_point_dataset(xyz[0], xyz[1], xyz[2])
 
-        if self.dockwidget_is_visible(self.attitude_dock) and idx == 0:
-            att = self.project.build_raw_attitude_for_line(linename, subset=True)
-            if att is not None:
-                self.attitude.initialize_datastore()
-                self.attitude.initialize_data(att)
-                self.attitude.start_plotting()
-        elif not self.dockwidget_is_visible(self.attitude_dock):
-            self.attitude.stop_plotting()
+        # if self.dockwidget_is_visible(self.attitude_dock) and idx == 0:
+        #     att = self.project.build_raw_attitude_for_line(linename, subset=True)
+        #     if att is not None:
+        #         self.attitude.initialize_datastore()
+        #         self.attitude.initialize_data(att)
+        #         self.attitude.start_plotting()
+        # elif not self.dockwidget_is_visible(self.attitude_dock):
+        #     self.attitude.stop_plotting()
 
     def refresh_explorer(self, fq_inst):
         """
@@ -941,13 +941,13 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.addDockWidget(QtCore.Qt.TopDockWidgetArea, self.tree_dock)
         self.addDockWidget(QtCore.Qt.TopDockWidgetArea, self.two_d_dock)
         self.addDockWidget(QtCore.Qt.TopDockWidgetArea, self.three_d_dock)
-        self.addDockWidget(QtCore.Qt.TopDockWidgetArea, self.attitude_dock)
+        # self.addDockWidget(QtCore.Qt.TopDockWidgetArea, self.attitude_dock)
         self.addDockWidget(QtCore.Qt.TopDockWidgetArea, self.actions_dock)
         self.addDockWidget(QtCore.Qt.TopDockWidgetArea, self.monitor_dock)
         self.splitDockWidget(self.tree_dock, self.two_d_dock, QtCore.Qt.Horizontal)
         self.splitDockWidget(self.two_d_dock, self.actions_dock, QtCore.Qt.Horizontal)
         self.tabifyDockWidget(self.two_d_dock, self.three_d_dock)
-        self.tabifyDockWidget(self.two_d_dock, self.attitude_dock)
+        # self.tabifyDockWidget(self.two_d_dock, self.attitude_dock)
         self.tabifyDockWidget(self.actions_dock, self.monitor_dock)
 
         self.addDockWidget(QtCore.Qt.BottomDockWidgetArea, self.explorer_dock)

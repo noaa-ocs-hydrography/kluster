@@ -116,6 +116,10 @@ class BasicPlotDialog(QtWidgets.QDialog):
         self.add_to_current_plot = QtWidgets.QCheckBox('Add to current plot', self)
         self.add_to_current_plot.setChecked(False)
         self.hlayout_five.addWidget(self.add_to_current_plot)
+        self.zero_center_plot = QtWidgets.QCheckBox('Center on zero', self)
+        self.zero_center_plot.setChecked(False)
+        self.zero_center_plot.hide()
+        self.hlayout_five.addWidget(self.zero_center_plot)
 
         self.hlayout_four = QtWidgets.QHBoxLayout()
         self.hlayout_four.addStretch()
@@ -312,6 +316,10 @@ class BasicPlotDialog(QtWidgets.QDialog):
                 else:
                     self.bincount_label.hide()
                     self.bincount.hide()
+                if plottype[0:4] == 'Line':
+                    self.zero_center_plot.show()
+                else:
+                    self.zero_center_plot.hide()
 
     def new_ping_count(self, ping_count: int):
         """
@@ -383,17 +391,36 @@ class BasicPlotDialog(QtWidgets.QDialog):
 
             identifier = '{} {}'.format(dataset_name, translated_var)
             if plottype == 'Line':
-                data.plot.line(ax=self.recent_plot[cnt], label=identifier)
+                if self.zero_center_plot.isChecked():
+                    (data - data.mean()).plot.line(ax=self.recent_plot[cnt], label=identifier)
+                else:
+                    data.plot.line(ax=self.recent_plot[cnt], label=identifier)
             elif plottype == 'Line - Mean':
-                data.mean(axis=1).plot.line(ax=self.recent_plot[cnt], label=identifier + ' (mean)')
+                newdata = data.mean(axis=1)
+                if self.zero_center_plot.isChecked():
+                    (newdata - newdata.mean()).plot.line(ax=self.recent_plot[cnt], label=identifier + ' (mean)')
+                else:
+                    newdata.plot.line(ax=self.recent_plot[cnt], label=identifier + ' (mean)')
             elif plottype == 'Line - Nadir':
                 nadir_beam_num = int((data.beam.shape[0] / 2) - 1)
-                data.isel(beam=nadir_beam_num).plot.line(ax=self.recent_plot[cnt], label=identifier + ' (nadir)')
+                newdata = data.isel(beam=nadir_beam_num)
+                if self.zero_center_plot.isChecked():
+                    (newdata - newdata.mean()).plot.line(ax=self.recent_plot[cnt], label=identifier + ' (nadir)')
+                else:
+                    newdata.plot.line(ax=self.recent_plot[cnt], label=identifier + ' (nadir)')
             elif plottype == 'Line - Port Outer Beam':
-                data.isel(beam=0).plot.line(ax=self.recent_plot[cnt], label=identifier + ' (port outer)')
+                newdata = data.isel(beam=0)
+                if self.zero_center_plot.isChecked():
+                    (newdata - newdata.mean()).plot.line(ax=self.recent_plot[cnt], label=identifier + ' (port outer)')
+                else:
+                    newdata.plot.line(ax=self.recent_plot[cnt], label=identifier + ' (port outer)')
             elif plottype == 'Line - Starboard Outer Beam':
                 last_beam_num = int((data.beam.shape[0]) - 1)
-                data.isel(beam=last_beam_num).plot.line(ax=self.recent_plot[cnt], label=identifier + ' (stbd outer)')
+                newdata = data.isel(beam=last_beam_num)
+                if self.zero_center_plot.isChecked():
+                    (newdata - newdata.mean()).plot.line(ax=self.recent_plot[cnt], label=identifier + ' (stbd outer)')
+                else:
+                    newdata.plot.line(ax=self.recent_plot[cnt], label=identifier + ' (stbd outer)')
             elif plottype == 'Histogram':
                 bincount = int(self.bincount.text())
                 data.plot.hist(ax=self.recent_plot[cnt], bins=bincount, label=identifier)
