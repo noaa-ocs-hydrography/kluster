@@ -6,7 +6,7 @@
 version: 2
 
 conda:
-    environment: readthedocs_conda.yml
+  environment: readthedocs_conda.yml
 
 # Build documentation in the docs/ directory with Sphinx
 sphinx:
@@ -24,6 +24,5 @@ sphinx:
 python:
    version: 3.8
    install:
-      - requirements: requirements.txt
       - method: pip
         path: .
