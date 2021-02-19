@@ -39,7 +39,7 @@ class ActionTab(QtWidgets.QWidget):
 
         self.actions = []
 
-    def update_actions(self, actions: list):
+    def update_actions(self, actions: list, unmatched: dict = None):
         """
         Currently whenever we receive new actions, we clear out all the actions and start over
 
@@ -47,12 +47,15 @@ class ActionTab(QtWidgets.QWidget):
         ----------
         actions
             list of fqpr_intelligence.FqprAction objects
+        unmatched
+            dictionary of unmatched files with reasons as values
         """
 
         self.actions = actions
         self.clear_actions()
-        for cnt, action in enumerate(self.actions):
-            self.add_action(cnt, action)
+        if self.actions:
+            for cnt, action in enumerate(self.actions):
+                self.add_action(cnt, action)
 
     def clear_actions(self):
         self.table.clearContents()
@@ -765,7 +768,7 @@ class KlusterIntelligence(QtWidgets.QMainWindow):
         else:
             fils = [filepath]
         for f in fils:
-            updated_type, new_data = self.intelligence.add_file(f)
+            updated_type, new_data, new_project = self.intelligence.add_file(f)
             if updated_type == 'multibeam':
                 self.multibeam_intel.update_from_dict(new_data)
             elif updated_type == 'svp':

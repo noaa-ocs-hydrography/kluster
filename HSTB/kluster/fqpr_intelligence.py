@@ -762,11 +762,15 @@ class FqprIntel(LoggerClass):
                             break
 
                         starttime = fqpr_instance.multibeam.raw_ping[0].time.values[0]
-                        starttime_weekly = starttime % 604800
+                        starttime_weekly = datetime.utcfromtimestamp(starttime) - datetime.strptime("1980-01-06 00:00:00", "%Y-%m-%d %H:%M:%S")
+                        starttime_weekly = starttime_weekly.seconds + (86400 * (starttime_weekly.days % 7))
+                        starttime_daynum = np.floor(starttime_weekly / 86400)
+                        sbet_starttime_weekly_daynum = np.floor(sbet_starttime_weekly / 86400)
+
                         serial_number = fqpr_instance.multibeam.raw_ping[0].system_identifier
                         model_number = fqpr_instance.multibeam.raw_ping[0].sonartype
 
-                        if abs(sbet_starttime_weekly - starttime_weekly) <= 86400:
+                        if sbet_starttime_weekly_daynum == starttime_daynum:  # sbet from same day of the week
                             fqpr_match += [relpath]
 
                         if navfilepath.lower().find(str(serial_number).lower()) != -1:
@@ -790,7 +794,7 @@ class FqprIntel(LoggerClass):
                         unmatch_reason = 'Navigation file (SBET)\n\n'
                         unmatch_reason += 'Supporting files exist:\n\nerror file: {}\nlogfile: {}\n\n'.format(errfile, logfile)
                         unmatch_reason += 'But no matching converted data found.  We match to converted multibeam data that:\n\n'
-                        unmatch_reason += '- is of the same week day number as nav file (day {})\n'.format(int(sbet_starttime_weekly / 86400))
+                        unmatch_reason += '- is of the same week day number as nav file (sbet from day number {})\n'.format(int(sbet_starttime_weekly / 86400))
                         unmatch_reason += '- has a sonar serial number that is found in the navigation file path\n'
                         unmatch_reason += '- has a sonar model number that is found in the navigation file path'
                 else:

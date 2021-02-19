@@ -35,14 +35,14 @@ class SurfaceDialog(QtWidgets.QDialog):
         self.surf_method_lbl = QtWidgets.QLabel('Method: ')
         self.hlayout_one_one.addWidget(self.surf_method_lbl)
         self.surf_method = QtWidgets.QComboBox()
-        self.surf_method.addItems(['nearest', 'linear', 'cubic'])
+        self.surf_method.addItems(['Mean'])
         self.surf_method.setMaximumWidth(100)
         self.hlayout_one_one.addWidget(self.surf_method)
         self.surf_resolution_lbl = QtWidgets.QLabel('Resolution: ')
         self.hlayout_one_one.addWidget(self.surf_resolution_lbl)
-        self.surf_resolution = QtWidgets.QLineEdit('')
-        self.surf_resolution.setInputMask('000.0;_')
-        self.surf_resolution.setMaximumWidth(40)
+        self.surf_resolution = QtWidgets.QComboBox()
+        self.surf_resolution.addItems(['0.25', '0.50', '1.0', '2.0', '4.0', '8.0', '16.0', '32.0', '64.0', '128.0'])
+        self.surf_resolution.setMaximumWidth(60)
         self.hlayout_one_one.addWidget(self.surf_resolution)
         self.soundings_per_node_lbl = QtWidgets.QLabel('Required Soundings/Node: ')
         self.hlayout_one_one.addWidget(self.soundings_per_node_lbl)
@@ -55,17 +55,17 @@ class SurfaceDialog(QtWidgets.QDialog):
         self.hlayout_one_one.addStretch(1)
         self.surf_layout.addLayout(self.hlayout_one_one)
 
-        self.output_msg = QtWidgets.QLabel('Select the output path for the surface')
-        self.surf_layout.addWidget(self.output_msg)
+        # self.output_msg = QtWidgets.QLabel('Select the output path for the surface')
+        # self.surf_layout.addWidget(self.output_msg)
 
-        self.hlayout_one_two = QtWidgets.QHBoxLayout()
-        self.fil_text = QtWidgets.QLineEdit('', self)
-        self.fil_text.setMinimumWidth(400)
-        self.fil_text.setReadOnly(True)
-        self.hlayout_one_two.addWidget(self.fil_text)
-        self.browse_button = QtWidgets.QPushButton("Browse", self)
-        self.hlayout_one_two.addWidget(self.browse_button)
-        self.surf_layout.addLayout(self.hlayout_one_two)
+        # self.hlayout_one_two = QtWidgets.QHBoxLayout()
+        # self.fil_text = QtWidgets.QLineEdit('', self)
+        # self.fil_text.setMinimumWidth(400)
+        # self.fil_text.setReadOnly(True)
+        # self.hlayout_one_two.addWidget(self.fil_text)
+        # self.browse_button = QtWidgets.QPushButton("Browse", self)
+        # self.hlayout_one_two.addWidget(self.browse_button)
+        # self.surf_layout.addLayout(self.hlayout_one_two)
 
         self.surface_box.setLayout(self.surf_layout)
         self.hlayout_one.addWidget(self.surface_box)
@@ -94,7 +94,7 @@ class SurfaceDialog(QtWidgets.QDialog):
         self.output_pth = None
 
         self.input_fqpr.files_updated.connect(self._event_update_fqpr_instances)
-        self.browse_button.clicked.connect(self.file_browse)
+        # self.browse_button.clicked.connect(self.file_browse)
         self.ok_button.clicked.connect(self.start_processing)
         self.cancel_button.clicked.connect(self.cancel_processing)
 
@@ -105,6 +105,8 @@ class SurfaceDialog(QtWidgets.QDialog):
         if addtl_files is not None:
             self.input_fqpr.add_new_files(addtl_files)
         self.fqpr_inst = [self.input_fqpr.list_widget.item(i).text() for i in range(self.input_fqpr.list_widget.count())]
+        if self.fqpr_inst:
+            self.output_pth = self.fqpr_inst[0]
 
     def file_browse(self):
         msg, self.output_pth = RegistryHelpers.GetFilenameFromUserQT(self, RegistryKey='Kluster',
@@ -117,15 +119,16 @@ class SurfaceDialog(QtWidgets.QDialog):
     def return_processing_options(self):
         if not self.canceled:
             # pull CRS from the first fqpr instance, as we've already checked to ensure they are identical
-            opts = {'fqpr_inst': self.fqpr_inst, 'resolution': float(self.surf_resolution.text()),
-                    'method': self.surf_method.currentText(), 'soundings_per_node': int(self.soundings_per_node.text()),
-                    'output_path': self.fil_text.text()}
+            opts = {'fqpr_inst': self.fqpr_inst, 'max_grid_size': float(self.surf_resolution.currentText()),
+                    'min_grid_size': float(self.surf_resolution.currentText()),
+                    'max_points_per_quad': int(self.soundings_per_node.text()),
+                    'output_path': self.output_pth}
         else:
             opts = None
         return opts
 
     def start_processing(self):
-        if not self.surf_resolution.text() or not self.fil_text.text():
+        if not self.surf_resolution.currentText():
             self.status_msg.setText('Error: You must complete all dialog options to proceed')
         else:
             self.canceled = False

@@ -9,7 +9,7 @@ from types import FunctionType
 from HSTB.kluster.fqpr_generation import Fqpr
 from HSTB.kluster.dask_helpers import dask_find_or_start_client
 from HSTB.kluster.fqpr_convenience import reload_data, reload_surface, get_attributes_from_fqpr
-from HSTB.kluster.fqpr_surface import BaseSurface
+from HSTB.kluster.fqpr_surface_v3 import QuadManager
 from HSTB.kluster.xarray_helpers import slice_xarray_by_dim
 
 
@@ -361,36 +361,33 @@ class FqprProject:
             for callback in self._project_observers:
                 callback(True)
 
-    def add_surface(self, pth: Union[str, BaseSurface]):
+    def add_surface(self, pth: Union[str, QuadManager]):
         """
-        Add a new BaseSurface object to the project, either by loading from file or by directly adding a BaseSurface
+        Add a new QuadManager object to the project, either by loading from file or by directly adding a QuadManager
         object provided
 
         Parameters
         ----------
         pth
-            path to surface file or existing BaseSurface object
+            path to surface file or existing QuadManager object
         """
 
         if type(pth) == str:
-            if os.path.splitext(pth)[1] == '.npz':
-                basesurf = reload_surface(pth)
-                pth = os.path.normpath(pth)
-            else:
-                basesurf = None
+            qm = reload_surface(pth)
+            pth = os.path.normpath(pth)
         else:  # fq is the new Fqpr instance, pth is the output path that is saved as an attribute
-            basesurf = pth
-            pth = os.path.normpath(basesurf.output_path)
-        if basesurf is not None:
+            qm = pth
+            pth = os.path.normpath(qm.output_path)
+        if qm is not None:
             if self.path is None:
                 self._setup_new_project(os.path.dirname(pth))
             relpath = self.path_relative_to_project(pth)
-            self.surface_instances[relpath] = basesurf
+            self.surface_instances[relpath] = qm
             print('Successfully added {}'.format(pth))
 
     def remove_surface(self, pth: str, relative_path: bool = False):
         """
-        Remove an attached BaseSurface instance from the project by path to Fqpr converted folder
+        Remove an attached QuadManager instance from the project by path to Fqpr converted folder
 
         Parameters
         ----------

@@ -381,6 +381,27 @@ class KlusterProjectTree(QtWidgets.QTreeView):
                 fqprs.append(new_fqpr)
         return fqprs
 
+    def return_selected_surfaces(self):
+        """
+        Return all the selected surface instances that are selected.  Only returns unique surface instances
+
+        Returns
+        -------
+        list
+            list of all str paths to surface instance folders selected
+
+        """
+        surfs = []
+        new_surf = ''
+        idxs = self.selectedIndexes()
+        for idx in idxs:
+            mid_lvl_name = idx.parent().data()
+            if mid_lvl_name == 'Surfaces':  # user has selected a surface
+                new_surf = self.model.data(idx)
+            if new_surf not in surfs:
+                surfs.append(new_surf)
+        return surfs
+
 
 class OutWindow(QtWidgets.QMainWindow):
     """

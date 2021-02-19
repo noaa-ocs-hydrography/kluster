@@ -6,7 +6,8 @@ from PySide2 import QtGui, QtCore, QtWidgets
 
 from HSTB.kluster.gui import dialog_vesselview, kluster_explorer, kluster_project_tree, kluster_3dview, kluster_attitudeview, \
     kluster_output_window, kluster_2dview, kluster_actions, kluster_monitor, dialog_daskclient, dialog_surface, \
-    dialog_export, kluster_worker, kluster_interactive_console, dialog_basicplot, dialog_advancedplot, dialog_project_settings
+    dialog_export, kluster_worker, kluster_interactive_console, dialog_basicplot, dialog_advancedplot, dialog_project_settings, \
+    dialog_export_grid
 from HSTB.kluster.fqpr_project import FqprProject
 from HSTB.kluster.fqpr_intelligence import FqprIntel
 from HSTB.kluster import __version__ as kluster_version
@@ -83,7 +84,8 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.action_thread = kluster_worker.ActionWorker()
         self.surface_thread = kluster_worker.SurfaceWorker()
         self.export_thread = kluster_worker.ExportWorker()
-        self.allthreads = [self.action_thread, self.surface_thread, self.export_thread]
+        self.export_grid_thread = kluster_worker.ExportGridWorker()
+        self.allthreads = [self.action_thread, self.surface_thread, self.export_thread, self.export_grid_thread]
 
         # connect FqprActionContainer with actions pane, called whenever actions changes
         self.intel.bind_to_action_update(self.actions.update_actions)
@@ -104,7 +106,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.actions.undo_exclude_file.connect(self._action_add_files)
         self.two_d.box_select.connect(self.select_line_by_box)
         self.action_thread.finished.connect(self._kluster_execute_action_results)
-        self.surface_thread.finished.connect(self._kluster_surface_genertaion_results)
+        self.surface_thread.finished.connect(self._kluster_surface_generation_results)
         self.monitor.monitor_file_event.connect(self.intel._handle_monitor_event)
         self.monitor.monitor_start.connect(self._create_new_project_if_not_exist)
 
@@ -149,6 +151,8 @@ class KlusterMain(QtWidgets.QMainWindow):
         close_proj_action.triggered.connect(self.close_project)
         export_action = QtWidgets.QAction('Export Soundings', self)
         export_action.triggered.connect(self._action_export)
+        export_grid_action = QtWidgets.QAction('Export Surface', self)
+        export_grid_action.triggered.connect(self._action_export_grid)
 
         view_dashboard_action = QtWidgets.QAction('Dashboard', self)
         view_dashboard_action.triggered.connect(self.open_dask_dashboard)
@@ -177,6 +181,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         file.addAction(close_proj_action)
         file.addSeparator()
         file.addAction(export_action)
+        file.addAction(export_grid_action)
 
         view = menubar.addMenu('View')
         view.addAction(view_dashboard_action)
@@ -213,7 +218,6 @@ class KlusterMain(QtWidgets.QMainWindow):
         if type(fil) is str and fil != '':
             fil = [fil]
 
-        surfaces = []
         new_fqprs = []
 
         for f in fil:  # first pass to weed out a potential project, want to load that first
@@ -228,7 +232,9 @@ class KlusterMain(QtWidgets.QMainWindow):
             if new_project:  # user added a data file when there was no project, so we loaded or created a new one
                 new_fqprs.extend([fqpr for fqpr in self.project.fqpr_instances.keys() if fqpr not in new_fqprs])
             if new_data is None:
-                if os.path.splitext(f)[1] == '.npz':
+                if os.path.split(f)[1] == 'grid.pickle':
+                    self.project.add_surface(os.path.dirname(f))
+                elif os.path.exists(os.path.join(f, 'grid.pickle')):
                     self.project.add_surface(f)
                 else:
                     fqpr_entry, already_in = self.project.add_fqpr(f, skip_dask=True)
@@ -271,9 +277,8 @@ class KlusterMain(QtWidgets.QMainWindow):
             self.two_d.set_extents_from_lines()
         if add_surface is not None and surface_layer_name:
             surf_object = self.project.surface_instances[add_surface]
-            lyr = surf_object.get_layer_by_name(surface_layer_name)
-            self.two_d.add_surface(add_surface, surface_layer_name, surf_object.node_x_loc, surf_object.node_y_loc, lyr,
-                                   surf_object.crs)
+            x, y, z, valid, newmins, newmaxs = surf_object.return_surf_xyz(surface_layer_name)
+            self.two_d.add_surface(add_surface, surface_layer_name, x, y, z, surf_object.crs)
         if remove_surface is not None and surface_layer_name:
             self.two_d.hide_surface(remove_surface, surface_layer_name)
 
@@ -498,7 +503,6 @@ class KlusterMain(QtWidgets.QMainWindow):
                             fq_inst.client = self.project.get_dask_client()
                             fq_chunks.extend([fq_inst])
 
-                    opts['client'] = self.project.get_dask_client()
                     if not dlog.canceled:
                         # if the project has a client, use it here.  If None, BatchRead starts a new LocalCluster
                         self.output_window.clear()
@@ -507,7 +511,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         if cancelled:
             print('kluster_surface_generation: Processing was cancelled')
 
-    def _kluster_surface_genertaion_results(self):
+    def _kluster_surface_generation_results(self):
         """
         Method is run when the surface_thread signals completion.  All we need to do here is add the surface to the project
         and display.
@@ -520,9 +524,47 @@ class KlusterMain(QtWidgets.QMainWindow):
         else:
             print('kluster_surface_generation: Unable to complete process')
 
+    def kluster_export_grid(self):
+        """
+        Trigger export on a surface provided.  Currently only supports export of xyz to csv file(s), geotiff and bag.
+        """
+
+        if not self.no_threads_running():
+            print('Processing is already occurring.  Please wait for the process to finish')
+            cancelled = True
+        else:
+            surfs = self.return_selected_surfaces()
+            dlog = dialog_export_grid.ExportGridDialog()
+            if surfs:
+                first_surf = surfs[0]  # just use the first of the selected surfaces
+                dlog.update_input_path(first_surf)
+            cancelled = False
+            if dlog.exec_():
+                if not dlog.canceled:
+                    opts = dlog.return_processing_options()
+                    surf = dlog.input_pth
+                    output_path = opts.pop('output_path')
+                    export_format = opts.pop('export_format')
+                    z_pos_up = opts.pop('z_positive_up')
+                    relsurf = self.project.path_relative_to_project(surf)
+                    if relsurf not in self.project.surface_instances:
+                        self.update_on_file_added(surf)
+                    if relsurf in self.project.surface_instances:
+                        surf_inst = self.project.surface_instances[relsurf]
+                        self.output_window.clear()
+                        self.export_grid_thread.populate(surf_inst, export_format, output_path, z_pos_up, opts)
+                        self.export_grid_thread.start()
+                    else:
+                        print('kluster_grid_export: Unable to load from {}'.format(surf))
+                else:
+                    cancelled = True
+        if cancelled:
+            print('kluster_grid_export: Export was cancelled')
+
     def kluster_export(self):
         """
-        Trigger export on all the fqprs provided.  Currently only supports export of xyz to csv file(s)
+        Trigger export on all the fqprs provided.  Currently only supports export of xyz to csv file(s), las file(s)
+        and entwine point store.
         """
 
         if not self.no_threads_running():
@@ -552,7 +594,8 @@ class KlusterMain(QtWidgets.QMainWindow):
                             fq_chunks.append([fq_inst])
                     if fq_chunks:
                         self.output_window.clear()
-                        self.export_thread.populate(fq_chunks, export_type, z_pos_down, delimiter, filterset, separateset)
+                        self.export_thread.populate(fq_chunks, export_type, z_pos_down, delimiter, filterset,
+                                                    separateset)
                         self.export_thread.start()
                 else:
                     cancelled = True
@@ -977,9 +1020,15 @@ class KlusterMain(QtWidgets.QMainWindow):
 
     def _action_export(self):
         """
-        Connect menu action 'Export' with kluster_export
+        Connect menu action 'Export Soundings' with kluster_export
         """
         self.kluster_export()
+
+    def _action_export_grid(self):
+        """
+        Connect menu action 'Export Surface' with kluster_export_grid
+        """
+        self.kluster_export_grid()
 
     def read_settings(self):
         """
@@ -1017,6 +1066,20 @@ class KlusterMain(QtWidgets.QMainWindow):
         fqprs = self.project_tree.return_selected_fqprs()
         fqprs = [self.project.absolute_path_from_relative(f) for f in fqprs]
         return fqprs
+
+    def return_selected_surfaces(self):
+        """
+        Return absolute paths to the surface instance folders selected
+
+        Returns
+        -------
+        list
+            absolute path to the surfaces selected in the GUI
+        """
+
+        surfs = self.project_tree.return_selected_surfaces()
+        surfs = [self.project.absolute_path_from_relative(f) for f in surfs]
+        return surfs
 
     def closeEvent(self, event):
         """

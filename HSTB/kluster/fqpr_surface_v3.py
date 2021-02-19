@@ -8,6 +8,10 @@ import matplotlib
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from typing import Union
 import pickle
+from datetime import datetime
+
+from HSTB.kluster.gdal_helpers import gdal_create, return_gdal_version
+from HSTB.kluster import __version__ as kluster_version
 
 
 def is_power_of_two(n: Union[int, float]):
@@ -87,11 +91,19 @@ class QuadManager:
         self.node_data = []  # quad data, list of lists (until finalized into dask array for saving)
 
         self.sources = {}  # dict of container name, list of multibeam files
-        self.coordinate_system = None  # epsg code
+        self.crs = None  # epsg code
         self.vertical_reference = None  # string identifier for the vertical reference, one of 'ellipse' 'waterline'
+        self.max_points_per_quad = 5
+        self.max_grid_size = 128
+        self.min_grid_size = 1
+        self.mins = None
+        self.maxs = None
 
-        self.layernames = ['depth', 'horizontal_uncertainty', 'vertical_uncertainty']
-        self.layer_lookup = {'depth': 'z', 'vertical_uncertainty': 'tvu', 'horizontal_uncertainty': 'thu'}
+        self.output_path = None
+
+        self.layernames = []
+        self.layer_lookup = {'depth': 'z', 'vertical_uncertainty': 'tvu'}
+        self.rev_layer_lookup = {'z': 'depth', 'tvu': 'vertical_uncertainty'}
 
     def _convert_dataset(self):
         """
@@ -108,26 +120,57 @@ class QuadManager:
             empty_struct[varname] = self.data[varname].values
         self.data = empty_struct
 
-    def validate_input_data(self):
+    def _build_node_data_matrix(self, mins, maxs):
+        self.mins = mins
+        self.maxs = maxs
+
+        if self.is_vr:
+            self.node_data = []
+        else:  # calculate MxN shape
+            size = int((self.maxs[0] - self.mins[0]) / self.min_grid_size)
+            # cast to float64 to allow us to use np.nan as nodatatype
+            dtyp = [(varname, np.float) for varname in ['z', 'tvu'] if varname in self.data.dtype.names]
+            self.node_data = np.full((size, size), np.nan, dtype=dtyp)
+
+    @property
+    def is_vr(self):
+        """
+        Return True if QuadTree is variable resolution, i.e. the min grid size/max grid size is a range
+
+        Returns
+        -------
+        bool
+            True if VR
+        """
+
+        if self.max_grid_size:
+            return self.max_grid_size != self.min_grid_size
+        else:
+            return False
+
+    def _validate_input_data(self):
         """
         If parent is None (i.e. this is the entry point to the quad and the data is just now being examined) we ensure
         that it is a valid xarray/numpy structured array/dask array
         """
+
         if type(self.data) in [np.ndarray, da.Array]:
             if not self.data.dtype.names:
                 raise ValueError('QuadTree: numpy array provided for data, but no names were found, array must be a structured array')
             if 'x' not in self.data.dtype.names or 'y' not in self.data.dtype.names:
                 raise ValueError('QuadTree: numpy structured array provided for data, but "x" or "y" not found in variable names')
+            self.layernames = [self.rev_layer_lookup[var] for var in self.data.dtype.names if var in ['z', 'tvu']]
         elif type(self.data) == xr.Dataset:
             if 'x' not in self.data:
                 raise ValueError('QuadTree: xarray Dataset provided for data, but "x" or "y" not found in variable names')
             if len(self.data.dims) > 1:
                 raise ValueError('QuadTree: xarray Dataset provided for data, but found multiple dimensions, must be one dimensional: {}'.format(self.data.dims))
+            self.layernames = [self.rev_layer_lookup[var] for var in self.data if var in ['z', 'tvu']]
             self._convert_dataset()  # internally we just convert xarray dataset to numpy for ease of use
         else:
             raise ValueError('QuadTree: numpy structured array or dask array with "x" and "y" as variable must be provided')
 
-    def update_metadata(self, container_name: Union[str, list] = None, multibeam_file_list: list = None, coordinate_system: str = None,
+    def _update_metadata(self, container_name: Union[str, list] = None, multibeam_file_list: list = None, crs: str = None,
                         vertical_reference: str = None):
         """
         Update the quadtree metadata for the new data
@@ -139,7 +182,7 @@ class QuadManager:
             dataset
         multibeam_file_list
             list of multibeam files that exist in the data to add to the grid
-        coordinate_system
+        crs
             epsg (or proj4 string) for the coordinate system of the data.  Proj4 only shows up when there is no valid
             epsg
         vertical_reference
@@ -161,16 +204,16 @@ class QuadManager:
                         self.sources[contname] = mfiles
                 else:
                     self.sources[contname] = ['unknown']
-        if self.coordinate_system and (self.coordinate_system != coordinate_system):
-            raise ValueError('QuadManager: Found existing coordinate system {}, new coordinate system {} must match'.format(self.coordinate_system,
-                                                                                                                            coordinate_system))
+        if self.crs and (self.crs != crs):
+            raise ValueError('QuadManager: Found existing coordinate system {}, new coordinate system {} must match'.format(self.crs,
+                                                                                                                            crs))
         if self.vertical_reference and (self.vertical_reference != vertical_reference):
             raise ValueError('QuadManager: Found existing vertical reference {}, new vertical reference {} must match'.format(self.vertical_reference,
                                                                                                                               vertical_reference))
-        self.coordinate_system = coordinate_system
+        self.crs = crs
         self.vertical_reference = vertical_reference
 
-    def finalize_data(self):
+    def _finalize_data(self):
         """
         node_data starts out as list of lists, for fast appending when each quad is generated.  We finalize to dask for
         saving, to use the dask save methods and chunking.
@@ -178,7 +221,10 @@ class QuadManager:
         data is either a dask Array already or a numpy structured array.  Convert to dask for the same reasons, if that
         is needed.
         """
-        if isinstance(self.node_data, list):
+
+        if isinstance(self.node_data, np.ndarray):  # SR workflow
+            self.node_data = da.from_array(self.node_data)
+        elif isinstance(self.node_data, list):  # vr workflow
             struct_data = np.empty(len(self.node_data), dtype=self.data.dtype)
             datavals = np.array(self.node_data)
             for cnt, varname in enumerate(self.data.dtype.names):
@@ -187,24 +233,23 @@ class QuadManager:
         if isinstance(self.data, np.ndarray):
             self.data = da.from_array(self.data)
 
-    def update_statistics(self):
+    def _update_statistics(self):
         """
         After generating the surface, we add the layer statistics to the settings of the root quad
         """
-        self.finalize_data()
+
+        self._finalize_data()
         if 'z' in self.data.dtype.names:
-            self.tree.settings['min_depth'] = np.min(self.node_data['z']).compute()
-            self.tree.settings['max_depth'] = np.max(self.node_data['z']).compute()
+            self.tree.settings['min_depth'] = np.nanmin(self.node_data['z']).compute()
+            self.tree.settings['max_depth'] = np.nanmax(self.node_data['z']).compute()
         if 'tvu' in self.data.dtype.names:
-            self.tree.settings['min_tvu'] = np.min(self.node_data['tvu']).compute()
-            self.tree.settings['max_tvu'] = np.max(self.node_data['tvu']).compute()
-        if 'thu' in self.data.dtype.names:
-            self.tree.settings['min_thu'] = np.min(self.node_data['thu']).compute()
-            self.tree.settings['max_thu'] = np.max(self.node_data['thu']).compute()
+            self.tree.settings['min_tvu'] = np.nanmin(self.node_data['tvu']).compute()
+            self.tree.settings['max_tvu'] = np.nanmax(self.node_data['tvu']).compute()
 
     def create(self, data: Union[xr.Dataset, da.Array, np.ndarray], container_name: Union[str, list] = None,
-               multibeam_file_list: list = None, coordinate_system: str = None,
-               vertical_reference: str = None, **kwargs):
+               multibeam_file_list: list = None, crs: str = None,
+               vertical_reference: str = None, max_points_per_quad: int = 5, max_grid_size: int = 128,
+               min_grid_size: int = 1):
         """
         Create a new QuadTree instance from the provided soundings
 
@@ -217,22 +262,31 @@ class QuadManager:
             dataset
         multibeam_file_list
             list of multibeam files that exist in the data to add to the grid
-        coordinate_system
+        crs
             epsg (or proj4 string) for the coordinate system of the data.  Proj4 only shows up when there is no valid
             epsg
         vertical_reference
             vertical reference of the data
-        kwargs
-            Pass on to QuadTree
+        max_points_per_quad
+            maximum number of points allowable in a quad before it splits
+        max_grid_size
+            maximum allowable quad size before it splits
+        min_grid_size
+            minimum grid size allowable, will not split further
         """
+
+        self.max_points_per_quad = max_points_per_quad
+        self.min_grid_size = min_grid_size
+        self.max_grid_size = max_grid_size
 
         if isinstance(data, (da.Array, xr.Dataset)):
             data = data.compute()
         self.data = data
-        self.validate_input_data()
-        self.update_metadata(container_name, multibeam_file_list, coordinate_system, vertical_reference)
-        self.tree = QuadTree(self, **kwargs)
-        self.update_statistics()
+        self._validate_input_data()
+        self._update_metadata(container_name, multibeam_file_list, crs, vertical_reference)
+        self.tree = QuadTree(self, max_points_per_quad=max_points_per_quad, min_grid_size=min_grid_size,
+                             max_grid_size=max_grid_size)
+        self._update_statistics()
 
     def save(self, folderpath, data_method='numpy', tree_method='pickle'):
         """
@@ -252,9 +306,10 @@ class QuadManager:
         str
             Folder path to the gridded data save folder if you successfully saved
         """
+
         if self.node_data is not []:
             folderpath = create_folder(folderpath, 'grid')
-            self.finalize_data()
+            self._finalize_data()
 
             if tree_method == 'pickle':
                 self._save_tree_pickle(folderpath)
@@ -265,6 +320,8 @@ class QuadManager:
                 self._save_numpy(folderpath)
             else:
                 raise ValueError('QuadManager: data saving method not supported: {}'.format(data_method))
+
+            self.output_path = folderpath
             return folderpath
         else:
             return None
@@ -282,6 +339,7 @@ class QuadManager:
         tree_method
             method used to save the tree and metadata
         """
+
         if tree_method == 'pickle':
             self._load_tree_pickle(outputfolder)
         else:
@@ -291,21 +349,37 @@ class QuadManager:
             self._load_numpy(outputfolder)
         else:
             raise ValueError('QuadManager: data loading method not supported: {}'.format(data_method))
+        self.output_path = outputfolder
 
-    def export(self, output_path: str, export_format: str = 'csv'):
+    def export(self, output_path: str, export_format: str = 'csv', z_positive_up: bool = True, **kwargs):
         """
         Export the node data to one of the supported formats
 
         Parameters
         ----------
         output_path
-            folder to contain the exported data
+            filepath for exporting the dataset
         export_format
-            format option, one of 'csv'
+            format option, one of 'csv', 'geotiff', 'bag'
+        z_positive_up
+            if True, will output bands with positive up convention
         """
 
-        if export_format == 'csv':
-            self._export_csv(output_path)
+        fmt = export_format.lower()
+        if os.path.exists(output_path):
+            tstmp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            foldername, filname = os.path.split(output_path)
+            filnm, filext = os.path.splitext(filname)
+            output_path = os.path.join(foldername, '{}_{}{}'.format(filnm, tstmp, filext))
+
+        if fmt == 'csv':
+            self._export_csv(output_path, z_positive_up=z_positive_up)
+        elif fmt == 'geotiff':
+            self._export_geotiff(output_path, z_positive_up=z_positive_up)
+        elif fmt == 'bag':
+            self._export_bag(output_path, z_positive_up=z_positive_up, **kwargs)
+        else:
+            raise ValueError('fqpr_surface_v3: Unrecognized format {}'.format(fmt))
 
     def get_layer_by_name(self, layername: str):
         """
@@ -318,7 +392,7 @@ class QuadManager:
 
         Returns
         -------
-        np.ndarray
+        da.Array
             (x,y) for the provided layer name
         """
 
@@ -331,6 +405,36 @@ class QuadManager:
         else:
             print('get_layer_by_name: Unable to find node data for quad tree')
             return None
+
+    def get_layer_trimmed(self, layername: str):
+        """
+        Get the layer indicated by the provided layername and trim to the minimum bounding box of real values in the
+        layer.  Since the quadtree is going to be built with size = multiple of 128, we might have a great deal of
+        NaNs in the layer (where there is no data)
+
+        Parameters
+        ----------
+        layername
+            layer name that we want to return
+
+        Returns
+        -------
+        np.ndarray
+            2dim array of gridded layer trimmed to the minimum bounding box
+        list
+            new mins to use
+        list
+            new maxs to use
+        """
+
+        lyr = self.get_layer_by_name(layername).compute()
+        notnan = ~np.isnan(lyr)
+        rows = np.any(notnan, axis=1)
+        cols = np.any(notnan, axis=0)
+        rmin, rmax = np.where(rows)[0][[0, -1]]
+        cmin, cmax = np.where(cols)[0][[0, -1]]
+
+        return lyr[rmin:rmax, cmin:cmax], [rmin, cmin], [rmax, cmax]
 
     def return_layer_names(self):
         """
@@ -361,13 +465,51 @@ class QuadManager:
 
         return [qm.tree.mins, qm.tree.maxs]
 
-    def plot_surface(self, varname, tree=None, ax=None, cmap=None, norm=None):
+    def plot_surface(self, varname):
         """
-        With given variable name, build matplotlib imshow for x/y/varname
+        Plotting helper function to distinguish between vr and sr surface plotting
 
         Parameters
         ----------
-        varname: str, one of ['depth', 'vertical_uncertainty', 'horizontal_uncertainty']
+        varname
+            one of ['depth', 'vertical_uncertainty']
+        """
+
+        if self.is_vr:
+            self._plot_vr_surface(varname)
+        else:
+            self._plot_sr_surface(varname)
+
+    def _plot_sr_surface(self, varname):
+        """
+        Plot the saved node_data for the tree
+
+        Parameters
+        ----------
+        varname
+            one of ['depth', 'vertical_uncertainty']
+        """
+
+        fig = plt.figure()
+        varname = self.layer_lookup[varname]
+        data = self.node_data[varname]
+        x_node_loc = np.arange(self.mins[0], self.maxs[0], self.min_grid_size) + self.min_grid_size/2
+        y_node_loc = np.arange(self.mins[1], self.maxs[1], self.min_grid_size) + self.min_grid_size/2
+        lon2d, lat2d = np.meshgrid(x_node_loc, y_node_loc)
+
+        # mask NaN values
+        data_m = np.ma.array(data, mask=np.isnan(data))
+        plt.pcolormesh(lon2d, lat2d, data_m.T, vmin=data_m.min(), vmax=data_m.max())
+
+    def _plot_vr_surface(self, varname: str, tree=None, ax=None, cmap=None, norm=None):
+        """
+        With given variable name, build matplotlib imshow for x/y/varname by recursing through the tree looking for
+        leaves with data
+
+        Parameters
+        ----------
+        varname
+            one of ['depth', 'vertical_uncertainty']
         """
 
         if tree is None:
@@ -388,7 +530,7 @@ class QuadManager:
             ax.add_patch(rect)
 
         for child in tree.children:
-            self.plot_surface(varname, child, ax, cmap, norm)
+            self._plot_vr_surface(varname, child, ax, cmap, norm)
 
         if tree == self.tree:
             xsize = tree.maxs[0] - tree.mins[0]
@@ -402,27 +544,184 @@ class QuadManager:
 
         return ax
 
-    def _export_csv(self, folderpath: str):
+    def return_surf_xyz(self, layername: str = 'depth'):
+        """
+        Return the xyz grid values as well as an index for the valid nodes in the surface.  z is the gridded result that
+        matches the provided layername
+
+        Returns
+        -------
+        np.ndarray
+            numpy array, 1d x locations for the grid nodes
+        np.ndarray
+            numpy array, 1d y locations for the grid nodes
+        np.ndarray
+            numpy 2d array, 2d grid depth values
+        np.ndarray
+            numpy 2d array, boolean mask for valid nodes with depth
+        list
+            new minimum x,y coordinate for the trimmed layer
+        list
+            new maximum x,y coordinate for the trimmed layer
+        """
+
+        if self.is_vr:
+            raise NotImplementedError("VR surfacing doesn't currently return gridded data arrays yet, have to figure this out")
+
+        surf, new_mins, new_maxs = self.get_layer_trimmed(layername)
+        valid_nodes = ~np.isnan(surf)
+        x_node_loc = (np.arange(self.mins[0], self.maxs[0], self.min_grid_size) + self.min_grid_size / 2)[new_mins[0]:new_maxs[0]]
+        y_node_loc = (np.arange(self.mins[1], self.maxs[1], self.min_grid_size) + self.min_grid_size / 2)[new_mins[1]:new_maxs[1]]
+        return x_node_loc, y_node_loc, surf, valid_nodes, new_mins, new_maxs
+
+    def _export_csv(self, output_file: str, z_positive_up: bool = True):
         """
         Export the node data to csv
 
         Parameters
         ----------
-        folderpath
+        output_file
+            output_file to contain the exported data
+        z_positive_up
+            if True, will output bands with positive up convention
+        """
+
+        if self.is_vr:
+            data = self.node_data.compute()
+            # gdal expects sorted data for XYZ format, either 'x' or 'y' have to be sorted
+            sortidx = np.argsort(data['x'])
+            np.savetxt(output_file, np.stack([data[var][sortidx] for var in data.dtype.names], axis=1),
+                       fmt=['%.3f' for var in data.dtype.names], delimiter=' ', comments='',
+                       header=' '.join([nm for nm in data.dtype.names]))
+        else:
+            x, y, z, valid, newmins, newmaxs = self.return_surf_xyz('depth')
+            if z_positive_up:
+                z = z * -1
+            xx, yy = np.meshgrid(x, y)
+            dataset = [xx.ravel(), yy.ravel(), z.ravel()]
+            dnames = ['x', 'y', 'z']
+            if 'tvu' in self.node_data.dtype.names:
+                tvu = self.node_data['tvu'][newmins[0]:newmaxs[0], newmins[1]:newmaxs[1]]
+                dataset.append(tvu)
+                dnames = ['x', 'y', 'z', 'tvu']
+
+            sortidx = np.argsort(dataset[0])
+            np.savetxt(output_file, np.stack([d[sortidx] for d in dataset], axis=1),
+                       fmt=['%.3f' for d in dataset], delimiter=' ', comments='',
+                       header=' '.join([nm for nm in dnames]))
+
+    def _gdal_preprocessing(self, nodatavalue: float = 1000000.0, z_positive_up: bool = True):
+        """
+        Build the regular grid of depth and vertical uncertainty that raster outputs require.  Additionally, return
+        the origin/pixel size (geotransform) and the bandnames to display in the raster.
+
+        If vertical uncertainty is not found, will only return a list of [depth grid]
+
+        Set all NaN in the dataset given to the provided nodatavalue (can't seem to get NaN nodatavalue to display in
+        Caris)
+
+        Parameters
+        ----------
+        nodatavalue
+            nodatavalue to set in the regular grid
+        z_positive_up
+            if True, will output bands with positive up convention
+
+        Returns
+        -------
+        list
+            list of either [2d array of depth] or [2d array of depth, 2d array of vert uncertainty]
+        list
+            [x origin, x pixel size, x rotation, y origin, y rotation, -y pixel size]
+        list
+            list of band names, ex: ['Depth', 'Vertical Uncertainty']
+        """
+
+        if self.is_vr:
+            raise NotImplementedError("VR surfacing doesn't currently return gridded data arrays yet, have to figure this out")
+        nodex, nodey, z, valid, newmins, newmaxs = self.return_surf_xyz('depth')
+        if z_positive_up:
+            z = z * -1  # geotiff depth should be positive up, make all depths negative
+            z_name = 'Elevation'
+        else:
+            z_name = 'Depth'
+        cellx = nodex[0] - self.min_grid_size / 2  # origin of the grid is the cell, not the node
+        celly = nodey[-1] + self.min_grid_size / 2
+        geo_transform = [np.float32(cellx), self.min_grid_size, 0, np.float32(celly), 0, -self.min_grid_size]
+        if 'tvu' in self.node_data.dtype.names:
+            tvu = self.node_data['tvu'][newmins[0]:newmaxs[0], newmins[1]:newmaxs[1]].compute()
+            if z_positive_up:
+                tvu = tvu * -1  # geotiff depth should be positive up, make all depths negative
+            # gdal expects top left origin
+            z = z[:, ::-1]
+            tvu = tvu[:, ::-1]
+            # set no data value, i can't seem to get np.nan to work
+            z[np.isnan(z)] = nodatavalue
+            tvu[np.isnan(tvu)] = nodatavalue
+            data = [z, tvu]
+            bandnames = (z_name, 'Uncertainty')
+        else:
+            z = z[:, ::-1]
+            z[np.isnan(z)] = nodatavalue  # set no data value, i can't seem to get np.nan to work
+            data = [z]
+            bandnames = (z_name,)
+        return data, geo_transform, bandnames
+
+    def _export_geotiff(self, filepath: str, z_positive_up: bool = True):
+        """
+        Export a GDAL generated geotiff to the provided filepath
+
+        Parameters
+        ----------
+        filepath
+            folder to contain the exported data
+        z_positive_up
+            if True, will output bands with positive up convention
+        """
+
+        nodatavalue = 1000000.0
+        data, geo_transform, bandnames = self._gdal_preprocessing(nodatavalue=nodatavalue, z_positive_up=z_positive_up)
+        gdal_create(filepath, data, geo_transform, self.crs, nodatavalue=nodatavalue, bandnames=bandnames,
+                    driver='GTiff')
+
+    def _export_bag(self, filepath: str, z_positive_up: bool = True, individual_name: str = 'unknown',
+                    organizational_name: str = 'unknown', position_name: str = 'unknown', attr_date: str = '',
+                    vert_crs: str = '', abstract: str = '', process_step_description: str = '', attr_datetime: str = '',
+                    restriction_code: str = 'otherRestrictions', other_constraints: str = 'unknown',
+                    classification: str = 'unclassified', security_user_note: str = 'none'):
+        """
+        Export a GDAL generated geotiff to the provided filepath
+
+        If attr_date is not provided, will use the current date.  If attr_datetime is not provided, will use the current
+        date/time.  If process_step_description is not provided, will use a default 'Generated By GDAL and Kluster'
+        message.  If vert_crs is not provided, will use a WKT with value = 'unknown'
+
+        Parameters
+        ----------
+        filepath
             folder to contain the exported data
         """
 
-        data = self.node_data.compute()
-        output_file = os.path.join(folderpath, 'csvwrite.csv')
-        if os.path.exists(output_file):
-            tstmp = datetime.now().strftime('%Y%m%d_%H%M%S')
-            output_file = os.path.join(folderpath, 'csvwrite_{}.csv'.format(tstmp))
+        if not attr_date:
+            attr_date = datetime.now().strftime('%Y-%m-%d')
+        if not attr_datetime:
+            attr_datetime = datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
+        if not process_step_description:
+            process_step_description = 'Generated By GDAL {} and Kluster {}'.format(return_gdal_version(), kluster_version)
+        if not vert_crs:
+            vert_crs = 'VERT_CS["unknown", VERT_DATUM["unknown", 2000]]'
 
-        # gdal expects sorted data for XYZ format, either 'x' or 'y' have to be sorted
-        sortidx = np.argsort(data['x'])
-        np.savetxt(output_file, np.stack([data[var][sortidx] for var in data.dtype.names], axis=1),
-                   fmt=['%.3f' for var in data.dtype.names], delimiter=' ', comments='',
-                   header=' '.join([nm for nm in data.dtype.names]))
+        bag_options = ['VAR_INDIVIDUAL_NAME=' + individual_name, 'VAR_ORGANISATION_NAME=' + organizational_name,
+                       'VAR_POSITION_NAME=' + position_name, 'VAR_DATE=' + attr_date, 'VAR_VERT_WKT=' + vert_crs,
+                       'VAR_ABSTRACT=' + abstract, 'VAR_PROCESS_STEP_DESCRIPTION=' + process_step_description,
+                       'VAR_DATETIME=' + attr_datetime, 'VAR_RESTRICTION_CODE=' + restriction_code,
+                       'VAR_OTHER_CONSTRAINTS=' + other_constraints, 'VAR_CLASSIFICATION=' + classification,
+                       'VAR_SECURITY_USER_NOTE=' + security_user_note]
+
+        nodatavalue = 1000000.0
+        data, geo_transform, bandnames = self._gdal_preprocessing(nodatavalue=nodatavalue, z_positive_up=z_positive_up)
+        gdal_create(filepath, data, geo_transform, self.crs,
+                    nodatavalue=nodatavalue, bandnames=bandnames, driver='BAG', creation_options=bag_options)
 
     def _save_tree_pickle(self, folderpath):
         """
@@ -562,12 +861,13 @@ class QuadTree:
             yval = None
 
         if mins is None and maxs is None:
-            if self.index:
+            if self.index:  # first run through of data gets here
                 self.mins = [np.min(xval).astype(xval.dtype), (np.min(yval).astype(yval.dtype))]
                 self.maxs = [np.max(xval).astype(xval.dtype), np.max(yval).astype(yval.dtype)]
-                self._align_toplevel_grid(max_grid_size)
+                self._align_toplevel_grid()
                 self.mins = [self.mins[0].astype(xval.dtype), self.mins[1].astype(yval.dtype)]
                 self.maxs = [self.maxs[0].astype(xval.dtype), self.maxs[1].astype(yval.dtype)]
+                manager._build_node_data_matrix(self.mins, self.maxs)
             else:  # get here when you intialize empty quad to then load()
                 self.mins = [0, 0]
                 self.maxs = [0, 0]
@@ -594,15 +894,20 @@ class QuadTree:
             self.is_leaf = True
             if self.index and 'z' in data.dtype.names:
                 quad_depth = manager.data['z'][self.index].mean().astype(manager.data['z'].dtype)
-                quad_node_x = (self.mins[0] + (self.maxs[0] - self.mins[0]) / 2).astype(self.mins[0].dtype)
-                quad_node_y = (self.mins[1] + (self.maxs[1] - self.mins[1]) / 2).astype(self.mins[1].dtype)
-                datachunk = [quad_node_x, quad_node_y, quad_depth]
+                quad_tvu = None
                 if 'tvu' in data.dtype.names:
-                    datachunk.append(manager.data['tvu'][self.index].mean().astype(manager.data['tvu'].dtype))
-                if 'thu' in data.dtype.names:
-                    datachunk.append(manager.data['thu'][self.index].mean().astype(manager.data['thu'].dtype))
-                manager.node_data.append(datachunk)
-                self.quad_index = np.int32(len(manager.node_data) - 1)
+                    quad_tvu = manager.data['tvu'][self.index].mean().astype(manager.data['tvu'].dtype)
+                # quad_node_x = (self.mins[0] + (self.maxs[0] - self.mins[0]) / 2).astype(self.mins[0].dtype)
+                # quad_node_y = (self.mins[1] + (self.maxs[1] - self.mins[1]) / 2).astype(self.mins[1].dtype)
+
+                self.quad_index = self._return_root_quad_index(manager.mins, self.mins, min_grid_size,
+                                                               manager.node_data, manager.is_vr)
+                if isinstance(self.quad_index, int):  # current vr implementation just gets you a flattened list of node values
+                    manager.node_data.append([quad_depth, quad_tvu])
+                else:  # SR builds a MxN matrix of node values
+                    manager.node_data['z'][self.quad_index[0], self.quad_index[1]] = quad_depth
+                    if 'tvu' in data.dtype.names:
+                        manager.node_data['tvu'][self.quad_index[0], self.quad_index[1]] = quad_tvu
 
     def __getitem__(self, args, silent=False):
         """
@@ -653,6 +958,13 @@ class QuadTree:
         )
         return about_tree
 
+    def _return_root_quad_index(self, root_mins, mins, min_grid_size, current_node_data, is_vr):
+        if is_vr:
+            return np.int32(len(current_node_data) - 1)
+        else:
+            return [int((mins[0] - root_mins[0]) / min_grid_size),
+                    int((mins[1] - root_mins[1]) / min_grid_size)]
+
     def _validate_inputs(self, min_grid_size, max_grid_size, max_points_per_quad):
         if not is_power_of_two(min_grid_size):
             raise ValueError('QuadTree: Only supports min_grid_size that is power of two, received {}'.format(min_grid_size))
@@ -661,24 +973,26 @@ class QuadTree:
         if (not isinstance(max_points_per_quad, int)) or (max_points_per_quad <= 0):
             raise ValueError('QuadTree: max points per quad must be a positive integer, received {}'.format(max_points_per_quad))
 
-    def _align_toplevel_grid(self, max_grid_size: float):
+    def _align_toplevel_grid(self):
         """
-        So that our grids will line up nicely with each other (as long as they use max_grid_size that are divisable
-        by a similar number) we adjust the max/min of the top level grid to an even multiple of max_grid_size
+        So that our grids will line up nicely with each other, we set the origin to the nearest multiple of 128 and
+        adjust the width/height of the quadtree to the nearest power of two.  This way when we use powers of two
+        resolution, everything will work out nicely.
         """
-        # align origin with multiple of max_grid_size
-        # double_max_grid = max_grid_size * 4
-        double_max_grid = 512  # use 512 across surfaces so that they all generally align with each other
-        self.mins[0] -= self.mins[0] % double_max_grid
-        self.mins[1] -= self.mins[1] % double_max_grid
 
-        # extend the grid to make it square and an even multiple of the max grid size
-        max_range = max(self.maxs[0] - self.mins[0], self.maxs[1] - self.mins[1])
-        maxadjust = max_range % double_max_grid
-        if maxadjust:
-            max_range += (double_max_grid - maxadjust)
-        self.maxs[0] = self.mins[0] + max_range
-        self.maxs[1] = self.mins[1] + max_range
+        # align origin with nearest multple of 128
+        self.mins[0] -= self.mins[0] % 128
+        self.mins[1] -= self.mins[1] % 128
+
+        width = self.maxs[0] - self.mins[0]
+        height = self.maxs[1] - self.mins[1]
+        greatest_dim = max(width, height)
+        nearest_pow_two = int(2 ** np.ceil(np.log2(greatest_dim)))
+        width_adjustment = (nearest_pow_two - width)
+        height_adjustment = (nearest_pow_two - height)
+
+        self.maxs[0] += width_adjustment
+        self.maxs[1] += height_adjustment
 
     def _build_quadrant_indices(self, xval: Union[np.ndarray, da.Array], yval: Union[np.ndarray, da.Array]):
         """
@@ -780,7 +1094,7 @@ class QuadTree:
                 empty_quad_check = np.count_nonzero(empty_quads) == 3
                 too_few_points_check = True  # hotwire this, we always split when there are three empty quadrants and we are greater than min resolution
 
-        if (point_check or max_size_check or empty_quad_check) and min_size_check and too_few_points_check:
+        if (point_check or max_size_check or empty_quad_check) and min_size_check:
             return True
         return False
 
@@ -898,7 +1212,7 @@ class QuadTree:
         """
 
         manager = self.root.manager
-        manager.finalize_data()
+        manager._finalize_data()
 
         root_quad = self.root
         norm = matplotlib.colors.Normalize(vmin=root_quad.settings['min_depth'], vmax=root_quad.settings['max_depth'])
@@ -913,11 +1227,15 @@ class QuadTree:
             else:
                 sizes = [self.maxs[0] - self.mins[0], self.maxs[1] - self.mins[1]]
                 if self.quad_index != -1:
-                    quad_z = manager.node_data['z'][self.quad_index].compute()
+                    try:
+                        idx = self.quad_index[0], self.quad_index[1]
+                    except:
+                        idx = self.quad_index
+                    quad_z = manager.node_data['z'][idx].compute()
                     rect = matplotlib.patches.Rectangle(self.mins, *sizes, zorder=2, alpha=0.5, lw=line_width, ec=edge_color, fc=cmap(norm(quad_z)))
                     if plot_nodes:
-                        quad_x = manager.node_data['x'][self.quad_index].compute()
-                        quad_y = manager.node_data['y'][self.quad_index].compute()
+                        quad_x = manager.node_data['x'][idx].compute()
+                        quad_y = manager.node_data['y'][idx].compute()
                         ax.scatter(quad_x, quad_y, s=5)
                     if plot_points:
                         ax.scatter(manager.data['x'][self.index].compute(),
@@ -1084,8 +1402,9 @@ class QuadTree:
 if __name__ == '__main__':
     from time import perf_counter
     from HSTB.kluster.fqpr_convenience import *
+    data_path = r"C:\Users\eyou1\Downloads\em2040_40224_02_15_2021"
 
-    fq = reload_data(r"C:\collab\dasktest\data_dir\outputtest\tj_patch_test_2040", skip_dask=True)
+    fq = reload_data(data_path, skip_dask=True)
 
     # x = np.random.uniform(538900, 539300, 1000).astype(np.float32)
     # y = np.random.uniform(5292800, 5293300, 1000).astype(np.float32)
@@ -1124,11 +1443,12 @@ if __name__ == '__main__':
 
     timethisthing(qm.create, [dataset],
                   {'container_name': containername, 'multibeam_file_list': multibeamlist,
-                   'coordinate_system': coordsys, 'vertical_reference': vertref, 'min_grid_size': 0.5, 'max_grid_size': 32},
+                   'crs': coordsys, 'vertical_reference': vertref, 'min_grid_size': 1, 'max_grid_size': 1},
                   'Dataset build time: {}')
-    fldrpath = timethisthing(qm.save, [r'C:\collab\dasktest\data_dir\outputtest\tj_patch_test_2040'], {}, 'Dataset save time: {}')
-    timethisthing(qm.export, [r'C:\collab\dasktest\data_dir\outputtest\tj_patch_test_2040'], {}, 'Dataset export time: {}')
-    timethisthing(qm.load, [fldrpath], {}, 'Dataset load time: {}')
-    timethisthing(qm.plot_surface, ['depth'], {}, 'Dataset draw time: {}')
+    # fldrpath = timethisthing(qm.save, [data_path], {}, 'Dataset save time: {}')
+    timethisthing(qm.export, [data_path], {}, 'Dataset export time: {}')
+    # timethisthing(qm.load, [fldrpath], {}, 'Dataset load time: {}')
+    # timethisthing(qm.plot_surface, ['depth'], {}, 'Dataset draw time: {}')
+    # qm.tree.draw_tree()
 
     plt.show(block=True)

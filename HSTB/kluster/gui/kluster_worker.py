@@ -74,6 +74,35 @@ class ExportWorker(QtCore.QThread):
         self.finished.emit(True)
 
 
+class ExportGridWorker(QtCore.QThread):
+    """
+    Executes code in a seperate thread.
+    """
+
+    started = QtCore.Signal(bool)
+    finished = QtCore.Signal(bool)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.surf_instance = None
+        self.export_type = ''
+        self.output_path = ''
+        self.z_pos_up = True
+        self.bag_kwargs = {}
+
+    def populate(self, surf_instance, export_type, output_path, z_pos_up, bag_kwargs):
+        self.surf_instance = surf_instance
+        self.export_type = export_type
+        self.output_path = output_path
+        self.bag_kwargs = bag_kwargs
+        self.z_pos_up = z_pos_up
+
+    def run(self):
+        self.started.emit(True)
+        self.surf_instance.export(self.output_path, self.export_type, self.z_pos_up, **self.bag_kwargs)
+        self.finished.emit(True)
+
+
 class SurfaceWorker(QtCore.QThread):
     """
     Executes code in a seperate thread.
@@ -86,7 +115,7 @@ class SurfaceWorker(QtCore.QThread):
         super().__init__(parent)
         self.fqpr_instances = None
         self.fqpr_surface = None
-        self.opts = []
+        self.opts = {}
 
     def populate(self, fqpr_instances, opts):
         self.fqpr_instances = fqpr_instances
