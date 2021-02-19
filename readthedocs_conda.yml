@@ -1,0 +1,8 @@
+name: kluster_test
+channels:
+  - conda-forge
+dependencies:
+  - cartopy=0.18.0
+  - vispy=0.6.4
+  - pyside2=5.13.2
+  - gdal=3.2.1
