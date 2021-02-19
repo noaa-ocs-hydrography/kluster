@@ -51,6 +51,10 @@ class KlusterActions(QtWidgets.QTreeView):
         self.start_button.clicked.connect(self.start_process)
         self.start_button.setDisabled(True)
 
+        self.progress = QtWidgets.QProgressBar(self)
+        self.progress.setMaximum(1)
+        self.progress.setMinimum(0)
+
         self.customContextMenuRequested.connect(self.show_context_menu)
         self.configure()
 
@@ -131,6 +135,10 @@ class KlusterActions(QtWidgets.QTreeView):
                 parent.appendRow(proj_child)
                 qindex_button = parent.child(0, 0).index()
                 self.setIndexWidget(qindex_button, self.start_button)
+                proj_child = QtGui.QStandardItem('')  # empty entry to overwrite with setIndexWidget
+                parent.appendRow(proj_child)
+                qindex_progress = parent.child(1, 0).index()
+                self.setIndexWidget(qindex_progress, self.progress)
                 self.expand(parent.index())
 
     def _update_next_action(self, parent: QtGui.QStandardItem, actions: list):
@@ -145,7 +153,7 @@ class KlusterActions(QtWidgets.QTreeView):
             list of FqprActions sorted by priority, we are only interested in the first (the next one)
         """
 
-        parent.removeRows(1, parent.rowCount() - 1)
+        parent.removeRows(2, parent.rowCount() - 2)
         if actions:
             next_action = actions[0]
             action_text = next_action.text
@@ -161,6 +169,7 @@ class KlusterActions(QtWidgets.QTreeView):
                 self.tree_data['Next Action'].append(d)
             self.start_button.setDisabled(False)
             self.expand(parent.index())
+        self.progress.setMaximum(1)
 
     def _update_all_actions(self, parent: QtGui.QStandardItem, actions: list):
         """
@@ -277,7 +286,9 @@ class KlusterActions(QtWidgets.QTreeView):
         Emit the execute_action signal to trigger processing in kluster_main
         """
         self.start_button.setDisabled(True)
+        self.progress.setMaximum(0)
         self.execute_action.emit(0)
+        print('START')
 
 
 class OutWindow(QtWidgets.QMainWindow):

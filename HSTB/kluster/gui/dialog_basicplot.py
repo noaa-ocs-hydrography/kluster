@@ -48,7 +48,8 @@ class BasicPlotDialog(QtWidgets.QDialog):
                                         'Beam_Sector_Number': 'txsector_beam', 'Georeferenced_Easting': 'x',
                                         'Georeferenced_Northing': 'y', 'Yaw_Pitch_Stabilization': 'yawpitchstab',
                                         'Georeferenced_Depth': 'z'}
-        self.plot_lookup = {2: ['Histogram', 'Image', 'Contour'],
+        self.plot_lookup = {2: ['Histogram', 'Image', 'Contour', 'Line - Mean', 'Line - Nadir',
+                                'Line - Port Outer Beam', 'Line - Starboard Outer Beam'],
                             1: ['Line', 'Histogram', 'Scatter']}
         self.custom_plot_lookup = {'sound_velocity_profiles': ['Plot Profiles', 'Profile Map'],
                                    'sound_velocity_correct': ['2d scatter, color by depth', '2d scatter, color by sector',
@@ -383,6 +384,16 @@ class BasicPlotDialog(QtWidgets.QDialog):
             identifier = '{} {}'.format(dataset_name, translated_var)
             if plottype == 'Line':
                 data.plot.line(ax=self.recent_plot[cnt], label=identifier)
+            elif plottype == 'Line - Mean':
+                data.mean(axis=1).plot.line(ax=self.recent_plot[cnt], label=identifier + ' (mean)')
+            elif plottype == 'Line - Nadir':
+                nadir_beam_num = int((data.beam.shape[0] / 2) - 1)
+                data.isel(beam=nadir_beam_num).plot.line(ax=self.recent_plot[cnt], label=identifier + ' (nadir)')
+            elif plottype == 'Line - Port Outer Beam':
+                data.isel(beam=0).plot.line(ax=self.recent_plot[cnt], label=identifier + ' (port outer)')
+            elif plottype == 'Line - Starboard Outer Beam':
+                last_beam_num = int((data.beam.shape[0]) - 1)
+                data.isel(beam=last_beam_num).plot.line(ax=self.recent_plot[cnt], label=identifier + ' (stbd outer)')
             elif plottype == 'Histogram':
                 bincount = int(self.bincount.text())
                 data.plot.hist(ax=self.recent_plot[cnt], bins=bincount, label=identifier)
@@ -576,6 +587,14 @@ class BasicPlotDialog(QtWidgets.QDialog):
 
         if plottype == 'Line':
             plot_expl = 'Plot = Line plot connecting the points in the variable, will connect points across gaps in data.  Use scatter to see the gaps.'
+        elif plottype == 'Line - Mean':
+            plot_expl = 'Plot = Line plot of the average value for this variable for each ping'
+        elif plottype == 'Line - Nadir':
+            plot_expl = 'Plot = Line plot of the Nadir beam (center beam) for this variable'
+        elif plottype == 'Line - Port Outer Beam':
+            plot_expl = 'Plot = Line plot of the first beam (port outer beam) for this variable'
+        elif plottype == 'Line - Starboard Outer Beam':
+            plot_expl = 'Plot = Line plot of the last beam (starboard outer beam) for this variable'
         elif plottype == 'Histogram':
             plot_expl = 'Plot = Bar plot grouping the data into bins, the number of which is set by the user.'
         elif plottype == 'Scatter':

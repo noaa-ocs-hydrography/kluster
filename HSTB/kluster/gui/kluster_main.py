@@ -106,7 +106,12 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.actions.undo_exclude_file.connect(self._action_add_files)
         self.two_d.box_select.connect(self.select_line_by_box)
         self.action_thread.finished.connect(self._kluster_execute_action_results)
+        self.surface_thread.started.connect(self._start_action_progress)
         self.surface_thread.finished.connect(self._kluster_surface_generation_results)
+        self.export_thread.started.connect(self._start_action_progress)
+        self.export_thread.finished.connect(self._stop_action_progress)
+        self.export_grid_thread.started.connect(self._start_action_progress)
+        self.export_grid_thread.finished.connect(self._stop_action_progress)
         self.monitor.monitor_file_event.connect(self.intel._handle_monitor_event)
         self.monitor.monitor_start.connect(self._create_new_project_if_not_exist)
 
@@ -523,6 +528,7 @@ class KlusterMain(QtWidgets.QMainWindow):
             self.redraw()
         else:
             print('kluster_surface_generation: Unable to complete process')
+        self._stop_action_progress()
 
     def kluster_export_grid(self):
         """
@@ -601,6 +607,22 @@ class KlusterMain(QtWidgets.QMainWindow):
                     cancelled = True
         if cancelled:
             print('kluster_export: Export was cancelled')
+
+    def _start_action_progress(self):
+        """
+        For worker threads not started through the action widget, we have to manually trigger starting the progress
+        bar here.
+        """
+
+        self.actions.progress.setMaximum(0)
+
+    def _stop_action_progress(self):
+        """
+        For worker threads not started through the action widget, we have to manually trigger stopping the progress
+        here.
+        """
+
+        self.actions.progress.setMaximum(1)
 
     def _create_new_project_if_not_exist(self, pth):
         """

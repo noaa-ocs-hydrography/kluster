@@ -3,6 +3,7 @@ import numpy as np
 import dask.array as da
 import xarray as xr
 from datetime import datetime
+from time import perf_counter
 import matplotlib.pyplot as plt
 import matplotlib
 from mpl_toolkits.axes_grid1 import make_axes_locatable
@@ -120,7 +121,19 @@ class QuadManager:
             empty_struct[varname] = self.data[varname].values
         self.data = empty_struct
 
-    def _build_node_data_matrix(self, mins, maxs):
+    def _build_node_data_matrix(self, mins: list, maxs: list):
+        """
+        node_data is the structured array that will hold the node values.  Size will be equal to the number of
+        size=resolution grid cells fit in the quadtree extents.
+
+        Parameters
+        ----------
+        mins
+            the min x/y of the root quadtree
+        maxs
+            the max x/y of the root quadtree
+        """
+
         self.mins = mins
         self.maxs = maxs
 
@@ -171,7 +184,7 @@ class QuadManager:
             raise ValueError('QuadTree: numpy structured array or dask array with "x" and "y" as variable must be provided')
 
     def _update_metadata(self, container_name: Union[str, list] = None, multibeam_file_list: list = None, crs: str = None,
-                        vertical_reference: str = None):
+                         vertical_reference: str = None):
         """
         Update the quadtree metadata for the new data
 
@@ -364,7 +377,8 @@ class QuadManager:
         z_positive_up
             if True, will output bands with positive up convention
         """
-
+        strt = perf_counter()
+        print('****Exporting surface data to {}****'.format(export_format))
         fmt = export_format.lower()
         if os.path.exists(output_path):
             tstmp = datetime.now().strftime('%Y%m%d_%H%M%S')
@@ -380,6 +394,8 @@ class QuadManager:
             self._export_bag(output_path, z_positive_up=z_positive_up, **kwargs)
         else:
             raise ValueError('fqpr_surface_v3: Unrecognized format {}'.format(fmt))
+        end = perf_counter()
+        print('****Export complete: {}s****'.format(round(end - strt, 3)))
 
     def get_layer_by_name(self, layername: str):
         """
