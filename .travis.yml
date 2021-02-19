@@ -20,7 +20,7 @@ install:
   
   - conda create -q -n test-environment python=3.8.2
   - conda activate test-environment
-  - conda install -c conda-forge proj=7.0 cartopy=0.17.0 numpy=1.19.5 vispy=0.6.4 gdal=3.2.1
+  - conda install -c conda-forge cartopy=0.18.0 vispy=0.6.4 pyside2=5.13.2 gdal=3.2.1
   - conda install pytest six pytest-cov pytest-mock
   - conda install git pip
   - pip install git+https://github.com/noaa-ocs-hydrography/kluster.git#egg=hstb.kluster
