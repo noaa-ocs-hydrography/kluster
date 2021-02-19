@@ -6,8 +6,8 @@ dependencies:
   - vispy=0.6.4
   - pyside2=5.13.2
   - gdal=3.2.1
-  - pip
+  - pip:
     - sphinx-automodapi
     - sphinx_autodoc_typehints
     - numpydoc
-    - "--editable=git+https://github.com/noaa-ocs-hydrography/drivers.git#egg=hstb.drivers"
+    - git+https://github.com/noaa-ocs-hydrography/drivers.git#egg=hstb.drivers
