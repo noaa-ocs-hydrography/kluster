@@ -252,11 +252,10 @@ class KlusterMonitor(QtWidgets.QWidget):
         self.monitorfour.stop_monitoring()
         self.monitorfive.stop_monitoring()
 
-    def save_settings(self):
+    def save_settings(self, settings: QtCore.QSettings):
         """
-        Save the settings to the Qsettings registry
+        Save the settings to the Qsettings
         """
-        settings = QtCore.QSettings("NOAA", "Kluster")
         settings.setValue('Kluster/monitor_one_path', self.monitorone.fil_text.text())
         settings.setValue('Kluster/monitor_two_path', self.monitortwo.fil_text.text())
         settings.setValue('Kluster/monitor_three_path', self.monitorthree.fil_text.text())
@@ -269,12 +268,11 @@ class KlusterMonitor(QtWidgets.QWidget):
         settings.setValue('Kluster/monitor_four_subdir', self.monitorfour.include_subdirectories.isChecked())
         settings.setValue('Kluster/monitor_five_subdir', self.monitorfive.include_subdirectories.isChecked())
 
-    def read_settings(self):
+    def read_settings(self, settings: QtCore.QSettings):
         """
-        Read from the Qsettings registry
+        Read from the Qsettings
         """
         try:
-            settings = QtCore.QSettings("NOAA", "Kluster")
             self.monitorone.fil_text.setText(settings.value('Kluster/monitor_one_path'))
             self.monitortwo.fil_text.setText(settings.value('Kluster/monitor_two_path'))
             self.monitorthree.fil_text.setText(settings.value('Kluster/monitor_three_path'))

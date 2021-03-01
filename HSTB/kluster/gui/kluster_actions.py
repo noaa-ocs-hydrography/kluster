@@ -288,7 +288,6 @@ class KlusterActions(QtWidgets.QTreeView):
         self.start_button.setDisabled(True)
         self.progress.setMaximum(0)
         self.execute_action.emit(0)
-        print('START')
 
 
 class OutWindow(QtWidgets.QMainWindow):

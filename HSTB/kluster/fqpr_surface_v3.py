@@ -450,6 +450,9 @@ class QuadManager:
         rmin, rmax = np.where(rows)[0][[0, -1]]
         cmin, cmax = np.where(cols)[0][[0, -1]]
 
+        rmax += 1
+        cmax += 1
+
         return lyr[rmin:rmax, cmin:cmax], [rmin, cmin], [rmax, cmax]
 
     def return_layer_names(self):
@@ -560,10 +563,18 @@ class QuadManager:
 
         return ax
 
-    def return_surf_xyz(self, layername: str = 'depth'):
+    def return_surf_xyz(self, layername: str = 'depth', pcolormesh: bool = True):
         """
         Return the xyz grid values as well as an index for the valid nodes in the surface.  z is the gridded result that
         matches the provided layername
+
+        Parameters
+        ----------
+        layername
+            string identifier of the layer name to use as z
+        pcolormesh
+            If True, the user wants to use pcolormesh on the returned xyz, they need the cell boundaries, not the node
+            locations.  If False, returns the node locations instead.
 
         Returns
         -------
@@ -586,9 +597,14 @@ class QuadManager:
 
         surf, new_mins, new_maxs = self.get_layer_trimmed(layername)
         valid_nodes = ~np.isnan(surf)
-        x_node_loc = (np.arange(self.mins[0], self.maxs[0], self.min_grid_size) + self.min_grid_size / 2)[new_mins[0]:new_maxs[0]]
-        y_node_loc = (np.arange(self.mins[1], self.maxs[1], self.min_grid_size) + self.min_grid_size / 2)[new_mins[1]:new_maxs[1]]
-        return x_node_loc, y_node_loc, surf, valid_nodes, new_mins, new_maxs
+        if not pcolormesh:  # get the node locations for each cell
+            x = (np.arange(self.mins[0], self.maxs[0], self.min_grid_size) + self.min_grid_size / 2)[new_mins[0]:new_maxs[0]]
+            y = (np.arange(self.mins[1], self.maxs[1], self.min_grid_size) + self.min_grid_size / 2)[new_mins[1]:new_maxs[1]]
+        else:  # get the cell boundaries for each cell, will be one longer than the node locations option (this is what matplotlib pcolormesh wants)
+            x = np.arange(self.mins[0], self.maxs[0], self.min_grid_size)[new_mins[0]:new_maxs[0] + 1]
+            y = np.arange(self.mins[1], self.maxs[1], self.min_grid_size)[new_mins[1]:new_maxs[1] + 1]
+
+        return x, y, surf, valid_nodes, new_mins, new_maxs
 
     def _export_csv(self, output_file: str, z_positive_up: bool = True):
         """

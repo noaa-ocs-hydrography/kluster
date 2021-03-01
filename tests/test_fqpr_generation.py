@@ -560,21 +560,27 @@ def test_interp_across_chunks():
 
 
 def test_basesurface():
-    testz = np.array([1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2., 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8, 2.9, 3.0,
-                      3.1, 3.2, 3.3, 3.4, 3.5, 3.6])
-    testx = np.array([1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 5, 5, 5, 5, 5])
-    testy = np.array([1, 2, 3, 4, 5, 1, 2, 3, 4, 5, 1, 2, 3, 4, 5, 1, 2, 3, 4, 5, 1, 2, 3, 4, 5])
-    testbs = BaseSurface(testx, testy, testz, resolution=1)
-    testbs.construct_base_grid()
-    testbs.build_histogram()
-    testbs.build_surfaces(method='linear', count_msk=1)
+    x = np.linspace(538900, 539300, 1000).astype(np.float32)
+    y = np.linspace(5292800, 5293300, 1000).astype(np.float32)
+    z = np.linspace(30, 35, 1000).astype(np.float32)
 
-    expected_surf = np.array([[1.2, 1.3, 1.4, 1.5],
-                              [1.7, 1.8, 1.9, 2.0],
-                              [2.2, 2.3, 2.4, 2.5],
-                              [2.7, 2.8, 2.9, 3.0]])
+    test_data_arr = np.stack([x, y, z], axis=1)
+    test_data_arr = test_data_arr.ravel().view(dtype=[('x', 'f4'), ('y', 'f4'), ('z', 'f4')])
 
-    assert np.array_equal(testbs.surf, expected_surf)
+    qm = QuadManager()
+    coordsys = '26919'
+    vertref = 'waterline'
+    containername = 'c:/test/output/path'
+    multibeamlist = ['testfile.all', 'testfile2.all']
+    qm.create(test_data_arr, container_name=containername, multibeam_file_list=multibeamlist,
+              crs=coordsys, vertical_reference=vertref, min_grid_size=1, max_grid_size=1)
+
+    assert qm.node_data.shape == (512, 512)
+    assert qm.data.shape == (1000,)
+    assert qm.node_data['z'][19, 0].compute() == 30.0
+    assert qm.node_data['z'][20, 0].compute() == 30.0050048828125
+    assert qm.node_data['z'][20, 1].compute() == 30.010009765625
+    assert qm.crs == '26919'
 
     print('Passed: basesurface')
 

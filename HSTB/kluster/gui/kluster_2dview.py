@@ -186,10 +186,13 @@ class Kluster2dview(FigureCanvasQTAgg):
                 med = np.nanmedian(surfz)
                 vmin, vmax = med - twostd, med + twostd
             # print(vmin, vmax)
-            surfplt = self.axes.pcolormesh(lons, lats, surfz.T, vmin=vmin, vmax=vmax, transform=self.map_proj, zorder=10)
+            surfplt = self.axes.pcolormesh(lons, lats, surfz.T, vmin=vmin, vmax=vmax, zorder=10)
+            setextents = False
+            if not self.line_objects and not self.surface_objects:  # if this is the first thing you are loading, jump to it's extents
+                setextents = True
             self._add_to_active_layers(surfname, lyrname)
             self._add_to_surface_objects(surfname, lyrname, [lats, lons, surfplt])
-            if not self.line_objects and not self.surface_objects:  # if this is the first thing you are loading, jump to it's extents
+            if setextents:
                 self.set_extents_from_surfaces()
         else:
             surfplt = self.surface_objects[surfname][lyrname][2]
@@ -282,6 +285,15 @@ class Kluster2dview(FigureCanvasQTAgg):
             lons = np.concatenate(lons)
 
             self.set_extent(np.max(lats), np.min(lats), np.max(lons), np.min(lons))
+        self.refresh_screen()
+
+    def clear(self):
+        self.line_objects = {}
+        self.surface_objects = {}
+        self.active_layers = {}
+        self.data_extents = {'min_lat': 999, 'max_lat': -999, 'min_lon': 999, 'max_lon': -999}
+        self.selected_line_objects = []
+        self.set_extent(90, -90, 100, -100)
         self.refresh_screen()
 
     def refresh_screen(self):

@@ -73,6 +73,7 @@ class KlusterProjectTree(QtWidgets.QTreeView):
         self.right_click_menu_converted.addAction(load_in_console)
 
         self.right_click_menu_surfaces.addAction(close_dat)
+        self.right_click_menu_surfaces.addAction(load_in_console)
 
     def show_context_menu(self):
         """

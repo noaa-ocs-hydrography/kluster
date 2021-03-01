@@ -11,6 +11,7 @@ from HSTB.kluster.gui import dialog_vesselview, kluster_explorer, kluster_projec
 from HSTB.kluster.fqpr_project import FqprProject
 from HSTB.kluster.fqpr_intelligence import FqprIntel
 from HSTB.kluster import __version__ as kluster_version
+from HSTB.kluster import __file__ as kluster_init_file
 from HSTB.shared import RegistryHelpers
 
 # list of icons
@@ -124,9 +125,15 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.settings = {}
         self._load_previously_used_settings()
 
+    @property
+    def settings_object(self):
+        kluster_dir = os.path.dirname(kluster_init_file)
+        kluster_ini = os.path.join(kluster_dir, 'misc', 'kluster.ini')
+        return QtCore.QSettings(kluster_ini, QtCore.QSettings.IniFormat)
+
     def _load_previously_used_settings(self):
         try:
-            settings = QtCore.QSettings("NOAA", "Kluster")
+            settings = self.settings_object
             self.settings['use_epsg'] = settings.value('Kluster/proj_settings_epsgradio').lower() == 'true'
             self.settings['epsg'] = settings.value('Kluster/proj_settings_epsgval')
             self.settings['use_coord'] = settings.value('Kluster/proj_settings_utmradio').lower() == 'true'
@@ -282,7 +289,7 @@ class KlusterMain(QtWidgets.QMainWindow):
             self.two_d.set_extents_from_lines()
         if add_surface is not None and surface_layer_name:
             surf_object = self.project.surface_instances[add_surface]
-            x, y, z, valid, newmins, newmaxs = surf_object.return_surf_xyz(surface_layer_name)
+            x, y, z, valid, newmins, newmaxs = surf_object.return_surf_xyz(surface_layer_name, pcolormesh=True)
             self.two_d.add_surface(add_surface, surface_layer_name, x, y, z, surf_object.crs)
         if remove_surface is not None and surface_layer_name:
             self.two_d.hide_surface(remove_surface, surface_layer_name)
@@ -330,9 +337,21 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.console.runCmd('first_system = data.multibeam.raw_ping[0]')
         self.console.runCmd('nav = data.multibeam.raw_nav')
         self.console.runCmd('att = data.multibeam.raw_att')
+        self.console.runCmd('# try plotting surface soundspeed, "first_system.soundspeed.plot()"')
 
-    def load_console_surface(self, pth):
-        pass
+    def load_console_surface(self, pth: str):
+        """
+        Right click in the project tree and load in console to run this code block.  Will load the surface object and
+        demonstrate how to access the tree
+
+        Parameters
+        ----------
+        pth
+            path to the grid folder
+        """
+        absolute_fqpath = self.project.absolute_path_from_relative(pth)
+        self.console.runCmd('surf = reload_surface(r"{}")'.format(absolute_fqpath))
+        self.console.runCmd('# try plotting the tree, "surf.tree.draw_tree()')
 
     def _action_remove_file(self, filname):
         self.intel.remove_file(filname)
@@ -693,7 +712,7 @@ class KlusterMain(QtWidgets.QMainWindow):
             self.close_fqpr(fq)
 
         self.project_tree.configure()
-        self.two_d.set_extents_from_lines()
+        self.two_d.clear()
         self.explorer.clear_explorer_data()
         self.attribute.clear_attribution_data()
         self.monitor.stop_all_monitoring()
@@ -1057,8 +1076,8 @@ class KlusterMain(QtWidgets.QMainWindow):
         Read the settings saved in the registry
         """
         # from currentuser\software\noaa\kluster in registry
-        self.monitor.read_settings()
-        settings = QtCore.QSettings("NOAA", "Kluster")
+        settings = self.settings_object
+        self.monitor.read_settings(settings)
         self.restoreGeometry(settings.value("Kluster/geometry"))
         self.restoreState(settings.value("Kluster/windowState"), version=0)
 
@@ -1068,8 +1087,12 @@ class KlusterMain(QtWidgets.QMainWindow):
         """
         # setUpdatesEnabled should be the freeze/thaw wx equivalent i think, but does not appear to do anything here
         # self.setUpdatesEnabled(False)
-        settings = QtCore.QSettings("NOAA", "Kluster")
+        settings = self.settings_object
         settings.clear()
+        # set all docked widgets to 'docked' so that they reset properly
+        for widg in self.findChildren(QtWidgets.QDockWidget):
+            widg.setFloating(False)
+
         self.restoreGeometry(settings.value("Kluster/geometry"))
         self.restoreState(settings.value("Kluster/windowState"), version=0)
         self.setup_widgets()
@@ -1109,9 +1132,9 @@ class KlusterMain(QtWidgets.QMainWindow):
 
         """
 
-        self.monitor.save_settings()
+        settings = self.settings_object
+        self.monitor.save_settings(settings)
         self.close_project()
-        settings = QtCore.QSettings("NOAA", "Kluster")
         settings.setValue('Kluster/geometry', self.saveGeometry())
         settings.setValue('Kluster/windowState', self.saveState(version=0))
         super(KlusterMain, self).closeEvent(event)
