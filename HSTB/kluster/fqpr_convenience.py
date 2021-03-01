@@ -481,21 +481,27 @@ def generate_new_surface(fqpr_inst: Union[Fqpr, list], max_points_per_quad: int 
         print('generate_new_vr_surface: No georeferenced soundings found')
         return None
 
-    try:
-        unique_crs = np.unique([f.xyz_crs for f in fqpr_inst])
-        if len(unique_crs) > 1:
-            print('generate_new_vr_surface: Found multiple EPSG codes in the input data, data must be of the same code: {}'.format(unique_crs))
-            return None
-        unique_vertref = np.unique([f.multibeam.raw_ping[0].vertical_reference for f in fqpr_inst])
-        if len(unique_vertref) > 1:
-            print('generate_new_vr_surface: Found multiple vertical references in the input data, data must be of the same reference: {}'.format(unique_vertref))
-            return None
-        if unique_crs[0].to_epsg() is None:
-            print('generate_new_vr_surface: No valid EPSG for {}'.format(fqpr_inst[0].xyz_crs.to_proj4()))
-            return None
-    except (AttributeError, IndexError):
-        print('Expect a list of fqpr instances or a single fqpr instance as input.  Received {}'.format(fqpr_inst))
-        return
+    unique_crs = []
+    unique_vertref = []
+    for fq in fqpr_inst:
+        crs_data = fq.xyz_crs.to_epsg()
+        vertref = fq.multibeam.raw_ping[0].vertical_reference
+        if crs_data is None:
+            crs_data = fq.xyz_crs.to_proj4()
+        if crs_data not in unique_crs:
+            unique_crs.append(crs_data)
+        if vertref not in unique_vertref:
+            unique_vertref.append(vertref)
+
+    if len(unique_crs) > 1:
+        print('generate_new_vr_surface: Found multiple EPSG codes in the input data, data must be of the same code: {}'.format(unique_crs))
+        return None
+    if len(unique_vertref) > 1:
+        print('generate_new_vr_surface: Found multiple vertical references in the input data, data must be of the same reference: {}'.format(unique_vertref))
+        return None
+    if not unique_crs and fqpr_inst:
+        print('generate_new_vr_surface: No valid EPSG for {}'.format(fqpr_inst[0].xyz_crs.to_proj4()))
+        return None
 
     print('Preparing data...')
     rps = []
@@ -511,7 +517,7 @@ def generate_new_surface(fqpr_inst: Union[Fqpr, list], max_points_per_quad: int 
 
     print('Building tree...')
     qm = QuadManager()
-    coordsys = unique_crs[0].to_epsg()
+    coordsys = unique_crs[0]
     vertref = unique_vertref[0]
     containername = [os.path.split(f.multibeam.raw_ping[0].output_path)[1] for f in fqpr_inst]
     multibeamlist = [list(f.multibeam.raw_ping[0].multibeam_files.keys()) for f in fqpr_inst]
