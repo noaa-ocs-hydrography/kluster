@@ -137,24 +137,42 @@ class KlusterMain(QtWidgets.QMainWindow):
         return QtCore.QSettings(kluster_ini, QtCore.QSettings.IniFormat)
 
     def _load_previously_used_settings(self):
-        try:
-            settings = self.settings_object
+        settings = self.settings_object
+        if settings.value('Kluster/proj_settings_epsgradio'):
             self.settings['use_epsg'] = settings.value('Kluster/proj_settings_epsgradio').lower() == 'true'
+        else:
+            self.settings['use_epsg'] = False
+        if settings.value('Kluster/proj_settings_epsgval'):
             self.settings['epsg'] = settings.value('Kluster/proj_settings_epsgval')
+        else:
+            self.settings['epsg'] = ''
+        if settings.value('Kluster/proj_settings_utmradio'):
             self.settings['use_coord'] = settings.value('Kluster/proj_settings_utmradio').lower() == 'true'
+        else:
+            self.settings['use_coord'] = True
+        if settings.value('Kluster/proj_settings_utmval'):
             self.settings['coord_system'] = settings.value('Kluster/proj_settings_utmval')
+        else:
+            self.settings['coord_system'] = 'NAD83'
+        if settings.value('Kluster/proj_settings_vertref'):
             self.settings['vert_ref'] = settings.value('Kluster/proj_settings_vertref')
+        else:
+            self.settings['vert_ref'] = 'waterline'
+        if settings.value('Kluster/layer_settings_background'):
             self.settings['layer_background'] = settings.value('Kluster/layer_settings_background')
+        else:
+            self.settings['layer_background'] = 'Default'
+        if settings.value('Kluster/layer_settings_transparency'):
             self.settings['layer_transparency'] = settings.value('Kluster/layer_settings_transparency')
+        else:
+            self.settings['layer_transparency'] = '0'
+        if settings.value('Kluster/layer_settings_surfacetransparency'):
             self.settings['surface_transparency'] = settings.value('Kluster/layer_settings_surfacetransparency')
-            if self.project.path is not None:
-                self.project.set_settings(self.settings)
-            self.intel.set_settings(self.settings)
-        except AttributeError:
-            # no settings exist yet for this app, .lower failed
-            self.settings = {'use_epsg': False, 'epsg': '', 'use_coord': True, 'coord_system': 'NAD83',
-                             'vert_ref': 'waterline', 'layer_background': 'Default', 'layer_transparency': '0',
-                             'surface_transparency': 0}
+        else:
+            self.settings['surface_transparency'] = 0
+        if self.project.path is not None:
+            self.project.set_settings(self.settings)
+        self.intel.set_settings(self.settings)
 
     def setup_menu(self):
         """
@@ -1132,8 +1150,10 @@ class KlusterMain(QtWidgets.QMainWindow):
         # from currentuser\software\noaa\kluster in registry
         settings = self.settings_object
         self.monitor.read_settings(settings)
-        self.restoreGeometry(settings.value("Kluster/geometry"))
-        self.restoreState(settings.value("Kluster/windowState"), version=0)
+        if settings.value("Kluster/geometry"):
+            self.restoreGeometry(settings.value("Kluster/geometry"))
+        if settings.value("Kluster/windowState"):
+            self.restoreState(settings.value("Kluster/windowState"), version=0)
 
     def reset_settings(self):
         """

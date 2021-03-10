@@ -126,7 +126,10 @@ class FqprIntel(LoggerClass):
             dictionary of processing settings
         """
         desired_keys = ['use_epsg', 'epsg', 'use_coord', 'coord_system', 'vert_ref']
-        self.settings = {ky: settings[ky] for ky in desired_keys}
+        try:
+            self.settings = {ky: settings[ky] for ky in desired_keys}
+        except KeyError:  # settings provided did not have a desired key
+            pass
         self.regenerate_actions()
 
     def update_from_project(self, project_updated: bool = True):

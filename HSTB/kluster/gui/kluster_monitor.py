@@ -273,11 +273,16 @@ class KlusterMonitor(QtWidgets.QWidget):
         Read from the Qsettings
         """
         try:
-            self.monitorone.fil_text.setText(settings.value('Kluster/monitor_one_path'))
-            self.monitortwo.fil_text.setText(settings.value('Kluster/monitor_two_path'))
-            self.monitorthree.fil_text.setText(settings.value('Kluster/monitor_three_path'))
-            self.monitorfour.fil_text.setText(settings.value('Kluster/monitor_four_path'))
-            self.monitorfive.fil_text.setText(settings.value('Kluster/monitor_five_path'))
+            if settings.value('Kluster/monitor_one_path'):
+                self.monitorone.fil_text.setText(settings.value('Kluster/monitor_one_path'))
+            if settings.value('Kluster/monitor_two_path'):
+                self.monitortwo.fil_text.setText(settings.value('Kluster/monitor_two_path'))
+            if settings.value('Kluster/monitor_three_path'):
+                self.monitorthree.fil_text.setText(settings.value('Kluster/monitor_three_path'))
+            if settings.value('Kluster/monitor_four_path'):
+                self.monitorfour.fil_text.setText(settings.value('Kluster/monitor_four_path'))
+            if settings.value('Kluster/monitor_five_path'):
+                self.monitorfive.fil_text.setText(settings.value('Kluster/monitor_five_path'))
 
             # loads as the word 'false' or 'true'...ugh
             self.monitorone.include_subdirectories.setChecked(settings.value('Kluster/monitor_one_subdir').lower() == 'true')
