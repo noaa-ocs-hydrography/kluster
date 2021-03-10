@@ -1,4 +1,4 @@
-from PySide2 import QtWidgets
+from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal
 from dask.distributed import get_client
 
 from HSTB.kluster.dask_helpers import dask_find_or_start_client
@@ -122,7 +122,10 @@ class DaskClientStart(QtWidgets.QDialog):
 
 
 if __name__ == '__main__':
-    app = QtWidgets.QApplication()
+    try:  # pyside2
+        app = QtWidgets.QApplication()
+    except TypeError:  # pyqt5
+        app = QtWidgets.QApplication([])
     dlog = DaskClientStart()
     dlog.show()
     if dlog.exec_():

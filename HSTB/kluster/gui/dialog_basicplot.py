@@ -1,4 +1,4 @@
-from PySide2 import QtWidgets, QtCore, QtGui
+from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -656,7 +656,10 @@ class BasicPlotDialog(QtWidgets.QDialog):
 
 
 if __name__ == '__main__':
-    app = QtWidgets.QApplication()
+    try:  # pyside2
+        app = QtWidgets.QApplication()
+    except TypeError:  # pyqt5
+        app = QtWidgets.QApplication([])
     dlog = BasicPlotDialog()
     dlog.show()
     app.exec_()

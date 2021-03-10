@@ -4,7 +4,7 @@ import pprint
 from collections import OrderedDict
 from datetime import datetime
 
-from PySide2 import QtCore, QtGui, QtWidgets
+from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal
 
 
 class KlusterExplorer(QtWidgets.QTableWidget):
@@ -15,7 +15,7 @@ class KlusterExplorer(QtWidgets.QTableWidget):
 
     """
     # signals must be defined on the class, not the instance of the class
-    row_selected = QtCore.Signal(object)
+    row_selected = Signal(object)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -456,7 +456,10 @@ class MyTestWindow(QtWidgets.QMainWindow):
 
 
 if __name__ == '__main__':
-    app = QtWidgets.QApplication()
+    try:  # pyside2
+        app = QtWidgets.QApplication()
+    except TypeError:  # pyqt5
+        app = QtWidgets.QApplication([])
     test_window = MyTestWindow()
     test_window.show()
     sys.exit(app.exec_())

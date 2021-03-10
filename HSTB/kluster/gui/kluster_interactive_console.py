@@ -1,7 +1,7 @@
 # https://bitbucket.org/japczynski/pythonconsole/src/master/PythonConsole.py
 # https://pyqtgraph.readthedocs.io/en/latest/widgets/consolewidget.html
 
-from PySide2 import QtWidgets
+from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal
 from pyqtgraph import console
 import sys
 
@@ -17,7 +17,10 @@ class KlusterConsole(console.ConsoleWidget):
 
 
 if __name__ == '__main__':
-    app = QtWidgets.QApplication()
+    try:  # pyside2
+        app = QtWidgets.QApplication()
+    except TypeError:  # pyqt5
+        app = QtWidgets.QApplication([])
     test_window = KlusterConsole()
     test_window.show()
     sys.exit(app.exec_())

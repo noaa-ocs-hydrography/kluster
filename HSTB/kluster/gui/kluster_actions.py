@@ -1,6 +1,6 @@
 import sys
 
-from PySide2 import QtCore, QtGui, QtWidgets
+from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal
 
 from HSTB.kluster.fqpr_project import FqprProject
 
@@ -10,10 +10,10 @@ class KlusterActions(QtWidgets.QTreeView):
     Tree view showing the currently available actions and files generated from fqpr_intelligence
     """
 
-    execute_action = QtCore.Signal(int)
-    exclude_queued_file = QtCore.Signal(str)
-    exclude_unmatched_file = QtCore.Signal(str)
-    undo_exclude_file = QtCore.Signal(list)
+    execute_action = Signal(int)
+    exclude_queued_file = Signal(str)
+    exclude_unmatched_file = Signal(str)
+    undo_exclude_file = Signal(list)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -322,7 +322,10 @@ class OutWindow(QtWidgets.QMainWindow):
 
 
 if __name__ == '__main__':
-    app = QtWidgets.QApplication()
+    try:  # pyside2
+        app = QtWidgets.QApplication()
+    except TypeError:  # pyqt5
+        app = QtWidgets.QApplication([])
     test_window = OutWindow()
     test_window.show()
     sys.exit(app.exec_())

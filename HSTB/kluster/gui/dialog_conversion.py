@@ -1,6 +1,6 @@
 import os
 import sys
-from PySide2 import QtWidgets, QtGui, QtCore
+from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal
 
 from HSTB.shared import RegistryHelpers
 from HSTB.kluster.gui.common_widgets import BrowseListWidget
@@ -122,7 +122,10 @@ class ConversionDialog(QtWidgets.QDialog):
 
 
 if __name__ == '__main__':
-    app = QtWidgets.QApplication()
+    try:  # pyside2
+        app = QtWidgets.QApplication()
+    except TypeError:  # pyqt5
+        app = QtWidgets.QApplication([])
     dlog = ConversionDialog()
     dlog.show()
     dlog.update_multibeam_files(['testone.all', 'testtwo.all', 'testthree.all', 'testfour.all', 'testfive.all'])

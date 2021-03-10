@@ -125,8 +125,8 @@ class FqprIntel(LoggerClass):
         settings
             dictionary of processing settings
         """
-
-        self.settings = settings
+        desired_keys = ['use_epsg', 'epsg', 'use_coord', 'coord_system', 'vert_ref']
+        self.settings = {ky: settings[ky] for ky in desired_keys}
         self.regenerate_actions()
 
     def update_from_project(self, project_updated: bool = True):

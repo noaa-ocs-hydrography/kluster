@@ -38,10 +38,8 @@ import logging
 import traceback
 
 # To switch between PyQt5 and PySide2 bindings just change the from import
-from PyQt5 import QtCore, QtGui, QtWidgets
+from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal
 
-# Provide automatic signal function selection for PyQt5/PySide2
-pyqtsignal = QtCore.pyqtSignal if hasattr(QtCore, 'pyqtSignal') else QtCore.Signal
 
 logger = logging.getLogger(__name__)
 
@@ -719,7 +717,7 @@ class Paramlist(object):
 
 
 class SetupWidget(QtWidgets.QWidget):
-    changed_parameter_sig = pyqtsignal(Paramlist)
+    changed_parameter_sig = Signal(Paramlist)
 
     def __init__(self, parent=None):
         """Widget for holding all the parameter options in neat lists.
@@ -879,10 +877,13 @@ def main():
     sys.excepthook = uncaught_exceptions
     logging.basicConfig(level=logging.INFO)
     logging.getLogger().setLevel(logging.INFO)
-    appQt = QtWidgets.QApplication(sys.argv)
+    try:  # pyside2
+        app = QtWidgets.QApplication()
+    except TypeError:  # pyqt5
+        app = QtWidgets.QApplication([])
     win = MainWindow()
     win.show()
-    appQt.exec_()
+    app.exec_()
 
 
 if __name__ == '__main__':

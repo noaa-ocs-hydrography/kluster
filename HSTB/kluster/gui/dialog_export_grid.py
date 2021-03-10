@@ -1,6 +1,6 @@
 import os
 from datetime import datetime
-from PySide2 import QtWidgets
+from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal
 
 from HSTB.kluster.gdal_helpers import return_gdal_version
 from HSTB.shared import RegistryHelpers
@@ -306,7 +306,10 @@ class ExportGridDialog(QtWidgets.QDialog):
 
 
 if __name__ == '__main__':
-    app = QtWidgets.QApplication()
+    try:  # pyside2
+        app = QtWidgets.QApplication()
+    except TypeError:  # pyqt5
+        app = QtWidgets.QApplication([])
     dlog = ExportGridDialog()
     dlog.show()
     if dlog.exec_():

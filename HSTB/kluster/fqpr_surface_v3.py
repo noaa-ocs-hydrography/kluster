@@ -11,7 +11,7 @@ from typing import Union
 import pickle
 from datetime import datetime
 
-from HSTB.kluster.gdal_helpers import gdal_create, return_gdal_version
+from HSTB.kluster.gdal_helpers import gdal_raster_create, return_gdal_version
 from HSTB.kluster import __version__ as kluster_version
 
 
@@ -408,13 +408,13 @@ class QuadManager:
 
         Returns
         -------
-        da.Array
+        numpy ndarray
             (x,y) for the provided layer name
         """
 
         if self.node_data is not []:
             if layername in list(self.layer_lookup.keys()):
-                return self.node_data[self.layer_lookup[layername]]
+                return np.array(self.node_data[self.layer_lookup[layername]].compute())
             else:
                 print('get_layer_by_name: Unable to find {} in node data'.format(layername))
                 return None
@@ -443,7 +443,7 @@ class QuadManager:
             new maxs to use
         """
 
-        lyr = self.get_layer_by_name(layername).compute()
+        lyr = self.get_layer_by_name(layername)
         notnan = ~np.isnan(lyr)
         rows = np.any(notnan, axis=1)
         cols = np.any(notnan, axis=0)
@@ -642,7 +642,8 @@ class QuadManager:
                        fmt=['%.3f' for d in dataset], delimiter=' ', comments='',
                        header=' '.join([nm for nm in dnames]))
 
-    def _gdal_preprocessing(self, nodatavalue: float = 1000000.0, z_positive_up: bool = True):
+    def _gdal_preprocessing(self, nodatavalue: float = 1000000.0, z_positive_up: bool = True,
+                            layer_names: tuple = ('depth', 'vertical_uncertainty')):
         """
         Build the regular grid of depth and vertical uncertainty that raster outputs require.  Additionally, return
         the origin/pixel size (geotransform) and the bandnames to display in the raster.
@@ -671,33 +672,23 @@ class QuadManager:
 
         if self.is_vr:
             raise NotImplementedError("VR surfacing doesn't currently return gridded data arrays yet, have to figure this out")
-        nodex, nodey, z, valid, newmins, newmaxs = self.return_surf_xyz('depth')
-        if z_positive_up:
-            z = z * -1  # geotiff depth should be positive up, make all depths negative
-            z_name = 'Elevation'
-        else:
-            z_name = 'Depth'
-        cellx = nodex[0] - self.min_grid_size / 2  # origin of the grid is the cell, not the node
-        celly = nodey[-1] + self.min_grid_size / 2
-        geo_transform = [np.float32(cellx), self.min_grid_size, 0, np.float32(celly), 0, -self.min_grid_size]
-        if 'tvu' in self.node_data.dtype.names:
-            tvu = self.node_data['tvu'][newmins[0]:newmaxs[0], newmins[1]:newmaxs[1]].compute()
+
+        layerdata = []
+        geo_transform = []
+        for cnt, layer in enumerate(layer_names):
+            nodex, nodey, nodez, valid, newmins, newmaxs = self.return_surf_xyz(layer)
+            if cnt == 0:
+                cellx = nodex[0] - self.min_grid_size / 2  # origin of the grid is the cell, not the node
+                celly = nodey[-1] + self.min_grid_size / 2
+                geo_transform = [np.float32(cellx), self.min_grid_size, 0, np.float32(celly), 0, -self.min_grid_size]
             if z_positive_up:
-                tvu = tvu * -1  # geotiff depth should be positive up, make all depths negative
-            # gdal expects top left origin
-            z = z[:, ::-1]
-            tvu = tvu[:, ::-1]
-            # set no data value, i can't seem to get np.nan to work
-            z[np.isnan(z)] = nodatavalue
-            tvu[np.isnan(tvu)] = nodatavalue
-            data = [z, tvu]
-            bandnames = (z_name, 'Uncertainty')
-        else:
-            z = z[:, ::-1]
-            z[np.isnan(z)] = nodatavalue  # set no data value, i can't seem to get np.nan to work
-            data = [z]
-            bandnames = (z_name,)
-        return data, geo_transform, bandnames
+                if layer.lower() == 'depth':
+                    z = z * -1  # geotiff depth should be positive up, make all depths negative
+                    layer = 'Elevation'
+            nodez = nodez[:, ::-1]
+            nodez[np.isnan(nodez)] = nodatavalue
+            layerdata.append(nodez)
+        return layerdata, geo_transform, layer_names
 
     def _export_geotiff(self, filepath: str, z_positive_up: bool = True):
         """
@@ -713,8 +704,8 @@ class QuadManager:
 
         nodatavalue = 1000000.0
         data, geo_transform, bandnames = self._gdal_preprocessing(nodatavalue=nodatavalue, z_positive_up=z_positive_up)
-        gdal_create(filepath, data, geo_transform, self.crs, nodatavalue=nodatavalue, bandnames=bandnames,
-                    driver='GTiff')
+        gdal_raster_create(filepath, data, geo_transform, self.crs, nodatavalue=nodatavalue, bandnames=bandnames,
+                           driver='GTiff')
 
     def _export_bag(self, filepath: str, z_positive_up: bool = True, individual_name: str = 'unknown',
                     organizational_name: str = 'unknown', position_name: str = 'unknown', attr_date: str = '',
@@ -752,8 +743,8 @@ class QuadManager:
 
         nodatavalue = 1000000.0
         data, geo_transform, bandnames = self._gdal_preprocessing(nodatavalue=nodatavalue, z_positive_up=z_positive_up)
-        gdal_create(filepath, data, geo_transform, self.crs,
-                    nodatavalue=nodatavalue, bandnames=bandnames, driver='BAG', creation_options=bag_options)
+        gdal_raster_create(filepath, data, geo_transform, self.crs,
+                           nodatavalue=nodatavalue, bandnames=bandnames, driver='BAG', creation_options=bag_options)
 
     def _save_tree_pickle(self, folderpath):
         """

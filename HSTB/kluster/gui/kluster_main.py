@@ -1,13 +1,16 @@
 import os
 import sys
 import webbrowser
+import numpy as np
 
-from PySide2 import QtGui, QtCore, QtWidgets
+from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal, qgis_enabled
+if qgis_enabled:
+    from HSTB.kluster.gui.backends._qt import qgis_core, qgis_gui
 
 from HSTB.kluster.gui import dialog_vesselview, kluster_explorer, kluster_project_tree, kluster_3dview, kluster_attitudeview, \
     kluster_output_window, kluster_2dview, kluster_actions, kluster_monitor, dialog_daskclient, dialog_surface, \
     dialog_export, kluster_worker, kluster_interactive_console, dialog_basicplot, dialog_advancedplot, dialog_project_settings, \
-    dialog_export_grid
+    dialog_export_grid, dialog_layer_settings
 from HSTB.kluster.fqpr_project import FqprProject
 from HSTB.kluster.fqpr_intelligence import FqprIntel
 from HSTB.kluster import __version__ as kluster_version
@@ -23,7 +26,7 @@ class KlusterMain(QtWidgets.QMainWindow):
     Main window for kluster application
 
     """
-    def __init__(self):
+    def __init__(self, app=None):
         """
         Build out the dock widgets with the kluster widgets inside.  Will use QSettings object to retain size and
         position.
@@ -31,6 +34,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         """
         super().__init__()
 
+        self.app = app
         self.start_horiz_size = 1360
         self.start_vert_size = 768
 
@@ -44,11 +48,15 @@ class KlusterMain(QtWidgets.QMainWindow):
         # fqpr = fully qualified ping record, the term for the datastore in kluster
         self.project = FqprProject(is_gui=False)  # is_gui controls the progress bar text, used to disable it for gui, no longer
         self.intel = FqprIntel(self.project, self)
+        # settings, like the chosen vertical reference
+        # ex: {'use_epsg': True, 'epsg': 26910, ...}
+        self.settings = {}
+        self._load_previously_used_settings()
 
         self.project_tree = kluster_project_tree.KlusterProjectTree(self)
         self.tree_dock = self.dock_this_widget('Project Tree', 'project_dock', self.project_tree)
 
-        self.two_d = kluster_2dview.Kluster2dview(self)
+        self.two_d = kluster_2dview.Kluster2dview(self, self.settings)
         self.two_d_dock = self.dock_this_widget('2d view', 'two_d_dock', self.two_d)
 
         self.three_d = kluster_3dview.Kluster3dview(self)
@@ -101,6 +109,8 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.project_tree.close_surface.connect(self.close_surface)
         self.project_tree.load_console_fqpr.connect(self.load_console_fqpr)
         self.project_tree.load_console_surface.connect(self.load_console_surface)
+        self.project_tree.zoom_extents_fqpr.connect(self.zoom_extents_fqpr)
+        self.project_tree.zoom_extents_surface.connect(self.zoom_extents_surface)
         self.actions.execute_action.connect(self.intel.execute_action)
         self.actions.exclude_queued_file.connect(self._action_remove_file)
         self.actions.exclude_unmatched_file.connect(self._action_remove_file)
@@ -120,11 +130,6 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.setup_widgets()
         self.read_settings()
 
-        # settings, like the chosen vertical reference
-        # ex: {'use_epsg': True, 'epsg': 26910, ...}
-        self.settings = {}
-        self._load_previously_used_settings()
-
     @property
     def settings_object(self):
         kluster_dir = os.path.dirname(kluster_init_file)
@@ -139,20 +144,23 @@ class KlusterMain(QtWidgets.QMainWindow):
             self.settings['use_coord'] = settings.value('Kluster/proj_settings_utmradio').lower() == 'true'
             self.settings['coord_system'] = settings.value('Kluster/proj_settings_utmval')
             self.settings['vert_ref'] = settings.value('Kluster/proj_settings_vertref')
-
+            self.settings['layer_background'] = settings.value('Kluster/layer_settings_background')
+            self.settings['layer_transparency'] = settings.value('Kluster/layer_settings_transparency')
+            self.settings['surface_transparency'] = settings.value('Kluster/layer_settings_surfacetransparency')
             if self.project.path is not None:
                 self.project.set_settings(self.settings)
             self.intel.set_settings(self.settings)
         except AttributeError:
             # no settings exist yet for this app, .lower failed
-            self.settings = {'use_epsg': False, 'epsg': '', 'use_coord': True,
-                             'coord_system': 'NAD83', 'vert_ref': 'waterline'}
+            self.settings = {'use_epsg': False, 'epsg': '', 'use_coord': True, 'coord_system': 'NAD83',
+                             'vert_ref': 'waterline', 'layer_background': 'Default', 'layer_transparency': '0',
+                             'surface_transparency': 0}
 
     def setup_menu(self):
         """
         Build the menu bar for the application
-
         """
+
         new_proj_action = QtWidgets.QAction('New Project', self)
         new_proj_action.triggered.connect(self._action_new_project)
         open_proj_action = QtWidgets.QAction('Open Project', self)
@@ -166,6 +174,8 @@ class KlusterMain(QtWidgets.QMainWindow):
         export_grid_action = QtWidgets.QAction('Export Surface', self)
         export_grid_action.triggered.connect(self._action_export_grid)
 
+        view_layers = QtWidgets.QAction('Layer Settings', self)
+        view_layers.triggered.connect(self.set_layer_settings)
         view_dashboard_action = QtWidgets.QAction('Dashboard', self)
         view_dashboard_action.triggered.connect(self.open_dask_dashboard)
         view_reset_action = QtWidgets.QAction('Reset Layout', self)
@@ -196,6 +206,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         file.addAction(export_grid_action)
 
         view = menubar.addMenu('View')
+        view.addAction(view_layers)
         view.addAction(view_dashboard_action)
         view.addAction(view_reset_action)
 
@@ -256,14 +267,11 @@ class KlusterMain(QtWidgets.QMainWindow):
                         print('{} already exists in {}'.format(f, self.project.path))
                     else:
                         new_fqprs.append(fqpr_entry)
-        if new_fqprs:
-            self.redraw(new_fqprs=new_fqprs)
-        else:
-            self.redraw()
+        self.refresh_project(new_fqprs)
 
     def refresh_project(self, fqpr=None):
         if fqpr:
-            self.redraw(new_fqprs=[fqpr])
+            self.redraw(new_fqprs=fqpr)
         else:
             self.redraw()
 
@@ -289,8 +297,17 @@ class KlusterMain(QtWidgets.QMainWindow):
             self.two_d.set_extents_from_lines()
         if add_surface is not None and surface_layer_name:
             surf_object = self.project.surface_instances[add_surface]
-            x, y, z, valid, newmins, newmaxs = surf_object.return_surf_xyz(surface_layer_name, pcolormesh=True)
-            self.two_d.add_surface(add_surface, surface_layer_name, x, y, z, surf_object.crs)
+            shown = self.two_d.show_surface(add_surface, surface_layer_name)
+            if not shown:  # show didnt work, must need to add the surface instead
+                if qgis_enabled:
+                    data, geo_transform, bandnames = surf_object._gdal_preprocessing(nodatavalue=np.nan,
+                                                                                     z_positive_up=False,
+                                                                                     layer_names=(surface_layer_name,))
+                    self.two_d.add_surface([add_surface, surface_layer_name, data, geo_transform, surf_object.crs])
+                else:
+                    x, y, z, valid, newmins, newmaxs = surf_object.return_surf_xyz(surface_layer_name, pcolormesh=True)
+                    self.two_d.add_surface([add_surface, surface_layer_name, x, y, z, surf_object.crs])
+                self.two_d.set_extents_from_surfaces()
         if remove_surface is not None and surface_layer_name:
             self.two_d.hide_surface(remove_surface, surface_layer_name)
 
@@ -353,6 +370,32 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.console.runCmd('surf = reload_surface(r"{}")'.format(absolute_fqpath))
         self.console.runCmd('# try plotting the tree, "surf.tree.draw_tree()')
 
+    def zoom_extents_fqpr(self, pth: str):
+        """
+        Right click on converted data instance and zoom to the extents of that layer
+
+        Parameters
+        ----------
+        pth
+            path to the converted data/surface
+        """
+
+        fq = self.project.fqpr_instances[pth]
+        lines = list(fq.multibeam.raw_ping[0].multibeam_files.keys())
+        self.two_d.set_extents_from_lines(subset_lines=lines)
+
+    def zoom_extents_surface(self, pth: str):
+        """
+        Right click on surface and zoom to the extents of that layer
+
+        Parameters
+        ----------
+        pth
+            path to the converted data/surface
+        """
+
+        self.two_d.set_extents_from_surfaces(subset_surf=pth)
+
     def _action_remove_file(self, filname):
         self.intel.remove_file(filname)
 
@@ -385,9 +428,7 @@ class KlusterMain(QtWidgets.QMainWindow):
 
         self.project.remove_surface(pth, relative_path=True)
         self.project_tree.refresh_project(self.project)
-        if pth in self.two_d.active_layers:
-            for lyr in self.two_d.active_layers[pth]:
-                self.redraw(remove_surface=pth, surface_layer_name=lyr)
+        self.two_d.remove_surface(pth)
 
     def no_threads_running(self):
         """
@@ -488,7 +529,7 @@ class KlusterMain(QtWidgets.QMainWindow):
                 self.refresh_project()
                 self.refresh_explorer(self.project.fqpr_instances[fqpr_entry])
             else:  # new fqpr, or conversion actions always need a full refresh
-                self.refresh_project(fqpr=fqpr_entry)
+                self.refresh_project(fqpr=[fqpr_entry])
         else:
             print('kluster_action: no data returned from action execution: {}'.format(fqpr))
 
@@ -716,6 +757,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.explorer.clear_explorer_data()
         self.attribute.clear_attribution_data()
         self.monitor.stop_all_monitoring()
+        self.output_window.clear()
 
         self.project.close()
         self.intel.clear()
@@ -746,14 +788,25 @@ class KlusterMain(QtWidgets.QMainWindow):
         """
 
         dlog = dialog_project_settings.ProjectSettingsDialog()
-        dlog.read_settings()
         if dlog.exec_() and not dlog.canceled:
             settings = dlog.return_processing_options()
-            self.settings = settings
+            self.settings.update(settings)
             if self.project.path is not None:
                 self.project.set_settings(settings)
             self.intel.set_settings(settings)
-            dlog.save_settings()
+
+    def set_layer_settings(self):
+        """
+        Triggered on hitting OK in the layer settings dialog.  Takes the provided settings and saves it to the project
+        and intel instance.
+        """
+
+        dlog = dialog_layer_settings.LayerSettingsDialog()
+        if dlog.exec_() and not dlog.canceled:
+            settings = dlog.return_layer_options()
+            self.settings.update(settings)
+            self.two_d.set_background(self.settings['layer_background'], self.settings['layer_transparency'],
+                                      self.settings['surface_transparency'])
 
     def dockwidget_is_visible(self, widg):
         """
@@ -825,11 +878,11 @@ class KlusterMain(QtWidgets.QMainWindow):
         linename: str, line name
 
         """
-        self.two_d.reset_colors()
+        self.two_d.reset_line_colors()
         self.three_d.clear_plot_area()
         self.explorer.clear_explorer_data()
         self._line_selected(linename)
-        self.two_d.change_line_colors([linename], 'r')
+        self.two_d.change_line_colors([linename], 'red')
 
     def tree_fqpr_selected(self, converted_pth):
         """
@@ -841,14 +894,14 @@ class KlusterMain(QtWidgets.QMainWindow):
 
         """
 
-        self.two_d.reset_colors()
+        self.two_d.reset_line_colors()
         self.three_d.clear_plot_area()
         self.explorer.clear_explorer_data()
         linenames = self.project.return_project_lines(proj=os.path.normpath(converted_pth))
         self.attribute.display_file_attribution(self.project.fqpr_instances[converted_pth].multibeam.raw_ping[0].attrs)
         for cnt, ln in enumerate(linenames):
             self._line_selected(ln, idx=cnt)
-        self.two_d.change_line_colors(linenames, 'r')
+        self.two_d.change_line_colors(linenames, 'red')
 
     def tree_surf_selected(self, converted_pth):
         """
@@ -891,14 +944,14 @@ class KlusterMain(QtWidgets.QMainWindow):
         is_selected: bool, if True, 'Converted' was selected
 
         """
-        self.two_d.reset_colors()
+        self.two_d.reset_line_colors()
         self.three_d.clear_plot_area()
         self.explorer.clear_explorer_data()
         if is_selected:
             all_lines = self.project.return_sorted_line_list()
             for cnt, ln in enumerate(all_lines):
                 self._line_selected(ln, idx=cnt)
-            self.two_d.change_line_colors(all_lines, 'r')
+            self.two_d.change_line_colors(all_lines, 'red')
 
     def select_line_by_box(self, min_lat, max_lat, min_lon, max_lon):
         """
@@ -912,12 +965,12 @@ class KlusterMain(QtWidgets.QMainWindow):
         max_lon: float, minimum longitude of the box
 
         """
-        self.two_d.reset_colors()
+        self.two_d.reset_line_colors()
         self.explorer.clear_explorer_data()
         lines = self.project.return_lines_in_box(min_lat, max_lat, min_lon, max_lon)
         for cnt, ln in enumerate(lines):
             self._line_selected(ln, idx=cnt)
-        self.two_d.change_line_colors(lines, 'r')
+        self.two_d.change_line_colors(lines, 'red')
 
     def dock_this_widget(self, title, objname, widget):
         """
@@ -979,7 +1032,8 @@ class KlusterMain(QtWidgets.QMainWindow):
 
         window_width = self.width()
         horiz_docks = [self.tree_dock, self.two_d_dock, self.actions_dock]
-        self.resizeDocks(horiz_docks, [window_width * .2, window_width * .7, window_width * .2], QtCore.Qt.Horizontal)
+        self.resizeDocks(horiz_docks, [int(window_width * .2), int(window_width * .7), int(window_width * .2)],
+                         QtCore.Qt.Horizontal)
 
         # cant seem to get this to work, size percentage remains at 50% regardless, horizontal resizing works though
         #
@@ -1129,22 +1183,40 @@ class KlusterMain(QtWidgets.QMainWindow):
     def closeEvent(self, event):
         """
         override the close event for the mainwindow, attach saving settings
-
         """
 
         settings = self.settings_object
         self.monitor.save_settings(settings)
+        settings.setValue('Kluster/proj_settings_epsgradio', self.settings['use_epsg'])
+        settings.setValue('Kluster/proj_settings_utmradio', self.settings['use_coord'])
+        settings.setValue('Kluster/proj_settings_utmval', self.settings['coord_system'])
+        settings.setValue('Kluster/proj_settings_vertref', self.settings['vert_ref'])
+        settings.setValue('Kluster/layer_settings_background', self.settings['layer_background'])
+        settings.setValue('Kluster/layer_settings_transparency', self.settings['layer_transparency'])
+        settings.setValue('Kluster/layer_settings_surfacetransparency', self.settings['surface_transparency'])
         self.close_project()
         settings.setValue('Kluster/geometry', self.saveGeometry())
         settings.setValue('Kluster/windowState', self.saveState(version=0))
+
+        if qgis_enabled:
+            self.app.exitQgis()
+
         super(KlusterMain, self).closeEvent(event)
 
 
 def main():
-    app = QtWidgets.QApplication()
-    window = KlusterMain()
+    if qgis_enabled:
+        app = qgis_core.QgsApplication([], True)
+        app.initQgis()
+    else:
+        try:  # pyside2
+            app = QtWidgets.QApplication()
+        except TypeError:  # pyqt5
+            app = QtWidgets.QApplication([])
+    window = KlusterMain(app)
     window.show()
-    sys.exit(app.exec_())
+    exitcode = app.exec_()
+    sys.exit(exitcode)
 
 
 if __name__ == '__main__':

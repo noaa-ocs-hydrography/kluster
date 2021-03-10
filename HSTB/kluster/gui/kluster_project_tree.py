@@ -1,6 +1,6 @@
 import sys, os
 
-from PySide2 import QtCore, QtGui, QtWidgets
+from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal
 
 from HSTB.kluster.fqpr_project import FqprProject
 
@@ -13,16 +13,18 @@ class KlusterProjectTree(QtWidgets.QTreeView):
 
     """
     # signals must be defined on the class, not the instance of the class
-    file_added = QtCore.Signal(object)
-    fqpr_selected = QtCore.Signal(str)
-    surface_selected = QtCore.Signal(str)
-    line_selected = QtCore.Signal(str)
-    all_lines_selected = QtCore.Signal(bool)
-    surface_layer_selected = QtCore.Signal(str, str, bool)
-    close_fqpr = QtCore.Signal(str)
-    close_surface = QtCore.Signal(str)
-    load_console_fqpr = QtCore.Signal(str)
-    load_console_surface = QtCore.Signal(str)
+    file_added = Signal(object)
+    fqpr_selected = Signal(str)
+    surface_selected = Signal(str)
+    line_selected = Signal(str)
+    all_lines_selected = Signal(bool)
+    surface_layer_selected = Signal(str, str, bool)
+    close_fqpr = Signal(str)
+    close_surface = Signal(str)
+    load_console_fqpr = Signal(str)
+    load_console_surface = Signal(str)
+    zoom_extents_fqpr = Signal(str)
+    zoom_extents_surface = Signal(str)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -68,12 +70,16 @@ class KlusterProjectTree(QtWidgets.QTreeView):
         close_dat.triggered.connect(self.close_item_event)
         load_in_console = QtWidgets.QAction('Load in console', self)
         load_in_console.triggered.connect(self.load_in_console_event)
+        zoom_extents = QtWidgets.QAction('Zoom Extents', self)
+        zoom_extents.triggered.connect(self.zoom_extents_event)
 
         self.right_click_menu_converted.addAction(close_dat)
         self.right_click_menu_converted.addAction(load_in_console)
+        self.right_click_menu_converted.addAction(zoom_extents)
 
         self.right_click_menu_surfaces.addAction(close_dat)
         self.right_click_menu_surfaces.addAction(load_in_console)
+        self.right_click_menu_surfaces.addAction(zoom_extents)
 
     def show_context_menu(self):
         """
@@ -88,14 +94,15 @@ class KlusterProjectTree(QtWidgets.QTreeView):
         elif mid_lvl_name == 'Surfaces':
             self.right_click_menu_surfaces.exec_(QtGui.QCursor.pos())
 
-    def load_in_console_event(self, e):
+    def load_in_console_event(self, e: QtCore.QEvent):
         """
         We want the ability for the user to right click an object and load it in the console.  Here we emit the correct
         signal for the main to determine how to load it in the console.
 
         Parameters
         ----------
-        e: QEvent on menu button click
+        e
+            QEvent on menu button click
 
         """
         index = self.currentIndex()
@@ -106,6 +113,25 @@ class KlusterProjectTree(QtWidgets.QTreeView):
             self.load_console_fqpr.emit(sel_data)
         elif mid_lvl_name == 'Surfaces':
             self.load_console_surface.emit(sel_data)
+
+    def zoom_extents_event(self, e):
+        """
+        Zoom to the extents of the layer selected
+
+        Parameters
+        ----------
+        e
+            QEvent on menu button click
+
+        """
+        index = self.currentIndex()
+        mid_lvl_name = index.parent().data()
+        sel_data = index.data()
+
+        if mid_lvl_name == 'Converted':
+            self.zoom_extents_fqpr.emit(sel_data)
+        elif mid_lvl_name == 'Surfaces':
+            self.zoom_extents_surface.emit(sel_data)
 
     def close_item_event(self, e):
         """

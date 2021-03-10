@@ -2,7 +2,7 @@ import sys, os
 from datetime import datetime
 from collections import OrderedDict
 
-from PySide2 import QtGui, QtCore, QtWidgets
+from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal
 
 from HSTB.shared import RegistryHelpers
 from HSTB.kluster.gui import kluster_output_window, kluster_projectview
@@ -872,7 +872,10 @@ class KlusterIntelligence(QtWidgets.QMainWindow):
 
 
 if __name__ == '__main__':
-    app = QtWidgets.QApplication()
+    try:  # pyside2
+        app = QtWidgets.QApplication()
+    except TypeError:  # pyqt5
+        app = QtWidgets.QApplication([])
     # Force the style to be the same on all OSs:
     app.setStyle("Fusion")
 

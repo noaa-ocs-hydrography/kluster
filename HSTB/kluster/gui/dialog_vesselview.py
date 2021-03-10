@@ -3,14 +3,16 @@ import sys
 import numpy as np
 import json
 from datetime import datetime
-from PySide2 import QtWidgets, QtCore, QtGui
+from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal, backend
 
-from vispy import scene, use
+from vispy import use
+use(backend, 'gl2')
+
+from vispy import scene
 from vispy.io import read_mesh
 from vispy.visuals import transforms
 from vispy.color import Color
 from vispy.geometry.parametric import surface
-use('pyside2', 'gl2')
 
 from HSTB.kluster.xarray_conversion import return_xyzrph_from_posmv, return_xyzrph_from_mbes
 from HSTB.shared import RegistryHelpers
@@ -565,11 +567,11 @@ class OptionsWidget(QtWidgets.QWidget):
     OptionsWidget contains the controls that dictate the positioning of the elements in the scene.  Save those
     adjustments back out to file to get new xyzrph for future processing.
     """
-    vess_selected_sig = QtCore.Signal(str)  # user changed vessel
-    sensor_selected_sig = QtCore.Signal(str)  # user selected a new sensor
-    update_sensor_sig = QtCore.Signal(str, float, float, float, float, float, float)  # user submitted a sensor update
-    update_sensor_sizes_sig = QtCore.Signal(float)
-    hide_waterline_sig = QtCore.Signal(bool)
+    vess_selected_sig = Signal(str)  # user changed vessel
+    sensor_selected_sig = Signal(str)  # user selected a new sensor
+    update_sensor_sig = Signal(str, float, float, float, float, float, float)  # user submitted a sensor update
+    update_sensor_sizes_sig = Signal(float)
+    hide_waterline_sig = Signal(bool)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -1682,7 +1684,10 @@ class VesselWidget(QtWidgets.QWidget):
 
 
 if __name__ == '__main__':
-    appQt = QtWidgets.QApplication(sys.argv)
+    try:  # pyside2
+        app = QtWidgets.QApplication()
+    except TypeError:  # pyqt5
+        app = QtWidgets.QApplication([])
     win = VesselWidget()
     win.show()
-    appQt.exec_()
+    app.exec_()

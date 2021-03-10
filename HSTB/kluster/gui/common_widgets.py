@@ -1,7 +1,7 @@
 import sys
 import os
 import numpy as np
-from PySide2 import QtWidgets, QtGui, QtCore
+from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal
 from datetime import datetime, timezone
 
 from HSTB.shared import RegistryHelpers
@@ -20,8 +20,8 @@ class PlotDataHandler(QtWidgets.QWidget):
     - specify time by typing in the min time, max time
     - specify time by selecting the line you are interested in
     """
-    fqpr_loaded = QtCore.Signal(bool)
-    ping_count_changed = QtCore.Signal(int)
+    fqpr_loaded = Signal(bool)
+    ping_count_changed = Signal(int)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -472,7 +472,7 @@ class RangeSlider(QtWidgets.QWidget):
     Build a custom slider with two handles, allowing you to specify a range.  Utilize the QStyleOptionSlider
     widget to do so.
     """
-    mouse_move = QtCore.Signal(int, int)
+    mouse_move = Signal(int, int)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -628,7 +628,7 @@ class DeletableListWidget(QtWidgets.QListWidget):
     """
     Inherit from the ListWidget and allow the user to press delete or backspace key to remove items
     """
-    files_updated = QtCore.Signal(bool)
+    files_updated = Signal(bool)
 
     def __init__(self, *args, **kwrds):
         super().__init__(*args, **kwrds)
@@ -646,7 +646,7 @@ class BrowseListWidget(QtWidgets.QWidget):
     List widget with insert/remove buttons to add or remove browsed file paths.  Will emit a signal on adding/removing
     items so you can connect it to other widgets.
     """
-    files_updated = QtCore.Signal(bool)
+    files_updated = Signal(bool)
 
     def __init__(self, parent):
         super().__init__(parent)

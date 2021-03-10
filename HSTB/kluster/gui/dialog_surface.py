@@ -1,4 +1,4 @@
-from PySide2 import QtWidgets
+from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal
 
 from HSTB.kluster.gui.common_widgets import BrowseListWidget
 from HSTB.shared import RegistryHelpers
@@ -140,7 +140,10 @@ class SurfaceDialog(QtWidgets.QDialog):
 
 
 if __name__ == '__main__':
-    app = QtWidgets.QApplication()
+    try:  # pyside2
+        app = QtWidgets.QApplication()
+    except TypeError:  # pyqt5
+        app = QtWidgets.QApplication([])
     dlog = SurfaceDialog()
     dlog.show()
     if dlog.exec_():

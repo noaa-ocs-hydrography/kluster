@@ -49,7 +49,7 @@ REQUIRED = [
             #  also hit an import error with matplotlib 3.3.3 with pyside 5.15.2, sticking with 5.13.2 for now
             
             # 'PySide2==5.13.2',  installed with conda, no distro in pip
-            # 'cartopy==0.18.0'  Required for GUI, but must be conda installed with PROJ
+            # 'qgis==3.18.0'  Required for GUI, but must be conda installed with PROJ
             ]
 
 # What packages are optional?

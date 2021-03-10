@@ -1,5 +1,5 @@
 import sys, os
-from PySide2 import QtGui, QtCore, QtWidgets
+from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal
 from HSTB.shared import RegistryHelpers
 from HSTB.kluster import monitor
 
@@ -9,8 +9,8 @@ class MonitorPath(QtWidgets.QWidget):
     Base widget for interacting with the fqpr_intelligence.DirectoryMonitor object.  Each instance of this class
     has a file browse button, status light, etc.
     """
-    monitor_file_event = QtCore.Signal(str, str)
-    monitor_start = QtCore.Signal(str)
+    monitor_file_event = Signal(str, str)
+    monitor_start = Signal(str)
 
     def __init__(self, parent: QtWidgets.QWidget = None):
         """
@@ -165,8 +165,8 @@ class KlusterMonitor(QtWidgets.QWidget):
     two events to get the data from the controls.
     """
 
-    monitor_file_event = QtCore.Signal(str, str)
-    monitor_start = QtCore.Signal(str)
+    monitor_file_event = Signal(str, str)
+    monitor_start = Signal(str)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -314,7 +314,10 @@ class OutWindow(QtWidgets.QMainWindow):
 
 
 if __name__ == '__main__':
-    app = QtWidgets.QApplication()
+    try:  # pyside2
+        app = QtWidgets.QApplication()
+    except TypeError:  # pyqt5
+        app = QtWidgets.QApplication([])
     test_window = OutWindow()
     test_window.show()
     sys.exit(app.exec_())

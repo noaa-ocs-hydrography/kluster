@@ -1,4 +1,4 @@
-from PySide2 import QtWidgets
+from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal
 import pyqtgraph as pg
 import numpy as np
 import xarray as xr
@@ -229,7 +229,10 @@ class KlusterAttitudeView(pg.GraphicsLayoutWidget):
 
 
 if __name__ == '__main__':
-    app = QtWidgets.QApplication()
+    try:  # pyside2
+        app = QtWidgets.QApplication()
+    except TypeError:  # pyqt5
+        app = QtWidgets.QApplication([])
     test_window = KlusterAttitudeView()
 
     try:

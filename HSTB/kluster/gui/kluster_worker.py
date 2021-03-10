@@ -1,4 +1,4 @@
-from PySide2 import QtCore
+from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal
 
 from HSTB.kluster.fqpr_convenience import generate_new_surface
 
@@ -8,8 +8,8 @@ class ActionWorker(QtCore.QThread):
     Executes code in a seperate thread.
     """
 
-    started = QtCore.Signal(bool)
-    finished = QtCore.Signal(bool)
+    started = Signal(bool)
+    finished = Signal(bool)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -36,8 +36,8 @@ class ExportWorker(QtCore.QThread):
     Executes code in a seperate thread.
     """
 
-    started = QtCore.Signal(bool)
-    finished = QtCore.Signal(bool)
+    started = Signal(bool)
+    finished = Signal(bool)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -79,8 +79,8 @@ class ExportGridWorker(QtCore.QThread):
     Executes code in a seperate thread.
     """
 
-    started = QtCore.Signal(bool)
-    finished = QtCore.Signal(bool)
+    started = Signal(bool)
+    finished = Signal(bool)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -108,8 +108,8 @@ class SurfaceWorker(QtCore.QThread):
     Executes code in a seperate thread.
     """
 
-    started = QtCore.Signal(bool)
-    finished = QtCore.Signal(bool)
+    started = Signal(bool)
+    finished = Signal(bool)
 
     def __init__(self, parent=None):
         super().__init__(parent)

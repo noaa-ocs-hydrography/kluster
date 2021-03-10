@@ -1,4 +1,4 @@
-from PySide2 import QtWidgets, QtCore
+from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal
 from datetime import datetime
 
 from HSTB.shared import RegistryHelpers
@@ -229,7 +229,10 @@ class ImportNavigationDialog(QtWidgets.QDialog):
 
 
 if __name__ == '__main__':
-    app = QtWidgets.QApplication()
+    try:  # pyside2
+        app = QtWidgets.QApplication()
+    except TypeError:  # pyqt5
+        app = QtWidgets.QApplication([])
     dlog = ImportNavigationDialog()
     dlog.show()
     if dlog.exec_():

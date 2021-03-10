@@ -1,4 +1,4 @@
-from PySide2 import QtWidgets
+from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal
 import pyqtgraph.opengl as gl
 import numpy as np
 import sys
@@ -106,7 +106,10 @@ class Kluster3dview(gl.GLViewWidget):
 
 
 if __name__ == '__main__':
-    app = QtWidgets.QApplication()
+    try:  # pyside2
+        app = QtWidgets.QApplication()
+    except TypeError:  # pyqt5
+        app = QtWidgets.QApplication([])
 
     try:
         test_window_one = Kluster3dview()

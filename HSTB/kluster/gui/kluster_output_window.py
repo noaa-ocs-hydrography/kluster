@@ -1,10 +1,10 @@
 import sys, os
 from queue import Queue
-from PySide2 import QtGui, QtCore, QtWidgets
+from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal
 
 
 class OutputWrapper(QtCore.QObject):
-    outputWritten = QtCore.Signal(object, object)
+    outputWritten = Signal(object, object)
 
     def __init__(self, parent, stdout=True):
         QtCore.QObject.__init__(self, parent)
@@ -115,7 +115,10 @@ class OutWindow(QtWidgets.QMainWindow):
 
 
 if __name__ == '__main__':
-    app = QtWidgets.QApplication()
+    try:  # pyside2
+        app = QtWidgets.QApplication()
+    except TypeError:  # pyqt5
+        app = QtWidgets.QApplication([])
     test_window = OutWindow()
     test_window.show()
     sys.exit(app.exec_())

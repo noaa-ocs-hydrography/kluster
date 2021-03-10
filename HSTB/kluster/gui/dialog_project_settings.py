@@ -1,4 +1,4 @@
-from PySide2 import QtWidgets, QtCore
+from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal
 
 
 class ProjectSettingsDialog(QtWidgets.QDialog):
@@ -66,6 +66,7 @@ class ProjectSettingsDialog(QtWidgets.QDialog):
         self.ok_button.clicked.connect(self.start)
         self.cancel_button.clicked.connect(self.cancel)
 
+        self.read_settings()
         self.resize(600, 500)
 
     def return_processing_options(self):
@@ -94,6 +95,7 @@ class ProjectSettingsDialog(QtWidgets.QDialog):
         settings the user entered into the dialog.
         """
         self.canceled = False
+        self.save_settings()
         self.accept()
 
     def cancel(self):
@@ -132,7 +134,10 @@ class ProjectSettingsDialog(QtWidgets.QDialog):
 
 
 if __name__ == '__main__':
-    app = QtWidgets.QApplication()
+    try:  # pyside2
+        app = QtWidgets.QApplication()
+    except TypeError:  # pyqt5
+        app = QtWidgets.QApplication([])
     dlog = ProjectSettingsDialog()
     dlog.show()
     if dlog.exec_():
