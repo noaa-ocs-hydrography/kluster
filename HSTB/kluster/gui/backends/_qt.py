@@ -3,36 +3,41 @@ import sys, os
 
 qgis_enabled = True
 qgis_path_pydro = ''
-# qgis conda installs to the library\python directory not to site_packages
-# this is where qgis should be if you pip install kluster and kluster is in the site_packages directory
-klusterfolder_path = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-env_base_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(klusterfolder_path))))
-qgis_path = os.path.join(env_base_path, 'Library', 'python')
-if not os.path.exists(qgis_path):
-    # try based on where qgis should be if Kluster is run from the Pydro directory structure
-    sitepackages, envname = os.path.split(os.path.dirname(os.path.dirname(klusterfolder_path)))
-    envs = os.path.join(os.path.dirname(os.path.dirname(sitepackages)), 'envs')
-    if os.path.exists(envs):  # must be a pydro env
-        if envname == 'Python38':
-            envfolder = 'Pydro38_Test'
+qgis_path = ''
+try:
+    import qgis
+except ImportError:
+    # qgis conda installs to the library\python directory not to site_packages
+    # this is where qgis should be if you pip install kluster and kluster is in the site_packages directory
+    klusterfolder_path = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+    env_base_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(klusterfolder_path))))
+    qgis_path = os.path.join(env_base_path, 'Library', 'python')
+    if not os.path.exists(qgis_path):
+        # try based on where qgis should be if Kluster is run from the Pydro directory structure
+        sitepackages, envname = os.path.split(os.path.dirname(os.path.dirname(klusterfolder_path)))
+        envs = os.path.dirname(os.path.dirname(sitepackages))
+        print(envname)
+        if os.path.exists(envs):  # must be a pydro env
+            if envname == 'Python38':
+                envfolder = 'Pydro38'
+                qgis_path_pydro = os.path.join(envs, envfolder, 'Library', 'python')
+            else:
+                # raise EnvironmentError('_qt: unexpected environment name {}, only supports Python38 for now'.format(envname))
+                qgis_enabled = False
         else:
-            # raise EnvironmentError('_qt: unexpected environment name {}, only supports Python38 for now'.format(envname))
+            # err = r'Unable to find the Library\python directory where qgis should exist, expected it here'
+            # err += ' {} or in the Pydro envs folder here {}'.format(qgis_path, envs)
+            # raise EnvironmentError(err)
             qgis_enabled = False
-        qgis_path_pydro = os.path.join(envs, envfolder, 'Library', 'python')
-    else:
-        # err = r'Unable to find the Library\python directory where qgis should exist, expected it here'
-        # err += ' {} or in the Pydro envs folder here {}'.format(qgis_path, envs)
-        # raise EnvironmentError(err)
-        qgis_enabled = False
 
-for pth in [qgis_path, qgis_path_pydro]:
-    if not os.path.exists(os.path.join(pth, 'qgis')):
-        # raise EnvironmentError(r'Unable to find the "qgis" folder in the generated qgis_path: {}'.format(qgis_path))
-        qgis_enabled = False
-    else:
-        sys.path.append(pth)
-        qgis_enabled = True
-        break
+    for pth in [qgis_path, qgis_path_pydro]:
+        if not os.path.exists(os.path.join(pth, 'qgis')):
+            # raise EnvironmentError(r'Unable to find the "qgis" folder in the generated qgis_path: {}'.format(qgis_path))
+            qgis_enabled = False
+        else:
+            sys.path.append(pth)
+            qgis_enabled = True
+            break
 
 if qgis_enabled:
     # only allow qgis.pyqt (pyqt5) for now to support qgis in 2dview
