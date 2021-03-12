@@ -5,7 +5,7 @@ qgis_enabled = True
 qgis_path_pydro = ''
 qgis_path = ''
 try:
-    import qgis
+    import qgis  # this appears to work with 3.18, so the rest is not necessary
 except ImportError:
     # qgis conda installs to the library\python directory not to site_packages
     # this is where qgis should be if you pip install kluster and kluster is in the site_packages directory
@@ -15,12 +15,19 @@ except ImportError:
     if not os.path.exists(qgis_path):
         # try based on where qgis should be if Kluster is run from the Pydro directory structure
         sitepackages, envname = os.path.split(os.path.dirname(os.path.dirname(klusterfolder_path)))
-        envs = os.path.dirname(os.path.dirname(sitepackages))
-        print(envname)
-        if os.path.exists(envs):  # must be a pydro env
+        envs_old = os.path.join(os.path.dirname(os.path.dirname(sitepackages)), 'envs')
+        envs_new = os.path.dirname(os.path.dirname(sitepackages))
+        if os.path.exists(envs_old):  # must be a pydro env
+            if envname == 'Python38':
+                envfolder = 'Pydro38_Test'
+                qgis_path_pydro = os.path.join(envs_old, envfolder, 'Library', 'python')
+            else:
+                # raise EnvironmentError('_qt: unexpected environment name {}, only supports Python38 for now'.format(envname))
+                qgis_enabled = False
+        elif os.path.exists(envs_new):
             if envname == 'Python38':
                 envfolder = 'Pydro38'
-                qgis_path_pydro = os.path.join(envs, envfolder, 'Library', 'python')
+                qgis_path_pydro = os.path.join(envs_new, envfolder, 'Library', 'python')
             else:
                 # raise EnvironmentError('_qt: unexpected environment name {}, only supports Python38 for now'.format(envname))
                 qgis_enabled = False
@@ -51,6 +58,7 @@ if qgis_enabled:
     incompatible_modules = [ky for ky in sys.modules if ky.find('PySide') > -1]
     for ky in incompatible_modules:
         del sys.modules[ky]
+    print('Using QGIS as backend')
 else:
     qgis_core = None
     qgis_gui = None
@@ -64,6 +72,7 @@ else:
         incompatible_modules = [ky for ky in sys.modules if ky.find('PyQt') > -1]
         for ky in incompatible_modules:
             del sys.modules[ky]
+        print('Using PySide2 as backend')
     else:
         # PyQt5
         from PyQt5 import QtGui, QtWidgets, QtCore
@@ -74,3 +83,4 @@ else:
         incompatible_modules = [ky for ky in sys.modules if ky.find('PySide') > -1]
         for ky in incompatible_modules:
             del sys.modules[ky]
+        print('Using PyQT5 as backend')

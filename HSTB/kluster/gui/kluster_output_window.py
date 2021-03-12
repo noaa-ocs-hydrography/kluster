@@ -5,52 +5,34 @@ if qgis_enabled:
     from HSTB.kluster.gui.backends._qt import qgis_core, qgis_gui
 
 
-# class OutputWrapper(QtCore.QObject):
-#     outputWritten = Signal(object, object)
-#
-#     def __init__(self, parent, stdout=True):
-#         QtCore.QObject.__init__(self, parent)
-#         if stdout:
-#             self._stdout = stdout
-#             self._stream = sys.stdout
-#             sys.stdout = self
-#         else:
-#             self._stdout = stdout
-#             self._stream = sys.stderr
-#             sys.stderr = self
-#
-#     def write(self, text):
-#         # self._stream.write(text)
-#         self.outputWritten.emit(text, self._stdout)
-#
-#     def __getattr__(self, name):
-#         return getattr(self._stream, name)
-#
-#     def __del__(self):
-#         try:
-#             if self._stdout:
-#                 sys.stdout = self._stream
-#             else:
-#                 sys.stderr = self._stream
-#         except AttributeError:
-#             pass
+class OutputWrapper(QtCore.QObject):
+    outputWritten = Signal(object, object)
 
-
-class OutputWrapperV2:
-    def __init__(self, callbackmethod, stdout=True):
-        self._callback = callbackmethod
-        self.mode = 'w'
-        self.is_stdout = stdout
+    def __init__(self, parent, stdout=True):
+        QtCore.QObject.__init__(self, parent)
         if stdout:
-            self.old_std = sys.stdout
+            self._stream = sys.stdout
+            sys.stdout = self
         else:
-            self.old_std = sys.stderr
+            self._stream = sys.stderr
+            sys.stderr = self
+        self._stdout = stdout
 
     def write(self, text):
-        self._callback(text, self.is_stdout)
+        # self._stream.write(text)
+        self.outputWritten.emit(text, self._stdout)
 
     def __getattr__(self, name):
-        return getattr(self.old_std, name)
+        return getattr(self._stream, name)
+
+    def __del__(self):
+        try:
+            if self._stdout:
+                sys.stdout = self._stream
+            else:
+                sys.stderr = self._stream
+        except AttributeError:
+            pass
 
 
 class KlusterOutput(QtWidgets.QTextEdit):
@@ -65,10 +47,10 @@ class KlusterOutput(QtWidgets.QTextEdit):
         self.setReadOnly(True)
         # self.setStyleSheet(('font: 11pt "Consolas";'))
 
-        self.stdout_obj = OutputWrapperV2(self.append_text, True)
-        sys.stdout = self.stdout_obj
-        self.stderr_obj = OutputWrapperV2(self.append_text, False)
-        sys.stderr = self.stderr_obj
+        self.stdout_obj = OutputWrapper(self, True)
+        self.stdout_obj.outputWritten.connect(self.append_text)
+        self.stderr_obj = OutputWrapper(self, False)
+        self.stderr_obj.outputWritten.connect(self.append_text)
 
     def append_text(self, text, stdout):
         """

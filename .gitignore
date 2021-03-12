@@ -1,0 +1,11 @@
+*.pyc
+
+# IDE files
+*.spyproject
+.idea
+.vscode
+
+# automatically generated directories by sphinx and automodapi
+docs/doctrees
+docs/api
+docs/_build

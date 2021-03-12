@@ -1,10 +1,11 @@
-from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal, qgis_enabled
+from HSTB.kluster.gui.backends._qt import qgis_enabled
 if qgis_enabled:
     backend = 'qgis'
     from HSTB.kluster.gui.backends._qgis import *
 else:
-    backend = 'cartopy'
-    from HSTB.kluster.gui.backends._cartopy import *
+    raise EnvironmentError('QGIS not found, Unable to run Kluster')
+    # backend = 'cartopy'
+    # from HSTB.kluster.gui.backends._cartopy import *
 
 
 class Kluster2dview(MapView):
