@@ -675,6 +675,7 @@ class QuadManager:
 
         layerdata = []
         geo_transform = []
+        finalnames = []
         for cnt, layer in enumerate(layer_names):
             nodex, nodey, nodez, valid, newmins, newmaxs = self.return_surf_xyz(layer)
             if cnt == 0:
@@ -683,11 +684,12 @@ class QuadManager:
                 geo_transform = [np.float32(cellx), self.min_grid_size, 0, np.float32(celly), 0, -self.min_grid_size]
             if z_positive_up:
                 if layer.lower() == 'depth':
-                    z = z * -1  # geotiff depth should be positive up, make all depths negative
+                    nodez = nodez * -1  # geotiff depth should be positive up, make all depths negative
                     layer = 'Elevation'
             nodez = nodez[:, ::-1]
             nodez[np.isnan(nodez)] = nodatavalue
             layerdata.append(nodez)
+            finalnames.append(layer)
         return layerdata, geo_transform, layer_names
 
     def _export_geotiff(self, filepath: str, z_positive_up: bool = True):

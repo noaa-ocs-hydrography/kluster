@@ -82,14 +82,14 @@ class LayerSettingsDialog(QtWidgets.QDialog):
                 transp = int(self.transparency.text()) / 100
                 transp = np.clip(transp, 0, 1)
             except ValueError:
-                print('Layer_Settings: transparency={} is invalid, must be an integer between 0 and 100, defaulting to 100'.format(self.transparency.text()))
-                transp = 1
+                print('Layer_Settings: transparency={} is invalid, must be an integer between 0 and 100, defaulting to 0'.format(self.transparency.text()))
+                transp = 0
             try:
                 surf_transp = int(self.surf_transparency.text()) / 100
                 surf_transp = np.clip(surf_transp, 0, 1)
             except ValueError:
-                print('Layer_Settings: surface_transparency={} is invalid, must be an integer between 0 and 100, defaulting to 100'.format(self.surf_transparency.text()))
-                surf_transp = 1
+                print('Layer_Settings: surface_transparency={} is invalid, must be an integer between 0 and 100, defaulting to 0'.format(self.surf_transparency.text()))
+                surf_transp = 0
             opts = {'layer_background': self.layer_dropdown.currentText(),
                     'layer_transparency': transp,
                     'surface_transparency': surf_transp}
