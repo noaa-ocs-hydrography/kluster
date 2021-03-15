@@ -1,3 +1,5 @@
+import numpy as np
+
 from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal
 
 
@@ -17,7 +19,8 @@ class LayerSettingsDialog(QtWidgets.QDialog):
         self.hlayout_one = QtWidgets.QHBoxLayout()
         self.layer_dropdown = QtWidgets.QComboBox()
         self.layer_dropdown.addItems(['Default', 'OpenStreetMap (internet required)', 'Satellite (internet required)',
-                                      'NOAA RNC (internet required)', 'NOAA ENC (internet required)'])
+                                      'NOAA RNC (internet required)', 'NOAA ENC (internet required)',
+                                      'GEBCO Grid (internet required)', 'EMODnet Bathymetry (internet required)'])
         self.layer_dropdown.setMaximumWidth(300)
         self.hlayout_one.addWidget(self.layer_dropdown)
         self.hlayout_one.addStretch(1)
@@ -75,9 +78,21 @@ class LayerSettingsDialog(QtWidgets.QDialog):
 
         """
         if not self.canceled:
+            try:
+                transp = int(self.transparency.text()) / 100
+                transp = np.clip(transp, 0, 1)
+            except ValueError:
+                print('Layer_Settings: transparency={} is invalid, must be an integer between 0 and 100, defaulting to 100'.format(self.transparency.text()))
+                transp = 1
+            try:
+                surf_transp = int(self.surf_transparency.text()) / 100
+                surf_transp = np.clip(surf_transp, 0, 1)
+            except ValueError:
+                print('Layer_Settings: surface_transparency={} is invalid, must be an integer between 0 and 100, defaulting to 100'.format(self.surf_transparency.text()))
+                surf_transp = 1
             opts = {'layer_background': self.layer_dropdown.currentText(),
-                    'layer_transparency': int(self.transparency.text()) / 100,
-                    'surface_transparency': int(self.surf_transparency.text()) / 100}
+                    'layer_transparency': transp,
+                    'surface_transparency': surf_transp}
         else:
             opts = None
         return opts

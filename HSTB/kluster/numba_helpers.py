@@ -2,11 +2,73 @@ import numba
 import numpy as np
 
 
+def bin2d(x: np.array, y: np.array, xbins: np.array, ybins: np.array):
+    # this is still slower than sorting and using searchsorted in numpy
+    x_idx = bin1d(x, xbins)
+    y_idx = bin1d(y, ybins)
+    return x_idx, y_idx
+
+
+@numba.njit(nogil=True, fastmath=True)
+def bin1d(x: np.array, xbins: np.array):
+    ans = np.zeros_like(x)
+    for i in range(len(x)):
+        ans[i] = _digitize(x[i], xbins)
+    return ans
+
+
+@numba.njit(nogil=True, fastmath=True)
+def _digitize(x: np.array, bins: np.array, right=False):
+    # bins are monotonically-increasing
+    n = len(bins)
+    lo = 0
+    hi = n
+
+    if right:
+        if np.isnan(x):
+            # Find the first nan (i.e. the last from the end of bins,
+            # since there shouldn't be many of them in practice)
+            for i in range(n, 0, -1):
+                if not np.isnan(bins[i - 1]):
+                    return i
+            return 0
+        while hi > lo:
+            mid = (lo + hi) >> 1
+            if bins[mid] < x:
+                # mid is too low => narrow to upper bins
+                lo = mid + 1
+            else:
+                # mid is too high, or is a NaN => narrow to lower bins
+                hi = mid
+    else:
+        if np.isnan(x):
+            # NaNs end up in the last bin
+            return n
+        while hi > lo:
+            mid = (lo + hi) >> 1
+            if bins[mid] <= x:
+                # mid is too low => narrow to upper bins
+                lo = mid + 1
+            else:
+                # mid is too high, or is a NaN => narrow to lower bins
+                hi = mid
+
+    return lo
+
+
 @numba.njit(nogil=True, parallel=False)
 def hist2d_numba_seq(x: np.array, y: np.array, bins: np.ndarray, ranges: np.ndarray):
     """
     Custom function to build a histogram2d using numba.  Take provided bins and ranges and return count at each 2d bin
     location.
+
+    x = np.random.uniform(0, 100, size=1000000)
+    y = np.random.uniform(0, 100, size=1000000)
+
+    bins = np.array([99, 99])
+    ranges = np.array([[0, 100], [0, 100]])
+
+    hist2d_numba_seq(x, y, bins, ranges)
 
     Parameters
     ----------
@@ -53,3 +115,9 @@ def _hist2d_add(list_results: list):
     """
 
     return np.sum(list_results, axis=0)
+
+
+if __name__ == '__main__':
+    x = np.random.uniform(0, 100, size=1000000)
+    x_bins = np.arange(100)
+    x_idx = bin1d(x, x_bins)

@@ -62,7 +62,7 @@ class DistanceTool(qgis_gui.QgsMapTool):
             if units_enum != 0:
                 raise ValueError('Something wrong with the distance units, got {} instead of 0=meters'.format(units_enum))
             print('******************************************************')
-            print('Distance of {} meters'.format(m))
+            print('Distance of {} meters'.format(round(m, 3)))
             print('******************************************************')
             self.start_point = None
         else:
@@ -165,21 +165,22 @@ class QueryTool(qgis_gui.QgsMapTool):
         x = e.pos().x()
         y = e.pos().y()
         point = self.parent.canvas.getCoordinateTransform().toMapCoordinates(x, y)
-        text = 'Latitude: {}, Longitude: {}'.format(point.y(), point.x())
+        text = 'Latitude: {}, Longitude: {}'.format(round(point.y(), 7), round(point.x(), 7))
         for name, layer in self.parent.project.mapLayers().items():
-            if layer.type() == qgis_core.QgsMapLayerType.RasterLayer and layer.dataProvider().name() != 'wms':
-                try:
-                    layer_point = self.parent.map_point_to_layer_point(layer, point)
-                    ident = layer.dataProvider().identify(layer_point, qgis_core.QgsRaster.IdentifyFormatValue)
-                    if ident:
-                        lname = layer.name()
-                        if lname[0:8] == '/vsimem/':
-                            lname = lname[8:]
-                        text += '\n\n{}'.format(lname)
-                        for ky, val in ident.results().items():
-                            text += '\n{}: {}'.format(layer.bandName(ky), round(val, 3))
-                except:  # point is outside of the transform
-                    pass
+            if layer.type() == qgis_core.QgsMapLayerType.RasterLayer:
+                if layer.dataProvider().name() != 'wms':
+                    try:
+                        layer_point = self.parent.map_point_to_layer_point(layer, point)
+                        ident = layer.dataProvider().identify(layer_point, qgis_core.QgsRaster.IdentifyFormatValue)
+                        if ident:
+                            lname = layer.name()
+                            if lname[0:8] == '/vsimem/':
+                                lname = lname[8:]
+                            text += '\n\n{}'.format(lname)
+                            for ky, val in ident.results().items():
+                                text += '\n{}: {}'.format(layer.bandName(ky), round(val, 3))
+                    except:  # point is outside of the transform
+                        pass
         return text
 
 
@@ -768,6 +769,110 @@ class MapView(QtWidgets.QMainWindow):
         self.toolDistance = DistanceTool(self.canvas)
         self.toolDistance.setAction(self.actionDistance)
 
+    def wms_openstreetmap_url(self):
+        """
+        Build the URL for the openstreetmap wms
+
+        Returns
+        -------
+        str
+            openstreetmap wms url
+        """
+        url = 'https://a.tile.openstreetmap.org/%7Bz%7D/%7Bx%7D/%7By%7D.png'
+        typ = 'xyz'
+        zmax = 19
+        zmin = 0
+        crs = 'EPSG:{}'.format(self.epsg)
+        url_with_params = 'type={}&url={}&zmax={}&zmin={}&crs={}'.format(typ, url, zmax, zmin, crs)
+        return url_with_params
+
+    def wms_satellite_url(self):
+        """
+        Build the URL for the google satellite data wms
+
+        Returns
+        -------
+        str
+            satellite wms url
+        """
+        url = 'http://mt0.google.com/vt/lyrs%3Ds%26hl%3Den%26x%3D%7Bx%7D%26y%3D%7By%7D%26z%3D%7Bz%7D'
+        typ = 'xyz'
+        zmax = 18
+        zmin = 0
+        crs = 'EPSG:{}'.format(self.epsg)
+        url_with_params = 'type={}&url={}&zmax={}&zmin={}&crs={}'.format(typ, url, zmax, zmin, crs)
+        return url_with_params
+
+    def wms_noaa_rnc(self):
+        """
+        Build the URL for the NOAA raster chart wms
+
+        Returns
+        -------
+        str
+            noaa rnc wms url
+        """
+        url = 'https://seamlessrnc.nauticalcharts.noaa.gov/arcgis/services/RNC/NOAA_RNC/ImageServer/WMSServer'
+        lyrs = 0
+        fmat = 'image/png'
+        dpi = 7
+        crs = 'EPSG:{}'.format(self.epsg)
+        url_with_params = 'crs={}&dpiMode={}&format={}&layers={}&styles&url={}'.format(crs, dpi, fmat, lyrs, url)
+        return url_with_params
+
+    def wms_noaa_enc(self):
+        """
+        Build the urls for the layers of the NOAA electronic chart
+
+        Returns
+        -------
+        list
+            list of urls for each layer of the noaa enc
+        """
+        urls = []
+        lyrs = [0, 3, 4, 5, 6, 7, 8, 9, 10, 11, 1, 2]
+        for lyr in lyrs:
+            url = 'https://gis.charttools.noaa.gov/arcgis/rest/services/MCS/ENCOnline/MapServer/exts/MaritimeChartService/WMSServer'
+            fmat = 'image/png'
+            dpi = 7
+            crs = 'EPSG:{}'.format(self.epsg)
+            urls.append('crs={}&dpiMode={}&format={}&layers={}&styles&url={}'.format(crs, dpi, fmat, lyr, url))
+        return urls
+
+    def wms_gebco(self):
+        """
+        Build the URL for the Gebco latest grid shaded relief wms
+
+        Returns
+        -------
+        str
+            gebco wms url
+        """
+        url = 'https://www.gebco.net/data_and_products/gebco_web_services/web_map_service/mapserv'
+        lyrs = 'GEBCO_LATEST'
+        fmat = 'image/png'
+        dpi = 7
+        crs = 'EPSG:{}'.format(self.epsg)
+        url_with_params = 'crs={}&dpiMode={}&format={}&layers={}&styles&url={}'.format(crs, dpi, fmat, lyrs, url)
+        return url_with_params
+
+    def wms_emodnet(self):
+        """
+        Build the URL for the EMODNET Bathymetry service
+
+        Returns
+        -------
+        str
+            url for the EMODNET service
+        """
+        url = 'https://ows.emodnet-bathymetry.eu/wms'
+        lyrs = 'emodnet:mean_rainbowcolour'
+        fmat = 'image/png'
+        dpi = 7
+        crs = 'EPSG:{}'.format(self.epsg)
+        url_with_params = 'crs={}&dpiMode={}&format={}&layers={}&styles&url={}'.format(crs, dpi, fmat, lyrs, url)
+        return url_with_params
+
     def _init_settings(self, settings: dict = None):
         """
         if settings are provided, we use them over the default ones
@@ -835,12 +940,7 @@ class MapView(QtWidgets.QMainWindow):
 
         for lname in self.layer_manager.background_layer_names:
             self.remove_layer(lname)
-        url = 'https://a.tile.openstreetmap.org/%7Bz%7D/%7Bx%7D/%7By%7D.png'
-        typ = 'xyz'
-        zmax = 19
-        zmin = 0
-        crs = 'EPSG:{}'.format(self.epsg)
-        url_with_params = 'type={}&url={}&zmax={}&zmin={}&crs={}'.format(typ, url, zmax, zmin, crs)
+        url_with_params = self.wms_openstreetmap_url()
         lyr = self.add_layer(url_with_params, 'OpenStreetMap', 'wms')
         if lyr:
             lyr.renderer().setOpacity(1 - self.layer_transparency)
@@ -853,12 +953,7 @@ class MapView(QtWidgets.QMainWindow):
         """
         for lname in self.layer_manager.background_layer_names:
             self.remove_layer(lname)
-        url = 'http://mt0.google.com/vt/lyrs%3Ds%26hl%3Den%26x%3D%7Bx%7D%26y%3D%7By%7D%26z%3D%7Bz%7D'
-        typ = 'xyz'
-        zmax = 18
-        zmin = 0
-        crs = 'EPSG:{}'.format(self.epsg)
-        url_with_params = 'type={}&url={}&zmax={}&zmin={}&crs={}'.format(typ, url, zmax, zmin, crs)
+        url_with_params = self.wms_satellite_url()
         lyr = self.add_layer(url_with_params, 'Satellite', 'wms')
         if lyr:
             lyr.renderer().setOpacity(1 - self.layer_transparency)
@@ -871,12 +966,7 @@ class MapView(QtWidgets.QMainWindow):
         """
         for lname in self.layer_manager.background_layer_names:
             self.remove_layer(lname)
-        url = 'https://seamlessrnc.nauticalcharts.noaa.gov/arcgis/services/RNC/NOAA_RNC/ImageServer/WMSServer'
-        lyrs = 0
-        fmat = 'image/png'
-        dpi = 7
-        crs = 'EPSG:{}'.format(self.epsg)
-        url_with_params = 'crs={}&dpiMode={}&format={}&layers={}&styles&url={}'.format(crs, dpi, fmat, lyrs, url)
+        url_with_params = self.wms_noaa_rnc()
         lyr = self.add_layer(url_with_params, 'NOAA_RNC', 'wms')
         if lyr:
             lyr.renderer().setOpacity(1 - self.layer_transparency)
@@ -889,18 +979,39 @@ class MapView(QtWidgets.QMainWindow):
         """
         for lname in self.layer_manager.background_layer_names:
             self.remove_layer(lname)
-        lyrs = [0, 3, 4, 5, 6, 7, 8, 9, 10, 11, 1, 2]
-        for lyr in lyrs:
-            url = 'https://gis.charttools.noaa.gov/arcgis/rest/services/MCS/ENCOnline/MapServer/exts/MaritimeChartService/WMSServer'
-            fmat = 'image/png'
-            dpi = 7
-            crs = 'EPSG:{}'.format(self.epsg)
-            url_with_params = 'crs={}&dpiMode={}&format={}&layers={}&styles&url={}'.format(crs, dpi, fmat, lyr, url)
-            lyr = self.add_layer(url_with_params, 'NOAA_ENC_{}'.format(lyr), 'wms')
+        urls = self.wms_noaa_enc()
+        for cnt, url_with_params in enumerate(urls):
+            lyr = self.add_layer(url_with_params, 'NOAA_ENC_{}'.format(cnt), 'wms')
             if lyr:
                 lyr.renderer().setOpacity(1 - self.layer_transparency)
             else:
                 print('QGIS Initialize: Unable to find background layer: {}'.format(url_with_params))
+
+    def _init_gebco(self):
+        """
+        Set the background to the Gebco latest Grid Shaded Relief WMS
+        """
+        for lname in self.layer_manager.background_layer_names:
+            self.remove_layer(lname)
+        url_with_params = self.wms_gebco()
+        lyr = self.add_layer(url_with_params, 'GEBCO', 'wms')
+        if lyr:
+            lyr.renderer().setOpacity(1 - self.layer_transparency)
+        else:
+            print('QGIS Initialize: Unable to find background layer: {}'.format(url_with_params))
+
+    def _init_emodnet(self):
+        """
+        Set the background to the Gebco latest Grid Shaded Relief WMS
+        """
+        for lname in self.layer_manager.background_layer_names:
+            self.remove_layer(lname)
+        url_with_params = self.wms_emodnet()
+        lyr = self.add_layer(url_with_params, 'EMODNET', 'wms')
+        if lyr:
+            lyr.renderer().setOpacity(1 - self.layer_transparency)
+        else:
+            print('QGIS Initialize: Unable to find background layer: {}'.format(url_with_params))
 
     def _manager_add_layer(self, layername: str, layerdata: Union[qgis_core.QgsRasterLayer, qgis_core.QgsVectorLayer],
                            layertype: str):
@@ -1037,6 +1148,10 @@ class MapView(QtWidgets.QMainWindow):
             self._init_noaa_rnc()
         elif self.layer_background == 'NOAA ENC (internet required)':
             self._init_noaa_enc()
+        elif self.layer_background == 'GEBCO Grid (internet required)':
+            self._init_gebco()
+        elif self.layer_background == 'EMODnet Bathymetry (internet required)':
+            self._init_emodnet()
 
         for lyr in self.layer_manager.surface_layers:
             lyr.renderer().setOpacity(1 - self.surface_transparency)
