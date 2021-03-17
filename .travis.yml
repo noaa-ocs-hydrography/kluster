@@ -24,6 +24,7 @@ install:
   - conda install pytest six pytest-cov pytest-mock
   - conda install git pip
   - pip install git+https://github.com/noaa-ocs-hydrography/kluster.git#egg=hstb.kluster
+  - pip install git+https://github.com/noaa-ocs-hydrography/shared.git#egg=hstb.shared
   - pip install -r requirements.txt
 
 script: pytest tests
