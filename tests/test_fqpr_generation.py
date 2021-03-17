@@ -204,7 +204,7 @@ def test_intelligence():
     assert action.priority == 1
     assert action.is_running == False
     assert len(action.input_files) == 1
-    assert action.kwargs is None
+    assert action.kwargs == {}
     assert action.args[2:] == [None, False, True]
 
     fintel.execute_action()
