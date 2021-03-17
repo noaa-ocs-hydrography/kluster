@@ -936,6 +936,7 @@ def test_orientation_module():
     calc_tx_vector, calc_rx_vector = build_orientation_vectors(raw_attitude, traveltime, delay, timestamps,
                                                                tx_orientation, rx_orientation, latency)
 
+    print(calc_rx_vector.values == expected_rx_vector)
     assert np.array_equal(calc_tx_vector.values, expected_tx_vector)
     assert np.array_equal(calc_rx_vector.values, expected_rx_vector)
 
@@ -962,6 +963,8 @@ def test_beampointingvector_module():
 
     beam_azimuth, corrected_beam_angle = build_beam_pointing_vectors(ping_time_heading, beampointingangle, tiltangle, tx_vecs,
                                                                      rx_vecs, tx_reversed, rx_reversed)
+
+    print(beam_azimuth.values == expected_beam_azimuth)
     assert np.array_equal(beam_azimuth.values, expected_beam_azimuth)
     assert np.array_equal(corrected_beam_angle.values, expected_corrected_beam_angles)
 
