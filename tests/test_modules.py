@@ -938,7 +938,7 @@ def test_orientation_module():
 
     for cnt, val in enumerate(calc_rx_vector[0, :, :].values):
         if not np.array_equal(val, expected_rx_vector[0, cnt, :]):
-            print(cnt, val, expected_rx_vector[cnt])
+            print(cnt, val, expected_rx_vector[0, cnt, :])
     print(calc_rx_vector.values == expected_rx_vector)
     assert np.array_equal(calc_tx_vector.values, expected_tx_vector)
     assert np.array_equal(calc_rx_vector.values, expected_rx_vector)
@@ -969,7 +969,7 @@ def test_beampointingvector_module():
 
     for cnt, val in enumerate(beam_azimuth.values[0, :]):
         if val != expected_beam_azimuth[0, cnt]:
-            print(cnt, val, expected_beam_azimuth[cnt])
+            print(cnt, val, expected_beam_azimuth[0, cnt])
     assert np.array_equal(beam_azimuth.values, expected_beam_azimuth)
     assert np.array_equal(corrected_beam_angle.values, expected_corrected_beam_angles)
 
