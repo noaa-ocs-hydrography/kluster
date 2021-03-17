@@ -1357,8 +1357,9 @@ def _interp_across_chunks_xarrayinterp(xarr: Union[xr.Dataset, xr.DataArray], di
             chnk_time = chnk_time.values
         except AttributeError:
             pass
-        return xarr.interp(time=chnk_time, method='linear', assume_sorted=True, kwargs={'bounds_error': True,
-                                                                                        'fill_value': 'extrapolate'})
+        # use extrapolate for when pings are in the file after the last attitude/navigation time stamp
+        ans = xarr.interp(time=chnk_time, method='linear', assume_sorted=True, kwargs={'fill_value': 'extrapolate'})
+        return ans
     else:
         raise NotImplementedError('Only "time" currently supported dim name')
 

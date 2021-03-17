@@ -848,7 +848,7 @@ class BatchRead:
 
     def __init__(self, filfolder: Union[str, list] = None, dest: str = None, address: str = None, client: Client = None,
                  minchunksize: int = 40000000, max_chunks: int = 20, filtype: str = 'zarr', skip_dask: bool = False,
-                 dashboard: bool = False, show_progress: bool = True):
+                 dashboard: bool = False, show_progress: bool = True, parallel_write: bool = True):
         """
         Parameters
         ----------
@@ -877,6 +877,8 @@ class BatchRead:
             if True, will open a web browser with the dask dashboard
         show_progress
             If true, uses dask.distributed.progress.  Disabled for GUI, as it generates too much text
+        parallel_write
+            if True, will write in parallel to disk
         """
 
         self.filfolder = filfolder
@@ -890,6 +892,7 @@ class BatchRead:
         self.raw_att = None
         self.raw_nav = None
 
+        self.parallel_write = parallel_write
         self.readsuccess = False
 
         self.client = client
@@ -1370,7 +1373,7 @@ class BatchRead:
         data_locs, finalsize = get_write_indices_zarr(output_pth, opts[datatype]['time_arrs'])
         fpths = distrib_zarr_write(output_pth, opts[datatype]['output_arrs'], opts[datatype]['final_attrs'],
                                    opts[datatype]['chunks'], data_locs, finalsize, self.client,
-                                   show_progress=self.show_progress)
+                                   show_progress=self.show_progress, write_in_parallel=self.parallel_write)
         fpth = fpths[0]  # Pick the first element, all are identical so it doesnt really matter
         return fpth
 

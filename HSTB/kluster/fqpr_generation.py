@@ -56,9 +56,12 @@ class Fqpr:
         passed to dask_find_or_start_client to setup dask cluster
     show_progress
         If true, uses dask.distributed.progress.  Disabled for GUI, as it generates too much text
+    parallel_write
+        if True, will write in parallel to disk
     """
 
-    def __init__(self, multibeam: BatchRead = None, motion_latency: float = 0.0, address: str = None, show_progress: bool = True):
+    def __init__(self, multibeam: BatchRead = None, motion_latency: float = 0.0, address: str = None, show_progress: bool = True,
+                 parallel_write: bool = True):
         self.multibeam = multibeam
         self.intermediate_dat = None
         self.soundings_path = ''
@@ -68,6 +71,8 @@ class Fqpr:
         self.xyz_crs = None
         self.vert_ref = None
         self.motion_latency = motion_latency
+
+        self.parallel_write = parallel_write
 
         self.client = None
         self.address = address
@@ -1058,20 +1063,20 @@ class Fqpr:
                 if alt is None:
                     fut_alt = alt
                 else:
-                    fut_alt = self.client.scatter(alt[chnk].assign_coords({'time': chnk.time.time - latency}))
-                fut_lon = self.client.scatter(lon[chnk].assign_coords({'time': chnk.time.time - latency}))
-                fut_lat = self.client.scatter(lat[chnk].assign_coords({'time': chnk.time.time - latency}))
-                fut_hdng = self.client.scatter(hdng[chnk].assign_coords({'time': chnk.time.time - latency}))
-                fut_hve = self.client.scatter(hve[chnk].assign_coords({'time': chnk.time.time - latency}))
+                    fut_alt = self.client.scatter(alt[chnk.values].assign_coords({'time': chnk.time.time - latency}))
+                fut_lon = self.client.scatter(lon[chnk.values].assign_coords({'time': chnk.time.time - latency}))
+                fut_lat = self.client.scatter(lat[chnk.values].assign_coords({'time': chnk.time.time - latency}))
+                fut_hdng = self.client.scatter(hdng[chnk.values].assign_coords({'time': chnk.time.time - latency}))
+                fut_hve = self.client.scatter(hve[chnk.values].assign_coords({'time': chnk.time.time - latency}))
             except:  # client is not setup, run locally
                 if alt is None:
                     fut_alt = alt
                 else:
-                    fut_alt = alt[chnk].assign_coords({'time': chnk.time.time - latency})
-                fut_lon = lon[chnk].assign_coords({'time': chnk.time.time - latency})
-                fut_lat = lat[chnk].assign_coords({'time': chnk.time.time - latency})
-                fut_hdng = hdng[chnk].assign_coords({'time': chnk.time.time - latency})
-                fut_hve = hve[chnk].assign_coords({'time': chnk.time.time - latency})
+                    fut_alt = alt[chnk.values].assign_coords({'time': chnk.time.time - latency})
+                fut_lon = lon[chnk.values].assign_coords({'time': chnk.time.time - latency})
+                fut_lat = lat[chnk.values].assign_coords({'time': chnk.time.time - latency})
+                fut_hdng = hdng[chnk.values].assign_coords({'time': chnk.time.time - latency})
+                fut_hve = hve[chnk.values].assign_coords({'time': chnk.time.time - latency})
             data_for_workers.append([sv_data, fut_alt, fut_lon, fut_lat, fut_hdng, fut_hve, wline, self.vert_ref,
                                      input_datum, self.xyz_crs, z_offset])
         return data_for_workers
@@ -1569,7 +1574,7 @@ class Fqpr:
         except:  # not using dask distributed client
             pass
         distrib_zarr_write(outfold, [navdata], navdata_attrs, chunk_sizes, data_locs, finalsize, self.client,
-                           append_dim='time', merge=False, show_progress=self.show_progress)
+                           append_dim='time', merge=False, show_progress=self.show_progress, write_in_parallel=self.parallel_write)
         self.navigation_path = outfold
         self.reload_ppnav_records()
         self.multibeam.reload_pingrecords(skip_dask=self.client is None)
@@ -1616,7 +1621,8 @@ class Fqpr:
                 except:  # not using dask distributed client
                     pass
                 distrib_zarr_write(outfold_sys, [ping_wise_data], attributes, chunk_sizes, data_locs, finalsize,
-                                   self.client, append_dim='time', merge=True, show_progress=self.show_progress)
+                                   self.client, append_dim='time', merge=True, show_progress=self.show_progress,
+                                   write_in_parallel=self.parallel_write)
                 attributes = {}
         self.multibeam.reload_pingrecords(skip_dask=skip_dask)
         endtime = perf_counter()
@@ -2213,7 +2219,8 @@ class Fqpr:
                     time_arrs = [_return_xarray_time(tr) for tr in futs_data]
                 data_locs, finalsize = get_write_indices_zarr(outfold_sys, time_arrs)
                 fpths = distrib_zarr_write(outfold_sys, futs_data, mode_settings[3], ping_chunks, data_locs, finalsize,
-                                           self.client, merge=True, skip_dask=skip_dask, show_progress=self.show_progress)
+                                           self.client, merge=True, skip_dask=skip_dask, show_progress=self.show_progress,
+                                           write_in_parallel=self.parallel_write)
             if delete_futs:
                 del self.intermediate_dat[sys_ident][mode_settings[0]]
 

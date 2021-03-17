@@ -1,5 +1,6 @@
 *.pyc
 *.ini
+*.lock
 
 # IDE files
 *.spyproject

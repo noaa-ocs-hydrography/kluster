@@ -275,7 +275,7 @@ class FqprActionContainer:
             print('FqprActionContainer: no actions found.')
 
 
-def build_multibeam_action(destination: str, line_list: list, client: Client = None):
+def build_multibeam_action(destination: str, line_list: list, client: Client = None, settings: dict = None):
     """
     Construct a convert multibeam action using the provided data
 
@@ -287,6 +287,8 @@ def build_multibeam_action(destination: str, line_list: list, client: Client = N
         list of multibeam file paths
     client
         optional, dask distributed client if using dask
+    settings
+        optional settings dictionary used to override kwargs (default processing options)
 
     Returns
     -------
@@ -295,13 +297,18 @@ def build_multibeam_action(destination: str, line_list: list, client: Client = N
     """
 
     args = [line_list, destination, client, False, True]
+    if settings:
+        allowed_kwargs = ['parallel_write']
+        existing_kwargs = list(settings.keys())
+        [settings.pop(ky) for ky in existing_kwargs if ky not in allowed_kwargs]
     action = FqprAction(priority=1, action_type='multibeam', output_destination=destination, input_files=line_list,
                         text='Convert {} multibeam lines to {}'.format(len(line_list), destination),
-                        tooltip_text='\n'.join(line_list), function=fqpr_convenience.convert_multibeam, args=args)
+                        tooltip_text='\n'.join(line_list), function=fqpr_convenience.convert_multibeam, args=args,
+                        kwargs=settings)
     return action
 
 
-def update_kwargs_for_multibeam(destination: str, line_list: list, client: Client = None):
+def update_kwargs_for_multibeam(destination: str, line_list: list, client: Client = None, settings: dict = None):
     """
     Build a dictionary of updated settings for an existing multibeam action, use this with FqprActionContainer to
     update the action.
@@ -314,6 +321,8 @@ def update_kwargs_for_multibeam(destination: str, line_list: list, client: Clien
         list of multibeam file paths
     client
         optional, dask distributed client if using dask
+    settings
+        optional settings dictionary used to override kwargs (default processing options)
 
     Returns
     -------
@@ -322,8 +331,12 @@ def update_kwargs_for_multibeam(destination: str, line_list: list, client: Clien
     """
 
     args = [line_list, destination, client, False, True]
+    if settings:
+        allowed_kwargs = ['parallel_write']
+        existing_kwargs = list(settings.keys())
+        [settings.pop(ky) for ky in existing_kwargs if ky not in allowed_kwargs]
     update_settings = {'input_files': line_list, 'text': 'Convert {} multibeam lines to {}'.format(len(line_list), destination),
-                       'tooltip_text': '\n'.join(line_list), 'args': args}
+                       'tooltip_text': '\n'.join(line_list), 'args': args, 'kwargs': settings}
     return update_settings
 
 

@@ -20,7 +20,8 @@ from HSTB.kluster.fqpr_surface_v3 import QuadManager
 def perform_all_processing(filname: str, navfiles: list = None, outfold: str = None, coord_system: str = 'NAD83',
                            vert_ref: str = 'waterline', orientation_initial_interpolation: bool = False,
                            add_cast_files: Union[str, list] = None,
-                           skip_dask: bool = False, show_progress: bool = True, **kwargs):
+                           skip_dask: bool = False, show_progress: bool = True, parallel_write: bool = True,
+                           **kwargs):
     """
     Use fqpr_generation to process multibeam data on the local cluster and generate a sound velocity corrected,
     georeferenced xyz with uncertainty in csv files in the provided output folder.
@@ -50,6 +51,8 @@ def perform_all_processing(filname: str, navfiles: list = None, outfold: str = N
         makes the process slower
     show_progress
         If true, uses dask.distributed.progress.  Disabled for GUI, as it generates too much text
+    parallel_write
+        if True, will write in parallel to disk, Disable for permissions issues troubleshooting.
 
     Returns
     -------
@@ -57,7 +60,7 @@ def perform_all_processing(filname: str, navfiles: list = None, outfold: str = N
         Fqpr object containing processed data
     """
 
-    fqpr_inst = convert_multibeam(filname, outfold, skip_dask=skip_dask, show_progress=show_progress)
+    fqpr_inst = convert_multibeam(filname, outfold, skip_dask=skip_dask, show_progress=show_progress, parallel_write=parallel_write)
     if navfiles is not None:
         fqpr_inst = import_navigation(fqpr_inst, navfiles, **kwargs)
     fqpr_inst = process_multibeam(fqpr_inst, add_cast_files=add_cast_files, coord_system=coord_system, vert_ref=vert_ref,
@@ -66,7 +69,7 @@ def perform_all_processing(filname: str, navfiles: list = None, outfold: str = N
 
 
 def convert_multibeam(filname: str, outfold: str = None, client: Client = None, skip_dask: bool = False,
-                      show_progress: bool = True):
+                      show_progress: bool = True, parallel_write: bool = True):
     """
     Use fqpr_generation to process multibeam data on the local cluster and generate a new Fqpr instance saved to the
     provided output folder.
@@ -87,6 +90,8 @@ def convert_multibeam(filname: str, outfold: str = None, client: Client = None, 
         makes the process slower
     show_progress
         If true, uses dask.distributed.progress.  Disabled for GUI, as it generates too much text
+    parallel_write
+        if True, will write in parallel to disk.  Disable for permissions issues troubleshooting.
 
     Returns
     -------
@@ -94,8 +99,9 @@ def convert_multibeam(filname: str, outfold: str = None, client: Client = None, 
         Fqpr containing converted source data
     """
 
-    mbes_read = BatchRead(filname, dest=outfold, client=client, skip_dask=skip_dask, show_progress=show_progress)
-    fqpr_inst = Fqpr(mbes_read, show_progress=show_progress)
+    mbes_read = BatchRead(filname, dest=outfold, client=client, skip_dask=skip_dask, show_progress=show_progress,
+                          parallel_write=parallel_write)
+    fqpr_inst = Fqpr(mbes_read, show_progress=show_progress, parallel_write=parallel_write)
     fqpr_inst.read_from_source()
     return fqpr_inst
 

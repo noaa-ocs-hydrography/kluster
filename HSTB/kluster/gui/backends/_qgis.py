@@ -695,6 +695,7 @@ class MapView(QtWidgets.QMainWindow):
     def __init__(self, parent=None, settings=None, epsg: int = 4326):
         super().__init__()
         self.epsg = epsg
+        self.vdatum_directory = None
         self.layer_background = 'Default'
         self.layer_transparency = 0.5
         self.surface_transparency = 0
@@ -887,6 +888,7 @@ class MapView(QtWidgets.QMainWindow):
             self.layer_background = settings['layer_background']
             self.layer_transparency = float(settings['layer_transparency'])
             self.surface_transparency = float(settings['surface_transparency'])
+            self.vdatum_directory = settings['vdatum_directory']
 
     def _area_selected(self, min_lat: float, max_lat: float, min_lon: float, max_lon: float):
         """
@@ -905,6 +907,13 @@ class MapView(QtWidgets.QMainWindow):
         """
 
         self.box_select.emit(min_lat, max_lat, min_lon, max_lon)
+
+    def _init_none(self):
+        """
+        Clear all background layers
+        """
+        for lname in self.layer_manager.background_layer_names:
+            self.remove_layer(lname)
 
     def _init_default_layers(self):
         """
@@ -932,6 +941,46 @@ class MapView(QtWidgets.QMainWindow):
                     print('QGIS Initialize: Unable to find background layer: {}'.format(bpath))
             else:
                 print('QGIS Initialize: Unable to find background layer: {}'.format(bpath))
+
+    def _init_vdatum_extents(self):
+        """
+        Set the background to the vdatum kml files that signify the extents of vdatum coverage
+        """
+        if not self.vdatum_directory:
+            print('Unable to find vdatum directory, please make sure you set the path in File - Settings'.format(self.vdatum_directory))
+        else:
+            for lname in self.layer_manager.background_layer_names:
+                self.remove_layer(lname)
+            background_dir = os.path.join(os.path.dirname(klusterdir), 'background')
+            bpath = os.path.join(background_dir, 'GSHHS_L1.shp')
+            if os.path.exists(bpath):
+                lyr = self.add_layer(bpath, 'GSHHS_L1', 'ogr', QtGui.QColor.fromRgb(125, 100, 45, 150))
+                if lyr:
+                    lyr.setOpacity(1 - self.layer_transparency)
+                else:
+                    print('QGIS Initialize: Unable to find background layer: {}'.format(bpath))
+            else:
+                print('QGIS Initialize: Unable to find background layer: {}'.format(bpath))
+
+            kmlfiles = []
+            lnames = []
+            for root, dirs, files in os.walk(self.vdatum_directory):
+                for f in files:
+                    fname, exte = os.path.splitext(f)
+                    if exte == '.kml':
+                        kmlfiles.append(os.path.join(root, f))
+                        lnames.append(fname)
+            for kmlf, lname in zip(kmlfiles, lnames):
+                lyr = self.add_layer(kmlf, lname, 'ogr')
+                if lyr:  # change default symbol to line from fill, that way we just get the outline
+                    symb = qgis_core.QgsSimpleLineSymbolLayer.create({'color': 'blue'})
+                    lyr.renderer().symbol().changeSymbolLayer(0, symb)
+                    lyr.setOpacity(1 - self.layer_transparency)
+                else:
+                    print('QGIS Initialize: Unable to find background layer: {}'.format(kmlf))
+            print('Loaded {} VDatum kml files'.format(len(kmlfiles)))
+            if not len(kmlfiles):
+                print('Unable to find any kml files in all subdirectories at {}'.format(self.vdatum_directory))
 
     def _init_openstreetmap(self):
         """
@@ -1138,8 +1187,12 @@ class MapView(QtWidgets.QMainWindow):
         self.layer_background = layername
         self.layer_transparency = transparency
         self.surface_transparency = surf_transparency
+        if self.layer_background == 'None':
+            self._init_none()
         if self.layer_background == 'Default':
             self._init_default_layers()
+        if self.layer_background == 'VDatum Coverage (VDatum required)':
+            self._init_vdatum_extents()
         elif self.layer_background == 'OpenStreetMap (internet required)':
             self._init_openstreetmap()
         elif self.layer_background == 'Satellite (internet required)':

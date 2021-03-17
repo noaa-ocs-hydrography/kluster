@@ -11,7 +11,7 @@ if qgis_enabled:
 from HSTB.kluster.gui import dialog_vesselview, kluster_explorer, kluster_project_tree, kluster_3dview, kluster_attitudeview, \
     kluster_output_window, kluster_2dview, kluster_actions, kluster_monitor, dialog_daskclient, dialog_surface, \
     dialog_export, kluster_worker, kluster_interactive_console, dialog_basicplot, dialog_advancedplot, dialog_project_settings, \
-    dialog_export_grid, dialog_layer_settings
+    dialog_export_grid, dialog_layer_settings, dialog_settings
 from HSTB.kluster.fqpr_project import FqprProject
 from HSTB.kluster.fqpr_intelligence import FqprIntel
 from HSTB.kluster import __version__ as kluster_version
@@ -20,6 +20,19 @@ from HSTB.shared import RegistryHelpers
 
 # list of icons
 # https://joekuan.wordpress.com/2015/09/23/list-of-qt-icons/
+
+
+settings_translator = {'Kluster/proj_settings_epsgradio': {'newname': 'use_epsg', 'defaultvalue': False},
+                       'Kluster/proj_settings_epsgval': {'newname': 'epsg', 'defaultvalue': ''},
+                       'Kluster/proj_settings_utmradio': {'newname': 'use_coord', 'defaultvalue': True},
+                       'Kluster/proj_settings_utmval': {'newname': 'coord_system', 'defaultvalue': 'NAD83'},
+                       'Kluster/proj_settings_vertref': {'newname': 'vert_ref', 'defaultvalue': 'waterline'},
+                       'Kluster/layer_settings_background': {'newname': 'layer_background', 'defaultvalue': 'Default'},
+                       'Kluster/layer_settings_transparency': {'newname': 'layer_transparency', 'defaultvalue': '0'},
+                       'Kluster/layer_settings_surfacetransparency': {'newname': 'surface_transparency', 'defaultvalue': 0},
+                       'Kluster/settings_enable_parallel_writes': {'newname': 'write_parallel', 'defaultvalue': True},
+                       'Kluster/settings_vdatum_directory': {'newname': 'vdatum_directory', 'defaultvalue': ''}
+                       }
 
 
 class KlusterMain(QtWidgets.QMainWindow):
@@ -57,7 +70,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.project_tree = kluster_project_tree.KlusterProjectTree(self)
         self.tree_dock = self.dock_this_widget('Project Tree', 'project_dock', self.project_tree)
 
-        self.two_d = kluster_2dview.Kluster2dview(self, self.settings)
+        self.two_d = kluster_2dview.Kluster2dview(self, self.settings.copy())
         self.two_d_dock = self.dock_this_widget('2d view', 'two_d_dock', self.two_d)
 
         self.three_d = kluster_3dview.Kluster3dview(self)
@@ -139,41 +152,19 @@ class KlusterMain(QtWidgets.QMainWindow):
 
     def _load_previously_used_settings(self):
         settings = self.settings_object
-        if settings.value('Kluster/proj_settings_epsgradio'):
-            self.settings['use_epsg'] = settings.value('Kluster/proj_settings_epsgradio').lower() == 'true'
-        else:
-            self.settings['use_epsg'] = False
-        if settings.value('Kluster/proj_settings_epsgval'):
-            self.settings['epsg'] = settings.value('Kluster/proj_settings_epsgval')
-        else:
-            self.settings['epsg'] = ''
-        if settings.value('Kluster/proj_settings_utmradio'):
-            self.settings['use_coord'] = settings.value('Kluster/proj_settings_utmradio').lower() == 'true'
-        else:
-            self.settings['use_coord'] = True
-        if settings.value('Kluster/proj_settings_utmval'):
-            self.settings['coord_system'] = settings.value('Kluster/proj_settings_utmval')
-        else:
-            self.settings['coord_system'] = 'NAD83'
-        if settings.value('Kluster/proj_settings_vertref'):
-            self.settings['vert_ref'] = settings.value('Kluster/proj_settings_vertref')
-        else:
-            self.settings['vert_ref'] = 'waterline'
-        if settings.value('Kluster/layer_settings_background'):
-            self.settings['layer_background'] = settings.value('Kluster/layer_settings_background')
-        else:
-            self.settings['layer_background'] = 'Default'
-        if settings.value('Kluster/layer_settings_transparency'):
-            self.settings['layer_transparency'] = settings.value('Kluster/layer_settings_transparency')
-        else:
-            self.settings['layer_transparency'] = '0'
-        if settings.value('Kluster/layer_settings_surfacetransparency'):
-            self.settings['surface_transparency'] = settings.value('Kluster/layer_settings_surfacetransparency')
-        else:
-            self.settings['surface_transparency'] = 0
+        for settname, opts in settings_translator.items():
+            if settings.value(settname) is not None:
+                setval = settings.value(settname)
+                self.settings[opts['newname']] = setval
+                if isinstance(setval, str) and setval.lower() == 'true':
+                    self.settings[opts['newname']] = True
+                elif isinstance(setval, str) and setval.lower() == 'false':
+                    self.settings[opts['newname']] = False
+            else:
+                self.settings[opts['newname']] = opts['defaultvalue']
         if self.project.path is not None:
-            self.project.set_settings(self.settings)
-        self.intel.set_settings(self.settings)
+            self.project.set_settings(self.settings.copy())
+        self.intel.set_settings(self.settings.copy())
 
     def setup_menu(self):
         """
@@ -188,6 +179,8 @@ class KlusterMain(QtWidgets.QMainWindow):
         save_proj_action.triggered.connect(self._action_save_project)
         close_proj_action = QtWidgets.QAction('Close Project', self)
         close_proj_action.triggered.connect(self.close_project)
+        settings_action = QtWidgets.QAction('Settings', self)
+        settings_action.triggered.connect(self.set_settings)
         export_action = QtWidgets.QAction('Export Soundings', self)
         export_action.triggered.connect(self._action_export)
         export_grid_action = QtWidgets.QAction('Export Surface', self)
@@ -220,6 +213,8 @@ class KlusterMain(QtWidgets.QMainWindow):
         file.addAction(open_proj_action)
         file.addAction(save_proj_action)
         file.addAction(close_proj_action)
+        file.addSeparator()
+        file.addAction(settings_action)
         file.addSeparator()
         file.addAction(export_action)
         file.addAction(export_grid_action)
@@ -729,7 +724,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.close_project()
         self.project._setup_new_project(directory)
         if self.settings:  # set_settings will set the project settings and save the project
-            self.project.set_settings(self.settings)
+            self.project.set_settings(self.settings.copy())
         else:  # just save the project
             self.project.save_project()
 
@@ -816,8 +811,7 @@ class KlusterMain(QtWidgets.QMainWindow):
 
     def set_layer_settings(self):
         """
-        Triggered on hitting OK in the layer settings dialog.  Takes the provided settings and saves it to the project
-        and intel instance.
+        Triggered on hitting OK in the layer settings dialog.  Takes the provided settings and regenerates the 2d display.
         """
 
         dlog = dialog_layer_settings.LayerSettingsDialog()
@@ -826,6 +820,20 @@ class KlusterMain(QtWidgets.QMainWindow):
             self.settings.update(settings)
             self.two_d.set_background(self.settings['layer_background'], self.settings['layer_transparency'],
                                       self.settings['surface_transparency'])
+
+    def set_settings(self):
+        """
+        Triggered on hitting OK in the settings dialog.  Takes the provided settings and saves it to the project
+        and intel instance.
+        """
+
+        dlog = dialog_settings.SettingsDialog()
+        if dlog.exec_() and not dlog.canceled:
+            settings = dlog.return_options()
+            self.settings.update(settings)
+            if self.project.path is not None:
+                self.project.set_settings(settings)
+            self.intel.set_settings(settings)
 
     def dockwidget_is_visible(self, widg):
         """
@@ -1205,13 +1213,10 @@ class KlusterMain(QtWidgets.QMainWindow):
 
         settings = self.settings_object
         self.monitor.save_settings(settings)
-        settings.setValue('Kluster/proj_settings_epsgradio', self.settings['use_epsg'])
-        settings.setValue('Kluster/proj_settings_utmradio', self.settings['use_coord'])
-        settings.setValue('Kluster/proj_settings_utmval', self.settings['coord_system'])
-        settings.setValue('Kluster/proj_settings_vertref', self.settings['vert_ref'])
-        settings.setValue('Kluster/layer_settings_background', self.settings['layer_background'])
-        settings.setValue('Kluster/layer_settings_transparency', self.settings['layer_transparency'])
-        settings.setValue('Kluster/layer_settings_surfacetransparency', self.settings['surface_transparency'])
+        for settname, opts in settings_translator.items():
+            print(settname, opts['newname'], self.settings[opts['newname']])
+            settings.setValue(settname, self.settings[opts['newname']])
+
         self.close_project()
         settings.setValue('Kluster/geometry', self.saveGeometry())
         settings.setValue('Kluster/windowState', self.saveState(version=0))

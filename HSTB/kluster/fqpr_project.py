@@ -290,6 +290,9 @@ class FqprProject:
                     changed = fqpr_instance.construct_crs(str(settings['epsg']), settings['coord_system'], True, settings['vert_ref'])
                 else:
                     changed = fqpr_instance.construct_crs(None, settings['coord_system'], True, settings['vert_ref'])
+        if 'parallel_write' in settings:
+            for relpath, fqpr_instance in self.fqpr_instances.items():
+                fqpr_instance.parallel_write = settings['parallel_write']
         self.save_project()
 
     def add_fqpr(self, pth: Union[str, Fqpr], skip_dask: bool = False):

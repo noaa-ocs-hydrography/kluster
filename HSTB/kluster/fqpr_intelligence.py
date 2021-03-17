@@ -91,7 +91,9 @@ class FqprIntel(LoggerClass):
 
         # processing settings, like the chosen vertical reference
         # ex: {'use_epsg': True, 'epsg': 26910, ...}
-        self.settings = {}
+        self.processing_settings = {}
+        # other generic settings
+        self.general_settings = {}
 
         # connect FqprProject to FqprIntel to let Intel know when Project has a new Fqpr Instance
         self.project._bind_to_project_updated(self.update_from_project)
@@ -127,9 +129,14 @@ class FqprIntel(LoggerClass):
         """
         desired_keys = ['use_epsg', 'epsg', 'use_coord', 'coord_system', 'vert_ref']
         try:
-            self.settings = {ky: settings[ky] for ky in desired_keys}
+            self.processing_settings = {ky: settings[ky] for ky in desired_keys}
         except KeyError:  # settings provided did not have a desired key
             pass
+        existing_kwargs = list(settings.keys())
+        [settings.pop(ky) for ky in existing_kwargs if ky in desired_keys]
+        self.general_settings = settings
+        if 'parallel_write' in settings:
+            self._regenerate_multibeam_actions()
         self.regenerate_actions()
 
     def update_from_project(self, project_updated: bool = True):
@@ -414,14 +421,14 @@ class FqprIntel(LoggerClass):
             if destination in cur_dests:
                 action = [a for a in curr_acts if a.output_destination == destination]
                 if len(action) == 1:
-                    settings = fqpr_actions.update_kwargs_for_multibeam(destination, line_list, self.project.client)
+                    settings = fqpr_actions.update_kwargs_for_multibeam(destination, line_list, self.project.client, self.general_settings)
                     self.action_container.update_action(action[0], **settings)
                 elif len(action) > 1:
                     raise ValueError('Multibeam actions found with the same destinations, {}'.format(destination))
             else:
                 if not os.path.isdir(destination):  # destination is not an existing fqpr instance, but the name of a new one
                     destination = os.path.join(self.project.return_project_folder(), destination)
-                newaction = fqpr_actions.build_multibeam_action(destination, line_list, self.project.client)
+                newaction = fqpr_actions.build_multibeam_action(destination, line_list, self.project.client, self.general_settings)
                 self.action_container.add_action(newaction)
 
     def _regenerate_nav_actions(self):
@@ -514,11 +521,11 @@ class FqprIntel(LoggerClass):
                     if kwargs == {}:
                         self.action_container.remove_action(action[0])
                     else:
-                        settings = fqpr_actions.update_kwargs_for_processing(abs_path, args, kwargs, self.settings)
+                        settings = fqpr_actions.update_kwargs_for_processing(abs_path, args, kwargs, self.processing_settings)
                         self.action_container.update_action(action[0], **settings)
                 else:
                     if kwargs != {}:
-                        newaction = fqpr_actions.build_processing_action(abs_path, args, kwargs, self.settings)
+                        newaction = fqpr_actions.build_processing_action(abs_path, args, kwargs, self.processing_settings)
                         self.action_container.add_action(newaction)
         else:
             print('FqprIntel: no project loaded, no processing actions constructed.')
