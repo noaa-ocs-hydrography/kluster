@@ -13,34 +13,33 @@ DESCRIPTION = 'Distributed hydrographic multibeam processing system'
 URL = 'https://github.com/noaa-ocs-hydrography/kluster'
 EMAIL = 'eric.g.younkin@noaa.gov'
 AUTHOR = 'Eric Younkin'
-REQUIRES_PYTHON = '>=3.8.2'
+REQUIRES_PYTHON = '>=3.8.8'
 VERSION = ''
 
 # What packages are required for this module to be executed?
 REQUIRED = [
-            'bokeh==2.2.3',
-            'dask==2021.1.0',
-            'distributed==2021.1.0',
+            'bokeh==2.3.0',
+            'dask==2021.3.0',
+            'distributed==2021.3.0',
             'fasteners==0.14.1',
             'laspy==1.7.0',
-            'matplotlib==3.3.3',  # >=3.3.3 required, FuncAnimation and Pyside2/matplotlib do not play well in 3.2.1
+            'matplotlib==3.3.4',  # >=3.3.3 required, FuncAnimation and Pyside2/matplotlib do not play well in 3.2.1
             'numba==0.52.0',
-            'openpyxl==3.0.3',
+            'openpyxl==3.0.6',
             'psutil==5.8.0',
-            'numpy==1.19.5',  # cannot be 1.19.4, see https://tinyurl.com/y3dm3h86
-            'pandas==1.2.1',
+            'numpy==1.20.1',  # cannot be 1.19.4, see https://tinyurl.com/y3dm3h86
+            'pandas==1.2.3',
             'pyshp==2.1.3',
             'pyepsg==0.4.0',  # cartopy requirement not installed with conda install, duplicates pyproj functionality...
-            'vispy==0.6.4',
             'pyopengl==3.1.5',
-            'pyproj==3.0.0.post1',
+            'pyproj==3.0.1',
             'pyqtgraph==0.11.1',
-            's3fs==0.5.1',
+            's3fs==0.5.2',
             'scipy==1.6.0',
             'shapely==1.7.1',
             'sortedcontainers==2.3.0',
             'watchdog==1.0.2',
-            'xarray==0.16.2',
+            'xarray==0.17.0',
             'zarr==2.6.1'
             
             # Pyside stuff
@@ -50,6 +49,7 @@ REQUIRED = [
             
             # 'PySide2==5.13.2',  installed with conda, no distro in pip
             # 'qgis==3.18.0'  Required for GUI, but must be conda installed with PROJ
+            # 'vispy==0.6.6'  Required for visualizations
             ]
 
 # What packages are optional?

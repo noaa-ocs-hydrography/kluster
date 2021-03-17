@@ -3,7 +3,7 @@ channels:
   - conda-forge
 dependencies:
   - qgis=3.18.0
-  - vispy=0.6.4
+  - vispy=0.6.6
   - pyside2=5.13.2
   - gdal=3.2.1
   - pip:

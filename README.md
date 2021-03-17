@@ -65,11 +65,11 @@ Some dependencies need to be installed from the conda-forge channel.  I have an 
 
 Perform these in order:
 
-`conda create -n kluster_test python=3.8.2 `
+`conda create -n kluster_test python=3.8.8 `
 
 `conda activate kluster_test `
 
-`conda install -c conda-forge qgis=3.18.0 vispy=0.6.4 pyside2=5.13.2 gdal=3.2.1`
+`conda install -c conda-forge qgis=3.18.0 vispy=0.6.6 pyside2=5.13.2 gdal=3.2.1`
 
 `pip install git+https://github.com/noaa-ocs-hydrography/kluster.git#egg=hstb.kluster `
 
