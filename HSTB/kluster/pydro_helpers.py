@@ -1,5 +1,5 @@
 import os
-from HSTB import __file__
+from HSTB.shared import path_to_NOAA, path_to_root_env, path_to_conda
 
 
 def is_pydro():
@@ -28,7 +28,7 @@ def retrieve_noaa_folder_path():
         folder path to the NOAA folder as string
     """
 
-    folder_path = os.path.realpath(os.path.dirname(__file__))
+    folder_path = path_to_NOAA()
     if not os.path.exists(folder_path):
         raise RuntimeError("the folder does not exist: %s" % folder_path)
     return folder_path
@@ -44,8 +44,7 @@ def retrieve_install_prefix():
         folder path to the base Pydro folder
     """
 
-    noaa_folder = retrieve_noaa_folder_path()
-    folder_path = os.path.realpath(os.path.join(noaa_folder, os.pardir, os.pardir, os.pardir, os.pardir))
+    folder_path = path_to_root_env()
     if not os.path.exists(folder_path):
         raise RuntimeError("the folder does not exist: %s" % folder_path)
     return folder_path
@@ -61,8 +60,7 @@ def retrieve_scripts_folder():
         folder path to the Pydro scripts folder
     """
 
-    install_prefix = retrieve_install_prefix()
-    folder_path = os.path.realpath(os.path.join(install_prefix, "Scripts"))
+    folder_path = path_to_conda()
     if not os.path.exists(folder_path):
         raise RuntimeError("the folder does not exist: %s" % folder_path)
     return folder_path
