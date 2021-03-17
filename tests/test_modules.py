@@ -940,7 +940,12 @@ def test_orientation_module():
         print('Falling back to approx, should only be seen in TravisCI environment in my experience')
         # use approx here, I get ever so slightly different answers in the Travis CI environment
         assert calc_tx_vector.values == pytest.approx(expected_tx_vector, 0.000001)
-    assert np.array_equal(calc_rx_vector.values, expected_rx_vector)
+    try:
+        assert np.array_equal(calc_rx_vector.values, expected_rx_vector)
+    except AssertionError:
+        print('Falling back to approx, should only be seen in TravisCI environment in my experience')
+        # use approx here, I get ever so slightly different answers in the Travis CI environment
+        assert calc_rx_vector.values == pytest.approx(expected_rx_vector, 0.000001)
 
 
 def test_beampointingvector_module():
@@ -972,7 +977,12 @@ def test_beampointingvector_module():
         print('Falling back to approx, should only be seen in TravisCI environment in my experience')
         # use approx here, I get ever so slightly different answers in the Travis CI environment
         assert beam_azimuth.values == pytest.approx(expected_beam_azimuth, 0.000001)
-    assert np.array_equal(corrected_beam_angle.values, expected_corrected_beam_angles)
+    try:
+        assert np.array_equal(corrected_beam_angle.values, expected_corrected_beam_angles)
+    except AssertionError:
+        print('Falling back to approx, should only be seen in TravisCI environment in my experience')
+        # use approx here, I get ever so slightly different answers in the Travis CI environment
+        assert corrected_beam_angle.values == pytest.approx(expected_corrected_beam_angles, 0.000001)
 
 
 def test_svcorrect_module():
