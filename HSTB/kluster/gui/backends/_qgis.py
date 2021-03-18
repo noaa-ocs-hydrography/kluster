@@ -1258,7 +1258,8 @@ class MapView(QtWidgets.QMainWindow):
         """
         source = self.build_line_source(line_name)
         if ogr_output_file_exists(source):
-            raise ValueError('Line {} already exists in this map view session'.format(line_name))
+            # raise ValueError('Line {} already exists in this map view session'.format(line_name))
+            return
 
         vl = VectorLayer(source, 'ESRI Shapefile', self.epsg, False)
         vl.write_to_layer(line_name, np.stack([lons, lats], axis=1), 2)  # ogr.wkbLineString

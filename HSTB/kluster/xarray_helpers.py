@@ -8,6 +8,36 @@ from xarray.core.combine import _infer_concat_order_from_positions, _nested_comb
 from typing import Union
 
 
+def search_not_sorted(base: np.ndarray, search_array: np.ndarray):
+    """
+    Implement a way to find the indices where search_array is within base when base is not sorted.  I've found that
+    simply sorting and running searchsorted is the fastest way to handle this.  I even tested against iterating through
+    the array with Numba, and it was close, but this was faster.
+
+    Parameters
+    ----------
+    base
+        the array you want to search against
+    search_array
+        the array to search with
+
+    Returns
+    -------
+    np.ndarray
+        indices of where search_array is within base
+    """
+
+    if not set(search_array).issubset(set(base)):
+        raise ValueError('search must be a subset of master')
+
+    sorti = np.argsort(base)
+    # get indices in sorted version
+    tmpind = np.searchsorted(base, search_array, sorter=sorti)
+    final_inds = sorti[tmpind]
+
+    return final_inds
+
+
 class ZarrWrite:
     """
     Class for handling writing xarray data to Zarr.  I started off using the xarray to_zarr functions, but I found
@@ -417,7 +447,7 @@ class ZarrWrite:
                 finalsize if dims_of_arrays[var][1].index(x) == timaxis else x for x in dims_of_arrays[var][1])
         return timaxis, timlength, startingshp
 
-    def _write_existing_rootgroup(self, xarr: xr.Dataset, data_loc_copy: list, var_name: str, dims_of_arrays: dict,
+    def _write_existing_rootgroup(self, xarr: xr.Dataset, data_loc_copy: Union[list, np.ndarray], var_name: str, dims_of_arrays: dict,
                                   chunksize: tuple, timlength: int, timaxis: int, startingshp: tuple):
         """
         A slightly different operation than _write_new_dataset_rootgroup.  To write to an existing rootgroup array,
@@ -429,7 +459,8 @@ class ZarrWrite:
         xarr
             data to write to zarr
         data_loc_copy
-            [start time index, end time index] for xarr, ex: [0,1000] if xarr time dimension is 1000 long.
+            either [start time index, end time index] for xarr, ex: [0,1000] if xarr time dimension is 1000 long,
+            or np.array([4,5,6,7,1,2...]) for when data might not be continuous and we need to use a boolean mask
         var_name
             variable name
         dims_of_arrays
@@ -446,24 +477,32 @@ class ZarrWrite:
         """
 
         # array to be written
-        newarr = zarr.array(xarr[var_name].values, shape=dims_of_arrays[var_name][1], chunks=chunksize)
-
-        # the last write will often be less than the block size.  This is allowed in the zarr store, but we
-        #    need to correct the index for it.
-        if timlength != data_loc_copy[1] - data_loc_copy[0]:
-            data_loc_copy[1] = data_loc_copy[0] + timlength
-
-        # location for new data, assume constant chunksize (as we are doing this outside of this function)
-        chunk_time_range = slice(data_loc_copy[0], data_loc_copy[1])
-        # use the chunk_time_range for writes unless this variable is a non-time dim array (beam for example)
-        chunk_idx = tuple(
-            chunk_time_range if dims_of_arrays[var_name][1].index(i) == timaxis else slice(0, i) for i in
-            dims_of_arrays[var_name][1])
+        xarr_data = xarr[var_name].values
         if startingshp is not None:
             startingshp = self._write_adjust_max_beams(startingshp)
             self.rootgroup[var_name].resize(startingshp)
 
-        self.rootgroup[var_name][chunk_idx] = newarr
+        if isinstance(data_loc_copy, list):  # [start index, end index]
+            # the last write will often be less than the block size.  This is allowed in the zarr store, but we
+            #    need to correct the index for it.
+            if timlength != data_loc_copy[1] - data_loc_copy[0]:
+                data_loc_copy[1] = data_loc_copy[0] + timlength
+
+            # location for new data, assume constant chunksize (as we are doing this outside of this function)
+            chunk_time_range = slice(data_loc_copy[0], data_loc_copy[1])
+            # use the chunk_time_range for writes unless this variable is a non-time dim array (beam for example)
+            chunk_idx = tuple(
+                chunk_time_range if dims_of_arrays[var_name][1].index(i) == timaxis else slice(0, i) for i in
+                dims_of_arrays[var_name][1])
+            self.rootgroup[var_name][chunk_idx] = zarr.array(xarr_data, shape=dims_of_arrays[var_name][1], chunks=chunksize)
+        else:  # np.array([4,5,6,1,2,3,8,9...]), indices of the new data, might not be sorted
+            sorted_order = data_loc_copy.argsort()
+            xarr_data = xarr_data[sorted_order]
+            data_loc_copy = data_loc_copy[sorted_order]
+            zarr_mask = np.zeros_like(self.rootgroup[var_name], dtype=bool)
+            zarr_mask[data_loc_copy] = True
+            # seems to require me to ravel first, examples only show setting with integer, not sure what is going on here
+            self.rootgroup[var_name].set_mask_selection(zarr_mask, xarr_data.ravel())
 
     def _write_new_dataset_rootgroup(self, xarr: xr.Dataset, var_name: str, dims_of_arrays: dict, chunksize: tuple,
                                      startingshp: tuple):
@@ -494,7 +533,7 @@ class ZarrWrite:
         newarr[:] = xarr[var_name].values
         newarr.resize(startingshp)
 
-    def write_to_zarr(self, xarr: xr.Dataset, attrs: dict, dataloc: list, finalsize: int = None, merge: bool = False):
+    def write_to_zarr(self, xarr: xr.Dataset, attrs: dict, dataloc: Union[list, np.ndarray], finalsize: int = None, merge: bool = False):
         """
         Take the input xarray Dataset and write each variable as arrays in a zarr rootgroup.  Write the attributes out
         to the rootgroup as well.  Dataloc determines the index the incoming data is written to.  A new write might
@@ -508,7 +547,8 @@ class ZarrWrite:
         attrs
             attributes we want written to zarr rootgroup
         dataloc
-            [start time index, end time index] for xarr, ex: [0,1000] if xarr time dimension is 1000 long.
+            either [start time index, end time index] for xarr, ex: [0,1000] if xarr time dimension is 1000 long,
+            or np.array([4,5,6,7,1,2...]) for when data might not be continuous and we need to use a boolean mask
         finalsize
             optional, int, if provided will resize zarr to the expected final size after all writes have been
             performed.  (We need to resize the zarr for that expected size before writing)
@@ -541,7 +581,10 @@ class ZarrWrite:
 
             timaxis, timlength, startingshp = self._write_determine_shape(var, dims_of_arrays, finalsize)
             chunksize = self.desired_chunk_shape[var]
-            data_loc_copy = dataloc.copy()
+            if isinstance(dataloc, list):
+                data_loc_copy = dataloc.copy()
+            else:
+                data_loc_copy = dataloc
 
             # shape is extended on append.  chunks will always be equal to shape, as each run of this function will be
             #     done on one chunk of data by one worker
@@ -560,8 +603,8 @@ class ZarrWrite:
         return self.zarr_path
 
 
-def _distrib_zarr_write_convenience(zarr_path: str, xarr: xr.Dataset, attrs: dict, desired_chunk_shape: dict,
-                                    dataloc: list, append_dim: str = 'time', finalsize: int = None, merge: bool = False):
+def zarr_write(zarr_path: str, xarr: xr.Dataset, attrs: dict, desired_chunk_shape: dict, dataloc: Union[list, np.ndarray],
+               append_dim: str = 'time', finalsize: int = None, merge: bool = False):
     """
     Convenience function for writing with ZarrWrite
 
@@ -576,7 +619,10 @@ def _distrib_zarr_write_convenience(zarr_path: str, xarr: xr.Dataset, attrs: dic
     desired_chunk_shape
         variable name: chunk size as tuple, for each variable in the input xarr
     dataloc
-        [start time index, end time index] for xarr, ex: [0,1000] if xarr time dimension is 1000 long.
+        either [start time index, end time index] for xarr, ex: [0,1000] if xarr time dimension is 1000 long,
+        or np.array([4,5,6,7,1,2...]) for when data might not be continuous and we need to use a boolean mask
+    append_dim
+        dimension name that you are appending to (generally time)
     finalsize
         optional, if provided will resize zarr to the expected final size after all writes have been performed.  (We
         need to resize the zarr for that expected size before writing)
@@ -618,7 +664,8 @@ def distrib_zarr_write(zarr_path: str, xarrays: list, attributes: dict, chunk_si
     chunk_sizes
         variable name: chunk size as tuple, for each variable in the input xarr
     data_locs
-        list of lists, [start time index, end time index] for xarr, ex: [0,1000] if xarr time dimension is 1000 long.
+        list of lists, either [start time index, end time index] for xarr, ex: [0,1000] if xarr time dimension is 1000 long,
+        or np.array([4,5,6,7,1,2...]) for when data might not be continuous and we need to use a boolean mask
     finalsize
         the final size of the time dimension of the written data, we resize the zarr to this size on the first write
     client
@@ -647,20 +694,20 @@ def distrib_zarr_write(zarr_path: str, xarrays: list, attributes: dict, chunk_si
     if skip_dask:  # run the zarr write process without submitting to a dask client
         for cnt, arr in enumerate(xarrays):
             if cnt == 0:
-                futs = [_distrib_zarr_write_convenience(zarr_path, arr, attributes, chunk_sizes, data_locs[cnt],
+                futs = [zarr_write(zarr_path, arr, attributes, chunk_sizes, data_locs[cnt],
                         append_dim=append_dim, finalsize=finalsize, merge=merge)]
             else:
-                futs.append([_distrib_zarr_write_convenience(zarr_path, xarrays[cnt], None, chunk_sizes, data_locs[cnt],
+                futs.append([zarr_write(zarr_path, xarrays[cnt], None, chunk_sizes, data_locs[cnt],
                              append_dim=append_dim, merge=merge)])
     else:
-        futs = [client.submit(_distrib_zarr_write_convenience, zarr_path, xarrays[0], attributes, chunk_sizes, data_locs[0],
+        futs = [client.submit(zarr_write, zarr_path, xarrays[0], attributes, chunk_sizes, data_locs[0],
                               append_dim=append_dim, finalsize=finalsize, merge=merge)]
         if show_progress:
             progress(futs, multi=False)
         wait(futs)
         if len(xarrays) > 1:
             for i in range(len(xarrays) - 1):
-                futs.append(client.submit(_distrib_zarr_write_convenience, zarr_path, xarrays[i + 1], None, chunk_sizes,
+                futs.append(client.submit(zarr_write, zarr_path, xarrays[i + 1], None, chunk_sizes,
                                           data_locs[i + 1], append_dim=append_dim, merge=merge))
                 if not write_in_parallel:  # wait on each future, write one data chunk at a time
                     wait(futs)
@@ -669,6 +716,23 @@ def distrib_zarr_write(zarr_path: str, xarrays: list, attributes: dict, chunk_si
                     progress(futs, multi=False)
                 wait(futs)
     return futs
+
+
+def zarr_write_attributes(zarr_path: str, attrs: dict):
+    """
+    Convenience function for writing attribution to kluster zarr datastore.  We do many things with incoming attribution
+    in terms of the rules for appending/replacing (see ZarrWrite.write_attributes) so this exists to write using
+    those rules
+
+    Parameters
+    ----------
+    zarr_path
+        path to zarr data store
+    attrs
+        attributes we want written to zarr rootgroup
+    """
+    zw = ZarrWrite(zarr_path)
+    zw.write_attributes(attrs)
 
 
 def my_open_mfdataset(paths: list, chnks: dict = None, concat_dim: str = 'time', compat: str = 'no_conflicts',
@@ -1280,6 +1344,10 @@ def get_write_indices_zarr(output_pth: str, input_time_arrays: list, index_dim='
 
     Take the dimension we are using as the index (usually time) and see where the input arrays fit in
 
+    the list of write indices could include:
+    - [startidx, endidx] when the written data is new and not in the zarr store yet
+    - np.array(0,1,2,3....) when the written data is in the zarr store and may not be continuous
+
     Parameters
     ----------
     output_pth
@@ -1307,21 +1375,18 @@ def get_write_indices_zarr(output_pth: str, input_time_arrays: list, index_dim='
     if os.path.exists(output_pth):
         rootgroup = zarr.open(output_pth, mode='r')  # only opens if the path exists
         zarr_time = rootgroup[index_dim]
-        if np.array([mt < np.min(zarr_time) for mt in mintimes]).any():
-            raise NotImplementedError('get_write_indices_zarr: array provided that is prior to already written data.  You must write data in order.')
+        # if np.array([mt < np.min(zarr_time) for mt in mintimes]).any():
+        #     raise NotImplementedError('get_write_indices_zarr: array provided that is prior to already written data.  You must write data in order.')
 
         for input_time in input_time_arrays:
             input_is_in_zarr = np.isin(input_time, zarr_time)
             if input_is_in_zarr.any():  # this input array is at least partly in this datastore already
                 if not input_is_in_zarr.all():  # this input array is only partly in this datastore
                     raise NotImplementedError('get_write_indices_zarr: processed data is only partly within the existing zarr dataset, must be entirely within or without')
-                else:  # input data is entirely within the existing zarr data
-                    zarr_is_in_input = np.where(np.isin(zarr_time, input_time))[0]
-                    is_continuous = np.diff(zarr_is_in_input)
-                    is_continuous_chk = np.all(is_continuous == is_continuous[0])
-                    if not is_continuous_chk:
-                        raise ValueError('get_write_indices_zarr: Found data not in time order, multibeam files must be converted in time order')
-                    write_indices.append([zarr_is_in_input[0], zarr_is_in_input[-1] + 1])
+                else:
+                    # input data is entirely within the existing zarr data, the input_time is going to be sorted, but the zarr
+                    # time will be in the order of lines received and saved to disk.  Have to get indices of input_time in zarr_time
+                    write_indices.append(search_not_sorted(zarr_time, input_time.values))
             else:  # zarr datastore exists, but this data is not in it.  Append to the existing datastore
                 write_indices.append([len(zarr_time) + running_total, len(zarr_time) + len(input_time) + running_total])
                 running_total += len(input_time)

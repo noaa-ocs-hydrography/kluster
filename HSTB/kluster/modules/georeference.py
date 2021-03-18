@@ -83,7 +83,6 @@ def georef_by_worker(sv_corr: list, alt: xr.DataArray, lon: xr.DataArray, lat: x
     alongtrack = sv_corr[0]
     acrosstrack = sv_corr[1]
     depthoffset = sv_corr[2] + z_offset
-
     # generate the corrected depth offset depending on the desired vertical reference
     corr_dpth = None
     corr_heave = None
@@ -123,4 +122,5 @@ def georef_by_worker(sv_corr: list, alt: xr.DataArray, lon: xr.DataArray, lat: x
     x = reform_nan_array(np.around(newpos[0], 3), at_idx, alongtrack.shape, alongtrack.coords, alongtrack.dims)
     y = reform_nan_array(np.around(newpos[1], 3), ac_idx, acrosstrack.shape, acrosstrack.coords, acrosstrack.dims)
     z = np.around(corr_dpth, 3)
+
     return [x, y, z, corr_heave, corr_altitude]

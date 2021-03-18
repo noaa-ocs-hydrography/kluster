@@ -20,7 +20,7 @@ from HSTB.kluster.modules.visualizations import FqprVisualizations
 from HSTB.kluster.modules.export import FqprExport
 from HSTB.kluster.xarray_helpers import combine_arrays_to_dataset, compare_and_find_gaps, distrib_zarr_write, \
     divide_arrays_by_time_index, interp_across_chunks, reload_zarr_records, slice_xarray_by_dim, stack_nan_array, \
-    get_write_indices_zarr, get_beamwise_interpolation, ZarrWrite
+    get_write_indices_zarr, get_beamwise_interpolation, zarr_write_attributes
 from HSTB.kluster.dask_helpers import dask_find_or_start_client, get_number_of_workers
 from HSTB.kluster.fqpr_helpers import epsg_determinator
 from HSTB.kluster.rotations import return_attitude_rotation_matrix
@@ -325,8 +325,7 @@ class Fqpr:
         for ra in self.multibeam.raw_ping:
             sys_ident = ra.system_identifier
             outfold_sys = os.path.join(outfold, 'ping_' + sys_ident + '.zarr')
-            zw = ZarrWrite(outfold_sys)
-            zw.write_attributes(attr_dict)
+            zarr_write_attributes(outfold_sys, attr_dict)
 
     def import_sound_velocity_files(self, src: Union[str, list]):
         """
