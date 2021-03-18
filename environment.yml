@@ -2,6 +2,7 @@ name: kluster_test
 channels:
   - conda-forge
 dependencies:
+  - python=3.8
   - qgis=3.18.0
   - vispy=0.6.6
   - pyside2=5.13.2
