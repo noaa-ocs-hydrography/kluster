@@ -1,5 +1,5 @@
 import os
-from HSTB.shared import path_to_NOAA, path_to_root_env, path_to_conda
+from HSTB.shared import path_to_NOAA, path_to_root_env, path_to_conda, path_to_supplementals
 
 
 def is_pydro():
@@ -16,6 +16,22 @@ def is_pydro():
         return True
     except RuntimeError:
         return False
+
+
+def retrieve_vdatum_folder_path():
+    """
+    Helper function to retrieve the path to the Vdatum folder in PydroXL, if it exists
+
+    Returns
+    -------
+    str
+        folder path to the supplementals/vdatum folder as string
+    """
+
+    folder_path = path_to_supplementals('VDatum')
+    if not os.path.exists(folder_path):
+        return None
+    return folder_path
 
 
 def retrieve_noaa_folder_path():

@@ -9,7 +9,7 @@ import matplotlib
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from typing import Union
 import pickle
-from datetime import datetime
+# from HSTB.drivers.bag import SRBag, osr
 
 from HSTB.kluster.gdal_helpers import gdal_raster_create, return_gdal_version
 from HSTB.kluster import __version__ as kluster_version
@@ -747,6 +747,20 @@ class QuadManager:
         data, geo_transform, bandnames = self._gdal_preprocessing(nodatavalue=nodatavalue, z_positive_up=z_positive_up)
         gdal_raster_create(filepath, data, geo_transform, self.crs,
                            nodatavalue=nodatavalue, bandnames=bandnames, driver='BAG', creation_options=bag_options)
+
+        # sssfile = SRBag.new_bag(r'C:\collab\dasktest\data_dir\outputtest\tj_patch_test_2040\testbag_kluster.bag')
+        # srs = osr.SpatialReference()
+        # srs.ImportFromEPSG(6347)
+        # sssfile.horizontal_crs_wkt = srs.ExportToWkt()
+        # data = [d.T for d in data]
+        # sssfile.numx = data[0].shape[1]
+        # sssfile.numy = data[0].shape[0]  # rows
+        # sssfile.set_elevation(data[0])
+        # sssfile.set_uncertainty(data[1])
+        # sssfile.set_res((geo_transform[1], -geo_transform[5]))
+        # sssfile.set_origin((geo_transform[0], geo_transform[3]))
+        # sssfile.close()
+        # del sssfile
 
     def _save_tree_pickle(self, folderpath):
         """

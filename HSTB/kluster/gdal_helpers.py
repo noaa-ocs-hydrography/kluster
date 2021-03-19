@@ -181,7 +181,9 @@ def gdal_raster_create(output_raster: str, data: list, geo_transform: list, crs:
     gdal_driver = gdal.GetDriverByName(driver)
     srs = pyproj_crs_to_osgeo(crs)
 
-    cols, rows = data[0].shape
+    if transpose:
+        data = [d.T for d in data]
+    rows, cols = data[0].shape
     no_bands = len(data)
 
     dataset = gdal_driver.Create(output_raster, cols, rows, no_bands, gdal.GDT_Float32, creation_options)
@@ -192,8 +194,6 @@ def gdal_raster_create(output_raster: str, data: list, geo_transform: list, crs:
         rband = dataset.GetRasterBand(cnt + 1)
         if bandnames:
             rband.SetDescription(bandnames[cnt])
-        if transpose:
-            d = d.T
         rband.WriteArray(d)
         if driver != 'GTiff':
             rband.SetNoDataValue(nodatavalue)

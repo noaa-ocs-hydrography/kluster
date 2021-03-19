@@ -16,7 +16,7 @@ from HSTB.kluster.fqpr_project import FqprProject
 from HSTB.kluster.fqpr_intelligence import FqprIntel
 from HSTB.kluster import __version__ as kluster_version
 from HSTB.kluster import __file__ as kluster_init_file
-from HSTB.shared import RegistryHelpers
+from HSTB.shared import RegistryHelpers, path_to_supplementals
 
 # list of icons
 # https://joekuan.wordpress.com/2015/09/23/list-of-qt-icons/
@@ -162,6 +162,10 @@ class KlusterMain(QtWidgets.QMainWindow):
                     self.settings[opts['newname']] = False
             else:
                 self.settings[opts['newname']] = opts['defaultvalue']
+        if not self.settings.get('vdatum_directory'):
+            possible_vdatum = path_to_supplementals('VDatum')
+            if possible_vdatum and os.path.exists(possible_vdatum):
+                self.settings['vdatum_directory'] = possible_vdatum
         if self.project.path is not None:
             self.project.set_settings(self.settings.copy())
         self.intel.set_settings(self.settings.copy())
