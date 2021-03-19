@@ -1573,7 +1573,7 @@ class Fqpr:
         except:  # not using dask distributed client
             pass
         distrib_zarr_write(outfold, [navdata], navdata_attrs, chunk_sizes, data_locs, finalsize, self.client,
-                           append_dim='time', merge=False, show_progress=self.show_progress, write_in_parallel=self.parallel_write)
+                           append_dim='time', show_progress=self.show_progress, write_in_parallel=self.parallel_write)
         self.navigation_path = outfold
         self.reload_ppnav_records()
         self.multibeam.reload_pingrecords(skip_dask=self.client is None)
@@ -1620,7 +1620,7 @@ class Fqpr:
                 except:  # not using dask distributed client
                     pass
                 distrib_zarr_write(outfold_sys, [ping_wise_data], attributes, chunk_sizes, data_locs, finalsize,
-                                   self.client, append_dim='time', merge=True, show_progress=self.show_progress,
+                                   self.client, append_dim='time', show_progress=self.show_progress,
                                    write_in_parallel=self.parallel_write)
                 attributes = {}
         self.multibeam.reload_pingrecords(skip_dask=skip_dask)
@@ -2218,7 +2218,7 @@ class Fqpr:
                     time_arrs = [_return_xarray_time(tr) for tr in futs_data]
                 data_locs, finalsize = get_write_indices_zarr(outfold_sys, time_arrs)
                 fpths = distrib_zarr_write(outfold_sys, futs_data, mode_settings[3], ping_chunks, data_locs, finalsize,
-                                           self.client, merge=True, skip_dask=skip_dask, show_progress=self.show_progress,
+                                           self.client, skip_dask=skip_dask, show_progress=self.show_progress,
                                            write_in_parallel=self.parallel_write)
             if delete_futs:
                 del self.intermediate_dat[sys_ident][mode_settings[0]]

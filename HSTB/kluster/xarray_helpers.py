@@ -83,7 +83,11 @@ class ZarrWrite:
 
         self.merge_chunks = False
 
-        self.open()
+        if self.zarr_path is not None:
+            self.open()
+        else:
+            print('Warning: starting zarr_write with an empty rootgroup, writing to disk not supported')
+            self.rootgroup = zarr.group()
 
     def open(self):
         """
@@ -239,27 +243,6 @@ class ZarrWrite:
             attrs = self._attributes_only_unique_runtime(attrs)
             attrs = self._attributes_only_unique_xyzrph(attrs)
             _my_xarr_to_zarr_writeattributes(self.rootgroup, attrs)
-
-    def _check_merge(self, input_xarr: Union[xr.Dataset, xr.DataArray]):
-        """
-        A merge is when you have an existing zarr datastore and you want to write a new variable (think array) to it
-        that does not currently exist in the datastore.  You need to ensure that the existing dimensions match this
-        new variable dimensions.  We do that here.
-
-        Parameters
-        ----------
-        input_xarr
-            xarray object that we want to write to the zarr data store
-        """
-
-        if self.append_dim in self.rootgroup:
-            if (input_xarr[self.append_dim][0] >= np.min(self.rootgroup[self.append_dim])) and (
-                    input_xarr[self.append_dim][-1] <= np.max(self.rootgroup[self.append_dim])):
-                return True  # append_dim (usually time) range exists in rootgroup, qualifies for merge
-            else:
-                return False  # first/last time isn't the same, must not be a merge
-        else:
-            return False  # zarr didn't have the append dimension, must not be a merge
 
     def _check_fix_rootgroup_expand_dim(self, xarr: xr.Dataset):
         """
@@ -526,14 +509,16 @@ class ZarrWrite:
             is None (the case when this is not the first write in a set of distributed writes) this is still returned but not used.
         """
 
-        sync = zarr.ProcessSynchronizer(self.zarr_path + '.sync')
+        sync = None
+        if self.zarr_path:
+            sync = zarr.ProcessSynchronizer(self.zarr_path + '.sync')
         newarr = self.rootgroup.create_dataset(var_name, shape=dims_of_arrays[var_name][1], chunks=chunksize,
                                                dtype=xarr[var_name].dtype, synchronizer=sync,
                                                fill_value=self._get_arr_nodatavalue(xarr[var_name].dtype))
         newarr[:] = xarr[var_name].values
         newarr.resize(startingshp)
 
-    def write_to_zarr(self, xarr: xr.Dataset, attrs: dict, dataloc: Union[list, np.ndarray], finalsize: int = None, merge: bool = False):
+    def write_to_zarr(self, xarr: xr.Dataset, attrs: dict, dataloc: Union[list, np.ndarray], finalsize: int = None):
         """
         Take the input xarray Dataset and write each variable as arrays in a zarr rootgroup.  Write the attributes out
         to the rootgroup as well.  Dataloc determines the index the incoming data is written to.  A new write might
@@ -552,9 +537,6 @@ class ZarrWrite:
         finalsize
             optional, int, if provided will resize zarr to the expected final size after all writes have been
             performed.  (We need to resize the zarr for that expected size before writing)
-        merge
-            if True, you are passing a Dataset containing a new variable that is not in an existing dataset. Ex: xarr
-            contains variable 'corr_pointing_angle' and that variable is not in the rootgroup
 
         Returns
         -------
@@ -562,8 +544,6 @@ class ZarrWrite:
             path to zarr data store
         """
 
-        if merge and not self._check_merge(xarr):
-            raise ValueError('write_to_zarr: Unable to merge, time not found in existing data store.')
         if finalsize is not None:
             self.correct_rootgroup_dims(xarr)
         self.get_array_names()
@@ -572,8 +552,6 @@ class ZarrWrite:
 
         for var in dims_of_arrays:
             already_written = var in self.zarr_array_names
-            if merge and var in [self.append_dim, 'beam']:  # Merge does not change time/beam dimension, it only adds new variable
-                continue
             if var in ['beam', 'xyz'] and already_written:
                 # no append_dim (usually time) component to these arrays
                 # You should only have to write this once, if beam dim expands, correct_rootgroup_dims handles it
@@ -604,7 +582,7 @@ class ZarrWrite:
 
 
 def zarr_write(zarr_path: str, xarr: xr.Dataset, attrs: dict, desired_chunk_shape: dict, dataloc: Union[list, np.ndarray],
-               append_dim: str = 'time', finalsize: int = None, merge: bool = False):
+               append_dim: str = 'time', finalsize: int = None):
     """
     Convenience function for writing with ZarrWrite
 
@@ -626,9 +604,6 @@ def zarr_write(zarr_path: str, xarr: xr.Dataset, attrs: dict, desired_chunk_shap
     finalsize
         optional, if provided will resize zarr to the expected final size after all writes have been performed.  (We
         need to resize the zarr for that expected size before writing)
-    merge
-        if True, you are passing a Dataset containing a new variable that is not in an existing dataset.  Ex: xarr
-         contains variable 'corr_pointing_angle' and that variable is not in the rootgroup
 
     Returns
     -------
@@ -637,13 +612,13 @@ def zarr_write(zarr_path: str, xarr: xr.Dataset, attrs: dict, desired_chunk_shap
     """
 
     zw = ZarrWrite(zarr_path, desired_chunk_shape, append_dim=append_dim)
-    zarr_path = zw.write_to_zarr(xarr, attrs, dataloc, finalsize=finalsize, merge=merge)
+    zarr_path = zw.write_to_zarr(xarr, attrs, dataloc, finalsize=finalsize)
     return zarr_path
 
 
 def distrib_zarr_write(zarr_path: str, xarrays: list, attributes: dict, chunk_sizes: dict, data_locs: list,
                        finalsize: int, client: Client, append_dim: str = 'time',
-                       merge: bool = False, write_in_parallel: bool = False, skip_dask: bool = False,
+                       write_in_parallel: bool = False, skip_dask: bool = False,
                        show_progress: bool = True):
     """
     A function for using the ZarrWrite class to write data to disk.  xarr and attrs are written to the datastore at
@@ -672,9 +647,6 @@ def distrib_zarr_write(zarr_path: str, xarrays: list, attributes: dict, chunk_si
         dask.distributed.Client, the client we are submitting the tasks to
     append_dim
         dimension name that you are appending to (generally time)
-    merge
-        if True, you are passing a Dataset containing a new variable that is not in an existing dataset.  Ex: xarr
-        contains variable 'corr_pointing_angle' and that variable is not in the rootgroup
     write_in_parallel
         if True and skip_dask is False, will use the first write to set up the zarr datastore, and all subsequent
         writes will be done in parallel.  We have this as optional, because on government machines (I suspect due to
@@ -695,20 +667,20 @@ def distrib_zarr_write(zarr_path: str, xarrays: list, attributes: dict, chunk_si
         for cnt, arr in enumerate(xarrays):
             if cnt == 0:
                 futs = [zarr_write(zarr_path, arr, attributes, chunk_sizes, data_locs[cnt],
-                        append_dim=append_dim, finalsize=finalsize, merge=merge)]
+                        append_dim=append_dim, finalsize=finalsize)]
             else:
                 futs.append([zarr_write(zarr_path, xarrays[cnt], None, chunk_sizes, data_locs[cnt],
-                             append_dim=append_dim, merge=merge)])
+                             append_dim=append_dim)])
     else:
         futs = [client.submit(zarr_write, zarr_path, xarrays[0], attributes, chunk_sizes, data_locs[0],
-                              append_dim=append_dim, finalsize=finalsize, merge=merge)]
+                              append_dim=append_dim, finalsize=finalsize)]
         if show_progress:
             progress(futs, multi=False)
         wait(futs)
         if len(xarrays) > 1:
             for i in range(len(xarrays) - 1):
                 futs.append(client.submit(zarr_write, zarr_path, xarrays[i + 1], None, chunk_sizes,
-                                          data_locs[i + 1], append_dim=append_dim, merge=merge))
+                                          data_locs[i + 1], append_dim=append_dim))
                 if not write_in_parallel:  # wait on each future, write one data chunk at a time
                     wait(futs)
             if write_in_parallel:  # don't wait on the futures until you append all of them
@@ -924,7 +896,7 @@ def _my_xarr_to_zarr_writeattributes(rootgroup: zarr.hierarchy.Group, attrs: dic
                     try:
                         for sub_att in attrs[att]:
                             if sub_att not in rootgroup.attrs[att]:
-                                rootgroup.attrs[att].append(attrs[att])
+                                rootgroup.attrs[att].append(sub_att)
                     except:
                         print('Unable to append to {} with value {}'.format(att, attrs[att]))
                 elif isinstance(attrs[att], dict) and att != 'status_lookup':
@@ -1167,34 +1139,6 @@ def combine_arrays_to_dataset(arrs: list, arrnames: list):
     return dset
 
 
-def _validate_merge(xarr: xr.Dataset, rootgroup: zarr.hierarchy.Group):
-    """
-    Merge is used when writing a new variable/array to an existing zarr datastore.  We need to ensure that the merge
-    is actually going to work before we execute.  Function checks if there is an existing time index that
-    matches the array.
-
-    Parameters
-    ----------
-    xarr
-        xarray Dataset object
-    rootgroup
-        zarr datastore
-
-    Returns
-    -------
-    bool
-        True if merge process is good to go
-    """
-
-    if ('time' in xarr) and ('time' in rootgroup):
-        if xarr['time'][0] in rootgroup['time']:
-            pass
-        else:
-            print('Merge failed: Expected provided time to exist in zarr datastore')
-            return False
-    return True
-
-
 def my_xarr_add_attribute(attrs: dict, outputpth: str):
     """
     Add the provided attrs dict to the existing attribution of the zarr instance at outputpth
@@ -1219,121 +1163,34 @@ def my_xarr_add_attribute(attrs: dict, outputpth: str):
     return outputpth
 
 
-def my_xarr_to_zarr(xarr: xr.Dataset, attrs: dict, outputpth: str, dataloc: list,
-                    append_dim: str = 'time', finalsize: int = None, merge: bool = False, override_chunk_size: int = None):
-    """
-    DEPRECATED - SEE ZarrWrite
+def _get_indices_dataset_notexist(input_time_arrays):
+    running_total = 0
+    write_indices = []
+    for input_time in input_time_arrays:
+        write_indices.append([0 + running_total, len(input_time) + running_total])
+        running_total += len(input_time)
+    return write_indices, running_total
 
-    I've been unable to get the zarr append/write functionality to work with the dask distributed cluster.  Even when
-    using dask's own distributed lock, I've found that the processes are stepping on each other and each array is not
-    written in it's entirety.
 
-    The solution I have here ignores the zarr append method and manually specifies indexes for each worker to write to
-    (dataloc).  I believe with this method, you probably don't even need the sync, but I leave it in here in case it
-    comes into play when writing attributes/metadata.
-
-    Appending to existing zarr is a problem.  I don't yet know of a way to append to a written chunk.  For instance,
-    if the chunksize you want is 5000 and you write an array of 2000 values, your actual logged chunksize is 2000.  If
-    you append to this, you now have to append with a chunksize of 2000, I don't know how to fill in existing chunks to
-    get chunksize-length chunks.
-
-    Parameters
-    ----------
-    xarr
-        one chunk of the final range_angle/attitude/navigation xarray Dataset we are writing
-    attrs
-        dictionary of combined attributes from xarray datasets, None if no attributes exist
-    outputpth
-        path to zarr group to either be created or append to
-    dataloc
-        list of start/end time indexes, ex: [100,600] for writing to the 100th time to the 600th time in this chunk
-    append_dim
-        default is 'time', alter this to change the dimension name you want to append to
-    finalsize
-        if given, resize the zarr group time dimension to this value, if None then do no resizing
-    merge
-        if True, this is an operation to merge an existing zarr store with a new xarray DataSet that has equal
-        dimensions, or is a slice of a DataSet that has equal dimensions
-    override_chunk_size
-        int, if provided will use this as the chunksize of the zarr dataset
-
-    Returns
-    -------
-    str
-        path to the final zarr group
-    """
-    sync = zarr.ProcessSynchronizer(outputpth + '.sync')
-    dims_of_arrays = _my_xarr_to_zarr_build_arraydimensions(xarr)
-
-    # mode 'a' means read/write, create if doesnt exist
-    rootgroup = zarr.open(outputpth, mode='a', synchronizer=sync)
-    # merge is for merging a new dataset with an existing zarr datastore.  Expect the same time dimension, just new
-    #    variables
-    if merge:
-        if not _validate_merge(xarr, rootgroup):
-            return
-
-    existing_arrs = [t for t in rootgroup.array_keys()]
-
-    _my_xarr_to_zarr_writeattributes(rootgroup, attrs)
-
-    # var here will represent one of the array names, 'beampointingangle', 'time', 'soundspeed', etc.
-    for var in dims_of_arrays:
-        if merge and var in ['time', 'beam', 'sector']:
-            continue
-        if override_chunk_size is not None:
-            chunksize = override_chunk_size
-        else:
-            chunksize = dims_of_arrays[var][1]
-
-        data_loc_copy = dataloc.copy()
-        # these do not need appending, just ensure they maintain uniques
-        if var in ['sector', 'beam', 'xyz']:
-            if var in existing_arrs:
-                if not np.array_equal(xarr[var].values, rootgroup[var]):
-                    raise ValueError(
-                        'Found inconsistent ' + var + ' dimension: ' + xarr[var].values + ' and ' + rootgroup[var])
+def _get_indices_dataset_exists(input_time_arrays, zarr_time):
+    running_total = 0
+    write_indices = []
+    for input_time in input_time_arrays:
+        input_is_in_zarr = np.isin(input_time, zarr_time)
+        if input_is_in_zarr.any():  # this input array is at least partly in this datastore already
+            if not input_is_in_zarr.all():  # this input array is only partly in this datastore
+                raise NotImplementedError(
+                    'get_write_indices_zarr: processed data is only partly within the existing zarr dataset, must be entirely within or without')
             else:
-                rootgroup[var] = xarr[var].values
-        else:
-            # want to get the length of the time dimension, so you know which dim to append to
-            timlength = len(xarr[var][append_dim])
-            timaxis = xarr[var].shape.index(timlength)
-            # shape is extended on append.  chunks will always be equal to shape, as each run of this function will be
-            #     done on one chunk of data by one worker
-
-            if var in existing_arrs:
-                # array to be appended
-                newarr = zarr.array(xarr[var].values, shape=dims_of_arrays[var][1], chunks=chunksize)
-
-                # the last write will often be less than the block size.  This is allowed in the zarr store, but we
-                #    need to correct the index for it.
-                if timlength != data_loc_copy[1] - data_loc_copy[0]:
-                    data_loc_copy[1] = data_loc_copy[0] + timlength
-
-                # location for new data, assume constant chunksize (as we are doing this outside of this function)
-                chunk_time_range = slice(data_loc_copy[0], data_loc_copy[1])
-                chunk_idx = tuple(
-                    chunk_time_range if dims_of_arrays[var][1].index(i) == timaxis else slice(0, i) for i in
-                    dims_of_arrays[var][1])
-                # if finalsize:  # im about this far with appending to existing zarr datastores, dealing with chunksizes is not a simple matter
-                #     finalshp = tuple(
-                #         finalsize if dims_of_arrays[var][1].index(x) == timaxis else x for x in dims_of_arrays[var][1])
-                #     rootgroup[var].resize(finalshp)
-                rootgroup[var][chunk_idx] = newarr
-            else:
-                startingshp = tuple(
-                    finalsize if dims_of_arrays[var][1].index(x) == timaxis else x for x in dims_of_arrays[var][1])
-
-                newarr = rootgroup.create_dataset(var, shape=dims_of_arrays[var][1], chunks=chunksize,
-                                                  dtype=xarr[var].dtype, synchronizer=sync, fill_value=None)
-                newarr[:] = xarr[var].values
-                newarr.resize(startingshp)
-
-        # print('Zarr write: {}, {}, {}'.format(outputpth, var, dims_of_arrays[var][1]))
-        # _ARRAY_DIMENSIONS is used by xarray for connecting dimensions with zarr arrays
-        rootgroup[var].attrs['_ARRAY_DIMENSIONS'] = dims_of_arrays[var][0]
-    return outputpth
+                # input data is entirely within the existing zarr data, the input_time is going to be sorted, but the zarr
+                # time will be in the order of lines received and saved to disk.  Have to get indices of input_time in zarr_time
+                if isinstance(input_time, xr.DataArray):
+                    input_time = input_time.values
+                write_indices.append(search_not_sorted(zarr_time, input_time))
+        else:  # zarr datastore exists, but this data is not in it.  Append to the existing datastore
+            write_indices.append([len(zarr_time) + running_total, len(zarr_time) + len(input_time) + running_total])
+            running_total += len(input_time)
+    return write_indices, running_total
 
 
 def get_write_indices_zarr(output_pth: str, input_time_arrays: list, index_dim='time'):
@@ -1365,8 +1222,6 @@ def get_write_indices_zarr(output_pth: str, input_time_arrays: list, index_dim='
         final size of the rootgroup after the write, needed to resize zarr to the appropriate length
     """
 
-    write_indices = []
-    running_total = 0
     zarr_time = np.array([])
     mintimes = [float(i.min()) for i in input_time_arrays]
     if not (np.diff(mintimes) > 0).all():  # input arrays are not time sorted
@@ -1375,25 +1230,9 @@ def get_write_indices_zarr(output_pth: str, input_time_arrays: list, index_dim='
     if os.path.exists(output_pth):
         rootgroup = zarr.open(output_pth, mode='r')  # only opens if the path exists
         zarr_time = rootgroup[index_dim]
-        # if np.array([mt < np.min(zarr_time) for mt in mintimes]).any():
-        #     raise NotImplementedError('get_write_indices_zarr: array provided that is prior to already written data.  You must write data in order.')
-
-        for input_time in input_time_arrays:
-            input_is_in_zarr = np.isin(input_time, zarr_time)
-            if input_is_in_zarr.any():  # this input array is at least partly in this datastore already
-                if not input_is_in_zarr.all():  # this input array is only partly in this datastore
-                    raise NotImplementedError('get_write_indices_zarr: processed data is only partly within the existing zarr dataset, must be entirely within or without')
-                else:
-                    # input data is entirely within the existing zarr data, the input_time is going to be sorted, but the zarr
-                    # time will be in the order of lines received and saved to disk.  Have to get indices of input_time in zarr_time
-                    write_indices.append(search_not_sorted(zarr_time, input_time.values))
-            else:  # zarr datastore exists, but this data is not in it.  Append to the existing datastore
-                write_indices.append([len(zarr_time) + running_total, len(zarr_time) + len(input_time) + running_total])
-                running_total += len(input_time)
+        write_indices, running_total = _get_indices_dataset_exists(input_time_arrays, zarr_time)
     else:  # datastore doesn't exist, we just return the write indices equal to the shape of the input arrays
-        for input_time in input_time_arrays:
-            write_indices.append([0 + running_total, len(input_time) + running_total])
-            running_total += len(input_time)
+        write_indices, running_total = _get_indices_dataset_notexist(input_time_arrays)
     final_size = np.max([write_indices[-1][-1], len(zarr_time)])
     return write_indices, final_size
 
@@ -1752,7 +1591,7 @@ def reload_zarr_records(pth: str, skip_dask: bool = False, sort_by: str = None):
         return None
 
 
-def return_chunk_slices(xarr: Union[xr.DataArray, xr.Dataset]):
+def return_chunk_slices(xarr: xr.Dataset):
     """
     Xarray objects are chunked for easy parallelism.  When we write to zarr stores, chunks become segregated, so when
     operating on xarray objects, it makes sense to do it one chunk at a time sometimes.  Here we return slices so that
@@ -1761,7 +1600,7 @@ def return_chunk_slices(xarr: Union[xr.DataArray, xr.Dataset]):
     Parameters
     ----------
     xarr
-        Dataset/DataArray object, must be only one dimension currently
+        Dataset object, must be only one dimension currently
 
     Returns
     -------

@@ -49,7 +49,6 @@ for cnt, dset in enumerate(datasets_w_sbets):
                                 weekstart_week=wk, override_datum=dat)
     # generate_new_surface(fq, resolution=2.0, output_path=os.path.join(outputdir, fldernames[cnt], 'surf.npz'))
     fq.export_pings_to_file()
-    fq.export_pings_to_file(file_format='entwine')
 
 sbet = r"C:\collab\dasktest\data_dir\ra_mbes\2801_em2040\pospac\035_sbet.out"
 logf = r"C:\collab\dasktest\data_dir\ra_mbes\2801_em2040\pospac\035_sbet_export.log"
@@ -64,6 +63,23 @@ smrmsg = r"C:\collab\dasktest\data_dir\val_kmall_patch\smrms_Mission 1.out"
 fq = perform_all_processing(r'C:\collab\dasktest\data_dir\val_kmall_patch\Fallback_2040_40_1',
                             navfiles=[sbet], vert_ref='waterline', errorfiles=[smrmsg], weekstart_year=2019,
                             weekstart_week=15, override_datum='WGS84')
+
+# concat test
+fq_outoforder = perform_all_processing(r"C:\collab\dasktest\data_dir\EM2040c_NRT2\0634_20180711_142125.all",
+                                       outfold=r'C:\collab\dasktest\data_dir\outputtest\concatoutoforder')
+fq_outoforder = perform_all_processing(r"C:\collab\dasktest\data_dir\EM2040c_NRT2\0653_20180711_152950.all",
+                                       outfold=r'C:\collab\dasktest\data_dir\outputtest\concatoutoforder')
+fq_outoforder = perform_all_processing(r"C:\collab\dasktest\data_dir\EM2040c_NRT2\0650_20180711_151518.all",
+                                       outfold=r'C:\collab\dasktest\data_dir\outputtest\concatoutoforder')
+
+fq_inorder = perform_all_processing(r"C:\collab\dasktest\data_dir\EM2040c_NRT2\0634_20180711_142125.all",
+                                    outfold=r'C:\collab\dasktest\data_dir\outputtest\concatinorder')
+fq_inorder = perform_all_processing(r"C:\collab\dasktest\data_dir\EM2040c_NRT2\0650_20180711_151518.all",
+                                    outfold=r'C:\collab\dasktest\data_dir\outputtest\concatinorder')
+fq_inorder = perform_all_processing(r"C:\collab\dasktest\data_dir\EM2040c_NRT2\0653_20180711_152950.all",
+                                    outfold=r'C:\collab\dasktest\data_dir\outputtest\concatinorder')
+
+assert np.array_equal(fq_inorder.multibeam.raw_ping[0].z, fq_outoforder.multibeam.raw_ping[0].z)
 
 ###################### PATCH TEST GENERATOR ##########################
 

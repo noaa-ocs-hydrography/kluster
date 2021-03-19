@@ -542,7 +542,7 @@ class FqprExport:
             if data_for_workers is not None:
                 final_size = write_chnk_idxs[-1][-1]
                 fpths = distrib_zarr_write(outfold, data_for_workers, exist_attrs, chunk_sizes, write_chnk_idxs,
-                                           final_size, self.fqpr.client, append_dim='time', merge=merge,
+                                           final_size, self.fqpr.client, append_dim='time',
                                            show_progress=self.fqpr.show_progress)
         self.fqpr.soundings_path = outfold
         self.fqpr.reload_soundings_records()
