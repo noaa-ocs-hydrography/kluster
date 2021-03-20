@@ -7,6 +7,8 @@ from .test_datasets import RealFqpr, RealDualheadFqpr, \
     SyntheticFqpr  # relative import as tests directory can vary in location depending on how kluster is installed
 from HSTB.kluster.xarray_helpers import interp_across_chunks
 from HSTB.kluster.fqpr_convenience import *
+from HSTB.drivers import par3
+
 
 datapath = ''
 
@@ -155,6 +157,35 @@ def test_process_testfile():
     assert firstz == np.float32(92.742)
 
     datapath = out.multibeam.converted_pth
+    out.close()
+    out = None
+
+
+def test_converted_data_content():
+    if not os.path.exists(datapath):
+        print('Please run test_process_testfile first')
+    out = reload_data(datapath)
+
+    testfile_path, expected_output = get_testfile_paths()
+    ad = par3.AllRead(testfile_path)
+    ad.mapfile()
+
+    # assert that they have the same number of pings
+    assert out.multibeam.raw_ping[0].time.shape[0] == ad.map.getnum(78)
+
+    # assert that there are the same number of attitude/navigation packets
+    totatt = 0
+    for i in range(ad.map.getnum(65)):
+        rec = ad.getrecord(65, i)
+        totatt += rec.data['Time'].shape[0]
+    assert out.multibeam.raw_att.time.shape[0] == totatt
+
+    totnav = 0
+    for i in range(ad.map.getnum(110)):
+        rec = ad.getrecord(110, i)
+        totnav += rec.data['Time'].shape[0]
+    assert out.multibeam.raw_nav.time.shape[0] == totnav
+
     out.close()
     out = None
 
