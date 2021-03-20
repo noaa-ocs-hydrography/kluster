@@ -2,10 +2,37 @@ import os
 import numpy as np
 import json
 import xarray as xr
-import zarr
+import time
+
+from HSTB.kluster import zarr_fixed as zarr
+
 from dask.distributed import wait, Client, progress
 from xarray.core.combine import _infer_concat_order_from_positions, _nested_combine
-from typing import Union
+from typing import Union, Callable, Tuple, Any
+
+
+def retry_call(callabl: Callable, args=None, kwargs=None, exceptions: Tuple[Any, ...] = (),
+               retries: int = 50, wait: float = 0.5):
+    """
+    Make several attempts to invoke the callable. If one of the given exceptions
+    is raised, wait the given period of time and retry up to the given number of
+    retries.
+    """
+
+    if args is None:
+        args = ()
+    if kwargs is None:
+        kwargs = {}
+
+    for attempt in range(1, retries+1):
+        try:
+            return callabl(*args, **kwargs)
+        except exceptions:
+            if attempt < retries:
+                print('************ KLUSTER - WAITING FOR PERMISSIONS ************')
+                time.sleep(wait)
+            else:
+                return callabl(*args, **kwargs)
 
 
 def search_not_sorted(base: np.ndarray, search_array: np.ndarray):
@@ -430,6 +457,20 @@ class ZarrWrite:
                 finalsize if dims_of_arrays[var][1].index(x) == timaxis else x for x in dims_of_arrays[var][1])
         return timaxis, timlength, startingshp
 
+    def _set_rootgroup_variable(self, var_name, chunk_idx, data):
+        self.rootgroup[var_name][chunk_idx] = data
+
+    def _set_rootgroup_arrdims(self, var_name, dims):
+        self.rootgroup[var_name].attrs['_ARRAY_DIMENSIONS'] = dims
+
+    def _rootgroup_create_dataset(self, var_name, var_shape, chnks, dtyp, sync, fill_value):
+        return self.rootgroup.create_dataset(var_name, shape=var_shape, chunks=chnks, dtype=dtyp, synchronizer=sync,
+                                             fill_value=fill_value)
+
+    def _rootgroup_set_and_resize(self, newarr, xarr, startingshp):
+        newarr[:] = xarr
+        newarr.resize(startingshp)
+
     def _write_existing_rootgroup(self, xarr: xr.Dataset, data_loc_copy: Union[list, np.ndarray], var_name: str, dims_of_arrays: dict,
                                   chunksize: tuple, timlength: int, timaxis: int, startingshp: tuple):
         """
@@ -463,7 +504,7 @@ class ZarrWrite:
         xarr_data = xarr[var_name].values
         if startingshp is not None:
             startingshp = self._write_adjust_max_beams(startingshp)
-            self.rootgroup[var_name].resize(startingshp)
+            retry_call(self.rootgroup[var_name].resize, (startingshp,), exceptions=(PermissionError,))
 
         if isinstance(data_loc_copy, list):  # [start index, end index]
             # the last write will often be less than the block size.  This is allowed in the zarr store, but we
@@ -477,7 +518,8 @@ class ZarrWrite:
             chunk_idx = tuple(
                 chunk_time_range if dims_of_arrays[var_name][1].index(i) == timaxis else slice(0, i) for i in
                 dims_of_arrays[var_name][1])
-            self.rootgroup[var_name][chunk_idx] = zarr.array(xarr_data, shape=dims_of_arrays[var_name][1], chunks=chunksize)
+            retry_call(self._set_rootgroup_variable, (var_name, chunk_idx, zarr.array(xarr_data, shape=dims_of_arrays[var_name][1], chunks=chunksize)),
+                       exceptions=(PermissionError,))
         else:  # np.array([4,5,6,1,2,3,8,9...]), indices of the new data, might not be sorted
             sorted_order = data_loc_copy.argsort()
             xarr_data = xarr_data[sorted_order]
@@ -485,7 +527,7 @@ class ZarrWrite:
             zarr_mask = np.zeros_like(self.rootgroup[var_name], dtype=bool)
             zarr_mask[data_loc_copy] = True
             # seems to require me to ravel first, examples only show setting with integer, not sure what is going on here
-            self.rootgroup[var_name].set_mask_selection(zarr_mask, xarr_data.ravel())
+            retry_call(self.rootgroup[var_name].set_mask_selection, (zarr_mask, xarr_data.ravel()), exceptions=(PermissionError,))
 
     def _write_new_dataset_rootgroup(self, xarr: xr.Dataset, var_name: str, dims_of_arrays: dict, chunksize: tuple,
                                      startingshp: tuple):
@@ -512,11 +554,10 @@ class ZarrWrite:
         sync = None
         if self.zarr_path:
             sync = zarr.ProcessSynchronizer(self.zarr_path + '.sync')
-        newarr = self.rootgroup.create_dataset(var_name, shape=dims_of_arrays[var_name][1], chunks=chunksize,
-                                               dtype=xarr[var_name].dtype, synchronizer=sync,
-                                               fill_value=self._get_arr_nodatavalue(xarr[var_name].dtype))
-        newarr[:] = xarr[var_name].values
-        newarr.resize(startingshp)
+        newarr = retry_call(self._rootgroup_create_dataset, (var_name, dims_of_arrays[var_name][1], chunksize,
+                            xarr[var_name].dtype, sync, self._get_arr_nodatavalue(xarr[var_name].dtype)),
+                            exceptions=(PermissionError,))
+        retry_call(self._rootgroup_set_and_resize, (newarr, xarr[var_name].values, startingshp), exceptions=(PermissionError,))
 
     def write_to_zarr(self, xarr: xr.Dataset, attrs: dict, dataloc: Union[list, np.ndarray], finalsize: int = None):
         """
@@ -577,7 +618,7 @@ class ZarrWrite:
                 self._write_new_dataset_rootgroup(xarr, var, dims_of_arrays, chunksize, startingshp)
 
             # _ARRAY_DIMENSIONS is used by xarray for connecting dimensions with zarr arrays
-            self.rootgroup[var].attrs['_ARRAY_DIMENSIONS'] = dims_of_arrays[var][0]
+            retry_call(self._set_rootgroup_arrdims, (var, dims_of_arrays[var][0]), exceptions=(PermissionError,))
         return self.zarr_path
 
 
@@ -612,7 +653,7 @@ def zarr_write(zarr_path: str, xarr: xr.Dataset, attrs: dict, desired_chunk_shap
     """
 
     zw = ZarrWrite(zarr_path, desired_chunk_shape, append_dim=append_dim)
-    zarr_path = zw.write_to_zarr(xarr, attrs, dataloc, finalsize=finalsize)
+    zarr_path = retry_call(zw.write_to_zarr, (xarr, attrs, dataloc), {'finalsize': finalsize}, exceptions=(PermissionError,))
     return zarr_path
 
 
