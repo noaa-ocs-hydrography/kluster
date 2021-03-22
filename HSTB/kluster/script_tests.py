@@ -391,13 +391,15 @@ surf = generate_new_surface(fq, min_grid_size=1, max_grid_size=1)
 
 ###############################################################################################
 
-from HSTB.drivers import par3
-fil = r"C:\collab\dasktest\data_dir\falkor_justy\0000_20201122_044757_FK201122_EM302.all"
-aread = par3.AllRead(fil)
-self = aread
-starttime = None
-endtime = None
-cur_startstatus = self.at_right_byte  # after running, we reset the pointer and start byte status
-curptr = self.infile.tell()
-startptr = self.start_ptr
+from HSTB.drivers import PCSio
+f = PCSio.PCSFile(r"C:\collab\dasktest\data_dir\EM2040_Bigelow_Wobble\14FEB2020-PatchTest.000", nCache=0)
+f.QuickCache('$GRP', 1)
+data = f.GetArray('$GRP', 1)
+
+f.QuickCache('$GRP', 3)
+metad = f.GetArray('$GRP', 3)
+
+# no group 3? how do I get gps week number?  have to ask i guess
+
+posd = PCSio.pos_to_xarray(r"C:\collab\dasktest\data_dir\EM2040_Bigelow_Wobble\14FEB2020-PatchTest.000", 2021, 7)
 

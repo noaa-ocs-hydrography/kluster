@@ -5,13 +5,10 @@ from HSTB.shared import RegistryHelpers
 from HSTB.kluster.gui.common_widgets import BrowseListWidget
 
 
-# DEPRECATED AS WE HAVE MOVED TO FQPRINTELLIGENCE/FQPRACTIONS TO CONTROL CONVERSION
-
-
-class ImportNavigationDialog(QtWidgets.QDialog):
+class ImportPostProcNavigationDialog(QtWidgets.QDialog):
     """
-    Dialog contains all the processing steps post-conversion.  Use return_processing_options to get the kwargs to feed
-    the fqpr_convenience.process_multibeam function.
+    Dialog contains all the options related to importing post processed navigation (POSPac SBET).  Use
+    return_processing_options to get the kwargs to feed the fqpr_convenience.process_multibeam function.
 
     fqpr = fully qualified ping record, the term for the datastore in kluster
     """
@@ -233,7 +230,7 @@ if __name__ == '__main__':
         app = QtWidgets.QApplication()
     except TypeError:  # pyqt5
         app = QtWidgets.QApplication([])
-    dlog = ImportNavigationDialog()
+    dlog = ImportPostProcNavigationDialog()
     dlog.show()
     if dlog.exec_():
         pass

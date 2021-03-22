@@ -237,6 +237,8 @@ class FqprExport:
             written_files = self.export_pings_to_entwine(output_directory=entwine_fldr_path, las_export_folder=fldr_path,
                                                          filter_by_detection=filter_by_detection, z_pos_down=z_pos_down,
                                                          export_by_identifiers=export_by_identifiers)
+        else:
+            raise NotImplementedError('export_pings_to_file: {} is not a supported file format'.format(file_format))
         return written_files
 
     def _export_pings_to_csv(self, output_directory: str = None, csv_delimiter=' ', filter_by_detection: bool = True,
@@ -492,70 +494,6 @@ class FqprExport:
 
         build_entwine_points(las_export_folder, output_directory)
         return [las_export_folder]
-
-    def export_pings_to_dataset(self, outfold: str = None, validate: bool = False):
-        """
-        Write out data variable by variable to the final sounding data store.  Requires existence of georeferenced
-        soundings to perform this function.
-
-        Use subset_variables to build the arrays before exporting.  Only necessary for the dual head case, where
-        there are two separate zarr stores for each head.
-
-        Parameters
-        ----------
-        outfold
-            destination directory for the xyz exports
-        validate
-            if True will use assert statement to verify that the number of soundings between pre and post exported
-            data is equal
-        """
-
-        self.fqpr.logger.info('\n****Exporting xyz data to dataset****')
-        starttime = perf_counter()
-
-        if 'x' not in self.fqpr.multibeam.raw_ping[0]:
-            self.fqpr.logger.error('No xyz data found')
-            return
-
-        if outfold is None:
-            outfold = os.path.join(self.fqpr.multibeam.converted_pth, 'soundings.zarr')
-        if os.path.exists(outfold):
-            self.fqpr.logger.error(
-                'export_pings_to_dataset: dataset exists already ({}), please remove and run'.format(outfold))
-            raise NotImplementedError(
-                'export_pings_to_dataset: dataset exists already ({}), please remove and run'.format(outfold))
-
-        vars_of_interest = ('x', 'y', 'z', 'tvu', 'thu')
-
-        # build the attributes we want in the final array.  Everything from the raw_ping plus what we need to make
-        #    sense of our new indexes seems good.
-        exist_attrs = self.fqpr.multibeam.raw_ping[0].attrs.copy()
-        exist_attrs['xyzdat_export_time'] = datetime.utcnow().strftime('%c')
-
-        for cnt, v in enumerate(vars_of_interest):
-            merge = False
-            if cnt != 0:
-                # after the first write where we create the dataset, we need to flag subsequent writes as merge
-                merge = True
-
-            data_for_workers, write_chnk_idxs, chunk_sizes = self._generate_chunks_xyzdat(v)
-            if data_for_workers is not None:
-                final_size = write_chnk_idxs[-1][-1]
-                fpths = distrib_zarr_write(outfold, data_for_workers, exist_attrs, chunk_sizes, write_chnk_idxs,
-                                           final_size, self.fqpr.client, append_dim='time',
-                                           show_progress=self.fqpr.show_progress)
-        self.fqpr.soundings_path = outfold
-        self.fqpr.reload_soundings_records()
-
-        if validate:
-            # ensure the sounding count matches
-            pre_soundings_count = np.sum([np.count_nonzero(~np.isnan(f.x)) for f in self.fqpr.multibeam.raw_ping])
-            post_soundings_count = self.fqpr.soundings.time.shape[0]
-            assert pre_soundings_count == post_soundings_count
-            self.fqpr.logger.info('export_pings_to_dataset validated successfully')
-
-        endtime = perf_counter()
-        self.fqpr.logger.info('****Exporting xyz data to dataset complete: {}s****\n'.format(round(endtime - starttime, 1)))
 
 
 def _create_folder(output_directory, fldrname):

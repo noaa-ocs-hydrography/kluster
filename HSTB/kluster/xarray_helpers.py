@@ -12,7 +12,7 @@ from typing import Union, Callable, Tuple, Any
 
 
 def retry_call(callabl: Callable, args=None, kwargs=None, exceptions: Tuple[Any, ...] = (),
-               retries: int = 50, wait: float = 0.5):
+               retries: int = 200, wait: float = 0.1):
     """
     Make several attempts to invoke the callable. If one of the given exceptions
     is raised, wait the given period of time and retry up to the given number of

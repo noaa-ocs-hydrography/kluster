@@ -17,7 +17,7 @@ from HSTB.kluster.fqpr_helpers import return_directory_from_data
 from HSTB.kluster.fqpr_surface_v3 import QuadManager
 
 
-def perform_all_processing(filname: str, navfiles: list = None, outfold: str = None, coord_system: str = 'NAD83',
+def perform_all_processing(filname: Union[str, list], navfiles: list = None, outfold: str = None, coord_system: str = 'NAD83',
                            vert_ref: str = 'waterline', orientation_initial_interpolation: bool = False,
                            add_cast_files: Union[str, list] = None,
                            skip_dask: bool = False, show_progress: bool = True, parallel_write: bool = True,
@@ -50,7 +50,7 @@ def perform_all_processing(filname: str, navfiles: list = None, outfold: str = N
         if True, will not start/find the dask client.  Useful for small datasets where parallel processing actually
         makes the process slower
     show_progress
-        If true, uses dask.distributed.progress.  Disabled for GUI, as it generates too much text
+        If true, uses dask.distributed.progress.
     parallel_write
         if True, will write in parallel to disk, Disable for permissions issues troubleshooting.
 
@@ -62,13 +62,13 @@ def perform_all_processing(filname: str, navfiles: list = None, outfold: str = N
 
     fqpr_inst = convert_multibeam(filname, outfold, skip_dask=skip_dask, show_progress=show_progress, parallel_write=parallel_write)
     if navfiles is not None:
-        fqpr_inst = import_navigation(fqpr_inst, navfiles, **kwargs)
+        fqpr_inst = import_processed_navigation(fqpr_inst, navfiles, **kwargs)
     fqpr_inst = process_multibeam(fqpr_inst, add_cast_files=add_cast_files, coord_system=coord_system, vert_ref=vert_ref,
                                   orientation_initial_interpolation=orientation_initial_interpolation)
     return fqpr_inst
 
 
-def convert_multibeam(filname: str, outfold: str = None, client: Client = None, skip_dask: bool = False,
+def convert_multibeam(filname: Union[str, list], outfold: str = None, client: Client = None, skip_dask: bool = False,
                       show_progress: bool = True, parallel_write: bool = True):
     """
     Use fqpr_generation to process multibeam data on the local cluster and generate a new Fqpr instance saved to the
@@ -106,10 +106,10 @@ def convert_multibeam(filname: str, outfold: str = None, client: Client = None, 
     return fqpr_inst
 
 
-def import_navigation(fqpr_inst: Fqpr, navfiles: list, errorfiles: list = None, logfiles: list = None,
-                      weekstart_year: int = None, weekstart_week: int = None, override_datum: str = None,
-                      override_grid: str = None, override_zone: str = None, override_ellipsoid: str = None,
-                      max_gap_length: float = 1.0):
+def import_processed_navigation(fqpr_inst: Fqpr, navfiles: list, errorfiles: list = None, logfiles: list = None,
+                                weekstart_year: int = None, weekstart_week: int = None, override_datum: str = None,
+                                override_grid: str = None, override_zone: str = None, override_ellipsoid: str = None,
+                                max_gap_length: float = 1.0):
     """
     Convenience function for importing post processed navigation from sbet/smrmsg files, for use in georeferencing
     xyz data.  Converted attitude must exist before importing navigation, timestamps are used to figure out what
@@ -157,6 +157,35 @@ def import_navigation(fqpr_inst: Fqpr, navfiles: list, errorfiles: list = None, 
                                                override_datum=override_datum, override_grid=override_grid,
                                                override_zone=override_zone, override_ellipsoid=override_ellipsoid,
                                                max_gap_length=max_gap_length)
+    return fqpr_inst
+
+
+def overwrite_raw_navigation(fqpr_inst: Fqpr, navfiles: list, weekstart_year: int = None, weekstart_week: int = None):
+    """
+    Convenience function for importing raw navigation from pos mv .000 files, for use in georeferencing
+    xyz data.  Will overwrite the raw navigation, we don't want this in the post processed section, so you can compare
+    the loaded pos mv .000 file data to the processed sbet.
+
+    fqpr = fully qualified ping record, the term for the datastore in kluster
+
+    Parameters
+    ----------
+    fqpr_inst
+        Fqpr instance containing converted data (converted data must exist for the import to work)
+    navfiles:
+        list of postprocessed navigation file paths
+    weekstart_year
+        if you aren't providing a logfile, must provide the year of the sbet here
+    weekstart_week
+        if you aren't providing a logfile, must provide the week of the sbet here
+
+    Returns
+    -------
+    Fqpr
+        Fqpr passed in with additional post processed navigation
+    """
+
+    fqpr_inst.overwrite_raw_navigation(navfiles, weekstart_year=weekstart_year, weekstart_week=weekstart_week)
     return fqpr_inst
 
 

@@ -26,6 +26,7 @@ from HSTB.kluster.fqpr_helpers import epsg_determinator
 from HSTB.kluster.rotations import return_attitude_rotation_matrix
 from HSTB.kluster.logging_conf import return_logger
 from HSTB.drivers.sbet import sbets_to_xarray, sbet_fast_read_start_end_time
+from HSTB.drivers.PCSio import posfiles_to_xarray
 
 
 class Fqpr:
@@ -370,79 +371,6 @@ class Fqpr:
             self.logger.info('Successfully imported {} new casts'.format(len(cast_dict)))
         else:
             self.logger.warning('Unable to import casts from {}'.format(src))
-
-    # def setup_casts(self, surf_sound_speed: xr.DataArray, z_pos: float):
-    #     """
-    #     Using all the profiles in the rangeangle dataset as well as externally provided casts as files, generate
-    #     SoundSpeedProfile objects and build the lookup tables.
-    #
-    #     Parameters
-    #     ----------
-    #     surf_sound_speed
-    #         1dim array of surface sound speed values, coords = timestamp
-    #     z_pos
-    #         z value of the transducer position in the watercolumn from the waterline
-    #
-    #     Returns
-    #     -------
-    #     list
-    #         a list of SoundSpeedProfile objects with constructed lookup tables
-    #     """
-    #
-    #     # get the svp files and the casts in the mbes converted data
-    #     mbes_profs = self.multibeam.return_all_profiles()
-    #
-    #     # convert to SoundSpeedProfile objects
-    #     rangeangle_casts = []
-    #     if mbes_profs:
-    #         for castname, data in mbes_profs.items():
-    #             try:
-    #                 casttime = float(castname.split('_')[1])
-    #                 cst_object = SoundSpeedProfile(data, z_pos, surf_sound_speed, prof_time=casttime,
-    #                                                prof_type='raw_ping')
-    #                 cst_object.generate_lookup_table()
-    #                 rangeangle_casts.append(cst_object)
-    #             except ValueError:
-    #                 self.logger.error('Profile attribute name in ping DataSet must include timestamp, ex: "profile_1495599960", found: {}'.format(castname))
-    #                 raise ValueError('Profile attribute name in ping DataSet must include timestamp, ex: "profile_1495599960", found: {}'.format(castname))
-    #
-    #     return rangeangle_casts
-    #
-    # def return_casts_for_system(self, system_index: int):
-    #     """
-    #     Generate cast objects for the given system across all values given for waterline
-    #
-    #     Originally started with building all casts for the first sector and using those cast objects across all other
-    #     sectors (as the z pos is basically the same) but ran into the issue where different sectors would start at
-    #     different times in the file.
-    #
-    #     Also, we don't return the whole class, as it has things in it that cause dask to freeze on scatter.  Dask
-    #     apparently really only guarantees to work with numpy/numpy derivatives.  So we have to return the attributes
-    #     that are necessary for sv correct.
-    #
-    #     Parameters
-    #     ----------
-    #     system_index
-    #         index of system, grouped by serial number (only multiple if this is a dual head system)
-    #
-    #     Returns
-    #     -------
-    #     list
-    #         a list of lists of the attributes within the SoundSpeedProfile objects, including constructed lookup
-    #         tables for each waterline value in installation parameters.  Ideally, I could return the objects themselves,
-    #         but you cannot scatter/map custom classes effectively in Dask.
-    #     """
-    #
-    #     mbes_profs, prof_times = self.multibeam.return_all_profiles()
-    #     # ss_by_system = self.multibeam.raw_ping[system_index].soundspeed.where(applicable_index, drop=True)
-    #     # this should be the transducer to waterline, positive down
-    #     # z_pos = -float(self.multibeam.xyzrph[prefixes[0] + '_z'][timestmp]) + float(self.multibeam.xyzrph['waterline'][timestmp])
-    #
-    #     # cst = self.setup_casts(ss_by_system, z_pos)
-    #     # cast_size = np.sum([c.__sizeof__() for c in cst])
-    #     # cast_data = [[c.prof_time, c.dim_angle, c.dim_raytime, c.lkup_across_dist, c.lkup_down_dist, c.corr_profile_lkup] for c in cst]
-    #     # self.logger.info('built {} total cast objects, total size = {} bytes'.format(len(cst), cast_size))
-    #     return mbes_profs, prof_times
 
     def return_chunk_indices(self, idx_mask: xr.DataArray, pings_per_chunk: int):
         """
@@ -1004,7 +932,7 @@ class Fqpr:
             lat = ra.latitude.where(applicable_index, drop=True)
             lon = ra.longitude.where(applicable_index, drop=True)
             alt = ra.altitude.where(applicable_index, drop=True)
-        elif prefer_pp_nav and (self.navigation is not None):
+        elif prefer_pp_nav and isinstance(self.navigation, xr.Dataset):
             self.logger.info('Using post processed navigation...')
             nav = interp_across_chunks(self.navigation, tx_tstmp_idx + latency, daskclient=self.client)
             lat = nav.latitude
@@ -1110,7 +1038,7 @@ class Fqpr:
         if 'qualityfactor' not in self.multibeam.raw_ping[0]:
             self.logger.error("_generate_chunks_tpu: sonar uncertainty ('qualityfactor') must exist to calculate uncertainty")
             return None
-        if self.navigation is not None:
+        if isinstance(self.navigation, xr.Dataset):
             ppnav = interp_across_chunks(self.navigation, tx_tstmp_idx + latency, daskclient=self.client)
 
         roll = interp_across_chunks(self.multibeam.raw_att['roll'], tx_tstmp_idx + latency, daskclient=self.client)
@@ -1475,7 +1403,7 @@ class Fqpr:
 
         # remove any duplicate files, these would be files that already exist in the Fqpr instance.  Check by comparing
         #  file name and the start/end time of the navfile.
-        if self.navigation is not None:
+        if isinstance(self.navigation, xr.Dataset):
             duplicate_navfiles = []
             for new_file in navfiles:
                 root, filename = os.path.split(new_file)
@@ -1552,6 +1480,8 @@ class Fqpr:
                                       end_time=float(self.multibeam.raw_nav.time.max()))
         if navdata is None:
             raise ValueError('Unable to find timestamps in SBET that align with the raw navigation.')
+        print('Writing {} new post processed navigation records'.format(navdata.time.shape[0]))
+
         navdata.attrs['reference'] = {'latitude': 'reference point', 'longitude': 'reference point',
                                       'altitude': 'reference point'}
         if self.multibeam.raw_ping[0].current_processing_status >= 4:  # have to start over at georeference now
@@ -1559,7 +1489,7 @@ class Fqpr:
 
         # find gaps that don't line up with existing nav gaps (like time between multibeam files)
         gaps = compare_and_find_gaps(self.multibeam.raw_nav, navdata, max_gap_length=max_gap_length, dimname='time')
-        if gaps:
+        if gaps.any():
             self.logger.info('Found gaps > {} in comparison between post processed navigation and realtime.'.format(max_gap_length))
             for gp in gaps:
                 self.logger.info('mintime: {}, maxtime: {}, gap length {}'.format(gp[0], gp[1], gp[1] - gp[0]))
@@ -1582,6 +1512,67 @@ class Fqpr:
 
         endtime = perf_counter()
         self.logger.info('****Importing post processed navigation complete: {}s****\n'.format(round(endtime - starttime, 1)))
+
+    def overwrite_raw_navigation(self, navfiles: list, weekstart_year: int, weekstart_week: int, max_gap_length: float = 1.0):
+        """
+        Load from raw navigation files (currently just POS MV .000) to get lat/lon/altitude.  Will overwrite the original
+        raw navigation zarr rootgroup, so you can compare pos mv to sbet.
+
+        No interpolation is done, but it will slice the incoming data to the time extents of the raw navigation and
+        identify time gaps larger than the provided max_gap_length in seconds.
+
+        Parameters
+        ----------
+        navfiles
+            list of postprocessed navigation file paths
+        weekstart_year
+            must provide the year of the pos mv file here
+        weekstart_week
+            must provide the week of the pos mv file here
+        max_gap_length
+            maximum allowable gap in the pos file in seconds, excluding gaps found in raw navigation
+        """
+
+        self.logger.info('****Overwriting raw navigation****\n')
+        starttime = perf_counter()
+
+        navdata = posfiles_to_xarray(navfiles, weekstart_year=weekstart_year, weekstart_week=weekstart_week)
+
+        navdata = slice_xarray_by_dim(navdata, 'time', start_time=float(self.multibeam.raw_nav.time.min()),
+                                      end_time=float(self.multibeam.raw_nav.time.max()))
+        if navdata is None:
+            raise ValueError('Unable to find timestamps in POS MV that align with the raw navigation.')
+        # find the nearest new record to each existing navigation record
+        nav_wise_data = interp_across_chunks(navdata, self.multibeam.raw_nav.time, 'time')
+        print('Overwriting with {} new navigation records'.format(nav_wise_data.time.shape[0]))
+
+        if self.multibeam.raw_ping[0].current_processing_status >= 4 and not isinstance(self.navigation, xr.Dataset):
+            # have to start over at georeference now, if there isn't any postprocessed navigation
+            self.write_attribute_to_ping_records({'current_processing_status': 3})
+
+        # find gaps that don't line up with existing nav gaps (like time between multibeam files)
+        gaps = compare_and_find_gaps(self.multibeam.raw_nav, nav_wise_data, max_gap_length=max_gap_length, dimname='time')
+        if gaps.any():
+            self.logger.info('Found gaps > {} in comparison between new raw navigation and existing.'.format(max_gap_length))
+            for gp in gaps:
+                self.logger.info('mintime: {}, maxtime: {}, gap length {}'.format(gp[0], gp[1], gp[1] - gp[0]))
+
+        outfold = os.path.join(self.multibeam.converted_pth, 'navigation.zarr')
+        chunk_sizes = {k: self.multibeam.nav_chunksize for k in list(nav_wise_data.variables.keys())}  # 50000 to match the raw_nav
+        data_locs, finalsize = get_write_indices_zarr(outfold, [nav_wise_data.time])
+        navdata_attrs = nav_wise_data.attrs
+        try:
+            nav_wise_data = self.client.scatter(nav_wise_data)
+        except:  # not using dask distributed client
+            pass
+        distrib_zarr_write(outfold, [nav_wise_data], navdata_attrs, chunk_sizes, data_locs, finalsize, self.client,
+                           append_dim='time', show_progress=self.show_progress, write_in_parallel=self.parallel_write)
+        self.multibeam.reload_pingrecords(skip_dask=self.client is None)
+
+        # self.interp_to_ping_record(self.navigation, {'navigation_source': 'sbet', 'input_datum': self.navigation.datum})
+
+        endtime = perf_counter()
+        self.logger.info('****Overwriting raw navigation complete: {}s****\n'.format(round(endtime - starttime, 1)))
 
     def interp_to_ping_record(self, sources: Union[xr.Dataset, list], attributes: dict = None):
         """
@@ -2414,7 +2405,7 @@ class Fqpr:
         self.multibeam.raw_ping = slice_raw_ping
         self.multibeam.raw_nav = slice_xarray_by_dim(self.multibeam.raw_nav, dimname='time', start_time=mintime, end_time=maxtime)
         self.multibeam.raw_att = slice_xarray_by_dim(self.multibeam.raw_att, dimname='time', start_time=mintime, end_time=maxtime)
-        if self.navigation is not None:
+        if isinstance(self.navigation, xr.Dataset):  # if self.navigation is a dataset, make a backup
             self.backup_fqpr['ppnav'] = self.navigation.copy()
             self.navigation = slice_xarray_by_dim(self.navigation, dimname='time', start_time=mintime, end_time=maxtime)
 
