@@ -109,7 +109,7 @@ def convert_multibeam(filname: Union[str, list], outfold: str = None, client: Cl
 def import_processed_navigation(fqpr_inst: Fqpr, navfiles: list, errorfiles: list = None, logfiles: list = None,
                                 weekstart_year: int = None, weekstart_week: int = None, override_datum: str = None,
                                 override_grid: str = None, override_zone: str = None, override_ellipsoid: str = None,
-                                max_gap_length: float = 1.0):
+                                max_gap_length: float = 1.0, overwrite: bool = False):
     """
     Convenience function for importing post processed navigation from sbet/smrmsg files, for use in georeferencing
     xyz data.  Converted attitude must exist before importing navigation, timestamps are used to figure out what
@@ -145,6 +145,8 @@ def import_processed_navigation(fqpr_inst: Fqpr, navfiles: list, errorfiles: lis
         log, ex: 'GRS80'
     max_gap_length
         maximum allowable gap in the sbet in seconds, excluding gaps found in raw navigation
+    overwrite
+        if True, will include files that are already in the navigation dataset as valid
 
     Returns
     -------
@@ -156,11 +158,12 @@ def import_processed_navigation(fqpr_inst: Fqpr, navfiles: list, errorfiles: lis
                                                weekstart_year=weekstart_year, weekstart_week=weekstart_week,
                                                override_datum=override_datum, override_grid=override_grid,
                                                override_zone=override_zone, override_ellipsoid=override_ellipsoid,
-                                               max_gap_length=max_gap_length)
+                                               max_gap_length=max_gap_length, overwrite=overwrite)
     return fqpr_inst
 
 
-def overwrite_raw_navigation(fqpr_inst: Fqpr, navfiles: list, weekstart_year: int = None, weekstart_week: int = None):
+def overwrite_raw_navigation(fqpr_inst: Fqpr, navfiles: list, weekstart_year: int = None, weekstart_week: int = None,
+                             overwrite: bool = False):
     """
     Convenience function for importing raw navigation from pos mv .000 files, for use in georeferencing
     xyz data.  Will overwrite the raw navigation, we don't want this in the post processed section, so you can compare
@@ -178,6 +181,8 @@ def overwrite_raw_navigation(fqpr_inst: Fqpr, navfiles: list, weekstart_year: in
         if you aren't providing a logfile, must provide the year of the sbet here
     weekstart_week
         if you aren't providing a logfile, must provide the week of the sbet here
+    overwrite
+        if True, will include files that are already in the navigation dataset as valid
 
     Returns
     -------
@@ -185,7 +190,8 @@ def overwrite_raw_navigation(fqpr_inst: Fqpr, navfiles: list, weekstart_year: in
         Fqpr passed in with additional post processed navigation
     """
 
-    fqpr_inst.overwrite_raw_navigation(navfiles, weekstart_year=weekstart_year, weekstart_week=weekstart_week)
+    fqpr_inst.overwrite_raw_navigation(navfiles, weekstart_year=weekstart_year, weekstart_week=weekstart_week,
+                                       overwrite=overwrite)
     return fqpr_inst
 
 

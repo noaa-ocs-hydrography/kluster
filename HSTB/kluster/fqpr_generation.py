@@ -1357,7 +1357,8 @@ class Fqpr:
                 self.logger.error(err)
                 raise ValueError(err)
 
-    def _validate_post_processed_navigation(self, navfiles: list, errorfiles: list = None, logfiles: list = None):
+    def _validate_post_processed_navigation(self, navfiles: list, errorfiles: list = None, logfiles: list = None,
+                                            overwrite: bool = False):
         """
         Validate the input navigation files to ensure the import_post_processed_navigation process will work.  The big
         things to check include ensuring that navfiles/errorfiles/logfiles are all the same size (as they should be
@@ -1375,6 +1376,8 @@ class Fqpr:
             list of postprocessed error file paths.  If provided, must be same number as nav files
         logfiles
             list of export log file paths associated with navfiles.  If provided, must be same number as nav files
+        overwrite
+            if True, will not filter out files that exist, all valid files will be accepted
 
         Returns
         -------
@@ -1403,7 +1406,7 @@ class Fqpr:
 
         # remove any duplicate files, these would be files that already exist in the Fqpr instance.  Check by comparing
         #  file name and the start/end time of the navfile.
-        if isinstance(self.navigation, xr.Dataset):
+        if isinstance(self.navigation, xr.Dataset) and not overwrite:
             duplicate_navfiles = []
             for new_file in navfiles:
                 root, filename = os.path.split(new_file)
@@ -1422,11 +1425,46 @@ class Fqpr:
 
         return navfiles, errorfiles, logfiles
 
+    def _validate_raw_navigation(self, navfiles: list, overwrite: bool = False):
+        """
+        Validate the input navigation files to ensure the overwrite_raw_navigation process will work.  Only allow
+        duplicate files if overwrite is True.
+
+        Parameters
+        ----------
+        navfiles
+            list of raw navigation file paths
+        overwrite
+            if True, will not filter out files that exist, all valid files will be accepted
+
+        Returns
+        -------
+        navfiles
+            verified list of raw navigation file paths with duplicates removed
+        """
+
+        if self.multibeam is None:
+            raise ValueError('Expect multibeam records before importing post processed navigation')
+
+        # remove any duplicate files, these would be files that already exist in the Fqpr instance.  Check by comparing
+        #  file name and the start/end time of the navfile.
+        if not overwrite:
+            duplicate_navfiles = []
+            for new_file in navfiles:
+                root, filename = os.path.split(new_file)
+                if filename in self.multibeam.raw_nav.pos_files:
+                    duplicate_navfiles.append(new_file)
+            for fil in duplicate_navfiles:
+                print('{} is already a converted navigation file within this dataset'.format(fil))
+                navfiles.remove(fil)
+
+        return navfiles
+
     def import_post_processed_navigation(self, navfiles: list, errorfiles: list = None, logfiles: list = None,
                                          weekstart_year: int = None, weekstart_week: int = None,
                                          override_datum: str = None, override_grid: str = None,
                                          override_zone: str = None, override_ellipsoid: str = None,
-                                         max_gap_length: float = 1.0):
+                                         max_gap_length: float = 1.0, overwrite: bool = False):
         """
         Load from post processed navigation files (currently just SBET and SMRMSG) to get lat/lon/altitude as well
         as 3d error for further processing.  Will save to a zarr rootgroup alongside the raw navigation, so you can
@@ -1461,12 +1499,14 @@ class Fqpr:
             log, ex: 'GRS80'
         max_gap_length
             maximum allowable gap in the sbet in seconds, excluding gaps found in raw navigation
+        overwrite
+            if True, will include files that are already in the navigation dataset as valid
         """
 
         self.logger.info('****Importing post processed navigation****\n')
         starttime = perf_counter()
 
-        navfiles, errorfiles, logfiles = self._validate_post_processed_navigation(navfiles, errorfiles, logfiles)
+        navfiles, errorfiles, logfiles = self._validate_post_processed_navigation(navfiles, errorfiles, logfiles, overwrite)
         if not navfiles:
             print('import_post_processed_navigation: No valid navigation files to import')
             return
@@ -1513,7 +1553,8 @@ class Fqpr:
         endtime = perf_counter()
         self.logger.info('****Importing post processed navigation complete: {}s****\n'.format(round(endtime - starttime, 1)))
 
-    def overwrite_raw_navigation(self, navfiles: list, weekstart_year: int, weekstart_week: int, max_gap_length: float = 1.0):
+    def overwrite_raw_navigation(self, navfiles: list, weekstart_year: int, weekstart_week: int,
+                                 max_gap_length: float = 1.0, overwrite: bool = False):
         """
         Load from raw navigation files (currently just POS MV .000) to get lat/lon/altitude.  Will overwrite the original
         raw navigation zarr rootgroup, so you can compare pos mv to sbet.
@@ -1531,10 +1572,14 @@ class Fqpr:
             must provide the week of the pos mv file here
         max_gap_length
             maximum allowable gap in the pos file in seconds, excluding gaps found in raw navigation
+        overwrite
+            if True, will include files that are already in the navigation dataset as valid
         """
 
         self.logger.info('****Overwriting raw navigation****\n')
         starttime = perf_counter()
+
+        navfiles = self._validate_raw_navigation(navfiles, overwrite)
 
         navdata = posfiles_to_xarray(navfiles, weekstart_year=weekstart_year, weekstart_week=weekstart_week)
 

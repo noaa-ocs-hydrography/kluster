@@ -198,10 +198,11 @@ class ImportPostProcNavigationDialog(QtWidgets.QDialog):
         if not self.smrmsg_files:
             self.smrmsg_files = None
 
+        # always overwrite when the user uses the manual import with this dialog
         if not self.canceled:
             opts = {'fqpr_inst': self.fqpr_inst, 'navfiles': self.sbet_files, 'errorfiles': self.smrmsg_files,
                     'logfiles': logfiles, 'weekstart_year': weekstart_year, 'weekstart_week': weekstart_week,
-                    'override_datum': override_datum}
+                    'override_datum': override_datum, 'overwrite': True}
         else:
             opts = None
         return opts

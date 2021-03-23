@@ -119,9 +119,10 @@ class OverwriteNavigationDialog(QtWidgets.QDialog):
 
         weekstart_year, weekstart_week, dy = datetime.strptime(self.calendar_widget.text(), '%m/%d/%Y').isocalendar()
 
+        # always overwrite when the user uses the manual import with this dialog
         if not self.canceled:
             opts = {'fqpr_inst': self.fqpr_inst, 'navfiles': self.pos_files, 'weekstart_year': weekstart_year,
-                    'weekstart_week': weekstart_week}
+                    'weekstart_week': weekstart_week, 'overwrite': True}
         else:
             opts = None
         return opts
