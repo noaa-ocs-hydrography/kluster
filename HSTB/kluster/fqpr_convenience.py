@@ -1096,6 +1096,7 @@ def validation_against_xyz88(filname: str, analysis_mode: str = 'even', numplots
     if export:
         plt.tight_layout()
         plt.savefig(export)
+        print('Figure saved to {}'.format(export))
     fq.close()
     return fq
 
