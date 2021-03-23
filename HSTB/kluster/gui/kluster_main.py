@@ -11,7 +11,7 @@ if qgis_enabled:
 from HSTB.kluster.gui import dialog_vesselview, kluster_explorer, kluster_project_tree, kluster_3dview, kluster_attitudeview, \
     kluster_output_window, kluster_2dview, kluster_actions, kluster_monitor, dialog_daskclient, dialog_surface, \
     dialog_export, kluster_worker, kluster_interactive_console, dialog_basicplot, dialog_advancedplot, dialog_project_settings, \
-    dialog_export_grid, dialog_layer_settings, dialog_settings
+    dialog_export_grid, dialog_layer_settings, dialog_settings, dialog_importppnav, dialog_overwritenav
 from HSTB.kluster.fqpr_project import FqprProject
 from HSTB.kluster.fqpr_intelligence import FqprIntel
 from HSTB.kluster import __version__ as kluster_version
@@ -105,10 +105,13 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.setWindowIcon(QtGui.QIcon(self.iconpath))
 
         self.action_thread = kluster_worker.ActionWorker()
+        self.import_ppnav_thread = kluster_worker.ImportNavigationWorker()
+        self.overwrite_nav_thread = kluster_worker.OverwriteNavigationWorker()
         self.surface_thread = kluster_worker.SurfaceWorker()
         self.export_thread = kluster_worker.ExportWorker()
         self.export_grid_thread = kluster_worker.ExportGridWorker()
-        self.allthreads = [self.action_thread, self.surface_thread, self.export_thread, self.export_grid_thread]
+        self.allthreads = [self.action_thread, self.import_ppnav_thread, self.overwrite_nav_thread, self.surface_thread,
+                           self.export_thread, self.export_grid_thread]
 
         # connect FqprActionContainer with actions pane, called whenever actions changes
         self.intel.bind_to_action_update(self.actions.update_actions)
@@ -131,6 +134,10 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.actions.undo_exclude_file.connect(self._action_add_files)
         self.two_d.box_select.connect(self.select_line_by_box)
         self.action_thread.finished.connect(self._kluster_execute_action_results)
+        self.overwrite_nav_thread.started.connect(self._start_action_progress)
+        self.overwrite_nav_thread.finished.connect(self._kluster_overwrite_nav_results)
+        self.import_ppnav_thread.started.connect(self._start_action_progress)
+        self.import_ppnav_thread.finished.connect(self._kluster_import_ppnav_results)
         self.surface_thread.started.connect(self._start_action_progress)
         self.surface_thread.finished.connect(self._kluster_surface_generation_results)
         self.export_thread.started.connect(self._start_action_progress)
@@ -203,6 +210,11 @@ class KlusterMain(QtWidgets.QMainWindow):
         setup_client_action.triggered.connect(self.start_dask_client)
         vessel_view_action = QtWidgets.QAction('Vessel Offsets', self)
         vessel_view_action.triggered.connect(self._action_vessel_view)
+
+        importppnav_action = QtWidgets.QAction('Import Processed Navigation', self)
+        importppnav_action.triggered.connect(self._action_import_ppnav)
+        overwritenav_action = QtWidgets.QAction('Overwrite Raw Navigation', self)
+        overwritenav_action.triggered.connect(self._action_overwrite_nav)
         surface_action = QtWidgets.QAction('New Surface', self)
         surface_action.triggered.connect(self._action_surface_generation)
 
@@ -234,6 +246,8 @@ class KlusterMain(QtWidgets.QMainWindow):
         setup.addAction(setup_client_action)
 
         process = menubar.addMenu('Process')
+        process.addAction(overwritenav_action)
+        process.addAction(importppnav_action)
         process.addAction(surface_action)
 
         visual = menubar.addMenu('Visualize')
@@ -283,7 +297,7 @@ class KlusterMain(QtWidgets.QMainWindow):
                         print('update_on_file_added: Unable to add to Project from existing: {}'.format(f))
                     if already_in:
                         print('{} already exists in {}'.format(f, self.project.path))
-                    else:
+                    elif fqpr_entry:
                         new_fqprs.append(fqpr_entry)
         self.refresh_project(new_fqprs)
 
@@ -550,6 +564,114 @@ class KlusterMain(QtWidgets.QMainWindow):
                 self.refresh_project(fqpr=[fqpr_entry])
         else:
             print('kluster_action: no data returned from action execution: {}'.format(fqpr))
+
+    def kluster_overwrite_nav(self):
+        """
+        Takes all the selected fqpr instances in the project tree and runs the overwrite navigation dialog to process those
+        instances.  Dialog allows for adding/removing instances.
+
+        If a dask client hasn't been setup in this Kluster run, we auto setup a dask LocalCluster for processing
+
+        Refreshes the project at the end to load in the new attribution
+
+        """
+        if not self.no_threads_running():
+            print('Processing is already occurring.  Please wait for the process to finish')
+            cancelled = True
+        else:
+            fqprs = self.return_selected_fqprs()
+            dlog = dialog_overwritenav.OverwriteNavigationDialog()
+            dlog.update_fqpr_instances(addtl_files=fqprs)
+            cancelled = False
+            if dlog.exec_():
+                opts = dlog.return_processing_options()
+                if opts is not None and not dlog.canceled:
+                    nav_opts = opts
+                    fqprs = nav_opts.pop('fqpr_inst')
+                    fq_chunks = []
+                    for fq in fqprs:
+                        relfq = self.project.path_relative_to_project(fq)
+                        if relfq not in self.project.fqpr_instances:
+                            self.update_on_file_added(fq)
+                        if relfq in self.project.fqpr_instances:
+                            fq_inst = self.project.fqpr_instances[relfq]
+                            # use the project client, or start a new LocalCluster if client is None
+                            fq_inst.client = self.project.get_dask_client()
+                            fq_chunks.append([fq_inst, nav_opts])
+                    if fq_chunks:
+                        self.overwrite_nav_thread.populate(fq_chunks)
+                        self.overwrite_nav_thread.start()
+                else:
+                    cancelled = True
+        if cancelled:
+            print('kluster_import_navigation: Processing was cancelled')
+
+    def _kluster_overwrite_nav_results(self):
+        """
+        Method is run when the import navigation thread signals completion.  All we need to do here is refresh the project
+        and display.
+        """
+        fq_inst = self.overwrite_nav_thread.fqpr_instances
+        if fq_inst:
+            for fq in fq_inst:
+                self.project.add_fqpr(fq)
+                self.refresh_explorer(fq)
+        else:
+            print('kluster_import_navigation: Unable to complete process')
+
+    def kluster_import_ppnav(self):
+        """
+        Takes all the selected fqpr instances in the project tree and runs the import navigation dialog to process those
+        instances.  Dialog allows for adding/removing instances.
+
+        If a dask client hasn't been setup in this Kluster run, we auto setup a dask LocalCluster for processing
+
+        Refreshes the project at the end to load in the new attribution
+
+        """
+        if not self.no_threads_running():
+            print('Processing is already occurring.  Please wait for the process to finish')
+            cancelled = True
+        else:
+            fqprs = self.return_selected_fqprs()
+            dlog = dialog_importppnav.ImportPostProcNavigationDialog()
+            dlog.update_fqpr_instances(addtl_files=fqprs)
+            cancelled = False
+            if dlog.exec_():
+                opts = dlog.return_processing_options()
+                if opts is not None and not dlog.canceled:
+                    nav_opts = opts
+                    fqprs = nav_opts.pop('fqpr_inst')
+                    fq_chunks = []
+                    for fq in fqprs:
+                        relfq = self.project.path_relative_to_project(fq)
+                        if relfq not in self.project.fqpr_instances:
+                            self.update_on_file_added(fq)
+                        if relfq in self.project.fqpr_instances:
+                            fq_inst = self.project.fqpr_instances[relfq]
+                            # use the project client, or start a new LocalCluster if client is None
+                            fq_inst.client = self.project.get_dask_client()
+                            fq_chunks.append([fq_inst, nav_opts])
+                    if fq_chunks:
+                        self.import_ppnav_thread.populate(fq_chunks)
+                        self.import_ppnav_thread.start()
+                else:
+                    cancelled = True
+        if cancelled:
+            print('kluster_import_navigation: Processing was cancelled')
+
+    def _kluster_import_ppnav_results(self):
+        """
+        Method is run when the import navigation thread signals completion.  All we need to do here is refresh the project
+        and display.
+        """
+        fq_inst = self.import_ppnav_thread.fqpr_instances
+        if fq_inst:
+            for fq in fq_inst:
+                self.project.add_fqpr(fq)
+                self.refresh_explorer(fq)
+        else:
+            print('kluster_import_navigation: Unable to complete process')
 
     def kluster_surface_generation(self):
         """
@@ -1112,6 +1234,18 @@ class KlusterMain(QtWidgets.QMainWindow):
         Connect menu action 'Advanced Plots' with basicplots dialog
         """
         self.kluster_advanced_plots()
+
+    def _action_import_ppnav(self):
+        """
+        Connect menu action 'Import Processed Navigation' with ppnav dialog
+        """
+        self.kluster_import_ppnav()
+
+    def _action_overwrite_nav(self):
+        """
+        Connect menu action 'Overwrite Navigation' with overwrite nav dialog
+        """
+        self.kluster_overwrite_nav()
 
     def _action_surface_generation(self):
         """

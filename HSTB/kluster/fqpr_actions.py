@@ -367,7 +367,7 @@ def build_nav_action(destination: str, fqpr_instance: fqpr_generation.Fqpr, navf
     kwargs = {'errorfiles': error_files, 'logfiles': log_files}
     action = FqprAction(priority=2, action_type='navigation', output_destination=destination,
                         input_files=navfiles + error_files + log_files, text='Import navigation to {}'.format(destination),
-                        tooltip_text='\n'.join(navfiles), function=fqpr_convenience.import_navigation,
+                        tooltip_text='\n'.join(navfiles), function=fqpr_convenience.import_processed_navigation,
                         args=args, kwargs=kwargs)
     return action
 

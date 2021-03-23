@@ -1,6 +1,6 @@
 from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal
 
-from HSTB.kluster.fqpr_convenience import generate_new_surface
+from HSTB.kluster.fqpr_convenience import generate_new_surface, import_processed_navigation, overwrite_raw_navigation
 
 
 class ActionWorker(QtCore.QThread):
@@ -28,6 +28,52 @@ class ActionWorker(QtCore.QThread):
         # turn off progress, it creates too much clutter in the output window
         self.action_type = self.action_container.actions[self.action_index].action_type
         self.result = self.action_container.execute_action(self.action_index)
+        self.finished.emit(True)
+
+
+class ImportNavigationWorker(QtCore.QThread):
+    """
+    Executes code in a seperate thread.
+    """
+
+    started = Signal(bool)
+    finished = Signal(bool)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.fq_chunks = None
+        self.fqpr_instances = []
+
+    def populate(self, fq_chunks):
+        self.fq_chunks = fq_chunks
+
+    def run(self):
+        self.started.emit(True)
+        for chnk in self.fq_chunks:
+            self.fqpr_instances.append(import_processed_navigation(chnk[0], **chnk[1]))
+        self.finished.emit(True)
+
+
+class OverwriteNavigationWorker(QtCore.QThread):
+    """
+    Executes code in a seperate thread.
+    """
+
+    started = Signal(bool)
+    finished = Signal(bool)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.fq_chunks = None
+        self.fqpr_instances = []
+
+    def populate(self, fq_chunks):
+        self.fq_chunks = fq_chunks
+
+    def run(self):
+        self.started.emit(True)
+        for chnk in self.fq_chunks:
+            self.fqpr_instances.append(overwrite_raw_navigation(chnk[0], **chnk[1]))
         self.finished.emit(True)
 
 

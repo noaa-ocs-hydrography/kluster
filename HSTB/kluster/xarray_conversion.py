@@ -1098,7 +1098,8 @@ class BatchRead:
 
         Also initialize the logging module (path to logfile is in self.logfile).
         """
-
+        if type(self.filfolder) == list and len(self.filfolder) == 1:
+            self.filfolder = self.filfolder[0]
         if type(self.filfolder) == list:
             fils = self.filfolder
             self.filfolder = os.path.dirname(fils[0])

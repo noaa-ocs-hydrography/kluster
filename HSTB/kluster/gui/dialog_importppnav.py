@@ -5,13 +5,10 @@ from HSTB.shared import RegistryHelpers
 from HSTB.kluster.gui.common_widgets import BrowseListWidget
 
 
-# DEPRECATED AS WE HAVE MOVED TO FQPRINTELLIGENCE/FQPRACTIONS TO CONTROL CONVERSION
-
-
-class ImportNavigationDialog(QtWidgets.QDialog):
+class ImportPostProcNavigationDialog(QtWidgets.QDialog):
     """
-    Dialog contains all the processing steps post-conversion.  Use return_processing_options to get the kwargs to feed
-    the fqpr_convenience.process_multibeam function.
+    Dialog contains all the options related to importing post processed navigation (POSPac SBET).  Use
+    return_processing_options to get the kwargs to feed the fqpr_convenience.process_multibeam function.
 
     fqpr = fully qualified ping record, the term for the datastore in kluster
     """
@@ -201,10 +198,11 @@ class ImportNavigationDialog(QtWidgets.QDialog):
         if not self.smrmsg_files:
             self.smrmsg_files = None
 
+        # always overwrite when the user uses the manual import with this dialog
         if not self.canceled:
             opts = {'fqpr_inst': self.fqpr_inst, 'navfiles': self.sbet_files, 'errorfiles': self.smrmsg_files,
                     'logfiles': logfiles, 'weekstart_year': weekstart_year, 'weekstart_week': weekstart_week,
-                    'override_datum': override_datum}
+                    'override_datum': override_datum, 'overwrite': True}
         else:
             opts = None
         return opts
@@ -233,7 +231,7 @@ if __name__ == '__main__':
         app = QtWidgets.QApplication()
     except TypeError:  # pyqt5
         app = QtWidgets.QApplication([])
-    dlog = ImportNavigationDialog()
+    dlog = ImportPostProcNavigationDialog()
     dlog.show()
     if dlog.exec_():
         pass
