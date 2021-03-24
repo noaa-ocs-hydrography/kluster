@@ -2,6 +2,10 @@
 *.ini
 *.lock
 
+# dask stuff
+*.dirlock
+
+
 # IDE files
 *.spyproject
 .idea

@@ -251,6 +251,10 @@ def test_intelligence():
                              'epsg': None, 'coord_system': 'NAD83', 'vert_ref': 'waterline'}
     assert isinstance(action.args[0], fqpr_generation.Fqpr)
 
+    assert isinstance(proj.get_dask_client(), Client)
+    assert isinstance(proj.build_raw_attitude_for_line('0009_20170523_181119_FA2806.all'), xr.Dataset)
+    assert proj.fqpr_instances['em2040_40111_05_23_2017'] == proj.return_line_owner('0009_20170523_181119_FA2806.all')
+
     fintel.clear()
     datapath = action.args[0].multibeam.converted_pth
     proj.close()

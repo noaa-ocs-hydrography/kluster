@@ -137,9 +137,10 @@ class Fqpr:
         | self.logger is the logging.Logger object
         """
 
-        if self.logger is None and self.multibeam.logfile is not None and self.multibeam is not None:
-            self.logfile = self.multibeam.logfile
-            self.logger = return_logger(__name__, self.logfile)
+        if self.logger is None and self.multibeam is not None:
+            if self.multibeam.logfile is not None:
+                self.logfile = self.multibeam.logfile
+                self.logger = return_logger(__name__, self.logfile)
 
     def set_vertical_reference(self, vert_ref: str):
         """
