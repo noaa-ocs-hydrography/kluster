@@ -193,34 +193,34 @@ def test_intel_remove_sv():
     proj = None
     cleanup_after_tests()
 
-
-def test_intel_monitor():
-    testfile, testsv, expected_data_folder, expected_data_folder_path = get_testfile_paths()
-
-    proj_path = os.path.join(os.path.dirname(testfile), 'kluster_project.json')
-    if os.path.exists(proj_path):
-        os.remove(proj_path)
-    proj = create_new_project(os.path.dirname(testfile))
-    fintel = FqprIntel(proj)
-
-    fintel.start_folder_monitor(os.path.dirname(testfile))
-    time.sleep(5)
-    if not fintel.svp_intel.file_paths or not fintel.multibeam_intel.file_paths:  # might need a bit longer
-        time.sleep(10)
-    fintel.stop_folder_monitor(os.path.dirname(testfile))
-
-    assert fintel.svp_intel.file_paths == [testsv]
-    assert fintel.svp_intel.file_path == {'2020_036_182635.svp': testsv}
-    assert fintel.svp_intel.file_name == {testsv: '2020_036_182635.svp'}
-    assert fintel.svp_intel.type == {testsv: 'caris_svp'}
-
-    assert fintel.multibeam_intel.line_groups == {expected_data_folder_path: [testfile]}
-    assert fintel.multibeam_intel.unmatched_files == {}
-    assert fintel.multibeam_intel.file_name == {testfile: '0009_20170523_181119_FA2806.all'}
-    assert fintel.multibeam_intel.matching_fqpr[testfile] == ''
-
-    fintel.clear()
-    proj.close()
-    fintel = None
-    proj = None
-    cleanup_after_tests()
+#
+# def test_intel_monitor():
+#     testfile, testsv, expected_data_folder, expected_data_folder_path = get_testfile_paths()
+#
+#     proj_path = os.path.join(os.path.dirname(testfile), 'kluster_project.json')
+#     if os.path.exists(proj_path):
+#         os.remove(proj_path)
+#     proj = create_new_project(os.path.dirname(testfile))
+#     fintel = FqprIntel(proj)
+#
+#     fintel.start_folder_monitor(os.path.dirname(testfile))
+#     time.sleep(5)
+#     if not fintel.svp_intel.file_paths or not fintel.multibeam_intel.file_paths:  # might need a bit longer
+#         time.sleep(10)
+#     fintel.stop_folder_monitor(os.path.dirname(testfile))
+#
+#     assert fintel.svp_intel.file_paths == [testsv]
+#     assert fintel.svp_intel.file_path == {'2020_036_182635.svp': testsv}
+#     assert fintel.svp_intel.file_name == {testsv: '2020_036_182635.svp'}
+#     assert fintel.svp_intel.type == {testsv: 'caris_svp'}
+#
+#     assert fintel.multibeam_intel.line_groups == {expected_data_folder_path: [testfile]}
+#     assert fintel.multibeam_intel.unmatched_files == {}
+#     assert fintel.multibeam_intel.file_name == {testfile: '0009_20170523_181119_FA2806.all'}
+#     assert fintel.multibeam_intel.matching_fqpr[testfile] == ''
+#
+#     fintel.clear()
+#     proj.close()
+#     fintel = None
+#     proj = None
+#     cleanup_after_tests()
