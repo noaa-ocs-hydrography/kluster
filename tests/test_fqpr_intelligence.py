@@ -193,7 +193,10 @@ def test_intel_remove_sv():
     proj = None
     cleanup_after_tests()
 
-#
+
+# some issue with pytest hanging when we use the folder monitoring stuff
+# not sure what to do here, stopping/joining the observer is what the docs say to do
+
 # def test_intel_monitor():
 #     testfile, testsv, expected_data_folder, expected_data_folder_path = get_testfile_paths()
 #
