@@ -365,6 +365,7 @@ def get_orientation_vectors(dset='realdualhead'):
     # check for the expected rx orientation vectors
     assert np.array_equal(expected_rx, rxvecdata)
 
+    fq.close()
     print('Passed: get_orientation_vectors')
 
 
@@ -421,6 +422,7 @@ def build_beam_pointing_vector(dset='realdualhead'):
     # beam depression angle check
     assert np.array_equal(bda_data, expected_bda)
 
+    fq.close()
     print('Passed: build_beam_pointing_vector')
 
 
@@ -486,6 +488,7 @@ def sv_correct(dset='realdualhead'):
     # depth offset check
     assert np.array_equal(z_data, expected_z)
 
+    fq.close()
     print('Passed: sv_correct')
 
 
@@ -556,6 +559,7 @@ def georef_xyz(dset='realdualhead'):
     # depth
     assert np.array_equal(z_data, expected_z)
 
+    fq.close()
     print('Passed: georef_xyz')
 
 
@@ -728,6 +732,7 @@ def build_georef_correct_comparison(dset='realdual', vert_ref='waterline', datum
     else:
         raise NotImplementedError('only real and realdual are currently implemented')
 
+    fq.close()
     return loaded_data, xyz88_data
 
 

@@ -41,6 +41,7 @@ def test_build_svp_action():
     assert act.action_type == 'svp'
     assert act.priority == 3
     assert act.is_running is False
+    empty_fq.close()
 
 
 def test_update_kwargs_for_svp():
@@ -51,3 +52,4 @@ def test_update_kwargs_for_svp():
     assert sets['args'] == [empty_fq, [testsv]]
     assert sets['tooltip_text'] == testsv
     assert sets['input_files'] == [testsv]
+    empty_fq.close()
