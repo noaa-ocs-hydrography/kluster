@@ -40,7 +40,6 @@ def test_intel_add_multibeam():
     assert new_data['sonar_model_number'] == 'em2040'
     assert 'last_modified_time_utc' in new_data  # can't check content of this, depends on the env
     assert 'created_time_utc' in new_data  # can't check content of this, depends on the env
-    assert new_data['file_size_kb'] == 7667.801
     assert 'time_added' in new_data  # can't check content of this, depends on the env
     assert new_data['unique_id'] == 0
     assert new_data['file_name'] == '0009_20170523_181119_FA2806.all'
@@ -138,7 +137,6 @@ def test_intel_add_sv():
     assert new_data['utm_hemisphere'] == ['N']
     assert 'last_modified_time_utc' in new_data  # can't check content of this, depends on the env
     assert 'created_time_utc' in new_data  # can't check content of this, depends on the env
-    assert new_data['file_size_kb'] == 0.618
     assert 'time_added' in new_data  # can't check content of this, depends on the env
     assert new_data['unique_id'] == 0
     assert new_data['file_name'] == '2020_036_182635.svp'
