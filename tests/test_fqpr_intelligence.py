@@ -58,6 +58,8 @@ def test_intel_add_multibeam():
     assert fintel.multibeam_intel.matching_fqpr == {}
 
     proj.close()
+    fintel = None
+    proj = None
     cleanup_after_tests()
 
 
@@ -83,6 +85,8 @@ def test_intel_remove_multibeam():
 
     fintel.clear()
     proj.close()
+    fintel = None
+    proj = None
     cleanup_after_tests()
 
 
@@ -157,6 +161,8 @@ def test_intel_add_sv():
     assert fintel.svp_intel.type == {}
 
     proj.close()
+    fintel = None
+    proj = None
     cleanup_after_tests()
 
 
@@ -183,6 +189,8 @@ def test_intel_remove_sv():
 
     fintel.clear()
     proj.close()
+    fintel = None
+    proj = None
     cleanup_after_tests()
 
 
@@ -213,4 +221,6 @@ def test_intel_monitor():
 
     fintel.clear()
     proj.close()
+    fintel = None
+    proj = None
     cleanup_after_tests()
