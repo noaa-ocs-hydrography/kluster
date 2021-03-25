@@ -127,8 +127,7 @@ def _build_serial_mask(rec: dict):
     Returns
     -------
     list
-        contains string identifiers for each sector, ex: ['40111_0_265000', '40111_0_275000', '40111_1_285000',
-        '40111_1_290000', '40111_2_270000', '40111_2_280000']
+        contains string identifiers for each sector, ex: [40111, 40111, 40112, 40112, 40111, 40111]
     list
         index of where each sector_id identifier shows up in the data
     """
@@ -347,7 +346,7 @@ def _sequential_to_xarray(rec: dict):
     return finalraw, finalatt, finalnav
 
 
-def _divide_xarray_futs(xarrfuture: xr.Dataset, mode: str = 'ping'):
+def _divide_xarray_futs(xarrfuture: list, mode: str = 'ping'):
     """
     The return from _sequential_to_xarray is a future containing three xarrays.  Map this function to access that future
     and return the xarray specified with the mode keyword.
@@ -355,7 +354,7 @@ def _divide_xarray_futs(xarrfuture: xr.Dataset, mode: str = 'ping'):
     Parameters
     ----------
     xarrfuture
-        xarray Dataset from _sequential_to_xarray
+        list of xarray Datasets from _sequential_to_xarray
 
     Returns
     -------
@@ -387,7 +386,7 @@ def _return_xarray_mintime(xarrs: Union[xr.DataArray, xr.Dataset, dict]):
         return float(list(xarrs.values())[0].time.min())
 
 
-def _return_xarray_timelength(xarrs: Union[xr.DataArray, xr.Dataset]):
+def _return_xarray_timelength(xarrs: xr.Dataset):
     """
     Access xarray object and return the length of the time dimension.
 
@@ -430,7 +429,7 @@ def _divide_xarray_return_system(xarr: dict, sysid: str):
     return xarr_by_sysid
 
 
-def _divide_xarray_indicate_empty_future(fut: xr.Dataset):
+def _divide_xarray_indicate_empty_future(fut: Union[None, xr.Dataset]):
     """
     Operations that result in an empty time array, this function indicates this
 
@@ -714,7 +713,7 @@ def _closest_key_value(tstmps: list, key: float):
         return None
 
     tim = float(key)
-    difs = tim - sett_tims
+    difs = abs(tim - sett_tims)
     closest_tim = sett_tims[np.nanargmin(difs)]
     return closest_tim
 

@@ -4,7 +4,7 @@ import json
 from collections import OrderedDict
 import xarray as xr
 
-from HSTB.kluster.UTC import julian_day_time_to_utctimestamp
+from HSTB.kluster.utc_helpers import julian_day_time_to_utctimestamp
 from HSTB.kluster.dms import parse_dms_to_dd
 from HSTB.kluster.rotations import build_rot_mat
 from HSTB.kluster.xarray_helpers import stack_nan_array, reform_nan_array

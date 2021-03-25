@@ -2,8 +2,6 @@ from datetime import datetime, timezone
 import time
 import calendar
 
-# Make sure to not add any HSTB module imports so this is standalone and old HSTP code can also use it
-
 # Caris 1980 epoch
 _epoch = calendar.timegm(datetime.strptime('1980-001', '%Y-%j').timetuple())
 

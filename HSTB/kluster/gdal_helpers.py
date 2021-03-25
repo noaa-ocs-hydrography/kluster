@@ -1,5 +1,6 @@
 from typing import Union
 import numpy as np
+import os
 
 import osgeo
 from osgeo import gdal, ogr
@@ -82,26 +83,30 @@ def return_gdal_version():
         gdal version
     """
 
-    vers = gdal.VersionInfo()
-    maj = vers[0:2]
-    if maj[1] == '0':
-        maj = int(maj[0])
-    else:
-        maj = int(maj)
-    min = vers[2:4]
-    if min[1] == '0':
-        min = int(min[0])
-    else:
-        min = int(min)
-    hfix = vers[4:8]
-    if hfix[2] == '0':
-        if hfix[1] == '0':
-            hfix = int(hfix[0])
-        else:
-            hfix = int(hfix[0:1])
-    else:
-        hfix = int(hfix[0:2])
-    return '{}.{}.{}'.format(maj, min, hfix)
+    # vers = gdal.VersionInfo()
+    # maj = vers[0:2]
+    # if maj[1] == '0':
+    #     maj = int(maj[0])
+    # else:
+    #     maj = int(maj)
+    # min = vers[2:4]
+    # if min[1] == '0':
+    #     min = int(min[0])
+    # else:
+    #     min = int(min)
+    # hfix = vers[4:8]
+    # if hfix[2] == '0':
+    #     if hfix[1] == '0':
+    #         hfix = int(hfix[0])
+    #     else:
+    #         hfix = int(hfix[0:1])
+    # else:
+    #     hfix = int(hfix[0:2])
+    # return '{}.{}.{}'.format(maj, min, hfix)
+
+    # not sure how I got to the above answer, when you can just use gdal.__version__
+    #  I think it was for an old version of GDAL?  Leaving it just in case
+    return gdal.__version__
 
 
 def ogr_output_file_exists(pth: str):
@@ -120,6 +125,7 @@ def ogr_output_file_exists(pth: str):
     bool
         True if the file exists
     """
+
     openfil = ogr.Open(pth)
     if openfil is None:
         return False
@@ -163,7 +169,7 @@ def gdal_raster_create(output_raster: str, data: list, geo_transform: list, crs:
     data
         list of numpy ndarrays, generally something like [2dim depth, 2dim uncertainty].  Can just be [2dim depth]
     geo_transform
-        gdal geotransform for the raster
+        gdal geotransform for the raster [x origin, x pixel size, x rotation, y origin, y rotation, -y pixel size]
     crs
         pyproj CRS or an integer epsg code
     nodatavalue
@@ -232,8 +238,6 @@ class VectorLayer:
 
         self.update = update
         output_file_exists = ogr_output_file_exists(output_file)
-        if self.update and not output_file_exists:
-            raise ValueError('Update is enabled, but we are unable to open the provided file path {}'.format(self.output_file))
 
         self.ds = None
         if output_file_exists:
@@ -346,7 +350,7 @@ class VectorLayer:
         lyr = self.ds.GetLayer(layer_name)
         return lyr
 
-    def write_to_layer(self, layer_name: str, coords_dset: Union[list, np.ndarray], geom_type: int):
+    def write_to_layer(self, layer_name: str, coords_dset: np.ndarray, geom_type: int):
         """
         Build the requested geometry and write to layer_name.  If that layer exists, will update as long as the
         update switch is on.
@@ -365,14 +369,25 @@ class VectorLayer:
         if isinstance(coords_dset, np.ndarray):
             coords_dset = [coords_dset]
 
+        # seems as though you have to have a layer in there equal to the file name.  If you don't do this, you end up
+        #   with a layer equal to the file name regardless of what you name you pass into createlayer.
+        default_layer = os.path.splitext(os.path.split(self.output_file)[1])[0]
+        # create this default layer if it is not in there already and you aren't trying to do it anyway
+        if not self.ds.GetLayerByName(default_layer) and default_layer != layer_name:
+            self._print_with_silent('Initializing new file...')
+            lyr = self.ds.CreateLayer(default_layer, self.crs, geom_type)
+            lyr = None
+
         lyr = self.ds.GetLayer(layer_name)
         if lyr is not None:
             if self.update and lyr.GetGeomType() != geom_type:  # found a layer of that name, which is fine with update, just make sure the geom matches
                 raise ValueError('Provided geometry type {} does not match layer {} which is {}'.format(geom_type, layer_name, lyr.GetGeomType()))
             elif not self.update:
                 raise ValueError('Layer {} exists already, update must be enabled to update the layer'.format(layer_name))
+            self._print_with_silent('Updating layer {}'.format(layer_name))
         else:
             lyr = self.ds.CreateLayer(layer_name, self.crs, geom_type)
+            self._print_with_silent('Creating new layer {}'.format(layer_name))
 
         success_count = 0
         for coords in coords_dset:
@@ -390,6 +405,7 @@ class VectorLayer:
             if not err:
                 success_count += 1
             feat = None
+        lyr = None
         self._print_with_silent('Successfully written {} out of {} features in layer {}'.format(len(coords_dset), success_count, layer_name))
 
     def delete_layer(self, layer_name: str):

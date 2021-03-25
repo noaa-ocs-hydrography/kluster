@@ -251,6 +251,10 @@ def test_intelligence():
                              'epsg': None, 'coord_system': 'NAD83', 'vert_ref': 'waterline'}
     assert isinstance(action.args[0], fqpr_generation.Fqpr)
 
+    assert isinstance(proj.get_dask_client(), Client)
+    assert isinstance(proj.build_raw_attitude_for_line('0009_20170523_181119_FA2806.all'), xr.Dataset)
+    assert proj.fqpr_instances['em2040_40111_05_23_2017'] == proj.return_line_owner('0009_20170523_181119_FA2806.all')
+
     fintel.clear()
     datapath = action.args[0].multibeam.converted_pth
     proj.close()
@@ -361,6 +365,7 @@ def get_orientation_vectors(dset='realdualhead'):
     # check for the expected rx orientation vectors
     assert np.array_equal(expected_rx, rxvecdata)
 
+    fq.close()
     print('Passed: get_orientation_vectors')
 
 
@@ -417,6 +422,7 @@ def build_beam_pointing_vector(dset='realdualhead'):
     # beam depression angle check
     assert np.array_equal(bda_data, expected_bda)
 
+    fq.close()
     print('Passed: build_beam_pointing_vector')
 
 
@@ -482,6 +488,7 @@ def sv_correct(dset='realdualhead'):
     # depth offset check
     assert np.array_equal(z_data, expected_z)
 
+    fq.close()
     print('Passed: sv_correct')
 
 
@@ -552,6 +559,7 @@ def georef_xyz(dset='realdualhead'):
     # depth
     assert np.array_equal(z_data, expected_z)
 
+    fq.close()
     print('Passed: georef_xyz')
 
 
@@ -724,6 +732,7 @@ def build_georef_correct_comparison(dset='realdual', vert_ref='waterline', datum
     else:
         raise NotImplementedError('only real and realdual are currently implemented')
 
+    fq.close()
     return loaded_data, xyz88_data
 
 

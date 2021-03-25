@@ -390,16 +390,3 @@ surf = generate_new_surface(fq, min_grid_size=1, max_grid_size=1)
 # gdalbuildvrt -input_file_list "C:\vdatum_all_20201203\vdatum\vrt_file_list.txt" "C:\vdatum_all_20201203\vdatum\chart_datum_depth.vrt"
 
 ###############################################################################################
-
-from HSTB.drivers import PCSio
-f = PCSio.PCSFile(r"C:\collab\dasktest\data_dir\EM2040_Bigelow_Wobble\14FEB2020-PatchTest.000", nCache=0)
-f.QuickCache('$GRP', 1)
-data = f.GetArray('$GRP', 1)
-
-f.QuickCache('$GRP', 3)
-metad = f.GetArray('$GRP', 3)
-
-# no group 3? how do I get gps week number?  have to ask i guess
-
-posd = PCSio.pos_to_xarray(r"C:\collab\dasktest\data_dir\EM2040_Bigelow_Wobble\14FEB2020-PatchTest.000", 2021, 7)
-

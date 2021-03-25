@@ -171,9 +171,9 @@ def combine_rotation_matrix(mat_one: xr.DataArray, mat_two: xr.DataArray):
     return rmat
 
 
-def return_attitude_rotation_matrix(attitude: xr.DataArray, time_index: np.array = None):
+def return_attitude_rotation_matrix(attitude: xr.Dataset, time_index: np.array = None):
     """
-    We start of doing calculations in array relative reference frame.  To get to a geographic reference frame, we
+    We start off doing calculations in array relative reference frame.  To get to a geographic reference frame, we
     need rotation matrices for attitude and mounting angles.  Here we construct the attitude rotation matrix, at
     specific times (time of ping, time of receive, etc.).  We also allow for additional selection to accommodate
     for when we get duplicate times due to pingtime + twtt sometimes getting the same time for some beams.
@@ -181,7 +181,7 @@ def return_attitude_rotation_matrix(attitude: xr.DataArray, time_index: np.array
     Parameters
     ----------
     attitude
-        1 dimensional array representing the full attitude record
+        1 dimensional dataset representing the full attitude record
     time_index
         optional, if provided, is a 1 dimensional array of integers representing the index of values you want to return
         from the attitude Dataset
