@@ -41,9 +41,9 @@ REQUIRED = [
             'watchdog==1.0.2',
             'xarray==0.17.0',
             'zarr==2.6.1',
-            'hstb.drivers',
-            'hstb.shared',
-            'vyperdatum'
+            'hstb.drivers @ git+https://github.com/noaa-ocs-hydrography/drivers.git#egg=hstb.drivers',
+            'hstb.shared @ git+https://github.com/noaa-ocs-hydrography/shared.git#egg=hstb.shared',
+            'vyperdatum @ git+https://github.com/noaa-ocs-hydrography/vyperdatum.git#egg=vyperdatum'
             
             # Pyside stuff
             #  first had to downgrade to PySide2 5.14.1 to avoid shiboken import errors https://bugreports.qt.io/browse/PYSIDE-1257
@@ -54,13 +54,6 @@ REQUIRED = [
             # 'qgis==3.18.0'  Required for GUI, but must be conda installed with PROJ
             # 'vispy==0.6.6'  Required for visualizations
             ]
-
-# links to the dependencies necessary for the NOAA made modules
-DEPENDENCIES = [
-                'git+https://github.com/noaa-ocs-hydrography/drivers.git#egg=hstb.drivers',
-                'git+https://github.com/noaa-ocs-hydrography/shared.git#egg=hstb.shared',
-                'git+https://github.com/noaa-ocs-hydrography/vyperdatum.git#egg=vyperdatum'
-               ]
 
 # What packages are optional?
 EXTRAS = {
@@ -148,7 +141,6 @@ setup(
     # },
     install_requires=REQUIRED,
     extras_require=EXTRAS,
-    dependency_links=DEPENDENCIES,
     include_package_data=True,
     license='CC0-1.0',
     classifiers=[
