@@ -73,10 +73,6 @@ Perform these in order:
 
 `pip install git+https://github.com/noaa-ocs-hydrography/kluster.git#egg=hstb.kluster `
 
-`pip install git+https://github.com/noaa-ocs-hydrography/drivers.git#egg=hstb.drivers `
-
-`pip install git+https://github.com/noaa-ocs-hydrography/shared.git#egg=hstb.shared `
-
 ## Quickstart
 
 Here we will show how to process through a GUI or through a console.
