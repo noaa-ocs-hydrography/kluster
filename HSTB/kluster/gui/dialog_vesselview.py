@@ -3,10 +3,11 @@ import sys
 import numpy as np
 import json
 from datetime import datetime
-from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal, backend
+from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal, backend, qgis_enabled
 
 from vispy import use
 use(backend, 'gl2')
+
 
 from vispy import scene
 from vispy.io import read_mesh
@@ -1281,7 +1282,7 @@ class VesselView(QtWidgets.QWidget):
         # self.z_axis.transform.rotate(90, (0, 1, 0))  # rotate cw around yaxis
         # self.z_axis.transform.rotate(-45, (0, 0, 1))  # tick direction towards (-1,-1)
 
-        self.vessview.camera = scene.cameras.ArcballCamera(parent=self.vessview.scene, center=(0, 0, 0))
+        self.vessview.camera = scene.cameras.TurntableCamera(parent=self.vessview.scene, center=(0, 0, 0))
 
     def sensor_selected(self, sensor_name):
         """

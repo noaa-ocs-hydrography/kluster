@@ -667,11 +667,7 @@ class FqprProject:
 
         for fq_proj in self.fqpr_lines:
             for fq_line in self.fqpr_lines[fq_proj]:
-                if fq_line not in self.buffered_fqpr_navigation:
-                    lats, lons = self.return_line_navigation(fq_line, samplerate=1)
-                    self.buffered_fqpr_navigation[fq_line] = [lats, lons]
-                else:
-                    lats, lons = self.buffered_fqpr_navigation[fq_line]
+                lats, lons = self.return_line_navigation(fq_line, samplerate=2)
 
                 line_min_lat = np.min(lats)
                 line_max_lat = np.max(lats)
@@ -682,6 +678,30 @@ class FqprProject:
                         (line_min_lon > min_lon):
                     lines_in_box.append(fq_line)
         return lines_in_box
+
+    def return_soundings_in_box(self, min_lat: float, max_lat: float, min_lon: float, max_lon: float):
+        """
+        With the given latitude/longitude boundaries, return the soundings that are within the boundaries.  Use the
+        Fqpr xyz_crs recorded EPSG to do the transformation to northing/easting, and then query all the x, y to get
+        the soundings.
+
+        Parameters
+        ----------
+        min_lat
+            float, minimum latitude in degrees
+        max_lat
+            float, maximum latitude in degrees
+        min_lon
+            float, minimum longitude in degrees
+        max_lon
+            float, maximum longitude in degrees
+
+        Returns
+        -------
+        list
+            line names that fall within the box
+        """
+        pass
 
     def return_project_folder(self):
         """
