@@ -16,7 +16,7 @@ def distrib_run_georeference(dat: list):
     Parameters
     ----------
     dat
-        [sv_data, altitude, longitude, latitude, heading, heave, waterline, vert_ref, xyz_crs, z_offset]
+        [sv_data, altitude, longitude, latitude, heading, heave, waterline, vert_ref, horizontal_crs, z_offset]
 
     Returns
     -------
@@ -38,7 +38,7 @@ def distrib_run_georeference(dat: list):
 
 
 def georef_by_worker(sv_corr: list, alt: xr.DataArray, lon: xr.DataArray, lat: xr.DataArray, hdng: xr.DataArray,
-                     heave: xr.DataArray, wline: float, vert_ref: str, input_crs: CRS, xyz_crs: CRS, z_offset: float):
+                     heave: xr.DataArray, wline: float, vert_ref: str, input_crs: CRS, horizontal_crs: CRS, z_offset: float):
     """
     Use the raw attitude/navigation to transform the vessel relative along/across/down offsets to georeferenced
     soundings.  Will support transformation to geographic and projected coordinate systems and with a vertical
@@ -64,7 +64,7 @@ def georef_by_worker(sv_corr: list, alt: xr.DataArray, lon: xr.DataArray, lat: x
         vertical reference point, one of ['ellipse', 'vessel', 'waterline']
     input_crs
         pyproj CRS object, input coordinate reference system information for this run
-    xyz_crs
+    horizontal_crs
         pyproj CRS object, destination coordinate reference system information for this run
     z_offset
         lever arm from reference point to transmitter
@@ -77,7 +77,7 @@ def georef_by_worker(sv_corr: list, alt: xr.DataArray, lon: xr.DataArray, lat: x
          xr.DataArray corrected altitude for TX - RP lever arm, all zeros if in 'vessel' or 'waterline' mode (time)]
     """
 
-    g = xyz_crs.get_geod()
+    g = horizontal_crs.get_geod()
 
     # unpack the sv corrected data output
     alongtrack = sv_corr[0]
@@ -109,12 +109,12 @@ def georef_by_worker(sv_corr: list, alt: xr.DataArray, lon: xr.DataArray, lat: x
     bm_radius = np.sqrt(acrosstrack_stck ** 2 + alongtrack_stck ** 2)
     pos = g.fwd(lon[at_idx[0]].values, lat[at_idx[0]].values, bm_azimuth.values, bm_radius.values)
 
-    if xyz_crs.is_projected:
+    if horizontal_crs.is_projected:
         # Transformer.transform input order is based on the CRS, see CRS.geodetic_crs.axis_info
         # - lon, lat - this appears to be valid when using CRS from proj4 string
         # - lat, lon - this appears to be valid when using CRS from epsg
         # use the always_xy option to force the transform to expect lon/lat order
-        georef_transformer = Transformer.from_crs(input_crs, xyz_crs, always_xy=True)
+        georef_transformer = Transformer.from_crs(input_crs, horizontal_crs, always_xy=True)
         newpos = georef_transformer.transform(pos[0], pos[1], errcheck=True)  # longitude / latitude order (x/y)
     else:
         newpos = pos

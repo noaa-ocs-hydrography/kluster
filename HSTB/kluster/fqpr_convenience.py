@@ -409,8 +409,14 @@ def reload_data(converted_folder: str, require_raw_data: bool = True, skip_dask:
         fqpr_inst.multibeam.tpu_parameters = fqpr_inst.multibeam.raw_ping[0].tpu_parameters
 
         fqpr_inst.generate_starter_orientation_vectors(None, None)
+
+        # convert over the old attribute name for horizontal crs to horizontal_crs, made this change in 0.5.0
         if 'xyz_crs' in fqpr_inst.multibeam.raw_ping[0].attrs:
-            fqpr_inst.construct_crs(epsg=fqpr_inst.multibeam.raw_ping[0].attrs['xyz_crs'])
+            for rp in fqpr_inst.multibeam.raw_ping:
+                rp.attrs['horizontal_crs'] = rp.attrs['xyz_crs']
+                rp.attrs.pop('xyz_crs')
+        if 'horizontal_crs' in fqpr_inst.multibeam.raw_ping[0].attrs:
+            fqpr_inst.construct_crs(epsg=fqpr_inst.multibeam.raw_ping[0].attrs['horizontal_crs'])
         try:
             fqpr_inst.soundings_path = final_paths['soundings'][0]
             fqpr_inst.reload_soundings_records(skip_dask=skip_dask)
@@ -526,10 +532,10 @@ def generate_new_surface(fqpr_inst: Union[Fqpr, list], max_points_per_quad: int 
     unique_crs = []
     unique_vertref = []
     for fq in fqpr_inst:
-        crs_data = fq.xyz_crs.to_epsg()
+        crs_data = fq.horizontal_crs.to_epsg()
         vertref = fq.multibeam.raw_ping[0].vertical_reference
         if crs_data is None:
-            crs_data = fq.xyz_crs.to_proj4()
+            crs_data = fq.horizontal_crs.to_proj4()
         if crs_data not in unique_crs:
             unique_crs.append(crs_data)
         if vertref not in unique_vertref:
@@ -542,7 +548,7 @@ def generate_new_surface(fqpr_inst: Union[Fqpr, list], max_points_per_quad: int 
         print('generate_new_vr_surface: Found multiple vertical references in the input data, data must be of the same reference: {}'.format(unique_vertref))
         return None
     if not unique_crs and fqpr_inst:
-        print('generate_new_vr_surface: No valid EPSG for {}'.format(fqpr_inst[0].xyz_crs.to_proj4()))
+        print('generate_new_vr_surface: No valid EPSG for {}'.format(fqpr_inst[0].horizontal_crs.to_proj4()))
         return None
 
     print('Preparing data...')
@@ -703,8 +709,8 @@ def reprocess_sounding_selection(fqpr_inst: Fqpr, new_xyzrph: dict = None, subse
         tstmp (xyzrph timestamp for each sounding)
     """
 
-    if 'xyz_crs' not in fqpr_inst.multibeam.raw_ping[0].attrs and georeference:
-        raise ValueError('xyz_crs object not found.  Please run Fqpr.construct_crs first')
+    if 'horizontal_crs' not in fqpr_inst.multibeam.raw_ping[0].attrs and georeference:
+        raise ValueError('horizontal_crs object not found.  Please run Fqpr.construct_crs first')
     if 'vertical_reference' not in fqpr_inst.multibeam.raw_ping[0].attrs and georeference:
         raise NotImplementedError('set_vertical_reference must be run before georeferencing')
     if turn_off_dask and fqpr_inst.client is not None:
@@ -731,7 +737,7 @@ def reprocess_sounding_selection(fqpr_inst: Fqpr, new_xyzrph: dict = None, subse
             epsg = None
         else:
             datum = None
-            epsg = fqpr_inst.multibeam.raw_ping[0].xyz_crs
+            epsg = fqpr_inst.multibeam.raw_ping[0].horizontal_crs
 
         fqpr_inst.construct_crs(epsg=epsg, datum=datum)
         fqpr_inst.georef_xyz(subset_time=subset_time, dump_data=False)

@@ -682,7 +682,7 @@ class FqprProject:
     def return_soundings_in_box(self, min_lat: float, max_lat: float, min_lon: float, max_lon: float):
         """
         With the given latitude/longitude boundaries, return the soundings that are within the boundaries.  Use the
-        Fqpr xyz_crs recorded EPSG to do the transformation to northing/easting, and then query all the x, y to get
+        Fqpr horizontal_crs recorded EPSG to do the transformation to northing/easting, and then query all the x, y to get
         the soundings.
 
         Parameters
@@ -698,10 +698,15 @@ class FqprProject:
 
         Returns
         -------
-        list
-            line names that fall within the box
+        dict
+            dict where keys are the fqpr instance name, values are the sounding values as 1d arrays
         """
-        pass
+        data = {}
+        for fq_name, fq_inst in self.fqpr_instances.items():
+            x, y, z, tvu, rejected, pointtime, beam = fq_inst.return_soundings_in_box(min_lat, max_lat, min_lon, max_lon)
+            if x is not None:
+                data[fq_name] = [x, y, z, tvu, rejected, pointtime, beam]
+        return data
 
     def return_project_folder(self):
         """

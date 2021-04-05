@@ -253,7 +253,7 @@ def timethisthing(userfunc, args, kwargs, msg):
 # timethisthing(qm.tree.draw_tree, [], {'plot_points': False}, 'Dask draw time: {}')
 
 qm = QuadManager()
-coordsys = dataset.xyz_crs
+coordsys = dataset.horizontal_crs
 vertref = dataset.vertical_reference
 containername = os.path.split(dataset.output_path)[1]
 multibeamlist = list(dataset.multibeam_files.keys())

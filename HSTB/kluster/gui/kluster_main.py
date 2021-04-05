@@ -75,6 +75,8 @@ class KlusterMain(QtWidgets.QMainWindow):
 
         self.three_d = kluster_3dview_v2.ThreeDWidget(self)
         self.three_d_dock = self.dock_this_widget("3d view", 'three_d_dock', self.three_d)
+        # for now we remove the ability to undock the three d window, vispy wont work if we do
+        self.three_d_dock.setFeatures(QtWidgets.QDockWidget.DockWidgetMovable)
 
         self.explorer = kluster_explorer.KlusterExplorer(self)
         self.explorer_dock = self.dock_this_widget("Explorer", 'explorer_dock', self.explorer)
@@ -130,6 +132,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.actions.exclude_unmatched_file.connect(self._action_remove_file)
         self.actions.undo_exclude_file.connect(self._action_add_files)
         self.two_d.box_select.connect(self.select_line_by_box)
+        self.two_d.box_3dpoints.connect(self.select_points_in_box)
         self.action_thread.finished.connect(self._kluster_execute_action_results)
         self.overwrite_nav_thread.started.connect(self._start_action_progress)
         self.overwrite_nav_thread.finished.connect(self._kluster_overwrite_nav_results)
@@ -353,6 +356,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         for ln in self.project.return_project_lines(proj=pth, relative_path=True):
             self.two_d.remove_line(ln)
         self.two_d.refresh_screen()
+        self.three_d.clear()
         self.project.remove_fqpr(pth, relative_path=True)
         self.project_tree.refresh_project(self.project)
 
@@ -890,6 +894,7 @@ class KlusterMain(QtWidgets.QMainWindow):
             self.close_fqpr(fq)
 
         self.project_tree.configure()
+        self.three_d.clear()
         self.two_d.clear()
         self.explorer.clear_explorer_data()
         self.attribute.clear_attribution_data()
@@ -1115,6 +1120,25 @@ class KlusterMain(QtWidgets.QMainWindow):
         for cnt, ln in enumerate(lines):
             self._line_selected(ln, idx=cnt)
         self.two_d.change_line_colors(lines, 'red')
+
+    def select_points_in_box(self, min_lat, max_lat, min_lon, max_lon):
+        """
+        method run on using the 2dview points select tool.  Gathers all points in the box.
+
+        Parameters
+        ----------
+        min_lat: float, minimum latitude of the box
+        max_lat: float, maximum latitude of the box
+        min_lon: float, minimum longitude of the box
+        max_lon: float, minimum longitude of the box
+
+        """
+        self.three_d.clear()
+        pts_data = self.project.return_soundings_in_box(min_lat, max_lat, min_lon, max_lon)
+        for fqpr_name, pointdata in pts_data.items():
+            self.three_d.add_points(pointdata[0], pointdata[1], pointdata[2], pointdata[3], pointdata[4], pointdata[5],
+                                    pointdata[6], fqpr_name)
+        self.three_d.display_points()
 
     def dock_this_widget(self, title, objname, widget):
         """

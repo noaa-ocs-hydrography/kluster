@@ -6,7 +6,7 @@ import xarray as xr
 import numpy as np
 import json
 from dask.distributed import wait, progress
-from pyproj import CRS
+from pyproj import CRS, Transformer
 from pyproj.exceptions import CRSError
 
 from HSTB.kluster.modules.orientation import distrib_run_build_orientation_vectors
@@ -69,7 +69,7 @@ class Fqpr:
         self.soundings = None
         self.navigation_path = ''
         self.navigation = None
-        self.xyz_crs = None
+        self.horizontal_crs = None
         self.vert_ref = None
         self.motion_latency = motion_latency
 
@@ -229,19 +229,19 @@ class Fqpr:
             If true, the CRS was successfully constructed and was different from the original
         """
 
-        orig_crs = self.xyz_crs
+        orig_crs = self.horizontal_crs
         orig_vert_ref = self.vert_ref
         if epsg:
             try:
-                self.xyz_crs = CRS.from_epsg(int(epsg))
+                self.horizontal_crs = CRS.from_epsg(int(epsg))
             except CRSError:  # if the CRS we generate here has no epsg, when we save it to disk we save the proj string
-                self.xyz_crs = CRS.from_string(epsg)
+                self.horizontal_crs = CRS.from_string(epsg)
         elif not epsg and not projected:
             datum = datum.upper()
             if datum == 'NAD83':
-                self.xyz_crs = CRS.from_epsg(epsg_determinator('nad83(2011)'))
+                self.horizontal_crs = CRS.from_epsg(epsg_determinator('nad83(2011)'))
             elif datum == 'WGS84':
-                self.xyz_crs = CRS.from_epsg(epsg_determinator('wgs84'))
+                self.horizontal_crs = CRS.from_epsg(epsg_determinator('wgs84'))
             else:
                 self.logger.error('{} not supported.  Only supports WGS84 and NAD83'.format(datum))
                 raise ValueError('{} not supported.  Only supports WGS84 and NAD83'.format(datum))
@@ -254,9 +254,9 @@ class Fqpr:
                 raise ValueError('construct_crs: found invalid projected zone/hemisphere identifier: {}, expected something like "10N"'.format(zone))
 
             if datum == 'NAD83':
-                self.xyz_crs = CRS.from_epsg(epsg_determinator('nad83(2011)', zone=zone, hemisphere=hemi))
+                self.horizontal_crs = CRS.from_epsg(epsg_determinator('nad83(2011)', zone=zone, hemisphere=hemi))
             elif datum == 'WGS84':
-                self.xyz_crs = CRS.from_epsg(epsg_determinator('wgs84', zone=zone, hemisphere=hemi))
+                self.horizontal_crs = CRS.from_epsg(epsg_determinator('wgs84', zone=zone, hemisphere=hemi))
             else:
                 self.logger.error('{} not supported.  Only supports WGS84 and NAD83'.format(datum))
                 raise ValueError('{} not supported.  Only supports WGS84 and NAD83'.format(datum))
@@ -264,7 +264,7 @@ class Fqpr:
         if vert_ref is not None:
             self.set_vertical_reference(vert_ref)
 
-        if ((orig_crs != self.xyz_crs) or (orig_vert_ref != self.vert_ref)) and orig_crs is not None:  # successfully changed the CRS, orig would be none when this is run on reloading data
+        if ((orig_crs != self.horizontal_crs) or (orig_vert_ref != self.vert_ref)) and orig_crs is not None:  # successfully changed the CRS, orig would be none when this is run on reloading data
             if self.multibeam.raw_ping[0].current_processing_status >= 4:  # have to start over at georeference now
                 self.write_attribute_to_ping_records({'current_processing_status': 3})
             self.multibeam.reload_pingrecords(skip_dask=self.client is None)
@@ -1006,7 +1006,7 @@ class Fqpr:
                 fut_hdng = hdng[chnk.values].assign_coords({'time': chnk.time.time - latency})
                 fut_hve = hve[chnk.values].assign_coords({'time': chnk.time.time - latency})
             data_for_workers.append([sv_data, fut_alt, fut_lon, fut_lat, fut_hdng, fut_hve, wline, self.vert_ref,
-                                     input_datum, self.xyz_crs, z_offset])
+                                     input_datum, self.horizontal_crs, z_offset])
         return data_for_workers
 
     def _generate_chunks_tpu(self, ra: xr.Dataset, idx_by_chunk: xr.DataArray, applicable_index: xr.DataArray):
@@ -1301,9 +1301,9 @@ class Fqpr:
         if self.vert_ref not in ['ellipse', 'waterline']:
             self.logger.error("georef_xyz: {} must be one of 'ellipse', 'waterline'".format(self.vert_ref))
             raise ValueError("georef_xyz: {} must be one of 'ellipse', 'waterline'".format(self.vert_ref))
-        if self.xyz_crs is None:
-            self.logger.error('georef_xyz: xyz_crs object not found.  Please run Fqpr.construct_crs first.')
-            raise ValueError('georef_xyz: xyz_crs object not found.  Please run Fqpr.construct_crs first.')
+        if self.horizontal_crs is None:
+            self.logger.error('georef_xyz: horizontal_crs object not found.  Please run Fqpr.construct_crs first.')
+            raise ValueError('georef_xyz: horizontal_crs object not found.  Please run Fqpr.construct_crs first.')
         if self.vert_ref == 'ellipse':
             if 'altitude' not in self.multibeam.raw_ping[0] and 'altitude' not in self.multibeam.raw_nav:
                 self.logger.error('georef_xyz: You must provide altitude for vert_ref=ellipse, not found in raw navigation or ping records.')
@@ -1908,8 +1908,8 @@ class Fqpr:
 
         If uncertainty is included in the source data, will calculate the unc based on depth.
 
-        First does a forward transformation using the geoid provided in xyz_crs
-        Then does a transformation from geographic to projected, if that is included in xyz_crs
+        First does a forward transformation using the geoid provided in horizontal_crs
+        Then does a transformation from geographic to projected, if that is included in horizontal_crs
 
         Uses pyproj to do all transformations.  User must run self.construct_crs first to establish the destination
         datum and ellipsoid.
@@ -1939,7 +1939,7 @@ class Fqpr:
         self.logger.info('****Georeferencing sound velocity corrected beam offsets****\n')
         starttime = perf_counter()
 
-        self.logger.info('Using pyproj CRS: {}'.format(self.xyz_crs.to_string()))
+        self.logger.info('Using pyproj CRS: {}'.format(self.horizontal_crs.to_string()))
 
         skip_dask = False
         if self.client is None:  # small datasets benefit from just running it without dask distributed
@@ -2200,12 +2200,12 @@ class Fqpr:
                               'units': {'alongtrack': 'meters (+ forward)', 'acrosstrack': 'meters (+ starboard)',
                                         'depthoffset': 'meters (+ down)'}}]
         elif mode == 'georef':
-            crs = self.xyz_crs.to_epsg()
+            crs = self.horizontal_crs.to_epsg()
             if crs is None:  # gets here if there is no valid EPSG for this transformation
-                crs = self.xyz_crs.to_string()
+                crs = self.horizontal_crs.to_string()
             mode_settings = ['xyz', ['x', 'y', 'z', 'corr_heave', 'corr_altitude', 'processing_status'],
                              'georeferenced soundings data',
-                             {'xyz_crs': crs, 'vertical_reference': self.vert_ref,
+                             {'horizontal_crs': crs, 'vertical_reference': self.vert_ref,
                               '_georeference_soundings_complete': self.georef_time_complete,
                               'current_processing_status': 4,
                               'reference': {'x': 'reference', 'y': 'reference', 'z': 'reference',
@@ -2687,6 +2687,69 @@ class Fqpr:
         sampl_nav = rnav.isel(time=idxs)
 
         return sampl_nav.latitude, sampl_nav.longitude
+
+    def return_soundings_in_box(self, min_y: float, max_y: float, min_x: float, max_x: float, geographic: bool = True):
+        if 'horizontal_crs' not in self.multibeam.raw_ping[0].attrs or 'z' not in self.multibeam.raw_ping[0].variables.keys():
+            raise ValueError('Georeferencing has not been run yet, you must georeference before you can get soundings')
+        if geographic:
+            # using geographic coordinates allows us to quickly exclude extents outside of max lat lon
+            in_bounds = False
+            if (min_x <= self.multibeam.raw_nav.max_lon) and (max_x >= self.multibeam.raw_nav.min_lon):
+                if (min_y <= self.multibeam.raw_nav.max_lat) and (max_y >= self.multibeam.raw_nav.min_lat):
+                    in_bounds = True
+            if not in_bounds:
+                return None, None, None, None, None, None, None
+            trans = Transformer.from_crs(CRS.from_epsg(4326), CRS.from_epsg(self.multibeam.raw_ping[0].horizontal_crs), always_xy=True)
+            min_x, min_y = trans.transform(min_x, min_y)
+            max_x, max_y = trans.transform(max_x, max_y)
+
+        x = []
+        y = []
+        z = []
+        tvu = []
+        rejected = []
+        pointtime = []
+        beam = []
+        for rp in self.multibeam.raw_ping:
+            x_filter = np.logical_and(rp.x <= max_x, rp.x >= min_x)
+            y_filter = np.logical_and(rp.y <= max_y, rp.y >= min_y)
+            filt = np.logical_and(x_filter, y_filter).values.ravel()
+            if filt.any():
+                xval = rp.x.values.ravel()[filt]
+                if xval.any():
+                    x.append(xval)
+                    y.append(rp.y.values.ravel()[filt])
+                    z.append(rp.z.values.ravel()[filt])
+                    tvu.append(rp.tvu.values.ravel()[filt])
+                    rejected.append(rp.detectioninfo.values.ravel()[filt])
+                    # have to get time for each beam to then make the filter work
+                    pointtime.append((rp.time.values[:, np.newaxis] * np.ones_like(rp.x)).ravel()[filt])
+                    beam.append((rp.beam.values[np.newaxis, :] * np.ones_like(rp.x)).ravel()[filt])
+        if len(x) > 1:
+            x = np.concatenate(x)
+            y = np.concatenate(y)
+            z = np.concatenate(z)
+            tvu = np.concatenate(tvu)
+            rejected = np.concatenate(rejected)
+            pointtime = np.concatenate(pointtime)
+            beam = np.concatenate(beam)
+        elif len(x) == 1:
+            x = x[0]
+            y = y[0]
+            z = z[0]
+            tvu = tvu[0]
+            rejected = rejected[0]
+            pointtime = pointtime[0]
+            beam = beam[0]
+        else:
+            x = None
+            y = None
+            z = None
+            tvu = None
+            rejected = None
+            pointtime = None
+            beam = None
+        return x, y, z, tvu, rejected, pointtime, beam
 
     def return_processing_dashboard(self):
         """
