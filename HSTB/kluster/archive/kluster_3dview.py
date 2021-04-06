@@ -43,7 +43,6 @@ class Kluster3dview(gl.GLViewWidget):
 
         self.grid = gl.GLGridItem()
         self.addItem(self.grid)
-
         self.ptstore = []
         self.surfstore = []
 
