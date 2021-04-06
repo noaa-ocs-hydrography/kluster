@@ -1,15 +1,16 @@
 import os
 from datetime import datetime, timezone
 import numpy as np
-from collections import OrderedDict
 import logging
 from difflib import get_close_matches
 from types import FunctionType
+from typing import Union
 from copy import deepcopy
 from collections import OrderedDict
 
 from HSTB.drivers import kmall, par3, sbet, svp
 from HSTB.kluster import monitor, fqpr_actions
+from HSTB.kluster.fqpr_project import FqprProject
 
 
 supported_mbes = ['.all', '.kmall']
@@ -99,6 +100,16 @@ class FqprIntel(LoggerClass):
         self.project._bind_to_project_updated(self.update_from_project)
 
         self.regenerate_actions()
+
+    @property
+    def has_actions(self):
+        """
+        Property used to identify that there are actions in the intel module that are ready to be executed
+        """
+        if self.action_container.actions:
+            if len(self.action_container.actions) >= 1:
+                return True
+        return False
 
     def _handle_monitor_event(self, filepath, file_event):
         """
@@ -1620,3 +1631,99 @@ def likelihood_start_end_times_close(filetimes: list, compare_times: list, allow
         if (start_diff <= allowable_diff) and (end_diff < allowable_diff):
             close_times.append(cnt)
     return close_times
+
+
+def intel_process(filname: Union[str, list], outfold: str = None, coord_system: str = 'NAD83',
+                  epsg: int = None, use_epsg: bool = False, vert_ref: str = 'waterline',
+                  parallel_write: bool = True):
+    """
+    Use Kluster intelligence module to organize and process all input files.  Files can be a list of files, a single
+    file, or a directory full of files.  Files can be multibeam files, .svp sound velocity profile files, SBET and
+    SMRMSG files, etc.  The Intel module will organize and process each in order of priority.
+
+    Parameters
+    ----------
+    filname
+        a list of files, a single file, or a directory full of files (multibeam files, svp files, sbet files, etc.)
+    outfold
+        the output folder that will contain the processed data, if not provided it will be next to the raw data provided
+    coord_system
+        If you want to autoselect the utm zone, provide the coordinate system as a string, one of 'NAD83' or 'WGS84'
+    epsg
+        epsg code, used if use_epsg is True
+    use_epsg
+        if True, will use the epsg code to build the CRS to use
+    vert_ref
+        the vertical reference point, one of ['ellipse', 'waterline']
+    parallel_write
+        if True, will write in parallel to disk, Disable for permissions issues troubleshooting.
+
+    Returns
+    -------
+    FqprIntel
+        intel module containing the project and references to converted data
+    list
+        list of Fqpr instances
+    """
+
+    project = FqprProject(is_gui=False)
+    if outfold:
+        project._setup_new_project(outfold)
+    intel = FqprIntel(project)
+
+    settings = {'use_epsg': use_epsg, 'epsg': epsg, 'use_coord': not use_epsg, 'coord_system': coord_system,
+                'vert_ref': vert_ref, 'parallel_write': parallel_write}
+    intel.set_settings(settings)
+
+    if os.path.isdir(filname):
+        filname = [os.path.join(filname, f) for f in os.listdir(filname)]
+    elif isinstance(filname, str):
+        filname = [filname]
+    for f in filname:
+        updated_type, new_data, new_project = intel.add_file(f)
+    while intel.has_actions:
+        intel.execute_action()
+    return intel, list(intel.project.fqpr_instances.values())
+
+
+def intel_process_service(folder_path: str, is_recursive: bool = True, outfold: str = None, coord_system: str = 'NAD83',
+                          epsg: int = None, use_epsg: bool = False, vert_ref: str = 'waterline', parallel_write: bool = True):
+    """
+    Use Kluster intelligence module to start a new folder monitoring session and process all new files that show
+    up in that directory.  Files can be multibeam files, .svp sound velocity profile files, SBET and
+    SMRMSG files, etc.  The Intel module will organize and process each in order of priority.
+
+    Parameters
+    ----------
+    folder_path
+        a directory path that the IntelModule will monitor for new/existing files
+    is_recursive
+        if True, the directory monitor session will monitor all subfolders as well
+    outfold
+        the output folder that will contain the processed data, if not provided it will be next to the raw data provided
+    coord_system
+        If you want to autoselect the utm zone, provide the coordinate system as a string, one of 'NAD83' or 'WGS84'
+    epsg
+        epsg code, used if use_epsg is True
+    use_epsg
+        if True, will use the epsg code to build the CRS to use
+    vert_ref
+        the vertical reference point, one of ['ellipse', 'waterline']
+    parallel_write
+        if True, will write in parallel to disk, Disable for permissions issues troubleshooting.
+    """
+
+    # consider daemonizing this at some point: https://daemoniker.readthedocs.io/en/latest/index.html
+    project = FqprProject(is_gui=False)
+    if outfold:
+        project._setup_new_project(outfold)
+    intel = FqprIntel(project)
+
+    settings = {'use_epsg': use_epsg, 'epsg': epsg, 'use_coord': not use_epsg, 'coord_system': coord_system,
+                'vert_ref': vert_ref, 'parallel_write': parallel_write}
+    intel.set_settings(settings)
+
+    intel.start_folder_monitor(folder_path, is_recursive=is_recursive)
+    while True:
+        if intel.has_actions:
+            intel.execute_action()
