@@ -6,6 +6,7 @@ import argparse
 # custom modules
 from HSTB.kluster.gui import kluster_main
 from HSTB.kluster.fqpr_convenience import *
+from HSTB.kluster.fqpr_intelligence import intel_process, intel_process_service
 
 
 def str2bool(v):
@@ -62,6 +63,43 @@ if __name__ == "__main__":  # run from command line
                          help='If true, uses dask.distributed.progress to show progress bar, default is True')
     allproc.add_argument('-parallel', '--parallel_write', type=str2bool, required=False, nargs='?', const=True, default=True,
                          help='If true, writes to disk in parallel, turn this off to troubleshoot PermissionErrors, default is True')
+
+    intelprochelp = 'R|Use Kluster intelligence module to organize and process all input files.  Files can be a list of files, a single '
+    intelprochelp += 'file, or a directory full of files.  Files can be multibeam files, .svp sound velocity profile files, SBET and '
+    intelprochelp += 'SMRMSG files, etc.  The Intel module will organize and process each in order of priority.\n'
+    intelprochelp += 'example (relying on default arguments): intel_processing -f data/directory/path\n'
+    intelprochelp += 'example (custom datum/output folder): intel_processing -f fileone.all, filetwo.all -datum WGS84 -o new/output/folder'
+    intelproc = subparsers.add_parser('intel_processing', help=intelprochelp)
+    intelproc.add_argument('-f', '--files', nargs='+', required=True,
+                           help='Either a single supported file, multiple supported files, or a path to a directory of files')
+    intelproc.add_argument('-o', '--output_folder', required=False,
+                           help='full file path to a directory you want to contain all the processed data.  Will create this folder if it does not exist.')
+    intelproc.add_argument('-coord', '--coordinate_system', required=False, nargs='?', const='NAD83', default='NAD83',
+                           help='a valid datum identifier that pyproj CRS will accept (WGS84, NAD83, etc.), default is NAD83')
+    intelproc.add_argument('-vert', '--vertical_reference', required=False, nargs='?', const='waterline',
+                           default='waterline',
+                           help='the vertical reference point, one of "ellipse", "waterline", default is waterline')
+    intelproc.add_argument('-parallel', '--parallel_write', type=str2bool, required=False, nargs='?', const=True,
+                           default=True,
+                           help='If true, writes to disk in parallel, turn this off to troubleshoot PermissionErrors, default is True')
+
+    intelservicehelp = 'R|Use Kluster intelligence module to start a new folder monitoring session and process all new files that show '
+    intelservicehelp += 'up in the directory.  Files can be multibeam files, .svp sound velocity profile files, SBET and '
+    intelservicehelp += 'SMRMSG files, etc.  The Intel module will organize and process each in order of priority.\n'
+    intelservicehelp += 'example (relying on default arguments): intel_service -f data/directory/path\n'
+    intelservice = subparsers.add_parser('intel_service', help=intelservicehelp)
+    intelservice.add_argument('-f', '--folder', nargs='+', required=True,
+                              help='Either a single supported file, multiple supported files, or a path to a directory of files')
+    intelservice.add_argument('-o', '--output_folder', required=False,
+                              help='full file path to a directory you want to contain all the processed data.  Will create this folder if it does not exist.')
+    intelservice.add_argument('-coord', '--coordinate_system', required=False, nargs='?', const='NAD83', default='NAD83',
+                              help='a valid datum identifier that pyproj CRS will accept (WGS84, NAD83, etc.), default is NAD83')
+    intelservice.add_argument('-vert', '--vertical_reference', required=False, nargs='?', const='waterline',
+                              default='waterline',
+                              help='the vertical reference point, one of "ellipse", "waterline", default is waterline')
+    intelservice.add_argument('-parallel', '--parallel_write', type=str2bool, required=False, nargs='?', const=True,
+                              default=True,
+                              help='If true, writes to disk in parallel, turn this off to troubleshoot PermissionErrors, default is True')
 
     converthelp = 'R|Convert multibeam from raw files to xarray datasets within the kluster data structure\n'
     converthelp += 'example (relying on default arguments): convert -f fileone.all\n'
@@ -172,6 +210,12 @@ if __name__ == "__main__":  # run from command line
                                    parallel_write=args.parallel_write, error_files=args.error_files, logfiles=args.export_log,
                                    weekstart_year=args.weekstart_year, weekstart_week=args.weekstart_week, override_datum=args.coordinate_system,
                                    max_gap_length=args.max_navigation_gap)
+        elif funcname == 'intel_processing':
+            intel_process(args.files, outfold=args.output_folder, coord_system=args.coordinate_system, vert_ref=args.vertical_reference,
+                          parallel_write=args.parallel_write)
+        elif funcname == 'intel_service':
+            intel_process(args.folder, outfold=args.output_folder, coord_system=args.coordinate_system, vert_ref=args.vertical_reference,
+                          parallel_write=args.parallel_write)
         elif funcname == 'convert':
             convert_multibeam(args.files, outfold=args.output_folder, show_progress=args.show_progress,
                               parallel_write=args.parallel_write)
