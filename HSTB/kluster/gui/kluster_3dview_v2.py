@@ -65,7 +65,7 @@ class ThreeDView(QtWidgets.QWidget):
         self.pointtime = np.concatenate([self.pointtime, pointtime])
         self.beam = np.concatenate([self.beam, beam])
 
-    def display_points(self, color_by: str = 'tvu'):
+    def display_points(self, color_by: str = 'z'):
         if not self.z.any():
             return
 
