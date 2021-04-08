@@ -22,7 +22,7 @@ from HSTB.kluster.xarray_helpers import combine_arrays_to_dataset, compare_and_f
     divide_arrays_by_time_index, interp_across_chunks, reload_zarr_records, slice_xarray_by_dim, stack_nan_array, \
     get_write_indices_zarr, get_beamwise_interpolation, zarr_write_attributes
 from HSTB.kluster.dask_helpers import dask_find_or_start_client, get_number_of_workers
-from HSTB.kluster.fqpr_helpers import epsg_determinator
+from HSTB.kluster.fqpr_helpers import build_crs
 from HSTB.kluster.rotations import return_attitude_rotation_matrix
 from HSTB.kluster.logging_conf import return_logger
 from HSTB.drivers.sbet import sbets_to_xarray, sbet_fast_read_start_end_time
@@ -231,43 +231,16 @@ class Fqpr:
 
         orig_crs = self.horizontal_crs
         orig_vert_ref = self.vert_ref
-        if epsg:
-            try:
-                self.horizontal_crs = CRS.from_epsg(int(epsg))
-            except CRSError:  # if the CRS we generate here has no epsg, when we save it to disk we save the proj string
-                self.horizontal_crs = CRS.from_string(epsg)
-        elif not epsg and not projected:
-            datum = datum.upper()
-            if datum == 'NAD83':
-                self.horizontal_crs = CRS.from_epsg(epsg_determinator('nad83(2011)'))
-            elif datum == 'WGS84':
-                self.horizontal_crs = CRS.from_epsg(epsg_determinator('wgs84'))
-            else:
-                self.logger.error('{} not supported.  Only supports WGS84 and NAD83'.format(datum))
-                raise ValueError('{} not supported.  Only supports WGS84 and NAD83'.format(datum))
-        elif not epsg and projected:
-            datum = datum.upper()
-            zone = self.multibeam.return_utm_zone_number()  # this will be the zone and hemi concatenated, '10N'
-            try:
-                zone, hemi = int(zone[:-1]), str(zone[-1:])
-            except:
-                raise ValueError('construct_crs: found invalid projected zone/hemisphere identifier: {}, expected something like "10N"'.format(zone))
-
-            if datum == 'NAD83':
-                self.horizontal_crs = CRS.from_epsg(epsg_determinator('nad83(2011)', zone=zone, hemisphere=hemi))
-            elif datum == 'WGS84':
-                self.horizontal_crs = CRS.from_epsg(epsg_determinator('wgs84', zone=zone, hemisphere=hemi))
-            else:
-                self.logger.error('{} not supported.  Only supports WGS84 and NAD83'.format(datum))
-                raise ValueError('{} not supported.  Only supports WGS84 and NAD83'.format(datum))
+        self.horizontal_crs, err = build_crs(self.multibeam.return_utm_zone_number(), datum=datum, epsg=epsg, projected=projected)
+        if err:
+            self.logger.error(err)
+            raise ValueError(err)
 
         if vert_ref is not None:
             self.set_vertical_reference(vert_ref)
 
-        if ((orig_crs != self.horizontal_crs) or (orig_vert_ref != self.vert_ref)) and orig_crs is not None:  # successfully changed the CRS, orig would be none when this is run on reloading data
-            if self.multibeam.raw_ping[0].current_processing_status >= 4:  # have to start over at georeference now
-                self.write_attribute_to_ping_records({'current_processing_status': 3})
-            self.multibeam.reload_pingrecords(skip_dask=self.client is None)
+        # successfully changed the CRS, orig would be none when this is run on reloading data
+        if ((orig_crs != self.horizontal_crs) or (orig_vert_ref != self.vert_ref)) and orig_crs is not None:
             return True
         else:
             return False
@@ -2811,7 +2784,7 @@ class Fqpr:
                     dashboard['last_run'][ra.system_identifier][ky] = ra.attrs[ky]
         return dashboard
 
-    def return_next_action(self):
+    def return_next_action(self, new_vertical_reference: str = None, new_coordinate_system: CRS = None):
         """
         Determine the next action to take, building the arguments for the fqpr_convenience.process_multibeam function.
         Uses the processing status, which is updated as a process is completed at a sounding level.
@@ -2827,22 +2800,60 @@ class Fqpr:
 
         Needs some more sophistication with time ranges (i.e. navigation was added, but only for xxxxxx.xx-xxxxxxxx.xx
         time range, only process this segment)
+
+        Parameters
+        ----------
+        new_vertical_reference
+            If the user sets a new vertical reference that does not match the existing one, this will trigger a processing
+            action
+        new_coordinate_system
+            If the user sets a new coordinate system that does not match the existing one, this will trigger a
+            processing action
         """
 
         min_status = self.multibeam.raw_ping[0].current_processing_status
         args = [self]
         kwargs = {}
 
-        if min_status < 5:
+        new_diff_vertref = False
+        new_diff_coordinate = False
+        default_use_epsg = False
+        default_use_coord = True
+        default_epsg = None
+        default_coord_system = 'NAD83'
+        default_vert_ref = 'waterline'
+        if new_coordinate_system:
+            try:
+                new_epsg = new_coordinate_system.to_epsg()
+            except:
+                raise ValueError('return_next_action: Unable to convert new coordinate system to epsg: {}'.format(new_coordinate_system))
+            if self.horizontal_crs is not None:
+                try:
+                    existing_epsg = self.horizontal_crs.to_epsg()
+                except:
+                    raise ValueError('return_next_action: Unable to convert current coordinate system to epsg: {}'.format(self.horizontal_crs))
+            else:
+                existing_epsg = 1  # construct_crs has not been run on this instance, so we always use the new epsg
+            if new_epsg != existing_epsg and new_epsg and existing_epsg:
+                new_diff_coordinate = True
+                default_use_epsg = True
+                default_use_coord = False
+                default_epsg = new_epsg
+                default_coord_system = None
+        if new_vertical_reference:
+            if new_vertical_reference != self.vert_ref:
+                new_diff_vertref = True
+                default_vert_ref = new_vertical_reference
+        if min_status < 5 or new_diff_coordinate or new_diff_vertref:
             kwargs['run_orientation'] = False
             kwargs['run_beam_vec'] = False
             kwargs['run_svcorr'] = False
             kwargs['run_georef'] = True  # georef includes tpu
-            kwargs['use_epsg'] = False
-            kwargs['use_coord'] = True
-            kwargs['epsg'] = None
-            kwargs['coord_system'] = 'NAD83'
-            kwargs['vert_ref'] = 'waterline'
+            kwargs['use_epsg'] = default_use_epsg
+            kwargs['use_coord'] = default_use_coord
+            kwargs['epsg'] = default_epsg
+            kwargs['coord_system'] = default_coord_system
+            kwargs['vert_ref'] = default_vert_ref
         if min_status < 3:
             kwargs['run_svcorr'] = True
             kwargs['add_cast_files'] = []

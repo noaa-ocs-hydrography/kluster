@@ -11,6 +11,7 @@ from collections import OrderedDict
 from HSTB.drivers import kmall, par3, sbet, svp
 from HSTB.kluster import monitor, fqpr_actions
 from HSTB.kluster.fqpr_project import FqprProject
+from HSTB.kluster.fqpr_helpers import build_crs
 
 
 supported_mbes = ['.all', '.kmall']
@@ -522,16 +523,25 @@ class FqprIntel(LoggerClass):
                     self.action_container.remove_action(action)
 
             for relative_path, fqpr_instance in self.project.fqpr_instances.items():
+                if self.processing_settings['use_epsg']:
+                    new_coord_system, err = build_crs(epsg=self.processing_settings['epsg'])
+                else:
+                    new_coord_system, err = build_crs(zone_num=fqpr_instance.multibeam.return_utm_zone_number(),
+                                                      datum=self.processing_settings['coord_system'])
+                if err:
+                    self.logger.error(err)
+                    raise ValueError(err)
                 abs_path = self.project.absolute_path_from_relative(relative_path)
                 action = [a for a in existing_actions if a.output_destination == abs_path]
-                args, kwargs = fqpr_instance.return_next_action()
-                if len(action) == 1 and not action[0].is_running:
+                args, kwargs = fqpr_instance.return_next_action(new_coordinate_system=new_coord_system,
+                                                                new_vertical_reference=self.processing_settings['vert_ref'])
+                if len(action) == 1 and not action[0].is_running:  # modify the existing processing action
                     if kwargs == {}:
                         self.action_container.remove_action(action[0])
                     else:
                         settings = fqpr_actions.update_kwargs_for_processing(abs_path, args, kwargs, self.processing_settings)
                         self.action_container.update_action(action[0], **settings)
-                else:
+                else:  # if valid kwargs are returned, there is a new processing action to take
                     if kwargs != {}:
                         newaction = fqpr_actions.build_processing_action(abs_path, args, kwargs, self.processing_settings)
                         self.action_container.add_action(newaction)

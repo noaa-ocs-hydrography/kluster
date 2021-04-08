@@ -388,3 +388,46 @@ surf = generate_new_surface(fq, min_grid_size=1, max_grid_size=1)
 # gdalbuildvrt -input_file_list "C:\vdatum_all_20201203\vdatum\vrt_file_list.txt" "C:\vdatum_all_20201203\vdatum\chart_datum_depth.vrt"
 
 ###############################################################################################
+
+from HSTB.kluster.fqpr_generation import *
+from HSTB.kluster.fqpr_convenience import reload_data
+from HSTB.kluster.modules.georeference import *
+
+
+fq = reload_data(r"C:\collab\dasktest\data_dir\outputtest\EM2040_BHII")
+self = fq
+subset_time: list = None
+prefer_pp_nav: bool = True
+dump_data: bool = True
+delete_futs: bool = True
+vdatum_directory: str = None
+
+self._validate_georef_xyz(subset_time, dump_data)
+self.logger.info('****Georeferencing sound velocity corrected beam offsets****\n')
+starttime = perf_counter()
+
+self.logger.info('Using pyproj CRS: {}'.format(self.horizontal_crs.to_string()))
+
+skip_dask = False
+if self.client is None:  # small datasets benefit from just running it without dask distributed
+    skip_dask = True
+
+systems = self.multibeam.return_system_time_indexed_array(subset_time=subset_time)
+
+for s_cnt, system in enumerate(systems):
+    ra = self.multibeam.raw_ping[s_cnt]
+    sys_ident = ra.system_identifier
+    self.logger.info('Operating on system serial number = {}'.format(sys_ident))
+    self.initialize_intermediate_data(sys_ident, 'xyz')
+    pings_per_chunk, max_chunks_at_a_time = self.get_cluster_params()
+
+    for applicable_index, timestmp, prefixes in system:
+        self.logger.info('using installation params {}'.format(timestmp))
+        z_offset = float(self.multibeam.xyzrph[prefixes[0] + '_z'][timestmp])
+        idx_by_chunk = self.return_chunk_indices(applicable_index, pings_per_chunk)
+        data_for_workers = self._generate_chunks_georef(ra, idx_by_chunk, applicable_index, prefixes,
+                                                        timestmp, z_offset, prefer_pp_nav, vdatum_directory)
+        break
+    break
+
+sv_corr, alt, lon, lat, hdng, heave, wline, vert_ref, input_crs, horizontal_crs, z_offset, vdatum_directory = self.client.gather(data_for_workers[0])

@@ -101,7 +101,7 @@ def georef_by_worker(sv_corr: list, alt: xr.DataArray, lon: xr.DataArray, lat: x
     if vert_ref in ['ellipse', 'NOAA MLLW', 'NOAA MHW']:
         corr_altitude = alt
         corr_heave = xr.zeros_like(corr_altitude)
-        corr_dpth = (depthoffset + corr_altitude.values[:, None]).astype(np.float32)
+        corr_dpth = (depthoffset - corr_altitude.values[:, None]).astype(np.float32)
     elif vert_ref == 'vessel':
         corr_heave = heave
         corr_altitude = xr.zeros_like(corr_heave)
@@ -122,11 +122,13 @@ def georef_by_worker(sv_corr: list, alt: xr.DataArray, lon: xr.DataArray, lat: x
 
     z = np.around(corr_dpth, 3)
     if vert_ref == 'NOAA MLLW':
-        z, vdatum_unc = transform_vyperdatum(pos[0], pos[1], z, input_crs.to_epsg(), 'mllw', vdatum_directory=vdatum_directory)
+        sep, vdatum_unc = transform_vyperdatum(pos[0], pos[1], xr.zeros_like(z), input_crs.to_epsg(), 'mllw', vdatum_directory=vdatum_directory)
     elif vert_ref == 'NOAA MHW':
-        z, vdatum_unc = transform_vyperdatum(pos[0], pos[1], z, input_crs.to_epsg(), 'mhw', vdatum_directory=vdatum_directory)
+        sep, vdatum_unc = transform_vyperdatum(pos[0], pos[1], xr.zeros_like(z), input_crs.to_epsg(), 'mhw', vdatum_directory=vdatum_directory)
     else:
+        sep = 0
         vdatum_unc = xr.zeros_like(z)
+    z = z - sep
 
     if horizontal_crs.is_projected:
         # Transformer.transform input order is based on the CRS, see CRS.geodetic_crs.axis_info
@@ -144,7 +146,7 @@ def georef_by_worker(sv_corr: list, alt: xr.DataArray, lon: xr.DataArray, lat: x
     return [x, y, z, corr_heave, corr_altitude, vdatum_unc]
 
 
-def transform_vyperdatum(x: np.array, y: np.array, z: np.array, source_datum: Union[str, int] = 'nad83',
+def transform_vyperdatum(x: xr.DataArray, y: xr.DataArray, z: xr.DataArray, source_datum: Union[str, int] = 'nad83',
                          final_datum: str = 'mllw', vdatum_directory: str = None):
     """
     When we specify a NOAA vertical datum (NOAA Mean Lower Low Water, NOAA Mean High Water) in Kluster, we use

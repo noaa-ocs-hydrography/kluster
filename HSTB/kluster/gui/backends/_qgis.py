@@ -1209,7 +1209,7 @@ class MapView(QtWidgets.QMainWindow):
             the transparency of all surfaces as a percentage
         """
 
-        print('Initializing {} with transparency of {}%'.format(layername, transparency * 100))
+        print('Initializing {} with transparency of {}%'.format(layername, int(transparency * 100)))
         self.layer_background = layername
         self.layer_transparency = transparency
         self.surface_transparency = surf_transparency

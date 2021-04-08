@@ -415,7 +415,7 @@ def reload_data(converted_folder: str, require_raw_data: bool = True, skip_dask:
         fqpr_inst.generate_starter_orientation_vectors(None, None)
 
         # convert over the old attribute name for horizontal crs to horizontal_crs, made this change in 0.5.0
-        if 'xyz_crs' in fqpr_inst.multibeam.raw_ping[0].attrs:
+        if 'xyz_crs' in fqpr_inst.multibeam.raw_ping[0].attrs and 'horizontal_crs' not in fqpr_inst.multibeam.raw_ping[0].attrs:
             for rp in fqpr_inst.multibeam.raw_ping:
                 rp.attrs['horizontal_crs'] = rp.attrs['xyz_crs']
                 rp.attrs.pop('xyz_crs')

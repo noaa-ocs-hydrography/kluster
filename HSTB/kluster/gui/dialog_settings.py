@@ -122,7 +122,10 @@ class SettingsDialog(QtWidgets.QDialog):
         settings = self.settings_object
 
         try:
-            self.parallel_write.setChecked(settings.value('Kluster/settings_enable_parallel_writes').lower() == 'true')
+            try:
+                self.parallel_write.setChecked(settings.value('Kluster/settings_enable_parallel_writes').lower() == 'true')
+            except:
+                self.parallel_write.setChecked(settings.value('Kluster/settings_enable_parallel_writes'))
             self.vdatum_text.setText(settings.value('Kluster/settings_vdatum_directory'))
             self.vdatum_pth = settings.value('Kluster/settings_vdatum_directory')
         except AttributeError:
