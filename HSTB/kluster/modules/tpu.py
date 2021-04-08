@@ -91,7 +91,7 @@ def calculate_tpu(roll: Union[xr.DataArray, np.array], raw_beam_angles: Union[xr
     qf_type
         whether or not the provided quality factor is Ifremer ('ifremer') or Kongsberg std dev ('kongsberg')
     vert_ref
-        vertical reference of the survey, one of 'ellipse' or 'tidal' or 'waterline'
+        vertical reference of the survey, one of 'ellipse', 'waterline', 'NOAA MLLW', 'NOAA MHW'
     tpu_image
         either False to generate no image, or True to generate and show an image, or a string path if the image is to
         be saved directly to file
@@ -306,7 +306,7 @@ class Tpu:
         Parameters
         ----------
         vert_ref
-            vertical reference of the survey, one of 'ellipse' or 'tidal'
+            vertical reference of the survey, one of 'ellipse', 'waterline', 'NOAA MLLW', 'NOAA MHW'
         sigma
             specify the number of stddev you want the error to represent, sigma=2 would generate 2sigma uncertainty.
 
@@ -439,12 +439,12 @@ class Tpu:
         Pick the appropriate depth uncertainty calculation based on the provided vertical reference
         """
 
-        if vert_ref == 'ellipse':
+        if vert_ref in ['ellipse', 'NOAA MLLW', 'NOAA MHW']:
             dpth_unc = self._total_depth_unc_ref_ellipse(v_unc)
-        elif vert_ref in ['tidal', 'waterline']:
+        elif vert_ref in ['waterline']:
             dpth_unc = self._total_depth_unc_ref_waterlevels(v_unc)
         else:
-            raise NotImplementedError('tpu: vert_ref must be one of "ellipse", "tidal", "waterline".  found: {}'.format(vert_ref))
+            raise NotImplementedError('tpu: vert_ref must be one of ellipse, NOAA MLLW, NOAA MHW, waterline.  found: {}'.format(vert_ref))
         return dpth_unc
 
     def _calculate_total_horizontal_uncertainty(self, h_unc):
@@ -500,7 +500,7 @@ class Tpu:
             hve_var = self._calculate_heave_variance()
             self.plot_components['heave'] = hve_var ** 0.5
             downpos = 0
-        elif vert_ref == 'ellipse':
+        elif vert_ref in ['ellipse', 'NOAA MLLW', 'NOAA MHW']:
             if self.down_position_error is not None:
                 downpos = self.down_position_error ** 2
             else:
@@ -508,7 +508,7 @@ class Tpu:
             self.plot_components['down_position'] = downpos ** 0.5
             hve_var = 0
         else:
-            raise NotImplementedError('tpu: vert_ref must be one of "ellipse", "tidal", "waterline".  found: {}'.format(vert_ref))
+            raise NotImplementedError('tpu: vert_ref must be one of ellipse, NOAA MLLW, NOAA MHW, waterline.  found: {}'.format(vert_ref))
         return (v_unc ** 2 + r_var + hve_var + downpos + refract_var) ** 0.5
 
     def _total_depth_unc_ref_waterlevels(self, v_unc):

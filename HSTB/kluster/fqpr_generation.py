@@ -11,9 +11,9 @@ from pyproj.exceptions import CRSError
 
 from HSTB.kluster.modules.orientation import distrib_run_build_orientation_vectors
 from HSTB.kluster.modules.beampointingvector import distrib_run_build_beam_pointing_vector
-from HSTB.kluster.modules.svcorrect import get_sv_files_from_directory, return_supported_casts_from_list, SoundSpeedProfile, \
+from HSTB.kluster.modules.svcorrect import get_sv_files_from_directory, return_supported_casts_from_list, \
     distributed_run_sv_correct, cast_data_from_file
-from HSTB.kluster.modules.georeference import distrib_run_georeference
+from HSTB.kluster.modules.georeference import distrib_run_georeference, datum_to_wkt, vyperdatum_found
 from HSTB.kluster.modules.tpu import distrib_run_calculate_tpu
 from HSTB.kluster.xarray_conversion import BatchRead
 from HSTB.kluster.modules.visualizations import FqprVisualizations
@@ -151,16 +151,16 @@ class Fqpr:
         Parameters
         ----------
         vert_ref
-            vertical reference for the survey, one of ['ellipse', 'waterline']
+            vertical reference for the survey, one of ['ellipse', 'waterline', 'NOAA MLLW', 'NOAA MHW']
         """
 
         if 'vertical_reference' in self.multibeam.raw_ping[0].attrs:
             if vert_ref != self.multibeam.raw_ping[0].vertical_reference:
                 self.logger.warning('Setting vertical reference to {} when existing vertical reference is {}'.format(vert_ref, self.multibeam.raw_ping[0].vertical_reference))
                 self.logger.warning('You will need to georeference and calculate total uncertainty again')
-        if vert_ref not in ['ellipse', 'waterline']:
-            self.logger.error("Unable to set vertical reference to {}: expected one of ['ellipse', 'waterline']".format(vert_ref))
-            raise ValueError("Unable to set vertical reference to {}: expected one of ['ellipse', 'waterline']".format(vert_ref))
+        if vert_ref not in ['ellipse', 'waterline', 'NOAA MLLW', 'NOAA MHW']:
+            self.logger.error("Unable to set vertical reference to {}: expected one of ['ellipse', 'waterline', 'NOAA MLLW', 'NOAA MHW']".format(vert_ref))
+            raise ValueError("Unable to set vertical reference to {}: expected one of ['ellipse', 'waterline', 'NOAA MLLW', 'NOAA MHW']".format(vert_ref))
         self.vert_ref = vert_ref
 
     def read_from_source(self):
@@ -221,7 +221,7 @@ class Fqpr:
         projected
             if True uses utm zone projected coordinates
         vert_ref
-            vertical reference for the survey, one of ['ellipse', 'waterline']
+            vertical reference for the survey, one of ['ellipse', 'waterline', 'NOAA MLLW', 'NOAA MHW']
 
         Returns
         -------
@@ -879,7 +879,7 @@ class Fqpr:
         return data_for_workers
 
     def _generate_chunks_georef(self, ra: xr.Dataset, idx_by_chunk: xr.DataArray, applicable_index: xr.DataArray,
-                                prefixes: str, timestmp: str, z_offset: float, prefer_pp_nav: bool):
+                                prefixes: str, timestmp: str, z_offset: float, prefer_pp_nav: bool, vdatum_directory: str):
         """
         Take a single sector, and build the data for the distributed system to process.  Georeference requires the
         sv_corrected acrosstrack/alongtrack/depthoffsets, as well as navigation, heading, heave and the quality
@@ -901,6 +901,8 @@ class Fqpr:
             reference point to transmitter
         prefer_pp_nav
             if True will use post-processed navigation/height (SBET)
+        vdatum_directory
+            if 'NOAA MLLW' 'NOAA MHW' is the vertical reference, a path to the vdatum directory is required here
 
         Returns
         -------
@@ -1006,7 +1008,7 @@ class Fqpr:
                 fut_hdng = hdng[chnk.values].assign_coords({'time': chnk.time.time - latency})
                 fut_hve = hve[chnk.values].assign_coords({'time': chnk.time.time - latency})
             data_for_workers.append([sv_data, fut_alt, fut_lon, fut_lat, fut_hdng, fut_hve, wline, self.vert_ref,
-                                     input_datum, self.horizontal_crs, z_offset])
+                                     input_datum, self.horizontal_crs, z_offset, vdatum_directory])
         return data_for_workers
 
     def _generate_chunks_tpu(self, ra: xr.Dataset, idx_by_chunk: xr.DataArray, applicable_index: xr.DataArray):
@@ -1298,16 +1300,20 @@ class Fqpr:
         if self.vert_ref is None:
             self.logger.error("georef_xyz: set_vertical_reference must be run before georef_xyz")
             raise ValueError('georef_xyz: set_vertical_reference must be run before georef_xyz')
-        if self.vert_ref not in ['ellipse', 'waterline']:
-            self.logger.error("georef_xyz: {} must be one of 'ellipse', 'waterline'".format(self.vert_ref))
-            raise ValueError("georef_xyz: {} must be one of 'ellipse', 'waterline'".format(self.vert_ref))
+        if self.vert_ref not in ['ellipse', 'waterline', 'NOAA MLLW', 'NOAA MHW']:
+            self.logger.error("georef_xyz: {} must be one of 'ellipse', 'waterline', 'NOAA MLLW', 'NOAA MHW'".format(self.vert_ref))
+            raise ValueError("georef_xyz: {} must be one of 'ellipse', 'waterline', 'NOAA MLLW', 'NOAA MHW'".format(self.vert_ref))
         if self.horizontal_crs is None:
             self.logger.error('georef_xyz: horizontal_crs object not found.  Please run Fqpr.construct_crs first.')
             raise ValueError('georef_xyz: horizontal_crs object not found.  Please run Fqpr.construct_crs first.')
-        if self.vert_ref == 'ellipse':
+        if self.vert_ref in ['ellipse', 'NOAA MLLW', 'NOAA MHW']:
             if 'altitude' not in self.multibeam.raw_ping[0] and 'altitude' not in self.multibeam.raw_nav:
                 self.logger.error('georef_xyz: You must provide altitude for vert_ref=ellipse, not found in raw navigation or ping records.')
                 raise ValueError('georef_xyz: You must provide altitude for vert_ref=ellipse, not found in raw navigation or ping records.')
+        if self.vert_ref in ['NOAA MLLW', 'NOAA MHW']:
+            if not vyperdatum_found:
+                self.logger.error('georef_xyz: {} provided but vyperdatum is not found'.format(self.vert_ref))
+                raise ValueError('georef_xyz: {} provided but vyperdatum is not found'.format(self.vert_ref))
 
         # first check to see if there is any data in memory.  If so, we just assume that you have the data you need.
         if self.intermediate_dat is not None:
@@ -1345,9 +1351,9 @@ class Fqpr:
         if self.vert_ref is None:
             self.logger.error('calculate_total_uncertainty: set_vertical_reference must be run before calculate_total_uncertainty')
             raise ValueError('calculate_total_uncertainty: set_vertical_reference must be run before calculate_total_uncertainty')
-        if self.vert_ref not in ['ellipse', 'waterline']:
-            self.logger.error("calculate_total_uncertainty: {} must be one of 'ellipse', 'waterline'".format(self.vert_ref))
-            raise ValueError("calculate_total_uncertainty: {} must be one of 'ellipse', 'waterline'".format(self.vert_ref))
+        if self.vert_ref not in ['ellipse', 'waterline', 'NOAA MLLW', 'NOAA MHW']:
+            self.logger.error("calculate_total_uncertainty: {} must be one of 'ellipse', 'waterline', 'NOAA MLLW', 'NOAA MHW'".format(self.vert_ref))
+            raise ValueError("calculate_total_uncertainty: {} must be one of 'ellipse', 'waterline', 'NOAA MLLW', 'NOAA MHW'".format(self.vert_ref))
 
         required = ['corr_pointing_angle', 'beampointingangle', 'acrosstrack', 'depthoffset', 'soundspeed', 'qualityfactor']
         for req in required:
@@ -1900,7 +1906,7 @@ class Fqpr:
         self.logger.info('****Sound Velocity complete: {}s****\n'.format(round(endtime - starttime, 1)))
 
     def georef_xyz(self, subset_time: list = None, prefer_pp_nav: bool = True, dump_data: bool = True,
-                   delete_futs: bool = True):
+                   delete_futs: bool = True, vdatum_directory: str = None):
         """
         Use the raw attitude/navigation to transform the vessel relative along/across/down offsets to georeferenced
         soundings.  Will support transformation to geographic and projected coordinate systems and with a vertical
@@ -1933,6 +1939,8 @@ class Fqpr:
             workflow
         delete_futs
             if True remove the futures objects after data is dumped.
+        vdatum_directory
+            if 'NOAA MLLW' 'NOAA MHW' is the vertical reference, a path to the vdatum directory is required here
         """
 
         self._validate_georef_xyz(subset_time, dump_data)
@@ -1959,7 +1967,7 @@ class Fqpr:
                 idx_by_chunk = self.return_chunk_indices(applicable_index, pings_per_chunk)
                 if len(idx_by_chunk[0]):  # if there are pings in this sector that align with this installation parameter record
                     data_for_workers = self._generate_chunks_georef(ra, idx_by_chunk, applicable_index, prefixes,
-                                                                    timestmp, z_offset, prefer_pp_nav)
+                                                                    timestmp, z_offset, prefer_pp_nav, vdatum_directory)
                     self.intermediate_dat[sys_ident]['xyz'][timestmp] = []
                     self._submit_data_to_cluster(data_for_workers, distrib_run_georeference,
                                                  max_chunks_at_a_time, idx_by_chunk,
@@ -2173,7 +2181,7 @@ class Fqpr:
                        'depthoffset': (self.multibeam.ping_chunksize, 400),
                        'x': (self.multibeam.ping_chunksize, 400), 'y': (self.multibeam.ping_chunksize, 400),
                        'z': (self.multibeam.ping_chunksize, 400), 'thu': (self.multibeam.ping_chunksize, 400),
-                       'tvu': (self.multibeam.ping_chunksize, 400),
+                       'tvu': (self.multibeam.ping_chunksize, 400), 'datum_uncertainty': (self.multibeam.ping_chunksize, 400),
                        'corr_heave': (self.multibeam.ping_chunksize,),
                        'corr_altitude': (self.multibeam.ping_chunksize,)}
 
@@ -2203,9 +2211,18 @@ class Fqpr:
             crs = self.horizontal_crs.to_epsg()
             if crs is None:  # gets here if there is no valid EPSG for this transformation
                 crs = self.horizontal_crs.to_string()
-            mode_settings = ['xyz', ['x', 'y', 'z', 'corr_heave', 'corr_altitude', 'processing_status'],
+            if self.vert_ref == 'NOAA MLLW':
+                vertcrs = datum_to_wkt('mllw', self.multibeam.raw_nav.min_lon, self.multibeam.raw_nav.min_lat,
+                                       self.multibeam.raw_nav.max_lon, self.multibeam.raw_nav.max_lat)
+            elif self.vert_ref == 'NOAA MHW':
+                vertcrs = datum_to_wkt('mhw', self.multibeam.raw_nav.min_lon, self.multibeam.raw_nav.min_lat,
+                                       self.multibeam.raw_nav.max_lon, self.multibeam.raw_nav.max_lat)
+            else:
+                vertcrs = 'Unknown'
+            mode_settings = ['xyz', ['x', 'y', 'z', 'corr_heave', 'corr_altitude', 'datum_uncertainty', 'processing_status'],
                              'georeferenced soundings data',
                              {'horizontal_crs': crs, 'vertical_reference': self.vert_ref,
+                              'vertical_crs': vertcrs,
                               '_georeference_soundings_complete': self.georef_time_complete,
                               'current_processing_status': 4,
                               'reference': {'x': 'reference', 'y': 'reference', 'z': 'reference',

@@ -173,6 +173,7 @@ class KlusterMain(QtWidgets.QMainWindow):
             possible_vdatum = path_to_supplementals('VDatum')
             if possible_vdatum and os.path.exists(possible_vdatum):
                 self.settings['vdatum_directory'] = possible_vdatum
+                self.two_d.vdatum_directory = self.settings['vdatum_directory']
         if self.project.path is not None:
             self.project.set_settings(self.settings.copy())
         self.intel.set_settings(self.settings.copy())
@@ -929,10 +930,14 @@ class KlusterMain(QtWidgets.QMainWindow):
         and intel instance.
         """
 
-        dlog = dialog_project_settings.ProjectSettingsDialog()
+        dlog = dialog_project_settings.ProjectSettingsDialog(settings=self.settings_object)
         if dlog.exec_() and not dlog.canceled:
             settings = dlog.return_processing_options()
             self.settings.update(settings)
+            settings_obj = self.settings_object
+            for settname, opts in settings_translator.items():
+                settings_obj.setValue(settname, self.settings[opts['newname']])
+
             if self.project.path is not None:
                 self.project.set_settings(settings)
             self.intel.set_settings(settings)
@@ -942,10 +947,15 @@ class KlusterMain(QtWidgets.QMainWindow):
         Triggered on hitting OK in the layer settings dialog.  Takes the provided settings and regenerates the 2d display.
         """
 
-        dlog = dialog_layer_settings.LayerSettingsDialog()
+        dlog = dialog_layer_settings.LayerSettingsDialog(settings=self.settings_object)
         if dlog.exec_() and not dlog.canceled:
             settings = dlog.return_layer_options()
             self.settings.update(settings)
+            settings_obj = self.settings_object
+            for settname, opts in settings_translator.items():
+                settings_obj.setValue(settname, self.settings[opts['newname']])
+
+            self.two_d.vdatum_directory = self.settings['vdatum_directory']
             self.two_d.set_background(self.settings['layer_background'], self.settings['layer_transparency'],
                                       self.settings['surface_transparency'])
 
@@ -955,10 +965,14 @@ class KlusterMain(QtWidgets.QMainWindow):
         and intel instance.
         """
 
-        dlog = dialog_settings.SettingsDialog()
+        dlog = dialog_settings.SettingsDialog(settings=self.settings_object)
         if dlog.exec_() and not dlog.canceled:
             settings = dlog.return_options()
             self.settings.update(settings)
+            settings_obj = self.settings_object
+            for settname, opts in settings_translator.items():
+                settings_obj.setValue(settname, self.settings[opts['newname']])
+
             if self.project.path is not None:
                 self.project.set_settings(settings)
             self.intel.set_settings(settings)
@@ -1365,7 +1379,6 @@ class KlusterMain(QtWidgets.QMainWindow):
         settings = self.settings_object
         self.monitor.save_settings(settings)
         for settname, opts in settings_translator.items():
-            print(settname, opts['newname'], self.settings[opts['newname']])
             settings.setValue(settname, self.settings[opts['newname']])
 
         self.close_project()

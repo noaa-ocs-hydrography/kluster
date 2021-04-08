@@ -156,10 +156,8 @@ for i in [1, -1]:
 
 # conda create -n kluster_test -y python=3.8.2
 # conda activate kluster_test
-# conda install -c conda-forge -y vispy=0.6.4 pyside2=5.13.2 gdal=3.2.1 qgis=3.18.0
+# conda install -c conda-forge -y qgis=3.18.0 vispy=0.6.6 pyside2=5.13.2 gdal=3.2.1
 # pip install git+https://github.com/noaa-ocs-hydrography/kluster.git#egg=hstb.kluster
-# pip install git+https://github.com/noaa-ocs-hydrography/drivers.git#egg=hstb.drivers
-# pip install git+https://github.com/noaa-ocs-hydrography/shared.git#egg=hstb.shared
 
 ########################################### kluster intel test ##############################################
 

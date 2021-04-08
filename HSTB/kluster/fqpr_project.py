@@ -283,7 +283,7 @@ class FqprProject:
         self.node_vals_for_surf = {}
 
     def set_settings(self, settings: dict):
-        self.settings = settings
+        self.settings.update(settings)
         if 'use_epsg' in settings:
             for relpath, fqpr_instance in self.fqpr_instances.items():
                 if settings['use_epsg']:

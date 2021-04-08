@@ -20,7 +20,7 @@ def perform_all_processing(filname: Union[str, list], navfiles: list = None, out
                            vert_ref: str = 'waterline', orientation_initial_interpolation: bool = False,
                            add_cast_files: Union[str, list] = None,
                            skip_dask: bool = False, show_progress: bool = True, parallel_write: bool = True,
-                           **kwargs):
+                           vdatum_directory: str = None, **kwargs):
     """
     Use fqpr_generation to process multibeam data on the local cluster and generate a sound velocity corrected,
     georeferenced xyz with uncertainty in csv files in the provided output folder.
@@ -40,7 +40,7 @@ def perform_all_processing(filname: Union[str, list], navfiles: list = None, out
     coord_system
         a valid datum identifier that pyproj CRS will accept
     vert_ref
-        the vertical reference point, one of ['ellipse', 'waterline']
+        the vertical reference point, one of ['ellipse', 'waterline', 'NOAA MLLW', 'NOAA MHW']
     orientation_initial_interpolation
         see process_multibeam
     add_cast_files
@@ -52,6 +52,8 @@ def perform_all_processing(filname: Union[str, list], navfiles: list = None, out
         If true, uses dask.distributed.progress.
     parallel_write
         if True, will write in parallel to disk, Disable for permissions issues troubleshooting.
+    vdatum_directory
+        if 'NOAA MLLW' 'NOAA MHW' is the vertical reference, a path to the vdatum directory is required here
 
     Returns
     -------
@@ -63,7 +65,8 @@ def perform_all_processing(filname: Union[str, list], navfiles: list = None, out
     if navfiles is not None:
         fqpr_inst = import_processed_navigation(fqpr_inst, navfiles, **kwargs)
     fqpr_inst = process_multibeam(fqpr_inst, add_cast_files=add_cast_files, coord_system=coord_system, vert_ref=vert_ref,
-                                  orientation_initial_interpolation=orientation_initial_interpolation)
+                                  orientation_initial_interpolation=orientation_initial_interpolation,
+                                  vdatum_directory=vdatum_directory)
     return fqpr_inst
 
 
@@ -225,7 +228,7 @@ def process_multibeam(fqpr_inst: Fqpr, run_orientation: bool = True, orientation
                       run_beam_vec: bool = True, run_svcorr: bool = True, run_georef: bool = True,
                       add_cast_files: Union[str, list] = None, use_epsg: bool = False,
                       use_coord: bool = True, epsg: int = None, coord_system: str = 'NAD83',
-                      vert_ref: str = 'waterline'):
+                      vert_ref: str = 'waterline', vdatum_directory: str = None):
     """
     Use fqpr_generation to process already converted data on the local cluster and generate sound velocity corrected,
     georeferenced soundings in the same data store as the converted data.
@@ -260,7 +263,9 @@ def process_multibeam(fqpr_inst: Fqpr, run_orientation: bool = True, orientation
     coord_system
         coord system identifier, anything that pyproj supports can be used here, will be used if use_coord is True
     vert_ref
-        the vertical reference point, one of ['ellipse', 'waterline']
+        the vertical reference point, one of ['ellipse', 'waterline', 'NOAA MLLW', 'NOAA MHW']
+    vdatum_directory
+        if 'NOAA MLLW' 'NOAA MHW' is the vertical reference, a path to the vdatum directory is required here
 
     Returns
     -------
@@ -282,7 +287,7 @@ def process_multibeam(fqpr_inst: Fqpr, run_orientation: bool = True, orientation
     if run_svcorr:
         fqpr_inst.sv_correct(add_cast_files=add_cast_files)
     if run_georef:
-        fqpr_inst.georef_xyz()
+        fqpr_inst.georef_xyz(vdatum_directory=vdatum_directory)
         fqpr_inst.calculate_total_uncertainty()
 
     # dask processes appear to suffer from memory leaks regardless of how carefully we track and wait on futures, reset the client here to clear memory after processing
@@ -309,7 +314,7 @@ def process_and_export_soundings(filname: str, outfold: str = None, coord_system
     coord_system
         a valid datum identifier that pyproj CRS will accept
     vert_ref
-        the vertical reference point, one of ['ellipse', 'waterline']
+        the vertical reference point, one of ['ellipse', 'waterline', 'NOAA MLLW', 'NOAA MHW']
 
     Returns
     -------
@@ -334,7 +339,7 @@ def return_georef_xyz(filname: str, coord_system: str = 'NAD83', vert_ref: str =
     coord_system
         a valid datum identifier that pyproj CRS will accept
     vert_ref
-        the vertical reference point, one of ['ellipse', 'waterline']
+        the vertical reference point, one of ['ellipse', 'waterline', 'NOAA MLLW', 'NOAA MHW']
 
     Returns
     -------
@@ -1120,7 +1125,7 @@ def return_data(pth: Union[list, str], coord_system: str = 'NAD83', vert_ref: st
     coord_system
         one of ['NAD83', 'WGS84']
     vert_ref
-        one of ['waterline', 'ellipse', 'vessel']
+        one of ['waterline', 'ellipse', 'NOAA MLLW', 'NOAA MHW']
     require_raw_data
         if True, raise exception if you can't find the raw data
     autogenerate
@@ -1155,7 +1160,7 @@ def return_surface(ref_surf_pth: Union[list, str], vert_ref: str, resolution: in
         a path to a zarr store, a path to a directory of multibeam files, a list of paths to multibeam files, a path to
         a single multibeam file or a path to an existing surface.
     vert_ref
-        one of ['waterline', 'ellipse', 'vessel']
+        one of ['waterline', 'ellipse', 'NOAA MLLW', 'NOAA MHW']
     resolution
         resolution of the grid in meters
     autogenerate
