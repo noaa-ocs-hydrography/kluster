@@ -1,3 +1,5 @@
+import os
+
 from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal
 
 
@@ -8,8 +10,9 @@ class ProjectSettingsDialog(QtWidgets.QDialog):
 
     fqpr = fully qualified ping record, the term for the datastore in kluster
     """
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, settings=None):
         super().__init__(parent)
+        self.external_settings = settings
 
         self.setWindowTitle('Project Settings')
         layout = QtWidgets.QVBoxLayout()
@@ -38,7 +41,7 @@ class ProjectSettingsDialog(QtWidgets.QDialog):
 
         self.hlayout_three = QtWidgets.QHBoxLayout()
         self.georef_vertref = QtWidgets.QComboBox()
-        self.georef_vertref.addItems(['waterline', 'ellipse'])
+        self.georef_vertref.addItems(['waterline', 'ellipse', 'NOAA MLLW', 'NOAA MHW'])
         self.georef_vertref.setMaximumWidth(100)
         self.hlayout_three.addWidget(self.georef_vertref)
         self.hlayout_three.addStretch(1)
@@ -52,12 +55,19 @@ class ProjectSettingsDialog(QtWidgets.QDialog):
         self.hlayout_five.addWidget(self.cancel_button)
         self.hlayout_five.addStretch(1)
 
+        self.status_msg = QtWidgets.QLabel('')
+        self.status_msg.setStyleSheet("QLabel { color : red; }")
+        self.status_msg.setAlignment(QtCore.Qt.AlignCenter)
+        self.statusbox = QtWidgets.QHBoxLayout()
+        self.statusbox.addWidget(self.status_msg)
+
         layout.addWidget(self.coord_msg)
         layout.addLayout(self.hlayout_one)
         layout.addLayout(self.hlayout_two)
         layout.addWidget(self.vertref_msg)
         layout.addLayout(self.hlayout_three)
         layout.addStretch()
+        layout.addLayout(self.statusbox)
         layout.addLayout(self.hlayout_five)
         self.setLayout(layout)
 
@@ -65,14 +75,44 @@ class ProjectSettingsDialog(QtWidgets.QDialog):
 
         self.ok_button.clicked.connect(self.start)
         self.cancel_button.clicked.connect(self.cancel)
+        self.georef_vertref.currentTextChanged.connect(self.find_vdatum)
 
         self.read_settings()
-        self.resize(600, 500)
+        self.resize(600, 200)
+
+    @property
+    def settings_object(self):
+        if self.external_settings:
+            return self.external_settings
+        else:
+            return QtCore.QSettings("NOAA", "Kluster")
+
+    def find_vdatum(self):
+        """
+        Adds a status message telling you if NOAA MLLW/MHW is a valid option based on whether or not we can
+        find vdatum successfully
+        """
+        self.status_msg.setStyleSheet("QLabel { color : red; }")
+        curr_vert = self.georef_vertref.currentText()
+        if curr_vert in ['NOAA MLLW', 'NOAA MHW']:
+            vdatum = self.settings_object.value('Kluster/settings_vdatum_directory')
+            if vdatum:
+                if os.path.exists(vdatum):
+                    if os.path.exists(os.path.join(vdatum, 'vdatum.jar')):
+                        self.status_msg.setStyleSheet("QLabel { color : green; }")
+                        self.status_msg.setText('Found VDatum at {}'.format(vdatum))
+                    else:
+                        self.status_msg.setText('Unable to find vdatum.jar at {}'.format(vdatum))
+                else:
+                    self.status_msg.setText('Unable to find vdatum folder at {}'.format(vdatum))
+            else:
+                self.status_msg.setText('VDatum folder not set')
+        else:
+            self.status_msg.setText('')
 
     def return_processing_options(self):
         """
         Return a dict of processing options to feed to fqpr_convenience.process_multibeam
-
         """
         if not self.canceled:
             if self.epsg_val.text():
@@ -81,7 +121,7 @@ class ProjectSettingsDialog(QtWidgets.QDialog):
                 except:
                     print('dialog_project_settings: EPSG must be an integer, received: {}'.format(self.epsg_val.text()))
             else:
-                epsg = None
+                epsg = ''
             opts = {'use_epsg': self.epsg_radio.isChecked(), 'epsg': epsg,
                     'use_coord': self.auto_utm_radio.isChecked(), 'coord_system': self.auto_utm_val.currentText(),
                     'vert_ref': self.georef_vertref.currentText()}
@@ -94,6 +134,7 @@ class ProjectSettingsDialog(QtWidgets.QDialog):
         Dialog completes if the specified widgets are populated, use return_processing_options to get access to the
         settings the user entered into the dialog.
         """
+        print('Project settings saved')
         self.canceled = False
         self.save_settings()
         self.accept()
@@ -109,7 +150,7 @@ class ProjectSettingsDialog(QtWidgets.QDialog):
         """
         Save the settings to the Qsettings registry
         """
-        settings = QtCore.QSettings("NOAA", "Kluster")
+        settings = self.settings_object
         settings.setValue('Kluster/proj_settings_epsgradio', self.epsg_radio.isChecked())
         settings.setValue('Kluster/proj_settings_epsgval', self.epsg_val.text())
         settings.setValue('Kluster/proj_settings_utmradio', self.auto_utm_radio.isChecked())
@@ -120,15 +161,20 @@ class ProjectSettingsDialog(QtWidgets.QDialog):
         """
         Read from the Qsettings registry
         """
-        settings = QtCore.QSettings("NOAA", "Kluster")
-
+        settings = self.settings_object
         try:
-            self.epsg_radio.setChecked(settings.value('Kluster/proj_settings_epsgradio').lower() == 'true')
-            self.epsg_val.setText(settings.value('Kluster/proj_settings_epsgval'))
-            self.auto_utm_radio.setChecked(settings.value('Kluster/proj_settings_utmradio').lower() == 'true')
+            try:
+                self.epsg_radio.setChecked(settings.value('Kluster/proj_settings_epsgradio').lower() == 'true')
+            except AttributeError:
+                self.epsg_radio.setChecked(settings.value('Kluster/proj_settings_epsgradio'))
+            self.epsg_val.setText(str(settings.value('Kluster/proj_settings_epsgval')))
+            try:
+                self.auto_utm_radio.setChecked(settings.value('Kluster/proj_settings_utmradio').lower() == 'true')
+            except AttributeError:
+                self.auto_utm_radio.setChecked(settings.value('Kluster/proj_settings_utmradio'))
             self.auto_utm_val.setCurrentText(settings.value('Kluster/proj_settings_utmval'))
             self.georef_vertref.setCurrentText(settings.value('Kluster/proj_settings_vertref'))
-        except AttributeError:
+        except TypeError:
             # no settings exist yet for this app, .lower failed
             pass
 

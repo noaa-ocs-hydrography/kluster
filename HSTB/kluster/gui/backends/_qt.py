@@ -6,7 +6,7 @@ qgis_path_pydro = ''
 qgis_path = ''
 try:
     import qgis  # this appears to work with 3.18, so the rest is not necessary
-except ImportError:
+except (ImportError, ModuleNotFoundError):
     # qgis conda installs to the library\python directory not to site_packages
     # this is where qgis should be if you pip install kluster and kluster is in the site_packages directory
     klusterfolder_path = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
@@ -44,7 +44,7 @@ if qgis_enabled:
     from qgis.PyQt.QtCore import pyqtSignal as Signal, pyqtSlot as Slot
     from qgis import core as qgis_core
     from qgis import gui as qgis_gui
-
+    os.environ['PYDRO_GUI_FORCE_PYQT'] = 'True'
     backend = 'PyQt5'
     qgis_enabled = True
     incompatible_modules = [ky for ky in sys.modules if ky.find('PySide') > -1]

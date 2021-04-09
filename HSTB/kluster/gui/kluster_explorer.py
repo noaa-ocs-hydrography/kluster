@@ -259,8 +259,8 @@ class KlusterExplorer(QtWidgets.QTableWidget):
                 max_line_time = ln[1][1]
                 newline_attr['Min Time'] = datetime.utcfromtimestamp(min_line_time).strftime('%D %H%M%S')
                 newline_attr['Max Time'] = datetime.utcfromtimestamp(max_line_time).strftime('%D %H%M%S')
-                if 'xyz_crs' in attrs:
-                    newline_attr['EPSG'] = str(attrs['xyz_crs'])
+                if 'horizontal_crs' in attrs:
+                    newline_attr['EPSG'] = str(attrs['horizontal_crs'])
                 translated_attrs.append(newline_attr)
 
         return translated_attrs, attrs

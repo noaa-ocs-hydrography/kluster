@@ -1463,7 +1463,7 @@ def interp_across_chunks(xarr: Union[xr.Dataset, xr.DataArray], new_times: xr.Da
     else:
         xarrs_chunked = daskclient.scatter(xarrs_chunked)
         interp_futs = daskclient.map(_interp_across_chunks_xarrayinterp, xarrs_chunked, [dimname] * len(chnkwise_times),
-                                     chnkwise_times)
+                                     daskclient.scatter(chnkwise_times))
         newarr = daskclient.submit(xr.concat, interp_futs, dimname).result()
 
     if needs_reverting and type(xarr) == xr.DataArray:

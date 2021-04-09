@@ -303,7 +303,7 @@ class RectangleMapTool(qgis_gui.QgsMapToolEmitPoint):
         self.rubberBand = qgis_gui.QgsRubberBand(self.canvas, True)
         self.rubberBand.setColor(QtCore.Qt.black)
         self.rubberBand.setFillColor(QtCore.Qt.transparent)
-        self.rubberBand.setWidth(3)
+        self.rubberBand.setWidth(1)
 
         self.start_point = None
         self.end_point = None
@@ -336,7 +336,6 @@ class RectangleMapTool(qgis_gui.QgsMapToolEmitPoint):
         self.isEmittingPoint = False
         r = self.rectangle()
         if r is not None:
-            print("Rectangle:", r.xMinimum(), r.yMinimum(), r.xMaximum(), r.yMaximum())
             self.select.emit(r.yMinimum(), r.yMaximum(), r.xMinimum(), r.xMaximum())
 
     def canvasMoveEvent(self, e):
@@ -691,6 +690,7 @@ class MapView(QtWidgets.QMainWindow):
     """
 
     box_select = Signal(float, float, float, float)
+    box_3dpoints = Signal(float, float, float, float)
 
     def __init__(self, parent=None, settings=None, epsg: int = 4326):
         super().__init__()
@@ -721,6 +721,7 @@ class MapView(QtWidgets.QMainWindow):
         self.set_background(self.layer_background, self.layer_transparency, self.surface_transparency)
 
         self.toolSelect.select.connect(self._area_selected)
+        self.toolPoints.select.connect(self._points_selected)
         self.set_extent(90, -90, 180, -180, buffer=False)
 
     def init_toolbar(self):
@@ -733,6 +734,7 @@ class MapView(QtWidgets.QMainWindow):
         self.actionSelect = QtWidgets.QAction("Select", self)
         self.actionQuery = QtWidgets.QAction("Query", self)
         self.actionDistance = QtWidgets.QAction("Distance", self)
+        self.actionPoints = QtWidgets.QAction("Points Box")
 
         self.actionZoomIn.setCheckable(True)
         self.actionZoomOut.setCheckable(True)
@@ -740,6 +742,7 @@ class MapView(QtWidgets.QMainWindow):
         self.actionSelect.setCheckable(True)
         self.actionQuery.setCheckable(True)
         self.actionDistance.setCheckable(True)
+        self.actionPoints.setCheckable(True)
 
         self.actionZoomIn.triggered.connect(self.zoomIn)
         self.actionZoomOut.triggered.connect(self.zoomOut)
@@ -747,6 +750,7 @@ class MapView(QtWidgets.QMainWindow):
         self.actionSelect.triggered.connect(self.selectBox)
         self.actionQuery.triggered.connect(self.query)
         self.actionDistance.triggered.connect(self.distance)
+        self.actionPoints.triggered.connect(self.selectPoints)
 
         self.toolbar = self.addToolBar("Canvas actions")
         self.toolbar.addAction(self.actionZoomIn)
@@ -755,6 +759,7 @@ class MapView(QtWidgets.QMainWindow):
         self.toolbar.addAction(self.actionSelect)
         self.toolbar.addAction(self.actionQuery)
         self.toolbar.addAction(self.actionDistance)
+        self.toolbar.addAction(self.actionPoints)
 
         # create the map tools
         self.toolPan = qgis_gui.QgsMapToolPan(self.canvas)
@@ -769,6 +774,8 @@ class MapView(QtWidgets.QMainWindow):
         self.toolQuery.setAction(self.actionQuery)
         self.toolDistance = DistanceTool(self.canvas)
         self.toolDistance.setAction(self.actionDistance)
+        self.toolPoints = RectangleMapTool(self.canvas)
+        self.toolPoints.setAction(self.actionPoints)
 
     def wms_openstreetmap_url(self):
         """
@@ -907,6 +914,25 @@ class MapView(QtWidgets.QMainWindow):
         """
 
         self.box_select.emit(min_lat, max_lat, min_lon, max_lon)
+
+    def _points_selected(self, min_lat: float, max_lat: float, min_lon: float, max_lon: float):
+        """
+        emit box_3dpoints signal when the Rectbox select tool is used, displays the points within the boundary in
+        3d viewer.
+
+        Parameters
+        ----------
+        min_lat
+            minimum latitude in map coordinates (generally wgs84 latitude)
+        max_lat
+            maximum latitude in map coordinates (generally wgs84 latitude)
+        min_lon
+            minimum longitude in map coordinates (generally wgs84 longitude)
+        max_lon
+            maximum longitude in map coordinates (generally wgs84 longitude)
+        """
+
+        self.box_3dpoints.emit(min_lat, max_lat, min_lon, max_lon)
 
     def _init_none(self):
         """
@@ -1183,7 +1209,7 @@ class MapView(QtWidgets.QMainWindow):
             the transparency of all surfaces as a percentage
         """
 
-        print('Initializing {} with transparency of {}%'.format(layername, transparency * 100))
+        print('Initializing {} with transparency of {}%'.format(layername, int(transparency * 100)))
         self.layer_background = layername
         self.layer_transparency = transparency
         self.surface_transparency = surf_transparency
@@ -1744,6 +1770,12 @@ class MapView(QtWidgets.QMainWindow):
         Activate the select tool
         """
         self.canvas.setMapTool(self.toolSelect)
+
+    def selectPoints(self):
+        """
+        Activate the point select tool
+        """
+        self.canvas.setMapTool(self.toolPoints)
 
     def query(self):
         """

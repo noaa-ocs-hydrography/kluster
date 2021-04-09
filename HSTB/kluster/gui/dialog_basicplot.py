@@ -34,7 +34,8 @@ class BasicPlotDialog(QtWidgets.QDialog):
                                     'tiltangle': 'Ping_Tilt_Angle', 'traveltime': 'Beam_Travel_Time',
                                     'tvu': 'Beam_Total_Vertical_Uncertainty', 'txsector_beam': 'Beam_Sector_Number',
                                     'x': 'Georeferenced_Easting', 'y': 'Georeferenced_Northing',
-                                    'yawpitchstab': 'Yaw_Pitch_Stabilization', 'z': 'Georeferenced_Depth'}
+                                    'yawpitchstab': 'Yaw_Pitch_Stabilization', 'z': 'Georeferenced_Depth',
+                                    'datum_uncertainty': 'Vertical_Datum_Uncertainty'}
         self.variable_reverse_lookup = {'SoundVelocity_AcrossTrack': 'acrosstrack', 'SoundVelocity_AlongTrack': 'alongtrack',
                                         'Uncorrected_Beam_Angle': 'beampointingangle', 'Corrected_Altitude': 'corr_altitude',
                                         'Corrected_Heave': 'corr_heave', 'Corrected_Beam_Angle': 'corr_pointing_angle',
@@ -47,7 +48,7 @@ class BasicPlotDialog(QtWidgets.QDialog):
                                         'Beam_Travel_Time': 'traveltime', 'Beam_Total_Vertical_Uncertainty': 'tvu',
                                         'Beam_Sector_Number': 'txsector_beam', 'Georeferenced_Easting': 'x',
                                         'Georeferenced_Northing': 'y', 'Yaw_Pitch_Stabilization': 'yawpitchstab',
-                                        'Georeferenced_Depth': 'z'}
+                                        'Georeferenced_Depth': 'z', 'Vertical_Datum_Uncertainty': 'datum_uncertainty'}
         self.plot_lookup = {2: ['Histogram', 'Image', 'Contour', 'Line - Mean', 'Line - Nadir',
                                 'Line - Port Outer Beam', 'Line - Starboard Outer Beam'],
                             1: ['Line', 'Histogram', 'Scatter']}
@@ -563,6 +564,8 @@ class BasicPlotDialog(QtWidgets.QDialog):
                 variable_expl = 'Variable = The raw beam angle that comes from the multibeam data.  Angle in degrees from the receiver to the beam footprint on the seafloor, does not take attitude or mounting angles into account.'
             elif variable == 'Yaw_Pitch_Stabilization':
                 variable_expl = 'Variable = Tells you whether yaw/pitch stabilization was enabled on the sonar\nY = Only yaw stab, P = Only pitch stab, PY = Pitch and yaw stab, N = Neither.'
+            elif variable == 'Vertical_Datum_Uncertainty':
+                variable_expl = 'Variable = Included when VDatum is used for vertical transformation to NOAA Chart Datums, is the uncertainty of that transform.  Will be all zeros if NOAA_MLLW/NOAA_MHW is not selected.'
         elif source == 'attitude':
             source_expl = 'Source = Attitude from the raw multibeam file.'
             if variable == 'heading':

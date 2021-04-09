@@ -14,8 +14,9 @@ class SettingsDialog(QtWidgets.QDialog):
 
     fqpr = fully qualified ping record, the term for the datastore in kluster
     """
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, settings=None):
         super().__init__(parent)
+        self.external_settings = settings
 
         self.setWindowTitle('Settings')
         layout = QtWidgets.QVBoxLayout()
@@ -61,7 +62,14 @@ class SettingsDialog(QtWidgets.QDialog):
 
         self.read_settings()
         self._refresh_error_message()
-        self.resize(600, 500)
+        self.resize(600, 150)
+
+    @property
+    def settings_object(self):
+        if self.external_settings:
+            return self.external_settings
+        else:
+            return QtCore.QSettings("NOAA", "Kluster")
 
     def return_options(self):
         """
@@ -87,6 +95,7 @@ class SettingsDialog(QtWidgets.QDialog):
         Dialog completes if the specified widgets are populated, use return_processing_options to get access to the
         settings the user entered into the dialog.
         """
+        print('General settings saved')
         self.canceled = False
         self.save_settings()
         self.accept()
@@ -102,7 +111,7 @@ class SettingsDialog(QtWidgets.QDialog):
         """
         Save the settings to the Qsettings registry
         """
-        settings = QtCore.QSettings("NOAA", "Kluster")
+        settings = self.settings_object
         settings.setValue('Kluster/settings_enable_parallel_writes', self.parallel_write.isChecked())
         settings.setValue('Kluster/settings_vdatum_directory', self.vdatum_text.text())
 
@@ -110,10 +119,13 @@ class SettingsDialog(QtWidgets.QDialog):
         """
         Read from the Qsettings registry
         """
-        settings = QtCore.QSettings("NOAA", "Kluster")
+        settings = self.settings_object
 
         try:
-            self.parallel_write.setChecked(settings.value('Kluster/settings_enable_parallel_writes').lower() == 'true')
+            try:
+                self.parallel_write.setChecked(settings.value('Kluster/settings_enable_parallel_writes').lower() == 'true')
+            except:
+                self.parallel_write.setChecked(settings.value('Kluster/settings_enable_parallel_writes'))
             self.vdatum_text.setText(settings.value('Kluster/settings_vdatum_directory'))
             self.vdatum_pth = settings.value('Kluster/settings_vdatum_directory')
         except AttributeError:

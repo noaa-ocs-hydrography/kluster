@@ -106,7 +106,7 @@ class WobbleTest:
         self.pitch_at_ping_time = interp_across_chunks(self.fqpr.multibeam.raw_att['pitch'], self.times).values
 
         self.vert_ref = self.fqpr.multibeam.raw_ping[0].vertical_reference
-        if self.vert_ref == 'ellipse':
+        if self.vert_ref in ['ellipse', 'NOAA MLLW', 'NOAA MHW']:
             self.vert_motion_at_ping_time = self.altitude - self.altitude.mean()
             print('Using corrected altitude to represent vertical motion')
         else:

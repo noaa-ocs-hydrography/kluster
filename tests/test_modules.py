@@ -1035,8 +1035,8 @@ def test_georeference_module():
 
     z_offset = 1.0
 
-    georef_x, georef_y, georef_z, corrected_heave, corrected_altitude = georef_by_worker(sv_corr, altitude, longitude, latitude, heading, heave,
-                                                                                         waterline, vert_ref, input_datum, output_datum, z_offset)
+    georef_x, georef_y, georef_z, corrected_heave, corrected_altitude, vdatumunc = georef_by_worker(sv_corr, altitude, longitude, latitude, heading, heave,
+                                                                                                    waterline, vert_ref, input_datum, output_datum, z_offset)
     assert np.array_equal(georef_x, expected_georef_x)
     assert np.array_equal(georef_y, expected_georef_y)
     assert np.array_equal(georef_z, expected_georef_z)

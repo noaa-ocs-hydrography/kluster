@@ -283,13 +283,7 @@ class FqprProject:
         self.node_vals_for_surf = {}
 
     def set_settings(self, settings: dict):
-        self.settings = settings
-        if 'use_epsg' in settings:
-            for relpath, fqpr_instance in self.fqpr_instances.items():
-                if settings['use_epsg']:
-                    changed = fqpr_instance.construct_crs(str(settings['epsg']), settings['coord_system'], True, settings['vert_ref'])
-                else:
-                    changed = fqpr_instance.construct_crs(None, settings['coord_system'], True, settings['vert_ref'])
+        self.settings.update(settings)
         if 'parallel_write' in settings:
             for relpath, fqpr_instance in self.fqpr_instances.items():
                 fqpr_instance.parallel_write = settings['parallel_write']
@@ -667,11 +661,7 @@ class FqprProject:
 
         for fq_proj in self.fqpr_lines:
             for fq_line in self.fqpr_lines[fq_proj]:
-                if fq_line not in self.buffered_fqpr_navigation:
-                    lats, lons = self.return_line_navigation(fq_line, samplerate=1)
-                    self.buffered_fqpr_navigation[fq_line] = [lats, lons]
-                else:
-                    lats, lons = self.buffered_fqpr_navigation[fq_line]
+                lats, lons = self.return_line_navigation(fq_line, samplerate=2)
 
                 line_min_lat = np.min(lats)
                 line_max_lat = np.max(lats)
@@ -682,6 +672,35 @@ class FqprProject:
                         (line_min_lon > min_lon):
                     lines_in_box.append(fq_line)
         return lines_in_box
+
+    def return_soundings_in_box(self, min_lat: float, max_lat: float, min_lon: float, max_lon: float):
+        """
+        With the given latitude/longitude boundaries, return the soundings that are within the boundaries.  Use the
+        Fqpr horizontal_crs recorded EPSG to do the transformation to northing/easting, and then query all the x, y to get
+        the soundings.
+
+        Parameters
+        ----------
+        min_lat
+            float, minimum latitude in degrees
+        max_lat
+            float, maximum latitude in degrees
+        min_lon
+            float, minimum longitude in degrees
+        max_lon
+            float, maximum longitude in degrees
+
+        Returns
+        -------
+        dict
+            dict where keys are the fqpr instance name, values are the sounding values as 1d arrays
+        """
+        data = {}
+        for fq_name, fq_inst in self.fqpr_instances.items():
+            x, y, z, tvu, rejected, pointtime, beam = fq_inst.return_soundings_in_box(min_lat, max_lat, min_lon, max_lon)
+            if x is not None:
+                data[fq_name] = [x, y, z, tvu, rejected, pointtime, beam]
+        return data
 
     def return_project_folder(self):
         """

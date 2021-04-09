@@ -1,5 +1,43 @@
 import os
 from typing import Union
+from pyproj import CRS
+from pyproj.exceptions import CRSError
+
+
+def build_crs(zone_num: str = None, datum: str = None, epsg: str = None, projected: bool = True):
+    horizontal_crs = None
+    if epsg:
+        try:
+            horizontal_crs = CRS.from_epsg(int(epsg))
+        except CRSError:  # if the CRS we generate here has no epsg, when we save it to disk we save the proj string
+            horizontal_crs = CRS.from_string(epsg)
+    elif not epsg and not projected:
+        datum = datum.upper()
+        if datum == 'NAD83':
+            horizontal_crs = CRS.from_epsg(epsg_determinator('nad83(2011)'))
+        elif datum == 'WGS84':
+            horizontal_crs = CRS.from_epsg(epsg_determinator('wgs84'))
+        else:
+            err = '{} not supported.  Only supports WGS84 and NAD83'.format(datum)
+            return horizontal_crs, err
+    elif not epsg and projected:
+        datum = datum.upper()
+        zone = zone_num  # this will be the zone and hemi concatenated, '10N'
+        try:
+            zone, hemi = int(zone[:-1]), str(zone[-1:])
+        except:
+            raise ValueError(
+                'construct_crs: found invalid projected zone/hemisphere identifier: {}, expected something like "10N"'.format(
+                    zone))
+
+        if datum == 'NAD83':
+            horizontal_crs = CRS.from_epsg(epsg_determinator('nad83(2011)', zone=zone, hemisphere=hemi))
+        elif datum == 'WGS84':
+            horizontal_crs = CRS.from_epsg(epsg_determinator('wgs84', zone=zone, hemisphere=hemi))
+        else:
+            err = '{} not supported.  Only supports WGS84 and NAD83'.format(datum)
+            return horizontal_crs, err
+    return horizontal_crs, ''
 
 
 def epsg_determinator(datum: str, zone: int = None, hemisphere: str = None):

@@ -3,8 +3,10 @@ import time
 import logging
 
 from HSTB.kluster import fqpr_generation, fqpr_project, xarray_conversion, fqpr_intelligence
-from .test_datasets import RealFqpr, RealDualheadFqpr, \
-    SyntheticFqpr  # relative import as tests directory can vary in location depending on how kluster is installed
+try:  # when running from pycharm console
+    from hstb_kluster.tests.test_datasets import RealFqpr, RealDualheadFqpr, SyntheticFqpr
+except:  # relative import as tests directory can vary in location depending on how kluster is installed
+    from .test_datasets import RealFqpr, RealDualheadFqpr, SyntheticFqpr
 from HSTB.kluster.xarray_helpers import interp_across_chunks
 from HSTB.kluster.fqpr_convenience import *
 from HSTB.drivers import par3

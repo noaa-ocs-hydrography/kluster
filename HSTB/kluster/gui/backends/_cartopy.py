@@ -24,7 +24,7 @@ class MapView(FigureCanvasQTAgg):
     """
     box_select = Signal(float, float, float, float)
 
-    def __init__(self, parent=None, width: int = 5, height: int = 4, dpi: int = 100, map_proj=ccrs.PlateCarree()):
+    def __init__(self, parent=None, width: int = 5, height: int = 4, dpi: int = 100, map_proj=ccrs.PlateCarree(), settings=None):
         self.fig = Figure(figsize=(width, height), dpi=dpi)
         self.map_proj = map_proj
         self.axes = self.fig.add_subplot(projection=map_proj)

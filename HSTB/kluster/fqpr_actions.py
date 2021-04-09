@@ -298,7 +298,7 @@ def build_multibeam_action(destination: str, line_list: list, client: Client = N
 
     args = [line_list, destination, client, False, True]
     if settings:
-        allowed_kwargs = ['parallel_write']
+        allowed_kwargs = ['parallel_write', 'vdatum_directory']
         existing_kwargs = list(settings.keys())
         [settings.pop(ky) for ky in existing_kwargs if ky not in allowed_kwargs]
     action = FqprAction(priority=1, action_type='multibeam', output_destination=destination, input_files=line_list,
@@ -332,7 +332,7 @@ def update_kwargs_for_multibeam(destination: str, line_list: list, client: Clien
 
     args = [line_list, destination, client, False, True]
     if settings:
-        allowed_kwargs = ['parallel_write']
+        allowed_kwargs = ['parallel_write', 'vdatum_directory']
         existing_kwargs = list(settings.keys())
         [settings.pop(ky) for ky in existing_kwargs if ky not in allowed_kwargs]
     update_settings = {'input_files': line_list, 'text': 'Convert {} multibeam lines to {}'.format(len(line_list), destination),

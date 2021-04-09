@@ -5,10 +5,9 @@ import numpy as np
 
 from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal, qgis_enabled
 if qgis_enabled:
-    os.environ['PYDRO_GUI_FORCE_PYQT'] = 'True'
     from HSTB.kluster.gui.backends._qt import qgis_core, qgis_gui
 
-from HSTB.kluster.gui import dialog_vesselview, kluster_explorer, kluster_project_tree, kluster_3dview, kluster_attitudeview, \
+from HSTB.kluster.gui import dialog_vesselview, kluster_explorer, kluster_project_tree, kluster_3dview_v2, \
     kluster_output_window, kluster_2dview, kluster_actions, kluster_monitor, dialog_daskclient, dialog_surface, \
     dialog_export, kluster_worker, kluster_interactive_console, dialog_basicplot, dialog_advancedplot, dialog_project_settings, \
     dialog_export_grid, dialog_layer_settings, dialog_settings, dialog_importppnav, dialog_overwritenav
@@ -73,8 +72,10 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.two_d = kluster_2dview.Kluster2dview(self, self.settings.copy())
         self.two_d_dock = self.dock_this_widget('2d view', 'two_d_dock', self.two_d)
 
-        self.three_d = kluster_3dview.Kluster3dview(self)
+        self.three_d = kluster_3dview_v2.ThreeDWidget(self)
         self.three_d_dock = self.dock_this_widget("3d view", 'three_d_dock', self.three_d)
+        # for now we remove the ability to undock the three d window, vispy wont work if we do
+        self.three_d_dock.setFeatures(QtWidgets.QDockWidget.DockWidgetMovable)
 
         self.explorer = kluster_explorer.KlusterExplorer(self)
         self.explorer_dock = self.dock_this_widget("Explorer", 'explorer_dock', self.explorer)
@@ -84,9 +85,6 @@ class KlusterMain(QtWidgets.QMainWindow):
 
         self.attribute = kluster_explorer.KlusterAttribution(self)
         self.attribute_dock = self.dock_this_widget("Attribute", 'attribute_dock', self.attribute)
-
-        # self.attitude = kluster_attitudeview.KlusterAttitudeView(self)
-        # self.attitude_dock = self.dock_this_widget('Attitude', 'attitude_dock', self.attitude)
 
         self.actions = kluster_actions.KlusterActions(self)
         self.actions_dock = self.dock_this_widget('Actions', 'actions_dock', self.actions)
@@ -133,6 +131,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.actions.exclude_unmatched_file.connect(self._action_remove_file)
         self.actions.undo_exclude_file.connect(self._action_add_files)
         self.two_d.box_select.connect(self.select_line_by_box)
+        self.two_d.box_3dpoints.connect(self.select_points_in_box)
         self.action_thread.finished.connect(self._kluster_execute_action_results)
         self.overwrite_nav_thread.started.connect(self._start_action_progress)
         self.overwrite_nav_thread.finished.connect(self._kluster_overwrite_nav_results)
@@ -173,6 +172,7 @@ class KlusterMain(QtWidgets.QMainWindow):
             possible_vdatum = path_to_supplementals('VDatum')
             if possible_vdatum and os.path.exists(possible_vdatum):
                 self.settings['vdatum_directory'] = possible_vdatum
+                self.two_d.vdatum_directory = self.settings['vdatum_directory']
         if self.project.path is not None:
             self.project.set_settings(self.settings.copy())
         self.intel.set_settings(self.settings.copy())
@@ -356,6 +356,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         for ln in self.project.return_project_lines(proj=pth, relative_path=True):
             self.two_d.remove_line(ln)
         self.two_d.refresh_screen()
+        self.three_d.clear()
         self.project.remove_fqpr(pth, relative_path=True)
         self.project_tree.refresh_project(self.project)
 
@@ -893,6 +894,7 @@ class KlusterMain(QtWidgets.QMainWindow):
             self.close_fqpr(fq)
 
         self.project_tree.configure()
+        self.three_d.clear()
         self.two_d.clear()
         self.explorer.clear_explorer_data()
         self.attribute.clear_attribution_data()
@@ -927,10 +929,14 @@ class KlusterMain(QtWidgets.QMainWindow):
         and intel instance.
         """
 
-        dlog = dialog_project_settings.ProjectSettingsDialog()
+        dlog = dialog_project_settings.ProjectSettingsDialog(settings=self.settings_object)
         if dlog.exec_() and not dlog.canceled:
             settings = dlog.return_processing_options()
             self.settings.update(settings)
+            settings_obj = self.settings_object
+            for settname, opts in settings_translator.items():
+                settings_obj.setValue(settname, self.settings[opts['newname']])
+
             if self.project.path is not None:
                 self.project.set_settings(settings)
             self.intel.set_settings(settings)
@@ -940,10 +946,15 @@ class KlusterMain(QtWidgets.QMainWindow):
         Triggered on hitting OK in the layer settings dialog.  Takes the provided settings and regenerates the 2d display.
         """
 
-        dlog = dialog_layer_settings.LayerSettingsDialog()
+        dlog = dialog_layer_settings.LayerSettingsDialog(settings=self.settings_object)
         if dlog.exec_() and not dlog.canceled:
             settings = dlog.return_layer_options()
             self.settings.update(settings)
+            settings_obj = self.settings_object
+            for settname, opts in settings_translator.items():
+                settings_obj.setValue(settname, self.settings[opts['newname']])
+
+            self.two_d.vdatum_directory = self.settings['vdatum_directory']
             self.two_d.set_background(self.settings['layer_background'], self.settings['layer_transparency'],
                                       self.settings['surface_transparency'])
 
@@ -953,10 +964,14 @@ class KlusterMain(QtWidgets.QMainWindow):
         and intel instance.
         """
 
-        dlog = dialog_settings.SettingsDialog()
+        dlog = dialog_settings.SettingsDialog(settings=self.settings_object)
         if dlog.exec_() and not dlog.canceled:
             settings = dlog.return_options()
             self.settings.update(settings)
+            settings_obj = self.settings_object
+            for settname, opts in settings_translator.items():
+                settings_obj.setValue(settname, self.settings[opts['newname']])
+
             if self.project.path is not None:
                 self.project.set_settings(settings)
             self.intel.set_settings(settings)
@@ -992,10 +1007,6 @@ class KlusterMain(QtWidgets.QMainWindow):
         convert_pth = self.project.convert_path_lookup[linename]
         raw_attribution = self.project.fqpr_attrs[convert_pth]
         self.explorer.populate_explorer(linename, raw_attribution)
-        if self.dockwidget_is_visible(self.three_d_dock):
-            xyz = self.project.build_point_cloud_for_line(linename)
-            if xyz is not None:
-                self.three_d.add_point_dataset(xyz[0], xyz[1], xyz[2])
 
         # if self.dockwidget_is_visible(self.attitude_dock) and idx == 0:
         #     att = self.project.build_raw_attitude_for_line(linename, subset=True)
@@ -1032,7 +1043,6 @@ class KlusterMain(QtWidgets.QMainWindow):
 
         """
         self.two_d.reset_line_colors()
-        self.three_d.clear_plot_area()
         self.explorer.clear_explorer_data()
         self._line_selected(linename)
         self.two_d.change_line_colors([linename], 'red')
@@ -1048,7 +1058,6 @@ class KlusterMain(QtWidgets.QMainWindow):
         """
 
         self.two_d.reset_line_colors()
-        self.three_d.clear_plot_area()
         self.explorer.clear_explorer_data()
         linenames = self.project.return_project_lines(proj=os.path.normpath(converted_pth))
         self.attribute.display_file_attribution(self.project.fqpr_instances[converted_pth].multibeam.raw_ping[0].attrs)
@@ -1065,11 +1074,12 @@ class KlusterMain(QtWidgets.QMainWindow):
         converted_pth: str, surface path, used as key in project structure
 
         """
-        if self.dockwidget_is_visible(self.three_d_dock):
-            self.three_d.clear_plot_area()
-            surf_object = self.project.surface_instances[converted_pth]
-            lyr = surf_object.get_layer_by_name('depth')
-            self.three_d.add_surface_dataset(surf_object.node_x_loc, surf_object.node_y_loc, lyr)
+        pass
+        # if self.dockwidget_is_visible(self.three_d_dock):
+        #     self.three_d.clear_plot_area()
+        #     surf_object = self.project.surface_instances[converted_pth]
+        #     lyr = surf_object.get_layer_by_name('depth')
+        #     self.three_d.add_surface_dataset(surf_object.node_x_loc, surf_object.node_y_loc, lyr)
 
     def tree_surface_layer_selected(self, surfpath, layername, checked):
         """
@@ -1098,7 +1108,6 @@ class KlusterMain(QtWidgets.QMainWindow):
 
         """
         self.two_d.reset_line_colors()
-        self.three_d.clear_plot_area()
         self.explorer.clear_explorer_data()
         if is_selected:
             all_lines = self.project.return_sorted_line_list()
@@ -1124,6 +1133,25 @@ class KlusterMain(QtWidgets.QMainWindow):
         for cnt, ln in enumerate(lines):
             self._line_selected(ln, idx=cnt)
         self.two_d.change_line_colors(lines, 'red')
+
+    def select_points_in_box(self, min_lat, max_lat, min_lon, max_lon):
+        """
+        method run on using the 2dview points select tool.  Gathers all points in the box.
+
+        Parameters
+        ----------
+        min_lat: float, minimum latitude of the box
+        max_lat: float, maximum latitude of the box
+        min_lon: float, minimum longitude of the box
+        max_lon: float, minimum longitude of the box
+
+        """
+        self.three_d.clear()
+        pts_data = self.project.return_soundings_in_box(min_lat, max_lat, min_lon, max_lon)
+        for fqpr_name, pointdata in pts_data.items():
+            self.three_d.add_points(pointdata[0], pointdata[1], pointdata[2], pointdata[3], pointdata[4], pointdata[5],
+                                    pointdata[6], fqpr_name)
+        self.three_d.display_points()
 
     def dock_this_widget(self, title, objname, widget):
         """
@@ -1166,13 +1194,11 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.addDockWidget(QtCore.Qt.TopDockWidgetArea, self.tree_dock)
         self.addDockWidget(QtCore.Qt.TopDockWidgetArea, self.two_d_dock)
         self.addDockWidget(QtCore.Qt.TopDockWidgetArea, self.three_d_dock)
-        # self.addDockWidget(QtCore.Qt.TopDockWidgetArea, self.attitude_dock)
         self.addDockWidget(QtCore.Qt.TopDockWidgetArea, self.actions_dock)
         self.addDockWidget(QtCore.Qt.TopDockWidgetArea, self.monitor_dock)
         self.splitDockWidget(self.tree_dock, self.two_d_dock, QtCore.Qt.Horizontal)
         self.splitDockWidget(self.two_d_dock, self.actions_dock, QtCore.Qt.Horizontal)
         self.tabifyDockWidget(self.two_d_dock, self.three_d_dock)
-        # self.tabifyDockWidget(self.two_d_dock, self.attitude_dock)
         self.tabifyDockWidget(self.actions_dock, self.monitor_dock)
 
         self.addDockWidget(QtCore.Qt.BottomDockWidgetArea, self.explorer_dock)
@@ -1352,7 +1378,6 @@ class KlusterMain(QtWidgets.QMainWindow):
         settings = self.settings_object
         self.monitor.save_settings(settings)
         for settname, opts in settings_translator.items():
-            print(settname, opts['newname'], self.settings[opts['newname']])
             settings.setValue(settname, self.settings[opts['newname']])
 
         self.close_project()

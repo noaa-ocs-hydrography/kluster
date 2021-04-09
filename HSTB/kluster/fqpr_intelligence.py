@@ -11,6 +11,7 @@ from collections import OrderedDict
 from HSTB.drivers import kmall, par3, sbet, svp
 from HSTB.kluster import monitor, fqpr_actions
 from HSTB.kluster.fqpr_project import FqprProject
+from HSTB.kluster.fqpr_helpers import build_crs
 
 
 supported_mbes = ['.all', '.kmall']
@@ -138,11 +139,8 @@ class FqprIntel(LoggerClass):
         settings
             dictionary of processing settings
         """
-        desired_keys = ['use_epsg', 'epsg', 'use_coord', 'coord_system', 'vert_ref']
-        try:
-            self.processing_settings = {ky: settings[ky] for ky in desired_keys}
-        except KeyError:  # settings provided did not have a desired key
-            pass
+        desired_keys = ['use_epsg', 'epsg', 'use_coord', 'coord_system', 'vert_ref', 'vdatum_directory']
+        self.processing_settings.update({ky: settings[ky] for ky in desired_keys if ky in settings})
         existing_kwargs = list(settings.keys())
         [settings.pop(ky) for ky in existing_kwargs if ky in desired_keys]
         self.general_settings = settings
@@ -525,16 +523,32 @@ class FqprIntel(LoggerClass):
                     self.action_container.remove_action(action)
 
             for relative_path, fqpr_instance in self.project.fqpr_instances.items():
+                if 'use_epsg' in self.processing_settings:  # if someone setup the project with a default coord system
+                    if self.processing_settings['use_epsg']:
+                        new_coord_system, err = build_crs(epsg=self.processing_settings['epsg'])
+                    else:
+                        new_coord_system, err = build_crs(zone_num=fqpr_instance.multibeam.return_utm_zone_number(),
+                                                          datum=self.processing_settings['coord_system'])
+                    if err:
+                        self.logger.error(err)
+                        raise ValueError(err)
+                else:
+                    new_coord_system = None
+                if 'vert_ref' in self.processing_settings:  # if someone setup the project with a default vert ref
+                    new_vert_ref = self.processing_settings['vert_ref']
+                else:
+                    new_vert_ref = None
                 abs_path = self.project.absolute_path_from_relative(relative_path)
                 action = [a for a in existing_actions if a.output_destination == abs_path]
-                args, kwargs = fqpr_instance.return_next_action()
-                if len(action) == 1 and not action[0].is_running:
+                args, kwargs = fqpr_instance.return_next_action(new_coordinate_system=new_coord_system,
+                                                                new_vertical_reference=new_vert_ref)
+                if len(action) == 1 and not action[0].is_running:  # modify the existing processing action
                     if kwargs == {}:
                         self.action_container.remove_action(action[0])
                     else:
                         settings = fqpr_actions.update_kwargs_for_processing(abs_path, args, kwargs, self.processing_settings)
                         self.action_container.update_action(action[0], **settings)
-                else:
+                else:  # if valid kwargs are returned, there is a new processing action to take
                     if kwargs != {}:
                         newaction = fqpr_actions.build_processing_action(abs_path, args, kwargs, self.processing_settings)
                         self.action_container.add_action(newaction)
@@ -756,7 +770,6 @@ class FqprIntel(LoggerClass):
         - Check weekly seconds and fqpr instance weekly seconds to see if sbet is on the same day.
         - Check the navfilepath for fqpr instance identifiers like serial number and model number
         - (TODO) look at getting a time/position from the multibeam and see if that is in the SBET with a close position
-
         """
 
         if not self.project:
@@ -1635,7 +1648,7 @@ def likelihood_start_end_times_close(filetimes: list, compare_times: list, allow
 
 def intel_process(filname: Union[str, list], outfold: str = None, coord_system: str = 'NAD83',
                   epsg: int = None, use_epsg: bool = False, vert_ref: str = 'waterline',
-                  parallel_write: bool = True):
+                  parallel_write: bool = True, vdatum_directory: str = None):
     """
     Use Kluster intelligence module to organize and process all input files.  Files can be a list of files, a single
     file, or a directory full of files.  Files can be multibeam files, .svp sound velocity profile files, SBET and
@@ -1654,9 +1667,11 @@ def intel_process(filname: Union[str, list], outfold: str = None, coord_system: 
     use_epsg
         if True, will use the epsg code to build the CRS to use
     vert_ref
-        the vertical reference point, one of ['ellipse', 'waterline']
+        the vertical reference point, one of ['ellipse', 'waterline', 'NOAA MLLW', 'NOAA MHW']
     parallel_write
         if True, will write in parallel to disk, Disable for permissions issues troubleshooting.
+    vdatum_directory
+        if 'NOAA MLLW' 'NOAA MHW' is the vertical reference, a path to the vdatum directory is required here
 
     Returns
     -------
@@ -1672,7 +1687,7 @@ def intel_process(filname: Union[str, list], outfold: str = None, coord_system: 
     intel = FqprIntel(project)
 
     settings = {'use_epsg': use_epsg, 'epsg': epsg, 'use_coord': not use_epsg, 'coord_system': coord_system,
-                'vert_ref': vert_ref, 'parallel_write': parallel_write}
+                'vert_ref': vert_ref, 'parallel_write': parallel_write, 'vdatum_directory': vdatum_directory}
     intel.set_settings(settings)
 
     if os.path.isdir(filname):
@@ -1687,7 +1702,8 @@ def intel_process(filname: Union[str, list], outfold: str = None, coord_system: 
 
 
 def intel_process_service(folder_path: str, is_recursive: bool = True, outfold: str = None, coord_system: str = 'NAD83',
-                          epsg: int = None, use_epsg: bool = False, vert_ref: str = 'waterline', parallel_write: bool = True):
+                          epsg: int = None, use_epsg: bool = False, vert_ref: str = 'waterline',
+                          parallel_write: bool = True, vdatum_directory: str = None):
     """
     Use Kluster intelligence module to start a new folder monitoring session and process all new files that show
     up in that directory.  Files can be multibeam files, .svp sound velocity profile files, SBET and
@@ -1711,6 +1727,8 @@ def intel_process_service(folder_path: str, is_recursive: bool = True, outfold: 
         the vertical reference point, one of ['ellipse', 'waterline']
     parallel_write
         if True, will write in parallel to disk, Disable for permissions issues troubleshooting.
+    vdatum_directory
+        if 'NOAA MLLW' 'NOAA MHW' is the vertical reference, a path to the vdatum directory is required here
     """
 
     # consider daemonizing this at some point: https://daemoniker.readthedocs.io/en/latest/index.html
@@ -1720,7 +1738,7 @@ def intel_process_service(folder_path: str, is_recursive: bool = True, outfold: 
     intel = FqprIntel(project)
 
     settings = {'use_epsg': use_epsg, 'epsg': epsg, 'use_coord': not use_epsg, 'coord_system': coord_system,
-                'vert_ref': vert_ref, 'parallel_write': parallel_write}
+                'vert_ref': vert_ref, 'parallel_write': parallel_write, 'vdatum_directory': vdatum_directory}
     intel.set_settings(settings)
 
     intel.start_folder_monitor(folder_path, is_recursive=is_recursive)

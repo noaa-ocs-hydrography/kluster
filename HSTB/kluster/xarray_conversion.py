@@ -2069,7 +2069,8 @@ class BatchRead:
 
         Returns
         -------
-        zne: int, zone number, e.g. 19 for UTM Zone 19
+        str
+            zone number, e.g. '19N' for UTM Zone 19 N
         """
 
         minlon = float(self.raw_nav.longitude.min().values)

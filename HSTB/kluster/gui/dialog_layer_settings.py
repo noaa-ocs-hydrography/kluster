@@ -8,8 +8,9 @@ class LayerSettingsDialog(QtWidgets.QDialog):
     Dialog contains all layer settings for the 2d view.
     """
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, settings=None):
         super().__init__(parent)
+        self.external_settings = settings
 
         self.setWindowTitle('Layer Settings')
         layout = QtWidgets.QVBoxLayout()
@@ -71,7 +72,14 @@ class LayerSettingsDialog(QtWidgets.QDialog):
         self.cancel_button.clicked.connect(self.cancel)
 
         self.read_settings()
-        self.resize(600, 500)
+        self.resize(600, 200)
+
+    @property
+    def settings_object(self):
+        if self.external_settings:
+            return self.external_settings
+        else:
+            return QtCore.QSettings("NOAA", "Kluster")
 
     def return_layer_options(self):
         """
@@ -103,6 +111,7 @@ class LayerSettingsDialog(QtWidgets.QDialog):
         Dialog completes if the specified widgets are populated, use return_processing_options to get access to the
         settings the user entered into the dialog.
         """
+        print('Layer settings saved')
         self.canceled = False
         self.save_settings()
         self.accept()
@@ -118,21 +127,24 @@ class LayerSettingsDialog(QtWidgets.QDialog):
         """
         Save the settings to the Qsettings registry
         """
-        settings = QtCore.QSettings("NOAA", "Kluster")
-        settings.setValue('Kluster/layer_settings_background', self.layer_dropdown.currentText())
-        settings.setValue('Kluster/layer_settings_transparency', self.transparency.text())
-        settings.setValue('Kluster/layer_settings_surfacetransparency', self.surf_transparency.text())
+        settings = self.settings_object
+        new_sets = self.return_layer_options()
+        settings.setValue('Kluster/layer_settings_background', new_sets['layer_background'])
+        settings.setValue('Kluster/layer_settings_transparency', new_sets['layer_transparency'])
+        settings.setValue('Kluster/layer_settings_surfacetransparency', new_sets['surface_transparency'])
 
     def read_settings(self):
         """
         Read from the Qsettings registry
         """
-        settings = QtCore.QSettings("NOAA", "Kluster")
+        settings = self.settings_object
 
         try:
             self.layer_dropdown.setCurrentText(settings.value('Kluster/layer_settings_background'))
-            self.transparency.setText(settings.value('Kluster/layer_settings_transparency'))
-            self.surf_transparency.setText(settings.value('Kluster/layer_settings_surfacetransparency'))
+            if settings.value('Kluster/layer_settings_transparency'):
+                self.transparency.setText(str(int(float(settings.value('Kluster/layer_settings_transparency')) * 100)))
+            if settings.value('Kluster/layer_settings_surfacetransparency'):
+                self.surf_transparency.setText(str(int(float(settings.value('Kluster/layer_settings_surfacetransparency')) * 100)))
         except AttributeError:
             # no settings exist yet for this app, .lower failed
             pass
