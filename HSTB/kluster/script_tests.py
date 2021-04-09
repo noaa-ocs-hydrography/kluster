@@ -431,3 +431,23 @@ for s_cnt, system in enumerate(systems):
     break
 
 sv_corr, alt, lon, lat, hdng, heave, wline, vert_ref, input_crs, horizontal_crs, z_offset, vdatum_directory = self.client.gather(data_for_workers[0])
+
+##############################################################################
+import numpy as np
+from vispy import visuals, scene, app
+
+canvas = scene.SceneCanvas(keys='interactive', show=True)
+view = canvas.central_widget.add_view()
+view.camera = scene.TurntableCamera(fov=45)
+view.camera.distance = 1000
+sctr = scene.visuals.create_visual_node(visuals.MarkersVisual)
+scatter = sctr(parent=view.scene)
+scatter.set_data(np.stack([np.arange(100) * 100, np.arange(100) * 100, np.linspace(0, 5, 100)], axis=1))
+print(canvas.size)
+
+transform = scatter.node_transform(view)
+print(transform.imap((0, 0)))
+print(transform.imap((800, 600)))
+
+app.run()
+

@@ -5,6 +5,7 @@ from matplotlib import cm
 from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, backend
 
 from vispy import use
+from vispy.util import keys
 use(backend, 'gl2')
 
 from vispy import visuals, scene
@@ -25,6 +26,108 @@ class DockableCanvas(scene.SceneCanvas):
             pass
 
 
+class TurntableCameraInteractive(scene.TurntableCamera):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.selected_callback = None
+        self.fresh_camera = True
+
+    def _bind_selecting_event(self, selfunc):
+        self.selected_callback = selfunc
+
+    def _handle_translate_event(self, start_pos, end_pos):
+        self.fresh_camera = False
+        norm = np.mean(self._viewbox.size)
+        if self._event_value is None or len(self._event_value) == 2:
+            self._event_value = self.center
+        dist = (start_pos - end_pos) / norm * self._scale_factor
+        dist[1] *= -1
+        # Black magic part 1: turn 2D into 3D translations
+        dx, dy, dz = self._dist_to_trans(dist)
+        # Black magic part 2: take up-vector and flipping into account
+        ff = self._flip_factors
+        up, forward, right = self._get_dim_vectors()
+        dx, dy, dz = right * dx + forward * dy + up * dz
+        dx, dy, dz = ff[0] * dx, ff[1] * dy, dz * ff[2]
+        c = self._event_value
+        self.center = c[0] + dx, c[1] + dy, c[2] + dz
+
+    def _handle_zoom_event(self, distance):
+        # Zoom
+        self.fresh_camera = False
+        if self._event_value is None:
+            self._event_value = (self._scale_factor, self._distance)
+        zoomy = (1 + self.zoom_factor) ** distance[1]
+
+        self.scale_factor = self._event_value[0] * zoomy
+        # Modify distance if its given
+        if self._distance is not None:
+            self._distance = self._event_value[1] * zoomy
+        self.view_changed()
+
+    def _handle_mousewheel_zoom_event(self, event):
+        self.fresh_camera = False
+        s = 1.1 ** - event.delta[1]
+        self._scale_factor *= s
+        if self._distance is not None:
+            self._distance *= s
+        self.view_changed()
+
+    def _handle_fov_move_event(self, dist):
+        self.fresh_camera = False
+        # Change fov
+        if self._event_value is None:
+            self._event_value = self._fov
+        fov = self._event_value - dist[1] / 5.0
+        try:
+            self.fov = min(180.0, max(0.0, fov))
+        except TypeError:  # user let go of shift while dragging
+            pass
+
+    def _handle_data_selected(self, startpos, endpos):
+        if self.selected_callback:
+            if (startpos == endpos).all():
+                startpos -= 1
+                endpos += 1
+            startpos = np.array(self._dist_to_trans(startpos))
+            endpos = np.array(self._dist_to_trans(startpos))
+            self.selected_callback(startpos, endpos)
+
+    def viewbox_mouse_event(self, event):
+        if event.handled or not self.interactive:
+            return
+
+        if event.type == 'mouse_wheel':
+            self._handle_mousewheel_zoom_event(event)
+        elif event.type == 'mouse_release':
+            if event.press_event is None:
+                self._event_value = None  # Reset
+                return
+
+            modifiers = event.mouse_event.modifiers
+            p1 = event.mouse_event.press_event.pos
+            p2 = event.mouse_event.pos
+            if 1 in event.buttons and keys.CONTROL in modifiers:
+                self._handle_data_selected(p1, p2)
+            self._event_value = None  # Reset
+        elif event.type == 'mouse_press':
+            event.handled = True
+        elif event.type == 'mouse_move':
+            if event.press_event is None:
+                return
+
+            modifiers = event.mouse_event.modifiers
+            p1 = event.mouse_event.press_event.pos
+            p2 = event.mouse_event.pos
+            d = p2 - p1
+            if 1 in event.buttons and not modifiers:
+                self._update_rotation(event)
+            elif 1 in event.buttons and keys.SHIFT in modifiers:
+                self._handle_translate_event(p1, p2)
+            elif 2 in event.buttons:
+                self._handle_zoom_event(d)
+
+
 class ThreeDView(QtWidgets.QWidget):
     """
     Widget containing the Vispy scene.  Controlled with mouse (rotation/translation) and dictated by the values
@@ -34,10 +137,13 @@ class ThreeDView(QtWidgets.QWidget):
         super().__init__(parent)
         self.canvas = DockableCanvas(keys='interactive', show=True, parent=parent)
         self.view = self.canvas.central_widget.add_view()
-        # our z is positive down, up=-z tells the camera how to behave in this case
-        self.view.camera = scene.TurntableCamera(fov=45)  # arcball does not support -z up
+        self.view.camera = TurntableCameraInteractive(fov=45)
+        self.view.camera._bind_selecting_event(self._select_points)
 
         self.scatter = None
+        self.scatter_transform = None
+        self.scatter_select_range = None
+
         self.id = np.array([])
         self.x = np.array([])
         self.y = np.array([])
@@ -51,10 +157,16 @@ class ThreeDView(QtWidgets.QWidget):
         self.y_offset = 0.0
         self.z_offset = 0.0
         self.vertical_exaggeration = 1.0
+        self.displayed_points = None
+        self.selected_points = None
 
         layout = QtWidgets.QHBoxLayout()
         layout.addWidget(self.canvas.native)
         self.setLayout(layout)
+
+    def _select_points(self, startpos, endpos):
+        if self.displayed_points is not None:
+            self.select_points(startpos, endpos)
 
     def add_points(self, x: np.array, y: np.array, z: np.array, tvu: np.array, rejected: np.array, pointtime: np.array,
                    beam: np.array, newid: str):
@@ -144,13 +256,28 @@ class ThreeDView(QtWidgets.QWidget):
         # camera assumes z is positive up, flip the z to accomodate that
         centered_z = -(centered_z * vertical_exaggeration)
 
-        pts = np.stack([centered_x, centered_y, centered_z], axis=1)
+        self.displayed_points = np.stack([centered_x, centered_y, centered_z], axis=1)
         scatter = scene.visuals.create_visual_node(visuals.MarkersVisual)
         self.scatter = scatter(parent=self.view.scene)
         self.scatter.set_gl_state('translucent', blend=True, depth_test=True)
-        self.scatter.set_data(pts, edge_color=clrs, face_color=clrs, symbol='o', size=3)
-        self.view.camera.center = (0, 0, 0)
-        self.view.camera.distance = centered_x.max()
+        self.scatter.set_data(self.displayed_points, edge_color=clrs, face_color=clrs, symbol='o', size=3)
+
+        if self.view.camera.fresh_camera:
+            self.view.camera.center = (0, 0, 0)
+            self.view.camera.distance = centered_x.max()
+            self.view.camera.fresh_camera = False
+
+    def _pixel_coordinates_to_scene_coordinates(self, pos_x, pos_y):
+        transform = self.view.get_transform()
+        newx, newy, _, _ = transform.imap((pos_x, pos_y))
+        return np.array([newx, newy])
+
+    def select_points(self, startpos, endpos):
+        worldcoords_start = self._pixel_coordinates_to_scene_coordinates(startpos[0], startpos[1])
+        worldcoords_end = self._pixel_coordinates_to_scene_coordinates(endpos[0], endpos[1])
+        m1 = self.displayed_points[:, :2] >= worldcoords_start
+        m2 = self.displayed_points[:, :2] <= worldcoords_end
+        self.selected_points = np.argwhere(m1[:, 0] & m1[:, 1] & m2[:, 0] & m2[:, 1])
 
     def clear_display(self):
         if self.scatter is not None:
