@@ -5,7 +5,6 @@ import numpy as np
 
 from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal, qgis_enabled
 if qgis_enabled:
-    os.environ['PYDRO_GUI_FORCE_PYQT'] = 'True'
     from HSTB.kluster.gui.backends._qt import qgis_core, qgis_gui
 
 from HSTB.kluster.gui import dialog_vesselview, kluster_explorer, kluster_project_tree, kluster_3dview_v2, \

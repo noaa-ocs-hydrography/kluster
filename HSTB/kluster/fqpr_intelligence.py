@@ -523,18 +523,25 @@ class FqprIntel(LoggerClass):
                     self.action_container.remove_action(action)
 
             for relative_path, fqpr_instance in self.project.fqpr_instances.items():
-                if self.processing_settings['use_epsg']:
-                    new_coord_system, err = build_crs(epsg=self.processing_settings['epsg'])
+                if 'use_epsg' in self.processing_settings:  # if someone setup the project with a default coord system
+                    if self.processing_settings['use_epsg']:
+                        new_coord_system, err = build_crs(epsg=self.processing_settings['epsg'])
+                    else:
+                        new_coord_system, err = build_crs(zone_num=fqpr_instance.multibeam.return_utm_zone_number(),
+                                                          datum=self.processing_settings['coord_system'])
+                    if err:
+                        self.logger.error(err)
+                        raise ValueError(err)
                 else:
-                    new_coord_system, err = build_crs(zone_num=fqpr_instance.multibeam.return_utm_zone_number(),
-                                                      datum=self.processing_settings['coord_system'])
-                if err:
-                    self.logger.error(err)
-                    raise ValueError(err)
+                    new_coord_system = None
+                if 'vert_ref' in self.processing_settings:  # if someone setup the project with a default vert ref
+                    new_vert_ref = self.processing_settings['vert_ref']
+                else:
+                    new_vert_ref = None
                 abs_path = self.project.absolute_path_from_relative(relative_path)
                 action = [a for a in existing_actions if a.output_destination == abs_path]
                 args, kwargs = fqpr_instance.return_next_action(new_coordinate_system=new_coord_system,
-                                                                new_vertical_reference=self.processing_settings['vert_ref'])
+                                                                new_vertical_reference=new_vert_ref)
                 if len(action) == 1 and not action[0].is_running:  # modify the existing processing action
                     if kwargs == {}:
                         self.action_container.remove_action(action[0])
