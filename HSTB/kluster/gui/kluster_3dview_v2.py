@@ -35,7 +35,7 @@ class ThreeDView(QtWidgets.QWidget):
         self.canvas = DockableCanvas(keys='interactive', show=True, parent=parent)
         self.view = self.canvas.central_widget.add_view()
         # our z is positive down, up=-z tells the camera how to behave in this case
-        self.view.camera = scene.TurntableCamera(up='-z', fov=45)  # arcball does not support -z up
+        self.view.camera = scene.TurntableCamera(fov=45)  # arcball does not support -z up
 
         self.scatter = None
         self.id = np.array([])
@@ -109,7 +109,7 @@ class ThreeDView(QtWidgets.QWidget):
             return
 
         self.vertical_exaggeration = vertical_exaggeration
-        print('displaying {} points'.format(len(self.z)))
+        # print('displaying {} points'.format(len(self.z)))
         # normalize the arrays and build the colors for each sounding
         if color_by == 'depth':
             clrs = normalized_arr_to_rgb_v2((self.z - self.z.min()) / (self.z.max() - self.z.min()), reverse=True)
@@ -141,7 +141,8 @@ class ThreeDView(QtWidgets.QWidget):
         centered_y = self.y - self.y_offset
         centered_z = self.z - self.z_offset
 
-        centered_z = centered_z * vertical_exaggeration
+        # camera assumes z is positive up, flip the z to accomodate that
+        centered_z = -(centered_z * vertical_exaggeration)
 
         pts = np.stack([centered_x, centered_y, centered_z], axis=1)
         scatter = scene.visuals.create_visual_node(visuals.MarkersVisual)
