@@ -673,39 +673,14 @@ class FqprProject:
                     lines_in_box.append(fq_line)
         return lines_in_box
 
-    def return_soundings_in_box(self, min_lat: float, max_lat: float, min_lon: float, max_lon: float):
+    def return_soundings_in_box(self, min_lat: float, max_lat: float, min_lon: float, max_lon: float,
+                                full_swath: bool = False):
         """
         With the given latitude/longitude boundaries, return the soundings that are within the boundaries.  Use the
         Fqpr horizontal_crs recorded EPSG to do the transformation to northing/easting, and then query all the x, y to get
         the soundings.
 
-        Parameters
-        ----------
-        min_lat
-            float, minimum latitude in degrees
-        max_lat
-            float, maximum latitude in degrees
-        min_lon
-            float, minimum longitude in degrees
-        max_lon
-            float, maximum longitude in degrees
-
-        Returns
-        -------
-        dict
-            dict where keys are the fqpr instance name, values are the sounding values as 1d arrays
-        """
-        data = {}
-        for fq_name, fq_inst in self.fqpr_instances.items():
-            x, y, z, tvu, rejected, pointtime, beam = fq_inst.return_soundings_in_box(min_lat, max_lat, min_lon, max_lon)
-            if x is not None:
-                data[fq_name] = [x, y, z, tvu, rejected, pointtime, beam]
-        return data
-
-    def return_swath_in_box(self, min_lat: float, max_lat: float, min_lon: float, max_lon: float):
-        """
-        With the given latitude/longitude boundaries, return the soundings that are within the boundaries.  Selects only
-        those beams that are part of a swath that is within this boundary.
+        If full swath is used (2d editor for points) return the whole swaths that are within the bounds.
 
         Parameters
         ----------
@@ -717,6 +692,8 @@ class FqprProject:
             float, minimum longitude in degrees
         max_lon
             float, maximum longitude in degrees
+        full_swath
+            If True, only returns the full swaths whose navigation is within the provided box
 
         Returns
         -------
@@ -725,9 +702,11 @@ class FqprProject:
         """
         data = {}
         for fq_name, fq_inst in self.fqpr_instances.items():
-            x, y, z, tvu, rejected, pointtime, beam = fq_inst.return_swath_in_box(min_lat, max_lat, min_lon, max_lon)
+            x, y, z, tvu, rejected, pointtime, beam = fq_inst.return_soundings_in_box(min_lat, max_lat, min_lon, max_lon,
+                                                                                      full_swath=full_swath)
             if x is not None:
-                data[fq_name] = [x, y, z, tvu, rejected, pointtime, beam]
+                linenames = fq_inst.return_lines_for_times(pointtime)
+                data[fq_name] = [x, y, z, tvu, rejected, pointtime, beam, linenames]
         return data
 
     def return_project_folder(self):

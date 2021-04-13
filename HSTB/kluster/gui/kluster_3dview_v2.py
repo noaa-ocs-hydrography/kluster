@@ -26,16 +26,152 @@ class DockableCanvas(scene.SceneCanvas):
             pass
 
 
+class PanZoomInteractive(scene.PanZoomCamera):
+    """
+    A custom camera for the 2d scatter plots.  Allows for interaction (i.e. querying of points) using the
+    handle_data_selected callback.
+    """
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.selected_callback = None
+
+    def _bind_selecting_event(self, selfunc):
+        """
+        Emit the top left/bottom right 3d coordinates of the selection.  Parent widget will control the 3dview and
+        highlight the points as well as populating the explorer widget with the values so you can see.
+        """
+        self.selected_callback = selfunc
+
+    def _handle_mousewheel_zoom_event(self, event):
+        """
+        Simple mousewheel zoom event handler, alters the zoom attribute
+        """
+        center = self._scene_transform.imap(event.pos)
+        self.zoom((1 + self.zoom_factor) ** (-event.delta[1] * 30), center)
+
+    def _handle_zoom_event(self, event):
+        """
+        Set the scale and center according to the new zoom.  Triggered on moving the mouse with right click.
+        """
+
+        p1c = np.array(event.last_event.pos)[:2]
+        p2c = np.array(event.pos)[:2]
+        scale = ((1 + self.zoom_factor) ** ((p1c - p2c) *
+                                            np.array([1, -1])))
+        center = self._transform.imap(event.press_event.pos[:2])
+        self.zoom(scale, center)
+
+    def _handle_translate_event(self, event):
+        """
+        Move the camera center according event pos, last pos.  This is called when dragging the mouse in translate
+        mode.
+        """
+        p1 = np.array(event.last_event.pos)[:2]
+        p2 = np.array(event.pos)[:2]
+        p1s = self._transform.imap(p1)
+        p2s = self._transform.imap(p2)
+        self.pan(p1s - p2s)
+
+    def _handle_data_selected(self, startpos, endpos):
+        """
+        Runs the parent method (selected_callback) to select points when the user holds down control and selects points
+        with this camera.  Parent will highlight data and populate explorer widget with attributes
+
+        Parameters
+        ----------
+        startpos
+            click position in screen coordinates
+        endpos
+            mouse click release position in screen coordinates
+        """
+
+        if self.selected_callback:
+            startpos = self._transform.imap(startpos)
+            endpos = self._transform.imap(endpos)
+            new_startpos = np.array([min(startpos[0], endpos[0]), min(startpos[1], endpos[1])])
+            new_endpos = np.array([max(startpos[0], endpos[0]), max(startpos[1], endpos[1])])
+            print('**********************************************************')
+            print(new_startpos)
+            print(new_endpos)
+            self.selected_callback(new_startpos, new_endpos, three_d=False)
+
+    def viewbox_mouse_event(self, event):
+        """
+        The SubScene received a mouse event; update transform
+        accordingly.
+
+        Parameters
+        ----------
+        event : instance of Event
+            The event.
+        """
+        if event.handled or not self.interactive:
+            return
+
+        if event.type == 'mouse_wheel':
+            self._handle_mousewheel_zoom_event(event)
+            event.handled = True
+        elif event.type == 'mouse_release':
+            if event.press_event is None:
+                self._event_value = None  # Reset
+                return
+
+            modifiers = event.mouse_event.modifiers
+            p1 = event.mouse_event.press_event.pos
+            p2 = event.mouse_event.pos
+            if 1 in event.buttons and keys.CONTROL in modifiers:
+                self._handle_data_selected(p1, p2)
+            self._event_value = None  # Reset
+        elif event.type == 'mouse_move':
+            if event.press_event is None:
+                return
+
+            modifiers = event.mouse_event.modifiers
+            if 1 in event.buttons and not modifiers:
+                self._handle_translate_event(event)
+                event.handled = True
+            elif 2 in event.buttons and not modifiers:
+                self._handle_zoom_event(event)
+                event.handled = True
+            else:
+                event.handled = False
+        elif event.type == 'mouse_press':
+            event.handled = True
+        else:
+            event.handled = False
+
+
 class TurntableCameraInteractive(scene.TurntableCamera):
+    """
+    A custom camera for 3d scatter plots.  Allows for interaction (i.e. querying of points) using the handle_data_selected
+    callback.  I haven't quite yet figured out the selecting 3d points using 2d pixel coordinates just yet, it's been
+    a bit of a struggle.  Currently I try to just select all in the z range so that I only have to deal with x and y.
+    This is somewhat successful.
+    """
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.selected_callback = None
         self.fresh_camera = True
 
     def _bind_selecting_event(self, selfunc):
+        """
+        Emit the top left/bottom right 3d coordinates of the selection.  Parent widget will control the 3dview and
+        highlight the points as well as populating the explorer widget with the values so you can see.
+        """
         self.selected_callback = selfunc
 
     def _handle_translate_event(self, start_pos, end_pos):
+        """
+        Move the camera center according to the points provided.  This is called when dragging the mouse in translate
+        mode.
+
+        Parameters
+        ----------
+        start_pos
+            Point where you first clicked
+        end_pos
+            Point where you released the mouse button after dragging
+        """
         self.fresh_camera = False
         norm = np.mean(self._viewbox.size)
         if self._event_value is None or len(self._event_value) == 2:
@@ -53,6 +189,23 @@ class TurntableCameraInteractive(scene.TurntableCamera):
         self.center = c[0] + dx, c[1] + dy, c[2] + dz
 
     def _mouse_to_data_coordinates(self, mouse_position):
+        """
+        Try and convert the mouse_position which is in screen coordinates to data coordinates.  This is a hell of a
+        problem.  You can see that we currently just try and assume top down perspective, so we can just deal with
+        x and y.  We rotate by the azimuth of the camera and combine camera center and the new distance to the mouse
+        position to get the final mouse position.
+
+        Parameters
+        ----------
+        mouse_position
+            Position of the mouse in screen coordinates (top left is 0,0;  bottom right is size of screen, ex:800,600)
+
+        Returns
+        -------
+        tuple
+            mouse position in data coordinates (x, y, z).  Currently z is left zero, as we just query all points in min-max z
+        """
+
         cntr = self.center
         dist = mouse_position - (np.array(self._viewbox.size) / 2)
         dist = dist / np.array(self._viewbox.size) * self.distance
@@ -67,6 +220,15 @@ class TurntableCameraInteractive(scene.TurntableCamera):
         return newpt
 
     def _handle_zoom_event(self, distance):
+        """
+        Set the scale_factor and distance according to the new zoom.  Triggered on moving the mouse with right click.
+
+        Parameters
+        ----------
+        distance
+            distance the mouse moved since right click in 2d screen coordinates, i.e. (200,150)
+        """
+
         # Zoom
         self.fresh_camera = False
         if self._event_value is None:
@@ -80,6 +242,9 @@ class TurntableCameraInteractive(scene.TurntableCamera):
         self.view_changed()
 
     def _handle_mousewheel_zoom_event(self, event):
+        """
+        Simple mousewheel zoom event handler, alters the scale_factor and distance using the 1.1 constant
+        """
         self.fresh_camera = False
         s = 1.1 ** - event.delta[1]
         self._scale_factor *= s
@@ -87,18 +252,19 @@ class TurntableCameraInteractive(scene.TurntableCamera):
             self._distance *= s
         self.view_changed()
 
-    def _handle_fov_move_event(self, dist):
-        self.fresh_camera = False
-        # Change fov
-        if self._event_value is None:
-            self._event_value = self._fov
-        fov = self._event_value - dist[1] / 5.0
-        try:
-            self.fov = min(180.0, max(0.0, fov))
-        except TypeError:  # user let go of shift while dragging
-            pass
-
     def _handle_data_selected(self, startpos, endpos):
+        """
+        Runs the parent method (selected_callback) to select points when the user holds down control and selects points
+        with this camera.  Parent will highlight data and populate explorer widget with attributes
+
+        Parameters
+        ----------
+        startpos
+            click position in screen coordinates
+        endpos
+            mouse click release position in screen coordinates
+        """
+
         if self.selected_callback:
             if (startpos == endpos).all():
                 startpos -= 10
@@ -111,9 +277,23 @@ class TurntableCameraInteractive(scene.TurntableCamera):
                                        int(min(new_startpos[2], new_endpos[2]))])
             final_endpos = np.array([int(max(new_startpos[0], new_endpos[0])), int(max(new_startpos[1], new_endpos[1])),
                                      int(max(new_startpos[2], new_endpos[2]))])
-            self.selected_callback(final_startpos, final_endpos)
+            self.selected_callback(final_startpos, final_endpos, three_d=True)
 
     def viewbox_mouse_event(self, event):
+        """
+        Handles all the mouse events allowed in this camera.  Includes:
+        - mouse wheel zoom
+        - move camera center with shift+left click and drag
+        - select points with ctrl+left click and drag
+        - rotate camera with left click and drag
+        - zoom with right click and drag
+
+        Parameters
+        ----------
+        event
+            mouse event
+        """
+
         if event.handled or not self.interactive:
             return
 
@@ -173,6 +353,7 @@ class ThreeDView(QtWidgets.QWidget):
         self.rejected = np.array([])
         self.pointtime = np.array([])
         self.beam = np.array([])
+        self.linename = np.array([])
 
         self.x_offset = 0.0
         self.y_offset = 0.0
@@ -185,12 +366,23 @@ class ThreeDView(QtWidgets.QWidget):
         layout.addWidget(self.canvas.native)
         self.setLayout(layout)
 
-    def _select_points(self, startpos, endpos):
+    def _select_points(self, startpos, endpos, three_d):
+        """
+        Trigger the parent method to highlight and display point data within the bounds provided by the two points
+
+        Parameters
+        ----------
+        startpos
+            Point where you first clicked
+        endpos
+            Point where you released the mouse button after dragging
+        """
+
         if self.displayed_points is not None and self.parent is not None:
-            self.parent.select_points(startpos, endpos)
+            self.parent.select_points(startpos, endpos, three_d=three_d)
 
     def add_points(self, x: np.array, y: np.array, z: np.array, tvu: np.array, rejected: np.array, pointtime: np.array,
-                   beam: np.array, newid: str, is_3d: bool = True):
+                   beam: np.array, newid: str, linename: np.array, is_3d: bool = True):
         """
         Add points to the 3d view widget, we only display points after all points are added, hence the separate methods
 
@@ -212,6 +404,8 @@ class ThreeDView(QtWidgets.QWidget):
             beam number of the sounding
         newid
             container name the sounding came from, ex: 'EM710_234_02_10_2019'
+        linename
+            1d array of line names for each time
         is_3d
             Set this flag to notify widget that we are in 3d mode
         """
@@ -225,13 +419,15 @@ class ThreeDView(QtWidgets.QWidget):
         self.rejected = np.concatenate([self.rejected, rejected])
         self.pointtime = np.concatenate([self.pointtime, pointtime])
         self.beam = np.concatenate([self.beam, beam])
+        self.linename = np.concatenate([self.linename, linename])
         self.is_3d = is_3d
 
         if is_3d:
             self.view.camera = TurntableCameraInteractive()
             self.view.camera._bind_selecting_event(self._select_points)
         else:
-            self.view.camera = 'panzoom'
+            self.view.camera = PanZoomInteractive()
+            self.view.camera._bind_selecting_event(self._select_points)
 
     def display_points(self, color_by: str = 'depth', vertical_exaggeration: float = 1.0):
         """
@@ -242,7 +438,7 @@ class ThreeDView(QtWidgets.QWidget):
         ----------
         color_by
             identifer for the variable you want to color by.  One of 'depth', 'vertical_uncertainty', 'beam',
-            'rejected', 'system'
+            'rejected', 'system', 'linename'
         vertical_exaggeration
             multiplier for z value
         """
@@ -262,13 +458,17 @@ class ThreeDView(QtWidgets.QWidget):
         elif color_by == 'rejected':
             clrs = normalized_arr_to_rgb_v2((self.rejected - self.rejected.min()) / (self.rejected.max() - self.rejected.min()),
                                             band_count=3, colormap='bwr')
-        elif color_by == 'system':
-            usystem = np.unique(self.id)
-            sys_idx = np.zeros(self.id.shape[0], dtype=np.int32)
-            for cnt, us in enumerate(usystem):
-                usidx = self.id == us
+        elif color_by in ['system', 'linename']:
+            if color_by == 'system':
+                vari = self.id
+            else:
+                vari = self.linename
+            uvari = np.unique(vari)
+            sys_idx = np.zeros(vari.shape[0], dtype=np.int32)
+            for cnt, us in enumerate(uvari):
+                usidx = vari == us
                 sys_idx[usidx] = cnt + 1
-            clrs = normalized_arr_to_rgb_v2(sys_idx / (len(usystem)), band_count=(len(usystem)))
+            clrs = normalized_arr_to_rgb_v2(sys_idx / (len(uvari)), band_count=(len(uvari) + 1))
         else:
             raise ValueError('Coloring by {} is not supported at this time'.format(color_by))
 
@@ -308,12 +508,18 @@ class ThreeDView(QtWidgets.QWidget):
             self.view.camera.distance = centered_x.max()
 
     def clear_display(self):
+        """
+        Have to clear the scatterplot each time we update the display, do so by setting the parent of the plot to None
+        """
         if self.scatter is not None:
             # By setting the scatter visual parent to None, we delete it (clearing the widget)
             self.scatter.parent = None
             self.scatter = None
 
     def clear(self):
+        """
+        Clear display and all stored data
+        """
         self.clear_display()
         self.id = np.array([])
         self.x = np.array([])
@@ -323,6 +529,7 @@ class ThreeDView(QtWidgets.QWidget):
         self.rejected = np.array([])
         self.pointtime = np.array([])
         self.beam = np.array([])
+        self.linename = np.array([])
 
 
 class ThreeDWidget(QtWidgets.QWidget):
@@ -341,7 +548,7 @@ class ThreeDWidget(QtWidgets.QWidget):
         self.colorby_label = QtWidgets.QLabel('Color By: ')
         self.opts_layout.addWidget(self.colorby_label)
         self.colorby = QtWidgets.QComboBox()
-        self.colorby.addItems(['depth', 'vertical_uncertainty', 'beam', 'rejected', 'system'])
+        self.colorby.addItems(['depth', 'vertical_uncertainty', 'beam', 'rejected', 'system', 'linename'])
         self.opts_layout.addWidget(self.colorby)
         self.vertexag_label = QtWidgets.QLabel('Vertical Exaggeration: ')
         self.opts_layout.addWidget(self.vertexag_label)
@@ -356,7 +563,7 @@ class ThreeDWidget(QtWidgets.QWidget):
         self.mainlayout.addLayout(self.opts_layout)
         self.mainlayout.addWidget(self.three_d_window)
 
-        instruct = 'Left Mouse Button: Rotate,  Right Mouse Button/Mouse wheel: Zoom,  Shift + Left Mouse Button: Move'
+        instruct = 'Left Mouse Button: Rotate,  Right Mouse Button/Mouse wheel: Zoom,  Shift + Left Mouse Button: Move,'
         instruct += ' Ctrl + Left Mouse Button: Query'
         self.instructions = QtWidgets.QLabel(instruct)
         self.instructions.setAlignment(QtCore.Qt.AlignCenter)
@@ -371,14 +578,19 @@ class ThreeDWidget(QtWidgets.QWidget):
         self.vertexag.valueChanged.connect(self.refresh_settings)
 
     def add_points(self, x: np.array, y: np.array, z: np.array, tvu: np.array, rejected: np.array, pointtime: np.array,
-                   beam: np.array, newid: str, is_3d: bool):
-        self.three_d_window.add_points(x, y, z, tvu, rejected, pointtime, beam, newid, is_3d)
+                   beam: np.array, newid: str, linename: str, is_3d: bool):
+        self.three_d_window.selected_points = None
+        self.three_d_window.add_points(x, y, z, tvu, rejected, pointtime, beam, newid, linename, is_3d)
 
-    def select_points(self, startpos, endpos):
-        startpos[2] = self.three_d_window.displayed_points[:, 2].min()
-        endpos[2] = self.three_d_window.displayed_points[:, 2].max()
-        m1 = self.three_d_window.displayed_points >= startpos
-        m2 = self.three_d_window.displayed_points <= endpos
+    def select_points(self, startpos, endpos, three_d):
+        if three_d:
+            startpos[2] = self.three_d_window.displayed_points[:, 2].min()
+            endpos[2] = self.three_d_window.displayed_points[:, 2].max()
+            m1 = self.three_d_window.displayed_points[:, [0, 1, 2]] >= startpos[0:3]
+            m2 = self.three_d_window.displayed_points[:, [0, 1, 2]] <= endpos[0:3]
+        else:
+            m1 = self.three_d_window.displayed_points[:, [0, 2]] >= startpos[0:2]
+            m2 = self.three_d_window.displayed_points[:, [0, 2]] <= endpos[0:2]
         self.three_d_window.selected_points = np.argwhere(m1[:, 0] & m1[:, 1] & m2[:, 0] & m2[:, 1])
         self.refresh_settings(None)
 

@@ -2640,6 +2640,36 @@ class Fqpr:
 
         return rounded_freqs
 
+    def return_lines_for_times(self, times: np.array):
+        """
+        Given the 1d array of times (utc seconds), return a same size object array with the string value of the line
+        file name that matches the time.
+
+        Parameters
+        ----------
+        times
+            1d numpy array of times in utc seconds
+
+        Returns
+        -------
+        np.array
+            1d object array of the string file name for the multibeam file that encompasses each time
+        """
+
+        lines = np.full(times.shape[0], '', dtype=object)
+        # we shoudn't have to sort this dict, should be sorted naturally, but odd things can happen when
+        # user appends new data to existing storage.
+        mbeslines = {k: v for k, v in sorted(self.multibeam.raw_ping[0].multibeam_files.items(),
+                                             key=lambda item: item[1][0])}
+        for ln, ln_times in mbeslines.items():
+            # first line time bounds sometimes does not cover the first few pings
+            ln_times[0] = ln_times[0] - 2
+            # same with last line, except extend the last time a bit
+            ln_times[1] = ln_times[1] + 2
+            applicable_idx = np.logical_and(times >= ln_times[0], times <= ln_times[1])
+            lines[applicable_idx] = ln
+        return lines
+
     def return_downsampled_navigation(self, sample: float = 0.01, start_time: float = None, end_time: float = None):
         """
         Given sample rate in seconds, downsample the raw navigation to give lat lon points.  Used for plotting lines
@@ -2678,20 +2708,38 @@ class Fqpr:
 
         return sampl_nav.latitude, sampl_nav.longitude
 
-    def return_soundings_in_box(self, min_y: float, max_y: float, min_x: float, max_x: float, geographic: bool = True):
-        if 'horizontal_crs' not in self.multibeam.raw_ping[0].attrs or 'z' not in self.multibeam.raw_ping[0].variables.keys():
-            raise ValueError('Georeferencing has not been run yet, you must georeference before you can get soundings')
-        if geographic:
-            # using geographic coordinates allows us to quickly exclude extents outside of max lat lon
-            # in_bounds = False
-            # if (min_x <= self.multibeam.raw_nav.max_lon) and (max_x >= self.multibeam.raw_nav.min_lon):
-            #     if (min_y <= self.multibeam.raw_nav.max_lat) and (max_y >= self.multibeam.raw_nav.min_lat):
-            #         in_bounds = True
-            # if not in_bounds:
-            #     return None, None, None, None, None, None, None
-            trans = Transformer.from_crs(CRS.from_epsg(4326), CRS.from_epsg(self.multibeam.raw_ping[0].horizontal_crs), always_xy=True)
-            min_x, min_y = trans.transform(min_x, min_y)
-            max_x, max_y = trans.transform(max_x, max_y)
+    def _soundings_by_box(self, min_y: float, max_y: float, min_x: float, max_x: float):
+        """
+        Return soundings and sounding attributes that are within the box formed by the provided coordinates.
+
+        Parameters
+        ----------
+        min_y
+            Minimum northing for the box
+        max_y
+            Maximum northing for the box
+        min_x
+            Minimum easting for the box
+        max_x
+            Maximum easting for the box
+
+        Returns
+        -------
+        list
+            list of 1d numpy arrays for the x coordinate of the soundings in the box
+        list
+            list of 1d numpy arrays for the y coordinate of the soundings in the box
+        list
+            list of 1d numpy arrays for the z coordinate of the soundings in the box
+        list
+            list of 1d numpy arrays for the tvu value of the soundings in the box
+        list
+            list of 1d numpy arrays for the rejected flag of the soundings in the box
+        list
+            list of 1d numpy arrays for the time of the soundings in the box
+        list
+            list of 1d numpy arrays for the beam number of the soundings in the box
+        """
 
         x = []
         y = []
@@ -2715,43 +2763,41 @@ class Fqpr:
                     # have to get time for each beam to then make the filter work
                     pointtime.append((rp.time.values[:, np.newaxis] * np.ones_like(rp.x)).ravel()[filt])
                     beam.append((rp.beam.values[np.newaxis, :] * np.ones_like(rp.x)).ravel()[filt])
-        if len(x) > 1:
-            x = np.concatenate(x)
-            y = np.concatenate(y)
-            z = np.concatenate(z)
-            tvu = np.concatenate(tvu)
-            rejected = np.concatenate(rejected)
-            pointtime = np.concatenate(pointtime)
-            beam = np.concatenate(beam)
-        elif len(x) == 1:
-            x = x[0]
-            y = y[0]
-            z = z[0]
-            tvu = tvu[0]
-            rejected = rejected[0]
-            pointtime = pointtime[0]
-            beam = beam[0]
-        else:
-            x = None
-            y = None
-            z = None
-            tvu = None
-            rejected = None
-            pointtime = None
-            beam = None
         return x, y, z, tvu, rejected, pointtime, beam
 
-    def return_swath_in_box(self, min_lat: float, max_lat: float, min_lon: float, max_lon: float):
-        if 'horizontal_crs' not in self.multibeam.raw_ping[0].attrs or 'z' not in self.multibeam.raw_ping[0].variables.keys():
-            raise ValueError('Georeferencing has not been run yet, you must georeference before you can get soundings')
+    def _swaths_by_box(self, min_lat: float, max_lat: float, min_lon: float, max_lon: float):
+        """
+        Return soundings and sounding attributes that are a part of swaths within the box formed by the provided
+        coordinates.  Only returns complete swaths.
 
-        # using geographic coordinates allows us to quickly exclude extents outside of max lat lon
-        in_bounds = False
-        if (min_lon <= self.multibeam.raw_nav.max_lon) and (max_lon >= self.multibeam.raw_nav.min_lon):
-            if (min_lat <= self.multibeam.raw_nav.max_lat) and (max_lat >= self.multibeam.raw_nav.min_lat):
-                in_bounds = True
-        if not in_bounds:
-            return None, None, None, None, None, None, None
+        Parameters
+        ----------
+        min_lat
+            Minimum latitude for the box
+        max_lat
+            Maximum latitude for the box
+        min_lon
+            Minimum longitude for the box
+        max_lon
+            Maximum longitude for the box
+
+        Returns
+        -------
+        list
+            list of 1d numpy arrays for the x coordinate of the soundings in the box
+        list
+            list of 1d numpy arrays for the y coordinate of the soundings in the box
+        list
+            list of 1d numpy arrays for the z coordinate of the soundings in the box
+        list
+            list of 1d numpy arrays for the tvu value of the soundings in the box
+        list
+            list of 1d numpy arrays for the rejected flag of the soundings in the box
+        list
+            list of 1d numpy arrays for the time of the soundings in the box
+        list
+            list of 1d numpy arrays for the beam number of the soundings in the box
+        """
 
         x = []
         y = []
@@ -2766,19 +2812,94 @@ class Fqpr:
         filt = np.logical_and(xfilter, yfilter)
         time_sel = nv.time.where(filt, drop=True).values
         if time_sel.any():
-            mintime, maxtime = time_sel.min(), time_sel.max()
-            for rp in self.multibeam.raw_ping:
-                ping_filter = np.logical_and(rp.time >= mintime, rp.time <= maxtime)
-                if ping_filter.any():
-                    pings = rp.where(ping_filter, drop=True)
-                    x.append(pings.x.values.ravel())
-                    y.append(pings.y.values.ravel())
-                    z.append(pings.z.values.ravel())
-                    tvu.append(pings.tvu.values.ravel())
-                    rejected.append(pings.detectioninfo.values.ravel())
-                    # have to get time for each beam to then make the filter work
-                    pointtime.append((pings.time.values[:, np.newaxis] * np.ones_like(pings.x)).ravel())
-                    beam.append((pings.beam.values[np.newaxis, :] * np.ones_like(pings.x)).ravel())
+            # if selecting swaths of multiple lines, there will be time gaps
+            time_gaps = np.where(np.diff(time_sel) > 1)[0]
+            if time_gaps.any():
+                time_segments = []
+                strt = 0
+                for gp in time_gaps:
+                    time_segments.append(time_sel[strt:gp + 1])
+                    strt = gp + 1
+                time_segments.append(time_sel[strt:])
+            else:
+                time_segments = [time_sel]
+
+            for timeseg in time_segments:
+                mintime, maxtime = timeseg.min(), timeseg.max()
+                for rp in self.multibeam.raw_ping:
+                    ping_filter = np.logical_and(rp.time >= mintime, rp.time <= maxtime)
+                    if ping_filter.any():
+                        pings = rp.where(ping_filter, drop=True)
+                        x.append(pings.x.values.ravel())
+                        y.append(pings.y.values.ravel())
+                        z.append(pings.z.values.ravel())
+                        tvu.append(pings.tvu.values.ravel())
+                        rejected.append(pings.detectioninfo.values.ravel())
+                        # have to get time for each beam to then make the filter work
+                        pointtime.append((pings.time.values[:, np.newaxis] * np.ones_like(pings.x)).ravel())
+                        beam.append((pings.beam.values[np.newaxis, :] * np.ones_like(pings.x)).ravel())
+        return x, y, z, tvu, rejected, pointtime, beam
+
+    def return_soundings_in_box(self, min_y: float, max_y: float, min_x: float, max_x: float, geographic: bool = True,
+                                full_swath: bool = False):
+        """
+        Using provided coordinates (in either horizontal_crs projected or geographic coordinates), return the soundings
+        and sounding attributes for all soundings within the coordinates.
+
+        Parameters
+        ----------
+        min_y
+            Minimum latitude/northing for the box
+        max_y
+            Maximum latitude/northing for the box
+        min_x
+            Minimum longitude/easting for the box
+        max_x
+            Maximum longitude/easting for the box
+        geographic
+            If True, the coordinates provided are geographic (latitude/longitude)
+        full_swath
+            If True, only returns the full swaths whose navigation is within the provided box
+
+        Returns
+        -------
+        list
+            list of 1d numpy arrays for the x coordinate of the soundings in the box
+        list
+            list of 1d numpy arrays for the y coordinate of the soundings in the box
+        list
+            list of 1d numpy arrays for the z coordinate of the soundings in the box
+        list
+            list of 1d numpy arrays for the tvu value of the soundings in the box
+        list
+            list of 1d numpy arrays for the rejected flag of the soundings in the box
+        list
+            list of 1d numpy arrays for the time of the soundings in the box
+        list
+            list of 1d numpy arrays for the beam number of the soundings in the box
+        """
+
+        if 'horizontal_crs' not in self.multibeam.raw_ping[0].attrs or 'z' not in self.multibeam.raw_ping[0].variables.keys():
+            raise ValueError('Georeferencing has not been run yet, you must georeference before you can get soundings')
+        if full_swath and not geographic:
+            raise NotImplementedError('full swath mode can only be used in geographic mode')
+
+        if not full_swath:
+            if geographic:
+                trans = Transformer.from_crs(CRS.from_epsg(4326), CRS.from_epsg(self.multibeam.raw_ping[0].horizontal_crs), always_xy=True)
+                min_x, min_y = trans.transform(min_x, min_y)
+                max_x, max_y = trans.transform(max_x, max_y)
+            x, y, z, tvu, rejected, pointtime, beam = self._soundings_by_box(min_y, max_y, min_x, max_x)
+        else:
+            # using geographic coordinates allows us to quickly exclude extents outside of max lat lon
+            in_bounds = False
+            if (min_x <= self.multibeam.raw_nav.max_lon) and (max_x >= self.multibeam.raw_nav.min_lon):
+                if (min_y <= self.multibeam.raw_nav.max_lat) and (max_y >= self.multibeam.raw_nav.min_lat):
+                    in_bounds = True
+            if not in_bounds:
+                return None, None, None, None, None, None, None
+            x, y, z, tvu, rejected, pointtime, beam = self._swaths_by_box(min_y, max_y, min_x, max_x)
+
         if len(x) > 1:
             x = np.concatenate(x)
             y = np.concatenate(y)
