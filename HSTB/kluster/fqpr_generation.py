@@ -2683,12 +2683,12 @@ class Fqpr:
             raise ValueError('Georeferencing has not been run yet, you must georeference before you can get soundings')
         if geographic:
             # using geographic coordinates allows us to quickly exclude extents outside of max lat lon
-            in_bounds = False
-            if (min_x <= self.multibeam.raw_nav.max_lon) and (max_x >= self.multibeam.raw_nav.min_lon):
-                if (min_y <= self.multibeam.raw_nav.max_lat) and (max_y >= self.multibeam.raw_nav.min_lat):
-                    in_bounds = True
-            if not in_bounds:
-                return None, None, None, None, None, None, None
+            # in_bounds = False
+            # if (min_x <= self.multibeam.raw_nav.max_lon) and (max_x >= self.multibeam.raw_nav.min_lon):
+            #     if (min_y <= self.multibeam.raw_nav.max_lat) and (max_y >= self.multibeam.raw_nav.min_lat):
+            #         in_bounds = True
+            # if not in_bounds:
+            #     return None, None, None, None, None, None, None
             trans = Transformer.from_crs(CRS.from_epsg(4326), CRS.from_epsg(self.multibeam.raw_ping[0].horizontal_crs), always_xy=True)
             min_x, min_y = trans.transform(min_x, min_y)
             max_x, max_y = trans.transform(max_x, max_y)
@@ -2715,6 +2715,70 @@ class Fqpr:
                     # have to get time for each beam to then make the filter work
                     pointtime.append((rp.time.values[:, np.newaxis] * np.ones_like(rp.x)).ravel()[filt])
                     beam.append((rp.beam.values[np.newaxis, :] * np.ones_like(rp.x)).ravel()[filt])
+        if len(x) > 1:
+            x = np.concatenate(x)
+            y = np.concatenate(y)
+            z = np.concatenate(z)
+            tvu = np.concatenate(tvu)
+            rejected = np.concatenate(rejected)
+            pointtime = np.concatenate(pointtime)
+            beam = np.concatenate(beam)
+        elif len(x) == 1:
+            x = x[0]
+            y = y[0]
+            z = z[0]
+            tvu = tvu[0]
+            rejected = rejected[0]
+            pointtime = pointtime[0]
+            beam = beam[0]
+        else:
+            x = None
+            y = None
+            z = None
+            tvu = None
+            rejected = None
+            pointtime = None
+            beam = None
+        return x, y, z, tvu, rejected, pointtime, beam
+
+    def return_swath_in_box(self, min_lat: float, max_lat: float, min_lon: float, max_lon: float):
+        if 'horizontal_crs' not in self.multibeam.raw_ping[0].attrs or 'z' not in self.multibeam.raw_ping[0].variables.keys():
+            raise ValueError('Georeferencing has not been run yet, you must georeference before you can get soundings')
+
+        # using geographic coordinates allows us to quickly exclude extents outside of max lat lon
+        in_bounds = False
+        if (min_lon <= self.multibeam.raw_nav.max_lon) and (max_lon >= self.multibeam.raw_nav.min_lon):
+            if (min_lat <= self.multibeam.raw_nav.max_lat) and (max_lat >= self.multibeam.raw_nav.min_lat):
+                in_bounds = True
+        if not in_bounds:
+            return None, None, None, None, None, None, None
+
+        x = []
+        y = []
+        z = []
+        tvu = []
+        rejected = []
+        pointtime = []
+        beam = []
+        nv = self.multibeam.raw_nav
+        xfilter = np.logical_and(nv.latitude <= max_lat, nv.latitude >= min_lat)
+        yfilter = np.logical_and(nv.longitude <= max_lon, nv.longitude >= min_lon)
+        filt = np.logical_and(xfilter, yfilter)
+        time_sel = nv.time.where(filt, drop=True).values
+        if time_sel.any():
+            mintime, maxtime = time_sel.min(), time_sel.max()
+            for rp in self.multibeam.raw_ping:
+                ping_filter = np.logical_and(rp.time >= mintime, rp.time <= maxtime)
+                if ping_filter.any():
+                    pings = rp.where(ping_filter, drop=True)
+                    x.append(pings.x.values.ravel())
+                    y.append(pings.y.values.ravel())
+                    z.append(pings.z.values.ravel())
+                    tvu.append(pings.tvu.values.ravel())
+                    rejected.append(pings.detectioninfo.values.ravel())
+                    # have to get time for each beam to then make the filter work
+                    pointtime.append((pings.time.values[:, np.newaxis] * np.ones_like(pings.x)).ravel())
+                    beam.append((pings.beam.values[np.newaxis, :] * np.ones_like(pings.x)).ravel())
         if len(x) > 1:
             x = np.concatenate(x)
             y = np.concatenate(y)

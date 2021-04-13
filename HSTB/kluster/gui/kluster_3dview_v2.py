@@ -40,7 +40,7 @@ class TurntableCameraInteractive(scene.TurntableCamera):
         norm = np.mean(self._viewbox.size)
         if self._event_value is None or len(self._event_value) == 2:
             self._event_value = self.center
-        dist = (start_pos - end_pos) / norm * self._scale_factor
+        dist = (start_pos - end_pos) / norm * self._scale_factor * self.distance
         dist[1] *= -1
         # Black magic part 1: turn 2D into 3D translations
         dx, dy, dz = self._dist_to_trans(dist)
@@ -51,6 +51,20 @@ class TurntableCameraInteractive(scene.TurntableCamera):
         dx, dy, dz = ff[0] * dx, ff[1] * dy, dz * ff[2]
         c = self._event_value
         self.center = c[0] + dx, c[1] + dy, c[2] + dz
+
+    def _mouse_to_data_coordinates(self, mouse_position):
+        cntr = self.center
+        dist = mouse_position - (np.array(self._viewbox.size) / 2)
+        dist = dist / np.array(self._viewbox.size) * self.distance
+        dist[1] *= -1
+
+        az_rad = np.deg2rad(self.azimuth)
+        # take the max of az or el to determine persepective
+        dx = dist[0] * np.cos(az_rad) - dist[1] * np.sin(az_rad)
+        dy = dist[0] * np.sin(az_rad) + dist[1] * np.cos(az_rad)
+        dz = 0
+        newpt = cntr[0] + dx, cntr[1] + dy, cntr[2] + dz
+        return newpt
 
     def _handle_zoom_event(self, distance):
         # Zoom
@@ -87,11 +101,17 @@ class TurntableCameraInteractive(scene.TurntableCamera):
     def _handle_data_selected(self, startpos, endpos):
         if self.selected_callback:
             if (startpos == endpos).all():
-                startpos -= 1
-                endpos += 1
-            startpos = np.array(self._dist_to_trans(startpos))
-            endpos = np.array(self._dist_to_trans(startpos))
-            self.selected_callback(startpos, endpos)
+                startpos -= 10
+                endpos += 10
+            new_startpos = np.array([int(min(startpos[0], endpos[0])), int(min(startpos[1], endpos[1]))])
+            new_endpos = np.array([int(max(startpos[0], endpos[0])), int(max(startpos[1], endpos[1]))])
+            new_startpos = self._mouse_to_data_coordinates(new_startpos)
+            new_endpos = self._mouse_to_data_coordinates(new_endpos)
+            final_startpos = np.array([int(min(new_startpos[0], new_endpos[0])), int(min(new_startpos[1], new_endpos[1])),
+                                       int(min(new_startpos[2], new_endpos[2]))])
+            final_endpos = np.array([int(max(new_startpos[0], new_endpos[0])), int(max(new_startpos[1], new_endpos[1])),
+                                     int(max(new_startpos[2], new_endpos[2]))])
+            self.selected_callback(final_startpos, final_endpos)
 
     def viewbox_mouse_event(self, event):
         if event.handled or not self.interactive:
@@ -135,10 +155,11 @@ class ThreeDView(QtWidgets.QWidget):
     """
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.parent = parent
         self.canvas = DockableCanvas(keys='interactive', show=True, parent=parent)
         self.view = self.canvas.central_widget.add_view()
-        self.view.camera = TurntableCameraInteractive(fov=45)
-        self.view.camera._bind_selecting_event(self._select_points)
+
+        self.is_3d = True
 
         self.scatter = None
         self.scatter_transform = None
@@ -165,11 +186,11 @@ class ThreeDView(QtWidgets.QWidget):
         self.setLayout(layout)
 
     def _select_points(self, startpos, endpos):
-        if self.displayed_points is not None:
-            self.select_points(startpos, endpos)
+        if self.displayed_points is not None and self.parent is not None:
+            self.parent.select_points(startpos, endpos)
 
     def add_points(self, x: np.array, y: np.array, z: np.array, tvu: np.array, rejected: np.array, pointtime: np.array,
-                   beam: np.array, newid: str):
+                   beam: np.array, newid: str, is_3d: bool = True):
         """
         Add points to the 3d view widget, we only display points after all points are added, hence the separate methods
 
@@ -191,6 +212,8 @@ class ThreeDView(QtWidgets.QWidget):
             beam number of the sounding
         newid
             container name the sounding came from, ex: 'EM710_234_02_10_2019'
+        is_3d
+            Set this flag to notify widget that we are in 3d mode
         """
 
         # expand the identifier to be the size of the input arrays
@@ -202,6 +225,13 @@ class ThreeDView(QtWidgets.QWidget):
         self.rejected = np.concatenate([self.rejected, rejected])
         self.pointtime = np.concatenate([self.pointtime, pointtime])
         self.beam = np.concatenate([self.beam, beam])
+        self.is_3d = is_3d
+
+        if is_3d:
+            self.view.camera = TurntableCameraInteractive()
+            self.view.camera._bind_selecting_event(self._select_points)
+        else:
+            self.view.camera = 'panzoom'
 
     def display_points(self, color_by: str = 'depth', vertical_exaggeration: float = 1.0):
         """
@@ -242,42 +272,40 @@ class ThreeDView(QtWidgets.QWidget):
         else:
             raise ValueError('Coloring by {} is not supported at this time'.format(color_by))
 
-        # we need to zero center our arrays.  There is a known issue with vispy (maybe in opengl in general) that large
+        # we need to subtract the min of our arrays.  There is a known issue with vispy (maybe in opengl in general) that large
         # values (like northings/eastings) cause floating point problems and the point positions jitter as you move
         # the camera (as successive redraw commands are run).  By zero centering and saving the offset, we can display
-        # the zero centered northing/easting and rebuild the original value by adding the offset back in if we need to
-        self.x_offset = self.x.mean()
-        self.y_offset = self.y.mean()
-        self.z_offset = self.z.mean()
+        # the centered northing/easting and rebuild the original value by adding the offset back in if we need to
+        self.x_offset = self.x.min()
+        self.y_offset = self.y.min()
+        self.z_offset = self.z.min()
         centered_x = self.x - self.x_offset
         centered_y = self.y - self.y_offset
         centered_z = self.z - self.z_offset
 
-        # camera assumes z is positive up, flip the z to accomodate that
-        centered_z = -(centered_z * vertical_exaggeration)
+        # camera assumes z is positive up, flip the values
+        centered_z = (centered_z - centered_z.max()) * -1 * vertical_exaggeration
 
         self.displayed_points = np.stack([centered_x, centered_y, centered_z], axis=1)
         scatter = scene.visuals.create_visual_node(visuals.MarkersVisual)
         self.scatter = scatter(parent=self.view.scene)
         self.scatter.set_gl_state('translucent', blend=True, depth_test=True)
-        self.scatter.set_data(self.displayed_points, edge_color=clrs, face_color=clrs, symbol='o', size=3)
 
-        if self.view.camera.fresh_camera:
-            self.view.camera.center = (0, 0, 0)
+        if self.selected_points is not None and self.selected_points.any():
+            msk = np.zeros(self.displayed_points.shape[0], dtype=bool)
+            msk[self.selected_points] = True
+            clrs[msk, :] = (1, 1, 1, 1)
+
+        if self.is_3d:
+            self.scatter.set_data(self.displayed_points, edge_color=clrs, face_color=clrs, symbol='o', size=3)
+            if self.view.camera.fresh_camera:
+                self.view.camera.center = (centered_x.mean(), centered_y.mean(), centered_z.mean())
+                self.view.camera.distance = centered_x.max()
+                self.view.camera.fresh_camera = False
+        else:
+            self.scatter.set_data(self.displayed_points[:, [0, 2]], edge_color=clrs, face_color=clrs, symbol='o', size=3)
+            self.view.camera.center = (centered_x.mean(), centered_z.mean())
             self.view.camera.distance = centered_x.max()
-            self.view.camera.fresh_camera = False
-
-    def _pixel_coordinates_to_scene_coordinates(self, pos_x, pos_y):
-        transform = self.view.get_transform()
-        newx, newy, _, _ = transform.imap((pos_x, pos_y))
-        return np.array([newx, newy])
-
-    def select_points(self, startpos, endpos):
-        worldcoords_start = self._pixel_coordinates_to_scene_coordinates(startpos[0], startpos[1])
-        worldcoords_end = self._pixel_coordinates_to_scene_coordinates(endpos[0], endpos[1])
-        m1 = self.displayed_points[:, :2] >= worldcoords_start
-        m2 = self.displayed_points[:, :2] <= worldcoords_end
-        self.selected_points = np.argwhere(m1[:, 0] & m1[:, 1] & m2[:, 0] & m2[:, 1])
 
     def clear_display(self):
         if self.scatter is not None:
@@ -323,20 +351,13 @@ class ThreeDWidget(QtWidgets.QWidget):
         self.vertexag.setSingleStep(0.5)
         self.vertexag.setValue(1.0)
         self.opts_layout.addWidget(self.vertexag)
-        self.movespeed_label = QtWidgets.QLabel('Move Speed: ')
-        self.opts_layout.addWidget(self.movespeed_label)
-        self.movespeed = QtWidgets.QDoubleSpinBox()
-        self.movespeed.setMaximum(99.0)
-        self.movespeed.setMinimum(1.0)
-        self.movespeed.setSingleStep(1.0)
-        self.movespeed.setValue(1.0)
-        self.opts_layout.addWidget(self.movespeed)
         self.opts_layout.addStretch()
 
         self.mainlayout.addLayout(self.opts_layout)
         self.mainlayout.addWidget(self.three_d_window)
 
         instruct = 'Left Mouse Button: Rotate,  Right Mouse Button/Mouse wheel: Zoom,  Shift + Left Mouse Button: Move'
+        instruct += ' Ctrl + Left Mouse Button: Query'
         self.instructions = QtWidgets.QLabel(instruct)
         self.instructions.setAlignment(QtCore.Qt.AlignCenter)
         self.instructions.setStyleSheet("QLabel { font-style : italic }")
@@ -348,19 +369,22 @@ class ThreeDWidget(QtWidgets.QWidget):
 
         self.colorby.currentTextChanged.connect(self.refresh_settings)
         self.vertexag.valueChanged.connect(self.refresh_settings)
-        self.movespeed.valueChanged.connect(self.adjust_camera)
 
     def add_points(self, x: np.array, y: np.array, z: np.array, tvu: np.array, rejected: np.array, pointtime: np.array,
-                   beam: np.array, newid: str):
-        self.three_d_window.add_points(x, y, z, tvu, rejected, pointtime, beam, newid)
+                   beam: np.array, newid: str, is_3d: bool):
+        self.three_d_window.add_points(x, y, z, tvu, rejected, pointtime, beam, newid, is_3d)
+
+    def select_points(self, startpos, endpos):
+        startpos[2] = self.three_d_window.displayed_points[:, 2].min()
+        endpos[2] = self.three_d_window.displayed_points[:, 2].max()
+        m1 = self.three_d_window.displayed_points >= startpos
+        m2 = self.three_d_window.displayed_points <= endpos
+        self.three_d_window.selected_points = np.argwhere(m1[:, 0] & m1[:, 1] & m2[:, 0] & m2[:, 1])
+        self.refresh_settings(None)
 
     def display_points(self):
         self.three_d_window.display_points(color_by=self.colorby.currentText(),
                                            vertical_exaggeration=self.vertexag.value())
-
-    def adjust_camera(self):
-        move_speed = self.movespeed.value()
-        self.three_d_window.view.camera.translate_speed = move_speed
 
     def refresh_settings(self, e):
         self.clear_display()

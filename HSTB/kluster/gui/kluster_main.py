@@ -132,6 +132,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.actions.undo_exclude_file.connect(self._action_add_files)
         self.two_d.box_select.connect(self.select_line_by_box)
         self.two_d.box_3dpoints.connect(self.select_points_in_box)
+        self.two_d.box_swath.connect(self.select_swath_in_box)
         self.action_thread.finished.connect(self._kluster_execute_action_results)
         self.overwrite_nav_thread.started.connect(self._start_action_progress)
         self.overwrite_nav_thread.finished.connect(self._kluster_overwrite_nav_results)
@@ -1150,7 +1151,26 @@ class KlusterMain(QtWidgets.QMainWindow):
         pts_data = self.project.return_soundings_in_box(min_lat, max_lat, min_lon, max_lon)
         for fqpr_name, pointdata in pts_data.items():
             self.three_d.add_points(pointdata[0], pointdata[1], pointdata[2], pointdata[3], pointdata[4], pointdata[5],
-                                    pointdata[6], fqpr_name)
+                                    pointdata[6], fqpr_name, is_3d=True)
+        self.three_d.display_points()
+
+    def select_swath_in_box(self, min_lat, max_lat, min_lon, max_lon):
+        """
+        method run on using the 2dview swath select tool.  Gathers all swaths in the box.
+
+        Parameters
+        ----------
+        min_lat: float, minimum latitude of the box
+        max_lat: float, maximum latitude of the box
+        min_lon: float, minimum longitude of the box
+        max_lon: float, minimum longitude of the box
+
+        """
+        self.three_d.clear()
+        pts_data = self.project.return_swath_in_box(min_lat, max_lat, min_lon, max_lon)
+        for fqpr_name, pointdata in pts_data.items():
+            self.three_d.add_points(pointdata[0], pointdata[1], pointdata[2], pointdata[3], pointdata[4], pointdata[5],
+                                    pointdata[6], fqpr_name, is_3d=False)
         self.three_d.display_points()
 
     def dock_this_widget(self, title, objname, widget):

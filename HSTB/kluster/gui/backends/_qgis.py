@@ -691,6 +691,7 @@ class MapView(QtWidgets.QMainWindow):
 
     box_select = Signal(float, float, float, float)
     box_3dpoints = Signal(float, float, float, float)
+    box_swath = Signal(float, float, float, float)
 
     def __init__(self, parent=None, settings=None, epsg: int = 4326):
         super().__init__()
@@ -722,6 +723,7 @@ class MapView(QtWidgets.QMainWindow):
 
         self.toolSelect.select.connect(self._area_selected)
         self.toolPoints.select.connect(self._points_selected)
+        self.toolSwath.select.connect(self._swath_selected)
         self.set_extent(90, -90, 180, -180, buffer=False)
 
     def init_toolbar(self):
@@ -734,7 +736,8 @@ class MapView(QtWidgets.QMainWindow):
         self.actionSelect = QtWidgets.QAction("Select", self)
         self.actionQuery = QtWidgets.QAction("Query", self)
         self.actionDistance = QtWidgets.QAction("Distance", self)
-        self.actionPoints = QtWidgets.QAction("Points Box")
+        self.actionPoints = QtWidgets.QAction("Points Select")
+        self.actionSwath = QtWidgets.QAction("Swath Select")
 
         self.actionZoomIn.setCheckable(True)
         self.actionZoomOut.setCheckable(True)
@@ -743,6 +746,7 @@ class MapView(QtWidgets.QMainWindow):
         self.actionQuery.setCheckable(True)
         self.actionDistance.setCheckable(True)
         self.actionPoints.setCheckable(True)
+        self.actionSwath.setCheckable(True)
 
         self.actionZoomIn.triggered.connect(self.zoomIn)
         self.actionZoomOut.triggered.connect(self.zoomOut)
@@ -751,6 +755,7 @@ class MapView(QtWidgets.QMainWindow):
         self.actionQuery.triggered.connect(self.query)
         self.actionDistance.triggered.connect(self.distance)
         self.actionPoints.triggered.connect(self.selectPoints)
+        self.actionSwath.triggered.connect(self.selectSwath)
 
         self.toolbar = self.addToolBar("Canvas actions")
         self.toolbar.addAction(self.actionZoomIn)
@@ -760,6 +765,7 @@ class MapView(QtWidgets.QMainWindow):
         self.toolbar.addAction(self.actionQuery)
         self.toolbar.addAction(self.actionDistance)
         self.toolbar.addAction(self.actionPoints)
+        self.toolbar.addAction(self.actionSwath)
 
         # create the map tools
         self.toolPan = qgis_gui.QgsMapToolPan(self.canvas)
@@ -776,6 +782,8 @@ class MapView(QtWidgets.QMainWindow):
         self.toolDistance.setAction(self.actionDistance)
         self.toolPoints = RectangleMapTool(self.canvas)
         self.toolPoints.setAction(self.actionPoints)
+        self.toolSwath = RectangleMapTool(self.canvas)
+        self.toolSwath.setAction(self.actionSwath)
 
     def wms_openstreetmap_url(self):
         """
@@ -933,6 +941,25 @@ class MapView(QtWidgets.QMainWindow):
         """
 
         self.box_3dpoints.emit(min_lat, max_lat, min_lon, max_lon)
+
+    def _swath_selected(self, min_lat: float, max_lat: float, min_lon: float, max_lon: float):
+        """
+        emit box_swath signal when the Rectbox select tool is used, displays the swaths within the boundary in
+        3d viewer.
+
+        Parameters
+        ----------
+        min_lat
+            minimum latitude in map coordinates (generally wgs84 latitude)
+        max_lat
+            maximum latitude in map coordinates (generally wgs84 latitude)
+        min_lon
+            minimum longitude in map coordinates (generally wgs84 longitude)
+        max_lon
+            maximum longitude in map coordinates (generally wgs84 longitude)
+        """
+
+        self.box_swath.emit(min_lat, max_lat, min_lon, max_lon)
 
     def _init_none(self):
         """
@@ -1776,6 +1803,12 @@ class MapView(QtWidgets.QMainWindow):
         Activate the point select tool
         """
         self.canvas.setMapTool(self.toolPoints)
+
+    def selectSwath(self):
+        """
+        Activate the point select tool
+        """
+        self.canvas.setMapTool(self.toolSwath)
 
     def query(self):
         """
