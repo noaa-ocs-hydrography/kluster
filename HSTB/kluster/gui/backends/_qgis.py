@@ -388,6 +388,7 @@ class RectangleMapTool(qgis_gui.QgsMapToolEmitPoint):
         """
         Deactivate the map tool
         """
+        self.reset()
         qgis_gui.QgsMapTool.deactivate(self)
         self.deactivated.emit()
 

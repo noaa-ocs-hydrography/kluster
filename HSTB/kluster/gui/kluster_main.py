@@ -126,13 +126,20 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.project_tree.load_console_surface.connect(self.load_console_surface)
         self.project_tree.zoom_extents_fqpr.connect(self.zoom_extents_fqpr)
         self.project_tree.zoom_extents_surface.connect(self.zoom_extents_surface)
+
+        self.explorer.row_selected.connect(self.three_d.superselect_point)
+
         self.actions.execute_action.connect(self.intel.execute_action)
         self.actions.exclude_queued_file.connect(self._action_remove_file)
         self.actions.exclude_unmatched_file.connect(self._action_remove_file)
         self.actions.undo_exclude_file.connect(self._action_add_files)
+
         self.two_d.box_select.connect(self.select_line_by_box)
         self.two_d.box_3dpoints.connect(self.select_points_in_box)
         self.two_d.box_swath.connect(self.select_swath_in_box)
+
+        self.three_d.points_selected.connect(self.show_points_in_explorer)
+
         self.action_thread.finished.connect(self._kluster_execute_action_results)
         self.overwrite_nav_thread.started.connect(self._start_action_progress)
         self.overwrite_nav_thread.finished.connect(self._kluster_overwrite_nav_results)
@@ -144,6 +151,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.export_thread.finished.connect(self._stop_action_progress)
         self.export_grid_thread.started.connect(self._start_action_progress)
         self.export_grid_thread.finished.connect(self._stop_action_progress)
+
         self.monitor.monitor_file_event.connect(self.intel._handle_monitor_event)
         self.monitor.monitor_start.connect(self._create_new_project_if_not_exist)
 
@@ -1007,7 +1015,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         """
         convert_pth = self.project.convert_path_lookup[linename]
         raw_attribution = self.project.fqpr_attrs[convert_pth]
-        self.explorer.populate_explorer(linename, raw_attribution)
+        self.explorer.populate_explorer_with_lines(linename, raw_attribution)
 
         # if self.dockwidget_is_visible(self.attitude_dock) and idx == 0:
         #     att = self.project.build_raw_attitude_for_line(linename, subset=True)
@@ -1172,6 +1180,10 @@ class KlusterMain(QtWidgets.QMainWindow):
             self.three_d.add_points(pointdata[0], pointdata[1], pointdata[2], pointdata[3], pointdata[4], pointdata[5],
                                     pointdata[6], fqpr_name, pointdata[7], is_3d=False)
         self.three_d.display_points()
+
+    def show_points_in_explorer(self, point_index: np.array, linenames: np.array, point_times: np.array, beam: np.array,
+                                x: np.array, y: np.array, z: np.array, tvu: np.array, status: np.array, id: np.array):
+        self.explorer.populate_explorer_with_points(point_index, linenames, point_times, beam, x, y, z, tvu, status, id)
 
     def dock_this_widget(self, title, objname, widget):
         """

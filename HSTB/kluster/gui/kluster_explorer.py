@@ -1,3 +1,4 @@
+import numpy as np
 import sys
 import os
 import pprint
@@ -40,23 +41,15 @@ class KlusterExplorer(QtWidgets.QTableWidget):
         self.cellDoubleClicked.connect(self.view_full_attribution)
         self.cellClicked.connect(self.update_attribution)
 
-        self.setColumnCount(6)
-        self.headr = ['Name', 'Survey Identifier', 'EPSG', 'Min Time', 'Max Time', 'Source']
-        self.setHorizontalHeaderLabels(self.headr)
-        self.horizontalHeader().setStretchLastSection(True)
-        self.setColumnWidth(0, 250)
-        self.setColumnWidth(1, 150)
-        self.setColumnWidth(2, 80)
-        self.setColumnWidth(3, 150)
-        self.setColumnWidth(4, 150)
-        self.setColumnWidth(5, 200)
-
+        self.mode = ''
+        self.headr = []
+        self.set_mode('line')
         self.row_full_attribution = {}
         self.row_translated_attribution = {}
 
     def keyReleaseEvent(self, e):
         """
-        Catch keyboard driven events to delete entries
+        Catch keyboard driven events to delete entries or select new rows
 
         Parameters
         ----------
@@ -67,6 +60,9 @@ class KlusterExplorer(QtWidgets.QTableWidget):
             rows = sorted(set(item.row() for item in self.selectedItems()))
             for row in rows:
                 self.removeRow(row)
+        elif int(e.key()) in [16777237, 16777235]:  # 237 is down arrow, 235 is up arrow, user selected a new row with arrow keys
+            rows = sorted(set(item.row() for item in self.selectedItems()))
+            self.update_attribution(rows[0], 0)
 
     def dragEnterEvent(self, e):
         """
@@ -184,10 +180,50 @@ class KlusterExplorer(QtWidgets.QTableWidget):
             for i in range(int(len(self.headr))):
                 self.item(drop_row + row_index, i).setSelected(True)
 
+    def set_mode(self, explorer_mode: str):
+        """
+        Use this option to toggle between line mode (for selecting and displaying line attribution) and point mode
+        (for displaying data for points selected in 3d view)
+
+        Parameters
+        ----------
+        explorer_mode
+            one of 'line' and 'point'
+        """
+
+        self.mode = explorer_mode
+        self.clear_explorer_data()
+        if explorer_mode == 'line':
+            self.setColumnCount(6)
+            self.headr = ['Name', 'Survey Identifier', 'EPSG', 'Min Time', 'Max Time', 'Source']
+            self.setHorizontalHeaderLabels(self.headr)
+            self.horizontalHeader().setStretchLastSection(True)
+            self.setColumnWidth(0, 250)
+            self.setColumnWidth(1, 150)
+            self.setColumnWidth(2, 80)
+            self.setColumnWidth(3, 150)
+            self.setColumnWidth(4, 150)
+            self.setColumnWidth(5, 200)
+        elif explorer_mode == 'point':
+            self.setColumnCount(10)
+            self.headr = ['index', 'line', 'time', 'beam', 'x', 'y', 'z', 'tvu', 'status', 'Source']
+            self.setHorizontalHeaderLabels(self.headr)
+            self.horizontalHeader().setStretchLastSection(True)
+            self.setColumnWidth(0, 60)
+            self.setColumnWidth(1, 250)
+            self.setColumnWidth(2, 110)
+            self.setColumnWidth(3, 50)
+            self.setColumnWidth(4, 80)
+            self.setColumnWidth(5, 80)
+            self.setColumnWidth(6, 80)
+            self.setColumnWidth(7, 80)
+            self.setColumnWidth(8, 80)
+            self.setColumnWidth(9, 150)
+
     def update_attribution(self, row, column):
         """
-        Get the line name and emit the attribution for that project.  Get's picked up by the KlusterAttribution widget
-        for display.  See kluster_main.
+        If in point mode, emit the index for the point that the user selected so that we can see it highlighted in the
+        3d view.
 
         Parameters
         ----------
@@ -195,13 +231,9 @@ class KlusterExplorer(QtWidgets.QTableWidget):
         column: int, column number
 
         """
-        linename = None
-        try:
-            linename = self.item(row, 0).text()
-            attribution = self.row_full_attribution[linename]
-            self.row_selected.emit(attribution)
-        except (AttributeError, KeyError):
-            print('Kluster_Explorer: Unable to find attribution for line {}'.format(linename))
+        if self.mode == 'point':
+            point_index = int(self.item(row, 0).text())
+            self.row_selected.emit(point_index)
 
     def view_full_attribution(self, row, column):
         """
@@ -216,14 +248,15 @@ class KlusterExplorer(QtWidgets.QTableWidget):
         column: int, column number
 
         """
-        name_item = self.item(row, 0)
-        linename = name_item.text()
+        if self.mode == 'line':
+            name_item = self.item(row, 0)
+            linename = name_item.text()
 
-        info = QtWidgets.QMessageBox()
-        info.setWindowTitle('Full Attribution')
-        info.setText(pprint.pformat(self.row_full_attribution[linename]))
-        info.setTextInteractionFlags(QtCore.Qt.TextSelectableByMouse)
-        result = info.exec_()
+            info = QtWidgets.QMessageBox()
+            info.setWindowTitle('Full Attribution')
+            info.setText(pprint.pformat(self.row_full_attribution[linename]))
+            info.setTextInteractionFlags(QtCore.Qt.TextSelectableByMouse)
+            result = info.exec_()
 
     def translate_fqpr_attribution(self, attrs):
         """
@@ -292,7 +325,7 @@ class KlusterExplorer(QtWidgets.QTableWidget):
                 print('build_line_attribution: Unable to find attribution for line {}'.format(linename))
         return line_data
 
-    def populate_explorer(self, linename, raw_attrs):
+    def populate_explorer_with_lines(self, linename, raw_attrs):
         """
         Uses line name and attribution for the project that line is associated with.
 
@@ -303,8 +336,10 @@ class KlusterExplorer(QtWidgets.QTableWidget):
         ----------
         linename: str, line name
         raw_attrs: dict, attribution of fqpr_generation.Fqpr instance that the linename is in
-
         """
+
+        if self.mode != 'line':
+            self.set_mode('line')
         line_data = self.build_line_attribution(linename, raw_attrs)
         if line_data is not None:
             next_row = self.rowCount()
@@ -317,6 +352,33 @@ class KlusterExplorer(QtWidgets.QTableWidget):
                     item.setToolTip(raw_attrs['output_path'])
 
                 self.setItem(next_row, column_index, item)
+
+    def populate_explorer_with_points(self, point_index: np.array, linenames: np.array, point_times: np.array,
+                                      beam: np.array, x: np.array, y: np.array, z: np.array, tvu: np.array,
+                                      status: np.array, id: np.array):
+        self.setSortingEnabled(False)
+        if self.mode != 'point':
+            self.set_mode('point')
+        self.clear_explorer_data()
+        if z.any():
+            converted_status = np.full(status.shape[0], '', dtype=object)
+            converted_status[np.where(status == 0)[0]] = 'amplitude'
+            converted_status[np.where(status == 1)[0]] = 'phase'
+            converted_status[np.where(status == 2)[0]] = 'rejected'
+            for cnt, idx in enumerate(point_index):
+                next_row = self.rowCount()
+                self.insertRow(next_row)
+                self.setItem(next_row, 0, QtWidgets.QTableWidgetItem(str(idx)))
+                self.setItem(next_row, 1, QtWidgets.QTableWidgetItem(linenames[cnt]))
+                self.setItem(next_row, 2, QtWidgets.QTableWidgetItem(str(point_times[cnt])))
+                self.setItem(next_row, 3, QtWidgets.QTableWidgetItem(str(int(beam[cnt]))))
+                self.setItem(next_row, 4, QtWidgets.QTableWidgetItem(str(x[cnt])))
+                self.setItem(next_row, 5, QtWidgets.QTableWidgetItem(str(y[cnt])))
+                self.setItem(next_row, 6, QtWidgets.QTableWidgetItem(str(round(z[cnt], 3))))
+                self.setItem(next_row, 7, QtWidgets.QTableWidgetItem(str(round(tvu[cnt], 3))))
+                self.setItem(next_row, 8, QtWidgets.QTableWidgetItem(str(converted_status[cnt])))
+                self.setItem(next_row, 9, QtWidgets.QTableWidgetItem(str(id[cnt])))
+        self.setSortingEnabled(True)
 
     def clear_explorer_data(self):
         """

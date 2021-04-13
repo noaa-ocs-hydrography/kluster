@@ -2,7 +2,8 @@ import numpy as np
 import sys
 from matplotlib import cm
 
-from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, backend
+from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal, qgis_enabled, qgis_path, qgis_path_pydro, backend
+from HSTB.kluster import kluster_variables
 
 from vispy import use
 from vispy.util import keys
@@ -34,6 +35,7 @@ class PanZoomInteractive(scene.PanZoomCamera):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.selected_callback = None
+        self.fresh_camera = True
 
     def _bind_selecting_event(self, selfunc):
         """
@@ -48,6 +50,7 @@ class PanZoomInteractive(scene.PanZoomCamera):
         """
         center = self._scene_transform.imap(event.pos)
         self.zoom((1 + self.zoom_factor) ** (-event.delta[1] * 30), center)
+        self.fresh_camera = False
 
     def _handle_zoom_event(self, event):
         """
@@ -60,6 +63,7 @@ class PanZoomInteractive(scene.PanZoomCamera):
                                             np.array([1, -1])))
         center = self._transform.imap(event.press_event.pos[:2])
         self.zoom(scale, center)
+        self.fresh_camera = False
 
     def _handle_translate_event(self, event):
         """
@@ -71,6 +75,7 @@ class PanZoomInteractive(scene.PanZoomCamera):
         p1s = self._transform.imap(p1)
         p2s = self._transform.imap(p2)
         self.pan(p1s - p2s)
+        self.fresh_camera = False
 
     def _handle_data_selected(self, startpos, endpos):
         """
@@ -90,9 +95,9 @@ class PanZoomInteractive(scene.PanZoomCamera):
             endpos = self._transform.imap(endpos)
             new_startpos = np.array([min(startpos[0], endpos[0]), min(startpos[1], endpos[1])])
             new_endpos = np.array([max(startpos[0], endpos[0]), max(startpos[1], endpos[1])])
-            print('**********************************************************')
-            print(new_startpos)
-            print(new_endpos)
+            if (new_startpos == new_endpos).all():
+                new_startpos -= 0.2
+                new_endpos += 0.2
             self.selected_callback(new_startpos, new_endpos, three_d=False)
 
     def viewbox_mouse_event(self, event):
@@ -113,7 +118,6 @@ class PanZoomInteractive(scene.PanZoomCamera):
             event.handled = True
         elif event.type == 'mouse_release':
             if event.press_event is None:
-                self._event_value = None  # Reset
                 return
 
             modifiers = event.mouse_event.modifiers
@@ -121,7 +125,7 @@ class PanZoomInteractive(scene.PanZoomCamera):
             p2 = event.mouse_event.pos
             if 1 in event.buttons and keys.CONTROL in modifiers:
                 self._handle_data_selected(p1, p2)
-            self._event_value = None  # Reset
+            event.handled = True
         elif event.type == 'mouse_move':
             if event.press_event is None:
                 return
@@ -129,6 +133,8 @@ class PanZoomInteractive(scene.PanZoomCamera):
             modifiers = event.mouse_event.modifiers
             if 1 in event.buttons and not modifiers:
                 self._handle_translate_event(event)
+                event.handled = True
+            elif 1 in event.buttons and keys.CONTROL in modifiers:
                 event.handled = True
             elif 2 in event.buttons and not modifiers:
                 self._handle_zoom_event(event)
@@ -361,6 +367,7 @@ class ThreeDView(QtWidgets.QWidget):
         self.vertical_exaggeration = 1.0
         self.displayed_points = None
         self.selected_points = None
+        self.superselected_index = None
 
         layout = QtWidgets.QHBoxLayout()
         layout.addWidget(self.canvas.native)
@@ -424,10 +431,9 @@ class ThreeDView(QtWidgets.QWidget):
 
         if is_3d:
             self.view.camera = TurntableCameraInteractive()
-            self.view.camera._bind_selecting_event(self._select_points)
         else:
             self.view.camera = PanZoomInteractive()
-            self.view.camera._bind_selecting_event(self._select_points)
+        self.view.camera._bind_selecting_event(self._select_points)
 
     def display_points(self, color_by: str = 'depth', vertical_exaggeration: float = 1.0):
         """
@@ -494,7 +500,11 @@ class ThreeDView(QtWidgets.QWidget):
         if self.selected_points is not None and self.selected_points.any():
             msk = np.zeros(self.displayed_points.shape[0], dtype=bool)
             msk[self.selected_points] = True
-            clrs[msk, :] = (1, 1, 1, 1)
+            clrs[msk, :] = kluster_variables.selected_point_color
+            if self.superselected_index is not None:
+                msk[:] = False
+                msk[self.selected_points[self.superselected_index]] = True
+                clrs[msk, :] = kluster_variables.super_selected_point_color
 
         if self.is_3d:
             self.scatter.set_data(self.displayed_points, edge_color=clrs, face_color=clrs, symbol='o', size=3)
@@ -505,7 +515,9 @@ class ThreeDView(QtWidgets.QWidget):
         else:
             self.scatter.set_data(self.displayed_points[:, [0, 2]], edge_color=clrs, face_color=clrs, symbol='o', size=3)
             self.view.camera.center = (centered_x.mean(), centered_z.mean())
-            self.view.camera.distance = centered_x.max()
+            if self.view.camera.fresh_camera:
+                self.view.camera.zoom(centered_x.max() + 10)  # try and fit the swath in view on load
+                self.view.camera.fresh_camera = False
 
     def clear_display(self):
         """
@@ -537,6 +549,9 @@ class ThreeDWidget(QtWidgets.QWidget):
     Widget containing the OptionsWidget (left pane) and VesselView (right pane).  Manages the signals that connect the
     two widgets.
     """
+
+    points_selected = Signal(object, object, object, object, object, object, object, object, object, object)
+
     def __init__(self, parent=None):
         super().__init__(parent)
 
@@ -580,6 +595,7 @@ class ThreeDWidget(QtWidgets.QWidget):
     def add_points(self, x: np.array, y: np.array, z: np.array, tvu: np.array, rejected: np.array, pointtime: np.array,
                    beam: np.array, newid: str, linename: str, is_3d: bool):
         self.three_d_window.selected_points = None
+        self.three_d_window.superselected_index = None
         self.three_d_window.add_points(x, y, z, tvu, rejected, pointtime, beam, newid, linename, is_3d)
 
     def select_points(self, startpos, endpos, three_d):
@@ -591,7 +607,21 @@ class ThreeDWidget(QtWidgets.QWidget):
         else:
             m1 = self.three_d_window.displayed_points[:, [0, 2]] >= startpos[0:2]
             m2 = self.three_d_window.displayed_points[:, [0, 2]] <= endpos[0:2]
-        self.three_d_window.selected_points = np.argwhere(m1[:, 0] & m1[:, 1] & m2[:, 0] & m2[:, 1])
+        self.three_d_window.selected_points = np.argwhere(m1[:, 0] & m1[:, 1] & m2[:, 0] & m2[:, 1])[:, 0]
+        self.points_selected.emit(np.arange(self.three_d_window.selected_points.shape[0]),
+                                  self.three_d_window.linename[self.three_d_window.selected_points],
+                                  self.three_d_window.pointtime[self.three_d_window.selected_points],
+                                  self.three_d_window.beam[self.three_d_window.selected_points],
+                                  self.three_d_window.x[self.three_d_window.selected_points],
+                                  self.three_d_window.y[self.three_d_window.selected_points],
+                                  self.three_d_window.z[self.three_d_window.selected_points],
+                                  self.three_d_window.tvu[self.three_d_window.selected_points],
+                                  self.three_d_window.rejected[self.three_d_window.selected_points],
+                                  self.three_d_window.id[self.three_d_window.selected_points])
+        self.refresh_settings(None)
+
+    def superselect_point(self, superselect_index):
+        self.three_d_window.superselected_index = superselect_index
         self.refresh_settings(None)
 
     def display_points(self):
