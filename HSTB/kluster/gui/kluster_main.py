@@ -1159,7 +1159,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         pts_data = self.project.return_soundings_in_box(min_lat, max_lat, min_lon, max_lon)
         for fqpr_name, pointdata in pts_data.items():
             self.three_d.add_points(pointdata[0], pointdata[1], pointdata[2], pointdata[3], pointdata[4], pointdata[5],
-                                    pointdata[6], fqpr_name, pointdata[7], is_3d=True)
+                                    pointdata[6], fqpr_name, pointdata[7], pointdata[8], is_3d=True)
         self.three_d.display_points()
 
     def select_swath_in_box(self, min_lat, max_lat, min_lon, max_lon):
@@ -1178,7 +1178,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         pts_data = self.project.return_soundings_in_box(min_lat, max_lat, min_lon, max_lon, full_swath=True)
         for fqpr_name, pointdata in pts_data.items():
             self.three_d.add_points(pointdata[0], pointdata[1], pointdata[2], pointdata[3], pointdata[4], pointdata[5],
-                                    pointdata[6], fqpr_name, pointdata[7], is_3d=False)
+                                    pointdata[6], fqpr_name, pointdata[7], pointdata[8], is_3d=False)
         self.three_d.display_points()
 
     def show_points_in_explorer(self, point_index: np.array, linenames: np.array, point_times: np.array, beam: np.array,
