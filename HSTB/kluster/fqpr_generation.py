@@ -27,6 +27,7 @@ from HSTB.kluster.rotations import return_attitude_rotation_matrix
 from HSTB.kluster.logging_conf import return_logger
 from HSTB.drivers.sbet import sbets_to_xarray, sbet_fast_read_start_end_time
 from HSTB.drivers.PCSio import posfiles_to_xarray
+from HSTB.kluster import kluster_variables
 
 
 class Fqpr:
@@ -158,9 +159,9 @@ class Fqpr:
             if vert_ref != self.multibeam.raw_ping[0].vertical_reference:
                 self.logger.warning('Setting vertical reference to {} when existing vertical reference is {}'.format(vert_ref, self.multibeam.raw_ping[0].vertical_reference))
                 self.logger.warning('You will need to georeference and calculate total uncertainty again')
-        if vert_ref not in ['ellipse', 'waterline', 'NOAA MLLW', 'NOAA MHW']:
-            self.logger.error("Unable to set vertical reference to {}: expected one of ['ellipse', 'waterline', 'NOAA MLLW', 'NOAA MHW']".format(vert_ref))
-            raise ValueError("Unable to set vertical reference to {}: expected one of ['ellipse', 'waterline', 'NOAA MLLW', 'NOAA MHW']".format(vert_ref))
+        if vert_ref not in kluster_variables.vertical_references:
+            self.logger.error("Unable to set vertical reference to {}: expected one of {}".format(vert_ref, kluster_variables.vertical_references))
+            raise ValueError("Unable to set vertical reference to {}: expected one of {}".format(vert_ref, kluster_variables.vertical_references))
         self.vert_ref = vert_ref
 
     def read_from_source(self):
@@ -935,7 +936,7 @@ class Fqpr:
 
         wline = float(self.multibeam.xyzrph['waterline'][str(timestmp)])
 
-        if self.vert_ref == 'ellipse':
+        if self.vert_ref in kluster_variables.ellipse_based_vertical_references:
             alt = self.determine_altitude_corr(alt, self.multibeam.raw_att, tx_tstmp_idx + latency, prefixes, timestmp)
         else:
             hve = self.determine_induced_heave(ra, hve, self.multibeam.raw_att, tx_tstmp_idx + latency, prefixes, timestmp)
@@ -1273,17 +1274,17 @@ class Fqpr:
         if self.vert_ref is None:
             self.logger.error("georef_xyz: set_vertical_reference must be run before georef_xyz")
             raise ValueError('georef_xyz: set_vertical_reference must be run before georef_xyz')
-        if self.vert_ref not in ['ellipse', 'waterline', 'NOAA MLLW', 'NOAA MHW']:
-            self.logger.error("georef_xyz: {} must be one of 'ellipse', 'waterline', 'NOAA MLLW', 'NOAA MHW'".format(self.vert_ref))
-            raise ValueError("georef_xyz: {} must be one of 'ellipse', 'waterline', 'NOAA MLLW', 'NOAA MHW'".format(self.vert_ref))
+        if self.vert_ref not in kluster_variables.vertical_references:
+            self.logger.error("georef_xyz: {} must be one of {}".format(self.vert_ref, kluster_variables.vertical_references))
+            raise ValueError("georef_xyz: {} must be one of ".format(self.vert_ref))
         if self.horizontal_crs is None:
             self.logger.error('georef_xyz: horizontal_crs object not found.  Please run Fqpr.construct_crs first.')
             raise ValueError('georef_xyz: horizontal_crs object not found.  Please run Fqpr.construct_crs first.')
-        if self.vert_ref in ['ellipse', 'NOAA MLLW', 'NOAA MHW']:
+        if self.vert_ref in kluster_variables.ellipse_based_vertical_references:
             if 'altitude' not in self.multibeam.raw_ping[0] and 'altitude' not in self.multibeam.raw_nav:
                 self.logger.error('georef_xyz: You must provide altitude for vert_ref=ellipse, not found in raw navigation or ping records.')
                 raise ValueError('georef_xyz: You must provide altitude for vert_ref=ellipse, not found in raw navigation or ping records.')
-        if self.vert_ref in ['NOAA MLLW', 'NOAA MHW']:
+        if self.vert_ref in kluster_variables.vdatum_vertical_references:
             if not vyperdatum_found:
                 self.logger.error('georef_xyz: {} provided but vyperdatum is not found'.format(self.vert_ref))
                 raise ValueError('georef_xyz: {} provided but vyperdatum is not found'.format(self.vert_ref))
@@ -1324,9 +1325,9 @@ class Fqpr:
         if self.vert_ref is None:
             self.logger.error('calculate_total_uncertainty: set_vertical_reference must be run before calculate_total_uncertainty')
             raise ValueError('calculate_total_uncertainty: set_vertical_reference must be run before calculate_total_uncertainty')
-        if self.vert_ref not in ['ellipse', 'waterline', 'NOAA MLLW', 'NOAA MHW']:
-            self.logger.error("calculate_total_uncertainty: {} must be one of 'ellipse', 'waterline', 'NOAA MLLW', 'NOAA MHW'".format(self.vert_ref))
-            raise ValueError("calculate_total_uncertainty: {} must be one of 'ellipse', 'waterline', 'NOAA MLLW', 'NOAA MHW'".format(self.vert_ref))
+        if self.vert_ref not in kluster_variables.vertical_references:
+            self.logger.error("calculate_total_uncertainty: {} must be one of {}".format(self.vert_ref, kluster_variables.vertical_references))
+            raise ValueError("calculate_total_uncertainty: {} must be one of {}".format(self.vert_ref, kluster_variables.vertical_references))
 
         required = ['corr_pointing_angle', 'beampointingangle', 'acrosstrack', 'depthoffset', 'soundspeed', 'qualityfactor']
         for req in required:

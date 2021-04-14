@@ -1,6 +1,7 @@
 import os
 
 from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal
+from HSTB.kluster import kluster_variables
 
 
 class ProjectSettingsDialog(QtWidgets.QDialog):
@@ -32,7 +33,7 @@ class ProjectSettingsDialog(QtWidgets.QDialog):
         self.auto_utm_radio.setChecked(True)
         self.hlayout_two.addWidget(self.auto_utm_radio)
         self.auto_utm_val = QtWidgets.QComboBox()
-        self.auto_utm_val.addItems(['NAD83', 'WGS84'])
+        self.auto_utm_val.addItems(kluster_variables.coordinate_systems)
         self.auto_utm_val.setMaximumWidth(100)
         self.hlayout_two.addWidget(self.auto_utm_val)
         self.hlayout_two.addStretch(1)
@@ -41,7 +42,7 @@ class ProjectSettingsDialog(QtWidgets.QDialog):
 
         self.hlayout_three = QtWidgets.QHBoxLayout()
         self.georef_vertref = QtWidgets.QComboBox()
-        self.georef_vertref.addItems(['waterline', 'ellipse', 'NOAA MLLW', 'NOAA MHW'])
+        self.georef_vertref.addItems(kluster_variables.vertical_references)
         self.georef_vertref.setMaximumWidth(100)
         self.hlayout_three.addWidget(self.georef_vertref)
         self.hlayout_three.addStretch(1)
@@ -56,7 +57,7 @@ class ProjectSettingsDialog(QtWidgets.QDialog):
         self.hlayout_five.addStretch(1)
 
         self.status_msg = QtWidgets.QLabel('')
-        self.status_msg.setStyleSheet("QLabel { color : red; }")
+        self.status_msg.setStyleSheet("QLabel { " + kluster_variables.error_color + "; }")
         self.status_msg.setAlignment(QtCore.Qt.AlignCenter)
         self.statusbox = QtWidgets.QHBoxLayout()
         self.statusbox.addWidget(self.status_msg)
@@ -92,14 +93,14 @@ class ProjectSettingsDialog(QtWidgets.QDialog):
         Adds a status message telling you if NOAA MLLW/MHW is a valid option based on whether or not we can
         find vdatum successfully
         """
-        self.status_msg.setStyleSheet("QLabel { color : red; }")
+        self.status_msg.setStyleSheet("QLabel { " + kluster_variables.error_color + "; }")
         curr_vert = self.georef_vertref.currentText()
-        if curr_vert in ['NOAA MLLW', 'NOAA MHW']:
+        if curr_vert in kluster_variables.vdatum_vertical_references:
             vdatum = self.settings_object.value('Kluster/settings_vdatum_directory')
             if vdatum:
                 if os.path.exists(vdatum):
                     if os.path.exists(os.path.join(vdatum, 'vdatum.jar')):
-                        self.status_msg.setStyleSheet("QLabel { color : green; }")
+                        self.status_msg.setStyleSheet("QLabel { " + kluster_variables.pass_color + "; }")
                         self.status_msg.setText('Found VDatum at {}'.format(vdatum))
                     else:
                         self.status_msg.setText('Unable to find vdatum.jar at {}'.format(vdatum))

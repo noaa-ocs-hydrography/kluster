@@ -3,6 +3,7 @@ from datetime import datetime
 
 from HSTB.shared import RegistryHelpers
 from HSTB.kluster.gui.common_widgets import BrowseListWidget
+from HSTB.kluster import kluster_variables
 
 
 class OverwriteNavigationDialog(QtWidgets.QDialog):
@@ -54,7 +55,7 @@ class OverwriteNavigationDialog(QtWidgets.QDialog):
         self.override_check.setLayout(self.overrideopts)
 
         self.status_msg = QtWidgets.QLabel('')
-        self.status_msg.setStyleSheet("QLabel { color : red; }")
+        self.status_msg.setStyleSheet("QLabel { " + kluster_variables.error_color + "; }")
 
         self.hlayout_five = QtWidgets.QHBoxLayout()
         self.hlayout_five.addStretch(1)

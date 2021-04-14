@@ -7,6 +7,7 @@ import argparse
 from HSTB.kluster.gui import kluster_main
 from HSTB.kluster.fqpr_convenience import *
 from HSTB.kluster.fqpr_intelligence import intel_process, intel_process_service
+from HSTB.kluster import kluster_variables
 
 
 def str2bool(v):
@@ -56,7 +57,7 @@ if __name__ == "__main__":  # run from command line
     allproc.add_argument('-coord', '--coordinate_system', required=False, nargs='?', const='NAD83', default='NAD83',
                          help='a valid datum identifier that pyproj CRS will accept (WGS84, NAD83, etc.), default is NAD83')
     allproc.add_argument('-vert', '--vertical_reference', required=False, nargs='?', const='waterline', default='waterline',
-                         help='the vertical reference point, one of "ellipse", "waterline", default is waterline')
+                         help='the vertical reference point, one of {}, default is waterline'.format(kluster_variables.vertical_references))
     allproc.add_argument('-cast', '--cast_profiles', nargs='+', required=False,
                          help='either a list of files to include or the path to a directory containing files.  These are in addition to the casts in the ping dataset.')
     allproc.add_argument('-prog', '--show_progress', type=str2bool, required=False, nargs='?', const=True, default=True,
@@ -78,7 +79,7 @@ if __name__ == "__main__":  # run from command line
                            help='a valid datum identifier that pyproj CRS will accept (WGS84, NAD83, etc.), default is NAD83')
     intelproc.add_argument('-vert', '--vertical_reference', required=False, nargs='?', const='waterline',
                            default='waterline',
-                           help='the vertical reference point, one of "ellipse", "waterline", default is waterline')
+                           help='the vertical reference point, one of {}, default is waterline'.format(kluster_variables.vertical_references))
     intelproc.add_argument('-parallel', '--parallel_write', type=str2bool, required=False, nargs='?', const=True,
                            default=True,
                            help='If true, writes to disk in parallel, turn this off to troubleshoot PermissionErrors, default is True')
@@ -96,7 +97,7 @@ if __name__ == "__main__":  # run from command line
                               help='a valid datum identifier that pyproj CRS will accept (WGS84, NAD83, etc.), default is NAD83')
     intelservice.add_argument('-vert', '--vertical_reference', required=False, nargs='?', const='waterline',
                               default='waterline',
-                              help='the vertical reference point, one of "ellipse", "waterline", default is waterline')
+                              help='the vertical reference point, one of {}, default is waterline'.format(kluster_variables.vertical_references))
     intelservice.add_argument('-parallel', '--parallel_write', type=str2bool, required=False, nargs='?', const=True,
                               default=True,
                               help='If true, writes to disk in parallel, turn this off to troubleshoot PermissionErrors, default is True')
@@ -151,7 +152,7 @@ if __name__ == "__main__":  # run from command line
 
     processhelp = 'R|Process converted Kluster multibeam datasets with the options provided\n'
     processhelp += 'example, NAD83/UTM/waterline, all processes: process_multibeam "C:/data_dir/em2045_20098_07_11_2018"\n'
-    processhelp += 'example, NAD83/UTM/ellipse, all processes: process_multibeam "C:/data_dir/em2045_20098_07_11_2018" -v ellipse\n'
+    processhelp += 'example, NAD83/UTM/ellipse, all processes: process_multibeam "C:/data_dir/em2045_20098_07_11_2018" -vert ellipse\n'
     processhelp += 'example, WGS84, just georeferencing: process_multibeam "C:/data_dir/em2045_20098_07_11_2018" -or False -bpv False -sv False -co WGS84'
     processproc = subparsers.add_parser('process_multibeam', help=processhelp)
     processproc.add_argument('converted_data_folder', help='Path to converted kluster dataset')
@@ -171,8 +172,8 @@ if __name__ == "__main__":  # run from command line
                              help='If -ep is True, will use this identifier to build the coordinate system (ex: 26917)')
     processproc.add_argument('-coord', '--coordinate_identifier', type=str, required=False, nargs='?', const='NAD83', default='NAD83',
                              help='If -co is True, will use this identifier to build the coordinate system, automatically picking a UTM zone (ex: NAD83)')
-    processproc.add_argument('-v', '--vertical_identifier', type=str, required=False, nargs='?', const='waterline', default='waterline',
-                             help='Will use this identifier to build the vertical reference, one of (waterline, ellipse)')
+    processproc.add_argument('-vert', '--vertical_identifier', type=str, required=False, nargs='?', const='waterline', default='waterline',
+                             help='Will use this identifier to build the vertical reference, one of {}, default is waterline'.format(kluster_variables.vertical_references))
 
     gridhelp = 'R|Generate a new grid from the processed Kluster multibeam datasets provided\n'
     gridhelp += 'example: new_surface -df "C:/data_dir/em2045_20098_07_11_2018" -res 8'

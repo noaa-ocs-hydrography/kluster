@@ -6,6 +6,7 @@ from scipy.signal import firwin, lfilter, freqz
 from scipy.optimize import curve_fit
 
 from HSTB.kluster.xarray_helpers import interp_across_chunks
+from HSTB.kluster import kluster_variables
 
 
 class WobbleTest:
@@ -106,7 +107,7 @@ class WobbleTest:
         self.pitch_at_ping_time = interp_across_chunks(self.fqpr.multibeam.raw_att['pitch'], self.times).values
 
         self.vert_ref = self.fqpr.multibeam.raw_ping[0].vertical_reference
-        if self.vert_ref in ['ellipse', 'NOAA MLLW', 'NOAA MHW']:
+        if self.vert_ref in kluster_variables.ellipse_based_vertical_references:
             self.vert_motion_at_ping_time = self.altitude - self.altitude.mean()
             print('Using corrected altitude to represent vertical motion')
         else:

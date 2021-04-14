@@ -775,7 +775,7 @@ def accuracy_test(ref_surf_pth: Union[list, str], line_pairs: list, resolution: 
     resolution
         int, resolution of the surface (if this is to make a surface)
     vert_ref
-        str, one of ['waterline', 'ellipse', 'vessel']
+        str, vertical reference identifier ex: waterline
     output_directory
         str, optional, if None, puts the output files where the input line_pairs are.
     """

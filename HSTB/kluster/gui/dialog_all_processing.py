@@ -1,9 +1,9 @@
 from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal
 
 from HSTB.kluster.gui.common_widgets import BrowseListWidget
+from HSTB.kluster import kluster_variables
 
-
-# DEPRECATED AS WE HAVE MOVED TO FQPRINTELLIGENCE/FQPRACTIONS TO CONTROL CONVERSION
+# DEPRECATED AS WE HAVE MOVED TO FQPRINTELLIGENCE/FQPRACTIONS TO CONTROL processing
 
 
 class AllProcessingDialog(QtWidgets.QDialog):
@@ -101,7 +101,7 @@ class AllProcessingDialog(QtWidgets.QDialog):
         self.hlayout_four.addWidget(self.georef_check)
 
         self.status_msg = QtWidgets.QLabel('')
-        self.status_msg.setStyleSheet("QLabel { color : red; }")
+        self.status_msg.setStyleSheet("QLabel { " + kluster_variables.error_color + "; }")
 
         self.hlayout_five = QtWidgets.QHBoxLayout()
         self.hlayout_five.addStretch(1)

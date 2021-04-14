@@ -2,6 +2,7 @@ from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal
 from dask.distributed import get_client
 
 from HSTB.kluster.dask_helpers import dask_find_or_start_client
+from HSTB.kluster import kluster_variables
 
 
 class DaskClientStart(QtWidgets.QDialog):
@@ -66,7 +67,7 @@ class DaskClientStart(QtWidgets.QDialog):
         self.client_vbox.addWidget(self.remote_box)
 
         self.status_msg = QtWidgets.QLabel('')
-        self.status_msg.setStyleSheet("QLabel { color : red; }")
+        self.status_msg.setStyleSheet("QLabel { " + kluster_variables.error_color + "; }")
         self.client_vbox.addWidget(self.status_msg)
 
         self.button_layout = QtWidgets.QHBoxLayout()

@@ -3,7 +3,7 @@ import sys
 import os
 import pprint
 from collections import OrderedDict
-from datetime import datetime
+from datetime import datetime, timezone
 
 from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal
 
@@ -211,7 +211,7 @@ class KlusterExplorer(QtWidgets.QTableWidget):
             self.horizontalHeader().setStretchLastSection(True)
             self.setColumnWidth(0, 60)
             self.setColumnWidth(1, 250)
-            self.setColumnWidth(2, 110)
+            self.setColumnWidth(2, 200)
             self.setColumnWidth(3, 50)
             self.setColumnWidth(4, 80)
             self.setColumnWidth(5, 80)
@@ -356,6 +356,34 @@ class KlusterExplorer(QtWidgets.QTableWidget):
     def populate_explorer_with_points(self, point_index: np.array, linenames: np.array, point_times: np.array,
                                       beam: np.array, x: np.array, y: np.array, z: np.array, tvu: np.array,
                                       status: np.array, id: np.array):
+        """
+        Show the attributes for each point, where each point is in its own row.  All the inputs are of the same size,
+        where size equals the number of points
+
+        Parameters
+        ----------
+        point_index
+            point index for the points, corresponds to the index of the point in the 3dview selected points
+        linenames
+            multibeam file name that the points come from
+        point_times
+            time of the soundings/points
+        beam
+            beam number of the points
+        x
+            easting of the points
+        y
+            northing of the points
+        z
+            depth of the points
+        tvu
+            total vertical uncertainty of the points
+        status
+            rejected/amplitude/phase return qualifier of the points
+        id
+            data container that the points come from
+        """
+
         self.setSortingEnabled(False)
         if self.mode != 'point':
             self.set_mode('point')
@@ -370,7 +398,8 @@ class KlusterExplorer(QtWidgets.QTableWidget):
                 self.insertRow(next_row)
                 self.setItem(next_row, 0, QtWidgets.QTableWidgetItem(str(idx)))
                 self.setItem(next_row, 1, QtWidgets.QTableWidgetItem(linenames[cnt]))
-                self.setItem(next_row, 2, QtWidgets.QTableWidgetItem(str(point_times[cnt])))
+                formattedtime = datetime.fromtimestamp(float(point_times[cnt]), tz=timezone.utc).strftime('%c')
+                self.setItem(next_row, 2, QtWidgets.QTableWidgetItem(str(formattedtime)))
                 self.setItem(next_row, 3, QtWidgets.QTableWidgetItem(str(int(beam[cnt]))))
                 self.setItem(next_row, 4, QtWidgets.QTableWidgetItem(str(x[cnt])))
                 self.setItem(next_row, 5, QtWidgets.QTableWidgetItem(str(y[cnt])))

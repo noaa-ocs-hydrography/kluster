@@ -93,7 +93,7 @@ class QuadManager:
 
         self.sources = {}  # dict of container name, list of multibeam files
         self.crs = None  # epsg code
-        self.vertical_reference = None  # string identifier for the vertical reference, one of 'ellipse' 'waterline'
+        self.vertical_reference = None  # string identifier for the vertical reference
         self.max_points_per_quad = 5
         self.max_grid_size = 128
         self.min_grid_size = 1

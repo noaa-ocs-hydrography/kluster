@@ -1183,6 +1183,34 @@ class KlusterMain(QtWidgets.QMainWindow):
 
     def show_points_in_explorer(self, point_index: np.array, linenames: np.array, point_times: np.array, beam: np.array,
                                 x: np.array, y: np.array, z: np.array, tvu: np.array, status: np.array, id: np.array):
+        """
+        Take in the selected points from the 3d view and send the point attributes to the explorer widget for a
+        spreadsheet like display of the data.
+
+        Parameters
+        ----------
+        point_index
+            point index for the points, corresponds to the index of the point in the 3dview selected points
+        linenames
+            multibeam file name that the points come from
+        point_times
+            time of the soundings/points
+        beam
+            beam number of the points
+        x
+            easting of the points
+        y
+            northing of the points
+        z
+            depth of the points
+        tvu
+            total vertical uncertainty of the points
+        status
+            rejected/amplitude/phase return qualifier of the points
+        id
+            data container that the points come from
+        """
+
         self.explorer.populate_explorer_with_points(point_index, linenames, point_times, beam, x, y, z, tvu, status, id)
 
     def dock_this_widget(self, title, objname, widget):

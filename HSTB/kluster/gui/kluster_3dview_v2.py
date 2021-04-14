@@ -344,6 +344,9 @@ class ThreeDView(QtWidgets.QWidget):
         self.parent = parent
         self.canvas = DockableCanvas(keys='interactive', show=True, parent=parent)
         self.view = self.canvas.central_widget.add_view()
+        self.axis_x = None
+        self.axis_y = None
+        self.axis_z = None
 
         self.is_3d = True
 
@@ -435,6 +438,28 @@ class ThreeDView(QtWidgets.QWidget):
             self.view.camera = PanZoomInteractive()
         self.view.camera._bind_selecting_event(self._select_points)
 
+    def setup_axes(self):
+        if self.axis_x is not None:
+            self.axis_x.parent = None
+            self.axis_x = None
+        if self.axis_y is not None:
+            self.axis_y.parent = None
+            self.axis_y = None
+        if self.axis_z is not None:
+            self.axis_z.parent = None
+            self.axis_z = None
+
+        if self.is_3d:
+            self.axis_x = scene.AxisWidget(orientation='bottom')
+            self.view.add(self.axis_x)
+            self.axis_z = scene.AxisWidget(orientation='left', domain=(self.z.min(), self.z.max()))
+            self.view.add(self.axis_z)
+        else:
+            self.axis_x = scene.AxisWidget(orientation='bottom', domain=(0, self.x.max() - self.x.min()))
+            self.view.add(self.axis_x)
+            self.axis_z = scene.AxisWidget(orientation='right', domain=(self.z.min(), self.z.max()))
+            self.view.add(self.axis_z)
+
     def display_points(self, color_by: str = 'depth', vertical_exaggeration: float = 1.0):
         """
         After adding all the points you want to add, call this method to then load them in opengl and draw them to the
@@ -493,8 +518,7 @@ class ThreeDView(QtWidgets.QWidget):
         centered_z = (centered_z - centered_z.max()) * -1 * vertical_exaggeration
 
         self.displayed_points = np.stack([centered_x, centered_y, centered_z], axis=1)
-        scatter = scene.visuals.create_visual_node(visuals.MarkersVisual)
-        self.scatter = scatter(parent=self.view.scene)
+        self.scatter = scene.visuals.Markers(parent=self.view.scene)
         self.scatter.set_gl_state('translucent', blend=True, depth_test=True)
 
         if self.selected_points is not None and self.selected_points.any():
@@ -518,6 +542,7 @@ class ThreeDView(QtWidgets.QWidget):
             if self.view.camera.fresh_camera:
                 self.view.camera.zoom(centered_x.max() + 10)  # try and fit the swath in view on load
                 self.view.camera.fresh_camera = False
+        self.setup_axes()
 
     def clear_display(self):
         """
@@ -684,9 +709,10 @@ if __name__ == '__main__':
     rejected = np.random.randint(0, 3, size=x.shape[0])
     pointtime = np.arange(x.shape[0])
     beam = np.random.randint(0, 399, size=x.shape[0])
+    linename = np.full(x.shape[0], '')
     newid = 'test'
 
-    win.three_d_window.add_points(x, y, z, tvu, rejected, pointtime, beam, newid)
+    win.three_d_window.add_points(x, y, z, tvu, rejected, pointtime, beam, newid, linename, is_3d=True)
     win.three_d_window.display_points()
     win.show()
     app.exec_()

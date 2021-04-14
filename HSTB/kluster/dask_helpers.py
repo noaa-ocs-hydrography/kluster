@@ -1,9 +1,19 @@
 import os
 import psutil
 import numpy as np
+import dask
 from dask.distributed import get_client, Client, Lock
 from xarray import DataArray
 from fasteners import InterProcessLock
+
+
+# we manually set the worker space (where spillover data goes during operations) here because I found some
+#  users were starting the python console in the Windows folder, or some other write protected area.  Default worker
+#  space is the current working directory.
+worker_temp_space = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'dask-worker-space')
+if not os.path.exists(worker_temp_space):
+    os.mkdir(worker_temp_space)
+dask.config.set(temporary_directory=worker_temp_space)
 
 
 class DaskProcessSynchronizer:

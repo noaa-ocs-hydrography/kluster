@@ -2,6 +2,7 @@ from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal
 
 from HSTB.kluster.gui.common_widgets import BrowseListWidget
 from HSTB.kluster.pydro_helpers import is_pydro
+from HSTB.kluster import kluster_variables
 
 
 class ExportDialog(QtWidgets.QDialog):
@@ -57,7 +58,7 @@ class ExportDialog(QtWidgets.QDialog):
         self.hlayout_one_three.addStretch()
 
         self.status_msg = QtWidgets.QLabel('')
-        self.status_msg.setStyleSheet("QLabel { color : red; }")
+        self.status_msg.setStyleSheet("QLabel { " + kluster_variables.error_color + "; }")
 
         self.hlayout_two = QtWidgets.QHBoxLayout()
         self.hlayout_two.addStretch(1)
@@ -107,11 +108,11 @@ class ExportDialog(QtWidgets.QDialog):
         if combobox_text == 'entwine':
             ispydro = is_pydro()
             if ispydro:  # If this is the pydro environment, we know it has Entwine
-                self.status_msg.setStyleSheet("QLabel { color : green; }")
+                self.status_msg.setStyleSheet("QLabel { " + kluster_variables.pass_color + "; }")
                 self.status_msg.setText('Pydro found, entwine export allowed')
                 self.ok_button.setEnabled(True)
             else:
-                self.status_msg.setStyleSheet("QLabel { color : red; }")
+                self.status_msg.setStyleSheet("QLabel { " + kluster_variables.error_color + "; }")
                 self.status_msg.setText('Error: Pydro not found, entwine export is not allowed')
                 self.ok_button.setEnabled(False)
         else:
@@ -144,7 +145,7 @@ class ExportDialog(QtWidgets.QDialog):
         Dialog completes if the specified widgets are populated
         """
         if not self.fqpr_inst:
-            self.status_msg.setStyleSheet("QLabel { color : red; }")
+            self.status_msg.setStyleSheet("QLabel { " + kluster_variables.error_color + "; }")
             self.status_msg.setText('Error: No data provided')
         else:
             self.canceled = False
