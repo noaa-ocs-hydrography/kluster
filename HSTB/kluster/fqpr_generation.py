@@ -893,15 +893,15 @@ class Fqpr:
 
         try:
             if ra.input_datum == 'NAD83':
-                input_datum = CRS.from_epsg(6319)
+                input_datum = CRS.from_epsg(kluster_variables.epsg_nad83)
             elif ra.input_datum == 'WGS84':
-                input_datum = CRS.from_epsg(7911)
+                input_datum = CRS.from_epsg(kluster_variables.epsg_wgs84)
             else:
                 self.logger.error('{} not supported.  Only supports WGS84 and NAD83'.format(ra.input_datum))
                 raise ValueError('{} not supported.  Only supports WGS84 and NAD83'.format(ra.input_datum))
         except AttributeError:
             self.logger.warning('No input datum attribute found, assuming WGS84')
-            input_datum = CRS.from_epsg(7911)
+            input_datum = CRS.from_epsg(kluster_variables.epsg_wgs84)
 
         # if they have already interpolated and saved data to disk, use it.  But if motion latency is set, we ignore
         if ('latitude' in ra) and ('longitude' in ra) and ('altitude' in ra) and not self.motion_latency:
@@ -1032,11 +1032,13 @@ class Fqpr:
         qf = ra.qualityfactor.where(applicable_index, drop=True)
 
         first_mbes_file = list(ra.multibeam_files.keys())[0]
-        is_kongsberg_all = os.path.splitext(first_mbes_file)[1] == '.all'
-        if is_kongsberg_all:  # for .all files, quality factor is an int representing scaled std dev
+        mbes_ext = os.path.splitext(first_mbes_file)[1]
+        if mbes_ext in kluster_variables.multibeam_uses_quality_factor:  # for .all files, quality factor is an int representing scaled std dev
             qf_type = 'kongsberg'
-        else:  # for .kmall files, quality factor is a percentage of water depth, see IFREMER formula
+        elif mbes_ext in kluster_variables.multibeam_uses_ifremer:  # for .kmall files, quality factor is a percentage of water depth, see IFREMER formula
             qf_type = 'ifremer'
+        else:
+            raise ValueError('Found multibeam file with {} extension, only {} supported by kluster'.format(mbes_ext, kluster_variables.supported_multibeam))
 
         data_for_workers = []
 
@@ -2145,17 +2147,17 @@ class Fqpr:
             if True will not use the dask.distributed client to submit tasks, will run locally instead
         """
 
-        ping_chunks = {'time': (self.multibeam.ping_chunksize,), 'beam': (400,), 'xyz': (3,),
-                       'processing_status': (self.multibeam.ping_chunksize, 400),
-                       'tx': (self.multibeam.ping_chunksize, 400, 3), 'rx': (self.multibeam.ping_chunksize, 400, 3),
-                       'rel_azimuth': (self.multibeam.ping_chunksize, 400),
-                       'corr_pointing_angle': (self.multibeam.ping_chunksize, 400),
-                       'alongtrack': (self.multibeam.ping_chunksize, 400),
-                       'acrosstrack': (self.multibeam.ping_chunksize, 400),
-                       'depthoffset': (self.multibeam.ping_chunksize, 400),
-                       'x': (self.multibeam.ping_chunksize, 400), 'y': (self.multibeam.ping_chunksize, 400),
-                       'z': (self.multibeam.ping_chunksize, 400), 'thu': (self.multibeam.ping_chunksize, 400),
-                       'tvu': (self.multibeam.ping_chunksize, 400), 'datum_uncertainty': (self.multibeam.ping_chunksize, 400),
+        ping_chunks = {'time': (self.multibeam.ping_chunksize,), 'beam': (kluster_variables.max_beams,), 'xyz': (3,),
+                       'processing_status': (self.multibeam.ping_chunksize, kluster_variables.max_beams),
+                       'tx': (self.multibeam.ping_chunksize, kluster_variables.max_beams, 3), 'rx': (self.multibeam.ping_chunksize, kluster_variables.max_beams, 3),
+                       'rel_azimuth': (self.multibeam.ping_chunksize, kluster_variables.max_beams),
+                       'corr_pointing_angle': (self.multibeam.ping_chunksize, kluster_variables.max_beams),
+                       'alongtrack': (self.multibeam.ping_chunksize, kluster_variables.max_beams),
+                       'acrosstrack': (self.multibeam.ping_chunksize, kluster_variables.max_beams),
+                       'depthoffset': (self.multibeam.ping_chunksize, kluster_variables.max_beams),
+                       'x': (self.multibeam.ping_chunksize, kluster_variables.max_beams), 'y': (self.multibeam.ping_chunksize, kluster_variables.max_beams),
+                       'z': (self.multibeam.ping_chunksize, kluster_variables.max_beams), 'thu': (self.multibeam.ping_chunksize, kluster_variables.max_beams),
+                       'tvu': (self.multibeam.ping_chunksize, kluster_variables.max_beams), 'datum_uncertainty': (self.multibeam.ping_chunksize, kluster_variables.max_beams),
                        'corr_heave': (self.multibeam.ping_chunksize,),
                        'corr_altitude': (self.multibeam.ping_chunksize,)}
 
@@ -2887,7 +2889,8 @@ class Fqpr:
 
         if not full_swath:
             if geographic:
-                trans = Transformer.from_crs(CRS.from_epsg(4326), CRS.from_epsg(self.multibeam.raw_ping[0].horizontal_crs), always_xy=True)
+                trans = Transformer.from_crs(CRS.from_epsg(kluster_variables.epsg_wgs84),
+                                             CRS.from_epsg(self.multibeam.raw_ping[0].horizontal_crs), always_xy=True)
                 min_x, min_y = trans.transform(min_x, min_y)
                 max_x, max_y = trans.transform(max_x, max_y)
             x, y, z, tvu, rejected, pointtime, beam = self._soundings_by_box(min_y, max_y, min_x, max_x)

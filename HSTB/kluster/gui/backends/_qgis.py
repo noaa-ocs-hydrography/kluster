@@ -11,6 +11,7 @@ from HSTB.kluster.gui.backends._qt import qgis_core, qgis_gui
 from HSTB.kluster import __file__ as klusterdir
 
 from HSTB.kluster.gdal_helpers import gdal_raster_create, VectorLayer, gdal_output_file_exists, ogr_output_file_exists
+from HSTB.kluster import kluster_variables
 
 
 class DistanceTool(qgis_gui.QgsMapTool):
@@ -694,7 +695,7 @@ class MapView(QtWidgets.QMainWindow):
     box_3dpoints = Signal(float, float, float, float)
     box_swath = Signal(float, float, float, float)
 
-    def __init__(self, parent=None, settings=None, epsg: int = 4326):
+    def __init__(self, parent=None, settings=None, epsg: int = kluster_variables.epsg_wgs84):
         super().__init__()
         self.epsg = epsg
         self.vdatum_directory = None

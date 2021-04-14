@@ -585,12 +585,14 @@ def cast_data_from_file(profile_file: str):
 
     Returns
     -------
-    OrderedDict
-        dict of (depth, soundvelocity) values
     list
-        [Latitude in degrees of cast location, Longitude in degrees of cast location]
-    float
-        time of cast in UTC seconds
+        list of OrderedDict of (depth, soundvelocity) values for each cast
+    list
+        list of [Latitude in degrees of cast location, Longitude in degrees of cast location] for each cast
+    list
+        list of time of cast in UTC seconds for each cast
+    list
+        list of str names of each cast
     """
 
     if profile_file.endswith('.svp'):
@@ -683,8 +685,14 @@ def _load_from_caris_svp(profile_file: str):
 
     Returns
     -------
-    dict
-        keys are depth in meters and values are soundspeed in m/s
+    list
+        list of OrderedDict of (depth, soundvelocity) values for each cast
+    list
+        list of [Latitude in degrees of cast location, Longitude in degrees of cast location] for each cast
+    list
+        list of time of cast in UTC seconds for each cast
+    list
+        list of str names of each cast
     """
 
     if os.path.exists(profile_file) and profile_file.endswith('.svp'):

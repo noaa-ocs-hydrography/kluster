@@ -17,6 +17,7 @@ from HSTB.kluster.dask_helpers import dask_find_or_start_client
 from HSTB.kluster.xarray_helpers import resize_zarr, xarr_to_netcdf, combine_xr_attributes, reload_zarr_records, \
                                         get_write_indices_zarr, distrib_zarr_write, my_xarr_add_attribute
 from HSTB.kluster.logging_conf import return_logger
+from HSTB.kluster import kluster_variables
 
 
 sonar_translator = {'em122': [None, 'tx', 'rx', None], 'em302': [None, 'tx', 'rx', None],
@@ -106,11 +107,13 @@ def _run_sequential_read(fildata: list):
     if os.path.splitext(fil)[1] == '.all':
         ar = par3.AllRead(fil, start_ptr=offset, end_ptr=endpt)
         return ar.sequential_read_records()
-    else:
+    elif os.path.splitext(fil)[1] == '.kmall':
         km = kmall.kmall(fil)
         # kmall doesnt have ping-wise serial number in header, we have to provide it from install params
         serial_translator = km.fast_read_serial_number_translator()
         return km.sequential_read_records(start_ptr=offset, end_ptr=endpt, serial_translator=serial_translator)
+    else:
+        raise ValueError('{} not a supported multibeam file, must be one of {}'.format(fil, kluster_variables.supported_multibeam))
 
 
 def _build_serial_mask(rec: dict):
@@ -739,14 +742,14 @@ def batch_read_configure_options(ping_chunksize: int, nav_chunksize: int, att_ch
         dict, options for batch read process
     """
 
-    ping_chunks = {'time': (ping_chunksize,), 'beam': (400,), 'xyz': (3,),
-                   'beampointingangle': (ping_chunksize, 400), 'counter': (ping_chunksize,), 'delay': (ping_chunksize, 400),
-                   'detectioninfo': (ping_chunksize, 400), 'frequency': (ping_chunksize, 400), 'mode': (ping_chunksize,),
-                   'ntx': (ping_chunksize,), 'qualityfactor': (ping_chunksize, 400), 'samplerate': (ping_chunksize,),
-                   'serial_num': (ping_chunksize,), 'soundspeed': (ping_chunksize,), 'txsector_beam': (ping_chunksize, 400),
-                   'modetwo': (ping_chunksize,), 'tiltangle': (ping_chunksize, 400),
-                   'traveltime': (ping_chunksize, 400), 'waveformid': (ping_chunksize,),
-                   'yawpitchstab': (ping_chunksize,), 'rxid': (ping_chunksize,), 'processing_status': (ping_chunksize, 400)}
+    ping_chunks = {'time': (ping_chunksize,), 'beam': (kluster_variables.max_beams,), 'xyz': (3,),
+                   'beampointingangle': (ping_chunksize, kluster_variables.max_beams), 'counter': (ping_chunksize,), 'delay': (ping_chunksize, kluster_variables.max_beams),
+                   'detectioninfo': (ping_chunksize, kluster_variables.max_beams), 'frequency': (ping_chunksize, kluster_variables.max_beams), 'mode': (ping_chunksize,),
+                   'ntx': (ping_chunksize,), 'qualityfactor': (ping_chunksize, kluster_variables.max_beams), 'samplerate': (ping_chunksize,),
+                   'serial_num': (ping_chunksize,), 'soundspeed': (ping_chunksize,), 'txsector_beam': (ping_chunksize, kluster_variables.max_beams),
+                   'modetwo': (ping_chunksize,), 'tiltangle': (ping_chunksize, kluster_variables.max_beams),
+                   'traveltime': (ping_chunksize, kluster_variables.max_beams), 'waveformid': (ping_chunksize,),
+                   'yawpitchstab': (ping_chunksize,), 'rxid': (ping_chunksize,), 'processing_status': (ping_chunksize, kluster_variables.max_beams)}
     att_chunks = {'time': (att_chunksize,), 'heading': (att_chunksize,), 'heave': (att_chunksize,),
                   'pitch': (att_chunksize,), 'roll': (att_chunksize,)}
     nav_chunks = {'time': (nav_chunksize,), 'alongtrackvelocity': (nav_chunksize,), 'altitude': (nav_chunksize,),
@@ -907,9 +910,9 @@ class BatchRead:
         self.extents = None
         self.logfile = None
         self.logger = None
-        self.ping_chunksize = 1000
-        self.nav_chunksize = 50000
-        self.att_chunksize = 20000
+        self.ping_chunksize = kluster_variables.ping_chunk_size
+        self.nav_chunksize = kluster_variables.navigation_chunk_size
+        self.att_chunksize = kluster_variables.attitude_chunk_size
         self.chunksize_lkup = {'ping': self.ping_chunksize, 'attitude': self.att_chunksize, 'navigation': self.nav_chunksize}
 
         # install parameters
@@ -1178,8 +1181,11 @@ class BatchRead:
             filname = os.path.split(f)[1]
             if os.path.splitext(f)[1] == '.all':
                 dat[filname] = par3.AllRead(f).fast_read_start_end_time()
-            else:
+            elif os.path.splitext(f)[1] == '.kmall':
                 dat[filname] = kmall.kmall(f).fast_read_start_end_time()
+            else:
+                raise ValueError('{} not a supported multibeam file, must be one of {}'.format(f,
+                                                                                               kluster_variables.supported_multibeam))
         return dat
 
     def _batch_read_merge_blocks(self, input_xarrs: list, datatype: str, chunksize: int):
@@ -1771,7 +1777,7 @@ class BatchRead:
 
         if self.xyzrph is None:
             self.build_offsets()
-        if self.sonartype in ['em2040', 'em122', 'em710', 'em2045', 'em2040p']:
+        if self.sonartype in kluster_variables.single_head_sonar:
             corr_timestmp = str(int(_closest_prior_key_value(list(self.xyzrph['tx_r'].keys()), time_idx)))
             return {corr_timestmp: {'tx_roll': float(self.xyzrph['tx_r'][corr_timestmp]),
                                     'tx_pitch': float(self.xyzrph['tx_p'][corr_timestmp]),
@@ -1780,7 +1786,7 @@ class BatchRead:
                                     'tx_y': float(self.xyzrph['tx_y'][corr_timestmp]),
                                     'tx_z': float(self.xyzrph['tx_z'][corr_timestmp])}}
 
-        elif self.sonartype in ['em2040_dual_rx', 'em2040_dual_tx']:
+        elif self.sonartype in kluster_variables.dual_head_sonar:
             corr_timestmp = str(int(_closest_prior_key_value(list(self.xyzrph['tx_port_r'].keys()), time_idx)))
             return {corr_timestmp: {'tx_port_roll': float(self.xyzrph['tx_port_r'][corr_timestmp]),
                                     'tx_port_pitch': float(self.xyzrph['tx_port_p'][corr_timestmp]),
@@ -1817,7 +1823,7 @@ class BatchRead:
 
         if self.xyzrph is None:
             self.build_offsets()
-        if self.sonartype in ['em2040', 'em122', 'em710', 'em2045', 'em2040p']:
+        if self.sonartype in kluster_variables.single_head_sonar:
             corr_timestmp = str(int(_closest_prior_key_value(list(self.xyzrph['rx_r'].keys()), time_idx)))
             return {corr_timestmp: {'rx_roll': float(self.xyzrph['rx_r'][corr_timestmp]),
                                     'rx_pitch': float(self.xyzrph['rx_p'][corr_timestmp]),
@@ -1826,7 +1832,7 @@ class BatchRead:
                                     'rx_y': float(self.xyzrph['rx_y'][corr_timestmp]),
                                     'rx_z': float(self.xyzrph['rx_z'][corr_timestmp])}}
 
-        elif self.sonartype in ['em2040_dual_rx', 'em2040_dual_tx']:
+        elif self.sonartype in kluster_variables.dual_head_sonar:
             corr_timestmp = str(int(_closest_prior_key_value(list(self.xyzrph['rx_port_r'].keys()), time_idx)))
             return {corr_timestmp: {'rx_port_roll': float(self.xyzrph['rx_port_r'][corr_timestmp]),
                                     'rx_port_pitch': float(self.xyzrph['rx_port_p'][corr_timestmp]),
@@ -2169,25 +2175,25 @@ def build_tpu_parameters():
         keys are parameter names, vals are dicts with scalars for static uncertainty values
     """
     # generate default tpu parameters
-    heave = 0.05  # 1 sigma standard deviation for the heave data (meters)
-    roll_sensor_error = 0.0005  # 1 sigma standard deviation in the roll sensor (degrees)
-    pitch_sensor_error = 0.0005  # 1 sigma standard deviation in the pitch sensor (degrees)
-    heading_sensor_error = 0.02  # 1 sigma standard deviation in the pitch sensor (degrees)
-    x_offset = 0.2  # 1 sigma standard deviation in your measurement of x lever arm (meters)
-    y_offset = 0.2  # 1 sigma standard deviation in your measurement of y lever arm (meters)
-    z_offset = 0.2  # 1 sigma standard deviation in your measurement of z lever arm (meters)
-    surface_sv = 0.5  # 1 sigma standard deviation in surface sv sensor (meters/second)
-    roll_patch = 0.1  # 1 sigma standard deviation in your roll angle patch test procedure (degrees)
-    pitch_patch = 0.1  # 1 sigma standard deviation in your roll angle patch test procedure (degrees)
-    heading_patch = 0.5  # 1 sigma standard deviation in your roll angle patch test procedure (degrees)
-    latency_patch = 0.0  # 1 sigma standard deviation in your latency calculation (seconds)
-    timing_latency = 0.001  # 1 sigma standard deviation of the timing accuracy of the system (seconds)
-    dynamic_draft = 0.1  # 1 sigma standard deviation of the dynamic draft measurement (meters)
-    separation_model = 0.0  # 1 sigma standard deivation in the sep model (tidal, ellipsoidal, etc) (meters)
-    waterline = 0.02  # 1 sigma standard deviation of the waterline (meters)
-    vessel_speed = 0.1  # 1 sigma standard deviation of the vessel speed (meters/second)
-    horizontal_positioning = 1.5  # 1 sigma standard deviation of the horizontal positioning (meters)
-    vertical_positioning = 1.0  # 1 sigma standard deviation of the vertical positioning (meters)
+    heave = kluster_variables.default_heave_error  # 1 sigma standard deviation for the heave data (meters)
+    roll_sensor_error = kluster_variables.default_roll_error  # 1 sigma standard deviation in the roll sensor (degrees)
+    pitch_sensor_error = kluster_variables.default_pitch_error  # 1 sigma standard deviation in the pitch sensor (degrees)
+    heading_sensor_error = kluster_variables.default_heading_error  # 1 sigma standard deviation in the pitch sensor (degrees)
+    x_offset = kluster_variables.default_x_offset_error  # 1 sigma standard deviation in your measurement of x lever arm (meters)
+    y_offset = kluster_variables.default_y_offset_error  # 1 sigma standard deviation in your measurement of y lever arm (meters)
+    z_offset = kluster_variables.default_z_offset_error  # 1 sigma standard deviation in your measurement of z lever arm (meters)
+    surface_sv = kluster_variables.default_surface_sv_error  # 1 sigma standard deviation in surface sv sensor (meters/second)
+    roll_patch = kluster_variables.default_roll_patch_error  # 1 sigma standard deviation in your roll angle patch test procedure (degrees)
+    pitch_patch = kluster_variables.default_pitch_patch_error  # 1 sigma standard deviation in your roll angle patch test procedure (degrees)
+    heading_patch = kluster_variables.default_heading_patch_error  # 1 sigma standard deviation in your roll angle patch test procedure (degrees)
+    latency_patch = kluster_variables.default_latency_patch_error  # 1 sigma standard deviation in your latency calculation (seconds)
+    timing_latency = kluster_variables.default_latency_error  # 1 sigma standard deviation of the timing accuracy of the system (seconds)
+    dynamic_draft = kluster_variables.default_dynamic_draft_error  # 1 sigma standard deviation of the dynamic draft measurement (meters)
+    separation_model = kluster_variables.default_separation_model_error  # 1 sigma standard deivation in the sep model (tidal, ellipsoidal, etc) (meters)
+    waterline = kluster_variables.default_waterline_error  # 1 sigma standard deviation of the waterline (meters)
+    vessel_speed = kluster_variables.default_vessel_speed_error  # 1 sigma standard deviation of the vessel speed (meters/second)
+    horizontal_positioning = kluster_variables.default_horizontal_positioning_error  # 1 sigma standard deviation of the horizontal positioning (meters)
+    vertical_positioning = kluster_variables.default_vertical_positioning_error  # 1 sigma standard deviation of the vertical positioning (meters)
 
     tpu_parameters = {'heave': heave, 'roll_sensor_error': roll_sensor_error, 'pitch_sensor_error': pitch_sensor_error,
                       'heading_sensor_error': heading_sensor_error, 'x_offset': x_offset, 'y_offset': y_offset,
@@ -2331,9 +2337,11 @@ def return_xyzrph_from_mbes(mbesfil: str):
     """
     if os.path.splitext(mbesfil)[1] == '.all':
         mbes_object = par3.AllRead(mbesfil)
-    else:
+    elif os.path.splitext(mbesfil)[1] == '.kmall':
         mbes_object = kmall.kmall(mbesfil)
-
+    else:
+        raise ValueError('{} not a supported multibeam file, must be one of {}'.format(mbesfil,
+                                                                                       kluster_variables.supported_multibeam))
     recs = mbes_object.sequential_read_records(first_installation_rec=True)
     try:
         settings_dict = {str(int(recs['installation_params']['time'][0])): recs['installation_params']['installation_settings'][0]}

@@ -14,6 +14,7 @@ from HSTB.kluster.fqpr_generation import Fqpr
 from HSTB.kluster.fqpr_surface import BaseSurface
 from HSTB.kluster.fqpr_helpers import return_directory_from_data
 from HSTB.kluster.fqpr_surface_v3 import QuadManager
+from HSTB.kluster import kluster_variables
 
 
 def perform_all_processing(filname: Union[str, list], navfiles: list = None, outfold: str = None, coord_system: str = 'NAD83',
@@ -1176,7 +1177,7 @@ def return_surface(ref_surf_pth: Union[list, str], vert_ref: str, resolution: in
     bs = None
 
     if os.path.isfile(ref_surf_pth):
-        if os.path.splitext(ref_surf_pth)[1] not in ['.all', '.kmall']:
+        if os.path.splitext(ref_surf_pth)[1] not in kluster_variables.supported_multibeam:
             bs = BaseSurface(from_file=ref_surf_pth)
         else:
             need_surface = True

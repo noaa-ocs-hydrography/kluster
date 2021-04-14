@@ -518,7 +518,7 @@ class Tpu:
         and all the scalar modeled values for water level related uncertainty
         """
 
-        d_measured = self._total_depth_measurement_error(v_unc, 'tidal')
+        d_measured = self._total_depth_measurement_error(v_unc, 'waterline')
         self.separation_model = np.full((v_unc.shape[0], 1), self.separation_model, dtype=np.float32)
         self.dynamic_draft = np.full((v_unc.shape[0], 1), self.dynamic_draft, dtype=np.float32)
         self.waterline = np.full((v_unc.shape[0], 1), self.waterline, dtype=np.float32)
