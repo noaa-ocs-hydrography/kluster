@@ -695,7 +695,7 @@ class MapView(QtWidgets.QMainWindow):
     box_3dpoints = Signal(float, float, float, float)
     box_swath = Signal(float, float, float, float)
 
-    def __init__(self, parent=None, settings=None, epsg: int = kluster_variables.epsg_wgs84):
+    def __init__(self, parent=None, settings=None, epsg: int = 4326):
         super().__init__()
         self.epsg = epsg
         self.vdatum_directory = None

@@ -70,10 +70,10 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.tree_dock = self.dock_this_widget('Project Tree', 'project_dock', self.project_tree)
 
         self.two_d = kluster_2dview.Kluster2dview(self, self.settings.copy())
-        self.two_d_dock = self.dock_this_widget('2d view', 'two_d_dock', self.two_d)
+        self.two_d_dock = self.dock_this_widget('2d View', 'two_d_dock', self.two_d)
 
         self.three_d = kluster_3dview_v2.ThreeDWidget(self)
-        self.three_d_dock = self.dock_this_widget("3d view", 'three_d_dock', self.three_d)
+        self.three_d_dock = self.dock_this_widget("Points View", 'three_d_dock', self.three_d)
         # for now we remove the ability to undock the three d window, vispy wont work if we do
         self.three_d_dock.setFeatures(QtWidgets.QDockWidget.DockWidgetMovable)
 

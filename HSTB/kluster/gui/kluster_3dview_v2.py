@@ -347,6 +347,7 @@ class ThreeDView(QtWidgets.QWidget):
         self.axis_x = None
         self.axis_y = None
         self.axis_z = None
+        # self.axis_labels = None
 
         self.is_3d = True
 
@@ -369,6 +370,8 @@ class ThreeDView(QtWidgets.QWidget):
         self.z_offset = 0.0
         self.vertical_exaggeration = 1.0
         self.view_direction = 'north'
+        self.show_axis = True
+
         self.displayed_points = None
         self.selected_points = None
         self.superselected_index = None
@@ -440,6 +443,9 @@ class ThreeDView(QtWidgets.QWidget):
         self.view.camera._bind_selecting_event(self._select_points)
 
     def setup_axes(self):
+        """
+        Build the axes to match the scatter data loaded.
+        """
         if self.axis_x is not None:
             self.axis_x.parent = None
             self.axis_x = None
@@ -449,75 +455,53 @@ class ThreeDView(QtWidgets.QWidget):
         if self.axis_z is not None:
             self.axis_z.parent = None
             self.axis_z = None
+        # if self.axis_labels is not None:
+        #     for lbl in self.axis_labels:
+        #         lbl.parent = None
+        #     self.axis_labels = None
 
-        if self.is_3d:
-            max_x = self.x.max() - self.x.min()
-            self.axis_x = scene.visuals.Arrow(pos=np.array([[0, 0], [max_x, 0]]), color='r', parent=self.view.scene,
-                                              arrows=np.array([[max_x/50, 0, max_x, 0], [max_x/50, 0, max_x, 0]]),
-                                              arrow_size=8, arrow_color='r', arrow_type='triangle_60')
-            max_y = self.y.max() - self.y.min()
-            self.axis_y = scene.visuals.Arrow(pos=np.array([[0, 0], [0, max_y]]), color='g', parent=self.view.scene,
-                                              arrows=np.array([[0, max_y / 50, 0, max_y], [0, max_y / 50, 0, max_y]]),
-                                              arrow_size=8, arrow_color='g', arrow_type='triangle_60')
-            max_z = self.z.max()
-            min_z = self.z.min()
-            diff_z = (max_z - min_z) * self.vertical_exaggeration
-            self.axis_z = scene.visuals.Arrow(pos=np.array([[0, 0, 0], [0, 0, diff_z]]), color='b', parent=self.view.scene,
-                                              arrows=np.array([[0, 0, diff_z/50, 0, 0, diff_z], [0, 0, diff_z/50, 0, 0, diff_z]]),
-                                              arrow_size=8, arrow_color='b', arrow_type='triangle_60')
-        else:
-            if self.view_direction == 'north':
-                self.axis_x = scene.AxisWidget(orientation='bottom', domain=(0, self.x.max() - self.x.min()))
-                self.axis_x.size = (self.x.max() - self.x.min(), 3)
-            elif self.view_direction == 'east':
-                self.axis_x = scene.AxisWidget(orientation='bottom', domain=(0, self.y.max() - self.y.min()))
-                self.axis_x.size = (self.y.max() - self.y.min(), 3)
-            self.view.add(self.axis_x)
-            self.axis_z = scene.AxisWidget(orientation='right', domain=(self.z.min(), self.z.max()))
-            self.axis_z.size = (3, (self.z.max() - self.z.min()) * self.vertical_exaggeration)
-            self.view.add(self.axis_z)
+        if self.show_axis:
+            if self.is_3d:
+                max_x = self.x.max()
+                min_x = self.x.min()
+                diff_x = max_x - min_x
+                self.axis_x = scene.visuals.Arrow(pos=np.array([[0, 0], [diff_x, 0]]), color='r', parent=self.view.scene,
+                                                  arrows=np.array([[diff_x/50, 0, diff_x, 0], [diff_x/50, 0, diff_x, 0]]),
+                                                  arrow_size=8, arrow_color='r', arrow_type='triangle_60')
+                max_y = self.y.max()
+                min_y = self.y.min()
+                diff_y = max_y - min_y
+                self.axis_y = scene.visuals.Arrow(pos=np.array([[0, 0], [0, diff_y]]), color='g', parent=self.view.scene,
+                                                  arrows=np.array([[0, diff_y / 50, 0, diff_y], [0, diff_y / 50, 0, diff_y]]),
+                                                  arrow_size=8, arrow_color='g', arrow_type='triangle_60')
+                max_z = self.z.max()
+                min_z = self.z.min()
+                diff_z = (max_z - min_z) * self.vertical_exaggeration
+                self.axis_z = scene.visuals.Arrow(pos=np.array([[0, 0, 0], [0, 0, diff_z]]), color='b', parent=self.view.scene,
+                                                  arrows=np.array([[0, 0, diff_z/50, 0, 0, diff_z], [0, 0, diff_z/50, 0, 0, diff_z]]),
+                                                  arrow_size=8, arrow_color='b', arrow_type='triangle_60')
+                # center_txt = scene.visuals.Text('({},{},{})'.format(np.floor(min_x), np.floor(min_y), np.floor(min_z)),
+                #                                 color='white', pos=(0, 0, 0), font_size=2000, parent=self.view.scene)
+                # maxx_txt = scene.visuals.Text('({},{},{})'.format(np.ceil(max_x), np.floor(min_y), np.floor(min_z)),
+                #                               color='white', pos=(diff_x, 0, 0), font_size=2000, parent=self.view.scene)
+                # maxy_txt = scene.visuals.Text('({},{},{})'.format(np.floor(min_x), np.ceil(max_y), np.floor(min_z)),
+                #                               color='white', pos=(0, diff_y, 0), font_size=2000, parent=self.view.scene)
+                # maxz_txt = scene.visuals.Text('({},{},{})'.format(np.floor(min_x), np.floor(min_y), np.ceil(max_z)),
+                #                               color='white', pos=(0, 0, diff_z), font_size=2000, parent=self.view.scene)
+                # self.axis_labels = [center_txt, maxx_txt, maxy_txt, maxz_txt]
+            else:
+                if self.view_direction == 'north':
+                    self.axis_x = scene.AxisWidget(orientation='bottom', domain=(0, self.x.max() - self.x.min()))
+                    self.axis_x.size = (self.x.max() - self.x.min(), 3)
+                elif self.view_direction == 'east':
+                    self.axis_x = scene.AxisWidget(orientation='bottom', domain=(0, self.y.max() - self.y.min()))
+                    self.axis_x.size = (self.y.max() - self.y.min(), 3)
+                self.view.add(self.axis_x)
+                self.axis_z = scene.AxisWidget(orientation='right', domain=(self.z.min(), self.z.max()))
+                self.axis_z.size = (3, (self.z.max() - self.z.min()) * self.vertical_exaggeration)
+                self.view.add(self.axis_z)
 
-    # def _rotate_along_across(self):
-    #     rot_head = np.pi/2 - np.deg2rad(self.heading)
-    #     newx = self.displayed_points[:, 0] * np.cos(rot_head) - self.displayed_points[:, 1] * np.sin(rot_head)
-    #     neg_newx = np.where(newx < 0)
-    #     newx[neg_newx] += self.displayed_points[:, 0].max()
-    #     # lastbeam = np.where(self.beam == self.beam.max())[0]
-    #     # max_across = np.zeros_like(self.displayed_points[:, 0])
-    #     # strt = 0
-    #     # for cnt, lb in enumerate(lastbeam):
-    #     #     if cnt == len(lastbeam) - 1:
-    #     #         max_across[strt:] = np.nanmax(self.displayed_points[:,0][strt:])
-    #     #         break
-    #     #     else:
-    #     #         max_across[strt:lb + 1] = np.nanmax(self.displayed_points[:, 0][strt:lb + 1])
-    #     #     strt = lb + 1
-    #     # neg_newx = np.where(newx < 0)
-    #     # newx[neg_newx] += max_across[neg_newx]
-    #     return newx
-
-    def display_points(self, color_by: str = 'depth', vertical_exaggeration: float = 1.0, view_direction: str = 'north'):
-        """
-        After adding all the points you want to add, call this method to then load them in opengl and draw them to the
-        scatter plot
-
-        Parameters
-        ----------
-        color_by
-            identifer for the variable you want to color by.  One of 'depth', 'vertical_uncertainty', 'beam',
-            'rejected', 'system', 'linename'
-        vertical_exaggeration
-            multiplier for z value
-        view_direction
-            picks either northings or eastings for display, only for 2d view
-        """
-
-        if not self.z.any():
-            return
-
-        self.view_direction = view_direction
-        self.vertical_exaggeration = vertical_exaggeration
-        # print('displaying {} points'.format(len(self.z)))
+    def _build_color_by_soundings(self, color_by: str = 'depth'):
         # normalize the arrays and build the colors for each sounding
         if color_by == 'depth':
             clrs = normalized_arr_to_rgb_v2((self.z - self.z.min()) / (self.z.max() - self.z.min()), reverse=True)
@@ -541,6 +525,55 @@ class ThreeDView(QtWidgets.QWidget):
             clrs = normalized_arr_to_rgb_v2(sys_idx / (len(uvari)), band_count=(len(uvari) + 1))
         else:
             raise ValueError('Coloring by {} is not supported at this time'.format(color_by))
+        return clrs
+
+    def _build_scatter(self, centered_x: np.array, centered_y: np.array, centered_z: np.array, clrs: np.array):
+        if self.is_3d:
+            self.scatter.set_data(self.displayed_points, edge_color=clrs, face_color=clrs, symbol='o', size=3)
+            if self.view.camera.fresh_camera:
+                self.view.camera.center = (centered_x.mean(), centered_y.mean(), centered_z.mean())
+                self.view.camera.distance = centered_x.max() * 2
+                self.view.camera.fresh_camera = False
+        else:
+            if self.view_direction == 'north':
+                self.scatter.set_data(self.displayed_points[:, [0, 2]], edge_color=clrs, face_color=clrs, symbol='o', size=3)
+                self.view.camera.center = (centered_x.mean(), centered_z.mean())
+                if self.view.camera.fresh_camera:
+                    self.view.camera.zoom(centered_x.max() + 10)  # try and fit the swath in view on load
+                    self.view.camera.fresh_camera = False
+            elif self.view_direction == 'east':
+                self.scatter.set_data(self.displayed_points[:, [1, 2]], edge_color=clrs, face_color=clrs, symbol='o', size=3)
+                self.view.camera.center = (centered_y.mean(), centered_z.mean())
+                if self.view.camera.fresh_camera:
+                    self.view.camera.zoom(centered_y.max() + 10)  # try and fit the swath in view on load
+                    self.view.camera.fresh_camera = False
+
+    def display_points(self, color_by: str = 'depth', vertical_exaggeration: float = 1.0, view_direction: str = 'north',
+                       show_axis: bool = True):
+        """
+        After adding all the points you want to add, call this method to then load them in opengl and draw them to the
+        scatter plot
+
+        Parameters
+        ----------
+        color_by
+            identifer for the variable you want to color by.  One of 'depth', 'vertical_uncertainty', 'beam',
+            'rejected', 'system', 'linename'
+        vertical_exaggeration
+            multiplier for z value
+        view_direction
+            picks either northings or eastings for display, only for 2d view
+        show_axis
+            to build or not build the axis
+        """
+
+        if not self.z.any():
+            return
+
+        self.view_direction = view_direction
+        self.vertical_exaggeration = vertical_exaggeration
+        self.show_axis = show_axis
+        clrs = self._build_color_by_soundings(color_by)
 
         # we need to subtract the min of our arrays.  There is a known issue with vispy (maybe in opengl in general) that large
         # values (like northings/eastings) cause floating point problems and the point positions jitter as you move
@@ -569,21 +602,7 @@ class ThreeDView(QtWidgets.QWidget):
                 msk[self.selected_points[self.superselected_index]] = True
                 clrs[msk, :] = kluster_variables.super_selected_point_color
 
-        if self.is_3d:
-            self.scatter.set_data(self.displayed_points, edge_color=clrs, face_color=clrs, symbol='o', size=3)
-            if self.view.camera.fresh_camera:
-                self.view.camera.center = (centered_x.mean(), centered_y.mean(), centered_z.mean())
-                self.view.camera.distance = centered_x.max()
-                self.view.camera.fresh_camera = False
-        else:
-            if self.view_direction == 'north':
-                self.scatter.set_data(self.displayed_points[:, [0, 2]], edge_color=clrs, face_color=clrs, symbol='o', size=3)
-            elif self.view_direction == 'east':
-                self.scatter.set_data(self.displayed_points[:, [1, 2]], edge_color=clrs, face_color=clrs, symbol='o', size=3)
-            self.view.camera.center = (centered_x.mean(), centered_z.mean())
-            if self.view.camera.fresh_camera:
-                self.view.camera.zoom(centered_x.max() + 10)  # try and fit the swath in view on load
-                self.view.camera.fresh_camera = False
+        self._build_scatter(centered_x, centered_y, centered_z, clrs)
         self.setup_axes()
 
     def clear_display(self):
@@ -609,6 +628,15 @@ class ThreeDView(QtWidgets.QWidget):
         self.pointtime = np.array([])
         self.beam = np.array([])
         self.linename = np.array([])
+        if self.axis_x is not None:
+            self.axis_x.parent = None
+            self.axis_x = None
+        if self.axis_y is not None:
+            self.axis_y.parent = None
+            self.axis_y = None
+        if self.axis_z is not None:
+            self.axis_z.parent = None
+            self.axis_z = None
 
 
 class ThreeDWidget(QtWidgets.QWidget):
@@ -640,6 +668,9 @@ class ThreeDWidget(QtWidgets.QWidget):
         self.vertexag.setSingleStep(0.5)
         self.vertexag.setValue(1.0)
         self.opts_layout.addWidget(self.vertexag)
+        self.show_axis = QtWidgets.QCheckBox('Show Axis')
+        self.show_axis.setChecked(True)
+        self.opts_layout.addWidget(self.show_axis)
         self.viewdirection_label = QtWidgets.QLabel('View Direction: ')
         self.viewdirection_label.hide()
         self.opts_layout.addWidget(self.viewdirection_label)
@@ -666,6 +697,7 @@ class ThreeDWidget(QtWidgets.QWidget):
         self.colorby.currentTextChanged.connect(self.refresh_settings)
         self.viewdirection.currentTextChanged.connect(self.refresh_settings)
         self.vertexag.valueChanged.connect(self.refresh_settings)
+        self.show_axis.stateChanged.connect(self.refresh_settings)
 
     def add_points(self, x: np.array, y: np.array, z: np.array, tvu: np.array, rejected: np.array, pointtime: np.array,
                    beam: np.array, newid: str, linename: str, is_3d: bool):
@@ -713,7 +745,8 @@ class ThreeDWidget(QtWidgets.QWidget):
     def display_points(self):
         self.three_d_window.display_points(color_by=self.colorby.currentText(),
                                            vertical_exaggeration=self.vertexag.value(),
-                                           view_direction=self.viewdirection.currentText())
+                                           view_direction=self.viewdirection.currentText(),
+                                           show_axis=self.show_axis.isChecked())
 
     def refresh_settings(self, e):
         self.clear_display()
