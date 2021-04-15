@@ -161,7 +161,6 @@ class KlusterExplorer(QtWidgets.QTableWidget):
 
         """
 
-        self.setSortingEnabled(False)
         rows = sorted(set(item.row() for item in self.selectedItems()))  # pull all the selected rows
         rows_to_move = [[QtWidgets.QTableWidgetItem(self.item(row_index, column_index)) for column_index in
                          range(self.columnCount())] for row_index in rows]  # get the data for the rows
@@ -180,7 +179,6 @@ class KlusterExplorer(QtWidgets.QTableWidget):
         for row_index in range(len(rows_to_move)):
             for i in range(int(len(self.headr))):
                 self.item(drop_row + row_index, i).setSelected(True)
-        self.setSortingEnabled(True)
 
     def set_mode(self, explorer_mode: str):
         """
@@ -340,7 +338,6 @@ class KlusterExplorer(QtWidgets.QTableWidget):
         raw_attrs: dict, attribution of fqpr_generation.Fqpr instance that the linename is in
         """
 
-        self.setSortingEnabled(False)
         if self.mode != 'line':
             self.set_mode('line')
         line_data = self.build_line_attribution(linename, raw_attrs)
@@ -355,7 +352,6 @@ class KlusterExplorer(QtWidgets.QTableWidget):
                     item.setToolTip(raw_attrs['output_path'])
 
                 self.setItem(next_row, column_index, item)
-        self.setSortingEnabled(True)
 
     def populate_explorer_with_points(self, point_index: np.array, linenames: np.array, point_times: np.array,
                                       beam: np.array, x: np.array, y: np.array, z: np.array, tvu: np.array,

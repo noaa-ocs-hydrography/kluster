@@ -702,11 +702,11 @@ class FqprProject:
         """
         data = {}
         for fq_name, fq_inst in self.fqpr_instances.items():
-            x, y, z, tvu, rejected, pointtime, beam, heading = fq_inst.return_soundings_in_box(min_lat, max_lat, min_lon, max_lon,
-                                                                                               full_swath=full_swath)
+            x, y, z, tvu, rejected, pointtime, beam = fq_inst.return_soundings_in_box(min_lat, max_lat, min_lon, max_lon,
+                                                                                      full_swath=full_swath)
             if x is not None:
                 linenames = fq_inst.return_lines_for_times(pointtime)
-                data[fq_name] = [x, y, z, tvu, rejected, pointtime, beam, linenames, heading]
+                data[fq_name] = [x, y, z, tvu, rejected, pointtime, beam, linenames]
         return data
 
     def return_project_folder(self):

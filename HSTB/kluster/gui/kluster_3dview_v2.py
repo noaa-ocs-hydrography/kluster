@@ -363,7 +363,6 @@ class ThreeDView(QtWidgets.QWidget):
         self.pointtime = np.array([])
         self.beam = np.array([])
         self.linename = np.array([])
-        self.heading = np.array([])
 
         self.x_offset = 0.0
         self.y_offset = 0.0
@@ -393,7 +392,7 @@ class ThreeDView(QtWidgets.QWidget):
             self.parent.select_points(startpos, endpos, three_d=three_d)
 
     def add_points(self, x: np.array, y: np.array, z: np.array, tvu: np.array, rejected: np.array, pointtime: np.array,
-                   beam: np.array, newid: str, linename: np.array, heading: np.array, is_3d: bool = True):
+                   beam: np.array, newid: str, linename: np.array, is_3d: bool = True):
         """
         Add points to the 3d view widget, we only display points after all points are added, hence the separate methods
 
@@ -417,8 +416,6 @@ class ThreeDView(QtWidgets.QWidget):
             container name the sounding came from, ex: 'EM710_234_02_10_2019'
         linename
             1d array of line names for each time
-        heading
-            1d array of heading in degrees
         is_3d
             Set this flag to notify widget that we are in 3d mode
         """
@@ -433,7 +430,6 @@ class ThreeDView(QtWidgets.QWidget):
         self.pointtime = np.concatenate([self.pointtime, pointtime])
         self.beam = np.concatenate([self.beam, beam])
         self.linename = np.concatenate([self.linename, linename])
-        self.heading = np.concatenate([self.heading, heading])
         self.is_3d = is_3d
 
         if is_3d:
@@ -454,38 +450,15 @@ class ThreeDView(QtWidgets.QWidget):
             self.axis_z = None
 
         if self.is_3d:
-            self.axis_x = scene.AxisWidget(orientation='bottom', domain=(0, self.x.max() - self.x.min()))
-            self.axis_x.size = (self.x.max() - self.x.min(), 3)
+            self.axis_x = scene.AxisWidget(orientation='bottom')
             self.view.add(self.axis_x)
-            self.axis_y = scene.AxisWidget(orientation='right', domain=(0, self.y.max() - self.y.min()))
-            self.axis_y.size = (self.y.max() - self.y.min(), 3)
-            self.view.add(self.axis_y)
+            self.axis_z = scene.AxisWidget(orientation='left', domain=(self.z.min(), self.z.max()))
+            self.view.add(self.axis_z)
         else:
             self.axis_x = scene.AxisWidget(orientation='bottom', domain=(0, self.x.max() - self.x.min()))
-            self.axis_x.size = (self.x.max() - self.x.min(), 3)
             self.view.add(self.axis_x)
             self.axis_z = scene.AxisWidget(orientation='right', domain=(self.z.min(), self.z.max()))
-            self.axis_z.size = (3, (self.z.max() - self.z.min()) * self.vertical_exaggeration)
             self.view.add(self.axis_z)
-
-    def _rotate_along_across(self):
-        rot_head = np.pi/2 - np.deg2rad(self.heading)
-        newx = self.displayed_points[:, 0] * np.cos(rot_head) - self.displayed_points[:, 1] * np.sin(rot_head)
-        neg_newx = np.where(newx < 0)
-        newx[neg_newx] += self.displayed_points[:, 0].max()
-        # lastbeam = np.where(self.beam == self.beam.max())[0]
-        # max_across = np.zeros_like(self.displayed_points[:, 0])
-        # strt = 0
-        # for cnt, lb in enumerate(lastbeam):
-        #     if cnt == len(lastbeam) - 1:
-        #         max_across[strt:] = np.nanmax(self.displayed_points[:,0][strt:])
-        #         break
-        #     else:
-        #         max_across[strt:lb + 1] = np.nanmax(self.displayed_points[:, 0][strt:lb + 1])
-        #     strt = lb + 1
-        # neg_newx = np.where(newx < 0)
-        # newx[neg_newx] += max_across[neg_newx]
-        return newx
 
     def display_points(self, color_by: str = 'depth', vertical_exaggeration: float = 1.0):
         """
@@ -564,7 +537,6 @@ class ThreeDView(QtWidgets.QWidget):
                 self.view.camera.distance = centered_x.max()
                 self.view.camera.fresh_camera = False
         else:
-            self.displayed_points[:, 0] = self._rotate_along_across()
             self.scatter.set_data(self.displayed_points[:, [0, 2]], edge_color=clrs, face_color=clrs, symbol='o', size=3)
             self.view.camera.center = (centered_x.mean(), centered_z.mean())
             if self.view.camera.fresh_camera:
@@ -595,7 +567,6 @@ class ThreeDView(QtWidgets.QWidget):
         self.pointtime = np.array([])
         self.beam = np.array([])
         self.linename = np.array([])
-        self.heading = np.array([])
 
 
 class ThreeDWidget(QtWidgets.QWidget):
@@ -647,10 +618,10 @@ class ThreeDWidget(QtWidgets.QWidget):
         self.vertexag.valueChanged.connect(self.refresh_settings)
 
     def add_points(self, x: np.array, y: np.array, z: np.array, tvu: np.array, rejected: np.array, pointtime: np.array,
-                   beam: np.array, newid: str, linename: str, heading: np.array, is_3d: bool):
+                   beam: np.array, newid: str, linename: str, is_3d: bool):
         self.three_d_window.selected_points = None
         self.three_d_window.superselected_index = None
-        self.three_d_window.add_points(x, y, z, tvu, rejected, pointtime, beam, newid, linename, heading, is_3d)
+        self.three_d_window.add_points(x, y, z, tvu, rejected, pointtime, beam, newid, linename, is_3d)
 
     def select_points(self, startpos, endpos, three_d):
         if three_d:
@@ -740,9 +711,8 @@ if __name__ == '__main__':
     beam = np.random.randint(0, 399, size=x.shape[0])
     linename = np.full(x.shape[0], '')
     newid = 'test'
-    heading = np.random.randint(0, 359, size=x.shape[0])
 
-    win.three_d_window.add_points(x, y, z, tvu, rejected, pointtime, beam, newid, linename, heading, is_3d=True)
+    win.three_d_window.add_points(x, y, z, tvu, rejected, pointtime, beam, newid, linename, is_3d=True)
     win.three_d_window.display_points()
     win.show()
     app.exec_()
