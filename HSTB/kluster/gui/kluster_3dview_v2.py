@@ -182,7 +182,7 @@ class TurntableCameraInteractive(scene.TurntableCamera):
         norm = np.mean(self._viewbox.size)
         if self._event_value is None or len(self._event_value) == 2:
             self._event_value = self.center
-        dist = (start_pos - end_pos) / norm * self._scale_factor * self.distance
+        dist = (start_pos - end_pos) / norm * self._scale_factor * (self.distance / 2)
         dist[1] *= -1
         # Black magic part 1: turn 2D into 3D translations
         dx, dy, dz = self._dist_to_trans(dist)
@@ -451,12 +451,20 @@ class ThreeDView(QtWidgets.QWidget):
             self.axis_z = None
 
         if self.is_3d:
-            self.axis_x = scene.AxisWidget(orientation='bottom', domain=(0, self.x.max() - self.x.min()))
-            self.axis_x.size = (self.x.max() - self.x.min(), 3)
-            self.view.add(self.axis_x)
-            self.axis_y = scene.AxisWidget(orientation='right', domain=(0, self.y.max() - self.y.min()))
-            self.axis_y.size = (self.y.max() - self.y.min(), 3)
-            self.view.add(self.axis_y)
+            max_x = self.x.max() - self.x.min()
+            self.axis_x = scene.visuals.Arrow(pos=np.array([[0, 0], [max_x, 0]]), color='r', parent=self.view.scene,
+                                              arrows=np.array([[max_x/50, 0, max_x, 0], [max_x/50, 0, max_x, 0]]),
+                                              arrow_size=8, arrow_color='r', arrow_type='triangle_60')
+            max_y = self.y.max() - self.y.min()
+            self.axis_y = scene.visuals.Arrow(pos=np.array([[0, 0], [0, max_y]]), color='g', parent=self.view.scene,
+                                              arrows=np.array([[0, max_y / 50, 0, max_y], [0, max_y / 50, 0, max_y]]),
+                                              arrow_size=8, arrow_color='g', arrow_type='triangle_60')
+            max_z = self.z.max()
+            min_z = self.z.min()
+            diff_z = (max_z - min_z) * self.vertical_exaggeration
+            self.axis_z = scene.visuals.Arrow(pos=np.array([[0, 0, 0], [0, 0, diff_z]]), color='b', parent=self.view.scene,
+                                              arrows=np.array([[0, 0, diff_z/50, 0, 0, diff_z], [0, 0, diff_z/50, 0, 0, diff_z]]),
+                                              arrow_size=8, arrow_color='b', arrow_type='triangle_60')
         else:
             if self.view_direction == 'north':
                 self.axis_x = scene.AxisWidget(orientation='bottom', domain=(0, self.x.max() - self.x.min()))
