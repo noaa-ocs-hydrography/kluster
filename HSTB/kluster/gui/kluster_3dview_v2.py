@@ -363,12 +363,12 @@ class ThreeDView(QtWidgets.QWidget):
         self.pointtime = np.array([])
         self.beam = np.array([])
         self.linename = np.array([])
-        self.heading = np.array([])
 
         self.x_offset = 0.0
         self.y_offset = 0.0
         self.z_offset = 0.0
         self.vertical_exaggeration = 1.0
+        self.view_direction = 'north'
         self.displayed_points = None
         self.selected_points = None
         self.superselected_index = None
@@ -393,7 +393,7 @@ class ThreeDView(QtWidgets.QWidget):
             self.parent.select_points(startpos, endpos, three_d=three_d)
 
     def add_points(self, x: np.array, y: np.array, z: np.array, tvu: np.array, rejected: np.array, pointtime: np.array,
-                   beam: np.array, newid: str, linename: np.array, heading: np.array, is_3d: bool = True):
+                   beam: np.array, newid: str, linename: np.array, is_3d: bool):
         """
         Add points to the 3d view widget, we only display points after all points are added, hence the separate methods
 
@@ -417,8 +417,6 @@ class ThreeDView(QtWidgets.QWidget):
             container name the sounding came from, ex: 'EM710_234_02_10_2019'
         linename
             1d array of line names for each time
-        heading
-            1d array of heading in degrees
         is_3d
             Set this flag to notify widget that we are in 3d mode
         """
@@ -433,7 +431,6 @@ class ThreeDView(QtWidgets.QWidget):
         self.pointtime = np.concatenate([self.pointtime, pointtime])
         self.beam = np.concatenate([self.beam, beam])
         self.linename = np.concatenate([self.linename, linename])
-        self.heading = np.concatenate([self.heading, heading])
         self.is_3d = is_3d
 
         if is_3d:
@@ -461,33 +458,37 @@ class ThreeDView(QtWidgets.QWidget):
             self.axis_y.size = (self.y.max() - self.y.min(), 3)
             self.view.add(self.axis_y)
         else:
-            self.axis_x = scene.AxisWidget(orientation='bottom', domain=(0, self.x.max() - self.x.min()))
-            self.axis_x.size = (self.x.max() - self.x.min(), 3)
+            if self.view_direction == 'north':
+                self.axis_x = scene.AxisWidget(orientation='bottom', domain=(0, self.x.max() - self.x.min()))
+                self.axis_x.size = (self.x.max() - self.x.min(), 3)
+            elif self.view_direction == 'east':
+                self.axis_x = scene.AxisWidget(orientation='bottom', domain=(0, self.y.max() - self.y.min()))
+                self.axis_x.size = (self.y.max() - self.y.min(), 3)
             self.view.add(self.axis_x)
             self.axis_z = scene.AxisWidget(orientation='right', domain=(self.z.min(), self.z.max()))
             self.axis_z.size = (3, (self.z.max() - self.z.min()) * self.vertical_exaggeration)
             self.view.add(self.axis_z)
 
-    def _rotate_along_across(self):
-        rot_head = np.pi/2 - np.deg2rad(self.heading)
-        newx = self.displayed_points[:, 0] * np.cos(rot_head) - self.displayed_points[:, 1] * np.sin(rot_head)
-        neg_newx = np.where(newx < 0)
-        newx[neg_newx] += self.displayed_points[:, 0].max()
-        # lastbeam = np.where(self.beam == self.beam.max())[0]
-        # max_across = np.zeros_like(self.displayed_points[:, 0])
-        # strt = 0
-        # for cnt, lb in enumerate(lastbeam):
-        #     if cnt == len(lastbeam) - 1:
-        #         max_across[strt:] = np.nanmax(self.displayed_points[:,0][strt:])
-        #         break
-        #     else:
-        #         max_across[strt:lb + 1] = np.nanmax(self.displayed_points[:, 0][strt:lb + 1])
-        #     strt = lb + 1
-        # neg_newx = np.where(newx < 0)
-        # newx[neg_newx] += max_across[neg_newx]
-        return newx
+    # def _rotate_along_across(self):
+    #     rot_head = np.pi/2 - np.deg2rad(self.heading)
+    #     newx = self.displayed_points[:, 0] * np.cos(rot_head) - self.displayed_points[:, 1] * np.sin(rot_head)
+    #     neg_newx = np.where(newx < 0)
+    #     newx[neg_newx] += self.displayed_points[:, 0].max()
+    #     # lastbeam = np.where(self.beam == self.beam.max())[0]
+    #     # max_across = np.zeros_like(self.displayed_points[:, 0])
+    #     # strt = 0
+    #     # for cnt, lb in enumerate(lastbeam):
+    #     #     if cnt == len(lastbeam) - 1:
+    #     #         max_across[strt:] = np.nanmax(self.displayed_points[:,0][strt:])
+    #     #         break
+    #     #     else:
+    #     #         max_across[strt:lb + 1] = np.nanmax(self.displayed_points[:, 0][strt:lb + 1])
+    #     #     strt = lb + 1
+    #     # neg_newx = np.where(newx < 0)
+    #     # newx[neg_newx] += max_across[neg_newx]
+    #     return newx
 
-    def display_points(self, color_by: str = 'depth', vertical_exaggeration: float = 1.0):
+    def display_points(self, color_by: str = 'depth', vertical_exaggeration: float = 1.0, view_direction: str = 'north'):
         """
         After adding all the points you want to add, call this method to then load them in opengl and draw them to the
         scatter plot
@@ -499,11 +500,14 @@ class ThreeDView(QtWidgets.QWidget):
             'rejected', 'system', 'linename'
         vertical_exaggeration
             multiplier for z value
+        view_direction
+            picks either northings or eastings for display, only for 2d view
         """
 
         if not self.z.any():
             return
 
+        self.view_direction = view_direction
         self.vertical_exaggeration = vertical_exaggeration
         # print('displaying {} points'.format(len(self.z)))
         # normalize the arrays and build the colors for each sounding
@@ -564,8 +568,10 @@ class ThreeDView(QtWidgets.QWidget):
                 self.view.camera.distance = centered_x.max()
                 self.view.camera.fresh_camera = False
         else:
-            self.displayed_points[:, 0] = self._rotate_along_across()
-            self.scatter.set_data(self.displayed_points[:, [0, 2]], edge_color=clrs, face_color=clrs, symbol='o', size=3)
+            if self.view_direction == 'north':
+                self.scatter.set_data(self.displayed_points[:, [0, 2]], edge_color=clrs, face_color=clrs, symbol='o', size=3)
+            elif self.view_direction == 'east':
+                self.scatter.set_data(self.displayed_points[:, [1, 2]], edge_color=clrs, face_color=clrs, symbol='o', size=3)
             self.view.camera.center = (centered_x.mean(), centered_z.mean())
             if self.view.camera.fresh_camera:
                 self.view.camera.zoom(centered_x.max() + 10)  # try and fit the swath in view on load
@@ -595,7 +601,6 @@ class ThreeDView(QtWidgets.QWidget):
         self.pointtime = np.array([])
         self.beam = np.array([])
         self.linename = np.array([])
-        self.heading = np.array([])
 
 
 class ThreeDWidget(QtWidgets.QWidget):
@@ -627,6 +632,13 @@ class ThreeDWidget(QtWidgets.QWidget):
         self.vertexag.setSingleStep(0.5)
         self.vertexag.setValue(1.0)
         self.opts_layout.addWidget(self.vertexag)
+        self.viewdirection_label = QtWidgets.QLabel('View Direction: ')
+        self.viewdirection_label.hide()
+        self.opts_layout.addWidget(self.viewdirection_label)
+        self.viewdirection = QtWidgets.QComboBox()
+        self.viewdirection.addItems(['north', 'east'])
+        self.viewdirection.hide()
+        self.opts_layout.addWidget(self.viewdirection)
         self.opts_layout.addStretch()
 
         self.mainlayout.addLayout(self.opts_layout)
@@ -644,23 +656,35 @@ class ThreeDWidget(QtWidgets.QWidget):
         self.setLayout(self.mainlayout)
 
         self.colorby.currentTextChanged.connect(self.refresh_settings)
+        self.viewdirection.currentTextChanged.connect(self.refresh_settings)
         self.vertexag.valueChanged.connect(self.refresh_settings)
 
     def add_points(self, x: np.array, y: np.array, z: np.array, tvu: np.array, rejected: np.array, pointtime: np.array,
-                   beam: np.array, newid: str, linename: str, heading: np.array, is_3d: bool):
+                   beam: np.array, newid: str, linename: str, is_3d: bool):
+        if is_3d:
+            self.viewdirection.hide()
+            self.viewdirection_label.hide()
+        else:
+            self.viewdirection.show()
+            self.viewdirection_label.show()
         self.three_d_window.selected_points = None
         self.three_d_window.superselected_index = None
-        self.three_d_window.add_points(x, y, z, tvu, rejected, pointtime, beam, newid, linename, heading, is_3d)
+        self.three_d_window.add_points(x, y, z, tvu, rejected, pointtime, beam, newid, linename, is_3d)
 
     def select_points(self, startpos, endpos, three_d):
+        vd = self.viewdirection.currentText()
         if three_d:
             startpos[2] = self.three_d_window.displayed_points[:, 2].min()
             endpos[2] = self.three_d_window.displayed_points[:, 2].max()
             m1 = self.three_d_window.displayed_points[:, [0, 1, 2]] >= startpos[0:3]
             m2 = self.three_d_window.displayed_points[:, [0, 1, 2]] <= endpos[0:3]
         else:
-            m1 = self.three_d_window.displayed_points[:, [0, 2]] >= startpos[0:2]
-            m2 = self.three_d_window.displayed_points[:, [0, 2]] <= endpos[0:2]
+            if vd == 'north':
+                m1 = self.three_d_window.displayed_points[:, [0, 2]] >= startpos[0:2]
+                m2 = self.three_d_window.displayed_points[:, [0, 2]] <= endpos[0:2]
+            elif vd == 'east':
+                m1 = self.three_d_window.displayed_points[:, [1, 2]] >= startpos[0:2]
+                m2 = self.three_d_window.displayed_points[:, [1, 2]] <= endpos[0:2]
         self.three_d_window.selected_points = np.argwhere(m1[:, 0] & m1[:, 1] & m2[:, 0] & m2[:, 1])[:, 0]
         self.points_selected.emit(np.arange(self.three_d_window.selected_points.shape[0]),
                                   self.three_d_window.linename[self.three_d_window.selected_points],
@@ -680,7 +704,8 @@ class ThreeDWidget(QtWidgets.QWidget):
 
     def display_points(self):
         self.three_d_window.display_points(color_by=self.colorby.currentText(),
-                                           vertical_exaggeration=self.vertexag.value())
+                                           vertical_exaggeration=self.vertexag.value(),
+                                           view_direction=self.viewdirection.currentText())
 
     def refresh_settings(self, e):
         self.clear_display()
@@ -740,9 +765,8 @@ if __name__ == '__main__':
     beam = np.random.randint(0, 399, size=x.shape[0])
     linename = np.full(x.shape[0], '')
     newid = 'test'
-    heading = np.random.randint(0, 359, size=x.shape[0])
 
-    win.three_d_window.add_points(x, y, z, tvu, rejected, pointtime, beam, newid, linename, heading, is_3d=True)
+    win.three_d_window.add_points(x, y, z, tvu, rejected, pointtime, beam, newid, linename, is_3d=True)
     win.three_d_window.display_points()
     win.show()
     app.exec_()

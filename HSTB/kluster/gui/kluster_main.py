@@ -136,7 +136,7 @@ class KlusterMain(QtWidgets.QMainWindow):
 
         self.two_d.box_select.connect(self.select_line_by_box)
         self.two_d.box_3dpoints.connect(self.select_points_in_box)
-        self.two_d.box_swath.connect(self.select_swath_in_box)
+        self.two_d.box_swath.connect(self.select_slice_in_box)
 
         self.three_d.points_selected.connect(self.show_points_in_explorer)
 
@@ -1159,10 +1159,10 @@ class KlusterMain(QtWidgets.QMainWindow):
         pts_data = self.project.return_soundings_in_box(min_lat, max_lat, min_lon, max_lon)
         for fqpr_name, pointdata in pts_data.items():
             self.three_d.add_points(pointdata[0], pointdata[1], pointdata[2], pointdata[3], pointdata[4], pointdata[5],
-                                    pointdata[6], fqpr_name, pointdata[7], pointdata[8], is_3d=True)
+                                    pointdata[6], fqpr_name, pointdata[7], is_3d=True)
         self.three_d.display_points()
 
-    def select_swath_in_box(self, min_lat, max_lat, min_lon, max_lon):
+    def select_slice_in_box(self, min_lat, max_lat, min_lon, max_lon):
         """
         method run on using the 2dview swath select tool.  Gathers all swaths in the box.
 
@@ -1175,10 +1175,10 @@ class KlusterMain(QtWidgets.QMainWindow):
 
         """
         self.three_d.clear()
-        pts_data = self.project.return_soundings_in_box(min_lat, max_lat, min_lon, max_lon, full_swath=True)
+        pts_data = self.project.return_soundings_in_box(min_lat, max_lat, min_lon, max_lon)
         for fqpr_name, pointdata in pts_data.items():
             self.three_d.add_points(pointdata[0], pointdata[1], pointdata[2], pointdata[3], pointdata[4], pointdata[5],
-                                    pointdata[6], fqpr_name, pointdata[7], pointdata[8], is_3d=False)
+                                    pointdata[6], fqpr_name, pointdata[7], is_3d=False)
         self.three_d.display_points()
 
     def show_points_in_explorer(self, point_index: np.array, linenames: np.array, point_times: np.array, beam: np.array,

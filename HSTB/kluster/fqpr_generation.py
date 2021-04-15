@@ -2598,6 +2598,34 @@ class Fqpr:
             maxs = np.append(maxs, float(ping[varname].max()))
         return maxs.max()
 
+    def intersects(self, min_y: float, max_y: float, min_x: float, max_x: float, buffer: bool = True):
+        if buffer:
+            # quick and dirty latitude to distance table, we want about a 3000 meters buffer, doesnt have to be perfect
+            # 3000 meters because we are guessing that that would be the max half-swath you'd ever see
+            if abs(self.multibeam.raw_nav.max_lat) < 10:
+                lonbuffer = 0.03
+            elif abs(self.multibeam.raw_nav.max_lat) < 50:
+                lonbuffer = 0.06
+            elif abs(self.multibeam.raw_nav.max_lat) < 70:
+                lonbuffer = 0.09
+            else:
+                lonbuffer = 0.15
+            latbuffer = 0.027
+            fqpr_max_lon = self.multibeam.raw_nav.max_lon + lonbuffer
+            fqpr_min_lon = self.multibeam.raw_nav.min_lon - lonbuffer
+            fqpr_max_lat = self.multibeam.raw_nav.max_lat + latbuffer
+            fqpr_min_lat = self.multibeam.raw_nav.min_lon - latbuffer
+        else:
+            fqpr_max_lon = self.multibeam.raw_nav.max_lon
+            fqpr_min_lon = self.multibeam.raw_nav.min_lon
+            fqpr_max_lat = self.multibeam.raw_nav.max_lat
+            fqpr_min_lat = self.multibeam.raw_nav.min_lon
+        in_bounds = False
+        if (min_x <= fqpr_max_lon) and (max_x >= fqpr_min_lon):
+            if (min_y <= fqpr_max_lat) and (max_y >= fqpr_min_lat):
+                in_bounds = True
+        return in_bounds
+
     def return_unique_mode(self):
         """
         Finds the unique mode entries in raw_ping Datasets.  If there is more than one unique mode, return them in order
@@ -2742,8 +2770,6 @@ class Fqpr:
             list of 1d numpy arrays for the time of the soundings in the box
         list
             list of 1d numpy arrays for the beam number of the soundings in the box
-        list
-            placeholder for heading, not used with 3d view
         """
 
         x = []
@@ -2753,7 +2779,6 @@ class Fqpr:
         rejected = []
         pointtime = []
         beam = []
-        heading = []
         for rp in self.multibeam.raw_ping:
             x_filter = np.logical_and(rp.x <= max_x, rp.x >= min_x)
             y_filter = np.logical_and(rp.y <= max_y, rp.y >= min_y)
@@ -2769,8 +2794,7 @@ class Fqpr:
                     # have to get time for each beam to then make the filter work
                     pointtime.append((rp.time.values[:, np.newaxis] * np.ones_like(rp.x)).ravel()[filt])
                     beam.append((rp.beam.values[np.newaxis, :] * np.ones_like(rp.x)).ravel()[filt])
-                    heading.append([])
-        return x, y, z, tvu, rejected, pointtime, beam, heading
+        return x, y, z, tvu, rejected, pointtime, beam
 
     def _swaths_by_box(self, min_lat: float, max_lat: float, min_lon: float, max_lon: float):
         """
@@ -2804,8 +2828,6 @@ class Fqpr:
             list of 1d numpy arrays for the time of the soundings in the box
         list
             list of 1d numpy arrays for the beam number of the soundings in the box
-        list
-            list of 1d numpy arrays for the heading of each sounding in the box
         """
 
         x = []
@@ -2815,7 +2837,6 @@ class Fqpr:
         rejected = []
         pointtime = []
         beam = []
-        heading = []
         nv = self.multibeam.raw_nav
         xfilter = np.logical_and(nv.latitude <= max_lat, nv.latitude >= min_lat)
         yfilter = np.logical_and(nv.longitude <= max_lon, nv.longitude >= min_lon)
@@ -2849,9 +2870,7 @@ class Fqpr:
                         # have to get time for each beam to then make the filter work
                         pointtime.append((pings.time.values[:, np.newaxis] * np.ones_like(pings.x)).ravel())
                         beam.append((pings.beam.values[np.newaxis, :] * np.ones_like(pings.x)).ravel())
-                        heading_at_pingtime = self.multibeam.raw_att.heading.sel(time=pings.time, method='nearest').values
-                        heading.append((heading_at_pingtime[:, None] * np.ones_like(pings.x)).ravel())
-        return x, y, z, tvu, rejected, pointtime, beam, heading
+        return x, y, z, tvu, rejected, pointtime, beam
 
     def return_soundings_in_box(self, min_y: float, max_y: float, min_x: float, max_x: float, geographic: bool = True,
                                 full_swath: bool = False):
@@ -2905,16 +2924,9 @@ class Fqpr:
                                              CRS.from_epsg(self.multibeam.raw_ping[0].horizontal_crs), always_xy=True)
                 min_x, min_y = trans.transform(min_x, min_y)
                 max_x, max_y = trans.transform(max_x, max_y)
-            x, y, z, tvu, rejected, pointtime, beam, heading = self._soundings_by_box(min_y, max_y, min_x, max_x)
+            x, y, z, tvu, rejected, pointtime, beam = self._soundings_by_box(min_y, max_y, min_x, max_x)
         else:
-            # using geographic coordinates allows us to quickly exclude extents outside of max lat lon
-            in_bounds = False
-            if (min_x <= self.multibeam.raw_nav.max_lon) and (max_x >= self.multibeam.raw_nav.min_lon):
-                if (min_y <= self.multibeam.raw_nav.max_lat) and (max_y >= self.multibeam.raw_nav.min_lat):
-                    in_bounds = True
-            if not in_bounds:
-                return None, None, None, None, None, None, None
-            x, y, z, tvu, rejected, pointtime, beam, heading = self._swaths_by_box(min_y, max_y, min_x, max_x)
+            x, y, z, tvu, rejected, pointtime, beam = self._swaths_by_box(min_y, max_y, min_x, max_x)
 
         if len(x) > 1:
             x = np.concatenate(x)
@@ -2924,7 +2936,6 @@ class Fqpr:
             rejected = np.concatenate(rejected)
             pointtime = np.concatenate(pointtime)
             beam = np.concatenate(beam)
-            heading = np.concatenate(heading)
         elif len(x) == 1:
             x = x[0]
             y = y[0]
@@ -2933,7 +2944,6 @@ class Fqpr:
             rejected = rejected[0]
             pointtime = pointtime[0]
             beam = beam[0]
-            heading = heading[0]
         else:
             x = None
             y = None
@@ -2942,8 +2952,7 @@ class Fqpr:
             rejected = None
             pointtime = None
             beam = None
-            heading = None
-        return x, y, z, tvu, rejected, pointtime, beam, heading
+        return x, y, z, tvu, rejected, pointtime, beam
 
     def return_processing_dashboard(self):
         """
