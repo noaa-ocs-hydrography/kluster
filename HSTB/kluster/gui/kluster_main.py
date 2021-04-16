@@ -1,3 +1,6 @@
+import matplotlib
+matplotlib.use('qt5agg')
+
 import os
 import sys
 import webbrowser
@@ -72,10 +75,10 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.two_d = kluster_2dview.Kluster2dview(self, self.settings.copy())
         self.two_d_dock = self.dock_this_widget('2d View', 'two_d_dock', self.two_d)
 
-        self.three_d = kluster_3dview_v2.ThreeDWidget(self)
-        self.three_d_dock = self.dock_this_widget("Points View", 'three_d_dock', self.three_d)
+        self.points_view = kluster_3dview_v2.ThreeDWidget(self)
+        self.points_dock = self.dock_this_widget("Points View", 'points_dock', self.points_view)
         # for now we remove the ability to undock the three d window, vispy wont work if we do
-        self.three_d_dock.setFeatures(QtWidgets.QDockWidget.DockWidgetMovable)
+        self.points_dock.setFeatures(QtWidgets.QDockWidget.DockWidgetMovable)
 
         self.explorer = kluster_explorer.KlusterExplorer(self)
         self.explorer_dock = self.dock_this_widget("Explorer", 'explorer_dock', self.explorer)
@@ -127,7 +130,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.project_tree.zoom_extents_fqpr.connect(self.zoom_extents_fqpr)
         self.project_tree.zoom_extents_surface.connect(self.zoom_extents_surface)
 
-        self.explorer.row_selected.connect(self.three_d.superselect_point)
+        self.explorer.row_selected.connect(self.points_view.superselect_point)
 
         self.actions.execute_action.connect(self.intel.execute_action)
         self.actions.exclude_queued_file.connect(self._action_remove_file)
@@ -138,7 +141,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.two_d.box_3dpoints.connect(self.select_points_in_box)
         self.two_d.box_swath.connect(self.select_slice_in_box)
 
-        self.three_d.points_selected.connect(self.show_points_in_explorer)
+        self.points_view.points_selected.connect(self.show_points_in_explorer)
 
         self.action_thread.finished.connect(self._kluster_execute_action_results)
         self.overwrite_nav_thread.started.connect(self._start_action_progress)
@@ -365,7 +368,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         for ln in self.project.return_project_lines(proj=pth, relative_path=True):
             self.two_d.remove_line(ln)
         self.two_d.refresh_screen()
-        self.three_d.clear()
+        self.points_view.clear()
         self.project.remove_fqpr(pth, relative_path=True)
         self.project_tree.refresh_project(self.project)
 
@@ -903,7 +906,7 @@ class KlusterMain(QtWidgets.QMainWindow):
             self.close_fqpr(fq)
 
         self.project_tree.configure()
-        self.three_d.clear()
+        self.points_view.clear()
         self.two_d.clear()
         self.explorer.clear_explorer_data()
         self.attribute.clear_attribution_data()
@@ -1084,11 +1087,11 @@ class KlusterMain(QtWidgets.QMainWindow):
 
         """
         pass
-        # if self.dockwidget_is_visible(self.three_d_dock):
-        #     self.three_d.clear_plot_area()
+        # if self.dockwidget_is_visible(self.points_dock):
+        #     self.points_view.clear_plot_area()
         #     surf_object = self.project.surface_instances[converted_pth]
         #     lyr = surf_object.get_layer_by_name('depth')
-        #     self.three_d.add_surface_dataset(surf_object.node_x_loc, surf_object.node_y_loc, lyr)
+        #     self.points_view.add_surface_dataset(surf_object.node_x_loc, surf_object.node_y_loc, lyr)
 
     def tree_surface_layer_selected(self, surfpath, layername, checked):
         """
@@ -1155,12 +1158,13 @@ class KlusterMain(QtWidgets.QMainWindow):
         max_lon: float, minimum longitude of the box
 
         """
-        self.three_d.clear()
+        self.points_view.clear()
         pts_data = self.project.return_soundings_in_box(min_lat, max_lat, min_lon, max_lon)
         for fqpr_name, pointdata in pts_data.items():
-            self.three_d.add_points(pointdata[0], pointdata[1], pointdata[2], pointdata[3], pointdata[4], pointdata[5],
+            self.points_view.add_points(pointdata[0], pointdata[1], pointdata[2], pointdata[3], pointdata[4], pointdata[5],
                                     pointdata[6], fqpr_name, pointdata[7], is_3d=True)
-        self.three_d.display_points()
+        self.points_view.display_points()
+        self.points_view.show()
 
     def select_slice_in_box(self, min_lat, max_lat, min_lon, max_lon):
         """
@@ -1174,12 +1178,12 @@ class KlusterMain(QtWidgets.QMainWindow):
         max_lon: float, minimum longitude of the box
 
         """
-        self.three_d.clear()
+        self.points_view.clear()
         pts_data = self.project.return_soundings_in_box(min_lat, max_lat, min_lon, max_lon)
         for fqpr_name, pointdata in pts_data.items():
-            self.three_d.add_points(pointdata[0], pointdata[1], pointdata[2], pointdata[3], pointdata[4], pointdata[5],
+            self.points_view.add_points(pointdata[0], pointdata[1], pointdata[2], pointdata[3], pointdata[4], pointdata[5],
                                     pointdata[6], fqpr_name, pointdata[7], is_3d=False)
-        self.three_d.display_points()
+        self.points_view.display_points()
 
     def show_points_in_explorer(self, point_index: np.array, linenames: np.array, point_times: np.array, beam: np.array,
                                 x: np.array, y: np.array, z: np.array, tvu: np.array, status: np.array, id: np.array):
@@ -1253,13 +1257,13 @@ class KlusterMain(QtWidgets.QMainWindow):
 
         self.addDockWidget(QtCore.Qt.TopDockWidgetArea, self.tree_dock)
         self.addDockWidget(QtCore.Qt.TopDockWidgetArea, self.two_d_dock)
-        self.addDockWidget(QtCore.Qt.TopDockWidgetArea, self.three_d_dock)
+        self.addDockWidget(QtCore.Qt.TopDockWidgetArea, self.points_dock)
         self.addDockWidget(QtCore.Qt.TopDockWidgetArea, self.actions_dock)
         self.addDockWidget(QtCore.Qt.TopDockWidgetArea, self.monitor_dock)
         self.splitDockWidget(self.tree_dock, self.two_d_dock, QtCore.Qt.Horizontal)
         self.splitDockWidget(self.two_d_dock, self.actions_dock, QtCore.Qt.Horizontal)
-        self.tabifyDockWidget(self.two_d_dock, self.three_d_dock)
         self.tabifyDockWidget(self.actions_dock, self.monitor_dock)
+        self.tabifyDockWidget(self.actions_dock, self.points_dock)
 
         self.addDockWidget(QtCore.Qt.BottomDockWidgetArea, self.explorer_dock)
         self.addDockWidget(QtCore.Qt.BottomDockWidgetArea, self.output_window_dock)

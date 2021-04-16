@@ -1,15 +1,73 @@
-import numpy as np
-import sys
+import matplotlib
+matplotlib.use('qt5agg')
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
 from matplotlib import cm
+from matplotlib.figure import Figure
 
-from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal, qgis_enabled, qgis_path, qgis_path_pydro, backend
+import numpy as np
+
+from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal, qgis_enabled, backend
+if qgis_enabled:
+    from HSTB.kluster.gui.backends._qt import qgis_core, qgis_gui
 from HSTB.kluster import kluster_variables
 
-from vispy import use
+from vispy import use, visuals, scene
 from vispy.util import keys
 use(backend, 'gl2')
 
-from vispy import visuals, scene
+
+class ColorBar(FigureCanvasQTAgg):
+    """
+    Custom widget with QT backend showing just a colorbar.  We can tack this on to our 3dview 2dview widgets to show
+    a colorbar.  Seems like using matplotlib is the way to go, I wasn't able to find any native qt widget for this.
+    """
+    def __init__(self, parent=None, width: int = 1.1, height: int = 4, dpi: int = 100):
+        self.parent = parent
+        self.fig = Figure(figsize=(width, height), dpi=dpi)
+        self.fig.gca().set_visible(False)
+        super().__init__(self.fig)
+        self.c_map_ax = self.fig.add_axes([0.05, 0.05, 0.45, 0.9])
+        self.c_map_ax.get_xaxis().set_visible(False)
+        self.c_map_ax.get_yaxis().set_visible(False)
+
+    def setup_colorbar(self, cmap: matplotlib.colors.Colormap, minval: float, maxval: float, is_rejected: bool = False,
+                       by_name: list = None):
+        """
+        Provide a color map and a min max value to build the colorbar
+
+        Parameters
+        ----------
+        cmap
+            provide a colormap to use for the color bar
+        minval
+            min value of the color bar
+        maxval
+            max value of the color bar
+        is_rejected
+            if is rejected, set the custom tick labels
+        by_name
+            if this is populated, we will show the colorbar with ticks equal to the length of the list and labels equal
+            to the list
+        """
+
+        self.c_map_ax.get_xaxis().set_visible(True)
+        self.c_map_ax.get_yaxis().set_visible(True)
+        self.c_map_ax.clear()
+        norm = matplotlib.colors.Normalize(vmin=minval, vmax=maxval)
+        if is_rejected:
+            self.fig.colorbar(cm.ScalarMappable(norm=norm, cmap=cmap), orientation='vertical', cax=self.c_map_ax,
+                              ticks=[2, 1, 0])
+            self.c_map_ax.set_yticklabels(['Reject', 'Phase', 'Amp'])
+            self.c_map_ax.tick_params(labelsize=8)
+        elif by_name:
+            self.fig.colorbar(cm.ScalarMappable(norm=norm, cmap=cmap), orientation='vertical', cax=self.c_map_ax,
+                              ticks=(np.arange(len(by_name)) + 0.5).tolist())
+            self.c_map_ax.set_yticklabels(by_name)
+            self.c_map_ax.tick_params(labelsize=6)
+        else:
+            self.fig.colorbar(cm.ScalarMappable(norm=norm, cmap=cmap), orientation='vertical', cax=self.c_map_ax)
+            self.c_map_ax.tick_params(labelsize=8)
+        self.draw()
 
 
 class DockableCanvas(scene.SceneCanvas):
@@ -365,9 +423,31 @@ class ThreeDView(QtWidgets.QWidget):
         self.beam = np.array([])
         self.linename = np.array([])
 
+        # statistics are populated on display_points
         self.x_offset = 0.0
         self.y_offset = 0.0
         self.z_offset = 0.0
+        self.min_x = 0
+        self.min_y = 0
+        self.min_z = 0
+        self.min_tvu = 0
+        self.min_rejected = 0
+        self.min_beam = 0
+        self.max_x = 0
+        self.max_y = 0
+        self.max_z = 0
+        self.max_tvu = 0
+        self.max_rejected = 0
+        self.max_beam = 0
+        self.mean_x = 0
+        self.mean_y = 0
+        self.mean_z = 0
+        self.mean_tvu = 0
+        self.mean_rejected = 0
+        self.mean_beam = 0
+        self.unique_systems = []
+        self.unique_linenames = []
+
         self.vertical_exaggeration = 1.0
         self.view_direction = 'north'
         self.show_axis = True
@@ -444,8 +524,10 @@ class ThreeDView(QtWidgets.QWidget):
 
     def setup_axes(self):
         """
-        Build the axes to match the scatter data loaded.
+        Build the axes to match the scatter data loaded.  I use the axiswidget for 2d view, doesn't seem to work
+        for 3d view.  I really like the ticks though.  I need something more sophisticated for 3d view.
         """
+
         if self.axis_x is not None:
             self.axis_x.parent = None
             self.axis_x = None
@@ -455,98 +537,157 @@ class ThreeDView(QtWidgets.QWidget):
         if self.axis_z is not None:
             self.axis_z.parent = None
             self.axis_z = None
-        # if self.axis_labels is not None:
-        #     for lbl in self.axis_labels:
-        #         lbl.parent = None
-        #     self.axis_labels = None
 
         if self.show_axis:
-            if self.is_3d:
-                max_x = self.x.max()
-                min_x = self.x.min()
-                diff_x = max_x - min_x
+            if self.is_3d:  # just using arrows for now, nothing that cool
+                diff_x = self.max_x - self.min_x
                 self.axis_x = scene.visuals.Arrow(pos=np.array([[0, 0], [diff_x, 0]]), color='r', parent=self.view.scene,
                                                   arrows=np.array([[diff_x/50, 0, diff_x, 0], [diff_x/50, 0, diff_x, 0]]),
                                                   arrow_size=8, arrow_color='r', arrow_type='triangle_60')
-                max_y = self.y.max()
-                min_y = self.y.min()
-                diff_y = max_y - min_y
+                diff_y = self.max_y - self.min_y
                 self.axis_y = scene.visuals.Arrow(pos=np.array([[0, 0], [0, diff_y]]), color='g', parent=self.view.scene,
                                                   arrows=np.array([[0, diff_y / 50, 0, diff_y], [0, diff_y / 50, 0, diff_y]]),
                                                   arrow_size=8, arrow_color='g', arrow_type='triangle_60')
-                max_z = self.z.max()
-                min_z = self.z.min()
-                diff_z = (max_z - min_z) * self.vertical_exaggeration
+                diff_z = (self.max_z - self.min_z) * self.vertical_exaggeration
                 self.axis_z = scene.visuals.Arrow(pos=np.array([[0, 0, 0], [0, 0, diff_z]]), color='b', parent=self.view.scene,
                                                   arrows=np.array([[0, 0, diff_z/50, 0, 0, diff_z], [0, 0, diff_z/50, 0, 0, diff_z]]),
                                                   arrow_size=8, arrow_color='b', arrow_type='triangle_60')
-                # center_txt = scene.visuals.Text('({},{},{})'.format(np.floor(min_x), np.floor(min_y), np.floor(min_z)),
-                #                                 color='white', pos=(0, 0, 0), font_size=2000, parent=self.view.scene)
-                # maxx_txt = scene.visuals.Text('({},{},{})'.format(np.ceil(max_x), np.floor(min_y), np.floor(min_z)),
-                #                               color='white', pos=(diff_x, 0, 0), font_size=2000, parent=self.view.scene)
-                # maxy_txt = scene.visuals.Text('({},{},{})'.format(np.floor(min_x), np.ceil(max_y), np.floor(min_z)),
-                #                               color='white', pos=(0, diff_y, 0), font_size=2000, parent=self.view.scene)
-                # maxz_txt = scene.visuals.Text('({},{},{})'.format(np.floor(min_x), np.floor(min_y), np.ceil(max_z)),
-                #                               color='white', pos=(0, 0, diff_z), font_size=2000, parent=self.view.scene)
-                # self.axis_labels = [center_txt, maxx_txt, maxy_txt, maxz_txt]
             else:
                 if self.view_direction == 'north':
-                    self.axis_x = scene.AxisWidget(orientation='bottom', domain=(0, self.x.max() - self.x.min()))
+                    diff_x = self.max_x - self.min_x
+                    self.axis_x = scene.AxisWidget(orientation='bottom', domain=(0, diff_x))
                     self.axis_x.size = (self.x.max() - self.x.min(), 3)
                 elif self.view_direction == 'east':
-                    self.axis_x = scene.AxisWidget(orientation='bottom', domain=(0, self.y.max() - self.y.min()))
+                    diff_y = self.max_y - self.min_y
+                    self.axis_x = scene.AxisWidget(orientation='bottom', domain=(0, diff_y))
                     self.axis_x.size = (self.y.max() - self.y.min(), 3)
                 self.view.add(self.axis_x)
-                self.axis_z = scene.AxisWidget(orientation='right', domain=(self.z.min(), self.z.max()))
-                self.axis_z.size = (3, (self.z.max() - self.z.min()) * self.vertical_exaggeration)
+                self.axis_z = scene.AxisWidget(orientation='right', domain=(self.min_z, self.max_z))
+                self.axis_z.size = (3, (self.max_z - self.min_z) * self.vertical_exaggeration)
                 self.view.add(self.axis_z)
 
     def _build_color_by_soundings(self, color_by: str = 'depth'):
+        """
+        Build out a RGBA value for each point based on the color_by argument.  We use the matplotlib colormap to
+        return these values.  If you pick something like system or linename, we just return a mapped value for each
+        unique entry.
+
+        Parameters
+        ----------
+        color_by
+            one of depth, vertical_uncertainty, beam, rejected, system, linename
+
+        Returns
+        -------
+        np.ndarray
+            (N,4) array, where N is the number of points and the values are the RGBA values for each point
+        matplotlib.colors.ColorMap
+            cmap object that we use later to build the color bar
+        float
+            minimum value to use for the color bar
+        float
+            maximum value to use for the color bar
+        """
+
         # normalize the arrays and build the colors for each sounding
         if color_by == 'depth':
-            clrs = normalized_arr_to_rgb_v2((self.z - self.z.min()) / (self.z.max() - self.z.min()), reverse=True)
+            min_val = self.min_z
+            max_val = self.max_z
+            clrs, cmap = normalized_arr_to_rgb_v2((self.z - self.min_z) / (self.max_z - self.min_z), reverse=True)
         elif color_by == 'vertical_uncertainty':
-            clrs = normalized_arr_to_rgb_v2((self.tvu - self.tvu.min()) / (self.tvu.max() - self.tvu.min()))
+            min_val = self.min_tvu
+            max_val = self.max_tvu
+            clrs, cmap = normalized_arr_to_rgb_v2((self.tvu - self.min_tvu) / (self.max_tvu - self.min_tvu))
         elif color_by == 'beam':
-            clrs = normalized_arr_to_rgb_v2(self.beam / self.beam.max(), band_count=self.beam.max())
+            min_val = self.min_beam
+            max_val = self.max_beam
+            clrs, cmap = normalized_arr_to_rgb_v2(self.beam / self.max_beam, band_count=self.max_beam)
         elif color_by == 'rejected':
-            clrs = normalized_arr_to_rgb_v2((self.rejected - self.rejected.min()) / (self.rejected.max() - self.rejected.min()),
+            min_val = self.min_rejected
+            max_val = self.max_rejected
+            clrs, cmap = normalized_arr_to_rgb_v2((self.rejected - self.min_rejected) / (self.max_rejected - self.min_rejected),
                                             band_count=3, colormap='bwr')
         elif color_by in ['system', 'linename']:
+            min_val = 0
             if color_by == 'system':
                 vari = self.id
+                uvari = self.unique_systems
             else:
                 vari = self.linename
-            uvari = np.unique(vari)
+                uvari = self.unique_linenames
             sys_idx = np.zeros(vari.shape[0], dtype=np.int32)
             for cnt, us in enumerate(uvari):
                 usidx = vari == us
-                sys_idx[usidx] = cnt + 1
-            clrs = normalized_arr_to_rgb_v2(sys_idx / (len(uvari)), band_count=(len(uvari) + 1))
+                sys_idx[usidx] = cnt
+            max_val = len(uvari)
+            clrs, cmap = normalized_arr_to_rgb_v2((sys_idx / max_val), band_count=max_val)
         else:
             raise ValueError('Coloring by {} is not supported at this time'.format(color_by))
-        return clrs
+        return clrs, cmap, min_val, max_val
 
-    def _build_scatter(self, centered_x: np.array, centered_y: np.array, centered_z: np.array, clrs: np.array):
+    def _build_scatter(self, clrs: np.ndarray):
+        """
+        Populate the scatter plot with data.  3d view gets the xyz, 2d view gets either xz or yz depending on view
+        direction.  We center the camera on the mean value, and if this is the first time the camera is used (fresh
+        camera) we automatically set the zoom level.
+
+        Parameters
+        ----------
+        clrs
+            (N,4) array, where N is the number of points and the values are the RGBA values for each point
+        """
+
         if self.is_3d:
             self.scatter.set_data(self.displayed_points, edge_color=clrs, face_color=clrs, symbol='o', size=3)
             if self.view.camera.fresh_camera:
-                self.view.camera.center = (centered_x.mean(), centered_y.mean(), centered_z.mean())
-                self.view.camera.distance = centered_x.max() * 2
+                self.view.camera.center = (self.mean_x - self.x_offset, self.mean_y - self.y_offset, self.mean_z - self.z_offset)
+                self.view.camera.distance = (self.max_x - self.x_offset) * 2
                 self.view.camera.fresh_camera = False
         else:
             if self.view_direction == 'north':
                 self.scatter.set_data(self.displayed_points[:, [0, 2]], edge_color=clrs, face_color=clrs, symbol='o', size=3)
-                self.view.camera.center = (centered_x.mean(), centered_z.mean())
+                self.view.camera.center = (self.mean_x - self.x_offset, self.mean_z - self.z_offset)
                 if self.view.camera.fresh_camera:
-                    self.view.camera.zoom(centered_x.max() + 10)  # try and fit the swath in view on load
+                    self.view.camera.zoom((self.max_x - self.x_offset) + 10)  # try and fit the swath in view on load
                     self.view.camera.fresh_camera = False
             elif self.view_direction == 'east':
                 self.scatter.set_data(self.displayed_points[:, [1, 2]], edge_color=clrs, face_color=clrs, symbol='o', size=3)
-                self.view.camera.center = (centered_y.mean(), centered_z.mean())
+                self.view.camera.center = (self.mean_y - self.y_offset, self.mean_z - self.z_offset)
                 if self.view.camera.fresh_camera:
-                    self.view.camera.zoom(centered_y.max() + 10)  # try and fit the swath in view on load
+                    self.view.camera.zoom((self.max_y - self.y_offset) + 10)  # try and fit the swath in view on load
                     self.view.camera.fresh_camera = False
+
+    def _build_statistics(self):
+        """
+        Triggered on display_points.  After all the points are added (add_points called over and over for each new
+        point source) we run display_points, which calls this method to build the statistics for each variable.
+
+        These are used later for constructing colormaps and setting the camera.
+        """
+
+        self.min_x = np.nanmin(self.x)
+        self.min_y = np.nanmin(self.y)
+        self.min_z = np.nanmin(self.z)
+        self.min_tvu = np.nanmin(self.tvu)
+        self.min_rejected = np.nanmin(self.rejected)
+        self.min_beam = np.nanmin(self.beam)
+
+        self.max_x = np.nanmax(self.x)
+        self.max_y = np.nanmax(self.y)
+        self.max_z = np.nanmax(self.z)
+        self.max_tvu = np.nanmax(self.tvu)
+        self.max_rejected = np.nanmax(self.rejected)
+        self.max_beam = np.nanmax(self.beam)
+
+        self.mean_x = np.nanmean(self.x)
+        self.mean_y = np.nanmean(self.y)
+        self.mean_z = np.nanmean(self.z)
+        self.mean_tvu = np.nanmean(self.tvu)
+        self.mean_rejected = np.nanmean(self.rejected)
+        self.mean_beam = np.nanmean(self.beam)
+
+        self.unique_systems = np.unique(self.id).tolist()
+        self.unique_linenames = np.unique(self.linename).tolist()
 
     def display_points(self, color_by: str = 'depth', vertical_exaggeration: float = 1.0, view_direction: str = 'north',
                        show_axis: bool = True):
@@ -565,26 +706,37 @@ class ThreeDView(QtWidgets.QWidget):
             picks either northings or eastings for display, only for 2d view
         show_axis
             to build or not build the axis
+
+        Returns
+        -------
+        matplotlib.colors.ColorMap
+            cmap object that we use later to build the color bar
+        float
+            minimum value to use for the color bar
+        float
+            maximum value to use for the color bar
         """
 
         if not self.z.any():
-            return
+            return None, None, None
 
         self.view_direction = view_direction
         self.vertical_exaggeration = vertical_exaggeration
         self.show_axis = show_axis
-        clrs = self._build_color_by_soundings(color_by)
 
+        self._build_statistics()
         # we need to subtract the min of our arrays.  There is a known issue with vispy (maybe in opengl in general) that large
         # values (like northings/eastings) cause floating point problems and the point positions jitter as you move
         # the camera (as successive redraw commands are run).  By zero centering and saving the offset, we can display
         # the centered northing/easting and rebuild the original value by adding the offset back in if we need to
-        self.x_offset = self.x.min()
-        self.y_offset = self.y.min()
-        self.z_offset = self.z.min()
+        self.x_offset = self.min_x
+        self.y_offset = self.min_y
+        self.z_offset = self.min_z
         centered_x = self.x - self.x_offset
         centered_y = self.y - self.y_offset
         centered_z = self.z - self.z_offset
+
+        clrs, cmap, minval, maxval = self._build_color_by_soundings(color_by)
 
         # camera assumes z is positive up, flip the values
         centered_z = (centered_z - centered_z.max()) * -1 * vertical_exaggeration
@@ -602,8 +754,10 @@ class ThreeDView(QtWidgets.QWidget):
                 msk[self.selected_points[self.superselected_index]] = True
                 clrs[msk, :] = kluster_variables.super_selected_point_color
 
-        self._build_scatter(centered_x, centered_y, centered_z, clrs)
+        self._build_scatter(clrs)
         self.setup_axes()
+
+        return cmap, minval, maxval
 
     def clear_display(self):
         """
@@ -660,6 +814,13 @@ class ThreeDWidget(QtWidgets.QWidget):
         self.colorby = QtWidgets.QComboBox()
         self.colorby.addItems(['depth', 'vertical_uncertainty', 'beam', 'rejected', 'system', 'linename'])
         self.opts_layout.addWidget(self.colorby)
+        self.viewdirection_label = QtWidgets.QLabel('View Direction: ')
+        self.viewdirection_label.hide()
+        self.opts_layout.addWidget(self.viewdirection_label)
+        self.viewdirection = QtWidgets.QComboBox()
+        self.viewdirection.addItems(['north', 'east'])
+        self.viewdirection.hide()
+        self.opts_layout.addWidget(self.viewdirection)
         self.vertexag_label = QtWidgets.QLabel('Vertical Exaggeration: ')
         self.opts_layout.addWidget(self.vertexag_label)
         self.vertexag = QtWidgets.QDoubleSpinBox()
@@ -671,26 +832,31 @@ class ThreeDWidget(QtWidgets.QWidget):
         self.show_axis = QtWidgets.QCheckBox('Show Axis')
         self.show_axis.setChecked(True)
         self.opts_layout.addWidget(self.show_axis)
-        self.viewdirection_label = QtWidgets.QLabel('View Direction: ')
-        self.viewdirection_label.hide()
-        self.opts_layout.addWidget(self.viewdirection_label)
-        self.viewdirection = QtWidgets.QComboBox()
-        self.viewdirection.addItems(['north', 'east'])
-        self.viewdirection.hide()
-        self.opts_layout.addWidget(self.viewdirection)
+        self.show_colorbar = QtWidgets.QCheckBox('Show Colorbar')
+        self.show_colorbar.setChecked(True)
+        self.opts_layout.addWidget(self.show_colorbar)
         self.opts_layout.addStretch()
 
+        self.colorbar = ColorBar()
+
+        self.viewlayout = QtWidgets.QHBoxLayout()
+        self.viewlayout.addWidget(self.three_d_window)
+        self.viewlayout.addWidget(self.colorbar)
+        self.viewlayout.setStretchFactor(self.three_d_window, 1)
+        self.viewlayout.setStretchFactor(self.colorbar, 0)
+
         self.mainlayout.addLayout(self.opts_layout)
-        self.mainlayout.addWidget(self.three_d_window)
+        self.mainlayout.addLayout(self.viewlayout)
 
         instruct = 'Left Mouse Button: Rotate,  Right Mouse Button/Mouse wheel: Zoom,  Shift + Left Mouse Button: Move,'
         instruct += ' Ctrl + Left Mouse Button: Query'
         self.instructions = QtWidgets.QLabel(instruct)
         self.instructions.setAlignment(QtCore.Qt.AlignCenter)
         self.instructions.setStyleSheet("QLabel { font-style : italic }")
+        self.instructions.setWordWrap(True)
         self.mainlayout.addWidget(self.instructions)
 
-        self.mainlayout.setStretchFactor(self.three_d_window, 1)
+        self.mainlayout.setStretchFactor(self.viewlayout, 1)
         self.mainlayout.setStretchFactor(self.instructions, 0)
         self.setLayout(self.mainlayout)
 
@@ -698,9 +864,17 @@ class ThreeDWidget(QtWidgets.QWidget):
         self.viewdirection.currentTextChanged.connect(self.refresh_settings)
         self.vertexag.valueChanged.connect(self.refresh_settings)
         self.show_axis.stateChanged.connect(self.refresh_settings)
+        self.show_colorbar.stateChanged.connect(self._event_show_colorbar)
+
+    def _event_show_colorbar(self, e):
+        show_colorbar = self.show_colorbar.isChecked()
+        if show_colorbar:
+            self.colorbar.show()
+        else:
+            self.colorbar.hide()
 
     def add_points(self, x: np.array, y: np.array, z: np.array, tvu: np.array, rejected: np.array, pointtime: np.array,
-                   beam: np.array, newid: str, linename: str, is_3d: bool):
+                   beam: np.array, newid: str, linename: np.array, is_3d: bool):
         if is_3d:
             self.viewdirection.hide()
             self.viewdirection_label.hide()
@@ -743,10 +917,21 @@ class ThreeDWidget(QtWidgets.QWidget):
         self.refresh_settings(None)
 
     def display_points(self):
-        self.three_d_window.display_points(color_by=self.colorby.currentText(),
-                                           vertical_exaggeration=self.vertexag.value(),
-                                           view_direction=self.viewdirection.currentText(),
-                                           show_axis=self.show_axis.isChecked())
+        cmap, minval, maxval = self.three_d_window.display_points(color_by=self.colorby.currentText(),
+                                                                  vertical_exaggeration=self.vertexag.value(),
+                                                                  view_direction=self.viewdirection.currentText(),
+                                                                  show_axis=self.show_axis.isChecked())
+        if cmap is not None:
+            if self.colorby.currentText() == 'rejected':
+                self.colorbar.setup_colorbar(cmap, minval, maxval, is_rejected=True)
+            elif self.colorby.currentText() == 'system':
+                self.colorbar.setup_colorbar(cmap, minval, maxval,
+                                             by_name=self.three_d_window.unique_systems)
+            elif self.colorby.currentText() == 'linename':
+                self.colorbar.setup_colorbar(cmap, minval, maxval,
+                                             by_name=self.three_d_window.unique_linenames)
+            else:
+                self.colorbar.setup_colorbar(cmap, minval, maxval)
 
     def refresh_settings(self, e):
         self.clear_display()
@@ -780,19 +965,28 @@ def normalized_arr_to_rgb_v2(z_array_normalized: np.array, reverse: bool = False
     -------
     np.array
         (n,4) array, where n is the length of z_array_normalized
+    matplotlib.colors.ColorMap
+        cmap object that we use later to build the color bar
     """
     if reverse:
-        rainbow = cm.get_cmap(colormap + '_r', band_count)
+        cmap = cm.get_cmap(colormap + '_r', band_count)
     else:
-        rainbow = cm.get_cmap(colormap, band_count)
-    return rainbow(z_array_normalized)
+        cmap = cm.get_cmap(colormap, band_count)
+    return cmap(z_array_normalized), cmap
 
 
 if __name__ == '__main__':
-    try:  # pyside2
-        app = QtWidgets.QApplication()
-    except TypeError:  # pyqt5
-        app = QtWidgets.QApplication([])
+    if qgis_enabled:
+        app = qgis_core.QgsApplication([], True)
+        app.initQgis()
+    else:
+        try:  # pyside2
+            app = QtWidgets.QApplication()
+        except TypeError:  # pyqt5
+            app = QtWidgets.QApplication([])
+    # cl = ColorBar()
+    # cl.setup_colorbar(cm.get_cmap('rainbow_r'), 225.51600646972656, 261.7539978027344)
+    # cl.show()
     win = ThreeDWidget()
     x = np.random.rand(200) * 500000
     y = np.random.rand(200) * 50000
@@ -807,8 +1001,7 @@ if __name__ == '__main__':
     linename = np.full(x.shape[0], '')
     newid = 'test'
 
-    win.three_d_window.add_points(x, y, z, tvu, rejected, pointtime, beam, newid, linename, is_3d=True)
-    win.three_d_window.display_points()
+    win.add_points(x, y, z, tvu, rejected, pointtime, beam, newid, linename, is_3d=True)
+    win.display_points()
     win.show()
     app.exec_()
-

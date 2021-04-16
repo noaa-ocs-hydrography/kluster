@@ -44,7 +44,7 @@ if qgis_enabled:
     from qgis.PyQt.QtCore import pyqtSignal as Signal, pyqtSlot as Slot
     from qgis import core as qgis_core
     from qgis import gui as qgis_gui
-    os.environ['PYDRO_GUI_FORCE_PYQT'] = 'True'
+    os.environ['PYDRO_GUI_FORCE_PYQT'] = 'True'  # for registryhelpers
     backend = 'PyQt5'
     qgis_enabled = True
     incompatible_modules = [ky for ky in sys.modules if ky.find('PySide') > -1]
