@@ -97,6 +97,7 @@ class Fqpr:
         self.backup_fqpr = {}
         self.subset_mintime = 0
         self.subset_maxtime = 0
+        self.ping_filter = None  # see return_soundings_in_box
 
         # plotting module
         self.plot = FqprVisualizations(self)
@@ -2779,10 +2780,12 @@ class Fqpr:
         rejected = []
         pointtime = []
         beam = []
+        self.ping_filter = []
         for rp in self.multibeam.raw_ping:
             x_filter = np.logical_and(rp.x <= max_x, rp.x >= min_x)
             y_filter = np.logical_and(rp.y <= max_y, rp.y >= min_y)
             filt = np.logical_and(x_filter, y_filter).values.ravel()
+            self.ping_filter.append(filt)
             if filt.any():
                 xval = rp.x.values.ravel()[filt]
                 if xval.any():
@@ -2837,6 +2840,7 @@ class Fqpr:
         rejected = []
         pointtime = []
         beam = []
+        self.ping_filter = []
         nv = self.multibeam.raw_nav
         xfilter = np.logical_and(nv.latitude <= max_lat, nv.latitude >= min_lat)
         yfilter = np.logical_and(nv.longitude <= max_lon, nv.longitude >= min_lon)
@@ -2857,9 +2861,11 @@ class Fqpr:
                 time_segments = [time_sel]
 
             for timeseg in time_segments:
+                seg_filter = []
                 mintime, maxtime = timeseg.min(), timeseg.max()
                 for rp in self.multibeam.raw_ping:
                     ping_filter = np.logical_and(rp.time >= mintime, rp.time <= maxtime)
+                    seg_filter.append([mintime, maxtime, ping_filter])
                     if ping_filter.any():
                         pings = rp.where(ping_filter, drop=True)
                         x.append(pings.acrosstrack.values.ravel())
@@ -2870,6 +2876,7 @@ class Fqpr:
                         # have to get time for each beam to then make the filter work
                         pointtime.append((pings.time.values[:, np.newaxis] * np.ones_like(pings.x)).ravel())
                         beam.append((pings.beam.values[np.newaxis, :] * np.ones_like(pings.x)).ravel())
+                self.ping_filter.append(seg_filter)
         return x, y, z, tvu, rejected, pointtime, beam
 
     def return_soundings_in_box(self, min_y: float, max_y: float, min_x: float, max_x: float, geographic: bool = True,
@@ -2953,6 +2960,19 @@ class Fqpr:
             pointtime = None
             beam = None
         return x, y, z, tvu, rejected, pointtime, beam
+
+    def set_variable_by_filter(self, var_name: str = 'detectioninfo', newval: Union[int, str, float] = 2):
+        if self.ping_filter is None:
+            print('No soundings selected to set a variable.')
+            return
+        if not isinstance(self.ping_filter[0], np.ndarray):  # must be swaths_by_box, not supported
+            raise NotImplementedError('Have not built the selecting by filter for swaths_by_box yet')
+        for cnt, rp in enumerate(self.multibeam.raw_ping):
+            filt = self.ping_filter[0]
+            var_vals = rp[var_name].values.ravel()
+            var_vals[filt] = newval
+            var_vals.reshape(rp[var_name].shape)
+            # still need to write to disk....
 
     def return_processing_dashboard(self):
         """

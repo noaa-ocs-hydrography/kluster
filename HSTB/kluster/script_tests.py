@@ -39,7 +39,7 @@ fldernames = ['EM122_RonBrown', 'EM710_Rainier', 'EM2040_BHII', 'EM2040_Fairweat
 for cnt, dset in enumerate(datasets):
     fq = perform_all_processing(dset, outfold=os.path.join(outputdir, fldernames[cnt]), coord_system='WGS84', vert_ref='waterline')
     # generate_new_surface(fq, resolution=2.0, output_path=os.path.join(outputdir, fldernames[cnt], 'surf.npz'))
-    fq.export_pings_to_file(export_by_identifiers=False)
+    # fq.export_pings_to_file(export_by_identifiers=False)
 
 fldernames = ['ra_mbes', 'tj_patch_test_710', 'tj_patch_test_2040', 'val_kmall_patch']
 for cnt, dset in enumerate(datasets_w_sbets):
@@ -48,7 +48,7 @@ for cnt, dset in enumerate(datasets_w_sbets):
                                 vert_ref='ellipse', errorfiles=[smrmsg], logfiles=[logf], weekstart_year=yr,
                                 weekstart_week=wk, override_datum=dat)
     # generate_new_surface(fq, resolution=2.0, output_path=os.path.join(outputdir, fldernames[cnt], 'surf.npz'))
-    fq.export_pings_to_file()
+    # fq.export_pings_to_file()
 
 sbet = r"C:\collab\dasktest\data_dir\ra_mbes\2801_em2040\pospac\035_sbet.out"
 logf = r"C:\collab\dasktest\data_dir\ra_mbes\2801_em2040\pospac\035_sbet_export.log"

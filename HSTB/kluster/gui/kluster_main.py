@@ -1164,7 +1164,6 @@ class KlusterMain(QtWidgets.QMainWindow):
             self.points_view.add_points(pointdata[0], pointdata[1], pointdata[2], pointdata[3], pointdata[4], pointdata[5],
                                     pointdata[6], fqpr_name, pointdata[7], is_3d=True)
         self.points_view.display_points()
-        self.points_view.show()
 
     def select_slice_in_box(self, min_lat, max_lat, min_lon, max_lon):
         """
