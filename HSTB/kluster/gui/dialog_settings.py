@@ -5,6 +5,7 @@ if qgis_enabled:
     from HSTB.kluster.gui.backends._qt import qgis_core, qgis_gui
 
 from HSTB.shared import RegistryHelpers
+from HSTB.kluster import kluster_variables
 
 
 class SettingsDialog(QtWidgets.QDialog):
@@ -34,7 +35,7 @@ class SettingsDialog(QtWidgets.QDialog):
         self.hlayout_one.addWidget(self.browse_button)
 
         self.status_msg = QtWidgets.QLabel('')
-        self.status_msg.setStyleSheet("QLabel { color : red; }")
+        self.status_msg.setStyleSheet("QLabel { " + kluster_variables.error_color + "; }")
 
         self.hlayout_five = QtWidgets.QHBoxLayout()
         self.hlayout_five.addStretch(1)

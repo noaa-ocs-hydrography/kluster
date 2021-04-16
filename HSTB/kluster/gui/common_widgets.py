@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 
 from HSTB.shared import RegistryHelpers
 from HSTB.kluster.fqpr_convenience import reload_data
+from HSTB.kluster import kluster_variables
 
 
 # Current widgets that might be of interest:
@@ -121,7 +122,7 @@ class PlotDataHandler(QtWidgets.QWidget):
 
         self.hlayout_six = QtWidgets.QHBoxLayout()
         self.warning_message = QtWidgets.QLabel('', self)
-        self.warning_message.setStyleSheet("color: red;")
+        self.warning_message.setStyleSheet("{};".format(kluster_variables.error_color))
         self.hlayout_six.addWidget(self.warning_message)
 
         layout.addWidget(self.start_msg)
@@ -848,34 +849,21 @@ class OutWindow(QtWidgets.QMainWindow):
         super().__init__(parent)
 
         self.setWindowTitle('Test Window')
-        self.top_widget = QtWidgets.QWidget()
+        self.top_widget = PlotDataHandler()
         self.setCentralWidget(self.top_widget)
         layout = QtWidgets.QHBoxLayout()
         self.top_widget.setLayout(layout)
 
-        # self.widg = BrowseListWidget(self)
-        # self.widg.files_updated.connect(self.print_out_files)
-        # layout.addWidget(self.widg)
-
-        self.collapse = CollapsibleWidget(self, 'collapse', 100)
-        self.datalayout = QtWidgets.QVBoxLayout()
-        self.datalayout.addWidget(QtWidgets.QLabel('Some text in Section', self.collapse))
-        self.datalayout.addWidget(QtWidgets.QPushButton('Some text in Section', self.collapse))
-        self.collapse.setContentLayout(self.datalayout)
-        layout.addWidget(self.collapse)
-
-        self.datalayout.layout()
         layout.layout()
         self.setLayout(layout)
-        self.centralWidget().setLayout(layout)
         self.show()
-
-    def print_out_files(self):
-        print([self.widg.list_widget.item(i).text() for i in range(self.widg.list_widget.count())])
 
 
 if __name__ == '__main__':
-    app = QtWidgets.QApplication()
+    try:  # pyside2
+        app = QtWidgets.QApplication()
+    except TypeError:  # pyqt5
+        app = QtWidgets.QApplication([])
     test_window = OutWindow()
     test_window.show()
     sys.exit(app.exec_())

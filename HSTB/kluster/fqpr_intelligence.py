@@ -12,12 +12,13 @@ from HSTB.drivers import kmall, par3, sbet, svp
 from HSTB.kluster import monitor, fqpr_actions
 from HSTB.kluster.fqpr_project import FqprProject
 from HSTB.kluster.fqpr_helpers import build_crs
+from HSTB.kluster import kluster_variables
 
 
-supported_mbes = ['.all', '.kmall']
-supported_sbet = ['.out', '.sbet', '.smrmsg']  # people keep mixing up these extensions, so just check for the nav/smrmsg in both
-supported_export_log = ['.txt', '.log']
-supported_svp = ['.svp']
+supported_mbes = kluster_variables.supported_multibeam
+supported_sbet = kluster_variables.supported_ppnav  # people keep mixing up these extensions, so just check for the nav/smrmsg in both
+supported_export_log = kluster_variables.supported_ppnav_log
+supported_svp = kluster_variables.supported_sv
 all_extensions = list(np.concatenate([supported_mbes, supported_sbet, supported_export_log, supported_svp]))
 
 

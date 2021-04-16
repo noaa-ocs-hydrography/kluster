@@ -4,12 +4,13 @@ from threading import Thread, Event
 from types import FunctionType
 import numpy as np
 import os
+from HSTB.kluster import kluster_variables
 
 
-supported_mbes = ['.all', '.kmall']
-supported_sbet = ['.out', '.sbet', '.smrmsg']  # people keep mixing up these extensions, so just check for the nav/smrmsg in both
-supported_export_log = ['.txt', '.log']
-supported_svp = ['.svp']
+supported_mbes = kluster_variables.supported_multibeam
+supported_sbet = kluster_variables.supported_ppnav  # people keep mixing up these extensions, so just check for the nav/smrmsg in both
+supported_export_log = kluster_variables.supported_ppnav_log
+supported_svp = kluster_variables.supported_sv
 all_extensions = list(np.concatenate([supported_mbes, supported_sbet, supported_export_log, supported_svp]))
 
 

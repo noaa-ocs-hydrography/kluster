@@ -27,6 +27,7 @@ from HSTB.kluster.rotations import return_attitude_rotation_matrix
 from HSTB.kluster.logging_conf import return_logger
 from HSTB.drivers.sbet import sbets_to_xarray, sbet_fast_read_start_end_time
 from HSTB.drivers.PCSio import posfiles_to_xarray
+from HSTB.kluster import kluster_variables
 
 
 class Fqpr:
@@ -158,9 +159,9 @@ class Fqpr:
             if vert_ref != self.multibeam.raw_ping[0].vertical_reference:
                 self.logger.warning('Setting vertical reference to {} when existing vertical reference is {}'.format(vert_ref, self.multibeam.raw_ping[0].vertical_reference))
                 self.logger.warning('You will need to georeference and calculate total uncertainty again')
-        if vert_ref not in ['ellipse', 'waterline', 'NOAA MLLW', 'NOAA MHW']:
-            self.logger.error("Unable to set vertical reference to {}: expected one of ['ellipse', 'waterline', 'NOAA MLLW', 'NOAA MHW']".format(vert_ref))
-            raise ValueError("Unable to set vertical reference to {}: expected one of ['ellipse', 'waterline', 'NOAA MLLW', 'NOAA MHW']".format(vert_ref))
+        if vert_ref not in kluster_variables.vertical_references:
+            self.logger.error("Unable to set vertical reference to {}: expected one of {}".format(vert_ref, kluster_variables.vertical_references))
+            raise ValueError("Unable to set vertical reference to {}: expected one of {}".format(vert_ref, kluster_variables.vertical_references))
         self.vert_ref = vert_ref
 
     def read_from_source(self):
@@ -892,15 +893,15 @@ class Fqpr:
 
         try:
             if ra.input_datum == 'NAD83':
-                input_datum = CRS.from_epsg(6319)
+                input_datum = CRS.from_epsg(kluster_variables.epsg_nad83)
             elif ra.input_datum == 'WGS84':
-                input_datum = CRS.from_epsg(7911)
+                input_datum = CRS.from_epsg(kluster_variables.epsg_wgs84)
             else:
                 self.logger.error('{} not supported.  Only supports WGS84 and NAD83'.format(ra.input_datum))
                 raise ValueError('{} not supported.  Only supports WGS84 and NAD83'.format(ra.input_datum))
         except AttributeError:
             self.logger.warning('No input datum attribute found, assuming WGS84')
-            input_datum = CRS.from_epsg(7911)
+            input_datum = CRS.from_epsg(kluster_variables.epsg_wgs84)
 
         # if they have already interpolated and saved data to disk, use it.  But if motion latency is set, we ignore
         if ('latitude' in ra) and ('longitude' in ra) and ('altitude' in ra) and not self.motion_latency:
@@ -935,7 +936,7 @@ class Fqpr:
 
         wline = float(self.multibeam.xyzrph['waterline'][str(timestmp)])
 
-        if self.vert_ref == 'ellipse':
+        if self.vert_ref in kluster_variables.ellipse_based_vertical_references:
             alt = self.determine_altitude_corr(alt, self.multibeam.raw_att, tx_tstmp_idx + latency, prefixes, timestmp)
         else:
             hve = self.determine_induced_heave(ra, hve, self.multibeam.raw_att, tx_tstmp_idx + latency, prefixes, timestmp)
@@ -1031,11 +1032,13 @@ class Fqpr:
         qf = ra.qualityfactor.where(applicable_index, drop=True)
 
         first_mbes_file = list(ra.multibeam_files.keys())[0]
-        is_kongsberg_all = os.path.splitext(first_mbes_file)[1] == '.all'
-        if is_kongsberg_all:  # for .all files, quality factor is an int representing scaled std dev
+        mbes_ext = os.path.splitext(first_mbes_file)[1]
+        if mbes_ext in kluster_variables.multibeam_uses_quality_factor:  # for .all files, quality factor is an int representing scaled std dev
             qf_type = 'kongsberg'
-        else:  # for .kmall files, quality factor is a percentage of water depth, see IFREMER formula
+        elif mbes_ext in kluster_variables.multibeam_uses_ifremer:  # for .kmall files, quality factor is a percentage of water depth, see IFREMER formula
             qf_type = 'ifremer'
+        else:
+            raise ValueError('Found multibeam file with {} extension, only {} supported by kluster'.format(mbes_ext, kluster_variables.supported_multibeam))
 
         data_for_workers = []
 
@@ -1273,17 +1276,17 @@ class Fqpr:
         if self.vert_ref is None:
             self.logger.error("georef_xyz: set_vertical_reference must be run before georef_xyz")
             raise ValueError('georef_xyz: set_vertical_reference must be run before georef_xyz')
-        if self.vert_ref not in ['ellipse', 'waterline', 'NOAA MLLW', 'NOAA MHW']:
-            self.logger.error("georef_xyz: {} must be one of 'ellipse', 'waterline', 'NOAA MLLW', 'NOAA MHW'".format(self.vert_ref))
-            raise ValueError("georef_xyz: {} must be one of 'ellipse', 'waterline', 'NOAA MLLW', 'NOAA MHW'".format(self.vert_ref))
+        if self.vert_ref not in kluster_variables.vertical_references:
+            self.logger.error("georef_xyz: {} must be one of {}".format(self.vert_ref, kluster_variables.vertical_references))
+            raise ValueError("georef_xyz: {} must be one of ".format(self.vert_ref))
         if self.horizontal_crs is None:
             self.logger.error('georef_xyz: horizontal_crs object not found.  Please run Fqpr.construct_crs first.')
             raise ValueError('georef_xyz: horizontal_crs object not found.  Please run Fqpr.construct_crs first.')
-        if self.vert_ref in ['ellipse', 'NOAA MLLW', 'NOAA MHW']:
+        if self.vert_ref in kluster_variables.ellipse_based_vertical_references:
             if 'altitude' not in self.multibeam.raw_ping[0] and 'altitude' not in self.multibeam.raw_nav:
                 self.logger.error('georef_xyz: You must provide altitude for vert_ref=ellipse, not found in raw navigation or ping records.')
                 raise ValueError('georef_xyz: You must provide altitude for vert_ref=ellipse, not found in raw navigation or ping records.')
-        if self.vert_ref in ['NOAA MLLW', 'NOAA MHW']:
+        if self.vert_ref in kluster_variables.vdatum_vertical_references:
             if not vyperdatum_found:
                 self.logger.error('georef_xyz: {} provided but vyperdatum is not found'.format(self.vert_ref))
                 raise ValueError('georef_xyz: {} provided but vyperdatum is not found'.format(self.vert_ref))
@@ -1324,9 +1327,9 @@ class Fqpr:
         if self.vert_ref is None:
             self.logger.error('calculate_total_uncertainty: set_vertical_reference must be run before calculate_total_uncertainty')
             raise ValueError('calculate_total_uncertainty: set_vertical_reference must be run before calculate_total_uncertainty')
-        if self.vert_ref not in ['ellipse', 'waterline', 'NOAA MLLW', 'NOAA MHW']:
-            self.logger.error("calculate_total_uncertainty: {} must be one of 'ellipse', 'waterline', 'NOAA MLLW', 'NOAA MHW'".format(self.vert_ref))
-            raise ValueError("calculate_total_uncertainty: {} must be one of 'ellipse', 'waterline', 'NOAA MLLW', 'NOAA MHW'".format(self.vert_ref))
+        if self.vert_ref not in kluster_variables.vertical_references:
+            self.logger.error("calculate_total_uncertainty: {} must be one of {}".format(self.vert_ref, kluster_variables.vertical_references))
+            raise ValueError("calculate_total_uncertainty: {} must be one of {}".format(self.vert_ref, kluster_variables.vertical_references))
 
         required = ['corr_pointing_angle', 'beampointingangle', 'acrosstrack', 'depthoffset', 'soundspeed', 'qualityfactor']
         for req in required:
@@ -2144,17 +2147,17 @@ class Fqpr:
             if True will not use the dask.distributed client to submit tasks, will run locally instead
         """
 
-        ping_chunks = {'time': (self.multibeam.ping_chunksize,), 'beam': (400,), 'xyz': (3,),
-                       'processing_status': (self.multibeam.ping_chunksize, 400),
-                       'tx': (self.multibeam.ping_chunksize, 400, 3), 'rx': (self.multibeam.ping_chunksize, 400, 3),
-                       'rel_azimuth': (self.multibeam.ping_chunksize, 400),
-                       'corr_pointing_angle': (self.multibeam.ping_chunksize, 400),
-                       'alongtrack': (self.multibeam.ping_chunksize, 400),
-                       'acrosstrack': (self.multibeam.ping_chunksize, 400),
-                       'depthoffset': (self.multibeam.ping_chunksize, 400),
-                       'x': (self.multibeam.ping_chunksize, 400), 'y': (self.multibeam.ping_chunksize, 400),
-                       'z': (self.multibeam.ping_chunksize, 400), 'thu': (self.multibeam.ping_chunksize, 400),
-                       'tvu': (self.multibeam.ping_chunksize, 400), 'datum_uncertainty': (self.multibeam.ping_chunksize, 400),
+        ping_chunks = {'time': (self.multibeam.ping_chunksize,), 'beam': (kluster_variables.max_beams,), 'xyz': (3,),
+                       'processing_status': (self.multibeam.ping_chunksize, kluster_variables.max_beams),
+                       'tx': (self.multibeam.ping_chunksize, kluster_variables.max_beams, 3), 'rx': (self.multibeam.ping_chunksize, kluster_variables.max_beams, 3),
+                       'rel_azimuth': (self.multibeam.ping_chunksize, kluster_variables.max_beams),
+                       'corr_pointing_angle': (self.multibeam.ping_chunksize, kluster_variables.max_beams),
+                       'alongtrack': (self.multibeam.ping_chunksize, kluster_variables.max_beams),
+                       'acrosstrack': (self.multibeam.ping_chunksize, kluster_variables.max_beams),
+                       'depthoffset': (self.multibeam.ping_chunksize, kluster_variables.max_beams),
+                       'x': (self.multibeam.ping_chunksize, kluster_variables.max_beams), 'y': (self.multibeam.ping_chunksize, kluster_variables.max_beams),
+                       'z': (self.multibeam.ping_chunksize, kluster_variables.max_beams), 'thu': (self.multibeam.ping_chunksize, kluster_variables.max_beams),
+                       'tvu': (self.multibeam.ping_chunksize, kluster_variables.max_beams), 'datum_uncertainty': (self.multibeam.ping_chunksize, kluster_variables.max_beams),
                        'corr_heave': (self.multibeam.ping_chunksize,),
                        'corr_altitude': (self.multibeam.ping_chunksize,)}
 
@@ -2595,6 +2598,34 @@ class Fqpr:
             maxs = np.append(maxs, float(ping[varname].max()))
         return maxs.max()
 
+    def intersects(self, min_y: float, max_y: float, min_x: float, max_x: float, buffer: bool = True):
+        if buffer:
+            # quick and dirty latitude to distance table, we want about a 3000 meters buffer, doesnt have to be perfect
+            # 3000 meters because we are guessing that that would be the max half-swath you'd ever see
+            if abs(self.multibeam.raw_nav.max_lat) < 10:
+                lonbuffer = 0.03
+            elif abs(self.multibeam.raw_nav.max_lat) < 50:
+                lonbuffer = 0.06
+            elif abs(self.multibeam.raw_nav.max_lat) < 70:
+                lonbuffer = 0.09
+            else:
+                lonbuffer = 0.15
+            latbuffer = 0.027
+            fqpr_max_lon = self.multibeam.raw_nav.max_lon + lonbuffer
+            fqpr_min_lon = self.multibeam.raw_nav.min_lon - lonbuffer
+            fqpr_max_lat = self.multibeam.raw_nav.max_lat + latbuffer
+            fqpr_min_lat = self.multibeam.raw_nav.min_lon - latbuffer
+        else:
+            fqpr_max_lon = self.multibeam.raw_nav.max_lon
+            fqpr_min_lon = self.multibeam.raw_nav.min_lon
+            fqpr_max_lat = self.multibeam.raw_nav.max_lat
+            fqpr_min_lat = self.multibeam.raw_nav.min_lon
+        in_bounds = False
+        if (min_x <= fqpr_max_lon) and (max_x >= fqpr_min_lon):
+            if (min_y <= fqpr_max_lat) and (max_y >= fqpr_min_lat):
+                in_bounds = True
+        return in_bounds
+
     def return_unique_mode(self):
         """
         Finds the unique mode entries in raw_ping Datasets.  If there is more than one unique mode, return them in order
@@ -2640,6 +2671,36 @@ class Fqpr:
 
         return rounded_freqs
 
+    def return_lines_for_times(self, times: np.array):
+        """
+        Given the 1d array of times (utc seconds), return a same size object array with the string value of the line
+        file name that matches the time.
+
+        Parameters
+        ----------
+        times
+            1d numpy array of times in utc seconds
+
+        Returns
+        -------
+        np.array
+            1d object array of the string file name for the multibeam file that encompasses each time
+        """
+
+        lines = np.full(times.shape[0], '', dtype=object)
+        # we shoudn't have to sort this dict, should be sorted naturally, but odd things can happen when
+        # user appends new data to existing storage.
+        mbeslines = {k: v for k, v in sorted(self.multibeam.raw_ping[0].multibeam_files.items(),
+                                             key=lambda item: item[1][0])}
+        for ln, ln_times in mbeslines.items():
+            # first line time bounds sometimes does not cover the first few pings
+            ln_times[0] = ln_times[0] - 2
+            # same with last line, except extend the last time a bit
+            ln_times[1] = ln_times[1] + 2
+            applicable_idx = np.logical_and(times >= ln_times[0], times <= ln_times[1])
+            lines[applicable_idx] = ln
+        return lines
+
     def return_downsampled_navigation(self, sample: float = 0.01, start_time: float = None, end_time: float = None):
         """
         Given sample rate in seconds, downsample the raw navigation to give lat lon points.  Used for plotting lines
@@ -2678,20 +2739,38 @@ class Fqpr:
 
         return sampl_nav.latitude, sampl_nav.longitude
 
-    def return_soundings_in_box(self, min_y: float, max_y: float, min_x: float, max_x: float, geographic: bool = True):
-        if 'horizontal_crs' not in self.multibeam.raw_ping[0].attrs or 'z' not in self.multibeam.raw_ping[0].variables.keys():
-            raise ValueError('Georeferencing has not been run yet, you must georeference before you can get soundings')
-        if geographic:
-            # using geographic coordinates allows us to quickly exclude extents outside of max lat lon
-            in_bounds = False
-            if (min_x <= self.multibeam.raw_nav.max_lon) and (max_x >= self.multibeam.raw_nav.min_lon):
-                if (min_y <= self.multibeam.raw_nav.max_lat) and (max_y >= self.multibeam.raw_nav.min_lat):
-                    in_bounds = True
-            if not in_bounds:
-                return None, None, None, None, None, None, None
-            trans = Transformer.from_crs(CRS.from_epsg(4326), CRS.from_epsg(self.multibeam.raw_ping[0].horizontal_crs), always_xy=True)
-            min_x, min_y = trans.transform(min_x, min_y)
-            max_x, max_y = trans.transform(max_x, max_y)
+    def _soundings_by_box(self, min_y: float, max_y: float, min_x: float, max_x: float):
+        """
+        Return soundings and sounding attributes that are within the box formed by the provided coordinates.
+
+        Parameters
+        ----------
+        min_y
+            Minimum northing for the box
+        max_y
+            Maximum northing for the box
+        min_x
+            Minimum easting for the box
+        max_x
+            Maximum easting for the box
+
+        Returns
+        -------
+        list
+            list of 1d numpy arrays for the x coordinate of the soundings in the box
+        list
+            list of 1d numpy arrays for the y coordinate of the soundings in the box
+        list
+            list of 1d numpy arrays for the z coordinate of the soundings in the box
+        list
+            list of 1d numpy arrays for the tvu value of the soundings in the box
+        list
+            list of 1d numpy arrays for the rejected flag of the soundings in the box
+        list
+            list of 1d numpy arrays for the time of the soundings in the box
+        list
+            list of 1d numpy arrays for the beam number of the soundings in the box
+        """
 
         x = []
         y = []
@@ -2715,6 +2794,140 @@ class Fqpr:
                     # have to get time for each beam to then make the filter work
                     pointtime.append((rp.time.values[:, np.newaxis] * np.ones_like(rp.x)).ravel()[filt])
                     beam.append((rp.beam.values[np.newaxis, :] * np.ones_like(rp.x)).ravel()[filt])
+        return x, y, z, tvu, rejected, pointtime, beam
+
+    def _swaths_by_box(self, min_lat: float, max_lat: float, min_lon: float, max_lon: float):
+        """
+        Return soundings and sounding attributes that are a part of swaths within the box formed by the provided
+        coordinates.  Only returns complete swaths.
+
+        Parameters
+        ----------
+        min_lat
+            Minimum latitude for the box
+        max_lat
+            Maximum latitude for the box
+        min_lon
+            Minimum longitude for the box
+        max_lon
+            Maximum longitude for the box
+
+        Returns
+        -------
+        list
+            list of 1d numpy arrays for the acrosstrack coordinate of the soundings in the box
+        list
+            list of 1d numpy arrays for the y coordinate of the soundings in the box
+        list
+            list of 1d numpy arrays for the z coordinate of the soundings in the box
+        list
+            list of 1d numpy arrays for the tvu value of the soundings in the box
+        list
+            list of 1d numpy arrays for the rejected flag of the soundings in the box
+        list
+            list of 1d numpy arrays for the time of the soundings in the box
+        list
+            list of 1d numpy arrays for the beam number of the soundings in the box
+        """
+
+        x = []
+        y = []
+        z = []
+        tvu = []
+        rejected = []
+        pointtime = []
+        beam = []
+        nv = self.multibeam.raw_nav
+        xfilter = np.logical_and(nv.latitude <= max_lat, nv.latitude >= min_lat)
+        yfilter = np.logical_and(nv.longitude <= max_lon, nv.longitude >= min_lon)
+        filt = np.logical_and(xfilter, yfilter)
+        time_sel = nv.time.where(filt, drop=True).values
+
+        if time_sel.any():
+            # if selecting swaths of multiple lines, there will be time gaps
+            time_gaps = np.where(np.diff(time_sel) > 1)[0]
+            if time_gaps.any():
+                time_segments = []
+                strt = 0
+                for gp in time_gaps:
+                    time_segments.append(time_sel[strt:gp + 1])
+                    strt = gp + 1
+                time_segments.append(time_sel[strt:])
+            else:
+                time_segments = [time_sel]
+
+            for timeseg in time_segments:
+                mintime, maxtime = timeseg.min(), timeseg.max()
+                for rp in self.multibeam.raw_ping:
+                    ping_filter = np.logical_and(rp.time >= mintime, rp.time <= maxtime)
+                    if ping_filter.any():
+                        pings = rp.where(ping_filter, drop=True)
+                        x.append(pings.acrosstrack.values.ravel())
+                        y.append(pings.alongtrack.values.ravel())
+                        z.append(pings.z.values.ravel())
+                        tvu.append(pings.tvu.values.ravel())
+                        rejected.append(pings.detectioninfo.values.ravel())
+                        # have to get time for each beam to then make the filter work
+                        pointtime.append((pings.time.values[:, np.newaxis] * np.ones_like(pings.x)).ravel())
+                        beam.append((pings.beam.values[np.newaxis, :] * np.ones_like(pings.x)).ravel())
+        return x, y, z, tvu, rejected, pointtime, beam
+
+    def return_soundings_in_box(self, min_y: float, max_y: float, min_x: float, max_x: float, geographic: bool = True,
+                                full_swath: bool = False):
+        """
+        Using provided coordinates (in either horizontal_crs projected or geographic coordinates), return the soundings
+        and sounding attributes for all soundings within the coordinates.
+
+        Parameters
+        ----------
+        min_y
+            Minimum latitude/northing for the box
+        max_y
+            Maximum latitude/northing for the box
+        min_x
+            Minimum longitude/easting for the box
+        max_x
+            Maximum longitude/easting for the box
+        geographic
+            If True, the coordinates provided are geographic (latitude/longitude)
+        full_swath
+            If True, only returns the full swaths whose navigation is within the provided box
+
+        Returns
+        -------
+        list
+            list of 1d numpy arrays for the x coordinate of the soundings in the box
+        list
+            list of 1d numpy arrays for the y coordinate of the soundings in the box
+        list
+            list of 1d numpy arrays for the z coordinate of the soundings in the box
+        list
+            list of 1d numpy arrays for the tvu value of the soundings in the box
+        list
+            list of 1d numpy arrays for the rejected flag of the soundings in the box
+        list
+            list of 1d numpy arrays for the time of the soundings in the box
+        list
+            list of 1d numpy arrays for the beam number of the soundings in the box
+        list
+            list of 1d numpy arrays for the heading of the soundings in the box (empty if soundings_by_box)
+        """
+
+        if 'horizontal_crs' not in self.multibeam.raw_ping[0].attrs or 'z' not in self.multibeam.raw_ping[0].variables.keys():
+            raise ValueError('Georeferencing has not been run yet, you must georeference before you can get soundings')
+        if full_swath and not geographic:
+            raise NotImplementedError('full swath mode can only be used in geographic mode')
+
+        if not full_swath:
+            if geographic:
+                trans = Transformer.from_crs(CRS.from_epsg(kluster_variables.epsg_wgs84),
+                                             CRS.from_epsg(self.multibeam.raw_ping[0].horizontal_crs), always_xy=True)
+                min_x, min_y = trans.transform(min_x, min_y)
+                max_x, max_y = trans.transform(max_x, max_y)
+            x, y, z, tvu, rejected, pointtime, beam = self._soundings_by_box(min_y, max_y, min_x, max_x)
+        else:
+            x, y, z, tvu, rejected, pointtime, beam = self._swaths_by_box(min_y, max_y, min_x, max_x)
+
         if len(x) > 1:
             x = np.concatenate(x)
             y = np.concatenate(y)

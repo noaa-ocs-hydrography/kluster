@@ -5,6 +5,7 @@ from pyproj import Transformer, CRS
 from typing import Union
 
 from HSTB.kluster.xarray_helpers import stack_nan_array, reform_nan_array
+from HSTB.kluster import kluster_variables
 
 try:
     from vyperdatum.points import VyperPoints
@@ -98,7 +99,7 @@ def georef_by_worker(sv_corr: list, alt: xr.DataArray, lon: xr.DataArray, lat: x
     corr_dpth = None
     corr_heave = None
     corr_altitude = None
-    if vert_ref in ['ellipse', 'NOAA MLLW', 'NOAA MHW']:
+    if vert_ref in kluster_variables.ellipse_based_vertical_references:
         corr_altitude = alt
         corr_heave = xr.zeros_like(corr_altitude)
         corr_dpth = (depthoffset - corr_altitude.values[:, None]).astype(np.float32)

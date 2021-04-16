@@ -431,3 +431,128 @@ for s_cnt, system in enumerate(systems):
     break
 
 sv_corr, alt, lon, lat, hdng, heave, wline, vert_ref, input_crs, horizontal_crs, z_offset, vdatum_directory = self.client.gather(data_for_workers[0])
+
+##############################################################################
+import numpy as np
+from vispy import scene, app
+from vispy.visuals.transforms import STTransform
+from vispy.scene import visuals
+from vispy.scene.cameras import perspective
+
+canvas = scene.SceneCanvas(keys='interactive', show=True)
+view = canvas.central_widget.add_view()
+view.camera = scene.TurntableCamera()
+#view.camera.distance = 1000
+# view.camera = 'panzoom'
+scatter = visuals.Markers(parent=view.scene)
+x = np.random.rand(200) * 500000
+y = np.random.rand(200) * 50000
+xx, yy = np.meshgrid(x, y)
+x = xx.ravel()
+y = yy.ravel()
+z = np.arange(x.shape[0])
+data = np.stack([x, y, z], axis=1)
+print(x.min(), x.max())
+print(y.min(), y.max())
+print(z.min(), z.max())
+scatter.set_data(data)
+
+
+@canvas.events.mouse_release.connect
+def on_mouse_release(event):
+    print('camera center: {}'.format(view.camera.center))
+    print('camera scale factor: {}'.format(view.camera.scale_factor))
+    print('camera mouse coords position: {}'.format(event.pos))
+    transform = scatter.transforms.get_transform('canvas', 'visual')
+    print('data mouse coords: {}'.format(transform.map(event.pos)))
+
+    cntr = view.camera.center
+    dist = event.pos - (np.array(view.camera._viewbox.size) / 2)
+    norm = np.mean(view.camera._viewbox.size)
+    dist = dist / norm * view.camera._scale_factor
+    dist[1] *= -1
+    rae = np.array([view.camera.roll, view.camera.azimuth, view.camera.elevation]) * np.pi / 180
+    sro, saz, sel = np.sin(rae)
+    cro, caz, cel = np.cos(rae)
+    d0, d1 = dist[0], dist[1]
+    dx = (+ d0 * (cro * caz + sro * sel * saz)
+          + d1 * (sro * caz - cro * sel * saz))
+    dy = (+ d0 * (cro * saz - sro * sel * caz)
+          + d1 * (sro * saz + cro * sel * caz))
+    dz = (- d0 * sro * cel + d1 * cro * cel)
+
+    ff = view.camera._flip_factors
+    up, forward, right = view.camera._get_dim_vectors()
+    dx, dy, dz = right * dx + forward * dy + up * dz
+    dx, dy, dz = ff[0] * dx, ff[1] * dy, dz * ff[2]
+    newpt = cntr[0] + dx, cntr[0] + dy, cntr[0] + dz
+    print('olddist: {}, {}'.format(dist[0], dist[1]))
+    print('newdist: {}, {}, {}'.format(dx, dy, dz))
+    print('newcntr: {}, {}, {}'.format(cntr[0], cntr[1], cntr[2]))
+    print('try this data translation: {}, {}, {}'.format(newpt[0], newpt[1], newpt[2]))
+    print('***************************************************')
+    return event
+
+app.run()
+
+
+
+
+#################################################################
+# data extents
+# 242.83279365533429 495206.5274141219
+# 6.2266699985102925 49977.11134389917
+# 0 39999
+
+# pan and zoom
+# left bottom end of data
+# [186.75514814  51.52947909   0.           1.        ]
+# left top end of data
+# [2.43182588e+02 5.01066318e+04 0.00000000e+00 1.00000000e+00]
+# right top end of data
+# [4.95080203e+05 5.03461632e+04 0.00000000e+00 1.00000000e+00]
+# right bottom end of data
+# [4.95080203e+05 2.11979542e+02 0.00000000e+00 1.00000000e+00]
+
+# transform.transforms[0]._inverse
+# Out[44]: <ChainTransform [<ChainTransform [<NullTransform at 0x2de9823bb80>] at 0x2de98231a90>] at 0x2de981eec10>
+# transform.transforms[1]._inverse
+# Out[45]:
+# <ChainTransform [<ChainTransform [<STTransform scale=[1. 1. 1. 1.] translate=[0. 0. 0. 0.] at 0x3154939225712>,
+#                  <STTransform scale=[1. 1. 1. 1.] translate=[0. 0. 0. 0.] at 0x3155057914880>,
+#                  MatrixTransform(matrix=[[0.0013456096639856696, 0.0, 0.0, 0.0],
+#                         [0.0, -0.0035920636728405952, 0.0, 0.0],
+#                         [0.0, 0.0, 9.999999974752427e-07, 0.0],
+#                         [61.71138000488281, 381.72705078125, 0.0, 1.0]] at 0x2de9821e130)] at 0x2de981e1fd0>] at 0x2de981d0c40>
+# transform.transforms[2]._inverse
+# Out[46]: <ChainTransform [<ChainTransform [] at 0x2de981eeaf0>] at 0x2de98229430>
+
+
+# turntable
+# left bottom end of data
+# [322 193]
+# [ 7.41214768e+01 -1.55987317e+03  4.14050541e+02  1.32947108e-02]
+# left top end of data
+# [320 192]
+# [ 7.41175250e+01 -1.55984731e+03  4.14375385e+02  1.32947108e-02]
+# right top end of data
+# [365  86]
+# [ 1.89130202e+04 -2.56712206e+03  7.36396140e+02  3.79313640e-02]
+# right bottom end of data
+# [366 488]
+# [ 1.89130214e+04 -2.56712697e+03  7.35841115e+02  3.79313640e-02]
+
+# transform.transforms[0]._inverse
+# Out[5]: <ChainTransform [<ChainTransform [<NullTransform at 0x20c604e5310>] at 0x20c604db1c0>] at 0x20c604bf100>
+# transform.transforms[1]._inverse
+# Out[6]:
+# <ChainTransform [<ChainTransform [<STTransform scale=[1. 1. 1. 1.] translate=[0. 0. 0. 0.] at 0x2252177877552>,
+#                  <STTransform scale=[1. 1. 1. 1.] translate=[0. 0. 0. 0.] at 0x2252177976528>,
+#                  <ChainTransform [<STTransform scale=[ 400. -300.    1.    1.] translate=[400. 300.   0.   0.] at 0x2252178387872>,
+#                  MatrixTransform(matrix=[[1.8106601, 0.0, 0.0, 0.0],
+#                         [0.0, 2.4142137, 0.0, 0.0],
+#                         [0.0, 0.0, -1.0000002, -1.0],
+#                         [0.0, 0.0, -0.0025463097, 0.0]] at 0x20c604af910),
+#                  <Inverse of '<ChainTransform [MatrixTransform(matrix=[[0.5150380749100542, 0.8571673007021123, 0.0, 0.0],\n                        [-0.6661441060336196, 0.40025975991292145, 0.6293203910498375, 0.0],\n                        [0.539432860872987, -0.3241239627079508, 0.7771459614569709, 0.0],\n                        [2.1717937352156897, -1.3049453281418768, 3.1288429994957747, 1.0]] at 0x20c604afd00)] at 0x20c60408850>'>] at 0x20c60478e50>] at 0x20c604bf0a0>] at 0x20c604bf5e0>
+# transform.transforms[2]._inverse
+# Out[7]: <ChainTransform [<ChainTransform [] at 0x20c604bf550>] at 0x20c604bfb80>

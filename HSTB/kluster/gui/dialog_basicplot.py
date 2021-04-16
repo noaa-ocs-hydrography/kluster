@@ -511,7 +511,7 @@ class BasicPlotDialog(QtWidgets.QDialog):
         plot_expl = ''
 
         if source == 'multibeam':
-            source_expl = 'Source = From the raw multibeam data.'            
+            source_expl = 'Source = From the raw multibeam data, or from the Kluster processed intermediate variables.'
             if variable == 'Beam_Delay':
                 variable_expl = 'Variable = The time delay applied to each sector, expanded to the beam dimension.  Comes from the multibeam raw data.  Generally fairly small, or zero.'
             elif variable == 'Beam_Filter':

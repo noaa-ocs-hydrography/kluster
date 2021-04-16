@@ -2,6 +2,7 @@ from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal
 
 from HSTB.kluster.gui.common_widgets import BrowseListWidget
 from HSTB.shared import RegistryHelpers
+from HSTB.kluster import kluster_variables
 
 
 class SurfaceDialog(QtWidgets.QDialog):
@@ -71,7 +72,7 @@ class SurfaceDialog(QtWidgets.QDialog):
         self.hlayout_one.addWidget(self.surface_box)
 
         self.status_msg = QtWidgets.QLabel('')
-        self.status_msg.setStyleSheet("QLabel { color : red; }")
+        self.status_msg.setStyleSheet("QLabel { " + kluster_variables.error_color + "; }")
 
         self.hlayout_two = QtWidgets.QHBoxLayout()
         self.hlayout_two.addStretch(1)

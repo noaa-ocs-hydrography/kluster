@@ -3,6 +3,7 @@ import numpy as np
 import xarray as xr
 from typing import Union
 import matplotlib.pyplot as plt
+from HSTB.kluster import kluster_variables
 
 
 def distrib_run_calculate_tpu(dat: list):
@@ -439,12 +440,12 @@ class Tpu:
         Pick the appropriate depth uncertainty calculation based on the provided vertical reference
         """
 
-        if vert_ref in ['ellipse', 'NOAA MLLW', 'NOAA MHW']:
+        if vert_ref in kluster_variables.ellipse_based_vertical_references:
             dpth_unc = self._total_depth_unc_ref_ellipse(v_unc)
-        elif vert_ref in ['waterline']:
+        elif vert_ref in kluster_variables.waterline_based_vertical_references:
             dpth_unc = self._total_depth_unc_ref_waterlevels(v_unc)
         else:
-            raise NotImplementedError('tpu: vert_ref must be one of ellipse, NOAA MLLW, NOAA MHW, waterline.  found: {}'.format(vert_ref))
+            raise NotImplementedError('tpu: vert_ref must be one of {}, found: {}'.format(kluster_variables.vertical_references, vert_ref))
         return dpth_unc
 
     def _calculate_total_horizontal_uncertainty(self, h_unc):
@@ -496,11 +497,11 @@ class Tpu:
         if self.plot_tpu:
             self.plot_components['roll'] = np.nanmedian(r_var, axis=1) ** 0.5
             self.plot_components['refraction'] = np.nanmedian(refract_var, axis=1) ** 0.5
-        if vert_ref in ['tidal', 'waterline']:
+        if vert_ref in kluster_variables.waterline_based_vertical_references:
             hve_var = self._calculate_heave_variance()
             self.plot_components['heave'] = hve_var ** 0.5
             downpos = 0
-        elif vert_ref in ['ellipse', 'NOAA MLLW', 'NOAA MHW']:
+        elif vert_ref in kluster_variables.ellipse_based_vertical_references:
             if self.down_position_error is not None:
                 downpos = self.down_position_error ** 2
             else:
@@ -508,7 +509,7 @@ class Tpu:
             self.plot_components['down_position'] = downpos ** 0.5
             hve_var = 0
         else:
-            raise NotImplementedError('tpu: vert_ref must be one of ellipse, NOAA MLLW, NOAA MHW, waterline.  found: {}'.format(vert_ref))
+            raise NotImplementedError('tpu: vert_ref must be one of {}, found: {}'.format(kluster_variables.vertical_references, vert_ref))
         return (v_unc ** 2 + r_var + hve_var + downpos + refract_var) ** 0.5
 
     def _total_depth_unc_ref_waterlevels(self, v_unc):
@@ -517,7 +518,7 @@ class Tpu:
         and all the scalar modeled values for water level related uncertainty
         """
 
-        d_measured = self._total_depth_measurement_error(v_unc, 'tidal')
+        d_measured = self._total_depth_measurement_error(v_unc, 'waterline')
         self.separation_model = np.full((v_unc.shape[0], 1), self.separation_model, dtype=np.float32)
         self.dynamic_draft = np.full((v_unc.shape[0], 1), self.dynamic_draft, dtype=np.float32)
         self.waterline = np.full((v_unc.shape[0], 1), self.waterline, dtype=np.float32)

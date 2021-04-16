@@ -2,6 +2,7 @@ import os
 from typing import Union
 from pyproj import CRS
 from pyproj.exceptions import CRSError
+from HSTB.kluster import kluster_variables
 
 
 def build_crs(zone_num: str = None, datum: str = None, epsg: str = None, projected: bool = True):
@@ -73,9 +74,9 @@ def epsg_determinator(datum: str, zone: int = None, hemisphere: str = None):
 
     if zone is None and hemisphere is None:
         if datum == 'nad83(2011)':  # using the 3d geodetic NAD83(2011)
-            return 6319
+            return kluster_variables.epsg_nad83
         elif datum == 'wgs84':  # using the 3d geodetic WGS84/ITRF2008
-            return 7911
+            return kluster_variables.epsg_wgs84
     else:
         hemisphere = hemisphere.lower()
         if datum == 'nad83(2011)':

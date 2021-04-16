@@ -4,6 +4,7 @@ from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal
 
 from HSTB.shared import RegistryHelpers
 from HSTB.kluster.gui.common_widgets import BrowseListWidget
+from HSTB.kluster import kluster_variables
 
 
 # DEPRECATED AS WE HAVE MOVED TO FQPRINTELLIGENCE/FQPRACTIONS TO CONTROL CONVERSION
@@ -44,7 +45,7 @@ class ConversionDialog(QtWidgets.QDialog):
         self.hlayout_three.addWidget(self.mbesfiles)
 
         self.status_msg = QtWidgets.QLabel('')
-        self.status_msg.setStyleSheet("QLabel { color : red; }")
+        self.status_msg.setStyleSheet("QLabel { " + kluster_variables.error_color + "; }")
 
         self.hlayout_four = QtWidgets.QHBoxLayout()
         self.hlayout_four.addStretch(1)
