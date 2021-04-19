@@ -819,8 +819,7 @@ def zarr_write(zarr_path: str, xarr: xr.Dataset, attrs: dict, desired_chunk_shap
 
 def distrib_zarr_write(zarr_path: str, xarrays: list, attributes: dict, chunk_sizes: dict, data_locs: list,
                        finalsize: int, client: Client, append_dim: str = 'time',
-                       write_in_parallel: bool = False, skip_dask: bool = False,
-                       show_progress: bool = True):
+                       write_in_parallel: bool = False, skip_dask: bool = False, show_progress: bool = True):
     """
     A function for using the ZarrWrite class to write data to disk.  xarr and attrs are written to the datastore at
     zarr_path.  We use the function (and not the class directly) in Dask when we map it across all the workers.  Dask
