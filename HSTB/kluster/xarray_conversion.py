@@ -14,8 +14,8 @@ from HSTB.kluster.dms import return_zone_from_min_max_long
 from HSTB.drivers import par3, kmall
 from HSTB.drivers import PCSio
 from HSTB.kluster.dask_helpers import dask_find_or_start_client
-from HSTB.kluster.xarray_helpers import resize_zarr, xarr_to_netcdf, combine_xr_attributes, reload_zarr_records, \
-                                        get_write_indices_zarr, distrib_zarr_write, my_xarr_add_attribute
+from HSTB.kluster.xarray_helpers import resize_zarr, xarr_to_netcdf, combine_xr_attributes, reload_zarr_records
+from HSTB.kluster.backends._zarr import ZarrBackend, my_xarr_add_attribute
 from HSTB.kluster.logging_conf import return_logger
 from HSTB.kluster import kluster_variables
 
@@ -721,20 +721,11 @@ def _closest_key_value(tstmps: list, key: float):
     return closest_tim
 
 
-def batch_read_configure_options(ping_chunksize: int, nav_chunksize: int, att_chunksize: int):
+def batch_read_configure_options():
     """
     Generate the parameters that drive the data conversion.  Chunksize for size of zarr written chunks,
     combine_attributes as a bool to tell the system to look for attributes within that xarray object, and
     output_arrs/final_pths/final_attrs to hold the data as it is processed.
-
-    Parameters
-    ----------
-    ping_chunksize
-        array chunksize used when writing to zarr, each ping record chunk will be this size
-    nav_chunksize
-        array chunksize used when writing to zarr, each navigation array chunk will be this size
-    att_chunksize
-        array chunksize used when writing to zarr, each attitude array chunk will be this size
 
     Returns
     -------
@@ -742,29 +733,18 @@ def batch_read_configure_options(ping_chunksize: int, nav_chunksize: int, att_ch
         dict, options for batch read process
     """
 
-    ping_chunks = {'time': (ping_chunksize,), 'beam': (kluster_variables.max_beams,), 'xyz': (3,),
-                   'beampointingangle': (ping_chunksize, kluster_variables.max_beams), 'counter': (ping_chunksize,), 'delay': (ping_chunksize, kluster_variables.max_beams),
-                   'detectioninfo': (ping_chunksize, kluster_variables.max_beams), 'frequency': (ping_chunksize, kluster_variables.max_beams), 'mode': (ping_chunksize,),
-                   'ntx': (ping_chunksize,), 'qualityfactor': (ping_chunksize, kluster_variables.max_beams), 'samplerate': (ping_chunksize,),
-                   'serial_num': (ping_chunksize,), 'soundspeed': (ping_chunksize,), 'txsector_beam': (ping_chunksize, kluster_variables.max_beams),
-                   'modetwo': (ping_chunksize,), 'tiltangle': (ping_chunksize, kluster_variables.max_beams),
-                   'traveltime': (ping_chunksize, kluster_variables.max_beams), 'waveformid': (ping_chunksize,),
-                   'yawpitchstab': (ping_chunksize,), 'rxid': (ping_chunksize,), 'processing_status': (ping_chunksize, kluster_variables.max_beams)}
-    att_chunks = {'time': (att_chunksize,), 'heading': (att_chunksize,), 'heave': (att_chunksize,),
-                  'pitch': (att_chunksize,), 'roll': (att_chunksize,)}
-    nav_chunks = {'time': (nav_chunksize,), 'alongtrackvelocity': (nav_chunksize,), 'altitude': (nav_chunksize,),
-                  'latitude': (nav_chunksize,), 'longitude': (nav_chunksize,)}
     opts = {
-        'ping': {'chunksize': ping_chunksize, 'chunks': ping_chunks, 'combine_attributes': True, 'output_arrs': [],
-                 'time_arrs': [], 'final_pths': None, 'final_attrs': None},
-        'attitude': {'chunksize': att_chunksize, 'chunks': att_chunks, 'combine_attributes': False, 'output_arrs': [],
-                     'time_arrs': [], 'final_pths': None, 'final_attrs': None},
-        'navigation': {'chunksize': nav_chunksize, 'chunks': nav_chunks, 'combine_attributes': False, 'output_arrs': [],
-                       'time_arrs': [], 'final_pths': None, 'final_attrs': None}}
+        'ping': {'chunksize': kluster_variables.ping_chunk_size, 'chunks': kluster_variables.ping_chunks,
+                 'combine_attributes': True, 'output_arrs': [], 'time_arrs': [], 'final_pths': None, 'final_attrs': None},
+        'attitude': {'chunksize': kluster_variables.attitude_chunk_size, 'chunks': kluster_variables.att_chunks,
+                     'combine_attributes': False, 'output_arrs': [], 'time_arrs': [], 'final_pths': None, 'final_attrs': None},
+        'navigation': {'chunksize': kluster_variables.navigation_chunk_size, 'chunks': kluster_variables.nav_chunks,
+                       'combine_attributes': False, 'output_arrs': [], 'time_arrs': [], 'final_pths': None, 'final_attrs': None}
+        }
     return opts
 
 
-class BatchRead:
+class BatchRead(ZarrBackend):
     """
     BatchRead - multibeam data converter using dask infrastructure and xarray data types
     Pass in multibeam files, call read(), and gain access to xarray Datasets for each data type
@@ -835,7 +815,7 @@ class BatchRead:
     |     _conversion_complete:            Tue Oct 20 15:53:34 2020
     |     installsettings_1495563079:      {"waterline_vertical_location": "-0.640"...
     |     multibeam_files:                 {'0009_20170523_181119_FA2806.all': [149...
-    |     output_path:                     C:\collab\dasktest\data_dir\EM2040_small...
+    |     output_path:                     C:\\collab\\dasktest\\data_dir\\EM2040_small...
     |     profile_1495563079:              [[0.0, 1489.2000732421875], [0.32, 1489....
     |     reference:                       {'beampointingangle': 'receiver', 'tilta...
     |     runtimesettings_1495563080:      {"Counter": "61968", "SystemSerial#": "4...
@@ -883,6 +863,7 @@ class BatchRead:
             if True, will write in parallel to disk
         """
 
+        super().__init__()
         self.filfolder = filfolder
         self.dest = dest
         self.filtype = filtype
@@ -910,10 +891,6 @@ class BatchRead:
         self.extents = None
         self.logfile = None
         self.logger = None
-        self.ping_chunksize = kluster_variables.ping_chunk_size
-        self.nav_chunksize = kluster_variables.navigation_chunk_size
-        self.att_chunksize = kluster_variables.attitude_chunk_size
-        self.chunksize_lkup = {'ping': self.ping_chunksize, 'attitude': self.att_chunksize, 'navigation': self.nav_chunksize}
 
         # install parameters
         self.sonartype = None
@@ -1028,6 +1005,7 @@ class BatchRead:
 
         if self.converted_pth is None:
             self.converted_pth = os.path.dirname(ping_pth[0])
+            self.output_folder = self.converted_pth
         if self.client is None:
             skip_dask = True
         else:
@@ -1060,6 +1038,7 @@ class BatchRead:
 
         if self.converted_pth is None:
             self.converted_pth = os.path.dirname(attitude_pth)
+            self.output_folder = self.converted_pth
         if self.client is None:
             skip_dask = True
         else:
@@ -1072,6 +1051,7 @@ class BatchRead:
 
         if self.converted_pth is None:
             self.converted_pth = os.path.dirname(navigation_pth)
+            self.output_folder = self.converted_pth
         if self.client is None:
             skip_dask = True
         else:
@@ -1127,6 +1107,7 @@ class BatchRead:
                 converted_pth = os.path.join(self.filfolder, 'converted_{}'.format(datetime.now().strftime('%H%M%S')))
             os.makedirs(converted_pth)
         self.converted_pth = converted_pth
+        self.output_folder = self.converted_pth
         self.fils = fils
 
         self.logfile = os.path.join(converted_pth, 'logfile_{}.txt'.format(datetime.now().strftime('%H%M%S')))
@@ -1376,10 +1357,8 @@ class BatchRead:
             opts[datatype]['final_attrs']['system_identifier'] = sysid
 
         # correct for existing data if it exists in the zarr data store
-        data_locs, finalsize = get_write_indices_zarr(output_pth, opts[datatype]['time_arrs'])
-        fpths = distrib_zarr_write(output_pth, opts[datatype]['output_arrs'], opts[datatype]['final_attrs'],
-                                   opts[datatype]['chunks'], data_locs, finalsize, self.client,
-                                   show_progress=self.show_progress, write_in_parallel=self.parallel_write)
+        _, fpths = self.write(datatype, opts[datatype]['output_arrs'], time_array=opts[datatype]['time_arrs'],
+                              attributes=opts[datatype]['final_attrs'], sys_id=sysid)
         fpth = fpths[0]  # Pick the first element, all are identical so it doesnt really matter
         return fpth
 
@@ -1482,7 +1461,7 @@ class BatchRead:
                     for system in totalsystems:
                         self.logger.info('Operating on system identifier {}'.format(system))
                         input_xarrs_by_system = self._batch_read_return_xarray_by_system(input_xarrs, system)
-                        opts = batch_read_configure_options(self.ping_chunksize, self.nav_chunksize, self.att_chunksize)
+                        opts = batch_read_configure_options()
                         opts['ping']['final_attrs'] = combattrs
                         if len(input_xarrs_by_system) > 1:
                             # rebalance to get equal chunksize in time dimension (sector/beams are constant across)
@@ -1492,7 +1471,7 @@ class BatchRead:
                         finalpths[datatype].append(self._batch_read_write('zarr', datatype, opts, self.converted_pth, sysid=system))
                         del opts
                 else:
-                    opts = batch_read_configure_options(self.ping_chunksize, self.nav_chunksize, self.att_chunksize)
+                    opts = batch_read_configure_options()
                     opts[datatype]['final_attrs'] = combattrs
                     opts[datatype]['output_arrs'], opts[datatype]['time_arrs'], opts[datatype]['chunksize'], totallen = self._batch_read_merge_blocks(input_xarrs, datatype, opts[datatype]['chunksize'])
                     del input_xarrs
@@ -1971,8 +1950,8 @@ class BatchRead:
     def return_system_time_indexed_array(self, subset_time: list = None):
         """
         Most of the processing involves matching static, timestamped offsets or angles to time series data.  Given that
-        we might have a list of sectors and a list of timestamped offsets, need to iterate through all of this in each
-        processing loop.  Sectors/timestamps length should be minimal, so we just loop in python.
+        we might have a list of systems for dual head sonar and a list of timestamped offsets, need to iterate through
+        all of this in each processing loop.  Systems/timestamps length should be minimal, so we just loop in python.
 
         Parameters
         ----------
@@ -1982,7 +1961,7 @@ class BatchRead:
         Returns
         -------
         list
-            list of indices for each sector that are within the provided subset
+            list of indices for each system/timestamped offsets that are within the provided subset
         """
 
         resulting_systems = []

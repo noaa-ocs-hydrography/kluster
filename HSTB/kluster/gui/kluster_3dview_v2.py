@@ -328,6 +328,15 @@ class TurntableCameraInteractive(scene.TurntableCamera):
         endpos
             mouse click release position in screen coordinates
         """
+        # TODO
+        # build 4 infinite lines (each screen xy corner) and rotate (rotate equations of lines into utm)
+        #  - assume 0 and 1 for z to get unit vector
+        # solve for corners to get utm xyz for each end of segment, gives volume in utm
+        #  - have to extend segment to min max utm z, should alter utm x y and z
+        # clip point utm data to the min/max volume xy
+        # inv rotate clipped xyz to screen xy to get subset of points to select from
+        #  - think about check here to see if too many points selected
+        # select from drag-selected xy to get selected points
 
         if self.selected_callback:
             if (startpos == endpos).all():
@@ -335,6 +344,7 @@ class TurntableCameraInteractive(scene.TurntableCamera):
                 endpos += 10
             new_startpos = np.array([int(min(startpos[0], endpos[0])), int(min(startpos[1], endpos[1]))])
             new_endpos = np.array([int(max(startpos[0], endpos[0])), int(max(startpos[1], endpos[1]))])
+
             new_startpos = self._mouse_to_data_coordinates(new_startpos)
             new_endpos = self._mouse_to_data_coordinates(new_endpos)
             final_startpos = np.array([int(min(new_startpos[0], new_endpos[0])), int(min(new_startpos[1], new_endpos[1])),
@@ -988,12 +998,13 @@ if __name__ == '__main__':
     # cl.setup_colorbar(cm.get_cmap('rainbow_r'), 225.51600646972656, 261.7539978027344)
     # cl.show()
     win = ThreeDWidget()
-    x = np.random.rand(200) * 500000
-    y = np.random.rand(200) * 50000
-    xx, yy = np.meshgrid(x, y)
+    x = np.arange(10)
+    y = np.arange(10)
+    z = np.arange(10)
+    xx, yy, zz = np.meshgrid(x, y, z)
     x = xx.ravel()
     y = yy.ravel()
-    z = np.arange(x.shape[0])
+    z = zz.ravel()
     tvu = np.random.rand(x.shape[0])
     rejected = np.random.randint(0, 3, size=x.shape[0])
     pointtime = np.arange(x.shape[0])

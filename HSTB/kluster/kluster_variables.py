@@ -28,6 +28,7 @@ coordinate_systems = ['NAD83', 'WGS84']  # horizontal coordinate system options
 ping_chunk_size = 1000  # chunk size (in pings) of each written chunk of data in the ping records
 navigation_chunk_size = 50000  # chunk size (in time) of each written chunk of data in the navigation records
 attitude_chunk_size = 20000  # chunk size (in time) of each written chunk of data in the attitude records
+
 single_head_sonar = ['em122', 'em302', 'em710', 'em2045', 'em2040', 'em2040p', 'em3002', 'em2040p', 'em3020', 'me70bo']  # all single head sonar models
 dual_head_sonar = ['em2040_dual_rx', 'em2040_dual_tx', 'em2045_dual']  # all dual head sonar models
 default_heave_error = 0.05  # default tpu parameter for heave
@@ -49,3 +50,59 @@ default_waterline_error = 0.02  # default tpu parameter for waterline
 default_vessel_speed_error = 0.1  # default tpu parameter for vessel speed
 default_horizontal_positioning_error = 1.5  # default tpu parameter for horizontal positioning
 default_vertical_positioning_error = 1.0  # default tpu parameter for vertical positioning
+
+# zarr backend, chunksizes for writing to disk
+ping_chunks = {'time': (ping_chunk_size,), 'beam': (max_beams,), 'xyz': (3,),
+               'acrosstrack': (ping_chunk_size, max_beams),
+               'alongtrack': (ping_chunk_size, max_beams),
+               'beampointingangle': (ping_chunk_size, max_beams),
+               'corr_altitude': (ping_chunk_size,),
+               'corr_heave': (ping_chunk_size,),
+               'corr_pointing_angle': (ping_chunk_size, max_beams),
+               'counter': (ping_chunk_size,),
+               'datum_uncertainty': (ping_chunk_size, max_beams),
+               'delay': (ping_chunk_size, max_beams),
+               'depthoffset': (ping_chunk_size, max_beams),
+               'detectioninfo': (ping_chunk_size, max_beams),
+               'frequency': (ping_chunk_size, max_beams), 
+               'mode': (ping_chunk_size,),
+               'modetwo': (ping_chunk_size,),
+               'ntx': (ping_chunk_size,),
+               'processing_status': (ping_chunk_size, max_beams),
+               'qualityfactor': (ping_chunk_size, max_beams),
+               'rel_azimuth': (ping_chunk_size, max_beams),
+               'rx': (ping_chunk_size, max_beams, 3),
+               'rxid': (ping_chunk_size,),
+               'samplerate': (ping_chunk_size,),
+               'serial_num': (ping_chunk_size,), 
+               'soundspeed': (ping_chunk_size,),
+               'thu': (ping_chunk_size, max_beams),
+               'tiltangle': (ping_chunk_size, max_beams),
+               'traveltime': (ping_chunk_size, max_beams),
+               'tvu': (ping_chunk_size, max_beams),
+               'tx': (ping_chunk_size, max_beams, 3),
+               'txsector_beam': (ping_chunk_size, max_beams),
+               'waveformid': (ping_chunk_size,),
+               'x': (ping_chunk_size, max_beams),
+               'y': (ping_chunk_size, max_beams),
+               'yawpitchstab': (ping_chunk_size,),
+               'z': (ping_chunk_size, max_beams)
+               }
+nav_chunks = {'time': (navigation_chunk_size,),
+              'alongtrackvelocity': (navigation_chunk_size,),
+              'altitude': (navigation_chunk_size,),
+              'latitude': (navigation_chunk_size,),
+              'longitude': (navigation_chunk_size,),
+              'down_position_error': (navigation_chunk_size,),
+              'east_position_error': (navigation_chunk_size,),
+              'north_position_error': (navigation_chunk_size,),
+              'pitch_error': (navigation_chunk_size,),
+              'roll_error': (navigation_chunk_size,),
+              'heading_error': (navigation_chunk_size,)
+              }
+att_chunks = {'time': (attitude_chunk_size,),
+              'heading': (attitude_chunk_size,),
+              'heave': (attitude_chunk_size,),
+              'pitch': (attitude_chunk_size,),
+              'roll': (attitude_chunk_size,)
+              }

@@ -18,9 +18,9 @@ from HSTB.kluster.modules.tpu import distrib_run_calculate_tpu
 from HSTB.kluster.xarray_conversion import BatchRead
 from HSTB.kluster.modules.visualizations import FqprVisualizations
 from HSTB.kluster.modules.export import FqprExport
-from HSTB.kluster.xarray_helpers import combine_arrays_to_dataset, compare_and_find_gaps, distrib_zarr_write, \
-    divide_arrays_by_time_index, interp_across_chunks, reload_zarr_records, slice_xarray_by_dim, stack_nan_array, \
-    get_write_indices_zarr, get_beamwise_interpolation, zarr_write_attributes
+from HSTB.kluster.xarray_helpers import combine_arrays_to_dataset, compare_and_find_gaps, divide_arrays_by_time_index, \
+    interp_across_chunks, reload_zarr_records, slice_xarray_by_dim, stack_nan_array, get_beamwise_interpolation
+from HSTB.kluster.backends._zarr import ZarrBackend
 from HSTB.kluster.dask_helpers import dask_find_or_start_client, get_number_of_workers
 from HSTB.kluster.fqpr_helpers import build_crs
 from HSTB.kluster.rotations import return_attitude_rotation_matrix
@@ -30,7 +30,7 @@ from HSTB.drivers.PCSio import posfiles_to_xarray
 from HSTB.kluster import kluster_variables
 
 
-class Fqpr:
+class Fqpr(ZarrBackend):
     """
     Fully qualified ping record: contains all records built from the raw MBES file and supporting data files.  Built
     around the BatchRead engine which supplies the multibeam data conversion.
@@ -65,6 +65,11 @@ class Fqpr:
     def __init__(self, multibeam: BatchRead = None, motion_latency: float = 0.0, address: str = None, show_progress: bool = True,
                  parallel_write: bool = True):
         self.multibeam = multibeam
+        if self.multibeam is not None:
+            super().__init__(self.multibeam.converted_pth)
+        else:
+            super().__init__()
+
         self.intermediate_dat = None
         self.soundings_path = ''
         self.soundings = None
@@ -174,6 +179,7 @@ class Fqpr:
             self.client = self.multibeam.client  # mbes read is first, pull dask distributed client from it
             if self.multibeam.raw_ping is None:
                 self.multibeam.read()
+            self.output_folder = self.multibeam.converted_pth
         else:
             self.client = dask_find_or_start_client(address=self.address)
         self.initialize_log()
@@ -298,11 +304,8 @@ class Fqpr:
             dictionary of attributes that you want stored in the ping datasets
         """
 
-        outfold = self.multibeam.converted_pth  # parent folder to all the currently written data
-        for ra in self.multibeam.raw_ping:
-            sys_ident = ra.system_identifier
-            outfold_sys = os.path.join(outfold, 'ping_' + sys_ident + '.zarr')
-            zarr_write_attributes(outfold_sys, attr_dict)
+        for rp in self.multibeam.raw_ping:
+            self.write_attributes('ping', attr_dict, sys_id=rp.system_identifier)
 
     def import_sound_velocity_files(self, src: Union[str, list]):
         """
@@ -653,7 +656,7 @@ class Fqpr:
             # client is closed or not setup, assume 4 chunks at a time for local processing
             # AttributeError, client is None, RuntimeError, client is closed
             totchunks = 4
-        return self.multibeam.ping_chunksize, totchunks
+        return kluster_variables.ping_chunk_size, totchunks
 
     def _generate_chunks_orientation(self, ra: xr.Dataset, idx_by_chunk: list, applicable_index: xr.DataArray,
                                      timestmp: str, prefixes: str):
@@ -1518,16 +1521,14 @@ class Fqpr:
             for gp in gaps:
                 self.logger.info('mintime: {}, maxtime: {}, gap length {}'.format(gp[0], gp[1], gp[1] - gp[0]))
 
-        outfold = os.path.join(self.multibeam.converted_pth, 'ppnav.zarr')
-        chunk_sizes = {k: self.multibeam.nav_chunksize for k in list(navdata.variables.keys())}  # 50000 to match the raw_nav
-        data_locs, finalsize = get_write_indices_zarr(outfold, [navdata.time])
         navdata_attrs = navdata.attrs
+        navdata_times = [navdata.time]
         try:
             navdata = self.client.scatter(navdata)
         except:  # not using dask distributed client
             pass
-        distrib_zarr_write(outfold, [navdata], navdata_attrs, chunk_sizes, data_locs, finalsize, self.client,
-                           append_dim='time', show_progress=self.show_progress, write_in_parallel=self.parallel_write)
+
+        outfold, _ = self.write('ppnav', [navdata], time_array=navdata_times, attributes=navdata_attrs)
         self.navigation_path = outfold
         self.reload_ppnav_records()
         self.multibeam.reload_pingrecords(skip_dask=self.client is None)
@@ -1586,16 +1587,14 @@ class Fqpr:
             for gp in gaps:
                 self.logger.info('mintime: {}, maxtime: {}, gap length {}'.format(gp[0], gp[1], gp[1] - gp[0]))
 
-        outfold = os.path.join(self.multibeam.converted_pth, 'navigation.zarr')
-        chunk_sizes = {k: self.multibeam.nav_chunksize for k in list(nav_wise_data.variables.keys())}  # 50000 to match the raw_nav
-        data_locs, finalsize = get_write_indices_zarr(outfold, [nav_wise_data.time])
         navdata_attrs = nav_wise_data.attrs
+        navdata_times = [nav_wise_data.time]
         try:
             nav_wise_data = self.client.scatter(nav_wise_data)
         except:  # not using dask distributed client
             pass
-        distrib_zarr_write(outfold, [nav_wise_data], navdata_attrs, chunk_sizes, data_locs, finalsize, self.client,
-                           append_dim='time', show_progress=self.show_progress, write_in_parallel=self.parallel_write)
+        outfold, _ = self.write('navigation', [nav_wise_data], time_array=navdata_times, attributes=navdata_attrs)
+
         self.multibeam.reload_pingrecords(skip_dask=self.client is None)
 
         # self.interp_to_ping_record(self.navigation, {'navigation_source': 'sbet', 'input_datum': self.navigation.datum})
@@ -1630,19 +1629,14 @@ class Fqpr:
             skip_dask = True
 
         for rp in self.multibeam.raw_ping:
-            outfold_sys = os.path.join(self.multibeam.converted_pth, 'ping_' + rp.system_identifier + '.zarr')
             for source in sources:
-                ping_wise_data = interp_across_chunks(source, rp.time, 'time').chunk(self.multibeam.ping_chunksize)
-                chunk_sizes = {k: self.multibeam.ping_chunksize for k in list(ping_wise_data.variables.keys())}
-                data_locs, finalsize = get_write_indices_zarr(outfold_sys, [ping_wise_data.time])
+                ping_wise_data = interp_across_chunks(source, rp.time, 'time').chunk(kluster_variables.ping_chunk_size)
+                ping_wise_times = [ping_wise_data.time]
                 try:
                     ping_wise_data = self.client.scatter(ping_wise_data)
                 except:  # not using dask distributed client
                     pass
-                distrib_zarr_write(outfold_sys, [ping_wise_data], attributes, chunk_sizes, data_locs, finalsize,
-                                   self.client, append_dim='time', show_progress=self.show_progress,
-                                   write_in_parallel=self.parallel_write)
-                attributes = {}
+                self.write('ping', [ping_wise_data], time_array=ping_wise_times, sys_id=rp.system_identifier)
         self.multibeam.reload_pingrecords(skip_dask=skip_dask)
         endtime = perf_counter()
         self.logger.info('****Interpolation complete: {}s****\n'.format(round(endtime - starttime, 1)))
@@ -2121,8 +2115,7 @@ class Fqpr:
                 data = kluster_function(dat)
                 futures_repo.append([data, endtime])
 
-    def write_intermediate_futs_to_zarr(self, mode: str, only_sys_idx: int = None, outfold: str = None,
-                                        delete_futs: bool = False, skip_dask: bool = False):
+    def write_intermediate_futs_to_zarr(self, mode: str, only_sys_idx: int = None, delete_futs: bool = False, skip_dask: bool = False):
         """
         Flush some of the intermediate data that was mapped to the cluster (and lives in futures objects) to disk, puts
         it in the multibeam, as the time dimension should be the same.  Mode allows for selecting the output from one
@@ -2137,30 +2130,15 @@ class Fqpr:
         mode
             one of ['orientation', 'bpv', sv_corr', 'georef']
         only_sys_idx
-            optional, if this is not None, will only write the futures associated with the sector that has the given
+            optional, if this is not None, will only write the futures associated with the system/head that has the given
             index
-        outfold
-            optional, output folder path, not including the zarr folder will use multibeam.converted_pth if not
-            provided
         delete_futs
             if True will delete futures after writing data to disk
         skip_dask
             if True will not use the dask.distributed client to submit tasks, will run locally instead
         """
 
-        ping_chunks = {'time': (self.multibeam.ping_chunksize,), 'beam': (kluster_variables.max_beams,), 'xyz': (3,),
-                       'processing_status': (self.multibeam.ping_chunksize, kluster_variables.max_beams),
-                       'tx': (self.multibeam.ping_chunksize, kluster_variables.max_beams, 3), 'rx': (self.multibeam.ping_chunksize, kluster_variables.max_beams, 3),
-                       'rel_azimuth': (self.multibeam.ping_chunksize, kluster_variables.max_beams),
-                       'corr_pointing_angle': (self.multibeam.ping_chunksize, kluster_variables.max_beams),
-                       'alongtrack': (self.multibeam.ping_chunksize, kluster_variables.max_beams),
-                       'acrosstrack': (self.multibeam.ping_chunksize, kluster_variables.max_beams),
-                       'depthoffset': (self.multibeam.ping_chunksize, kluster_variables.max_beams),
-                       'x': (self.multibeam.ping_chunksize, kluster_variables.max_beams), 'y': (self.multibeam.ping_chunksize, kluster_variables.max_beams),
-                       'z': (self.multibeam.ping_chunksize, kluster_variables.max_beams), 'thu': (self.multibeam.ping_chunksize, kluster_variables.max_beams),
-                       'tvu': (self.multibeam.ping_chunksize, kluster_variables.max_beams), 'datum_uncertainty': (self.multibeam.ping_chunksize, kluster_variables.max_beams),
-                       'corr_heave': (self.multibeam.ping_chunksize,),
-                       'corr_altitude': (self.multibeam.ping_chunksize,)}
+        ping_chunks = kluster_variables.ping_chunks
 
         if mode == 'orientation':
             mode_settings = ['orientation', ['tx', 'rx', 'processing_status'], 'orientation vectors',
@@ -2221,18 +2199,13 @@ class Fqpr:
 
         self.logger.info('Writing {} to disk...'.format(mode_settings[2]))
         starttime = perf_counter()
-
-        if outfold is None:
-            outfold = self.multibeam.converted_pth  # parent folder to all the currently written data
-
         systems = self.multibeam.return_system_time_indexed_array()
-        for s_cnt, system in enumerate(systems):  # for each sector
-            if only_sys_idx is not None:  # isolate just one sector
+        for s_cnt, system in enumerate(systems):  # for head/system
+            if only_sys_idx is not None:  # isolate just one system
                 if s_cnt != only_sys_idx:
                     continue
             ra = self.multibeam.raw_ping[s_cnt]
             sys_ident = ra.system_identifier
-            outfold_sys = os.path.join(outfold, 'ping_' + sys_ident + '.zarr')
             futs_data = []
             for applicable_index, timestmp, prefixes in system:  # for each unique install parameter entry in that sector
                 if timestmp in self.intermediate_dat[sys_ident][mode_settings[0]]:
@@ -2247,10 +2220,7 @@ class Fqpr:
                     time_arrs = self.client.gather(self.client.map(_return_xarray_time, futs_data))
                 else:
                     time_arrs = [_return_xarray_time(tr) for tr in futs_data]
-                data_locs, finalsize = get_write_indices_zarr(outfold_sys, time_arrs)
-                fpths = distrib_zarr_write(outfold_sys, futs_data, mode_settings[3], ping_chunks, data_locs, finalsize,
-                                           self.client, skip_dask=skip_dask, show_progress=self.show_progress,
-                                           write_in_parallel=self.parallel_write)
+                self.write('ping', futs_data, time_array=time_arrs, sys_id=sys_ident)
             if delete_futs:
                 del self.intermediate_dat[sys_ident][mode_settings[0]]
 

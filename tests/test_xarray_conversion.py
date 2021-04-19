@@ -3,6 +3,7 @@ from HSTB.kluster.xarray_conversion import _xarr_is_bit_set, _build_serial_mask,
     _return_xarray_timelength, _divide_xarray_indicate_empty_future, _return_xarray_constant_blocks, \
     _merge_constant_blocks, _assess_need_for_split_correction, _correct_for_splits, _closest_prior_key_value, \
     _closest_key_value
+from HSTB.kluster import kluster_variables
 
 
 def test_xarr_is_bit_set():
@@ -97,33 +98,12 @@ def test_closest_key_value():
 
 
 def test_batch_read_configure_options():
-    ping_chunksize = 1000
-    att_chunksize = 2000
-    nav_chunksize = 3000
-    opts = batch_read_configure_options(ping_chunksize, nav_chunksize, att_chunksize)
-    ping_chunks = {'time': (ping_chunksize,), 'beam': (400,), 'xyz': (3,),
-                   'beampointingangle': (ping_chunksize, 400), 'counter': (ping_chunksize,),
-                   'delay': (ping_chunksize, 400),
-                   'detectioninfo': (ping_chunksize, 400), 'frequency': (ping_chunksize, 400),
-                   'mode': (ping_chunksize,),
-                   'ntx': (ping_chunksize,), 'qualityfactor': (ping_chunksize, 400), 'samplerate': (ping_chunksize,),
-                   'serial_num': (ping_chunksize,), 'soundspeed': (ping_chunksize,),
-                   'txsector_beam': (ping_chunksize, 400),
-                   'modetwo': (ping_chunksize,), 'tiltangle': (ping_chunksize, 400),
-                   'traveltime': (ping_chunksize, 400), 'waveformid': (ping_chunksize,),
-                   'yawpitchstab': (ping_chunksize,), 'rxid': (ping_chunksize,),
-                   'processing_status': (ping_chunksize, 400)}
-    att_chunks = {'time': (att_chunksize,), 'heading': (att_chunksize,), 'heave': (att_chunksize,),
-                  'pitch': (att_chunksize,), 'roll': (att_chunksize,)}
-    nav_chunks = {'time': (nav_chunksize,), 'alongtrackvelocity': (nav_chunksize,), 'altitude': (nav_chunksize,),
-                  'latitude': (nav_chunksize,), 'longitude': (nav_chunksize,)}
+    opts = batch_read_configure_options()
     expected_opts = {
-        'ping': {'chunksize': ping_chunksize, 'chunks': ping_chunks, 'combine_attributes': True, 'output_arrs': [],
-                 'time_arrs': [], 'final_pths': None, 'final_attrs': None},
-        'attitude': {'chunksize': att_chunksize, 'chunks': att_chunks, 'combine_attributes': False, 'output_arrs': [],
-                     'time_arrs': [], 'final_pths': None, 'final_attrs': None},
-        'navigation': {'chunksize': nav_chunksize, 'chunks': nav_chunks, 'combine_attributes': False, 'output_arrs': [],
-                       'time_arrs': [], 'final_pths': None, 'final_attrs': None}}
+        'ping': {'chunksize': kluster_variables.ping_chunk_size, 'chunks': kluster_variables.ping_chunks,
+                 'combine_attributes': True, 'output_arrs': [], 'time_arrs': [], 'final_pths': None, 'final_attrs': None},
+        'attitude': {'chunksize': kluster_variables.attitude_chunk_size, 'chunks': kluster_variables.att_chunks,
+                     'combine_attributes': False, 'output_arrs': [], 'time_arrs': [], 'final_pths': None, 'final_attrs': None},
+        'navigation': {'chunksize': kluster_variables.navigation_chunk_size, 'chunks': kluster_variables.nav_chunks,
+                       'combine_attributes': False, 'output_arrs': [], 'time_arrs': [], 'final_pths': None, 'final_attrs': None}}
     assert opts == expected_opts
-
-
