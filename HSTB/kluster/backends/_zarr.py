@@ -11,6 +11,9 @@ from HSTB.kluster.backends._base import BaseBackend
 
 
 class ZarrBackend(BaseBackend):
+    """
+    Backend for writing data to disk, used with fqpr_generation.Fqpr and xarray_conversion.BatchRead.
+    """
     def __init__(self, output_folder: str = None):
         super().__init__(output_folder)
 
@@ -70,6 +73,22 @@ class ZarrBackend(BaseBackend):
 
 
 def _get_indices_dataset_notexist(input_time_arrays):
+    """
+    Build a list of [start,end] indices that match the input_time_arrays, starting at zero.
+
+    Parameters
+    ----------
+    input_time_arrays
+        list of 1d xarray dataarrays or numpy arrays for the input time values
+
+    Returns
+    -------
+    list
+        list of [start,end] indexes for the indices of input_time_arrays
+    int
+        number of values to write, only used for the entirely outside option
+    """
+
     running_total = 0
     write_indices = []
     for input_time in input_time_arrays:
@@ -78,7 +97,30 @@ def _get_indices_dataset_notexist(input_time_arrays):
     return write_indices, running_total
 
 
-def _get_indices_dataset_exists(input_time_arrays, zarr_time):
+def _get_indices_dataset_exists(input_time_arrays: list, zarr_time: zarr.Array):
+    """
+    build the indices for where the input_time_arrays fit within the existing zarr_time.  We have three ways to proceed
+    within this function:
+    1. input time arrays are entirely within the existing zarr_time, we build a numpy array of indices that describe
+    where the input_time_arrays will overwrite the zarr_time
+    2. input time arrays are entirely outside the existing zarr_time, we just build a 2 element list describing the
+    start and end index to append the data to zarr_time
+    3 input time arrays are only partially within zarr_time, this is not allowed
+
+    Parameters
+    ----------
+    input_time_arrays
+        list of 1d xarray dataarrays or numpy arrays for the input time values
+    zarr_time
+        zarr array 1d for the existing time values saved to disk
+
+    Returns
+    -------
+    list
+        list of either [start,end] indexes or numpy arrays for the indices of input_time_arrays in zarr_time
+    int
+        number of values to write, only used for the entirely outside option
+    """
     running_total = 0
     write_indices = []
     for input_time in input_time_arrays:
