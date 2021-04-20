@@ -374,9 +374,8 @@ class Fqpr(ZarrBackend):
             list of xarray Datarrays, values are the integer indexes of the pings to use, coords are the time of ping
         """
 
-        msk = idx_mask.values
-        index_timevals = np.arange(np.count_nonzero(msk))
-        idx = xr.DataArray(index_timevals, dims=('time',), coords={'time': idx_mask.time[msk]})
+        msk = np.where(idx_mask)[0]
+        idx = xr.DataArray(msk, dims=('time',), coords={'time': idx_mask.time[msk]})
 
         if len(idx) < pings_per_chunk:
             # not enough data to warrant multiple chunks
@@ -387,7 +386,7 @@ class Fqpr(ZarrBackend):
             idx_by_chunk = np.array_split(idx, split_indices, axis=0)
         return idx_by_chunk
 
-    def return_cast_idx_nearestintime(self, cast_times: list, idx_by_chunk: list):
+    def return_cast_idx_nearestintime(self, cast_times: list, idx_by_chunk: list, silent: bool = False):
         """
         Need to find the cast associated with each chunk of data.  Currently we just take the average chunk time and
         find the closest cast time, and assign that cast.  We also need the index of the chunk in the original size
@@ -399,6 +398,8 @@ class Fqpr(ZarrBackend):
             list of floats, time each cast was taken
         idx_by_chunk
             list of xarray Datarrays, values are the integer indexes of the pings to use, coords are the time of ping
+        silent
+            if True, will not print out messages
 
         Returns
         -------
@@ -417,7 +418,8 @@ class Fqpr(ZarrBackend):
             if cast_times[cst] not in casts_used:
                 casts_used.append(cast_times[cst])
 
-        self.logger.info('nearest-in-time: applying casts {}'.format(casts_used))
+        if not silent:
+            self.logger.info('nearest-in-time: selecting nearest cast for each {} pings...'.format(kluster_variables.ping_chunk_size))
         return data
 
     def determine_induced_heave(self, ra: xr.Dataset, hve: xr.DataArray, raw_att: xr.Dataset,
@@ -655,11 +657,10 @@ class Fqpr(ZarrBackend):
         except (AttributeError, RuntimeError):
             # client is closed or not setup, assume 4 chunks at a time for local processing
             # AttributeError, client is None, RuntimeError, client is closed
-            totchunks = 4
+            totchunks = kluster_variables.default_number_of_chunks
         return kluster_variables.ping_chunk_size, totchunks
 
-    def _generate_chunks_orientation(self, ra: xr.Dataset, idx_by_chunk: list, applicable_index: xr.DataArray,
-                                     timestmp: str, prefixes: str, silent: bool = False):
+    def _generate_chunks_orientation(self, ra: xr.Dataset, idx_by_chunk: list, timestmp: str, prefixes: str, silent: bool = False):
         """
         Take a single system, and build the data for the distributed system to process.
         distrib_run_build_orientation_vectors requires the attitude, two way travel time, ping time index, and the
@@ -671,8 +672,6 @@ class Fqpr(ZarrBackend):
             the raw_ping associated with this system
         idx_by_chunk
             list of dataarrays, values are the integer indexes of the pings to use, coords are the time of ping
-        applicable_index
-            boolean mask for the data associated with this installation parameters instance
         timestmp
             timestamp of the installation parameters instance used
         prefixes
@@ -691,7 +690,6 @@ class Fqpr(ZarrBackend):
 
         if latency and not silent:
             self.logger.info('applying {}ms of latency to attitude...'.format(latency))
-        tx_tstmp_idx = get_ping_times(ra.time, applicable_index)
 
         if not silent:
             self.logger.info('calculating 3d transducer orientation for:')
@@ -709,27 +707,24 @@ class Fqpr(ZarrBackend):
         rx_orientation = [self.ideal_rx_vec, rx_roll_mountingangle, rx_pitch_mountingangle, rx_yaw_mountingangle, timestmp]
         if not silent:
             self.logger.info('transducer {} mounting angles: roll={} pitch={} yaw={}'.format(prefixes[1], rx_roll_mountingangle,
-                                                                                         rx_pitch_mountingangle, rx_yaw_mountingangle))
+                                                                                             rx_pitch_mountingangle, rx_yaw_mountingangle))
 
-        twtt_by_idx = ra.traveltime.where(applicable_index, drop=True)
-        delay_by_idx = ra.delay.where(applicable_index, drop=True)
         data_for_workers = []
         for chnk in idx_by_chunk:
             try:
                 worker_att = self.client.scatter(slice_xarray_by_dim(raw_att, start_time=chnk.time.min() - 1, end_time=chnk.time.max() + 1))
-                worker_twtt = self.client.scatter(twtt_by_idx[chnk.values])
-                worker_delay = self.client.scatter(delay_by_idx[chnk.values])
-                worker_tx_tstmp_idx = self.client.scatter(tx_tstmp_idx[chnk.values])
+                worker_twtt = self.client.scatter(ra.traveltime[chnk.values])
+                worker_delay = self.client.scatter(ra.delay[chnk.values])
+                worker_tx_tstmp_idx = self.client.scatter(ra.time[chnk.values])
             except:  # get here if client is closed or doesnt exist
                 worker_att = slice_xarray_by_dim(raw_att, start_time=chnk.time.min() - 1, end_time=chnk.time.max() + 1)
-                worker_twtt = twtt_by_idx[chnk.values]
-                worker_delay = delay_by_idx[chnk.values]
-                worker_tx_tstmp_idx = tx_tstmp_idx[chnk.values]
+                worker_twtt = ra.traveltime[chnk.values]
+                worker_delay = ra.delay[chnk.values]
+                worker_tx_tstmp_idx = ra.time[chnk.values]
             data_for_workers.append([worker_att, worker_twtt, worker_delay, worker_tx_tstmp_idx, tx_orientation, rx_orientation, latency])
         return data_for_workers
 
-    def _generate_chunks_bpv(self, ra: xr.Dataset, idx_by_chunk: list, applicable_index: xr.DataArray, timestmp: str,
-                             silent: bool = False):
+    def _generate_chunks_bpv(self, ra: xr.Dataset, idx_by_chunk: list, timestmp: str, silent: bool = False):
         """
         Take a single system, and build the data for the distributed system to process.
         distrib_run_build_beam_pointing_vector requires the heading, beampointingangle, tx tiltangle, tx/rx orientation,
@@ -741,8 +736,6 @@ class Fqpr(ZarrBackend):
             the raw_ping associated with this system
         idx_by_chunk
             list of dataarrays, values are the integer indexes of the pings to use, coords are the time of ping
-        applicable_index
-            boolean mask for the data associated with this installation parameters instance
         timestmp
             timestamp of the installation parameters instance used
         silent
@@ -754,16 +747,8 @@ class Fqpr(ZarrBackend):
             list of lists, each list contains future objects for distrib_run_build_beam_pointing_vector
         """
         latency = self.motion_latency
-        tx_tstmp_idx = get_ping_times(ra.time, applicable_index)
         if not silent:
-            self.logger.info('preparing to process {} pings'.format(len(tx_tstmp_idx)))
             self.logger.info('transducers mounted backwards - TX: {} RX: {}'.format(self.tx_reversed, self.rx_reversed))
-
-        bpa = ra.beampointingangle.where(applicable_index, drop=True)
-        tilt = ra.tiltangle.where(applicable_index, drop=True)
-
-        delay = ra.delay.where(applicable_index, drop=True)
-        heading = get_beamwise_interpolation(tx_tstmp_idx + latency, delay, self.multibeam.raw_att.heading)
 
         if 'orientation' in self.intermediate_dat[ra.system_identifier]:
             # workflow for data that is not written to disk.  Preference given for data in memory
@@ -776,27 +761,26 @@ class Fqpr(ZarrBackend):
                     tx_rx_data.append(divide_arrays_by_time_index(fut, idx_by_chunk[cnt]))
         else:
             # workflow for data that is written to disk
-            tx_idx = ra.tx.where(applicable_index, drop=True)
-            rx_idx = ra.rx.where(applicable_index, drop=True)
             try:
-                tx_rx_data = self.client.scatter([[tx_idx[chnk], rx_idx[chnk]] for chnk in idx_by_chunk])
+                tx_rx_data = self.client.scatter([[ra.tx[chnk], ra.rx[chnk]] for chnk in idx_by_chunk])
             except:  # client is not setup, run locally
-                tx_rx_data = [[tx_idx[chnk], rx_idx[chnk]] for chnk in idx_by_chunk]
+                tx_rx_data = [[ra.tx[chnk], ra.rx[chnk]] for chnk in idx_by_chunk]
 
         data_for_workers = []
         for cnt, chnk in enumerate(idx_by_chunk):
+            heading = get_beamwise_interpolation(chnk.time + latency, ra.delay[chnk.values], self.multibeam.raw_att.heading)
             try:
-                fut_hdng = self.client.scatter(heading[chnk.values])
-                fut_bpa = self.client.scatter(bpa[chnk.values])
-                fut_tilt = self.client.scatter(tilt[chnk.values])
+                fut_hdng = self.client.scatter(heading)
+                fut_bpa = self.client.scatter(ra.beampointingangle[chnk.values])
+                fut_tilt = self.client.scatter(ra.tiltangle[chnk.values])
             except:  # client is not setup, run locally
-                fut_hdng = heading[chnk.values]
-                fut_bpa = bpa[chnk.values]
-                fut_tilt = tilt[chnk.values]
+                fut_hdng = heading
+                fut_bpa = ra.beampointingangle[chnk.values]
+                fut_tilt = ra.tiltangle[chnk.values]
             data_for_workers.append([fut_hdng, fut_bpa, fut_tilt, tx_rx_data[cnt], self.tx_reversed, self.rx_reversed])
         return data_for_workers
 
-    def _generate_chunks_svcorr(self, ra: xr.Dataset, cast_chunks: list, casts: list, applicable_index: xr.DataArray,
+    def _generate_chunks_svcorr(self, ra: xr.Dataset, cast_chunks: list, casts: list,
                                 prefixes: str, timestmp: str, addtl_offsets: list, silent: bool = False):
         """
         Take a single sector, and build the data for the distributed system to process.  Svcorrect requires the
@@ -811,8 +795,6 @@ class Fqpr(ZarrBackend):
             applies to that chunk]
         casts
             list of [depth values, sv values] for each cast
-        applicable_index
-            xarray Dataarray, boolean mask for the data associated with this installation parameters instance
         prefixes
             prefix identifier for the tx/rx, will vary for dual head systems
         timestmp
@@ -828,8 +810,6 @@ class Fqpr(ZarrBackend):
             list of lists, each list contains future objects for distributed_run_sv_correct
         """
 
-        if not silent:
-            self.logger.info('dividing into {} data chunks for workers...'.format(len(cast_chunks)))
         data_for_workers = []
         if 'bpv' in self.intermediate_dat[ra.system_identifier]:
             # workflow for data that is not written to disk.  Preference given for data in memory
@@ -842,33 +822,28 @@ class Fqpr(ZarrBackend):
                     bpv_data.append(divide_arrays_by_time_index(fut, cast_chunks[cnt][0]))
         else:
             # workflow for data that is written to disk, break it up according to cast_chunks
-            rel_azimuth_idx = ra.rel_azimuth.where(applicable_index, drop=True)
-            corr_angle_idx = ra.corr_pointing_angle.where(applicable_index, drop=True)
             try:
-                bpv_data = self.client.scatter([[rel_azimuth_idx[d[0]], corr_angle_idx[d[0]]] for d in cast_chunks])
+                bpv_data = self.client.scatter([[ra.rel_azimuth[d[0]], ra.corr_pointing_angle[d[0]]] for d in cast_chunks])
             except:  # client is not setup, run locally
-                bpv_data = [[rel_azimuth_idx[d[0]], corr_angle_idx[d[0]]] for d in cast_chunks]
-
-        twtt = ra.traveltime.where(applicable_index, drop=True)
-        ss_by_system = ra.soundspeed.where(applicable_index, drop=True)
+                bpv_data = [[ra.rel_azimuth[d[0]], ra.corr_pointing_angle[d[0]]] for d in cast_chunks]
 
         # this should be the transducer to waterline, positive down
         z_pos = -float(self.multibeam.xyzrph[prefixes[0] + '_z'][timestmp]) + float(self.multibeam.xyzrph['waterline'][timestmp])
 
         try:
-            twtt_data = self.client.scatter([twtt[d[0]] for d in cast_chunks])
-            ss_data = self.client.scatter([ss_by_system[d[0]] for d in cast_chunks])
+            twtt_data = self.client.scatter([ra.traveltime[d[0]] for d in cast_chunks])
+            ss_data = self.client.scatter([ra.soundspeed[d[0]] for d in cast_chunks])
             casts = self.client.scatter(casts)
-            addtl_offsets = self.client.scatter(addtl_offsets)
+            addtl_offsets = self.client.scatter([addtl for addtl in addtl_offsets])
         except:  # client is not setup, run locally
-            twtt_data = [twtt[d[0]] for d in cast_chunks]
-            ss_data = [ss_by_system[d[0]] for d in cast_chunks]
+            twtt_data = [ra.traveltime[d[0]] for d in cast_chunks]
+            ss_data = [ra.soundspeed[d[0]] for d in cast_chunks]
 
         for cnt, dat in enumerate(cast_chunks):
             data_for_workers.append([casts[dat[1]], bpv_data[cnt], twtt_data[cnt], ss_data[cnt], z_pos, addtl_offsets[cnt]])
         return data_for_workers
 
-    def _generate_chunks_georef(self, ra: xr.Dataset, idx_by_chunk: xr.DataArray, applicable_index: xr.DataArray,
+    def _generate_chunks_georef(self, ra: xr.Dataset, idx_by_chunk: xr.DataArray,
                                 prefixes: str, timestmp: str, z_offset: float, prefer_pp_nav: bool,
                                 vdatum_directory: str, silent: bool = False):
         """
@@ -882,8 +857,6 @@ class Fqpr(ZarrBackend):
             xarray Dataset for the raw_ping instance selected for processing
         idx_by_chunk
             xarray Datarray, values are the integer indexes of the pings to use, coords are the time of ping
-        applicable_index
-            xarray Dataarray, boolean mask for the data associated with this installation parameters instance
         prefixes
             prefix identifier for the tx/rx, will vary for dual head systems
         timestmp
@@ -904,13 +877,9 @@ class Fqpr(ZarrBackend):
         """
 
         latency = self.motion_latency
-        sys_ident = ra.system_identifier
+        tx_tstmp_idx = xr.concat([idx.time for idx in idx_by_chunk], dim='time')
         if latency and not silent:
             self.logger.info('Applying motion latency of {}ms'.format(latency))
-        tx_tstmp_idx = get_ping_times(ra.time, applicable_index)
-        if not silent:
-            self.logger.info('preparing to process {} pings'.format(len(tx_tstmp_idx)))
-
         try:
             if ra.input_datum == 'NAD83':
                 input_datum = CRS.from_epsg(kluster_variables.epsg_nad83)
@@ -928,9 +897,9 @@ class Fqpr(ZarrBackend):
         if ('latitude' in ra) and ('longitude' in ra) and ('altitude' in ra) and not self.motion_latency:
             if not silent:
                 self.logger.info('Using pre-interpolated attitude/navigation saved to disk...')
-            lat = ra.latitude.where(applicable_index, drop=True)
-            lon = ra.longitude.where(applicable_index, drop=True)
-            alt = ra.altitude.where(applicable_index, drop=True)
+            lat = ra.latitude
+            lon = ra.longitude
+            alt = ra.altitude
         elif prefer_pp_nav and isinstance(self.navigation, xr.Dataset):
             if not silent:
                 self.logger.info('Using post processed navigation...')
@@ -950,8 +919,8 @@ class Fqpr(ZarrBackend):
                 alt = None
 
         if ('heading' in ra) and ('heave' in ra) and not self.motion_latency:
-            hdng = ra.heading.where(applicable_index, drop=True)
-            hve = ra.heave.where(applicable_index, drop=True)
+            hdng = ra.heading
+            hve = ra.heave
         else:
             if not silent:
                 self.logger.info('Using raw attitude...')
@@ -966,12 +935,8 @@ class Fqpr(ZarrBackend):
         else:
             hve = self.determine_induced_heave(ra, hve, self.multibeam.raw_att, tx_tstmp_idx + latency, prefixes, timestmp)
 
-        if 'sv_corr' not in self.intermediate_dat[ra.system_identifier]:
-            altrack = ra.alongtrack.where(applicable_index, drop=True)
-            actrack = ra.acrosstrack.where(applicable_index, drop=True)
-            dpthoff = ra.depthoffset.where(applicable_index, drop=True)
-
         data_for_workers = []
+        min_chunk_index = np.min([idx.min() for idx in idx_by_chunk])
 
         for chnk in idx_by_chunk:
             if 'sv_corr' in self.intermediate_dat[ra.system_identifier]:
@@ -979,39 +944,39 @@ class Fqpr(ZarrBackend):
                 sv_data = self.intermediate_dat[ra.system_identifier]['sv_corr'][timestmp][0][0]
             else:
                 try:  # workflow for data that is written to disk
-                    sv_data = self.client.scatter([altrack[chnk], actrack[chnk], dpthoff[chnk]])
+                    sv_data = self.client.scatter([ra.alongtrack[chnk], ra.acrosstrack[chnk], ra.depthoffset[chnk]])
                 except:  # client is not setup, run locally
-                    sv_data = [altrack[chnk], actrack[chnk], dpthoff[chnk]]
+                    sv_data = [ra.alongtrack[chnk], ra.acrosstrack[chnk], ra.depthoffset[chnk]]
 
             # latency workflow is kind of strange.  We want to get data where the time equals the chunk time.  Which
             #   means we have to apply the latency to the chunk time.  But then we need to remove the latency from the
             #   data time so that it aligns with ping time again for writing to disk.
             if latency:
                 chnk = chnk.assign_coords({'time': chnk.time.time + latency})
+            chnk_vals = chnk.values - min_chunk_index
             try:
                 if alt is None:
                     fut_alt = alt
                 else:
-                    fut_alt = self.client.scatter(alt[chnk.values].assign_coords({'time': chnk.time.time - latency}))
-                fut_lon = self.client.scatter(lon[chnk.values].assign_coords({'time': chnk.time.time - latency}))
-                fut_lat = self.client.scatter(lat[chnk.values].assign_coords({'time': chnk.time.time - latency}))
-                fut_hdng = self.client.scatter(hdng[chnk.values].assign_coords({'time': chnk.time.time - latency}))
-                fut_hve = self.client.scatter(hve[chnk.values].assign_coords({'time': chnk.time.time - latency}))
+                    fut_alt = self.client.scatter(alt[chnk_vals].assign_coords({'time': chnk.time.time - latency}))
+                fut_lon = self.client.scatter(lon[chnk_vals].assign_coords({'time': chnk.time.time - latency}))
+                fut_lat = self.client.scatter(lat[chnk_vals].assign_coords({'time': chnk.time.time - latency}))
+                fut_hdng = self.client.scatter(hdng[chnk_vals].assign_coords({'time': chnk.time.time - latency}))
+                fut_hve = self.client.scatter(hve[chnk_vals].assign_coords({'time': chnk.time.time - latency}))
             except:  # client is not setup, run locally
                 if alt is None:
                     fut_alt = alt
                 else:
-                    fut_alt = alt[chnk.values].assign_coords({'time': chnk.time.time - latency})
-                fut_lon = lon[chnk.values].assign_coords({'time': chnk.time.time - latency})
-                fut_lat = lat[chnk.values].assign_coords({'time': chnk.time.time - latency})
-                fut_hdng = hdng[chnk.values].assign_coords({'time': chnk.time.time - latency})
-                fut_hve = hve[chnk.values].assign_coords({'time': chnk.time.time - latency})
+                    fut_alt = alt[chnk_vals].assign_coords({'time': chnk.time.time - latency})
+                fut_lon = lon[chnk_vals].assign_coords({'time': chnk.time.time - latency})
+                fut_lat = lat[chnk_vals].assign_coords({'time': chnk.time.time - latency})
+                fut_hdng = hdng[chnk_vals].assign_coords({'time': chnk.time.time - latency})
+                fut_hve = hve[chnk_vals].assign_coords({'time': chnk.time.time - latency})
             data_for_workers.append([sv_data, fut_alt, fut_lon, fut_lat, fut_hdng, fut_hve, wline, self.vert_ref,
                                      input_datum, self.horizontal_crs, z_offset, vdatum_directory])
         return data_for_workers
 
-    def _generate_chunks_tpu(self, ra: xr.Dataset, idx_by_chunk: xr.DataArray, applicable_index: xr.DataArray,
-                             silent: bool = False):
+    def _generate_chunks_tpu(self, ra: xr.Dataset, idx_by_chunk: xr.DataArray, silent: bool = False):
         """
         Take a single sector, and build the data for the distributed system to process.  Georeference requires the
         sv_corrected acrosstrack/alongtrack/depthoffsets, as well as navigation, heading, heave and the quality
@@ -1023,8 +988,6 @@ class Fqpr(ZarrBackend):
             xarray Dataset for the raw_ping instance selected for processing
         idx_by_chunk
             xarray Datarray, values are the integer indexes of the pings to use, coords are the time of ping
-        applicable_index
-            xarray Dataarray, boolean mask for the data associated with this installation parameters instance
         silent
             if True, does not print out the log messages
 
@@ -1035,11 +998,9 @@ class Fqpr(ZarrBackend):
         """
 
         latency = self.motion_latency
+        tx_tstmp_idx = xr.concat([idx.time for idx in idx_by_chunk], dim='time')
         if latency and not silent:
             self.logger.info('Applying motion latency of {}ms'.format(latency))
-        tx_tstmp_idx = get_ping_times(ra.time, applicable_index)
-        if not silent:
-            self.logger.info('preparing to process {} pings'.format(len(tx_tstmp_idx)))
 
         if 'qualityfactor' not in self.multibeam.raw_ping[0]:
             self.logger.error("_generate_chunks_tpu: sonar uncertainty ('qualityfactor') must exist to calculate uncertainty")
@@ -1048,17 +1009,6 @@ class Fqpr(ZarrBackend):
             ppnav = interp_across_chunks(self.navigation, tx_tstmp_idx + latency, daskclient=self.client)
 
         roll = interp_across_chunks(self.multibeam.raw_att['roll'], tx_tstmp_idx + latency, daskclient=self.client)
-
-        corr_point = ra.corr_pointing_angle.where(applicable_index, drop=True)
-        raw_point = ra.beampointingangle.where(applicable_index, drop=True)
-        if self.rx_reversed:
-            # if reversed, we have to reverse the raw angles to match the already reversed corr angles
-            #  also load the numpy array, as leaving it as an xarray seems to cause problems with xarray ops later
-            raw_point = raw_point[..., ::-1].values
-        acrosstrack = ra.acrosstrack.where(applicable_index, drop=True)
-        depthoffset = ra.depthoffset.where(applicable_index, drop=True)
-        soundspeed = ra.soundspeed.where(applicable_index, drop=True)
-        qf = ra.qualityfactor.where(applicable_index, drop=True)
 
         first_mbes_file = list(ra.multibeam_files.keys())[0]
         mbes_ext = os.path.splitext(first_mbes_file)[1]
@@ -1071,18 +1021,24 @@ class Fqpr(ZarrBackend):
 
         data_for_workers = []
 
-        # set the first chunk to build the tpu sample image, provide a path to the folder to save in
+        # set the first chunk of the first write to build the tpu sample image, provide a path to the folder to save in
         image_generation = [False] * len(idx_by_chunk)
-        image_generation[0] = os.path.join(self.multibeam.converted_pth, 'ping_' + ra.system_identifier + '.zarr')
+        if not silent:
+            image_generation[0] = os.path.join(self.multibeam.converted_pth, 'ping_' + ra.system_identifier + '.zarr')
 
         for cnt, chnk in enumerate(idx_by_chunk):
+            raw_point = ra.beampointingangle[chnk.values]
+            if self.rx_reversed:
+                # if reversed, we have to reverse the raw angles to match the already reversed corr angles
+                #  also load the numpy array, as leaving it as an xarray seems to cause problems with xarray ops later
+                raw_point = raw_point[..., ::-1].values
             try:
-                fut_corr_point = self.client.scatter(corr_point[chnk.values])
-                fut_raw_point = self.client.scatter(raw_point[chnk.values])
-                fut_acrosstrack = self.client.scatter(acrosstrack[chnk.values])
-                fut_depthoffset = self.client.scatter(depthoffset[chnk.values])
-                fut_soundspeed = self.client.scatter(soundspeed[chnk.values])
-                fut_qualityfactor = self.client.scatter(qf[chnk.values])
+                fut_corr_point = self.client.scatter(ra.corr_pointing_angle[chnk.values])
+                fut_raw_point = self.client.scatter(raw_point)
+                fut_acrosstrack = self.client.scatter(ra.acrosstrack[chnk.values])
+                fut_depthoffset = self.client.scatter(ra.depthoffset[chnk.values])
+                fut_soundspeed = self.client.scatter(ra.soundspeed[chnk.values])
+                fut_qualityfactor = self.client.scatter(ra.qualityfactor[chnk.values])
 
                 # latency workflow is kind of strange.  We want to get data where the time equals the chunk time.  Which
                 #   means we have to apply the latency to the chunk time.  But then we need to remove the latency from the
@@ -1105,12 +1061,12 @@ class Fqpr(ZarrBackend):
                     fut_ppe = None
                     fut_hpe = None
             except:  # client is not setup, run locally
-                fut_corr_point = corr_point[chnk.values]
-                fut_raw_point = raw_point[chnk.values]
-                fut_acrosstrack = acrosstrack[chnk.values]
-                fut_depthoffset = depthoffset[chnk.values]
-                fut_soundspeed = soundspeed[chnk.values]
-                fut_qualityfactor = qf[chnk.values]
+                fut_corr_point = ra.corr_pointing_angle[chnk.values]
+                fut_raw_point = raw_point
+                fut_acrosstrack = ra.acrosstrack[chnk.values]
+                fut_depthoffset = ra.depthoffset[chnk.values]
+                fut_soundspeed = ra.soundspeed[chnk.values]
+                fut_qualityfactor = ra.qualityfactor[chnk.values]
 
                 if latency:
                     chnk = chnk.assign_coords({'time': chnk.time.time + latency})
@@ -1742,23 +1698,8 @@ class Fqpr(ZarrBackend):
                 self.generate_starter_orientation_vectors(prefixes, timestmp)
                 idx_by_chunk = self.return_chunk_indices(applicable_index, pings_per_chunk)
                 if len(idx_by_chunk[0]):  # if there are pings in this system that align with this installation parameter record
-                    # clear out the intermediate data just in case there is old data there
-                    self.intermediate_dat[sys_ident]['orientation'][timestmp] = []
-                    tot_runs = int(np.ceil(len(idx_by_chunk) / max_chunks_at_a_time))
-                    for rn in range(tot_runs):
-                        start_r = rn * max_chunks_at_a_time
-                        end_r = min(start_r + max_chunks_at_a_time, len(idx_by_chunk))  # clamp for last run
-                        idx_by_chunk_subset = idx_by_chunk[start_r:end_r]
-                        min_chunk_index = np.min(idx_by_chunk_subset)
-                        chunk_applicable_index = xr.zeros_like(ra.time).astype(bool)
-                        for idx in idx_by_chunk_subset:
-                            chunk_applicable_index[idx] = True
-                        idx_by_chunk_subset = [idx - min_chunk_index for idx in idx_by_chunk_subset]
-                        # build the arguments for orientation vectors
-                        chunkargs = [ra, idx_by_chunk_subset, chunk_applicable_index, timestmp, prefixes]
-                        self._submit_data_to_cluster('orientation', rn, tot_runs, idx_by_chunk_subset,
-                                                     self.intermediate_dat[sys_ident]['orientation'][timestmp], chunkargs,
-                                                     dump_data=dump_data, only_sys_idx=s_cnt, skip_dask=skip_dask)
+                    self._submit_data_to_cluster(ra, 'orientation', idx_by_chunk, max_chunks_at_a_time,
+                                                 timestmp, prefixes, dump_data=dump_data, skip_dask=skip_dask)
                 else:
                     self.logger.info('No pings found for {}-{}'.format(sys_ident, timestmp))
 
@@ -1772,7 +1713,7 @@ class Fqpr(ZarrBackend):
         endtime = perf_counter()
         self.logger.info('****Get Orientation Vectors complete: {}s****\n'.format(round(endtime - starttime, 1)))
 
-    def get_beam_pointing_vectors(self, subset_time: list = None, dump_data: bool = True, delete_futs: bool = True):
+    def get_beam_pointing_vectors(self, subset_time: list = None, dump_data: bool = True):
         """
         Beam pointing vector is the beam specific vector that arises from the intersection of the tx ping and rx cone
         of sensitivity.  Points at that area.  Is in the geographic coordinate system, built using the tx/rx at time of
@@ -1791,8 +1732,6 @@ class Fqpr(ZarrBackend):
         dump_data
             if True dump the futures to the multibeam datastore.  Set this to false for an entirely in memory
             workflow
-        delete_futs
-            if True remove the futures objects after data is dumped.
         """
 
         self._validate_get_beam_pointing_vectors(subset_time, dump_data)
@@ -1816,19 +1755,8 @@ class Fqpr(ZarrBackend):
                 self.generate_starter_orientation_vectors(prefixes, timestmp)
                 idx_by_chunk = self.return_chunk_indices(applicable_index, pings_per_chunk)
                 if len(idx_by_chunk[0]):  # if there are pings in this system that align with this installation parameter record
-                    self.intermediate_dat[sys_ident]['bpv'][timestmp] = []
-                    tot_runs = int(np.ceil(len(idx_by_chunk) / max_chunks_at_a_time))
-                    for rn in range(tot_runs):
-                        start_r = rn * max_chunks_at_a_time
-                        end_r = min(start_r + max_chunks_at_a_time, len(idx_by_chunk))  # clamp for last run
-                        idx_by_chunk_subset = idx_by_chunk[start_r:end_r]
-                        chunk_applicable_index = xr.zeros_like(ra.time).astype(bool)
-                        for idx in idx_by_chunk_subset:
-                            chunk_applicable_index[idx] = True
-                        chunkargs = [ra, idx_by_chunk_subset, chunk_applicable_index, timestmp]
-                        self._submit_data_to_cluster('bpv', rn, tot_runs, idx_by_chunk_subset,
-                                                     self.intermediate_dat[sys_ident]['bpv'][timestmp],
-                                                     chunkargs, dump_data=dump_data, only_sys_idx=s_cnt, skip_dask=skip_dask)
+                    self._submit_data_to_cluster(ra, 'bpv', idx_by_chunk, max_chunks_at_a_time,
+                                                 timestmp, prefixes, dump_data=dump_data, skip_dask=skip_dask)
                 else:
                     self.logger.info('No pings found for {}-{}'.format(sys_ident, timestmp))
             if dump_data:
@@ -1883,27 +1811,13 @@ class Fqpr(ZarrBackend):
             self.logger.info('Operating on system serial number = {}'.format(sys_ident))
             self.initialize_intermediate_data(sys_ident, 'sv_corr')
             pings_per_chunk, max_chunks_at_a_time = self.get_cluster_params()
-            profnames, casts, cast_times, castlocations = self.multibeam.return_all_profiles()
 
             for applicable_index, timestmp, prefixes in system:
                 self.logger.info('using installation params {}'.format(timestmp))
                 idx_by_chunk = self.return_chunk_indices(applicable_index, pings_per_chunk)
                 if len(idx_by_chunk[0]):  # if there are pings in this system that align with this installation parameter record
-                    self.intermediate_dat[sys_ident]['sv_corr'][timestmp] = []
-                    tot_runs = int(np.ceil(len(idx_by_chunk) / max_chunks_at_a_time))
-                    for rn in range(tot_runs):
-                        start_r = rn * max_chunks_at_a_time
-                        end_r = min(start_r + max_chunks_at_a_time, len(idx_by_chunk))  # clamp for last run
-                        idx_by_chunk_subset = idx_by_chunk[start_r:end_r]
-                        chunk_applicable_index = xr.zeros_like(ra.time).astype(bool)
-                        for idx in idx_by_chunk_subset:
-                            chunk_applicable_index[idx] = True
-                        cast_chunks = self.return_cast_idx_nearestintime(cast_times, idx_by_chunk_subset)
-                        addtl_offsets = self.return_additional_xyz_offsets(ra, prefixes, timestmp, idx_by_chunk_subset)
-                        chunkargs = [ra, cast_chunks, casts, chunk_applicable_index, prefixes, timestmp, addtl_offsets[start_r:end_r]]
-                        self._submit_data_to_cluster('sv_corr', rn, tot_runs, idx_by_chunk_subset,
-                                                     self.intermediate_dat[sys_ident]['sv_corr'][timestmp],
-                                                     chunkargs, dump_data=dump_data, only_sys_idx=s_cnt, skip_dask=skip_dask)
+                    self._submit_data_to_cluster(ra, 'sv_corr', idx_by_chunk, max_chunks_at_a_time,
+                                                 timestmp, prefixes, dump_data=dump_data, skip_dask=skip_dask)
                 else:
                     self.logger.info('No pings found for {}-{}'.format(ra.system_identifier, timestmp))
             if dump_data:
@@ -1917,7 +1831,7 @@ class Fqpr(ZarrBackend):
         self.logger.info('****Sound Velocity complete: {}s****\n'.format(round(endtime - starttime, 1)))
 
     def georef_xyz(self, subset_time: list = None, prefer_pp_nav: bool = True, dump_data: bool = True,
-                   delete_futs: bool = True, vdatum_directory: str = None):
+                   vdatum_directory: str = None):
         """
         Use the raw attitude/navigation to transform the vessel relative along/across/down offsets to georeferenced
         soundings.  Will support transformation to geographic and projected coordinate systems and with a vertical
@@ -1948,8 +1862,6 @@ class Fqpr(ZarrBackend):
         dump_data
             if True dump the futures to the multibeam datastore.  Set this to false for an entirely in memory
             workflow
-        delete_futs
-            if True remove the futures objects after data is dumped.
         vdatum_directory
             if 'NOAA MLLW' 'NOAA MHW' is the vertical reference, a path to the vdatum directory is required here
         """
@@ -1969,31 +1881,20 @@ class Fqpr(ZarrBackend):
             ra = self.multibeam.raw_ping[s_cnt]
             sys_ident = ra.system_identifier
             self.logger.info('Operating on system serial number = {}'.format(sys_ident))
-            self.initialize_intermediate_data(sys_ident, 'xyz')
+            self.initialize_intermediate_data(sys_ident, 'georef')
             pings_per_chunk, max_chunks_at_a_time = self.get_cluster_params()
 
             for applicable_index, timestmp, prefixes in system:
                 self.logger.info('using installation params {}'.format(timestmp))
-                z_offset = float(self.multibeam.xyzrph[prefixes[0] + '_z'][timestmp])
                 idx_by_chunk = self.return_chunk_indices(applicable_index, pings_per_chunk)
                 if len(idx_by_chunk[0]):  # if there are pings in this system that align with this installation parameter record
-                    tot_runs = int(np.ceil(len(idx_by_chunk) / max_chunks_at_a_time))
-                    self.intermediate_dat[sys_ident]['xyz'][timestmp] = []
-                    for rn in range(tot_runs):
-                        start_r = rn * max_chunks_at_a_time
-                        end_r = min(start_r + max_chunks_at_a_time, len(idx_by_chunk))  # clamp for last run
-                        idx_by_chunk_subset = idx_by_chunk[start_r:end_r]
-                        chunk_applicable_index = xr.zeros_like(ra.time).astype(bool)
-                        for idx in idx_by_chunk_subset:
-                            chunk_applicable_index[idx] = True
-                        chunkargs = [chunk_applicable_index, prefixes, timestmp, z_offset, prefer_pp_nav, vdatum_directory]
-                        self._submit_data_to_cluster('georef', rn, tot_runs, idx_by_chunk_subset,
-                                                     self.intermediate_dat[sys_ident]['xyz'][timestmp], chunkargs,
-                                                     dump_data=dump_data, only_sys_idx=s_cnt, skip_dask=skip_dask)
+                    self._submit_data_to_cluster(ra, 'georef', idx_by_chunk, max_chunks_at_a_time,
+                                                 timestmp, prefixes, dump_data=dump_data, skip_dask=skip_dask,
+                                                 prefer_pp_nav=prefer_pp_nav, vdatum_directory=vdatum_directory)
                 else:
                     self.logger.info('No pings found for {}-{}'.format(sys_ident, timestmp))
             if dump_data:
-                del self.intermediate_dat[sys_ident]['xyz']
+                del self.intermediate_dat[sys_ident]['georef']
 
         self.multibeam.reload_pingrecords(skip_dask=skip_dask)
         if self.subset_mintime and self.subset_maxtime:
@@ -2044,19 +1945,8 @@ class Fqpr(ZarrBackend):
                 self.generate_starter_orientation_vectors(prefixes, timestmp)  # have to include this to know if rx is reversed to reverse raw beam angles
                 idx_by_chunk = self.return_chunk_indices(applicable_index, pings_per_chunk)
                 if len(idx_by_chunk[0]):  # if there are pings in this system that align with this installation parameter record
-                    tot_runs = int(np.ceil(len(idx_by_chunk) / max_chunks_at_a_time))
-                    self.intermediate_dat[sys_ident]['tpu'][timestmp] = []
-                    for rn in range(tot_runs):
-                        start_r = rn * max_chunks_at_a_time
-                        end_r = min(start_r + max_chunks_at_a_time, len(idx_by_chunk))  # clamp for last run
-                        idx_by_chunk_subset = idx_by_chunk[start_r:end_r]
-                        chunk_applicable_index = xr.zeros_like(ra.time).astype(bool)
-                        for idx in idx_by_chunk_subset:
-                            chunk_applicable_index[idx] = True
-                        chunkargs = [chunk_applicable_index]
-                        self._submit_data_to_cluster('tpu', rn, tot_runs, idx_by_chunk_subset,
-                                                     self.intermediate_dat[sys_ident]['tpu'][timestmp], chunkargs,
-                                                     dump_data=dump_data, only_sys_idx=s_cnt, skip_dask=skip_dask)
+                    self._submit_data_to_cluster(ra, 'tpu', idx_by_chunk, max_chunks_at_a_time,
+                                                 timestmp, prefixes, dump_data=dump_data, skip_dask=skip_dask)
                 else:
                     self.logger.info('No pings found for {}-{}'.format(sys_ident, timestmp))
         self.multibeam.reload_pingrecords(skip_dask=skip_dask)
@@ -2107,9 +1997,9 @@ class Fqpr(ZarrBackend):
                                                          z_pos_down=z_pos_down, export_by_identifiers=export_by_identifiers)
         return written_files
 
-    def _submit_data_to_cluster(self, mode: str, run_index: int, total_runs: int, idx_by_chunk: list,
-                                futures_repo: list, chunk_arguments: list, dump_data: bool = True,
-                                only_sys_idx: int = None, skip_dask: bool = False):
+    def _submit_data_to_cluster(self, rawping: xr.Dataset, mode: str, idx_by_chunk: list, max_chunks_at_a_time: int,
+                                timestmp: str, prefixes: str, dump_data: bool = True, skip_dask: bool = False,
+                                prefer_pp_nav: bool = True, vdatum_directory: str = None):
         """
         For all of the main processes, we break up our inputs into chunks, appended to a list (data_for_workers).
         Knowing the capacity of the cluster memory, we can determine how many chunks to run at a time
@@ -2118,96 +2008,107 @@ class Fqpr(ZarrBackend):
 
         Parameters
         ----------
+        rawping
+            xarray Dataset for the ping records
         mode
             one of ['orientation', 'bpv', sv_corr', 'georef', 'tpu']
-        run_index
-            integer index of this run
-        total_runs
-            total number of runs
         idx_by_chunk
             values are the integer indexes of the pings to use, coords are the time of ping
-        futures_repo
-            where we want to store the futures objects, later used in writing to disk
-        chunk_arguments
-            list of arguments to pass to the chunk_function
+        max_chunks_at_a_time
+            maximum number of data chunks to load and process at a time
+        timestmp
+            timestamp of the installation parameters instance used
+        prefixes
+            prefix identifier for the tx/rx, will vary for dual head systems
         dump_data
             if True dump the tx/rx vectors to the multibeam datastore.  Set this to false for an entirely in memory
             workflow
-        only_sys_idx
-            optional, if this is not None, will only write the futures associated with the system/head that has the given
-            index
+        prefer_pp_nav
+            if True will use post-processed navigation/height (SBET)
+        vdatum_directory
+            if 'NOAA MLLW' 'NOAA MHW' is the vertical reference, a path to the vdatum directory is required here
         skip_dask
             if True will not use the dask.distributed client to submit tasks, will run locally instead
         """
 
-        if mode == 'orientation':
-            kluster_function = distrib_run_build_orientation_vectors
-            chunk_function = self._generate_chunks_orientation
-            comp_time = 'orientation_time_complete'
-        elif mode == 'bpv':
-            kluster_function = distrib_run_build_beam_pointing_vector
-            chunk_function = self._generate_chunks_bpv
-            comp_time = 'bpv_time_complete'
-        elif mode == 'sv_corr':
-            kluster_function = distributed_run_sv_correct
-            chunk_function = self._generate_chunks_svcorr
-            comp_time = 'sv_time_complete'
-        elif mode == 'georef':
-            kluster_function = distrib_run_georeference
-            chunk_function = self._generate_chunks_georef
-            comp_time = 'georef_time_complete'
-        elif mode == 'tpu':
-            kluster_function = distrib_run_calculate_tpu
-            chunk_function = self._generate_chunks_tpu
-            comp_time = 'tpu_time_complete'
-        else:
-            self.logger.error('Mode must be one of ["orientation", "bpv", "sv_corr", "georef", "tpu"]')
-            raise ValueError('Mode must be one of ["orientation", "bpv", "sv_corr", "georef", "tpu"]')
+        # clear out the intermediate data just in case there is old data there
+        sys_ident = rawping.system_identifier
+        self.intermediate_dat[sys_ident][mode][timestmp] = []
+        tot_runs = int(np.ceil(len(idx_by_chunk) / max_chunks_at_a_time))
+        for rn in range(tot_runs):
+            starttime = perf_counter()
+            start_r = rn * max_chunks_at_a_time
+            end_r = min(start_r + max_chunks_at_a_time, len(idx_by_chunk))  # clamp for last run
+            idx_by_chunk_subset = idx_by_chunk[start_r:end_r].copy()
 
-        # build out a list, where each element is a list of data that kluster_function is expecting
-        data_for_workers = chunk_function(*chunk_arguments, silent=(run_index != 0))
-        try:
-            futs = self.client.map(kluster_function, data_for_workers)
-            if self.show_progress:
-                progress(futs, multi=False)
-            endtimes = [len(c) for c in idx_by_chunk]
-            futs_with_endtime = [[f, endtimes[cnt]] for cnt, f in enumerate(futs)]
-            futures_repo.extend(futs_with_endtime)
-            wait(futures_repo)
-        except:  # get here if client is closed or not setup
-            for cnt, dat in enumerate(data_for_workers):
-                endtime = len(idx_by_chunk[cnt])
-                data = kluster_function(dat)
-                futures_repo.append([data, endtime])
-        if dump_data:
-            self.__setattr__(comp_time, datetime.utcnow().strftime('%c'))
-            # if we are saving the data to disk, just pass in the key ('orientation') to get the futures from
-            #   self.intermediate_dat and write those to disk
-            self.write_intermediate_futs_to_zarr(mode, run_index + 1, total_runs, only_sys_idx=only_sys_idx,
-                                                 skip_dask=skip_dask)
+            if mode == 'orientation':
+                kluster_function = distrib_run_build_orientation_vectors
+                chunk_function = self._generate_chunks_orientation
+                comp_time = 'orientation_time_complete'
+                chunkargs = [rawping, idx_by_chunk_subset, timestmp, prefixes]
+            elif mode == 'bpv':
+                kluster_function = distrib_run_build_beam_pointing_vector
+                chunk_function = self._generate_chunks_bpv
+                comp_time = 'bpv_time_complete'
+                chunkargs = [rawping, idx_by_chunk_subset, timestmp]
+            elif mode == 'sv_corr':
+                kluster_function = distributed_run_sv_correct
+                chunk_function = self._generate_chunks_svcorr
+                comp_time = 'sv_time_complete'
+                profnames, casts, cast_times, castlocations = self.multibeam.return_all_profiles()
+                cast_chunks = self.return_cast_idx_nearestintime(cast_times, idx_by_chunk_subset, silent=(rn != 0))
+                addtl_offsets = self.return_additional_xyz_offsets(rawping, prefixes, timestmp, idx_by_chunk_subset)
+                chunkargs = [rawping, cast_chunks, casts, prefixes, timestmp, addtl_offsets]
+            elif mode == 'georef':
+                kluster_function = distrib_run_georeference
+                chunk_function = self._generate_chunks_georef
+                comp_time = 'georef_time_complete'
+                z_offset = float(self.multibeam.xyzrph[prefixes[0] + '_z'][timestmp])
+                chunkargs = [rawping, idx_by_chunk_subset, prefixes, timestmp, z_offset, prefer_pp_nav, vdatum_directory]
+            elif mode == 'tpu':
+                kluster_function = distrib_run_calculate_tpu
+                chunk_function = self._generate_chunks_tpu
+                comp_time = 'tpu_time_complete'
+                chunkargs = [rawping, idx_by_chunk_subset]
+            else:
+                self.logger.error('Mode must be one of ["orientation", "bpv", "sv_corr", "georef", "tpu"]')
+                raise ValueError('Mode must be one of ["orientation", "bpv", "sv_corr", "georef", "tpu"]')
 
-    def write_intermediate_futs_to_zarr(self, mode: str, run_index: int, total_runs: int, only_sys_idx: int = None,
-                                        skip_dask: bool = False):
+            data_for_workers = chunk_function(*chunkargs, silent=(rn != 0))
+            try:
+                futs = self.client.map(kluster_function, data_for_workers)
+                if self.show_progress:
+                    progress(futs, multi=False)
+                endtimes = [len(c) for c in idx_by_chunk]
+                futs_with_endtime = [[f, endtimes[cnt]] for cnt, f in enumerate(futs)]
+                self.intermediate_dat[sys_ident][mode][timestmp].extend(futs_with_endtime)
+                wait(self.intermediate_dat[sys_ident][mode][timestmp])
+            except:  # get here if client is closed or not setup
+                for cnt, dat in enumerate(data_for_workers):
+                    endtime = len(idx_by_chunk[cnt])
+                    data = kluster_function(dat)
+                    self.intermediate_dat[sys_ident][mode][timestmp].append([data, endtime])
+            if dump_data:
+                self.__setattr__(comp_time, datetime.utcnow().strftime('%c'))
+                self.write_intermediate_futs_to_zarr(mode, rawping.system_identifier, timestmp, skip_dask=skip_dask)
+            endtime = perf_counter()
+            self.logger.info('Processing chunk {} out of {} complete: {}s'.format(rn + 1, tot_runs,
+                                                                                  round(endtime - starttime, 1)))
+
+    def write_intermediate_futs_to_zarr(self, mode: str, sys_ident: str, timestmp: str, skip_dask: bool = False):
         """
         Flush some of the intermediate data that was mapped to the cluster (and lives in futures objects) to disk, puts
         it in the multibeam, as the time dimension should be the same.  Mode allows for selecting the output from one
         of the main processes for writing.
 
-        Delete futures to clear up memory if desired.
-
-        Reload the multibeam so that the object sees the updated zarr variables (reload_pingrecords)
-
         Parameters
         ----------
         mode
             one of ['orientation', 'bpv', sv_corr', 'georef', 'tpu']
-        run_index
-            integer index of this run
-        total_runs
-            total number of runs
-        only_sys_idx
-            optional, if this is not None, will only write the futures associated with the system/head that has the given
-            index
+        sys_ident
+            the multibeam system identifier attribute, used as a key to find the intermediate data
+        timestmp
+            timestamp of the installation parameters instance used
         skip_dask
             if True will not use the dask.distributed client to submit tasks, will run locally instead
         """
@@ -2246,7 +2147,7 @@ class Fqpr(ZarrBackend):
                                        self.multibeam.raw_nav.max_lon, self.multibeam.raw_nav.max_lat)
             else:
                 vertcrs = 'Unknown'
-            mode_settings = ['xyz', ['x', 'y', 'z', 'corr_heave', 'corr_altitude', 'datum_uncertainty', 'processing_status'],
+            mode_settings = ['georef', ['x', 'y', 'z', 'corr_heave', 'corr_altitude', 'datum_uncertainty', 'processing_status'],
                              'georeferenced soundings data',
                              {'horizontal_crs': crs, 'vertical_reference': self.vert_ref,
                               'vertical_crs': vertcrs,
@@ -2269,36 +2170,22 @@ class Fqpr(ZarrBackend):
             self.logger.error('Mode must be one of ["orientation", "bpv", "sv_corr", "georef", "tpu"]')
             raise ValueError('Mode must be one of ["orientation", "bpv", "sv_corr", "georef", "tpu"]')
 
-        starttime = perf_counter()
-        systems = self.multibeam.return_system_time_indexed_array()
-        for s_cnt, system in enumerate(systems):  # for head/system
-            if only_sys_idx is not None:  # isolate just one system
-                if s_cnt != only_sys_idx:
-                    continue
-            ra = self.multibeam.raw_ping[s_cnt]
-            sys_ident = ra.system_identifier
-            futs_data = []
-            for applicable_index, timestmp, prefixes in system:  # for each unique install parameter entry in that sector
-                if timestmp in self.intermediate_dat[sys_ident][mode_settings[0]]:
-                    futs = self.intermediate_dat[sys_ident][mode_settings[0]][timestmp]
-                    for f in futs:
-                        try:
-                            futs_data.extend([self.client.submit(combine_arrays_to_dataset, f[0], mode_settings[1])])
-                        except:  # client is not setup or closed, this is if you want to run on just your machine
-                            futs_data.extend([combine_arrays_to_dataset(f[0], mode_settings[1])])
-            if futs_data:
-                if not skip_dask:
-                    time_arrs = self.client.gather(self.client.map(_return_xarray_time, futs_data))
-                else:
-                    time_arrs = [_return_xarray_time(tr) for tr in futs_data]
-                self.write('ping', futs_data, attributes=mode_settings[3], time_array=time_arrs, sys_id=sys_ident,
-                           skip_dask=skip_dask)
+        futs_data = []
+        for f in self.intermediate_dat[sys_ident][mode_settings[0]][timestmp]:
+            try:
+                futs_data.extend([self.client.submit(combine_arrays_to_dataset, f[0], mode_settings[1])])
+            except:  # client is not setup or closed, this is if you want to run on just your machine
+                futs_data.extend([combine_arrays_to_dataset(f[0], mode_settings[1])])
 
-            self.intermediate_dat[sys_ident][mode_settings[0]][timestmp] = []
+        if futs_data:
+            if not skip_dask:
+                time_arrs = self.client.gather(self.client.map(_return_xarray_time, futs_data))
+            else:
+                time_arrs = [_return_xarray_time(tr) for tr in futs_data]
+            self.write('ping', futs_data, attributes=mode_settings[3], time_array=time_arrs, sys_id=sys_ident,
+                       skip_dask=skip_dask)
 
-        endtime = perf_counter()
-        self.logger.info('Writing {} chunk {} out of {} to disk complete: {}s'.format(mode_settings[2], run_index, total_runs,
-                                                                                      round(endtime - starttime, 1)))
+        self.intermediate_dat[sys_ident][mode_settings[0]][timestmp] = []
 
     def return_xyz(self, start_time: float = None, end_time: float = None, include_unc: bool = False):
         """

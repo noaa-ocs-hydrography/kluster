@@ -744,7 +744,6 @@ class ZarrWrite:
         str
             path to zarr data store
         """
-
         if finalsize is not None:
             self.correct_rootgroup_dims(xarr)
         self.get_array_names()
