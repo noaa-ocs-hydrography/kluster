@@ -216,6 +216,12 @@ class TurntableCameraInteractive(scene.TurntableCamera):
         super().__init__(**kwargs)
         self.selected_callback = None
         self.fresh_camera = True
+        self.min_z = None
+        self.max_z = None
+
+    def set_z_limits(self, minz, maxz):
+        self.min_z = minz
+        self.max_z = maxz
 
     def _bind_selecting_event(self, selfunc):
         """
@@ -223,6 +229,58 @@ class TurntableCameraInteractive(scene.TurntableCamera):
         highlight the points as well as populating the explorer widget with the values so you can see.
         """
         self.selected_callback = selfunc
+
+    def _3drot_vector(self, x, y, z, inv: bool = False):
+        """
+        Rotate the provided vector coordinates to camera roll, azimuth, elevation
+        """
+        # modeled after the _dist_to_trans method, appears to be some kind of almost YXZ tait-bryan standard.  I can't
+        # seem to replicate this using scipy rotation
+        rae = np.array([self.roll, self.azimuth, self.elevation]) * np.pi / 180
+        sro, saz, sel = np.sin(rae)
+        cro, caz, cel = np.cos(rae)
+        if not inv:
+            dx = (+ x * (cro * caz + sro * sel * saz)
+                  + y * (sro * caz - cro * sel * saz)
+                  + z * (cel * saz))
+            dy = (+ x * (cro * saz - sro * sel * caz)
+                  + y * (sro * saz + cro * sel * caz)
+                  + z * (cel * caz))
+            dz = (- x * (sro * cel)
+                  + y * (cro * cel)
+                  + z * sel)
+        else:  # this rotates from already rotated data coordinates to pixel camera coordinates
+            dx = (+ x * (cro * caz + sro * sel * saz)
+                  + y * (cro * saz - sro * sel * caz)
+                  - z * (sro * cel))
+            dy = (+ x * (sro * caz - cro * sel * saz)
+                  + y * (sro * saz + cro * sel * caz)
+                  + z * (cro * cel))
+            dz = (+ x * (cel * saz)
+                  + y * (cel * caz)
+                  + z * sel)
+        return dx, dy, dz
+
+    def _dist_between_mouse_coords(self, start_pos: np.array, end_pos: np.array):
+        """
+        Build the distance between the two screen coordinate arrays, taking into account the camera distance (i.e. zoom
+        level).  Returns distance in data coordinates
+
+        Parameters
+        ----------
+        start_pos
+            (x position, y position) for start of distance vector
+        end_pos
+            (x position, y position) for end of distance vector
+
+        Returns
+        -------
+        np.array
+            (x distance, y distance)
+        """
+
+        dist = (start_pos - end_pos) / self._viewbox.size * (self._distance / np.sqrt(2))
+        return dist
 
     def _handle_translate_event(self, start_pos, end_pos):
         """
@@ -237,13 +295,11 @@ class TurntableCameraInteractive(scene.TurntableCamera):
             Point where you released the mouse button after dragging
         """
         self.fresh_camera = False
-        norm = np.mean(self._viewbox.size)
         if self._event_value is None or len(self._event_value) == 2:
             self._event_value = self.center
-        dist = (start_pos - end_pos) / norm * self._scale_factor * (self.distance / 2)
+        dist = self._dist_between_mouse_coords(start_pos, end_pos)
         dist[1] *= -1
-        # Black magic part 1: turn 2D into 3D translations
-        dx, dy, dz = self._dist_to_trans(dist)
+        dx, dy, dz = self._3drot_vector(dist[0], dist[1], 0)
         # Black magic part 2: take up-vector and flipping into account
         ff = self._flip_factors
         up, forward, right = self._get_dim_vectors()
@@ -251,37 +307,6 @@ class TurntableCameraInteractive(scene.TurntableCamera):
         dx, dy, dz = ff[0] * dx, ff[1] * dy, dz * ff[2]
         c = self._event_value
         self.center = c[0] + dx, c[1] + dy, c[2] + dz
-
-    def _mouse_to_data_coordinates(self, mouse_position):
-        """
-        Try and convert the mouse_position which is in screen coordinates to data coordinates.  This is a hell of a
-        problem.  You can see that we currently just try and assume top down perspective, so we can just deal with
-        x and y.  We rotate by the azimuth of the camera and combine camera center and the new distance to the mouse
-        position to get the final mouse position.
-
-        Parameters
-        ----------
-        mouse_position
-            Position of the mouse in screen coordinates (top left is 0,0;  bottom right is size of screen, ex:800,600)
-
-        Returns
-        -------
-        tuple
-            mouse position in data coordinates (x, y, z).  Currently z is left zero, as we just query all points in min-max z
-        """
-
-        cntr = self.center
-        dist = mouse_position - (np.array(self._viewbox.size) / 2)
-        dist = dist / np.array(self._viewbox.size) * self.distance
-        dist[1] *= -1
-
-        az_rad = np.deg2rad(self.azimuth)
-        # take the max of az or el to determine persepective
-        dx = dist[0] * np.cos(az_rad) - dist[1] * np.sin(az_rad)
-        dy = dist[0] * np.sin(az_rad) + dist[1] * np.cos(az_rad)
-        dz = 0
-        newpt = cntr[0] + dx, cntr[1] + dy, cntr[2] + dz
-        return newpt
 
     def _handle_zoom_event(self, distance):
         """
@@ -316,6 +341,54 @@ class TurntableCameraInteractive(scene.TurntableCamera):
             self._distance *= s
         self.view_changed()
 
+    def _screen_corners_data_coordinates(self):
+        """
+        Take the screen coordinates of the corner points of the view (in pixels) and return the corner coordinates
+        in data coordinates.  EX: top left (0,0) might be converted to (-3, 1, 10) if the top left is that in data
+        coordinates.
+
+        Returns
+        -------
+        list
+            list of lists, [[top left back, top left forward], [top right back, top right forward],
+                            [bottom left back, bottom left forward], [bottom left back, bottom left forward]]
+        """
+
+        center_mouse_coords = np.array(self._viewbox.size) / 2
+        final_corner_points = []
+        corner_pts = [np.array([0,0]), np.array([self._viewbox.size[0], 0]), np.array([0, self._viewbox.size[1]]),
+                      np.array([self._viewbox.size[0], self._viewbox.size[1]])]
+        for crnr in corner_pts:
+            dist_cnrn = self._dist_between_mouse_coords(center_mouse_coords, crnr)
+            dist_crnr_back = self._3drot_vector(-dist_cnrn[0], dist_cnrn[1], 0)
+            dist_crnr_front = self._3drot_vector(-dist_cnrn[0], dist_cnrn[1], 1)
+            if dist_crnr_front[2] > dist_crnr_back[2]:
+                final_corners = [np.array(dist_crnr_back) + np.array(self.center), np.array(dist_crnr_front) + np.array(self.center)]
+            else:
+                final_corners = [np.array(dist_crnr_front) + np.array(self.center), np.array(dist_crnr_back) + np.array(self.center)]
+            # extend these corner points to min/max z
+            # factor = (max_z - z0) / (z1 - z0)
+            if final_corners[1][2] < self.max_z:
+                maxfactor = (self.max_z - final_corners[0][2]) / (final_corners[1][2] - final_corners[0][2])
+                final_corners[1] = (final_corners[1] - final_corners[0]) * maxfactor + final_corners[0]
+            if final_corners[0][2] > self.min_z:
+                minfactor = (self.min_z - final_corners[1][2]) / (final_corners[0][2] - final_corners[1][2])
+                final_corners[0] = (final_corners[0] - final_corners[1]) * minfactor + final_corners[1]
+            final_corner_points.append(final_corners[0])
+            final_corner_points.append(final_corners[1])
+        return np.array(final_corner_points)
+
+    def data_coordinates_to_screen(self, x, y, z):
+        newx, newy, newz = self._3drot_vector(x, y, z)
+
+        newx = x - self.center[0]
+        newy = y - self.center[1]
+        newz = z - self.center[2]
+        newx, newy, newz = self._3drot_vector(x, y, z, inv=True)
+        newx = newx / (self._distance / np.sqrt(2)) * self._viewbox.size[0]
+        newy = newy / (self._distance / np.sqrt(2)) * self._viewbox.size[0]
+        return newx, newy
+
     def _handle_data_selected(self, startpos, endpos):
         """
         Runs the parent method (selected_callback) to select points when the user holds down control and selects points
@@ -344,14 +417,8 @@ class TurntableCameraInteractive(scene.TurntableCamera):
                 endpos += 10
             new_startpos = np.array([int(min(startpos[0], endpos[0])), int(min(startpos[1], endpos[1]))])
             new_endpos = np.array([int(max(startpos[0], endpos[0])), int(max(startpos[1], endpos[1]))])
-
-            new_startpos = self._mouse_to_data_coordinates(new_startpos)
-            new_endpos = self._mouse_to_data_coordinates(new_endpos)
-            final_startpos = np.array([int(min(new_startpos[0], new_endpos[0])), int(min(new_startpos[1], new_endpos[1])),
-                                       int(min(new_startpos[2], new_endpos[2]))])
-            final_endpos = np.array([int(max(new_startpos[0], new_endpos[0])), int(max(new_startpos[1], new_endpos[1])),
-                                     int(max(new_startpos[2], new_endpos[2]))])
-            self.selected_callback(final_startpos, final_endpos, three_d=True)
+            corner_points = self._screen_corners_data_coordinates()
+            self.selected_callback(new_startpos, new_endpos, corner_points=corner_points, three_d=True)
 
     def viewbox_mouse_event(self, event):
         """
@@ -470,7 +537,7 @@ class ThreeDView(QtWidgets.QWidget):
         layout.addWidget(self.canvas.native)
         self.setLayout(layout)
 
-    def _select_points(self, startpos, endpos, three_d):
+    def _select_points(self, startpos, endpos, corner_points: list = None, three_d: bool = False):
         """
         Trigger the parent method to highlight and display point data within the bounds provided by the two points
 
@@ -483,7 +550,7 @@ class ThreeDView(QtWidgets.QWidget):
         """
 
         if self.displayed_points is not None and self.parent is not None:
-            self.parent.select_points(startpos, endpos, three_d=three_d)
+            self.parent.select_points(startpos, endpos, corner_points=corner_points, three_d=three_d)
 
     def add_points(self, x: np.array, y: np.array, z: np.array, tvu: np.array, rejected: np.array, pointtime: np.array,
                    beam: np.array, newid: str, linename: np.array, is_3d: bool):
@@ -699,6 +766,9 @@ class ThreeDView(QtWidgets.QWidget):
         self.unique_systems = np.unique(self.id).tolist()
         self.unique_linenames = np.unique(self.linename).tolist()
 
+        if self.is_3d:
+            self.view.camera.set_z_limits(self.min_z, self.max_z)
+
     def display_points(self, color_by: str = 'depth', vertical_exaggeration: float = 1.0, view_direction: str = 'north',
                        show_axis: bool = True):
         """
@@ -768,6 +838,12 @@ class ThreeDView(QtWidgets.QWidget):
         self.setup_axes()
 
         return cmap, minval, maxval
+
+    def transform_data_to_screen_coords(self, x, y, z):
+        if not self.is_3d:
+            raise NotImplementedError('This is only needed and used in the 3d camera')
+        x, y = self.view.camera.data_coordinates_to_screen(x, y, z)
+        return x, y
 
     def clear_display(self):
         """
@@ -895,13 +971,32 @@ class ThreeDWidget(QtWidgets.QWidget):
         self.three_d_window.superselected_index = None
         self.three_d_window.add_points(x, y, z, tvu, rejected, pointtime, beam, newid, linename, is_3d)
 
-    def select_points(self, startpos, endpos, three_d):
+    def _transform_screen_coords(self, x, y, z):
+        return self.three_d_window.transform_data_to_screen_coords(x, y, z)
+
+    def select_points(self, startpos, endpos, corner_points: np.array = None, three_d: bool = False):
         vd = self.viewdirection.currentText()
         if three_d:
-            startpos[2] = self.three_d_window.displayed_points[:, 2].min()
-            endpos[2] = self.three_d_window.displayed_points[:, 2].max()
-            m1 = self.three_d_window.displayed_points[:, [0, 1, 2]] >= startpos[0:3]
-            m2 = self.three_d_window.displayed_points[:, [0, 1, 2]] <= endpos[0:3]
+            # subset to all the points in the screen (corner points)
+            mask_x_min = self.three_d_window.displayed_points[:, 0] >= corner_points[:, 0].min()
+            mask_x_max = self.three_d_window.displayed_points[:, 0] <= corner_points[:, 0].max()
+            mask_y_min = self.three_d_window.displayed_points[:, 1] >= corner_points[:, 1].min()
+            mask_y_max = self.three_d_window.displayed_points[:, 0] <= corner_points[:, 1].max()
+            points_in_screen = np.argwhere(mask_x_min & mask_x_max & mask_y_min & mask_y_max)
+            print(corner_points[:, 0].min(), corner_points[:, 0].max(), corner_points[:, 1].min(), corner_points[:, 1].max())
+            print(points_in_screen.shape)
+            print(self.three_d_window.displayed_points.shape)
+            print(np.count_nonzero(points_in_screen))
+
+            x, y = self._transform_screen_coords(self.three_d_window.displayed_points[:, 0][points_in_screen[:, 0]],
+                                                 self.three_d_window.displayed_points[:, 1][points_in_screen[:, 0]],
+                                                 self.three_d_window.displayed_points[:, 2][points_in_screen[:, 0]])
+            mask_x_min = x >= startpos[0]
+            mask_x_max = x <= endpos[0]
+            mask_y_min = y >= startpos[1]
+            mask_y_max = y <= endpos[1]
+            points_in_screen = np.argwhere(mask_x_min & mask_x_max & mask_y_min & mask_y_max)
+            self.three_d_window.selected_points = points_in_screen[:, 0]
         else:
             if vd == 'north':
                 m1 = self.three_d_window.displayed_points[:, [0, 2]] >= startpos[0:2]
@@ -909,7 +1004,7 @@ class ThreeDWidget(QtWidgets.QWidget):
             elif vd == 'east':
                 m1 = self.three_d_window.displayed_points[:, [1, 2]] >= startpos[0:2]
                 m2 = self.three_d_window.displayed_points[:, [1, 2]] <= endpos[0:2]
-        self.three_d_window.selected_points = np.argwhere(m1[:, 0] & m1[:, 1] & m2[:, 0] & m2[:, 1])[:, 0]
+            self.three_d_window.selected_points = np.argwhere(m1[:, 0] & m1[:, 1] & m2[:, 0] & m2[:, 1])[:, 0]
         self.points_selected.emit(np.arange(self.three_d_window.selected_points.shape[0]),
                                   self.three_d_window.linename[self.three_d_window.selected_points],
                                   self.three_d_window.pointtime[self.three_d_window.selected_points],
