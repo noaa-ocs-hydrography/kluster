@@ -71,8 +71,6 @@ class Fqpr(ZarrBackend):
             super().__init__()
 
         self.intermediate_dat = None
-        self.soundings_path = ''
-        self.soundings = None
         self.navigation_path = ''
         self.navigation = None
         self.horizontal_crs = None
@@ -183,18 +181,6 @@ class Fqpr(ZarrBackend):
         else:
             self.client = dask_find_or_start_client(address=self.address)
         self.initialize_log()
-
-    def reload_soundings_records(self, skip_dask: bool = False):
-        """
-        Reload the zarr datastore for the xyz record using the xyz_path attribute
-
-        Parameters
-        ----------
-        skip_dask
-            if True, will open zarr datastore without Dask synchronizer object
-        """
-
-        self.soundings = reload_zarr_records(self.soundings_path, skip_dask, sort_by='time')
 
     def reload_ppnav_records(self, skip_dask: bool = False):
         """

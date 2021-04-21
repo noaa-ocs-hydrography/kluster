@@ -422,12 +422,7 @@ def reload_data(converted_folder: str, require_raw_data: bool = True, skip_dask:
                 rp.attrs.pop('xyz_crs')
         if 'horizontal_crs' in fqpr_inst.multibeam.raw_ping[0].attrs:
             fqpr_inst.construct_crs(epsg=fqpr_inst.multibeam.raw_ping[0].attrs['horizontal_crs'])
-        try:
-            fqpr_inst.soundings_path = final_paths['soundings'][0]
-            fqpr_inst.reload_soundings_records(skip_dask=skip_dask)
-        except IndexError:
-            if not silent:
-                print('No soundings dataset found')
+
         try:
             fqpr_inst.navigation_path = final_paths['ppnav'][0]
             fqpr_inst.reload_ppnav_records(skip_dask=skip_dask)
@@ -1250,16 +1245,33 @@ def get_attributes_from_fqpr(fqpr_instance, include_mode: bool = True):
 
     if 'xyz_dat' in fqpr_instance.__dict__:
         if fqpr_instance.soundings is not None:
-            newattrs = fqpr_instance.soundings.attrs
+            newattrs = fqpr_instance.soundings.attrs.copy()
         else:
-            newattrs = fqpr_instance.multibeam.raw_ping[0].attrs
+            newattrs = fqpr_instance.multibeam.raw_ping[0].attrs.copy()
     else:
-        newattrs = fqpr_instance.multibeam.raw_ping[0].attrs
+        newattrs = fqpr_instance.multibeam.raw_ping[0].attrs.copy()
 
     try:
-        # update for the min/max nav attributes in raw_nav
-        for k, v in fqpr_instance.multibeam.raw_nav.attrs.items():
-            newattrs[k] = v
+        # update for the attributes in other datasets
+        for other_attrs in [fqpr_instance.multibeam.raw_nav.attrs, fqpr_instance.multibeam.raw_att.attrs]:
+            for k, v in other_attrs.items():
+                if k not in newattrs:
+                    try:
+                        newattrs[k] = v
+                    except:
+                        print('unable to add {}'.format(k))
+                elif isinstance(newattrs[k], list):
+                    try:
+                        for sub_att in v:
+                            if sub_att not in newattrs[k]:
+                                newattrs[k].append(sub_att)
+                    except:
+                        print('unable to append {}'.format(k))
+                elif isinstance(newattrs[k], dict):
+                    try:
+                        newattrs[k].update(v)
+                    except:
+                        print('Unable to update {}'.format(k))
     except AttributeError:
         print('Unable to read from Navigation')
 

@@ -56,7 +56,7 @@ errorfil = r"C:\collab\dasktest\data_dir\ra_mbes\2801_em2040\pospac\035_smrmsg.o
 fq = perform_all_processing(r'C:\collab\dasktest\data_dir\ra_mbes\2801_em2040\mbes\2020-035',
                             navfiles=[sbet], errorfiles=[errorfil], logfiles=[logf], vert_ref='ellipse',
                             outfold=r"C:\collab\dasktest\data_dir\outputtest\rambes35sbet")
-
+fq.export_pings_to_file()
 
 sbet = r"C:\collab\dasktest\data_dir\val_kmall_patch\sbet_Mission 1.out"
 smrmsg = r"C:\collab\dasktest\data_dir\val_kmall_patch\smrms_Mission 1.out"

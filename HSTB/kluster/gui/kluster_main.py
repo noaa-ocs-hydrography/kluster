@@ -1072,7 +1072,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.two_d.reset_line_colors()
         self.explorer.clear_explorer_data()
         linenames = self.project.return_project_lines(proj=os.path.normpath(converted_pth))
-        self.attribute.display_file_attribution(self.project.fqpr_instances[converted_pth].multibeam.raw_ping[0].attrs)
+        self.attribute.display_file_attribution(self.project.fqpr_attrs[converted_pth])
         for cnt, ln in enumerate(linenames):
             self._line_selected(ln, idx=cnt)
         self.two_d.change_line_colors(linenames, 'red')
