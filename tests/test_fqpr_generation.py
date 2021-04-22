@@ -344,7 +344,7 @@ def get_orientation_vectors(dset='realdualhead'):
     fq.read_from_source()
     # dump_data/delete_futs set the workflow to either keeping everything in memory after completion (False) or writing
     #     data to disk (both are True).  Could probably condense these arguments to one argument in the future.
-    fq.get_orientation_vectors(dump_data=False, delete_futs=False, initial_interp=False)
+    fq.get_orientation_vectors(dump_data=False, initial_interp=False)
 
     # arrays of computed vectors
     sysid = [rp.system_identifier for rp in fq.multibeam.raw_ping]
@@ -402,8 +402,8 @@ def build_beam_pointing_vector(dset='realdualhead'):
     fq.logger = logging.getLogger()
     fq.logger.setLevel(logging.INFO)
     fq.read_from_source()
-    fq.get_orientation_vectors(dump_data=False, delete_futs=False, initial_interp=False)
-    fq.get_beam_pointing_vectors(dump_data=False, delete_futs=False)
+    fq.get_orientation_vectors(dump_data=False, initial_interp=False)
+    fq.get_beam_pointing_vectors(dump_data=False)
 
     # arrays of computed vectors
     sysid = [rp.system_identifier for rp in fq.multibeam.raw_ping]
@@ -462,9 +462,9 @@ def sv_correct(dset='realdualhead'):
     fq.logger = logging.getLogger()
     fq.logger.setLevel(logging.INFO)
     fq.read_from_source()
-    fq.get_orientation_vectors(dump_data=False, delete_futs=False, initial_interp=False)
-    fq.get_beam_pointing_vectors(dump_data=False, delete_futs=False)
-    fq.sv_correct(dump_data=False, delete_futs=False)
+    fq.get_orientation_vectors(dump_data=False, initial_interp=False)
+    fq.get_beam_pointing_vectors(dump_data=False)
+    fq.sv_correct(dump_data=False)
 
     # arrays of computed vectors
     sysid = [rp.system_identifier for rp in fq.multibeam.raw_ping]
@@ -531,17 +531,17 @@ def georef_xyz(dset='realdualhead'):
     fq.logger = logging.getLogger()
     fq.logger.setLevel(logging.INFO)
     fq.read_from_source()
-    fq.get_orientation_vectors(dump_data=False, delete_futs=False, initial_interp=False)
-    fq.get_beam_pointing_vectors(dump_data=False, delete_futs=False)
-    fq.sv_correct(dump_data=False, delete_futs=False)
+    fq.get_orientation_vectors(dump_data=False, initial_interp=False)
+    fq.get_beam_pointing_vectors(dump_data=False)
+    fq.sv_correct(dump_data=False)
     fq.construct_crs(datum=datum, projected=True, vert_ref=vert_ref)
-    fq.georef_xyz(dump_data=False, delete_futs=False)
+    fq.georef_xyz(dump_data=False)
 
     # arrays of computed vectors
     sysid = [rp.system_identifier for rp in fq.multibeam.raw_ping]
-    tstmp = list(fq.intermediate_dat[sysid[0]]['xyz'].keys())[0]
+    tstmp = list(fq.intermediate_dat[sysid[0]]['georef'].keys())[0]
     # since we kept data in memory, we can now get the result of get_orientation_vectors using result()
-    loaded_data = [fq.intermediate_dat[s]['xyz'][tstmp][0][0] for s in sysid]
+    loaded_data = [fq.intermediate_dat[s]['georef'][tstmp][0][0] for s in sysid]
 
     x_data = [ld[0].isel(time=0).values[0:3] for ld in loaded_data]
     y_data = [ld[1].isel(time=0).values[0:3] for ld in loaded_data]
@@ -654,11 +654,11 @@ def build_georef_correct_comparison(dset='realdual', vert_ref='waterline', datum
     fq.logger = logging.getLogger()
     fq.logger.setLevel(logging.INFO)
     fq.read_from_source()
-    fq.get_orientation_vectors(dump_data=False, delete_futs=False, initial_interp=False)
-    fq.get_beam_pointing_vectors(dump_data=False, delete_futs=False)
-    fq.sv_correct(dump_data=False, delete_futs=False)
+    fq.get_orientation_vectors(dump_data=False, initial_interp=False)
+    fq.get_beam_pointing_vectors(dump_data=False)
+    fq.sv_correct(dump_data=False)
     fq.construct_crs(datum=datum, projected=True, vert_ref=vert_ref)
-    fq.georef_xyz(dump_data=False, delete_futs=False)
+    fq.georef_xyz(dump_data=False)
 
     secs = fq.return_sector_ids()
     tstmp = list(fq.intermediate_dat[secs[0]]['xyz'].keys())[0]

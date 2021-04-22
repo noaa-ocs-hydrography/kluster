@@ -79,11 +79,11 @@ def dask_find_or_start_client(address: str = None, silent: bool = False):
         if address is None:
             if not silent:
                 print('Starting local cluster client...')
-            client = Client(n_workers=num_workers, threads_per_worker=1)
+            client = Client(n_workers=num_workers)
         else:
             if not silent:
                 print('Starting client on address {}...'.format(address))
-            client = Client(address=address, n_workers=num_workers, threads_per_worker=1)
+            client = Client(address=address, n_workers=num_workers)
     if client is not None:
         print(client)
     return client
@@ -128,7 +128,7 @@ def get_number_of_workers(client: Client):
 
 
 def determine_optimal_chunks(client: Client, beams_per_ping: float, safety_margin: float = 0.75,
-                             chunks_per_worker: int = 1, mem_per_beam: float = 0.000015):
+                             chunks_per_worker: int = 2, mem_per_beam: float = 0.000015):
     """
     A very rudimentary placeholder-esque way to determine the chunk size and number of chunks for an array to process
     in memory.  Too many chunks/Too big chunks and you run out of memory.  Too few and you aren't utilizing the resources

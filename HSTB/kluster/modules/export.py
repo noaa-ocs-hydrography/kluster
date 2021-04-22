@@ -7,7 +7,6 @@ from datetime import datetime
 
 from HSTB.kluster.pydro_helpers import is_pydro
 from HSTB.kluster.pdal_entwine import build_entwine_points
-from HSTB.kluster.xarray_helpers import distrib_zarr_write
 
 
 class FqprExport:
@@ -28,61 +27,6 @@ class FqprExport:
         """
         self.fqpr = fqpr
 
-    def _generate_chunks_xyzdat(self, variable_name: str):
-        """
-        Merge the desired vars across systems to reform pings, and build the data for the distributed system to process.
-        Export_xyzdat requires a full dataset flattened to a 'soundings' dimension but retaining the sectorwise
-        indexing.
-
-        Parameters
-        ----------
-        variable_name
-            variable identifier for the array to write.  ex: 'z' or 'tvu'
-
-        Returns
-        -------
-        list
-            each element is a future object pointing to a dataset to write out in memory
-        list
-            chunk indices for each chunk
-        dict
-            chunk sizes for the write, zarr wants explicit chunksizes for each array that cannot change after array
-            creation.  chunk sizes can be greater than data size.
-        """
-
-        if variable_name not in self.fqpr.multibeam.raw_ping[0]:
-            self.fqpr.logger.warning('Skipping variable "{}", not found in dataset.'.format(variable_name))
-            return None, None, None
-        self.fqpr.logger.info('Constructing dataset for variable "{}"'.format(variable_name))
-
-        # use the raw_ping chunksize to chunk the reformed pings.
-        data_for_workers = []
-        dset = self.fqpr.subset_variables([variable_name, 'frequency'])
-
-        # flatten to get the 1d sounding data
-        dset_stacked = dset.stack({'sounding': ('time', 'beam')})
-        # now remove all nan values
-        valid_idx = ~np.isnan(dset_stacked[variable_name])
-        dset_stacked = dset_stacked.where(valid_idx, drop=True)
-        finallength = dset_stacked.sounding.shape[0]
-
-        # 1000000 soundings gets you about 1MB chunks, which is what zarr recommends
-        chnksize = np.min([finallength, 1000000])
-        chnks = [[i * chnksize, i * chnksize + chnksize] for i in range(int(finallength / chnksize))]
-        chnks[-1][1] = finallength
-        chnksize_dict = {'beam_number': (1000000,), 'system_identifier': (1000000,), 'time': (1000000,), 'frequency': (1000000,),
-                         'thu': (1000000,), 'tvu': (1000000,), 'x': (1000000,), 'y': (1000000,), 'z': (1000000,)}
-
-        for c in chnks:
-            vrs = {variable_name: (['time'], dset_stacked[variable_name].values[c[0]:c[1]]),
-                   'system_identifier': (['time'], dset_stacked.system_identifier[c[0]:c[1]]),
-                   'frequency': (['time'], dset_stacked.frequency[c[0]:c[1]])}
-            coords = {'beam_number': (['time'], dset_stacked.beam.values[c[0]:c[1]]),
-                      'time': dset_stacked.time.values[c[0]:c[1]]}
-            ds = xr.Dataset(vrs, coords)
-            data_for_workers.append(self.fqpr.client.scatter(ds))
-
-        return data_for_workers, chnks, chnksize_dict
 
     def _generate_export_data(self, ping_dataset: xr.Dataset, filter_by_detection: bool = True, z_pos_down: bool = True):
         """
