@@ -379,14 +379,12 @@ class TurntableCameraInteractive(scene.TurntableCamera):
         return np.array(final_corner_points)
 
     def data_coordinates_to_screen(self, x, y, z):
-        newx, newy, newz = self._3drot_vector(x, y, z)
-
-        newx = x - self.center[0]
-        newy = y - self.center[1]
-        newz = z - self.center[2]
         newx, newy, newz = self._3drot_vector(x, y, z, inv=True)
-        newx = newx / (self._distance / np.sqrt(2)) * self._viewbox.size[0]
-        newy = newy / (self._distance / np.sqrt(2)) * self._viewbox.size[0]
+        print('rotated {}->{} {}->{} {}->{}'.format(round(newx.min(), 3), round(newx.max(), 3), round(newy.min(), 3),
+                                                    round(newy.max(), 3), round(newz.min(), 3), round(newz.max(), 3)))
+        print('factor = {}'.format((1 / self._distance / np.sqrt(2)) * self._viewbox.size[0]))
+        newx = (newx) / (self._distance / np.sqrt(2)) * self._viewbox.size[0]
+        newy = (newy) / (self._distance / np.sqrt(2)) * self._viewbox.size[1]
         return newx, newy
 
     def _handle_data_selected(self, startpos, endpos):
@@ -410,15 +408,15 @@ class TurntableCameraInteractive(scene.TurntableCamera):
         # inv rotate clipped xyz to screen xy to get subset of points to select from
         #  - think about check here to see if too many points selected
         # select from drag-selected xy to get selected points
-
-        if self.selected_callback:
-            if (startpos == endpos).all():
-                startpos -= 10
-                endpos += 10
-            new_startpos = np.array([int(min(startpos[0], endpos[0])), int(min(startpos[1], endpos[1]))])
-            new_endpos = np.array([int(max(startpos[0], endpos[0])), int(max(startpos[1], endpos[1]))])
-            corner_points = self._screen_corners_data_coordinates()
-            self.selected_callback(new_startpos, new_endpos, corner_points=corner_points, three_d=True)
+        print('Selecting data in 3d is currently not implemented.')
+        # if self.selected_callback:
+        #     if (startpos == endpos).all():
+        #         startpos -= 10
+        #         endpos += 10
+        #     new_startpos = np.array([int(min(startpos[0], endpos[0])), int(min(startpos[1], endpos[1]))])
+        #     new_endpos = np.array([int(max(startpos[0], endpos[0])), int(max(startpos[1], endpos[1]))])
+        #     corner_points = self._screen_corners_data_coordinates()
+        #     self.selected_callback(new_startpos, new_endpos, corner_points=corner_points, three_d=True)
 
     def viewbox_mouse_event(self, event):
         """
@@ -983,18 +981,25 @@ class ThreeDWidget(QtWidgets.QWidget):
             mask_y_min = self.three_d_window.displayed_points[:, 1] >= corner_points[:, 1].min()
             mask_y_max = self.three_d_window.displayed_points[:, 0] <= corner_points[:, 1].max()
             points_in_screen = np.argwhere(mask_x_min & mask_x_max & mask_y_min & mask_y_max)
-            print(corner_points[:, 0].min(), corner_points[:, 0].max(), corner_points[:, 1].min(), corner_points[:, 1].max())
-            print(points_in_screen.shape)
-            print(self.three_d_window.displayed_points.shape)
-            print(np.count_nonzero(points_in_screen))
-
+            print('*******************')
+            print('screencorners {}->{} {}->{}'.format(corner_points[:, 0].min(), corner_points[:, 0].max(), corner_points[:, 1].min(), corner_points[:, 1].max()))
+            print('pointsinscreen {}'.format(np.count_nonzero(points_in_screen)))
+            print('totalpoints {}'.format(self.three_d_window.displayed_points.shape))
+            print('prerotate {}->{} {}->{} {}->{}'.format(round(self.three_d_window.displayed_points[:, 0].min(), 3),
+                                                       round(self.three_d_window.displayed_points[:, 0].max(), 3),
+                                                       round(self.three_d_window.displayed_points[:, 1].min(), 3),
+                                                       round(self.three_d_window.displayed_points[:, 1].max(), 3),
+                                                       round(self.three_d_window.displayed_points[:, 2].min(), 3),
+                                                       round(self.three_d_window.displayed_points[:, 2].max(), 3)))
             x, y = self._transform_screen_coords(self.three_d_window.displayed_points[:, 0][points_in_screen[:, 0]],
                                                  self.three_d_window.displayed_points[:, 1][points_in_screen[:, 0]],
                                                  self.three_d_window.displayed_points[:, 2][points_in_screen[:, 0]])
-            mask_x_min = x >= startpos[0]
-            mask_x_max = x <= endpos[0]
-            mask_y_min = y >= startpos[1]
-            mask_y_max = y <= endpos[1]
+            print('points in screen coords {}->{}, {}->{}'.format(x.min(), x.max(), y.min(), y.max()))
+            print('selecting within {}->{}, {}->{}'.format(startpos[1], startpos[0], endpos[1], endpos[0]))
+            mask_x_min = x >= startpos[1]
+            mask_x_max = x <= endpos[1]
+            mask_y_min = y >= startpos[0]
+            mask_y_max = y <= endpos[0]
             points_in_screen = np.argwhere(mask_x_min & mask_x_max & mask_y_min & mask_y_max)
             self.three_d_window.selected_points = points_in_screen[:, 0]
         else:
