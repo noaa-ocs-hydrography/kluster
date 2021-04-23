@@ -53,7 +53,7 @@ Much of the existing open source software related to multibeam processing has be
 
 ## Installation
 
-**We recommend that users try to run Kluster using the release attached to this GitHub repository, see [releases] (https://github.com/noaa-ocs-hydrography/kluster/releases)**
+**We recommend that users try to run Kluster using the release attached to this GitHub repository, see [releases](https://github.com/noaa-ocs-hydrography/kluster/releases)**
 
 Kluster is not on PyPi, but can be installed using pip alongside the HSTB-drivers and HSTB-shared modules that are required.
 
