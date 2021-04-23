@@ -5,6 +5,7 @@ import os
 import sys
 import webbrowser
 import numpy as np
+import multiprocessing
 
 from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal, qgis_enabled
 if qgis_enabled:
@@ -1454,8 +1455,19 @@ class KlusterMain(QtWidgets.QMainWindow):
 
 
 def main():
+    ispyinstaller = False
+    if sys.argv[0][-4:] == '.exe':
+        ispyinstaller = True
+        setattr(sys, 'frozen', True)
+    # add support in windows for when you build this as a frozen executable (pyinstaller)
+    multiprocessing.freeze_support()
+
     if qgis_enabled:
         app = qgis_core.QgsApplication([], True)
+        if ispyinstaller:
+            plugin_dir = os.path.join(os.getcwd(), 'qgis_plugins')
+            app.setPrefixPath(os.getcwd(), True)
+            app.setPluginPath(plugin_dir)
         app.initQgis()
     else:
         try:  # pyside2
