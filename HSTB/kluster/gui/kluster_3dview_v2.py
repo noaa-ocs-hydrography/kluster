@@ -279,7 +279,7 @@ class TurntableCameraInteractive(scene.TurntableCamera):
             (x distance, y distance)
         """
 
-        dist = (start_pos - end_pos) / self._viewbox.size * (self._distance / np.sqrt(2))
+        dist = (start_pos - end_pos) / self._viewbox.size * self.scale_factor * 2
         return dist
 
     def _handle_translate_event(self, start_pos, end_pos):
@@ -350,30 +350,33 @@ class TurntableCameraInteractive(scene.TurntableCamera):
         Returns
         -------
         list
-            list of lists, [[top left back, top left forward], [top right back, top right forward],
-                            [bottom left back, bottom left forward], [bottom left back, bottom left forward]]
+            list of lists, [top left back, top left forward, top right back, top right forward,
+                            bottom left back, bottom left forward, bottom left back, bottom left forward]
         """
 
         center_mouse_coords = np.array(self._viewbox.size) / 2
         final_corner_points = []
-        corner_pts = [np.array([0,0]), np.array([self._viewbox.size[0], 0]), np.array([0, self._viewbox.size[1]]),
+        corner_pts = [np.array([0, 0]), np.array([self._viewbox.size[0], 0]), np.array([0, self._viewbox.size[1]]),
                       np.array([self._viewbox.size[0], self._viewbox.size[1]])]
         for crnr in corner_pts:
             dist_cnrn = self._dist_between_mouse_coords(center_mouse_coords, crnr)
             dist_crnr_back = self._3drot_vector(-dist_cnrn[0], dist_cnrn[1], 0)
             dist_crnr_front = self._3drot_vector(-dist_cnrn[0], dist_cnrn[1], 1)
+            print(dist_crnr_back)
             if dist_crnr_front[2] > dist_crnr_back[2]:
-                final_corners = [np.array(dist_crnr_back) + np.array(self.center), np.array(dist_crnr_front) + np.array(self.center)]
+                final_corners = [np.array(dist_crnr_back) + np.array(self.center),
+                                 np.array(dist_crnr_front) + np.array(self.center)]
             else:
-                final_corners = [np.array(dist_crnr_front) + np.array(self.center), np.array(dist_crnr_back) + np.array(self.center)]
+                final_corners = [np.array(dist_crnr_front) + np.array(self.center),
+                                 np.array(dist_crnr_back) + np.array(self.center)]
             # extend these corner points to min/max z
             # factor = (max_z - z0) / (z1 - z0)
-            if final_corners[1][2] < self.max_z:
-                maxfactor = (self.max_z - final_corners[0][2]) / (final_corners[1][2] - final_corners[0][2])
-                final_corners[1] = (final_corners[1] - final_corners[0]) * maxfactor + final_corners[0]
-            if final_corners[0][2] > self.min_z:
-                minfactor = (self.min_z - final_corners[1][2]) / (final_corners[0][2] - final_corners[1][2])
-                final_corners[0] = (final_corners[0] - final_corners[1]) * minfactor + final_corners[1]
+            # if final_corners[1][2] < self.max_z:
+            #     maxfactor = (self.max_z - final_corners[0][2]) / (final_corners[1][2] - final_corners[0][2])
+            #     final_corners[1] = (final_corners[1] - final_corners[0]) * maxfactor + final_corners[0]
+            # if final_corners[0][2] > self.min_z:
+            #     minfactor = (self.min_z - final_corners[1][2]) / (final_corners[0][2] - final_corners[1][2])
+            #     final_corners[0] = (final_corners[0] - final_corners[1]) * minfactor + final_corners[1]
             final_corner_points.append(final_corners[0])
             final_corner_points.append(final_corners[1])
         return np.array(final_corner_points)
@@ -408,15 +411,16 @@ class TurntableCameraInteractive(scene.TurntableCamera):
         # inv rotate clipped xyz to screen xy to get subset of points to select from
         #  - think about check here to see if too many points selected
         # select from drag-selected xy to get selected points
-        print('Selecting data in 3d is currently not implemented.')
-        # if self.selected_callback:
-        #     if (startpos == endpos).all():
-        #         startpos -= 10
-        #         endpos += 10
-        #     new_startpos = np.array([int(min(startpos[0], endpos[0])), int(min(startpos[1], endpos[1]))])
-        #     new_endpos = np.array([int(max(startpos[0], endpos[0])), int(max(startpos[1], endpos[1]))])
-        #     corner_points = self._screen_corners_data_coordinates()
-        #     self.selected_callback(new_startpos, new_endpos, corner_points=corner_points, three_d=True)
+
+        # print('Selecting data in 3d is currently not implemented.')
+        if self.selected_callback:
+            if (startpos == endpos).all():
+                startpos -= 10
+                endpos += 10
+            new_startpos = np.array([int(min(startpos[0], endpos[0])), int(min(startpos[1], endpos[1]))])
+            new_endpos = np.array([int(max(startpos[0], endpos[0])), int(max(startpos[1], endpos[1]))])
+            corner_points = self._screen_corners_data_coordinates()
+            self.selected_callback(new_startpos, new_endpos, corner_points=corner_points, three_d=True)
 
     def viewbox_mouse_event(self, event):
         """
@@ -546,7 +550,10 @@ class ThreeDView(QtWidgets.QWidget):
         endpos
             Point where you released the mouse button after dragging
         """
-
+        scene.visuals.Line(pos=np.array([corner_points[0], corner_points[1]]), color='r', parent=self.view.scene)
+        scene.visuals.Line(pos=np.array([corner_points[2], corner_points[3]]), color='r', parent=self.view.scene)
+        scene.visuals.Line(pos=np.array([corner_points[4], corner_points[5]]), color='r', parent=self.view.scene)
+        scene.visuals.Line(pos=np.array([corner_points[6], corner_points[7]]), color='r', parent=self.view.scene)
         if self.displayed_points is not None and self.parent is not None:
             self.parent.select_points(startpos, endpos, corner_points=corner_points, three_d=three_d)
 

@@ -4,9 +4,9 @@ from typing import Union
 from pyproj import CRS
 from osgeo import gdal
 
-from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal, qgis_enabled, qgis_path, qgis_path_pydro
+from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal, qgis_enabled, found_path
 if not qgis_enabled:
-    raise EnvironmentError('Unable to find qgis directory in either {} or {} (Pydro)'.format(qgis_path, qgis_path_pydro))
+    raise EnvironmentError('Unable to find qgis directory in {}'.format(found_path))
 from HSTB.kluster.gui.backends._qt import qgis_core, qgis_gui
 from HSTB.kluster import __file__ as klusterdir
 
