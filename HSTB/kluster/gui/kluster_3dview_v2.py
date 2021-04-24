@@ -412,15 +412,15 @@ class TurntableCameraInteractive(scene.TurntableCamera):
         #  - think about check here to see if too many points selected
         # select from drag-selected xy to get selected points
 
-        # print('Selecting data in 3d is currently not implemented.')
-        if self.selected_callback:
-            if (startpos == endpos).all():
-                startpos -= 10
-                endpos += 10
-            new_startpos = np.array([int(min(startpos[0], endpos[0])), int(min(startpos[1], endpos[1]))])
-            new_endpos = np.array([int(max(startpos[0], endpos[0])), int(max(startpos[1], endpos[1]))])
-            corner_points = self._screen_corners_data_coordinates()
-            self.selected_callback(new_startpos, new_endpos, corner_points=corner_points, three_d=True)
+        print('Selecting data in 3d is currently not implemented.')
+        # if self.selected_callback:
+        #     if (startpos == endpos).all():
+        #         startpos -= 10
+        #         endpos += 10
+        #     new_startpos = np.array([int(min(startpos[0], endpos[0])), int(min(startpos[1], endpos[1]))])
+        #     new_endpos = np.array([int(max(startpos[0], endpos[0])), int(max(startpos[1], endpos[1]))])
+        #     corner_points = self._screen_corners_data_coordinates()
+        #     self.selected_callback(new_startpos, new_endpos, corner_points=corner_points, three_d=True)
 
     def viewbox_mouse_event(self, event):
         """
