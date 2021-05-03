@@ -2259,7 +2259,7 @@ def build_xyzrph(settdict: dict, runtime_settdict: dict, sonartype: str):
                 xyzrph[tme][val + '_h'] = settdict[tme]['transducer_{}_heading_angle'.format(ky)]
             opening_angle_key = 'transducer_{}_sounding_size_deg'.format(ky)
             if opening_angle_key in settdict[tme]:
-                opening_angle = settdict[tme][opening_angle_key]
+                opening_angle = float(settdict[tme][opening_angle_key])
 
         # additional offsets based on sector
         if sonartype in install_parameter_modifier:

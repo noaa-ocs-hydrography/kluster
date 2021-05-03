@@ -152,7 +152,7 @@ def test_process_testfile():
     assert firstrel_azimuth == np.float32(4.703383)
     assert np.array_equal(firstrx, np.array([0.7870753, 0.60869384, -0.100021675], dtype=np.float32))
     assert firstthu == np.float32(8.857684)
-    assert firsttvu == np.float32(2.4924965)
+    assert firsttvu == np.float32(2.4940288)
     assert np.array_equal(firsttx, np.array([0.6074468, -0.79435784, 0.0020107413], dtype=np.float32))
     assert firstx == 539028.45
     assert firsty == 5292783.977

@@ -139,6 +139,7 @@ class Tpu:
         self.debug = debug
         self.plot_tpu = plot_tpu
 
+        self.beam_opening_angle = 1.0  # receiver beam angle used for depth variance calculation
         self.tx_to_antenna_x = 0  # offset (+ FWD) to antenna from transducer
         self.tx_to_antenna_y = 0  # offset (+ STBD) to antenna from transducer
         self.tx_to_antenna_z = 0  # offset (+ DOWN) to antenna from transducer
@@ -204,7 +205,7 @@ class Tpu:
         """
 
         for ky, val in tpu_dict.items():
-            self.__setattr__(ky, val)
+            self.__setattr__(ky, float(val))
 
     def load_from_data(self, roll: Union[xr.DataArray, np.array], raw_beam_angles: Union[xr.DataArray, np.array],
                        beam_angles: Union[xr.DataArray, np.array], acrosstrack_offset: Union[xr.DataArray, np.array],
@@ -336,8 +337,8 @@ class Tpu:
         If the class plot_tpu is enabled, generate these plots along with the calculated values
         """
 
-        horiz_components = ['distance_rms', 'sounder_horizontal', 'total_horizontal_uncertainty']
-        vert_components = ['sounder_vertical', 'roll', 'refraction', 'down_position', 'separation_model', 'heave',
+        horiz_components = ['distance_rms', 'sounder_horizontal', 'antenna_lever_arm', 'total_horizontal_uncertainty']
+        vert_components = ['sounder_vertical', 'roll', 'refraction', 'down_position', 'separation_model', 'heave', 'beamangle',
                            'dynamic_draft', 'waterline', 'total_vertical_uncertainty']
         drive_plots_to_file = isinstance(self.plot_tpu, str)
 
@@ -371,6 +372,14 @@ class Tpu:
         plt.legend()
         if drive_plots_to_file:
             plt.savefig(vert_fname)
+
+    def _calculate_beam_angle_variance(self):
+        """
+        Depth variance related to the beam opening angle
+        """
+        rbeamangle = np.deg2rad(float(self.beam_opening_angle))
+        beam_angle_variance = self.depth_offset - (self.depth_offset * np.cos(rbeamangle / 2))
+        return beam_angle_variance
 
     def _calculate_roll_variance(self):
         """
@@ -420,10 +429,6 @@ class Tpu:
         Determine the horizontal error related to the antenna transducer lever arm
         """
 
-        if self.north_position_error is not None and self.east_position_error is not None:
-            xy = (self.north_position_error ** 2) + (self.east_position_error ** 2)
-        else:
-            xy = (self.horizontal_positioning ** 2) + (self.horizontal_positioning ** 2)
         if self.sbet_heading_error is not None:
             heading = (self.tx_to_antenna_x ** 2 + self.tx_to_antenna_y ** 2) * self.sbet_heading_error
         else:
@@ -433,7 +438,7 @@ class Tpu:
         else:
             rollpitch = (self.roll_sensor_error ** 2 + self.pitch_sensor_error ** 2) * self.tx_to_antenna_z
 
-        return xy + heading + rollpitch
+        return heading + rollpitch
 
     def _calculate_total_depth_uncertainty(self, vert_ref, v_unc):
         """
@@ -454,15 +459,16 @@ class Tpu:
         """
 
         d_var = self._calculate_distance_variance()
-        # leverarm_var = self._calculate_antenna_to_transducer_variance()
+        leverarm_var = self._calculate_antenna_to_transducer_variance()
         if isinstance(d_var, float):
             d_var = np.full((h_unc.shape[0], 1), d_var, dtype=np.float32)
+        if isinstance(leverarm_var, float):
+            leverarm_var = np.full((h_unc.shape[0], 1), leverarm_var, dtype=np.float32)
 
         if self.plot_tpu:
             self.plot_components['distance_rms'] = d_var ** 0.5
-            # self.plot_components['antenna_lever_arm'] = leverarm_var ** 0.5
-        # return (h_unc ** 2 + d_var + leverarm_var) ** 0.5
-        return (h_unc ** 2 + d_var) ** 0.5
+            self.plot_components['antenna_lever_arm'] = leverarm_var ** 0.5
+        return (h_unc ** 2 + d_var + leverarm_var) ** 0.5
 
     def _calculate_sonar_uncertainty(self):
         """
@@ -494,9 +500,11 @@ class Tpu:
         """
         r_var = self._calculate_roll_variance()
         refract_var = self._calculate_refraction_variance()
+        angle_var = self._calculate_beam_angle_variance()
         if self.plot_tpu:
             self.plot_components['roll'] = np.nanmedian(r_var, axis=1) ** 0.5
             self.plot_components['refraction'] = np.nanmedian(refract_var, axis=1) ** 0.5
+            self.plot_components['beamangle'] = np.nanmedian(angle_var, axis=1) ** 0.5
         if vert_ref in kluster_variables.waterline_based_vertical_references:
             hve_var = self._calculate_heave_variance()
             self.plot_components['heave'] = hve_var ** 0.5
@@ -510,7 +518,7 @@ class Tpu:
             hve_var = 0
         else:
             raise NotImplementedError('tpu: vert_ref must be one of {}, found: {}'.format(kluster_variables.vertical_references, vert_ref))
-        return (v_unc ** 2 + r_var + hve_var + downpos + refract_var) ** 0.5
+        return (v_unc ** 2 + r_var + hve_var + downpos + refract_var + angle_var) ** 0.5
 
     def _total_depth_unc_ref_waterlevels(self, v_unc):
         """
