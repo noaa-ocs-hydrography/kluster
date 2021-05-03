@@ -32,6 +32,12 @@ attitude_chunk_size = 20000  # chunk size (in time) of each written chunk of dat
 
 single_head_sonar = ['em122', 'em302', 'em710', 'em2045', 'em2040', 'em2040p', 'em3002', 'em2040p', 'em3020', 'me70bo']  # all single head sonar models
 dual_head_sonar = ['em2040_dual_rx', 'em2040_dual_tx', 'em2045_dual']  # all dual head sonar models
+tpu_parameter_names = ['tx_to_antenna_x', 'tx_to_antenna_y', 'tx_to_antenna_z', 'heave_error', 'roll_sensor_error',
+                       'pitch_sensor_error', 'heading_sensor_error', 'x_offset_error',
+                       'y_offset_error', 'z_offset_error', 'surface_sv_error', 'roll_patch_error', 'pitch_patch_error',
+                       'heading_patch_error', 'latency_patch_error', 'timing_latency_error',
+                       'separation_model_error', 'waterline_error', 'vessel_speed_error', 'horizontal_positioning_error',
+                       'vertical_positioning_error', 'beam_opening_angle']
 default_heave_error = 0.05  # default tpu parameter for heave
 default_roll_error = 0.0005  # default tpu parameter for roll
 default_pitch_error = 0.0005  # default tpu parameter for pitch
@@ -39,13 +45,15 @@ default_heading_error = 0.02  # default tpu parameter for heading
 default_x_offset_error = 0.2  # default tpu parameter for x offset measurement
 default_y_offset_error = 0.2  # default tpu parameter for y offset measurement
 default_z_offset_error = 0.2  # default tpu parameter for z offset measurement
+default_x_antenna_offset = '0.000'  # default tpu parameter for x antenna offset
+default_y_antenna_offset = '0.000'  # default tpu parameter for y antenna offset
+default_z_antenna_offset = '0.000'  # default tpu parameter for z antenna offset
 default_surface_sv_error = 0.5  # default tpu parameter for surface sv
 default_roll_patch_error = 0.1  # default tpu parameter for roll patch
 default_pitch_patch_error = 0.1  # default tpu parameter for pitch patch
 default_heading_patch_error = 0.5  # default tpu parameter for heading patch
 default_latency_patch_error = 0.0  # default tpu parameter for latency patch
 default_latency_error = 0.001  # default tpu parameter for latency
-default_dynamic_draft_error = 0.1  # default tpu parameter for dynamic draft
 default_separation_model_error = 0.0  # default tpu parameter for separation model
 default_waterline_error = 0.02  # default tpu parameter for waterline
 default_vessel_speed_error = 0.1  # default tpu parameter for vessel speed

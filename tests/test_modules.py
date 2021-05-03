@@ -6,8 +6,6 @@ from HSTB.kluster.modules.svcorrect import *
 from HSTB.kluster.modules.georeference import *
 from HSTB.kluster.modules.tpu import *
 
-from HSTB.kluster.xarray_conversion import build_tpu_parameters
-
 
 try:
     from hstb_kluster.tests.test_fqpr_generation import load_dataset
@@ -1046,7 +1044,9 @@ def test_tpu():
     dset = load_dataset(RealFqpr())
     multibeam = dset.raw_ping[0].isel(time=0).expand_dims('time')
     qf = multibeam.qualityfactor
-    tpu = build_tpu_parameters()
+    tpu = dset.return_tpu_parameters(list(dset.xyzrph['waterline'].keys())[0])
+    # we built the expected answer using dynamic_draft_error = 0.1 a long time ago, plug it in here just to get the right check
+    tpu['dynamic_draft'] = 0.1
 
     surface_ss = multibeam.soundspeed
     beampointingangle = multibeam.beampointingangle

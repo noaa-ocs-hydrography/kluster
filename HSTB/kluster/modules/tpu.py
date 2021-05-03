@@ -142,20 +142,20 @@ class Tpu:
         self.tx_to_antenna_x = 0  # offset (+ FWD) to antenna from transducer
         self.tx_to_antenna_y = 0  # offset (+ STBD) to antenna from transducer
         self.tx_to_antenna_z = 0  # offset (+ DOWN) to antenna from transducer
-        self.heave = 0.05  # 1 sigma standard deviation for the heave data (meters)
+        self.heave_error = 0.05  # 1 sigma standard deviation for the heave data (meters)
         self.roll_sensor_error = 0.0005  # 1 sigma standard deviation in the roll sensor (degrees)
         self.pitch_sensor_error = 0.0005  # 1 sigma standard deviation in the pitch sensor (degrees)
         self.heading_sensor_error = 0.02  # 1 sigma standard deviation in the pitch sensor (degrees)
-        self.x_offset = 0.2  # 1 sigma standard deviation in your measurement of x lever arm (meters)
-        self.y_offset = 0.2  # 1 sigma standard deviation in your measurement of y lever arm (meters)
-        self.z_offset = 0.2  # 1 sigma standard deviation in your measurement of z lever arm (meters)
+        self.x_offset_error = 0.2  # 1 sigma standard deviation in your measurement of x lever arm (meters)
+        self.y_offset_error = 0.2  # 1 sigma standard deviation in your measurement of y lever arm (meters)
+        self.z_offset_error = 0.2  # 1 sigma standard deviation in your measurement of z lever arm (meters)
         self.surface_sv = 0.5  # 1 sigma standard deviation in surface sv sensor (meters/second)
         self.roll_patch = 0.1  # 1 sigma standard deviation in your roll angle patch test procedure (degrees)
         self.pitch_patch = 0.1  # 1 sigma standard deviation in your pitch angle patch test procedure (degrees)
         self.heading_patch = 0.5  # 1 sigma standard deviation in your heading angle patch test procedure (degrees)
         self.latency_patch = 0.0  # 1 sigma standard deviation in your latency calculation (seconds)
         self.timing_latency = 0.001  # 1 sigma standard deviation of the timing accuracy of the system (seconds)
-        self.dynamic_draft = 0.1  # 1 sigma standard deviation of the dynamic draft measurement (meters)
+        self.dynamic_draft = 0.0  # 1 sigma standard deviation of the dynamic draft measurement (meters)
         self.separation_model = 0.0  # 1 sigma standard deivation in the sep model (tidal, ellipsoidal, etc) (meters)
         self.waterline = 0.02  # 1 sigma standard deviation of the waterline (meters)
         self.vessel_speed = 0.1  # 1 sigma standard deviation of the vessel speed (meters/second)
@@ -391,7 +391,7 @@ class Tpu:
         A lazy interpretation of the heave error equation in Hare's paper.  With our surveys being ERS mainly, this
         probably won't see much use.
         """
-        hve = np.full((self.acrosstrack_offset.shape[0], 1), self.heave, dtype=np.float32)
+        hve = np.full((self.acrosstrack_offset.shape[0], 1), self.heave_error, dtype=np.float32)
         return hve ** 2
 
     def _calculate_refraction_variance(self):

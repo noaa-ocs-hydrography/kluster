@@ -962,7 +962,7 @@ class Fqpr(ZarrBackend):
                                      input_datum, self.horizontal_crs, z_offset, vdatum_directory])
         return data_for_workers
 
-    def _generate_chunks_tpu(self, ra: xr.Dataset, idx_by_chunk: xr.DataArray, silent: bool = False):
+    def _generate_chunks_tpu(self, ra: xr.Dataset, idx_by_chunk: xr.DataArray, timestmp: str, silent: bool = False):
         """
         Take a single sector, and build the data for the distributed system to process.  Georeference requires the
         sv_corrected acrosstrack/alongtrack/depthoffsets, as well as navigation, heading, heave and the quality
@@ -974,6 +974,8 @@ class Fqpr(ZarrBackend):
             xarray Dataset for the raw_ping instance selected for processing
         idx_by_chunk
             xarray Datarray, values are the integer indexes of the pings to use, coords are the time of ping
+        timestmp
+            timestamp of the installation parameters instance used
         silent
             if True, does not print out the log messages
 
@@ -1012,6 +1014,7 @@ class Fqpr(ZarrBackend):
         if not silent:
             image_generation[0] = os.path.join(self.multibeam.converted_pth, 'ping_' + ra.system_identifier + '.zarr')
 
+        tpu_params = self.multibeam.return_tpu_parameters(timestmp)
         for cnt, chnk in enumerate(idx_by_chunk):
             raw_point = ra.beampointingangle[chnk.values]
             if self.rx_reversed:
@@ -1073,7 +1076,7 @@ class Fqpr(ZarrBackend):
                     fut_hpe = None
 
             data_for_workers.append([fut_roll, fut_raw_point, fut_corr_point, fut_acrosstrack, fut_depthoffset, fut_soundspeed,
-                                     self.multibeam.tpu_parameters, fut_qualityfactor, fut_npe, fut_epe, fut_dpe,
+                                     tpu_params, fut_qualityfactor, fut_npe, fut_epe, fut_dpe,
                                      fut_rpe, fut_ppe, fut_hpe, qf_type, self.vert_ref, image_generation[cnt]])
         return data_for_workers
 
@@ -2055,7 +2058,7 @@ class Fqpr(ZarrBackend):
                 kluster_function = distrib_run_calculate_tpu
                 chunk_function = self._generate_chunks_tpu
                 comp_time = 'tpu_time_complete'
-                chunkargs = [rawping, idx_by_chunk_subset]
+                chunkargs = [rawping, idx_by_chunk_subset, timestmp]
             else:
                 self.logger.error('Mode must be one of ["orientation", "bpv", "sv_corr", "georef", "tpu"]')
                 raise ValueError('Mode must be one of ["orientation", "bpv", "sv_corr", "georef", "tpu"]')

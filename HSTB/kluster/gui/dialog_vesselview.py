@@ -1014,9 +1014,9 @@ class OptionsWidget(QtWidgets.QWidget):
                 self.data[tstmp]['IMU'] = [float(xyzrph['imu_x'][tstmp]), float(xyzrph['imu_y'][tstmp]),
                                            float(xyzrph['imu_z'][tstmp]), float(xyzrph['imu_r'][tstmp]),
                                            float(xyzrph['imu_p'][tstmp]), float(xyzrph['imu_h'][tstmp])]
-                self.data[tstmp]['Primary Antenna'] = [float(xyzrph['antenna_x'][tstmp]),
-                                                       float(xyzrph['antenna_y'][tstmp]),
-                                                       float(xyzrph['antenna_z'][tstmp]), 0, 0, 0]
+                self.data[tstmp]['Primary Antenna'] = [float(xyzrph['tx_to_antenna_x'][tstmp]),
+                                                       float(xyzrph['tx_to_antenna_y'][tstmp]),
+                                                       float(xyzrph['tx_to_antenna_z'][tstmp]), 0, 0, 0]
                 self.data[tstmp]['Waterline'] = [0, 0, xyzrph['waterline'][tstmp], 0, 0, 0]
                 try:
                     self.data[tstmp]['Vesselcenter'] = [float(xyzrph['vess_center_x'][tstmp]),
@@ -1564,9 +1564,9 @@ class VesselWidget(QtWidgets.QWidget):
 
         """
         msg, fil = RegistryHelpers.GetFilenameFromUserQT(self, RegistryKey='kluster',
-                                                         Title='Select a Kongsberg file (.all)',
+                                                         Title='Select a Kongsberg file (.kmall, .all)',
                                                          AppName='klusterbrowse', bMulti=False, bSave=False,
-                                                         fFilter='Kongsberg .all file (*.all)')
+                                                         fFilter='Kongsberg file (*.all;*.kmall)')
         if fil:
             self.vessview_window.clear_sensors()
             self.vessview_window.build_vessel(self.vessview_window.pth_to_vessel_file)

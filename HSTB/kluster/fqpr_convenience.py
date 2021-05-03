@@ -328,42 +328,6 @@ def process_and_export_soundings(filname: str, outfold: str = None, coord_system
     return fqpr_inst
 
 
-def return_georef_xyz(filname: str, coord_system: str = 'NAD83', vert_ref: str = 'waterline'):
-    """
-    Using fqpr_generation, convert and sv correct multibeam file (or directory of files) and return the georeferenced
-    xyz soundings.
-
-    Parameters
-    ----------
-    filname
-        multibeam file path or directory path of multibeam files
-    coord_system
-        a valid datum identifier that pyproj CRS will accept
-    vert_ref
-        the vertical reference point, one of ['ellipse', 'waterline', 'NOAA MLLW', 'NOAA MHW']
-
-    Returns
-    -------
-    Fqpr
-        Fqpr object containing processed xyz soundings
-    np.array
-        2d numpy array (time, beam) of the alongtrack offsets
-    np.array
-        2d numpy array (time, beam) of the acrosstrack offsets
-    np.array
-        2d numpy array (time, beam) of the depth offsets
-    np.array
-        numpy array of unique times of pings
-    """
-
-    fqpr_inst = perform_all_processing(filname, coord_system=coord_system, vert_ref=vert_ref)
-    u_tms = fqpr_inst.return_unique_times_across_sectors()
-    dats, ids, tms = fqpr_inst.reform_2d_vars_across_sectors_at_time(['x', 'y', 'z', 'tvu'], u_tms)
-    x, y, z, unc = dats
-
-    return fqpr_inst, x, y, z, unc, ids, tms
-
-
 def reload_data(converted_folder: str, require_raw_data: bool = True, skip_dask: bool = False, silent: bool = False,
                 show_progress: bool = True):
     """
@@ -411,7 +375,6 @@ def reload_data(converted_folder: str, require_raw_data: bool = True, skip_dask:
         fqpr_inst.multibeam.xyzrph = fqpr_inst.multibeam.raw_ping[0].xyzrph
         if 'vertical_reference' in fqpr_inst.multibeam.raw_ping[0].attrs:
             fqpr_inst.set_vertical_reference(fqpr_inst.multibeam.raw_ping[0].vertical_reference)
-        fqpr_inst.multibeam.tpu_parameters = fqpr_inst.multibeam.raw_ping[0].tpu_parameters
 
         fqpr_inst.generate_starter_orientation_vectors(None, None)
 
