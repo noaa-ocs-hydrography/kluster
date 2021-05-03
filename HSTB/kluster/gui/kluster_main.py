@@ -504,7 +504,11 @@ class KlusterMain(QtWidgets.QMainWindow):
 
         if fqprs:
             fqpr = self.project.fqpr_instances[self.project.path_relative_to_project(fqprs[0])]
-            self.vessel_win.xyzrph = fqpr.multibeam.xyzrph
+            first_sensor = list(fqpr.multibeam.xyzrph.keys())[0]
+            tstmps = list(fqpr.multibeam.xyzrph[first_sensor].keys())
+            vess_xyzrph = {str(fqpr.multibeam.system_serial_number[0]): fqpr.multibeam.xyzrph}
+            vess_xyzrph[str(fqpr.multibeam.system_serial_number[0])]['sonar_type'][tstmps[0]] = fqpr.multibeam.sonartype
+            self.vessel_win.xyzrph = vess_xyzrph
             self.vessel_win.load_from_existing_xyzrph()
         self.vessel_win.show()
 

@@ -2319,7 +2319,6 @@ def build_xyzrph(settdict: dict, runtime_settdict: dict, sonartype: str):
             if 'ReceiveBeamWidth' in runtime_params:
                 opening_angle = runtime_params['ReceiveBeamWidth']
             else:
-                print('WARNING: Unable to determine beam opening angle, defaulting to 1.0 degrees.')
                 opening_angle = 1.0
         xyzrph[tme]['beam_opening_angle'] = opening_angle  # opening angle in degrees, used for tpu
 
@@ -2352,6 +2351,10 @@ def return_xyzrph_from_mbes(mbesfil: str):
     -------
     dict
         translated installation parameter record in the format used by Kluster
+    str
+        sonar model number
+    int
+        primary system serial number
 
     """
     if os.path.splitext(mbesfil)[1] == '.all':
@@ -2371,14 +2374,19 @@ def return_xyzrph_from_mbes(mbesfil: str):
         sonartype = snrmodels[0].lower()
         if sonartype not in sonar_translator:
             raise NotImplementedError('Sonar model not understood "{}"'.format(snrmodels[0]))
+        serialnum = np.unique(recs['installation_params']['serial_one'])
+        if len(serialnum) > 1:
+            raise NotImplementedError('Found multiple sonar serial numbers in data provided: {}'.format(snrmodels))
+        serialnum = serialnum[0]
 
         # translate over the offsets/angles for the transducers following the sonar_translator scheme
         xyzrph = build_xyzrph(settings_dict, runtime_dict, sonartype)
 
-        return xyzrph
+        return xyzrph, sonartype, serialnum
     except IndexError:
         print('Unable to read from {}: data not found for installation records'.format(mbesfil))
         print(recs['installation_params'])
+        return None, None, None
 
 
 def return_xyzrph_from_posmv(posfile: str):

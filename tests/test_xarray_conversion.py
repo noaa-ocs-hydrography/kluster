@@ -15,7 +15,7 @@ def get_testfile_paths():
 def test_return_xyzrph_from_mbes():
     testfile, expected_output = get_testfile_paths()
     assert os.path.exists(testfile)
-    xyzrph = return_xyzrph_from_mbes(testfile)
+    xyzrph, sonarmodel, serialnum = return_xyzrph_from_mbes(testfile)
     assert xyzrph['beam_opening_angle']['1495563079'] == 1.0
     assert xyzrph['heading_patch_error']['1495563079'] == 0.5
     assert xyzrph['heading_sensor_error']['1495563079'] == 0.02
