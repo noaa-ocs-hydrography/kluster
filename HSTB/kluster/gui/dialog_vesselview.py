@@ -1,5 +1,5 @@
 import os
-import sys
+from copy import deepcopy
 import numpy as np
 import json
 from datetime import datetime
@@ -18,8 +18,7 @@ from vispy.geometry.parametric import surface
 from HSTB.kluster.xarray_conversion import return_xyzrph_from_posmv, return_xyzrph_from_mbes
 from HSTB.shared import RegistryHelpers
 
-ship_sensor_size = 1.0
-launch_sensor_size = 0.3
+launch_sensor_size = 0.6
 hide_location = np.array([0, 0, 1000.0])
 
 test_xyzrph = {'123': {'sonar_type': {'1503413148': 'em2040', '1503423148': 'em2040', '1503443148': 'em2040'},
@@ -46,7 +45,7 @@ test_xyzrph = {'123': {'sonar_type': {'1503413148': 'em2040', '1503423148': 'em2
                        'tx_to_antenna_x': {'1503413148': '-0.889', '1503423148': '-0.889', '1503443148': '-0.889'},
                        'tx_to_antenna_y': {'1503413148': '-0.923', '1503423148': '-0.923', '1503443148': '-0.923'},
                        'tx_to_antenna_z': {'1503413148': '-4.193', '1503423148': '-4.193', '1503443148': '-4.193'},
-                       'imu_h': {'1503413148': '0.29', '1503423148': '0.29', '1503443148': '0.29'},
+                       'imu_h': {'1503413148': '0.29', '1503423148': '0.30', '1503443148': '0.31'},
                        'imu_p': {'1503413148': '-0.109', '1503423148': '-0.109', '1503443148': '-0.109'},
                        'imu_r': {'1503413148': '-0.231', '1503423148': '-0.231', '1503443148': '-0.231'},
                        'imu_x': {'1503413148': '-0.152', '1503423148': '-0.152', '1503443148': '-0.152'},
@@ -468,7 +467,7 @@ class Waterline(MovingObject):
             elif state == 2:
                 if self.debug:
                     print('{} toggle_sensor {} bright'.format(self.name, state))
-                curr_rgba[3] = 1
+                curr_rgba[3] = 0.6
                 if np.array_equal(self.position, hide_location):
                     self.set_position(self.old_position, from_meters=True, flip_z=False, flip_y=False, flip_x=False)
             else:
@@ -611,7 +610,6 @@ class OptionsWidget(QtWidgets.QWidget):
     adjustments back out to file to get new xyzrph for future processing.
     """
     vess_selected_sig = Signal(str)  # user changed vessel
-    serial_selected_sig = Signal(str)  # user changed the serial number dropdown
     sensor_selected_sig = Signal(str)  # user selected a new sensor
     update_sensor_sig = Signal(str, float, float, float, float, float, float)  # user submitted a sensor update
     update_sensor_sizes_sig = Signal(float)
@@ -755,13 +753,13 @@ class OptionsWidget(QtWidgets.QWidget):
         self.timestamps_converted = []
         self.curr_sensor_size = launch_sensor_size
 
+        self.serial_select.currentTextChanged.connect(self.serial_selected)
+        self.time_select.currentTextChanged.connect(self.time_selected)
         self.sensor_select.currentTextChanged.connect(self.sensor_selected)
         self.vess_select.currentTextChanged.connect(self.vessel_selected)
-        self.serial_select.currentTextChanged.connect(self.serial_number_selected)
         self.update_button.clicked.connect(self.update_button_pressed)
         self.show_waterline.stateChanged.connect(self.waterline_checked)
-        self.time_select.currentTextChanged.connect(self.time_selected)
-        self.sensor_selected()
+        self.sensor_selected(None)
 
     def waterline_checked(self, checked):
         """
@@ -810,20 +808,292 @@ class OptionsWidget(QtWidgets.QWidget):
         sender = self.sender()
         sender.setText(format(float(sender.text()), '.3f'))
 
-    def vessel_selected(self):
+    def get_currently_selected_time(self):
+        """
+        The time_select combo box contains all the timestamps in the xyzrph record, but displays them in a datetime
+        format that is readable.  This method retuns the unix timestamp in seconds that can be used to index the
+        actual data
+
+        Returns
+        -------
+        orig_tstmp: str, unix time in seconds as a string
+        """
+        tstmp = self.time_select.currentText()
+        orig_tstmp = None
+        if tstmp:  # on loading new xyzrph, vesselcenter is updated before timestamps are loaded.  But it gets updated later so skip here
+            orig_tstmp = self.timestamps[self.timestamps_converted.index(tstmp)]
+        return orig_tstmp
+
+    def update_button_pressed(self):
+        """
+        Each sensor has an update button, on click it runs this method.
+
+        """
+        sens = self.sensor_select.currentText()
+        tstmp = self.get_currently_selected_time()
+        serial_num = self.serial_select.currentText()
+        if sens == 'Basic Config':
+            pos = [float(self.vcenter_x.text()), float(self.vcenter_y.text()), float(self.vcenter_z.text()),
+                   float(self.vcenter_r.text()), float(self.vcenter_p.text()), float(self.vcenter_yaw.text())]
+            self.data[serial_num][tstmp]['Vesselcenter'] = pos
+            self.update_sensor_sig.emit('Vesselcenter', *pos)
+            sensor_size = self.sensor_size.text()
+            self.update_sensor_sizes_sig.emit(float(sensor_size))
+            self.curr_sensor_size = float(sensor_size)
+        else:
+            pos = [float(self.x.text()), float(self.y.text()), float(self.z.text()), float(self.r.text()),
+                   float(self.p.text()), float(self.yaw.text())]
+            self.data[serial_num][tstmp][sens] = pos
+            self.update_sensor_sig.emit(sens, *pos)
+
+    def parse_xyzrph(self, xyzrph):
+        """
+        Take the input xyzrph dict (from fqpr_generation processing) and build the records we need to update sensor
+        positions in the scene.
+
+        fqpr = fully qualified ping record, the term for the datastore in kluster
+
+        Parameters
+        ----------
+        xyzrph: dict, dictionary of survey systems and the xyz and rollpitchheading values that go with each
+
+        """
+        self.data = {}
+        for serial_num in xyzrph:
+            self.data[serial_num] = {}
+            if 'tx_port_x' in xyzrph[serial_num]:
+                tstmps = list(xyzrph[serial_num]['tx_port_x'].keys())
+                for tstmp in tstmps:
+                    self.data[serial_num][tstmp] = {}
+                    self.data[serial_num][tstmp] = {'Vessel Reference Point': [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}
+                    self.data[serial_num][tstmp]['Vessel File'] = xyzrph[serial_num]['vessel_file'][tstmp]
+                    self.data[serial_num][tstmp]['Sonar Type'] = xyzrph[serial_num]['sonar_type'][tstmp]
+                    self.data[serial_num][tstmp]['Dual Head'] = True
+                    self.data[serial_num][tstmp]['Port Sonar Transmitter'] = [float(xyzrph[serial_num]['tx_port_x'][tstmp]),
+                                                                 float(xyzrph[serial_num]['tx_port_y'][tstmp]),
+                                                                 float(xyzrph[serial_num]['tx_port_z'][tstmp]),
+                                                                 float(xyzrph[serial_num]['tx_port_r'][tstmp]),
+                                                                 float(xyzrph[serial_num]['tx_port_p'][tstmp]),
+                                                                 float(xyzrph[serial_num]['tx_port_h'][tstmp])]
+                    self.data[serial_num][tstmp]['Port Sonar Receiver'] = [float(xyzrph[serial_num]['rx_port_x'][tstmp]),
+                                                              float(xyzrph[serial_num]['rx_port_y'][tstmp]),
+                                                              float(xyzrph[serial_num]['rx_port_z'][tstmp]),
+                                                              float(xyzrph[serial_num]['rx_port_r'][tstmp]),
+                                                              float(xyzrph[serial_num]['rx_port_p'][tstmp]),
+                                                              float(xyzrph[serial_num]['rx_port_h'][tstmp])]
+                    self.data[serial_num][tstmp]['Stbd Sonar Transmitter'] = [float(xyzrph[serial_num]['tx_stbd_x'][tstmp]),
+                                                                 float(xyzrph[serial_num]['tx_stbd_y'][tstmp]),
+                                                                 float(xyzrph[serial_num]['tx_stbd_z'][tstmp]),
+                                                                 float(xyzrph[serial_num]['tx_stbd_r'][tstmp]),
+                                                                 float(xyzrph[serial_num]['tx_stbd_p'][tstmp]),
+                                                                 float(xyzrph[serial_num]['tx_stbd_h'][tstmp])]
+                    self.data[serial_num][tstmp]['Stbd Sonar Receiver'] = [float(xyzrph[serial_num]['rx_stbd_x'][tstmp]),
+                                                              float(xyzrph[serial_num]['rx_stbd_y'][tstmp]),
+                                                              float(xyzrph[serial_num]['rx_stbd_z'][tstmp]),
+                                                              float(xyzrph[serial_num]['rx_stbd_r'][tstmp]),
+                                                              float(xyzrph[serial_num]['rx_stbd_p'][tstmp]),
+                                                              float(xyzrph[serial_num]['rx_stbd_h'][tstmp])]
+                    self.data[serial_num][tstmp]['IMU'] = [float(xyzrph[serial_num]['imu_x'][tstmp]), float(xyzrph[serial_num]['imu_y'][tstmp]),
+                                               float(xyzrph[serial_num]['imu_z'][tstmp]), float(xyzrph[serial_num]['imu_r'][tstmp]),
+                                               float(xyzrph[serial_num]['imu_p'][tstmp]), float(xyzrph[serial_num]['imu_h'][tstmp])]
+                    self.data[serial_num][tstmp]['Primary Antenna'] = [float(xyzrph[serial_num]['tx_to_antenna_x'][tstmp]),
+                                                           float(xyzrph[serial_num]['tx_to_antenna_y'][tstmp]),
+                                                           float(xyzrph[serial_num]['tx_to_antenna_z'][tstmp]), 0, 0, 0]
+                    self.data[serial_num][tstmp]['Waterline'] = [0, 0, xyzrph[serial_num]['waterline'][tstmp], 0, 0, 0]
+                    try:
+                        self.data[serial_num][tstmp]['Vesselcenter'] = [float(xyzrph[serial_num]['vess_center_x'][tstmp]),
+                                                            float(xyzrph[serial_num]['vess_center_y'][tstmp]),
+                                                            float(xyzrph[serial_num]['vess_center_z'][tstmp]),
+                                                            float(xyzrph[serial_num]['vess_center_r'][tstmp]),
+                                                            float(xyzrph[serial_num]['vess_center_p'][tstmp]),
+                                                            float(xyzrph[serial_num]['vess_center_yaw'][tstmp])]
+                    except KeyError:
+                        self.data[serial_num][tstmp]['Vesselcenter'] = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+            else:
+                tstmps = list(xyzrph[serial_num]['tx_x'].keys())
+                for tstmp in tstmps:
+                    self.data[serial_num][tstmp] = {}
+                    self.data[serial_num][tstmp] = {'Vessel Reference Point': [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}
+                    self.data[serial_num][tstmp]['Vessel File'] = xyzrph[serial_num]['vessel_file'][tstmp]
+                    self.data[serial_num][tstmp]['Sonar Type'] = xyzrph[serial_num]['sonar_type'][tstmp]
+                    self.data[serial_num][tstmp]['Dual Head'] = False
+                    self.data[serial_num][tstmp]['Sonar Transmitter'] = [float(xyzrph[serial_num]['tx_x'][tstmp]), float(xyzrph[serial_num]['tx_y'][tstmp]),
+                                                            float(xyzrph[serial_num]['tx_z'][tstmp]), float(xyzrph[serial_num]['tx_r'][tstmp]),
+                                                            float(xyzrph[serial_num]['tx_p'][tstmp]), float(xyzrph[serial_num]['tx_h'][tstmp])]
+                    self.data[serial_num][tstmp]['Sonar Receiver'] = [float(xyzrph[serial_num]['rx_x'][tstmp]), float(xyzrph[serial_num]['rx_y'][tstmp]),
+                                                         float(xyzrph[serial_num]['rx_z'][tstmp]), float(xyzrph[serial_num]['rx_r'][tstmp]),
+                                                         float(xyzrph[serial_num]['rx_p'][tstmp]), float(xyzrph[serial_num]['rx_h'][tstmp])]
+                    self.data[serial_num][tstmp]['IMU'] = [float(xyzrph[serial_num]['imu_x'][tstmp]), float(xyzrph[serial_num]['imu_y'][tstmp]),
+                                               float(xyzrph[serial_num]['imu_z'][tstmp]), float(xyzrph[serial_num]['imu_r'][tstmp]),
+                                               float(xyzrph[serial_num]['imu_p'][tstmp]), float(xyzrph[serial_num]['imu_h'][tstmp])]
+                    self.data[serial_num][tstmp]['Primary Antenna'] = [float(xyzrph[serial_num]['tx_to_antenna_x'][tstmp]),
+                                                           float(xyzrph[serial_num]['tx_to_antenna_y'][tstmp]),
+                                                           float(xyzrph[serial_num]['tx_to_antenna_z'][tstmp]), 0, 0, 0]
+                    self.data[serial_num][tstmp]['Waterline'] = [0, 0, xyzrph[serial_num]['waterline'][tstmp], 0, 0, 0]
+                    try:
+                        self.data[serial_num][tstmp]['Vesselcenter'] = [float(xyzrph[serial_num]['vess_center_x'][tstmp]),
+                                                            float(xyzrph[serial_num]['vess_center_y'][tstmp]),
+                                                            float(xyzrph[serial_num]['vess_center_z'][tstmp]),
+                                                            float(xyzrph[serial_num]['vess_center_r'][tstmp]),
+                                                            float(xyzrph[serial_num]['vess_center_p'][tstmp]),
+                                                            float(xyzrph[serial_num]['vess_center_yaw'][tstmp])]
+                    except KeyError:
+                        self.data[serial_num][tstmp]['Vesselcenter'] = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+
+    def determine_reference_point(self, tstmp):
+        """
+        Each time the Vessel Reference Point comes up in the sensor_select, run this method to determine the current
+        reference point.  We assume that either IMU, sonar transmitter, or some custom option will always be the
+        reference point.
+
+        Parameters
+        ----------
+        tstmp: str, unix timestamp for the given entry
+
+        """
+        v4_target_sensing_center_offset = np.array([-0.008, -0.031, 0.130])
+        v5_target_sensing_center_offset = np.array([0.005, -0.006, 0.089])
+
+        serial_num = self.serial_select.currentText()
+
+        refpt = 'Custom'
+        if self.data and serial_num in self.data and tstmp in self.data[serial_num]:
+            data_by_time = self.data[serial_num][tstmp]
+            imu_vals = np.array([np.round(float(x), 3) for x in data_by_time['IMU']])
+            if np.array_equal(imu_vals[0:3], v4_target_sensing_center_offset) or \
+                    np.array_equal(imu_vals[0:3], v5_target_sensing_center_offset) or \
+                    not np.any(imu_vals[0:3]):
+                refpt = 'IMU'
+
+            if 'Port Sonar Transmitter' in data_by_time:
+                ident = 'Port Sonar Transmitter'
+                sonar_vals = np.array([np.round(float(x), 3) for x in data_by_time['Port Sonar Transmitter']])
+            else:
+                ident = 'Sonar Transmitter'
+                sonar_vals = np.array([np.round(float(x), 3) for x in data_by_time['Sonar Transmitter']])
+            if not np.any(sonar_vals):
+                refpt = ident
+        else:
+            refpt = None
+        return refpt
+
+    def populate_from_xyzrph(self, xyzrph):
+        """
+        User has provided a xyzrph dict.  Here we signal the scene to update the positions of each sensor and adjust
+        the sensor list for dual head if necessary.
+
+        Parameters
+        ----------
+        xyzrph: dict, dictionary of survey systems and the xyz and rollpitchheading values that go with each
+
+        """
+
+        if xyzrph is None:  # clear the data
+            self.vess_select.setEnabled(False)
+            self.serial_select.setEnabled(False)
+            self.sensor_select.setEnabled(False)
+            self.time_select.setEnabled(False)
+            self.update_button.setEnabled(False)
+            for sens in ['Port Sonar Transmitter', 'Port Sonar Receiver', 'Stbd Sonar Transmitter',
+                         'Stbd Sonar Receiver',
+                         'Sonar Transmitter', 'Sonar Receiver', 'IMU', 'Primary Antenna', 'Waterline', 'Vesselcenter']:
+                self.update_sensor_sig.emit(sens, 0, 0, 0, 0, 0, 0)
+            self.serial_select.clear()
+            self.time_select.clear()
+            self.sensor_select.clear()
+            self.refpt_select.clear()
+            self.data = {}
+        else:
+            # this method is run on new config or importing from multibeam.  So we need to start by enabling the controls
+            self.vess_select.setEnabled(True)
+            self.serial_select.setEnabled(True)
+            self.sensor_select.setEnabled(True)
+            self.time_select.setEnabled(True)
+            self.update_button.setEnabled(True)
+            self.parse_xyzrph(xyzrph)
+            self.serial_selected(None, setup=True)
+
+        # loading a new config should reset waterline visibility so there isn't an issue with hiding and visibility
+        self.show_waterline.setChecked(True)
+
+    def serial_selected(self, evt, setup=False):
+        if setup:
+            self.serial_select.clear()
+            self.serial_select.addItems(list(self.data.keys()))
+        else:
+            serial_num = self.serial_select.currentText()
+            if serial_num:
+                data = self.data[serial_num]
+                first_tstmp = list(data.keys())[0]
+                if data[first_tstmp]['Dual Head']:
+                    sensors = ['Basic Config', 'Vessel Reference Point', 'Port Sonar Transmitter',
+                               'Port Sonar Receiver',
+                               'Stbd Sonar Transmitter', 'Stbd Sonar Receiver', 'IMU', 'Primary Antenna', 'Waterline']
+                else:
+                    sensors = ['Basic Config', 'Vessel Reference Point', 'Sonar Transmitter', 'Sonar Receiver', 'IMU',
+                               'Primary Antenna', 'Waterline']
+                curr_select = self.sensor_select.currentText()
+                self.sensor_select.clear()
+                self.sensor_select.addItems(sensors)
+                if curr_select in sensors:
+                    self.sensor_select.setCurrentText(curr_select)
+                self.time_selected(None, setup=True)
+
+    def time_selected(self, evt, setup=False):
+        serial_num = self.serial_select.currentText()
+        if setup:
+            self.time_select.clear()
+            self.timestamps = list(self.data[serial_num].keys())
+            self.timestamps_converted = [datetime.fromtimestamp(int(tstmp)).strftime('%m/%d/%Y %H%M') for tstmp in self.timestamps]
+            self.time_select.addItems(self.timestamps_converted)
+        else:
+            curr_timestamp = self.get_currently_selected_time()
+            if serial_num and curr_timestamp:
+                hide_loc = hide_location.tolist() + [0, 0, 0]
+
+                data = self.data[serial_num][curr_timestamp]
+                self.model_select.addItems([data['Sonar Type']])
+                vess = self.data[serial_num][curr_timestamp]['Vessel File']
+                vessindex = self.vess_select.findText(os.path.split(vess)[1])
+                currindex = self.vess_select.findText(self.vess_select.currentText())
+                self.vess_select.setCurrentIndex(vessindex)
+                if vessindex == currindex:
+                    self.vessel_selected(None)
+                if data['Dual Head']:  # dual head
+                    refpts = ['Port Sonar Transmitter', 'IMU', 'Custom']
+                    self.update_sensor_sig.emit('Port Sonar Transmitter', *[np.round(float(x), 3) for x in data['Port Sonar Transmitter']])
+                    self.update_sensor_sig.emit('Port Sonar Receiver', *[np.round(float(x), 3) for x in data['Port Sonar Receiver']])
+                    self.update_sensor_sig.emit('Stbd Sonar Transmitter', *[np.round(float(x), 3) for x in data['Stbd Sonar Transmitter']])
+                    self.update_sensor_sig.emit('Stbd Sonar Receiver', *[np.round(float(x), 3) for x in data['Stbd Sonar Receiver']])
+                else:
+                    refpts = ['Sonar Transmitter', 'IMU', 'Custom']
+                    self.update_sensor_sig.emit('Stbd Sonar Transmitter', *hide_loc)
+                    self.update_sensor_sig.emit('Stbd Sonar Receiver', *hide_loc)
+                    self.update_sensor_sig.emit('Sonar Transmitter', *[np.round(float(x), 3) for x in data['Sonar Transmitter']])
+                    self.update_sensor_sig.emit('Sonar Receiver', *[np.round(float(x), 3) for x in data['Sonar Receiver']])
+                self.update_sensor_sig.emit('IMU', *[np.round(float(x), 3) for x in data['IMU']])
+                self.update_sensor_sig.emit('Primary Antenna', *[np.round(float(x), 3) for x in data['Primary Antenna']])
+                self.update_sensor_sig.emit('Waterline', *[np.round(float(x), 3) for x in data['Waterline']])
+                self.update_sensor_sig.emit('Vesselcenter', *[np.round(float(x), 3) for x in data['Vesselcenter']])
+
+                self.refpt_select.clear()
+                self.refpt_select.addItems(refpts)
+            self.sensor_selected(None)
+
+    def vessel_selected(self, evt):
         """
         When the user selects a new vessel in the combobox, emit the vessel name to update the scene
 
         """
         pth_to_vess = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'vessel_stl_files',
                                    self.vess_select.currentText())
+        serial_num = self.serial_select.currentText()
+        curr_tstmp = self.get_currently_selected_time()
+        if self.data and serial_num in self.data and curr_tstmp in self.data[serial_num]:
+            self.data[serial_num][curr_tstmp]['Vessel File'] = self.vess_select.currentText()
         self.vess_selected_sig.emit(str(pth_to_vess))
 
-    def serial_number_selected(self):
-        self.serial_selected_sig.emit(str(self.serial_select.currentText()))
-        self.sensor_selected()
-
-    def sensor_selected(self):
+    def sensor_selected(self, evt):
         """
         When the user selects a new sensor, show the correct controls and emit the sensor name to update the scene,
         updates the alpha value for the cube to identify the sensor selected.
@@ -899,25 +1169,6 @@ class OptionsWidget(QtWidgets.QWidget):
             self.p.setText('0.000')
             self.yaw.setText('0.000')
 
-    def time_selected(self):
-        pass
-
-    def get_currently_selected_time(self):
-        """
-        The time_select combo box contains all the timestamps in the xyzrph record, but displays them in a datetime
-        format that is readable.  This method retuns the unix timestamp in seconds that can be used to index the
-        actual data
-
-        Returns
-        -------
-        orig_tstmp: str, unix time in seconds as a string
-        """
-        tstmp = self.time_select.currentText()
-        orig_tstmp = None
-        if tstmp:  # on loading new xyzrph, vesselcenter is updated before timestamps are loaded.  But it gets updated later so skip here
-            orig_tstmp = self.timestamps[self.timestamps_converted.index(tstmp)]
-        return orig_tstmp
-
     def populate_sensor(self, sensor_label):
         """
         On selecting a new sensor in sensor_select combobox, set the input options.
@@ -928,270 +1179,67 @@ class OptionsWidget(QtWidgets.QWidget):
 
         """
         if self.data:
-            first_tstmp = list(self.data.keys())[0]
-            refsensor = self.determine_reference_point(first_tstmp)
-            if sensor_label == 'Basic Config':
-                element_size = self.curr_sensor_size
-                self.dualhead_option.setChecked(self.data[first_tstmp]['Dual Head'])
-                self.sensor_size.setText(str(element_size))
-                data = self.data[first_tstmp]['Vesselcenter']
-                self.vcenter_x.setText(format(float(data[0]), '.3f'))
-                self.vcenter_y.setText(format(float(data[1]), '.3f'))
-                self.vcenter_z.setText(format(float(data[2]), '.3f'))
-                self.vcenter_r.setText(format(float(data[3]), '.3f'))
-                self.vcenter_p.setText(format(float(data[4]), '.3f'))
-                self.vcenter_yaw.setText(format(float(data[5]), '.3f'))
-                self.update_button.show()
-            elif sensor_label == 'Vessel Reference Point':
-                index = self.refpt_select.findText(refsensor)
-                self.refpt_select.setCurrentIndex(index)
-                data = self.data[first_tstmp][refsensor]
-                self.x.setText(format(float(data[0]), '.3f'))
-                self.y.setText(format(float(data[1]), '.3f'))
-                self.z.setText(format(float(data[2]), '.3f'))
-                self.r.setText(format(float(data[3]), '.3f'))
-                self.p.setText(format(float(data[4]), '.3f'))
-                self.yaw.setText(format(float(data[5]), '.3f'))
-                self.x.setEnabled(False)
-                self.y.setEnabled(False)
-                self.z.setEnabled(False)
-                self.r.setEnabled(False)
-                self.p.setEnabled(False)
-                self.yaw.setEnabled(False)
-                self.update_button.hide()
-            else:
-                if sensor_label == refsensor:  # cant update the reference point obviously
-                    self.x.setEnabled(False)
-                    self.y.setEnabled(False)
-                    self.z.setEnabled(False)
-                    self.r.setEnabled(False)
-                    self.p.setEnabled(False)
-                    self.yaw.setEnabled(False)
-                    self.update_button.hide()
-                else:
-                    self.x.setEnabled(True)
-                    self.y.setEnabled(True)
-                    self.z.setEnabled(True)
-                    self.r.setEnabled(True)
-                    self.p.setEnabled(True)
-                    self.yaw.setEnabled(True)
-                    self.update_button.show()
-                data = self.data[first_tstmp][sensor_label]
-                self.x.setText(format(float(data[0]), '.3f'))
-                self.y.setText(format(float(data[1]), '.3f'))
-                self.z.setText(format(float(data[2]), '.3f'))
-                self.r.setText(format(float(data[3]), '.3f'))
-                self.p.setText(format(float(data[4]), '.3f'))
-                self.yaw.setText(format(float(data[5]), '.3f'))
-
-    def update_button_pressed(self):
-        """
-        Each sensor has an update button, on click it runs this method.
-
-        """
-        sens = self.sensor_select.currentText()
-        tstmp = self.get_currently_selected_time()
-        if sens == 'Basic Config':
-            pos = [float(self.vcenter_x.text()), float(self.vcenter_y.text()), float(self.vcenter_z.text()),
-                   float(self.vcenter_r.text()), float(self.vcenter_p.text()), float(self.vcenter_yaw.text())]
-            self.data[tstmp]['Vesselcenter'] = pos
-            self.update_sensor_sig.emit('Vesselcenter', *pos)
-            sensor_size = self.sensor_size.text()
-            self.update_sensor_sizes_sig.emit(float(sensor_size))
-            self.curr_sensor_size = float(sensor_size)
-        else:
-            pos = [float(self.x.text()), float(self.y.text()), float(self.z.text()), float(self.r.text()),
-                   float(self.p.text()), float(self.yaw.text())]
-            self.data[tstmp][sens] = pos
-            self.update_sensor_sig.emit(sens, *pos)
-
-    def parse_xyzrph(self, xyzrph):
-        """
-        Take the input xyzrph dict (from fqpr_generation processing) and build the records we need to update sensor
-        positions in the scene.
-
-        fqpr = fully qualified ping record, the term for the datastore in kluster
-
-        Parameters
-        ----------
-        xyzrph: dict, dictionary of survey systems and the xyz and rollpitchheading values that go with each
-
-        """
-        self.data = {}
-        if 'tx_port_x' in xyzrph:
-            tstmps = list(xyzrph['tx_port_x'].keys())
-            for tstmp in tstmps:
-                self.data[tstmp] = {'Vessel Reference Point': [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}
-                self.data[tstmp]['Dual Head'] = True
-                self.data[tstmp]['Port Sonar Transmitter'] = [float(xyzrph['tx_port_x'][tstmp]),
-                                                             float(xyzrph['tx_port_y'][tstmp]),
-                                                             float(xyzrph['tx_port_z'][tstmp]),
-                                                             float(xyzrph['tx_port_r'][tstmp]),
-                                                             float(xyzrph['tx_port_p'][tstmp]),
-                                                             float(xyzrph['tx_port_h'][tstmp])]
-                self.data[tstmp]['Port Sonar Receiver'] = [float(xyzrph['rx_port_x'][tstmp]),
-                                                          float(xyzrph['rx_port_y'][tstmp]),
-                                                          float(xyzrph['rx_port_z'][tstmp]),
-                                                          float(xyzrph['rx_port_r'][tstmp]),
-                                                          float(xyzrph['rx_port_p'][tstmp]),
-                                                          float(xyzrph['rx_port_h'][tstmp])]
-                self.data[tstmp]['Stbd Sonar Transmitter'] = [float(xyzrph['tx_stbd_x'][tstmp]),
-                                                             float(xyzrph['tx_stbd_y'][tstmp]),
-                                                             float(xyzrph['tx_stbd_z'][tstmp]),
-                                                             float(xyzrph['tx_stbd_r'][tstmp]),
-                                                             float(xyzrph['tx_stbd_p'][tstmp]),
-                                                             float(xyzrph['tx_stbd_h'][tstmp])]
-                self.data[tstmp]['Stbd Sonar Receiver'] = [float(xyzrph['rx_stbd_x'][tstmp]),
-                                                          float(xyzrph['rx_stbd_y'][tstmp]),
-                                                          float(xyzrph['rx_stbd_z'][tstmp]),
-                                                          float(xyzrph['rx_stbd_r'][tstmp]),
-                                                          float(xyzrph['rx_stbd_p'][tstmp]),
-                                                          float(xyzrph['rx_stbd_h'][tstmp])]
-                self.data[tstmp]['IMU'] = [float(xyzrph['imu_x'][tstmp]), float(xyzrph['imu_y'][tstmp]),
-                                           float(xyzrph['imu_z'][tstmp]), float(xyzrph['imu_r'][tstmp]),
-                                           float(xyzrph['imu_p'][tstmp]), float(xyzrph['imu_h'][tstmp])]
-                self.data[tstmp]['Primary Antenna'] = [float(xyzrph['antenna_x'][tstmp]),
-                                                       float(xyzrph['antenna_y'][tstmp]),
-                                                       float(xyzrph['antenna_z'][tstmp]), 0, 0, 0]
-                self.data[tstmp]['Waterline'] = [0, 0, xyzrph['waterline'][tstmp], 0, 0, 0]
-                try:
-                    self.data[tstmp]['Vesselcenter'] = [float(xyzrph['vess_center_x'][tstmp]),
-                                                        float(xyzrph['vess_center_y'][tstmp]),
-                                                        float(xyzrph['vess_center_z'][tstmp]),
-                                                        float(xyzrph['vess_center_r'][tstmp]),
-                                                        float(xyzrph['vess_center_p'][tstmp]),
-                                                        float(xyzrph['vess_center_yaw'][tstmp])]
-                except KeyError:
-                    self.data[tstmp]['Vesselcenter'] = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-        else:
-            tstmps = list(xyzrph['tx_x'].keys())
-            for tstmp in tstmps:
-                self.data[tstmp] = {'Vessel Reference Point': [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}
-                self.data[tstmp]['Dual Head'] = False
-                self.data[tstmp]['Sonar Transmitter'] = [float(xyzrph['tx_x'][tstmp]), float(xyzrph['tx_y'][tstmp]),
-                                                        float(xyzrph['tx_z'][tstmp]), float(xyzrph['tx_r'][tstmp]),
-                                                        float(xyzrph['tx_p'][tstmp]), float(xyzrph['tx_h'][tstmp])]
-                self.data[tstmp]['Sonar Receiver'] = [float(xyzrph['rx_x'][tstmp]), float(xyzrph['rx_y'][tstmp]),
-                                                     float(xyzrph['rx_z'][tstmp]), float(xyzrph['rx_r'][tstmp]),
-                                                     float(xyzrph['rx_p'][tstmp]), float(xyzrph['rx_h'][tstmp])]
-                self.data[tstmp]['IMU'] = [float(xyzrph['imu_x'][tstmp]), float(xyzrph['imu_y'][tstmp]),
-                                           float(xyzrph['imu_z'][tstmp]), float(xyzrph['imu_r'][tstmp]),
-                                           float(xyzrph['imu_p'][tstmp]), float(xyzrph['imu_h'][tstmp])]
-                self.data[tstmp]['Primary Antenna'] = [float(xyzrph['tx_to_antenna_x'][tstmp]),
-                                                       float(xyzrph['tx_to_antenna_y'][tstmp]),
-                                                       float(xyzrph['tx_to_antenna_z'][tstmp]), 0, 0, 0]
-                self.data[tstmp]['Waterline'] = [0, 0, xyzrph['waterline'][tstmp], 0, 0, 0]
-                try:
-                    self.data[tstmp]['Vesselcenter'] = [float(xyzrph['vess_center_x'][tstmp]),
-                                                        float(xyzrph['vess_center_y'][tstmp]),
-                                                        float(xyzrph['vess_center_z'][tstmp]),
-                                                        float(xyzrph['vess_center_r'][tstmp]),
-                                                        float(xyzrph['vess_center_p'][tstmp]),
-                                                        float(xyzrph['vess_center_yaw'][tstmp])]
-                except KeyError:
-                    self.data[tstmp]['Vesselcenter'] = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-
-    def determine_reference_point(self, tstmp):
-        """
-        Each time the Vessel Reference Point comes up in the sensor_select, run this method to determine the current
-        reference point.  We assume that either IMU, sonar transmitter, or some custom option will always be the
-        reference point.
-
-        Parameters
-        ----------
-        tstmp: str, unix timestamp for the given entry
-
-        """
-        v4_target_sensing_center_offset = np.array([-0.008, -0.031, 0.130, 0, 0, 0])
-        v5_target_sensing_center_offset = np.array([0.005, -0.006, 0.089, 0, 0, 0])
-
-        refpt = 'Custom'
-        if self.data:
-            data_by_time = self.data[tstmp]
-            imu_vals = np.array([np.round(float(x), 3) for x in data_by_time['IMU']])
-            if np.array_equal(imu_vals, v4_target_sensing_center_offset) or \
-                    np.array_equal(imu_vals, v5_target_sensing_center_offset) or \
-                    not np.any(imu_vals[0:3]):
-                refpt = 'IMU'
-
-            if 'Port Sonar Transmitter' in data_by_time:
-                ident = 'Port Sonar Transmitter'
-                sonar_vals = np.array([np.round(float(x), 3) for x in data_by_time['Port Sonar Transmitter']])
-            else:
-                ident = 'Sonar Transmitter'
-                sonar_vals = np.array([np.round(float(x), 3) for x in data_by_time['Sonar Transmitter']])
-            if not np.any(sonar_vals):
-                refpt = ident
-        return refpt
-
-    def populate_from_xyzrph(self, xyzrph, serial_number=None):
-        """
-        User has provided a xyzrph dict.  Here we signal the scene to update the positions of each sensor and adjust
-        the sensor list for dual head if necessary.
-
-        Parameters
-        ----------
-        xyzrph: dict, dictionary of survey systems and the xyz and rollpitchheading values that go with each
-
-        """
-
-        if xyzrph is None:  # clear the data
-            self.vess_select.setEnabled(False)
-            self.serial_select.setEnabled(False)
-            self.sensor_select.setEnabled(False)
-            self.time_select.setEnabled(False)
-            self.update_button.setEnabled(False)
-            for sens in ['Port Sonar Transmitter', 'Port Sonar Receiver', 'Stbd Sonar Transmitter', 'Stbd Sonar Receiver',
-                         'Sonar Transmitter', 'Sonar Receiver', 'IMU', 'Primary Antenna', 'Waterline', 'Vesselcenter']:
-                self.update_sensor_sig.emit(sens, 0, 0, 0, 0, 0, 0)
-            self.time_select.clear()
-            self.sensor_select.clear()
-            self.refpt_select.clear()
-        else:
-            # this method is run on new config or importing from multibeam.  So we need to start by enabling the controls
-            self.vess_select.setEnabled(True)
-            self.serial_select.setEnabled(True)
-            self.sensor_select.setEnabled(True)
-            self.time_select.setEnabled(True)
-            self.update_button.setEnabled(True)
-            self.parse_xyzrph(xyzrph)
-            self.time_select.clear()
-            self.timestamps = list(self.data.keys())
-            self.timestamps_converted = [datetime.fromtimestamp(int(tstmp)).strftime('%m/%d/%Y %H%M%S') for tstmp in self.timestamps]
-            self.time_select.addItems(self.timestamps_converted)
-            self.serial_select.setCurrentText(serial_number)
-            self.model_select.setCurrentText(xyzrph[''])
-            hide_loc = hide_location.tolist() + [0, 0, 0]
-
-            first_tstmp = self.timestamps[0]
-            if 'tx_port_x' in xyzrph:  # dual head
-                refpts = ['Port Sonar Transmitter', 'IMU', 'Custom']
-                sensors = ['Basic Config', 'Vessel Reference Point', 'Port Sonar Transmitter', 'Port Sonar Receiver',
-                           'Stbd Sonar Transmitter', 'Stbd Sonar Receiver', 'IMU', 'Primary Antenna', 'Waterline']
-                self.update_sensor_sig.emit('Port Sonar Transmitter', *[np.round(float(x), 3) for x in self.data[first_tstmp]['Port Sonar Transmitter']])
-                self.update_sensor_sig.emit('Port Sonar Receiver', *[np.round(float(x), 3) for x in self.data[first_tstmp]['Port Sonar Receiver']])
-                self.update_sensor_sig.emit('Stbd Sonar Transmitter', *[np.round(float(x), 3) for x in self.data[first_tstmp]['Stbd Sonar Transmitter']])
-                self.update_sensor_sig.emit('Stbd Sonar Receiver', *[np.round(float(x), 3) for x in self.data[first_tstmp]['Stbd Sonar Receiver']])
-            else:
-                refpts = ['Sonar Transmitter', 'IMU', 'Custom']
-                sensors = ['Basic Config', 'Vessel Reference Point', 'Sonar Transmitter', 'Sonar Receiver', 'IMU',
-                           'Primary Antenna', 'Waterline']
-                self.update_sensor_sig.emit('Stbd Sonar Transmitter', *hide_loc)
-                self.update_sensor_sig.emit('Stbd Sonar Receiver', *hide_loc)
-                self.update_sensor_sig.emit('Sonar Transmitter', *[np.round(float(x), 3) for x in self.data[first_tstmp]['Sonar Transmitter']])
-                self.update_sensor_sig.emit('Sonar Receiver', *[np.round(float(x), 3) for x in self.data[first_tstmp]['Sonar Receiver']])
-            self.update_sensor_sig.emit('IMU', *[np.round(float(x), 3) for x in self.data[first_tstmp]['IMU']])
-            self.update_sensor_sig.emit('Primary Antenna', *[np.round(float(x), 3) for x in self.data[first_tstmp]['Primary Antenna']])
-            self.update_sensor_sig.emit('Waterline', *[np.round(float(x), 3) for x in self.data[first_tstmp]['Waterline']])
-            self.update_sensor_sig.emit('Vesselcenter', *[np.round(float(x), 3) for x in self.data[first_tstmp]['Vesselcenter']])
-
-            # loading a new config should reset waterline visibility so there isn't an issue with hiding and visibility
-            self.show_waterline.setChecked(True)
-
-            self.sensor_select.clear()
-            self.sensor_select.addItems(sensors)
-            self.refpt_select.clear()
-            self.refpt_select.addItems(refpts)
+            serial_num = self.serial_select.currentText()
+            tstmp = self.get_currently_selected_time()
+            if serial_num and tstmp:
+                refsensor = self.determine_reference_point(tstmp)
+                if refsensor:
+                    if sensor_label == 'Basic Config':
+                        element_size = self.curr_sensor_size
+                        self.dualhead_option.setChecked(self.data[serial_num][tstmp]['Dual Head'])
+                        self.sensor_size.setText(str(element_size))
+                        data = self.data[serial_num][tstmp]['Vesselcenter']
+                        self.vcenter_x.setText(format(float(data[0]), '.3f'))
+                        self.vcenter_y.setText(format(float(data[1]), '.3f'))
+                        self.vcenter_z.setText(format(float(data[2]), '.3f'))
+                        self.vcenter_r.setText(format(float(data[3]), '.3f'))
+                        self.vcenter_p.setText(format(float(data[4]), '.3f'))
+                        self.vcenter_yaw.setText(format(float(data[5]), '.3f'))
+                        self.update_button.show()
+                    elif sensor_label == 'Vessel Reference Point':
+                        index = self.refpt_select.findText(refsensor)
+                        self.refpt_select.setCurrentIndex(index)
+                        if refsensor == 'Custom':
+                            data = [0, 0, 0, 0, 0, 0]
+                        else:
+                            data = self.data[serial_num][tstmp][refsensor]
+                        self.x.setText(format(float(data[0]), '.3f'))
+                        self.y.setText(format(float(data[1]), '.3f'))
+                        self.z.setText(format(float(data[2]), '.3f'))
+                        self.r.setText(format(float(data[3]), '.3f'))
+                        self.p.setText(format(float(data[4]), '.3f'))
+                        self.yaw.setText(format(float(data[5]), '.3f'))
+                        self.x.setEnabled(False)
+                        self.y.setEnabled(False)
+                        self.z.setEnabled(False)
+                        self.r.setEnabled(False)
+                        self.p.setEnabled(False)
+                        self.yaw.setEnabled(False)
+                        self.update_button.hide()
+                    else:
+                        # if sensor_label in [refsensor, 'IMU', 'Primary Antenna']:  # cant update the reference point obviously
+                        #     self.x.setEnabled(False)
+                        #     self.y.setEnabled(False)
+                        #     self.z.setEnabled(False)
+                        #     self.r.setEnabled(False)
+                        #     self.p.setEnabled(False)
+                        #     self.yaw.setEnabled(False)
+                        #     self.update_button.hide()
+                        # else:
+                        self.x.setEnabled(True)
+                        self.y.setEnabled(True)
+                        self.z.setEnabled(True)
+                        self.r.setEnabled(True)
+                        self.p.setEnabled(True)
+                        self.yaw.setEnabled(True)
+                        self.update_button.show()
+                        data = self.data[serial_num][tstmp][sensor_label]
+                        self.x.setText(format(float(data[0]), '.3f'))
+                        self.y.setText(format(float(data[1]), '.3f'))
+                        self.z.setText(format(float(data[2]), '.3f'))
+                        self.r.setText(format(float(data[3]), '.3f'))
+                        self.p.setText(format(float(data[4]), '.3f'))
+                        self.yaw.setText(format(float(data[5]), '.3f'))
 
 
 class VesselView(QtWidgets.QWidget):
@@ -1204,6 +1252,7 @@ class VesselView(QtWidgets.QWidget):
         self.scene = scene.SceneCanvas(self, keys='interactive', show=True)
         self.vessview = self.scene.central_widget.add_view()
 
+        self.first_time_setup = True
         self.vessel = None
         self.x_axis = None
         self.x_axis_lbl = None
@@ -1220,6 +1269,10 @@ class VesselView(QtWidgets.QWidget):
         self.antenna = None
         self.waterline = None
 
+        self.show_vessel = True
+        self.show_axes = True
+        self.show_waterline = True
+
         self.currselected = None
         self.curr_sensor_size = launch_sensor_size
         self.sensor_lookup = None
@@ -1228,11 +1281,23 @@ class VesselView(QtWidgets.QWidget):
         # start off with the first vessel found
         vess_folder = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'vessel_stl_files')
         self.pth_to_vessel_file = os.path.join(vess_folder, os.listdir(vess_folder)[0])
-        self.override_vessel_position = None
+        self.current_vessel_position = None
+        self.current_vessel_rotation = None
+        self.current_waterline_position = None
 
         layout = QtWidgets.QHBoxLayout()
         layout.addWidget(self.scene.native)
         self.setLayout(layout)
+
+    def show_vessel_triggered(self, state):
+        self.show_vessel = state
+        if self.pth_to_vessel_file:
+            self.build_vessel(self.pth_to_vessel_file)
+
+    def show_axes_triggered(self, state):
+        self.show_axes = state
+        if self.pth_to_vessel_file:
+            self.build_vessel(self.pth_to_vessel_file)
 
     def clear_sensors(self):
         if self.tx_primary is not None:
@@ -1250,6 +1315,10 @@ class VesselView(QtWidgets.QWidget):
             self.antenna = None
             self.waterline.mesh.parent = None
             self.waterline = None
+            self.clear_axis()
+
+    def clear_axis(self):
+        if self.x_axis is not None:
             self.x_axis.parent = None
             self.x_axis = None
             self.y_axis.parent = None
@@ -1294,13 +1363,24 @@ class VesselView(QtWidgets.QWidget):
                           name='imu', color=Color('orange', alpha=0.2), origin=self.origin)
         self.antenna = Sensor('cube', hide_location, parent=self.vessview.scene, size=self.curr_sensor_size,
                               name='primary_antenna', color=Color('yellow', alpha=0.2), origin=self.origin)
-        self.waterline = Waterline('plane', hide_location, parent=self.vessview.scene, width=100, height=100,
-                                   name='waterline', color=Color('blue', alpha=0.2), origin=self.origin)
 
         self.sensor_lookup = {'Sonar Transmitter': self.tx_primary, 'Sonar Receiver': self.rx_primary,
-                              'Waterline': self.waterline, 'Port Sonar Transmitter': self.tx_primary,
+                              'Port Sonar Transmitter': self.tx_primary,
                               'Port Sonar Receiver': self.rx_primary, 'Stbd Sonar Transmitter': self.tx_secondary,
                               'Stbd Sonar Receiver': self.rx_secondary, 'IMU': self.imu, 'Primary Antenna': self.antenna}
+
+    def build_waterline_sensor(self):
+        if self.show_waterline and self.waterline is None:
+            self.waterline = Waterline('plane', hide_location, parent=self.vessview.scene, width=100, height=100,
+                                       name='waterline', color=Color('blue', alpha=0.2), origin=self.origin)
+            if self.current_waterline_position is not None:
+                self.waterline.set_position(self.current_waterline_position.copy())
+            self.sensor_lookup['Waterline'] = self.waterline
+            self.sensor_selected('Waterline')
+        elif self.waterline is not None and not self.show_waterline:
+            self.waterline.mesh.parent = None
+            self.waterline = None
+            self.sensor_lookup['Waterline'] = self.waterline
 
     def build_axes(self):
         self.x_axis = scene.visuals.Arrow(pos=np.array([[0, 0], [50000, 0]]), color='r', parent=self.vessview.scene,
@@ -1319,7 +1399,7 @@ class VesselView(QtWidgets.QWidget):
         self.z_axis_lbl = scene.visuals.Text('z + Down', color='b', pos=(0, 0, -58000), font_size=1000000,
                                              parent=self.vessview.scene)
 
-    def build_vessel(self, pth_to_vess_file, override_vessel_position=None):
+    def build_vessel(self, pth_to_vess_file):
         """
         Builds the vispy scene.  Sensors are built first (so that they remain in the foreground) and the vessel is built
         last.  First time through we actually build things, see build_sensors.
@@ -1334,7 +1414,6 @@ class VesselView(QtWidgets.QWidget):
         Parameters
         ----------
         pth_to_vess_file: str, path to the 3d model of the boat, must be either .obj or .stl
-        override_vessel_position: optional, numpy array 3 elements (x, y, z) in meters
 
         """
         if os.path.isfile(pth_to_vess_file):  # if the vessel control is blank for some reason, or the file goes missing, it will default back to the fist in the os.listdir init
@@ -1342,21 +1421,23 @@ class VesselView(QtWidgets.QWidget):
         pth_to_vess_file_ext = os.path.splitext(pth_to_vess_file)[1]
         if pth_to_vess_file_ext not in ['.obj', '.stl']:
             raise ValueError('Only .obj and .stl are currently supported.  Got {}'.format(pth_to_vess_file))
-        if override_vessel_position is not None:
-            vesspos = override_vessel_position
-        else:
-            vesspos = np.array([0, 0, 0])
+        vesspos = np.array([0, 0, 0])
 
-        if self.vessel is not None:
-            # remove the vessel from the scene if you are switching vessels
-            self.vessel.mesh.parent = None
-            self.vessel.mesh = None
-
+        self.clear_vessel()
         if self.tx_primary is None:
             self.build_sensors()
-        self.vessel = Vessel(pth_to_vess_file, vesspos, parent=self.vessview.scene,
-                             color=Color('grey', alpha=0.3), name='vessel')
-        self.build_axes()
+        self.build_waterline_sensor()
+        if self.show_vessel:
+            self.vessel = Vessel(pth_to_vess_file, vesspos, parent=self.vessview.scene,
+                                 color=Color('grey', alpha=0.3), name='vessel')
+            if self.current_vessel_position is not None:
+                self.vessel.set_position(self.current_vessel_position.copy(), from_meters=True, flip_z=True, flip_y=True, flip_x=False)
+            if self.current_vessel_rotation is not None:
+                self.vessel.set_rotation(self.current_vessel_rotation.copy(), from_deg=True)
+        if self.x_axis is None and self.show_axes:
+            self.build_axes()
+        elif self.x_axis and not self.show_axes:
+            self.clear_axis()
 
         # Tried using the axis visual, but I couldn't get the ticks and labels to work, our scale is too large i guess
         #
@@ -1370,7 +1451,9 @@ class VesselView(QtWidgets.QWidget):
         # self.z_axis.transform.rotate(90, (0, 1, 0))  # rotate cw around yaxis
         # self.z_axis.transform.rotate(-45, (0, 0, 1))  # tick direction towards (-1,-1)
 
-        self.vessview.camera = scene.cameras.TurntableCamera(parent=self.vessview.scene, center=(0, 0, 0))
+        if self.first_time_setup:
+            self.vessview.camera = scene.cameras.TurntableCamera(parent=self.vessview.scene, center=(0, 0, 0))
+            self.first_time_setup = False
 
     def sensor_selected(self, sensor_name):
         """
@@ -1383,18 +1466,22 @@ class VesselView(QtWidgets.QWidget):
 
         """
         if self.currselected is not None:
-            old_sensor = self.sensor_lookup[self.currselected]
-            old_sensor_state = old_sensor.get_sensor_state()
-            if old_sensor_state != 0:
-                old_sensor.toggle_sensor(1)  # dim
+            if self.currselected in self.sensor_lookup:
+                old_sensor = self.sensor_lookup[self.currselected]
+                if old_sensor:
+                    old_sensor_state = old_sensor.get_sensor_state()
+                    if old_sensor_state != 0:
+                        old_sensor.toggle_sensor(1)  # dim
         if not sensor_name or sensor_name in ['Basic Config', 'Vessel Reference Point']:
             self.currselected = None
         else:
-            sensor = self.sensor_lookup[sensor_name]
-            sensor_state = sensor.get_sensor_state()
-            if sensor_state != 0:
-                sensor.toggle_sensor(2)  # bright
-            self.currselected = sensor_name
+            if sensor_name and sensor_name in self.sensor_lookup:
+                sensor = self.sensor_lookup[sensor_name]
+                if sensor:
+                    sensor_state = sensor.get_sensor_state()
+                    if sensor_state != 0:
+                        sensor.toggle_sensor(2)  # bright
+                    self.currselected = sensor_name
 
     def position_sensor(self, sensor_lbl, x, y, z, r, p, h):
         """
@@ -1419,12 +1506,18 @@ class VesselView(QtWidgets.QWidget):
         """
         if self.sensor_lookup:  # sensors must be built first
             if sensor_lbl == 'Vesselcenter':
-                self.vessel.set_position(np.array([x, y, z]), from_meters=True, flip_z=True, flip_y=True, flip_x=False)
-                self.vessel.set_rotation(np.array([r, p, h]), from_deg=True)
+                if self.vessel:  # might not be a vessel if vessel is 'hidden'
+                    self.current_vessel_position = np.array([x, y, z])
+                    self.current_vessel_rotation = np.array([r, p, h])
+                    self.vessel.set_position(np.array([x, y, z]), from_meters=True, flip_z=True, flip_y=True, flip_x=False)
+                    self.vessel.set_rotation(np.array([r, p, h]), from_deg=True)
             else:
                 sensor = self.sensor_lookup[sensor_lbl]
-                newpos = np.array([x, y, z])
-                sensor.set_position(newpos, from_meters=True, flip_z=True, flip_y=True, flip_x=False)
+                if sensor:
+                    if sensor_lbl == 'Waterline':
+                        self.current_waterline_position = np.array([x, y, z])
+                    newpos = np.array([x, y, z])
+                    sensor.set_position(newpos, from_meters=True, flip_z=True, flip_y=True, flip_x=False)
 
             # currently rotations are set from origin.  We would want to rotate our little cubes relative to the center
             #   of the cube.  Not currently implemented
@@ -1472,9 +1565,11 @@ class VesselView(QtWidgets.QWidget):
 
         """
         if checked:
-            self.waterline.toggle_sensor(0)
+            self.show_waterline = False
         else:
-            self.waterline.toggle_sensor(2)
+            self.show_waterline = True
+        if self.pth_to_vessel_file:
+            self.build_vessel(self.pth_to_vessel_file)
 
 
 class VesselWidget(QtWidgets.QWidget):
@@ -1493,7 +1588,15 @@ class VesselWidget(QtWidgets.QWidget):
         self.opts_window = OptionsWidget(self)
         self.opts_window.setFixedWidth(300)
 
-        self.opts_window.serial_selected_sig.connect(self.update_data)
+        self.show_vessel_action = QtWidgets.QAction('Show Vessel', self)
+        self.show_vessel_action.setCheckable(True)
+        self.show_vessel_action.setChecked(True)
+        self.show_axes_action = QtWidgets.QAction('Show Axes', self)
+        self.show_axes_action.setCheckable(True)
+        self.show_axes_action.setChecked(True)
+
+        self.show_vessel_action.toggled.connect(self.vessview_window.show_vessel_triggered)
+        self.show_axes_action.toggled.connect(self.vessview_window.show_axes_triggered)
         self.opts_window.vess_selected_sig.connect(self.vessview_window.build_vessel)
         self.opts_window.vess_selected_sig.connect(self.update_xyzrph_vessel)
         self.opts_window.sensor_selected_sig.connect(self.vessview_window.sensor_selected)
@@ -1523,7 +1626,6 @@ class VesselWidget(QtWidgets.QWidget):
         self.xyzrph = None
         self.canceled = False
         self.setup_toolbar()
-        # self.opts_window.vessel_selected()
 
     def setup_toolbar(self):
         """
@@ -1533,7 +1635,6 @@ class VesselWidget(QtWidgets.QWidget):
         newconfig = QtWidgets.QAction('New Config', self)
         openconfig = QtWidgets.QAction('Open Config', self)
         saveconfig = QtWidgets.QAction('Save Config', self)
-        addconfig = QtWidgets.QAction('Add to Config File', self)
         importpos = QtWidgets.QAction('Import from POSMV', self)
         importkongs = QtWidgets.QAction('Import from Kongsberg', self)
         importpos.triggered.connect(self.import_from_posmv)
@@ -1541,22 +1642,24 @@ class VesselWidget(QtWidgets.QWidget):
         newconfig.triggered.connect(self.new_configuration)
         openconfig.triggered.connect(self.open_configuration)
         saveconfig.triggered.connect(self.save_configuration)
-        addconfig.triggered.connect(self.add_to_configuration)
         file.addAction(newconfig)
         file.addAction(openconfig)
         file.addAction(saveconfig)
-        file.addAction(addconfig)
         file.addSeparator()
         file.addAction(importpos)
         file.addAction(importkongs)
 
-        tools = self.mbar.addMenu('Tools')
+        view = self.mbar.addMenu('View')
+        view.addAction(self.show_vessel_action)
+        view.addAction(self.show_axes_action)
+
+        testing = self.mbar.addMenu('Testing')
         importsingle = QtWidgets.QAction('Load test dataset', self)
         importdual = QtWidgets.QAction('Load test dualhead dataset', self)
         importsingle.triggered.connect(self.load_test_dataset)
         importdual.triggered.connect(self.load_dualhead_test_dataset)
-        tools.addAction(importsingle)
-        tools.addAction(importdual)
+        testing.addAction(importsingle)
+        testing.addAction(importdual)
 
     def update_xyzrph_vessel(self, pth_to_vessel):
         """
@@ -1569,11 +1672,10 @@ class VesselWidget(QtWidgets.QWidget):
         """
         if self.xyzrph is not None:
             serial_num = self.opts_window.serial_select.currentText()
+            if not serial_num:
+                serial_num = list(self.xyzrph.keys())[0]
             orig_tstmp = self.opts_window.get_currently_selected_time()
             self.xyzrph[serial_num]['vessel_file'][orig_tstmp] = pth_to_vessel
-
-    def update_data(self, serial_num):
-        self.populate_from_xyzrph(self.xyzrph[serial_num], serial_num)
 
     def update_xyzrph_sensorposition(self, sensor_lbl, x, y, z, r, p, h):
         """
@@ -1619,7 +1721,7 @@ class VesselWidget(QtWidgets.QWidget):
                         except KeyError:
                             print('Unable to update self.xyzrph for {} with time stamp {}: {} not in {}'.format(entry, orig_tstmp, orig_tstmp, entry))
 
-    def populate_from_xyzrph(self, xyzrph: dict = None, serial_number: str = None):
+    def populate_from_xyzrph(self):
         """
         Trigger the loading of data from Kluster xyzrph.
 
@@ -1628,16 +1730,10 @@ class VesselWidget(QtWidgets.QWidget):
         xyzrph: dict, kluster xyzrph instance
 
         """
-        self.xyzrph = xyzrph
-        if xyzrph:
-            if serial_number:
-                self.opts_window.populate_from_xyzrph(xyzrph, serial_number)
-            else:
-                serial_nums = list(self.xyzrph.keys())
-                self.opts_window.populate_from_xyzrph(xyzrph, serial_nums[0])
+        if self.xyzrph:
+            self.opts_window.populate_from_xyzrph(deepcopy(self.xyzrph))
         else:
             self.opts_window.populate_from_xyzrph(None)
-        self.opts_window.sensor_selected()
 
     def import_from_posmv(self):
         """
@@ -1658,7 +1754,7 @@ class VesselWidget(QtWidgets.QWidget):
                         for tstmp in self.xyzrph[serial_num][sens]:
                             if float(posxyzrph[sens]):
                                 self.xyzrph[serial_num][sens][tstmp] = str(posxyzrph[sens])
-                    self.opts_window.populate_from_xyzrph(self.xyzrph[serial_num], serial_num)
+                    self.populate_from_xyzrph()
                 else:
                     print('Expect data to exist before loading from POS MV, please import from kongsberg first or open config file')
             else:
@@ -1679,13 +1775,15 @@ class VesselWidget(QtWidgets.QWidget):
             self.vessview_window.clear_sensors()
             self.vessview_window.build_vessel(self.vessview_window.pth_to_vessel_file)
             mbesxyzrph, sonar_model, serial_number = return_xyzrph_from_mbes(fil)
-            first_sensor = list(mbesxyzrph.keys())[0]
-            tstmps = list(mbesxyzrph[first_sensor].keys())
-            vess_xyzrph = {str(serial_number): mbesxyzrph}
-            vess_xyzrph[str(serial_number)]['sonar_type'][tstmps[0]] = sonar_model
-            self.vessel_win.xyzrph = vess_xyzrph
             if mbesxyzrph is not None:
-                self.populate_from_xyzrph(mbesxyzrph, serial_number)
+                first_sensor = list(mbesxyzrph.keys())[0]
+                tstmps = list(mbesxyzrph[first_sensor].keys())
+                if not self.xyzrph:
+                    self.xyzrph = {str(serial_number): mbesxyzrph}
+                else:
+                    self.xyzrph[str(serial_number)] = mbesxyzrph
+                self.xyzrph[str(serial_number)]['sonar_type'] = {tstmps[0]: sonar_model}
+                self.load_from_existing_xyzrph()
             else:
                 print('Unable to load from {}'.format(fil))
         else:
@@ -1719,7 +1817,8 @@ class VesselWidget(QtWidgets.QWidget):
         Open a blank instance of the vessel view
         """
 
-        self.populate_from_xyzrph(None)
+        self.xyzrph = None
+        self.populate_from_xyzrph()
         self.vessview_window.clear_sensors()
         self.vessview_window.clear_vessel()
 
@@ -1736,10 +1835,11 @@ class VesselWidget(QtWidgets.QWidget):
                                                          fFilter='Kluster configuration (*.kfc)')
         if fil:
             if self.xyzrph is not None:
-                serial_num = self.opts_window.serial_select.currentText()
-                first_sensor = list(self.xyzrph[serial_num].keys())[0]
-                tstmps = list(self.xyzrph[serial_num][first_sensor].keys())
-                self._update_xyzrph_vesselposition(serial_num, tstmps)
+                for i in range(self.opts_window.serial_select.count()):
+                    serial_num = self.opts_window.serial_select.itemText(i)
+                    first_sensor = list(self.xyzrph[serial_num].keys())[0]
+                    tstmps = list(self.xyzrph[serial_num][first_sensor].keys())
+                    self._update_xyzrph_vesselposition(serial_num, tstmps)
                 with open(fil, 'w') as json_fil:
                     json.dump(self.xyzrph, json_fil)
             else:
@@ -1747,28 +1847,32 @@ class VesselWidget(QtWidgets.QWidget):
         else:
             print('Save cancelled')
 
-    def add_to_configuration(self):
-        msg, fil = RegistryHelpers.GetFilenameFromUserQT(self, RegistryKey='kluster',
-                                                         Title='Open a kluster configuration file',
-                                                         AppName='klustersave', bMulti=False, bSave=False,
-                                                         fFilter='Kluster configuration (*.kfc)')
-        if fil:
-            if os.path.exists(fil):
-                with open(fil, 'r') as json_fil:
-                    curr_xyzrph = json.load(json_fil)
-                serial_num = self.opts_window.serial_select.currentText()
-                first_sensor = list(self.xyzrph[serial_num].keys())[0]
-                tstmps = list(self.xyzrph[serial_num][first_sensor].keys())
-                self._update_xyzrph_vesselposition(serial_num, tstmps)
-                for entry in curr_xyzrph.keys():
-                    for ky, val in self.xyzrph[serial_num][entry].items():
-                        curr_xyzrph[entry][ky] = val
-                with open(fil, 'w') as json_fil:
-                    json.dump(curr_xyzrph, json_fil)
-            else:
-                print('Unable to find file: {}'.format(fil))
-        else:
-            print('Open cancelled')
+    # def add_to_configuration(self):
+    #     msg, fil = RegistryHelpers.GetFilenameFromUserQT(self, RegistryKey='kluster',
+    #                                                      Title='Open a kluster configuration file',
+    #                                                      AppName='klustersave', bMulti=False, bSave=False,
+    #                                                      fFilter='Kluster configuration (*.kfc)')
+    #     if fil:
+    #         if os.path.exists(fil):
+    #             with open(fil, 'r') as json_fil:
+    #                 curr_xyzrph = json.load(json_fil)
+    #             for i in range(self.opts_window.serial_select.count()):
+    #                 serial_num = self.opts_window.serial_select.itemText(i)
+    #                 first_sensor = list(self.xyzrph[serial_num].keys())[0]
+    #                 tstmps = list(self.xyzrph[serial_num][first_sensor].keys())
+    #                 self._update_xyzrph_vesselposition(serial_num, tstmps)
+    #                 if serial_num in curr_xyzrph:
+    #                     for entry in curr_xyzrph[serial_num].keys():
+    #                         for ky, val in self.xyzrph[serial_num][entry].items():
+    #                             curr_xyzrph[entry][ky] = val
+    #                 else:
+    #                     curr_xyzrph[serial_num] = self.xyzrph[serial_num]
+    #             with open(fil, 'w') as json_fil:
+    #                 json.dump(curr_xyzrph, json_fil)
+    #         else:
+    #             print('Unable to find file: {}'.format(fil))
+    #     else:
+    #         print('Open cancelled')
 
     def load_from_existing_xyzrph(self):
         """
@@ -1777,34 +1881,39 @@ class VesselWidget(QtWidgets.QWidget):
         model and position all sensors /  populate all the gui controls
         """
 
+        for serial_num in list(self.xyzrph.keys()):
+            first_sensor = list(self.xyzrph[serial_num].keys())[0]
+            tstmps = list(self.xyzrph[serial_num][first_sensor].keys())
+            self._update_xyzrph_vesselposition(serial_num, tstmps)
+
         serial_num = list(self.xyzrph.keys())[0]
         first_sensor = list(self.xyzrph[serial_num].keys())[0]
         tstmps = list(self.xyzrph[serial_num][first_sensor].keys())
         first_tstmp = tstmps[0]
-        self.opts_window.time_select.clear()
 
         # set the vessel specific information
         try:
             vess = self.xyzrph[serial_num]['vessel_file'][first_tstmp]
             vessindex = self.opts_window.vess_select.findText(os.path.split(vess)[1])
+            currindex = self.opts_window.vess_select.findText(self.opts_window.vess_select.currentText())
             self.opts_window.vess_select.setCurrentIndex(vessindex)
-            self.opts_window.vessel_selected()
+            if vessindex == currindex:
+                self.opts_window.vessel_selected(None)
             pos = [float(self.xyzrph[serial_num]['vess_center_x'][first_tstmp]), float(self.xyzrph[serial_num]['vess_center_y'][first_tstmp]),
                    float(self.xyzrph[serial_num]['vess_center_z'][first_tstmp]), float(self.xyzrph[serial_num]['vess_center_r'][first_tstmp]),
                    float(self.xyzrph[serial_num]['vess_center_p'][first_tstmp]), float(self.xyzrph[serial_num]['vess_center_yaw'][first_tstmp])]
             self.opts_window.update_sensor_sig.emit('Vesselcenter', *pos)
         except KeyError:
             self.opts_window.vess_select.setCurrentIndex(0)
-            print('No vessel found in xyzrph')
-            self.opts_window.vessel_selected()
-        self.populate_from_xyzrph(self.xyzrph[serial_num], serial_num)
+        self.populate_from_xyzrph()
 
     def load_test_dataset(self):
         """
         Load from the test dataset for standard EM2040 launch system
         """
 
-        self.xyzrph = test_xyzrph
+        self.new_configuration()
+        self.xyzrph = deepcopy(test_xyzrph)
         self.load_from_existing_xyzrph()
 
     def load_dualhead_test_dataset(self):
@@ -1812,7 +1921,8 @@ class VesselWidget(QtWidgets.QWidget):
         Load from the test dataset for dual head EM2040 as seen on Ferdinand Hassler
         """
 
-        self.xyzrph = test_xyzrph_dual
+        self.new_configuration()
+        self.xyzrph = deepcopy(test_xyzrph_dual)
         self.load_from_existing_xyzrph()
 
     def open_configuration(self):

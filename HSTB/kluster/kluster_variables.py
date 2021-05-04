@@ -38,27 +38,27 @@ tpu_parameter_names = ['tx_to_antenna_x', 'tx_to_antenna_y', 'tx_to_antenna_z', 
                        'heading_patch_error', 'latency_patch_error', 'timing_latency_error',
                        'separation_model_error', 'waterline_error', 'vessel_speed_error', 'horizontal_positioning_error',
                        'vertical_positioning_error', 'beam_opening_angle']
-default_heave_error = 0.05  # default tpu parameter for heave
+default_heave_error = 0.050  # default tpu parameter for heave
 default_roll_error = 0.0005  # default tpu parameter for roll
 default_pitch_error = 0.0005  # default tpu parameter for pitch
-default_heading_error = 0.02  # default tpu parameter for heading
-default_x_offset_error = 0.2  # default tpu parameter for x offset measurement
-default_y_offset_error = 0.2  # default tpu parameter for y offset measurement
-default_z_offset_error = 0.2  # default tpu parameter for z offset measurement
-default_x_antenna_offset = '0.000'  # default tpu parameter for x antenna offset
-default_y_antenna_offset = '0.000'  # default tpu parameter for y antenna offset
-default_z_antenna_offset = '0.000'  # default tpu parameter for z antenna offset
-default_surface_sv_error = 0.5  # default tpu parameter for surface sv
-default_roll_patch_error = 0.1  # default tpu parameter for roll patch
-default_pitch_patch_error = 0.1  # default tpu parameter for pitch patch
-default_heading_patch_error = 0.5  # default tpu parameter for heading patch
-default_latency_patch_error = 0.0  # default tpu parameter for latency patch
+default_heading_error = 0.020  # default tpu parameter for heading
+default_x_offset_error = 0.200  # default tpu parameter for x offset measurement
+default_y_offset_error = 0.200  # default tpu parameter for y offset measurement
+default_z_offset_error = 0.200  # default tpu parameter for z offset measurement
+default_x_antenna_offset = 0.000  # default tpu parameter for x antenna offset
+default_y_antenna_offset = 0.000  # default tpu parameter for y antenna offset
+default_z_antenna_offset = 0.000  # default tpu parameter for z antenna offset
+default_surface_sv_error = 0.500  # default tpu parameter for surface sv
+default_roll_patch_error = 0.100  # default tpu parameter for roll patch
+default_pitch_patch_error = 0.100  # default tpu parameter for pitch patch
+default_heading_patch_error = 0.500  # default tpu parameter for heading patch
+default_latency_patch_error = 0.000  # default tpu parameter for latency patch
 default_latency_error = 0.001  # default tpu parameter for latency
-default_separation_model_error = 0.0  # default tpu parameter for separation model
-default_waterline_error = 0.02  # default tpu parameter for waterline
-default_vessel_speed_error = 0.1  # default tpu parameter for vessel speed
-default_horizontal_positioning_error = 1.5  # default tpu parameter for horizontal positioning
-default_vertical_positioning_error = 1.0  # default tpu parameter for vertical positioning
+default_separation_model_error = 0.000  # default tpu parameter for separation model
+default_waterline_error = 0.020  # default tpu parameter for waterline
+default_vessel_speed_error = 0.100  # default tpu parameter for vessel speed
+default_horizontal_positioning_error = 1.500  # default tpu parameter for horizontal positioning
+default_vertical_positioning_error = 1.000  # default tpu parameter for vertical positioning
 
 # zarr backend, chunksizes for writing to disk
 ping_chunks = {'time': (ping_chunk_size,), 'beam': (max_beams,), 'xyz': (3,),

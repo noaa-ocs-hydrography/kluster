@@ -21,57 +21,57 @@ def test_return_xyzrph_from_mbes():
     assert xyzrph['heading_sensor_error']['1495563079'] == 0.02
     assert xyzrph['heave_error']['1495563079'] == 0.05
     assert xyzrph['horizontal_positioning_error']['1495563079'] == 1.5
-    assert xyzrph['imu_h']['1495563079'] == '0.400'
-    assert xyzrph['imu_latency']['1495563079'] == '0.000'
-    assert xyzrph['imu_p']['1495563079'] == '-0.180'
-    assert xyzrph['imu_r']['1495563079'] == '-0.160'
-    assert xyzrph['imu_x']['1495563079'] == '0.000'
-    assert xyzrph['imu_y']['1495563079'] == '0.000'
-    assert xyzrph['imu_z']['1495563079'] == '0.000'
+    assert xyzrph['imu_h']['1495563079'] == 0.400
+    assert xyzrph['imu_latency']['1495563079'] == 0.000
+    assert xyzrph['imu_p']['1495563079'] == -0.180
+    assert xyzrph['imu_r']['1495563079'] == -0.160
+    assert xyzrph['imu_x']['1495563079'] == 0.000
+    assert xyzrph['imu_y']['1495563079'] == 0.000
+    assert xyzrph['imu_z']['1495563079'] == 0.000
     assert xyzrph['latency_patch_error']['1495563079'] == 0.0
     assert xyzrph['pitch_patch_error']['1495563079'] == 0.1
     assert xyzrph['pitch_sensor_error']['1495563079'] == 0.0005
     assert xyzrph['roll_patch_error']['1495563079'] == 0.1
     assert xyzrph['roll_sensor_error']['1495563079'] == 0.0005
-    assert xyzrph['rx_h']['1495563079'] == '0.000'
-    assert xyzrph['rx_p']['1495563079'] == '0.000'
-    assert xyzrph['rx_r']['1495563079'] == '0.000'
-    assert xyzrph['rx_x']['1495563079'] == '-0.100'
-    assert xyzrph['rx_x_0']['1495563079'] == '0.011'
-    assert xyzrph['rx_x_1']['1495563079'] == '0.011'
-    assert xyzrph['rx_x_2']['1495563079'] == '0.011'
-    assert xyzrph['rx_y']['1495563079'] == '-0.304'
-    assert xyzrph['rx_y_0']['1495563079'] == '0.0'
-    assert xyzrph['rx_y_1']['1495563079'] == '0.0'
-    assert xyzrph['rx_y_2']['1495563079'] == '0.0'
-    assert xyzrph['rx_z']['1495563079'] == '-0.016'
-    assert xyzrph['rx_z_0']['1495563079'] == '-0.006'
-    assert xyzrph['rx_z_1']['1495563079'] == '-0.006'
-    assert xyzrph['rx_z_2']['1495563079'] == '-0.006'
+    assert xyzrph['rx_h']['1495563079'] == 0.000
+    assert xyzrph['rx_p']['1495563079'] == 0.000
+    assert xyzrph['rx_r']['1495563079'] == 0.000
+    assert xyzrph['rx_x']['1495563079'] == -0.100
+    assert xyzrph['rx_x_0']['1495563079'] == 0.011
+    assert xyzrph['rx_x_1']['1495563079'] == 0.011
+    assert xyzrph['rx_x_2']['1495563079'] == 0.011
+    assert xyzrph['rx_y']['1495563079'] == -0.304
+    assert xyzrph['rx_y_0']['1495563079'] == 0.0
+    assert xyzrph['rx_y_1']['1495563079'] == 0.0
+    assert xyzrph['rx_y_2']['1495563079'] == 0.0
+    assert xyzrph['rx_z']['1495563079'] == -0.016
+    assert xyzrph['rx_z_0']['1495563079'] == -0.006
+    assert xyzrph['rx_z_1']['1495563079'] == -0.006
+    assert xyzrph['rx_z_2']['1495563079'] == -0.006
     assert xyzrph['separation_model_error']['1495563079'] == 0.0
     assert xyzrph['surface_sv_error']['1495563079'] == 0.5
     assert xyzrph['timing_latency_error']['1495563079'] == 0.001
-    assert xyzrph['tx_h']['1495563079'] == '0.000'
-    assert xyzrph['tx_p']['1495563079'] == '0.000'
-    assert xyzrph['tx_r']['1495563079'] == '0.000'
-    assert xyzrph['tx_to_antenna_x']['1495563079'] == '0.000'
-    assert xyzrph['tx_to_antenna_y']['1495563079'] == '0.000'
-    assert xyzrph['tx_to_antenna_z']['1495563079'] == '0.000'
-    assert xyzrph['tx_x']['1495563079'] == '0.000'
-    assert xyzrph['tx_x_0']['1495563079'] == '0.0'
-    assert xyzrph['tx_x_1']['1495563079'] == '0.0'
-    assert xyzrph['tx_x_2']['1495563079'] == '0.0'
-    assert xyzrph['tx_y']['1495563079'] == '0.000'
-    assert xyzrph['tx_y_0']['1495563079'] == '-0.0554'
-    assert xyzrph['tx_y_1']['1495563079'] == '0.0131'
-    assert xyzrph['tx_y_2']['1495563079'] == '0.0554'
-    assert xyzrph['tx_z']['1495563079'] == '0.000'
-    assert xyzrph['tx_z_0']['1495563079'] == '-0.012'
-    assert xyzrph['tx_z_1']['1495563079'] == '-0.006'
-    assert xyzrph['tx_z_2']['1495563079'] == '-0.012'
+    assert xyzrph['tx_h']['1495563079'] == 0.000
+    assert xyzrph['tx_p']['1495563079'] == 0.000
+    assert xyzrph['tx_r']['1495563079'] == 0.000
+    assert xyzrph['tx_to_antenna_x']['1495563079'] == 0.000
+    assert xyzrph['tx_to_antenna_y']['1495563079'] == 0.000
+    assert xyzrph['tx_to_antenna_z']['1495563079'] == 0.000
+    assert xyzrph['tx_x']['1495563079'] == 0.000
+    assert xyzrph['tx_x_0']['1495563079'] == 0.0
+    assert xyzrph['tx_x_1']['1495563079'] == 0.0
+    assert xyzrph['tx_x_2']['1495563079'] == 0.0
+    assert xyzrph['tx_y']['1495563079'] == 0.000
+    assert xyzrph['tx_y_0']['1495563079'] == -0.0554
+    assert xyzrph['tx_y_1']['1495563079'] == 0.0131
+    assert xyzrph['tx_y_2']['1495563079'] == 0.0554
+    assert xyzrph['tx_z']['1495563079'] == 0.000
+    assert xyzrph['tx_z_0']['1495563079'] == -0.012
+    assert xyzrph['tx_z_1']['1495563079'] == -0.006
+    assert xyzrph['tx_z_2']['1495563079'] == -0.012
     assert xyzrph['vertical_positioning_error']['1495563079'] == 1.0
     assert xyzrph['vessel_speed_error']['1495563079'] == 0.1
-    assert xyzrph['waterline']['1495563079'] == '-0.640'
+    assert xyzrph['waterline']['1495563079'] == -0.640
     assert xyzrph['waterline_error']['1495563079'] == 0.02
     assert xyzrph['x_offset_error']['1495563079'] == 0.2
     assert xyzrph['y_offset_error']['1495563079'] == 0.2

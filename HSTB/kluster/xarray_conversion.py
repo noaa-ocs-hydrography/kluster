@@ -2230,33 +2230,33 @@ def build_xyzrph(settdict: dict, runtime_settdict: dict, sonartype: str):
                 else:
                     tx_ident = 'tx'
                     rx_ident = 'rx'
-                xyzrph[tme][tx_ident + '_x'] = settdict[tme]['transducer_{}_along_location'.format(ky)]
-                xyzrph[tme][tx_ident + '_y'] = settdict[tme]['transducer_{}_athwart_location'.format(ky)]
-                xyzrph[tme][tx_ident + '_z'] = settdict[tme]['transducer_{}_vertical_location'.format(ky)]
-                xyzrph[tme][tx_ident + '_r'] = settdict[tme]['transducer_{}_roll_angle'.format(ky)]
-                xyzrph[tme][tx_ident + '_p'] = settdict[tme]['transducer_{}_pitch_angle'.format(ky)]
-                xyzrph[tme][tx_ident + '_h'] = settdict[tme]['transducer_{}_heading_angle'.format(ky)]
-                xyzrph[tme][rx_ident + '_r'] = settdict[tme]['transducer_{}_roll_angle'.format(ky)]
-                xyzrph[tme][rx_ident + '_p'] = settdict[tme]['transducer_{}_pitch_angle'.format(ky)]
-                xyzrph[tme][rx_ident + '_h'] = settdict[tme]['transducer_{}_heading_angle'.format(ky)]
+                xyzrph[tme][tx_ident + '_x'] = float(settdict[tme]['transducer_{}_along_location'.format(ky)])
+                xyzrph[tme][tx_ident + '_y'] = float(settdict[tme]['transducer_{}_athwart_location'.format(ky)])
+                xyzrph[tme][tx_ident + '_z'] = float(settdict[tme]['transducer_{}_vertical_location'.format(ky)])
+                xyzrph[tme][tx_ident + '_r'] = float(settdict[tme]['transducer_{}_roll_angle'.format(ky)])
+                xyzrph[tme][tx_ident + '_p'] = float(settdict[tme]['transducer_{}_pitch_angle'.format(ky)])
+                xyzrph[tme][tx_ident + '_h'] = float(settdict[tme]['transducer_{}_heading_angle'.format(ky)])
+                xyzrph[tme][rx_ident + '_r'] = float(settdict[tme]['transducer_{}_roll_angle'.format(ky)])
+                xyzrph[tme][rx_ident + '_p'] = float(settdict[tme]['transducer_{}_pitch_angle'.format(ky)])
+                xyzrph[tme][rx_ident + '_h'] = float(settdict[tme]['transducer_{}_heading_angle'.format(ky)])
                 try:  # kmall workflow, rx offset is tacked on to the trans1 record
-                    xyzrph[tme][rx_ident + '_x'] = str(float(settdict[tme]['transducer_{}_along_location'.format(ky)]) +\
-                                                       float(settdict[tme]['transducer_{}_rx_forward'.format(ky)]))
-                    xyzrph[tme][rx_ident + '_y'] = str(float(settdict[tme]['transducer_{}_athwart_location'.format(ky)]) +\
-                                                       float(settdict[tme]['transducer_{}_rx_starboard'.format(ky)]))
-                    xyzrph[tme][rx_ident + '_z'] = str(float(settdict[tme]['transducer_{}_vertical_location'.format(ky)]) +\
-                                                       float(settdict[tme]['transducer_{}_rx_down'.format(ky)]))
+                    xyzrph[tme][rx_ident + '_x'] = float(settdict[tme]['transducer_{}_along_location'.format(ky)]) +\
+                                                   float(settdict[tme]['transducer_{}_rx_forward'.format(ky)])
+                    xyzrph[tme][rx_ident + '_y'] = float(settdict[tme]['transducer_{}_athwart_location'.format(ky)]) +\
+                                                   float(settdict[tme]['transducer_{}_rx_starboard'.format(ky)])
+                    xyzrph[tme][rx_ident + '_z'] = float(settdict[tme]['transducer_{}_vertical_location'.format(ky)]) +\
+                                                   float(settdict[tme]['transducer_{}_rx_down'.format(ky)])
                 except KeyError:
-                    xyzrph[tme][rx_ident + '_x'] = settdict[tme]['transducer_{}_along_location'.format(ky)]
-                    xyzrph[tme][rx_ident + '_y'] = settdict[tme]['transducer_{}_athwart_location'.format(ky)]
-                    xyzrph[tme][rx_ident + '_z'] = settdict[tme]['transducer_{}_vertical_location'.format(ky)]
+                    xyzrph[tme][rx_ident + '_x'] = float(settdict[tme]['transducer_{}_along_location'.format(ky)])
+                    xyzrph[tme][rx_ident + '_y'] = float(settdict[tme]['transducer_{}_athwart_location'.format(ky)])
+                    xyzrph[tme][rx_ident + '_z'] = float(settdict[tme]['transducer_{}_vertical_location'.format(ky)])
             else:
-                xyzrph[tme][val + '_x'] = settdict[tme]['transducer_{}_along_location'.format(ky)]
-                xyzrph[tme][val + '_y'] = settdict[tme]['transducer_{}_athwart_location'.format(ky)]
-                xyzrph[tme][val + '_z'] = settdict[tme]['transducer_{}_vertical_location'.format(ky)]
-                xyzrph[tme][val + '_r'] = settdict[tme]['transducer_{}_roll_angle'.format(ky)]
-                xyzrph[tme][val + '_p'] = settdict[tme]['transducer_{}_pitch_angle'.format(ky)]
-                xyzrph[tme][val + '_h'] = settdict[tme]['transducer_{}_heading_angle'.format(ky)]
+                xyzrph[tme][val + '_x'] = float(settdict[tme]['transducer_{}_along_location'.format(ky)])
+                xyzrph[tme][val + '_y'] = float(settdict[tme]['transducer_{}_athwart_location'.format(ky)])
+                xyzrph[tme][val + '_z'] = float(settdict[tme]['transducer_{}_vertical_location'.format(ky)])
+                xyzrph[tme][val + '_r'] = float(settdict[tme]['transducer_{}_roll_angle'.format(ky)])
+                xyzrph[tme][val + '_p'] = float(settdict[tme]['transducer_{}_pitch_angle'.format(ky)])
+                xyzrph[tme][val + '_h'] = float(settdict[tme]['transducer_{}_heading_angle'.format(ky)])
             opening_angle_key = 'transducer_{}_sounding_size_deg'.format(ky)
             if opening_angle_key in settdict[tme]:
                 opening_angle = float(settdict[tme][opening_angle_key])
@@ -2265,16 +2265,16 @@ def build_xyzrph(settdict: dict, runtime_settdict: dict, sonartype: str):
         if sonartype in install_parameter_modifier:
             for val in [v for v in install_parameter_modifier[sonartype] if v is not None]:
                 for sec in install_parameter_modifier[sonartype][val]:
-                    xyzrph[tme][val + '_x_' + sec] = str(install_parameter_modifier[sonartype][val][sec]['x'])
-                    xyzrph[tme][val + '_y_' + sec] = str(install_parameter_modifier[sonartype][val][sec]['y'])
-                    xyzrph[tme][val + '_z_' + sec] = str(install_parameter_modifier[sonartype][val][sec]['z'])
+                    xyzrph[tme][val + '_x_' + sec] = float(install_parameter_modifier[sonartype][val][sec]['x'])
+                    xyzrph[tme][val + '_y_' + sec] = float(install_parameter_modifier[sonartype][val][sec]['y'])
+                    xyzrph[tme][val + '_z_' + sec] = float(install_parameter_modifier[sonartype][val][sec]['z'])
 
         # translate over the positioning sensor stuff using the installation parameters active identifiers
         pos_ident = settdict[tme]['active_position_system_number']  # 'position_1'
         for suffix in [['_vertical_location', '_z'], ['_along_location', '_x'],
                        ['_athwart_location', '_y'], ['_time_delay', '_latency']]:
             qry = pos_ident + suffix[0]
-            xyzrph[tme]['imu' + suffix[1]] = settdict[tme][qry]
+            xyzrph[tme]['imu' + suffix[1]] = float(settdict[tme][qry])
 
         # do the same over motion sensor (which is still the POSMV), make assumption that its one of the motion
         #   entries
@@ -2286,11 +2286,11 @@ def build_xyzrph(settdict: dict, runtime_settdict: dict, sonartype: str):
         #                ['_roll_angle', '_r'], ['_pitch_angle', '_p'], ['_heading_angle', '_h']]:
         for suffix in [['_roll_angle', '_r'], ['_pitch_angle', '_p'], ['_heading_angle', '_h']]:
             qry = pos_motion_ident + suffix[0]
-            xyzrph[tme]['imu' + suffix[1]] = settdict[tme][qry]
+            xyzrph[tme]['imu' + suffix[1]] = float(settdict[tme][qry])
 
         # include waterline if it exists
         if 'waterline_vertical_location' in settdict[tme]:
-            xyzrph[tme]['waterline'] = settdict[tme]['waterline_vertical_location']
+            xyzrph[tme]['waterline'] = float(settdict[tme]['waterline_vertical_location'])
 
         # attach default tpu settings
         xyzrph[tme]['heave_error'] = kluster_variables.default_heave_error  # 1 sigma standard deviation for the heave data (meters)
@@ -2317,7 +2317,7 @@ def build_xyzrph(settdict: dict, runtime_settdict: dict, sonartype: str):
 
         if opening_angle is None:
             if 'ReceiveBeamWidth' in runtime_params:
-                opening_angle = runtime_params['ReceiveBeamWidth']
+                opening_angle = float(runtime_params['ReceiveBeamWidth'])
             else:
                 opening_angle = 1.0
         xyzrph[tme]['beam_opening_angle'] = opening_angle  # opening angle in degrees, used for tpu
