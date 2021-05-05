@@ -2,7 +2,7 @@ import os
 from copy import deepcopy
 import numpy as np
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal, backend, qgis_enabled
 
 from vispy import use
@@ -16,12 +16,16 @@ from vispy.color import Color
 from vispy.geometry.parametric import surface
 
 from HSTB.kluster.xarray_conversion import return_xyzrph_from_posmv, return_xyzrph_from_mbes
+from HSTB.kluster import kluster_variables
 from HSTB.shared import RegistryHelpers
 
 launch_sensor_size = 0.6
+v4_target_sensing_center_offset = np.array([-0.008, -0.031, 0.130])
+v5_target_sensing_center_offset = np.array([0.005, -0.006, 0.089])
 hide_location = np.array([0, 0, 1000.0])
 
 test_xyzrph = {'123': {'sonar_type': {'1503413148': 'em2040', '1503423148': 'em2040', '1503443148': 'em2040'},
+                       'source': {'1503413148': 'sonarfile1.all', '1503423148': 'sonarfile2.all', '1503443148': 'sonarfile3.all'},
                        'beam_opening_angle': {'1503413148': 1.0, '1503423148': 1.0, '1503443148': 1.0},
                        'heading_patch_error': {'1503413148': 0.5, '1503423148': 0.5, '1503443148': 0.5},
                        'heading_sensor_error': {'1503413148': 0.02, '1503423148': 0.02, '1503443148': 0.02},
@@ -105,6 +109,7 @@ test_xyzrph = {'123': {'sonar_type': {'1503413148': 'em2040', '1503423148': 'em2
                        'waterline': {'1503413148': '-1.010', '1503423148': '-0.910', '1503443148': '-1.310'}}}
 
 test_xyzrph_dual = {'541': {'sonar_type': {'1583305645': 'em2040_dual_rx', '1583315645': 'em2040_dual_rx', '1583335645': 'em2040_dual_rx'},
+                            'source': {'1583305645': 'sonarfile4.all', '1583315645': 'sonarfile5.all', '1583335645': 'sonarfile6.all'},
                             'beam_opening_angle': {'1583305645': 1.0, '1583315645': 1.0, '1583335645': 1.0},
                             'heading_patch_error': {'1583305645': 0.5, '1583315645': 0.5, '1583335645': 0.5},
                             'heading_sensor_error': {'1583305645': 0.02, '1583315645': 0.02, '1583335645': 0.02},
@@ -604,6 +609,111 @@ class Vessel(MovingObject):
             self.finalize_position(position)
 
 
+class TimestampDialog(QtWidgets.QDialog):
+    def __init__(self, parent=None, settings=None):
+        super().__init__(parent)
+
+        self.setWindowTitle('Edit Timestamp')
+        layout = QtWidgets.QVBoxLayout()
+
+        self.hlayout_one = QtWidgets.QHBoxLayout()
+        self.serial_label = QtWidgets.QLabel('Serial Number')
+        self.hlayout_one.addWidget(self.serial_label)
+        self.serial_text = QtWidgets.QLabel()
+        self.hlayout_one.addWidget(self.serial_text)
+
+        self.hlayout_two = QtWidgets.QHBoxLayout()
+        self.orig_label = QtWidgets.QLabel('Original Timestamp')
+        self.hlayout_two.addWidget(self.orig_label)
+        self.orig_text = QtWidgets.QLabel()
+        self.hlayout_two.addWidget(self.orig_text)
+
+        self.directions = QtWidgets.QLabel('Timestamp Format    "MM/DD/YY hhmm"')
+
+        self.hlayout_three = QtWidgets.QHBoxLayout()
+        self.new_label = QtWidgets.QLabel('New Timestamp')
+        self.hlayout_three.addWidget(self.new_label)
+        self.new_text = QtWidgets.QLineEdit()
+        self.hlayout_three.addWidget(self.new_text)
+
+        self.status_msg = QtWidgets.QLabel('')
+        self.status_msg.setStyleSheet("QLabel { " + kluster_variables.error_color + "; }")
+
+        self.hlayout_five = QtWidgets.QHBoxLayout()
+        self.hlayout_five.addStretch(1)
+        self.ok_button = QtWidgets.QPushButton('OK', self)
+        self.hlayout_five.addWidget(self.ok_button)
+        self.hlayout_five.addStretch(1)
+        self.cancel_button = QtWidgets.QPushButton('Cancel', self)
+        self.hlayout_five.addWidget(self.cancel_button)
+        self.hlayout_five.addStretch(1)
+
+        layout.addLayout(self.hlayout_one)
+        layout.addLayout(self.hlayout_two)
+        layout.addStretch()
+        layout.addWidget(self.directions)
+        layout.addStretch()
+        layout.addLayout(self.hlayout_three)
+        layout.addWidget(self.status_msg)
+        layout.addLayout(self.hlayout_five)
+        self.setLayout(layout)
+
+        self.new_text.textChanged.connect(self._event_update_status)
+        self.ok_button.clicked.connect(self.start)
+        self.cancel_button.clicked.connect(self.cancel)
+
+        self._event_update_status()
+
+    def populate(self, serialnum, timestamp):
+        self.serial_text.setText(str(serialnum))
+        self.orig_text.setText(str(timestamp))
+        self.new_text.setText(str(timestamp))
+
+    def _event_update_status(self):
+        """
+        Update the status message if an Error presents itself.  Also controls the OK button, to prevent kicking off
+        a process if we know it isn't going to work
+        """
+
+        newtext = self.new_text.text()
+        checkpass = True
+        try:
+            formatted = datetime.strptime(newtext, '%m/%d/%Y %H%M')
+        except ValueError:
+            checkpass = False
+        if len(newtext) != 15:
+            checkpass = False
+
+        if checkpass:  # If this is the pydro environment, we know it has Entwine
+            self.status_msg.setStyleSheet("QLabel { " + kluster_variables.pass_color + "; }")
+            self.status_msg.setText('Pass')
+            self.ok_button.setEnabled(True)
+        else:
+            self.status_msg.setStyleSheet("QLabel { " + kluster_variables.error_color + "; }")
+            self.status_msg.setText('Error: Timestamp Format Invalid')
+            self.ok_button.setEnabled(False)
+
+    def return_new_timestamp(self):
+        formatted_timestamp = self.new_text.text()
+        formatted_timestamp = datetime.strptime(formatted_timestamp, '%m/%d/%Y %H%M')
+        return str(int(formatted_timestamp.timestamp()))
+
+    def start(self):
+        """
+        Dialog completes if the specified widgets are populated, use return_options to get access to the
+        settings the user entered into the dialog.
+        """
+        self.canceled = False
+        self.accept()
+
+    def cancel(self):
+        """
+        Dialog completes, use self.canceled to get the fact that it cancelled
+        """
+        self.canceled = True
+        self.accept()
+
+
 class OptionsWidget(QtWidgets.QWidget):
     """
     OptionsWidget contains the controls that dictate the positioning of the elements in the scene.  Save those
@@ -625,6 +735,10 @@ class OptionsWidget(QtWidgets.QWidget):
         config_layout_controls = QtWidgets.QVBoxLayout()
         configtxt = QtWidgets.QLabel('Config File: ')
         self.config_name = QtWidgets.QLabel('None')
+        self.config_name.setMinimumHeight(18)
+        sourcetxt = QtWidgets.QLabel('Source: ')
+        self.source_name = QtWidgets.QLabel('None')
+        self.source_name.setMinimumHeight(18)
         self.vess_descrip = QtWidgets.QLabel('Vessel: ')
         self.vess_select = QtWidgets.QComboBox()
         self.vess_select.setMinimumWidth(200)
@@ -636,16 +750,16 @@ class OptionsWidget(QtWidgets.QWidget):
         self.serial_select.setMinimumWidth(200)
         self.serial_select.setEnabled(False)
         self.model_descrip = QtWidgets.QLabel('Model: ')
-        self.model_select = QtWidgets.QComboBox()
-        self.model_select.setMinimumWidth(200)
-        self.model_select.setEnabled(False)
-        time_descrip = QtWidgets.QLabel('Timestamp: ')
+        self.model_select = QtWidgets.QLabel('None')
+        self.model_select.setMinimumHeight(18)
+        time_descrip = QtWidgets.QLabel('UTC Date: ')
         self.time_select = QtWidgets.QComboBox()
         self.time_select.setMinimumWidth(200)
         self.time_select.setEnabled(False)
-        for lbl in [configtxt, self.serial_descrip, self.vess_descrip, self.model_descrip, time_descrip]:
+
+        for lbl in [configtxt, sourcetxt, self.model_descrip, self.serial_descrip, self.vess_descrip, time_descrip]:
             config_layout_labels.addWidget(lbl)
-        for widg in [self.config_name, self.serial_select, self.vess_select, self.model_select, self.time_select]:
+        for widg in [self.config_name, self.source_name, self.model_select, self.serial_select, self.vess_select, self.time_select]:
             config_layout_controls.addWidget(widg)
         config_layout.addLayout(config_layout_labels)
         config_layout.addLayout(config_layout_controls)
@@ -866,8 +980,9 @@ class OptionsWidget(QtWidgets.QWidget):
                 for tstmp in tstmps:
                     self.data[serial_num][tstmp] = {}
                     self.data[serial_num][tstmp] = {'Vessel Reference Point': [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}
-                    self.data[serial_num][tstmp]['Vessel File'] = xyzrph[serial_num]['vessel_file'][tstmp]
+                    self.data[serial_num][tstmp]['Vessel File'] = os.path.normpath(xyzrph[serial_num]['vessel_file'][tstmp])
                     self.data[serial_num][tstmp]['Sonar Type'] = xyzrph[serial_num]['sonar_type'][tstmp]
+                    self.data[serial_num][tstmp]['Source'] = xyzrph[serial_num]['source'][tstmp]
                     self.data[serial_num][tstmp]['Dual Head'] = True
                     self.data[serial_num][tstmp]['Port Sonar Transmitter'] = [float(xyzrph[serial_num]['tx_port_x'][tstmp]),
                                                                  float(xyzrph[serial_num]['tx_port_y'][tstmp]),
@@ -914,8 +1029,9 @@ class OptionsWidget(QtWidgets.QWidget):
                 for tstmp in tstmps:
                     self.data[serial_num][tstmp] = {}
                     self.data[serial_num][tstmp] = {'Vessel Reference Point': [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}
-                    self.data[serial_num][tstmp]['Vessel File'] = xyzrph[serial_num]['vessel_file'][tstmp]
+                    self.data[serial_num][tstmp]['Vessel File'] = os.path.normpath(xyzrph[serial_num]['vessel_file'][tstmp])
                     self.data[serial_num][tstmp]['Sonar Type'] = xyzrph[serial_num]['sonar_type'][tstmp]
+                    self.data[serial_num][tstmp]['Source'] = xyzrph[serial_num]['source'][tstmp]
                     self.data[serial_num][tstmp]['Dual Head'] = False
                     self.data[serial_num][tstmp]['Sonar Transmitter'] = [float(xyzrph[serial_num]['tx_x'][tstmp]), float(xyzrph[serial_num]['tx_y'][tstmp]),
                                                             float(xyzrph[serial_num]['tx_z'][tstmp]), float(xyzrph[serial_num]['tx_r'][tstmp]),
@@ -951,8 +1067,6 @@ class OptionsWidget(QtWidgets.QWidget):
         tstmp: str, unix timestamp for the given entry
 
         """
-        v4_target_sensing_center_offset = np.array([-0.008, -0.031, 0.130])
-        v5_target_sensing_center_offset = np.array([0.005, -0.006, 0.089])
 
         serial_num = self.serial_select.currentText()
 
@@ -1002,6 +1116,8 @@ class OptionsWidget(QtWidgets.QWidget):
             self.time_select.clear()
             self.sensor_select.clear()
             self.refpt_select.clear()
+            self.source_name.setText('None')
+            self.model_select.setText('None')
             self.data = {}
         else:
             # this method is run on new config or importing from multibeam.  So we need to start by enabling the controls
@@ -1052,7 +1168,8 @@ class OptionsWidget(QtWidgets.QWidget):
                 hide_loc = hide_location.tolist() + [0, 0, 0]
 
                 data = self.data[serial_num][curr_timestamp]
-                self.model_select.addItems([data['Sonar Type']])
+                self.model_select.setText(data['Sonar Type'])
+                self.source_name.setText(data['Source'])
                 vess = self.data[serial_num][curr_timestamp]['Vessel File']
                 vessindex = self.vess_select.findText(os.path.split(vess)[1])
                 currindex = self.vess_select.findText(self.vess_select.currentText())
@@ -1217,23 +1334,27 @@ class OptionsWidget(QtWidgets.QWidget):
                         self.yaw.setEnabled(False)
                         self.update_button.hide()
                     else:
-                        # if sensor_label in [refsensor, 'IMU', 'Primary Antenna']:  # cant update the reference point obviously
-                        #     self.x.setEnabled(False)
-                        #     self.y.setEnabled(False)
-                        #     self.z.setEnabled(False)
-                        #     self.r.setEnabled(False)
-                        #     self.p.setEnabled(False)
-                        #     self.yaw.setEnabled(False)
-                        #     self.update_button.hide()
-                        # else:
-                        self.x.setEnabled(True)
-                        self.y.setEnabled(True)
-                        self.z.setEnabled(True)
-                        self.r.setEnabled(True)
-                        self.p.setEnabled(True)
-                        self.yaw.setEnabled(True)
-                        self.update_button.show()
                         data = self.data[serial_num][tstmp][sensor_label]
+                        if sensor_label == 'IMU':
+                            if np.array_equal(data[0:3], v4_target_sensing_center_offset) or \
+                                    np.array_equal(data[0:3], v5_target_sensing_center_offset):
+                                data[0:3] = np.array([0, 0, 0])
+                            self.x.setEnabled(False)
+                            self.y.setEnabled(False)
+                            self.z.setEnabled(False)
+                            self.r.setEnabled(False)
+                            self.p.setEnabled(False)
+                            self.yaw.setEnabled(False)
+                            self.update_button.hide()
+                        else:
+                            self.x.setEnabled(True)
+                            self.y.setEnabled(True)
+                            self.z.setEnabled(True)
+                            self.r.setEnabled(True)
+                            self.p.setEnabled(True)
+                            self.yaw.setEnabled(True)
+                            self.update_button.show()
+
                         self.x.setText(format(float(data[0]), '.3f'))
                         self.y.setText(format(float(data[1]), '.3f'))
                         self.z.setText(format(float(data[2]), '.3f'))
@@ -1635,6 +1756,7 @@ class VesselWidget(QtWidgets.QWidget):
         newconfig = QtWidgets.QAction('New Config', self)
         openconfig = QtWidgets.QAction('Open Config', self)
         saveconfig = QtWidgets.QAction('Save Config', self)
+        addconfig = QtWidgets.QAction('Add to Config File', self)
         importpos = QtWidgets.QAction('Import from POSMV', self)
         importkongs = QtWidgets.QAction('Import from Kongsberg', self)
         importpos.triggered.connect(self.import_from_posmv)
@@ -1642,24 +1764,53 @@ class VesselWidget(QtWidgets.QWidget):
         newconfig.triggered.connect(self.new_configuration)
         openconfig.triggered.connect(self.open_configuration)
         saveconfig.triggered.connect(self.save_configuration)
+        addconfig.triggered.connect(self.add_to_configuration)
         file.addAction(newconfig)
         file.addAction(openconfig)
         file.addAction(saveconfig)
         file.addSeparator()
+        file.addAction(addconfig)
+        file.addSeparator()
         file.addAction(importpos)
         file.addAction(importkongs)
+
+        edit = self.mbar.addMenu('Edit')
+        edit_timestamp = QtWidgets.QAction('Timestamp', self)
+        edit_timestamp.triggered.connect(self.edit_timestamp)
+        edit.addAction(edit_timestamp)
 
         view = self.mbar.addMenu('View')
         view.addAction(self.show_vessel_action)
         view.addAction(self.show_axes_action)
 
         testing = self.mbar.addMenu('Testing')
-        importsingle = QtWidgets.QAction('Load test dataset', self)
-        importdual = QtWidgets.QAction('Load test dualhead dataset', self)
+        importsingle = QtWidgets.QAction('Load Test Dataset', self)
+        importdual = QtWidgets.QAction('Load Test Dualhead Dataset', self)
         importsingle.triggered.connect(self.load_test_dataset)
         importdual.triggered.connect(self.load_dualhead_test_dataset)
         testing.addAction(importsingle)
         testing.addAction(importdual)
+
+    def edit_timestamp(self):
+        dlog = TimestampDialog()
+        orig_time = self.opts_window.time_select.currentText()
+        orig_serial = self.opts_window.serial_select.currentText()
+        dlog.populate(orig_serial, orig_time)
+        if dlog.exec_() and not dlog.canceled:
+            new_timestamp = dlog.return_new_timestamp()
+            orig_timestamp = self.opts_window.get_currently_selected_time()
+            if new_timestamp in self.opts_window.data[orig_serial]:
+                print('ERROR: {} is an existing timestamp, cannot change {} to {}'.format(new_timestamp, orig_time,
+                                                                                          new_timestamp))
+            for sensor in self.xyzrph[orig_serial]:
+                sensor_data = self.xyzrph[orig_serial][sensor]
+                orig_timestamp_data = sensor_data[orig_timestamp]
+                sensor_data[new_timestamp] = orig_timestamp_data
+                del sensor_data[orig_timestamp]
+            orig_timestamp_data = self.opts_window.data[orig_serial][orig_timestamp]
+            self.opts_window.data[orig_serial][new_timestamp] = orig_timestamp_data
+            del self.opts_window.data[orig_serial][orig_timestamp]
+            self.opts_window.time_selected(None, setup=True)
 
     def update_xyzrph_vessel(self, pth_to_vessel):
         """
@@ -1675,7 +1826,8 @@ class VesselWidget(QtWidgets.QWidget):
             if not serial_num:
                 serial_num = list(self.xyzrph.keys())[0]
             orig_tstmp = self.opts_window.get_currently_selected_time()
-            self.xyzrph[serial_num]['vessel_file'][orig_tstmp] = pth_to_vessel
+            if orig_tstmp is not None:
+                self.xyzrph[serial_num]['vessel_file'][orig_tstmp] = os.path.normpath(pth_to_vessel)
 
     def update_xyzrph_sensorposition(self, sensor_lbl, x, y, z, r, p, h):
         """
@@ -1704,22 +1856,23 @@ class VesselWidget(QtWidgets.QWidget):
                                 'Stbd Sonar Transmitter': ['tx_stbd_x', 'tx_stbd_y', 'tx_stbd_z', 'tx_stbd_r', 'tx_stbd_p', 'tx_stbd_h'],
                                 'Stbd Sonar Receiver': ['rx_stbd_x', 'rx_stbd_y', 'rx_stbd_z', 'rx_stbd_r', 'rx_stbd_p', 'rx_stbd_h'],
                                 'IMU': ['imu_x', 'imu_y', 'imu_z', 'imu_r', 'imu_p', 'imu_h'],
-                                'Primary Antenna': ['antenna_x', 'antenna_y', 'antenna_z', None, None, None],
+                                'Primary Antenna': ['tx_to_antenna_x', 'tx_to_antenna_y', 'tx_to_antenna_z', None, None, None],
                                 'Waterline': [None, None, 'waterline', None, None, None]}
             if sensor_lbl in sensors_to_write:
                 xyzrph_entries = sensors_to_write[sensor_lbl]
                 data = np.array([x, y, z, r, p, h])
-                for cnt, entry in enumerate(xyzrph_entries):
-                    if entry is not None and self.xyzrph is not None:
-                        try:
-                            if entry in self.xyzrph:
-                                if float(self.xyzrph[serial_num][entry][orig_tstmp]) != float(data[cnt]):
-                                    self.xyzrph[serial_num][entry][orig_tstmp] = format(data[cnt], '.3f')
-                            else:
-                                # vesselcenter might not be in xyzrph, as it is created in the vessel view widget
-                                self.xyzrph[serial_num][entry] = {orig_tstmp: format(data[cnt], '.3f')}
-                        except KeyError:
-                            print('Unable to update self.xyzrph for {} with time stamp {}: {} not in {}'.format(entry, orig_tstmp, orig_tstmp, entry))
+                if not np.array_equal(data[0:3], hide_location):
+                    for cnt, entry in enumerate(xyzrph_entries):
+                        if entry is not None and self.xyzrph is not None:
+                            try:
+                                if entry in self.xyzrph[serial_num]:
+                                    if float(self.xyzrph[serial_num][entry][orig_tstmp]) != float(data[cnt]):
+                                        self.xyzrph[serial_num][entry][orig_tstmp] = format(data[cnt], '.3f')
+                                else:
+                                    # vesselcenter might not be in xyzrph, as it is created in the vessel view widget
+                                    self.xyzrph[serial_num][entry] = {orig_tstmp: format(data[cnt], '.3f')}
+                            except KeyError:
+                                print('Unable to update self.xyzrph for {} with time stamp {}: {} not in {}'.format(entry, orig_tstmp, orig_tstmp, entry))
 
     def populate_from_xyzrph(self):
         """
@@ -1780,9 +1933,23 @@ class VesselWidget(QtWidgets.QWidget):
                 tstmps = list(mbesxyzrph[first_sensor].keys())
                 if not self.xyzrph:
                     self.xyzrph = {str(serial_number): mbesxyzrph}
-                else:
+                    self.xyzrph[str(serial_number)]['sonar_type'] = {tstmps[0]: sonar_model}
+                    self.xyzrph[str(serial_number)]['source'] = {tstmps[0]: os.path.split(fil)[1]}
+                elif str(serial_number) not in self.xyzrph:
                     self.xyzrph[str(serial_number)] = mbesxyzrph
-                self.xyzrph[str(serial_number)]['sonar_type'] = {tstmps[0]: sonar_model}
+                    self.xyzrph[str(serial_number)]['sonar_type'] = {tstmps[0]: sonar_model}
+                    self.xyzrph[str(serial_number)]['source'] = {tstmps[0]: os.path.split(fil)[1]}
+                else:
+                    for tstmp in tstmps:
+                        self.xyzrph[str(serial_number)]['sonar_type'][tstmp] = sonar_model
+                        self.xyzrph[str(serial_number)]['source'][tstmp] = os.path.split(fil)[1]
+                    for sensor in mbesxyzrph:
+                        for tstmp in tstmps:
+                            try:
+                                self.xyzrph[str(serial_number)][sensor][tstmp] = mbesxyzrph[sensor][tstmp]
+                            except:
+                                raise ValueError('ERROR: Unable to load SN{} with sensor {} at timestamp {}'.format(serial_number, sensor, tstmp))
+
                 self.load_from_existing_xyzrph()
             else:
                 print('Unable to load from {}'.format(fil))
@@ -1790,33 +1957,25 @@ class VesselWidget(QtWidgets.QWidget):
             print('Import cancelled')
 
     def _update_xyzrph_vesselposition(self, serial_number, tstmps):
-        if 'vessel_file' not in self.xyzrph[serial_number]:
-            vess_entry = {tstmp: self.vessview_window.pth_to_vessel_file for tstmp in tstmps}
-            self.xyzrph[serial_number]['vessel_file'] = vess_entry
-        if 'vess_center_x' not in self.xyzrph[serial_number]:
-            vess_entry = {tstmp: '0.000' for tstmp in tstmps}
-            self.xyzrph[serial_number]['vess_center_x'] = vess_entry
-        if 'vess_center_y' not in self.xyzrph[serial_number]:
-            vess_entry = {tstmp: '0.000' for tstmp in tstmps}
-            self.xyzrph[serial_number]['vess_center_y'] = vess_entry
-        if 'vess_center_z' not in self.xyzrph[serial_number]:
-            vess_entry = {tstmp: '0.000' for tstmp in tstmps}
-            self.xyzrph[serial_number]['vess_center_z'] = vess_entry
-        if 'vess_center_r' not in self.xyzrph[serial_number]:
-            vess_entry = {tstmp: '0.000' for tstmp in tstmps}
-            self.xyzrph[serial_number]['vess_center_r'] = vess_entry
-        if 'vess_center_p' not in self.xyzrph[serial_number]:
-            vess_entry = {tstmp: '0.000' for tstmp in tstmps}
-            self.xyzrph[serial_number]['vess_center_p'] = vess_entry
-        if 'vess_center_yaw' not in self.xyzrph[serial_number]:
-            vess_entry = {tstmp: '0.000' for tstmp in tstmps}
-            self.xyzrph[serial_number]['vess_center_yaw'] = vess_entry
+        for tstmp in tstmps:
+            sensors = ['vessel_file', 'vess_center_x', 'vess_center_y', 'vess_center_z', 'vess_center_r',
+                       'vess_center_p', 'vess_center_yaw']
+            sensor_data = [{tstmp: os.path.normpath(self.vessview_window.pth_to_vessel_file)}, {tstmp: '0.000'},
+                           {tstmp: '0.000'}, {tstmp: '0.000'}, {tstmp: '0.000'}, {tstmp: '0.000'}, {tstmp: '0.000'}]
+            for cnt, sensor in enumerate(sensors):
+                vess_entry = sensor_data[cnt]
+                if sensor not in self.xyzrph[serial_number]:
+                    self.xyzrph[serial_number][sensor] = vess_entry
+                else:
+                    for ky, val in vess_entry.items():
+                        self.xyzrph[serial_number][sensor][ky] = val
 
     def new_configuration(self):
         """
         Open a blank instance of the vessel view
         """
 
+        self.opts_window.config_name.setText('None')
         self.xyzrph = None
         self.populate_from_xyzrph()
         self.vessview_window.clear_sensors()
@@ -1840,39 +1999,40 @@ class VesselWidget(QtWidgets.QWidget):
                     first_sensor = list(self.xyzrph[serial_num].keys())[0]
                     tstmps = list(self.xyzrph[serial_num][first_sensor].keys())
                     self._update_xyzrph_vesselposition(serial_num, tstmps)
+                    self.opts_window.config_name.setText(os.path.split(fil)[1])
                 with open(fil, 'w') as json_fil:
-                    json.dump(self.xyzrph, json_fil)
+                    json.dump(self.xyzrph, json_fil, indent=4)
             else:
                 print('No data found for xyzrph: {}'.format(self.xyzrph))
         else:
             print('Save cancelled')
 
-    # def add_to_configuration(self):
-    #     msg, fil = RegistryHelpers.GetFilenameFromUserQT(self, RegistryKey='kluster',
-    #                                                      Title='Open a kluster configuration file',
-    #                                                      AppName='klustersave', bMulti=False, bSave=False,
-    #                                                      fFilter='Kluster configuration (*.kfc)')
-    #     if fil:
-    #         if os.path.exists(fil):
-    #             with open(fil, 'r') as json_fil:
-    #                 curr_xyzrph = json.load(json_fil)
-    #             for i in range(self.opts_window.serial_select.count()):
-    #                 serial_num = self.opts_window.serial_select.itemText(i)
-    #                 first_sensor = list(self.xyzrph[serial_num].keys())[0]
-    #                 tstmps = list(self.xyzrph[serial_num][first_sensor].keys())
-    #                 self._update_xyzrph_vesselposition(serial_num, tstmps)
-    #                 if serial_num in curr_xyzrph:
-    #                     for entry in curr_xyzrph[serial_num].keys():
-    #                         for ky, val in self.xyzrph[serial_num][entry].items():
-    #                             curr_xyzrph[entry][ky] = val
-    #                 else:
-    #                     curr_xyzrph[serial_num] = self.xyzrph[serial_num]
-    #             with open(fil, 'w') as json_fil:
-    #                 json.dump(curr_xyzrph, json_fil)
-    #         else:
-    #             print('Unable to find file: {}'.format(fil))
-    #     else:
-    #         print('Open cancelled')
+    def add_to_configuration(self):
+        msg, fil = RegistryHelpers.GetFilenameFromUserQT(self, RegistryKey='kluster',
+                                                         Title='Add our configuration to this configuration file',
+                                                         AppName='klustersave', bMulti=False, bSave=False,
+                                                         fFilter='Kluster configuration (*.kfc)')
+        if fil:
+            if os.path.exists(fil):
+                with open(fil, 'r') as json_fil:
+                    curr_xyzrph = json.load(json_fil)
+                for i in range(self.opts_window.serial_select.count()):
+                    serial_num = self.opts_window.serial_select.itemText(i)
+                    first_sensor = list(self.xyzrph[serial_num].keys())[0]
+                    tstmps = list(self.xyzrph[serial_num][first_sensor].keys())
+                    self._update_xyzrph_vesselposition(serial_num, tstmps)
+                    if serial_num in curr_xyzrph:
+                        for entry in curr_xyzrph[serial_num].keys():
+                            for ky, val in self.xyzrph[serial_num][entry].items():
+                                curr_xyzrph[entry][ky] = val
+                    else:
+                        curr_xyzrph[serial_num] = self.xyzrph[serial_num]
+                with open(fil, 'w') as json_fil:
+                    json.dump(curr_xyzrph, json_fil)
+            else:
+                print('Unable to find file: {}'.format(fil))
+        else:
+            print('Open cancelled')
 
     def load_from_existing_xyzrph(self):
         """
@@ -1893,7 +2053,7 @@ class VesselWidget(QtWidgets.QWidget):
 
         # set the vessel specific information
         try:
-            vess = self.xyzrph[serial_num]['vessel_file'][first_tstmp]
+            vess = os.path.normpath(self.xyzrph[serial_num]['vessel_file'][first_tstmp])
             vessindex = self.opts_window.vess_select.findText(os.path.split(vess)[1])
             currindex = self.opts_window.vess_select.findText(self.opts_window.vess_select.currentText())
             self.opts_window.vess_select.setCurrentIndex(vessindex)
@@ -1929,12 +2089,15 @@ class VesselWidget(QtWidgets.QWidget):
         """
         Open the kluster configuration file and store it as xyzrph
         """
+
+        self.new_configuration()
         msg, fil = RegistryHelpers.GetFilenameFromUserQT(self, RegistryKey='kluster',
                                                          Title='Open a kluster configuration file',
                                                          AppName='klustersave', bMulti=False, bSave=False,
                                                          fFilter='Kluster configuration (*.kfc)')
         if fil:
             if os.path.exists(fil):
+                self.opts_window.config_name.setText(os.path.split(fil)[1])
                 self.vessview_window.clear_sensors()
                 with open(fil, 'r') as json_fil:
                     self.xyzrph = json.load(json_fil)
@@ -1943,6 +2106,26 @@ class VesselWidget(QtWidgets.QWidget):
                 print('Unable to find file: {}'.format(fil))
         else:
             print('Open cancelled')
+
+    def closeEvent(self, event):
+        """
+        override the close event for the mainwindow, attach saving settings
+        """
+        if self.xyzrph:
+            save_first = QtWidgets.QMessageBox()
+            save_first.setWindowTitle('Kluster Vessel Setup')
+            save_first.setText("Do you want to save your changes?")
+            save_first.setStandardButtons(QtWidgets.QMessageBox.Save | QtWidgets.QMessageBox.Discard | QtWidgets.QMessageBox.Cancel)
+            save_first.setDefaultButton(QtWidgets.QMessageBox.Save)
+            ret = save_first.exec_()
+            if ret == QtWidgets.QMessageBox.Save:
+                self.save_configuration()
+            elif ret == QtWidgets.QMessageBox.Discard:
+                pass
+            elif ret == QtWidgets.QMessageBox.Cancel:
+                event.ignore()
+                return
+        super(VesselWidget, self).closeEvent(event)
 
 
 if __name__ == '__main__':
