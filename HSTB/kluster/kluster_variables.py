@@ -32,12 +32,17 @@ attitude_chunk_size = 20000  # chunk size (in time) of each written chunk of dat
 
 single_head_sonar = ['em122', 'em302', 'em710', 'em2045', 'em2040', 'em2040p', 'em3002', 'em2040p', 'em3020', 'me70bo']  # all single head sonar models
 dual_head_sonar = ['em2040_dual_rx', 'em2040_dual_tx', 'em2045_dual']  # all dual head sonar models
+# tpu parameter names controls what gets passed to the tpu calculator
 tpu_parameter_names = ['tx_to_antenna_x', 'tx_to_antenna_y', 'tx_to_antenna_z', 'heave_error', 'roll_sensor_error',
                        'pitch_sensor_error', 'heading_sensor_error', 'x_offset_error',
                        'y_offset_error', 'z_offset_error', 'surface_sv_error', 'roll_patch_error', 'pitch_patch_error',
                        'heading_patch_error', 'latency_patch_error', 'timing_latency_error',
                        'separation_model_error', 'waterline_error', 'vessel_speed_error', 'horizontal_positioning_error',
                        'vertical_positioning_error', 'beam_opening_angle']
+# optional parameter names controls what is left out when comparing vessel entries to see if the new entry is worth keeping
+optional_parameter_names = ['source', 'vessel_file', 'sonar_type', 'imu_h', 'imu_p', 'imu_r', 'imu_latency', 'imu_x', 'imu_y',
+                            'imu_z', 'tx_to_antenna_x', 'tx_to_antenna_y', 'tx_to_antenna_z', 'vess_center_x', 'vess_center_y',
+                            'vess_center_z', 'vess_center_yaw', 'vess_center_p', 'vess_center_r']
 default_heave_error = 0.050  # default tpu parameter for heave
 default_roll_error = 0.0005  # default tpu parameter for roll
 default_pitch_error = 0.0005  # default tpu parameter for pitch

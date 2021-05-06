@@ -16,6 +16,7 @@ from vispy.color import Color
 from vispy.geometry.parametric import surface
 
 from HSTB.kluster.xarray_conversion import return_xyzrph_from_posmv, return_xyzrph_from_mbes
+from HSTB.kluster.fqpr_vessel import VesselFile
 from HSTB.kluster import kluster_variables
 from HSTB.shared import RegistryHelpers
 
@@ -2000,8 +2001,9 @@ class VesselWidget(QtWidgets.QWidget):
                     tstmps = list(self.xyzrph[serial_num][first_sensor].keys())
                     self._update_xyzrph_vesselposition(serial_num, tstmps)
                     self.opts_window.config_name.setText(os.path.split(fil)[1])
-                with open(fil, 'w') as json_fil:
-                    json.dump(self.xyzrph, json_fil, indent=4)
+                vf = VesselFile()
+                vf.data = self.xyzrph
+                vf.save(fil)
             else:
                 print('No data found for xyzrph: {}'.format(self.xyzrph))
         else:
@@ -2014,21 +2016,14 @@ class VesselWidget(QtWidgets.QWidget):
                                                          fFilter='Kluster configuration (*.kfc)')
         if fil:
             if os.path.exists(fil):
-                with open(fil, 'r') as json_fil:
-                    curr_xyzrph = json.load(json_fil)
+                vf = VesselFile(fil)
                 for i in range(self.opts_window.serial_select.count()):
                     serial_num = self.opts_window.serial_select.itemText(i)
                     first_sensor = list(self.xyzrph[serial_num].keys())[0]
                     tstmps = list(self.xyzrph[serial_num][first_sensor].keys())
                     self._update_xyzrph_vesselposition(serial_num, tstmps)
-                    if serial_num in curr_xyzrph:
-                        for entry in curr_xyzrph[serial_num].keys():
-                            for ky, val in self.xyzrph[serial_num][entry].items():
-                                curr_xyzrph[entry][ky] = val
-                    else:
-                        curr_xyzrph[serial_num] = self.xyzrph[serial_num]
-                with open(fil, 'w') as json_fil:
-                    json.dump(curr_xyzrph, json_fil)
+                    vf.update(serial_num, self.xyzrph[serial_num])
+                vf.save(fil)
             else:
                 print('Unable to find file: {}'.format(fil))
         else:
@@ -2099,8 +2094,8 @@ class VesselWidget(QtWidgets.QWidget):
             if os.path.exists(fil):
                 self.opts_window.config_name.setText(os.path.split(fil)[1])
                 self.vessview_window.clear_sensors()
-                with open(fil, 'r') as json_fil:
-                    self.xyzrph = json.load(json_fil)
+                vf = VesselFile(fil)
+                self.xyzrph = vf.data
                 self.load_from_existing_xyzrph()
             else:
                 print('Unable to find file: {}'.format(fil))
