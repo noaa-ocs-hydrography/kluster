@@ -12,6 +12,7 @@ from HSTB.drivers import kmall, par3, sbet, svp
 from HSTB.kluster import monitor, fqpr_actions
 from HSTB.kluster.fqpr_project import FqprProject
 from HSTB.kluster.fqpr_helpers import build_crs
+from HSTB.kluster.fqpr_vessel import VesselFile, compare_dict_data
 from HSTB.kluster import kluster_variables
 
 
@@ -421,7 +422,7 @@ class FqprIntel(LoggerClass):
         a file is added or removed to the Intelligence class.
         """
 
-        # use the buffered version to compare against the always updating lin_groups.  Here we set them equal as we regenerate actions
+        # use the buffered version to compare against the always updating line_groups.  Here we set them equal as we regenerate actions
         self._buffered_multibeam_line_groups = deepcopy(self.multibeam_intel.line_groups)
 
         # remove actions that do not match any fqpr instances that are in the project
@@ -510,6 +511,44 @@ class FqprIntel(LoggerClass):
                 newaction = fqpr_actions.build_svp_action(destination, fqpr_instance, svfiles)
                 self.action_container.add_action(newaction)
 
+    def _update_offsets(self, fqpr_instance, vessel_file):
+        identical_offsets = True
+        identical_tpu = True
+        if vessel_file:
+            new_xyzrph = vessel_file.return_data(fqpr_instance.multibeam.raw_ping[0].system_identifier,
+                                                 int(fqpr_instance.calc_min_var('time')),
+                                                 int(fqpr_instance.calc_max_var('time')))
+            if new_xyzrph:
+                identical_offsets, identical_tpu, data_matches = compare_dict_data(new_xyzrph, fqpr_instance.multibeam.raw_ping[0].attrs['xyzrph'])
+                if data_matches:
+                    identical_offsets = True
+                    identical_tpu = True
+                if not identical_offsets or not identical_tpu:
+                    fqpr_instance.multibeam.xyzrph = new_xyzrph
+            elif fqpr_instance.multibeam.xyzrph:
+                data = deepcopy(fqpr_instance.multibeam.xyzrph)
+                first_sensor = list(data.keys())[0]
+                tstmps = list(data[first_sensor].keys())
+                data['sonar_type'] = {tst: fqpr_instance.multibeam.raw_ping[0].sonartype for tst in tstmps}
+                data['source'] = {tst: os.path.split(fqpr_instance.output_folder)[1] for tst in tstmps}
+                vessel_file.update(fqpr_instance.multibeam.raw_ping[0].system_identifier, data)
+                vessel_file.save()
+        return identical_tpu, identical_offsets
+
+    def _build_new_crs(self, fqpr_instance):
+        if 'use_epsg' in self.processing_settings:  # if someone setup the project with a default coord system
+            if self.processing_settings['use_epsg']:
+                new_coord_system, err = build_crs(epsg=self.processing_settings['epsg'])
+            else:
+                new_coord_system, err = build_crs(zone_num=fqpr_instance.multibeam.return_utm_zone_number(),
+                                                  datum=self.processing_settings['coord_system'])
+            if err:
+                self.logger.error(err)
+                raise ValueError(err)
+        else:
+            new_coord_system = None
+        return new_coord_system
+
     def _regenerate_processing_actions(self):
         """
         After the completion of a process (or on initializing FqprIntel, we look at all the fqpr instances in the project
@@ -517,24 +556,15 @@ class FqprIntel(LoggerClass):
         """
 
         if self.project:
+            vessel_file = self.project.return_vessel_file()
             existing_actions = self.action_container.return_actions_by_type('processing')
             all_current_project_paths = [self.project.absolute_path_from_relative(pth) for pth in self.project.fqpr_instances]
             for action in existing_actions:
                 if action.action_type == 'processing' and action.output_destination not in all_current_project_paths:
                     self.action_container.remove_action(action)
-
             for relative_path, fqpr_instance in self.project.fqpr_instances.items():
-                if 'use_epsg' in self.processing_settings:  # if someone setup the project with a default coord system
-                    if self.processing_settings['use_epsg']:
-                        new_coord_system, err = build_crs(epsg=self.processing_settings['epsg'])
-                    else:
-                        new_coord_system, err = build_crs(zone_num=fqpr_instance.multibeam.return_utm_zone_number(),
-                                                          datum=self.processing_settings['coord_system'])
-                    if err:
-                        self.logger.error(err)
-                        raise ValueError(err)
-                else:
-                    new_coord_system = None
+                identical_tpu, identical_offsets = self._update_offsets(fqpr_instance, vessel_file)
+                new_coord_system = self._build_new_crs(fqpr_instance)
                 if 'vert_ref' in self.processing_settings:  # if someone setup the project with a default vert ref
                     new_vert_ref = self.processing_settings['vert_ref']
                 else:
@@ -542,7 +572,9 @@ class FqprIntel(LoggerClass):
                 abs_path = self.project.absolute_path_from_relative(relative_path)
                 action = [a for a in existing_actions if a.output_destination == abs_path]
                 args, kwargs = fqpr_instance.return_next_action(new_coordinate_system=new_coord_system,
-                                                                new_vertical_reference=new_vert_ref)
+                                                                new_vertical_reference=new_vert_ref,
+                                                                new_offsets=not identical_offsets,
+                                                                new_tpu=not identical_tpu)
                 if len(action) == 1 and not action[0].is_running:  # modify the existing processing action
                     if kwargs == {}:
                         self.action_container.remove_action(action[0])

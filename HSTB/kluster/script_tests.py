@@ -433,28 +433,48 @@ for s_cnt, system in enumerate(systems):
 sv_corr, alt, lon, lat, hdng, heave, wline, vert_ref, input_crs, horizontal_crs, z_offset, vdatum_directory = self.client.gather(data_for_workers[0])
 
 #################################################################
+from HSTB.kluster.fqpr_intelligence import *
+from HSTB.kluster.fqpr_project import *
+from HSTB.kluster.fqpr_vessel import *
 
-from HSTB.kluster.gui.kluster_3dview_v2 import *
-from pytest import approx
-cam = TurntableCameraInteractive()
-for id in ['XYZ', 'XZY', 'YXZ', 'YZX', 'ZYX', 'ZXY', 'xyz', 'xzy', 'yxz', 'yzx', 'zyx', 'zxy']:
-    print(id)
-    cam.roll = 0
-    cam.elevation = 45
-    cam.azimuth = 45
-    print(approx(cam._dist_to_trans([10,5])[0] == cam._3drot_vector(10,5,0, id)[0], 0.0001),
-          approx(cam._dist_to_trans([10,5])[1] == cam._3drot_vector(10,5,0, id)[1], 0.0001),
-          approx(cam._dist_to_trans([10,5])[2] == cam._3drot_vector(10,5,0, id)[2], 0.0001))
-    cam.roll = 0
-    cam.elevation = 180
-    cam.azimuth = 90
-    print(approx(cam._dist_to_trans([10, 5])[0] == cam._3drot_vector(10, 5, 0, id)[0], 0.0001),
-          approx(cam._dist_to_trans([10, 5])[1] == cam._3drot_vector(10, 5, 0, id)[1], 0.0001),
-          approx(cam._dist_to_trans([10, 5])[2] == cam._3drot_vector(10, 5, 0, id)[2], 0.0001))
-    cam.roll = 0
-    cam.elevation = 270
-    cam.azimuth = 180
-    print(approx(cam._dist_to_trans([10, 5])[0] == cam._3drot_vector(10, 5, 0, id)[0], 0.0001),
-          approx(cam._dist_to_trans([10, 5])[1] == cam._3drot_vector(10, 5, 0, id)[1], 0.0001),
-          approx(cam._dist_to_trans([10, 5])[2] == cam._3drot_vector(10, 5, 0, id)[2], 0.0001))
-    print('******')
+testfile = r"C:\Pydro21_Dev\NOAA\site-packages\Python38\git_repos\hstb_kluster\test_data\0009_20170523_181119_FA2806.all"
+proj_path = os.path.join(os.path.dirname(testfile), 'kluster_project.json')
+vessel_file = os.path.join(os.path.dirname(testfile), 'vessel_file.kfc')
+proj = create_new_project(os.path.dirname(testfile))
+fintel = FqprIntel(proj)
+updated_type, new_data, new_project = fintel.add_file(testfile)
+fintel.execute_action()
+vf = fintel.project.return_vessel_file()
+assert vf.data == {'40111': {'beam_opening_angle': {'1495563079': 1.3}, 'heading_patch_error': {'1495563079': 0.5},
+                             'heading_sensor_error': {'1495563079': 0.02}, 'heave_error': {'1495563079': 0.05},
+                             'horizontal_positioning_error': {'1495563079': 1.5}, 'imu_h': {'1495563079': 0.4},
+                             'imu_latency': {'1495563079': 0.0}, 'imu_p': {'1495563079': -0.18},
+                             'imu_r': {'1495563079': -0.16}, 'imu_x': {'1495563079': 0.0},
+                             'imu_y': {'1495563079': 0.0}, 'imu_z': {'1495563079': 0.0},
+                             'latency_patch_error': {'1495563079': 0.0}, 'pitch_patch_error': {'1495563079': 0.1},
+                             'pitch_sensor_error': {'1495563079': 0.0005}, 'roll_patch_error': {'1495563079': 0.1},
+                             'roll_sensor_error': {'1495563079': 0.0005}, 'rx_h': {'1495563079': 0.0},
+                             'rx_p': {'1495563079': 0.0}, 'rx_r': {'1495563079': 0.0}, 'rx_x': {'1495563079': -0.1},
+                             'rx_x_0': {'1495563079': 0.011}, 'rx_x_1': {'1495563079': 0.011},
+                             'rx_x_2': {'1495563079': 0.011}, 'rx_y': {'1495563079': -0.304},
+                             'rx_y_0': {'1495563079': 0.0}, 'rx_y_1': {'1495563079': 0.0},
+                             'rx_y_2': {'1495563079': 0.0}, 'rx_z': {'1495563079': -0.016},
+                             'rx_z_0': {'1495563079': -0.006}, 'rx_z_1': {'1495563079': -0.006},
+                             'rx_z_2': {'1495563079': -0.006}, 'separation_model_error': {'1495563079': 0.0},
+                             'surface_sv_error': {'1495563079': 0.5}, 'timing_latency_error': {'1495563079': 0.001},
+                             'tx_h': {'1495563079': 0.0}, 'tx_p': {'1495563079': 0.0}, 'tx_r': {'1495563079': 0.0},
+                             'tx_to_antenna_x': {'1495563079': 0.0}, 'tx_to_antenna_y': {'1495563079': 0.0},
+                             'tx_to_antenna_z': {'1495563079': 0.0}, 'tx_x': {'1495563079': 0.0},
+                             'tx_x_0': {'1495563079': 0.0}, 'tx_x_1': {'1495563079': 0.0},
+                             'tx_x_2': {'1495563079': 0.0}, 'tx_y': {'1495563079': 0.0},
+                             'tx_y_0': {'1495563079': -0.0554}, 'tx_y_1': {'1495563079': 0.0131},
+                             'tx_y_2': {'1495563079': 0.0554}, 'tx_z': {'1495563079': 0.0},
+                             'tx_z_0': {'1495563079': -0.012}, 'tx_z_1': {'1495563079': -0.006},
+                             'tx_z_2': {'1495563079': -0.012}, 'vertical_positioning_error': {'1495563079': 1.0},
+                             'vessel_speed_error': {'1495563079': 0.1}, 'waterline': {'1495563079': -0.64},
+                             'waterline_error': {'1495563079': 0.02}, 'x_offset_error': {'1495563079': 0.2},
+                             'y_offset_error': {'1495563079': 0.2}, 'z_offset_error': {'1495563079': 0.2}}}
+fintel.execute_action()
+vf.update('40111', {'rx_p': {'1495563079': 15}})
+vf.save()
+

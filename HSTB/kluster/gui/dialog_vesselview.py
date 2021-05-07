@@ -980,82 +980,74 @@ class OptionsWidget(QtWidgets.QWidget):
                 tstmps = list(xyzrph[serial_num]['tx_port_x'].keys())
                 for tstmp in tstmps:
                     self.data[serial_num][tstmp] = {}
-                    self.data[serial_num][tstmp] = {'Vessel Reference Point': [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}
-                    self.data[serial_num][tstmp]['Vessel File'] = os.path.normpath(xyzrph[serial_num]['vessel_file'][tstmp])
-                    self.data[serial_num][tstmp]['Sonar Type'] = xyzrph[serial_num]['sonar_type'][tstmp]
-                    self.data[serial_num][tstmp]['Source'] = xyzrph[serial_num]['source'][tstmp]
                     self.data[serial_num][tstmp]['Dual Head'] = True
                     self.data[serial_num][tstmp]['Port Sonar Transmitter'] = [float(xyzrph[serial_num]['tx_port_x'][tstmp]),
-                                                                 float(xyzrph[serial_num]['tx_port_y'][tstmp]),
-                                                                 float(xyzrph[serial_num]['tx_port_z'][tstmp]),
-                                                                 float(xyzrph[serial_num]['tx_port_r'][tstmp]),
-                                                                 float(xyzrph[serial_num]['tx_port_p'][tstmp]),
-                                                                 float(xyzrph[serial_num]['tx_port_h'][tstmp])]
+                                                                              float(xyzrph[serial_num]['tx_port_y'][tstmp]),
+                                                                              float(xyzrph[serial_num]['tx_port_z'][tstmp]),
+                                                                              float(xyzrph[serial_num]['tx_port_r'][tstmp]),
+                                                                              float(xyzrph[serial_num]['tx_port_p'][tstmp]),
+                                                                              float(xyzrph[serial_num]['tx_port_h'][tstmp])]
                     self.data[serial_num][tstmp]['Port Sonar Receiver'] = [float(xyzrph[serial_num]['rx_port_x'][tstmp]),
-                                                              float(xyzrph[serial_num]['rx_port_y'][tstmp]),
-                                                              float(xyzrph[serial_num]['rx_port_z'][tstmp]),
-                                                              float(xyzrph[serial_num]['rx_port_r'][tstmp]),
-                                                              float(xyzrph[serial_num]['rx_port_p'][tstmp]),
-                                                              float(xyzrph[serial_num]['rx_port_h'][tstmp])]
+                                                                           float(xyzrph[serial_num]['rx_port_y'][tstmp]),
+                                                                           float(xyzrph[serial_num]['rx_port_z'][tstmp]),
+                                                                           float(xyzrph[serial_num]['rx_port_r'][tstmp]),
+                                                                           float(xyzrph[serial_num]['rx_port_p'][tstmp]),
+                                                                           float(xyzrph[serial_num]['rx_port_h'][tstmp])]
                     self.data[serial_num][tstmp]['Stbd Sonar Transmitter'] = [float(xyzrph[serial_num]['tx_stbd_x'][tstmp]),
-                                                                 float(xyzrph[serial_num]['tx_stbd_y'][tstmp]),
-                                                                 float(xyzrph[serial_num]['tx_stbd_z'][tstmp]),
-                                                                 float(xyzrph[serial_num]['tx_stbd_r'][tstmp]),
-                                                                 float(xyzrph[serial_num]['tx_stbd_p'][tstmp]),
-                                                                 float(xyzrph[serial_num]['tx_stbd_h'][tstmp])]
+                                                                              float(xyzrph[serial_num]['tx_stbd_y'][tstmp]),
+                                                                              float(xyzrph[serial_num]['tx_stbd_z'][tstmp]),
+                                                                              float(xyzrph[serial_num]['tx_stbd_r'][tstmp]),
+                                                                              float(xyzrph[serial_num]['tx_stbd_p'][tstmp]),
+                                                                              float(xyzrph[serial_num]['tx_stbd_h'][tstmp])]
                     self.data[serial_num][tstmp]['Stbd Sonar Receiver'] = [float(xyzrph[serial_num]['rx_stbd_x'][tstmp]),
-                                                              float(xyzrph[serial_num]['rx_stbd_y'][tstmp]),
-                                                              float(xyzrph[serial_num]['rx_stbd_z'][tstmp]),
-                                                              float(xyzrph[serial_num]['rx_stbd_r'][tstmp]),
-                                                              float(xyzrph[serial_num]['rx_stbd_p'][tstmp]),
-                                                              float(xyzrph[serial_num]['rx_stbd_h'][tstmp])]
-                    self.data[serial_num][tstmp]['IMU'] = [float(xyzrph[serial_num]['imu_x'][tstmp]), float(xyzrph[serial_num]['imu_y'][tstmp]),
-                                               float(xyzrph[serial_num]['imu_z'][tstmp]), float(xyzrph[serial_num]['imu_r'][tstmp]),
-                                               float(xyzrph[serial_num]['imu_p'][tstmp]), float(xyzrph[serial_num]['imu_h'][tstmp])]
-                    self.data[serial_num][tstmp]['Primary Antenna'] = [float(xyzrph[serial_num]['tx_to_antenna_x'][tstmp]),
-                                                           float(xyzrph[serial_num]['tx_to_antenna_y'][tstmp]),
-                                                           float(xyzrph[serial_num]['tx_to_antenna_z'][tstmp]), 0, 0, 0]
-                    self.data[serial_num][tstmp]['Waterline'] = [0, 0, xyzrph[serial_num]['waterline'][tstmp], 0, 0, 0]
-                    try:
-                        self.data[serial_num][tstmp]['Vesselcenter'] = [float(xyzrph[serial_num]['vess_center_x'][tstmp]),
-                                                            float(xyzrph[serial_num]['vess_center_y'][tstmp]),
-                                                            float(xyzrph[serial_num]['vess_center_z'][tstmp]),
-                                                            float(xyzrph[serial_num]['vess_center_r'][tstmp]),
-                                                            float(xyzrph[serial_num]['vess_center_p'][tstmp]),
-                                                            float(xyzrph[serial_num]['vess_center_yaw'][tstmp])]
-                    except KeyError:
-                        self.data[serial_num][tstmp]['Vesselcenter'] = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+                                                                           float(xyzrph[serial_num]['rx_stbd_y'][tstmp]),
+                                                                           float(xyzrph[serial_num]['rx_stbd_z'][tstmp]),
+                                                                           float(xyzrph[serial_num]['rx_stbd_r'][tstmp]),
+                                                                           float(xyzrph[serial_num]['rx_stbd_p'][tstmp]),
+                                                                           float(xyzrph[serial_num]['rx_stbd_h'][tstmp])]
             else:
                 tstmps = list(xyzrph[serial_num]['tx_x'].keys())
                 for tstmp in tstmps:
                     self.data[serial_num][tstmp] = {}
-                    self.data[serial_num][tstmp] = {'Vessel Reference Point': [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}
-                    self.data[serial_num][tstmp]['Vessel File'] = os.path.normpath(xyzrph[serial_num]['vessel_file'][tstmp])
-                    self.data[serial_num][tstmp]['Sonar Type'] = xyzrph[serial_num]['sonar_type'][tstmp]
-                    self.data[serial_num][tstmp]['Source'] = xyzrph[serial_num]['source'][tstmp]
                     self.data[serial_num][tstmp]['Dual Head'] = False
                     self.data[serial_num][tstmp]['Sonar Transmitter'] = [float(xyzrph[serial_num]['tx_x'][tstmp]), float(xyzrph[serial_num]['tx_y'][tstmp]),
-                                                            float(xyzrph[serial_num]['tx_z'][tstmp]), float(xyzrph[serial_num]['tx_r'][tstmp]),
-                                                            float(xyzrph[serial_num]['tx_p'][tstmp]), float(xyzrph[serial_num]['tx_h'][tstmp])]
+                                                                         float(xyzrph[serial_num]['tx_z'][tstmp]), float(xyzrph[serial_num]['tx_r'][tstmp]),
+                                                                         float(xyzrph[serial_num]['tx_p'][tstmp]), float(xyzrph[serial_num]['tx_h'][tstmp])]
                     self.data[serial_num][tstmp]['Sonar Receiver'] = [float(xyzrph[serial_num]['rx_x'][tstmp]), float(xyzrph[serial_num]['rx_y'][tstmp]),
-                                                         float(xyzrph[serial_num]['rx_z'][tstmp]), float(xyzrph[serial_num]['rx_r'][tstmp]),
-                                                         float(xyzrph[serial_num]['rx_p'][tstmp]), float(xyzrph[serial_num]['rx_h'][tstmp])]
-                    self.data[serial_num][tstmp]['IMU'] = [float(xyzrph[serial_num]['imu_x'][tstmp]), float(xyzrph[serial_num]['imu_y'][tstmp]),
-                                               float(xyzrph[serial_num]['imu_z'][tstmp]), float(xyzrph[serial_num]['imu_r'][tstmp]),
-                                               float(xyzrph[serial_num]['imu_p'][tstmp]), float(xyzrph[serial_num]['imu_h'][tstmp])]
+                                                                      float(xyzrph[serial_num]['rx_z'][tstmp]), float(xyzrph[serial_num]['rx_r'][tstmp]),
+                                                                      float(xyzrph[serial_num]['rx_p'][tstmp]), float(xyzrph[serial_num]['rx_h'][tstmp])]
+
+            for tstmp in tstmps:
+                self.data[serial_num][tstmp]['Vessel Reference Point'] = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+                self.data[serial_num][tstmp]['Vessel File'] = os.path.normpath(xyzrph[serial_num]['vessel_file'][tstmp])
+                self.data[serial_num][tstmp]['Sonar Type'] = xyzrph[serial_num]['sonar_type'][tstmp]
+                self.data[serial_num][tstmp]['Source'] = xyzrph[serial_num]['source'][tstmp]
+                try:
+                    self.data[serial_num][tstmp]['IMU'] = [float(xyzrph[serial_num]['imu_x'][tstmp]),
+                                                           float(xyzrph[serial_num]['imu_y'][tstmp]),
+                                                           float(xyzrph[serial_num]['imu_z'][tstmp]),
+                                                           float(xyzrph[serial_num]['imu_r'][tstmp]),
+                                                           float(xyzrph[serial_num]['imu_p'][tstmp]),
+                                                           float(xyzrph[serial_num]['imu_h'][tstmp])]
+                except KeyError:
+                    self.data[serial_num][tstmp]['IMU'] = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+                try:
                     self.data[serial_num][tstmp]['Primary Antenna'] = [float(xyzrph[serial_num]['tx_to_antenna_x'][tstmp]),
-                                                           float(xyzrph[serial_num]['tx_to_antenna_y'][tstmp]),
-                                                           float(xyzrph[serial_num]['tx_to_antenna_z'][tstmp]), 0, 0, 0]
-                    self.data[serial_num][tstmp]['Waterline'] = [0, 0, xyzrph[serial_num]['waterline'][tstmp], 0, 0, 0]
-                    try:
-                        self.data[serial_num][tstmp]['Vesselcenter'] = [float(xyzrph[serial_num]['vess_center_x'][tstmp]),
-                                                            float(xyzrph[serial_num]['vess_center_y'][tstmp]),
-                                                            float(xyzrph[serial_num]['vess_center_z'][tstmp]),
-                                                            float(xyzrph[serial_num]['vess_center_r'][tstmp]),
-                                                            float(xyzrph[serial_num]['vess_center_p'][tstmp]),
-                                                            float(xyzrph[serial_num]['vess_center_yaw'][tstmp])]
-                    except KeyError:
-                        self.data[serial_num][tstmp]['Vesselcenter'] = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+                                                                       float(xyzrph[serial_num]['tx_to_antenna_y'][tstmp]),
+                                                                       float(xyzrph[serial_num]['tx_to_antenna_z'][tstmp]),
+                                                                       0, 0, 0]
+                except KeyError:
+                    self.data[serial_num][tstmp]['Primary Antenna'] = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+                self.data[serial_num][tstmp]['Waterline'] = [0, 0, xyzrph[serial_num]['waterline'][tstmp], 0, 0, 0]
+                try:
+                    self.data[serial_num][tstmp]['Vesselcenter'] = [float(xyzrph[serial_num]['vess_center_x'][tstmp]),
+                                                        float(xyzrph[serial_num]['vess_center_y'][tstmp]),
+                                                        float(xyzrph[serial_num]['vess_center_z'][tstmp]),
+                                                        float(xyzrph[serial_num]['vess_center_r'][tstmp]),
+                                                        float(xyzrph[serial_num]['vess_center_p'][tstmp]),
+                                                        float(xyzrph[serial_num]['vess_center_yaw'][tstmp])]
+                except KeyError:
+                    self.data[serial_num][tstmp]['Vesselcenter'] = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 
     def determine_reference_point(self, tstmp):
         """

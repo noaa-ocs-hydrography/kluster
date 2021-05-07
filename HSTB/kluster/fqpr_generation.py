@@ -5,6 +5,7 @@ from time import perf_counter
 import xarray as xr
 import numpy as np
 import json
+from copy import deepcopy
 from dask.distributed import wait, progress
 from pyproj import CRS, Transformer
 from pyproj.exceptions import CRSError
@@ -290,8 +291,9 @@ class Fqpr(ZarrBackend):
             dictionary of attributes that you want stored in the ping datasets
         """
 
+        copy_dict = deepcopy(attr_dict)  # handle any conflicts with altering source dict
         for rp in self.multibeam.raw_ping:
-            self.write_attributes('ping', attr_dict, sys_id=rp.system_identifier)
+            self.write_attributes('ping', copy_dict, sys_id=rp.system_identifier)
 
     def import_sound_velocity_files(self, src: Union[str, list]):
         """
@@ -1660,6 +1662,8 @@ class Fqpr(ZarrBackend):
 
         self.logger.info('****Building tx/rx vectors at time of transmit/receive****\n')
         starttime = perf_counter()  # use starttime to time the process
+        # each run of this process overwrites existing offsets/angles with the currently set ones
+        self.write_attribute_to_ping_records({'xyzrph': self.multibeam.xyzrph})
 
         skip_dask = False  # skip dask will allow us to process without dask distributed
         if self.client is None:  # small datasets benefit from just running it without dask distributed
@@ -1858,6 +1862,7 @@ class Fqpr(ZarrBackend):
         self._validate_georef_xyz(subset_time, dump_data)
         self.logger.info('****Georeferencing sound velocity corrected beam offsets****\n')
         starttime = perf_counter()
+        self.write_attribute_to_ping_records({'xyzrph': self.multibeam.xyzrph})
 
         self.logger.info('Using pyproj CRS: {}'.format(self.horizontal_crs.to_string()))
 
@@ -2936,7 +2941,8 @@ class Fqpr(ZarrBackend):
                     dashboard['last_run'][ra.system_identifier][ky] = ra.attrs[ky]
         return dashboard
 
-    def return_next_action(self, new_vertical_reference: str = None, new_coordinate_system: CRS = None):
+    def return_next_action(self, new_vertical_reference: str = None, new_coordinate_system: CRS = None, new_offsets: bool = False,
+                           new_tpu: bool = False):
         """
         Determine the next action to take, building the arguments for the fqpr_convenience.process_multibeam function.
         Uses the processing status, which is updated as a process is completed at a sounding level.
@@ -2961,6 +2967,10 @@ class Fqpr(ZarrBackend):
         new_coordinate_system
             If the user sets a new coordinate system that does not match the existing one, this will trigger a
             processing action
+        new_offsets
+            True if new offsets have been set, requires the full processing stack to be run
+        new_tpu
+            True if new tpu values have been set, requires georeference/TPU to run
         """
 
         min_status = self.multibeam.raw_ping[0].current_processing_status
@@ -2996,7 +3006,8 @@ class Fqpr(ZarrBackend):
             if new_vertical_reference != self.vert_ref:
                 new_diff_vertref = True
                 default_vert_ref = new_vertical_reference
-        if min_status < 5 or new_diff_coordinate or new_diff_vertref:
+
+        if min_status < 5 or new_diff_coordinate or new_diff_vertref or new_tpu or new_offsets:
             kwargs['run_orientation'] = False
             kwargs['run_beam_vec'] = False
             kwargs['run_svcorr'] = False
@@ -3006,10 +3017,10 @@ class Fqpr(ZarrBackend):
             kwargs['epsg'] = default_epsg
             kwargs['coord_system'] = default_coord_system
             kwargs['vert_ref'] = default_vert_ref
-        if min_status < 3:
+        if min_status < 3 or new_offsets:
             kwargs['run_svcorr'] = True
             kwargs['add_cast_files'] = []
-        if min_status < 2:
+        if min_status < 2 or new_offsets:
             kwargs['run_orientation'] = True
             kwargs['orientation_initial_interpolation'] = False
             kwargs['run_beam_vec'] = True

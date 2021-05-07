@@ -18,6 +18,8 @@ class ZarrBackend(BaseBackend):
         super().__init__(output_folder)
 
     def _get_zarr_path(self, dataset_name: str, sys_id: str = None):
+        if self.output_folder is None:
+            return None
         if dataset_name == 'ping':
             if not sys_id:
                 raise ValueError('Zarr Backend: No system id provided, cannot build ping path')
@@ -69,7 +71,10 @@ class ZarrBackend(BaseBackend):
 
     def write_attributes(self, dataset_name: str, attributes: dict, sys_id: str = None):
         zarr_path = self._get_zarr_path(dataset_name, sys_id)
-        zarr_write_attributes(zarr_path, attributes)
+        if zarr_path is not None:
+            zarr_write_attributes(zarr_path, attributes)
+        else:
+            print('Writing attributes is disabled for in-memory processing')
 
 
 def _get_indices_dataset_notexist(input_time_arrays):
@@ -425,6 +430,8 @@ class ZarrWrite:
                         new_xyz[ky].pop(tstmp)
             if not new_xyz[list(new_xyz.keys())[0]]:
                 attrs.pop('xyzrph')
+            # if not attrs:
+            #     attrs = None
         except:
             pass
         return attrs

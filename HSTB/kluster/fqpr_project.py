@@ -11,6 +11,7 @@ from HSTB.kluster.dask_helpers import dask_find_or_start_client
 from HSTB.kluster.fqpr_convenience import reload_data, reload_surface, get_attributes_from_fqpr
 from HSTB.kluster.fqpr_surface_v3 import QuadManager
 from HSTB.kluster.xarray_helpers import slice_xarray_by_dim
+from HSTB.kluster.fqpr_vessel import VesselFile, create_new_vessel_file
 
 
 class FqprProject:
@@ -51,6 +52,8 @@ class FqprProject:
         self.path = None
         self.is_gui = is_gui
         self.file_format = 1.0
+
+        self.vessel_file = None
 
         self.surface_instances = {}
         self.surface_layers = {}
@@ -138,8 +141,7 @@ class FqprProject:
                 self.path = os.path.join(pth, 'kluster_project.json')
             else:
                 self.path = pth
-            # if os.path.exists(self.path):  # an existing project
-            #     self.open_project(self.path, skip_dask=True)
+            self.vessel_file = os.path.join(pth, 'vessel_file.kfc')
 
     def _load_project_file(self, projfile: str):
         """
@@ -212,6 +214,8 @@ class FqprProject:
             elif os.path.isfile(full_path):
                 self.add_surface(full_path)
         self.path = os.path.join(directory_path, 'kluster_project.json')
+        self.vessel_file = os.path.join(directory_path, 'vessel_file.kfc')
+        create_new_vessel_file(self.vessel_file)
         self.save_project()
 
     def save_project(self):
@@ -226,6 +230,7 @@ class FqprProject:
             data['fqpr_paths'] = self.return_fqpr_paths()
             data['surface_paths'] = self.return_surface_paths()
             data['file_format'] = self.file_format
+            data['vessel_file'] = self.vessel_file
             data.update(self.settings)
             json.dump(data, pf, sort_keys=True, indent=4)
         print('Project saved to {}'.format(self.path))
@@ -245,6 +250,7 @@ class FqprProject:
         data = self._load_project_file(projfile)
         self.path = projfile
         self.file_format = data['file_format']
+        self.vessel_file = data['vessel_file']
 
         for pth in data['fqpr_paths']:
             if os.path.exists(pth):
@@ -258,6 +264,7 @@ class FqprProject:
             else:  # invalid path
                 print('Unable to find surface: {}'.format(pth))
 
+        data.pop('vessel_file')
         data.pop('fqpr_paths')
         data.pop('surface_paths')
         data.pop('file_format')
@@ -272,6 +279,7 @@ class FqprProject:
             fqinst.close()
 
         self.path = None
+        self.vessel_file = ''
         self.surface_instances = {}
         self.surface_layers = {}
         self.fqpr_instances = {}
@@ -763,6 +771,16 @@ class FqprProject:
         if matches > 1:
             raise ValueError("Found {} matches by serial number, project should not have multiple fqpr instances with the same serial number".format(matches))
         return out_path, out_instance
+
+    def return_vessel_file(self):
+        if self.vessel_file:
+            if os.path.exists(self.vessel_file):
+                vf = VesselFile(self.vessel_file)
+            else:
+                vf = create_new_vessel_file(self.vessel_file)
+        else:
+            vf = None
+        return vf
 
 
 def create_new_project(output_folder: str = None):

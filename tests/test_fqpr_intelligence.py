@@ -1,4 +1,5 @@
 import time
+import shutil
 
 from HSTB.kluster.fqpr_intelligence import *
 from HSTB.kluster.fqpr_project import *
@@ -16,19 +17,34 @@ def cleanup_after_tests():
     testfile, testsv, expected_data_folder, expected_data_folder_path = get_testfile_paths()
     proj_path = os.path.join(os.path.dirname(testfile), 'kluster_project.json')
     os.remove(proj_path)
+    vessel_file = os.path.join(os.path.dirname(testfile), 'vessel_file.kfc')
+    os.remove(vessel_file)
+
+    if os.path.exists(expected_data_folder_path):
+        shutil.rmtree(expected_data_folder_path)
 
 
-def test_intel_add_multibeam():
+def setup_intel():
     testfile, testsv, expected_data_folder, expected_data_folder_path = get_testfile_paths()
 
     proj_path = os.path.join(os.path.dirname(testfile), 'kluster_project.json')
+    vessel_file = os.path.join(os.path.dirname(testfile), 'vessel_file.kfc')
+
     if os.path.exists(proj_path):
         os.remove(proj_path)
+    if os.path.exists(vessel_file):
+        os.remove(vessel_file)
     proj = create_new_project(os.path.dirname(testfile))
     fintel = FqprIntel(proj)
+    return proj, fintel, proj_path, vessel_file, testfile, testsv, expected_data_folder_path
+
+
+def test_intel_add_multibeam():
+    proj, fintel, proj_path, vessel_file, testfile, testsv, expected_data_folder_path = setup_intel()
     updated_type, new_data, new_project = fintel.add_file(testfile)
 
     assert os.path.exists(proj_path)
+    assert os.path.exists(vessel_file)
 
     assert updated_type == 'multibeam'
     assert new_data['file_path'] == testfile
@@ -64,13 +80,8 @@ def test_intel_add_multibeam():
 
 
 def test_intel_remove_multibeam():
-    testfile, testsv, expected_data_folder, expected_data_folder_path = get_testfile_paths()
+    proj, fintel, proj_path, vessel_file, testfile, testsv, expected_data_folder_path = setup_intel()
 
-    proj_path = os.path.join(os.path.dirname(testfile), 'kluster_project.json')
-    if os.path.exists(proj_path):
-        os.remove(proj_path)
-    proj = create_new_project(os.path.dirname(testfile))
-    fintel = FqprIntel(proj)
     updated_type, new_data, new_project = fintel.add_file(testfile)
     assert updated_type == 'multibeam'  # file was added
 
@@ -91,13 +102,7 @@ def test_intel_remove_multibeam():
 
 
 def test_intel_add_sv():
-    testfile, testsv, expected_data_folder, expected_data_folder_path = get_testfile_paths()
-
-    proj_path = os.path.join(os.path.dirname(testfile), 'kluster_project.json')
-    if os.path.exists(proj_path):
-        os.remove(proj_path)
-    proj = create_new_project(os.path.dirname(testfile))
-    fintel = FqprIntel(proj)
+    proj, fintel, proj_path, vessel_file, testfile, testsv, expected_data_folder_path = setup_intel()
     updated_type, new_data, new_project = fintel.add_file(testsv)
 
     assert os.path.exists(proj_path)
@@ -167,13 +172,7 @@ def test_intel_add_sv():
 
 
 def test_intel_remove_sv():
-    testfile, testsv, expected_data_folder, expected_data_folder_path = get_testfile_paths()
-
-    proj_path = os.path.join(os.path.dirname(testfile), 'kluster_project.json')
-    if os.path.exists(proj_path):
-        os.remove(proj_path)
-    proj = create_new_project(os.path.dirname(testfile))
-    fintel = FqprIntel(proj)
+    proj, fintel, proj_path, vessel_file, testfile, testsv, expected_data_folder_path = setup_intel()
     updated_type, new_data, new_project = fintel.add_file(testsv)
     assert updated_type == 'svp'  # file was added
 
@@ -193,6 +192,81 @@ def test_intel_remove_sv():
     proj = None
     cleanup_after_tests()
 
+
+def test_intel_vessel_file():
+    proj, fintel, proj_path, vessel_file, testfile, testsv, expected_data_folder_path = setup_intel()
+    updated_type, new_data, new_project = fintel.add_file(testfile)
+    # convert multibeam file
+    fintel.execute_action()
+    vf = fintel.project.return_vessel_file()
+    converted_fqpr = list(fintel.project.fqpr_instances.values())[0]
+    # after conversion, the offsets from this converted data will be stored in the vessel file
+    expected_offsets = {'beam_opening_angle': {'1495563079': 1.3}, 'heading_patch_error': {'1495563079': 0.5},
+                        'heading_sensor_error': {'1495563079': 0.02}, 'heave_error': {'1495563079': 0.05},
+                        'horizontal_positioning_error': {'1495563079': 1.5}, 'imu_h': {'1495563079': 0.4},
+                        'imu_latency': {'1495563079': 0.0}, 'imu_p': {'1495563079': -0.18},
+                        'imu_r': {'1495563079': -0.16}, 'imu_x': {'1495563079': 0.0},
+                        'imu_y': {'1495563079': 0.0}, 'imu_z': {'1495563079': 0.0},
+                        'latency_patch_error': {'1495563079': 0.0}, 'pitch_patch_error': {'1495563079': 0.1},
+                        'pitch_sensor_error': {'1495563079': 0.0005}, 'roll_patch_error': {'1495563079': 0.1},
+                        'roll_sensor_error': {'1495563079': 0.0005}, 'rx_h': {'1495563079': 0.0},
+                        'rx_p': {'1495563079': 0.0}, 'rx_r': {'1495563079': 0.0},
+                        'rx_x': {'1495563079': -0.1}, 'rx_x_0': {'1495563079': 0.011}, 'rx_x_1': {'1495563079': 0.011},
+                        'rx_x_2': {'1495563079': 0.011}, 'rx_y': {'1495563079': -0.304}, 'rx_y_0': {'1495563079': 0.0},
+                        'rx_y_1': {'1495563079': 0.0}, 'rx_y_2': {'1495563079': 0.0}, 'rx_z': {'1495563079': -0.016},
+                        'rx_z_0': {'1495563079': -0.006}, 'rx_z_1': {'1495563079': -0.006},
+                        'rx_z_2': {'1495563079': -0.006}, 'separation_model_error': {'1495563079': 0.0},
+                        'sonar_type': {'1495563079': 'em2040'}, 'source': {'1495563079': 'em2040_40111_05_23_2017'},
+                        'surface_sv_error': {'1495563079': 0.5}, 'timing_latency_error': {'1495563079': 0.001},
+                        'tx_h': {'1495563079': 0.0}, 'tx_p': {'1495563079': 0.0}, 'tx_r': {'1495563079': 0.0},
+                        'tx_to_antenna_x': {'1495563079': 0.0}, 'tx_to_antenna_y': {'1495563079': 0.0},
+                        'tx_to_antenna_z': {'1495563079': 0.0}, 'tx_x': {'1495563079': 0.0},
+                        'tx_x_0': {'1495563079': 0.0}, 'tx_x_1': {'1495563079': 0.0}, 'tx_x_2': {'1495563079': 0.0},
+                        'tx_y': {'1495563079': 0.0}, 'tx_y_0': {'1495563079': -0.0554},
+                        'tx_y_1': {'1495563079': 0.0131}, 'tx_y_2': {'1495563079': 0.0554}, 'tx_z': {'1495563079': 0.0},
+                        'tx_z_0': {'1495563079': -0.012}, 'tx_z_1': {'1495563079': -0.006},
+                        'tx_z_2': {'1495563079': -0.012}, 'vertical_positioning_error': {'1495563079': 1.0},
+                        'vessel_speed_error': {'1495563079': 0.1}, 'waterline': {'1495563079': -0.64},
+                        'waterline_error': {'1495563079': 0.02}, 'x_offset_error': {'1495563079': 0.2},
+                        'y_offset_error': {'1495563079': 0.2}, 'z_offset_error': {'1495563079': 0.2}}
+
+    assert vf.data[converted_fqpr.multibeam.raw_ping[0].system_identifier] == expected_offsets
+    fintel.execute_action()
+
+    assert not fintel.has_actions
+
+    vf.update('40111', {'beam_opening_angle': {'1495563079': 999}}, carry_over_tpu=False)
+    vf.save()
+    fintel.regenerate_actions()
+    # after regenerating actions, we have a new compute tpu action since we changed this tpu value
+    assert fintel.has_actions
+    assert fintel.action_container.actions[0].text == 'Process em2040_40111_05_23_2017 starting with georeferencing'
+
+    vf.update('40111', {'rx_p': {'1495563079': 999}})
+    vf.save()
+    fintel.regenerate_actions()
+    # after regenerating actions, we have a new all processing action since we changed a patch test angle
+    assert fintel.has_actions
+    assert fintel.action_container.actions[0].text == 'Run all processing on em2040_40111_05_23_2017'
+
+    vf.update('40111', {'rx_p': {'1495563079': 0.0}})
+    vf.save()
+    fintel.regenerate_actions()
+    # after regenerating actions, we are back to the compute tpu action, since we reverted the patch test change
+    assert fintel.has_actions
+    assert fintel.action_container.actions[0].text == 'Process em2040_40111_05_23_2017 starting with georeferencing'
+
+    # reverting all changes gets us back to no actions
+    vf.update('40111', {'beam_opening_angle': {'1495563079': 1.3}}, carry_over_tpu=False)
+    vf.save()
+    fintel.regenerate_actions()
+    assert not fintel.has_actions
+
+    fintel.clear()
+    proj.close()
+    fintel = None
+    proj = None
+    cleanup_after_tests()
 
 # some issue with pytest hanging when we use the folder monitoring stuff
 # not sure what to do here, stopping/joining the observer is what the docs say to do

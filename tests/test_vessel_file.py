@@ -1,6 +1,7 @@
 import os
 
-from HSTB.kluster.fqpr_vessel import VesselFile, get_overlapping_timestamps, compare_dict_data, carry_over_optional
+from HSTB.kluster.fqpr_vessel import VesselFile, get_overlapping_timestamps, compare_dict_data, carry_over_optional, \
+    create_new_vessel_file, only_retain_earliest_entry
 
 
 def get_test_vesselfile():
@@ -19,8 +20,7 @@ def get_test_vesselfile():
 
 def test_save_empty_file():
     testfile = get_test_vesselfile()
-    vf = VesselFile()
-    vf.save(testfile)
+    vf = create_new_vessel_file(testfile)
     assert vf.data == {}
     assert vf.source_file == testfile
     assert os.path.exists(testfile)
@@ -133,12 +133,36 @@ def test_compare_dict():
     data_two = {"roll_patch_error": {"1584426525": 0.1, "1584438532": 0.1, "1597569340": 0.1},
                 "roll_sensor_error": {"1584426525": 0.0005, "1584438532": 0.0005, "1597569340": 0.0005},
                 "rx_h": {"1584426525": 359.576, "1584438532": 359.576, "1597569340": 359.576}}
-    assert compare_dict_data(data_one, data_two)
+    identical_offsets, identical_tpu, data_matches = compare_dict_data(data_one, data_two)
+    assert identical_offsets
+    assert identical_tpu
+    assert data_matches
+
     data_two["roll_patch_error"]["1584438532"] = 999
-    # still passes after changing an optional parameter
-    assert compare_dict_data(data_one, data_two)
+    # now fails tpu check and data match check
+    identical_offsets, identical_tpu, data_matches = compare_dict_data(data_one, data_two)
+    assert identical_offsets
+    assert not identical_tpu
+    assert not data_matches
+
     data_two["rx_h"]["1584438532"] = 999
-    assert not compare_dict_data(data_one, data_two)
+    # now fails all three
+    identical_offsets, identical_tpu, data_matches = compare_dict_data(data_one, data_two)
+    assert not identical_offsets
+    assert not identical_tpu
+    assert not data_matches
+
+    data_one = {"roll_patch_error": {"999999999": 0.1, "1584438532": 0.1, "1597569340": 0.1},
+                "roll_sensor_error": {"999999999": 0.0005, "1584438532": 0.0005, "1597569340": 0.0005},
+                "rx_h": {"999999999": 359.576, "1584438532": 359.576, "1597569340": 359.576}}
+    data_two = {"roll_patch_error": {"1584426525": 0.1, "1584438532": 0.1, "1597569340": 0.1},
+                "roll_sensor_error": {"1584426525": 0.0005, "1584438532": 0.0005, "1597569340": 0.0005},
+                "rx_h": {"1584426525": 359.576, "1584438532": 359.576, "1597569340": 359.576}}
+    # data match check just looks at the values
+    identical_offsets, identical_tpu, data_matches = compare_dict_data(data_one, data_two)
+    assert not identical_offsets
+    assert not identical_tpu
+    assert data_matches
 
 
 def test_carry_over_optional():
@@ -150,3 +174,20 @@ def test_carry_over_optional():
                 "rx_h": {"1584426525": 359.576, "1584438532": 359.576, "1597569340": 359.576}}
     new_data_two = carry_over_optional(data_one, data_two)
     assert new_data_two == data_one
+
+
+def test_only_retain():
+    data_one = {"roll_patch_error": {"1584426525": 0.1, "1584438532": 0.1, "1597569340": 0.1},
+                "roll_sensor_error": {"1584426525": 0.0005, "1584438532": 0.0005, "1597569340": 0.0005},
+                "rx_h": {"1584426525": 359.576, "1584438532": 359.576, "1597569340": 359.576}}
+    only_retain_earliest_entry(data_one)
+    assert data_one == {'roll_patch_error': {'1584426525': 0.1},
+                        'roll_sensor_error': {'1584426525': 0.0005},
+                        'rx_h': {'1584426525': 359.576}}
+    data_one = {"roll_patch_error": {"1584426525": 0.1, "1584438532": 0.1, "1597569340": 0.1},
+                "roll_sensor_error": {"1584426525": 0.0005, "1584438532": 0.001, "1597569340": 0.0005},
+                "rx_h": {"1584426525": 359.576, "1584438532": 359.576, "1597569340": 359.576}}
+    only_retain_earliest_entry(data_one)
+    assert data_one == {'roll_patch_error': {'1584426525': 0.1, '1584438532': 0.1},
+                        'roll_sensor_error': {'1584426525': 0.0005, '1584438532': 0.001},
+                        'rx_h': {'1584426525': 359.576, '1584438532': 359.576}}
