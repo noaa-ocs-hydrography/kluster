@@ -35,6 +35,7 @@ def setup_intel():
     if os.path.exists(vessel_file):
         os.remove(vessel_file)
     proj = create_new_project(os.path.dirname(testfile))
+    proj.add_vessel_file(vessel_file)
     fintel = FqprIntel(proj)
     return proj, fintel, proj_path, vessel_file, testfile, testsv, expected_data_folder_path
 

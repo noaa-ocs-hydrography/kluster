@@ -1,7 +1,6 @@
 import sys, os
 
 from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal
-
 from HSTB.kluster.fqpr_project import FqprProject
 
 
@@ -52,7 +51,7 @@ class KlusterProjectTree(QtWidgets.QTreeView):
         self.right_click_menu_surfaces = None
         self.setup_menu()
 
-        self.categories = ['Project', 'Converted', 'Surfaces']
+        self.categories = ['Project', 'Vessel File', 'Converted', 'Surfaces']
         self.tree_data = {}
 
         self.clicked.connect(self.item_selected)
@@ -332,6 +331,19 @@ class KlusterProjectTree(QtWidgets.QTreeView):
             parent.appendRow(proj_child)
             self.tree_data['Project'][1] = proj_directory
 
+    def _setup_vessel_file(self, parent, vessel_path):
+        if len(self.tree_data['Vessel File']) == 1:
+            if vessel_path:
+                proj_child = QtGui.QStandardItem(vessel_path)
+                parent.appendRow(proj_child)
+                self.tree_data['Vessel File'].append(vessel_path)
+        else:
+            parent.removeRow(0)
+            if vessel_path:
+                proj_child = QtGui.QStandardItem(vessel_path)
+                parent.appendRow(proj_child)
+                self.tree_data['Vessel File'][1] = vessel_path
+
     def refresh_project(self, proj):
         """
         Loading from a FqprProject will update the tree, triggered on dragging in a converted data folder
@@ -352,9 +364,11 @@ class KlusterProjectTree(QtWidgets.QTreeView):
                 self._add_new_surf_from_proj(parent, surf_data)
                 self._remove_surf_not_in_proj(parent, surf_data)
             elif c == 'Project':
-                if proj.path is not None:
-                    proj_directory = os.path.dirname(proj.path)
-                    self._setup_project(parent, proj_directory)
+                if proj.path:
+                    self._setup_project(parent, proj.path)
+            elif c == 'Vessel File':
+                if proj.vessel_file:
+                    self._setup_vessel_file(parent, proj.vessel_file)
 
     def item_selected(self, index):
         """

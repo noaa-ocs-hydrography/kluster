@@ -203,6 +203,10 @@ class KlusterMain(QtWidgets.QMainWindow):
         save_proj_action.triggered.connect(self._action_save_project)
         close_proj_action = QtWidgets.QAction('Close Project', self)
         close_proj_action.triggered.connect(self.close_project)
+        add_vessel_action = QtWidgets.QAction('New Vessel File', self)
+        add_vessel_action.triggered.connect(self._action_new_vessel_file)
+        open_vessel_action = QtWidgets.QAction('Open Vessel File', self)
+        open_vessel_action.triggered.connect(self._action_open_vessel_file)
         settings_action = QtWidgets.QAction('Settings', self)
         settings_action.triggered.connect(self.set_settings)
         export_action = QtWidgets.QAction('Export Soundings', self)
@@ -242,6 +246,9 @@ class KlusterMain(QtWidgets.QMainWindow):
         file.addAction(open_proj_action)
         file.addAction(save_proj_action)
         file.addAction(close_proj_action)
+        file.addSeparator()
+        file.addAction(add_vessel_action)
+        file.addAction(open_vessel_action)
         file.addSeparator()
         file.addAction(settings_action)
         file.addSeparator()
@@ -1372,6 +1379,28 @@ class KlusterMain(QtWidgets.QMainWindow):
         Connect menu action 'Save Project' with file dialog and save_project
         """
         self.project.save_project()
+
+    def _action_new_vessel_file(self):
+        if self.project.path is not None:
+            default_vessel_file = os.path.join(os.path.dirname(self.project.path), 'vessel_file.kfc')
+            msg, fil = RegistryHelpers.GetFilenameFromUserQT(self, RegistryKey='kluster', Title='New Vessel File',
+                                                             AppName='klusterproj', bMulti=False, bSave=True,
+                                                             DefaultFile=default_vessel_file,
+                                                             fFilter='kluster vessel file (*.kfc)')
+            if msg:
+                self.project.add_vessel_file(fil)
+        else:
+            print('Build a new project or open an existing project before creating a vessel file')
+
+    def _action_open_vessel_file(self):
+        if self.project.path is not None:
+            msg, fil = RegistryHelpers.GetFilenameFromUserQT(self, RegistryKey='kluster', Title='Open Vessel File',
+                                                             AppName='klusterproj', bMulti=False, bSave=False,
+                                                             fFilter='kluster vessel file (*.kfc)')
+            if msg:
+                self.project.add_vessel_file(fil)
+        else:
+            print('Build a new project or open an existing project before opening a vessel file')
 
     def _action_export(self):
         """

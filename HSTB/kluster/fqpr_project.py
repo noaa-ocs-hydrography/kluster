@@ -141,7 +141,6 @@ class FqprProject:
                 self.path = os.path.join(pth, 'kluster_project.json')
             else:
                 self.path = pth
-            self.vessel_file = os.path.join(pth, 'vessel_file.kfc')
 
     def _load_project_file(self, projfile: str):
         """
@@ -164,6 +163,8 @@ class FqprProject:
             data = json.load(pf)
         # now translate the relative paths to absolute
         self.path = projfile
+        if data['vessel_file']:
+            self.vessel_file = self.absolute_path_from_relative(data['vessel_file'])
         data['fqpr_paths'] = [self.absolute_path_from_relative(f) for f in data['fqpr_paths']]
         data['surface_paths'] = [self.absolute_path_from_relative(f) for f in data['surface_paths']]
         return data
@@ -214,8 +215,6 @@ class FqprProject:
             elif os.path.isfile(full_path):
                 self.add_surface(full_path)
         self.path = os.path.join(directory_path, 'kluster_project.json')
-        self.vessel_file = os.path.join(directory_path, 'vessel_file.kfc')
-        create_new_vessel_file(self.vessel_file)
         self.save_project()
 
     def save_project(self):
@@ -230,7 +229,10 @@ class FqprProject:
             data['fqpr_paths'] = self.return_fqpr_paths()
             data['surface_paths'] = self.return_surface_paths()
             data['file_format'] = self.file_format
-            data['vessel_file'] = self.vessel_file
+            if self.vessel_file:
+                data['vessel_file'] = self.path_relative_to_project(self.vessel_file)
+            else:
+                data['vessel_file'] = self.vessel_file
             data.update(self.settings)
             json.dump(data, pf, sort_keys=True, indent=4)
         print('Project saved to {}'.format(self.path))
@@ -250,7 +252,6 @@ class FqprProject:
         data = self._load_project_file(projfile)
         self.path = projfile
         self.file_format = data['file_format']
-        self.vessel_file = data['vessel_file']
 
         for pth in data['fqpr_paths']:
             if os.path.exists(pth):
@@ -271,6 +272,18 @@ class FqprProject:
         # rest of the data belongs in settings
         self.settings = data
 
+    def add_vessel_file(self, vessel_file_path: str = None):
+        if vessel_file_path:
+            vessel_file = vessel_file_path
+        elif self.path:
+            vessel_file = os.path.join(os.path.dirname(self.path), 'vessel_file.kfc')
+        else:
+            print('WARNING: Unable to setup new vessel file, save the project or add data first.')
+            return
+        if not os.path.exists(vessel_file):
+            create_new_vessel_file(vessel_file)
+        self.vessel_file = vessel_file
+
     def close(self):
         """
         close project and clear all data.  have to close the fqpr instances with the fqpr close method.
@@ -279,7 +292,7 @@ class FqprProject:
             fqinst.close()
 
         self.path = None
-        self.vessel_file = ''
+        self.vessel_file = None
         self.surface_instances = {}
         self.surface_layers = {}
         self.fqpr_instances = {}
@@ -777,7 +790,7 @@ class FqprProject:
             if os.path.exists(self.vessel_file):
                 vf = VesselFile(self.vessel_file)
             else:
-                vf = create_new_vessel_file(self.vessel_file)
+                vf = None
         else:
             vf = None
         return vf
