@@ -18,6 +18,11 @@ class ZarrBackend(BaseBackend):
         super().__init__(output_folder)
 
     def _get_zarr_path(self, dataset_name: str, sys_id: str = None):
+        """
+        Get the path to the zarr folder based on the dataset name that we provide.  Ping zarr folders are based on
+        the serial number of the system, and that must be provided here as the sys_id
+        """
+
         if self.output_folder is None:
             return None
         if dataset_name == 'ping':
@@ -34,9 +39,16 @@ class ZarrBackend(BaseBackend):
             raise ValueError('Zarr Backend: Not a valid dataset name: {}'.format(dataset_name))
 
     def _get_zarr_indices(self, zarr_path: str, time_array: list, append_dim: str):
+        """
+        Get the chunk indices (based on the time dimension) using the proivded time arrays
+        """
         return get_write_indices_zarr(zarr_path, time_array, append_dim)
 
     def _get_chunk_sizes(self, dataset_name: str):
+        """
+        Pull from kluster_variables to get the correct chunk size for each dataset
+        """
+
         if dataset_name == 'ping':
             return kluster_variables.ping_chunks
         elif dataset_name in ['navigation', 'ppnav']:
@@ -47,6 +59,10 @@ class ZarrBackend(BaseBackend):
             raise ValueError('Zarr Backend: Not a valid dataset name: {}'.format(dataset_name))
 
     def _autodetermine_times(self, data: list, time_array: list = None, append_dim: str = 'time'):
+        """
+        Get the time arrays for the dataset depending on the dataset type.
+        """
+
         if time_array:
             return time_array
         elif any([isinstance(d, Future) for d in data]):
@@ -56,6 +72,12 @@ class ZarrBackend(BaseBackend):
 
     def write(self, dataset_name: str, data: Union[list, xr.Dataset, Future], time_array: list = None, attributes: dict = None,
               sys_id: str = None, append_dim: str = 'time', skip_dask: bool = False):
+        """
+        Write the provided data to disk, finding the correct zarr folder using dataset_name.  We need time_array to get
+        the correct write indices for the data.  If attributes are provided, we write those as well as xarray Dataset
+        attributes.
+        """
+
         if not isinstance(data, list):
             data = [data]
         if attributes is None:
@@ -70,6 +92,10 @@ class ZarrBackend(BaseBackend):
         return zarr_path, fpths
 
     def write_attributes(self, dataset_name: str, attributes: dict, sys_id: str = None):
+        """
+        If the data is written to disk, we write the attributes to the zarr store as attributes of the dataset_name record.
+        """
+
         zarr_path = self._get_zarr_path(dataset_name, sys_id)
         if zarr_path is not None:
             zarr_write_attributes(zarr_path, attributes)

@@ -307,11 +307,11 @@ def process_and_export_soundings(filname: str, outfold: str = None, coord_system
 
     Parameters
     ----------
+    filname
+        either a list of .all file paths, a single .all file path or a path to a directory with .all files
     outfold
         path to output folder where you want the csv files to go.  If None, will be the same folder that you've
         converted your raw data to.
-    filname
-        either a list of .all file paths, a single .all file path or a path to a directory with .all files
     coord_system
         a valid datum identifier that pyproj CRS will accept
     vert_ref

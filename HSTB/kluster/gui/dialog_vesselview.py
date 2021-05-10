@@ -1,9 +1,8 @@
 import os
 from copy import deepcopy
 import numpy as np
-import json
-from datetime import datetime, timezone
-from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal, backend, qgis_enabled
+from datetime import datetime
+from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal, backend
 
 from vispy import use
 use(backend, 'gl2')
@@ -13,7 +12,6 @@ from vispy import scene
 from vispy.io import read_mesh
 from vispy.visuals import transforms
 from vispy.color import Color
-from vispy.geometry.parametric import surface
 
 from HSTB.kluster.xarray_conversion import return_xyzrph_from_posmv, return_xyzrph_from_mbes
 from HSTB.kluster.fqpr_vessel import VesselFile
@@ -611,6 +609,9 @@ class Vessel(MovingObject):
 
 
 class TimestampDialog(QtWidgets.QDialog):
+    """
+    Dialog that allows the user to take in a datetime, and return a modified version
+    """
     def __init__(self, parent=None, settings=None):
         super().__init__(parent)
 
@@ -640,6 +641,8 @@ class TimestampDialog(QtWidgets.QDialog):
         self.status_msg = QtWidgets.QLabel('')
         self.status_msg.setStyleSheet("QLabel { " + kluster_variables.error_color + "; }")
 
+        self.remove_this_checkbox = QtWidgets.QCheckBox('Remove this entry')
+
         self.hlayout_five = QtWidgets.QHBoxLayout()
         self.hlayout_five.addStretch(1)
         self.ok_button = QtWidgets.QPushButton('OK', self)
@@ -655,17 +658,30 @@ class TimestampDialog(QtWidgets.QDialog):
         layout.addWidget(self.directions)
         layout.addStretch()
         layout.addLayout(self.hlayout_three)
+        layout.addWidget(self.remove_this_checkbox)
         layout.addWidget(self.status_msg)
         layout.addLayout(self.hlayout_five)
         self.setLayout(layout)
 
         self.new_text.textChanged.connect(self._event_update_status)
+        self.remove_this_checkbox.clicked.connect(self._event_checkbox)
         self.ok_button.clicked.connect(self.start)
         self.cancel_button.clicked.connect(self.cancel)
 
         self._event_update_status()
 
     def populate(self, serialnum, timestamp):
+        """
+        Fill the dialog with the serial number of the system and the timestamp that we want to modify
+
+        Parameters
+        ----------
+        serialnum
+            string identifier for the serial number
+        timestamp
+            raw timestamp in Month/Day/Year Hour/Minute format
+        """
+
         self.serial_text.setText(str(serialnum))
         self.orig_text.setText(str(timestamp))
         self.new_text.setText(str(timestamp))
@@ -685,7 +701,133 @@ class TimestampDialog(QtWidgets.QDialog):
         if len(newtext) != 15:
             checkpass = False
 
-        if checkpass:  # If this is the pydro environment, we know it has Entwine
+        if checkpass:
+            self.status_msg.setStyleSheet("QLabel { " + kluster_variables.pass_color + "; }")
+            self.status_msg.setText('Pass')
+            self.ok_button.setEnabled(True)
+        else:
+            self.status_msg.setStyleSheet("QLabel { " + kluster_variables.error_color + "; }")
+            self.status_msg.setText('Error: Timestamp Format Invalid')
+            self.ok_button.setEnabled(False)
+
+    def _event_checkbox(self):
+        if self.remove_this_checkbox.isChecked():
+            self.new_text.setDisabled(True)
+        else:
+            self.new_text.setDisabled(False)
+
+    def return_new_timestamp(self):
+        """
+        Return the new timestamp
+
+        Returns
+        -------
+        str
+            new timestamp in Month/Day/Year Hour/Minute format
+        """
+
+        formatted_timestamp = self.new_text.text()
+        formatted_timestamp = datetime.strptime(formatted_timestamp, '%m/%d/%Y %H%M')
+        return str(int(formatted_timestamp.timestamp())), self.remove_this_checkbox.isChecked()
+
+    def start(self):
+        """
+        Dialog completes if the specified widgets are populated, use return_new_timestamp to get access to the
+        settings the user entered into the dialog.
+        """
+        self.canceled = False
+        self.accept()
+
+    def cancel(self):
+        """
+        Dialog completes, use self.canceled to get the fact that it cancelled
+        """
+        self.canceled = True
+        self.accept()
+
+
+class AddEntryDialog(QtWidgets.QDialog):
+    """
+    Dialog that allows the user to take in a datetime, and return a modified version
+    """
+    def __init__(self, parent=None, settings=None):
+        super().__init__(parent)
+
+        self.setWindowTitle('Add New Entry')
+        layout = QtWidgets.QVBoxLayout()
+
+        self.hlayout_one = QtWidgets.QHBoxLayout()
+        self.serial_label = QtWidgets.QLabel('Serial Number')
+        self.hlayout_one.addWidget(self.serial_label)
+        self.serial_text = QtWidgets.QLabel()
+        self.hlayout_one.addWidget(self.serial_text)
+
+        self.directions = QtWidgets.QLabel('Timestamp Format    "MM/DD/YY hhmm"')
+
+        self.hlayout_two = QtWidgets.QHBoxLayout()
+        self.new_label = QtWidgets.QLabel('New Timestamp')
+        self.hlayout_two.addWidget(self.new_label)
+        self.new_text = QtWidgets.QLineEdit()
+        self.hlayout_two.addWidget(self.new_text)
+
+        self.status_msg = QtWidgets.QLabel('')
+        self.status_msg.setStyleSheet("QLabel { " + kluster_variables.error_color + "; }")
+
+        self.hlayout_five = QtWidgets.QHBoxLayout()
+        self.hlayout_five.addStretch(1)
+        self.ok_button = QtWidgets.QPushButton('OK', self)
+        self.hlayout_five.addWidget(self.ok_button)
+        self.hlayout_five.addStretch(1)
+        self.cancel_button = QtWidgets.QPushButton('Cancel', self)
+        self.hlayout_five.addWidget(self.cancel_button)
+        self.hlayout_five.addStretch(1)
+
+        layout.addLayout(self.hlayout_one)
+        layout.addStretch()
+        layout.addWidget(self.directions)
+        layout.addLayout(self.hlayout_two)
+        layout.addStretch()
+        layout.addWidget(self.status_msg)
+        layout.addLayout(self.hlayout_five)
+        self.setLayout(layout)
+
+        self.new_text.textChanged.connect(self._event_update_status)
+        self.ok_button.clicked.connect(self.start)
+        self.cancel_button.clicked.connect(self.cancel)
+
+        self._event_update_status()
+
+    def populate(self, serialnum, timestamp):
+        """
+        Fill the dialog with the serial number of the system and the timestamp that we want to modify
+
+        Parameters
+        ----------
+        serialnum
+            string identifier for the serial number
+        timestamp
+            raw timestamp in Month/Day/Year Hour/Minute format
+        """
+
+        self.serial_text.setText(str(serialnum))
+        self.new_text.setText(str(timestamp))
+
+    def _event_update_status(self):
+        """
+        Update the status message if an Error presents itself.  Also controls the OK button, to prevent kicking off
+        a process if we know it isn't going to work
+        """
+
+        newtext = self.new_text.text()
+        timepass = True
+        try:
+            formatted = datetime.strptime(newtext, '%m/%d/%Y %H%M')
+        except ValueError:
+            timepass = False
+        if len(newtext) != 15:
+            timepass = False
+
+        if timepass:
             self.status_msg.setStyleSheet("QLabel { " + kluster_variables.pass_color + "; }")
             self.status_msg.setText('Pass')
             self.ok_button.setEnabled(True)
@@ -695,13 +837,22 @@ class TimestampDialog(QtWidgets.QDialog):
             self.ok_button.setEnabled(False)
 
     def return_new_timestamp(self):
+        """
+        Return the new timestamp
+
+        Returns
+        -------
+        str
+            new timestamp in Month/Day/Year Hour/Minute format
+        """
+
         formatted_timestamp = self.new_text.text()
         formatted_timestamp = datetime.strptime(formatted_timestamp, '%m/%d/%Y %H%M')
         return str(int(formatted_timestamp.timestamp()))
 
     def start(self):
         """
-        Dialog completes if the specified widgets are populated, use return_options to get access to the
+        Dialog completes if the specified widgets are populated, use return_new_timestamp to get access to the
         settings the user entered into the dialog.
         """
         self.canceled = False
@@ -1129,6 +1280,11 @@ class OptionsWidget(QtWidgets.QWidget):
         self.show_waterline.setChecked(True)
 
     def serial_selected(self, evt, setup=False):
+        """
+        Triggered on selecting a serial number, loads the possible sensor options and triggers the time_select event
+        to populate the data
+        """
+
         if setup:
             self.serial_select.clear()
             self.serial_select.addItems(list(self.data.keys()))
@@ -1152,12 +1308,18 @@ class OptionsWidget(QtWidgets.QWidget):
                 self.time_selected(None, setup=True)
 
     def time_selected(self, evt, setup=False):
+        """
+        Triggered on selecting in the gui or loading new data, will pull the data for the timestamp and use the
+        update_sensor_data method to sync with the master xyzrph dict and update the vessel view with the existing
+        positions.
+        """
+
         serial_num = self.serial_select.currentText()
         if setup:
             self.time_select.clear()
             self.timestamps = list(self.data[serial_num].keys())
             self.timestamps_converted = [datetime.fromtimestamp(int(tstmp)).strftime('%m/%d/%Y %H%M') for tstmp in self.timestamps]
-            self.time_select.addItems(self.timestamps_converted)
+            self.time_select.addItems([tstmp_conv for _, tstmp_conv in sorted(zip(self.timestamps, self.timestamps_converted))])
         else:
             curr_timestamp = self.get_currently_selected_time()
             if serial_num and curr_timestamp:
@@ -1775,8 +1937,11 @@ class VesselWidget(QtWidgets.QWidget):
         file.addAction(importkongs)
 
         edit = self.mbar.addMenu('Edit')
-        edit_timestamp = QtWidgets.QAction('Timestamp', self)
+        new_timestamp = QtWidgets.QAction('New Entry', self)
+        new_timestamp.triggered.connect(self.new_entry)
+        edit_timestamp = QtWidgets.QAction('Alter Timestamp', self)
         edit_timestamp.triggered.connect(self.edit_timestamp)
+        edit.addAction(new_timestamp)
         edit.addAction(edit_timestamp)
 
         view = self.mbar.addMenu('View')
@@ -1792,25 +1957,61 @@ class VesselWidget(QtWidgets.QWidget):
         testing.addAction(importdual)
 
     def edit_timestamp(self):
-        dlog = TimestampDialog()
-        orig_time = self.opts_window.time_select.currentText()
-        orig_serial = self.opts_window.serial_select.currentText()
-        dlog.populate(orig_serial, orig_time)
-        if dlog.exec_() and not dlog.canceled:
-            new_timestamp = dlog.return_new_timestamp()
-            orig_timestamp = self.opts_window.get_currently_selected_time()
-            if new_timestamp in self.opts_window.data[orig_serial]:
-                print('ERROR: {} is an existing timestamp, cannot change {} to {}'.format(new_timestamp, orig_time,
-                                                                                          new_timestamp))
-            for sensor in self.xyzrph[orig_serial]:
-                sensor_data = self.xyzrph[orig_serial][sensor]
-                orig_timestamp_data = sensor_data[orig_timestamp]
-                sensor_data[new_timestamp] = orig_timestamp_data
-                del sensor_data[orig_timestamp]
-            orig_timestamp_data = self.opts_window.data[orig_serial][orig_timestamp]
-            self.opts_window.data[orig_serial][new_timestamp] = orig_timestamp_data
-            del self.opts_window.data[orig_serial][orig_timestamp]
-            self.opts_window.time_selected(None, setup=True)
+        """
+        Edit the current timestamp using the TimestampDialog.  Will replace all timestamped records with the current
+        timestamp with the new timestamp.
+        """
+
+        if self.xyzrph:
+            dlog = TimestampDialog()
+            orig_time = self.opts_window.time_select.currentText()
+            orig_serial = self.opts_window.serial_select.currentText()
+            dlog.populate(orig_serial, orig_time)
+            if dlog.exec_() and not dlog.canceled:
+                new_timestamp, remove_this = dlog.return_new_timestamp()
+                orig_timestamp = self.opts_window.get_currently_selected_time()
+                if remove_this:
+                    for sensor in self.xyzrph[orig_serial]:
+                        self.xyzrph[orig_serial][sensor].pop(orig_time)
+                    self.opts_window.data[orig_serial].pop(orig_time)
+                    return
+                if new_timestamp in self.opts_window.data[orig_serial]:
+                    print('ERROR: {} is an existing timestamp, cannot change {} to {}'.format(new_timestamp, orig_time, new_timestamp))
+                for sensor in self.xyzrph[orig_serial]:
+                    sensor_data = self.xyzrph[orig_serial][sensor]
+                    orig_timestamp_data = sensor_data[orig_timestamp]
+                    sensor_data[new_timestamp] = orig_timestamp_data
+                    del sensor_data[orig_timestamp]
+                orig_timestamp_data = self.opts_window.data[orig_serial][orig_timestamp]
+                self.opts_window.data[orig_serial][new_timestamp] = orig_timestamp_data
+                del self.opts_window.data[orig_serial][orig_timestamp]
+                self.opts_window.time_selected(None, setup=True)
+        else:
+            print('No vessel file loaded')
+
+    def new_entry(self):
+        """
+        Add a new entry in the vessel file at the specified time
+        """
+
+        if self.xyzrph:
+            dlog = AddEntryDialog()
+            orig_time = self.opts_window.time_select.currentText()
+            orig_serial = self.opts_window.serial_select.currentText()
+            dlog.populate(orig_serial, orig_time)
+            if dlog.exec_() and not dlog.canceled:
+                new_timestamp = dlog.return_new_timestamp()
+                if new_timestamp in self.opts_window.data[orig_serial]:
+                    print('ERROR: {} is an existing timestamp, cannot change {} to {}'.format(new_timestamp, orig_time,
+                                                                                              new_timestamp))
+                tstmps = np.array([float(tst) for tst in self.opts_window.data[orig_serial].keys()])
+                nearest = str(int(tstmps[np.abs(tstmps - float(new_timestamp)).argmin()]))
+                for sensor in self.xyzrph[orig_serial]:
+                    self.xyzrph[orig_serial][sensor][new_timestamp] = self.xyzrph[orig_serial][sensor][nearest]
+                self.opts_window.data[orig_serial][new_timestamp] = self.opts_window.data[orig_serial][nearest]
+                self.opts_window.time_selected(None, setup=True)
+        else:
+            print('No vessel file loaded')
 
     def update_xyzrph_vessel(self, pth_to_vessel):
         """
@@ -1843,7 +2044,7 @@ class VesselWidget(QtWidgets.QWidget):
         r: float, roll (+port) coordinate in degrees
         p: float, pitch (+bow) coordinate in degrees
         h: float, yaw (+clockwise) coordinate in degrees
-        size: float, optional parameter for the size of the cubes
+        size: float, optional parameter for the size of the cubes, only used for Vesselcenter sensor
 
         """
         serial_num = self.opts_window.serial_select.currentText()
@@ -1881,12 +2082,8 @@ class VesselWidget(QtWidgets.QWidget):
     def populate_from_xyzrph(self):
         """
         Trigger the loading of data from Kluster xyzrph.
-
-        Parameters
-        ----------
-        xyzrph: dict, kluster xyzrph instance
-
         """
+
         if self.xyzrph:
             self.opts_window.populate_from_xyzrph(deepcopy(self.xyzrph))
         else:

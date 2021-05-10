@@ -512,12 +512,22 @@ class FqprIntel(LoggerClass):
                 self.action_container.add_action(newaction)
 
     def _update_offsets(self, fqpr_instance, vessel_file):
+        """
+        Update the loaded fqpr instance with new offsets if we find them in the vessel_file.  Return indicators for
+        what action has taken place.  If we find different offsets/angles in the vessel_file, we return False for
+        identical_offsets.  If we find different tpu values in the vessel_file, we return False for identical_tpu.
+
+        If the fqpr_instance is not in the vessel_file, we update the file for that entry.
+        """
+
         identical_offsets = True
         identical_tpu = True
         if vessel_file:
             new_xyzrph = vessel_file.return_data(fqpr_instance.multibeam.raw_ping[0].system_identifier,
                                                  int(fqpr_instance.calc_min_var('time')),
                                                  int(fqpr_instance.calc_max_var('time')))
+            if not new_xyzrph:
+                print('WARNING: Unable to find a vessel file entry for {}'.format(fqpr_instance.output_folder))
             if new_xyzrph:
                 identical_offsets, identical_tpu, data_matches = compare_dict_data(new_xyzrph, fqpr_instance.multibeam.raw_ping[0].attrs['xyzrph'])
                 if data_matches:
@@ -536,6 +546,11 @@ class FqprIntel(LoggerClass):
         return identical_tpu, identical_offsets
 
     def _build_new_crs(self, fqpr_instance):
+        """
+        Build a new coordinate system instance (pyproj CRS object) based on the processing settings.  We will later compare
+        this to the coordinate system in the fqpr instance to see if they match, if not they will need to be georeferenced.
+        """
+
         if 'use_epsg' in self.processing_settings:  # if someone setup the project with a default coord system
             if self.processing_settings['use_epsg']:
                 new_coord_system, err = build_crs(epsg=self.processing_settings['epsg'])

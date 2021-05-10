@@ -325,6 +325,19 @@ class FqprProject:
         self.node_vals_for_surf = {}
 
     def set_settings(self, settings: dict):
+        """
+        Set the project settings with the provided dictionary.  Pull out fqpr specific settings like whether or not
+        to enable parallel write as well
+
+        Parameters
+        ----------
+        settings
+            dictionary from the Qsettings store, see kluster_main._load_previously_used_settings
+
+        Returns
+        -------
+
+        """
         self.settings.update(settings)
         if 'parallel_write' in settings:
             for relpath, fqpr_instance in self.fqpr_instances.items():
@@ -733,8 +746,6 @@ class FqprProject:
             float, minimum longitude in degrees
         max_lon
             float, maximum longitude in degrees
-        full_swath
-            If True, only returns the full swaths whose navigation is within the provided box
 
         Returns
         -------
@@ -807,6 +818,16 @@ class FqprProject:
         return out_path, out_instance
 
     def return_vessel_file(self):
+        """
+        Return the VesselFile instance for this project's vessel_file path
+
+        Returns
+        -------
+        VesselFile
+            Instance of VesselFile for the vessel_file attribute path.  If self.vessel_file is not set, this returns
+            None
+        """
+
         if self.vessel_file:
             if os.path.exists(self.vessel_file):
                 vf = VesselFile(self.vessel_file)
@@ -824,8 +845,6 @@ def create_new_project(output_folder: str = None):
 
     Parameters
     ----------
-    mbes_files
-        either a list of files, a string path to a directory or a string path to a file
     output_folder
         optional, a path to an output folder, otherwise will convert right next to mbes_files
 

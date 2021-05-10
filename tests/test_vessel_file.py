@@ -102,11 +102,9 @@ def test_return_singletimestamp():
     assert new_data == {'beam_opening_angle': {"1234": 1.0}, 'rx_x': {"1234": 0.345}}
     new_data = vf.return_data('123', 1230, 1235)
     assert new_data == {'beam_opening_angle': {"1234": 1.0}, 'rx_x': {"1234": 0.345}}
-    try:  # not a valid range, outside of the 60 second buffer
-        new_data = vf.return_data('123', 1000, 1100)
-        assert False
-    except ValueError:
-        assert True
+    # not a valid range, outside of the 60 second buffer
+    new_data = vf.return_data('123', 1000, 1100)
+    assert not new_data
     # data that is after the timestamp uses the closest previous timestamp
     new_data = vf.return_data('123', 1300, 1400)
     assert new_data == {'beam_opening_angle': {"1234": 1.0}, 'rx_x': {"1234": 0.345}}
@@ -174,6 +172,7 @@ def test_carry_over_optional():
                 "rx_h": {"1584426525": 359.576, "1584438532": 359.576, "1597569340": 359.576}}
     new_data_two = carry_over_optional(data_one, data_two)
     assert new_data_two == data_one
+    assert data_two["roll_patch_error"]["1584426525"] == 0.1
 
 
 def test_only_retain():
