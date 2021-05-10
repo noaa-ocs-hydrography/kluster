@@ -1419,6 +1419,7 @@ class KlusterMain(QtWidgets.QMainWindow):
             if msg:
                 self.project.add_vessel_file(fil)
                 self.refresh_project()
+            self.regenerate_offsets_actions(True)
         else:
             print('Build a new project or open an existing project before opening a vessel file')
 
