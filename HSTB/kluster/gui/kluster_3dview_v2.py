@@ -550,10 +550,11 @@ class ThreeDView(QtWidgets.QWidget):
         endpos
             Point where you released the mouse button after dragging
         """
-        scene.visuals.Line(pos=np.array([corner_points[0], corner_points[1]]), color='r', parent=self.view.scene)
-        scene.visuals.Line(pos=np.array([corner_points[2], corner_points[3]]), color='r', parent=self.view.scene)
-        scene.visuals.Line(pos=np.array([corner_points[4], corner_points[5]]), color='r', parent=self.view.scene)
-        scene.visuals.Line(pos=np.array([corner_points[6], corner_points[7]]), color='r', parent=self.view.scene)
+        if three_d:
+            scene.visuals.Line(pos=np.array([corner_points[0], corner_points[1]]), color='r', parent=self.view.scene)
+            scene.visuals.Line(pos=np.array([corner_points[2], corner_points[3]]), color='r', parent=self.view.scene)
+            scene.visuals.Line(pos=np.array([corner_points[4], corner_points[5]]), color='r', parent=self.view.scene)
+            scene.visuals.Line(pos=np.array([corner_points[6], corner_points[7]]), color='r', parent=self.view.scene)
         if self.displayed_points is not None and self.parent is not None:
             self.parent.select_points(startpos, endpos, corner_points=corner_points, three_d=three_d)
 

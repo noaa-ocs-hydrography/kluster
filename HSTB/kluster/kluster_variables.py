@@ -42,7 +42,7 @@ tpu_parameter_names = ['tx_to_antenna_x', 'tx_to_antenna_y', 'tx_to_antenna_z', 
 # optional parameter names controls what is left out when comparing vessel entries to see if the new entry is worth keeping
 optional_parameter_names = ['source', 'vessel_file', 'sonar_type', 'imu_h', 'imu_p', 'imu_r', 'imu_latency', 'imu_x', 'imu_y',
                             'imu_z', 'tx_to_antenna_x', 'tx_to_antenna_y', 'tx_to_antenna_z', 'vess_center_x', 'vess_center_y',
-                            'vess_center_z', 'vess_center_yaw', 'vess_center_p', 'vess_center_r']
+                            'vess_center_z', 'vess_center_yaw', 'vess_center_p', 'vess_center_r', 'sensor_size']
 optional_tpu_parameter_names = ['imu_h', 'imu_p', 'imu_r', 'imu_latency', 'imu_x', 'imu_y',
                                 'imu_z', 'tx_to_antenna_x', 'tx_to_antenna_y', 'tx_to_antenna_z']
 default_heave_error = 0.050  # default tpu parameter for heave
