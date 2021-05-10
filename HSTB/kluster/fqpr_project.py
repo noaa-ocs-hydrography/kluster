@@ -11,7 +11,7 @@ from HSTB.kluster.dask_helpers import dask_find_or_start_client
 from HSTB.kluster.fqpr_convenience import reload_data, reload_surface, get_attributes_from_fqpr
 from HSTB.kluster.fqpr_surface_v3 import QuadManager
 from HSTB.kluster.xarray_helpers import slice_xarray_by_dim
-from HSTB.kluster.fqpr_vessel import VesselFile, create_new_vessel_file
+from HSTB.kluster.fqpr_vessel import VesselFile, create_new_vessel_file, convert_from_fqpr_xyzrph
 
 
 class FqprProject:
@@ -272,7 +272,19 @@ class FqprProject:
         # rest of the data belongs in settings
         self.settings = data
 
-    def add_vessel_file(self, vessel_file_path: str = None):
+    def add_vessel_file(self, vessel_file_path: str = None, update_with_project: bool = True):
+        """
+        Attach a new or existing vessel file to this project.  Optionally populate it with the found offsets and angles
+        in the existing fqpr instances in the project
+
+        Parameters
+        ----------
+        vessel_file_path
+            path to the new or existing vessel file
+        update_with_project
+            if True, will update the vessel file with the offsets and angles of all the fqpr instances in the project
+        """
+
         if vessel_file_path:
             vessel_file = vessel_file_path
         elif self.path:
@@ -283,6 +295,15 @@ class FqprProject:
         if not os.path.exists(vessel_file):
             create_new_vessel_file(vessel_file)
         self.vessel_file = vessel_file
+        if update_with_project:
+            vess_file = self.return_vessel_file()
+            for fq, fqpr in self.fqpr_instances.items():
+                serial_number = fqpr.multibeam.raw_ping[0].system_identifier
+                sonar_type = fqpr.multibeam.raw_ping[0].sonartype
+                output_identifier = os.path.split(fqpr.output_folder)[1]
+                vess_xyzrph = convert_from_fqpr_xyzrph(fqpr.multibeam.xyzrph, sonar_type, serial_number, output_identifier)
+                vess_file.update(serial_number, vess_xyzrph[serial_number])
+            vess_file.save()
 
     def close(self):
         """

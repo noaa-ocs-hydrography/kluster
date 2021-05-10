@@ -88,7 +88,8 @@ def get_overlapping_timestamps(timestamps: list, starttime: int, endtime: int):
             elif (tstmp > starting_timestamp) and (tstmp <= starttime):
                 starting_timestamp = tstmp
     if starting_timestamp is None:
-        raise ValueError('VesselFile: Found no overlapping timestamps for range {} -> {}, within the available timestamps: {}'.format(starttime, endtime, timestamps))
+        # raise ValueError('VesselFile: Found no overlapping timestamps for range {} -> {}, within the available timestamps: {}'.format(starttime, endtime, timestamps))
+        return final_timestamps
     starttime = starting_timestamp
     final_timestamps.append(str(starttime))
     for tstmp in timestamps:
@@ -160,3 +161,12 @@ def only_retain_earliest_entry(data: dict):
         for entry in data:
             for tstmp in remove_these:
                 data[entry].pop(tstmp)
+
+
+def convert_from_fqpr_xyzrph(xyzrph: dict, sonar_model: str, system_identifier: str, source_identifier: str):
+    first_sensor = list(xyzrph.keys())[0]
+    tstmps = list(xyzrph[first_sensor].keys())
+    vess_xyzrph = {str(system_identifier): xyzrph}
+    vess_xyzrph[str(system_identifier)]['sonar_type'] = {tst: sonar_model for tst in tstmps}
+    vess_xyzrph[str(system_identifier)]['source'] = {tst: source_identifier for tst in tstmps}
+    return vess_xyzrph

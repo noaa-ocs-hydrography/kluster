@@ -17,6 +17,7 @@ from HSTB.kluster.gui import dialog_vesselview, kluster_explorer, kluster_projec
     dialog_export_grid, dialog_layer_settings, dialog_settings, dialog_importppnav, dialog_overwritenav
 from HSTB.kluster.fqpr_project import FqprProject
 from HSTB.kluster.fqpr_intelligence import FqprIntel
+from HSTB.kluster.fqpr_vessel import convert_from_fqpr_xyzrph
 from HSTB.kluster import __version__ as kluster_version
 from HSTB.kluster import __file__ as kluster_init_file
 from HSTB.shared import RegistryHelpers, path_to_supplementals
@@ -504,21 +505,38 @@ class KlusterMain(QtWidgets.QMainWindow):
 
         If you have a data container selected, it will populate from it's xyzrph attribute.
         """
+        vessel_file = self.project.vessel_file
         fqprs = self.return_selected_fqprs()
 
         self.vessel_win = None
         self.vessel_win = dialog_vesselview.VesselWidget()
+        self.vessel_win.vessel_file_modified.connect(self.regenerate_offsets_actions)
 
-        if fqprs:
+        if vessel_file:
+            self.vessel_win.load_from_config_file(vessel_file)
+        elif fqprs:
             fqpr = self.project.fqpr_instances[self.project.path_relative_to_project(fqprs[0])]
-            first_sensor = list(fqpr.multibeam.xyzrph.keys())[0]
-            tstmps = list(fqpr.multibeam.xyzrph[first_sensor].keys())
-            vess_xyzrph = {str(fqpr.multibeam.raw_ping[0].system_identifier): fqpr.multibeam.xyzrph}
-            vess_xyzrph[str(fqpr.multibeam.raw_ping[0].system_identifier)]['sonar_type'] = {tst: fqpr.multibeam.raw_ping[0].sonartype for tst in tstmps}
-            vess_xyzrph[str(fqpr.multibeam.raw_ping[0].system_identifier)]['source'] = {tst: os.path.split(fqpr.output_folder)[1] for tst in tstmps}
+            vess_xyzrph = convert_from_fqpr_xyzrph(fqpr.multibeam.xyzrph, fqpr.multibeam.raw_ping[0].sonartype,
+                                                   fqpr.multibeam.raw_ping[0].system_identifier,
+                                                   os.path.split(fqpr.output_folder)[1])
             self.vessel_win.xyzrph = vess_xyzrph
             self.vessel_win.load_from_existing_xyzrph()
         self.vessel_win.show()
+
+    def regenerate_offsets_actions(self, is_modified: bool):
+        """
+        Action triggered on saving a vessel file in self.vessel_win.  Automatically generates new actions based on
+        changes to this file.
+
+        Parameters
+        ----------
+        is_modified
+            If the file was modified, this is True
+        """
+
+        vessel_file = self.project.return_vessel_file()
+        if vessel_file:
+            self.intel.regenerate_actions()
 
     def kluster_basic_plots(self):
         """
@@ -1389,6 +1407,7 @@ class KlusterMain(QtWidgets.QMainWindow):
                                                              fFilter='kluster vessel file (*.kfc)')
             if msg:
                 self.project.add_vessel_file(fil)
+                self.refresh_project()
         else:
             print('Build a new project or open an existing project before creating a vessel file')
 
@@ -1399,6 +1418,7 @@ class KlusterMain(QtWidgets.QMainWindow):
                                                              fFilter='kluster vessel file (*.kfc)')
             if msg:
                 self.project.add_vessel_file(fil)
+                self.refresh_project()
         else:
             print('Build a new project or open an existing project before opening a vessel file')
 
