@@ -205,7 +205,7 @@ def test_intel_vessel_file():
     expected_offsets = {'beam_opening_angle': {'1495563079': 1.3}, 'heading_patch_error': {'1495563079': 0.5},
                         'heading_sensor_error': {'1495563079': 0.02}, 'heave_error': {'1495563079': 0.05},
                         'horizontal_positioning_error': {'1495563079': 1.5}, 'imu_h': {'1495563079': 0.4},
-                        'imu_latency': {'1495563079': 0.0}, 'imu_p': {'1495563079': -0.18},
+                        'latency': {'1495563079': 0.0}, 'imu_p': {'1495563079': -0.18},
                         'imu_r': {'1495563079': -0.16}, 'imu_x': {'1495563079': 0.0},
                         'imu_y': {'1495563079': 0.0}, 'imu_z': {'1495563079': 0.0},
                         'latency_patch_error': {'1495563079': 0.0}, 'pitch_patch_error': {'1495563079': 0.1},
@@ -241,7 +241,7 @@ def test_intel_vessel_file():
     fintel.regenerate_actions()
     # after regenerating actions, we have a new compute tpu action since we changed this tpu value
     assert fintel.has_actions
-    assert fintel.action_container.actions[0].text == 'Process em2040_40111_05_23_2017 starting with georeferencing'
+    assert fintel.action_container.actions[0].text == 'Process em2040_40111_05_23_2017 only computing TPU'
 
     vf.update('40111', {'rx_p': {'1495563079': 999}})
     vf.save()
@@ -255,7 +255,7 @@ def test_intel_vessel_file():
     fintel.regenerate_actions()
     # after regenerating actions, we are back to the compute tpu action, since we reverted the patch test change
     assert fintel.has_actions
-    assert fintel.action_container.actions[0].text == 'Process em2040_40111_05_23_2017 starting with georeferencing'
+    assert fintel.action_container.actions[0].text == 'Process em2040_40111_05_23_2017 only computing TPU'
 
     # reverting all changes gets us back to no actions
     vf.update('40111', {'beam_opening_angle': {'1495563079': 1.3}}, carry_over_tpu=False)

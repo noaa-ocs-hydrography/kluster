@@ -24,6 +24,7 @@ class KlusterProjectTree(QtWidgets.QTreeView):
     load_console_surface = Signal(str)
     zoom_extents_fqpr = Signal(str)
     zoom_extents_surface = Signal(str)
+    reprocess_instance = Signal(str)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -67,12 +68,15 @@ class KlusterProjectTree(QtWidgets.QTreeView):
 
         close_dat = QtWidgets.QAction('Close', self)
         close_dat.triggered.connect(self.close_item_event)
+        reprocess = QtWidgets.QAction('Reprocess', self)
+        reprocess.triggered.connect(self.reprocess_event)
         load_in_console = QtWidgets.QAction('Load in console', self)
         load_in_console.triggered.connect(self.load_in_console_event)
         zoom_extents = QtWidgets.QAction('Zoom Extents', self)
         zoom_extents.triggered.connect(self.zoom_extents_event)
 
         self.right_click_menu_converted.addAction(close_dat)
+        self.right_click_menu_converted.addAction(reprocess)
         self.right_click_menu_converted.addAction(load_in_console)
         self.right_click_menu_converted.addAction(zoom_extents)
 
@@ -93,6 +97,23 @@ class KlusterProjectTree(QtWidgets.QTreeView):
         elif mid_lvl_name == 'Surfaces':
             self.right_click_menu_surfaces.exec_(QtGui.QCursor.pos())
 
+    def reprocess_event(self, e: QtCore.QEvent):
+        """
+        Trigger full reprocessing of the selected fqpr instance
+
+        Parameters
+        ----------
+        e
+            QEvent on menu button click
+        """
+
+        index = self.currentIndex()
+        mid_lvl_name = index.parent().data()
+        sel_data = index.data()
+
+        if mid_lvl_name == 'Converted':
+            self.reprocess_instance.emit(sel_data)
+
     def load_in_console_event(self, e: QtCore.QEvent):
         """
         We want the ability for the user to right click an object and load it in the console.  Here we emit the correct
@@ -102,8 +123,8 @@ class KlusterProjectTree(QtWidgets.QTreeView):
         ----------
         e
             QEvent on menu button click
-
         """
+
         index = self.currentIndex()
         mid_lvl_name = index.parent().data()
         sel_data = index.data()

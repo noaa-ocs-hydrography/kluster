@@ -22,7 +22,7 @@ def test_return_xyzrph_from_mbes():
     assert xyzrph['heave_error']['1495563079'] == 0.05
     assert xyzrph['horizontal_positioning_error']['1495563079'] == 1.5
     assert xyzrph['imu_h']['1495563079'] == 0.400
-    assert xyzrph['imu_latency']['1495563079'] == 0.000
+    assert xyzrph['latency']['1495563079'] == 0.000
     assert xyzrph['imu_p']['1495563079'] == -0.180
     assert xyzrph['imu_r']['1495563079'] == -0.160
     assert xyzrph['imu_x']['1495563079'] == 0.000

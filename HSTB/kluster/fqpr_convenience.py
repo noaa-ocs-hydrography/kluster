@@ -226,7 +226,7 @@ def import_sound_velocity(fqpr_inst: Fqpr, sv_files: Union[str, list]):
 
 
 def process_multibeam(fqpr_inst: Fqpr, run_orientation: bool = True, orientation_initial_interpolation: bool = False,
-                      run_beam_vec: bool = True, run_svcorr: bool = True, run_georef: bool = True,
+                      run_beam_vec: bool = True, run_svcorr: bool = True, run_georef: bool = True, run_tpu: bool = True,
                       add_cast_files: Union[str, list] = None, use_epsg: bool = False,
                       use_coord: bool = True, epsg: int = None, coord_system: str = 'NAD83',
                       vert_ref: str = 'waterline', vdatum_directory: str = None):
@@ -252,6 +252,8 @@ def process_multibeam(fqpr_inst: Fqpr, run_orientation: bool = True, orientation
         perform the sv_correct step
     run_georef
         perform the georef_xyz step
+    run_tpu
+        perform the tpu step
     add_cast_files
         either a list of files to include or the path to a directory containing files.  These are in addition to
         the casts in the ping dataset.
@@ -289,11 +291,12 @@ def process_multibeam(fqpr_inst: Fqpr, run_orientation: bool = True, orientation
         fqpr_inst.sv_correct(add_cast_files=add_cast_files)
     if run_georef:
         fqpr_inst.georef_xyz(vdatum_directory=vdatum_directory)
+    if run_tpu:
         fqpr_inst.calculate_total_uncertainty()
 
     # dask processes appear to suffer from memory leaks regardless of how carefully we track and wait on futures, reset the client here to clear memory after processing
-    if fqpr_inst.client is not None:
-        fqpr_inst.client.restart()
+    # if fqpr_inst.client is not None:
+    #     fqpr_inst.client.restart()
 
     return fqpr_inst
 
@@ -378,11 +381,6 @@ def reload_data(converted_folder: str, require_raw_data: bool = True, skip_dask:
 
         fqpr_inst.generate_starter_orientation_vectors(None, None)
 
-        # convert over the old attribute name for horizontal crs to horizontal_crs, made this change in 0.5.0
-        if 'xyz_crs' in fqpr_inst.multibeam.raw_ping[0].attrs and 'horizontal_crs' not in fqpr_inst.multibeam.raw_ping[0].attrs:
-            for rp in fqpr_inst.multibeam.raw_ping:
-                rp.attrs['horizontal_crs'] = rp.attrs['xyz_crs']
-                rp.attrs.pop('xyz_crs')
         if 'horizontal_crs' in fqpr_inst.multibeam.raw_ping[0].attrs:
             fqpr_inst.construct_crs(epsg=fqpr_inst.multibeam.raw_ping[0].attrs['horizontal_crs'])
 

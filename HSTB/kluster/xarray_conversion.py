@@ -2272,9 +2272,10 @@ def build_xyzrph(settdict: dict, runtime_settdict: dict, sonartype: str):
         # translate over the positioning sensor stuff using the installation parameters active identifiers
         pos_ident = settdict[tme]['active_position_system_number']  # 'position_1'
         for suffix in [['_vertical_location', '_z'], ['_along_location', '_x'],
-                       ['_athwart_location', '_y'], ['_time_delay', '_latency']]:
+                       ['_athwart_location', '_y']]:
             qry = pos_ident + suffix[0]
             xyzrph[tme]['imu' + suffix[1]] = float(settdict[tme][qry])
+        xyzrph[tme]['latency'] = 0.0
 
         # do the same over motion sensor (which is still the POSMV), make assumption that its one of the motion
         #   entries
@@ -2319,7 +2320,7 @@ def build_xyzrph(settdict: dict, runtime_settdict: dict, sonartype: str):
             if 'ReceiveBeamWidth' in runtime_params:
                 opening_angle = float(runtime_params['ReceiveBeamWidth'])
             else:
-                opening_angle = 1.0
+                opening_angle = kluster_variables.default_beam_opening_angle
         xyzrph[tme]['beam_opening_angle'] = opening_angle  # opening angle in degrees, used for tpu
 
     # generate dict of ordereddicts for fast searching

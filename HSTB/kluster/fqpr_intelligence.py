@@ -564,10 +564,16 @@ class FqprIntel(LoggerClass):
             new_coord_system = None
         return new_coord_system
 
-    def _regenerate_processing_actions(self):
+    def _regenerate_processing_actions(self, reprocess_fqpr: str = None):
         """
         After the completion of a process (or on initializing FqprIntel, we look at all the fqpr instances in the project
         and figure out what processing, if any, would need to be done to each.
+
+        Parameters
+        ----------
+        reprocess_fqpr
+            optional, the relative path (from project) for an fqpr instance, triggers full reprocessing for that instance,
+            should only be used in emergency
         """
 
         if self.project:
@@ -584,12 +590,14 @@ class FqprIntel(LoggerClass):
                     new_vert_ref = self.processing_settings['vert_ref']
                 else:
                     new_vert_ref = None
+                full_reprocess = reprocess_fqpr == relative_path
                 abs_path = self.project.absolute_path_from_relative(relative_path)
                 action = [a for a in existing_actions if a.output_destination == abs_path]
                 args, kwargs = fqpr_instance.return_next_action(new_coordinate_system=new_coord_system,
                                                                 new_vertical_reference=new_vert_ref,
                                                                 new_offsets=not identical_offsets,
-                                                                new_tpu=not identical_tpu)
+                                                                new_tpu=not identical_tpu,
+                                                                full_reprocess=full_reprocess)
                 if len(action) == 1 and not action[0].is_running:  # modify the existing processing action
                     if kwargs == {}:
                         self.action_container.remove_action(action[0])
@@ -621,13 +629,19 @@ class FqprIntel(LoggerClass):
         output.update(self.svp_intel.unmatched_files)
         self.action_container.update_unmatched(output)
 
-    def regenerate_actions(self):
+    def regenerate_actions(self, reprocess_fqpr: str = None):
         """
         Regenerate all the actions related to exising fqpr instances in the project.  Everytime an fqpr instance is
         removed or added to the project, we run this method.
+
+        Parameters
+        ----------
+        reprocess_fqpr
+            optional, the relative path (from project) for an fqpr instance, triggers full reprocessing for that instance,
+            should only be used in emergency
         """
 
-        self._regenerate_processing_actions()
+        self._regenerate_processing_actions(reprocess_fqpr=reprocess_fqpr)
         self._regenerate_svp_actions()
         self._regenerate_nav_actions()
         self._build_unmatched_list()

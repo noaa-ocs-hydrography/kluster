@@ -448,7 +448,7 @@ vf = fintel.project.return_vessel_file()
 assert vf.data == {'40111': {'beam_opening_angle': {'1495563079': 1.3}, 'heading_patch_error': {'1495563079': 0.5},
                              'heading_sensor_error': {'1495563079': 0.02}, 'heave_error': {'1495563079': 0.05},
                              'horizontal_positioning_error': {'1495563079': 1.5}, 'imu_h': {'1495563079': 0.4},
-                             'imu_latency': {'1495563079': 0.0}, 'imu_p': {'1495563079': -0.18},
+                             'latency': {'1495563079': 0.0}, 'imu_p': {'1495563079': -0.18},
                              'imu_r': {'1495563079': -0.16}, 'imu_x': {'1495563079': 0.0},
                              'imu_y': {'1495563079': 0.0}, 'imu_z': {'1495563079': 0.0},
                              'latency_patch_error': {'1495563079': 0.0}, 'pitch_patch_error': {'1495563079': 0.1},

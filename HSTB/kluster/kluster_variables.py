@@ -40,11 +40,12 @@ tpu_parameter_names = ['tx_to_antenna_x', 'tx_to_antenna_y', 'tx_to_antenna_z', 
                        'separation_model_error', 'waterline_error', 'vessel_speed_error', 'horizontal_positioning_error',
                        'vertical_positioning_error', 'beam_opening_angle']
 # optional parameter names controls what is left out when comparing vessel entries to see if the new entry is worth keeping
-optional_parameter_names = ['source', 'vessel_file', 'sonar_type', 'imu_h', 'imu_p', 'imu_r', 'imu_latency', 'imu_x', 'imu_y',
+optional_parameter_names = ['source', 'vessel_file', 'sonar_type', 'imu_h', 'imu_p', 'imu_r', 'imu_x', 'imu_y',
                             'imu_z', 'tx_to_antenna_x', 'tx_to_antenna_y', 'tx_to_antenna_z', 'vess_center_x', 'vess_center_y',
                             'vess_center_z', 'vess_center_yaw', 'vess_center_p', 'vess_center_r', 'sensor_size']
-optional_tpu_parameter_names = ['imu_h', 'imu_p', 'imu_r', 'imu_latency', 'imu_x', 'imu_y',
+optional_tpu_parameter_names = ['imu_h', 'imu_p', 'imu_r', 'imu_x', 'imu_y',
                                 'imu_z', 'tx_to_antenna_x', 'tx_to_antenna_y', 'tx_to_antenna_z']
+
 default_heave_error = 0.050  # default tpu parameter for heave
 default_roll_error = 0.0005  # default tpu parameter for roll
 default_pitch_error = 0.0005  # default tpu parameter for pitch
@@ -66,6 +67,7 @@ default_waterline_error = 0.020  # default tpu parameter for waterline
 default_vessel_speed_error = 0.100  # default tpu parameter for vessel speed
 default_horizontal_positioning_error = 1.500  # default tpu parameter for horizontal positioning
 default_vertical_positioning_error = 1.000  # default tpu parameter for vertical positioning
+default_beam_opening_angle = 1.0  # default parameter for beam opening angle in degrees
 
 # zarr backend, chunksizes for writing to disk
 ping_chunks = {'time': (ping_chunk_size,), 'beam': (max_beams,), 'xyz': (3,),

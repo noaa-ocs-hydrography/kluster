@@ -1023,6 +1023,10 @@ class Fqpr(ZarrBackend):
                 # if reversed, we have to reverse the raw angles to match the already reversed corr angles
                 #  also load the numpy array, as leaving it as an xarray seems to cause problems with xarray ops later
                 raw_point = raw_point[..., ::-1].values
+            if 'datum_uncertainty' in ra and self.vert_ref not in ['waterline', 'ellipse']:
+                datum_unc = ra.datum_uncertainty[chnk.values]
+            else:
+                datum_unc = None
             try:
                 fut_corr_point = self.client.scatter(ra.corr_pointing_angle[chnk.values])
                 fut_raw_point = self.client.scatter(raw_point)
@@ -1030,6 +1034,7 @@ class Fqpr(ZarrBackend):
                 fut_depthoffset = self.client.scatter(ra.depthoffset[chnk.values])
                 fut_soundspeed = self.client.scatter(ra.soundspeed[chnk.values])
                 fut_qualityfactor = self.client.scatter(ra.qualityfactor[chnk.values])
+                fut_datumuncertainty = self.client.scatter(datum_unc)
 
                 # latency workflow is kind of strange.  We want to get data where the time equals the chunk time.  Which
                 #   means we have to apply the latency to the chunk time.  But then we need to remove the latency from the
@@ -1058,6 +1063,7 @@ class Fqpr(ZarrBackend):
                 fut_depthoffset = ra.depthoffset[chnk.values]
                 fut_soundspeed = ra.soundspeed[chnk.values]
                 fut_qualityfactor = ra.qualityfactor[chnk.values]
+                fut_datumuncertainty = datum_unc
 
                 if latency:
                     chnk = chnk.assign_coords({'time': chnk.time.time + latency})
@@ -1078,7 +1084,7 @@ class Fqpr(ZarrBackend):
                     fut_hpe = None
 
             data_for_workers.append([fut_roll, fut_raw_point, fut_corr_point, fut_acrosstrack, fut_depthoffset, fut_soundspeed,
-                                     tpu_params, fut_qualityfactor, fut_npe, fut_epe, fut_dpe,
+                                     fut_datumuncertainty, tpu_params, fut_qualityfactor, fut_npe, fut_epe, fut_dpe,
                                      fut_rpe, fut_ppe, fut_hpe, qf_type, self.vert_ref, image_generation[cnt]])
         return data_for_workers
 
@@ -1688,6 +1694,7 @@ class Fqpr(ZarrBackend):
             # for each installation parameters record...
             for applicable_index, timestmp, prefixes in system:
                 self.logger.info('using installation params {}'.format(timestmp))
+                self.motion_latency = float(self.multibeam.xyzrph['latency'][timestmp])
                 self.generate_starter_orientation_vectors(prefixes, timestmp)
                 idx_by_chunk = self.return_chunk_indices(applicable_index, pings_per_chunk)
                 if len(idx_by_chunk[0]):  # if there are pings in this system that align with this installation parameter record
@@ -1745,6 +1752,7 @@ class Fqpr(ZarrBackend):
 
             for applicable_index, timestmp, prefixes in system:
                 self.logger.info('using installation params {}'.format(timestmp))
+                self.motion_latency = float(self.multibeam.xyzrph['latency'][timestmp])
                 self.generate_starter_orientation_vectors(prefixes, timestmp)
                 idx_by_chunk = self.return_chunk_indices(applicable_index, pings_per_chunk)
                 if len(idx_by_chunk[0]):  # if there are pings in this system that align with this installation parameter record
@@ -1807,6 +1815,7 @@ class Fqpr(ZarrBackend):
 
             for applicable_index, timestmp, prefixes in system:
                 self.logger.info('using installation params {}'.format(timestmp))
+                self.motion_latency = float(self.multibeam.xyzrph['latency'][timestmp])
                 idx_by_chunk = self.return_chunk_indices(applicable_index, pings_per_chunk)
                 if len(idx_by_chunk[0]):  # if there are pings in this system that align with this installation parameter record
                     self._submit_data_to_cluster(ra, 'sv_corr', idx_by_chunk, max_chunks_at_a_time,
@@ -1880,6 +1889,7 @@ class Fqpr(ZarrBackend):
 
             for applicable_index, timestmp, prefixes in system:
                 self.logger.info('using installation params {}'.format(timestmp))
+                self.motion_latency = float(self.multibeam.xyzrph['latency'][timestmp])
                 idx_by_chunk = self.return_chunk_indices(applicable_index, pings_per_chunk)
                 if len(idx_by_chunk[0]):  # if there are pings in this system that align with this installation parameter record
                     self._submit_data_to_cluster(ra, 'georef', idx_by_chunk, max_chunks_at_a_time,
@@ -1921,6 +1931,7 @@ class Fqpr(ZarrBackend):
         self._validate_calculate_total_uncertainty(subset_time, dump_data)
         self.logger.info('****Calculating total uncertainty****\n')
         starttime = perf_counter()
+        self.write_attribute_to_ping_records({'xyzrph': self.multibeam.xyzrph})
 
         skip_dask = False
         if self.client is None:  # small datasets benefit from just running it without dask distributed
@@ -1936,6 +1947,7 @@ class Fqpr(ZarrBackend):
 
             for applicable_index, timestmp, prefixes in system:
                 self.logger.info('using installation params {}'.format(timestmp))
+                self.motion_latency = float(self.multibeam.xyzrph['latency'][timestmp])
                 self.generate_starter_orientation_vectors(prefixes, timestmp)  # have to include this to know if rx is reversed to reverse raw beam angles
                 idx_by_chunk = self.return_chunk_indices(applicable_index, pings_per_chunk)
                 if len(idx_by_chunk[0]):  # if there are pings in this system that align with this installation parameter record
@@ -2942,7 +2954,7 @@ class Fqpr(ZarrBackend):
         return dashboard
 
     def return_next_action(self, new_vertical_reference: str = None, new_coordinate_system: CRS = None, new_offsets: bool = False,
-                           new_tpu: bool = False):
+                           new_tpu: bool = False, full_reprocess: bool = False):
         """
         Determine the next action to take, building the arguments for the fqpr_convenience.process_multibeam function.
         Uses the processing status, which is updated as a process is completed at a sounding level.
@@ -2971,11 +2983,15 @@ class Fqpr(ZarrBackend):
             True if new offsets have been set, requires the full processing stack to be run
         new_tpu
             True if new tpu values have been set, requires georeference/TPU to run
+        full_reprocess
+            True if you want to trigger a full reprocessing of this instance
         """
 
         min_status = self.multibeam.raw_ping[0].current_processing_status
         args = [self]
         kwargs = {}
+        if full_reprocess:
+            min_status = 1
 
         new_diff_vertref = False
         new_diff_coordinate = False
@@ -3007,11 +3023,14 @@ class Fqpr(ZarrBackend):
                 new_diff_vertref = True
                 default_vert_ref = new_vertical_reference
 
-        if min_status < 5 or new_diff_coordinate or new_diff_vertref or new_tpu or new_offsets:
+        if min_status < 5 or new_diff_coordinate or new_diff_vertref or new_offsets or new_tpu:
             kwargs['run_orientation'] = False
             kwargs['run_beam_vec'] = False
             kwargs['run_svcorr'] = False
-            kwargs['run_georef'] = True  # georef includes tpu
+            kwargs['run_georef'] = False
+            kwargs['run_tpu'] = True
+        if min_status < 4 or new_diff_coordinate or new_diff_vertref or new_offsets:
+            kwargs['run_georef'] = True
             kwargs['use_epsg'] = default_use_epsg
             kwargs['use_coord'] = default_use_coord
             kwargs['epsg'] = default_epsg

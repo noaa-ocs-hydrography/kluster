@@ -165,8 +165,17 @@ class FqprProject:
         self.path = projfile
         if data['vessel_file']:
             self.vessel_file = self.absolute_path_from_relative(data['vessel_file'])
+            if not os.path.exists(self.vessel_file):
+                print('Unable to find vessel file: {}'.format(self.vessel_file))
+                self.vessel_file = None
+                data['vessel_file'] = None
         data['fqpr_paths'] = [self.absolute_path_from_relative(f) for f in data['fqpr_paths']]
         data['surface_paths'] = [self.absolute_path_from_relative(f) for f in data['surface_paths']]
+        for ky in ['fqpr_paths', 'surface_paths']:
+            for fil in data[ky]:
+                if not os.path.exists(fil):
+                    print('Unable to find {}'.format(fil))
+                    data[ky].remove(fil)
         return data
 
     def _bind_to_project_updated(self, callback: FunctionType):

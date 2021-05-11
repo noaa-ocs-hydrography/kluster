@@ -131,6 +131,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.project_tree.load_console_surface.connect(self.load_console_surface)
         self.project_tree.zoom_extents_fqpr.connect(self.zoom_extents_fqpr)
         self.project_tree.zoom_extents_surface.connect(self.zoom_extents_surface)
+        self.project_tree.reprocess_instance.connect(self.reprocess_fqpr)
 
         self.explorer.row_selected.connect(self.points_view.superselect_point)
 
@@ -537,6 +538,13 @@ class KlusterMain(QtWidgets.QMainWindow):
         vessel_file = self.project.return_vessel_file()
         if vessel_file:
             self.intel.regenerate_actions()
+
+    def reprocess_fqpr(self):
+        """
+        Right click an fqpr instance and trigger full reprocessing, should only be necessary in case of emergency.
+        """
+        fqprs = self.project_tree.return_selected_fqprs()
+        self.intel.regenerate_actions(fqprs[0])
 
     def kluster_basic_plots(self):
         """

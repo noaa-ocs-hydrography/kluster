@@ -1058,6 +1058,7 @@ def test_tpu():
     raw_attitude = dset.raw_att
     roll = raw_attitude['roll'].interp_like(beampointingangle)
 
-    tvu, thu = calculate_tpu(roll, beampointingangle, corr_beam_angle, x, z, surface_ss, tpu, qf, vert_ref='waterline')
+    tvu, thu = calculate_tpu(roll, beampointingangle, corr_beam_angle, x, z, surface_ss, tpu_dict=tpu,
+                             quality_factor=qf, vert_ref='waterline')
     assert np.array_equal(thu, expected_thu)
     assert np.array_equal(tvu, expected_tvu)

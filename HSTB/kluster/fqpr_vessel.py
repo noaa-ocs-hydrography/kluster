@@ -75,6 +75,7 @@ class VesselFile:
                         self.data[serial_number][entry][ky] = val
                 only_retain_earliest_entry(self.data[serial_number])
         else:
+            print('Adding new entry in vessel file for {}'.format(serial_number))
             self.data[serial_number] = data
 
     def save(self, filepath: str = None):

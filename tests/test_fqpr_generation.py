@@ -248,9 +248,8 @@ def test_intelligence():
     assert action.is_running is False
     assert len(action.input_files) == 0
     assert action.kwargs == {'run_orientation': True, 'orientation_initial_interpolation': False, 'run_beam_vec': True,
-                             'run_svcorr': True, 'add_cast_files': [], 'run_georef': True, 'use_epsg': False,
-                             'use_coord': True,
-                             'epsg': None, 'coord_system': 'NAD83', 'vert_ref': 'waterline'}
+                             'run_svcorr': True, 'add_cast_files': [], 'run_georef': True, 'run_tpu': True, 'use_epsg': False,
+                             'use_coord': True, 'epsg': None, 'coord_system': 'NAD83', 'vert_ref': 'waterline'}
     assert isinstance(action.args[0], fqpr_generation.Fqpr)
 
     assert isinstance(proj.get_dask_client(), Client)
