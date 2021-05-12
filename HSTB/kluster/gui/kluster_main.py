@@ -34,6 +34,7 @@ settings_translator = {'Kluster/proj_settings_epsgradio': {'newname': 'use_epsg'
                        'Kluster/layer_settings_background': {'newname': 'layer_background', 'defaultvalue': 'Default'},
                        'Kluster/layer_settings_transparency': {'newname': 'layer_transparency', 'defaultvalue': '0'},
                        'Kluster/layer_settings_surfacetransparency': {'newname': 'surface_transparency', 'defaultvalue': 0},
+                       'Kluster/settings_keep_waterline_changes': {'newname': 'keep_waterline_changes', 'defaultvalue': True},
                        'Kluster/settings_enable_parallel_writes': {'newname': 'write_parallel', 'defaultvalue': True},
                        'Kluster/settings_vdatum_directory': {'newname': 'vdatum_directory', 'defaultvalue': ''}
                        }

@@ -2954,7 +2954,7 @@ class Fqpr(ZarrBackend):
         return dashboard
 
     def return_next_action(self, new_vertical_reference: str = None, new_coordinate_system: CRS = None, new_offsets: bool = False,
-                           new_tpu: bool = False, full_reprocess: bool = False):
+                           new_angles: bool = False, new_tpu: bool = False, new_waterline: bool = False, full_reprocess: bool = False):
         """
         Determine the next action to take, building the arguments for the fqpr_convenience.process_multibeam function.
         Uses the processing status, which is updated as a process is completed at a sounding level.
@@ -2975,14 +2975,18 @@ class Fqpr(ZarrBackend):
         ----------
         new_vertical_reference
             If the user sets a new vertical reference that does not match the existing one, this will trigger a processing
-            action
+            action starting at georeferencing
         new_coordinate_system
             If the user sets a new coordinate system that does not match the existing one, this will trigger a
-            processing action
+            processing action starting at georeferencing
         new_offsets
-            True if new offsets have been set, requires the full processing stack to be run
+            True if new offsets have been set, requires processing starting at sound velocity correction
+        new_angles
+            True if new mounting angles have been set, requires the full processing stack to be run
         new_tpu
-            True if new tpu values have been set, requires georeference/TPU to run
+            True if new tpu values have been set, requires compute TPU to run
+        new_waterline
+            True if a new waterline value has been set, requires processing starting at sound velocity correction
         full_reprocess
             True if you want to trigger a full reprocessing of this instance
         """
@@ -3023,23 +3027,23 @@ class Fqpr(ZarrBackend):
                 new_diff_vertref = True
                 default_vert_ref = new_vertical_reference
 
-        if min_status < 5 or new_diff_coordinate or new_diff_vertref or new_offsets or new_tpu:
+        if min_status < 5 or new_diff_coordinate or new_diff_vertref or new_offsets or new_angles or new_waterline or new_tpu:
             kwargs['run_orientation'] = False
             kwargs['run_beam_vec'] = False
             kwargs['run_svcorr'] = False
             kwargs['run_georef'] = False
             kwargs['run_tpu'] = True
-        if min_status < 4 or new_diff_coordinate or new_diff_vertref or new_offsets:
+        if min_status < 4 or new_diff_coordinate or new_diff_vertref or new_offsets or new_angles or new_waterline:
             kwargs['run_georef'] = True
             kwargs['use_epsg'] = default_use_epsg
             kwargs['use_coord'] = default_use_coord
             kwargs['epsg'] = default_epsg
             kwargs['coord_system'] = default_coord_system
             kwargs['vert_ref'] = default_vert_ref
-        if min_status < 3 or new_offsets:
+        if min_status < 3 or new_offsets or new_angles or new_waterline:
             kwargs['run_svcorr'] = True
             kwargs['add_cast_files'] = []
-        if min_status < 2 or new_offsets:
+        if min_status < 2 or new_angles:
             kwargs['run_orientation'] = True
             kwargs['orientation_initial_interpolation'] = False
             kwargs['run_beam_vec'] = True

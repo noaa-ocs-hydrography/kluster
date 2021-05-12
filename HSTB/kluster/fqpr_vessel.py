@@ -64,8 +64,8 @@ class VesselFile:
         """
 
         if serial_number in self.data:
-            identical_offsets, identical_tpu, data_matches = compare_dict_data(self.data[serial_number], data)
-            if not identical_offsets or not identical_tpu:
+            identical_offsets, identical_angles, identical_tpu, data_matches, new_waterline = compare_dict_data(self.data[serial_number], data)
+            if not identical_offsets or not identical_angles or not identical_tpu or new_waterline:
                 if carry_over_tpu:
                     new_data = carry_over_optional(self.data[serial_number], deepcopy(data))
                 else:
@@ -193,16 +193,20 @@ def get_overlapping_timestamps(timestamps: list, starttime: int, endtime: int):
 
 def compare_dict_data(dict_one: dict, dict_two: dict):
     """
-    Compare two dictionary objects to determine how identical they are.  Expect the dicts to be like:
+    Compare two dictionary objects to determine how identical they are.  data_two is the new data, so we do some checks
+    to see if it is relevant or if we need to keep it.  Expect the dicts to be like:
 
     {sensor_name1: {utc timestamp1: value, utc timestamp2: value, ...},
      sensor_name2: {utc timestamp1: value, utc timestamp2: value, ...}, ...}
 
     Return a check that has attributes matching each check performed:
-        - identical_offsets = offsets and angles match between the two data
+        - identical_offsets = offsets match between the two data
+        - identical_angles = mounting angles match between the two data
         - identical_tpu = tpu parameters match between the two data
         - data_matches = the two data have values that exactly match (can match even if the keys are different, happens
                 when timestamps (the keys) do not match but the data does.)
+        - new_waterline = found a new waterline value in dict_two (the new data) that does not match data_one.  Return
+                this in case we want to retain this value regardless of the other checks
 
     Parameters
     ----------
@@ -213,22 +217,35 @@ def compare_dict_data(dict_one: dict, dict_two: dict):
 
     Returns
     -------
-    dict
-        dictionary containing the checks for each category
+    bool
+        identical_offsets check value
+    bool
+        identical_angles check value
+    bool
+        identical_tpu check value
+    bool
+        data_matches check value
+    float
+        new waterline value found
     """
 
-    check = {'identical_offsets': True, 'identical_tpu': True, 'data_matches': True}
+    check = {'identical_offsets': True, 'identical_angles': True, 'identical_tpu': True, 'data_matches': True,
+             'new_waterline': None}
     for sensor_one, data_one in dict_one.items():
         # only care about non-tpu differences
-        if (sensor_one in kluster_variables.tpu_parameter_names) or (sensor_one in kluster_variables.optional_tpu_parameter_names):
+        if sensor_one in kluster_variables.tpu_parameter_names:
             ky = 'identical_tpu'
-        elif sensor_one not in kluster_variables.optional_parameter_names:
+        elif sensor_one in kluster_variables.offset_parameter_names:
             ky = 'identical_offsets'
+        elif sensor_one in kluster_variables.angle_parameter_names:
+            ky = 'identical_angles'
+        elif sensor_one.lower() == 'waterline':
+            ky = 'new_waterline'
         else:
             continue
         if sensor_one in dict_two:
             data_two = dict_two[sensor_one]
-            if check['identical_tpu'] or check['identical_offsets']:
+            if check['identical_tpu'] or check['identical_offsets'] or check['identical_angles']:
                 for tstmp, entry in data_one.items():
                     if tstmp in data_two:
                         if float(data_one[tstmp]) != float(data_two[tstmp]):
@@ -240,10 +257,16 @@ def compare_dict_data(dict_one: dict, dict_two: dict):
                 vals_two = [data_two[t] for t in [t for t in data_two.keys()]]
                 if vals_one != vals_two:
                     check['data_matches'] = False
+            if ky == 'new_waterline':
+                waterline_one = data_one[list(data_one.keys())[0]]
+                waterline_two = data_two[list(data_two.keys())[0]]
+                if float(waterline_one) != float(waterline_two):
+                    check['new_waterline'] = float(waterline_two)
         else:
-            check = {'identical_offsets': False, 'identical_tpu': False, 'data_matches': False}
+            check = {'identical_offsets': False, 'identical_angles': False, 'identical_tpu': False, 'data_matches': False,
+                     'new_waterline': None}
             break
-    return check['identical_offsets'], check['identical_tpu'], check['data_matches']
+    return check['identical_offsets'], check['identical_angles'], check['identical_tpu'], check['data_matches'], check['new_waterline']
 
 
 def carry_over_optional(starting_data: dict, new_data: dict):

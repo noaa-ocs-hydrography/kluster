@@ -39,12 +39,16 @@ tpu_parameter_names = ['tx_to_antenna_x', 'tx_to_antenna_y', 'tx_to_antenna_z', 
                        'heading_patch_error', 'latency_patch_error', 'timing_latency_error',
                        'separation_model_error', 'waterline_error', 'vessel_speed_error', 'horizontal_positioning_error',
                        'vertical_positioning_error', 'beam_opening_angle']
+offset_parameter_names = ['tx_port_x', 'tx_stbd_x', 'rx_port_x', 'rx_stbd_x', 'tx_x', 'rx_x', 'tx_port_y', 'tx_stbd_y',
+                          'rx_port_y', 'rx_stbd_y', 'tx_y', 'rx_y', 'tx_port_z', 'tx_stbd_z', 'rx_port_z', 'rx_stbd_z',
+                          'tx_z', 'rx_z']
+angle_parameter_names = ['tx_port_r', 'tx_stbd_r', 'rx_port_r', 'rx_stbd_r', 'tx_r', 'rx_r', 'tx_port_p', 'tx_stbd_p',
+                         'rx_port_p', 'rx_stbd_p', 'tx_p', 'rx_p', 'tx_port_h', 'tx_stbd_h', 'rx_port_h', 'rx_stbd_h',
+                         'tx_h', 'rx_h']
 # optional parameter names controls what is left out when comparing vessel entries to see if the new entry is worth keeping
 optional_parameter_names = ['source', 'vessel_file', 'sonar_type', 'imu_h', 'imu_p', 'imu_r', 'imu_x', 'imu_y',
                             'imu_z', 'tx_to_antenna_x', 'tx_to_antenna_y', 'tx_to_antenna_z', 'vess_center_x', 'vess_center_y',
                             'vess_center_z', 'vess_center_yaw', 'vess_center_p', 'vess_center_r', 'sensor_size']
-optional_tpu_parameter_names = ['imu_h', 'imu_p', 'imu_r', 'imu_x', 'imu_y',
-                                'imu_z', 'tx_to_antenna_x', 'tx_to_antenna_y', 'tx_to_antenna_z']
 
 default_heave_error = 0.050  # default tpu parameter for heave
 default_roll_error = 0.0005  # default tpu parameter for roll

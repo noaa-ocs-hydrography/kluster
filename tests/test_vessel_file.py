@@ -127,40 +127,73 @@ def test_overlapping_timestamps():
 def test_compare_dict():
     data_one = {"roll_patch_error": {"1584426525": 0.1, "1584438532": 0.1, "1597569340": 0.1},
                 "roll_sensor_error": {"1584426525": 0.0005, "1584438532": 0.0005, "1597569340": 0.0005},
-                "rx_h": {"1584426525": 359.576, "1584438532": 359.576, "1597569340": 359.576}}
+                "rx_h": {"1584426525": 359.576, "1584438532": 359.576, "1597569340": 359.576},
+                "rx_x": {"1584426525": 1.1, "1584438532": 1.2, "1597569340": 1.3},
+                "waterline": {"1584426525": 1.1, "1584438532": 1.2, "1597569340": 1.3}}
     data_two = {"roll_patch_error": {"1584426525": 0.1, "1584438532": 0.1, "1597569340": 0.1},
                 "roll_sensor_error": {"1584426525": 0.0005, "1584438532": 0.0005, "1597569340": 0.0005},
-                "rx_h": {"1584426525": 359.576, "1584438532": 359.576, "1597569340": 359.576}}
-    identical_offsets, identical_tpu, data_matches = compare_dict_data(data_one, data_two)
+                "rx_h": {"1584426525": 359.576, "1584438532": 359.576, "1597569340": 359.576},
+                "rx_x": {"1584426525": 1.1, "1584438532": 1.2, "1597569340": 1.3},
+                "waterline": {"1584426525": 1.1, "1584438532": 1.2, "1597569340": 1.3}}
+
+    identical_offsets, identical_angles, identical_tpu, data_matches, new_waterline = compare_dict_data(data_one, data_two)
     assert identical_offsets
+    assert identical_angles
     assert identical_tpu
     assert data_matches
+    assert not new_waterline
 
     data_two["roll_patch_error"]["1584438532"] = 999
     # now fails tpu check and data match check
-    identical_offsets, identical_tpu, data_matches = compare_dict_data(data_one, data_two)
+    identical_offsets, identical_angles, identical_tpu, data_matches, new_waterline = compare_dict_data(data_one, data_two)
     assert identical_offsets
+    assert identical_angles
     assert not identical_tpu
     assert not data_matches
+    assert not new_waterline
 
     data_two["rx_h"]["1584438532"] = 999
     # now fails all three
-    identical_offsets, identical_tpu, data_matches = compare_dict_data(data_one, data_two)
-    assert not identical_offsets
+    identical_offsets, identical_angles, identical_tpu, data_matches, new_waterline = compare_dict_data(data_one, data_two)
+    assert identical_offsets
+    assert not identical_angles
     assert not identical_tpu
     assert not data_matches
+    assert not new_waterline
+
+    data_two["rx_x"]["1584438532"] = 999
+    # now fails all four
+    identical_offsets, identical_angles, identical_tpu, data_matches, new_waterline = compare_dict_data(data_one, data_two)
+    assert not identical_offsets
+    assert not identical_angles
+    assert not identical_tpu
+    assert not data_matches
+    assert not new_waterline
+
+    data_two["waterline"]["1584426525"] = 999
+    # detect a new waterline value, only looks at the first timestamp
+    identical_offsets, identical_angles, identical_tpu, data_matches, new_waterline = compare_dict_data(data_one, data_two)
+    assert not identical_offsets
+    assert not identical_angles
+    assert not identical_tpu
+    assert not data_matches
+    assert new_waterline
 
     data_one = {"roll_patch_error": {"999999999": 0.1, "1584438532": 0.1, "1597569340": 0.1},
                 "roll_sensor_error": {"999999999": 0.0005, "1584438532": 0.0005, "1597569340": 0.0005},
-                "rx_h": {"999999999": 359.576, "1584438532": 359.576, "1597569340": 359.576}}
+                "rx_h": {"999999999": 359.576, "1584438532": 359.576, "1597569340": 359.576},
+                "rx_x": {"999999999": 1.1, "1584438532": 1.2, "1597569340": 1.3}}
     data_two = {"roll_patch_error": {"1584426525": 0.1, "1584438532": 0.1, "1597569340": 0.1},
                 "roll_sensor_error": {"1584426525": 0.0005, "1584438532": 0.0005, "1597569340": 0.0005},
-                "rx_h": {"1584426525": 359.576, "1584438532": 359.576, "1597569340": 359.576}}
+                "rx_h": {"1584426525": 359.576, "1584438532": 359.576, "1597569340": 359.576},
+                "rx_x": {"1584426525": 1.1, "1584438532": 1.2, "1597569340": 1.3}}
     # data match check just looks at the values
-    identical_offsets, identical_tpu, data_matches = compare_dict_data(data_one, data_two)
+    identical_offsets, identical_angles, identical_tpu, data_matches, new_waterline = compare_dict_data(data_one, data_two)
     assert not identical_offsets
+    assert not identical_angles
     assert not identical_tpu
     assert data_matches
+    assert not new_waterline
 
 
 def test_carry_over_optional():

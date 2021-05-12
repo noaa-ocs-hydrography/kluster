@@ -430,16 +430,16 @@ class KlusterProjectTree(QtWidgets.QTreeView):
 
         """
         fqprs = []
-        new_fqpr = ''
         idxs = self.selectedIndexes()
         for idx in idxs:
+            new_fqpr = ''
             top_lvl_name = idx.parent().parent().data()
             mid_lvl_name = idx.parent().data()
             if mid_lvl_name == 'Converted':  # user has selected a fqpr instance
                 new_fqpr = self.model.data(idx)
             elif top_lvl_name == 'Converted':  # user selected a line
                 new_fqpr = mid_lvl_name
-            if new_fqpr not in fqprs:
+            if new_fqpr and (new_fqpr not in fqprs):
                 fqprs.append(new_fqpr)
         return fqprs
 
