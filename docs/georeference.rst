@@ -8,4 +8,3 @@ georeference module
    :skip: Union
    :skip: stack_nan_array
    :skip: reform_nan_array
-   :skip: kluster_variables

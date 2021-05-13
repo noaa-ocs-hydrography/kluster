@@ -41,4 +41,3 @@ fqpr\_generation module
    :skip: sbet_fast_read_start_end_time
    :skip: sbets_to_xarray
    :skip: posfiles_to_xarray
-   :skip: kluster_variables

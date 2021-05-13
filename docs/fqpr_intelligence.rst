@@ -20,4 +20,3 @@ fqpr\_intelligence module
    :skip: build_crs
    :skip: compare_dict_data
    :skip: convert_from_fqpr_xyzrph
-   :skip: kluster_variables
