@@ -51,8 +51,8 @@ optional_parameter_names = ['source', 'vessel_file', 'sonar_type', 'imu_h', 'imu
                             'vess_center_z', 'vess_center_yaw', 'vess_center_p', 'vess_center_r', 'sensor_size']
 
 default_heave_error = 0.050  # default tpu parameter for heave
-default_roll_error = 0.0005  # default tpu parameter for roll
-default_pitch_error = 0.0005  # default tpu parameter for pitch
+default_roll_error = 0.001  # default tpu parameter for roll
+default_pitch_error = 0.001  # default tpu parameter for pitch
 default_heading_error = 0.020  # default tpu parameter for heading
 default_x_offset_error = 0.200  # default tpu parameter for x offset measurement
 default_y_offset_error = 0.200  # default tpu parameter for y offset measurement

@@ -822,13 +822,25 @@ class MapView(QtWidgets.QMainWindow):
         Build the MapView toolbar with all of our QgsMapTool objects
         """
         self.actionZoomIn = QtWidgets.QAction("Zoom in", self)
+        self.actionZoomIn.setToolTip('Left click and drag to select an area, zoom in to that area.')
         self.actionZoomOut = QtWidgets.QAction("Zoom out", self)
+        self.actionZoomOut.setToolTip('Left click and drag to select an area, center on that area and zoom out.')
         self.actionPan = QtWidgets.QAction("Pan", self)
+        self.actionPan.setToolTip('Left click and drag to move the camera around.')
         self.actionSelect = QtWidgets.QAction("Select", self)
+        self.actionSelect.setToolTip('Left click and drag to select multibeam lines.  Display line attributes in the Explorer tab.')
         self.actionQuery = QtWidgets.QAction("Query", self)
+        self.actionQuery.setToolTip('Left click to get map coordinates and data values (surfaces) at the mouse position.')
         self.actionDistance = QtWidgets.QAction("Distance", self)
-        self.actionPoints = QtWidgets.QAction("Points Select")
-        self.actionSwath = QtWidgets.QAction("Swath Select")
+        self.actionDistance.setToolTip('Left click to set the origin, left click again to measure distance, see Output tab for results.')
+        rectangle_instructions = 'Right click - cancel selection at any point in this process\n'
+        rectangle_instructions += 'First left click - set origin of rectangle, drag to change the size of the area\n'
+        rectangle_instructions += 'Second left click - set end point of the rectangle, freezes selection area\n'
+        rectangle_instructions += 'Third left click - load the data in Points View (if georeferenced soundings exist)'
+        self.actionPoints = QtWidgets.QAction("3d Points")
+        self.actionPoints.setToolTip('Select georeferenced points within an area to view in 3d using Points View tab.\n\n' + rectangle_instructions)
+        self.actionSwath = QtWidgets.QAction("2d Points")
+        self.actionSwath.setToolTip('Select georeferenced points within an area to view in 2d using Points View tab.\n\n' + rectangle_instructions)
 
         self.actionZoomIn.setCheckable(True)
         self.actionZoomOut.setCheckable(True)
