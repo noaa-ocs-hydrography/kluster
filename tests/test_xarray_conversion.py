@@ -30,9 +30,9 @@ def test_return_xyzrph_from_mbes():
     assert xyzrph['imu_z']['1495563079'] == 0.000
     assert xyzrph['latency_patch_error']['1495563079'] == 0.0
     assert xyzrph['pitch_patch_error']['1495563079'] == 0.1
-    assert xyzrph['pitch_sensor_error']['1495563079'] == 0.0005
+    assert xyzrph['pitch_sensor_error']['1495563079'] == 0.001
     assert xyzrph['roll_patch_error']['1495563079'] == 0.1
-    assert xyzrph['roll_sensor_error']['1495563079'] == 0.0005
+    assert xyzrph['roll_sensor_error']['1495563079'] == 0.001
     assert xyzrph['rx_h']['1495563079'] == 0.000
     assert xyzrph['rx_p']['1495563079'] == 0.000
     assert xyzrph['rx_r']['1495563079'] == 0.000
