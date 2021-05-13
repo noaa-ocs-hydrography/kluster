@@ -11,6 +11,7 @@ from HSTB.kluster.dask_helpers import dask_find_or_start_client
 from HSTB.kluster.fqpr_convenience import reload_data, reload_surface, get_attributes_from_fqpr
 from HSTB.kluster.fqpr_surface_v3 import QuadManager
 from HSTB.kluster.xarray_helpers import slice_xarray_by_dim
+from HSTB.kluster.fqpr_vessel import VesselFile, create_new_vessel_file, convert_from_fqpr_xyzrph
 
 
 class FqprProject:
@@ -51,6 +52,8 @@ class FqprProject:
         self.path = None
         self.is_gui = is_gui
         self.file_format = 1.0
+
+        self.vessel_file = None
 
         self.surface_instances = {}
         self.surface_layers = {}
@@ -138,8 +141,6 @@ class FqprProject:
                 self.path = os.path.join(pth, 'kluster_project.json')
             else:
                 self.path = pth
-            # if os.path.exists(self.path):  # an existing project
-            #     self.open_project(self.path, skip_dask=True)
 
     def _load_project_file(self, projfile: str):
         """
@@ -162,8 +163,19 @@ class FqprProject:
             data = json.load(pf)
         # now translate the relative paths to absolute
         self.path = projfile
+        if data['vessel_file']:
+            self.vessel_file = self.absolute_path_from_relative(data['vessel_file'])
+            if not os.path.exists(self.vessel_file):
+                print('Unable to find vessel file: {}'.format(self.vessel_file))
+                self.vessel_file = None
+                data['vessel_file'] = None
         data['fqpr_paths'] = [self.absolute_path_from_relative(f) for f in data['fqpr_paths']]
         data['surface_paths'] = [self.absolute_path_from_relative(f) for f in data['surface_paths']]
+        for ky in ['fqpr_paths', 'surface_paths']:
+            for fil in data[ky]:
+                if not os.path.exists(fil):
+                    print('Unable to find {}'.format(fil))
+                    data[ky].remove(fil)
         return data
 
     def _bind_to_project_updated(self, callback: FunctionType):
@@ -226,6 +238,10 @@ class FqprProject:
             data['fqpr_paths'] = self.return_fqpr_paths()
             data['surface_paths'] = self.return_surface_paths()
             data['file_format'] = self.file_format
+            if self.vessel_file:
+                data['vessel_file'] = self.path_relative_to_project(self.vessel_file)
+            else:
+                data['vessel_file'] = self.vessel_file
             data.update(self.settings)
             json.dump(data, pf, sort_keys=True, indent=4)
         print('Project saved to {}'.format(self.path))
@@ -258,11 +274,45 @@ class FqprProject:
             else:  # invalid path
                 print('Unable to find surface: {}'.format(pth))
 
+        data.pop('vessel_file')
         data.pop('fqpr_paths')
         data.pop('surface_paths')
         data.pop('file_format')
         # rest of the data belongs in settings
         self.settings = data
+
+    def add_vessel_file(self, vessel_file_path: str = None, update_with_project: bool = True):
+        """
+        Attach a new or existing vessel file to this project.  Optionally populate it with the found offsets and angles
+        in the existing fqpr instances in the project
+
+        Parameters
+        ----------
+        vessel_file_path
+            path to the new or existing vessel file
+        update_with_project
+            if True, will update the vessel file with the offsets and angles of all the fqpr instances in the project
+        """
+
+        if vessel_file_path:
+            vessel_file = vessel_file_path
+        elif self.path:
+            vessel_file = os.path.join(os.path.dirname(self.path), 'vessel_file.kfc')
+        else:
+            print('WARNING: Unable to setup new vessel file, save the project or add data first.')
+            return
+        if not os.path.exists(vessel_file):
+            create_new_vessel_file(vessel_file)
+        self.vessel_file = vessel_file
+        if update_with_project:
+            vess_file = self.return_vessel_file()
+            for fq, fqpr in self.fqpr_instances.items():
+                serial_number = fqpr.multibeam.raw_ping[0].system_identifier
+                sonar_type = fqpr.multibeam.raw_ping[0].sonartype
+                output_identifier = os.path.split(fqpr.output_folder)[1]
+                vess_xyzrph = convert_from_fqpr_xyzrph(fqpr.multibeam.xyzrph, sonar_type, serial_number, output_identifier)
+                vess_file.update(serial_number, vess_xyzrph[serial_number])
+            vess_file.save()
 
     def close(self):
         """
@@ -272,6 +322,7 @@ class FqprProject:
             fqinst.close()
 
         self.path = None
+        self.vessel_file = None
         self.surface_instances = {}
         self.surface_layers = {}
         self.fqpr_instances = {}
@@ -283,6 +334,19 @@ class FqprProject:
         self.node_vals_for_surf = {}
 
     def set_settings(self, settings: dict):
+        """
+        Set the project settings with the provided dictionary.  Pull out fqpr specific settings like whether or not
+        to enable parallel write as well
+
+        Parameters
+        ----------
+        settings
+            dictionary from the Qsettings store, see kluster_main._load_previously_used_settings
+
+        Returns
+        -------
+
+        """
         self.settings.update(settings)
         if 'parallel_write' in settings:
             for relpath, fqpr_instance in self.fqpr_instances.items():
@@ -691,8 +755,6 @@ class FqprProject:
             float, minimum longitude in degrees
         max_lon
             float, maximum longitude in degrees
-        full_swath
-            If True, only returns the full swaths whose navigation is within the provided box
 
         Returns
         -------
@@ -764,6 +826,26 @@ class FqprProject:
             raise ValueError("Found {} matches by serial number, project should not have multiple fqpr instances with the same serial number".format(matches))
         return out_path, out_instance
 
+    def return_vessel_file(self):
+        """
+        Return the VesselFile instance for this project's vessel_file path
+
+        Returns
+        -------
+        VesselFile
+            Instance of VesselFile for the vessel_file attribute path.  If self.vessel_file is not set, this returns
+            None
+        """
+
+        if self.vessel_file:
+            if os.path.exists(self.vessel_file):
+                vf = VesselFile(self.vessel_file)
+            else:
+                vf = None
+        else:
+            vf = None
+        return vf
+
 
 def create_new_project(output_folder: str = None):
     """
@@ -772,8 +854,6 @@ def create_new_project(output_folder: str = None):
 
     Parameters
     ----------
-    mbes_files
-        either a list of files, a string path to a directory or a string path to a file
     output_folder
         optional, a path to an output folder, otherwise will convert right next to mbes_files
 

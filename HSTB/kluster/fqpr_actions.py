@@ -484,14 +484,16 @@ def build_processing_action(destination: str, args: list, kwargs: dict, settings
         for ky, val in settings.items():
             kwargs[ky] = val
 
-    if kwargs['run_orientation'] and kwargs['run_beam_vec'] and kwargs['run_svcorr'] and kwargs['run_georef']:
+    if kwargs['run_orientation'] and kwargs['run_beam_vec'] and kwargs['run_svcorr'] and kwargs['run_georef'] and kwargs['run_tpu']:
         text = 'Run all processing on {}'.format(os.path.split(destination)[1])
-    elif kwargs['run_beam_vec'] and kwargs['run_svcorr'] and kwargs['run_georef']:
+    elif kwargs['run_beam_vec'] and kwargs['run_svcorr'] and kwargs['run_georef'] and kwargs['run_tpu']:
         text = 'Process {} starting with beam correction'.format(os.path.split(destination)[1])
-    elif kwargs['run_svcorr'] and kwargs['run_georef']:
+    elif kwargs['run_svcorr'] and kwargs['run_georef'] and kwargs['run_tpu']:
         text = 'Process {} starting with sound velocity'.format(os.path.split(destination)[1])
-    elif kwargs['run_georef']:
+    elif kwargs['run_georef'] and kwargs['run_tpu']:
         text = 'Process {} starting with georeferencing'.format(os.path.split(destination)[1])
+    elif kwargs['run_tpu']:
+        text = 'Process {} only computing TPU'.format(os.path.split(destination)[1])
     else:
         text = 'Process {} with custom setup'.format(os.path.split(destination)[1])
 
@@ -529,14 +531,16 @@ def update_kwargs_for_processing(destination: str, args: list, kwargs: dict, set
         for ky, val in settings.items():
             kwargs[ky] = val
 
-    if kwargs['run_orientation'] and kwargs['run_beam_vec'] and kwargs['run_svcorr'] and kwargs['run_georef']:
+    if kwargs['run_orientation'] and kwargs['run_beam_vec'] and kwargs['run_svcorr'] and kwargs['run_georef'] and kwargs['run_tpu']:
         text = 'Run all processing on {}'.format(os.path.split(destination)[1])
-    elif kwargs['run_beam_vec'] and kwargs['run_svcorr'] and kwargs['run_georef']:
+    elif kwargs['run_beam_vec'] and kwargs['run_svcorr'] and kwargs['run_georef'] and kwargs['run_tpu']:
         text = 'Process {} starting with beam correction'.format(os.path.split(destination)[1])
-    elif kwargs['run_svcorr'] and kwargs['run_georef']:
+    elif kwargs['run_svcorr'] and kwargs['run_georef'] and kwargs['run_tpu']:
         text = 'Process {} starting with sound velocity'.format(os.path.split(destination)[1])
-    elif kwargs['run_georef']:
+    elif kwargs['run_georef'] and kwargs['run_tpu']:
         text = 'Process {} starting with georeferencing'.format(os.path.split(destination)[1])
+    elif kwargs['run_tpu']:
+        text = 'Process {} only computing TPU'.format(os.path.split(destination)[1])
     else:
         text = 'Process {} with custom setup'.format(os.path.split(destination)[1])
 

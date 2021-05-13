@@ -163,7 +163,9 @@ if __name__ == "__main__":  # run from command line
     processproc.add_argument('-sv', '--run_sv_correct', type=str2bool, required=False, nargs='?', const=True,
                              default=True, help='If true, sound velocity corrects the beams, the third step to processing in Kluster')
     processproc.add_argument('-geo', '--run_georeference', type=str2bool, required=False, nargs='?', const=True,
-                             default=True, help='If true, georeferences the sound velocity corrected beams and calculates tpu, the fourth step to processing in Kluster')
+                             default=True, help='If true, georeferences the sound velocity corrected beams, the fourth step to processing in Kluster')
+    processproc.add_argument('-tpu', '--run_tpu', type=str2bool, required=False, nargs='?', const=True, default=True,
+                             help='If true, calculates the total propagated uncertainty, the fifth step to processing in Kluster')
     processproc.add_argument('-ep', '--use_epsg', type=str2bool, required=False, nargs='?', const=True,
                              default=False, help='If true, will use the epsg code provided to build the coordinate system')
     processproc.add_argument('-co', '--use_coord', type=str2bool, required=False, nargs='?', const=True,
@@ -231,7 +233,7 @@ if __name__ == "__main__":  # run from command line
             import_sound_velocity(reloaded_data, sv_files=args.svfiles)
         elif funcname == 'process_multibeam':
             process_multibeam(reloaded_data, run_orientation=args.run_orientation, run_beam_vec=args.run_beam_vector, run_svcorr=args.run_sv_correct,
-                              run_georef=args.run_georeference, use_epsg=args.use_epsg, use_coord=args.use_coord, epsg=args.epsg_code,
+                              run_georef=args.run_georeference, run_tpu=args.run_tpu, use_epsg=args.use_epsg, use_coord=args.use_coord, epsg=args.epsg_code,
                               coord_system=args.coordinate_identifier, vert_ref=args.vertical_identifier)
         elif funcname == 'new_surface':
             reloaded_data = []

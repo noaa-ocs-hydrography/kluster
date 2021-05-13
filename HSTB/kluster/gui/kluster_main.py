@@ -17,6 +17,7 @@ from HSTB.kluster.gui import dialog_vesselview, kluster_explorer, kluster_projec
     dialog_export_grid, dialog_layer_settings, dialog_settings, dialog_importppnav, dialog_overwritenav
 from HSTB.kluster.fqpr_project import FqprProject
 from HSTB.kluster.fqpr_intelligence import FqprIntel
+from HSTB.kluster.fqpr_vessel import convert_from_fqpr_xyzrph
 from HSTB.kluster import __version__ as kluster_version
 from HSTB.kluster import __file__ as kluster_init_file
 from HSTB.shared import RegistryHelpers, path_to_supplementals
@@ -33,6 +34,7 @@ settings_translator = {'Kluster/proj_settings_epsgradio': {'newname': 'use_epsg'
                        'Kluster/layer_settings_background': {'newname': 'layer_background', 'defaultvalue': 'Default'},
                        'Kluster/layer_settings_transparency': {'newname': 'layer_transparency', 'defaultvalue': '0'},
                        'Kluster/layer_settings_surfacetransparency': {'newname': 'surface_transparency', 'defaultvalue': 0},
+                       'Kluster/settings_keep_waterline_changes': {'newname': 'keep_waterline_changes', 'defaultvalue': True},
                        'Kluster/settings_enable_parallel_writes': {'newname': 'write_parallel', 'defaultvalue': True},
                        'Kluster/settings_vdatum_directory': {'newname': 'vdatum_directory', 'defaultvalue': ''}
                        }
@@ -130,6 +132,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.project_tree.load_console_surface.connect(self.load_console_surface)
         self.project_tree.zoom_extents_fqpr.connect(self.zoom_extents_fqpr)
         self.project_tree.zoom_extents_surface.connect(self.zoom_extents_surface)
+        self.project_tree.reprocess_instance.connect(self.reprocess_fqpr)
 
         self.explorer.row_selected.connect(self.points_view.superselect_point)
 
@@ -203,6 +206,10 @@ class KlusterMain(QtWidgets.QMainWindow):
         save_proj_action.triggered.connect(self._action_save_project)
         close_proj_action = QtWidgets.QAction('Close Project', self)
         close_proj_action.triggered.connect(self.close_project)
+        add_vessel_action = QtWidgets.QAction('New Vessel File', self)
+        add_vessel_action.triggered.connect(self._action_new_vessel_file)
+        open_vessel_action = QtWidgets.QAction('Open Vessel File', self)
+        open_vessel_action.triggered.connect(self._action_open_vessel_file)
         settings_action = QtWidgets.QAction('Settings', self)
         settings_action.triggered.connect(self.set_settings)
         export_action = QtWidgets.QAction('Export Soundings', self)
@@ -242,6 +249,9 @@ class KlusterMain(QtWidgets.QMainWindow):
         file.addAction(open_proj_action)
         file.addAction(save_proj_action)
         file.addAction(close_proj_action)
+        file.addSeparator()
+        file.addAction(add_vessel_action)
+        file.addAction(open_vessel_action)
         file.addSeparator()
         file.addAction(settings_action)
         file.addSeparator()
@@ -497,16 +507,50 @@ class KlusterMain(QtWidgets.QMainWindow):
 
         If you have a data container selected, it will populate from it's xyzrph attribute.
         """
+        vessel_file = self.project.vessel_file
         fqprs = self.return_selected_fqprs()
 
         self.vessel_win = None
         self.vessel_win = dialog_vesselview.VesselWidget()
+        self.vessel_win.vessel_file_modified.connect(self.regenerate_offsets_actions)
 
-        if fqprs:
+        if vessel_file:
+            self.vessel_win.load_from_config_file(vessel_file)
+        elif fqprs:
             fqpr = self.project.fqpr_instances[self.project.path_relative_to_project(fqprs[0])]
-            self.vessel_win.xyzrph = fqpr.multibeam.xyzrph
+            vess_xyzrph = convert_from_fqpr_xyzrph(fqpr.multibeam.xyzrph, fqpr.multibeam.raw_ping[0].sonartype,
+                                                   fqpr.multibeam.raw_ping[0].system_identifier,
+                                                   os.path.split(fqpr.output_folder)[1])
+            self.vessel_win.xyzrph = vess_xyzrph
             self.vessel_win.load_from_existing_xyzrph()
         self.vessel_win.show()
+
+    def regenerate_offsets_actions(self, is_modified: bool):
+        """
+        Action triggered on saving a vessel file in self.vessel_win.  Automatically generates new actions based on
+        changes to this file.
+
+        Parameters
+        ----------
+        is_modified
+            If the file was modified, this is True
+        """
+
+        vessel_file = self.project.return_vessel_file()
+        if vessel_file:
+            self.intel.regenerate_actions()
+
+    def reprocess_fqpr(self):
+        """
+        Right click an fqpr instance and trigger full reprocessing, should only be necessary in case of emergency.
+        """
+        fqprs = self.project_tree.return_selected_fqprs()
+        if fqprs:
+            # start over at 1, which is conversion in our state machine
+            fq = self.project.fqpr_instances[fqprs[0]]
+            fq.write_attribute_to_ping_records({'current_processing_status': 1})
+            fq.multibeam.reload_pingrecords(skip_dask=fq.client is None)
+            self.intel.regenerate_actions()
 
     def kluster_basic_plots(self):
         """
@@ -1367,6 +1411,31 @@ class KlusterMain(QtWidgets.QMainWindow):
         Connect menu action 'Save Project' with file dialog and save_project
         """
         self.project.save_project()
+
+    def _action_new_vessel_file(self):
+        if self.project.path is not None:
+            default_vessel_file = os.path.join(os.path.dirname(self.project.path), 'vessel_file.kfc')
+            msg, fil = RegistryHelpers.GetFilenameFromUserQT(self, RegistryKey='kluster', Title='New Vessel File',
+                                                             AppName='klusterproj', bMulti=False, bSave=True,
+                                                             DefaultFile=default_vessel_file,
+                                                             fFilter='kluster vessel file (*.kfc)')
+            if msg:
+                self.project.add_vessel_file(fil)
+                self.refresh_project()
+        else:
+            print('Build a new project or open an existing project before creating a vessel file')
+
+    def _action_open_vessel_file(self):
+        if self.project.path is not None:
+            msg, fil = RegistryHelpers.GetFilenameFromUserQT(self, RegistryKey='kluster', Title='Open Vessel File',
+                                                             AppName='klusterproj', bMulti=False, bSave=False,
+                                                             fFilter='kluster vessel file (*.kfc)')
+            if msg:
+                self.project.add_vessel_file(fil)
+                self.refresh_project()
+            self.regenerate_offsets_actions(True)
+        else:
+            print('Build a new project or open an existing project before opening a vessel file')
 
     def _action_export(self):
         """

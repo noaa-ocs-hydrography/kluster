@@ -306,47 +306,99 @@ class RectangleMapTool(qgis_gui.QgsMapToolEmitPoint):
         self.rubberBand.setFillColor(QtCore.Qt.transparent)
         self.rubberBand.setWidth(1)
 
+        self.isEmittingPoint = False
+        self.enable_rotation = False
         self.start_point = None
         self.end_point = None
+        self.final_start_point = None
+        self.final_end_point = None
+        self.start_azimuth = None
+        self.azimuth = None
+
+        self.first_click = True
+        self.second_click = False
+        self.third_click = False
         self.reset()
 
     def reset(self):
         """
         Clear the rectangle
         """
+        self.rubberBand.setColor(QtCore.Qt.black)
+        self.rubberBand.setFillColor(QtCore.Qt.transparent)
         self.start_point = None
         self.end_point = None
+        self.final_start_point = None
+        self.final_end_point = None
+        self.azimuth = None
+        self.start_azimuth = None
+        self.first_click = False
+        self.second_click = False
         self.isEmittingPoint = False
+        self.enable_rotation = False
         self.rubberBand.reset(qgis_core.QgsWkbTypes.PolygonGeometry)
+
+    def keyPressEvent(self, e):
+        ctrl_pressed = e.key() == 16777249
+        if ctrl_pressed:
+            # self.enable_rotation = True
+            pass
+
+    def keyReleaseEvent(self, e):
+        ctrl_released = e.key() == 16777249
+        if ctrl_released:
+            # self.enable_rotation = False
+            pass
+
+    def return_azimuth(self, start_x, start_y, end_x, end_y):
+        delta_x = end_x - start_x
+        az = np.arctan2((np.sin(delta_x) * np.cos(end_y)),
+                        (np.cos(start_y) * np.sin(end_y) - np.sin(start_y) * np.cos(end_y) * np.cos(delta_x)))
+        return az
 
     def canvasPressEvent(self, e):
         """
         Lay down the start point of the rectangle and reset the end point to the start point.
         """
 
-        self.start_point = self.toMapCoordinates(e.pos())
-        self.end_point = self.start_point
-        self.isEmittingPoint = True
-        self.showRect(self.start_point, self.end_point)
-
-    def canvasReleaseEvent(self, e):
-        """
-        On release we emit the corner coordinates of the rectangle and anchor the drawing to the screen
-        """
-
-        self.isEmittingPoint = False
-        r = self.rectangle()
-        if r is not None:
-            self.select.emit(r.yMinimum(), r.yMaximum(), r.xMinimum(), r.xMaximum())
+        left_click = e.button() == 1
+        right_click = e.button() == 2
+        if left_click:  # first click sets the origin of the rectangle
+            if not self.first_click and not self.second_click and not self.third_click:
+                self.reset()
+                self.first_click = True
+                self.second_click = False
+                self.start_point = self.toMapCoordinates(e.pos())
+                self.end_point = self.start_point
+                self.isEmittingPoint = True
+                self.showRect(self.start_point, self.end_point)
+            elif self.first_click:  # second click sets the end point and fixes the rectangle in place
+                self.final_start_point = self.toCanvasCoordinates(self.start_point)
+                self.final_end_point = e.pos()
+                self.first_click = False
+                self.second_click = True
+                self.isEmittingPoint = False
+            elif self.second_click:  # third click loads
+                self.first_click = False
+                self.second_click = False
+                self.rubberBand.setColor(QtCore.Qt.green)
+                self.rubberBand.setFillColor(QtCore.Qt.transparent)
+                self.rubberBand.update()
+                r = self.rectangle()
+                if r is not None:
+                    self.select.emit(r.yMinimum(), r.yMaximum(), r.xMinimum(), r.xMaximum())
+        if right_click:  # clear the rectangle
+            self.reset()
 
     def canvasMoveEvent(self, e):
         """
         On moving the mouse cursor, the rectangle continuously updates
         """
-        if not self.isEmittingPoint:
+        if not self.isEmittingPoint and not self.enable_rotation:
             return
         self.end_point = self.toMapCoordinates(e.pos())
         self.showRect(self.start_point, self.end_point)
+        e.accept()
 
     def showRect(self, start_point: qgis_core.QgsPoint, end_point: qgis_core.QgsPoint):
         """
@@ -360,7 +412,6 @@ class RectangleMapTool(qgis_gui.QgsMapToolEmitPoint):
             QgsPoint for the end of the rect
         """
 
-        self.rubberBand.reset(qgis_core.QgsWkbTypes.PolygonGeometry)
         if start_point.x() == end_point.x() or start_point.y() == end_point.y():
             return
 
@@ -369,21 +420,59 @@ class RectangleMapTool(qgis_gui.QgsMapToolEmitPoint):
         point3 = qgis_core.QgsPointXY(end_point.x(), end_point.y())
         point4 = qgis_core.QgsPointXY(end_point.x(), start_point.y())
 
+        if self.enable_rotation and self.second_click:
+            az = self.return_azimuth(np.deg2rad(start_point.x()), np.deg2rad(start_point.y()),
+                                     np.deg2rad(end_point.x()), np.deg2rad(end_point.y()))
+            if not self.start_azimuth:
+                self.start_azimuth = az
+            self.azimuth = az - self.start_azimuth
+
+            point1 = qgis_core.QgsPointXY(self.final_start_point.x(), self.final_start_point.y())
+            point2 = qgis_core.QgsPointXY(self.final_start_point.x(), self.final_end_point.y())
+            point3 = qgis_core.QgsPointXY(self.final_end_point.x(), self.final_end_point.y())
+            point4 = qgis_core.QgsPointXY(self.final_end_point.x(), self.final_start_point.y())
+            center_pixel = qgis_core.QgsPointXY(((point3.x() - point1.x()) / 2) + point1.x(),
+                                                ((point3.y() - point1.y()) / 2) + point1.y())
+            cos_az = np.cos(self.azimuth)
+            sin_az = np.sin(self.azimuth)
+
+            point1 = qgis_core.QgsPoint(
+                center_pixel.x() + cos_az * (point1.x() - center_pixel.x()) - sin_az * (point1.y() - center_pixel.y()),
+                center_pixel.y() + sin_az * (point1.x() - center_pixel.x()) + cos_az * (point1.y() - center_pixel.y()))
+            point2 = qgis_core.QgsPoint(
+                center_pixel.x() + cos_az * (point2.x() - center_pixel.x()) - sin_az * (point2.y() - center_pixel.y()),
+                center_pixel.y() + sin_az * (point2.x() - center_pixel.x()) + cos_az * (point2.y() - center_pixel.y()))
+            point3 = qgis_core.QgsPoint(
+                center_pixel.x() + cos_az * (point3.x() - center_pixel.x()) - sin_az * (point3.y() - center_pixel.y()),
+                center_pixel.y() + sin_az * (point3.x() - center_pixel.x()) + cos_az * (point3.y() - center_pixel.y()))
+            point4 = qgis_core.QgsPoint(
+                center_pixel.x() + cos_az * (point4.x() - center_pixel.x()) - sin_az * (point4.y() - center_pixel.y()),
+                center_pixel.y() + sin_az * (point4.x() - center_pixel.x()) + cos_az * (point4.y() - center_pixel.y()))
+            point1 = self.toMapCoordinates(QtCore.QPoint(point1.x(), point1.y()))
+            point2 = self.toMapCoordinates(QtCore.QPoint(point2.x(), point2.y()))
+            point3 = self.toMapCoordinates(QtCore.QPoint(point3.x(), point3.y()))
+            point4 = self.toMapCoordinates(QtCore.QPoint(point4.x(), point4.y()))
+
+        self.rubberBand.reset(qgis_core.QgsWkbTypes.PolygonGeometry)
         self.rubberBand.addPoint(point1, False)
         self.rubberBand.addPoint(point2, False)
         self.rubberBand.addPoint(point3, False)
-        self.rubberBand.addPoint(point4, True)    # true to update canvas
+        self.rubberBand.addPoint(point4, True)  # true to update canvas
+
         self.rubberBand.show()
 
     def rectangle(self):
         """
         Return the QgsRectangle object for the drawn start/end points
         """
-        if self.start_point is None or self.end_point is None:
+
+        start_point = self.rubberBand.getPoint(0, 0)
+        end_point = self.rubberBand.getPoint(0, 2)
+        if start_point is None or end_point is None:
             return None
-        elif self.start_point.x() == self.end_point.x() or self.start_point.y() == self.end_point.y():
+        elif start_point.x() == end_point.x() or start_point.y() == end_point.y():
             return None
-        return qgis_core.QgsRectangle(self.start_point, self.end_point)
+        return qgis_core.QgsRectangle(start_point, end_point)
 
     def deactivate(self):
         """
@@ -733,13 +822,25 @@ class MapView(QtWidgets.QMainWindow):
         Build the MapView toolbar with all of our QgsMapTool objects
         """
         self.actionZoomIn = QtWidgets.QAction("Zoom in", self)
+        self.actionZoomIn.setToolTip('Left click and drag to select an area, zoom in to that area.')
         self.actionZoomOut = QtWidgets.QAction("Zoom out", self)
+        self.actionZoomOut.setToolTip('Left click and drag to select an area, center on that area and zoom out.')
         self.actionPan = QtWidgets.QAction("Pan", self)
+        self.actionPan.setToolTip('Left click and drag to move the camera around.')
         self.actionSelect = QtWidgets.QAction("Select", self)
+        self.actionSelect.setToolTip('Left click and drag to select multibeam lines.  Display line attributes in the Explorer tab.')
         self.actionQuery = QtWidgets.QAction("Query", self)
+        self.actionQuery.setToolTip('Left click to get map coordinates and data values (surfaces) at the mouse position.')
         self.actionDistance = QtWidgets.QAction("Distance", self)
-        self.actionPoints = QtWidgets.QAction("Points Select")
-        self.actionSwath = QtWidgets.QAction("Swath Select")
+        self.actionDistance.setToolTip('Left click to set the origin, left click again to measure distance, see Output tab for results.')
+        rectangle_instructions = 'Right click - cancel selection at any point in this process\n'
+        rectangle_instructions += 'First left click - set origin of rectangle, drag to change the size of the area\n'
+        rectangle_instructions += 'Second left click - set end point of the rectangle, freezes selection area\n'
+        rectangle_instructions += 'Third left click - load the data in Points View (if georeferenced soundings exist)'
+        self.actionPoints = QtWidgets.QAction("3d Points")
+        self.actionPoints.setToolTip('Select georeferenced points within an area to view in 3d using Points View tab.\n\n' + rectangle_instructions)
+        self.actionSwath = QtWidgets.QAction("2d Points")
+        self.actionSwath.setToolTip('Select georeferenced points within an area to view in 2d using Points View tab.\n\n' + rectangle_instructions)
 
         self.actionZoomIn.setCheckable(True)
         self.actionZoomOut.setCheckable(True)

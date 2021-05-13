@@ -167,12 +167,18 @@ class ProjectSettingsDialog(QtWidgets.QDialog):
             try:
                 self.epsg_radio.setChecked(settings.value('Kluster/proj_settings_epsgradio').lower() == 'true')
             except AttributeError:
-                self.epsg_radio.setChecked(settings.value('Kluster/proj_settings_epsgradio'))
+                try:
+                    self.epsg_radio.setChecked(settings.value('Kluster/proj_settings_epsgradio'))
+                except:
+                    pass
             self.epsg_val.setText(str(settings.value('Kluster/proj_settings_epsgval')))
             try:
                 self.auto_utm_radio.setChecked(settings.value('Kluster/proj_settings_utmradio').lower() == 'true')
             except AttributeError:
-                self.auto_utm_radio.setChecked(settings.value('Kluster/proj_settings_utmradio'))
+                try:
+                    self.auto_utm_radio.setChecked(settings.value('Kluster/proj_settings_utmradio'))
+                except:
+                    pass
             self.auto_utm_val.setCurrentText(settings.value('Kluster/proj_settings_utmval'))
             self.georef_vertref.setCurrentText(settings.value('Kluster/proj_settings_vertref'))
         except TypeError:

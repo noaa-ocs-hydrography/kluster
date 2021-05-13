@@ -1,7 +1,6 @@
 import sys, os
 
 from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal
-
 from HSTB.kluster.fqpr_project import FqprProject
 
 
@@ -25,6 +24,7 @@ class KlusterProjectTree(QtWidgets.QTreeView):
     load_console_surface = Signal(str)
     zoom_extents_fqpr = Signal(str)
     zoom_extents_surface = Signal(str)
+    reprocess_instance = Signal(str)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -52,7 +52,7 @@ class KlusterProjectTree(QtWidgets.QTreeView):
         self.right_click_menu_surfaces = None
         self.setup_menu()
 
-        self.categories = ['Project', 'Converted', 'Surfaces']
+        self.categories = ['Project', 'Vessel File', 'Converted', 'Surfaces']
         self.tree_data = {}
 
         self.clicked.connect(self.item_selected)
@@ -68,12 +68,15 @@ class KlusterProjectTree(QtWidgets.QTreeView):
 
         close_dat = QtWidgets.QAction('Close', self)
         close_dat.triggered.connect(self.close_item_event)
+        reprocess = QtWidgets.QAction('Reprocess', self)
+        reprocess.triggered.connect(self.reprocess_event)
         load_in_console = QtWidgets.QAction('Load in console', self)
         load_in_console.triggered.connect(self.load_in_console_event)
         zoom_extents = QtWidgets.QAction('Zoom Extents', self)
         zoom_extents.triggered.connect(self.zoom_extents_event)
 
         self.right_click_menu_converted.addAction(close_dat)
+        self.right_click_menu_converted.addAction(reprocess)
         self.right_click_menu_converted.addAction(load_in_console)
         self.right_click_menu_converted.addAction(zoom_extents)
 
@@ -94,6 +97,23 @@ class KlusterProjectTree(QtWidgets.QTreeView):
         elif mid_lvl_name == 'Surfaces':
             self.right_click_menu_surfaces.exec_(QtGui.QCursor.pos())
 
+    def reprocess_event(self, e: QtCore.QEvent):
+        """
+        Trigger full reprocessing of the selected fqpr instance
+
+        Parameters
+        ----------
+        e
+            QEvent on menu button click
+        """
+
+        index = self.currentIndex()
+        mid_lvl_name = index.parent().data()
+        sel_data = index.data()
+
+        if mid_lvl_name == 'Converted':
+            self.reprocess_instance.emit(sel_data)
+
     def load_in_console_event(self, e: QtCore.QEvent):
         """
         We want the ability for the user to right click an object and load it in the console.  Here we emit the correct
@@ -103,8 +123,8 @@ class KlusterProjectTree(QtWidgets.QTreeView):
         ----------
         e
             QEvent on menu button click
-
         """
+
         index = self.currentIndex()
         mid_lvl_name = index.parent().data()
         sel_data = index.data()
@@ -332,6 +352,19 @@ class KlusterProjectTree(QtWidgets.QTreeView):
             parent.appendRow(proj_child)
             self.tree_data['Project'][1] = proj_directory
 
+    def _setup_vessel_file(self, parent, vessel_path):
+        if len(self.tree_data['Vessel File']) == 1:
+            if vessel_path:
+                proj_child = QtGui.QStandardItem(vessel_path)
+                parent.appendRow(proj_child)
+                self.tree_data['Vessel File'].append(vessel_path)
+        else:
+            parent.removeRow(0)
+            if vessel_path:
+                proj_child = QtGui.QStandardItem(vessel_path)
+                parent.appendRow(proj_child)
+                self.tree_data['Vessel File'][1] = vessel_path
+
     def refresh_project(self, proj):
         """
         Loading from a FqprProject will update the tree, triggered on dragging in a converted data folder
@@ -352,9 +385,11 @@ class KlusterProjectTree(QtWidgets.QTreeView):
                 self._add_new_surf_from_proj(parent, surf_data)
                 self._remove_surf_not_in_proj(parent, surf_data)
             elif c == 'Project':
-                if proj.path is not None:
-                    proj_directory = os.path.dirname(proj.path)
-                    self._setup_project(parent, proj_directory)
+                if proj.path:
+                    self._setup_project(parent, proj.path)
+            elif c == 'Vessel File':
+                if proj.vessel_file:
+                    self._setup_vessel_file(parent, proj.vessel_file)
 
     def item_selected(self, index):
         """
@@ -395,16 +430,16 @@ class KlusterProjectTree(QtWidgets.QTreeView):
 
         """
         fqprs = []
-        new_fqpr = ''
         idxs = self.selectedIndexes()
         for idx in idxs:
+            new_fqpr = ''
             top_lvl_name = idx.parent().parent().data()
             mid_lvl_name = idx.parent().data()
             if mid_lvl_name == 'Converted':  # user has selected a fqpr instance
                 new_fqpr = self.model.data(idx)
             elif top_lvl_name == 'Converted':  # user selected a line
                 new_fqpr = mid_lvl_name
-            if new_fqpr not in fqprs:
+            if new_fqpr and (new_fqpr not in fqprs):
                 fqprs.append(new_fqpr)
         return fqprs
 

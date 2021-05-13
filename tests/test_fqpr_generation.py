@@ -152,7 +152,7 @@ def test_process_testfile():
     assert firstrel_azimuth == np.float32(4.703383)
     assert np.array_equal(firstrx, np.array([0.7870753, 0.60869384, -0.100021675], dtype=np.float32))
     assert firstthu == np.float32(8.857684)
-    assert firsttvu == np.float32(2.5005076)
+    assert firsttvu == np.float32(2.4940288)
     assert np.array_equal(firsttx, np.array([0.6074468, -0.79435784, 0.0020107413], dtype=np.float32))
     assert firstx == 539028.45
     assert firsty == 5292783.977
@@ -248,9 +248,8 @@ def test_intelligence():
     assert action.is_running is False
     assert len(action.input_files) == 0
     assert action.kwargs == {'run_orientation': True, 'orientation_initial_interpolation': False, 'run_beam_vec': True,
-                             'run_svcorr': True, 'add_cast_files': [], 'run_georef': True, 'use_epsg': False,
-                             'use_coord': True,
-                             'epsg': None, 'coord_system': 'NAD83', 'vert_ref': 'waterline'}
+                             'run_svcorr': True, 'add_cast_files': [], 'run_georef': True, 'run_tpu': True, 'use_epsg': False,
+                             'use_coord': True, 'epsg': None, 'coord_system': 'NAD83', 'vert_ref': 'waterline'}
     assert isinstance(action.args[0], fqpr_generation.Fqpr)
 
     assert isinstance(proj.get_dask_client(), Client)

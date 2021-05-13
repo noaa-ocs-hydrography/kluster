@@ -823,7 +823,6 @@ class BatchRead(ZarrBackend):
     |     sector_identifier:               40111_0_265000
     |     survey_number:                   ['01_Patchtest_2806']
     |     system_serial_number:            [40111]
-    |     tpu_parameters:                  {'dynamic_draft': 0.1, 'heading_patch': ...
     |     units:                           {'beampointingangle': 'degrees', 'tiltan...
     |     xyzrph:                          {'antenna_x': {'1495563079': '0.000'}, '...
     """
@@ -895,9 +894,6 @@ class BatchRead(ZarrBackend):
         # install parameters
         self.sonartype = None
         self.xyzrph = None
-
-        # tpu parameters
-        self.tpu_parameters = None
 
     def read(self):
         """
@@ -1567,14 +1563,35 @@ class BatchRead(ZarrBackend):
 
             # translate over the offsets/angles for the transducers following the sonar_translator scheme
             self.sonartype = snrmodels[0]
-            self.xyzrph = build_xyzrph(settdict, self.sonartype)
-            self.tpu_parameters = build_tpu_parameters()
+            self.xyzrph = build_xyzrph(settdict, runtimesettdict, self.sonartype)
 
             if save_pths is not None:
                 for svpth in save_pths:
                     my_xarr_add_attribute({'input_datum': input_datum[0], 'xyzrph': self.xyzrph,
-                                           'tpu_parameters': self.tpu_parameters, 'sonartype': self.sonartype}, svpth)
+                                           'sonartype': self.sonartype}, svpth)
             self.logger.info('Constructed offsets successfully')
+
+    def return_tpu_parameters(self, timestamp: str):
+        """
+        Pull out the tpu parameters from the xyzrph installation parameters.  We need these parameters to compute tpu.
+        Only pulls the values for a single timestamped entry, using the provided timestamp.
+
+        Parameters
+        ----------
+        timestamp
+            utc time in seconds for the entry
+
+        Returns
+        -------
+        dict
+            dict of tpu parameters for the timestamped entry
+        """
+
+        if self.xyzrph is None:
+            raise ValueError('You must run build_offsets first, no installation parameters found.')
+        kys = kluster_variables.tpu_parameter_names
+        tpu_params = {ky: self.xyzrph[ky][timestamp] for ky in kys}
+        return tpu_params
 
     def _get_nth_chunk_indices(self, chunks: tuple, idx: int):
         """
@@ -2143,55 +2160,47 @@ def return_chunked_fil(fil: str, startoffset: int = 0, chunksize: int = 20 * 102
     return chnkfil
 
 
-def build_tpu_parameters():
+def get_nearest_runtime(timestamp: str, runtime_settdict: dict):
     """
-    Generate default tpu parameters based on NOAA setup.  Assumes POS MV, vessel surveys as done by NOAA, patch test
-    values commonly seen, etc.
+    Both installation parameters and runtime parameters have timestamped entries of values.  Here we try and find the
+    nearest entry to the provided timestamp.
+
+    Parameters
+    ----------
+    timestamp
+        utc timestamp we want to find the nearest entry for
+    runtime_settdict
+        timestamped entries for the installation parameters
 
     Returns
     -------
     dict
-        keys are parameter names, vals are dicts with scalars for static uncertainty values
+        runtime parameters for the provided timestamp
     """
-    # generate default tpu parameters
-    heave = kluster_variables.default_heave_error  # 1 sigma standard deviation for the heave data (meters)
-    roll_sensor_error = kluster_variables.default_roll_error  # 1 sigma standard deviation in the roll sensor (degrees)
-    pitch_sensor_error = kluster_variables.default_pitch_error  # 1 sigma standard deviation in the pitch sensor (degrees)
-    heading_sensor_error = kluster_variables.default_heading_error  # 1 sigma standard deviation in the pitch sensor (degrees)
-    x_offset = kluster_variables.default_x_offset_error  # 1 sigma standard deviation in your measurement of x lever arm (meters)
-    y_offset = kluster_variables.default_y_offset_error  # 1 sigma standard deviation in your measurement of y lever arm (meters)
-    z_offset = kluster_variables.default_z_offset_error  # 1 sigma standard deviation in your measurement of z lever arm (meters)
-    surface_sv = kluster_variables.default_surface_sv_error  # 1 sigma standard deviation in surface sv sensor (meters/second)
-    roll_patch = kluster_variables.default_roll_patch_error  # 1 sigma standard deviation in your roll angle patch test procedure (degrees)
-    pitch_patch = kluster_variables.default_pitch_patch_error  # 1 sigma standard deviation in your roll angle patch test procedure (degrees)
-    heading_patch = kluster_variables.default_heading_patch_error  # 1 sigma standard deviation in your roll angle patch test procedure (degrees)
-    latency_patch = kluster_variables.default_latency_patch_error  # 1 sigma standard deviation in your latency calculation (seconds)
-    timing_latency = kluster_variables.default_latency_error  # 1 sigma standard deviation of the timing accuracy of the system (seconds)
-    dynamic_draft = kluster_variables.default_dynamic_draft_error  # 1 sigma standard deviation of the dynamic draft measurement (meters)
-    separation_model = kluster_variables.default_separation_model_error  # 1 sigma standard deivation in the sep model (tidal, ellipsoidal, etc) (meters)
-    waterline = kluster_variables.default_waterline_error  # 1 sigma standard deviation of the waterline (meters)
-    vessel_speed = kluster_variables.default_vessel_speed_error  # 1 sigma standard deviation of the vessel speed (meters/second)
-    horizontal_positioning = kluster_variables.default_horizontal_positioning_error  # 1 sigma standard deviation of the horizontal positioning (meters)
-    vertical_positioning = kluster_variables.default_vertical_positioning_error  # 1 sigma standard deviation of the vertical positioning (meters)
-
-    tpu_parameters = {'heave': heave, 'roll_sensor_error': roll_sensor_error, 'pitch_sensor_error': pitch_sensor_error,
-                      'heading_sensor_error': heading_sensor_error, 'x_offset': x_offset, 'y_offset': y_offset,
-                      'z_offset': z_offset, 'surface_sv': surface_sv, 'roll_patch': roll_patch,
-                      'pitch_patch': pitch_patch, 'heading_patch': heading_patch, 'latency_patch': latency_patch,
-                      'timing_latency': timing_latency, 'dynamic_draft': dynamic_draft,
-                      'separation_model': separation_model, 'waterline': waterline, 'vessel_speed': vessel_speed,
-                      'horizontal_positioning': horizontal_positioning, 'vertical_positioning': vertical_positioning}
-    return tpu_parameters
+    try:
+        runtime_tstmps = np.array([float(tstmp) for tstmp in runtime_settdict])
+        key_timstamp = float(timestamp)
+        diff = np.abs(runtime_tstmps - key_timstamp)
+        nearest_idx = np.argmin(diff)
+        runtime_param = runtime_settdict[[tstmp for tstmp in runtime_settdict][nearest_idx]]
+    except:
+        runtime_param = {}
+    return runtime_param
 
 
-def build_xyzrph(settdict: dict, sonartype: str):
+def build_xyzrph(settdict: dict, runtime_settdict: dict, sonartype: str):
     """
     Translate the raw settings dictionary from the multibeam file (see sequential_read_records) into a dictionary of
     timestamped entries for each sensor offset/angle.  Sector based phase center differences are included as well.
 
+    Also attach default tpu parameters based on NOAA setup.  Assumes POS MV, vessel surveys as done by NOAA, patch test
+    values commonly seen, etc.
+
     Parameters
     ----------
     settdict
+        keys are unix timestamps, vals are json dumps containing key/record for each system
+    runtime_settdict
         keys are unix timestamps, vals are json dumps containing key/record for each system
     sonartype
         sonar identifer
@@ -2204,6 +2213,8 @@ def build_xyzrph(settdict: dict, sonartype: str):
 
     xyzrph = {}
     for tme in settdict:
+        runtime_params = get_nearest_runtime(tme, runtime_settdict)
+        opening_angle = None
         xyzrph[tme] = {}
         for val in [v for v in sonar_translator[sonartype] if v is not None]:  # tx, rx, etc.
             ky = sonar_translator[sonartype].index(val)  # 0, 1, 2, etc
@@ -2219,48 +2230,52 @@ def build_xyzrph(settdict: dict, sonartype: str):
                 else:
                     tx_ident = 'tx'
                     rx_ident = 'rx'
-                xyzrph[tme][tx_ident + '_x'] = settdict[tme]['transducer_{}_along_location'.format(ky)]
-                xyzrph[tme][tx_ident + '_y'] = settdict[tme]['transducer_{}_athwart_location'.format(ky)]
-                xyzrph[tme][tx_ident + '_z'] = settdict[tme]['transducer_{}_vertical_location'.format(ky)]
-                xyzrph[tme][tx_ident + '_r'] = settdict[tme]['transducer_{}_roll_angle'.format(ky)]
-                xyzrph[tme][tx_ident + '_p'] = settdict[tme]['transducer_{}_pitch_angle'.format(ky)]
-                xyzrph[tme][tx_ident + '_h'] = settdict[tme]['transducer_{}_heading_angle'.format(ky)]
-                xyzrph[tme][rx_ident + '_r'] = settdict[tme]['transducer_{}_roll_angle'.format(ky)]
-                xyzrph[tme][rx_ident + '_p'] = settdict[tme]['transducer_{}_pitch_angle'.format(ky)]
-                xyzrph[tme][rx_ident + '_h'] = settdict[tme]['transducer_{}_heading_angle'.format(ky)]
+                xyzrph[tme][tx_ident + '_x'] = float(settdict[tme]['transducer_{}_along_location'.format(ky)])
+                xyzrph[tme][tx_ident + '_y'] = float(settdict[tme]['transducer_{}_athwart_location'.format(ky)])
+                xyzrph[tme][tx_ident + '_z'] = float(settdict[tme]['transducer_{}_vertical_location'.format(ky)])
+                xyzrph[tme][tx_ident + '_r'] = float(settdict[tme]['transducer_{}_roll_angle'.format(ky)])
+                xyzrph[tme][tx_ident + '_p'] = float(settdict[tme]['transducer_{}_pitch_angle'.format(ky)])
+                xyzrph[tme][tx_ident + '_h'] = float(settdict[tme]['transducer_{}_heading_angle'.format(ky)])
+                xyzrph[tme][rx_ident + '_r'] = float(settdict[tme]['transducer_{}_roll_angle'.format(ky)])
+                xyzrph[tme][rx_ident + '_p'] = float(settdict[tme]['transducer_{}_pitch_angle'.format(ky)])
+                xyzrph[tme][rx_ident + '_h'] = float(settdict[tme]['transducer_{}_heading_angle'.format(ky)])
                 try:  # kmall workflow, rx offset is tacked on to the trans1 record
-                    xyzrph[tme][rx_ident + '_x'] = str(float(settdict[tme]['transducer_{}_along_location'.format(ky)]) +\
-                                                       float(settdict[tme]['transducer_{}_rx_forward'.format(ky)]))
-                    xyzrph[tme][rx_ident + '_y'] = str(float(settdict[tme]['transducer_{}_athwart_location'.format(ky)]) +\
-                                                       float(settdict[tme]['transducer_{}_rx_starboard'.format(ky)]))
-                    xyzrph[tme][rx_ident + '_z'] = str(float(settdict[tme]['transducer_{}_vertical_location'.format(ky)]) +\
-                                                       float(settdict[tme]['transducer_{}_rx_down'.format(ky)]))
+                    xyzrph[tme][rx_ident + '_x'] = float(settdict[tme]['transducer_{}_along_location'.format(ky)]) +\
+                                                   float(settdict[tme]['transducer_{}_rx_forward'.format(ky)])
+                    xyzrph[tme][rx_ident + '_y'] = float(settdict[tme]['transducer_{}_athwart_location'.format(ky)]) +\
+                                                   float(settdict[tme]['transducer_{}_rx_starboard'.format(ky)])
+                    xyzrph[tme][rx_ident + '_z'] = float(settdict[tme]['transducer_{}_vertical_location'.format(ky)]) +\
+                                                   float(settdict[tme]['transducer_{}_rx_down'.format(ky)])
                 except KeyError:
-                    xyzrph[tme][rx_ident + '_x'] = settdict[tme]['transducer_{}_along_location'.format(ky)]
-                    xyzrph[tme][rx_ident + '_y'] = settdict[tme]['transducer_{}_athwart_location'.format(ky)]
-                    xyzrph[tme][rx_ident + '_z'] = settdict[tme]['transducer_{}_vertical_location'.format(ky)]
+                    xyzrph[tme][rx_ident + '_x'] = float(settdict[tme]['transducer_{}_along_location'.format(ky)])
+                    xyzrph[tme][rx_ident + '_y'] = float(settdict[tme]['transducer_{}_athwart_location'.format(ky)])
+                    xyzrph[tme][rx_ident + '_z'] = float(settdict[tme]['transducer_{}_vertical_location'.format(ky)])
             else:
-                xyzrph[tme][val + '_x'] = settdict[tme]['transducer_{}_along_location'.format(ky)]
-                xyzrph[tme][val + '_y'] = settdict[tme]['transducer_{}_athwart_location'.format(ky)]
-                xyzrph[tme][val + '_z'] = settdict[tme]['transducer_{}_vertical_location'.format(ky)]
-                xyzrph[tme][val + '_r'] = settdict[tme]['transducer_{}_roll_angle'.format(ky)]
-                xyzrph[tme][val + '_p'] = settdict[tme]['transducer_{}_pitch_angle'.format(ky)]
-                xyzrph[tme][val + '_h'] = settdict[tme]['transducer_{}_heading_angle'.format(ky)]
+                xyzrph[tme][val + '_x'] = float(settdict[tme]['transducer_{}_along_location'.format(ky)])
+                xyzrph[tme][val + '_y'] = float(settdict[tme]['transducer_{}_athwart_location'.format(ky)])
+                xyzrph[tme][val + '_z'] = float(settdict[tme]['transducer_{}_vertical_location'.format(ky)])
+                xyzrph[tme][val + '_r'] = float(settdict[tme]['transducer_{}_roll_angle'.format(ky)])
+                xyzrph[tme][val + '_p'] = float(settdict[tme]['transducer_{}_pitch_angle'.format(ky)])
+                xyzrph[tme][val + '_h'] = float(settdict[tme]['transducer_{}_heading_angle'.format(ky)])
+            opening_angle_key = 'transducer_{}_sounding_size_deg'.format(ky)
+            if opening_angle_key in settdict[tme]:
+                opening_angle = float(settdict[tme][opening_angle_key])
 
         # additional offsets based on sector
         if sonartype in install_parameter_modifier:
             for val in [v for v in install_parameter_modifier[sonartype] if v is not None]:
                 for sec in install_parameter_modifier[sonartype][val]:
-                    xyzrph[tme][val + '_x_' + sec] = str(install_parameter_modifier[sonartype][val][sec]['x'])
-                    xyzrph[tme][val + '_y_' + sec] = str(install_parameter_modifier[sonartype][val][sec]['y'])
-                    xyzrph[tme][val + '_z_' + sec] = str(install_parameter_modifier[sonartype][val][sec]['z'])
+                    xyzrph[tme][val + '_x_' + sec] = float(install_parameter_modifier[sonartype][val][sec]['x'])
+                    xyzrph[tme][val + '_y_' + sec] = float(install_parameter_modifier[sonartype][val][sec]['y'])
+                    xyzrph[tme][val + '_z_' + sec] = float(install_parameter_modifier[sonartype][val][sec]['z'])
 
         # translate over the positioning sensor stuff using the installation parameters active identifiers
         pos_ident = settdict[tme]['active_position_system_number']  # 'position_1'
         for suffix in [['_vertical_location', '_z'], ['_along_location', '_x'],
-                       ['_athwart_location', '_y'], ['_time_delay', '_latency']]:
+                       ['_athwart_location', '_y']]:
             qry = pos_ident + suffix[0]
-            xyzrph[tme]['imu' + suffix[1]] = settdict[tme][qry]
+            xyzrph[tme]['imu' + suffix[1]] = float(settdict[tme][qry])
+        xyzrph[tme]['latency'] = 0.0
 
         # do the same over motion sensor (which is still the POSMV), make assumption that its one of the motion
         #   entries
@@ -2272,16 +2287,41 @@ def build_xyzrph(settdict: dict, sonartype: str):
         #                ['_roll_angle', '_r'], ['_pitch_angle', '_p'], ['_heading_angle', '_h']]:
         for suffix in [['_roll_angle', '_r'], ['_pitch_angle', '_p'], ['_heading_angle', '_h']]:
             qry = pos_motion_ident + suffix[0]
-            xyzrph[tme]['imu' + suffix[1]] = settdict[tme][qry]
-
-        # include blank entry for primary gps antenna
-        xyzrph[tme]['antenna_x'] = '0.000'
-        xyzrph[tme]['antenna_y'] = '0.000'
-        xyzrph[tme]['antenna_z'] = '0.000'
+            xyzrph[tme]['imu' + suffix[1]] = float(settdict[tme][qry])
 
         # include waterline if it exists
         if 'waterline_vertical_location' in settdict[tme]:
-            xyzrph[tme]['waterline'] = settdict[tme]['waterline_vertical_location']
+            xyzrph[tme]['waterline'] = float(settdict[tme]['waterline_vertical_location'])
+
+        # attach default tpu settings
+        xyzrph[tme]['heave_error'] = kluster_variables.default_heave_error  # 1 sigma standard deviation for the heave data (meters)
+        xyzrph[tme]['roll_sensor_error'] = kluster_variables.default_roll_error  # 1 sigma standard deviation in the roll sensor (degrees)
+        xyzrph[tme]['pitch_sensor_error'] = kluster_variables.default_pitch_error  # 1 sigma standard deviation in the pitch sensor (degrees)
+        xyzrph[tme]['heading_sensor_error'] = kluster_variables.default_heading_error  # 1 sigma standard deviation in the pitch sensor (degrees)
+        xyzrph[tme]['tx_to_antenna_x'] = kluster_variables.default_x_antenna_offset  # 1 sigma standard deviation in your measurement of x lever arm (meters)
+        xyzrph[tme]['tx_to_antenna_y'] = kluster_variables.default_y_antenna_offset  # 1 sigma standard deviation in your measurement of y lever arm (meters)
+        xyzrph[tme]['tx_to_antenna_z'] = kluster_variables.default_z_antenna_offset  # 1 sigma standard deviation in your measurement of z lever arm (meters)
+        xyzrph[tme]['x_offset_error'] = kluster_variables.default_x_offset_error  # 1 sigma standard deviation in your measurement of x lever arm (meters)
+        xyzrph[tme]['y_offset_error'] = kluster_variables.default_y_offset_error  # 1 sigma standard deviation in your measurement of y lever arm (meters)
+        xyzrph[tme]['z_offset_error'] = kluster_variables.default_z_offset_error  # 1 sigma standard deviation in your measurement of z lever arm (meters)
+        xyzrph[tme]['surface_sv_error'] = kluster_variables.default_surface_sv_error  # 1 sigma standard deviation in surface sv sensor (meters/second)
+        xyzrph[tme]['roll_patch_error'] = kluster_variables.default_roll_patch_error  # 1 sigma standard deviation in your roll angle patch test procedure (degrees)
+        xyzrph[tme]['pitch_patch_error'] = kluster_variables.default_pitch_patch_error  # 1 sigma standard deviation in your roll angle patch test procedure (degrees)
+        xyzrph[tme]['heading_patch_error'] = kluster_variables.default_heading_patch_error  # 1 sigma standard deviation in your roll angle patch test procedure (degrees)
+        xyzrph[tme]['latency_patch_error'] = kluster_variables.default_latency_patch_error  # 1 sigma standard deviation in your latency calculation (seconds)
+        xyzrph[tme]['timing_latency_error'] = kluster_variables.default_latency_error  # 1 sigma standard deviation of the timing accuracy of the system (seconds)
+        xyzrph[tme]['separation_model_error'] = kluster_variables.default_separation_model_error  # 1 sigma standard deivation in the sep model (tidal, ellipsoidal, etc) (meters)
+        xyzrph[tme]['waterline_error'] = kluster_variables.default_waterline_error  # 1 sigma standard deviation of the waterline (meters)
+        xyzrph[tme]['vessel_speed_error'] = kluster_variables.default_vessel_speed_error  # 1 sigma standard deviation of the vessel speed (meters/second)
+        xyzrph[tme]['horizontal_positioning_error'] = kluster_variables.default_horizontal_positioning_error  # 1 sigma standard deviation of the horizontal positioning (meters)
+        xyzrph[tme]['vertical_positioning_error'] = kluster_variables.default_vertical_positioning_error  # 1 sigma standard deviation of the vertical positioning (meters)
+
+        if opening_angle is None:
+            if 'ReceiveBeamWidth' in runtime_params:
+                opening_angle = float(runtime_params['ReceiveBeamWidth'])
+            else:
+                opening_angle = kluster_variables.default_beam_opening_angle
+        xyzrph[tme]['beam_opening_angle'] = opening_angle  # opening angle in degrees, used for tpu
 
     # generate dict of ordereddicts for fast searching
     newdict = {}
@@ -2312,6 +2352,10 @@ def return_xyzrph_from_mbes(mbesfil: str):
     -------
     dict
         translated installation parameter record in the format used by Kluster
+    str
+        sonar model number
+    int
+        primary system serial number
 
     """
     if os.path.splitext(mbesfil)[1] == '.all':
@@ -2324,20 +2368,26 @@ def return_xyzrph_from_mbes(mbesfil: str):
     recs = mbes_object.sequential_read_records(first_installation_rec=True)
     try:
         settings_dict = {str(int(recs['installation_params']['time'][0])): recs['installation_params']['installation_settings'][0]}
+        runtime_dict = {}
         snrmodels = np.unique([settings_dict[x]['sonar_model_number'] for x in settings_dict])
         if len(snrmodels) > 1:
             raise NotImplementedError('Found multiple sonars types in data provided: {}'.format(snrmodels))
-        if snrmodels[0] not in sonar_translator:
+        sonartype = snrmodels[0].lower()
+        if sonartype not in sonar_translator:
             raise NotImplementedError('Sonar model not understood "{}"'.format(snrmodels[0]))
+        serialnum = np.unique(recs['installation_params']['serial_one'])
+        if len(serialnum) > 1:
+            raise NotImplementedError('Found multiple sonar serial numbers in data provided: {}'.format(snrmodels))
+        serialnum = serialnum[0]
 
         # translate over the offsets/angles for the transducers following the sonar_translator scheme
-        sonartype = snrmodels[0]
-        xyzrph = build_xyzrph(settings_dict, sonartype)
+        xyzrph = build_xyzrph(settings_dict, runtime_dict, sonartype)
 
-        return xyzrph
+        return xyzrph, sonartype, serialnum
     except IndexError:
         print('Unable to read from {}: data not found for installation records'.format(mbesfil))
         print(recs['installation_params'])
+        return None, None, None
 
 
 def return_xyzrph_from_posmv(posfile: str):
@@ -2360,7 +2410,7 @@ def return_xyzrph_from_posmv(posfile: str):
     try:
         pcs.CacheHeaders(read_first_msg=(20, '$MSG'))
         msg20 = pcs.GetArray("$MSG", 20)
-        data = {'antenna_x': round(msg20[0][10], 3), 'antenna_y': round(msg20[0][11], 3), 'antenna_z': round(msg20[0][12], 3),
+        data = {'tx_to_antenna_x': round(msg20[0][10], 3), 'tx_to_antenna_y': round(msg20[0][11], 3), 'tx_to_antenna_z': round(msg20[0][12], 3),
                 'imu_h': round(msg20[0][21], 3), 'imu_p': round(msg20[0][20], 3), 'imu_r': round(msg20[0][19], 3),
                 'imu_x': round(msg20[0][7], 3), 'imu_y': round(msg20[0][8], 3), 'imu_z': round(msg20[0][9], 3)}
         return data

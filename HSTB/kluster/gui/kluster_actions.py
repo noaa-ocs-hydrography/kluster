@@ -192,7 +192,7 @@ class KlusterActions(QtWidgets.QTreeView):
                     ttip = '{}\n\nPriority:{}\nInput Files:\n-{}'.format(act.text, act.priority, '\n-'.join(act.input_files))
                 elif act.priority == 5:  # process multibeam action
                     ttip = '{}\n\nPriority:{}\nRun Orientation:{}\nRun Correct Beam Vectors:{}\n'.format(act.text, act.priority, act.kwargs['run_orientation'], act.kwargs['run_beam_vec'])
-                    ttip += 'Run Sound Velocity:{}\nRun Georeference/TPU:{}'.format(act.kwargs['run_svcorr'], act.kwargs['run_georef'])
+                    ttip += 'Run Sound Velocity:{}\nRun Georeference:{}\nRun TPU:{}'.format(act.kwargs['run_svcorr'], act.kwargs['run_georef'], act.kwargs['run_tpu'])
                     if act.kwargs['run_georef']:
                         if act.kwargs['use_epsg']:
                             ttip += '\nEPSG: {}\nVertical Reference: {}'.format(act.kwargs['epsg'], act.kwargs['vert_ref'])

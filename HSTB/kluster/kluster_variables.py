@@ -32,25 +32,46 @@ attitude_chunk_size = 20000  # chunk size (in time) of each written chunk of dat
 
 single_head_sonar = ['em122', 'em302', 'em710', 'em2045', 'em2040', 'em2040p', 'em3002', 'em2040p', 'em3020', 'me70bo']  # all single head sonar models
 dual_head_sonar = ['em2040_dual_rx', 'em2040_dual_tx', 'em2045_dual']  # all dual head sonar models
-default_heave_error = 0.05  # default tpu parameter for heave
-default_roll_error = 0.0005  # default tpu parameter for roll
-default_pitch_error = 0.0005  # default tpu parameter for pitch
-default_heading_error = 0.02  # default tpu parameter for heading
-default_x_offset_error = 0.2  # default tpu parameter for x offset measurement
-default_y_offset_error = 0.2  # default tpu parameter for y offset measurement
-default_z_offset_error = 0.2  # default tpu parameter for z offset measurement
-default_surface_sv_error = 0.5  # default tpu parameter for surface sv
-default_roll_patch_error = 0.1  # default tpu parameter for roll patch
-default_pitch_patch_error = 0.1  # default tpu parameter for pitch patch
-default_heading_patch_error = 0.5  # default tpu parameter for heading patch
-default_latency_patch_error = 0.0  # default tpu parameter for latency patch
+# tpu parameter names controls what gets passed to the tpu calculator
+tpu_parameter_names = ['tx_to_antenna_x', 'tx_to_antenna_y', 'tx_to_antenna_z', 'heave_error', 'roll_sensor_error',
+                       'pitch_sensor_error', 'heading_sensor_error', 'x_offset_error',
+                       'y_offset_error', 'z_offset_error', 'surface_sv_error', 'roll_patch_error', 'pitch_patch_error',
+                       'heading_patch_error', 'latency_patch_error', 'timing_latency_error',
+                       'separation_model_error', 'waterline_error', 'vessel_speed_error', 'horizontal_positioning_error',
+                       'vertical_positioning_error', 'beam_opening_angle']
+offset_parameter_names = ['tx_port_x', 'tx_stbd_x', 'rx_port_x', 'rx_stbd_x', 'tx_x', 'rx_x', 'tx_port_y', 'tx_stbd_y',
+                          'rx_port_y', 'rx_stbd_y', 'tx_y', 'rx_y', 'tx_port_z', 'tx_stbd_z', 'rx_port_z', 'rx_stbd_z',
+                          'tx_z', 'rx_z']
+angle_parameter_names = ['tx_port_r', 'tx_stbd_r', 'rx_port_r', 'rx_stbd_r', 'tx_r', 'rx_r', 'tx_port_p', 'tx_stbd_p',
+                         'rx_port_p', 'rx_stbd_p', 'tx_p', 'rx_p', 'tx_port_h', 'tx_stbd_h', 'rx_port_h', 'rx_stbd_h',
+                         'tx_h', 'rx_h']
+# optional parameter names controls what is left out when comparing vessel entries to see if the new entry is worth keeping
+optional_parameter_names = ['source', 'vessel_file', 'sonar_type', 'imu_h', 'imu_p', 'imu_r', 'imu_x', 'imu_y',
+                            'imu_z', 'tx_to_antenna_x', 'tx_to_antenna_y', 'tx_to_antenna_z', 'vess_center_x', 'vess_center_y',
+                            'vess_center_z', 'vess_center_yaw', 'vess_center_p', 'vess_center_r', 'sensor_size']
+
+default_heave_error = 0.050  # default tpu parameter for heave
+default_roll_error = 0.001  # default tpu parameter for roll
+default_pitch_error = 0.001  # default tpu parameter for pitch
+default_heading_error = 0.020  # default tpu parameter for heading
+default_x_offset_error = 0.200  # default tpu parameter for x offset measurement
+default_y_offset_error = 0.200  # default tpu parameter for y offset measurement
+default_z_offset_error = 0.200  # default tpu parameter for z offset measurement
+default_x_antenna_offset = 0.000  # default tpu parameter for x antenna offset
+default_y_antenna_offset = 0.000  # default tpu parameter for y antenna offset
+default_z_antenna_offset = 0.000  # default tpu parameter for z antenna offset
+default_surface_sv_error = 0.500  # default tpu parameter for surface sv
+default_roll_patch_error = 0.100  # default tpu parameter for roll patch
+default_pitch_patch_error = 0.100  # default tpu parameter for pitch patch
+default_heading_patch_error = 0.500  # default tpu parameter for heading patch
+default_latency_patch_error = 0.000  # default tpu parameter for latency patch
 default_latency_error = 0.001  # default tpu parameter for latency
-default_dynamic_draft_error = 0.1  # default tpu parameter for dynamic draft
-default_separation_model_error = 0.0  # default tpu parameter for separation model
-default_waterline_error = 0.02  # default tpu parameter for waterline
-default_vessel_speed_error = 0.1  # default tpu parameter for vessel speed
-default_horizontal_positioning_error = 1.5  # default tpu parameter for horizontal positioning
-default_vertical_positioning_error = 1.0  # default tpu parameter for vertical positioning
+default_separation_model_error = 0.000  # default tpu parameter for separation model
+default_waterline_error = 0.020  # default tpu parameter for waterline
+default_vessel_speed_error = 0.100  # default tpu parameter for vessel speed
+default_horizontal_positioning_error = 1.500  # default tpu parameter for horizontal positioning
+default_vertical_positioning_error = 1.000  # default tpu parameter for vertical positioning
+default_beam_opening_angle = 1.0  # default parameter for beam opening angle in degrees
 
 # zarr backend, chunksizes for writing to disk
 ping_chunks = {'time': (ping_chunk_size,), 'beam': (max_beams,), 'xyz': (3,),

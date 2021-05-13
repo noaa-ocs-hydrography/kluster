@@ -24,12 +24,21 @@ class SettingsDialog(QtWidgets.QDialog):
 
         self.parallel_write = QtWidgets.QCheckBox('Enable Parallel Writes')
         self.parallel_write.setChecked(True)
+        self.parallel_write.setToolTip('If checked, Kluster will write to the hard drive in parallel, disabling this ' +
+                                       ' is a useful step in troubleshooting PermissionErrors.')
+
+        self.keep_waterline_changes = QtWidgets.QCheckBox('Retain Waterline Changes')
+        self.keep_waterline_changes.setChecked(True)
+        self.keep_waterline_changes.setToolTip('If checked (only applicable if you are using a Vessel File), Kluster will save all ' +
+                                               'waterline changes in later multibeam files to the vessel file.  \nUncheck this if you ' +
+                                               'do not want changes in waterline to be new entries in the vessel file.')
 
         self.hlayout_one = QtWidgets.QHBoxLayout()
         self.vdatum_label = QtWidgets.QLabel('VDatum Directory')
         self.hlayout_one.addWidget(self.vdatum_label)
         self.vdatum_text = QtWidgets.QLineEdit('', self)
         self.vdatum_text.setReadOnly(True)
+        self.vdatum_text.setToolTip('Optional, this is required if you are using the "NOAA MLLW" or "NOAA MHW" vertical reference options.')
         self.hlayout_one.addWidget(self.vdatum_text)
         self.browse_button = QtWidgets.QPushButton("Browse", self)
         self.hlayout_one.addWidget(self.browse_button)
@@ -47,6 +56,7 @@ class SettingsDialog(QtWidgets.QDialog):
         self.hlayout_five.addStretch(1)
 
         layout.addWidget(self.parallel_write)
+        layout.addWidget(self.keep_waterline_changes)
         layout.addLayout(self.hlayout_one)
         layout.addStretch()
         layout.addWidget(self.status_msg)
@@ -78,7 +88,9 @@ class SettingsDialog(QtWidgets.QDialog):
 
         """
         if not self.canceled:
-            opts = {'parallel_write': self.parallel_write.isChecked(), 'vdatum_directory': self.vdatum_pth}
+            opts = {'write_parallel': self.parallel_write.isChecked(),
+                    'keep_waterline_changes': self.keep_waterline_changes.isChecked(),
+                    'vdatum_directory': self.vdatum_pth}
         else:
             opts = None
         return opts
@@ -114,7 +126,9 @@ class SettingsDialog(QtWidgets.QDialog):
         """
         settings = self.settings_object
         settings.setValue('Kluster/settings_enable_parallel_writes', self.parallel_write.isChecked())
+        settings.setValue('Kluster/settings_keep_waterline_changes', self.keep_waterline_changes.isChecked())
         settings.setValue('Kluster/settings_vdatum_directory', self.vdatum_text.text())
+        settings.sync()
 
     def read_settings(self):
         """
@@ -126,7 +140,17 @@ class SettingsDialog(QtWidgets.QDialog):
             try:
                 self.parallel_write.setChecked(settings.value('Kluster/settings_enable_parallel_writes').lower() == 'true')
             except:
-                self.parallel_write.setChecked(settings.value('Kluster/settings_enable_parallel_writes'))
+                try:
+                    self.parallel_write.setChecked(settings.value('Kluster/settings_enable_parallel_writes'))
+                except:
+                    pass
+            try:
+                self.keep_waterline_changes.setChecked(settings.value('Kluster/settings_keep_waterline_changes').lower() == 'true')
+            except:
+                try:
+                    self.keep_waterline_changes.setChecked(settings.value('Kluster/settings_keep_waterline_changes'))
+                except:
+                    pass
             self.vdatum_text.setText(settings.value('Kluster/settings_vdatum_directory'))
             self.vdatum_pth = settings.value('Kluster/settings_vdatum_directory')
         except AttributeError:

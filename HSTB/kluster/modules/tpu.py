@@ -17,8 +17,9 @@ def distrib_run_calculate_tpu(dat: list):
     Parameters
     ----------
     dat
-        [roll, raw_beam_angles, beam_angles, acrosstrack_offset, depth_offset, soundspeed, tpu_dict, quality_factor, north_position_error,
-        east_position_error, down_position_error, qf_type, vert_ref, tpu_image]
+        [roll, raw_beam_angles, beam_angles, acrosstrack_offset, depth_offset, soundspeed, datum_uncertainty,
+        tpu_dict, quality_factor, north_position_error, east_position_error, down_position_error, roll_error,
+        pitch_error, heading_error, qf_type, vert_ref, tpu_image]
 
     Returns
     -------
@@ -27,8 +28,8 @@ def distrib_run_calculate_tpu(dat: list):
     """
 
     ans = calculate_tpu(dat[0], dat[1], dat[2], dat[3], dat[4], dat[5], dat[6], dat[7], dat[8], dat[9], dat[10],
-                        dat[11], dat[12], dat[13], roll_in_degrees=True, raw_beam_angles_in_degrees=True,
-                        beam_angles_in_degrees=False, qf_type=dat[14], vert_ref=dat[15], tpu_image=dat[16])
+                        dat[11], dat[12], dat[13], dat[14], roll_in_degrees=True, raw_beam_angles_in_degrees=True,
+                        beam_angles_in_degrees=False, qf_type=dat[15], vert_ref=dat[16], tpu_image=dat[17])
     # return processing status = 4 for all affected soundings
     processing_status = xr.DataArray(np.full_like(dat[2], 5, dtype=np.uint8),
                                      coords={'time': dat[2].coords['time'], 'beam': dat[2].coords['beam']},
@@ -40,7 +41,8 @@ def distrib_run_calculate_tpu(dat: list):
 def calculate_tpu(roll: Union[xr.DataArray, np.array], raw_beam_angles: Union[xr.DataArray, np.array],
                   beam_angles: Union[xr.DataArray, np.array], acrosstrack_offset: Union[xr.DataArray, np.array],
                   depth_offset: Union[xr.DataArray, np.array], surf_sound_speed: Union[xr.DataArray, np.array],
-                  tpu_dict: dict = None, quality_factor: Union[xr.DataArray, np.array] = None,
+                  datum_uncertainty: Union[xr.DataArray, np.array] = None, tpu_dict: dict = None,
+                  quality_factor: Union[xr.DataArray, np.array] = None,
                   north_position_error: Union[xr.DataArray, np.array] = None,
                   east_position_error: Union[xr.DataArray, np.array] = None,
                   down_position_error: Union[xr.DataArray, np.array] = None,
@@ -66,6 +68,9 @@ def calculate_tpu(roll: Union[xr.DataArray, np.array], raw_beam_angles: Union[xr
         offset in meters down to each sounding (+ DOWN)
     surf_sound_speed
         surface sound speed sensor
+    datum_uncertainty
+        uncertainty associated with the vertical datum transformation, a beamwise value or a scalar value,
+        optional, if not provided uses the value in the tpu_dict
     tpu_dict
         dictionary of options that you want to use to override the defaults in the Tpu attributes
     quality_factor
@@ -107,7 +112,7 @@ def calculate_tpu(roll: Union[xr.DataArray, np.array], raw_beam_angles: Union[xr
     tp = Tpu(plot_tpu=tpu_image)
     if tpu_dict is not None:
         tp.populate_from_dict(tpu_dict)
-    tp.load_from_data(roll, raw_beam_angles, beam_angles, acrosstrack_offset, depth_offset, surf_sound_speed,
+    tp.load_from_data(roll, raw_beam_angles, beam_angles, acrosstrack_offset, depth_offset, surf_sound_speed, datum_uncertainty=datum_uncertainty,
                       quality_factor=quality_factor, north_position_error=north_position_error, east_position_error=east_position_error,
                       down_position_error=down_position_error, roll_error=roll_error, pitch_error=pitch_error,
                       heading_error=heading_error, roll_in_degrees=roll_in_degrees, raw_beam_angles_in_degrees=raw_beam_angles_in_degrees,
@@ -139,28 +144,29 @@ class Tpu:
         self.debug = debug
         self.plot_tpu = plot_tpu
 
+        self.beam_opening_angle = 1.0  # receiver beam angle used for depth variance calculation
         self.tx_to_antenna_x = 0  # offset (+ FWD) to antenna from transducer
         self.tx_to_antenna_y = 0  # offset (+ STBD) to antenna from transducer
         self.tx_to_antenna_z = 0  # offset (+ DOWN) to antenna from transducer
-        self.heave = 0.05  # 1 sigma standard deviation for the heave data (meters)
+        self.heave_error = 0.05  # 1 sigma standard deviation for the heave data (meters)
         self.roll_sensor_error = 0.0005  # 1 sigma standard deviation in the roll sensor (degrees)
         self.pitch_sensor_error = 0.0005  # 1 sigma standard deviation in the pitch sensor (degrees)
         self.heading_sensor_error = 0.02  # 1 sigma standard deviation in the pitch sensor (degrees)
-        self.x_offset = 0.2  # 1 sigma standard deviation in your measurement of x lever arm (meters)
-        self.y_offset = 0.2  # 1 sigma standard deviation in your measurement of y lever arm (meters)
-        self.z_offset = 0.2  # 1 sigma standard deviation in your measurement of z lever arm (meters)
-        self.surface_sv = 0.5  # 1 sigma standard deviation in surface sv sensor (meters/second)
-        self.roll_patch = 0.1  # 1 sigma standard deviation in your roll angle patch test procedure (degrees)
-        self.pitch_patch = 0.1  # 1 sigma standard deviation in your pitch angle patch test procedure (degrees)
-        self.heading_patch = 0.5  # 1 sigma standard deviation in your heading angle patch test procedure (degrees)
-        self.latency_patch = 0.0  # 1 sigma standard deviation in your latency calculation (seconds)
-        self.timing_latency = 0.001  # 1 sigma standard deviation of the timing accuracy of the system (seconds)
-        self.dynamic_draft = 0.1  # 1 sigma standard deviation of the dynamic draft measurement (meters)
-        self.separation_model = 0.0  # 1 sigma standard deivation in the sep model (tidal, ellipsoidal, etc) (meters)
-        self.waterline = 0.02  # 1 sigma standard deviation of the waterline (meters)
-        self.vessel_speed = 0.1  # 1 sigma standard deviation of the vessel speed (meters/second)
-        self.horizontal_positioning = 1.5  # 1 sigma standard deviation of the horizontal positioning (meters)
-        self.vertical_positioning = 1.0  # 1 sigma standard deviation of the horizontal positioning (meters)
+        self.x_offset_error = 0.2  # 1 sigma standard deviation in your measurement of x lever arm (meters) CURRENTLY UNUSED
+        self.y_offset_error = 0.2  # 1 sigma standard deviation in your measurement of y lever arm (meters) CURRENTLY UNUSED
+        self.z_offset_error = 0.2  # 1 sigma standard deviation in your measurement of z lever arm (meters) CURRENTLY UNUSED
+        self.surface_sv_error = 0.5  # 1 sigma standard deviation in surface sv sensor (meters/second)
+        self.roll_patch_error = 0.1  # 1 sigma standard deviation in your roll angle patch test procedure (degrees)
+        self.pitch_patch_error = 0.1  # 1 sigma standard deviation in your pitch angle patch test procedure (degrees) CURRENTLY UNUSED
+        self.heading_patch_error = 0.5  # 1 sigma standard deviation in your heading angle patch test procedure (degrees) CURRENTLY UNUSED
+        self.latency_patch_error = 0.0  # 1 sigma standard deviation in your latency calculation (seconds) CURRENTLY UNUSED
+        self.timing_latency_error = 0.001  # 1 sigma standard deviation of the timing accuracy of the system (seconds) CURRENTLY UNUSED
+        self.dynamic_draft_error = 0.0  # 1 sigma standard deviation of the dynamic draft measurement (meters) CURRENTLY UNUSED
+        self.separation_model_error = 0.0  # 1 sigma standard deivation in the sep model (tidal, ellipsoidal, etc) (meters)
+        self.waterline_error = 0.02  # 1 sigma standard deviation of the waterline (meters)
+        self.vessel_speed_error = 0.1  # 1 sigma standard deviation of the vessel speed (meters/second) CURRENTLY UNUSED
+        self.horizontal_positioning_error = 1.5  # 1 sigma standard deviation of the horizontal positioning (meters)
+        self.vertical_positioning_error = 1.0  # 1 sigma standard deviation of the vertical positioning (meters)
 
         # vectors from sensors necessary for computation
         self.kongsberg_quality_factor = None
@@ -204,11 +210,12 @@ class Tpu:
         """
 
         for ky, val in tpu_dict.items():
-            self.__setattr__(ky, val)
+            self.__setattr__(ky, float(val))
 
     def load_from_data(self, roll: Union[xr.DataArray, np.array], raw_beam_angles: Union[xr.DataArray, np.array],
                        beam_angles: Union[xr.DataArray, np.array], acrosstrack_offset: Union[xr.DataArray, np.array],
                        depth_offset: Union[xr.DataArray, np.array], surf_sound_speed: Union[xr.DataArray, np.array],
+                       datum_uncertainty: Union[xr.DataArray, np.array, float] = None,
                        quality_factor: Union[xr.DataArray, np.array] = None,
                        north_position_error: Union[xr.DataArray, np.array] = None,
                        east_position_error: Union[xr.DataArray, np.array] = None,
@@ -235,6 +242,9 @@ class Tpu:
             offset in meters down to each sounding (+ DOWN)
         surf_sound_speed
             surface sound speed sensor (meters/second)
+        datum_uncertainty
+            uncertainty associated with the vertical datum transformation, a beamwise value, optional, if not provided
+            uses the value in the tpu_dict
         quality_factor
             sonar uncertainty provided as a quality factor, can either be Kongsberg std dev or Kongsberg reported Ifremer
             quality factor
@@ -297,6 +307,8 @@ class Tpu:
             self.sbet_pitch_error = np.deg2rad(pitch_error)
         if heading_error is not None:
             self.sbet_heading_error = np.deg2rad(heading_error)
+        if datum_uncertainty is not None:
+            self.separation_model_error = datum_uncertainty
 
     def generate_total_uncertainties(self, vert_ref: str = 'ellipse', sigma: int = 2):
         """
@@ -336,8 +348,8 @@ class Tpu:
         If the class plot_tpu is enabled, generate these plots along with the calculated values
         """
 
-        horiz_components = ['distance_rms', 'sounder_horizontal', 'total_horizontal_uncertainty']
-        vert_components = ['sounder_vertical', 'roll', 'refraction', 'down_position', 'separation_model', 'heave',
+        horiz_components = ['distance_rms', 'sounder_horizontal', 'antenna_lever_arm', 'total_horizontal_uncertainty']
+        vert_components = ['sounder_vertical', 'roll', 'refraction', 'down_position', 'separation_model', 'heave', 'beamangle',
                            'dynamic_draft', 'waterline', 'total_vertical_uncertainty']
         drive_plots_to_file = isinstance(self.plot_tpu, str)
 
@@ -372,12 +384,20 @@ class Tpu:
         if drive_plots_to_file:
             plt.savefig(vert_fname)
 
+    def _calculate_beam_angle_variance(self):
+        """
+        Depth variance related to the beam opening angle
+        """
+        rbeamangle = np.deg2rad(float(self.beam_opening_angle))
+        beam_angle_variance = self.depth_offset - (self.depth_offset * np.cos(rbeamangle / 2))
+        return beam_angle_variance
+
     def _calculate_roll_variance(self):
         """
         Use sbet roll error if available, otherwise rely on the scalar roll error modeled value.  Will also include
         patch test error.
         """
-        rpatch = np.deg2rad(self.roll_patch)
+        rpatch = np.deg2rad(self.roll_patch_error)
         rsensor = np.deg2rad(self.roll_sensor_error)
         if self.sbet_roll_error is not None:
             roll_variance = (self.acrosstrack_offset ** 2) * (self.sbet_roll_error ** 2) * (rpatch ** 2)
@@ -391,18 +411,17 @@ class Tpu:
         A lazy interpretation of the heave error equation in Hare's paper.  With our surveys being ERS mainly, this
         probably won't see much use.
         """
-        hve = np.full((self.acrosstrack_offset.shape[0], 1), self.heave, dtype=np.float32)
+        hve = np.full((self.acrosstrack_offset.shape[0], 1), self.heave_error, dtype=np.float32)
         return hve ** 2
 
     def _calculate_refraction_variance(self):
         """
-        Not implemented yet.  Would be something like:
-        ref_var = ( (depthoffset / surfssv)**2 + acrosstrack*((tan(corrbpa)/2*surfssv)**2 + (tan(rawbpa-corrbpa)/surfssv)**2) ) * self.surface_sv**2
+        Calculate refraction variance, the sound speed error effects on range, beam angle
         """
         first_component = (self.depth_offset / self.surf_sound_speed)**2
         second_component = (np.tan(self.beam_angles) / (2 * self.surf_sound_speed)) ** 2
         third_component = ((np.tan(self.beam_angles - self.raw_beam_angles) / self.surf_sound_speed) ** 2)
-        ref_var = (first_component + ((self.acrosstrack_offset ** 2) * (second_component + third_component))) * (self.surface_sv ** 2)
+        ref_var = (first_component + ((self.acrosstrack_offset ** 2) * (second_component + third_component))) * (self.surface_sv_error ** 2)
         return ref_var
 
     def _calculate_distance_variance(self):
@@ -412,7 +431,7 @@ class Tpu:
         if self.north_position_error is not None and self.east_position_error is not None:
             xy = (self.north_position_error ** 2) + (self.east_position_error ** 2)
         else:
-            xy = (self.horizontal_positioning ** 2) + (self.horizontal_positioning ** 2)
+            xy = (self.horizontal_positioning_error ** 2) + (self.horizontal_positioning_error ** 2)
         return xy
 
     def _calculate_antenna_to_transducer_variance(self):
@@ -420,10 +439,6 @@ class Tpu:
         Determine the horizontal error related to the antenna transducer lever arm
         """
 
-        if self.north_position_error is not None and self.east_position_error is not None:
-            xy = (self.north_position_error ** 2) + (self.east_position_error ** 2)
-        else:
-            xy = (self.horizontal_positioning ** 2) + (self.horizontal_positioning ** 2)
         if self.sbet_heading_error is not None:
             heading = (self.tx_to_antenna_x ** 2 + self.tx_to_antenna_y ** 2) * self.sbet_heading_error
         else:
@@ -433,7 +448,7 @@ class Tpu:
         else:
             rollpitch = (self.roll_sensor_error ** 2 + self.pitch_sensor_error ** 2) * self.tx_to_antenna_z
 
-        return xy + heading + rollpitch
+        return heading + rollpitch
 
     def _calculate_total_depth_uncertainty(self, vert_ref, v_unc):
         """
@@ -454,15 +469,16 @@ class Tpu:
         """
 
         d_var = self._calculate_distance_variance()
-        # leverarm_var = self._calculate_antenna_to_transducer_variance()
+        leverarm_var = self._calculate_antenna_to_transducer_variance()
         if isinstance(d_var, float):
             d_var = np.full((h_unc.shape[0], 1), d_var, dtype=np.float32)
+        if isinstance(leverarm_var, float):
+            leverarm_var = np.full((h_unc.shape[0], 1), leverarm_var, dtype=np.float32)
 
         if self.plot_tpu:
             self.plot_components['distance_rms'] = d_var ** 0.5
-            # self.plot_components['antenna_lever_arm'] = leverarm_var ** 0.5
-        # return (h_unc ** 2 + d_var + leverarm_var) ** 0.5
-        return (h_unc ** 2 + d_var) ** 0.5
+            self.plot_components['antenna_lever_arm'] = leverarm_var ** 0.5
+        return (h_unc ** 2 + d_var + leverarm_var) ** 0.5
 
     def _calculate_sonar_uncertainty(self):
         """
@@ -494,9 +510,11 @@ class Tpu:
         """
         r_var = self._calculate_roll_variance()
         refract_var = self._calculate_refraction_variance()
+        angle_var = self._calculate_beam_angle_variance()
         if self.plot_tpu:
             self.plot_components['roll'] = np.nanmedian(r_var, axis=1) ** 0.5
             self.plot_components['refraction'] = np.nanmedian(refract_var, axis=1) ** 0.5
+            self.plot_components['beamangle'] = np.nanmedian(angle_var, axis=1) ** 0.5
         if vert_ref in kluster_variables.waterline_based_vertical_references:
             hve_var = self._calculate_heave_variance()
             self.plot_components['heave'] = hve_var ** 0.5
@@ -505,12 +523,12 @@ class Tpu:
             if self.down_position_error is not None:
                 downpos = self.down_position_error ** 2
             else:
-                downpos = np.full((v_unc.shape[0], 1), self.vertical_positioning ** 2, dtype=np.float32)
+                downpos = np.full((v_unc.shape[0], 1), self.vertical_positioning_error ** 2, dtype=np.float32)
             self.plot_components['down_position'] = downpos ** 0.5
             hve_var = 0
         else:
             raise NotImplementedError('tpu: vert_ref must be one of {}, found: {}'.format(kluster_variables.vertical_references, vert_ref))
-        return (v_unc ** 2 + r_var + hve_var + downpos + refract_var) ** 0.5
+        return (v_unc ** 2 + r_var + hve_var + downpos + refract_var + angle_var) ** 0.5
 
     def _total_depth_unc_ref_waterlevels(self, v_unc):
         """
@@ -519,15 +537,22 @@ class Tpu:
         """
 
         d_measured = self._total_depth_measurement_error(v_unc, 'waterline')
-        self.separation_model = np.full((v_unc.shape[0], 1), self.separation_model, dtype=np.float32)
-        self.dynamic_draft = np.full((v_unc.shape[0], 1), self.dynamic_draft, dtype=np.float32)
-        self.waterline = np.full((v_unc.shape[0], 1), self.waterline, dtype=np.float32)
+        if isinstance(self.separation_model_error, float):
+            separation_model = np.full((v_unc.shape[0], 1), self.separation_model_error, dtype=np.float32)
+        else:
+            separation_model = self.separation_model_error
+        # self.dynamic_draft_error = np.full((v_unc.shape[0], 1), self.dynamic_draft_error, dtype=np.float32)
+        self.waterline_error = np.full((v_unc.shape[0], 1), self.waterline_error, dtype=np.float32)
 
         if self.plot_tpu:
-            self.plot_components['separation_model'] = self.separation_model
-            self.plot_components['dynamic_draft'] = self.dynamic_draft
-            self.plot_components['waterline'] = self.waterline
-        return (d_measured + self.separation_model ** 2 + self.dynamic_draft ** 2 + self.waterline ** 2) ** 0.5
+            if isinstance(self.separation_model_error, float):
+                self.plot_components['separation_model'] = separation_model
+            else:
+                self.plot_components['separation_model'] = np.nanmedian(separation_model, axis=1) ** 0.5
+            # self.plot_components['dynamic_draft'] = self.dynamic_draft_error
+            self.plot_components['waterline'] = self.waterline_error
+        # return (d_measured + self.separation_model_error ** 2 + self.dynamic_draft_error ** 2 + self.waterline_error ** 2) ** 0.5
+        return (d_measured + separation_model ** 2 + self.waterline_error ** 2) ** 0.5
 
     def _total_depth_unc_ref_ellipse(self, v_unc):
         """
@@ -536,11 +561,17 @@ class Tpu:
         """
 
         d_measured = self._total_depth_measurement_error(v_unc, 'ellipse')
-        self.separation_model = np.full((v_unc.shape[0], 1), self.separation_model, dtype=np.float32)
+        if isinstance(self.separation_model_error, float):
+            separation_model = np.full((v_unc.shape[0], 1), self.separation_model_error, dtype=np.float32)
+        else:
+            separation_model = self.separation_model_error
 
         if self.plot_tpu:
-            self.plot_components['separation_model'] = self.separation_model
-        return (d_measured ** 2 + self.separation_model ** 2) ** 0.5
+            if isinstance(self.separation_model_error, float):
+                self.plot_components['separation_model'] = separation_model
+            else:
+                self.plot_components['separation_model'] = np.nanmedian(separation_model, axis=1)
+        return (d_measured ** 2 + separation_model ** 2) ** 0.5
 
 
 def calculate_uncertainty_ifremer(depth_offset: Union[xr.DataArray, np.array],

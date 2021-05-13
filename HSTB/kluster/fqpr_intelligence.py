@@ -12,6 +12,7 @@ from HSTB.drivers import kmall, par3, sbet, svp
 from HSTB.kluster import monitor, fqpr_actions
 from HSTB.kluster.fqpr_project import FqprProject
 from HSTB.kluster.fqpr_helpers import build_crs
+from HSTB.kluster.fqpr_vessel import VesselFile, compare_dict_data, convert_from_fqpr_xyzrph
 from HSTB.kluster import kluster_variables
 
 
@@ -75,6 +76,8 @@ class FqprIntel(LoggerClass):
         super().__init__(**kwargs)
         self.project = project
         self.parent = parent
+
+        self.keep_waterline_changes = True
 
         self.multibeam_intel = MultibeamModule(silent=self.silent, logger=self.logger)
         self.nav_intel = NavigationModule(silent=self.silent, logger=self.logger)
@@ -147,6 +150,8 @@ class FqprIntel(LoggerClass):
         self.general_settings = settings
         if 'parallel_write' in settings:
             self._regenerate_multibeam_actions()
+        if 'keep_waterline_changes' in settings:
+            self.keep_waterline_changes = settings['keep_waterline_changes']
         self.regenerate_actions()
 
     def update_from_project(self, project_updated: bool = True):
@@ -421,7 +426,7 @@ class FqprIntel(LoggerClass):
         a file is added or removed to the Intelligence class.
         """
 
-        # use the buffered version to compare against the always updating lin_groups.  Here we set them equal as we regenerate actions
+        # use the buffered version to compare against the always updating line_groups.  Here we set them equal as we regenerate actions
         self._buffered_multibeam_line_groups = deepcopy(self.multibeam_intel.line_groups)
 
         # remove actions that do not match any fqpr instances that are in the project
@@ -487,8 +492,7 @@ class FqprIntel(LoggerClass):
 
     def _regenerate_svp_actions(self):
         """
-        add actions based on the current processed nav file -> fqpr instance matched dict.  Matches have to exist to
-        have a nav action, as the nav action is importing processed navigation into an fqpr instance.
+        Brute force currently, just import sv profile to all fqpr instances in the project.
         """
         # self._clear_actions_by_type('navigation')
         self._buffered_svp_groups = deepcopy(self.svp_intel.svp_groups)
@@ -510,39 +514,141 @@ class FqprIntel(LoggerClass):
                 newaction = fqpr_actions.build_svp_action(destination, fqpr_instance, svfiles)
                 self.action_container.add_action(newaction)
 
-    def _regenerate_processing_actions(self):
+    def _update_offsets(self, fqpr_instance, vessel_file, keep_waterline_changes: bool = True):
+        """
+        Update the loaded fqpr instance with new offsets if we find them in the vessel_file.  Return indicators for
+        what action has taken place.  If we find different offsets/angles in the vessel_file, we return False for
+        identical_offsets/identical_angles.  If we find different tpu values in the vessel_file, we return False for
+        identical_tpu.  If the converted data has a different waterline value than the vessel file instance, we retain
+        that new waterline value (should be the only thing changing over several days)
+
+        If the fqpr_instance is not in the vessel_file, we update the file for that entry.
+
+        add new entries in the vessel file (if applicable) and generate new processing actions if we want to keep
+        the waterline changes in new multibeam files, if keep waterline changes is set.
+
+        Returns
+        -------
+        bool
+            identical_tpu check value
+        bool
+            identical_offsets check value
+        bool
+            identical_angles check value
+        float
+            new waterline value found
+        """
+
+        identical_offsets = True
+        identical_angles = True
+        identical_tpu = True
+        new_waterline = None
+        new_data = None
+        if vessel_file:
+            new_xyzrph = vessel_file.return_data(fqpr_instance.multibeam.raw_ping[0].system_identifier,
+                                                 int(fqpr_instance.calc_min_var('time')),
+                                                 int(fqpr_instance.calc_max_var('time')))
+            if not new_xyzrph:
+                print('WARNING: Unable to find a vessel file entry for {}'.format(fqpr_instance.output_folder))
+            if new_xyzrph:  # there is an applicable entry in the vessel file for this dataset
+                existing_xyzrph = fqpr_instance.multibeam.raw_ping[0].attrs['xyzrph']
+                identical_offsets, identical_angles, identical_tpu, data_matches, new_waterline = compare_dict_data(new_xyzrph, existing_xyzrph)
+                if not keep_waterline_changes:
+                    new_waterline = None
+                if data_matches:
+                    identical_offsets = True
+                    identical_angles = True
+                    identical_tpu = True
+                    new_waterline = None
+                # vessel file has new data that is different, override the converted data xyzrph record
+                if not identical_offsets or not identical_angles or not identical_tpu:
+                    if new_waterline:
+                        # data matches between vessel file and converted data, except converted data has a new waterline value
+                        # update the vessel file with that new waterline value
+                        if len(list(new_xyzrph['waterline'].keys())) == 1:
+                            for tstmp in new_xyzrph['waterline']:
+                                new_xyzrph['waterline'][tstmp] = new_waterline
+                            new_tstmp = list(existing_xyzrph['waterline'].keys())[0]
+                            existing_tstmp = list(new_xyzrph['waterline'].keys())[0]
+                            for entry in new_xyzrph:
+                                existing_data = new_xyzrph[entry][existing_tstmp]
+                                new_xyzrph[entry].pop(existing_tstmp)
+                                new_xyzrph[entry][new_tstmp] = existing_data
+                            new_data = deepcopy(new_xyzrph)
+                        else:
+                            print('WARNING: Unable to update with new waterline value, found multiple timestamped entries covering this dataset')
+                    fqpr_instance.multibeam.xyzrph = new_xyzrph
+                else:  # ignore existing waterline values if we aren't overwriting using the vessel file
+                    new_waterline = None
+            elif fqpr_instance.multibeam.xyzrph:
+                new_data = deepcopy(fqpr_instance.multibeam.xyzrph)
+
+            if new_data:
+                sonar_model = fqpr_instance.multibeam.raw_ping[0].sonartype
+                system_identifier = fqpr_instance.multibeam.raw_ping[0].system_identifier
+                source_identifier = os.path.split(fqpr_instance.output_folder)[1]
+                data = convert_from_fqpr_xyzrph(new_data, sonar_model, system_identifier, source_identifier)
+                vessel_file.update(system_identifier, data[system_identifier])
+                vessel_file.save()
+        return identical_tpu, identical_offsets, identical_angles, new_waterline
+
+    def _build_new_crs(self, fqpr_instance):
+        """
+        Build a new coordinate system instance (pyproj CRS object) based on the processing settings.  We will later compare
+        this to the coordinate system in the fqpr instance to see if they match, if not they will need to be georeferenced.
+        """
+
+        if 'use_epsg' in self.processing_settings:  # if someone setup the project with a default coord system
+            if self.processing_settings['use_epsg']:
+                new_coord_system, err = build_crs(epsg=self.processing_settings['epsg'])
+            else:
+                new_coord_system, err = build_crs(zone_num=fqpr_instance.multibeam.return_utm_zone_number(),
+                                                  datum=self.processing_settings['coord_system'])
+            if err:
+                self.logger.error(err)
+                raise ValueError(err)
+        else:
+            new_coord_system = None
+        return new_coord_system
+
+    def _regenerate_processing_actions(self, reprocess_fqpr: str = None, keep_waterline_changes: bool = True):
         """
         After the completion of a process (or on initializing FqprIntel, we look at all the fqpr instances in the project
         and figure out what processing, if any, would need to be done to each.
-        """
 
+        Parameters
+        ----------
+        reprocess_fqpr
+            optional, the relative path (from project) for an fqpr instance, triggers full reprocessing for that instance,
+            should only be used in emergency
+        keep_waterline_changes
+            add new entries in the vessel file (if applicable) and generate new processing actions if we want to keep
+            the waterline changes in new multibeam files
+        """
         if self.project:
+            vessel_file = self.project.return_vessel_file()
             existing_actions = self.action_container.return_actions_by_type('processing')
             all_current_project_paths = [self.project.absolute_path_from_relative(pth) for pth in self.project.fqpr_instances]
             for action in existing_actions:
                 if action.action_type == 'processing' and action.output_destination not in all_current_project_paths:
                     self.action_container.remove_action(action)
-
             for relative_path, fqpr_instance in self.project.fqpr_instances.items():
-                if 'use_epsg' in self.processing_settings:  # if someone setup the project with a default coord system
-                    if self.processing_settings['use_epsg']:
-                        new_coord_system, err = build_crs(epsg=self.processing_settings['epsg'])
-                    else:
-                        new_coord_system, err = build_crs(zone_num=fqpr_instance.multibeam.return_utm_zone_number(),
-                                                          datum=self.processing_settings['coord_system'])
-                    if err:
-                        self.logger.error(err)
-                        raise ValueError(err)
-                else:
-                    new_coord_system = None
+                identical_tpu, identical_offsets, identical_angles, new_waterline = self._update_offsets(fqpr_instance, vessel_file, keep_waterline_changes=keep_waterline_changes)
+                new_coord_system = self._build_new_crs(fqpr_instance)
                 if 'vert_ref' in self.processing_settings:  # if someone setup the project with a default vert ref
                     new_vert_ref = self.processing_settings['vert_ref']
                 else:
                     new_vert_ref = None
+                full_reprocess = reprocess_fqpr == relative_path
                 abs_path = self.project.absolute_path_from_relative(relative_path)
                 action = [a for a in existing_actions if a.output_destination == abs_path]
                 args, kwargs = fqpr_instance.return_next_action(new_coordinate_system=new_coord_system,
-                                                                new_vertical_reference=new_vert_ref)
+                                                                new_vertical_reference=new_vert_ref,
+                                                                new_offsets=not identical_offsets,
+                                                                new_angles=not identical_angles,
+                                                                new_waterline=new_waterline is not None,
+                                                                new_tpu=not identical_tpu,
+                                                                full_reprocess=full_reprocess)
                 if len(action) == 1 and not action[0].is_running:  # modify the existing processing action
                     if kwargs == {}:
                         self.action_container.remove_action(action[0])
@@ -574,13 +680,20 @@ class FqprIntel(LoggerClass):
         output.update(self.svp_intel.unmatched_files)
         self.action_container.update_unmatched(output)
 
-    def regenerate_actions(self):
+    def regenerate_actions(self, reprocess_fqpr: str = None):
         """
         Regenerate all the actions related to exising fqpr instances in the project.  Everytime an fqpr instance is
         removed or added to the project, we run this method.
+
+        Parameters
+        ----------
+        reprocess_fqpr
+            optional, the relative path (from project) for an fqpr instance, triggers full reprocessing for that instance,
+            should only be used in emergency
         """
 
-        self._regenerate_processing_actions()
+        print('Checking for new actions...')
+        self._regenerate_processing_actions(reprocess_fqpr=reprocess_fqpr, keep_waterline_changes=self.keep_waterline_changes)
         self._regenerate_svp_actions()
         self._regenerate_nav_actions()
         self._build_unmatched_list()

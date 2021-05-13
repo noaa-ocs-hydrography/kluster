@@ -226,7 +226,7 @@ def import_sound_velocity(fqpr_inst: Fqpr, sv_files: Union[str, list]):
 
 
 def process_multibeam(fqpr_inst: Fqpr, run_orientation: bool = True, orientation_initial_interpolation: bool = False,
-                      run_beam_vec: bool = True, run_svcorr: bool = True, run_georef: bool = True,
+                      run_beam_vec: bool = True, run_svcorr: bool = True, run_georef: bool = True, run_tpu: bool = True,
                       add_cast_files: Union[str, list] = None, use_epsg: bool = False,
                       use_coord: bool = True, epsg: int = None, coord_system: str = 'NAD83',
                       vert_ref: str = 'waterline', vdatum_directory: str = None):
@@ -252,6 +252,8 @@ def process_multibeam(fqpr_inst: Fqpr, run_orientation: bool = True, orientation
         perform the sv_correct step
     run_georef
         perform the georef_xyz step
+    run_tpu
+        perform the tpu step
     add_cast_files
         either a list of files to include or the path to a directory containing files.  These are in addition to
         the casts in the ping dataset.
@@ -289,11 +291,12 @@ def process_multibeam(fqpr_inst: Fqpr, run_orientation: bool = True, orientation
         fqpr_inst.sv_correct(add_cast_files=add_cast_files)
     if run_georef:
         fqpr_inst.georef_xyz(vdatum_directory=vdatum_directory)
+    if run_tpu:
         fqpr_inst.calculate_total_uncertainty()
 
     # dask processes appear to suffer from memory leaks regardless of how carefully we track and wait on futures, reset the client here to clear memory after processing
-    if fqpr_inst.client is not None:
-        fqpr_inst.client.restart()
+    # if fqpr_inst.client is not None:
+    #     fqpr_inst.client.restart()
 
     return fqpr_inst
 
@@ -307,11 +310,11 @@ def process_and_export_soundings(filname: str, outfold: str = None, coord_system
 
     Parameters
     ----------
+    filname
+        either a list of .all file paths, a single .all file path or a path to a directory with .all files
     outfold
         path to output folder where you want the csv files to go.  If None, will be the same folder that you've
         converted your raw data to.
-    filname
-        either a list of .all file paths, a single .all file path or a path to a directory with .all files
     coord_system
         a valid datum identifier that pyproj CRS will accept
     vert_ref
@@ -326,42 +329,6 @@ def process_and_export_soundings(filname: str, outfold: str = None, coord_system
     fqpr_inst = perform_all_processing(filname, outfold=outfold, coord_system=coord_system, vert_ref=vert_ref)
     fqpr_inst.export_pings_to_file()
     return fqpr_inst
-
-
-def return_georef_xyz(filname: str, coord_system: str = 'NAD83', vert_ref: str = 'waterline'):
-    """
-    Using fqpr_generation, convert and sv correct multibeam file (or directory of files) and return the georeferenced
-    xyz soundings.
-
-    Parameters
-    ----------
-    filname
-        multibeam file path or directory path of multibeam files
-    coord_system
-        a valid datum identifier that pyproj CRS will accept
-    vert_ref
-        the vertical reference point, one of ['ellipse', 'waterline', 'NOAA MLLW', 'NOAA MHW']
-
-    Returns
-    -------
-    Fqpr
-        Fqpr object containing processed xyz soundings
-    np.array
-        2d numpy array (time, beam) of the alongtrack offsets
-    np.array
-        2d numpy array (time, beam) of the acrosstrack offsets
-    np.array
-        2d numpy array (time, beam) of the depth offsets
-    np.array
-        numpy array of unique times of pings
-    """
-
-    fqpr_inst = perform_all_processing(filname, coord_system=coord_system, vert_ref=vert_ref)
-    u_tms = fqpr_inst.return_unique_times_across_sectors()
-    dats, ids, tms = fqpr_inst.reform_2d_vars_across_sectors_at_time(['x', 'y', 'z', 'tvu'], u_tms)
-    x, y, z, unc = dats
-
-    return fqpr_inst, x, y, z, unc, ids, tms
 
 
 def reload_data(converted_folder: str, require_raw_data: bool = True, skip_dask: bool = False, silent: bool = False,
@@ -411,15 +378,9 @@ def reload_data(converted_folder: str, require_raw_data: bool = True, skip_dask:
         fqpr_inst.multibeam.xyzrph = fqpr_inst.multibeam.raw_ping[0].xyzrph
         if 'vertical_reference' in fqpr_inst.multibeam.raw_ping[0].attrs:
             fqpr_inst.set_vertical_reference(fqpr_inst.multibeam.raw_ping[0].vertical_reference)
-        fqpr_inst.multibeam.tpu_parameters = fqpr_inst.multibeam.raw_ping[0].tpu_parameters
 
         fqpr_inst.generate_starter_orientation_vectors(None, None)
 
-        # convert over the old attribute name for horizontal crs to horizontal_crs, made this change in 0.5.0
-        if 'xyz_crs' in fqpr_inst.multibeam.raw_ping[0].attrs and 'horizontal_crs' not in fqpr_inst.multibeam.raw_ping[0].attrs:
-            for rp in fqpr_inst.multibeam.raw_ping:
-                rp.attrs['horizontal_crs'] = rp.attrs['xyz_crs']
-                rp.attrs.pop('xyz_crs')
         if 'horizontal_crs' in fqpr_inst.multibeam.raw_ping[0].attrs:
             fqpr_inst.construct_crs(epsg=fqpr_inst.multibeam.raw_ping[0].attrs['horizontal_crs'])
 
