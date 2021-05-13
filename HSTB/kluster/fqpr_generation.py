@@ -1,5 +1,5 @@
 import os
-from typing import Union, Callable
+from typing import Union
 from datetime import datetime
 from time import perf_counter
 import xarray as xr
@@ -8,7 +8,6 @@ import json
 from copy import deepcopy
 from dask.distributed import wait, progress
 from pyproj import CRS, Transformer
-from pyproj.exceptions import CRSError
 
 from HSTB.kluster.modules.orientation import distrib_run_build_orientation_vectors
 from HSTB.kluster.modules.beampointingvector import distrib_run_build_beam_pointing_vector

@@ -12,7 +12,7 @@ from HSTB.drivers import kmall, par3, sbet, svp
 from HSTB.kluster import monitor, fqpr_actions
 from HSTB.kluster.fqpr_project import FqprProject
 from HSTB.kluster.fqpr_helpers import build_crs
-from HSTB.kluster.fqpr_vessel import VesselFile, compare_dict_data, convert_from_fqpr_xyzrph
+from HSTB.kluster.fqpr_vessel import compare_dict_data, convert_from_fqpr_xyzrph
 from HSTB.kluster import kluster_variables
 
 

@@ -8,10 +8,9 @@ kluster
 
 Documentation: `readthedocs`_
 
-A distributed multibeam processing system built on the `Pangeo
-ecosystem`_. Supports Kongsberg .all/.kmall multibeam formats, POS MV
-post-processed SBET/RMS navigation files and Caris svp sound velocity
-profile files.
+A distributed multibeam processing system built on the Pangeo ecosystem (https://pangeo.io/). Supports Kongsberg .all/.kmall multibeam formats, POS MV post-processed SBET/RMS navigation files and Caris svp sound velocity profile files.
+
+Kluster provides a fully open source hydrographic processing package to produce accessible bathymetry products in support of ocean mapping.
 
 Kluster is:
 
@@ -28,18 +27,18 @@ Kluster is:
    kluster is built using modules that can be replaced, enhanced or
    exchanged as needed.
 
-Kluster **will not** read from multibeam sonars that use the Depth
-datagram instead of the Range/Angle for .all conversion. Most modern
-systems will work. Kluster has been tested on:
+Kluster has been tested on:
 
--  EM2040/2040c/2040p
--  EM2040 dual tx/dual rx
--  EM710
--  EM122
+- EM2040/2040c/2040p
+- EM2040 dual tx/dual rx
+- EM710
+- EM3002
+- EM302
+- EM122
 
 Kluster is built from the ground up in Python, and was developed using
 Python 3.8. Kluster includes modules developed by the hydrographic
-community such as (see `drivers`_):
+community such as (see `drivers`):
 
 -  kmall - Kongsberg kmall file reader
 -  par3 - Kongsberg .all file reader
@@ -92,13 +91,29 @@ sophisticated and modern software package.
 
 Installation
 ------------
+Kluster is not on PyPi, but can be installed using pip alongside the HSTB-drivers and HSTB-shared modules that are required.
 
-Kluster is not on PyPi, but can be installed using pip alongside the
-HSTB-drivers module that is required.
+(For Windows Users) Download and install Visual Studio Build Tools 2019 (If you have not already): MSVC Build Tools (https://visualstudio.microsoft.com/visual-cpp-build-tools/)
+
+Download and install conda (If you have not already): conda installation (https://docs.conda.io/projects/conda/en/latest/user-guide/install/)
+
+Download and install git (If you have not already): git installation (https://git-scm.com/book/en/v2/Getting-Started-Installing-Git)
+
+Some dependencies need to be installed from the conda-forge channel.  I have an example below of how to build this environment using conda.
+
+Perform these in order:
+
+``conda create -n kluster_test python=3.8.2``
+
+``conda activate kluster_test``
+
+``conda install -c conda-forge qgis=3.18.0 vispy=0.6.4 pyside2=5.13.2 gdal=3.2.1``
+
+``pip install git+https://github.com/noaa-ocs-hydrography/kluster.git#egg=hstb.kluster``
 
 ``pip install git+https://github.com/noaa-ocs-hydrography/drivers.git#egg=hstb.drivers``
 
-``pip install git+https://github.com/noaa-ocs-hydrography/kluster.git#egg=hstb.kluster``
+``pip install git+https://github.com/noaa-ocs-hydrography/shared.git#egg=hstb.shared``
 
 Quickstart
 ----------
@@ -108,39 +123,31 @@ Here we will show how to process through a GUI or through a console.
 1. .. rubric:: Kluster through the GUI
       :name: kluster-through-the-gui
 
-Start the main GUI by running kluster_main, which will be in the gui
-directory within the kluster site-package:
+Start the main GUI by running the kluster gui module:
 
-``C:\\>python ..\Lib\site-packages\HSTB\kluster\gui\kluster_main.py``
+``C:\>python -m HSTB.kluster``
 
 Once the Kluster window appears, simply:
 
--  Drag a multibeam file (Kongsberg .all/.kmall) into the Project Tree
-   window. You can also drag in multiple files, but maybe stick with
-   just one for this test.
--  Create a folder and point to it as the 'output directory for the
-   converted data' and hit OK. Monitor the results in the Output tab at
-   the bottom. View the data in the 2d view. Select a line in the
-   Explorer tab at the bottom and view the Attribute tab for some
-   details on the dataset.
--  Once conversion is complete, run 'Process' - 'All Processing' and
-   leave the default options. This will run through all the steps and
-   generate georeferenced soundings.
--  Use 'File' - 'Export Soundings' to generate csv files for the
-   processed soundings (x, y, z, uncertainty)
--  Use 'Process' - 'New Surface' to generate a single resolution surface
-   using the processed sounding set. Visualize the surface by checking
-   one of the layers in the 'Project Tree' under 'Surfaces'. Use the
-   magnifying glass in 2d view if you need to zoom in to see the
-   surface. Surfaces are saved in the numpy compressed file format, and
-   can be easily read using numpy.
-   
+- Go to 'Setup - Set Project Settings' and make sure the default settings look good for your system.
+- Create a new project ('File' - 'New Project') and point to a new empty folder, if you want to put all your processed data somewhere.  Otherwise, processed data will be created next to the raw multibeam files. 
+- Drag a multibeam file (Kongsberg .all/.kmall) into the 'Project Tree' window.  You can also drag in multiple files, but maybe stick with just one for this test.
+- You will see a new action in the 'Actions' tab.  Hit process to convert the multibeam data.
+- Drag in SBET/SMRMSG/POSPac Export Log files or Caris SVP files, and note the new actions that pop up.
+- Use the 'Actions' tab - 'Unmatched Files' to get information on why some files might not be matched with converted data (mouse over to view the ToolTip).
+- Select a Converted data instance in 'Project Tree' and look at the 'Attributes tab' to get all the processed data attribution. 
+- Select the '3d view' tab and click a line in the 'Project Tree' to view the soundings in 3d.
+- Select the 'Attitude' tab and click a line in the 'Project Tree' to view the realtime attitude of the line.
+- Select the 'Console' tab at the bottom and right click the converted data path under 'Converted' in the 'Project Tree' and click 'Load in console' to get access to the xarray Datasets in the console.  Try 'first_system.soundspeed.plot()' to plot the surface sound speed used for the sonar!
+- Select a converted container in Project Tree and use 'File' - 'Export Soundings' to generate csv files for the processed soundings (x, y, z, uncertainty)
+- Select a converted container in Project Tree and use 'Process' - 'New Surface' to generate a single resolution surface using the processed sounding set.  Visualize the surface by checking one of the layers in the 'Project Tree' under 'Surfaces'.  Use the magnifying glass in 2d view if you need to zoom in to see the surface.  Surfaces are saved in the numpy compressed file format, and can be easily read using numpy.
+- Select a converted container in Project Tree and use 'Visualize' - 'Basic Plots' to plot all the converted and Kluster made datasets.
+
 You can also reload the generated multibeam data and surface by:
 
--  dragging in the output directory (see the second bullet above) to the
-   Project Tree to load the multibeam records
--  dragging in the surface .npz file to the Project Tree to load the
-   surface
+- Going to 'File' - 'Open Project' and opening the kluster json file that is generated when you process data.
+- dragging in the output directory (see the second bullet above) to the Project Tree to load the multibeam records
+- dragging in the surface .npz file to the Project Tree to load the surface
 
 2. .. rubric:: Kluster through the console
       :name: kluster-through-the-console
@@ -192,7 +199,6 @@ to examine later using:
 
    fqpr_convenience
    fqpr_generation   
-   fqpr_surface
    fqpr_project
    fqpr_intelligence
    monitor
