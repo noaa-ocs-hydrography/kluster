@@ -6,7 +6,7 @@ fqpr\_generation module
    :skip: Union
    :skip: datetime
    :skip: perf_counter
-   :skip: deep_copy
+   :skip: deepcopy
    :skip: wait
    :skip: progress
    :skip: CRS
