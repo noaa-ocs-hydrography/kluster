@@ -1,0 +1,36 @@
+version: 2
+
+jobs:
+  build-and-test:
+    docker: 
+      # Docker container with Miniconda3 installed
+      - image: continuumio/miniconda3
+    
+    steps:
+      # This cmd makes Git repo files is availible in $HOME/project/ (default working directory)
+      - checkout
+
+      - run: conda create --quiet --name test-environment python=3.8.8
+
+      # This cmd work but 'conda activate' does not
+      - run: source activate test-environment
+      
+      - run: |    
+          conda install -c conda-forge qgis=3.18.0 vispy=0.6.6 pyside2=5.13.2 gdal=3.2.1
+          conda install pytest six pytest-cov pytest-mock
+      
+      - run: |
+          conda install git pip
+          pip install git+https://github.com/noaa-ocs-hydrography/kluster.git#egg=hstb.kluster
+          pip install git+https://github.com/noaa-ocs-hydrography/shared.git#egg=hstb.shared
+      
+      - run: pip install -r requirements.txt
+          
+      # Run Tests
+      - run: pytest tests
+
+workflows:
+  version: 2 # Version needs to specified
+  main: # Work flow name
+    jobs:
+      - build-and-test

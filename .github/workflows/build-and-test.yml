@@ -1,0 +1,35 @@
+name: Build and Test
+on: [push]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    # absolutely necessary to make conda activate work
+    # Explained here: https://github.com/marketplace/actions/setup-miniconda#IMPORTANT
+    defaults:
+      run:
+        shell: bash -l {0}
+
+    steps:
+      # adds kluster repo files to $GITHUB_WORKSPACE in the VM's filesystem
+      - uses: actions/checkout@v2
+
+      # necessary to make conda activate work
+      - uses: conda-incubator/setup-miniconda@v2
+        with:
+          activate-environment: test-environment
+          python-version: 3.8.8
+
+      - run: |
+          conda install -c conda-forge qgis=3.18.0 vispy=0.6.6 pyside2=5.13.2 gdal=3.2.1
+          conda install pytest six pytest-cov pytest-mock
+
+      - run: |
+          conda install git pip
+          pip install git+https://github.com/noaa-ocs-hydrography/kluster.git#egg=hstb.kluster
+          pip install git+https://github.com/noaa-ocs-hydrography/shared.git#egg=hstb.shared
+      
+      - run: pip install -r $GITHUB_WORKSPACE/requirements.txt
+          
+      # Run Tests
+      - run: python -m pytest tests
