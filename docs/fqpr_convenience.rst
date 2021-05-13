@@ -3,6 +3,7 @@ fqpr\_convenience module
 
 .. automodapi:: HSTB.kluster.fqpr_convenience
    :no-inheritance-diagram:
+   :skip: perf_counter
    :skip: Union
    :skip: Client
    :skip: GridSpec
@@ -12,3 +13,5 @@ fqpr\_convenience module
    :skip: Fqpr
    :skip: return_directory_from_data
    :skip: BaseSurface
+   :skip: QuadManager
+   :skip: kluster_variables
