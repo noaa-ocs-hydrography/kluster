@@ -492,8 +492,7 @@ class FqprIntel(LoggerClass):
 
     def _regenerate_svp_actions(self):
         """
-        add actions based on the current processed nav file -> fqpr instance matched dict.  Matches have to exist to
-        have a nav action, as the nav action is importing processed navigation into an fqpr instance.
+        Brute force currently, just import sv profile to all fqpr instances in the project.
         """
         # self._clear_actions_by_type('navigation')
         self._buffered_svp_groups = deepcopy(self.svp_intel.svp_groups)

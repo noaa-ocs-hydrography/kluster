@@ -331,8 +331,13 @@ class Fqpr(ZarrBackend):
 
             self.write_attribute_to_ping_records(cast_dict)
             self.write_attribute_to_ping_records(attr_dict)
-            if self.multibeam.raw_ping[0].current_processing_status >= 3:  # have to start over at sound velocity now
-                self.write_attribute_to_ping_records({'current_processing_status': 2})
+
+            new_cast_names = list(cast_dict.keys())
+            applicable_casts = self.return_applicable_casts()
+            new_applicable_casts = [nc for nc in new_cast_names if nc in applicable_casts]
+            if new_applicable_casts:
+                if self.multibeam.raw_ping[0].current_processing_status >= 3:  # have to start over at sound velocity now
+                    self.write_attribute_to_ping_records({'current_processing_status': 2})
 
             self.multibeam.reload_pingrecords(skip_dask=self.client is None)
             self.logger.info('Successfully imported {} new casts'.format(len(cast_dict)))
@@ -409,6 +414,39 @@ class Fqpr(ZarrBackend):
         if not silent:
             self.logger.info('nearest-in-time: selecting nearest cast for each {} pings...'.format(kluster_variables.ping_chunk_size))
         return data
+
+    def return_applicable_casts(self, method='nearestintime'):
+        """
+        When we check for sound velocity correct actions, we look to see if any new sv profiles imported into the
+        fqpr instance are applicable, by running the chosen method (default is cast nearest in time to the ping chunk).
+        If new profiles are applicable, we need to re-sv correct.  Use this method to find the applicable sound velocity
+        casts.
+
+        Parameters
+        ----------
+        method
+            string identifier for the cast selection method, default is nearest in time to the ping chunk
+
+        Returns
+        -------
+        list
+            list of profile names for all casts that would be used if we sound velocity correct using the provided
+            method
+        """
+
+        final_idxs = []
+        systems = self.multibeam.return_system_time_indexed_array()
+        profnames, casts, cast_times, castlocations = self.multibeam.return_all_profiles()
+        for s_cnt, system in enumerate(systems):
+            ra = self.multibeam.raw_ping[s_cnt]
+            pings_per_chunk, max_chunks_at_a_time = self.get_cluster_params()
+            for applicable_index, timestmp, prefixes in system:
+                idx_by_chunk = self.return_chunk_indices(applicable_index, pings_per_chunk)
+                if method == 'nearestintime':
+                    cast_chunks = self.return_cast_idx_nearestintime(cast_times, idx_by_chunk, silent=True)
+                    final_idxs += [c[1] for c in cast_chunks]
+        final_idxs = np.unique(final_idxs).tolist()
+        return [profnames[idx] for idx in final_idxs]
 
     def determine_induced_heave(self, ra: xr.Dataset, hve: xr.DataArray, raw_att: xr.Dataset,
                                 tx_tstmp_idx: xr.DataArray, prefixes: str, timestmp: str):

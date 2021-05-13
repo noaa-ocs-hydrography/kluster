@@ -273,7 +273,8 @@ def test_intel_vessel_file():
     assert fintel.action_container.actions[0].text == 'Process em2040_40111_05_23_2017 only computing TPU'
 
     converted_fqpr.multibeam.raw_ping[0].attrs['xyzrph']['waterline']['1495563079'] = 999
-    fintel.regenerate_actions(keep_waterline_changes=False)
+    fintel.keep_waterline_changes = False
+    fintel.regenerate_actions()
     # after regenerating actions, we have no new action as we have disabled retaining waterline changes
     assert fintel.has_actions
     assert fintel.action_container.actions[0].text == 'Process em2040_40111_05_23_2017 only computing TPU'
@@ -281,7 +282,8 @@ def test_intel_vessel_file():
     assert vf.data['40111']['waterline']['1495563079'] == -0.64
 
     converted_fqpr.multibeam.raw_ping[0].attrs['xyzrph']['waterline']['1495563079'] = 999
-    fintel.regenerate_actions(keep_waterline_changes=True)
+    fintel.keep_waterline_changes = True
+    fintel.regenerate_actions()
     # after regenerating actions, we have a new sound velocity process as we adjusted the existing waterline value, and
     #   waterline changes in existing data are honored.
     assert fintel.has_actions
@@ -291,8 +293,9 @@ def test_intel_vessel_file():
 
     # reverting the waterline action requires regenerating actions twice for now...
     converted_fqpr.multibeam.raw_ping[0].attrs['xyzrph']['waterline']['1495563079'] = -0.64
-    fintel.regenerate_actions(keep_waterline_changes=True)
-    fintel.regenerate_actions(keep_waterline_changes=True)
+    fintel.keep_waterline_changes = True
+    fintel.regenerate_actions()
+    fintel.regenerate_actions()
     # after regenerating actions, we have a new sound velocity process as we adjusted the existing waterline value, and
     #   waterline changes in existing data are honored.
     assert fintel.has_actions

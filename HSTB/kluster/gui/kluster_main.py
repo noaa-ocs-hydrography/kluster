@@ -545,7 +545,12 @@ class KlusterMain(QtWidgets.QMainWindow):
         Right click an fqpr instance and trigger full reprocessing, should only be necessary in case of emergency.
         """
         fqprs = self.project_tree.return_selected_fqprs()
-        self.intel.regenerate_actions(fqprs[0])
+        if fqprs:
+            # start over at 1, which is conversion in our state machine
+            fq = self.project.fqpr_instances[fqprs[0]]
+            fq.write_attribute_to_ping_records({'current_processing_status': 1})
+            fq.multibeam.reload_pingrecords(skip_dask=fq.client is None)
+            self.intel.regenerate_actions()
 
     def kluster_basic_plots(self):
         """
