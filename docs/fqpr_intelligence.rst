@@ -10,12 +10,6 @@ fqpr\_intelligence module
    :skip: Union
    :skip: deepcopy
    :skip: OrderedDict
-   :skip: kmall
-   :skip: par3
-   :skip: sbet
-   :skip: svp
-   :skip: monitor
-   :skip: fqpr_actions
    :skip: FqprProject
    :skip: build_crs
    :skip: compare_dict_data

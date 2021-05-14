@@ -14,9 +14,9 @@ supported_file_formats = ['.svp']
 
 class SoundSpeedProfile:
     """
-    *** DEPRECATED - See run_ray_trace_v2.  This was my old way of raytracing beams by building these static lookuptables
+    DEPRECATED - See run_ray_trace_v2.  This was my old way of raytracing beams by building these static lookuptables
     for every beam from 0 to 90deg at 0.02deg increments.  I thought this would be a faster way of doing it.  But the
-    more variation in surface sv you have, the more tables you need, so it explodes the user memory. ***
+    more variation in surface sv you have, the more tables you need, so it explodes the user memory.
 
     Take in a processed sound velocity profile, and generate ray traced offsets using surface sound speed, beam angles
     beam azimuths and two way travel time.

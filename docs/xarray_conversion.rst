@@ -10,9 +10,6 @@ xarray\_conversion module
    :skip: datetime
    :skip: Union
    :skip: return_zone_from_min_max_long
-   :skip: par3
-   :skip: kmall
-   :skip: PCSio
    :skip: dask_find_or_start_client
    :skip: resize_zarr
    :skip: xarr_to_netcdf
@@ -21,3 +18,4 @@ xarray\_conversion module
    :skip: ZarrBackend
    :skip: my_xarr_add_attribute
    :skip: return_logger
+   :skip: glob

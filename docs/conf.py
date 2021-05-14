@@ -46,7 +46,7 @@ extensions = ['sphinx_automodapi.automodapi',
 numpydoc_show_class_members = False
 
 # we disabled class inheritance diagrams, so this won't even be used
-graphviz_dot = os.path.normpath(os.path.join(root_p, r"..\..\..\..\..\..\envs\Pydro38_Test\Library\bin\graphviz\dot.exe"))
+graphviz_dot = os.path.normpath(os.path.join(root_p, r"..\..\..\..\..\..\envs\Pydro38\Library\bin\dot.exe"))
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
