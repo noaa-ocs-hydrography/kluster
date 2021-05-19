@@ -433,64 +433,13 @@ for s_cnt, system in enumerate(systems):
 sv_corr, alt, lon, lat, hdng, heave, wline, vert_ref, input_crs, horizontal_crs, z_offset, vdatum_directory = self.client.gather(data_for_workers[0])
 
 #################################################################
-
-__file__ = r"C:\Pydro21_Dev\NOAA\site-packages\Python38\git_repos\hstb_kluster\tests\test_fqpr_intelligence.py"
-import time
-import shutil
-
-from HSTB.kluster.fqpr_intelligence import *
-from HSTB.kluster.fqpr_project import *
-testfile = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'test_data', '0009_20170523_181119_FA2806.all')
-testsv = os.path.join(os.path.dirname(testfile), '2020_036_182635.svp')
-expected_data_folder = 'em2040_40111_05_23_2017'
-expected_data_folder_path = os.path.join(os.path.dirname(testfile), expected_data_folder)
-proj_path = os.path.join(os.path.dirname(testfile), 'kluster_project.json')
-vessel_file = os.path.join(os.path.dirname(testfile), 'vessel_file.kfc')
-
-if os.path.exists(proj_path):
-    os.remove(proj_path)
-if os.path.exists(vessel_file):
-    os.remove(vessel_file)
-proj = create_new_project(os.path.dirname(testfile))
-proj.add_vessel_file(vessel_file)
-fintel = FqprIntel(proj)
-
-updated_type, new_data, new_project = fintel.add_file(testfile)
-# convert multibeam file
-fintel.execute_action()
-vf = fintel.project.return_vessel_file()
-converted_fqpr = list(fintel.project.fqpr_instances.values())[0]
-# after conversion, the offsets from this converted data will be stored in the vessel file
-expected_offsets = {'beam_opening_angle': {'1495563079': 1.3}, 'heading_patch_error': {'1495563079': 0.5},
-                    'heading_sensor_error': {'1495563079': 0.02}, 'heave_error': {'1495563079': 0.05},
-                    'horizontal_positioning_error': {'1495563079': 1.5}, 'imu_h': {'1495563079': 0.4},
-                    'latency': {'1495563079': 0.0}, 'imu_p': {'1495563079': -0.18},
-                    'imu_r': {'1495563079': -0.16}, 'imu_x': {'1495563079': 0.0},
-                    'imu_y': {'1495563079': 0.0}, 'imu_z': {'1495563079': 0.0},
-                    'latency_patch_error': {'1495563079': 0.0}, 'pitch_patch_error': {'1495563079': 0.1},
-                    'pitch_sensor_error': {'1495563079': 0.0005}, 'roll_patch_error': {'1495563079': 0.1},
-                    'roll_sensor_error': {'1495563079': 0.0005}, 'rx_h': {'1495563079': 0.0},
-                    'rx_p': {'1495563079': 0.0}, 'rx_r': {'1495563079': 0.0},
-                    'rx_x': {'1495563079': -0.1}, 'rx_x_0': {'1495563079': 0.011}, 'rx_x_1': {'1495563079': 0.011},
-                    'rx_x_2': {'1495563079': 0.011}, 'rx_y': {'1495563079': -0.304}, 'rx_y_0': {'1495563079': 0.0},
-                    'rx_y_1': {'1495563079': 0.0}, 'rx_y_2': {'1495563079': 0.0}, 'rx_z': {'1495563079': -0.016},
-                    'rx_z_0': {'1495563079': -0.006}, 'rx_z_1': {'1495563079': -0.006},
-                    'rx_z_2': {'1495563079': -0.006}, 'separation_model_error': {'1495563079': 0.0},
-                    'sonar_type': {'1495563079': 'em2040'}, 'source': {'1495563079': 'em2040_40111_05_23_2017'},
-                    'surface_sv_error': {'1495563079': 0.5}, 'timing_latency_error': {'1495563079': 0.001},
-                    'tx_h': {'1495563079': 0.0}, 'tx_p': {'1495563079': 0.0}, 'tx_r': {'1495563079': 0.0},
-                    'tx_to_antenna_x': {'1495563079': 0.0}, 'tx_to_antenna_y': {'1495563079': 0.0},
-                    'tx_to_antenna_z': {'1495563079': 0.0}, 'tx_x': {'1495563079': 0.0},
-                    'tx_x_0': {'1495563079': 0.0}, 'tx_x_1': {'1495563079': 0.0}, 'tx_x_2': {'1495563079': 0.0},
-                    'tx_y': {'1495563079': 0.0}, 'tx_y_0': {'1495563079': -0.0554},
-                    'tx_y_1': {'1495563079': 0.0131}, 'tx_y_2': {'1495563079': 0.0554}, 'tx_z': {'1495563079': 0.0},
-                    'tx_z_0': {'1495563079': -0.012}, 'tx_z_1': {'1495563079': -0.006},
-                    'tx_z_2': {'1495563079': -0.012}, 'vertical_positioning_error': {'1495563079': 1.0},
-                    'vessel_speed_error': {'1495563079': 0.1}, 'waterline': {'1495563079': -0.64},
-                    'waterline_error': {'1495563079': 0.02}, 'x_offset_error': {'1495563079': 0.2},
-                    'y_offset_error': {'1495563079': 0.2}, 'z_offset_error': {'1495563079': 0.2}}
-
-assert vf.data[converted_fqpr.multibeam.raw_ping[0].system_identifier] == expected_offsets
-fintel.execute_action()
-
-assert not fintel.has_actions
+from hstb_drivers.HSTB.drivers.kmall import *
+km = kmall(r"C:\collab\dasktest\data_dir\from_Lund\0011_20210304_094901.kmall")
+km.index_file()
+for offset, size, mtype in zip(km.Index['ByteOffset'],
+                               km.Index['MessageSize'],
+                               km.Index['MessageType']):
+    km.FID.seek(offset, 0)
+    if mtype == "b'#MRZ'":
+        break
+self = km

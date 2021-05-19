@@ -686,10 +686,9 @@ class ThreeDView(QtWidgets.QWidget):
             max_val = self.max_beam
             clrs, cmap = normalized_arr_to_rgb_v2(self.beam / self.max_beam, band_count=self.max_beam)
         elif color_by == 'rejected':
-            min_val = self.min_rejected
-            max_val = self.max_rejected
-            clrs, cmap = normalized_arr_to_rgb_v2((self.rejected - self.min_rejected) / (self.max_rejected - self.min_rejected),
-                                            band_count=3, colormap='bwr')
+            min_val = 0
+            max_val = 2
+            clrs, cmap = normalized_arr_to_rgb_v2(self.rejected / 2, band_count=3, colormap='bwr')
         elif color_by in ['system', 'linename']:
             min_val = 0
             if color_by == 'system':
