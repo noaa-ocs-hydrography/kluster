@@ -1289,7 +1289,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         QDockWidget, the dock widget created that contains the provided widget
 
         """
-        
+
         dock = QtWidgets.QDockWidget(title, self)
         dock.setFeatures(QtWidgets.QDockWidget.DockWidgetMovable | QtWidgets.QDockWidget.DockWidgetFloatable)
         dock.setObjectName(objname)

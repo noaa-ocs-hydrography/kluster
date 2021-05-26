@@ -759,6 +759,7 @@ class FqprProject:
         """
         data = {}
         for fq_name, fq_inst in self.fqpr_instances.items():
+            fq_inst.ping_filter = []  # reset ping filter for all instances when you try and make a new selection
             if fq_inst.intersects(polygon[:, 1].min(), polygon[:, 1].max(), polygon[:, 0].min(), polygon[:, 0].max(), buffer=True):
                 x, y, z, tvu, rejected, pointtime, beam = fq_inst.return_soundings_in_polygon(polygon, azimuth, geographic=True, full_swath=False)
                 if x is not None:
