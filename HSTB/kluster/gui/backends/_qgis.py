@@ -296,7 +296,7 @@ class RectangleMapTool(qgis_gui.QgsMapToolEmitPoint):
     Draw a persistent black rectangle on the screen and emit the coordinates for the rect in map coordinate system.
     """
     # minlat, maxlat, minlon, maxlon in Map coordinates (WGS84 for Kluster)
-    select = Signal(float, float, float, float)
+    select = Signal(object, float)
 
     def __init__(self, canvas):
         self.canvas = canvas
@@ -312,8 +312,8 @@ class RectangleMapTool(qgis_gui.QgsMapToolEmitPoint):
         self.end_point = None
         self.final_start_point = None
         self.final_end_point = None
-        self.start_azimuth = None
-        self.azimuth = None
+        self.start_azimuth = 0
+        self.azimuth = 0
 
         self.first_click = True
         self.second_click = False
@@ -330,8 +330,8 @@ class RectangleMapTool(qgis_gui.QgsMapToolEmitPoint):
         self.end_point = None
         self.final_start_point = None
         self.final_end_point = None
-        self.azimuth = None
-        self.start_azimuth = None
+        self.azimuth = 0
+        self.start_azimuth = 0
         self.first_click = False
         self.second_click = False
         self.isEmittingPoint = False
@@ -341,14 +341,12 @@ class RectangleMapTool(qgis_gui.QgsMapToolEmitPoint):
     def keyPressEvent(self, e):
         ctrl_pressed = e.key() == 16777249
         if ctrl_pressed:
-            # self.enable_rotation = True
-            pass
+            self.enable_rotation = True
 
     def keyReleaseEvent(self, e):
         ctrl_released = e.key() == 16777249
         if ctrl_released:
-            # self.enable_rotation = False
-            pass
+            self.enable_rotation = False
 
     def return_azimuth(self, start_x, start_y, end_x, end_y):
         delta_x = end_x - start_x
@@ -384,9 +382,9 @@ class RectangleMapTool(qgis_gui.QgsMapToolEmitPoint):
                 self.rubberBand.setColor(QtCore.Qt.green)
                 self.rubberBand.setFillColor(QtCore.Qt.transparent)
                 self.rubberBand.update()
-                r = self.rectangle()
-                if r is not None:
-                    self.select.emit(r.yMinimum(), r.yMaximum(), r.xMinimum(), r.xMaximum())
+                poly, az = self.rectangle()
+                if poly is not None:
+                    self.select.emit(poly, az)
         if right_click:  # clear the rectangle
             self.reset()
 
@@ -463,16 +461,20 @@ class RectangleMapTool(qgis_gui.QgsMapToolEmitPoint):
 
     def rectangle(self):
         """
-        Return the QgsRectangle object for the drawn start/end points
+        Return the points of the rectangle drawn.  Requires all four points to get the rotated polygon that we use
+        later to find points inside the polygon.  Get the azimuth as well if you need to do some calcs later.
         """
 
-        start_point = self.rubberBand.getPoint(0, 0)
-        end_point = self.rubberBand.getPoint(0, 2)
-        if start_point is None or end_point is None:
-            return None
-        elif start_point.x() == end_point.x() or start_point.y() == end_point.y():
-            return None
-        return qgis_core.QgsRectangle(start_point, end_point)
+        point1 = self.rubberBand.getPoint(0, 0)
+        point2 = self.rubberBand.getPoint(0, 1)
+        point3 = self.rubberBand.getPoint(0, 2)
+        point4 = self.rubberBand.getPoint(0, 3)
+
+        if point1 is None or point2 is None or point3 is None or point4 is None:
+            return None, 0
+        polygon = np.vstack([point1, point2, point3, point4])
+        az = self.azimuth
+        return polygon, az
 
     def deactivate(self):
         """
@@ -781,8 +783,8 @@ class MapView(QtWidgets.QMainWindow):
     """
 
     box_select = Signal(float, float, float, float)
-    box_3dpoints = Signal(float, float, float, float)
-    box_swath = Signal(float, float, float, float)
+    box_3dpoints = Signal(object, float)
+    box_swath = Signal(object, float)
 
     def __init__(self, parent=None, settings=None, epsg: int = 4326):
         super().__init__()
@@ -1026,43 +1028,35 @@ class MapView(QtWidgets.QMainWindow):
 
         self.box_select.emit(min_lat, max_lat, min_lon, max_lon)
 
-    def _points_selected(self, min_lat: float, max_lat: float, min_lon: float, max_lon: float):
+    def _points_selected(self, polygon: np.ndarray, azimuth: float):
         """
         emit box_3dpoints signal when the Rectbox select tool is used, displays the points within the boundary in
         3d viewer.
 
         Parameters
         ----------
-        min_lat
-            minimum latitude in map coordinates (generally wgs84 latitude)
-        max_lat
-            maximum latitude in map coordinates (generally wgs84 latitude)
-        min_lon
-            minimum longitude in map coordinates (generally wgs84 longitude)
-        max_lon
-            maximum longitude in map coordinates (generally wgs84 longitude)
+        polygon
+            (N, 2) array of points that make up the selection polygon,  (longitude, latitude) in degrees
+        azimuth
+            azimuth of the selection polygon in radians
         """
 
-        self.box_3dpoints.emit(min_lat, max_lat, min_lon, max_lon)
+        self.box_3dpoints.emit(polygon, azimuth)
 
-    def _swath_selected(self, min_lat: float, max_lat: float, min_lon: float, max_lon: float):
+    def _swath_selected(self, polygon: np.ndarray, azimuth: float):
         """
         emit box_swath signal when the Rectbox select tool is used, displays the swaths within the boundary in
         3d viewer.
 
         Parameters
         ----------
-        min_lat
-            minimum latitude in map coordinates (generally wgs84 latitude)
-        max_lat
-            maximum latitude in map coordinates (generally wgs84 latitude)
-        min_lon
-            minimum longitude in map coordinates (generally wgs84 longitude)
-        max_lon
-            maximum longitude in map coordinates (generally wgs84 longitude)
+        polygon
+            (N, 2) array of points that make up the selection polygon,  (longitude, latitude) in degrees
+        azimuth
+            azimuth of the selection polygon in radians
         """
 
-        self.box_swath.emit(min_lat, max_lat, min_lon, max_lon)
+        self.box_swath.emit(polygon, azimuth)
 
     def _init_none(self):
         """
