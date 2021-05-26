@@ -835,9 +835,10 @@ class MapView(QtWidgets.QMainWindow):
         self.actionQuery.setToolTip('Left click to get map coordinates and data values (surfaces) at the mouse position.')
         self.actionDistance = QtWidgets.QAction("Distance", self)
         self.actionDistance.setToolTip('Left click to set the origin, left click again to measure distance, see Output tab for results.')
-        rectangle_instructions = 'Right click - cancel selection at any point in this process\n'
+        rectangle_instructions = 'Right click - cancel selection at any point in this process\n\n'
         rectangle_instructions += 'First left click - set origin of rectangle, drag to change the size of the area\n'
         rectangle_instructions += 'Second left click - set end point of the rectangle, freezes selection area\n'
+        rectangle_instructions += ' - After the second click, hold down CTRL and move the mouse to rotate the selection\n'
         rectangle_instructions += 'Third left click - load the data in Points View (if georeferenced soundings exist)'
         self.actionPoints = QtWidgets.QAction("3d Points")
         self.actionPoints.setToolTip('Select georeferenced points within an area to view in 3d using Points View tab.\n\n' + rectangle_instructions)

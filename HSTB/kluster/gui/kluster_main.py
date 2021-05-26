@@ -40,6 +40,17 @@ settings_translator = {'Kluster/proj_settings_epsgradio': {'newname': 'use_epsg'
                        }
 
 
+class KlusterProxyStyle(QtWidgets.QProxyStyle):
+    """
+    Override the default style to make a few improvements.  Currently we only override the style hint to make tooltips
+    show up immediately, so that people know they exist
+    """
+    def styleHint(self, hint, option=None, widget=None, returnData=None):
+        if hint == QtWidgets.QStyle.SH_ToolTip_WakeUpDelay:  # make tooltips show immediately
+            return 0
+        return super().styleHint(hint, option, widget, returnData)
+
+
 class KlusterMain(QtWidgets.QMainWindow):
     """
     Main window for kluster application
@@ -1556,6 +1567,7 @@ def main():
             app = QtWidgets.QApplication()
         except TypeError:  # pyqt5
             app = QtWidgets.QApplication([])
+    app.setStyle(KlusterProxyStyle())
     window = KlusterMain(app)
     window.show()
     exitcode = app.exec_()
