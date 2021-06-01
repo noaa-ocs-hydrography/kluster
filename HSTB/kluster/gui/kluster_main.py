@@ -45,10 +45,10 @@ class KlusterProxyStyle(QtWidgets.QProxyStyle):
     Override the default style to make a few improvements.  Currently we only override the style hint to make tooltips
     show up immediately, so that people know they exist
     """
-    def styleHint(self, hint, option=None, widget=None, returnData=None):
-        if hint == QtWidgets.QStyle.SH_ToolTip_WakeUpDelay:  # make tooltips show immediately
+    def styleHint(self, *args, **kwargs):
+        if args[0] == QtWidgets.QStyle.SH_ToolTip_WakeUpDelay:  # make tooltips show immediately
             return 0
-        return super().styleHint(hint, option, widget, returnData)
+        return super().styleHint(*args, **kwargs)
 
 
 class KlusterMain(QtWidgets.QMainWindow):
