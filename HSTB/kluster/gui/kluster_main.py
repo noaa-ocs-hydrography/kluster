@@ -40,6 +40,17 @@ settings_translator = {'Kluster/proj_settings_epsgradio': {'newname': 'use_epsg'
                        }
 
 
+class KlusterProxyStyle(QtWidgets.QProxyStyle):
+    """
+    Override the default style to make a few improvements.  Currently we only override the style hint to make tooltips
+    show up immediately, so that people know they exist
+    """
+    def styleHint(self, *args, **kwargs):
+        if args[0] == QtWidgets.QStyle.SH_ToolTip_WakeUpDelay:  # make tooltips show immediately
+            return 0
+        return super().styleHint(*args, **kwargs)
+
+
 class KlusterMain(QtWidgets.QMainWindow):
     """
     Main window for kluster application
@@ -1150,6 +1161,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         checked: bool, True if checked
 
         """
+
         if checked:
             self.redraw(add_surface=surfpath, surface_layer_name=layername)
         else:
@@ -1164,6 +1176,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         is_selected: bool, if True, 'Converted' was selected
 
         """
+
         self.two_d.reset_line_colors()
         self.explorer.clear_explorer_data()
         if is_selected:
@@ -1184,6 +1197,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         max_lon: float, minimum longitude of the box
 
         """
+
         self.two_d.reset_line_colors()
         self.explorer.clear_explorer_data()
         lines = self.project.return_lines_in_box(min_lat, max_lat, min_lon, max_lon)
@@ -1191,43 +1205,52 @@ class KlusterMain(QtWidgets.QMainWindow):
             self._line_selected(ln, idx=cnt)
         self.two_d.change_line_colors(lines, 'red')
 
-    def select_points_in_box(self, min_lat, max_lat, min_lon, max_lon):
+    def select_points_in_box(self, polygon: np.ndarray, azimuth: float):
         """
         method run on using the 2dview points select tool.  Gathers all points in the box.
 
         Parameters
         ----------
-        min_lat: float, minimum latitude of the box
-        max_lat: float, maximum latitude of the box
-        min_lon: float, minimum longitude of the box
-        max_lon: float, minimum longitude of the box
-
+        polygon
+            (N, 2) array of points that make up the selection polygon,  (latitude, longitude) in degrees
+        azimuth
+            azimuth of the selection polygon in radians
         """
+
+        print('Selecting Points in Polygon...')
+        pointcount = 0
         self.points_view.clear()
-        pts_data = self.project.return_soundings_in_box(min_lat, max_lat, min_lon, max_lon)
+        pts_data = self.project.return_soundings_in_polygon(polygon, azimuth)
         for fqpr_name, pointdata in pts_data.items():
             self.points_view.add_points(pointdata[0], pointdata[1], pointdata[2], pointdata[3], pointdata[4], pointdata[5],
-                                    pointdata[6], fqpr_name, pointdata[7], is_3d=True)
+                                        pointdata[6], fqpr_name, pointdata[7], is_3d=True)
+            pointcount += pointdata[0].size
         self.points_view.display_points()
+        print('Selected {} Points for 3D display'.format(pointcount))
 
-    def select_slice_in_box(self, min_lat, max_lat, min_lon, max_lon):
+    def select_slice_in_box(self, polygon: np.ndarray, azimuth: float):
         """
         method run on using the 2dview swath select tool.  Gathers all swaths in the box.
 
         Parameters
         ----------
-        min_lat: float, minimum latitude of the box
-        max_lat: float, maximum latitude of the box
-        min_lon: float, minimum longitude of the box
-        max_lon: float, minimum longitude of the box
+        polygon
+            (N, 2) array of points that make up the selection polygon,  (longitude, latitude) in degrees
+        azimuth
+            azimuth of the selection polygon in radians
 
         """
+
+        print('Selecting Points in Polygon...')
+        pointcount = 0
         self.points_view.clear()
-        pts_data = self.project.return_soundings_in_box(min_lat, max_lat, min_lon, max_lon)
+        pts_data = self.project.return_soundings_in_polygon(polygon, azimuth)
         for fqpr_name, pointdata in pts_data.items():
             self.points_view.add_points(pointdata[0], pointdata[1], pointdata[2], pointdata[3], pointdata[4], pointdata[5],
-                                    pointdata[6], fqpr_name, pointdata[7], is_3d=False)
+                                        pointdata[6], fqpr_name, pointdata[7], is_3d=False)
+            pointcount += pointdata[0].size
         self.points_view.display_points()
+        print('Selected {} Points for 2D display'.format(pointcount))
 
     def show_points_in_explorer(self, point_index: np.array, linenames: np.array, point_times: np.array, beam: np.array,
                                 x: np.array, y: np.array, z: np.array, tvu: np.array, status: np.array, id: np.array):
@@ -1277,6 +1300,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         QDockWidget, the dock widget created that contains the provided widget
 
         """
+
         dock = QtWidgets.QDockWidget(title, self)
         dock.setFeatures(QtWidgets.QDockWidget.DockWidgetMovable | QtWidgets.QDockWidget.DockWidgetFloatable)
         dock.setObjectName(objname)
@@ -1543,6 +1567,7 @@ def main():
             app = QtWidgets.QApplication()
         except TypeError:  # pyqt5
             app = QtWidgets.QApplication([])
+    app.setStyle(KlusterProxyStyle())
     window = KlusterMain(app)
     window.show()
     exitcode = app.exec_()

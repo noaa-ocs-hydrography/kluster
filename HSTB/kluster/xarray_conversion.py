@@ -20,10 +20,11 @@ from HSTB.kluster.logging_conf import return_logger
 from HSTB.kluster import kluster_variables
 
 
-sonar_translator = {'em122': [None, 'tx', 'rx', None], 'em302': [None, 'tx', 'rx', None],
-                    'em710': [None, 'tx', 'rx', None], 'em2040': [None, 'tx', 'rx', None],
+sonar_translator = {'em122': [None, 'tx', 'rx', None], 'em302': [None, 'tx', 'rx', None], 'em304': [None, 'tx', 'rx', None],
+                    'em710': [None, 'tx', 'rx', None], 'em712': [None, 'tx', 'rx', None], 'em2040': [None, 'tx', 'rx', None],
                     'em2040_dual_rx': [None, 'tx', 'rx_port', 'rx_stbd'],
-                    'em2040_dual_tx': ['tx_port', 'tx_stbd', 'rx_port', 'rx_stbd'],
+                    'em2040_dual_tx': ['tx_port', 'tx_stbd', 'rx_port', None],
+                    'em2040_dual_tx_rx': ['tx_port', 'tx_stbd', 'rx_port', 'rx_stbd'],
                     # EM2040c is represented in the .all file as em2045
                     'em2045': [None, 'txrx', None, None], 'em2045_dual': [None, 'txrx_port', 'txrx_stbd', None],
                     'em3002': [None, 'tx', 'rx', None], 'em2040p': [None, 'txrx', None, None],
@@ -219,26 +220,31 @@ def _sequential_to_xarray(rec: dict):
         print('No ping raw range/angle record found for chunk file')
         return
     recs_to_merge = {}
-    alltims = np.unique(rec['ping']['time'])  # after mask/splitting data, should get something for each unique time
-    if len(alltims) != rec['ping']['time'].shape[0]:
-        print('Found {} != {}'.format(len(alltims), rec['ping']['time'].shape[0]))
-        raise ValueError('xarray_conversion: Found duplicate times in this chunk, not allowed for xarray conversion')
-
     for r in rec:
         if r not in ['installation_params', 'profile', 'format']:  # These are going to be added as attributes later
             if r == 'ping':  # R&A is the only datagram we use that requires splitting by serial#
                 ids, msk = _build_serial_mask(rec)  # get the identifiers and mask for each serial#
                 recs_to_merge[r] = {systemid: xr.Dataset() for systemid in ids}
-                for ky in rec[r]:
-                    if ky not in ['time', 'serial_num']:
-                        for systemid in ids:
-                            idx = ids.index(systemid)
+                for systemid in ids:
+                    idx = ids.index(systemid)
+                    tim = rec['ping']['time'][msk[idx]]
+                    # can have no duplicate times in the converted data, add a small time difference to ensure this, two passes to make sure
+                    dif = np.diff(tim)
+                    dif_msk = np.where(dif == 0)[0]
+                    if dif_msk.any():
+                        tim[dif_msk + 1] += 0.000010
+                        dif = np.diff(tim)
+                        dif_msk = np.where(dif == 0)[0]
+                        if dif_msk.any():
+                            tim[dif_msk + 1] += 0.000010
+
+                    for ky in rec[r]:
+                        if ky not in ['time', 'serial_num']:
                             if ky == 'counter':  # counter is 16bit in raw data, we want 32 to handle zero crossing
                                 datadtype = np.int64
                             else:
                                 datadtype = rec[r][ky].dtype
                             arr = np.array(rec['ping'][ky][msk[idx]])  # that part of the record for the given sect_id
-                            tim = rec['ping']['time'][msk[idx]]
 
                             # currently i'm getting a one rec duplicate between chunked files...
                             if tim[-1] == tim[-2] and np.array_equal(arr[-1], arr[-2]):

@@ -548,19 +548,19 @@ class RangeSlider(QtWidgets.QWidget):
         self.opt.sliderPosition = self.first_position
         x_left_handle = (
             self.style()
-            .subControlRect(QtWidgets.QStyle.CC_Slider, self.opt, QtWidgets.QStyle.SC_SliderHandle)
+            .subControlRect(QtWidgets.QStyle.CC_Slider, self.opt, QtWidgets.QStyle.SC_SliderHandle, None)
             .right()
         )
 
         self.opt.sliderPosition = self.second_position
         x_right_handle = (
             self.style()
-            .subControlRect(QtWidgets.QStyle.CC_Slider, self.opt, QtWidgets.QStyle.SC_SliderHandle)
+            .subControlRect(QtWidgets.QStyle.CC_Slider, self.opt, QtWidgets.QStyle.SC_SliderHandle, None)
             .left()
         )
 
         groove_rect = self.style().subControlRect(
-            QtWidgets.QStyle.CC_Slider, self.opt, QtWidgets.QStyle.SC_SliderGroove
+            QtWidgets.QStyle.CC_Slider, self.opt, QtWidgets.QStyle.SC_SliderGroove, None
         )
 
         selection = QtCore.QRect(x_left_handle, groove_rect.y(), x_right_handle - x_left_handle, groove_rect.height(),).adjusted(-1, 1, 1, -1)

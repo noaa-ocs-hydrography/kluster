@@ -8,6 +8,7 @@ import json
 from copy import deepcopy
 from dask.distributed import wait, progress
 from pyproj import CRS, Transformer
+import matplotlib.path as mpl_path
 
 from HSTB.kluster.modules.orientation import distrib_run_build_orientation_vectors
 from HSTB.kluster.modules.beampointingvector import distrib_run_build_beam_pointing_vector
@@ -2713,20 +2714,14 @@ class Fqpr(ZarrBackend):
 
         return sampl_nav.latitude, sampl_nav.longitude
 
-    def _soundings_by_box(self, min_y: float, max_y: float, min_x: float, max_x: float):
+    def _soundings_by_poly(self, polygon: np.ndarray):
         """
         Return soundings and sounding attributes that are within the box formed by the provided coordinates.
 
         Parameters
         ----------
-        min_y
-            Minimum northing for the box
-        max_y
-            Maximum northing for the box
-        min_x
-            Minimum easting for the box
-        max_x
-            Maximum easting for the box
+        polygon
+            (N, 2) array of points that make up the selection polygon, (x, y) in Fqpr CRS
 
         Returns
         -------
@@ -2754,10 +2749,9 @@ class Fqpr(ZarrBackend):
         pointtime = []
         beam = []
         self.ping_filter = []
+        polypath = mpl_path.Path(polygon)
         for rp in self.multibeam.raw_ping:
-            x_filter = np.logical_and(rp.x <= max_x, rp.x >= min_x)
-            y_filter = np.logical_and(rp.y <= max_y, rp.y >= min_y)
-            filt = np.logical_and(x_filter, y_filter).values.ravel()
+            filt = polypath.contains_points(np.c_[rp.x.values.ravel(), rp.y.values.ravel()])
             self.ping_filter.append(filt)
             if filt.any():
                 xval = rp.x.values.ravel()[filt]
@@ -2772,21 +2766,15 @@ class Fqpr(ZarrBackend):
                     beam.append((rp.beam.values[np.newaxis, :] * np.ones_like(rp.x)).ravel()[filt])
         return x, y, z, tvu, rejected, pointtime, beam
 
-    def _swaths_by_box(self, min_lat: float, max_lat: float, min_lon: float, max_lon: float):
+    def _swaths_by_poly(self, polygon: np.ndarray):
         """
         Return soundings and sounding attributes that are a part of swaths within the box formed by the provided
         coordinates.  Only returns complete swaths.
 
         Parameters
         ----------
-        min_lat
-            Minimum latitude for the box
-        max_lat
-            Maximum latitude for the box
-        min_lon
-            Minimum longitude for the box
-        max_lon
-            Maximum longitude for the box
+        polygon
+            (N, 2) array of points that make up the selection polygon, (longitude, latitude) in geographic coords
 
         Returns
         -------
@@ -2815,9 +2803,8 @@ class Fqpr(ZarrBackend):
         beam = []
         self.ping_filter = []
         nv = self.multibeam.raw_nav
-        xfilter = np.logical_and(nv.latitude <= max_lat, nv.latitude >= min_lat)
-        yfilter = np.logical_and(nv.longitude <= max_lon, nv.longitude >= min_lon)
-        filt = np.logical_and(xfilter, yfilter)
+        polypath = mpl_path.Path(polygon)
+        filt = polypath.contains_points(np.vstack([nv.longitude.values, nv.latitude.values]))
         time_sel = nv.time.where(filt, drop=True).values
 
         if time_sel.any():
@@ -2852,22 +2839,18 @@ class Fqpr(ZarrBackend):
                 self.ping_filter.append(seg_filter)
         return x, y, z, tvu, rejected, pointtime, beam
 
-    def return_soundings_in_box(self, min_y: float, max_y: float, min_x: float, max_x: float, geographic: bool = True,
-                                full_swath: bool = False):
+    def return_soundings_in_polygon(self, polygon: np.ndarray, azimuth: float, geographic: bool = True,
+                                    full_swath: bool = False):
         """
         Using provided coordinates (in either horizontal_crs projected or geographic coordinates), return the soundings
         and sounding attributes for all soundings within the coordinates.
 
         Parameters
         ----------
-        min_y
-            Minimum latitude/northing for the box
-        max_y
-            Maximum latitude/northing for the box
-        min_x
-            Minimum longitude/easting for the box
-        max_x
-            Maximum longitude/easting for the box
+        polygon
+            (N, 2) array of points that make up the selection polygon,  (latitude, longitude) in degrees
+        azimuth
+            azimuth of the selection polygon in radians
         geographic
             If True, the coordinates provided are geographic (latitude/longitude)
         full_swath
@@ -2902,11 +2885,11 @@ class Fqpr(ZarrBackend):
             if geographic:
                 trans = Transformer.from_crs(CRS.from_epsg(kluster_variables.epsg_wgs84),
                                              CRS.from_epsg(self.multibeam.raw_ping[0].horizontal_crs), always_xy=True)
-                min_x, min_y = trans.transform(min_x, min_y)
-                max_x, max_y = trans.transform(max_x, max_y)
-            x, y, z, tvu, rejected, pointtime, beam = self._soundings_by_box(min_y, max_y, min_x, max_x)
+                polyx, polyy = trans.transform(polygon[:, 0], polygon[:, 1])
+                polygon = np.c_[polyx, polyy]
+            x, y, z, tvu, rejected, pointtime, beam = self._soundings_by_poly(polygon)
         else:
-            x, y, z, tvu, rejected, pointtime, beam = self._swaths_by_box(min_y, max_y, min_x, max_x)
+            x, y, z, tvu, rejected, pointtime, beam = self._swaths_by_poly(polygon)
 
         if len(x) > 1:
             x = np.concatenate(x)
@@ -2941,7 +2924,7 @@ class Fqpr(ZarrBackend):
         if not isinstance(self.ping_filter[0], np.ndarray):  # must be swaths_by_box, not supported
             raise NotImplementedError('Have not built the selecting by filter for swaths_by_box yet')
         for cnt, rp in enumerate(self.multibeam.raw_ping):
-            filt = self.ping_filter[0]
+            filt = self.ping_filter[cnt]
             var_vals = rp[var_name].values.ravel()
             var_vals[filt] = newval
             var_vals.reshape(rp[var_name].shape)
