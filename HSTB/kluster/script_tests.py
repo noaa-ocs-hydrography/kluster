@@ -433,13 +433,17 @@ for s_cnt, system in enumerate(systems):
 sv_corr, alt, lon, lat, hdng, heave, wline, vert_ref, input_crs, horizontal_crs, z_offset, vdatum_directory = self.client.gather(data_for_workers[0])
 
 #################################################################
-from hstb_drivers.HSTB.drivers.kmall import *
-km = kmall(r"C:\collab\dasktest\data_dir\from_Lund\0011_20210304_094901.kmall")
-km.index_file()
-for offset, size, mtype in zip(km.Index['ByteOffset'],
-                               km.Index['MessageSize'],
-                               km.Index['MessageType']):
-    km.FID.seek(offset, 0)
-    if mtype == "b'#MRZ'":
-        break
-self = km
+import os
+from HSTB.kluster.fqpr_convenience import reload_data
+fq = reload_data(r"C:\collab\dasktest\data_dir\outputtest\EM2040c_NRT2")
+from bathygrid.maingrid import SRGrid, VRGridTile
+
+bg = SRGrid(tile_size=256, output_folder=r'C:\collab\dasktest\data_dir\outputtest\EM2040c_NRT2\grid')
+data = fq.multibeam.raw_ping[0].drop_vars([nms for nms in fq.multibeam.raw_ping[0].variables if nms not in ['x', 'y', 'z', 'tvu', 'thu']]).stack({'sounding': ('time', 'beam')})
+bg.add_points(data, os.path.split(data.output_path)[1], list(data.multibeam_files.keys()), data.horizontal_crs, data.vertical_reference)
+bg.grid()
+
+bg = VRGridTile(tile_size=1024, subtile_size=128, output_folder=r'C:\collab\dasktest\data_dir\outputtest\EM2040c_NRT2\grid')
+data = fq.multibeam.raw_ping[0].drop_vars([nms for nms in fq.multibeam.raw_ping[0].variables if nms not in ['x', 'y', 'z', 'tvu', 'thu']]).stack({'sounding': ('time', 'beam')})
+bg.add_points(data, os.path.split(data.output_path)[1], list(data.multibeam_files.keys()), data.horizontal_crs, data.vertical_reference)
+bg.grid(resolution=8)

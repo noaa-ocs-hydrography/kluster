@@ -18,32 +18,36 @@ VERSION = ''
 
 # What packages are required for this module to be executed?
 REQUIRED = [
-            'bokeh==2.3.0',
-            'dask==2021.3.0',
-            'distributed==2021.3.0',
-            'fasteners==0.14.1',
-            'laspy==1.7.0',
-            'matplotlib==3.3.4',  # >=3.3.3 required, FuncAnimation and Pyside2/matplotlib do not play well in 3.2.1
-            'numba==0.52.0',
-            'openpyxl==3.0.6',
-            'psutil==5.8.0',
-            'numpy==1.20.1',  # cannot be 1.19.4, see https://tinyurl.com/y3dm3h86
-            'pandas==1.2.3',
-            'pyshp==2.1.3',
-            'pyepsg==0.4.0',  # cartopy requirement not installed with conda install, duplicates pyproj functionality...
-            'pyopengl==3.1.5',
-            'pyproj==3.0.1',
-            'pyqtgraph==0.11.1',
-            's3fs==0.5.2',
-            'scipy==1.6.0',
-            'shapely==1.7.1',
-            'sortedcontainers==2.3.0',
-            'watchdog==1.0.2',
-            'xarray==0.17.0',
-            'zarr==2.6.1',
+            'bokeh>=2.3.0',
+            'dask>=2021.3.0',
+            'distributed>=2021.3.0',
+            'fasteners>=0.14.1',
+            'laspy>=1.7.0',
+            'matplotlib>=3.3.3',  # >=3.3.3 required, FuncAnimation and Pyside2/matplotlib do not play well in 3.2.1
+            'numba>=0.52.0',
+            'openpyxl>==3.0.6',
+            'psutil>=5.8.0',
+            'numpy>=1.20.1',  # cannot be 1.19.4, see https://tinyurl.com/y3dm3h86
+            'pandas>=1.2.3',
+            'pyshp>=2.1.3',
+            'pyepsg>=0.4.0',  # cartopy requirement not installed with conda install, duplicates pyproj functionality...
+            'pyopengl>=3.1.5',
+            'pyproj>=3.0.1',
+            'pyqtgraph>=0.11.1',
+            's3fs>=0.5.2',
+            'scipy>=1.6.0',
+            'shapely>=1.7.1',
+            'sortedcontainers>=2.3.0',
+            'watchdog>=1.0.2',
+            'xarray>=0.17.0',
+            'zarr>=2.6.1',
             'hstb.drivers @ git+https://github.com/noaa-ocs-hydrography/drivers.git#egg=hstb.drivers',
             'hstb.shared @ git+https://github.com/noaa-ocs-hydrography/shared.git#egg=hstb.shared',
             'vyperdatum @ git+https://github.com/noaa-ocs-hydrography/vyperdatum.git#egg=vyperdatum'
+
+            # note to self about gdal.  I want gdal >= 3.2.3 to get the bag template fix, but qgis appears to only
+            #  support gdal=3.2.2 in it's latest version.  So I need to wait on qgis to get the gdal fix.n
+
             
             # Pyside stuff
             #  first had to downgrade to PySide2 5.14.1 to avoid shiboken import errors https://bugreports.qt.io/browse/PYSIDE-1257
