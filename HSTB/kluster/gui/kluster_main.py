@@ -321,9 +321,7 @@ class KlusterMain(QtWidgets.QMainWindow):
             if new_project:  # user added a data file when there was no project, so we loaded or created a new one
                 new_fqprs.extend([fqpr for fqpr in self.project.fqpr_instances.keys() if fqpr not in new_fqprs])
             if new_data is None:
-                if os.path.split(f)[1] == 'grid.pickle':
-                    self.project.add_surface(os.path.dirname(f))
-                elif os.path.exists(os.path.join(f, 'grid.pickle')):
+                if os.path.exists(os.path.join(f, 'SRGrid_Root')) or os.path.exists(os.path.join(f, 'VRGridTile_Root')):
                     self.project.add_surface(f)
                 else:
                     fqpr_entry, already_in = self.project.add_fqpr(f, skip_dask=True)
@@ -363,19 +361,23 @@ class KlusterMain(QtWidgets.QMainWindow):
             self.two_d.set_extents_from_lines()
         if add_surface is not None and surface_layer_name:
             surf_object = self.project.surface_instances[add_surface]
-            shown = self.two_d.show_surface(add_surface, surface_layer_name)
-            if not shown:  # show didnt work, must need to add the surface instead
-                if qgis_enabled:
-                    data, geo_transform, bandnames = surf_object._gdal_preprocessing(nodatavalue=np.nan,
-                                                                                     z_positive_up=False,
-                                                                                     layer_names=(surface_layer_name,))
-                    self.two_d.add_surface([add_surface, surface_layer_name, data, geo_transform, surf_object.crs])
-                else:
-                    x, y, z, valid, newmins, newmaxs = surf_object.return_surf_xyz(surface_layer_name, pcolormesh=True)
-                    self.two_d.add_surface([add_surface, surface_layer_name, x, y, z, surf_object.crs])
-                self.two_d.set_extents_from_surfaces()
+            for resolution in surf_object.resolutions:
+                shown = self.two_d.show_surface(add_surface, surface_layer_name, resolution)
+                if not shown:  # show didnt work, must need to add the surface instead
+                    if qgis_enabled:
+                        data, geo_transform, bandnames = surf_object._gdal_preprocessing(resolution=resolution,
+                                                                                         nodatavalue=np.nan,
+                                                                                         z_positive_up=False,
+                                                                                         layer_names=(surface_layer_name,))
+                        self.two_d.add_surface([add_surface, surface_layer_name, data, geo_transform, surf_object.crs, resolution])
+                    else:
+                        x, y, z, valid, newmins, newmaxs = surf_object.return_surf_xyz(surface_layer_name, pcolormesh=True)
+                        self.two_d.add_surface([add_surface, surface_layer_name, x, y, z, surf_object.crs])
+                    self.two_d.set_extents_from_surfaces()
         if remove_surface is not None and surface_layer_name:
-            self.two_d.hide_surface(remove_surface, surface_layer_name)
+            surf_object = self.project.surface_instances[add_surface]
+            for resolution in surf_object.resolutions:
+                self.two_d.hide_surface(remove_surface, surface_layer_name, resolution)
 
     def close_fqpr(self, pth):
         """
@@ -435,7 +437,6 @@ class KlusterMain(QtWidgets.QMainWindow):
         """
         absolute_fqpath = self.project.absolute_path_from_relative(pth)
         self.console.runCmd('surf = reload_surface(r"{}")'.format(absolute_fqpath))
-        self.console.runCmd('# try plotting the tree, "surf.tree.draw_tree()')
 
     def zoom_extents_fqpr(self, pth: str):
         """
@@ -493,9 +494,12 @@ class KlusterMain(QtWidgets.QMainWindow):
 
         """
 
+        surf_object = self.project.surface_instances[pth]
+        for resolution in surf_object.resolutions:
+            self.two_d.remove_surface(pth, resolution)
         self.project.remove_surface(pth, relative_path=True)
         self.project_tree.refresh_project(self.project)
-        self.two_d.remove_surface(pth)
+
 
     def no_threads_running(self):
         """

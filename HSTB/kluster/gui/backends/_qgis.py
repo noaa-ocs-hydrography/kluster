@@ -1299,7 +1299,7 @@ class MapView(QtWidgets.QMainWindow):
         """
         return '/vsimem/{}.shp'.format(linename)
 
-    def build_surface_source(self, surfname: str, lyrname: str):
+    def build_surface_source(self, surfname: str, lyrname: str, resolution: float):
         """
         Build the vsimem path for the surface/layer provided
 
@@ -1309,13 +1309,15 @@ class MapView(QtWidgets.QMainWindow):
             path to the surface
         lyrname
             name of the surface layer you want to show
+        resolution
+            resolution in meters for the surface
 
         Returns
         -------
         str
             generated vsimem path for the surface/layer
         """
-        newname = '{}_{}.tif'.format(os.path.splitext(surfname)[0], lyrname)
+        newname = '{}_{}_{}.tif'.format(os.path.splitext(surfname)[0], lyrname, resolution)
         source = '/vsimem/{}'.format(newname)
         return source
 
@@ -1476,7 +1478,7 @@ class MapView(QtWidgets.QMainWindow):
         if refresh:
             self.layer_by_name(source).reload()
 
-    def add_surface(self, surfname: str, lyrname: str, data: list, geo_transform: list, crs: Union[CRS, int]):
+    def add_surface(self, surfname: str, lyrname: str, data: list, geo_transform: list, crs: Union[CRS, int], resolution: float):
         """
         Add a new surface/layer with the provided data
 
@@ -1492,18 +1494,20 @@ class MapView(QtWidgets.QMainWindow):
             [x origin, x pixel size, x rotation, y origin, y rotation, -y pixel size]
         crs
             pyproj CRS or an integer epsg code
+        resolution
+            resolution in meters for the surface
         """
 
-        source = self.build_surface_source(surfname, lyrname)
+        source = self.build_surface_source(surfname, lyrname, resolution)
         showlyr = gdal_output_file_exists(source)
 
         if not showlyr:
             gdal_raster_create(source, data, geo_transform, crs, np.nan, (lyrname,))
             self.add_layer(source, lyrname, 'gdal', layertype='surface')
         else:
-            self.show_surface(surfname, lyrname)
+            self.show_surface(surfname, lyrname, resolution)
 
-    def hide_surface(self, surfname: str, lyrname: str):
+    def hide_surface(self, surfname: str, lyrname: str, resolution: float):
         """
         Hide the surface layer that corresponds to the given names.
 
@@ -1513,14 +1517,16 @@ class MapView(QtWidgets.QMainWindow):
             path to the surface that is used as a name
         lyrname
             band layer name for the provided data
+        resolution
+            resolution in meters for the surface
         """
 
-        source = self.build_surface_source(surfname, lyrname)
+        source = self.build_surface_source(surfname, lyrname, resolution)
         hidelyr = gdal_output_file_exists(source)
         if hidelyr:
             self.hide_layer(source)
 
-    def show_surface(self, surfname: str, lyrname: str):
+    def show_surface(self, surfname: str, lyrname: str, resolution: float):
         """
         Show the surface layer that corresponds to the given names, if it was hidden
 
@@ -1530,13 +1536,16 @@ class MapView(QtWidgets.QMainWindow):
             path to the surface that is used as a name
         lyrname
             band layer name for the provided data
+        resolution
+            resolution in meters for the surface
         """
-        source = self.build_surface_source(surfname, lyrname)
+
+        source = self.build_surface_source(surfname, lyrname, resolution)
         showlyr = gdal_output_file_exists(source)
         if showlyr:
             self.show_layer(source)
 
-    def remove_surface(self, surfname: str):
+    def remove_surface(self, surfname: str, resolution: float):
         """
         Remove a surface from the mapcanvas/layer_manager
 
@@ -1544,10 +1553,13 @@ class MapView(QtWidgets.QMainWindow):
         ----------
         surfname
             path to the surface that is used as a name
+        resolution
+            resolution in meters for the surface
         """
+
         possible_layers = ['depth', 'vertical_uncertainty']
         for lyr in possible_layers:
-            source = self.build_surface_source(surfname, lyr)
+            source = self.build_surface_source(surfname, lyr, resolution)
             remlyr = gdal_output_file_exists(source)
             if remlyr:
                 self.remove_layer(source)

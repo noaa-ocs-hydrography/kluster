@@ -9,9 +9,9 @@ from types import FunctionType
 from HSTB.kluster.fqpr_generation import Fqpr
 from HSTB.kluster.dask_helpers import dask_find_or_start_client
 from HSTB.kluster.fqpr_convenience import reload_data, reload_surface, get_attributes_from_fqpr
-from HSTB.kluster.fqpr_surface_v3 import QuadManager
 from HSTB.kluster.xarray_helpers import slice_xarray_by_dim
 from HSTB.kluster.fqpr_vessel import VesselFile, create_new_vessel_file, convert_from_fqpr_xyzrph
+from bathygrid.bgrid import BathyGrid
 
 
 class FqprProject:
@@ -422,9 +422,9 @@ class FqprProject:
             for callback in self._project_observers:
                 callback(True)
 
-    def add_surface(self, pth: Union[str, QuadManager]):
+    def add_surface(self, pth: Union[str, BathyGrid]):
         """
-        Add a new QuadManager object to the project, either by loading from file or by directly adding a QuadManager
+        Add a new Bathygrid object to the project, either by loading from file or by directly adding a Bathygrid
         object provided
 
         Parameters
@@ -434,16 +434,16 @@ class FqprProject:
         """
 
         if type(pth) == str:
-            qm = reload_surface(pth)
+            bg = reload_surface(pth)
             pth = os.path.normpath(pth)
         else:  # fq is the new Fqpr instance, pth is the output path that is saved as an attribute
-            qm = pth
-            pth = os.path.normpath(qm.output_path)
-        if qm is not None:
+            bg = pth
+            pth = os.path.normpath(bg.output_folder)
+        if bg is not None:
             if self.path is None:
                 self._setup_new_project(os.path.dirname(pth))
             relpath = self.path_relative_to_project(pth)
-            self.surface_instances[relpath] = qm
+            self.surface_instances[relpath] = bg
             print('Successfully added {}'.format(pth))
 
     def remove_surface(self, pth: str, relative_path: bool = False):

@@ -145,7 +145,8 @@ class ExportGridWorker(QtCore.QThread):
 
     def run(self):
         self.started.emit(True)
-        self.surf_instance.export(self.output_path, self.export_type, self.z_pos_up, **self.bag_kwargs)
+        # None in the 4th arg to indicate you want to export all resolutions
+        self.surf_instance.export(self.output_path, self.export_type, self.z_pos_up, None, **self.bag_kwargs)
         self.finished.emit(True)
 
 

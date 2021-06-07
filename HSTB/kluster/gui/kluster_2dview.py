@@ -30,20 +30,20 @@ class Kluster2dview(MapView):
 
     def add_surface(self, data_block: list):
         if backend == 'qgis':
-            add_surface, surface_layer_name, data, geo_transform, crs = data_block
-            super().add_surface(add_surface, surface_layer_name, data, geo_transform, crs)
+            add_surface, surface_layer_name, data, geo_transform, crs, resolution = data_block
+            super().add_surface(add_surface, surface_layer_name, data, geo_transform, crs, resolution)
         elif backend == 'cartopy':
             add_surface, surface_layer_name, x, y, z, crs = data_block
             super().add_surface(add_surface, surface_layer_name, x, y, z, crs)
 
-    def hide_surface(self, surfname, lyrname):
-        super().hide_surface(surfname, lyrname)
+    def hide_surface(self, surfname, lyrname, resolution):
+        super().hide_surface(surfname, lyrname, resolution)
 
-    def show_surface(self, surfname: str, lyrname: str):
-        super().show_surface(surfname, lyrname)
+    def show_surface(self, surfname: str, lyrname: str, resolution):
+        super().show_surface(surfname, lyrname, resolution)
 
-    def remove_surface(self, surfname):
-        super().remove_surface(surfname)
+    def remove_surface(self, surfname, resolution):
+        super().remove_surface(surfname, resolution)
 
     def change_line_colors(self, line_names, color):
         super().change_line_colors(line_names, color)

@@ -11,10 +11,9 @@ from HSTB.drivers.par3 import AllRead
 from HSTB.drivers.kmall import kmall
 from HSTB.kluster.xarray_conversion import BatchRead
 from HSTB.kluster.fqpr_generation import Fqpr
-from HSTB.kluster.fqpr_surface import BaseSurface
 from HSTB.kluster.fqpr_helpers import return_directory_from_data
-from HSTB.kluster.fqpr_surface_v3 import QuadManager
 from HSTB.kluster import kluster_variables
+from bathygrid.convenience import create_grid, load_grid
 
 
 def perform_all_processing(filname: Union[str, list], navfiles: list = None, outfold: str = None, coord_system: str = 'NAD83',
@@ -439,12 +438,13 @@ def return_svcorr_xyz(filname: str, outfold: str = None, visualizations: bool = 
     return fqpr_inst, dset
 
 
-def generate_new_surface(fqpr_inst: Union[Fqpr, list], max_points_per_quad: int = 5, max_grid_size: int = 128,
-                         min_grid_size: int = 1, output_path: str = None, export_path: str = None):
+def generate_new_surface(fqpr_inst: Union[Fqpr, list], grid_type: str = 'single_resolution', tile_size: float = 1024.0,
+                         subtile_size: float = 128, gridding_algorithm: str = 'mean', resolution: float = None,
+                         use_dask: bool = False, output_path: str = None, export_path: str = None,
+                         export_format: str = 'geotiff', export_z_positive_up: bool = True, export_resolution: float = None):
     """
-    Using the fqpr_surface_v3 QuadManager class, generate a new variable resolution surface for the provided Kluster
-    fqpr instance(s).  If the max_grid_size == min_grid_size, the surface is a single resolution surface at that
-    resolution.
+    Using the bathygrid create_grid convenience function, generate a new variable/single resolution surface for the
+    provided Kluster fqpr instance(s).
 
     If fqpr_inst is provided and is not a list, generates a surface based on that specific fqpr converted instance.
 
@@ -457,24 +457,38 @@ def generate_new_surface(fqpr_inst: Union[Fqpr, list], max_points_per_quad: int 
     fqpr_inst
         instance or list of instances of fqpr_generation.Fqpr class that contains generated soundings data, see
         perform_all_processing or reload_data
-    max_points_per_quad
-        maximum number of points allowed per quad, before splitting the quad
-    max_grid_size
-        max size of the quad allowed before splitting
-    min_grid_size
-        minimum size of the quad allowed, will not split any further than this
+    grid_type
+        one of 'single_resolution', 'variable_resolution_tile'
+    tile_size
+        main tile size, the size in meters of the tiles within the grid, a larger tile size will improve performance,
+        but size should be at most 1/2 the length/width of the survey area
+    subtile_size
+        sub tile size, only used for variable resolution, the size of the subtiles within the tiles, subtiles are the
+        smallest unit within the grid that is single resolution
+    gridding_algorithm
+        algorithm to grid by, one of 'mean', 'shoalest
+    resolution
+        resolution of the gridded data in the Tiles
+    use_dask
+        if True, will start a dask LocalCluster instance and perform the gridding in parallel
     output_path
-        if provided, will save the QuadTree to this path, with data saved as stacked numpy (npy) files
+        if provided, will save the Bathygrid to this path, with data saved as stacked numpy (npy) files
     export_path
-        if provided, will export the QuadTree to csv
+        if provided, will export the Bathygrid to csv
+    export_format
+        format option, one of 'csv', 'geotiff', 'bag'
+    export_z_positive_up
+        if True, will output bands with positive up convention
+    export_resolution
+        if provided, will only export the given resolution
 
     Returns
     -------
-    QuadManager
-        QuadManager instance for the newly created surface
+    BathyGrid
+        BathyGrid instance for the newly created surface
     """
 
-    print('***** Generating new QuadTree surface *****')
+    print('***** Generating new Bathygrid surface *****')
     strt = perf_counter()
 
     if not isinstance(fqpr_inst, list):
@@ -494,7 +508,9 @@ def generate_new_surface(fqpr_inst: Union[Fqpr, list], max_points_per_quad: int 
     unique_vertref = []
     for fq in fqpr_inst:
         crs_data = fq.horizontal_crs.to_epsg()
-        vertref = fq.multibeam.raw_ping[0].vertical_reference
+        vertref = fq.multibeam.raw_ping[0].vertical_crs
+        if vertref == 'Unknown':
+            vertref = fq.multibeam.raw_ping[0].vertical_reference
         if crs_data is None:
             crs_data = fq.horizontal_crs.to_proj4()
         if crs_data not in unique_crs:
@@ -513,34 +529,29 @@ def generate_new_surface(fqpr_inst: Union[Fqpr, list], max_points_per_quad: int 
         return None
 
     print('Preparing data...')
-    rps = []
+    chunksize = 5000  # set some arbitrary number of pings to hold in memory at once, probably need a smarter way to do this eventually
+    bg = create_grid(folder_path=output_path, grid_type=grid_type, tile_size=tile_size, subtile_size=subtile_size)
     for f in fqpr_inst:
+        cont_name = os.path.split(f.multibeam.raw_ping[0].output_path)[1]
+        multibeamfiles = list(f.multibeam.raw_ping[0].multibeam_files.keys())
+        cont_name_idx = 0
         for rp in f.multibeam.raw_ping:
-            rp = rp.drop_vars([nms for nms in rp.variables if nms not in ['x', 'y', 'z', 'tvu', 'thu']])
-            rps.append(rp)
-    if len(rps) == 1:
-        dataset = rp.drop_vars([nms for nms in rp.variables if nms not in ['x', 'y', 'z', 'tvu', 'thu']]).stack({'sounding': ('time', 'beam')})
-    else:
-        dataset = xr.concat(rps, dim='time', data_vars=['x', 'y', 'z', 'tvu', 'thu']).stack({'sounding': ('time', 'beam')})
-    dataset = dataset.compute()
+            rp = rp.drop_vars([nms for nms in rp.variables if nms not in ['x', 'y', 'z', 'tvu', 'thu']]).stack({'sounding': ('time', 'beam')})
+            number_of_pings = rp.time.size
+            totalchunks = int(np.ceil(number_of_pings / chunksize))
+            print('Adding points in {} chunks...'.format(totalchunks))
+            for idx in range(totalchunks):
+                strt, end = idx * chunksize, min((idx + 1) * chunksize, number_of_pings)
+                bg.add_points(rp[strt:end], '{}_{}'.format(cont_name, cont_name_idx), multibeamfiles, unique_crs[0], unique_vertref[0])
 
-    print('Building tree...')
-    qm = QuadManager()
-    coordsys = unique_crs[0]
-    vertref = unique_vertref[0]
-    containername = [os.path.split(f.multibeam.raw_ping[0].output_path)[1] for f in fqpr_inst]
-    multibeamlist = [list(f.multibeam.raw_ping[0].multibeam_files.keys()) for f in fqpr_inst]
-    qm.create(dataset, container_name=containername, multibeam_file_list=multibeamlist, crs=coordsys,
-              vertical_reference=vertref, max_points_per_quad=max_points_per_quad, max_grid_size=max_grid_size,
-              min_grid_size=min_grid_size)
-    if output_path:
-        qm.save(output_path)
+    # now after all points are added, run grid with the options presented
+    bg.grid(algorithm=gridding_algorithm, resolution=resolution, use_dask=use_dask)
     if export_path:
-        qm.export(export_path)
+        bg.export(output_path=export_path, export_format=export_format, z_positive_up=export_z_positive_up, resolution=export_resolution)
 
     end = perf_counter()
     print('***** Surface Generation Complete: {}s *****'.format(end - strt))
-    return qm
+    return bg
 
 
 def reload_surface(surface_path: str):
@@ -557,17 +568,16 @@ def reload_surface(surface_path: str):
 
     Returns
     -------
-    BaseSurface
-        surface loaded from the file path provided
-
+    BathyGrid
+        BathyGrid instance loaded from the file path provided
     """
+
     try:
-        qm = QuadManager()
-        qm.load(surface_path)
-    except:
-        print('reload_surface: Unable to load surface from {}'.format(surface_path))
-        qm = None
-    return qm
+        bg = load_grid(surface_path)
+    except Exception as e:  # allow to continue and simply print the exception to the screen
+        print(e)
+        bg = None
+    return bg
 
 
 def return_processed_data_folders(converted_folder: str):
