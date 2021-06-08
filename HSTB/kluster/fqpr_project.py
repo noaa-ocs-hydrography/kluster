@@ -430,7 +430,7 @@ class FqprProject:
         Parameters
         ----------
         pth
-            path to surface file or existing QuadManager object
+            path to surface file or existing Bathygrid object
         """
 
         if type(pth) == str:
@@ -448,7 +448,7 @@ class FqprProject:
 
     def remove_surface(self, pth: str, relative_path: bool = False):
         """
-        Remove an attached QuadManager instance from the project by path to Fqpr converted folder
+        Remove an attached Bathygrid instance from the project by path to Fqpr converted folder
 
         Parameters
         ----------

@@ -437,11 +437,21 @@ import os
 from HSTB.kluster.fqpr_convenience import reload_data
 fq = reload_data(r"C:\collab\dasktest\data_dir\outputtest\EM2040c_NRT2")
 from bathygrid.maingrid import SRGrid, VRGridTile
+import numpy as np
+import matplotlib.pyplot as plt
 
-bg = SRGrid(tile_size=256, output_folder=r'C:\collab\dasktest\data_dir\outputtest\EM2040c_NRT2\grid')
+
+bg = SRGrid(tile_size=256)
 data = fq.multibeam.raw_ping[0].drop_vars([nms for nms in fq.multibeam.raw_ping[0].variables if nms not in ['x', 'y', 'z', 'tvu', 'thu']]).stack({'sounding': ('time', 'beam')})
 bg.add_points(data, os.path.split(data.output_path)[1], list(data.multibeam_files.keys()), data.horizontal_crs, data.vertical_reference)
-bg.grid()
+bg.grid(resolution=8)
+
+x, y, lyrdata, newmins, newmaxs = bg.return_surf_xyz('depth', 8.0, False)
+lon2d, lat2d = np.meshgrid(x, y)
+data_m = np.ma.array(lyrdata[0], mask=np.isnan(lyrdata[0]))
+plt.pcolormesh(lon2d, lat2d, data_m.T, vmin=data_m.min(), vmax=data_m.max())
+
+
 
 bg = VRGridTile(tile_size=1024, subtile_size=128, output_folder=r'C:\collab\dasktest\data_dir\outputtest\EM2040c_NRT2\grid')
 data = fq.multibeam.raw_ping[0].drop_vars([nms for nms in fq.multibeam.raw_ping[0].variables if nms not in ['x', 'y', 'z', 'tvu', 'thu']]).stack({'sounding': ('time', 'beam')})

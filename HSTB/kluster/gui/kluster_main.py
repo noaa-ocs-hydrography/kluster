@@ -369,13 +369,13 @@ class KlusterMain(QtWidgets.QMainWindow):
                                                                                          nodatavalue=np.nan,
                                                                                          z_positive_up=False,
                                                                                          layer_names=(surface_layer_name,))
-                        self.two_d.add_surface([add_surface, surface_layer_name, data, geo_transform, surf_object.crs, resolution])
+                        self.two_d.add_surface([add_surface, surface_layer_name, data, geo_transform, surf_object.epsg, resolution])
                     else:
                         x, y, z, valid, newmins, newmaxs = surf_object.return_surf_xyz(surface_layer_name, pcolormesh=True)
-                        self.two_d.add_surface([add_surface, surface_layer_name, x, y, z, surf_object.crs])
+                        self.two_d.add_surface([add_surface, surface_layer_name, x, y, z, surf_object.epsg])
                     self.two_d.set_extents_from_surfaces()
         if remove_surface is not None and surface_layer_name:
-            surf_object = self.project.surface_instances[add_surface]
+            surf_object = self.project.surface_instances[remove_surface]
             for resolution in surf_object.resolutions:
                 self.two_d.hide_surface(remove_surface, surface_layer_name, resolution)
 
@@ -778,7 +778,7 @@ class KlusterMain(QtWidgets.QMainWindow):
                         if relfq in self.project.fqpr_instances:
                             fq_inst = self.project.fqpr_instances[relfq]
                             # use the project client, or start a new LocalCluster if client is None
-                            fq_inst.client = self.project.get_dask_client()
+                            # fq_inst.client = self.project.get_dask_client()
                             fq_chunks.extend([fq_inst])
 
                     if not dlog.canceled:

@@ -489,7 +489,7 @@ def generate_new_surface(fqpr_inst: Union[Fqpr, list], grid_type: str = 'single_
     """
 
     print('***** Generating new Bathygrid surface *****')
-    strt = perf_counter()
+    strttime = perf_counter()
 
     if not isinstance(fqpr_inst, list):
         fqpr_inst = [fqpr_inst]
@@ -497,11 +497,11 @@ def generate_new_surface(fqpr_inst: Union[Fqpr, list], grid_type: str = 'single_
     try:
         all_have_soundings = np.all(['x' in rp for f in fqpr_inst for rp in f.multibeam.raw_ping])
     except AttributeError:
-        print('generate_new_vr_surface: Invalid Fqpr instances passed in, could not find instance.multibeam.raw_ping[0].x')
+        print('generate_new_surface: Invalid Fqpr instances passed in, could not find instance.multibeam.raw_ping[0].x')
         return None
 
     if not all_have_soundings:
-        print('generate_new_vr_surface: No georeferenced soundings found')
+        print('generate_new_surface: No georeferenced soundings found')
         return None
 
     unique_crs = []
@@ -519,38 +519,43 @@ def generate_new_surface(fqpr_inst: Union[Fqpr, list], grid_type: str = 'single_
             unique_vertref.append(vertref)
 
     if len(unique_crs) > 1:
-        print('generate_new_vr_surface: Found multiple EPSG codes in the input data, data must be of the same code: {}'.format(unique_crs))
+        print('generate_new_surface: Found multiple EPSG codes in the input data, data must be of the same code: {}'.format(unique_crs))
         return None
     if len(unique_vertref) > 1:
-        print('generate_new_vr_surface: Found multiple vertical references in the input data, data must be of the same reference: {}'.format(unique_vertref))
+        print('generate_new_surface: Found multiple vertical references in the input data, data must be of the same reference: {}'.format(unique_vertref))
         return None
     if not unique_crs and fqpr_inst:
-        print('generate_new_vr_surface: No valid EPSG for {}'.format(fqpr_inst[0].horizontal_crs.to_proj4()))
+        print('generate_new_surface: No valid EPSG for {}'.format(fqpr_inst[0].horizontal_crs.to_proj4()))
         return None
 
     print('Preparing data...')
-    chunksize = 5000  # set some arbitrary number of pings to hold in memory at once, probably need a smarter way to do this eventually
+    # set some arbitrary number of pings to hold in memory at once, probably need a smarter way to do this eventually
+    #  just make sure it is a multiple of 1000, the chunksize of the raw_ping dataset
+    chunksize = 10000
     bg = create_grid(folder_path=output_path, grid_type=grid_type, tile_size=tile_size, subtile_size=subtile_size)
     for f in fqpr_inst:
         cont_name = os.path.split(f.multibeam.raw_ping[0].output_path)[1]
         multibeamfiles = list(f.multibeam.raw_ping[0].multibeam_files.keys())
         cont_name_idx = 0
         for rp in f.multibeam.raw_ping:
-            rp = rp.drop_vars([nms for nms in rp.variables if nms not in ['x', 'y', 'z', 'tvu', 'thu']]).stack({'sounding': ('time', 'beam')})
             number_of_pings = rp.time.size
+            rp = rp.drop_vars([nms for nms in rp.variables if nms not in ['x', 'y', 'z', 'tvu', 'thu']])
             totalchunks = int(np.ceil(number_of_pings / chunksize))
-            print('Adding points in {} chunks...'.format(totalchunks))
+            print('Adding points in {} chunks...\n'.format(totalchunks))
             for idx in range(totalchunks):
                 strt, end = idx * chunksize, min((idx + 1) * chunksize, number_of_pings)
-                bg.add_points(rp[strt:end], '{}_{}'.format(cont_name, cont_name_idx), multibeamfiles, unique_crs[0], unique_vertref[0])
+                bg.add_points(rp.isel(time=slice(strt, end)).stack({'sounding': ('time', 'beam')}),
+                              '{}_{}'.format(cont_name, cont_name_idx), multibeamfiles, unique_crs[0], unique_vertref[0])
+                cont_name_idx += 1
 
     # now after all points are added, run grid with the options presented
     bg.grid(algorithm=gridding_algorithm, resolution=resolution, use_dask=use_dask)
     if export_path:
-        bg.export(output_path=export_path, export_format=export_format, z_positive_up=export_z_positive_up, resolution=export_resolution)
+        bg.export(output_path=export_path, export_format=export_format, z_positive_up=export_z_positive_up,
+                  resolution=export_resolution)
 
-    end = perf_counter()
-    print('***** Surface Generation Complete: {}s *****'.format(end - strt))
+    endtime = perf_counter()
+    print('***** Surface Generation Complete: {}s *****'.format(round(endtime - strttime, 1)))
     return bg
 
 
