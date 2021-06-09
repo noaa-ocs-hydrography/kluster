@@ -55,10 +55,11 @@ class FqprProject:
 
         self.vessel_file = None
 
-        self.surface_instances = {}
-        self.surface_layers = {}
-
         # all paths are relative to the project file location...
+
+        # bathygrid.bgrid.BathyGrid instances per grid folder path, see add_surface
+        # ex: {'vrtilegrid_mean': <bathygrid.maingrid.VRGridTile object at 0x0000015013FD5760>}
+        self.surface_instances = {}
 
         # fqpr_generation.FQPR instances per converted folder path, see add_fqpr
         # ex: {'EM2040\\convert1': <HSTB.kluster.fqpr_generation.Fqpr at 0x25f910e8eb0>}
@@ -324,7 +325,6 @@ class FqprProject:
         self.path = None
         self.vessel_file = None
         self.surface_instances = {}
-        self.surface_layers = {}
         self.fqpr_instances = {}
         self.fqpr_lines = {}
         self.fqpr_attrs = {}

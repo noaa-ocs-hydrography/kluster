@@ -606,6 +606,7 @@ class LayerManager:
         """
         return the list of QgsMapLayer objects for all surface layers
         """
+
         return self.return_layers_by_type('surface')
 
     @property
@@ -613,6 +614,7 @@ class LayerManager:
         """
         return the list of QgsMapLayer objects for all background layers
         """
+
         return self.return_layers_by_type('background')
 
     @property
@@ -620,6 +622,7 @@ class LayerManager:
         """
         return the list of layer names for all line layers
         """
+
         return self.return_layer_names_by_type('line')
 
     @property
@@ -627,6 +630,7 @@ class LayerManager:
         """
         return the list of layer names for all surface layers
         """
+
         return self.return_layer_names_by_type('surface')
 
     @property
@@ -634,7 +638,25 @@ class LayerManager:
         """
         return the list of layer names for all background layers
         """
+
         return self.return_layer_names_by_type('background')
+
+    def surface_layer_names_by_type(self, layertype: str):
+        """
+        Return all layer names that match a certain type, i.e. 'depth' or 'vertical_uncertainty'
+
+        Parameters
+        ----------
+        layertype
+            string identifier for the layer
+
+        Returns
+        -------
+        list
+            list of all surface layer names that match this layertype
+        """
+
+        return [lname for lname in self.surface_layer_names if lname.find('_{}_'.format(layertype)) != -1]
 
     def add_layer(self, layername: str, layerdata: Union[qgis_core.QgsRasterLayer, qgis_core.QgsVectorLayer], 
                   layertype: str):
@@ -667,6 +689,7 @@ class LayerManager:
         layername
             name of the layer, generally a file path or vsimem path
         """
+
         if layername in self.names_in_order:
             layer_idx = self.names_in_order.index(layername)
             if layer_idx not in self.shown_layers_index:
@@ -680,12 +703,14 @@ class LayerManager:
         """
         Set all layers as shown, but adding the names in order index to the shown layers index.
         """
+
         self.shown_layers_index = np.arange(len(self.names_in_order)).tolist()
 
     def hide_all_layers(self):
         """
         hide all layers by clearing out the shown layers index
         """
+
         self.shown_layers_index = []
 
     def hide_layer(self, layername: str):
@@ -698,6 +723,7 @@ class LayerManager:
         layername
             name of the layer, generally a file path or vsimem path
         """
+
         if layername in self.names_in_order:
             layer_idx = self.names_in_order.index(layername)
             if layer_idx in self.shown_layers_index:
@@ -794,6 +820,7 @@ class MapView(QtWidgets.QMainWindow):
         self.layer_transparency = 0.5
         self.surface_transparency = 0
         self.background_data = {}
+        self.band_minmax = {}
         self._init_settings(settings)
 
         self.crs = qgis_core.QgsCoordinateReferenceSystem('EPSG:{}'.format(self.epsg))
@@ -1660,12 +1687,22 @@ class MapView(QtWidgets.QMainWindow):
 
         if providertype in ['gdal', 'wms']:
             lyr = self._add_raster_layer(source, layername, providertype)
+
         elif providertype in ['ogr']:
             lyr = self._add_vector_layer(source, layername, providertype, color)
         else:
             raise NotImplementedError('Only currently supporting gdal and ogr formats, found {}'.format(providertype))
         self._manager_add_layer(source, lyr, layertype)
         return lyr
+
+    def _update_all_raster_layer_minmax(self, layername: str):
+        for lname in self.layer_manager.surface_layer_names_by_type(layername):
+            old_lyr = self.layer_manager.layer_data_lookup[lname]
+            if layername == 'vertical_uncertainty':
+                shader = inv_raster_shader(self.band_minmax[layername][0], self.band_minmax[layername][1])
+            else:
+                shader = raster_shader(self.band_minmax[layername][0], self.band_minmax[layername][1])
+            old_lyr.renderer().setShader(shader)
 
     def _add_raster_layer(self, source: str, layername: str, providertype: str):
         """
@@ -1693,17 +1730,23 @@ class MapView(QtWidgets.QMainWindow):
             print(rlayer.error().message())
             return
         if providertype == 'gdal':
-            stats = rlayer.dataProvider().bandStatistics(1)  # depth layer stats
+            stats = rlayer.dataProvider().bandStatistics(1)
+            minval = stats.minimumValue
+            maxval = stats.maximumValue
+            if layername in self.band_minmax:
+                self.band_minmax[layername][0] = min(minval, self.band_minmax[layername][0])
+                self.band_minmax[layername][1] = max(maxval, self.band_minmax[layername][1])
+            else:
+                self.band_minmax[layername] = [minval, maxval]
             if layername == 'vertical_uncertainty':
                 shader = inv_raster_shader
             else:
                 shader = raster_shader
-            minval = stats.minimumValue
-            maxval = stats.maximumValue
-            renderer = qgis_core.QgsSingleBandPseudoColorRenderer(rlayer.dataProvider(), 1, shader(minval, maxval))
+            self._update_all_raster_layer_minmax(layername)
+            renderer = qgis_core.QgsSingleBandPseudoColorRenderer(rlayer.dataProvider(), 1, shader(self.band_minmax[layername][0],
+                                                                                                   self.band_minmax[layername][1]))
             rlayer.setRenderer(renderer)
             rlayer.renderer().setOpacity(1 - self.surface_transparency)
-            print('New {} layer: Min {} Max {}'.format(layername, minval, maxval))
         rlayer.setName(source)
         self.project.addMapLayer(rlayer, True)
         return rlayer

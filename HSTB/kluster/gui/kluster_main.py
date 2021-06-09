@@ -1080,15 +1080,6 @@ class KlusterMain(QtWidgets.QMainWindow):
         raw_attribution = self.project.fqpr_attrs[convert_pth]
         self.explorer.populate_explorer_with_lines(linename, raw_attribution)
 
-        # if self.dockwidget_is_visible(self.attitude_dock) and idx == 0:
-        #     att = self.project.build_raw_attitude_for_line(linename, subset=True)
-        #     if att is not None:
-        #         self.attitude.initialize_datastore()
-        #         self.attitude.initialize_data(att)
-        #         self.attitude.start_plotting()
-        # elif not self.dockwidget_is_visible(self.attitude_dock):
-        #     self.attitude.stop_plotting()
-
     def refresh_explorer(self, fq_inst):
         """
         After reloading the fqpr instance (generally done after all processing), you need to also refresh the explorer
@@ -1139,19 +1130,15 @@ class KlusterMain(QtWidgets.QMainWindow):
 
     def tree_surf_selected(self, converted_pth):
         """
-        On selecting a surface in the project tree, show the surface in 3D if the depth layer exists
+        On selecting a surface in the project tree, display the surface attribution in the attribute window
 
         Parameters
         ----------
         converted_pth: str, surface path, used as key in project structure
 
         """
-        pass
-        # if self.dockwidget_is_visible(self.points_dock):
-        #     self.points_view.clear_plot_area()
-        #     surf_object = self.project.surface_instances[converted_pth]
-        #     lyr = surf_object.get_layer_by_name('depth')
-        #     self.points_view.add_surface_dataset(surf_object.node_x_loc, surf_object.node_y_loc, lyr)
+
+        self.attribute.display_file_attribution(self.project.surface_instances[converted_pth].return_attribution())
 
     def tree_surface_layer_selected(self, surfpath, layername, checked):
         """
