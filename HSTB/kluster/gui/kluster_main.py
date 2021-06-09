@@ -831,8 +831,10 @@ class KlusterMain(QtWidgets.QMainWindow):
                     if relsurf in self.project.surface_instances:
                         surf_inst = self.project.surface_instances[relsurf]
                         self.output_window.clear()
+                        print('Exporting to {}, format {}..'.format(output_path, export_format))
                         self.export_grid_thread.populate(surf_inst, export_format, output_path, z_pos_up, opts)
                         self.export_grid_thread.start()
+                        print('Export Complete.')
                     else:
                         print('kluster_grid_export: Unable to load from {}'.format(surf))
                 else:
