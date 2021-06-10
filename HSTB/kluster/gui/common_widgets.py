@@ -734,13 +734,13 @@ class TwoListWidget(QtWidgets.QWidget):
 
     def return_left_list_data(self):
         data = []
-        for cnt in range(self.left_list.count() - 1):
+        for cnt in range(self.left_list.count()):
             data.append(self.left_list.item(cnt).text())
         return data
 
     def return_right_list_data(self):
         data = []
-        for cnt in range(self.right_list.count() - 1):
+        for cnt in range(self.right_list.count()):
             data.append(self.right_list.item(cnt).text())
         return data
 

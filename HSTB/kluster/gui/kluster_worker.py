@@ -1,6 +1,7 @@
 from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal
 
-from HSTB.kluster.fqpr_convenience import generate_new_surface, import_processed_navigation, overwrite_raw_navigation
+from HSTB.kluster.fqpr_convenience import generate_new_surface, import_processed_navigation, overwrite_raw_navigation, \
+    update_surface
 
 
 class ActionWorker(QtCore.QThread):
@@ -171,4 +172,32 @@ class SurfaceWorker(QtCore.QThread):
     def run(self):
         self.started.emit(True)
         self.fqpr_surface = generate_new_surface(self.fqpr_instances, **self.opts)
+        self.finished.emit(True)
+
+
+class SurfaceUpdateWorker(QtCore.QThread):
+    """
+    Executes code in a seperate thread.
+    """
+
+    started = Signal(bool)
+    finished = Signal(bool)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.fqpr_surface = None
+        self.add_fqpr_instances = None
+        self.remove_fqpr_instances = None
+        self.opts = {}
+
+    def populate(self, fqpr_surface, add_fqpr_instances, remove_fqpr_instances, opts):
+        self.fqpr_surface = fqpr_surface
+        self.add_fqpr_instances = add_fqpr_instances
+        self.remove_fqpr_instances = remove_fqpr_instances
+        self.opts = opts
+
+    def run(self):
+        self.started.emit(True)
+        self.fqpr_surface = update_surface(self.fqpr_surface, self.add_fqpr_instances, self.remove_fqpr_instances,
+                                           **self.opts)
         self.finished.emit(True)

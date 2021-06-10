@@ -13,7 +13,7 @@ from HSTB.kluster.xarray_conversion import BatchRead
 from HSTB.kluster.fqpr_generation import Fqpr
 from HSTB.kluster.fqpr_helpers import return_directory_from_data
 from HSTB.kluster import kluster_variables
-from bathygrid.convenience import create_grid, load_grid
+from bathygrid.convenience import create_grid, load_grid, BathyGrid
 
 
 def perform_all_processing(filname: Union[str, list], navfiles: list = None, outfold: str = None, coord_system: str = 'NAD83',
@@ -438,6 +438,99 @@ def return_svcorr_xyz(filname: str, outfold: str = None, visualizations: bool = 
     return fqpr_inst, dset
 
 
+def _add_points_to_surface(fqpr_inst: Fqpr, bgrid: BathyGrid, fqpr_crs: int, fqpr_vertref: str, chunksize: int = 10000):
+    """
+    Add this FQPR instance to the bathygrid provided.
+    """
+    cont_name = os.path.split(fqpr_inst.multibeam.raw_ping[0].output_path)[1]
+    multibeamfiles = list(fqpr_inst.multibeam.raw_ping[0].multibeam_files.keys())
+    cont_name_idx = 0
+    for rp in fqpr_inst.multibeam.raw_ping:
+        number_of_pings = rp.time.size
+        rp = rp.drop_vars([nms for nms in rp.variables if nms not in ['x', 'y', 'z', 'tvu', 'thu']])
+        totalchunks = int(np.ceil(number_of_pings / chunksize))
+        print('Adding points in {} chunks...\n'.format(totalchunks))
+        for idx in range(totalchunks):
+            strt, end = idx * chunksize, min((idx + 1) * chunksize, number_of_pings)
+            bgrid.add_points(rp.isel(time=slice(strt, end)).stack({'sounding': ('time', 'beam')}),
+                             '{}_{}'.format(cont_name, cont_name_idx), multibeamfiles, fqpr_crs, fqpr_vertref)
+            cont_name_idx += 1
+
+
+def _remove_points_from_surface(fqpr_inst: Union[Fqpr, str], bgrid: BathyGrid):
+    """
+    Remove all points from the grid that match this FQPR instance.  Will remove all tags from the grid that match the
+    container name of the FQPR instance.
+
+    ex: for cont_name = em2040_dual_tx_rx_389_07_10_2019, removes 'em2040_dual_tx_rx_389_07_10_2019_0',
+    'em2040_dual_tx_rx_389_07_10_2019_1', 'em2040_dual_tx_rx_389_07_10_2019_2', etc.
+    """
+    if isinstance(fqpr_inst, str):
+        cont_name = fqpr_inst
+    else:
+        cont_name = os.path.split(fqpr_inst.multibeam.raw_ping[0].output_path)[1]
+    remove_these = []
+    for existing_cont in bgrid.container:
+        if existing_cont.find(cont_name) != -1:
+            remove_these.append(existing_cont)
+    if remove_these:
+        print('Removing points from {}...'.format(cont_name))
+    for remove_cont in remove_these:
+        bgrid.remove_points(remove_cont)
+
+
+def _get_unique_crs_vertref(fqpr_instances: list):
+    """
+    Pull the CRS and vertical reference from each FQPR instance, check to make sure there aren't differences.  We cant
+    add points from different FQPR instances if the CRS or vertical reference is different.  The grid itself will check
+    to make sure that the crs/vertref matches the gridded data when you add to the grid.
+    """
+    unique_crs = []
+    unique_vertref = []
+    for fq in fqpr_instances:
+        crs_data = fq.horizontal_crs.to_epsg()
+        vertref = fq.multibeam.raw_ping[0].vertical_crs
+        if vertref == 'Unknown':
+            vertref = fq.multibeam.raw_ping[0].vertical_reference
+        if crs_data is None:
+            crs_data = fq.horizontal_crs.to_proj4()
+        if crs_data not in unique_crs:
+            unique_crs.append(crs_data)
+        if vertref not in unique_vertref:
+            unique_vertref.append(vertref)
+
+    if not fqpr_instances:
+        print('_get_unique_crs_vertref: no fqpr instances provided')
+        return None, None
+    if len(unique_crs) > 1:
+        print('_get_unique_crs_vertref: Found multiple EPSG codes in the input data, data must be of the same code: {}'.format(unique_crs))
+        return None, None
+    if len(unique_vertref) > 1:
+        print('_get_unique_crs_vertref: Found multiple vertical references in the input data, data must be of the same reference: {}'.format(unique_vertref))
+        return None, None
+    if not unique_crs:
+        print('_get_unique_crs_vertref: No valid EPSG for {}'.format(fqpr_instances[0].horizontal_crs.to_proj4()))
+        return None, None
+    return unique_crs, unique_vertref
+
+
+def _validate_fqpr_for_gridding(fqpr_instances: list):
+    """
+    Check to make sure all fqpr instances that we are trying to grid have the correct georeferenced data
+    """
+
+    try:
+        all_have_soundings = np.all(['x' in rp for f in fqpr_instances for rp in f.multibeam.raw_ping])
+    except AttributeError:
+        print('_validate_fqpr_for_gridding: Invalid Fqpr instances passed in, could not find instance.multibeam.raw_ping[0].x')
+        return False
+
+    if not all_have_soundings:
+        print('_validate_fqpr_for_gridding: No georeferenced soundings found')
+        return False
+    return True
+
+
 def generate_new_surface(fqpr_inst: Union[Fqpr, list], grid_type: str = 'single_resolution', tile_size: float = 1024.0,
                          subtile_size: float = 128, gridding_algorithm: str = 'mean', resolution: float = None,
                          use_dask: bool = False, output_path: str = None, export_path: str = None,
@@ -494,59 +587,19 @@ def generate_new_surface(fqpr_inst: Union[Fqpr, list], grid_type: str = 'single_
     if not isinstance(fqpr_inst, list):
         fqpr_inst = [fqpr_inst]
 
-    try:
-        all_have_soundings = np.all(['x' in rp for f in fqpr_inst for rp in f.multibeam.raw_ping])
-    except AttributeError:
-        print('generate_new_surface: Invalid Fqpr instances passed in, could not find instance.multibeam.raw_ping[0].x')
+    if not _validate_fqpr_for_gridding(fqpr_inst):
         return None
 
-    if not all_have_soundings:
-        print('generate_new_surface: No georeferenced soundings found')
-        return None
-
-    unique_crs = []
-    unique_vertref = []
-    for fq in fqpr_inst:
-        crs_data = fq.horizontal_crs.to_epsg()
-        vertref = fq.multibeam.raw_ping[0].vertical_crs
-        if vertref == 'Unknown':
-            vertref = fq.multibeam.raw_ping[0].vertical_reference
-        if crs_data is None:
-            crs_data = fq.horizontal_crs.to_proj4()
-        if crs_data not in unique_crs:
-            unique_crs.append(crs_data)
-        if vertref not in unique_vertref:
-            unique_vertref.append(vertref)
-
-    if len(unique_crs) > 1:
-        print('generate_new_surface: Found multiple EPSG codes in the input data, data must be of the same code: {}'.format(unique_crs))
-        return None
-    if len(unique_vertref) > 1:
-        print('generate_new_surface: Found multiple vertical references in the input data, data must be of the same reference: {}'.format(unique_vertref))
-        return None
-    if not unique_crs and fqpr_inst:
-        print('generate_new_surface: No valid EPSG for {}'.format(fqpr_inst[0].horizontal_crs.to_proj4()))
+    unique_crs, unique_vertref = _get_unique_crs_vertref(fqpr_inst)
+    if unique_vertref is None or unique_crs is None:
         return None
 
     print('Preparing data...')
     # set some arbitrary number of pings to hold in memory at once, probably need a smarter way to do this eventually
     #  just make sure it is a multiple of 1000, the chunksize of the raw_ping dataset
-    chunksize = 10000
     bg = create_grid(folder_path=output_path, grid_type=grid_type, tile_size=tile_size, subtile_size=subtile_size)
     for f in fqpr_inst:
-        cont_name = os.path.split(f.multibeam.raw_ping[0].output_path)[1]
-        multibeamfiles = list(f.multibeam.raw_ping[0].multibeam_files.keys())
-        cont_name_idx = 0
-        for rp in f.multibeam.raw_ping:
-            number_of_pings = rp.time.size
-            rp = rp.drop_vars([nms for nms in rp.variables if nms not in ['x', 'y', 'z', 'tvu', 'thu']])
-            totalchunks = int(np.ceil(number_of_pings / chunksize))
-            print('Adding points in {} chunks...\n'.format(totalchunks))
-            for idx in range(totalchunks):
-                strt, end = idx * chunksize, min((idx + 1) * chunksize, number_of_pings)
-                bg.add_points(rp.isel(time=slice(strt, end)).stack({'sounding': ('time', 'beam')}),
-                              '{}_{}'.format(cont_name, cont_name_idx), multibeamfiles, unique_crs[0], unique_vertref[0])
-                cont_name_idx += 1
+        _add_points_to_surface(f, bg, unique_crs[0], unique_vertref[0])
 
     # now after all points are added, run grid with the options presented
     bg.grid(algorithm=gridding_algorithm, resolution=resolution, use_dask=use_dask)
@@ -557,6 +610,67 @@ def generate_new_surface(fqpr_inst: Union[Fqpr, list], grid_type: str = 'single_
     endtime = perf_counter()
     print('***** Surface Generation Complete: {}s *****'.format(round(endtime - strttime, 1)))
     return bg
+
+
+def update_surface(surface_instance: Union[str, BathyGrid], add_fqpr: Union[Fqpr, list] = None, remove_fqpr: Union[Fqpr, list, str] = None,
+                   regrid: bool = True):
+    """
+    Bathygrid instances can be updated with new points from new converted multibeam data, or have points removed from
+    old multibeam data.  If you want to update the surface for changes in the multibeam data, provide the same FQPR instance
+    as both add_fqpr and remove_fqpr, and it will be removed and then added back.  If you want to regrid right after updating
+    the data, set regrid to True, and it will regrid any new points in the grid.
+
+    fqpr = fully qualified ping record, the term for the datastore in kluster
+
+    Parameters
+    ----------
+    surface_instance
+        Either a path to a Bathygrid folder (will reload the surface) or a loaded Bathygrid instance
+    add_fqpr
+        Either a list of Fqpr instances or a single Fqpr instance to add to the surface
+    remove_fqpr
+        Either a list of Fqpr instances, a list of fqpr container names or a single Fqpr instance to remove from the surface
+    regrid
+        If True, will immediately run grid() after adding the points to update the gridded data
+
+    Returns
+    -------
+    BathyGrid
+        BathyGrid instance for the newly updated surface
+    """
+
+    if isinstance(surface_instance, str):
+        surface_instance = reload_surface(surface_instance)
+        if surface_instance is None:
+            return None
+
+    if remove_fqpr:
+        if not isinstance(remove_fqpr, list):
+            remove_fqpr = [remove_fqpr]
+        for rfqpr in remove_fqpr:
+            _remove_points_from_surface(rfqpr, surface_instance)
+
+    if add_fqpr:
+        if not isinstance(add_fqpr, list):
+            add_fqpr = [add_fqpr]
+
+        if not _validate_fqpr_for_gridding(add_fqpr):
+            return None
+
+        unique_crs, unique_vertref = _get_unique_crs_vertref(add_fqpr)
+        if unique_vertref is None or unique_crs is None:
+            return None
+
+        for afqpr in add_fqpr:
+            _add_points_to_surface(afqpr, surface_instance, unique_crs[0], unique_vertref[0])
+
+    if regrid:
+        if surface_instance.grid_resolution == 'AUTO':
+            rez = None
+        else:
+            rez = surface_instance.grid_resolution
+        surface_instance.grid(surface_instance.grid_algorithm, rez)
+    return surface_instance
 
 
 def reload_surface(surface_path: str):
