@@ -57,7 +57,7 @@ hidden_imports = [
 if is_win:
     hidden_imports += collect_submodules("encodings")
 
-a = Analysis(["kluster_main.py"],
+a = Analysis(["C:\\Pydro21_Dev\\NOAA\\site-packages\\Python38\\git_repos\\hstb_kluster\\HSTB\\kluster\\gui\\kluster_main.py"],
              pathex=["C:\\Pydro21_Dev\\NOAA\\site-packages\\Python38\\git_repos\\hstb_kluster\\HSTB\\kluster\\gui",
 			         "C:\\Pydro21_Dev\\envs\\Pydro38\\Library\\bin",
 					 "C:\\Pydro21_Dev\\envs\\Pydro38\\Lib\\site-packages\\shiboken2"],

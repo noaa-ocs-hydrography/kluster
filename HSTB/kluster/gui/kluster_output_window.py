@@ -61,6 +61,10 @@ class KlusterOutput(QtWidgets.QTextEdit):
 
         ex: '[#####                                   ] | 14% Completed |  1.6s'
 
+        Same with the bathygrid progress bar
+
+        ex: 'Adding Points to SRGrid_Root: |███████████████████████████████████-----------------------------------| 50.0% Complete'
+
         Parameters
         ----------
         text
@@ -69,11 +73,15 @@ class KlusterOutput(QtWidgets.QTextEdit):
             if True, is stdout
         """
         cursor = self.textCursor()
-        if text.lstrip()[0:2] in ['[#', '[ ']:
+        if text.lstrip()[0:2] in ['[#', '[ '] or text[-10:] == '% Complete':
             # try and see if we need to continue a previous bar, so you dont get a list of 100% progress bars
             cursor.select(QtGui.QTextCursor.LineUnderCursor)
             cursor.removeSelectedText()
             cursor.deletePreviousChar()
+            if text[-10:] == '% Complete':
+                cursor.select(QtGui.QTextCursor.LineUnderCursor)
+                cursor.removeSelectedText()
+                cursor.deletePreviousChar()
             cursor.insertText(text)
         else:
             cursor.movePosition(QtGui.QTextCursor.End)

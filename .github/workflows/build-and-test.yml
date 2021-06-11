@@ -1,5 +1,8 @@
-name: Build and Test
-on: [push]
+name: build-and-test
+on:
+  push:
+    branches:
+      - master
 
 jobs:
   build-and-test:
@@ -28,6 +31,8 @@ jobs:
           conda install git pip
           pip install git+https://github.com/noaa-ocs-hydrography/kluster.git#egg=hstb.kluster
           pip install git+https://github.com/noaa-ocs-hydrography/shared.git#egg=hstb.shared
+          pip install git+https://github.com/noaa-ocs-hydrography/vyperdatum.git#egg=vyperdatum
+          pip install git+https://github.com/noaa-ocs-hydrography/bathygrid.git#egg=bathygrid
       
       - run: pip install -r $GITHUB_WORKSPACE/requirements.txt
           

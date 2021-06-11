@@ -599,32 +599,6 @@ def test_interp_across_chunks():
     print('Passed: interp_across_chunks')
 
 
-def test_basesurface():
-    x = np.linspace(538900, 539300, 1000).astype(np.float32)
-    y = np.linspace(5292800, 5293300, 1000).astype(np.float32)
-    z = np.linspace(30, 35, 1000).astype(np.float32)
-
-    test_data_arr = np.stack([x, y, z], axis=1)
-    test_data_arr = test_data_arr.ravel().view(dtype=[('x', 'f4'), ('y', 'f4'), ('z', 'f4')])
-
-    qm = QuadManager()
-    coordsys = '26919'
-    vertref = 'waterline'
-    containername = 'c:/test/output/path'
-    multibeamlist = ['testfile.all', 'testfile2.all']
-    qm.create(test_data_arr, container_name=containername, multibeam_file_list=multibeamlist,
-              crs=coordsys, vertical_reference=vertref, min_grid_size=1, max_grid_size=1)
-
-    assert qm.node_data.shape == (512, 512)
-    assert qm.data.shape == (1000,)
-    assert qm.node_data['z'][19, 0].compute() == 30.0
-    assert qm.node_data['z'][20, 0].compute() == 30.0050048828125
-    assert qm.node_data['z'][20, 1].compute() == 30.010009765625
-    assert qm.crs == '26919'
-
-    print('Passed: basesurface')
-
-
 def build_georef_correct_comparison(dset='realdual', vert_ref='waterline', datum='NAD83'):
     """
    Generate mine/kongsberg xyz88 data set from the test dataset.

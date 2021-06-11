@@ -11,6 +11,8 @@ from HSTB.kluster import kluster_variables
 
 # Current widgets that might be of interest:
 #   BrowseListWidget - You need a list widget with browse buttons and removing of items built in?  Check this out
+#   RangeSlider - Build a custom slider with two handles, allowing you to specify a range.
+#   PlotDataHandler - Widget allowing the user to provide a directory of kluster converted data and specify a time range in a number of different ways.
 
 
 class PlotDataHandler(QtWidgets.QWidget):
@@ -648,6 +650,101 @@ class DeletableListWidget(QtWidgets.QListWidget):
         self.files_updated.emit(True)
 
 
+class TwoListWidget(QtWidgets.QWidget):
+    def __init__(self, title_label: str = '', left_label: str = 'Existing', right_label: str = 'New'):
+        super().__init__()
+        self.top_layout = QtWidgets.QVBoxLayout()
+        self.main_layout = QtWidgets.QHBoxLayout()
+        self.left_layout = QtWidgets.QVBoxLayout()
+        self.center_layout = QtWidgets.QVBoxLayout()
+        self.right_layout = QtWidgets.QVBoxLayout()
+
+        self.title_label = QtWidgets.QLabel(title_label)
+        self.title_label.setAlignment(QtCore.Qt.AlignHCenter)
+        self.top_layout.addWidget(self.title_label)
+
+        self.left_list_label = QtWidgets.QLabel(left_label)
+        self.left_list_label.setAlignment(QtCore.Qt.AlignHCenter)
+        self.left_layout.addWidget(self.left_list_label, QtCore.Qt.AlignHCenter)
+        self.left_list = QtWidgets.QListWidget()
+        self.left_list.setSelectionMode(QtWidgets.QAbstractItemView.ExtendedSelection)
+        self.left_layout.addWidget(self.left_list)
+        self.main_layout.addLayout(self.left_layout)
+
+        self.center_layout.addStretch()
+        self.left_button = QtWidgets.QPushButton("<---")
+        self.center_layout.addWidget(self.left_button)
+        self.right_button = QtWidgets.QPushButton("--->")
+        self.center_layout.addWidget(self.right_button)
+        self.center_layout.addStretch()
+        self.main_layout.addLayout(self.center_layout)
+
+        self.right_list_label = QtWidgets.QLabel(right_label)
+        self.right_list_label.setAlignment(QtCore.Qt.AlignHCenter)
+        self.right_layout.addWidget(self.right_list_label, QtCore.Qt.AlignHCenter)
+        self.right_list = QtWidgets.QListWidget()
+        self.right_list.setSelectionMode(QtWidgets.QAbstractItemView.ExtendedSelection)
+        self.right_layout.addWidget(self.right_list)
+        self.main_layout.addLayout(self.right_layout)
+
+        self.top_layout.addLayout(self.main_layout)
+        self.setLayout(self.top_layout)
+
+        self.left_button.clicked.connect(self.move_to_left_list)
+        self.right_button.clicked.connect(self.move_to_right_list)
+
+    def _add_data(self, data: str, side: str):
+        if side == 'left':
+            widg = self.left_list
+        else:
+            widg = self.right_list
+        if widg.findItems(data, QtCore.Qt.MatchExactly):  # no duplicates allowed
+            return
+        widg.addItem(data)
+
+    def _remove_data(self, data: str, side: str):
+        if side == 'left':
+            widg = self.left_list
+        else:
+            widg = self.right_list
+        for cnt in range(widg.count()):
+            rowdata = widg.item(cnt).text()
+            if rowdata == data:
+                itm = widg.takeItem(cnt)
+                del itm
+                return
+
+    def add_left_list(self, data: str):
+        self._add_data(data, 'left')
+
+    def add_right_list(self, data: str):
+        self._add_data(data, 'right')
+
+    def move_to_left_list(self, e):
+        for itm in self.right_list.selectedItems():
+            data = itm.text()
+            self._remove_data(data, 'right')
+            self._add_data(data, 'left')
+
+    def move_to_right_list(self, e):
+        for itm in self.left_list.selectedItems():
+            data = itm.text()
+            self._remove_data(data, 'left')
+            self._add_data(data, 'right')
+
+    def return_left_list_data(self):
+        data = []
+        for cnt in range(self.left_list.count()):
+            data.append(self.left_list.item(cnt).text())
+        return data
+
+    def return_right_list_data(self):
+        data = []
+        for cnt in range(self.right_list.count()):
+            data.append(self.right_list.item(cnt).text())
+        return data
+
+
 class BrowseListWidget(QtWidgets.QWidget):
     """
     List widget with insert/remove buttons to add or remove browsed file paths.  Will emit a signal on adding/removing
@@ -849,7 +946,10 @@ class OutWindow(QtWidgets.QMainWindow):
         super().__init__(parent)
 
         self.setWindowTitle('Test Window')
-        self.top_widget = PlotDataHandler()
+        self.top_widget = TwoListWidget()
+        self.top_widget.add_left_list('test1')
+        self.top_widget.add_left_list('test2')
+        self.top_widget.add_right_list('test3')
         self.setCentralWidget(self.top_widget)
         layout = QtWidgets.QHBoxLayout()
         self.top_widget.setLayout(layout)

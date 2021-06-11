@@ -181,7 +181,7 @@ class ExportGridDialog(QtWidgets.QDialog):
             self.update_input_path(self.input_pth)
 
     def update_input_path(self, foldername: str):
-        if os.path.split(foldername)[1] == 'grid.pickle':
+        if os.path.split(foldername)[1] in ['VRGridTile_Root', 'SRGrid_Root']:
             foldername = os.path.dirname(foldername)
 
         self.input_pth = foldername
@@ -189,16 +189,16 @@ class ExportGridDialog(QtWidgets.QDialog):
         curr_opts = self.export_opts.currentText().lower()
         self._event_update_status(curr_opts)
         self.fil_text.setText(self.input_pth)
-        if os.path.exists(os.path.join(self.input_pth, 'grid.pickle')):
+        if os.path.exists(os.path.join(self.input_pth, 'VRGridTile_Root')) or os.path.exists(os.path.join(self.input_pth, 'SRGrid_Root')):
             if not self.output_pth:
                 if curr_opts != 'geotiff':
                     ext = curr_opts
                 else:
                     ext = 'tif'
-                self.output_pth = os.path.join(os.path.dirname(self.input_pth), 'export.{}'.format(ext))
+                self.output_pth = os.path.join(self.input_pth, 'export.{}'.format(ext))
                 self.output_text.setText(self.output_pth)
         else:
-            self.status_msg.setText('"Export from the following" folder must contain a grid.pickle file')
+            self.status_msg.setText('"Export from the following" folder must contain a root folder (i.e. VRGridTile_Root)')
             self.ok_button.setEnabled(False)
 
     def output_file_browse(self):

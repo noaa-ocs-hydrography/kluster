@@ -433,13 +433,12 @@ for s_cnt, system in enumerate(systems):
 sv_corr, alt, lon, lat, hdng, heave, wline, vert_ref, input_crs, horizontal_crs, z_offset, vdatum_directory = self.client.gather(data_for_workers[0])
 
 #################################################################
-from hstb_drivers.HSTB.drivers.kmall import *
-km = kmall(r"C:\collab\dasktest\data_dir\from_Lund\0011_20210304_094901.kmall")
-km.index_file()
-for offset, size, mtype in zip(km.Index['ByteOffset'],
-                               km.Index['MessageSize'],
-                               km.Index['MessageType']):
-    km.FID.seek(offset, 0)
-    if mtype == "b'#MRZ'":
-        break
-self = km
+import os
+from HSTB.kluster.fqpr_convenience import reload_data, generate_new_surface
+fqone = reload_data(r"C:\collab\dasktest\data_dir\new_project\em710_241_03_17_2020")
+fqtwo = reload_data(r"C:\collab\dasktest\data_dir\new_project\em2040_40072_03_17_2020")
+bg = generate_new_surface([fqone, fqtwo], resolution=16.0)
+
+bg.remove_points('em710_241_03_17_2020_0')
+bg.grid(resolution=16.0)
+bg.plot()

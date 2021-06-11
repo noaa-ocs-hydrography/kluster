@@ -9,7 +9,6 @@ from typing import Union
 
 from HSTB.kluster.fqpr_helpers import return_directory_from_data
 from HSTB.kluster.fqpr_convenience import return_data, return_surface
-from HSTB.kluster.fqpr_surface import BaseSurface
 from HSTB.kluster.fqpr_generation import Fqpr
 
 pulseform_translator = {'CW': 'CW', 'FM': 'FM', 'MIX': 'MixFM_CW'}
@@ -469,46 +468,46 @@ def calc_order(depth: np.array):
     return order1_min, order1_max, specialorder_min, specialorder_max
 
 
-def difference_grid_and_soundings(bs: BaseSurface, linefq: Fqpr, ang: xr.DataArray):
-    """
-    Given base surface instance (bs) and Fqpr instance (linefq) determine the depth difference between the nearest
-    soundings to the surface node and the nodal depth.
-
-    Parameters
-    ----------
-    bs
-        fqpr_surface BaseSurface instance, represents the reference surface data
-    linefq
-        fqpr_generation Fqpr instance, represents the accuracy lines
-    ang
-        xarray DataArray, beam angle for soundings, added in here separately as this is not stored in the xyz_dat
-        dataset so has to be reformed previously.
-
-    Returns
-    -------
-    np.array
-        depth difference between grid node and sounding for each sounding
-    np.array
-        grid depth found for each sounding
-    np.array
-        beam numbers for each returned sounding
-    np.array
-        angle values for each returned sounding
-    """
-
-    grid_loc_per_sounding_x, grid_loc_per_sounding_y = bs.calculate_grid_indices(linefq.soundings.x, linefq.soundings.y,
-                                                                                 only_nearest=True)
-    sounding_idx = grid_loc_per_sounding_x != -1  # soundings that are inside the grid
-    grid_depth_at_loc = bs.surf[grid_loc_per_sounding_x[sounding_idx], grid_loc_per_sounding_y[sounding_idx]]
-    empty_grid_idx = np.isnan(grid_depth_at_loc)
-
-    grid_depth_at_loc = grid_depth_at_loc[~empty_grid_idx]
-    soundings_depth_at_loc = linefq.soundings.z[sounding_idx][~empty_grid_idx]
-    soundings_beam_at_loc = linefq.soundings.beam_idx[sounding_idx][~empty_grid_idx]
-    soundings_angle_at_loc = np.rad2deg(ang[sounding_idx][~empty_grid_idx])
-    depth_diff = soundings_depth_at_loc - grid_depth_at_loc
-
-    return depth_diff.values, grid_depth_at_loc, soundings_beam_at_loc.values, soundings_angle_at_loc
+# def difference_grid_and_soundings(bs: BaseSurface, linefq: Fqpr, ang: xr.DataArray):
+#     """
+#     Given base surface instance (bs) and Fqpr instance (linefq) determine the depth difference between the nearest
+#     soundings to the surface node and the nodal depth.
+#
+#     Parameters
+#     ----------
+#     bs
+#         fqpr_surface BaseSurface instance, represents the reference surface data
+#     linefq
+#         fqpr_generation Fqpr instance, represents the accuracy lines
+#     ang
+#         xarray DataArray, beam angle for soundings, added in here separately as this is not stored in the xyz_dat
+#         dataset so has to be reformed previously.
+#
+#     Returns
+#     -------
+#     np.array
+#         depth difference between grid node and sounding for each sounding
+#     np.array
+#         grid depth found for each sounding
+#     np.array
+#         beam numbers for each returned sounding
+#     np.array
+#         angle values for each returned sounding
+#     """
+#
+#     grid_loc_per_sounding_x, grid_loc_per_sounding_y = bs.calculate_grid_indices(linefq.soundings.x, linefq.soundings.y,
+#                                                                                  only_nearest=True)
+#     sounding_idx = grid_loc_per_sounding_x != -1  # soundings that are inside the grid
+#     grid_depth_at_loc = bs.surf[grid_loc_per_sounding_x[sounding_idx], grid_loc_per_sounding_y[sounding_idx]]
+#     empty_grid_idx = np.isnan(grid_depth_at_loc)
+#
+#     grid_depth_at_loc = grid_depth_at_loc[~empty_grid_idx]
+#     soundings_depth_at_loc = linefq.soundings.z[sounding_idx][~empty_grid_idx]
+#     soundings_beam_at_loc = linefq.soundings.beam_idx[sounding_idx][~empty_grid_idx]
+#     soundings_angle_at_loc = np.rad2deg(ang[sounding_idx][~empty_grid_idx])
+#     depth_diff = soundings_depth_at_loc - grid_depth_at_loc
+#
+#     return depth_diff.values, grid_depth_at_loc, soundings_beam_at_loc.values, soundings_angle_at_loc
 
 
 def _acctest_generate_stats(soundings_xdim: np.array, depth_diff: np.array, surf_depth: np.array,

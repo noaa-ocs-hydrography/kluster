@@ -1,6 +1,7 @@
 # kluster
 
 [![Build Status](https://travis-ci.com/noaa-ocs-hydrography/kluster.svg?branch=master)](https://travis-ci.com/noaa-ocs-hydrography/kluster)
+[![example workflow](https://github.com/noaa-ocs-hydrography/kluster/workflows/build-and-test/badge.svg)](https://github.com/noaa-ocs-hydrography/kluster/actions)
 [![Documentation Status](https://readthedocs.org/projects/kluster/badge/?version=latest)](https://kluster.readthedocs.io/en/latest/?badge=latest)
 [![Binder](https://binder.pangeo.io/badge_logo.svg)](https://binder.pangeo.io/v2/gh/noaa-ocs-hydrography/kluster/master)
 

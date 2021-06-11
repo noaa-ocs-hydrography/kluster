@@ -14,7 +14,8 @@ if qgis_enabled:
 from HSTB.kluster.gui import dialog_vesselview, kluster_explorer, kluster_project_tree, kluster_3dview_v2, \
     kluster_output_window, kluster_2dview, kluster_actions, kluster_monitor, dialog_daskclient, dialog_surface, \
     dialog_export, kluster_worker, kluster_interactive_console, dialog_basicplot, dialog_advancedplot, dialog_project_settings, \
-    dialog_export_grid, dialog_layer_settings, dialog_settings, dialog_importppnav, dialog_overwritenav
+    dialog_export_grid, dialog_layer_settings, dialog_settings, dialog_importppnav, dialog_overwritenav, dialog_surface_data, \
+    dialog_about
 from HSTB.kluster.fqpr_project import FqprProject
 from HSTB.kluster.fqpr_intelligence import FqprIntel
 from HSTB.kluster.fqpr_vessel import convert_from_fqpr_xyzrph
@@ -123,10 +124,11 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.import_ppnav_thread = kluster_worker.ImportNavigationWorker()
         self.overwrite_nav_thread = kluster_worker.OverwriteNavigationWorker()
         self.surface_thread = kluster_worker.SurfaceWorker()
+        self.surface_update_thread = kluster_worker.SurfaceUpdateWorker()
         self.export_thread = kluster_worker.ExportWorker()
         self.export_grid_thread = kluster_worker.ExportGridWorker()
         self.allthreads = [self.action_thread, self.import_ppnav_thread, self.overwrite_nav_thread, self.surface_thread,
-                           self.export_thread, self.export_grid_thread]
+                           self.surface_update_thread, self.export_thread, self.export_grid_thread]
 
         # connect FqprActionContainer with actions pane, called whenever actions changes
         self.intel.bind_to_action_update(self.actions.update_actions)
@@ -144,6 +146,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.project_tree.zoom_extents_fqpr.connect(self.zoom_extents_fqpr)
         self.project_tree.zoom_extents_surface.connect(self.zoom_extents_surface)
         self.project_tree.reprocess_instance.connect(self.reprocess_fqpr)
+        self.project_tree.update_surface.connect(self.update_surface_selected)
 
         self.explorer.row_selected.connect(self.points_view.superselect_point)
 
@@ -165,6 +168,8 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.import_ppnav_thread.finished.connect(self._kluster_import_ppnav_results)
         self.surface_thread.started.connect(self._start_action_progress)
         self.surface_thread.finished.connect(self._kluster_surface_generation_results)
+        self.surface_update_thread.started.connect(self._start_action_progress)
+        self.surface_update_thread.finished.connect(self._kluster_surface_update_results)
         self.export_thread.started.connect(self._start_action_progress)
         self.export_thread.finished.connect(self._stop_action_progress)
         self.export_grid_thread.started.connect(self._start_action_progress)
@@ -254,6 +259,9 @@ class KlusterMain(QtWidgets.QMainWindow):
         advancedplots_action = QtWidgets.QAction('Advanced Plots', self)
         advancedplots_action.triggered.connect(self._action_advancedplots)
 
+        about_action = QtWidgets.QAction('About', self)
+        about_action.triggered.connect(self._action_show_about)
+
         menubar = self.menuBar()
         file = menubar.addMenu("File")
         file.addAction(new_proj_action)
@@ -288,6 +296,9 @@ class KlusterMain(QtWidgets.QMainWindow):
         visual.addAction(basicplots_action)
         visual.addAction(advancedplots_action)
 
+        klusterhelp = menubar.addMenu('Help')
+        klusterhelp.addAction(about_action)
+
     def update_on_file_added(self, fil=''):
         """
         Adding a new path to a fqpr data store will update all the child widgets.  Will also load the data and add it
@@ -321,9 +332,7 @@ class KlusterMain(QtWidgets.QMainWindow):
             if new_project:  # user added a data file when there was no project, so we loaded or created a new one
                 new_fqprs.extend([fqpr for fqpr in self.project.fqpr_instances.keys() if fqpr not in new_fqprs])
             if new_data is None:
-                if os.path.split(f)[1] == 'grid.pickle':
-                    self.project.add_surface(os.path.dirname(f))
-                elif os.path.exists(os.path.join(f, 'grid.pickle')):
+                if os.path.exists(os.path.join(f, 'SRGrid_Root')) or os.path.exists(os.path.join(f, 'VRGridTile_Root')):
                     self.project.add_surface(f)
                 else:
                     fqpr_entry, already_in = self.project.add_fqpr(f, skip_dask=True)
@@ -363,19 +372,26 @@ class KlusterMain(QtWidgets.QMainWindow):
             self.two_d.set_extents_from_lines()
         if add_surface is not None and surface_layer_name:
             surf_object = self.project.surface_instances[add_surface]
-            shown = self.two_d.show_surface(add_surface, surface_layer_name)
-            if not shown:  # show didnt work, must need to add the surface instead
-                if qgis_enabled:
-                    data, geo_transform, bandnames = surf_object._gdal_preprocessing(nodatavalue=np.nan,
-                                                                                     z_positive_up=False,
-                                                                                     layer_names=(surface_layer_name,))
-                    self.two_d.add_surface([add_surface, surface_layer_name, data, geo_transform, surf_object.crs])
+            for resolution in surf_object.resolutions:
+                shown = self.two_d.show_surface(add_surface, surface_layer_name, resolution)
+                if not shown:  # show didnt work, must need to add the surface instead
+                    if qgis_enabled:
+                        data, geo_transform, bandnames = surf_object._gdal_preprocessing(resolution=resolution,
+                                                                                         nodatavalue=np.nan,
+                                                                                         z_positive_up=False,
+                                                                                         layer_names=(surface_layer_name,))
+                        self.two_d.add_surface([add_surface, surface_layer_name, data, geo_transform, surf_object.epsg, resolution])
+                    else:
+                        x, y, z, valid, newmins, newmaxs = surf_object.return_surf_xyz(surface_layer_name, pcolormesh=True)
+                        self.two_d.add_surface([add_surface, surface_layer_name, x, y, z, surf_object.epsg])
+                    self.two_d.set_extents_from_surfaces()
+        if remove_surface is not None:
+            surf_object = self.project.surface_instances[remove_surface]
+            for resolution in surf_object.resolutions:
+                if surface_layer_name:
+                    self.two_d.hide_surface(remove_surface, surface_layer_name, resolution)
                 else:
-                    x, y, z, valid, newmins, newmaxs = surf_object.return_surf_xyz(surface_layer_name, pcolormesh=True)
-                    self.two_d.add_surface([add_surface, surface_layer_name, x, y, z, surf_object.crs])
-                self.two_d.set_extents_from_surfaces()
-        if remove_surface is not None and surface_layer_name:
-            self.two_d.hide_surface(remove_surface, surface_layer_name)
+                    self.two_d.remove_surface(remove_surface, resolution)
 
     def close_fqpr(self, pth):
         """
@@ -435,7 +451,6 @@ class KlusterMain(QtWidgets.QMainWindow):
         """
         absolute_fqpath = self.project.absolute_path_from_relative(pth)
         self.console.runCmd('surf = reload_surface(r"{}")'.format(absolute_fqpath))
-        self.console.runCmd('# try plotting the tree, "surf.tree.draw_tree()')
 
     def zoom_extents_fqpr(self, pth: str):
         """
@@ -493,9 +508,12 @@ class KlusterMain(QtWidgets.QMainWindow):
 
         """
 
+        surf_object = self.project.surface_instances[pth]
+        for resolution in surf_object.resolutions:
+            self.two_d.remove_surface(pth, resolution)
         self.project.remove_surface(pth, relative_path=True)
         self.project_tree.refresh_project(self.project)
-        self.two_d.remove_surface(pth)
+
 
     def no_threads_running(self):
         """
@@ -562,6 +580,13 @@ class KlusterMain(QtWidgets.QMainWindow):
             fq.write_attribute_to_ping_records({'current_processing_status': 1})
             fq.multibeam.reload_pingrecords(skip_dask=fq.client is None)
             self.intel.regenerate_actions()
+
+    def update_surface_selected(self):
+        """
+        Right click on bathygrid instance and trigger updating the data, runs the update dialog and processes with those
+        options.
+        """
+        self.kluster_surface_update()
 
     def kluster_basic_plots(self):
         """
@@ -774,7 +799,7 @@ class KlusterMain(QtWidgets.QMainWindow):
                         if relfq in self.project.fqpr_instances:
                             fq_inst = self.project.fqpr_instances[relfq]
                             # use the project client, or start a new LocalCluster if client is None
-                            fq_inst.client = self.project.get_dask_client()
+                            # fq_inst.client = self.project.get_dask_client()
                             fq_chunks.extend([fq_inst])
 
                     if not dlog.canceled:
@@ -797,6 +822,56 @@ class KlusterMain(QtWidgets.QMainWindow):
             self.redraw()
         else:
             print('kluster_surface_generation: Unable to complete process')
+        self._stop_action_progress()
+
+    def kluster_surface_update(self):
+        if not self.no_threads_running():
+            print('Processing is already occurring.  Please wait for the process to finish')
+            cancelled = True
+        else:
+            cancelled = False
+            surfs = self.return_selected_surfaces()
+            if surfs:
+                surf = self.project.surface_instances[self.project.path_relative_to_project(surfs[0])]
+                existing_container_names = surf.return_unique_containers()
+                possible_container_names = [os.path.split(fqpr_inst.multibeam.raw_ping[0].output_path)[1] for fqpr_inst in self.project.fqpr_instances.values()]
+                possible_container_names = [pname for pname in possible_container_names if pname not in existing_container_names]
+                dlog = dialog_surface_data.SurfaceDataDialog(title=surf.output_folder)
+                dlog.setup(existing_container_names, possible_container_names)
+                if dlog.exec_():
+                    cancelled = dlog.canceled
+                    add_fqpr_names, remove_fqpr_names, opts = dlog.return_processing_options()
+                    if not cancelled:
+                        add_fqpr = []
+                        for fqpr_inst in self.project.fqpr_instances.values():
+                            fname = os.path.split(fqpr_inst.multibeam.raw_ping[0].output_path)[1]
+                            if fname in add_fqpr_names:
+                                add_fqpr.append(fqpr_inst)
+                                add_fqpr_names.remove(fname)
+                        if add_fqpr_names:
+                            print('kluster_surface_update: {} must be loaded in Kluster for it to be added to the surface.'.format(add_fqpr_names))
+                            return
+
+                        self.output_window.clear()
+                        self.surface_update_thread.populate(surf, add_fqpr, remove_fqpr_names, opts)
+                        self.surface_update_thread.start()
+                    else:
+                        print('kluster_surface_update: Processing was cancelled')
+
+    def _kluster_surface_update_results(self):
+        """
+        Method is run when the surface_update_thread signals completion.  All we need to do here is add the surface to the project
+        and display.
+        """
+
+        fq_surf = self.surface_update_thread.fqpr_surface
+        if fq_surf is not None:
+            self.redraw(remove_surface=self.project.path_relative_to_project(os.path.normpath(fq_surf.output_folder)))
+            self.project.remove_surface(os.path.normpath(fq_surf.output_folder))
+            self.project.add_surface(fq_surf)
+            self.project_tree.refresh_project(proj=self.project)
+        else:
+            print('kluster_surface_update: Unable to complete process')
         self._stop_action_progress()
 
     def kluster_export_grid(self):
@@ -827,8 +902,10 @@ class KlusterMain(QtWidgets.QMainWindow):
                     if relsurf in self.project.surface_instances:
                         surf_inst = self.project.surface_instances[relsurf]
                         self.output_window.clear()
+                        print('Exporting to {}, format {}..'.format(output_path, export_format))
                         self.export_grid_thread.populate(surf_inst, export_format, output_path, z_pos_up, opts)
                         self.export_grid_thread.start()
+                        print('Export Complete.')
                     else:
                         print('kluster_grid_export: Unable to load from {}'.format(surf))
                 else:
@@ -1076,15 +1153,6 @@ class KlusterMain(QtWidgets.QMainWindow):
         raw_attribution = self.project.fqpr_attrs[convert_pth]
         self.explorer.populate_explorer_with_lines(linename, raw_attribution)
 
-        # if self.dockwidget_is_visible(self.attitude_dock) and idx == 0:
-        #     att = self.project.build_raw_attitude_for_line(linename, subset=True)
-        #     if att is not None:
-        #         self.attitude.initialize_datastore()
-        #         self.attitude.initialize_data(att)
-        #         self.attitude.start_plotting()
-        # elif not self.dockwidget_is_visible(self.attitude_dock):
-        #     self.attitude.stop_plotting()
-
     def refresh_explorer(self, fq_inst):
         """
         After reloading the fqpr instance (generally done after all processing), you need to also refresh the explorer
@@ -1135,19 +1203,15 @@ class KlusterMain(QtWidgets.QMainWindow):
 
     def tree_surf_selected(self, converted_pth):
         """
-        On selecting a surface in the project tree, show the surface in 3D if the depth layer exists
+        On selecting a surface in the project tree, display the surface attribution in the attribute window
 
         Parameters
         ----------
         converted_pth: str, surface path, used as key in project structure
 
         """
-        pass
-        # if self.dockwidget_is_visible(self.points_dock):
-        #     self.points_view.clear_plot_area()
-        #     surf_object = self.project.surface_instances[converted_pth]
-        #     lyr = surf_object.get_layer_by_name('depth')
-        #     self.points_view.add_surface_dataset(surf_object.node_x_loc, surf_object.node_y_loc, lyr)
+
+        self.attribute.display_file_attribution(self.project.surface_instances[converted_pth].return_attribution())
 
     def tree_surface_layer_selected(self, surfpath, layername, checked):
         """
@@ -1472,6 +1536,15 @@ class KlusterMain(QtWidgets.QMainWindow):
         Connect menu action 'Export Surface' with kluster_export_grid
         """
         self.kluster_export_grid()
+
+    def _action_show_about(self):
+        """
+        Show the about screen when selecting 'Help - About'
+        """
+
+        dlog = dialog_about.AboutDialog()
+        if dlog.exec_():
+            pass
 
     def read_settings(self):
         """

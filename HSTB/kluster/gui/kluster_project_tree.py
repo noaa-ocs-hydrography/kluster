@@ -25,6 +25,7 @@ class KlusterProjectTree(QtWidgets.QTreeView):
     zoom_extents_fqpr = Signal(str)
     zoom_extents_surface = Signal(str)
     reprocess_instance = Signal(str)
+    update_surface = Signal(str)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -74,15 +75,20 @@ class KlusterProjectTree(QtWidgets.QTreeView):
         load_in_console.triggered.connect(self.load_in_console_event)
         zoom_extents = QtWidgets.QAction('Zoom Extents', self)
         zoom_extents.triggered.connect(self.zoom_extents_event)
+        update_surface = QtWidgets.QAction('Update Surface', self)
+        update_surface.triggered.connect(self.update_surface_event)
 
         self.right_click_menu_converted.addAction(close_dat)
-        self.right_click_menu_converted.addAction(reprocess)
         self.right_click_menu_converted.addAction(load_in_console)
         self.right_click_menu_converted.addAction(zoom_extents)
+        self.right_click_menu_converted.addSeparator()
+        self.right_click_menu_converted.addAction(reprocess)
 
         self.right_click_menu_surfaces.addAction(close_dat)
         self.right_click_menu_surfaces.addAction(load_in_console)
         self.right_click_menu_surfaces.addAction(zoom_extents)
+        self.right_click_menu_surfaces.addSeparator()
+        self.right_click_menu_surfaces.addAction(update_surface)
 
     def show_context_menu(self):
         """
@@ -152,6 +158,22 @@ class KlusterProjectTree(QtWidgets.QTreeView):
             self.zoom_extents_fqpr.emit(sel_data)
         elif mid_lvl_name == 'Surfaces':
             self.zoom_extents_surface.emit(sel_data)
+
+    def update_surface_event(self, e):
+        """
+        If user right clicks a surface and selects update surface, triggers this event.
+
+        Parameters
+        ----------
+        e: QEvent on menu button click
+
+        """
+        index = self.currentIndex()
+        mid_lvl_name = index.parent().data()
+        sel_data = index.data()
+
+        if mid_lvl_name == 'Surfaces':
+            self.update_surface.emit(sel_data)
 
     def close_item_event(self, e):
         """
