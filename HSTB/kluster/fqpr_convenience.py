@@ -613,7 +613,7 @@ def generate_new_surface(fqpr_inst: Union[Fqpr, list], grid_type: str = 'single_
 
 
 def update_surface(surface_instance: Union[str, BathyGrid], add_fqpr: Union[Fqpr, list] = None, remove_fqpr: Union[Fqpr, list, str] = None,
-                   regrid: bool = True):
+                   regrid: bool = True, use_dask: bool = False):
     """
     Bathygrid instances can be updated with new points from new converted multibeam data, or have points removed from
     old multibeam data.  If you want to update the surface for changes in the multibeam data, provide the same FQPR instance
@@ -632,6 +632,8 @@ def update_surface(surface_instance: Union[str, BathyGrid], add_fqpr: Union[Fqpr
         Either a list of Fqpr instances, a list of fqpr container names or a single Fqpr instance to remove from the surface
     regrid
         If True, will immediately run grid() after adding the points to update the gridded data
+    use_dask
+        if True, will start a dask LocalCluster instance and perform the gridding in parallel
 
     Returns
     -------
@@ -669,7 +671,7 @@ def update_surface(surface_instance: Union[str, BathyGrid], add_fqpr: Union[Fqpr
             rez = None
         else:
             rez = surface_instance.grid_resolution
-        surface_instance.grid(surface_instance.grid_algorithm, rez)
+        surface_instance.grid(surface_instance.grid_algorithm, rez, use_dask=use_dask)
     return surface_instance
 
 

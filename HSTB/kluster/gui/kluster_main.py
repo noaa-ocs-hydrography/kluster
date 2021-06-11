@@ -14,7 +14,8 @@ if qgis_enabled:
 from HSTB.kluster.gui import dialog_vesselview, kluster_explorer, kluster_project_tree, kluster_3dview_v2, \
     kluster_output_window, kluster_2dview, kluster_actions, kluster_monitor, dialog_daskclient, dialog_surface, \
     dialog_export, kluster_worker, kluster_interactive_console, dialog_basicplot, dialog_advancedplot, dialog_project_settings, \
-    dialog_export_grid, dialog_layer_settings, dialog_settings, dialog_importppnav, dialog_overwritenav, dialog_surface_data
+    dialog_export_grid, dialog_layer_settings, dialog_settings, dialog_importppnav, dialog_overwritenav, dialog_surface_data, \
+    dialog_about
 from HSTB.kluster.fqpr_project import FqprProject
 from HSTB.kluster.fqpr_intelligence import FqprIntel
 from HSTB.kluster.fqpr_vessel import convert_from_fqpr_xyzrph
@@ -258,6 +259,9 @@ class KlusterMain(QtWidgets.QMainWindow):
         advancedplots_action = QtWidgets.QAction('Advanced Plots', self)
         advancedplots_action.triggered.connect(self._action_advancedplots)
 
+        about_action = QtWidgets.QAction('About', self)
+        about_action.triggered.connect(self._action_show_about)
+
         menubar = self.menuBar()
         file = menubar.addMenu("File")
         file.addAction(new_proj_action)
@@ -291,6 +295,9 @@ class KlusterMain(QtWidgets.QMainWindow):
         visual = menubar.addMenu('Visualize')
         visual.addAction(basicplots_action)
         visual.addAction(advancedplots_action)
+
+        klusterhelp = menubar.addMenu('Help')
+        klusterhelp.addAction(about_action)
 
     def update_on_file_added(self, fil=''):
         """
@@ -859,9 +866,10 @@ class KlusterMain(QtWidgets.QMainWindow):
 
         fq_surf = self.surface_update_thread.fqpr_surface
         if fq_surf is not None:
+            self.redraw(remove_surface=self.project.path_relative_to_project(os.path.normpath(fq_surf.output_folder)))
             self.project.remove_surface(os.path.normpath(fq_surf.output_folder))
             self.project.add_surface(fq_surf)
-            self.redraw()
+            self.project_tree.refresh_project(proj=self.project)
         else:
             print('kluster_surface_update: Unable to complete process')
         self._stop_action_progress()
@@ -1528,6 +1536,15 @@ class KlusterMain(QtWidgets.QMainWindow):
         Connect menu action 'Export Surface' with kluster_export_grid
         """
         self.kluster_export_grid()
+
+    def _action_show_about(self):
+        """
+        Show the about screen when selecting 'Help - About'
+        """
+
+        dlog = dialog_about.AboutDialog()
+        if dlog.exec_():
+            pass
 
     def read_settings(self):
         """

@@ -1698,7 +1698,7 @@ class MapView(QtWidgets.QMainWindow):
     def _update_all_raster_layer_minmax(self, layername: str):
         for lname in self.layer_manager.surface_layer_names_by_type(layername):
             old_lyr = self.layer_manager.layer_data_lookup[lname]
-            if layername == 'vertical_uncertainty':
+            if layername in ['vertical_uncertainty', 'horizontal_uncertainty']:
                 shader = inv_raster_shader(self.band_minmax[layername][0], self.band_minmax[layername][1])
             else:
                 shader = raster_shader(self.band_minmax[layername][0], self.band_minmax[layername][1])
@@ -1738,7 +1738,7 @@ class MapView(QtWidgets.QMainWindow):
                 self.band_minmax[layername][1] = max(maxval, self.band_minmax[layername][1])
             else:
                 self.band_minmax[layername] = [minval, maxval]
-            if layername == 'vertical_uncertainty':
+            if layername in ['vertical_uncertainty', 'horizontal_uncertainty']:
                 shader = inv_raster_shader
             else:
                 shader = raster_shader

@@ -43,7 +43,8 @@ REQUIRED = [
             'zarr>=2.6.1',
             'hstb.drivers @ git+https://github.com/noaa-ocs-hydrography/drivers.git#egg=hstb.drivers',
             'hstb.shared @ git+https://github.com/noaa-ocs-hydrography/shared.git#egg=hstb.shared',
-            'vyperdatum @ git+https://github.com/noaa-ocs-hydrography/vyperdatum.git#egg=vyperdatum'
+            'vyperdatum @ git+https://github.com/noaa-ocs-hydrography/vyperdatum.git#egg=vyperdatum',
+            'bathygrid @ git+https://github.com/noaa-ocs-hydrography/bathygrid.git#egg=bathygrid'
 
             # note to self about gdal.  I want gdal >= 3.2.3 to get the bag template fix, but qgis appears to only
             #  support gdal=3.2.2 in it's latest version.  So I need to wait on qgis to get the gdal fix.n

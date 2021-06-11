@@ -112,6 +112,12 @@ class SurfaceDialog(QtWidgets.QDialog):
         self.hlayout_variabletile_two.addStretch()
         self.surf_layout.addLayout(self.hlayout_variabletile_two)
 
+        self.use_dask_checkbox = QtWidgets.QCheckBox('Process in Parallel')
+        self.use_dask_checkbox.setToolTip('With this checked, gridding will be done in parallel using the Dask Client.  Assuming you have multiple\n' +
+                                          'tiles, this should improve performance significantly.  You may experience some instability, although this\n' +
+                                          'current implementation has not shown any during testing.')
+        self.surf_layout.addWidget(self.use_dask_checkbox)
+
         # self.output_msg = QtWidgets.QLabel('Select the output path for the surface')
         # self.surf_layout.addWidget(self.output_msg)
 
@@ -211,7 +217,7 @@ class SurfaceDialog(QtWidgets.QDialog):
                 opts = {'fqpr_inst': self.fqpr_inst, 'grid_type': 'single_resolution',
                         'tile_size': float(self.single_rez_tile_size.currentText()),
                         'gridding_algorithm': self.surf_method.currentText().lower(),
-                        'resolution': rez, 'output_path': outpth}
+                        'resolution': rez, 'output_path': outpth, 'use_dask': self.use_dask_checkbox.isChecked()}
             elif curr_opts == 'Variable Resolution Tile':
                 outpth = os.path.join(self.output_pth, 'vrtilegrid_{}'.format(self.surf_method.currentText()).lower())
                 if self.variabletile_resolution.currentText() == 'AUTO':
@@ -222,7 +228,7 @@ class SurfaceDialog(QtWidgets.QDialog):
                         'tile_size': float(self.variabletile_tile_size.currentText()),
                         'subtile_size': float(self.variabletile_subtile_size.currentText()),
                         'gridding_algorithm': self.surf_method.currentText().lower(),
-                        'resolution': rez, 'output_path': outpth}
+                        'resolution': rez, 'output_path': outpth, 'use_dask': self.use_dask_checkbox.isChecked()}
             else:
                 raise ValueError('dialog_surface: unexpected grid type {}'.format(curr_opts))
         else:

@@ -33,6 +33,12 @@ class SurfaceDataDialog(QtWidgets.QDialog):
         self.regrid_checkbox.setChecked(True)
         self.toplayout.addWidget(self.regrid_checkbox)
 
+        self.use_dask_checkbox = QtWidgets.QCheckBox('Process in Parallel')
+        self.use_dask_checkbox.setToolTip('With this checked, gridding will be done in parallel using the Dask Client.  Assuming you have multiple\n' +
+                                          'tiles, this should improve performance significantly.  You may experience some instability, although this\n' +
+                                          'current implementation has not shown any during testing.')
+        self.toplayout.addWidget(self.use_dask_checkbox)
+
         self.status_msg = QtWidgets.QLabel('')
         self.status_msg.setStyleSheet("QLabel { " + kluster_variables.error_color + "; }")
         self.toplayout.addWidget(self.status_msg)
@@ -84,7 +90,7 @@ class SurfaceDataDialog(QtWidgets.QDialog):
         for newcurr in current_containers:
             if newcurr in self.original_possible:
                 add_fqpr.append(newcurr)
-        return add_fqpr, remove_fqpr, {'regrid': regrid_container}
+        return add_fqpr, remove_fqpr, {'regrid': regrid_container, 'use_dask': self.use_dask_checkbox.isChecked()}
 
     def start_processing(self):
         if not self.listdata.return_left_list_data():

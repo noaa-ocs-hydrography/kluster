@@ -692,7 +692,7 @@ class FqprIntel(LoggerClass):
             should only be used in emergency
         """
 
-        print('Checking for new actions...')
+        # print('Checking for new actions...')
         self._regenerate_processing_actions(reprocess_fqpr=reprocess_fqpr, keep_waterline_changes=self.keep_waterline_changes)
         self._regenerate_svp_actions()
         self._regenerate_nav_actions()
