@@ -7,7 +7,6 @@ dependencies:
   - vispy=0.6.6
   - pyside2=5.13.2
   - gdal=3.2.1
-  - numba=0.52.0
   - pip:
     - sphinx-automodapi
     - sphinx_autodoc_typehints
