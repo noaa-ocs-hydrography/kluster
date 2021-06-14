@@ -12,7 +12,8 @@ datasets = [r'C:\collab\dasktest\data_dir\EM122_RonBrown', r'C:\collab\dasktest\
             r"C:\collab\dasktest\data_dir\from_Lund\0011_20190715_070305_MALASPINA.all", r"C:\collab\dasktest\data_dir\from_Lund\0014_20170420_014958_ShipName.all",
             r"C:\collab\dasktest\data_dir\from_Lund\0034_20171114_104317_Astrolabio.all", r"C:\collab\dasktest\data_dir\from_Lund\0090_20201202_141721_Narwhal.all",
             r"C:\collab\dasktest\data_dir\from_Lund\0154_20190530_060059_Hesperides.all", r"C:\collab\dasktest\data_dir\from_Lund\0389_20170602_094427_Astrolabio.all",
-            r"C:\collab\dasktest\data_dir\from_Lund\0681_20201102_191746_TOFINO.all", r"C:\collab\dasktest\data_dir\from_Lund\EM2040-0007-t16-20181206-095359.all"]
+            r"C:\collab\dasktest\data_dir\from_Lund\0681_20201102_191746_TOFINO.all", r"C:\collab\dasktest\data_dir\from_Lund\EM2040-0007-t16-20181206-095359.all",
+            r"C:\collab\dasktest\data_dir\from_Lund\0063_20210612_092103_MAL_EM2040MKII.kmall", r"C:\collab\dasktest\data_dir\from_Lund\0011_20210304_094901_EM2040P.kmall"]
 
 datasets_w_sbets = [r'C:\collab\dasktest\data_dir\ra_mbes\2801_em2040\mbes\2020-035',
                     r'C:\collab\dasktest\data_dir\tj_patch_test\S222_PatchTest_DN077\Raw\MBES\S222_2020_KongsbergEM710\2020-077',
@@ -35,19 +36,18 @@ outputdir = r'C:\collab\dasktest\data_dir\outputtest'
 
 fldernames = ['EM122_RonBrown', 'EM710_Rainier', 'EM2040_BHII', 'EM2040_Fairweather_SmallFile', 'EM2040c_NRT2', 'EM2040p_UNH_ASV',
               'hassler_acceptance', 'Hasslerdual', 'tj_sbet_test', 'tjacceptance', 'tjmotionlatency', 'narwhal', 'antares',
-              'malaspina', 'shipname', 'astrolabio', 'narwhal2', 'hesperides', 'astrolabio2', 'tofino', 'lund_em2040']
+              'malaspina', 'shipname', 'astrolabio', 'narwhal2', 'hesperides', 'astrolabio2', 'tofino', 'lund_em2040', 'lund_em2040_kmall',
+              'lund_em2040p']
 for cnt, dset in enumerate(datasets):
     fq = perform_all_processing(dset, outfold=os.path.join(outputdir, fldernames[cnt]), coord_system='WGS84', vert_ref='waterline')
-    # generate_new_surface(fq, resolution=2.0, output_path=os.path.join(outputdir, fldernames[cnt], 'surf.npz'))
-    # fq.export_pings_to_file(export_by_identifiers=False)
 
-fldernames = ['ra_mbes', 'tj_patch_test_710', 'tj_patch_test_2040', 'val_kmall_patch']
+fldernames = ['ra_mbes', 'tj_patch_test_710', 'tj_patch_test_2040']
 for cnt, dset in enumerate(datasets_w_sbets):
     sbet, smrmsg, logf, yr, wk, dat = sbetfils[cnt]
     fq = perform_all_processing(dset, navfiles=[sbet], outfold=os.path.join(outputdir, fldernames[cnt]), coord_system='NAD83',
                                 vert_ref='ellipse', errorfiles=[smrmsg], logfiles=[logf], weekstart_year=yr,
                                 weekstart_week=wk, override_datum=dat)
-    # generate_new_surface(fq, resolution=2.0, output_path=os.path.join(outputdir, fldernames[cnt], 'surf.npz'))
+    generate_new_surface(fq, resolution=2.0, output_path=os.path.join(outputdir, fldernames[cnt]))
     # fq.export_pings_to_file()
 
 sbet = r"C:\collab\dasktest\data_dir\ra_mbes\2801_em2040\pospac\035_sbet.out"
@@ -57,12 +57,6 @@ fq = perform_all_processing(r'C:\collab\dasktest\data_dir\ra_mbes\2801_em2040\mb
                             navfiles=[sbet], errorfiles=[errorfil], logfiles=[logf], vert_ref='ellipse',
                             outfold=r"C:\collab\dasktest\data_dir\outputtest\rambes35sbet")
 fq.export_pings_to_file()
-
-sbet = r"C:\collab\dasktest\data_dir\val_kmall_patch\sbet_Mission 1.out"
-smrmsg = r"C:\collab\dasktest\data_dir\val_kmall_patch\smrms_Mission 1.out"
-fq = perform_all_processing(r'C:\collab\dasktest\data_dir\val_kmall_patch\Fallback_2040_40_1',
-                            navfiles=[sbet], vert_ref='waterline', errorfiles=[smrmsg], weekstart_year=2019,
-                            weekstart_week=15, override_datum='WGS84')
 
 # concat test
 fq_outoforder = perform_all_processing(r"C:\collab\dasktest\data_dir\EM2040c_NRT2\0634_20180711_142125.all",

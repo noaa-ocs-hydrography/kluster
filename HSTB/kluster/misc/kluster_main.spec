@@ -39,6 +39,13 @@ qgis_data_files = [(fil, "qgis_plugins") for fil in qgis_dlls]
 qgis_data_files += [(os.path.join(pydro_env, 'Library', 'bin', 'exiv2.dll'), ".")]
 qgis_data_files += [(os.path.join(pydro_env, 'Library', 'bin', 'expat.dll'), ".")]
 
+# these appear to be necessary for the WMS layers to work, removing them breaks this functionality in kluster
+qgis_data_files += [(os.path.join(pydro_env, 'Library', 'resources', 'qgis.db'), "resources")]
+qgis_data_files += [(os.path.join(pydro_env, 'Library', 'resources', 'qgis_global_settings.ini'), "resources")]
+qgis_data_files += [(os.path.join(pydro_env, 'Library', 'resources', 'spatialite.db'), "resources")]
+qgis_data_files += [(os.path.join(pydro_env, 'Library', 'resources', 'srs.db'), "resources")]
+qgis_data_files += [(os.path.join(pydro_env, 'Library', 'resources', 'symbology-style.xml'), "resources")]
+
 data_files += qgis_data_files
 for fil in data_files:
     assert os.path.exists(fil[0])

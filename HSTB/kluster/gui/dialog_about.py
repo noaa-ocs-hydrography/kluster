@@ -1,5 +1,6 @@
 from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal
 
+
 try:
     from HSTB.kluster import __version__ as klustervers
     if not isinstance(klustervers, str):

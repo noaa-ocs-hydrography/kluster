@@ -1635,6 +1635,7 @@ def main():
             app.setPrefixPath(os.getcwd(), True)
             app.setPluginPath(plugin_dir)
         app.initQgis()
+        # print(app.showSettings())
     else:
         try:  # pyside2
             app = QtWidgets.QApplication()
