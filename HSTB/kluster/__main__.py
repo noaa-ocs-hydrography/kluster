@@ -243,8 +243,7 @@ if __name__ == "__main__":  # run from command line
                     print('{}: unable to reload from {}, not a valid converted kluster dataset'.format(funcname, conv))
                     sys.exit()
                 reloaded_data.append(dat)
-            generate_new_surface(reloaded_data, max_grid_size=args.resolution, min_grid_size=args.resolution,
-                                 output_path=args.output_folder)
+            generate_new_surface(reloaded_data, resolution=args.resolution, output_path=args.output_folder)
         elif funcname == 'validate':
             output_file = os.path.join(os.path.split(args.multibeam_file)[0], 'validation_export.tif')
             validation_against_xyz88(args.multibeam_file, analysis_mode=args.analysis_mode, numplots=args.number_of_pings,

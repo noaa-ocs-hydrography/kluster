@@ -2280,7 +2280,10 @@ def build_xyzrph(settdict: dict, runtime_settdict: dict, sonartype: str):
         for suffix in [['_vertical_location', '_z'], ['_along_location', '_x'],
                        ['_athwart_location', '_y']]:
             qry = pos_ident + suffix[0]
-            xyzrph[tme]['imu' + suffix[1]] = float(settdict[tme][qry])
+            try:
+                xyzrph[tme]['imu' + suffix[1]] = float(settdict[tme][qry])
+            except KeyError:
+                xyzrph[tme]['imu' + suffix[1]] = 0.0
         xyzrph[tme]['latency'] = 0.0
 
         # do the same over motion sensor (which is still the POSMV), make assumption that its one of the motion
@@ -2293,7 +2296,10 @@ def build_xyzrph(settdict: dict, runtime_settdict: dict, sonartype: str):
         #                ['_roll_angle', '_r'], ['_pitch_angle', '_p'], ['_heading_angle', '_h']]:
         for suffix in [['_roll_angle', '_r'], ['_pitch_angle', '_p'], ['_heading_angle', '_h']]:
             qry = pos_motion_ident + suffix[0]
-            xyzrph[tme]['imu' + suffix[1]] = float(settdict[tme][qry])
+            try:
+                xyzrph[tme]['imu' + suffix[1]] = float(settdict[tme][qry])
+            except KeyError:
+                xyzrph[tme]['imu' + suffix[1]] = 0.0
 
         # include waterline if it exists
         if 'waterline_vertical_location' in settdict[tme]:
