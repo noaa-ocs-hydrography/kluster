@@ -441,8 +441,6 @@ class FqprIntel(LoggerClass):
                 elif len(action) > 1:
                     raise ValueError('Multibeam actions found with the same destinations, {}'.format(destination))
             else:
-                if not os.path.isdir(destination):  # destination is not an existing fqpr instance, but the name of a new one
-                    destination = os.path.join(self.project.return_project_folder(), destination)
                 newaction = fqpr_actions.build_multibeam_action(destination, line_list, self.project.client, self.general_settings)
                 self.action_container.add_action(newaction)
 
@@ -1804,9 +1802,9 @@ def intel_process(filname: Union[str, list], outfold: str = None, coord_system: 
                 'vert_ref': vert_ref, 'parallel_write': parallel_write, 'vdatum_directory': vdatum_directory}
     intel.set_settings(settings)
 
-    if os.path.isdir(filname):
-        filname = [os.path.join(filname, f) for f in os.listdir(filname)]
-    elif isinstance(filname, str):
+    if isinstance(filname, str):
+        if os.path.isdir(filname):
+            filname = [os.path.join(filname, f) for f in os.listdir(filname)]
         filname = [filname]
     for f in filname:
         updated_type, new_data, new_project = intel.add_file(f)

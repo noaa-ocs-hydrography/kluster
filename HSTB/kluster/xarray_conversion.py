@@ -195,6 +195,27 @@ def _assign_reference_points(fileformat: str, finalraw: dict, finalatt: xr.Datas
         raise KeyError('Did not find the "format" key in the sequential read output')
 
 
+def _is_not_empty_sequential(rec: dict):
+    """
+    Sometimes we get chunks or even files without ping records, if that happens, we use this function to determine it
+    is empty and we can drop the future.
+
+    Parameters
+    ----------
+    rec
+        as returned by sequential_read_records
+
+    Returns
+    -------
+    bool
+        If the chunk returned is full, this returns True (tells us to keep it)
+    """
+
+    if rec['ping']['time'].any():
+        return True
+    return False
+
+
 def _sequential_to_xarray(rec: dict):
     """
     After running sequential read, this method will take in the dict of datagrams and return an xarray for rangeangle,
@@ -247,7 +268,7 @@ def _sequential_to_xarray(rec: dict):
                             arr = np.array(rec['ping'][ky][msk[idx]])  # that part of the record for the given sect_id
 
                             # currently i'm getting a one rec duplicate between chunked files...
-                            if tim[-1] == tim[-2] and np.array_equal(arr[-1], arr[-2]):
+                            if tim.size > 1 and tim[-1] == tim[-2] and np.array_equal(arr[-1], arr[-2]):
                                 # print('Found duplicate timestamp: {}, {}, {}'.format(r, ky, tim[-1]))
                                 arr = arr[:-1]
                                 tim = tim[:-1]
@@ -346,7 +367,8 @@ def _sequential_to_xarray(rec: dict):
         if 'runtime_params' in rec:
             for t in rec['runtime_params']['time']:
                 idx = np.where(rec['runtime_params']['time'] == t)
-                recs_to_merge['ping'][systemid].attrs['runtimesettings_{}'.format(int(t))] = json.dumps(rec['runtime_params']['runtime_settings'][idx][0])
+                if rec['runtime_params']['runtime_settings'][idx][0]:  # this might be empty dict if we trimmed it in par3/kmall for being a duplicate
+                    recs_to_merge['ping'][systemid].attrs['runtimesettings_{}'.format(int(t))] = json.dumps(rec['runtime_params']['runtime_settings'][idx][0])
 
     # assign reference point and metadata
     finalraw = recs_to_merge['ping']
@@ -1235,6 +1257,14 @@ class BatchRead(ZarrBackend):
         recfutures = self.client.map(_run_sequential_read, chnks_flat)
         if self.show_progress:
             progress(recfutures, multi=False)
+        notempty = self.client.gather(self.client.map(_is_not_empty_sequential, recfutures))
+        drop_futures = []
+        for cnt, isnotempty in enumerate(notempty):
+            if not isnotempty:  # this is an empty chunk, no ping records
+                print('No ping records found in {}, startbyte:{}, endbyte:{}'.format(chnks_flat[cnt][0], chnks_flat[cnt][1], chnks_flat[cnt][2]))
+                drop_futures.append(recfutures[cnt])
+        for dpf in drop_futures:
+            recfutures.remove(dpf)
         return recfutures
 
     def _batch_read_sort_futures_by_time(self, input_xarrs: list):

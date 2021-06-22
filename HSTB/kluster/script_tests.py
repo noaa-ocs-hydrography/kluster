@@ -452,3 +452,18 @@ txatt = interp_across_chunks(fq.multibeam.raw_att, fq.multibeam.raw_ping[0].time
 tx_att_times, tx_attitude_rotation = return_attitude_rotation_matrix(txatt)
 ans = (tx_attitude_rotation.data @ np.float32(leverarm)).compute()[:, 2]
 
+#############################################################
+
+from HSTB.kluster.fqpr_convenience import convert_multibeam
+from HSTB.drivers import par3
+
+data = []
+chnks = [['D:\\falkor\\FK181005\\0023_20181014_193617_FK181005_EM710.all', 0, 85414]]
+for chnk in chnks:
+    fil, offset, endpt = chnk
+    ar = par3.AllRead(fil, start_ptr=offset, end_ptr=endpt)
+    data.append(ar.sequential_read_records())
+
+
+ar = par3.AllRead(r"D:\falkor\FK181005\0001_20181006_075912_FK181005_EM710.all")
+data = ar.sequential_read_records()
