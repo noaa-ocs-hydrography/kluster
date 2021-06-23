@@ -465,5 +465,28 @@ for chnk in chnks:
     data.append(ar.sequential_read_records())
 
 
-ar = par3.AllRead(r"D:\falkor\FK181005\0001_20181006_075912_FK181005_EM710.all")
+ar = par3.AllRead(r"D:\falkor\FK181005\0029_20181010_071015_FK181005_EM710.all")
 data = ar.sequential_read_records()
+
+
+
+from HSTB.kluster.fqpr_project import FqprProject
+project = FqprProject(is_gui=False)
+project.open_project(r"D:\falkor\FK181005_processed\kluster_project.json")
+
+
+from HSTB.kluster.fqpr_convenience import reload_data
+fq = reload_data(r"D:\falkor\FK181005_processed\em710_225_10_06_2018")
+
+import xarray as xr
+from psutil import virtual_memory
+startmem = virtual_memory().used
+data = xr.open_zarr(r"D:\falkor\FK181005_processed\em302_105_10_06_2018\attitude.zarr", synchronizer=None, mask_and_scale=False, decode_coords=False, decode_times=False, decode_cf=False, concat_characters=False)
+afterload_mem = virtual_memory().used - startmem
+ans = data.sortby('time')
+aftersort_mem = virtual_memory().used - startmem
+print('Without sort: {}'.format(afterload_mem))
+print('With sort: {}'.format(aftersort_mem))
+
+
+

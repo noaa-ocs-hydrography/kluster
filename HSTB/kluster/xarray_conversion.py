@@ -1026,49 +1026,24 @@ class BatchRead(ZarrBackend):
 
         self.logfile = logfile_pth
         self.initialize_log()
-
-        if self.converted_pth is None:
-            self.converted_pth = os.path.dirname(ping_pth[0])
-            self.output_folder = self.converted_pth
         if self.client is None:
             skip_dask = True
         else:
             skip_dask = False
+
+        if self.converted_pth is None:
+            self.converted_pth = os.path.dirname(ping_pth[0])
+            self.output_folder = self.converted_pth
         try:
-            self.raw_ping = [reload_zarr_records(pth, skip_dask, sort_by='time') for pth in ping_pth]
-            # interp_these = ['mode', 'modetwo', 'yawpitchstab']
-            # for variable in interp_these:
-            #     if variable in finalarr:
-            #         empty_str = np.where(finalarr[variable] == '')[0]
-            #         if empty_str.any():
-            #             print('Found empty block of {} parameters'.format(interp_these))
-            #             finalarr[variable].load()
-            #             print(finalarr[variable])
-            #             groups_empty = np.split(empty_str, np.where(np.diff(empty_str) != 1)[0] + 1)
-            #             for gp in groups_empty:
-            #                 try:  # fill with the value previous to the empty chunk
-            #                     fill_with = finalarr[variable][gp[0] - 1]
-            #                 except IndexError:  # fill with the value after the empty chunk
-            #                     try:
-            #                         fill_with = finalarr[variable][gp[-1] + 1]
-            #                     except IndexError:
-            #                         print('Found no value to replace empty chunk')
-            #                         continue
-            #                 if fill_with:
-            #                     finalarr[variable][gp] = fill_with
-            #                     print(finalarr.time.values[gp[0]], finalarr.time.values[gp[-1]])
+            self.raw_ping = [reload_zarr_records(pth, skip_dask) for pth in ping_pth]
         except ValueError:
             self.logger.error('Unable to read from {}'.format(ping_pth))
 
         if self.converted_pth is None:
             self.converted_pth = os.path.dirname(attitude_pth)
             self.output_folder = self.converted_pth
-        if self.client is None:
-            skip_dask = True
-        else:
-            skip_dask = False
         try:
-            self.raw_att = reload_zarr_records(attitude_pth, skip_dask, sort_by='time')
+            self.raw_att = reload_zarr_records(attitude_pth, skip_dask)
             self.raw_att = self.raw_att.isel(time=np.unique(self.raw_att.time, return_index=True)[1])
         except (ValueError, AttributeError):
             self.logger.error('Unable to read from {}'.format(attitude_pth))
@@ -1076,12 +1051,8 @@ class BatchRead(ZarrBackend):
         if self.converted_pth is None:
             self.converted_pth = os.path.dirname(navigation_pth)
             self.output_folder = self.converted_pth
-        if self.client is None:
-            skip_dask = True
-        else:
-            skip_dask = False
         try:
-            self.raw_nav = reload_zarr_records(navigation_pth, skip_dask, sort_by='time')
+            self.raw_nav = reload_zarr_records(navigation_pth, skip_dask)
             self.raw_nav = self.raw_nav.isel(time=np.unique(self.raw_nav.time, return_index=True)[1])
         except (ValueError, AttributeError):
             self.logger.error('Unable to read from {}'.format(navigation_pth))

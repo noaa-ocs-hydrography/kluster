@@ -388,7 +388,6 @@ class FqprProject:
             self.fqpr_instances[relpath] = fq
             self.fqpr_attrs[relpath] = get_attributes_from_fqpr(fq, include_mode=False)
             self.regenerate_fqpr_lines(relpath)
-
             for callback in self._project_observers:
                 callback(True)
             print('Successfully added {}'.format(pth))

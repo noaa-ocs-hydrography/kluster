@@ -1795,7 +1795,11 @@ def intel_process(filname: Union[str, list], outfold: str = None, coord_system: 
 
     project = FqprProject(is_gui=False)
     if outfold:
-        project._setup_new_project(outfold)
+        potential_project_file = os.path.join(outfold, 'kluster_project.json')
+        if os.path.exists(potential_project_file):
+            project.open_project(potential_project_file)
+        else:
+            project._setup_new_project(outfold)
     intel = FqprIntel(project)
 
     settings = {'use_epsg': use_epsg, 'epsg': epsg, 'use_coord': not use_epsg, 'coord_system': coord_system,
@@ -1846,7 +1850,11 @@ def intel_process_service(folder_path: str, is_recursive: bool = True, outfold: 
     # consider daemonizing this at some point: https://daemoniker.readthedocs.io/en/latest/index.html
     project = FqprProject(is_gui=False)
     if outfold:
-        project._setup_new_project(outfold)
+        potential_project_file = os.path.join(outfold, 'kluster_project.json')
+        if os.path.exists(potential_project_file):
+            project.open_project(potential_project_file)
+        else:
+            project._setup_new_project(outfold)
     intel = FqprIntel(project)
 
     settings = {'use_epsg': use_epsg, 'epsg': epsg, 'use_coord': not use_epsg, 'coord_system': coord_system,

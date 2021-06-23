@@ -514,7 +514,6 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.project.remove_surface(pth, relative_path=True)
         self.project_tree.refresh_project(self.project)
 
-
     def no_threads_running(self):
         """
         Simple check to see if any of the available processes are running.  Maybe in the future we want to allow
