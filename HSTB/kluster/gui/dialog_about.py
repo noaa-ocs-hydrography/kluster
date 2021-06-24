@@ -1,5 +1,4 @@
-from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal
-
+from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal, qgis_enabled
 
 try:
     from HSTB.kluster import __version__ as klustervers
@@ -52,6 +51,12 @@ try:
 except:
     gdalvers = 'not found'
 
+try:
+    from qgis.utils import Qgis
+    qgisvers = Qgis.QGIS_VERSION
+except:
+    qgisvers = 'not found'
+
 
 class AboutDialog(QtWidgets.QDialog):
     """
@@ -94,6 +99,11 @@ class AboutDialog(QtWidgets.QDialog):
         self.leftlayout.addWidget(self.vyper_label)
         self.vyper_data = QtWidgets.QLabel('{}'.format(vypervers))
         self.rightlayout.addWidget(self.vyper_data)
+
+        self.qgis_label = QtWidgets.QLabel('QGIS Version:')
+        self.leftlayout.addWidget(self.qgis_label)
+        self.qgis_data = QtWidgets.QLabel('{}'.format(qgisvers))
+        self.rightlayout.addWidget(self.qgis_data)
 
         self.dask_label = QtWidgets.QLabel('Dask Version:')
         self.leftlayout.addWidget(self.dask_label)

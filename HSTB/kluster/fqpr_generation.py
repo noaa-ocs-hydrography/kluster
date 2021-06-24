@@ -193,7 +193,7 @@ class Fqpr(ZarrBackend):
             if True, will open zarr datastore without Dask synchronizer object
         """
 
-        self.navigation = reload_zarr_records(self.navigation_path, skip_dask, sort_by='time')
+        self.navigation = reload_zarr_records(self.navigation_path, skip_dask)
 
     def construct_crs(self, epsg: str = None, datum: str = 'NAD83', projected: bool = True, vert_ref: str = None):
         """

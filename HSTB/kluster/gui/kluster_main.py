@@ -360,7 +360,6 @@ class KlusterMain(QtWidgets.QMainWindow):
         add_surface: optional, str, path to new surface to add
         remove_surface: optional, str, path to existing surface to hide
         surface_layer_name: optional, str, name of the layer of the surface to add or hide
-
         """
 
         self.project_tree.refresh_project(proj=self.project)

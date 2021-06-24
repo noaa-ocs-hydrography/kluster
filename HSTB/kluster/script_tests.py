@@ -457,36 +457,11 @@ ans = (tx_attitude_rotation.data @ np.float32(leverarm)).compute()[:, 2]
 from HSTB.kluster.fqpr_convenience import convert_multibeam
 from HSTB.drivers import par3
 
-data = []
-chnks = [['D:\\falkor\\FK181005\\0023_20181014_193617_FK181005_EM710.all', 0, 85414]]
-for chnk in chnks:
-    fil, offset, endpt = chnk
-    ar = par3.AllRead(fil, start_ptr=offset, end_ptr=endpt)
-    data.append(ar.sequential_read_records())
+spike_file = 'D:\\falkor\\FK181005\\0041_20181010_223414_FK181005_EM710.all'
+ad = par3.AllRead(spike_file)
+recs = ad.sequential_read_records()
 
 
-ar = par3.AllRead(r"D:\falkor\FK181005\0029_20181010_071015_FK181005_EM710.all")
-data = ar.sequential_read_records()
-
-
-
-from HSTB.kluster.fqpr_project import FqprProject
-project = FqprProject(is_gui=False)
-project.open_project(r"D:\falkor\FK181005_processed\kluster_project.json")
-
-
-from HSTB.kluster.fqpr_convenience import reload_data
-fq = reload_data(r"D:\falkor\FK181005_processed\em710_225_10_06_2018")
-
-import xarray as xr
-from psutil import virtual_memory
-startmem = virtual_memory().used
-data = xr.open_zarr(r"D:\falkor\FK181005_processed\em302_105_10_06_2018\attitude.zarr", synchronizer=None, mask_and_scale=False, decode_coords=False, decode_times=False, decode_cf=False, concat_characters=False)
-afterload_mem = virtual_memory().used - startmem
-ans = data.sortby('time')
-aftersort_mem = virtual_memory().used - startmem
-print('Without sort: {}'.format(afterload_mem))
-print('With sort: {}'.format(aftersort_mem))
-
-
-
+fq = convert_multibeam(r'D:\\falkor\\FK181005\\0041_20181010_223414_FK181005_EM710.all')
+fq.multibeam.raw_nav.latitude.plot()
+fq.multibeam.raw_nav.longitude.plot()

@@ -10,6 +10,7 @@ import xarray as xr
 import numpy as np
 from typing import Union
 
+from HSTB.kluster import __version__ as klustervers
 from HSTB.kluster.dms import return_zone_from_min_max_long
 from HSTB.drivers import par3, kmall
 from HSTB.drivers import PCSio
@@ -327,7 +328,7 @@ def _sequential_to_xarray(rec: dict):
     finalnav = recs_to_merge['navigation'].isel(time=index)
     zero_index = np.where(finalnav.time != 0)[0]
     zeros = len(finalnav.time) - len(zero_index)
-    finalnav = finalnav.isel(time=np.where(finalnav.time != 0)[0])
+    finalnav = finalnav.isel(time=zero_index)
 
     # build attributes for the navigation/attitude records
     finalnav.attrs['min_lat'] = float(finalnav.latitude.min())
@@ -998,7 +999,7 @@ class BatchRead(ZarrBackend):
         if 'ping' in self.final_paths:
             self.raw_ping = []
             for pth in self.final_paths['ping']:
-                xarr = reload_zarr_records(pth, skip_dask=skip_dask, sort_by='time')
+                xarr = reload_zarr_records(pth, skip_dask=skip_dask)
                 self.raw_ping.append(xarr)
         else:
             # self.logger.warning('Unable to reload ping records (normal for in memory processing), no paths found: {}'.format(self.final_paths))
@@ -1044,7 +1045,6 @@ class BatchRead(ZarrBackend):
             self.output_folder = self.converted_pth
         try:
             self.raw_att = reload_zarr_records(attitude_pth, skip_dask)
-            self.raw_att = self.raw_att.isel(time=np.unique(self.raw_att.time, return_index=True)[1])
         except (ValueError, AttributeError):
             self.logger.error('Unable to read from {}'.format(attitude_pth))
 
@@ -1053,7 +1053,6 @@ class BatchRead(ZarrBackend):
             self.output_folder = self.converted_pth
         try:
             self.raw_nav = reload_zarr_records(navigation_pth, skip_dask)
-            self.raw_nav = self.raw_nav.isel(time=np.unique(self.raw_nav.time, return_index=True)[1])
         except (ValueError, AttributeError):
             self.logger.error('Unable to read from {}'.format(navigation_pth))
 
@@ -1407,6 +1406,7 @@ class BatchRead(ZarrBackend):
         combattrs['multibeam_files'] = fil_start_end_times  # override with start/end time dict
         combattrs['output_path'] = self.converted_pth
         combattrs['current_processing_status'] = 0
+        combattrs['kluster_version'] = klustervers
         combattrs['_conversion_complete'] = datetime.utcnow().strftime('%c')
         combattrs['status_lookup'] = {0: 'converted', 1: 'orientation', 2: 'beamvector', 3: 'soundvelocity',
                                       4: 'georeference', 5: 'tpu'}
@@ -1476,6 +1476,8 @@ class BatchRead(ZarrBackend):
                 else:
                     opts = batch_read_configure_options()
                     opts[datatype]['final_attrs'] = combattrs
+                    if len(input_xarrs) > 1:
+                        input_xarrs = self._batch_read_correct_block_boundaries(input_xarrs)
                     opts[datatype]['output_arrs'], opts[datatype]['time_arrs'], opts[datatype]['chunksize'], totallen = self._batch_read_merge_blocks(input_xarrs, datatype, opts[datatype]['chunksize'])
                     del input_xarrs
                     finalpths[datatype].append(self._batch_read_write('zarr', datatype, opts, self.converted_pth))
