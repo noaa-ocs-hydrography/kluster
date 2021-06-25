@@ -1523,11 +1523,13 @@ def gather_multibeam_info(multibeam_file: str):
         aread = par3.AllRead(multibeam_file)
         start_end = aread.fast_read_start_end_time()
         serialnums = aread.fast_read_serial_number()
+        aread.close()
     elif fileext == '.kmall':
         mtype = 'kongsberg_kmall'
         km = kmall.kmall(multibeam_file)
         start_end = km.fast_read_start_end_time()
         serialnums = km.fast_read_serial_number()
+        km.closeFile()
     else:
         raise IOError('File ({}) is not a valid multibeam file'.format(multibeam_file))
     info_data = OrderedDict({'file_path': basic['file_path'], 'type': mtype,

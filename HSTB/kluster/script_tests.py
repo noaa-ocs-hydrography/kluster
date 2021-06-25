@@ -47,7 +47,7 @@ for cnt, dset in enumerate(datasets_w_sbets):
     fq = perform_all_processing(dset, navfiles=[sbet], outfold=os.path.join(outputdir, fldernames[cnt]), coord_system='NAD83',
                                 vert_ref='ellipse', errorfiles=[smrmsg], logfiles=[logf], weekstart_year=yr,
                                 weekstart_week=wk, override_datum=dat)
-    generate_new_surface(fq, resolution=2.0, output_path=os.path.join(outputdir, fldernames[cnt]))
+    generate_new_surface(fq, resolution=8.0, output_path=os.path.join(outputdir, fldernames[cnt]))
     # fq.export_pings_to_file()
 
 sbet = r"C:\collab\dasktest\data_dir\ra_mbes\2801_em2040\pospac\035_sbet.out"
@@ -102,7 +102,7 @@ km.FID.seek(SKMOffsets[0])
 dg = km.read_EMdgmSKM()
 tme = dg['sample']['KMdefault']['dgtime']
 roll = dg['sample']['KMdefault']['roll_deg']
-
+km.closeFile()
 plt.plot(tme)
 
 ############################## accuracy tests ###################################
@@ -460,7 +460,7 @@ from HSTB.drivers import par3
 spike_file = 'D:\\falkor\\FK181005\\0041_20181010_223414_FK181005_EM710.all'
 ad = par3.AllRead(spike_file)
 recs = ad.sequential_read_records()
-
+ad.close()
 
 fq = convert_multibeam(r'D:\\falkor\\FK181005\\0041_20181010_223414_FK181005_EM710.all')
 fq.multibeam.raw_nav.latitude.plot()

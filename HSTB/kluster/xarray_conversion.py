@@ -108,12 +108,16 @@ def _run_sequential_read(fildata: list):
     fil, offset, endpt = fildata
     if os.path.splitext(fil)[1] == '.all':
         ar = par3.AllRead(fil, start_ptr=offset, end_ptr=endpt)
-        return ar.sequential_read_records()
+        recs = ar.sequential_read_records()
+        ar.close()
+        return recs
     elif os.path.splitext(fil)[1] == '.kmall':
         km = kmall.kmall(fil)
         # kmall doesnt have ping-wise serial number in header, we have to provide it from install params
         serial_translator = km.fast_read_serial_number_translator()
-        return km.sequential_read_records(start_ptr=offset, end_ptr=endpt, serial_translator=serial_translator)
+        recs = km.sequential_read_records(start_ptr=offset, end_ptr=endpt, serial_translator=serial_translator)
+        km.closeFile()
+        return recs
     else:
         raise ValueError('{} not a supported multibeam file, must be one of {}'.format(fil, kluster_variables.supported_multibeam))
 
@@ -1155,9 +1159,13 @@ class BatchRead(ZarrBackend):
         for f in fils:
             filname = os.path.split(f)[1]
             if os.path.splitext(f)[1] == '.all':
-                dat[filname] = par3.AllRead(f).fast_read_start_end_time()
+                ad = par3.AllRead(f)
+                dat[filname] = ad.fast_read_start_end_time()
+                ad.close()
             elif os.path.splitext(f)[1] == '.kmall':
-                dat[filname] = kmall.kmall(f).fast_read_start_end_time()
+                km = kmall.kmall(f)
+                dat[filname] = km.fast_read_start_end_time()
+                km.closeFile()
             else:
                 raise ValueError('{} not a supported multibeam file, must be one of {}'.format(f,
                                                                                                kluster_variables.supported_multibeam))

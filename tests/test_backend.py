@@ -5,6 +5,8 @@ from HSTB.kluster.backends._zarr import _get_indices_dataset_exists, _get_indice
     _my_xarr_to_zarr_build_arraydimensions, _my_xarr_to_zarr_writeattributes
 from HSTB.kluster.xarray_helpers import reload_zarr_records
 
+__file__ = r'C:\Pydro21_Dev\NOAA\site-packages\Python38\git_repos\hstb_kluster\tests\test_backend.py'
+
 
 def get_testzarr_paths():
     new_zarr_folder = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'test_data', 'zarrtest')
@@ -237,6 +239,35 @@ def test_zarr_write_prior_overlap():
     assert np.array_equal(zw.rootgroup['time'], expected_answer)
 
 
+def test_zarr_write_prior():
+    # for when data being written is prior to existing data
+    zw = ZarrWrite(None, desired_chunk_shape={'time': (10,), 'data2': (10,), 'data': (10,)})
+    zw.rootgroup = zarr.group()
+
+    data_arr = np.arange(30, 50, 1)
+    indices = _get_indices_dataset_notexist([data_arr])
+
+    dataset = xr.Dataset({'data': (['time'], data_arr), 'data2': (['time'], data_arr)}, coords={'time': data_arr})
+    zw.write_to_zarr(dataset, None, dataloc=indices[0], finalsize=20)
+
+    data_arr2 = [np.array([10, 11, 12, 13, 14, 15, 16, 17, 18, 19]), np.array([20, 21, 22, 23, 24, 25, 26, 27, 28, 29])]
+    indices, push_forward, total_push = _get_indices_dataset_exists(data_arr2, zw.rootgroup['time'])
+
+    for cnt, arr in enumerate(data_arr2):
+        if cnt == 0:
+            fsize = 40
+        else:
+            fsize = None
+        dataset2 = xr.Dataset({'data': (['time'], arr), 'data2': (['time'], arr)}, coords={'time': arr})
+        zw.write_to_zarr(dataset2, None, dataloc=indices[cnt], finalsize=fsize, push_forward=push_forward)
+
+    expected_answer = np.array([10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29,
+                                30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49])
+    assert np.array_equal(zw.rootgroup['data'], expected_answer)
+    assert np.array_equal(zw.rootgroup['data2'], expected_answer)
+    assert np.array_equal(zw.rootgroup['time'], expected_answer)
+
+
 def test_zarr_write_later_overlap():
     # for when data being written is both partly within existing data and later than existing data
     zw = ZarrWrite(None, desired_chunk_shape={'time': (10,), 'data2': (10,), 'data': (10,)})
@@ -260,6 +291,62 @@ def test_zarr_write_later_overlap():
         zw.write_to_zarr(dataset2, None, dataloc=indices[cnt], finalsize=fsize, push_forward=push_forward)
 
     expected_answer = np.array([20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49])
+    assert np.array_equal(zw.rootgroup['data'], expected_answer)
+    assert np.array_equal(zw.rootgroup['data2'], expected_answer)
+    assert np.array_equal(zw.rootgroup['time'], expected_answer)
+
+
+def test_zarr_write_later():
+    # for when data being written is after existing data
+    zw = ZarrWrite(None, desired_chunk_shape={'time': (10,), 'data2': (10,), 'data': (10,)})
+    zw.rootgroup = zarr.group()
+
+    data_arr = np.arange(30, 50, 1)
+    indices = _get_indices_dataset_notexist([data_arr])
+
+    dataset = xr.Dataset({'data': (['time'], data_arr), 'data2': (['time'], data_arr)}, coords={'time': data_arr})
+    zw.write_to_zarr(dataset, None, dataloc=indices[0], finalsize=20)
+
+    data_arr2 = [np.array([50, 51, 52, 53, 54, 55, 56, 57, 58, 59]), np.array([60, 61, 62, 63, 64, 65, 66, 67, 68, 69])]
+    indices, push_forward, total_push = _get_indices_dataset_exists(data_arr2, zw.rootgroup['time'])
+
+    for cnt, arr in enumerate(data_arr2):
+        if cnt == 0:
+            fsize = 40
+        else:
+            fsize = None
+        dataset2 = xr.Dataset({'data': (['time'], arr), 'data2': (['time'], arr)}, coords={'time': arr})
+        zw.write_to_zarr(dataset2, None, dataloc=indices[cnt], finalsize=fsize, push_forward=push_forward)
+
+    expected_answer = np.array([30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49,
+                                50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69])
+    assert np.array_equal(zw.rootgroup['data'], expected_answer)
+    assert np.array_equal(zw.rootgroup['data2'], expected_answer)
+    assert np.array_equal(zw.rootgroup['time'], expected_answer)
+
+
+def test_zarr_write_inbetween():
+    # for when data is written inbetween existing data without overlap
+    zw = ZarrWrite(None, desired_chunk_shape={'time': (10,), 'data2': (10,), 'data': (10,)})
+    zw.rootgroup = zarr.group()
+
+    data_arr = np.arange(10)
+    indices = _get_indices_dataset_notexist([data_arr])
+    dataset = xr.Dataset({'data': (['time'], data_arr), 'data2': (['time'], data_arr)}, coords={'time': data_arr})
+    zw.write_to_zarr(dataset, None, dataloc=indices[0], finalsize=10)
+
+    data_arr2 = np.array([20, 21, 22, 23, 24, 25, 26, 27, 28, 29])
+    indices, push_forward, total_push = _get_indices_dataset_exists([data_arr2], zw.rootgroup['time'])
+    dataset2 = xr.Dataset({'data': (['time'], data_arr2), 'data2': (['time'], data_arr2)}, coords={'time': data_arr2})
+    zw.write_to_zarr(dataset2, None, dataloc=indices[0], finalsize=20, push_forward=push_forward)
+
+    data_arr3 = np.array([10, 11, 12, 13, 14, 15, 16, 17, 18, 19])
+    indices, push_forward, total_push = _get_indices_dataset_exists([data_arr3], zw.rootgroup['time'])
+    dataset3 = xr.Dataset({'data': (['time'], data_arr3), 'data2': (['time'], data_arr3)}, coords={'time': data_arr3})
+    zw.write_to_zarr(dataset3, None, dataloc=indices[0], finalsize=30, push_forward=push_forward)
+
+    expected_answer = np.array([0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15, 16,
+                                17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29])
     assert np.array_equal(zw.rootgroup['data'], expected_answer)
     assert np.array_equal(zw.rootgroup['data2'], expected_answer)
     assert np.array_equal(zw.rootgroup['time'], expected_answer)
@@ -417,6 +504,170 @@ def test_zarr_backend_fully_after():
     assert np.array_equal(xdataset.beam.values, np.arange(400))
     expectedangle = np.concatenate([datasets[0].beampointingangle, datasets[1].beampointingangle, datasets[2].beampointingangle,
                                     datasets[3].beampointingangle, newdatasets[0].beampointingangle, newdatasets[1].beampointingangle])
+    assert np.array_equal(xdataset.beampointingangle.values, expectedangle)
+    assert xdataset.attrs['test_attribute'] == 'abc'
+    cleanup_after_tests()
+
+
+def test_zarr_backend_newdata_inside():
+    # write new data to disk
+    zarr_folder = get_testzarr_paths()
+    zw = ZarrBackend(zarr_folder)
+    dataset_name, firstdatasets, dataset_time_arrays, attributes, sysid = _return_basic_datasets(0, 1)
+    zarr_path, _ = zw.write(dataset_name, firstdatasets, dataset_time_arrays, attributes, skip_dask=True, sys_id=sysid)
+
+    # write next data to disk, with a gap between it and existing data
+    dataset_name, thirddatasets, dataset_time_arrays, attributes, sysid = _return_basic_datasets(2, 3)
+    zarr_path, _ = zw.write(dataset_name, thirddatasets, dataset_time_arrays, attributes, skip_dask=True, sys_id=sysid)
+
+    # now write inbetween
+    dataset_name, seconddatasets, dataset_time_arrays, attributes, sysid = _return_basic_datasets(1, 2)
+    zarr_path, _ = zw.write(dataset_name, seconddatasets, dataset_time_arrays, attributes, skip_dask=True, sys_id=sysid)
+    xdataset = reload_zarr_records(zarr_path, skip_dask=True)
+
+    assert np.array_equal(xdataset.counter.values, np.arange(30))
+    assert np.array_equal(xdataset.time.values, np.arange(30))
+    assert np.array_equal(xdataset.beam.values, np.arange(400))
+    expectedangle = np.concatenate([firstdatasets[0].beampointingangle, seconddatasets[0].beampointingangle, thirddatasets[0].beampointingangle])
+    assert np.array_equal(xdataset.beampointingangle.values, expectedangle)
+    assert xdataset.attrs['test_attribute'] == 'abc'
+    cleanup_after_tests()
+
+
+def test_zarr_backend_alternating():
+    # write new data to disk
+    zarr_folder = get_testzarr_paths()
+    zw = ZarrBackend(zarr_folder)
+    dataset_name, firstdatasets, dataset_time_arrays, attributes, sysid = _return_basic_datasets(0, 1)
+    zarr_path, _ = zw.write(dataset_name, firstdatasets, dataset_time_arrays, attributes, skip_dask=True, sys_id=sysid)
+
+    # write next data to disk, with a gap between it and existing data
+    dataset_name, thirddatasets, dataset_time_arrays, attributes, sysid = _return_basic_datasets(2, 3)
+    zarr_path, _ = zw.write(dataset_name, thirddatasets, dataset_time_arrays, attributes, skip_dask=True, sys_id=sysid)
+
+    # now write inbetween
+    dataset_name, seconddatasets, dataset_time_arrays, attributes, sysid = _return_basic_datasets(1, 2)
+    zarr_path, _ = zw.write(dataset_name, seconddatasets, dataset_time_arrays, attributes, skip_dask=True, sys_id=sysid)
+
+    # write new data at the end
+    dataset_name, fourthdatasets, dataset_time_arrays, attributes, sysid = _return_basic_datasets(3, 4)
+    zarr_path, _ = zw.write(dataset_name, fourthdatasets, dataset_time_arrays, attributes, skip_dask=True, sys_id=sysid)
+    xdataset = reload_zarr_records(zarr_path, skip_dask=True)
+
+    assert np.array_equal(xdataset.counter.values, np.arange(40))
+    assert np.array_equal(xdataset.time.values, np.arange(40))
+    assert np.array_equal(xdataset.beam.values, np.arange(400))
+    expectedangle = np.concatenate([firstdatasets[0].beampointingangle, seconddatasets[0].beampointingangle,
+                                    thirddatasets[0].beampointingangle, fourthdatasets[0].beampointingangle])
+    assert np.array_equal(xdataset.beampointingangle.values, expectedangle)
+    assert xdataset.attrs['test_attribute'] == 'abc'
+    cleanup_after_tests()
+
+
+def test_zarr_backend_write_backwards():
+    # write new data to disk
+    zarr_folder = get_testzarr_paths()
+    zw = ZarrBackend(zarr_folder)
+    dataset_name, thirddatasets, dataset_time_arrays, attributes, sysid = _return_basic_datasets(2, 3)
+    zarr_path, _ = zw.write(dataset_name, thirddatasets, dataset_time_arrays, attributes, skip_dask=True, sys_id=sysid)
+
+    # now write data prior
+    dataset_name, seconddatasets, dataset_time_arrays, attributes, sysid = _return_basic_datasets(1, 2)
+    zarr_path, _ = zw.write(dataset_name, seconddatasets, dataset_time_arrays, attributes, skip_dask=True, sys_id=sysid)
+
+    # now write prior to that entry
+    dataset_name, firstdatasets, dataset_time_arrays, attributes, sysid = _return_basic_datasets(0, 1)
+    zarr_path, _ = zw.write(dataset_name, firstdatasets, dataset_time_arrays, attributes, skip_dask=True, sys_id=sysid)
+    xdataset = reload_zarr_records(zarr_path, skip_dask=True)
+
+    assert np.array_equal(xdataset.counter.values, np.arange(30))
+    assert np.array_equal(xdataset.time.values, np.arange(30))
+    assert np.array_equal(xdataset.beam.values, np.arange(400))
+    expectedangle = np.concatenate(
+        [firstdatasets[0].beampointingangle, seconddatasets[0].beampointingangle, thirddatasets[0].beampointingangle])
+    assert np.array_equal(xdataset.beampointingangle.values, expectedangle)
+    assert xdataset.attrs['test_attribute'] == 'abc'
+    cleanup_after_tests()
+
+
+def test_zarr_backend_multiple_concatenations():
+    # write new data to disk
+    zarr_folder = get_testzarr_paths()
+    zw = ZarrBackend(zarr_folder)
+    dataset_name, firstdatasets, dataset_time_arrays, attributes, sysid = _return_basic_datasets(0, 1)
+    zarr_path, _ = zw.write(dataset_name, firstdatasets, dataset_time_arrays, attributes, skip_dask=True, sys_id=sysid)
+
+    # now write data after
+    dataset_name, seconddatasets, dataset_time_arrays, attributes, sysid = _return_basic_datasets(1, 2)
+    zarr_path, _ = zw.write(dataset_name, seconddatasets, dataset_time_arrays, attributes, skip_dask=True, sys_id=sysid)
+
+    # now write after that entry
+    dataset_name, thirddatasets, dataset_time_arrays, attributes, sysid = _return_basic_datasets(2, 3)
+    zarr_path, _ = zw.write(dataset_name, thirddatasets, dataset_time_arrays, attributes, skip_dask=True, sys_id=sysid)
+    xdataset = reload_zarr_records(zarr_path, skip_dask=True)
+
+    assert np.array_equal(xdataset.counter.values, np.arange(30))
+    assert np.array_equal(xdataset.time.values, np.arange(30))
+    assert np.array_equal(xdataset.beam.values, np.arange(400))
+    expectedangle = np.concatenate(
+        [firstdatasets[0].beampointingangle, seconddatasets[0].beampointingangle, thirddatasets[0].beampointingangle])
+    assert np.array_equal(xdataset.beampointingangle.values, expectedangle)
+    assert xdataset.attrs['test_attribute'] == 'abc'
+    cleanup_after_tests()
+
+
+def test_zarr_backend_overlap_inside():
+    # write new data to disk
+    zarr_folder = get_testzarr_paths()
+    zw = ZarrBackend(zarr_folder)
+    dataset_name, firstdatasets, dataset_time_arrays, attributes, sysid = _return_basic_datasets(0, 2)
+    zarr_path, _ = zw.write(dataset_name, firstdatasets, dataset_time_arrays, attributes, skip_dask=True, sys_id=sysid)
+
+    # now write data after
+    dataset_name, thirddatasets, dataset_time_arrays, attributes, sysid = _return_basic_datasets(3, 4)
+    zarr_path, _ = zw.write(dataset_name, thirddatasets, dataset_time_arrays, attributes, skip_dask=True, sys_id=sysid)
+
+    # now write prior to that entry that overlaps the first
+    dataset_name, seconddatasets, dataset_time_arrays, attributes, sysid = _return_basic_datasets(1, 3)
+    zarr_path, _ = zw.write(dataset_name, seconddatasets, dataset_time_arrays, attributes, skip_dask=True, sys_id=sysid)
+    xdataset = reload_zarr_records(zarr_path, skip_dask=True)
+
+    assert np.array_equal(xdataset.counter.values, np.arange(40))
+    assert np.array_equal(xdataset.time.values, np.arange(40))
+    assert np.array_equal(xdataset.beam.values, np.arange(400))
+    expectedangle = np.concatenate([firstdatasets[0].beampointingangle, seconddatasets[0].beampointingangle,
+                                    seconddatasets[1].beampointingangle, thirddatasets[0].beampointingangle])
+    assert np.array_equal(xdataset.beampointingangle.values, expectedangle)
+    assert xdataset.attrs['test_attribute'] == 'abc'
+    cleanup_after_tests()
+
+
+def test_zarr_backend_multiple_overlap_inside():
+    # write new data to disk
+    zarr_folder = get_testzarr_paths()
+    zw = ZarrBackend(zarr_folder)
+    dataset_name, firstdatasets, dataset_time_arrays, attributes, sysid = _return_basic_datasets(0, 2)
+    zarr_path, _ = zw.write(dataset_name, firstdatasets, dataset_time_arrays, attributes, skip_dask=True, sys_id=sysid)
+
+    # now write data after
+    dataset_name, fourthdatasets, dataset_time_arrays, attributes, sysid = _return_basic_datasets(4, 6)
+    zarr_path, _ = zw.write(dataset_name, fourthdatasets, dataset_time_arrays, attributes, skip_dask=True, sys_id=sysid)
+
+    # now write prior to that entry that overlaps the second
+    dataset_name, thirddatasets, dataset_time_arrays, attributes, sysid = _return_basic_datasets(3, 5)
+    zarr_path, _ = zw.write(dataset_name, thirddatasets, dataset_time_arrays, attributes, skip_dask=True, sys_id=sysid)
+
+    # now write prior to that entry that overlaps the first
+    dataset_name, seconddatasets, dataset_time_arrays, attributes, sysid = _return_basic_datasets(1, 3)
+    zarr_path, _ = zw.write(dataset_name, seconddatasets, dataset_time_arrays, attributes, skip_dask=True, sys_id=sysid)
+    xdataset = reload_zarr_records(zarr_path, skip_dask=True)
+
+    assert np.array_equal(xdataset.counter.values, np.arange(60))
+    assert np.array_equal(xdataset.time.values, np.arange(60))
+    assert np.array_equal(xdataset.beam.values, np.arange(400))
+    expectedangle = np.concatenate([firstdatasets[0].beampointingangle, seconddatasets[0].beampointingangle,
+                                    seconddatasets[1].beampointingangle, thirddatasets[0].beampointingangle,
+                                    thirddatasets[1].beampointingangle, fourthdatasets[1].beampointingangle])
     assert np.array_equal(xdataset.beampointingangle.values, expectedangle)
     assert xdataset.attrs['test_attribute'] == 'abc'
     cleanup_after_tests()

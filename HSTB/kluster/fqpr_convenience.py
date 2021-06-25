@@ -917,6 +917,7 @@ def xyz_from_allfile(filname: str):
     ys = ys[cntrsorted]
     dpths = dpths[cntrsorted]
     cntrs = cntrs[cntrsorted]
+    pfil.close()
 
     return xs, ys, dpths, tms, cntrs
 
@@ -985,6 +986,7 @@ def xyz_from_kmallfile(filname: str):
     ys = ys[cntrsorted]
     dpths = dpths[cntrsorted]
     cntrs = cntrs[cntrsorted]
+    km.closeFile()
 
     return xs, ys, dpths, tms, cntrs
 

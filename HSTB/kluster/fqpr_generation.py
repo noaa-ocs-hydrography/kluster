@@ -2706,10 +2706,11 @@ class Fqpr(ZarrBackend):
 
         rnav = slice_xarray_by_dim(self.multibeam.raw_nav, 'time', start_time=start_time, end_time=end_time)
         # get the nearest nav time to the start + sample, to get downsampled rate
-        first_idx = int(np.abs(rnav.time - (rnav.time[0] + sample)).argmin())
+        navtime = rnav.time.values
+        first_idx = int(np.abs(navtime - (navtime[0] + sample)).argmin())
         if first_idx == 0:  # sample provided is less than the existing frequency
             first_idx = 1
-        idxs = np.arange(0, len(rnav.time), first_idx)
+        idxs = np.arange(0, len(navtime), first_idx)
         sampl_nav = rnav.isel(time=idxs)
 
         return sampl_nav.latitude, sampl_nav.longitude

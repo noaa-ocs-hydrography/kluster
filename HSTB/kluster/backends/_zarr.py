@@ -133,6 +133,8 @@ def _get_indices_dataset_exists(input_time_arrays: list, zarr_time: zarr.Array):
     how to assemble daily datasets from lines applied in any order imaginable, with overlap and all kinds of things.
     This function should provide the indices that allow this to happen.
 
+    Recommend examining the test_backend tests if you want to understand this a bit more
+
     build the indices for where the input_time_arrays fit within the existing zarr_time.  We have three ways to proceed
     within this function:
     1. input time arrays are entirely within the existing zarr_time, we build a numpy array of indices that describe
@@ -171,55 +173,55 @@ def _get_indices_dataset_exists(input_time_arrays: list, zarr_time: zarr.Array):
     min_zarr_time =  zarr_time[0]
     max_zarr_time = zarr_time[-1]
     zarr_time_len = len(zarr_time)
-    for input_time in input_time_arrays:
+    for input_time in input_time_arrays:  # for each chunk of data that we are wanting to write, look at the times to see where it fits
         input_time_len = len(input_time)
-        input_is_in_zarr = np.isin(input_time, zarr_time)
+        input_is_in_zarr = np.isin(input_time, zarr_time)  # where is there overlap with existing data
         if isinstance(input_time, xr.DataArray):
             input_time = input_time.values
         if input_is_in_zarr.any():  # this input array is at least partly in this datastore already
             if not input_is_in_zarr.all():  # this input array is only partly in this datastore
                 starter_indices = np.full_like(input_time, -1)  # -1 for values that are outside the existing values
-                inside_indices = search_not_sorted(zarr_time, input_time[input_is_in_zarr])
+                inside_indices = search_not_sorted(zarr_time, input_time[input_is_in_zarr])  # get the indices for overwriting where there is overlap
                 starter_indices[input_is_in_zarr] = inside_indices
-                count_outside = len(starter_indices) - len(inside_indices)
+                count_outside = len(starter_indices) - len(inside_indices)  # the number of values that do not overlap
                 if starter_indices[-1] == -1:  # this input_time contains times after the existing values
                     max_inside_index = inside_indices[-1]
                     # now add in a range starting with the last index for all values outside the zarr time range
                     starter_indices[~input_is_in_zarr] = np.arange(max_inside_index + 1, max_inside_index + count_outside + 1)
-                    running_total += count_outside
                     if input_time[-1] < max_zarr_time:  # data partially overlaps and is after existing data, but not at the end of the existing dataset
-                        total_push += count_outside
-                        push_forward.append(max_inside_index + 1, count_outside)
+                        push_forward.append(max_inside_index + 1 + total_push, count_outside)
+                    else:
+                        running_total += count_outside
+                    write_indices.append(starter_indices + total_push)
                 elif starter_indices[0] == -1:  # this input_time contains times before the existing values
                     if input_time[0] < min_zarr_time:
                         starter_indices = np.arange(input_time_len)
-                        total_push += count_outside
-                        push_forward.append([0, count_outside])
+                        push_forward.append([total_push, count_outside])
                     else:
                         min_inside_index = inside_indices[0]
                         starter_indices = np.arange(input_time_len) + min_inside_index
-                        total_push += count_outside
-                        push_forward.append([min_inside_index, count_outside])
+                        push_forward.append([min_inside_index + total_push, count_outside])
+                    write_indices.append(starter_indices + total_push)
+                    total_push += count_outside
                 else:
                     raise NotImplementedError('_get_indices_dataset_exists: Found a gap in the overlap between the data provided and the existing dataset on disk')
-                write_indices.append(starter_indices)
             else:
                 # input data is entirely within the existing zarr data, the input_time is going to be sorted, but the zarr
                 # time will be in the order of lines received and saved to disk.  Have to get indices of input_time in zarr_time
                 write_indices.append(search_not_sorted(zarr_time, input_time) + total_push)
         else:  # zarr datastore exists, but this data is not in it.  Append to the existing datastore
             if input_time[0] < min_zarr_time:  # data is before existing data, have to push existing data up
-                write_indices.append([running_total, input_time_len + running_total])
+                write_indices.append([total_push, input_time_len + total_push])
+                push_forward.append([total_push, input_time_len])
                 total_push += input_time_len
-                push_forward.append([0, input_time_len])
             elif input_time[0] > max_zarr_time:  # data is after existing data, just tack it on
-                write_indices.append([zarr_time_len + running_total, zarr_time_len + input_time_len + running_total])
+                write_indices.append([zarr_time_len + running_total + total_push, zarr_time_len + input_time_len + running_total + total_push])
+                running_total += input_time_len
             else:   # data is in between existing data, but there is no overlap
-                nearest_index = np.abs(zarr_time - input_time[0]).argmin()
-                write_indices.append([nearest_index + running_total, nearest_index + input_time_len + running_total])
+                next_value_index = np.where(zarr_time - input_time[0] > 0)[0][0]
+                write_indices.append([next_value_index + total_push, next_value_index + input_time_len + total_push])
+                push_forward.append([next_value_index + total_push, input_time_len])
                 total_push += input_time_len
-                push_forward.append([nearest_index + running_total, input_time_len])
-            running_total += input_time_len
     return write_indices, push_forward, total_push
 
 
@@ -724,6 +726,8 @@ class ZarrWrite:
         the existing data up to make room, after resizing to the total size.  This allows us to then write the new data
         prior to the existing data.
 
+        Recommend examining the test_backend tests if you want to understand this a bit more
+
         Parameters
         ----------
         variable_name
@@ -738,18 +742,20 @@ class ZarrWrite:
             size of the array on disk before we resized to make room
         """
 
+        total_push = 0
         for push_idx, push_amount in push_forward:
-            data_range = slice(push_idx, starting_size)
+            data_range = slice(push_idx, starting_size + total_push)
             data_chunk_idx = tuple(data_range if dims_of_arrays[variable_name][1].index(i) == timaxis else slice(0, i) for i in
                                    dims_of_arrays[variable_name][1])
-            final_location_range = slice(push_idx + push_amount, starting_size + push_amount)
+            final_location_range = slice(push_idx + push_amount, starting_size + push_amount + total_push)
             loc_chunk_idx = tuple(final_location_range if dims_of_arrays[variable_name][1].index(i) == timaxis else slice(0, i) for i in
                                   dims_of_arrays[variable_name][1])
-            empty_range = slice(0, push_amount)
+            empty_range = slice(push_idx, push_idx + push_amount)
             empty_chunk_idx = tuple(empty_range if dims_of_arrays[variable_name][1].index(i) == timaxis else slice(0, i) for i in
                                     dims_of_arrays[variable_name][1])
             self.rootgroup[variable_name][loc_chunk_idx] = self.rootgroup[variable_name][data_chunk_idx]
             self.rootgroup[variable_name][empty_chunk_idx] = self.rootgroup[variable_name].fill_value
+            total_push += push_amount
 
     def _write_existing_rootgroup(self, xarr: xr.Dataset, data_loc_copy: Union[list, np.ndarray], var_name: str, dims_of_arrays: dict,
                                   chunksize: tuple, timlength: int, timaxis: int, startingshp: tuple, push_forward: list):
