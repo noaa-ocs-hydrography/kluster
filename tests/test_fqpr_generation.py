@@ -131,7 +131,7 @@ def test_process_testfile():
     firstz = rp.z.values
 
     assert number_of_sectors == 1
-    assert firstbeam_angle == np.float32(74.64)
+    assert firstbeam_angle == approx(np.float32(74.640), 0.001)
     assert firstbeam_traveltime == approx(np.float32(0.3360895), 0.000001)
     assert first_counter == 61967
     assert first_dinfo == 2
@@ -147,17 +147,17 @@ def test_process_testfile():
     assert first_yawpitch == 'PY'
     assert firstcorr_angle == approx(np.float32(1.2028906), 0.000001)
     assert firstcorr_altitude == np.float32(0.0)
-    assert firstcorr_heave == np.float32(-0.06)
-    assert firstdepth_offset == np.float32(92.162)
+    assert firstcorr_heave == approx(np.float32(-0.06), 0.01)
+    assert firstdepth_offset == approx(np.float32(92.162), 0.001)
     assert first_status == 5
     assert firstrel_azimuth == approx(np.float32(4.703383), 0.00001)
     assert firstrx == approx(np.array([0.7870753, 0.60869384, -0.100021675], dtype=np.float32), 0.00001)
     assert firstthu == approx(np.float32(8.857684), 0.0001)
     assert firsttvu == approx(np.float32(2.4940288), 0.0001)
     assert firsttx == approx(np.array([0.6074468, -0.79435784, 0.0020107413], dtype=np.float32), 0.00001)
-    assert firstx == 539028.45
-    assert firsty == 5292783.977
-    assert firstz == np.float32(92.742)
+    assert firstx == approx(539028.450, 0.001)
+    assert firsty == approx(5292783.977, 0.001)
+    assert firstz == approx(np.float32(92.742), 0.001)
 
     datapath = out.multibeam.converted_pth
     out.close()
@@ -487,13 +487,16 @@ def sv_correct(dset='realdualhead'):
     print([x for y in z_data for x in y.flatten()])
 
     # forward offset check
-    assert np.array_equal(x_data, expected_x)
+    for i in range(len(x_data)):
+        assert x_data[i] == approx(expected_x[i], 0.001)
 
     # acrosstrack offset check
-    assert np.array_equal(y_data, expected_y)
+    for i in range(len(y_data)):
+        assert y_data[i] == approx(expected_y[i], 0.001)
 
     # depth offset check
-    assert np.array_equal(z_data, expected_z)
+    for i in range(len(z_data)):
+        assert z_data[i] == approx(expected_z[i], 0.001)
 
     fq.close()
     print('Passed: sv_correct')
@@ -558,13 +561,16 @@ def georef_xyz(dset='realdualhead'):
     print([x for y in z_data for x in y.flatten()])
 
     # easting
-    assert np.array_equal(x_data, expected_x)
+    for i in range(len(x_data)):
+        assert x_data[i] == approx(expected_x[i], 0.001)
 
     # northing
-    assert np.array_equal(y_data, expected_y)
+    for i in range(len(y_data)):
+        assert y_data[i] == approx(expected_y[i], 0.001)
 
     # depth
-    assert np.array_equal(z_data, expected_z)
+    for i in range(len(z_data)):
+        assert z_data[i] == approx(expected_z[i], 0.001)
 
     fq.close()
     print('Passed: georef_xyz')
@@ -589,18 +595,18 @@ def test_interp_across_chunks():
         coords={'time': np.array([1495563084.455, 1495563084.49, 1495563084.975])})
 
     # make sure the dask/non-dask methods line up
-    assert np.all(dask_interp_att.time == interp_att.time).compute()
-    assert np.all(dask_interp_att.heading == interp_att.heading).compute()
-    assert np.all(dask_interp_att.heave == interp_att.heave).compute()
-    assert np.all(dask_interp_att.pitch == interp_att.pitch).compute()
-    assert np.all(dask_interp_att['roll'] == interp_att['roll']).compute()
+    assert dask_interp_att.time.values == approx(interp_att.time.values, 0.001)
+    assert dask_interp_att.heading.values == approx(interp_att.heading.values, 0.001)
+    assert dask_interp_att.heave.values == approx(interp_att.heave.values, 0.001)
+    assert dask_interp_att.pitch.values == approx(interp_att.pitch.values, 0.001)
+    assert dask_interp_att['roll'].values == approx(interp_att['roll'].values, 0.001)
 
     # make sure the values line up with what we would expect
-    assert np.all(dask_interp_att.time == expected_att.time).compute()
-    assert np.all(dask_interp_att.heading == expected_att.heading).compute()
-    assert np.all(dask_interp_att.heave == expected_att.heave).compute()
-    assert np.all(dask_interp_att.pitch == expected_att.pitch).compute()
-    assert np.all(dask_interp_att['roll'] == expected_att['roll']).compute()
+    assert dask_interp_att.time.values == approx(expected_att.time.values, 0.001)
+    assert dask_interp_att.heading.values == approx(expected_att.heading.values, 0.001)
+    assert dask_interp_att.heave.values == approx(expected_att.heave.values, 0.001)
+    assert dask_interp_att.pitch.values == approx(expected_att.pitch.values, 0.001)
+    assert dask_interp_att['roll'].values == approx(expected_att['roll'].values, 0.001)
 
     print('Passed: interp_across_chunks')
 
