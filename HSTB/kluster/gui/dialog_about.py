@@ -52,8 +52,9 @@ except:
     gdalvers = 'not found'
 
 try:
-    from qgis.utils import Qgis
-    qgisvers = Qgis.QGIS_VERSION
+    from qgis.core import Qgis as _tempqgis
+    qgisvers = _tempqgis.QGIS_VERSION
+    del _tempqgis
 except:
     qgisvers = 'not found'
 
