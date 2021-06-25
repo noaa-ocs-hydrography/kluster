@@ -1,6 +1,7 @@
 import os, shutil
 import time
 import logging
+from pytest import approx
 
 from HSTB.kluster import fqpr_generation, fqpr_project, xarray_conversion, fqpr_intelligence
 try:  # when running from pycharm console
@@ -131,7 +132,7 @@ def test_process_testfile():
 
     assert number_of_sectors == 1
     assert firstbeam_angle == np.float32(74.64)
-    assert firstbeam_traveltime == np.float32(0.3360895)
+    assert firstbeam_traveltime == approx(np.float32(0.3360895), 0.000001)
     assert first_counter == 61967
     assert first_dinfo == 2
     assert first_mode == 'FM'
@@ -141,19 +142,19 @@ def test_process_testfile():
     assert firstbeam_qualityfactor == 42
     assert first_soundspeed == np.float32(1488.6)
     assert first_tiltangle == np.float32(-0.44)
-    assert first_delay == np.float32(0.002206038)
+    assert first_delay == approx(np.float32(0.002206038), 0.000001)
     assert first_frequency == 275000
     assert first_yawpitch == 'PY'
-    assert firstcorr_angle == np.float32(1.2028906)
+    assert firstcorr_angle == approx(np.float32(1.2028906), 0.000001)
     assert firstcorr_altitude == np.float32(0.0)
     assert firstcorr_heave == np.float32(-0.06)
     assert firstdepth_offset == np.float32(92.162)
     assert first_status == 5
-    assert firstrel_azimuth == np.float32(4.703383)
-    assert np.array_equal(firstrx, np.array([0.7870753, 0.60869384, -0.100021675], dtype=np.float32))
-    assert firstthu == np.float32(8.857684)
-    assert firsttvu == np.float32(2.4940288)
-    assert np.array_equal(firsttx, np.array([0.6074468, -0.79435784, 0.0020107413], dtype=np.float32))
+    assert firstrel_azimuth == approx(np.float32(4.703383), 0.00001)
+    assert firstrx == approx(np.array([0.7870753, 0.60869384, -0.100021675], dtype=np.float32), 0.00001)
+    assert firstthu == approx(np.float32(8.857684), 0.0001)
+    assert firsttvu == approx(np.float32(2.4940288), 0.0001)
+    assert firsttx == approx(np.array([0.6074468, -0.79435784, 0.0020107413], dtype=np.float32), 0.00001)
     assert firstx == 539028.45
     assert firsty == 5292783.977
     assert firstz == np.float32(92.742)
@@ -362,10 +363,12 @@ def get_orientation_vectors(dset='realdualhead'):
     print([x for y in rxvecdata for x in y.flatten()])
 
     # check for the expected tx orientation vectors
-    assert np.array_equal(expected_tx, txvecdata)
+    for i in range(len(expected_tx)):
+        assert expected_tx[i] == approx(txvecdata[i], 0.000001)
 
     # check for the expected rx orientation vectors
-    assert np.array_equal(expected_rx, rxvecdata)
+    for i in range(len(expected_rx)):
+        assert expected_rx[i] == approx(rxvecdata[i], 0.000001)
 
     fq.close()
     print('Passed: get_orientation_vectors')
@@ -419,10 +422,12 @@ def build_beam_pointing_vector(dset='realdualhead'):
     print([x for y in bda_data for x in y.flatten()])
 
     # beam azimuth check
-    assert np.array_equal(ba_data, expected_ba)
+    for i in range(len(ba_data)):
+        assert ba_data[i] == approx(expected_ba[i], 0.0000001)
 
     # beam depression angle check
-    assert np.array_equal(bda_data, expected_bda)
+    for i in range(len(bda_data)):
+        assert bda_data[i] == approx(expected_bda[i], 0.0000001)
 
     fq.close()
     print('Passed: build_beam_pointing_vector')
