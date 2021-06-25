@@ -10,6 +10,7 @@ import xarray as xr
 import numpy as np
 from typing import Union
 
+from HSTB.kluster import __version__ as klustervers
 from HSTB.kluster.dms import return_zone_from_min_max_long
 from HSTB.drivers import par3, kmall
 from HSTB.drivers import PCSio
@@ -107,12 +108,16 @@ def _run_sequential_read(fildata: list):
     fil, offset, endpt = fildata
     if os.path.splitext(fil)[1] == '.all':
         ar = par3.AllRead(fil, start_ptr=offset, end_ptr=endpt)
-        return ar.sequential_read_records()
+        recs = ar.sequential_read_records()
+        ar.close()
+        return recs
     elif os.path.splitext(fil)[1] == '.kmall':
         km = kmall.kmall(fil)
         # kmall doesnt have ping-wise serial number in header, we have to provide it from install params
         serial_translator = km.fast_read_serial_number_translator()
-        return km.sequential_read_records(start_ptr=offset, end_ptr=endpt, serial_translator=serial_translator)
+        recs = km.sequential_read_records(start_ptr=offset, end_ptr=endpt, serial_translator=serial_translator)
+        km.closeFile()
+        return recs
     else:
         raise ValueError('{} not a supported multibeam file, must be one of {}'.format(fil, kluster_variables.supported_multibeam))
 
@@ -195,6 +200,27 @@ def _assign_reference_points(fileformat: str, finalraw: dict, finalatt: xr.Datas
         raise KeyError('Did not find the "format" key in the sequential read output')
 
 
+def _is_not_empty_sequential(rec: dict):
+    """
+    Sometimes we get chunks or even files without ping records, if that happens, we use this function to determine it
+    is empty and we can drop the future.
+
+    Parameters
+    ----------
+    rec
+        as returned by sequential_read_records
+
+    Returns
+    -------
+    bool
+        If the chunk returned is full, this returns True (tells us to keep it)
+    """
+
+    if rec['ping']['time'].any():
+        return True
+    return False
+
+
 def _sequential_to_xarray(rec: dict):
     """
     After running sequential read, this method will take in the dict of datagrams and return an xarray for rangeangle,
@@ -247,7 +273,7 @@ def _sequential_to_xarray(rec: dict):
                             arr = np.array(rec['ping'][ky][msk[idx]])  # that part of the record for the given sect_id
 
                             # currently i'm getting a one rec duplicate between chunked files...
-                            if tim[-1] == tim[-2] and np.array_equal(arr[-1], arr[-2]):
+                            if tim.size > 1 and tim[-1] == tim[-2] and np.array_equal(arr[-1], arr[-2]):
                                 # print('Found duplicate timestamp: {}, {}, {}'.format(r, ky, tim[-1]))
                                 arr = arr[:-1]
                                 tim = tim[:-1]
@@ -306,7 +332,7 @@ def _sequential_to_xarray(rec: dict):
     finalnav = recs_to_merge['navigation'].isel(time=index)
     zero_index = np.where(finalnav.time != 0)[0]
     zeros = len(finalnav.time) - len(zero_index)
-    finalnav = finalnav.isel(time=np.where(finalnav.time != 0)[0])
+    finalnav = finalnav.isel(time=zero_index)
 
     # build attributes for the navigation/attitude records
     finalnav.attrs['min_lat'] = float(finalnav.latitude.min())
@@ -346,7 +372,8 @@ def _sequential_to_xarray(rec: dict):
         if 'runtime_params' in rec:
             for t in rec['runtime_params']['time']:
                 idx = np.where(rec['runtime_params']['time'] == t)
-                recs_to_merge['ping'][systemid].attrs['runtimesettings_{}'.format(int(t))] = json.dumps(rec['runtime_params']['runtime_settings'][idx][0])
+                if rec['runtime_params']['runtime_settings'][idx][0]:  # this might be empty dict if we trimmed it in par3/kmall for being a duplicate
+                    recs_to_merge['ping'][systemid].attrs['runtimesettings_{}'.format(int(t))] = json.dumps(rec['runtime_params']['runtime_settings'][idx][0])
 
     # assign reference point and metadata
     finalraw = recs_to_merge['ping']
@@ -976,7 +1003,7 @@ class BatchRead(ZarrBackend):
         if 'ping' in self.final_paths:
             self.raw_ping = []
             for pth in self.final_paths['ping']:
-                xarr = reload_zarr_records(pth, skip_dask=skip_dask, sort_by='time')
+                xarr = reload_zarr_records(pth, skip_dask=skip_dask)
                 self.raw_ping.append(xarr)
         else:
             # self.logger.warning('Unable to reload ping records (normal for in memory processing), no paths found: {}'.format(self.final_paths))
@@ -1004,63 +1031,32 @@ class BatchRead(ZarrBackend):
 
         self.logfile = logfile_pth
         self.initialize_log()
-
-        if self.converted_pth is None:
-            self.converted_pth = os.path.dirname(ping_pth[0])
-            self.output_folder = self.converted_pth
         if self.client is None:
             skip_dask = True
         else:
             skip_dask = False
+
+        if self.converted_pth is None:
+            self.converted_pth = os.path.dirname(ping_pth[0])
+            self.output_folder = self.converted_pth
         try:
-            self.raw_ping = [reload_zarr_records(pth, skip_dask, sort_by='time') for pth in ping_pth]
-            # interp_these = ['mode', 'modetwo', 'yawpitchstab']
-            # for variable in interp_these:
-            #     if variable in finalarr:
-            #         empty_str = np.where(finalarr[variable] == '')[0]
-            #         if empty_str.any():
-            #             print('Found empty block of {} parameters'.format(interp_these))
-            #             finalarr[variable].load()
-            #             print(finalarr[variable])
-            #             groups_empty = np.split(empty_str, np.where(np.diff(empty_str) != 1)[0] + 1)
-            #             for gp in groups_empty:
-            #                 try:  # fill with the value previous to the empty chunk
-            #                     fill_with = finalarr[variable][gp[0] - 1]
-            #                 except IndexError:  # fill with the value after the empty chunk
-            #                     try:
-            #                         fill_with = finalarr[variable][gp[-1] + 1]
-            #                     except IndexError:
-            #                         print('Found no value to replace empty chunk')
-            #                         continue
-            #                 if fill_with:
-            #                     finalarr[variable][gp] = fill_with
-            #                     print(finalarr.time.values[gp[0]], finalarr.time.values[gp[-1]])
+            self.raw_ping = [reload_zarr_records(pth, skip_dask) for pth in ping_pth]
         except ValueError:
             self.logger.error('Unable to read from {}'.format(ping_pth))
 
         if self.converted_pth is None:
             self.converted_pth = os.path.dirname(attitude_pth)
             self.output_folder = self.converted_pth
-        if self.client is None:
-            skip_dask = True
-        else:
-            skip_dask = False
         try:
-            self.raw_att = reload_zarr_records(attitude_pth, skip_dask, sort_by='time')
-            self.raw_att = self.raw_att.isel(time=np.unique(self.raw_att.time, return_index=True)[1])
+            self.raw_att = reload_zarr_records(attitude_pth, skip_dask)
         except (ValueError, AttributeError):
             self.logger.error('Unable to read from {}'.format(attitude_pth))
 
         if self.converted_pth is None:
             self.converted_pth = os.path.dirname(navigation_pth)
             self.output_folder = self.converted_pth
-        if self.client is None:
-            skip_dask = True
-        else:
-            skip_dask = False
         try:
-            self.raw_nav = reload_zarr_records(navigation_pth, skip_dask, sort_by='time')
-            self.raw_nav = self.raw_nav.isel(time=np.unique(self.raw_nav.time, return_index=True)[1])
+            self.raw_nav = reload_zarr_records(navigation_pth, skip_dask)
         except (ValueError, AttributeError):
             self.logger.error('Unable to read from {}'.format(navigation_pth))
 
@@ -1163,9 +1159,13 @@ class BatchRead(ZarrBackend):
         for f in fils:
             filname = os.path.split(f)[1]
             if os.path.splitext(f)[1] == '.all':
-                dat[filname] = par3.AllRead(f).fast_read_start_end_time()
+                ad = par3.AllRead(f)
+                dat[filname] = ad.fast_read_start_end_time()
+                ad.close()
             elif os.path.splitext(f)[1] == '.kmall':
-                dat[filname] = kmall.kmall(f).fast_read_start_end_time()
+                km = kmall.kmall(f)
+                dat[filname] = km.fast_read_start_end_time()
+                km.closeFile()
             else:
                 raise ValueError('{} not a supported multibeam file, must be one of {}'.format(f,
                                                                                                kluster_variables.supported_multibeam))
@@ -1235,6 +1235,14 @@ class BatchRead(ZarrBackend):
         recfutures = self.client.map(_run_sequential_read, chnks_flat)
         if self.show_progress:
             progress(recfutures, multi=False)
+        notempty = self.client.gather(self.client.map(_is_not_empty_sequential, recfutures))
+        drop_futures = []
+        for cnt, isnotempty in enumerate(notempty):
+            if not isnotempty:  # this is an empty chunk, no ping records
+                print('No ping records found in {}, startbyte:{}, endbyte:{}'.format(chnks_flat[cnt][0], chnks_flat[cnt][1], chnks_flat[cnt][2]))
+                drop_futures.append(recfutures[cnt])
+        for dpf in drop_futures:
+            recfutures.remove(dpf)
         return recfutures
 
     def _batch_read_sort_futures_by_time(self, input_xarrs: list):
@@ -1406,6 +1414,7 @@ class BatchRead(ZarrBackend):
         combattrs['multibeam_files'] = fil_start_end_times  # override with start/end time dict
         combattrs['output_path'] = self.converted_pth
         combattrs['current_processing_status'] = 0
+        combattrs['kluster_version'] = klustervers
         combattrs['_conversion_complete'] = datetime.utcnow().strftime('%c')
         combattrs['status_lookup'] = {0: 'converted', 1: 'orientation', 2: 'beamvector', 3: 'soundvelocity',
                                       4: 'georeference', 5: 'tpu'}
@@ -1475,6 +1484,8 @@ class BatchRead(ZarrBackend):
                 else:
                     opts = batch_read_configure_options()
                     opts[datatype]['final_attrs'] = combattrs
+                    if len(input_xarrs) > 1:
+                        input_xarrs = self._batch_read_correct_block_boundaries(input_xarrs)
                     opts[datatype]['output_arrs'], opts[datatype]['time_arrs'], opts[datatype]['chunksize'], totallen = self._batch_read_merge_blocks(input_xarrs, datatype, opts[datatype]['chunksize'])
                     del input_xarrs
                     finalpths[datatype].append(self._batch_read_write('zarr', datatype, opts, self.converted_pth))
@@ -2280,7 +2291,10 @@ def build_xyzrph(settdict: dict, runtime_settdict: dict, sonartype: str):
         for suffix in [['_vertical_location', '_z'], ['_along_location', '_x'],
                        ['_athwart_location', '_y']]:
             qry = pos_ident + suffix[0]
-            xyzrph[tme]['imu' + suffix[1]] = float(settdict[tme][qry])
+            try:
+                xyzrph[tme]['imu' + suffix[1]] = float(settdict[tme][qry])
+            except KeyError:
+                xyzrph[tme]['imu' + suffix[1]] = 0.0
         xyzrph[tme]['latency'] = 0.0
 
         # do the same over motion sensor (which is still the POSMV), make assumption that its one of the motion
@@ -2293,7 +2307,10 @@ def build_xyzrph(settdict: dict, runtime_settdict: dict, sonartype: str):
         #                ['_roll_angle', '_r'], ['_pitch_angle', '_p'], ['_heading_angle', '_h']]:
         for suffix in [['_roll_angle', '_r'], ['_pitch_angle', '_p'], ['_heading_angle', '_h']]:
             qry = pos_motion_ident + suffix[0]
-            xyzrph[tme]['imu' + suffix[1]] = float(settdict[tme][qry])
+            try:
+                xyzrph[tme]['imu' + suffix[1]] = float(settdict[tme][qry])
+            except KeyError:
+                xyzrph[tme]['imu' + suffix[1]] = 0.0
 
         # include waterline if it exists
         if 'waterline_vertical_location' in settdict[tme]:

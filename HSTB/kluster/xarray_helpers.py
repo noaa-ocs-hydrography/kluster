@@ -494,12 +494,23 @@ def slice_xarray_by_dim(arr: Union[xr.Dataset, xr.DataArray], dimname: str = 'ti
         return arr
 
     if start_time is not None:
-        nearest_start = float(arr[dimname].sel(time=start_time, method='nearest'))
+        # just using the sel causes a huge memory drain, using the numpy method does not, for some reason
+        # nearest_start = float(arr[dimname].sel(time=start_time, method='nearest'))
+        try:  # if arr is an xarray object (it should always be)
+            nearest_idx = np.argmin((np.abs(arr[dimname] - start_time)).data)
+        except:
+            nearest_idx = np.argmin((np.abs(arr[dimname] - start_time)))
+        nearest_start = float(arr[dimname][nearest_idx])
     else:
         nearest_start = float(arr[dimname][0])
 
     if end_time is not None:
-        nearest_end = float(arr[dimname].sel(time=end_time, method='nearest'))
+        # nearest_end = float(arr[dimname].sel(time=end_time, method='nearest'))
+        try:
+            nearest_idx = np.argmin((np.abs(arr[dimname] - end_time)).data)
+        except:
+            nearest_idx = np.argmin((np.abs(arr[dimname] - end_time)))
+        nearest_end = float(arr[dimname][nearest_idx])
     else:
         nearest_end = float(arr[dimname][-1])
 

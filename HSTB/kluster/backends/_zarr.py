@@ -84,9 +84,9 @@ class ZarrBackend(BaseBackend):
             attributes = {}
         time_array = self._autodetermine_times(data, time_array, append_dim)
         zarr_path = self._get_zarr_path(dataset_name, sys_id)
-        data_indices, final_size = self._get_zarr_indices(zarr_path, time_array, append_dim)
+        data_indices, final_size, push_forward = self._get_zarr_indices(zarr_path, time_array, append_dim)
         chunks = self._get_chunk_sizes(dataset_name)
-        fpths = distrib_zarr_write(zarr_path, data, attributes, chunks, data_indices, final_size, self.client,
+        fpths = distrib_zarr_write(zarr_path, data, attributes, chunks, data_indices, final_size, push_forward, self.client,
                                    skip_dask=skip_dask, show_progress=self.show_progress,
                                    write_in_parallel=self.parallel_write)
         return zarr_path, fpths
@@ -116,8 +116,6 @@ def _get_indices_dataset_notexist(input_time_arrays):
     -------
     list
         list of [start,end] indexes for the indices of input_time_arrays
-    int
-        number of values to write, only used for the entirely outside option
     """
 
     running_total = 0
@@ -125,18 +123,29 @@ def _get_indices_dataset_notexist(input_time_arrays):
     for input_time in input_time_arrays:
         write_indices.append([0 + running_total, len(input_time) + running_total])
         running_total += len(input_time)
-    return write_indices, running_total
+    return write_indices
 
 
 def _get_indices_dataset_exists(input_time_arrays: list, zarr_time: zarr.Array):
     """
+    I am so sorry for whomever finds this.  I had this 'great' idea a while ago to concatenate all the multibeam
+    lines into daily datasets.  Overall this has been a great thing, except for the sorting.  We have to figure out
+    how to assemble daily datasets from lines applied in any order imaginable, with overlap and all kinds of things.
+    This function should provide the indices that allow this to happen.
+
+    Recommend examining the test_backend tests if you want to understand this a bit more
+
     build the indices for where the input_time_arrays fit within the existing zarr_time.  We have three ways to proceed
     within this function:
     1. input time arrays are entirely within the existing zarr_time, we build a numpy array of indices that describe
     where the input_time_arrays will overwrite the zarr_time
     2. input time arrays are entirely outside the existing zarr_time, we just build a 2 element list describing the
     start and end index to append the data to zarr_time
-    3 input time arrays are only partially within zarr_time, this is not allowed
+    3 input time arrays are before and might overlap existing data, we build a 2 element list starting with zero
+    describing the start and end index and return a push_forward value, letting us know how much the zarr data
+    needs to be pushed forward.  If there is overlap, the last index is a numpy array of indices.
+    4 input time arrays are after and might overlap existing data, we build a 2 element list starting with the
+    index of the start of overlap.  If there is overlap, the last index is a numpy array of indices.
 
     Parameters
     ----------
@@ -149,27 +158,71 @@ def _get_indices_dataset_exists(input_time_arrays: list, zarr_time: zarr.Array):
     -------
     list
         list of either [start,end] indexes or numpy arrays for the indices of input_time_arrays in zarr_time
+    list
+        list of [index of push, total amount to push] for each push
     int
-        number of values to write, only used for the entirely outside option
+        how many values need to be inserted to make room for this new data at the beginning of the zarr rootgroup
     """
+
     running_total = 0
+    push_forward = []
+    total_push = 0
     write_indices = []
-    for input_time in input_time_arrays:
-        input_is_in_zarr = np.isin(input_time, zarr_time)
+    # time arrays must be in order in case you have to do the 'partly in datastore' workaround
+    input_time_arrays.sort(key=lambda x: x[0])
+    min_zarr_time =  zarr_time[0]
+    max_zarr_time = zarr_time[-1]
+    zarr_time_len = len(zarr_time)
+    for input_time in input_time_arrays:  # for each chunk of data that we are wanting to write, look at the times to see where it fits
+        input_time_len = len(input_time)
+        input_is_in_zarr = np.isin(input_time, zarr_time)  # where is there overlap with existing data
+        if isinstance(input_time, xr.DataArray):
+            input_time = input_time.values
         if input_is_in_zarr.any():  # this input array is at least partly in this datastore already
             if not input_is_in_zarr.all():  # this input array is only partly in this datastore
-                raise NotImplementedError(
-                    'get_write_indices_zarr: processed data is only partly within the existing zarr dataset, must be entirely within or without')
+                starter_indices = np.full_like(input_time, -1)  # -1 for values that are outside the existing values
+                inside_indices = search_not_sorted(zarr_time, input_time[input_is_in_zarr])  # get the indices for overwriting where there is overlap
+                starter_indices[input_is_in_zarr] = inside_indices
+                count_outside = len(starter_indices) - len(inside_indices)  # the number of values that do not overlap
+                if starter_indices[-1] == -1:  # this input_time contains times after the existing values
+                    max_inside_index = inside_indices[-1]
+                    # now add in a range starting with the last index for all values outside the zarr time range
+                    starter_indices[~input_is_in_zarr] = np.arange(max_inside_index + 1, max_inside_index + count_outside + 1)
+                    if input_time[-1] < max_zarr_time:  # data partially overlaps and is after existing data, but not at the end of the existing dataset
+                        push_forward.append(max_inside_index + 1 + total_push, count_outside)
+                    else:
+                        running_total += count_outside
+                    write_indices.append(starter_indices + total_push)
+                elif starter_indices[0] == -1:  # this input_time contains times before the existing values
+                    if input_time[0] < min_zarr_time:
+                        starter_indices = np.arange(input_time_len)
+                        push_forward.append([total_push, count_outside])
+                    else:
+                        min_inside_index = inside_indices[0]
+                        starter_indices = np.arange(input_time_len) + min_inside_index
+                        push_forward.append([min_inside_index + total_push, count_outside])
+                    write_indices.append(starter_indices + total_push)
+                    total_push += count_outside
+                else:
+                    raise NotImplementedError('_get_indices_dataset_exists: Found a gap in the overlap between the data provided and the existing dataset on disk')
             else:
                 # input data is entirely within the existing zarr data, the input_time is going to be sorted, but the zarr
                 # time will be in the order of lines received and saved to disk.  Have to get indices of input_time in zarr_time
-                if isinstance(input_time, xr.DataArray):
-                    input_time = input_time.values
-                write_indices.append(search_not_sorted(zarr_time, input_time))
+                write_indices.append(search_not_sorted(zarr_time, input_time) + total_push)
         else:  # zarr datastore exists, but this data is not in it.  Append to the existing datastore
-            write_indices.append([len(zarr_time) + running_total, len(zarr_time) + len(input_time) + running_total])
-            running_total += len(input_time)
-    return write_indices, running_total
+            if input_time[0] < min_zarr_time:  # data is before existing data, have to push existing data up
+                write_indices.append([total_push, input_time_len + total_push])
+                push_forward.append([total_push, input_time_len])
+                total_push += input_time_len
+            elif input_time[0] > max_zarr_time:  # data is after existing data, just tack it on
+                write_indices.append([zarr_time_len + running_total + total_push, zarr_time_len + input_time_len + running_total + total_push])
+                running_total += input_time_len
+            else:   # data is in between existing data, but there is no overlap
+                next_value_index = np.where(zarr_time - input_time[0] > 0)[0][0]
+                write_indices.append([next_value_index + total_push, next_value_index + input_time_len + total_push])
+                push_forward.append([next_value_index + total_push, input_time_len])
+                total_push += input_time_len
+    return write_indices, push_forward, total_push
 
 
 def get_write_indices_zarr(output_pth: str, input_time_arrays: list, index_dim='time'):
@@ -199,21 +252,24 @@ def get_write_indices_zarr(output_pth: str, input_time_arrays: list, index_dim='
         write indices to use to write the input_time_arrays to the zarr datastore at outputpth
     int
         final size of the rootgroup after the write, needed to resize zarr to the appropriate length
+    list
+        list of [index of push, total amount to push] for each push
     """
 
     zarr_time = np.array([])
     mintimes = [float(i.min()) for i in input_time_arrays]
     if not (np.diff(mintimes) > 0).all():  # input arrays are not time sorted
         raise NotImplementedError('get_write_indices_zarr: input arrays are out of order in time')
-
+    push_forward = []
+    total_push = 0
     if os.path.exists(output_pth):
         rootgroup = zarr.open(output_pth, mode='r')  # only opens if the path exists
         zarr_time = rootgroup[index_dim]
-        write_indices, running_total = _get_indices_dataset_exists(input_time_arrays, zarr_time)
+        write_indices, push_forward, total_push = _get_indices_dataset_exists(input_time_arrays, zarr_time)
     else:  # datastore doesn't exist, we just return the write indices equal to the shape of the input arrays
-        write_indices, running_total = _get_indices_dataset_notexist(input_time_arrays)
-    final_size = np.max([write_indices[-1][-1], len(zarr_time)])
-    return write_indices, final_size
+        write_indices = _get_indices_dataset_notexist(input_time_arrays)
+    final_size = np.max([write_indices[-1][-1], len(zarr_time)]) + total_push
+    return write_indices, final_size, push_forward
 
 
 def search_not_sorted(base: np.ndarray, search_array: np.ndarray):
@@ -664,8 +720,45 @@ class ZarrWrite:
                 finalsize if dims_of_arrays[var][1].index(x) == timaxis else x for x in dims_of_arrays[var][1])
         return timaxis, timlength, startingshp
 
+    def _push_existing_data_forward(self, variable_name: str, dims_of_arrays: dict, timaxis: int, push_forward: list, starting_size: int):
+        """
+        If the user is trying to write data that comes before the existing data in the time dimension, we need to push
+        the existing data up to make room, after resizing to the total size.  This allows us to then write the new data
+        prior to the existing data.
+
+        Recommend examining the test_backend tests if you want to understand this a bit more
+
+        Parameters
+        ----------
+        variable_name
+            variable name in the zarr rootgroup
+        dims_of_arrays
+            where keys are array names and values list of dims/shape.  Example: 'beampointingangle': [['time', 'sector', 'beam'], (5000, 3, 400)]
+        timaxis
+            index of the time dimension
+        push_forward
+            list of [index of push, total amount to push] for each push
+        starting_size
+            size of the array on disk before we resized to make room
+        """
+
+        total_push = 0
+        for push_idx, push_amount in push_forward:
+            data_range = slice(push_idx, starting_size + total_push)
+            data_chunk_idx = tuple(data_range if dims_of_arrays[variable_name][1].index(i) == timaxis else slice(0, i) for i in
+                                   dims_of_arrays[variable_name][1])
+            final_location_range = slice(push_idx + push_amount, starting_size + push_amount + total_push)
+            loc_chunk_idx = tuple(final_location_range if dims_of_arrays[variable_name][1].index(i) == timaxis else slice(0, i) for i in
+                                  dims_of_arrays[variable_name][1])
+            empty_range = slice(push_idx, push_idx + push_amount)
+            empty_chunk_idx = tuple(empty_range if dims_of_arrays[variable_name][1].index(i) == timaxis else slice(0, i) for i in
+                                    dims_of_arrays[variable_name][1])
+            self.rootgroup[variable_name][loc_chunk_idx] = self.rootgroup[variable_name][data_chunk_idx]
+            self.rootgroup[variable_name][empty_chunk_idx] = self.rootgroup[variable_name].fill_value
+            total_push += push_amount
+
     def _write_existing_rootgroup(self, xarr: xr.Dataset, data_loc_copy: Union[list, np.ndarray], var_name: str, dims_of_arrays: dict,
-                                  chunksize: tuple, timlength: int, timaxis: int, startingshp: tuple):
+                                  chunksize: tuple, timlength: int, timaxis: int, startingshp: tuple, push_forward: list):
         """
         A slightly different operation than _write_new_dataset_rootgroup.  To write to an existing rootgroup array,
         we use the data_loc as an index and create a new zarr array from the xarray Dataarray.  The data_loc is only
@@ -691,13 +784,18 @@ class ZarrWrite:
         startingshp
             desired shape for the rootgroup array, might be modified later for total beams if necessary.  if finalsize
             is None (the case when this is not the first write in a set of distributed writes) this is still returned but not used.
+        push_forward
+            list of [index of push, total amount to push] for each push
         """
 
         # array to be written
         xarr_data = xarr[var_name].values
         if startingshp is not None:
             startingshp = self._write_adjust_max_beams(startingshp)
+            starting_size = self.rootgroup[var_name].shape[0]
             self.rootgroup[var_name].resize(startingshp)
+            if push_forward is not None:
+                self._push_existing_data_forward(var_name, dims_of_arrays, timaxis, push_forward, starting_size)
 
         if isinstance(data_loc_copy, list):  # [start index, end index]
             # the last write will often be less than the block size.  This is allowed in the zarr store, but we
@@ -752,7 +850,8 @@ class ZarrWrite:
         newarr[:] = xarr[var_name].values
         newarr.resize(startingshp)
 
-    def write_to_zarr(self, xarr: xr.Dataset, attrs: dict, dataloc: Union[list, np.ndarray], finalsize: int = None):
+    def write_to_zarr(self, xarr: xr.Dataset, attrs: dict, dataloc: Union[list, np.ndarray], finalsize: int = None,
+                      push_forward: list = None):
         """
         Take the input xarray Dataset and write each variable as arrays in a zarr rootgroup.  Write the attributes out
         to the rootgroup as well.  Dataloc determines the index the incoming data is written to.  A new write might
@@ -771,7 +870,8 @@ class ZarrWrite:
         finalsize
             optional, int, if provided will resize zarr to the expected final size after all writes have been
             performed.  (We need to resize the zarr for that expected size before writing)
-
+        push_forward
+            list of [index of push, total amount to push] for each push
         Returns
         -------
         str
@@ -802,10 +902,10 @@ class ZarrWrite:
             if var in self.zarr_array_names:
                 if finalsize is not None:  # appending data, first write contains the final shape of the data
                     self._write_existing_rootgroup(xarr, data_loc_copy, var, dims_of_arrays, chunksize, timlength,
-                                                   timaxis, startingshp)
+                                                   timaxis, startingshp, push_forward)
                 else:
                     self._write_existing_rootgroup(xarr, data_loc_copy, var, dims_of_arrays, chunksize, timlength,
-                                                   timaxis, None)
+                                                   timaxis, None, None)
             else:
                 self._write_new_dataset_rootgroup(xarr, var, dims_of_arrays, chunksize, startingshp)
 
@@ -815,7 +915,7 @@ class ZarrWrite:
 
 
 def zarr_write(zarr_path: str, xarr: xr.Dataset, attrs: dict, desired_chunk_shape: dict, dataloc: Union[list, np.ndarray],
-               append_dim: str = 'time', finalsize: int = None):
+               append_dim: str = 'time', finalsize: int = None, push_forward: list = None):
     """
     Convenience function for writing with ZarrWrite
 
@@ -837,6 +937,8 @@ def zarr_write(zarr_path: str, xarr: xr.Dataset, attrs: dict, desired_chunk_shap
     finalsize
         optional, if provided will resize zarr to the expected final size after all writes have been performed.  (We
         need to resize the zarr for that expected size before writing)
+    push_forward
+        list of [index of push, total amount to push] for each push
 
     Returns
     -------
@@ -845,12 +947,13 @@ def zarr_write(zarr_path: str, xarr: xr.Dataset, attrs: dict, desired_chunk_shap
     """
 
     zw = ZarrWrite(zarr_path, desired_chunk_shape, append_dim=append_dim)
-    zarr_path = retry_call(zw.write_to_zarr, (xarr, attrs, dataloc), {'finalsize': finalsize}, exceptions=(PermissionError,))
+    zarr_path = retry_call(zw.write_to_zarr, (xarr, attrs, dataloc), {'finalsize': finalsize, 'push_forward': push_forward},
+                           exceptions=(PermissionError,))
     return zarr_path
 
 
 def distrib_zarr_write(zarr_path: str, xarrays: list, attributes: dict, chunk_sizes: dict, data_locs: list,
-                       finalsize: int, client: Client, append_dim: str = 'time',
+                       finalsize: int, push_forward: list, client: Client, append_dim: str = 'time',
                        write_in_parallel: bool = False, skip_dask: bool = False, show_progress: bool = True):
     """
     A function for using the ZarrWrite class to write data to disk.  xarr and attrs are written to the datastore at
@@ -875,6 +978,8 @@ def distrib_zarr_write(zarr_path: str, xarrays: list, attributes: dict, chunk_si
         or np.array([4,5,6,7,1,2...]) for when data might not be continuous and we need to use a boolean mask
     finalsize
         the final size of the time dimension of the written data, we resize the zarr to this size on the first write
+    push_forward
+        list of [index of push, total amount to push] for each push
     client
         dask.distributed.Client, the client we are submitting the tasks to
     append_dim
@@ -899,13 +1004,13 @@ def distrib_zarr_write(zarr_path: str, xarrays: list, attributes: dict, chunk_si
         for cnt, arr in enumerate(xarrays):
             if cnt == 0:
                 futs = [zarr_write(zarr_path, arr, attributes, chunk_sizes, data_locs[cnt],
-                        append_dim=append_dim, finalsize=finalsize)]
+                        append_dim=append_dim, finalsize=finalsize, push_forward=push_forward)]
             else:
                 futs.append([zarr_write(zarr_path, xarrays[cnt], None, chunk_sizes, data_locs[cnt],
                              append_dim=append_dim)])
     else:
         futs = [client.submit(zarr_write, zarr_path, xarrays[0], attributes, chunk_sizes, data_locs[0],
-                              append_dim=append_dim, finalsize=finalsize)]
+                              append_dim=append_dim, finalsize=finalsize, push_forward=push_forward)]
         if show_progress:
             progress(futs, multi=False)
         wait(futs)

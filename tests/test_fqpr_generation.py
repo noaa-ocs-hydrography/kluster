@@ -188,6 +188,7 @@ def test_converted_data_content():
         totnav += rec.data['Time'].shape[0]
     assert out.multibeam.raw_nav.time.shape[0] == totnav
 
+    ad.close()
     out.close()
     out = None
 

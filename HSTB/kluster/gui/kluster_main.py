@@ -360,7 +360,6 @@ class KlusterMain(QtWidgets.QMainWindow):
         add_surface: optional, str, path to new surface to add
         remove_surface: optional, str, path to existing surface to hide
         surface_layer_name: optional, str, name of the layer of the surface to add or hide
-
         """
 
         self.project_tree.refresh_project(proj=self.project)
@@ -513,7 +512,6 @@ class KlusterMain(QtWidgets.QMainWindow):
             self.two_d.remove_surface(pth, resolution)
         self.project.remove_surface(pth, relative_path=True)
         self.project_tree.refresh_project(self.project)
-
 
     def no_threads_running(self):
         """
@@ -1635,6 +1633,7 @@ def main():
             app.setPrefixPath(os.getcwd(), True)
             app.setPluginPath(plugin_dir)
         app.initQgis()
+        # print(app.showSettings())
     else:
         try:  # pyside2
             app = QtWidgets.QApplication()

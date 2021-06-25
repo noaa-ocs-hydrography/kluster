@@ -388,7 +388,6 @@ class FqprProject:
             self.fqpr_instances[relpath] = fq
             self.fqpr_attrs[relpath] = get_attributes_from_fqpr(fq, include_mode=False)
             self.regenerate_fqpr_lines(relpath)
-
             for callback in self._project_observers:
                 callback(True)
             print('Successfully added {}'.format(pth))
@@ -815,7 +814,7 @@ class FqprProject:
                         fq_day = datetime.fromtimestamp(fqpr_instance.multibeam.raw_ping[0].time.values[0], tz=timezone.utc)
                         if fq_day.timetuple().tm_yday != same_day_as.timetuple().tm_yday:
                             continue
-                    out_path = fqpr_path
+                    out_path = self.absolute_path_from_relative(fqpr_path)
                     out_instance = fqpr_instance
                     matches += 1
         if matches > 1:

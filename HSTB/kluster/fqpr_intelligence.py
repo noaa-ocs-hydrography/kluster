@@ -441,8 +441,6 @@ class FqprIntel(LoggerClass):
                 elif len(action) > 1:
                     raise ValueError('Multibeam actions found with the same destinations, {}'.format(destination))
             else:
-                if not os.path.isdir(destination):  # destination is not an existing fqpr instance, but the name of a new one
-                    destination = os.path.join(self.project.return_project_folder(), destination)
                 newaction = fqpr_actions.build_multibeam_action(destination, line_list, self.project.client, self.general_settings)
                 self.action_container.add_action(newaction)
 
@@ -1525,11 +1523,13 @@ def gather_multibeam_info(multibeam_file: str):
         aread = par3.AllRead(multibeam_file)
         start_end = aread.fast_read_start_end_time()
         serialnums = aread.fast_read_serial_number()
+        aread.close()
     elif fileext == '.kmall':
         mtype = 'kongsberg_kmall'
         km = kmall.kmall(multibeam_file)
         start_end = km.fast_read_start_end_time()
         serialnums = km.fast_read_serial_number()
+        km.closeFile()
     else:
         raise IOError('File ({}) is not a valid multibeam file'.format(multibeam_file))
     info_data = OrderedDict({'file_path': basic['file_path'], 'type': mtype,
@@ -1797,16 +1797,20 @@ def intel_process(filname: Union[str, list], outfold: str = None, coord_system: 
 
     project = FqprProject(is_gui=False)
     if outfold:
-        project._setup_new_project(outfold)
+        potential_project_file = os.path.join(outfold, 'kluster_project.json')
+        if os.path.exists(potential_project_file):
+            project.open_project(potential_project_file)
+        else:
+            project._setup_new_project(outfold)
     intel = FqprIntel(project)
 
     settings = {'use_epsg': use_epsg, 'epsg': epsg, 'use_coord': not use_epsg, 'coord_system': coord_system,
                 'vert_ref': vert_ref, 'parallel_write': parallel_write, 'vdatum_directory': vdatum_directory}
     intel.set_settings(settings)
 
-    if os.path.isdir(filname):
-        filname = [os.path.join(filname, f) for f in os.listdir(filname)]
-    elif isinstance(filname, str):
+    if isinstance(filname, str):
+        if os.path.isdir(filname):
+            filname = [os.path.join(filname, f) for f in os.listdir(filname)]
         filname = [filname]
     for f in filname:
         updated_type, new_data, new_project = intel.add_file(f)
@@ -1848,7 +1852,11 @@ def intel_process_service(folder_path: str, is_recursive: bool = True, outfold: 
     # consider daemonizing this at some point: https://daemoniker.readthedocs.io/en/latest/index.html
     project = FqprProject(is_gui=False)
     if outfold:
-        project._setup_new_project(outfold)
+        potential_project_file = os.path.join(outfold, 'kluster_project.json')
+        if os.path.exists(potential_project_file):
+            project.open_project(potential_project_file)
+        else:
+            project._setup_new_project(outfold)
     intel = FqprIntel(project)
 
     settings = {'use_epsg': use_epsg, 'epsg': epsg, 'use_coord': not use_epsg, 'coord_system': coord_system,
