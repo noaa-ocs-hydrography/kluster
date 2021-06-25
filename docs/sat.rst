@@ -3,7 +3,6 @@ sat module
 
 .. automodapi:: HSTB.kluster.modules.sat
    :no-inheritance-diagram:
-   :skip: BaseSurface
    :skip: return_surface
    :skip: return_data
    :skip: return_directory_from_data

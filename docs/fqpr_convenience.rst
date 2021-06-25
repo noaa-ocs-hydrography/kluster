@@ -11,6 +11,6 @@ fqpr\_convenience module
    :skip: kmall
    :skip: BatchRead
    :skip: Fqpr
-   :skip: BaseSurface
    :skip: return_directory_from_data
-   :skip: QuadManager
+   :skip: create_grid
+   :skip: load_grid
