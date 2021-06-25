@@ -5,8 +5,6 @@ from HSTB.kluster.backends._zarr import _get_indices_dataset_exists, _get_indice
     _my_xarr_to_zarr_build_arraydimensions, _my_xarr_to_zarr_writeattributes
 from HSTB.kluster.xarray_helpers import reload_zarr_records
 
-__file__ = r'C:\Pydro21_Dev\NOAA\site-packages\Python38\git_repos\hstb_kluster\tests\test_backend.py'
-
 
 def get_testzarr_paths():
     new_zarr_folder = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'test_data', 'zarrtest')
