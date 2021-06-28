@@ -49,8 +49,9 @@ if qgis_enabled:
         from qgis import gui as qgis_gui
     except ImportError:
         try:
-            from qgis.utils import Qgis
-            vers = Qgis.QGIS_VERSION
+            from qgis.core import Qgis as _tempqgis
+            vers = _tempqgis.QGIS_VERSION
+            del _tempqgis
         except:
             vers = 'Unknown'
         raise EnvironmentError('Unable to load qgis.core, used QGIS found {}, version={}'.format(found_path, vers))

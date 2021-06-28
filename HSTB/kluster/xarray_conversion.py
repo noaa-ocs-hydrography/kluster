@@ -643,6 +643,36 @@ def _assess_need_for_split_correction(cur_xarr: xr.Dataset, next_xarr: xr.Datase
         return False
 
 
+def _drop_next_att_nav_blob(cur_xarr: xr.Dataset, next_xarr: xr.Dataset):
+    """
+    Find the duplicates in the next xarray chunk and drop them from the current xarray chunk.  Duplicates are where
+    the current times are greater than the times in the next_xarr.  We only check the last 200 records, which should be
+    greater than the size of any attitude/navigation blob out there.
+
+    Parameters
+    ----------
+    cur_xarr
+        xarray Dataset, the current one in queue for assessment
+    next_xarr
+        xarray Dataset, the next one in time order
+
+    Returns
+    -------
+    xr.Dataset
+        corrected version of cur_xarr
+    """
+
+    if next_xarr is not None:
+        blob_size = min(200, min(cur_xarr.time.size, cur_xarr.time.size))  # size of the dataset to compare
+        last_times_cur_xarr = cur_xarr.time.values[-blob_size:]
+        first_times_next_xarr = next_xarr.time.values[:blob_size]
+        keep_these = ~(last_times_cur_xarr >= first_times_next_xarr[0])
+        bmask = np.ones_like(cur_xarr.time, dtype=bool)
+        bmask[-blob_size:] = keep_these
+        cur_xarr = cur_xarr.isel(time=bmask)
+    return cur_xarr
+
+
 def _correct_for_splits(cur_xarr: xr.Dataset, trim_the_array: bool):
     """
     If assess need for split correction finds that a chunk boundary has cut off a ping, remove that ping here.  The
@@ -1040,7 +1070,13 @@ class BatchRead(ZarrBackend):
             self.converted_pth = os.path.dirname(ping_pth[0])
             self.output_folder = self.converted_pth
         try:
-            self.raw_ping = [reload_zarr_records(pth, skip_dask) for pth in ping_pth]
+            for pth in ping_pth:
+                dset = reload_zarr_records(pth, skip_dask)
+                dset = sort_and_drop_duplicates(dset, pth)
+                if self.raw_ping is None:
+                    self.raw_ping = [dset]
+                else:
+                    self.raw_ping.append(dset)
         except ValueError:
             self.logger.error('Unable to read from {}'.format(ping_pth))
 
@@ -1049,6 +1085,7 @@ class BatchRead(ZarrBackend):
             self.output_folder = self.converted_pth
         try:
             self.raw_att = reload_zarr_records(attitude_pth, skip_dask)
+            self.raw_att = sort_and_drop_duplicates(self.raw_att, attitude_pth)
         except (ValueError, AttributeError):
             self.logger.error('Unable to read from {}'.format(attitude_pth))
 
@@ -1057,6 +1094,7 @@ class BatchRead(ZarrBackend):
             self.output_folder = self.converted_pth
         try:
             self.raw_nav = reload_zarr_records(navigation_pth, skip_dask)
+            self.raw_nav = sort_and_drop_duplicates(self.raw_nav, navigation_pth)
         except (ValueError, AttributeError):
             self.logger.error('Unable to read from {}'.format(navigation_pth))
 
@@ -1395,6 +1433,30 @@ class BatchRead(ZarrBackend):
         del trim_arr, base_xarrfut, next_xarrfut
         return input_xarrs
 
+    def _batch_read_drop_duplicate_blobs(self, input_xarrs: list):
+        """
+        With the par3 driver, keep finding duplicate attitude/navigation blobs across files and/or chunks of files.
+        Since all chunks are operating independently in parallel, we have to look at the neighboring chunk and drop
+        all duplicates (in time) in the current chunk that are in the neighboring chunk.  Should mean that the
+        returned array list contains no duplicate times.
+
+        Parameters
+        ----------
+        input_xarrs
+            xarray Dataset object from _sequential_to_xarray
+
+        Returns
+        -------
+        list
+            xarray Dataset futures representing the input_xarrs corrected for splits between files/blocks
+        """
+
+        base_xarrfut = input_xarrs
+        next_xarrfut = input_xarrs[1:] + [None]
+        input_xarrs = self.client.map(_drop_next_att_nav_blob, base_xarrfut, next_xarrfut)
+        del base_xarrfut, next_xarrfut
+        return input_xarrs
+
     def _batch_read_ping_specific_attribution(self, combattrs: dict):
         """
         Add in the ping record specific attribution
@@ -1476,7 +1538,7 @@ class BatchRead(ZarrBackend):
                         opts['ping']['final_attrs'] = combattrs
                         if len(input_xarrs_by_system) > 1:
                             # rebalance to get equal chunksize in time dimension (sector/beams are constant across)
-                            input_xarrs_by_system = self._batch_read_correct_block_boundaries(input_xarrs_by_system)
+                            input_xarrs_by_system = self.fq  =(input_xarrs_by_system)
                         opts[datatype]['output_arrs'], opts[datatype]['time_arrs'], opts[datatype]['chunksize'], totallen = self._batch_read_merge_blocks(input_xarrs_by_system, datatype, opts[datatype]['chunksize'])
                         del input_xarrs_by_system
                         finalpths[datatype].append(self._batch_read_write('zarr', datatype, opts, self.converted_pth, sysid=system))
@@ -1485,7 +1547,7 @@ class BatchRead(ZarrBackend):
                     opts = batch_read_configure_options()
                     opts[datatype]['final_attrs'] = combattrs
                     if len(input_xarrs) > 1:
-                        input_xarrs = self._batch_read_correct_block_boundaries(input_xarrs)
+                        input_xarrs = self._batch_read_drop_duplicate_blobs(input_xarrs)
                     opts[datatype]['output_arrs'], opts[datatype]['time_arrs'], opts[datatype]['chunksize'], totallen = self._batch_read_merge_blocks(input_xarrs, datatype, opts[datatype]['chunksize'])
                     del input_xarrs
                     finalpths[datatype].append(self._batch_read_write('zarr', datatype, opts, self.converted_pth))
@@ -2356,6 +2418,37 @@ def build_xyzrph(settdict: dict, runtime_settdict: dict, sonartype: str):
     xyzrph = SortedDict(newdict)
 
     return xyzrph
+
+
+def sort_and_drop_duplicates(dset: xr.Dataset, dsetpath: str):
+    """
+    Check for duplicates and sort if necessary.  We've picked methods here to conserve memory, using just the included
+    is_unique property is not as efficient as doing it in numpy.  The isel and sortby statements will load the lazy
+    loaded dataset into memory to do the reindexing, so we want to avoid those statements if at all possible.
+
+    Duplicates will cause the is_monotonic_increasing to be False, so check for those first.
+
+    Parameters
+    ----------
+    dset
+        xarray dataset to sort/drop
+    dsetpath
+        path to the xarray dataset on disk
+
+    Returns
+    -------
+    xr.Dataset
+        sorted and unique dataset
+    """
+
+    _, index = np.unique(dset['time'], return_index=True)
+    if dset['time'].size != index.size:
+        print('Dataset {} contains duplicate times, forced to drop duplicates on reload'.format(dsetpath))
+        dset = dset.isel(time=index)
+    if not dset.time.indexes['time'].is_monotonic_increasing:
+        print('Dataset {} is not sorted, forced to sort on reload'.format(dsetpath))
+        dset = dset.sortby('time')
+    return dset
 
 
 def return_xyzrph_from_mbes(mbesfil: str):
