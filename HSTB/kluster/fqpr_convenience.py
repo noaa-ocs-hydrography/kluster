@@ -452,8 +452,10 @@ def _add_points_to_surface(fqpr_inst: Fqpr, bgrid: BathyGrid, fqpr_crs: int, fqp
         print('Adding points in {} chunks...\n'.format(totalchunks))
         for idx in range(totalchunks):
             strt, end = idx * chunksize, min((idx + 1) * chunksize, number_of_pings)
-            bgrid.add_points(rp.isel(time=slice(strt, end)).stack({'sounding': ('time', 'beam')}),
-                             '{}_{}'.format(cont_name, cont_name_idx), multibeamfiles, fqpr_crs, fqpr_vertref)
+            data = rp.isel(time=slice(strt, end)).stack({'sounding': ('time', 'beam')})
+            # drop nan values in georeferenced data, generally where number of beams vary between pings
+            data = data.where(~np.isnan(data['z']), drop=True)
+            bgrid.add_points(data, '{}_{}'.format(cont_name, cont_name_idx), multibeamfiles, fqpr_crs, fqpr_vertref)
             cont_name_idx += 1
 
 
@@ -1267,7 +1269,7 @@ def return_surface(ref_surf_pth: Union[list, str], vert_ref: str, resolution: in
 
     if os.path.isfile(ref_surf_pth):
         if os.path.splitext(ref_surf_pth)[1] not in kluster_variables.supported_multibeam:
-            bs = BaseSurface(from_file=ref_surf_pth)
+            bs = load_grid(ref_surf_pth)
         else:
             need_surface = True
     else:
@@ -1276,7 +1278,7 @@ def return_surface(ref_surf_pth: Union[list, str], vert_ref: str, resolution: in
     if need_surface and autogenerate:
         new_surf_path = os.path.join(return_directory_from_data(ref_surf_pth), 'surface_{}m.npy'.format(resolution))
         fqpr_instance = return_data(ref_surf_pth, vert_ref, autogenerate=True)
-        bs = generate_new_surface(fqpr_instance, resolution, client=fqpr_instance.client)
+        bs = generate_new_surface(fqpr_instance, resolution=resolution)
         bs.save(new_surf_path)
     return bs
 
