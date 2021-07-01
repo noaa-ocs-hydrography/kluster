@@ -1104,7 +1104,7 @@ def validation_against_xyz88(filname: str, analysis_mode: str = 'even', numplots
     Parameters
     ----------
     filname
-        full path to .all file
+        full path to multibeam file
     analysis_mode
         'even' = select pings are evenly distributed, 'random' = select pings are randomly distributed, 'first' = pings will be the first found in the file
     numplots

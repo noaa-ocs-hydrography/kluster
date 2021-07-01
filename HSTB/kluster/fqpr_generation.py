@@ -226,7 +226,11 @@ class Fqpr(ZarrBackend):
 
         orig_crs = self.horizontal_crs
         orig_vert_ref = self.vert_ref
-        self.horizontal_crs, err = build_crs(self.multibeam.return_utm_zone_number(), datum=datum, epsg=epsg, projected=projected)
+        if epsg:
+            self.horizontal_crs, err = build_crs(None, datum=datum, epsg=epsg, projected=projected)
+        else:
+            self.horizontal_crs, err = build_crs(self.multibeam.return_utm_zone_number(), datum=datum, epsg=epsg,
+                                                 projected=projected)
         if err:
             self.logger.error(err)
             raise ValueError(err)

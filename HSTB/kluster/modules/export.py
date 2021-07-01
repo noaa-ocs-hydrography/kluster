@@ -27,7 +27,6 @@ class FqprExport:
         """
         self.fqpr = fqpr
 
-
     def _generate_export_data(self, ping_dataset: xr.Dataset, filter_by_detection: bool = True, z_pos_down: bool = True):
         """
         Take the georeferenced data in the multibeam.raw_ping datasets held by fqpr_generation.Fqpr (ping_dataset is one of those

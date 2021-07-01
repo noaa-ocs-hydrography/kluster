@@ -1072,7 +1072,7 @@ class BatchRead(ZarrBackend):
         try:
             for pth in ping_pth:
                 dset = reload_zarr_records(pth, skip_dask)
-                dset = sort_and_drop_duplicates(dset, pth)
+                # dset = sort_and_drop_duplicates(dset, pth)
                 if self.raw_ping is None:
                     self.raw_ping = [dset]
                 else:
@@ -1085,7 +1085,7 @@ class BatchRead(ZarrBackend):
             self.output_folder = self.converted_pth
         try:
             self.raw_att = reload_zarr_records(attitude_pth, skip_dask)
-            self.raw_att = sort_and_drop_duplicates(self.raw_att, attitude_pth)
+            # self.raw_att = sort_and_drop_duplicates(self.raw_att, attitude_pth)
         except (ValueError, AttributeError):
             self.logger.error('Unable to read from {}'.format(attitude_pth))
 
@@ -1094,7 +1094,7 @@ class BatchRead(ZarrBackend):
             self.output_folder = self.converted_pth
         try:
             self.raw_nav = reload_zarr_records(navigation_pth, skip_dask)
-            self.raw_nav = sort_and_drop_duplicates(self.raw_nav, navigation_pth)
+            # self.raw_nav = sort_and_drop_duplicates(self.raw_nav, navigation_pth)
         except (ValueError, AttributeError):
             self.logger.error('Unable to read from {}'.format(navigation_pth))
 
