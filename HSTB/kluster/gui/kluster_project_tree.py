@@ -434,7 +434,7 @@ class KlusterProjectTree(QtWidgets.QTreeView):
                 lname = mid_lvl_name + selected_name
                 ischecked = self.model.itemFromIndex(index).checkState()
                 if ischecked and lname in self.shown_layers:  # don't do anything, it is already shown
-                    print('alreadyenabled')
+                    pass
                 elif not ischecked and lname not in self.shown_layers:  # don't do anything, it is already hidden
                     pass
                 else:
