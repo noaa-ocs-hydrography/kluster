@@ -3,6 +3,8 @@ from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal
 from HSTB.kluster.fqpr_convenience import generate_new_surface, import_processed_navigation, overwrite_raw_navigation, \
     update_surface
 
+import time
+
 
 class ActionWorker(QtCore.QThread):
     """
@@ -29,6 +31,43 @@ class ActionWorker(QtCore.QThread):
         # turn off progress, it creates too much clutter in the output window
         self.action_type = self.action_container.actions[self.action_index].action_type
         self.result = self.action_container.execute_action(self.action_index)
+        self.finished.emit(True)
+
+
+class OpenProjectWorker(QtCore.QThread):
+    """
+    Thread that runs when the user drags in a new project file or opens a project using the menu
+    """
+
+    started = Signal(bool)
+    finished = Signal(bool)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.new_project_path = None
+        self.project = None
+        self.new_fqprs = []
+
+    def populate(self, project, new_project_path):
+        self.new_project_path = new_project_path
+        self.project = project
+
+    def run(self):
+        self.started.emit(True)
+        self.new_fqprs = []
+        data = self.project._load_project_file(self.new_project_path)
+        for pth in data['fqpr_paths']:
+            fqpr_entry, already_in = self.project.add_fqpr(pth, skip_dask=True)
+            if fqpr_entry is None:  # no fqpr instance successfully loaded
+                print('update_on_file_added: Unable to add to Project from existing: {}'.format(pth))
+            if already_in:
+                print('{} already exists in {}'.format(pth, self.project.path))
+            elif fqpr_entry:
+                self.new_fqprs.append(fqpr_entry)
+        for pth in data['surface_paths']:
+            self.project.add_surface(pth)
+        print('open_project: drawing line navigation...')
+        time.sleep(0.1)
         self.finished.emit(True)
 
 

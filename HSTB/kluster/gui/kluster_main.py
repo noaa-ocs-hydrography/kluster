@@ -6,6 +6,7 @@ import sys
 import webbrowser
 import numpy as np
 import multiprocessing
+from time import sleep
 
 from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal, qgis_enabled
 if qgis_enabled:
@@ -127,8 +128,9 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.surface_update_thread = kluster_worker.SurfaceUpdateWorker()
         self.export_thread = kluster_worker.ExportWorker()
         self.export_grid_thread = kluster_worker.ExportGridWorker()
+        self.open_project_thread = kluster_worker.OpenProjectWorker()
         self.allthreads = [self.action_thread, self.import_ppnav_thread, self.overwrite_nav_thread, self.surface_thread,
-                           self.surface_update_thread, self.export_thread, self.export_grid_thread]
+                           self.surface_update_thread, self.export_thread, self.export_grid_thread, self.open_project_thread]
 
         # connect FqprActionContainer with actions pane, called whenever actions changes
         self.intel.bind_to_action_update(self.actions.update_actions)
@@ -171,9 +173,11 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.surface_update_thread.started.connect(self._start_action_progress)
         self.surface_update_thread.finished.connect(self._kluster_surface_update_results)
         self.export_thread.started.connect(self._start_action_progress)
-        self.export_thread.finished.connect(self._stop_action_progress)
+        self.export_thread.finished.connect(self._kluster_export_results)
         self.export_grid_thread.started.connect(self._start_action_progress)
-        self.export_grid_thread.finished.connect(self._stop_action_progress)
+        self.export_grid_thread.finished.connect(self._kluster_export_grid_results)
+        self.open_project_thread.started.connect(self._start_action_progress)
+        self.open_project_thread.finished.connect(self._kluster_open_project_results)
 
         self.monitor.monitor_file_event.connect(self.intel._handle_monitor_event)
         self.monitor.monitor_start.connect(self._create_new_project_if_not_exist)
@@ -325,6 +329,7 @@ class KlusterMain(QtWidgets.QMainWindow):
             if os.path.split(fnorm)[1] == 'kluster_project.json':
                 self.open_project(fnorm)
                 fil.remove(f)
+                return
 
         for f in fil:
             f = os.path.normpath(f)
@@ -363,7 +368,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         """
 
         self.project_tree.refresh_project(proj=self.project)
-        if new_fqprs is not None:
+        if new_fqprs is not None and new_fqprs:
             for fq in new_fqprs:
                 for ln in self.project.return_project_lines(proj=fq, relative_path=True):
                     lats, lons = self.project.return_line_navigation(ln, samplerate=5)
@@ -903,13 +908,21 @@ class KlusterMain(QtWidgets.QMainWindow):
                         print('Exporting to {}, format {}..'.format(output_path, export_format))
                         self.export_grid_thread.populate(surf_inst, export_format, output_path, z_pos_up, opts)
                         self.export_grid_thread.start()
-                        print('Export Complete.')
                     else:
                         print('kluster_grid_export: Unable to load from {}'.format(surf))
                 else:
                     cancelled = True
         if cancelled:
             print('kluster_grid_export: Export was cancelled')
+
+    def _kluster_export_grid_results(self):
+        """
+        Method is run when the surface_update_thread signals completion.  All we need to do here is add the surface to the project
+        and display.
+        """
+
+        print('Export Complete')
+        self._stop_action_progress()
 
     def kluster_export(self):
         """
@@ -951,6 +964,15 @@ class KlusterMain(QtWidgets.QMainWindow):
                     cancelled = True
         if cancelled:
             print('kluster_export: Export was cancelled')
+
+    def _kluster_export_results(self):
+        """
+        Method is run when the surface_update_thread signals completion.  All we need to do here is add the surface to the project
+        and display.
+        """
+
+        print('Export Complete.')
+        self._stop_action_progress()
 
     def _start_action_progress(self):
         """
@@ -1009,14 +1031,23 @@ class KlusterMain(QtWidgets.QMainWindow):
         pth: str, path to the parent Fqpr project folder
         """
 
-        self.close_project()
-        data = self.project._load_project_file(pth)
-        for pth in data['fqpr_paths']:
-            self.open_fqpr(pth)
-        for pth in data['surface_paths']:
-            self.project.add_surface(pth)
+        if not self.no_threads_running():
+            print('Processing is already occurring.  Please wait for the process to finish')
+            cancelled = True
+        else:
+            self.close_project()
+            self.output_window.clear()
+            self.open_project_thread.populate(self.project, pth)
+            self.open_project_thread.start()
+            cancelled = False
+        if cancelled:
+            print('open_project: opening project was cancelled')
 
-        self.redraw()
+    def _kluster_open_project_results(self):
+        self.project = self.open_project_thread.project
+        self.redraw(new_fqprs=self.open_project_thread.new_fqprs)
+        self._stop_action_progress()
+        print('open_project: Opening project {} complete.'.format(self.open_project_thread.new_project_path))
 
     def close_project(self):
         """

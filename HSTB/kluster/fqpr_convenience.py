@@ -455,7 +455,8 @@ def _add_points_to_surface(fqpr_inst: Fqpr, bgrid: BathyGrid, fqpr_crs: int, fqp
             data = rp.isel(time=slice(strt, end)).stack({'sounding': ('time', 'beam')})
             # drop nan values in georeferenced data, generally where number of beams vary between pings
             data = data.where(~np.isnan(data['z']), drop=True)
-            bgrid.add_points(data, '{}_{}'.format(cont_name, cont_name_idx), multibeamfiles, fqpr_crs, fqpr_vertref)
+            bgrid.add_points(data, '{}_{}'.format(cont_name, cont_name_idx), multibeamfiles, fqpr_crs, fqpr_vertref,
+                             min_time=rp.time.values[0], max_time=rp.time.values[-1])
             cont_name_idx += 1
 
 
