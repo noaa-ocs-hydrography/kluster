@@ -451,16 +451,3 @@ txatt = interp_across_chunks(fq.multibeam.raw_att, fq.multibeam.raw_ping[0].time
 tx_att_times, tx_attitude_rotation = return_attitude_rotation_matrix(txatt)
 ans = (tx_attitude_rotation.data @ np.float32(leverarm)).compute()[:, 2]
 
-#############################################################
-
-from HSTB.kluster.fqpr_convenience import convert_multibeam
-from HSTB.drivers import par3
-
-spike_file = 'D:\\falkor\\FK181005\\0041_20181010_223414_FK181005_EM710.all'
-ad = par3.AllRead(spike_file)
-recs = ad.sequential_read_records()
-ad.close()
-
-fq = convert_multibeam(r"C:\collab\dasktest\data_dir\EM2040c_NRT2\0650_20180711_151518.all")
-fq.multibeam.raw_nav.latitude.plot()
-fq.multibeam.raw_nav.longitude.plot()

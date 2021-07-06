@@ -492,9 +492,7 @@ def _get_unique_crs_vertref(fqpr_instances: list):
     unique_vertref = []
     for fq in fqpr_instances:
         crs_data = fq.horizontal_crs.to_epsg()
-        vertref = fq.multibeam.raw_ping[0].vertical_crs
-        if vertref == 'Unknown':
-            vertref = fq.multibeam.raw_ping[0].vertical_reference
+        vertref = fq.multibeam.raw_ping[0].vertical_reference
         if crs_data is None:
             crs_data = fq.horizontal_crs.to_proj4()
         if crs_data not in unique_crs:
@@ -514,6 +512,12 @@ def _get_unique_crs_vertref(fqpr_instances: list):
     if not unique_crs:
         print('_get_unique_crs_vertref: No valid EPSG for {}'.format(fqpr_instances[0].horizontal_crs.to_proj4()))
         return None, None
+
+    # if the vertical reference is a vdatum one, return the first WKT string.  We can't just get the unique WKT strings,
+    #  as there might be differences in region (which we should probably concatenate or something)
+    if unique_vertref in ['NOAA MLLW', 'NOAA MHW']:
+        unique_vertref = fqpr_instances[0].multibeam.raw_ping[0].vertical_crs
+
     return unique_crs, unique_vertref
 
 
