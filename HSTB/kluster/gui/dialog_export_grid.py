@@ -201,6 +201,12 @@ class ExportGridDialog(QtWidgets.QDialog):
             self.status_msg.setText('"Export from the following" folder must contain a root folder (i.e. VRGridTile_Root)')
             self.ok_button.setEnabled(False)
 
+    def update_vert_ref(self, vertical_reference: str):
+        if vertical_reference in ['ellipse', 'waterline', 'NOAA MLLW', 'NOAA MHW']:
+            pass  # leave as unknown
+        else:
+            self.bag_vert_crs.setText(vertical_reference)
+
     def output_file_browse(self):
         curr_opts = self.export_opts.currentText().lower()
         if curr_opts == 'csv':

@@ -446,6 +446,7 @@ def _add_points_to_surface(fqpr_inst: Fqpr, bgrid: BathyGrid, fqpr_crs: int, fqp
     multibeamfiles = list(fqpr_inst.multibeam.raw_ping[0].multibeam_files.keys())
     cont_name_idx = 0
     for rp in fqpr_inst.multibeam.raw_ping:
+        mintime, maxtime = rp.time.values[0], rp.time.values[-1]
         number_of_pings = rp.time.size
         rp = rp.drop_vars([nms for nms in rp.variables if nms not in ['x', 'y', 'z', 'tvu', 'thu']])
         totalchunks = int(np.ceil(number_of_pings / chunksize))
@@ -456,7 +457,7 @@ def _add_points_to_surface(fqpr_inst: Fqpr, bgrid: BathyGrid, fqpr_crs: int, fqp
             # drop nan values in georeferenced data, generally where number of beams vary between pings
             data = data.where(~np.isnan(data['z']), drop=True)
             bgrid.add_points(data, '{}_{}'.format(cont_name, cont_name_idx), multibeamfiles, fqpr_crs, fqpr_vertref,
-                             min_time=rp.time.values[0], max_time=rp.time.values[-1])
+                             min_time=mintime, max_time=maxtime)
             cont_name_idx += 1
 
 
@@ -515,8 +516,8 @@ def _get_unique_crs_vertref(fqpr_instances: list):
 
     # if the vertical reference is a vdatum one, return the first WKT string.  We can't just get the unique WKT strings,
     #  as there might be differences in region (which we should probably concatenate or something)
-    if unique_vertref in ['NOAA MLLW', 'NOAA MHW']:
-        unique_vertref = fqpr_instances[0].multibeam.raw_ping[0].vertical_crs
+    if unique_vertref[0] in ['NOAA MLLW', 'NOAA MHW']:
+        unique_vertref = [fqpr_instances[0].multibeam.raw_ping[0].vertical_crs]
 
     return unique_crs, unique_vertref
 

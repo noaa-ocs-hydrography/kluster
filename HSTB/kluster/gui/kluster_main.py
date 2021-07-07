@@ -891,6 +891,9 @@ class KlusterMain(QtWidgets.QMainWindow):
             if surfs:
                 first_surf = surfs[0]  # just use the first of the selected surfaces
                 dlog.update_input_path(first_surf)
+                relsurf = self.project.path_relative_to_project(first_surf)
+                if relsurf in self.project.surface_instances:
+                    dlog.update_vert_ref(self.project.surface_instances[relsurf].vertical_reference)
             cancelled = False
             if dlog.exec_():
                 if not dlog.canceled:
