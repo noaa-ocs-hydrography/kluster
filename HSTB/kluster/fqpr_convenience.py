@@ -11,7 +11,7 @@ from HSTB.drivers.par3 import AllRead
 from HSTB.drivers.kmall import kmall
 from HSTB.kluster.xarray_conversion import BatchRead
 from HSTB.kluster.fqpr_generation import Fqpr
-from HSTB.kluster.fqpr_helpers import return_directory_from_data
+from HSTB.kluster.fqpr_helpers import return_directory_from_data, seconds_to_formatted_string
 from HSTB.kluster import kluster_variables
 from bathygrid.convenience import create_grid, load_grid, BathyGrid
 
@@ -616,7 +616,7 @@ def generate_new_surface(fqpr_inst: Union[Fqpr, list], grid_type: str = 'single_
                   resolution=export_resolution)
 
     endtime = perf_counter()
-    print('***** Surface Generation Complete: {}s *****'.format(round(endtime - strttime, 1)))
+    print('***** Surface Generation Complete:  *****'.format(seconds_to_formatted_string(int(endtime - strttime))))
     return bg
 
 

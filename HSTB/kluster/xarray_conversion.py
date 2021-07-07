@@ -16,6 +16,7 @@ from HSTB.drivers import par3, kmall
 from HSTB.drivers import PCSio
 from HSTB.kluster.dask_helpers import dask_find_or_start_client
 from HSTB.kluster.xarray_helpers import resize_zarr, xarr_to_netcdf, combine_xr_attributes, reload_zarr_records
+from HSTB.kluster.fqpr_helpers import seconds_to_formatted_string
 from HSTB.kluster.backends._zarr import ZarrBackend, my_xarr_add_attribute
 from HSTB.kluster.logging_conf import return_logger
 from HSTB.kluster import kluster_variables
@@ -1554,7 +1555,7 @@ class BatchRead(ZarrBackend):
                     del opts
 
             endtime = perf_counter()
-            self.logger.info('****Distributed conversion complete: {}s****\n'.format(round(endtime - starttime, 1)))
+            self.logger.info('****Distributed conversion complete: {}****\n'.format(seconds_to_formatted_string(int(endtime - starttime))))
 
             return finalpths
         return None

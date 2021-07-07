@@ -2,6 +2,7 @@ import os
 from typing import Union
 from pyproj import CRS
 from pyproj.exceptions import CRSError
+
 from HSTB.kluster import kluster_variables
 
 
@@ -153,3 +154,30 @@ def return_directory_from_data(data: Union[list, str]):
     except TypeError:  # they provided a list of files
         output_directory = os.path.dirname(data[0])
     return output_directory
+
+
+def seconds_to_formatted_string(seconds: Union[float, int]):
+    """
+    Get a nicely formatted time elapsed string
+
+    Parameters
+    ----------
+    seconds
+        number of seconds in either float or int, will be rounded to int
+
+    Returns
+    -------
+    str
+        formatted string
+    """
+
+    if seconds < 0:
+        return '0 seconds'
+    m, s = divmod(seconds, 60)
+    h, m = divmod(m, 60)
+    if h:
+        return f'{h} hours, {m} minutes, {int(s)} seconds'
+    elif m:
+        return f'{m} minutes, {int(s)} seconds'
+    else:
+        return f'{int(s)} seconds'
