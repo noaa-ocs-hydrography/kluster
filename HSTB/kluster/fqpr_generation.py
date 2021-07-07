@@ -23,7 +23,7 @@ from HSTB.kluster.xarray_helpers import combine_arrays_to_dataset, compare_and_f
     interp_across_chunks, reload_zarr_records, slice_xarray_by_dim, stack_nan_array, get_beamwise_interpolation
 from HSTB.kluster.backends._zarr import ZarrBackend
 from HSTB.kluster.dask_helpers import dask_find_or_start_client, get_number_of_workers
-from HSTB.kluster.fqpr_helpers import build_crs
+from HSTB.kluster.fqpr_helpers import build_crs, seconds_to_formatted_string
 from HSTB.kluster.rotations import return_attitude_rotation_matrix
 from HSTB.kluster.logging_conf import return_logger
 from HSTB.drivers.sbet import sbets_to_xarray, sbet_fast_read_start_end_time
@@ -226,7 +226,11 @@ class Fqpr(ZarrBackend):
 
         orig_crs = self.horizontal_crs
         orig_vert_ref = self.vert_ref
-        self.horizontal_crs, err = build_crs(self.multibeam.return_utm_zone_number(), datum=datum, epsg=epsg, projected=projected)
+        if epsg:
+            self.horizontal_crs, err = build_crs(None, datum=datum, epsg=epsg, projected=projected)
+        else:
+            self.horizontal_crs, err = build_crs(self.multibeam.return_utm_zone_number(), datum=datum, epsg=epsg,
+                                                 projected=projected)
         if err:
             self.logger.error(err)
             raise ValueError(err)
@@ -1552,7 +1556,7 @@ class Fqpr(ZarrBackend):
         # self.interp_to_ping_record(self.navigation, {'navigation_source': 'sbet', 'input_datum': self.navigation.datum})
 
         endtime = perf_counter()
-        self.logger.info('****Importing post processed navigation complete: {}s****\n'.format(round(endtime - starttime, 1)))
+        self.logger.info('****Importing post processed navigation complete: {}****\n'.format(seconds_to_formatted_string(int(endtime - starttime))))
 
     def overwrite_raw_navigation(self, navfiles: list, weekstart_year: int, weekstart_week: int,
                                  max_gap_length: float = 1.0, overwrite: bool = False):
@@ -1616,7 +1620,7 @@ class Fqpr(ZarrBackend):
         # self.interp_to_ping_record(self.navigation, {'navigation_source': 'sbet', 'input_datum': self.navigation.datum})
 
         endtime = perf_counter()
-        self.logger.info('****Overwriting raw navigation complete: {}s****\n'.format(round(endtime - starttime, 1)))
+        self.logger.info('****Overwriting raw navigation complete: {}****\n'.format(seconds_to_formatted_string(int(endtime - starttime))))
 
     def interp_to_ping_record(self, sources: Union[xr.Dataset, list], attributes: dict = None):
         """
@@ -1655,7 +1659,7 @@ class Fqpr(ZarrBackend):
                 self.write('ping', [ping_wise_data], time_array=ping_wise_times, sys_id=rp.system_identifier)
         self.multibeam.reload_pingrecords(skip_dask=skip_dask)
         endtime = perf_counter()
-        self.logger.info('****Interpolation complete: {}s****\n'.format(round(endtime - starttime, 1)))
+        self.logger.info('****Interpolation complete: {}****\n'.format(seconds_to_formatted_string(int(endtime - starttime))))
 
     def initial_att_nav_interpolation(self):
         """
@@ -1749,7 +1753,7 @@ class Fqpr(ZarrBackend):
             self.subset_by_time(self.subset_mintime, self.subset_maxtime)
 
         endtime = perf_counter()
-        self.logger.info('****Get Orientation Vectors complete: {}s****\n'.format(round(endtime - starttime, 1)))
+        self.logger.info('****Get Orientation Vectors complete: {}****\n'.format(seconds_to_formatted_string(int(endtime - starttime))))
 
     def get_beam_pointing_vectors(self, subset_time: list = None, dump_data: bool = True):
         """
@@ -1806,7 +1810,7 @@ class Fqpr(ZarrBackend):
             self.subset_by_time(self.subset_mintime, self.subset_maxtime)
 
         endtime = perf_counter()
-        self.logger.info('****Beam Pointing Vector generation complete: {}s****\n'.format(round(endtime - starttime, 1)))
+        self.logger.info('****Beam Pointing Vector generation complete: {}****\n'.format(seconds_to_formatted_string(int(endtime - starttime))))
 
     def sv_correct(self, add_cast_files: Union[str, list] = None, subset_time: list = None, dump_data: bool = True):
         """
@@ -1868,7 +1872,7 @@ class Fqpr(ZarrBackend):
             self.subset_by_time(self.subset_mintime, self.subset_maxtime)
 
         endtime = perf_counter()
-        self.logger.info('****Sound Velocity complete: {}s****\n'.format(round(endtime - starttime, 1)))
+        self.logger.info('****Sound Velocity complete: {}****\n'.format(seconds_to_formatted_string(int(endtime - starttime))))
 
     def georef_xyz(self, subset_time: list = None, prefer_pp_nav: bool = True, dump_data: bool = True,
                    vdatum_directory: str = None):
@@ -1943,9 +1947,9 @@ class Fqpr(ZarrBackend):
             self.subset_by_time(self.subset_mintime, self.subset_maxtime)
 
         endtime = perf_counter()
-        self.logger.info('****Georeferencing sound velocity corrected beam offsets complete: {}s****\n'.format(round(endtime - starttime, 1)))
+        self.logger.info('****Georeferencing sound velocity corrected beam offsets complete: {}****\n'.format(seconds_to_formatted_string(int(endtime - starttime))))
 
-    def calculate_total_uncertainty(self, subset_time: list = None, dump_data: bool = True, delete_futs: bool = True):
+    def calculate_total_uncertainty(self, subset_time: list = None, dump_data: bool = True):
         """
         Use the tpu module to calculate total horizontal uncertainty and total vertical uncertainty for each sounding.
         See tpu.py for more information
@@ -1962,8 +1966,6 @@ class Fqpr(ZarrBackend):
         dump_data
             if True dump the futures to the multibeam datastore.  Set this to false for an entirely in memory
             workflow
-        delete_futs
-            if True remove the futures objects after data is dumped.
         """
 
         self._validate_calculate_total_uncertainty(subset_time, dump_data)
@@ -1998,7 +2000,7 @@ class Fqpr(ZarrBackend):
             self.subset_by_time(self.subset_mintime, self.subset_maxtime)
 
         endtime = perf_counter()
-        self.logger.info('****Calculating total uncertainty complete: {}s****\n'.format(round(endtime - starttime, 1)))
+        self.logger.info('****Calculating total uncertainty complete: {}****\n'.format(seconds_to_formatted_string(int(endtime - starttime))))
 
     def export_pings_to_file(self, output_directory: str = None, file_format: str = 'csv', csv_delimiter=' ',
                              filter_by_detection: bool = True, z_pos_down: bool = True, export_by_identifiers: bool = True):
@@ -2136,8 +2138,8 @@ class Fqpr(ZarrBackend):
                 self.__setattr__(comp_time, datetime.utcnow().strftime('%c'))
                 self.write_intermediate_futs_to_zarr(mode, rawping.system_identifier, timestmp, skip_dask=skip_dask)
             endtime = perf_counter()
-            self.logger.info('Processing chunk {} out of {} complete: {}s'.format(rn + 1, tot_runs,
-                                                                                  round(endtime - starttime, 1)))
+            self.logger.info('Processing chunk {} out of {} complete: {}'.format(rn + 1, tot_runs,
+                                                                                 seconds_to_formatted_string(int(endtime - starttime))))
 
     def write_intermediate_futs_to_zarr(self, mode: str, sys_ident: str, timestmp: str, skip_dask: bool = False):
         """

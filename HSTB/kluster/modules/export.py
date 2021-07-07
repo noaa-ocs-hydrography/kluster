@@ -7,6 +7,7 @@ from datetime import datetime
 
 from HSTB.kluster.pydro_helpers import is_pydro
 from HSTB.kluster.pdal_entwine import build_entwine_points
+from HSTB.kluster.fqpr_helpers import seconds_to_formatted_string
 
 
 class FqprExport:
@@ -26,7 +27,6 @@ class FqprExport:
             Fqpr instance to export from
         """
         self.fqpr = fqpr
-
 
     def _generate_export_data(self, ping_dataset: xr.Dataset, filter_by_detection: bool = True, z_pos_down: bool = True):
         """
@@ -239,7 +239,7 @@ class FqprExport:
                 written_files.append(dest_path)
 
         endtime = perf_counter()
-        self.fqpr.logger.info('****Exporting xyz data to csv complete: {}s****\n'.format(round(endtime - starttime, 1)))
+        self.fqpr.logger.info('****Exporting xyz data to csv complete: {}****\n'.format(seconds_to_formatted_string(int(endtime - starttime))))
         return written_files
 
     def _csv_write(self, x: xr.DataArray, y: xr.DataArray, z: xr.DataArray, uncertainty: xr.DataArray,
@@ -344,7 +344,7 @@ class FqprExport:
                 written_files.append(dest_path)
 
         endtime = perf_counter()
-        self.fqpr.logger.info('****Exporting xyz data to las complete: {}s****\n'.format(round(endtime - starttime, 1)))
+        self.fqpr.logger.info('****Exporting xyz data to las complete: {}****\n'.format(seconds_to_formatted_string(int(endtime - starttime))))
         return written_files
 
     def _las_write(self, x: xr.DataArray, y: xr.DataArray, z: xr.DataArray, uncertainty: xr.DataArray,

@@ -122,14 +122,17 @@ def georef_by_worker(sv_corr: list, alt: xr.DataArray, lon: xr.DataArray, lat: x
     pos = g.fwd(lon[at_idx[0]].values, lat[at_idx[0]].values, bm_azimuth.values, bm_radius.values)
 
     z = np.around(corr_dpth, 3)
-    if vert_ref == 'NOAA MLLW':
-        sep, vdatum_unc = transform_vyperdatum(pos[0], pos[1], xr.zeros_like(z), input_crs.to_epsg(), 'mllw', vdatum_directory=vdatum_directory)
-    elif vert_ref == 'NOAA MHW':
-        sep, vdatum_unc = transform_vyperdatum(pos[0], pos[1], xr.zeros_like(z), input_crs.to_epsg(), 'mhw', vdatum_directory=vdatum_directory)
+    if vert_ref in ['NOAA MLLW', 'NOAA MHW']:
+        z_stck = z.values[ac_idx]  # get the depth values where there are valid acrosstrack results (i.e. svcorrect worked)
+        if vert_ref == 'NOAA MLLW':
+            sep, vdatum_unc = transform_vyperdatum(pos[0], pos[1], np.zeros_like(z_stck), input_crs.to_epsg(), 'mllw', vdatum_directory=vdatum_directory)
+        else:
+            sep, vdatum_unc = transform_vyperdatum(pos[0], pos[1], np.zeros_like(z_stck), input_crs.to_epsg(), 'mhw', vdatum_directory=vdatum_directory)
+        z_stck = z_stck - sep
+        vdatum_unc = reform_nan_array(vdatum_unc, ac_idx, z.shape, z.coords, z.dims)
+        z = reform_nan_array(z_stck, ac_idx, z.shape, z.coords, z.dims)
     else:
-        sep = 0
         vdatum_unc = xr.zeros_like(z)
-    z = z - sep
 
     if horizontal_crs.is_projected:
         # Transformer.transform input order is based on the CRS, see CRS.geodetic_crs.axis_info
@@ -147,7 +150,7 @@ def georef_by_worker(sv_corr: list, alt: xr.DataArray, lon: xr.DataArray, lat: x
     return [x, y, z, corr_heave, corr_altitude, vdatum_unc]
 
 
-def transform_vyperdatum(x: xr.DataArray, y: xr.DataArray, z: xr.DataArray, source_datum: Union[str, int] = 'nad83',
+def transform_vyperdatum(x: np.array, y: np.array, z: np.array, source_datum: Union[str, int] = 'nad83',
                          final_datum: str = 'mllw', vdatum_directory: str = None):
     """
     When we specify a NOAA vertical datum (NOAA Mean Lower Low Water, NOAA Mean High Water) in Kluster, we use
@@ -184,12 +187,9 @@ def transform_vyperdatum(x: xr.DataArray, y: xr.DataArray, z: xr.DataArray, sour
 
     if not os.path.exists(vp.vdatum.vdatum_path):
         raise EnvironmentError('Unable to find path to VDatum folder: {}'.format(vp.vdatum.vdatum_path))
-    z_idx, z_stck = stack_nan_array(z, stack_dims=('time', 'beam'))
-    vp.transform_points(source_datum, final_datum, x, y, z=z_stck.values)
-    z = reform_nan_array(np.around(vp.z, 3), z_idx, z.shape, z.coords, z.dims)
-    xarray_unc = reform_nan_array(np.around(vp.unc, 3), z_idx, z.shape, z.coords, z.dims)
+    vp.transform_points(source_datum, final_datum, x, y, z=z)
 
-    return z, xarray_unc
+    return np.around(vp.z, 3), np.around(vp.unc, 3)
 
 
 def datum_to_wkt(datum_identifier: str, min_lon: float, min_lat: float, max_lon: float, max_lat: float):

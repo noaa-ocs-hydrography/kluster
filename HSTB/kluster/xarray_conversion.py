@@ -16,6 +16,7 @@ from HSTB.drivers import par3, kmall
 from HSTB.drivers import PCSio
 from HSTB.kluster.dask_helpers import dask_find_or_start_client
 from HSTB.kluster.xarray_helpers import resize_zarr, xarr_to_netcdf, combine_xr_attributes, reload_zarr_records
+from HSTB.kluster.fqpr_helpers import seconds_to_formatted_string
 from HSTB.kluster.backends._zarr import ZarrBackend, my_xarr_add_attribute
 from HSTB.kluster.logging_conf import return_logger
 from HSTB.kluster import kluster_variables
@@ -1072,7 +1073,7 @@ class BatchRead(ZarrBackend):
         try:
             for pth in ping_pth:
                 dset = reload_zarr_records(pth, skip_dask)
-                dset = sort_and_drop_duplicates(dset, pth)
+                # dset = sort_and_drop_duplicates(dset, pth)
                 if self.raw_ping is None:
                     self.raw_ping = [dset]
                 else:
@@ -1085,7 +1086,7 @@ class BatchRead(ZarrBackend):
             self.output_folder = self.converted_pth
         try:
             self.raw_att = reload_zarr_records(attitude_pth, skip_dask)
-            self.raw_att = sort_and_drop_duplicates(self.raw_att, attitude_pth)
+            # self.raw_att = sort_and_drop_duplicates(self.raw_att, attitude_pth)
         except (ValueError, AttributeError):
             self.logger.error('Unable to read from {}'.format(attitude_pth))
 
@@ -1094,7 +1095,7 @@ class BatchRead(ZarrBackend):
             self.output_folder = self.converted_pth
         try:
             self.raw_nav = reload_zarr_records(navigation_pth, skip_dask)
-            self.raw_nav = sort_and_drop_duplicates(self.raw_nav, navigation_pth)
+            # self.raw_nav = sort_and_drop_duplicates(self.raw_nav, navigation_pth)
         except (ValueError, AttributeError):
             self.logger.error('Unable to read from {}'.format(navigation_pth))
 
@@ -1554,7 +1555,7 @@ class BatchRead(ZarrBackend):
                     del opts
 
             endtime = perf_counter()
-            self.logger.info('****Distributed conversion complete: {}s****\n'.format(round(endtime - starttime, 1)))
+            self.logger.info('****Distributed conversion complete: {}****\n'.format(seconds_to_formatted_string(int(endtime - starttime))))
 
             return finalpths
         return None

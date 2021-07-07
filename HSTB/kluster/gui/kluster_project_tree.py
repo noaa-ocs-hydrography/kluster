@@ -55,6 +55,7 @@ class KlusterProjectTree(QtWidgets.QTreeView):
 
         self.categories = ['Project', 'Vessel File', 'Converted', 'Surfaces']
         self.tree_data = {}
+        self.shown_layers = []
 
         self.clicked.connect(self.item_selected)
         self.customContextMenuRequested.connect(self.show_context_menu)
@@ -430,7 +431,18 @@ class KlusterProjectTree(QtWidgets.QTreeView):
             if top_lvl_name == 'Converted':
                 self.line_selected.emit(selected_name)
             elif top_lvl_name == 'Surfaces':
-                self.surface_layer_selected.emit(mid_lvl_name, selected_name, self.model.itemFromIndex(index).checkState())
+                lname = mid_lvl_name + selected_name
+                ischecked = self.model.itemFromIndex(index).checkState()
+                if ischecked and lname in self.shown_layers:  # don't do anything, it is already shown
+                    pass
+                elif not ischecked and lname not in self.shown_layers:  # don't do anything, it is already hidden
+                    pass
+                else:
+                    if ischecked:
+                        self.shown_layers.append(lname)
+                    else:
+                        self.shown_layers.remove(lname)
+                    self.surface_layer_selected.emit(mid_lvl_name, selected_name, ischecked)
         elif mid_lvl_name in self.categories:  # this is a sub item, like a converted fqpr path
             if mid_lvl_name == 'Converted':
                 self.fqpr_selected.emit(selected_name)

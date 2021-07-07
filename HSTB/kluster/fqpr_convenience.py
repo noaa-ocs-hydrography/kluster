@@ -11,7 +11,7 @@ from HSTB.drivers.par3 import AllRead
 from HSTB.drivers.kmall import kmall
 from HSTB.kluster.xarray_conversion import BatchRead
 from HSTB.kluster.fqpr_generation import Fqpr
-from HSTB.kluster.fqpr_helpers import return_directory_from_data
+from HSTB.kluster.fqpr_helpers import return_directory_from_data, seconds_to_formatted_string
 from HSTB.kluster import kluster_variables
 from bathygrid.convenience import create_grid, load_grid, BathyGrid
 
@@ -446,14 +446,18 @@ def _add_points_to_surface(fqpr_inst: Fqpr, bgrid: BathyGrid, fqpr_crs: int, fqp
     multibeamfiles = list(fqpr_inst.multibeam.raw_ping[0].multibeam_files.keys())
     cont_name_idx = 0
     for rp in fqpr_inst.multibeam.raw_ping:
+        mintime, maxtime = rp.time.values[0], rp.time.values[-1]
         number_of_pings = rp.time.size
         rp = rp.drop_vars([nms for nms in rp.variables if nms not in ['x', 'y', 'z', 'tvu', 'thu']])
         totalchunks = int(np.ceil(number_of_pings / chunksize))
         print('Adding points in {} chunks...\n'.format(totalchunks))
         for idx in range(totalchunks):
             strt, end = idx * chunksize, min((idx + 1) * chunksize, number_of_pings)
-            bgrid.add_points(rp.isel(time=slice(strt, end)).stack({'sounding': ('time', 'beam')}),
-                             '{}_{}'.format(cont_name, cont_name_idx), multibeamfiles, fqpr_crs, fqpr_vertref)
+            data = rp.isel(time=slice(strt, end)).stack({'sounding': ('time', 'beam')})
+            # drop nan values in georeferenced data, generally where number of beams vary between pings
+            data = data.where(~np.isnan(data['z']), drop=True)
+            bgrid.add_points(data, '{}_{}'.format(cont_name, cont_name_idx), multibeamfiles, fqpr_crs, fqpr_vertref,
+                             min_time=mintime, max_time=maxtime)
             cont_name_idx += 1
 
 
@@ -489,9 +493,7 @@ def _get_unique_crs_vertref(fqpr_instances: list):
     unique_vertref = []
     for fq in fqpr_instances:
         crs_data = fq.horizontal_crs.to_epsg()
-        vertref = fq.multibeam.raw_ping[0].vertical_crs
-        if vertref == 'Unknown':
-            vertref = fq.multibeam.raw_ping[0].vertical_reference
+        vertref = fq.multibeam.raw_ping[0].vertical_reference
         if crs_data is None:
             crs_data = fq.horizontal_crs.to_proj4()
         if crs_data not in unique_crs:
@@ -511,6 +513,12 @@ def _get_unique_crs_vertref(fqpr_instances: list):
     if not unique_crs:
         print('_get_unique_crs_vertref: No valid EPSG for {}'.format(fqpr_instances[0].horizontal_crs.to_proj4()))
         return None, None
+
+    # if the vertical reference is a vdatum one, return the first WKT string.  We can't just get the unique WKT strings,
+    #  as there might be differences in region (which we should probably concatenate or something)
+    if unique_vertref[0] in ['NOAA MLLW', 'NOAA MHW']:
+        unique_vertref = [fqpr_instances[0].multibeam.raw_ping[0].vertical_crs]
+
     return unique_crs, unique_vertref
 
 
@@ -608,7 +616,7 @@ def generate_new_surface(fqpr_inst: Union[Fqpr, list], grid_type: str = 'single_
                   resolution=export_resolution)
 
     endtime = perf_counter()
-    print('***** Surface Generation Complete: {}s *****'.format(round(endtime - strttime, 1)))
+    print('***** Surface Generation Complete:  *****'.format(seconds_to_formatted_string(int(endtime - strttime))))
     return bg
 
 
@@ -1102,7 +1110,7 @@ def validation_against_xyz88(filname: str, analysis_mode: str = 'even', numplots
     Parameters
     ----------
     filname
-        full path to .all file
+        full path to multibeam file
     analysis_mode
         'even' = select pings are evenly distributed, 'random' = select pings are randomly distributed, 'first' = pings will be the first found in the file
     numplots
@@ -1267,7 +1275,7 @@ def return_surface(ref_surf_pth: Union[list, str], vert_ref: str, resolution: in
 
     if os.path.isfile(ref_surf_pth):
         if os.path.splitext(ref_surf_pth)[1] not in kluster_variables.supported_multibeam:
-            bs = BaseSurface(from_file=ref_surf_pth)
+            bs = load_grid(ref_surf_pth)
         else:
             need_surface = True
     else:
@@ -1276,7 +1284,7 @@ def return_surface(ref_surf_pth: Union[list, str], vert_ref: str, resolution: in
     if need_surface and autogenerate:
         new_surf_path = os.path.join(return_directory_from_data(ref_surf_pth), 'surface_{}m.npy'.format(resolution))
         fqpr_instance = return_data(ref_surf_pth, vert_ref, autogenerate=True)
-        bs = generate_new_surface(fqpr_instance, resolution, client=fqpr_instance.client)
+        bs = generate_new_surface(fqpr_instance, resolution=resolution)
         bs.save(new_surf_path)
     return bs
 

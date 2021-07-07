@@ -23,3 +23,11 @@ def test_epsg_determinator():
 def test_return_files_from_path():
     fil = get_testfile_paths()
     assert return_files_from_path(fil) == [fil]
+
+
+def test_seconds_to_formatted_string():
+    assert seconds_to_formatted_string(666) == '11 minutes, 6 seconds'
+    assert seconds_to_formatted_string(66666) == '18 hours, 31 minutes, 6 seconds'
+    assert seconds_to_formatted_string(6666666) == '1851 hours, 51 minutes, 6 seconds'
+    assert seconds_to_formatted_string(0) == '0 seconds'
+    assert seconds_to_formatted_string(-1) == '0 seconds'
