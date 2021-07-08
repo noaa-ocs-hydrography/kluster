@@ -149,7 +149,12 @@ def gdal_output_file_exists(pth: str):
     bool
         True if the file exists
     """
-    openfil = gdal.Open(pth)
+    gdal.UseExceptions()
+    try:
+        openfil = gdal.Open(pth)
+    except RuntimeError:
+        openfil = None
+    gdal.DontUseExceptions()
     if openfil is None:
         return False
     openfil = None
