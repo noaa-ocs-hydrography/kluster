@@ -388,7 +388,7 @@ class KlusterMain(QtWidgets.QMainWindow):
                     else:
                         x, y, z, valid, newmins, newmaxs = surf_object.return_surf_xyz(surface_layer_name, pcolormesh=True)
                         self.two_d.add_surface([add_surface, surface_layer_name, x, y, z, surf_object.epsg])
-                    self.two_d.set_extents_from_surfaces()
+                    self.two_d.set_extents_from_surfaces(add_surface, resolution)
         if remove_surface is not None:
             surf_object = self.project.surface_instances[remove_surface]
             for resolution in surf_object.resolutions:
@@ -479,8 +479,9 @@ class KlusterMain(QtWidgets.QMainWindow):
         pth
             path to the converted data/surface
         """
-
-        self.two_d.set_extents_from_surfaces(subset_surf=pth)
+        if pth in self.project.surface_instances:
+            self.two_d.set_extents_from_surfaces(subset_surf=pth,
+                                                 resolution=self.project.surface_instances[pth].resolutions[0])
 
     def _action_remove_file(self, filname):
         self.intel.remove_file(filname)
