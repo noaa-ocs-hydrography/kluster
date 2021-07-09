@@ -451,3 +451,8 @@ txatt = interp_across_chunks(fq.multibeam.raw_att, fq.multibeam.raw_ping[0].time
 tx_att_times, tx_attitude_rotation = return_attitude_rotation_matrix(txatt)
 ans = (tx_attitude_rotation.data @ np.float32(leverarm)).compute()[:, 2]
 
+####################################################################
+
+
+from HSTB.kluster.fqpr_convenience import reload_data
+fq = reload_data(r"D:\falkor\FK181005_processed\em302_105_10_05_2018")

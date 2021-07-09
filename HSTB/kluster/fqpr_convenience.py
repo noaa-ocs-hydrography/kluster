@@ -616,7 +616,7 @@ def generate_new_surface(fqpr_inst: Union[Fqpr, list], grid_type: str = 'single_
                   resolution=export_resolution)
 
     endtime = perf_counter()
-    print('***** Surface Generation Complete:  *****'.format(seconds_to_formatted_string(int(endtime - strttime))))
+    print('***** Surface Generation Complete: {} *****'.format(seconds_to_formatted_string(int(endtime - strttime))))
     return bg
 
 

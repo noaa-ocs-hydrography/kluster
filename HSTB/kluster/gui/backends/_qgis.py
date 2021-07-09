@@ -1805,7 +1805,7 @@ class MapView(QtWidgets.QMainWindow):
         self._manager_remove_layer(source)
         self.project.removeMapLayer(lyr)
 
-    def layer_by_name(self, layername: str):
+    def layer_by_name(self, layername: str, silent: bool = False):
         """
         Returns the QgsMapLayer that corresponds to the provided layername
 
@@ -1813,6 +1813,8 @@ class MapView(QtWidgets.QMainWindow):
         ----------
         layername
             name of the layer
+        silent
+            if True, will not print a message
 
         Returns
         -------
@@ -1823,7 +1825,8 @@ class MapView(QtWidgets.QMainWindow):
             layer = self.layer_manager.layer_data_lookup[layername]
         else:
             layer = None
-            print('layer_by_name: Unable to find layer {}'.format(layername))
+            if not silent:
+                print('layer_by_name: Unable to find layer {}'.format(layername))
         return layer
 
     def change_line_colors(self, line_names: list, color: str):
@@ -1870,19 +1873,20 @@ class MapView(QtWidgets.QMainWindow):
                 total_extent.combineExtentWith(extent)
         self.canvas.zoomToFeatureExtent(total_extent)
 
-    def set_extents_from_surfaces(self, subset_surf: str = None):
+    def set_extents_from_surfaces(self, subset_surf: str = None, resolution: float = None):
         """
         Set the maximum extent based on the surface layer extents
         """
 
         if subset_surf:
-            subset_surf = self.build_surface_source(subset_surf, 'depth')
-            lyr = self.layer_by_name(subset_surf)
+            for lyrname in ['depth', 'vertical_uncertainty', 'horizontal_uncertainty']:
+                subset_surf_formatted = self.build_surface_source(subset_surf, lyrname, resolution)
+                lyr = self.layer_by_name(subset_surf_formatted, silent=True)
+                if lyr:
+                    break
             if lyr is None:
-                subset_surf = self.build_surface_source(subset_surf, 'vertical_uncertainty')
-                lyr = self.layer_by_name(subset_surf)
-                if lyr is None:
-                    return
+                print('No layer loaded for {}'.format(subset_surf))
+                return
             lyrs = [lyr]
         else:
             lyrs = self.layer_manager.surface_layers

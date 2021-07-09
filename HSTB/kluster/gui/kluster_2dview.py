@@ -54,8 +54,8 @@ class Kluster2dview(MapView):
     def set_extents_from_lines(self, subset_lines: list = None):
         super().set_extents_from_lines(subset_lines)
 
-    def set_extents_from_surfaces(self, subset_surf: str = None):
-        super().set_extents_from_surfaces(subset_surf)
+    def set_extents_from_surfaces(self, subset_surf: str = None, resolution: float = None):
+        super().set_extents_from_surfaces(subset_surf, resolution)
 
     def clear(self):
         super().clear()
