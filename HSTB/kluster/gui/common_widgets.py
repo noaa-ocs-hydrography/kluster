@@ -154,7 +154,6 @@ class PlotDataHandler(QtWidgets.QWidget):
 
         C:\collab\dasktest\data_dir\kmall_test\mbes\converted
         C:\collab\dasktest\data_dir\kmall_test\mbes\converted\attitude.zarr
-        C:\collab\dasktest\data_dir\kmall_test\mbes\converted\navigation.zarr
         C:\collab\dasktest\data_dir\kmall_test\mbes\converted\ping_53011.zarr
 
         You would point at the converted folder using this browse button.
@@ -386,12 +385,15 @@ class PlotDataHandler(QtWidgets.QWidget):
             self._set_display_range(self.slider_mintime, self.slider_maxtime)
             self._set_display_minmax(self.fqpr_mintime, self.fqpr_maxtime)
 
-    def new_fqpr_path(self, fqpr_path: str):
+    def new_fqpr_path(self, fqpr_path: str, fqpr_loaded=None):
         """
         User selected a new fqpr instance (fqpr = the converted datastore, see file_browse)
         """
         try:
-            self.fqpr = reload_data(fqpr_path, skip_dask=True, silent=True)
+            if fqpr_loaded:
+                self.fqpr = fqpr_loaded
+            else:
+                self.fqpr = reload_data(fqpr_path, skip_dask=True, silent=True)
             self.fil_text.setText(fqpr_path)
 
             if self.fqpr is not None:

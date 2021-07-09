@@ -468,8 +468,8 @@ class FqprVisualizations:
         profnames, casts, cast_times, castlocations = self.fqpr.multibeam.return_all_profiles()
 
         if filter_by_time:
-            min_search_time = float(self.fqpr.multibeam.raw_nav.time[0].values - 5)
-            max_search_time = float(self.fqpr.multibeam.raw_nav.time[-1].values + 5)
+            min_search_time = float(self.fqpr.multibeam.raw_ping[0].time[0].values - 5)
+            max_search_time = float(self.fqpr.multibeam.raw_ping[0].time[-1].values + 5)
 
         if profnames:
             fig = plt.figure()
@@ -500,7 +500,10 @@ class FqprVisualizations:
         """
 
         print('Building Sound Velocity Profile map...')
-        nav = self.fqpr.multibeam.raw_nav
+        nav = self.fqpr.multibeam.return_navigation()
+        if nav is None:
+            print('no navigation found!')
+            return
 
         minlon = 999
         maxlon = -999
@@ -510,16 +513,17 @@ class FqprVisualizations:
         fig = plt.figure()
 
         # these times based on the Fqpr subset time, which restricts the source dataset times
-        min_search_time = float(self.fqpr.multibeam.raw_nav.time[0].values - 5)
-        max_search_time = float(self.fqpr.multibeam.raw_nav.time[-1].values + 5)
+        min_search_time = float(nav.time[0].values - 5)
+        max_search_time = float(nav.time[-1].values + 5)
 
         for line, times in self.fqpr.multibeam.raw_ping[0].multibeam_files.items():
             # if the line start/end is within the time range...
             if max_search_time >= times[0] >= min_search_time or max_search_time >= times[-1] >= min_search_time:
-                times[0] = max(times[0], self.fqpr.multibeam.raw_nav.time[0])
-                times[1] = min(times[1], self.fqpr.multibeam.raw_nav.time[-1])
+                times[0] = max(times[0], nav.time[0])
+                times[1] = min(times[1], nav.time[-1])
                 try:
-                    lats, lons = self.fqpr.return_downsampled_navigation(sample=0.5, start_time=times[0], end_time=times[1])
+                    nav = self.fqpr.multibeam.return_raw_navigation(times[0], times[1])
+                    lats, lons = nav.latitude.values, nav.longitude.values
                     plt.plot(lons, lats, c='blue', alpha=0.5)
 
                     minlon = min(np.min(lons), minlon)

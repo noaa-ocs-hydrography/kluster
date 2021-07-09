@@ -923,14 +923,7 @@ class Fqpr(ZarrBackend):
                 self.logger.warning('No input datum attribute found, assuming WGS84')
             input_datum = CRS.from_epsg(kluster_variables.epsg_wgs84)
 
-        # if they have already interpolated and saved data to disk, use it.  But if motion latency is set, we ignore
-        if ('latitude' in ra) and ('longitude' in ra) and ('altitude' in ra) and not self.motion_latency:
-            if not silent:
-                self.logger.info('Using pre-interpolated attitude/navigation saved to disk...')
-            lat = ra.latitude
-            lon = ra.longitude
-            alt = ra.altitude
-        elif prefer_pp_nav and isinstance(self.navigation, xr.Dataset):
+        if prefer_pp_nav and isinstance(self.navigation, xr.Dataset):
             if not silent:
                 self.logger.info('Using post processed navigation...')
             nav = interp_across_chunks(self.navigation, tx_tstmp_idx + latency, daskclient=self.client)
@@ -940,13 +933,9 @@ class Fqpr(ZarrBackend):
         else:
             if not silent:
                 self.logger.info('Using raw navigation...')
-            nav = interp_across_chunks(self.multibeam.raw_nav, tx_tstmp_idx + latency, daskclient=self.client)
-            lat = nav.latitude
-            lon = nav.longitude
-            if 'altitude' in nav:  # for seapath systems, there is no altitude in the record
-                alt = nav.altitude
-            else:
-                alt = None
+            lat = xr.concat([ra.latitude[chnk] for chnk in idx_by_chunk], dim='time')
+            lon = xr.concat([ra.longitude[chnk] for chnk in idx_by_chunk], dim='time')
+            alt = xr.concat([ra.altitude[chnk] for chnk in idx_by_chunk], dim='time')
 
         if ('heading' in ra) and ('heave' in ra) and not self.motion_latency:
             hdng = ra.heading
@@ -1307,9 +1296,9 @@ class Fqpr(ZarrBackend):
             self.logger.error('georef_xyz: horizontal_crs object not found.  Please run Fqpr.construct_crs first.')
             raise ValueError('georef_xyz: horizontal_crs object not found.  Please run Fqpr.construct_crs first.')
         if self.vert_ref in kluster_variables.ellipse_based_vertical_references:
-            if 'altitude' not in self.multibeam.raw_ping[0] and 'altitude' not in self.multibeam.raw_nav:
-                self.logger.error('georef_xyz: You must provide altitude for vert_ref=ellipse, not found in raw navigation or ping records.')
-                raise ValueError('georef_xyz: You must provide altitude for vert_ref=ellipse, not found in raw navigation or ping records.')
+            if 'altitude' not in self.multibeam.raw_ping[0] and self.navigation is None:
+                self.logger.error('georef_xyz: You must provide altitude for vert_ref=ellipse, not found in ping record or post processed navigation.')
+                raise ValueError('georef_xyz: You must provide altitude for vert_ref=ellipse, not found in ping record or post processed navigation.')
         if self.vert_ref in kluster_variables.vdatum_vertical_references:
             if not vyperdatum_found:
                 self.logger.error('georef_xyz: {} provided but vyperdatum is not found'.format(self.vert_ref))
@@ -1459,8 +1448,9 @@ class Fqpr(ZarrBackend):
             duplicate_navfiles = []
             for new_file in navfiles:
                 root, filename = os.path.split(new_file)
-                if filename in self.multibeam.raw_nav.pos_files:
-                    duplicate_navfiles.append(new_file)
+                if 'pos_files' in self.multibeam.raw_ping[0].attrs:
+                    if filename in self.multibeam.raw_ping[0].pos_files:
+                        duplicate_navfiles.append(new_file)
             for fil in duplicate_navfiles:
                 print('{} is already a converted navigation file within this dataset'.format(fil))
                 navfiles.remove(fil)
@@ -1522,9 +1512,9 @@ class Fqpr(ZarrBackend):
                                   weekstart_week=weekstart_week, override_datum=override_datum, override_grid=override_grid,
                                   override_zone=override_zone, override_ellipsoid=override_ellipsoid)
 
-        # retain only nav records that are within existing nav times
-        navdata = slice_xarray_by_dim(navdata, 'time', start_time=float(self.multibeam.raw_nav.time.min()),
-                                      end_time=float(self.multibeam.raw_nav.time.max()))
+        # retain only nav records that are within existing ping times
+        navdata = slice_xarray_by_dim(navdata, 'time', start_time=float(self.multibeam.raw_ping[0].time.values[0]) - 2,
+                                      end_time=float(self.multibeam.raw_ping[0].time.values[-1]) + 2)
         if navdata is None:
             raise ValueError('Unable to find timestamps in SBET that align with the raw navigation.')
         print('Writing {} new post processed navigation records'.format(navdata.time.shape[0]))
@@ -1535,11 +1525,11 @@ class Fqpr(ZarrBackend):
             self.write_attribute_to_ping_records({'current_processing_status': 3})
 
         # find gaps that don't line up with existing nav gaps (like time between multibeam files)
-        gaps = compare_and_find_gaps(self.multibeam.raw_nav, navdata, max_gap_length=max_gap_length, dimname='time')
-        if gaps.any():
-            self.logger.info('Found gaps > {} in comparison between post processed navigation and realtime.'.format(max_gap_length))
-            for gp in gaps:
-                self.logger.info('mintime: {}, maxtime: {}, gap length {}'.format(gp[0], gp[1], gp[1] - gp[0]))
+        # gaps = compare_and_find_gaps(self.multibeam.raw_ping[0], navdata, max_gap_length=max_gap_length, dimname='time')
+        # if gaps.any():
+        #     self.logger.info('Found gaps > {} in comparison between post processed navigation and realtime.'.format(max_gap_length))
+        #     for gp in gaps:
+        #         self.logger.info('mintime: {}, maxtime: {}, gap length {}'.format(gp[0], gp[1], gp[1] - gp[0]))
 
         navdata_attrs = navdata.attrs
         navdata_times = [navdata.time]
@@ -1552,8 +1542,6 @@ class Fqpr(ZarrBackend):
         self.navigation_path = outfold
         self.reload_ppnav_records()
         self.multibeam.reload_pingrecords(skip_dask=self.client is None)
-
-        # self.interp_to_ping_record(self.navigation, {'navigation_source': 'sbet', 'input_datum': self.navigation.datum})
 
         endtime = perf_counter()
         self.logger.info('****Importing post processed navigation complete: {}****\n'.format(seconds_to_formatted_string(int(endtime - starttime))))
@@ -1588,36 +1576,28 @@ class Fqpr(ZarrBackend):
 
         navdata = posfiles_to_xarray(navfiles, weekstart_year=weekstart_year, weekstart_week=weekstart_week)
 
-        navdata = slice_xarray_by_dim(navdata, 'time', start_time=float(self.multibeam.raw_nav.time.min()),
-                                      end_time=float(self.multibeam.raw_nav.time.max()))
-        if navdata is None:
-            raise ValueError('Unable to find timestamps in POS MV that align with the raw navigation.')
-        # find the nearest new record to each existing navigation record
-        nav_wise_data = interp_across_chunks(navdata, self.multibeam.raw_nav.time, 'time')
-        print('Overwriting with {} new navigation records'.format(nav_wise_data.time.shape[0]))
+        for rp in self.multibeam.raw_ping:
+            # find the nearest new record to each existing navigation record
+            nav_wise_data = interp_across_chunks(navdata, self.multibeam.raw_ping[0].time, 'time')
+            print('{}: Overwriting with {} new navigation records'.format(rp.system_identifier, nav_wise_data.time.shape[0]))
+            nan_check = np.isnan(nav_wise_data.latitude)
+            if nan_check.any():
+                print('{}: Found {} records that are not in the new navigation data, keeping these original values'.format(rp.system_identifier, np.count_nonzero(nan_check)))
+                nav_wise_data = nav_wise_data.dropna('time', how='any')
 
-        if self.multibeam.raw_ping[0].current_processing_status >= 4 and not isinstance(self.navigation, xr.Dataset):
-            # have to start over at georeference now, if there isn't any postprocessed navigation
-            self.write_attribute_to_ping_records({'current_processing_status': 3})
+            if self.multibeam.raw_ping[0].current_processing_status >= 4 and not isinstance(self.navigation, xr.Dataset):
+                # have to start over at georeference now, if there isn't any postprocessed navigation
+                self.write_attribute_to_ping_records({'current_processing_status': 3})
 
-        # find gaps that don't line up with existing nav gaps (like time between multibeam files)
-        gaps = compare_and_find_gaps(self.multibeam.raw_nav, nav_wise_data, max_gap_length=max_gap_length, dimname='time')
-        if gaps.any():
-            self.logger.info('Found gaps > {} in comparison between new raw navigation and existing.'.format(max_gap_length))
-            for gp in gaps:
-                self.logger.info('mintime: {}, maxtime: {}, gap length {}'.format(gp[0], gp[1], gp[1] - gp[0]))
-
-        navdata_attrs = nav_wise_data.attrs
-        navdata_times = [nav_wise_data.time]
-        try:
-            nav_wise_data = self.client.scatter(nav_wise_data)
-        except:  # not using dask distributed client
-            pass
-        outfold, _ = self.write('navigation', [nav_wise_data], time_array=navdata_times, attributes=navdata_attrs)
+            navdata_attrs = nav_wise_data.attrs
+            navdata_times = [nav_wise_data.time]
+            try:
+                nav_wise_data = self.client.scatter(nav_wise_data)
+            except:  # not using dask distributed client
+                pass
+            outfold, _ = self.write('ping', [nav_wise_data], time_array=navdata_times, attributes=navdata_attrs, sys_id=rp.system_identifier)
 
         self.multibeam.reload_pingrecords(skip_dask=self.client is None)
-
-        # self.interp_to_ping_record(self.navigation, {'navigation_source': 'sbet', 'input_datum': self.navigation.datum})
 
         endtime = perf_counter()
         self.logger.info('****Overwriting raw navigation complete: {}****\n'.format(seconds_to_formatted_string(int(endtime - starttime))))
@@ -1661,25 +1641,21 @@ class Fqpr(ZarrBackend):
         endtime = perf_counter()
         self.logger.info('****Interpolation complete: {}****\n'.format(seconds_to_formatted_string(int(endtime - starttime))))
 
-    def initial_att_nav_interpolation(self):
+    def initial_att_interpolation(self):
         """
         We provide as an optional step in self.get_orientation_vectors (or run separately) the ability to interpolate
         the raw attitude and navigation to the ping record times and save these records to disk.  Otherwise,
         each time attitude/navigation is needed by the processing module, it will be interpolated then.
         """
 
-        needs_interp = []
-        if ('latitude' not in list(self.multibeam.raw_ping[0].keys())) or \
-                ('altitude' not in list(self.multibeam.raw_ping[0].keys())) or \
-                ('latitude' not in list(self.multibeam.raw_ping[0].keys())):
-            needs_interp.append(self.multibeam.raw_nav)
+        needs_interp = None
         if ('roll' not in list(self.multibeam.raw_ping[0].keys())) or \
                 ('pitch' not in list(self.multibeam.raw_ping[0].keys())) or \
                 ('heave' not in list(self.multibeam.raw_ping[0].keys())) or \
                 ('heading' not in list(self.multibeam.raw_ping[0].keys())):
-            needs_interp.append(self.multibeam.raw_att)
+            needs_interp = [self.multibeam.raw_att]
         if needs_interp:
-            self.interp_to_ping_record(needs_interp, {'attitude_source': 'multibeam', 'navigation_source': 'multibeam'})
+            self.interp_to_ping_record(needs_interp, {'attitude_source': 'multibeam'})
 
     def get_orientation_vectors(self, subset_time: list = None, dump_data: bool = True, initial_interp: bool = False):
         """
@@ -2186,11 +2162,11 @@ class Fqpr(ZarrBackend):
             if crs is None:  # gets here if there is no valid EPSG for this transformation
                 crs = self.horizontal_crs.to_string()
             if self.vert_ref == 'NOAA MLLW':
-                vertcrs = datum_to_wkt('mllw', self.multibeam.raw_nav.min_lon, self.multibeam.raw_nav.min_lat,
-                                       self.multibeam.raw_nav.max_lon, self.multibeam.raw_nav.max_lat)
+                vertcrs = datum_to_wkt('mllw', self.multibeam.raw_ping[0].min_lon, self.multibeam.raw_ping[0].min_lat,
+                                       self.multibeam.raw_ping[0].max_lon, self.multibeam.raw_ping[0].max_lat)
             elif self.vert_ref == 'NOAA MHW':
-                vertcrs = datum_to_wkt('mhw', self.multibeam.raw_nav.min_lon, self.multibeam.raw_nav.min_lat,
-                                       self.multibeam.raw_nav.max_lon, self.multibeam.raw_nav.max_lat)
+                vertcrs = datum_to_wkt('mhw', self.multibeam.raw_ping[0].min_lon, self.multibeam.raw_ping[0].min_lat,
+                                       self.multibeam.raw_ping[0].max_lon, self.multibeam.raw_ping[0].max_lat)
             else:
                 vertcrs = 'Unknown'
             mode_settings = ['georef', ['x', 'y', 'z', 'corr_heave', 'corr_altitude', 'datum_uncertainty', 'processing_status'],
@@ -2412,14 +2388,12 @@ class Fqpr(ZarrBackend):
         self.subset_maxtime = maxtime
         self.backup_fqpr['raw_ping'] = [ping.copy() for ping in self.multibeam.raw_ping]
         self.backup_fqpr['raw_att'] = self.multibeam.raw_att.copy()
-        self.backup_fqpr['raw_nav'] = self.multibeam.raw_nav.copy()
 
         slice_raw_ping = []
         for ra in self.multibeam.raw_ping:
             slice_ra = slice_xarray_by_dim(ra, dimname='time', start_time=mintime, end_time=maxtime)
             slice_raw_ping.append(slice_ra)
         self.multibeam.raw_ping = slice_raw_ping
-        self.multibeam.raw_nav = slice_xarray_by_dim(self.multibeam.raw_nav, dimname='time', start_time=mintime, end_time=maxtime)
         self.multibeam.raw_att = slice_xarray_by_dim(self.multibeam.raw_att, dimname='time', start_time=mintime, end_time=maxtime)
         if isinstance(self.navigation, xr.Dataset):  # if self.navigation is a dataset, make a backup
             self.backup_fqpr['ppnav'] = self.navigation.copy()
@@ -2431,7 +2405,6 @@ class Fqpr(ZarrBackend):
         """
 
         if self.backup_fqpr != {}:
-            self.multibeam.raw_nav = self.backup_fqpr['raw_nav']
             self.multibeam.raw_ping = self.backup_fqpr['raw_ping']
             self.multibeam.raw_att = self.backup_fqpr['raw_att']
             if 'ppnav' in self.backup_fqpr:
@@ -2579,24 +2552,24 @@ class Fqpr(ZarrBackend):
         if buffer:
             # quick and dirty latitude to distance table, we want about a 3000 meters buffer, doesnt have to be perfect
             # 3000 meters because we are guessing that that would be the max half-swath you'd ever see
-            if abs(self.multibeam.raw_nav.max_lat) < 10:
+            if abs(self.multibeam.raw_ping[0].max_lat) < 10:
                 lonbuffer = 0.03
-            elif abs(self.multibeam.raw_nav.max_lat) < 50:
+            elif abs(self.multibeam.raw_ping[0].max_lat) < 50:
                 lonbuffer = 0.06
-            elif abs(self.multibeam.raw_nav.max_lat) < 70:
+            elif abs(self.multibeam.raw_ping[0].max_lat) < 70:
                 lonbuffer = 0.09
             else:
                 lonbuffer = 0.15
             latbuffer = 0.027
-            fqpr_max_lon = self.multibeam.raw_nav.max_lon + lonbuffer
-            fqpr_min_lon = self.multibeam.raw_nav.min_lon - lonbuffer
-            fqpr_max_lat = self.multibeam.raw_nav.max_lat + latbuffer
-            fqpr_min_lat = self.multibeam.raw_nav.min_lon - latbuffer
+            fqpr_max_lon = self.multibeam.raw_ping[0].max_lon + lonbuffer
+            fqpr_min_lon = self.multibeam.raw_ping[0].min_lon - lonbuffer
+            fqpr_max_lat = self.multibeam.raw_ping[0].max_lat + latbuffer
+            fqpr_min_lat = self.multibeam.raw_ping[0].min_lon - latbuffer
         else:
-            fqpr_max_lon = self.multibeam.raw_nav.max_lon
-            fqpr_min_lon = self.multibeam.raw_nav.min_lon
-            fqpr_max_lat = self.multibeam.raw_nav.max_lat
-            fqpr_min_lat = self.multibeam.raw_nav.min_lon
+            fqpr_max_lon = self.multibeam.raw_ping[0].max_lon
+            fqpr_min_lon = self.multibeam.raw_ping[0].min_lon
+            fqpr_max_lat = self.multibeam.raw_ping[0].max_lat
+            fqpr_min_lat = self.multibeam.raw_ping[0].min_lon
         in_bounds = False
         if (min_x <= fqpr_max_lon) and (max_x >= fqpr_min_lon):
             if (min_y <= fqpr_max_lat) and (max_y >= fqpr_min_lat):
@@ -2677,45 +2650,6 @@ class Fqpr(ZarrBackend):
             applicable_idx = np.logical_and(times >= ln_times[0], times <= ln_times[1])
             lines[applicable_idx] = ln
         return lines
-
-    def return_downsampled_navigation(self, sample: float = 0.01, start_time: float = None, end_time: float = None):
-        """
-        Given sample rate in seconds, downsample the raw navigation to give lat lon points.  Used for plotting lines
-        currently.
-
-        Parameters
-        ----------
-        sample
-            time in seconds to downsample
-        start_time
-            if provided will allow you to only return navigation after this time.  Selects the nearest time value to
-            the one provided.
-        end_time
-            if provided will allow you to only return navigation before this time.  Selects the nearest time value to
-            the one provided.
-
-        Returns
-        -------
-        xr.DataArray
-            latitude at the provided sample rate between start and end times if provided
-        xr.DataArray
-            longitude at the provided sample rate between start and end times if provided
-        """
-
-        if self.multibeam.raw_nav is None:
-            print('Unable to find raw_nav for {}'.format(self.multibeam.converted_pth))
-            return None
-
-        rnav = slice_xarray_by_dim(self.multibeam.raw_nav, 'time', start_time=start_time, end_time=end_time)
-        # get the nearest nav time to the start + sample, to get downsampled rate
-        navtime = rnav.time.values
-        first_idx = int(np.abs(navtime - (navtime[0] + sample)).argmin())
-        if first_idx == 0:  # sample provided is less than the existing frequency
-            first_idx = 1
-        idxs = np.arange(0, len(navtime), first_idx)
-        sampl_nav = rnav.isel(time=idxs)
-
-        return sampl_nav.latitude, sampl_nav.longitude
 
     def _soundings_by_poly(self, polygon: np.ndarray):
         """
@@ -2805,7 +2739,7 @@ class Fqpr(ZarrBackend):
         pointtime = []
         beam = []
         self.ping_filter = []
-        nv = self.multibeam.raw_nav
+        nv = self.multibeam.raw_ping[0]
         polypath = mpl_path.Path(polygon)
         filt = polypath.contains_points(np.vstack([nv.longitude.values, nv.latitude.values]))
         time_sel = nv.time.where(filt, drop=True).values

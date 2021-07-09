@@ -15,7 +15,7 @@ from HSTB.kluster.dms import return_zone_from_min_max_long
 from HSTB.drivers import par3, kmall
 from HSTB.drivers import PCSio
 from HSTB.kluster.dask_helpers import dask_find_or_start_client
-from HSTB.kluster.xarray_helpers import resize_zarr, xarr_to_netcdf, combine_xr_attributes, reload_zarr_records
+from HSTB.kluster.xarray_helpers import resize_zarr, xarr_to_netcdf, combine_xr_attributes, reload_zarr_records, slice_xarray_by_dim
 from HSTB.kluster.fqpr_helpers import seconds_to_formatted_string
 from HSTB.kluster.backends._zarr import ZarrBackend, my_xarr_add_attribute
 from HSTB.kluster.logging_conf import return_logger
@@ -153,7 +153,7 @@ def _build_serial_mask(rec: dict):
     return sector_ids, id_mask
 
 
-def _assign_reference_points(fileformat: str, finalraw: dict, finalatt: xr.Dataset, finalnav: xr.Dataset):
+def _assign_reference_points(fileformat: str, finalraw: dict, finalatt: xr.Dataset):
     """
     Use what we've learned from reading these multibeam data definition documents to record the relevant information
     about each variable.  Logs this info as attributes in the final xarray dataset.  'reference' refers to the
@@ -167,8 +167,6 @@ def _assign_reference_points(fileformat: str, finalraw: dict, finalatt: xr.Datas
         dict of xarray Datasets corresponding to each serial number in the file
     finalatt
         xarray dataset containing the attitude records
-    finalnav
-        xarray dataset containing the navigation records
 
     Returns
     -------
@@ -176,25 +174,21 @@ def _assign_reference_points(fileformat: str, finalraw: dict, finalatt: xr.Datas
         dict of xarray Datasets corresponding to each serial number in the file
     xr.Dataset
         finalatt dataset with new attribution
-    xr.Dataset
-        finalnav dataset with new attribution
     """
 
     try:
         if fileformat in ['all', 'kmall']:
-            finalnav.attrs['reference'] = {'latitude': 'reference point', 'longitude': 'reference point',
-                                           'altitude': 'reference point'}
-            finalnav.attrs['units'] = {'latitude': 'degrees', 'longitude': 'degrees',
-                                       'altitude': 'meters (+ down from ellipsoid)'}
             finalatt.attrs['reference'] = {'heading': 'reference point', 'heave': 'transmitter',
                                            'pitch': 'reference point', 'roll': 'reference point'}
             finalatt.attrs['units'] = {'heading': 'degrees', 'heave': 'meters (+ down)', 'pitch': 'degrees',
                                        'roll': 'degrees'}
             for systemid in finalraw:
                 finalraw[systemid].attrs['reference'] = {'beampointingangle': 'receiver', 'tiltangle': 'transmitter',
-                                                         'traveltime': 'None'}
-                finalraw[systemid].attrs['units'] = {'beampointingangle': 'degrees', 'tiltangle': 'degrees', 'traveltime': 'seconds'}
-            return finalraw, finalatt, finalnav
+                                                         'traveltime': 'None', 'latitude': 'reference point', 'longitude': 'reference point',
+                                                         'altitude': 'reference point'}
+                finalraw[systemid].attrs['units'] = {'beampointingangle': 'degrees', 'tiltangle': 'degrees', 'traveltime': 'seconds',
+                                                     'latitude': 'degrees', 'longitude': 'degrees', 'altitude': 'meters (+ down from ellipsoid)'}
+            return finalraw, finalatt
         else:
             raise ValueError('Did not recognize format "{}" during xarray conversion'.format(fileformat))
     except KeyError:
@@ -239,8 +233,6 @@ def _sequential_to_xarray(rec: dict):
         ping records as Dataset, timestamps as coordinates, metadata as attribution
     xr.Dataset
         attitude records as Dataset, timestamps as coordinates, metadata as attribution
-    xr.Dataset
-        navigation records as Dataset, timestamps as coordinates, metadata as attribution
     """
 
     if 'ping' not in rec:
@@ -255,15 +247,6 @@ def _sequential_to_xarray(rec: dict):
                 for systemid in ids:
                     idx = ids.index(systemid)
                     tim = rec['ping']['time'][msk[idx]]
-                    # can have no duplicate times in the converted data, add a small time difference to ensure this, two passes to make sure
-                    dif = np.diff(tim)
-                    dif_msk = np.where(dif == 0)[0]
-                    if dif_msk.any():
-                        tim[dif_msk + 1] += 0.000010
-                        dif = np.diff(tim)
-                        dif_msk = np.where(dif == 0)[0]
-                        if dif_msk.any():
-                            tim[dif_msk + 1] += 0.000010
 
                     for ky in rec[r]:
                         if ky not in ['time', 'serial_num']:
@@ -287,6 +270,7 @@ def _sequential_to_xarray(rec: dict):
                             #  everything else isn't by beam, proceed normally
                             else:
                                 recs_to_merge[r][systemid][ky] = xr.DataArray(arr.astype(datadtype), coords=[tim], dims=['time'])
+                    recs_to_merge[r][systemid] = recs_to_merge[r][systemid].sortby('time')
             else:
                 recs_to_merge[r] = xr.Dataset()
                 for ky in rec[r]:
@@ -294,6 +278,7 @@ def _sequential_to_xarray(rec: dict):
                         recs_to_merge[r][ky] = xr.DataArray(np.float32(rec[r][ky]), coords=[rec[r]['time']], dims=['time'])
                     elif ky not in ['time', 'runtime_settings']:
                         recs_to_merge[r][ky] = xr.DataArray(rec[r][ky], coords=[rec[r]['time']], dims=['time'])
+                recs_to_merge[r] = recs_to_merge[r].sortby('time')
 
     for systemid in recs_to_merge['ping']:
         if 'mode' not in recs_to_merge['ping'][systemid]:
@@ -316,7 +301,7 @@ def _sequential_to_xarray(rec: dict):
             recs_to_merge['runtime_params'] = recs_to_merge['runtime_params'].reindex_like(recs_to_merge['ping'][systemid], method='nearest')
             recs_to_merge['ping'][systemid] = xr.merge([recs_to_merge['ping'][systemid], recs_to_merge['runtime_params']], join='inner')
 
-    # attitude and nav are returned separately in their own datasets
+    # attitude is returned separately in its own dataset
     #  retain only unique values and recs where time != 0 (this occassionally seems to happen on read)
     #   (numpy unique seems to return indices of values=0 first, thought about using that but not sure if reliable)
     _, index = np.unique(recs_to_merge['attitude']['time'], return_index=True)
@@ -331,15 +316,14 @@ def _sequential_to_xarray(rec: dict):
     tot_records = len(recs_to_merge['navigation']['time'])
     dups = tot_records - len(index)
     finalnav = recs_to_merge['navigation'].isel(time=index)
-    zero_index = np.where(finalnav.time != 0)[0]
-    zeros = len(finalnav.time) - len(zero_index)
-    finalnav = finalnav.isel(time=zero_index)
-
-    # build attributes for the navigation/attitude records
-    finalnav.attrs['min_lat'] = float(finalnav.latitude.min())
-    finalnav.attrs['max_lat'] = float(finalnav.latitude.max())
-    finalnav.attrs['min_lon'] = float(finalnav.longitude.min())
-    finalnav.attrs['max_lon'] = float(finalnav.longitude.max())
+    for systemid in recs_to_merge['ping']:
+        interp_nav = finalnav.reindex_like(recs_to_merge['ping'][systemid], method='nearest')
+        recs_to_merge['ping'][systemid] = xr.merge([recs_to_merge['ping'][systemid], interp_nav])
+        # build attributes for the navigation/attitude records
+        recs_to_merge['ping'][systemid].attrs['min_lat'] = float(finalnav.latitude.min())
+        recs_to_merge['ping'][systemid].attrs['max_lat'] = float(finalnav.latitude.max())
+        recs_to_merge['ping'][systemid].attrs['min_lon'] = float(finalnav.longitude.min())
+        recs_to_merge['ping'][systemid].attrs['max_lon'] = float(finalnav.longitude.max())
 
     # Stuff that isn't of the same dimensions as the dataset are tacked on as attributes
     if 'profile' in rec:
@@ -350,7 +334,7 @@ def _sequential_to_xarray(rec: dict):
                 cst_name = 'profile_{}'.format(int(t))
                 attrs_name = 'attributes_{}'.format(int(t))
                 recs_to_merge['ping'][systemid].attrs[cst_name] = json.dumps(profile.tolist())
-                nearestnav = finalnav.sel(time=int(t), method='nearest')
+                nearestnav = recs_to_merge['ping'][systemid].sel(time=int(t), method='nearest')
                 castlocation = [float(nearestnav.latitude), float(nearestnav.longitude)]
                 recs_to_merge['ping'][systemid].attrs[attrs_name] = json.dumps({'location': castlocation, 'source': 'multibeam'})
 
@@ -378,9 +362,9 @@ def _sequential_to_xarray(rec: dict):
 
     # assign reference point and metadata
     finalraw = recs_to_merge['ping']
-    finalraw, finalatt, finalnav = _assign_reference_points(rec['format'], finalraw, finalatt, finalnav)
+    finalraw, finalatt = _assign_reference_points(rec['format'], finalraw, finalatt)
 
-    return finalraw, finalatt, finalnav
+    return finalraw, finalatt
 
 
 def _divide_xarray_futs(xarrfuture: list, mode: str = 'ping'):
@@ -399,7 +383,7 @@ def _divide_xarray_futs(xarrfuture: list, mode: str = 'ping'):
         selected datatype specified by mode
     """
 
-    idx = ['ping', 'attitude', 'navigation'].index(mode)
+    idx = ['ping', 'attitude'].index(mode)
     return xarrfuture[idx]
 
 
@@ -801,9 +785,7 @@ def batch_read_configure_options():
         'ping': {'chunksize': kluster_variables.ping_chunk_size, 'chunks': kluster_variables.ping_chunks,
                  'combine_attributes': True, 'output_arrs': [], 'time_arrs': [], 'final_pths': None, 'final_attrs': None},
         'attitude': {'chunksize': kluster_variables.attitude_chunk_size, 'chunks': kluster_variables.att_chunks,
-                     'combine_attributes': False, 'output_arrs': [], 'time_arrs': [], 'final_pths': None, 'final_attrs': None},
-        'navigation': {'chunksize': kluster_variables.navigation_chunk_size, 'chunks': kluster_variables.nav_chunks,
-                       'combine_attributes': False, 'output_arrs': [], 'time_arrs': [], 'final_pths': None, 'final_attrs': None}
+                     'combine_attributes': False, 'output_arrs': [], 'time_arrs': [], 'final_pths': None, 'final_attrs': None}
         }
     return opts
 
@@ -840,7 +822,6 @@ class BatchRead(ZarrBackend):
     | Operating on sector 2, s/n 40111, freq 280000
     | Rebalancing 108 total ping records across 1 blocks of size 1000
     | Rebalancing 5302 total attitude records across 1 blocks of size 20000
-    | Rebalancing 10640 total navigation records across 1 blocks of size 50000
     |   Distributed conversion complete: 5.3s****
     | Constructed offsets successfully
     | read successful
@@ -936,7 +917,6 @@ class BatchRead(ZarrBackend):
         self.show_progress = show_progress
         self.raw_ping = None
         self.raw_att = None
-        self.raw_nav = None
 
         self.parallel_write = parallel_write
         self.readsuccess = False
@@ -962,7 +942,7 @@ class BatchRead(ZarrBackend):
     def read(self):
         """
         Run the batch_read method on all available lines, writes to datastore (netcdf/zarr depending on self.filtype),
-        and loads the data back into the class as self.raw_ping, self.raw_att, self.raw_nav.
+        and loads the data back into the class as self.raw_ping, self.raw_att.
 
         If data loads correctly, builds out the self.xyzrph attribute and translates the runtime parameters to a usable
         form.
@@ -977,14 +957,14 @@ class BatchRead(ZarrBackend):
         if final_pths is not None:
             self.final_paths = final_pths
             if self.filtype == 'netcdf':
-                self.read_from_netcdf_fils(final_pths['ping'], final_pths['attitude'], final_pths['navigation'])
+                self.read_from_netcdf_fils(final_pths['ping'], final_pths['attitude'])
                 self.build_offsets()
             elif self.filtype == 'zarr':
                 # kind of dumb, right now I read to get the data, build offsets, save them to the datastore and then
                 #   read again.  It isn't that bad though, read is just opening metadata, so it takes less than a second
-                self.read_from_zarr_fils(final_pths['ping'], final_pths['attitude'][0], final_pths['navigation'][0], self.logfile)
+                self.read_from_zarr_fils(final_pths['ping'], final_pths['attitude'][0], self.logfile)
                 self.build_offsets(save_pths=final_pths['ping'])  # write offsets to ping rootgroup
-                self.read_from_zarr_fils(final_pths['ping'], final_pths['attitude'][0], final_pths['navigation'][0], self.logfile)
+                self.read_from_zarr_fils(final_pths['ping'], final_pths['attitude'][0], self.logfile)
                 self.xyzrph = self.raw_ping[0].xyzrph  # read offsets back to populate self.xyzrph
         else:
             self.logger.error('Unable to start/connect to the Dask distributed cluster.')
@@ -996,7 +976,7 @@ class BatchRead(ZarrBackend):
         else:
             self.logger.warning('read unsuccessful, data paths: {}\n'.format(final_pths))
 
-    def read_from_netcdf_fils(self, ping_pths: list, attitude_pths: list, navigation_pths: list):
+    def read_from_netcdf_fils(self, ping_pths: list, attitude_pths: list):
         """
         Read from the generated netCDF files constructed with read()
 
@@ -1011,14 +991,11 @@ class BatchRead(ZarrBackend):
             paths to the ping netcdf files
         attitude_pths:
             path to the attitude netcdf files
-        navigation_pths:
-            path to the navigation netcdf files
         """
 
         # sort input pths by type, currently a list by idx
         self.raw_ping = xr.open_mfdataset(ping_pths, chunks={}, concat_dim='time', combine='nested')
         self.raw_att = xr.open_mfdataset(attitude_pths, chunks={}, concat_dim='time', combine='nested')
-        self.raw_nav = xr.open_mfdataset(navigation_pths, chunks={}, concat_dim='time', combine='nested')
 
     def reload_pingrecords(self, skip_dask: bool = False):
         """
@@ -1040,7 +1017,39 @@ class BatchRead(ZarrBackend):
             # self.logger.warning('Unable to reload ping records (normal for in memory processing), no paths found: {}'.format(self.final_paths))
             pass
 
-    def read_from_zarr_fils(self, ping_pth: list, attitude_pth: str, navigation_pth: str, logfile_pth: str):
+    def return_raw_navigation(self, start_time: float = None, end_time: float = None):
+        """
+        Return just the navigation side of the first ping record.  If a start time and end time are provided, will
+        subset to just those times.
+
+        If this is a dual head sonar, it only returns the nav for the first head!
+
+        Parameters
+        ----------
+        start_time
+            if provided will allow you to only return navigation after this time.  Selects the nearest time value to
+            the one provided.
+        end_time
+            if provided will allow you to only return navigation before this time.  Selects the nearest time value to
+            the one provided.
+
+        Returns
+        -------
+        xr.Dataset
+            latitude/longitude/altitude pulled from the raw navigation part of the ping record
+        """
+
+        desired_vars = ['latitude', 'longitude', 'altitude']
+        keep_these_attributes = ['max_lat', 'max_lon', 'min_lat', 'min_lon', 'reference', 'units', 'pos_files']
+        if self.raw_ping[0]:
+            drop_these = [dvar for dvar in list(self.raw_ping[0].keys()) if dvar not in desired_vars]
+            subset_nav = self.raw_ping[0].drop(drop_these)
+            subset_nav.attrs = {ky: self.raw_ping[0].attrs[ky] for ky in keep_these_attributes if ky in self.raw_ping[0].attrs}
+            rnav = slice_xarray_by_dim(subset_nav, 'time', start_time=start_time, end_time=end_time)
+            return rnav
+        return None
+
+    def read_from_zarr_fils(self, ping_pth: list, attitude_pth: str, logfile_pth: str):
         """
         Read from the generated zarr datastores constructed with read()
 
@@ -1050,14 +1059,11 @@ class BatchRead(ZarrBackend):
             list of paths to each ping zarr group (by system)
         attitude_pth
             path to the attitude zarr group
-        navigation_pth
-            path to the navigation zarr group
         logfile_pth
             path to the text log file used by logging
         """
 
         self.raw_ping = None
-        self.raw_nav = None
         self.raw_att = None
 
         self.logfile = logfile_pth
@@ -1089,15 +1095,6 @@ class BatchRead(ZarrBackend):
             # self.raw_att = sort_and_drop_duplicates(self.raw_att, attitude_pth)
         except (ValueError, AttributeError):
             self.logger.error('Unable to read from {}'.format(attitude_pth))
-
-        if self.converted_pth is None:
-            self.converted_pth = os.path.dirname(navigation_pth)
-            self.output_folder = self.converted_pth
-        try:
-            self.raw_nav = reload_zarr_records(navigation_pth, skip_dask)
-            # self.raw_nav = sort_and_drop_duplicates(self.raw_nav, navigation_pth)
-        except (ValueError, AttributeError):
-            self.logger.error('Unable to read from {}'.format(navigation_pth))
 
     def initialize_log(self):
         """
@@ -1521,8 +1518,8 @@ class BatchRead(ZarrBackend):
                 progress(xarrfutures, multi=False)
             del newrecfutures
 
-            finalpths = {'ping': [], 'attitude': [], 'navigation': []}
-            for datatype in ['ping', 'attitude', 'navigation']:
+            finalpths = {'ping': [], 'attitude': []}
+            for datatype in ['ping', 'attitude']:
                 input_xarrs = self.client.map(_divide_xarray_futs, xarrfutures, [datatype] * len(xarrfutures))
                 input_xarrs = self._batch_read_sort_futures_by_time(input_xarrs)
                 finalattrs = self.client.gather(self.client.map(gather_dataset_attributes, input_xarrs))
@@ -2137,10 +2134,10 @@ class BatchRead(ZarrBackend):
         Build dataset geographic extents
         """
 
-        maxlat = self.raw_nav.latitude.max().compute()
-        maxlon = self.raw_nav.longitude.max().compute()
-        minlat = self.raw_nav.latitude.min().compute()
-        minlon = self.raw_nav.longitude.min().compute()
+        maxlat = self.raw_ping[0].latitude.max().compute()
+        maxlon = self.raw_ping[0].longitude.max().compute()
+        minlat = self.raw_ping[0].latitude.min().compute()
+        minlon = self.raw_ping[0].longitude.min().compute()
         print('Max Lat/Lon: {}/{}'.format(maxlat, maxlon))
         print('Min Lat/Lon: {}/{}'.format(minlat, minlon))
         self.extents = [maxlat, maxlon, minlat, minlon]
@@ -2155,9 +2152,9 @@ class BatchRead(ZarrBackend):
             zone number, e.g. '19N' for UTM Zone 19 N
         """
 
-        minlon = float(self.raw_nav.longitude.min().values)
-        maxlon = float(self.raw_nav.longitude.max().values)
-        minlat = float(self.raw_nav.latitude.min().values)
+        minlon = float(self.raw_ping[0].longitude.min().values)
+        maxlon = float(self.raw_ping[0].longitude.max().values)
+        minlat = float(self.raw_ping[0].latitude.min().values)
         zne = return_zone_from_min_max_long(minlon, maxlon, minlat)
         return zne
 

@@ -187,6 +187,7 @@ class BasicPlotDialog(QtWidgets.QDialog):
             self.datasets = {}
             if self.fqpr.multibeam.raw_ping:
                 self.datasets['multibeam'] = self.fqpr.multibeam.raw_ping
+                self.datasets['raw navigation'] = self.fqpr.multibeam.return_raw_navigation()
             else:
                 print('No multibeam dataset(s) found in {}'.format(self.fqpr.multibeam.converted_pth))
 
@@ -194,11 +195,6 @@ class BasicPlotDialog(QtWidgets.QDialog):
                 self.datasets['attitude'] = self.fqpr.multibeam.raw_att
             else:
                 print('No attitude dataset found in {}'.format(self.fqpr.multibeam.converted_pth))
-
-            if self.fqpr.multibeam.raw_nav:
-                self.datasets['raw navigation'] = self.fqpr.multibeam.raw_nav
-            else:
-                print('No raw navigation dataset found in {}'.format(self.fqpr.multibeam.converted_pth))
 
             if self.fqpr.navigation:
                 self.datasets['processed navigation'] = self.fqpr.navigation
@@ -224,10 +220,9 @@ class BasicPlotDialog(QtWidgets.QDialog):
             self.datasets = {}
             if self.fqpr.multibeam.raw_ping:
                 self.datasets['multibeam'] = self.fqpr.multibeam.raw_ping
+                self.datasets['raw navigation'] = self.fqpr.multibeam.return_raw_navigation()
             if self.fqpr.multibeam.raw_att:
                 self.datasets['attitude'] = self.fqpr.multibeam.raw_att
-            if self.fqpr.multibeam.raw_nav:
-                self.datasets['raw navigation'] = self.fqpr.multibeam.raw_nav
             if self.fqpr.navigation:
                 self.datasets['processed navigation'] = self.fqpr.navigation
             if 'alongtrack' in self.fqpr.multibeam.raw_ping[0] or 'x' in self.fqpr.multibeam.raw_ping[0]:
@@ -248,7 +243,7 @@ class BasicPlotDialog(QtWidgets.QDialog):
                 elif ky == 'custom':
                     variable_names = ['sound_velocity_profiles', 'sound_velocity_correct', 'georeferenced', 'animations']
                 else:
-                    variable_names = [nm for nm in list(dset.variables.keys()) if nm not in ['time']]
+                    variable_names = [nm for nm in list(dset.variables.keys()) if nm not in ['time', 'beam', 'xyz']]
 
                 self.variable_dropdown.clear()
                 self.variable_dropdown.addItems(sorted(variable_names))

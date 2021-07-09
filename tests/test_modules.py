@@ -1019,10 +1019,9 @@ def test_georeference_module():
     heading = raw_attitude.heading.interp_like(z)
     heave = raw_attitude.heave.interp_like(z)
 
-    raw_navigation = dset.raw_nav
-    altitude = raw_navigation.altitude.interp_like(z)
-    longitude = raw_navigation.longitude.interp_like(z)
-    latitude = raw_navigation.latitude.interp_like(z)
+    altitude = dset.raw_ping[0].altitude
+    longitude = dset.raw_ping[0].longitude
+    latitude = dset.raw_ping[0].latitude
 
     installation_params_time = list(dset.xyzrph['tx_r'].keys())[0]
     waterline = float(dset.xyzrph['waterline'][installation_params_time])
@@ -1062,10 +1061,9 @@ def test_georef_with_nan():
     heading = raw_attitude.heading.interp_like(z)
     heave = raw_attitude.heave.interp_like(z)
 
-    raw_navigation = dset.raw_nav
-    altitude = raw_navigation.altitude.interp_like(z)
-    longitude = raw_navigation.longitude.interp_like(z)
-    latitude = raw_navigation.altitude.interp_like(z)
+    altitude = dset.raw_ping[0].altitude
+    longitude = dset.raw_ping[0].longitude
+    latitude = dset.raw_ping[0].altitude
 
     installation_params_time = list(dset.xyzrph['tx_r'].keys())[0]
     waterline = float(dset.xyzrph['waterline'][installation_params_time])
@@ -1104,10 +1102,9 @@ def test_georef_with_depth_nan():
     heading = raw_attitude.heading.interp_like(z)
     heave = raw_attitude.heave.interp_like(z)
 
-    raw_navigation = dset.raw_nav
-    altitude = raw_navigation.altitude.interp_like(z)
-    longitude = raw_navigation.longitude.interp_like(z)
-    latitude = raw_navigation.latitude.interp_like(z)
+    altitude = dset.raw_ping[0].altitude
+    longitude = dset.raw_ping[0].longitude
+    latitude = dset.raw_ping[0].latitude
 
     installation_params_time = list(dset.xyzrph['tx_r'].keys())[0]
     waterline = float(dset.xyzrph['waterline'][installation_params_time])

@@ -183,12 +183,6 @@ def test_converted_data_content():
         totatt += rec.data['Time'].shape[0]
     assert out.multibeam.raw_att.time.shape[0] == totatt
 
-    totnav = 0
-    for i in range(ad.map.getnum(110)):
-        rec = ad.getrecord(110, i)
-        totnav += rec.data['Time'].shape[0]
-    assert out.multibeam.raw_nav.time.shape[0] == totnav
-
     ad.close()
     out.close()
     out = None
@@ -817,5 +811,4 @@ def load_dataset(dset=None, skip_dask=True):
     kongs_dat.xyzrph = dset.xyzrph
     kongs_dat.raw_ping = dset.raw_ping
     kongs_dat.raw_att = dset.raw_att
-    kongs_dat.raw_nav = dset.raw_nav
     return kongs_dat

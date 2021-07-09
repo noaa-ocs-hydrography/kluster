@@ -662,16 +662,14 @@ class FqprProject:
                 total_lines.append(fq_line)
         return sorted(total_lines)
 
-    def return_line_navigation(self, line: str, samplerate: float = 1.0):
+    def return_line_navigation(self, line: str):
         """
-        For given line name, return the latitude/longitude downsampled to the given samplerate
+        For given line name, return the latitude/longitude from the ping record
 
         Parameters
         ----------
         line
             line name
-        samplerate
-            new rate at which to downsample the line navigation in seconds
 
         Returns
         -------
@@ -685,11 +683,8 @@ class FqprProject:
             fq_inst = self.return_line_owner(line)
             if fq_inst is not None:
                 line_start_time, line_end_time = fq_inst.multibeam.raw_ping[0].multibeam_files[line]
-                lat, lon = fq_inst.return_downsampled_navigation(sample=samplerate, start_time=line_start_time,
-                                                                 end_time=line_end_time)
-                # convert to numpy
-                lat = lat.values
-                lon = lon.values
+                nav = fq_inst.multibeam.return_raw_navigation(line_start_time, line_end_time)
+                lat, lon = nav.latitude.values, nav.longitude.values
                 # save nav so we don't have to redo this routine if asked for the same line
                 self.buffered_fqpr_navigation[line] = [lat, lon]
             else:
@@ -724,7 +719,7 @@ class FqprProject:
 
         for fq_proj in self.fqpr_lines:
             for fq_line in self.fqpr_lines[fq_proj]:
-                lats, lons = self.return_line_navigation(fq_line, samplerate=2)
+                lats, lons = self.return_line_navigation(fq_line)
 
                 line_min_lat = np.min(lats)
                 line_max_lat = np.max(lats)

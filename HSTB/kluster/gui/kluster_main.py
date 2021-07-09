@@ -371,7 +371,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         if new_fqprs is not None and new_fqprs:
             for fq in new_fqprs:
                 for ln in self.project.return_project_lines(proj=fq, relative_path=True):
-                    lats, lons = self.project.return_line_navigation(ln, samplerate=5)
+                    lats, lons = self.project.return_line_navigation(ln)
                     self.two_d.add_line(ln, lats, lons)
             self.two_d.set_extents_from_lines()
         if add_surface is not None and surface_layer_name:
@@ -439,7 +439,6 @@ class KlusterMain(QtWidgets.QMainWindow):
         absolute_fqpath = self.project.absolute_path_from_relative(pth)
         self.console.runCmd('data = reload_data(r"{}", skip_dask=True)'.format(absolute_fqpath))
         self.console.runCmd('first_system = data.multibeam.raw_ping[0]')
-        self.console.runCmd('nav = data.multibeam.raw_nav')
         self.console.runCmd('att = data.multibeam.raw_att')
         self.console.runCmd('# try plotting surface soundspeed, "first_system.soundspeed.plot()"')
 
@@ -541,7 +540,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         If you have a data container selected, it will populate from it's xyzrph attribute.
         """
         vessel_file = self.project.vessel_file
-        fqprs = self.return_selected_fqprs()
+        fqprs, _ = self.return_selected_fqprs()
 
         self.vessel_win = None
         self.vessel_win = dialog_vesselview.VesselWidget()
@@ -596,13 +595,13 @@ class KlusterMain(QtWidgets.QMainWindow):
         """
         Runs the basic plots dialog, for plotting the variables using the xarray/matplotlib functionality
         """
-        fqprs = self.return_selected_fqprs()
+        fqprspaths, fqprs = self.return_selected_fqprs()
 
         self.basicplots_win = None
         self.basicplots_win = dialog_basicplot.BasicPlotDialog()
 
         if fqprs:
-            self.basicplots_win.data_widget.new_fqpr_path(fqprs[0])
+            self.basicplots_win.data_widget.new_fqpr_path(fqprspaths[0], fqprs[0])
             self.basicplots_win.data_widget.initialize_controls()
         self.basicplots_win.show()
 
@@ -610,13 +609,13 @@ class KlusterMain(QtWidgets.QMainWindow):
         """
         Runs the advanced plots dialog, for plotting the sat tests and other more sophisticated stuff
         """
-        fqprs = self.return_selected_fqprs()
+        fqprspaths, fqprs = self.return_selected_fqprs()
 
         self.advancedplots_win = None
         self.advancedplots_win = dialog_advancedplot.AdvancedPlotDialog()
 
-        if fqprs:
-            self.advancedplots_win.data_widget.new_fqpr_path(fqprs[0])
+        if fqprspaths:
+            self.advancedplots_win.data_widget.new_fqpr_path(fqprspaths[0], fqprs[0])
             self.advancedplots_win.data_widget.initialize_controls()
         self.advancedplots_win.show()
 
@@ -677,7 +676,7 @@ class KlusterMain(QtWidgets.QMainWindow):
             print('Processing is already occurring.  Please wait for the process to finish')
             cancelled = True
         else:
-            fqprs = self.return_selected_fqprs()
+            fqprs, _ = self.return_selected_fqprs()
             dlog = dialog_overwritenav.OverwriteNavigationDialog()
             dlog.update_fqpr_instances(addtl_files=fqprs)
             cancelled = False
@@ -731,7 +730,7 @@ class KlusterMain(QtWidgets.QMainWindow):
             print('Processing is already occurring.  Please wait for the process to finish')
             cancelled = True
         else:
-            fqprs = self.return_selected_fqprs()
+            fqprs, _ = self.return_selected_fqprs()
             dlog = dialog_importppnav.ImportPostProcNavigationDialog()
             dlog.update_fqpr_instances(addtl_files=fqprs)
             cancelled = False
@@ -786,7 +785,7 @@ class KlusterMain(QtWidgets.QMainWindow):
             cancelled = True
         else:
             cancelled = False
-            fqprs = self.return_selected_fqprs()
+            fqprs, _ = self.return_selected_fqprs()
             dlog = dialog_surface.SurfaceDialog()
             dlog.update_fqpr_instances(addtl_files=fqprs)
             if dlog.exec_():
@@ -938,7 +937,7 @@ class KlusterMain(QtWidgets.QMainWindow):
             print('Processing is already occurring.  Please wait for the process to finish')
             cancelled = True
         else:
-            fqprs = self.return_selected_fqprs()
+            fqprs, _ = self.return_selected_fqprs()
             dlog = dialog_export.ExportDialog()
             dlog.update_fqpr_instances(addtl_files=fqprs)
             cancelled = False
@@ -1608,16 +1607,30 @@ class KlusterMain(QtWidgets.QMainWindow):
 
     def return_selected_fqprs(self):
         """
-        Return absolute paths to fqprs selected
+        Return absolute paths to fqprs selected and the loaded fqpr instances
 
         Returns
         -------
         list
             absolute path to the fqprs selected in the GUI
+        list
+            list of loaded fqpr instances
         """
         fqprs = self.project_tree.return_selected_fqprs()
-        fqprs = [self.project.absolute_path_from_relative(f) for f in fqprs]
-        return fqprs
+        fqpr_loaded = []
+        fqpr_paths = []
+        for fq in fqprs:
+            try:
+                fqpr_paths.append(self.project.absolute_path_from_relative(fq))
+            except:
+                print('Unable to find {} in project'.format(fq))
+                continue
+            try:
+                fqpr_loaded.append(self.project.fqpr_instances[fq])
+            except:
+                print('Unable to find loaded converted data for {}'.format(fq))
+                fqpr_loaded.append(None)
+        return fqpr_paths, fqpr_loaded
 
     def return_selected_surfaces(self):
         """

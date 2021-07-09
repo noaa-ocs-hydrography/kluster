@@ -680,36 +680,9 @@ class RealDualheadFqpr:
                             214.11000061035156, 214.11000061035156, 214.09999084472656, 214.09999084472656, 214.09999084472656,
                             214.09999084472656, 214.09999084472656, 214.09999084472656, 214.09999084472656, 214.09999084472656,
                             214.09999084472656, 214.09999084472656, 214.09999084472656, 214.09999084472656, 214.09999084472656),
-                 synth_altitude=(-32.73036529849195, -32.72962681885252, -32.72889143945359, -32.72815898337652,
-                                 -32.72742895751054, -32.726698720667834, -32.725968474277735, -32.72523224981389,
-                                 -32.72450449651957, -32.72377280528126, -32.72304455134531, -32.72232059437728,
-                                 -32.721597844223794, -32.720883924271064, -32.72016441678234, -32.71945259765964,
-                                 -32.718738314973564, -32.718025667440514, -32.71731706914525, -32.716608528392605,
-                                 -32.71590834783856, -32.71520693006745, -32.71451759225782, -32.71382918488731,
-                                 -32.713144613303356, -32.71246756068627, -32.711789940262086, -32.71111534408404,
-                                 -32.71044251513635, -32.709777629805664, -32.70911308897224, -32.70846105538852,
-                                 -32.70781716148272, -32.707175109337534, -32.706538471540725, -32.70590108236073,
-                                 -32.705272787077355, -32.704640115616264, -32.70401708454657, -32.70340310845145),
-                 synth_latitude=(30.41797070292914, 30.4179704507531, 30.417970198634073, 30.41796994660028,
-                                 30.417969694583157, 30.41796944264109, 30.41796919065687, 30.417968938783698,
-                                 30.417968686925835, 30.41796843514213, 30.417968183392034, 30.417967931680536,
-                                 30.41796768006509, 30.417967428384188, 30.41796717674816, 30.417966925100053,
-                                 30.417966673530266, 30.417966421975674, 30.41796617041731, 30.41796591892991,
-                                 30.417965667411746, 30.417965415975278, 30.41796516450258, 30.41796491307367,
-                                 30.417964661623863, 30.41796441017834, 30.417964158808676, 30.417963907425097,
-                                 30.417963656103893, 30.417963404734, 30.41796315340946, 30.417962902101397,
-                                 30.4179626507575, 30.417962399452392, 30.41796214808844, 30.41796189679601,
-                                 30.417961645455375, 30.4179613941476, 30.41796114283857, 30.41796089151612),
-                 synth_longitude=(-81.07355341266269, -81.07355366532981, -81.07355391812723, -81.07355417105109,
-                                  -81.07355442410821, -81.0735546772297, -81.07355493046917, -81.0735551837249,
-                                  -81.07355543711742, -81.07355569059966, -81.07355594423886, -81.07355619801599,
-                                  -81.07355645186931, -81.07355670589884, -81.07355695996385, -81.07355721413278,
-                                  -81.07355746836353, -81.07355772270185, -81.07355797713547, -81.07355823160404,
-                                  -81.07355848622908, -81.07355874093959, -81.07355899578471, -81.0735592507023,
-                                  -81.073559505679, -81.07355976076857, -81.07356001589777, -81.0735602711375,
-                                  -81.07356052642352, -81.07356078182158, -81.07356103734816, -81.07356129298051,
-                                  -81.0735615487067, -81.07356180447982, -81.07356206031318, -81.07356231619627,
-                                  -81.07356257216227, -81.07356282815479, -81.0735630842443, -81.07356334044518),
+                 synth_altitude=(-32.73036529849195, -32.711789940262086),
+                 synth_latitude=(30.41797070292914, 30.41796516450258),
+                 synth_longitude=(-81.07355341266269, -81.07355899578471),
                  synth_xyztime=1563319288, synth_waterline=-2.383,
                  synth_tx_port_mountroll=4.374, synth_tx_port_mountpitch=0.363, synth_tx_port_mountyaw=1.045,
                  synth_tx_stbd_mountroll=-3.398, synth_tx_stbd_mountpitch=-0.166, synth_tx_stbd_mountyaw=0.988,
@@ -1105,7 +1078,6 @@ class RealDualheadFqpr:
 
         self.raw_ping = self.construct_raw_ping()
         self.raw_att = self.construct_rawattitude()
-        self.raw_nav = self.construct_rawnavigation()
 
     def construct_raw_ping(self):
         """
@@ -1174,6 +1146,10 @@ class RealDualheadFqpr:
                 qf_data = np.expand_dims(qf_data, axis=0)
             quality_factor = xr.DataArray(qf_data, dims=['time', 'beam'], coords={'time': tme_coord, 'beam': bm_vals})
 
+            altitude = xr.DataArray(np.array(self.synth_altitude), dims=['time'], coords={'time': tme_coord})
+            latitude = xr.DataArray(np.array(self.synth_latitude), dims=['time'], coords={'time': tme_coord})
+            longitude = xr.DataArray(np.array(self.synth_longitude), dims=['time'], coords={'time': tme_coord})
+
             dataset.append(xr.Dataset({'ntx': (['time'], ntx),
                                        'counter': (['time'], counter),
                                        'soundspeed': (['time'], soundspeed),
@@ -1183,7 +1159,10 @@ class RealDualheadFqpr:
                                        'frequency': (['time', 'beam'], frequency),
                                        'traveltime': (['time', 'beam'], twoway_travel_time),
                                        'beampointingangle': (['time', 'beam'], beam_pointing_angle),
-                                       'qualityfactor': (['time', 'beam'], quality_factor)},
+                                       'qualityfactor': (['time', 'beam'], quality_factor),
+                                       'altitude': (['time'], altitude),
+                                       'latitude': (['time'], latitude),
+                                       'longitude': (['time'], longitude)},
                                       coords={'time': tme_coord, 'beam': beam_coord},
                                       attrs={list(self.profile.keys())[0]: self.profile[list(self.profile.keys())[0]],
                                              'system_serial_number': [self.serialnum],
@@ -1211,27 +1190,6 @@ class RealDualheadFqpr:
 
         return xr.Dataset({'heading': (['time'], heading), 'heave': (['time'], heave), 'pitch': (['time'], pitch),
                            'roll': (['time'], roll)}, coords={'time': tme_coord}).chunk()
-
-    def construct_rawnavigation(self):
-        """
-        Take the provided real data built into this class and generate new xarray navigation data.
-
-        Returns
-        -------
-        dataset: xarray DataSet object that represents the navigation data you would get when running
-            xarray_conversion normally.
-
-        """
-        tme_vals = self.synth_nav_time
-        tme_coord = xr.DataArray(np.array(tme_vals), dims=['time'], coords={'time': np.array(tme_vals)})
-
-        altitude = xr.DataArray(np.array(self.synth_altitude), dims=['time'], coords={'time': tme_coord})
-        latitude = xr.DataArray(np.array(self.synth_latitude), dims=['time'], coords={'time': tme_coord})
-        longitude = xr.DataArray(np.array(self.synth_longitude), dims=['time'], coords={'time': tme_coord})
-
-        return xr.Dataset({'altitude': (['time'], altitude),
-                           'latitude': (['time'], latitude), 'longitude': (['time'], longitude)},
-                          coords={'time': tme_coord}).chunk()
 
 
 class RealFqpr:
@@ -2236,14 +2194,9 @@ class RealFqpr:
                  synth_yaw=(307.8299865722656, 307.8500061035156, 307.8599853515625, 307.8800048828125, 307.889984130859,
                             308.5799865722656, 308.5899963378906, 308.6000061035156, 308.6099853515625, 308.6199951171875,
                             308.6300048828125),
-                 synth_altitude=(-23.99238128, -23.99229421, -23.992119099803563, -23.991950434852843, -23.991773270709867,
-                                 -23.97449502, -23.97421651, -23.973647500425994, -23.973074779251085,
-                                 -23.97251081602561),
-                 synth_latitude=(47.78895106, 47.78895112, 47.788951231722905, 47.788951346363866, 47.788951461210615,
-                                 47.78895667, 47.78895672, 47.788956832232806, 47.78895694197377, 47.78895705141592),
-                 synth_longitude=(-122.4772233, -122.4772235, -122.47722368497742, -122.4772239100667, -122.47722413511521,
-                                  -122.4772346, -122.4772348, -122.47723500815962, -122.47723524977133,
-                                  -122.47723549195827),
+                 synth_altitude=(-23.99238128, -23.991950434852843, -23.97421651, -23.97251081602561),
+                 synth_latitude=(47.78895106, 47.788951346363866, 47.788956832232806, 47.78895705141592),
+                 synth_longitude=(-122.4772233, -122.4772239100667, -122.47723500815962, -122.47723549195827),
                  synth_xyztime=1495563079, synth_waterline=-0.640,
                  synth_tx_mountroll=0, synth_tx_mountpitch=0, synth_tx_mountyaw=0,
                  synth_rx_mountroll=0, synth_rx_mountpitch=0, synth_rx_mountyaw=0,
@@ -3359,7 +3312,6 @@ class RealFqpr:
 
         self.raw_ping = self.construct_raw_ping()
         self.raw_att = self.construct_rawattitude()
-        self.raw_nav = self.construct_rawnavigation()
 
     def construct_raw_ping(self):
         """
@@ -3429,6 +3381,10 @@ class RealFqpr:
             quality_factor = xr.DataArray(qf_data, dims=['time', 'beam'],
                                           coords={'time': tme_coord, 'beam': bm_vals})
 
+            altitude = xr.DataArray(np.array(self.synth_altitude), dims=['time'], coords={'time': tme_coord})
+            latitude = xr.DataArray(np.array(self.synth_latitude), dims=['time'], coords={'time': tme_coord})
+            longitude = xr.DataArray(np.array(self.synth_longitude), dims=['time'], coords={'time': tme_coord})
+
             dataset.append(xr.Dataset({'ntx': (['time'], ntx),
                                        'counter': (['time'], counter),
                                        'soundspeed': (['time'], soundspeed),
@@ -3438,7 +3394,10 @@ class RealFqpr:
                                        'frequency': (['time', 'beam'], frequency),
                                        'traveltime': (['time', 'beam'], twoway_travel_time),
                                        'beampointingangle': (['time', 'beam'], beam_pointing_angle),
-                                       'qualityfactor': (['time', 'beam'], quality_factor)},
+                                       'qualityfactor': (['time', 'beam'], quality_factor),
+                                       'altitude': (['time'], altitude),
+                                       'latitude': (['time'], latitude),
+                                       'longitude': (['time'], longitude)},
                                       coords={'time': tme_coord, 'beam': beam_coord},
                                       attrs={list(self.profile.keys())[0]: self.profile[list(self.profile.keys())[0]],
                                              'system_serial_number': [self.serialnum],
@@ -3466,24 +3425,3 @@ class RealFqpr:
 
         return xr.Dataset({'heading': (['time'], heading), 'heave': (['time'], heave), 'pitch': (['time'], pitch),
                            'roll': (['time'], roll)}, coords={'time': tme_coord}).chunk()
-
-    def construct_rawnavigation(self):
-        """
-        Take the provided real data built into this class and generate new xarray navigation data.
-
-        Returns
-        -------
-        dataset: xarray DataSet object that represents the navigation data you would get when running
-            xarray_conversion normally.
-
-        """
-        tme_vals = list(self.synth_nav_time)
-        tme_coord = xr.DataArray(np.array(tme_vals), dims=['time'], coords=np.array([tme_vals]))
-
-        altitude = xr.DataArray(np.array(self.synth_altitude), dims=['time'], coords={'time': tme_coord})
-        latitude = xr.DataArray(np.array(self.synth_latitude), dims=['time'], coords={'time': tme_coord})
-        longitude = xr.DataArray(np.array(self.synth_longitude), dims=['time'], coords={'time': tme_coord})
-
-        return xr.Dataset({'altitude': (['time'], altitude),
-                           'latitude': (['time'], latitude), 'longitude': (['time'], longitude)},
-                          coords={'time': tme_coord}).chunk()

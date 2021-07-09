@@ -161,12 +161,10 @@ class AdvancedPlotDialog(QtWidgets.QDialog):
             self.datasets = {}
             if self.fqpr.multibeam.raw_ping:
                 self.datasets['multibeam'] = self.fqpr.multibeam.raw_ping
+                self.datasets['raw navigation'] = self.fqpr.multibeam.return_raw_navigation()
 
             if self.fqpr.multibeam.raw_att:
                 self.datasets['attitude'] = self.fqpr.multibeam.raw_att
-
-            if self.fqpr.multibeam.raw_nav:
-                self.datasets['raw navigation'] = self.fqpr.multibeam.raw_nav
 
             if self.fqpr.navigation:
                 self.datasets['processed navigation'] = self.fqpr.navigation
@@ -185,10 +183,9 @@ class AdvancedPlotDialog(QtWidgets.QDialog):
             self.datasets = {}
             if self.fqpr.multibeam.raw_ping:
                 self.datasets['multibeam'] = self.fqpr.multibeam.raw_ping
+                self.datasets['raw navigation'] = self.fqpr.multibeam.return_raw_navigation()
             if self.fqpr.multibeam.raw_att:
                 self.datasets['attitude'] = self.fqpr.multibeam.raw_att
-            if self.fqpr.multibeam.raw_nav:
-                self.datasets['raw navigation'] = self.fqpr.multibeam.raw_nav
             if self.fqpr.navigation:
                 self.datasets['processed navigation'] = self.fqpr.navigation
 

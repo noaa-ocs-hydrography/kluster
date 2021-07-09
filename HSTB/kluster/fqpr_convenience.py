@@ -366,10 +366,10 @@ def reload_data(converted_folder: str, require_raw_data: bool = True, skip_dask:
     if final_paths is None:
         return None
 
-    if (require_raw_data and final_paths['ping'] and final_paths['attitude'] and final_paths['navigation']) or (final_paths['ping'] or final_paths['soundings']):
+    if (require_raw_data and final_paths['ping'] and final_paths['attitude']) or (final_paths['ping']):
         mbes_read = BatchRead(None, skip_dask=skip_dask, show_progress=show_progress)
         mbes_read.final_paths = final_paths
-        mbes_read.read_from_zarr_fils(final_paths['ping'], final_paths['attitude'][0], final_paths['navigation'][0], final_paths['logfile'])
+        mbes_read.read_from_zarr_fils(final_paths['ping'], final_paths['attitude'][0], final_paths['logfile'])
         fqpr_inst = Fqpr(mbes_read, show_progress=show_progress)
         if not silent:
             fqpr_inst.logger.info('****Reloading from file {}****'.format(converted_folder))
@@ -738,7 +738,7 @@ def return_processed_data_folders(converted_folder: str):
         directory paths according to record type (ex: navigation, attitude, etc.)
     """
 
-    final_paths = {'attitude': [], 'navigation': [], 'ping': [], 'soundings': [], 'ppnav': [], 'logfile': ''}
+    final_paths = {'attitude': [], 'ping': [], 'ppnav': [], 'logfile': ''}
     if os.path.isdir(converted_folder):
         for fldr in os.listdir(converted_folder):
             fldrpath = os.path.join(converted_folder, fldr)
@@ -749,7 +749,7 @@ def return_processed_data_folders(converted_folder: str):
                     elif ky in ['logfile']:
                         final_paths[ky] = fldrpath
 
-    for ky in ['attitude', 'navigation', 'soundings', 'ppnav']:
+    for ky in ['attitude', 'ppnav']:
         if len(final_paths[ky]) > 1:
             print(len(final_paths[ky]))
             print('return_processed_data_folders: Only one {} folder is allowed in a data store'.format(ky))
@@ -1355,7 +1355,7 @@ def get_attributes_from_fqpr(fqpr_instance, include_mode: bool = True):
 
     try:
         # update for the attributes in other datasets
-        for other_attrs in [fqpr_instance.multibeam.raw_nav.attrs, fqpr_instance.multibeam.raw_att.attrs]:
+        for other_attrs in [fqpr_instance.multibeam.raw_att.attrs]:
             for k, v in other_attrs.items():
                 if k not in newattrs:
                     try:
