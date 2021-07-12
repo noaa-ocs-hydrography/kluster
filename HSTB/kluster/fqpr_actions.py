@@ -457,7 +457,7 @@ def update_kwargs_for_svp(destination: str, fqpr_instance: fqpr_generation.Fqpr,
     return update_settings
 
 
-def build_processing_action(destination: str, args: list, kwargs: dict, settings: dict = None):
+def build_processing_action(destination: str, args: list, kwargs: dict, settings: dict = None, force_epsg: bool = False):
     """
     Generate a new processing action, using the return from fqpr_generation.Fqpr.return_next_action.  This method will
     provide the correct sequence of processing steps that this Fqpr instance needs.
@@ -472,6 +472,9 @@ def build_processing_action(destination: str, args: list, kwargs: dict, settings
         keyword args for the convert_multibeam function
     settings
         optional settings dictionary used to override kwargs (default processing options)
+    force_epsg
+        if True, forces EPSG instead of auto UTM, used with force_coordinate_match when you want to have all the days
+        coordinate systems in a project match the first day
 
     Returns
     -------
@@ -482,6 +485,8 @@ def build_processing_action(destination: str, args: list, kwargs: dict, settings
     # update the default processing kwargs for settings
     if settings:
         for ky, val in settings.items():
+            if ky in ['use_epsg', 'use_coord', 'epsg', 'coord_system'] and force_epsg:  # rely on the existing chosen parameters
+                continue
             kwargs[ky] = val
 
     if kwargs['run_orientation'] and kwargs['run_beam_vec'] and kwargs['run_svcorr'] and kwargs['run_georef'] and kwargs['run_tpu']:
@@ -504,7 +509,7 @@ def build_processing_action(destination: str, args: list, kwargs: dict, settings
     return action
 
 
-def update_kwargs_for_processing(destination: str, args: list, kwargs: dict, settings: dict = None):
+def update_kwargs_for_processing(destination: str, args: list, kwargs: dict, settings: dict = None, force_epsg: bool = False):
     """
     Build a dictionary of updated settings for an existing processing action, use this with FqprActionContainer to
     update the action.
@@ -519,6 +524,9 @@ def update_kwargs_for_processing(destination: str, args: list, kwargs: dict, set
         keyword args for the convert_multibeam function
     settings
         optional settings dictionary used to override kwargs (default processing options)
+    force_epsg
+        if True, forces EPSG instead of auto UTM, used with force_coordinate_match when you want to have all the days
+        coordinate systems in a project match the first day
 
     Returns
     -------
@@ -529,6 +537,8 @@ def update_kwargs_for_processing(destination: str, args: list, kwargs: dict, set
     # update the default processing kwargs for settings
     if settings:
         for ky, val in settings.items():
+            if ky in ['use_epsg', 'use_coord', 'epsg', 'coord_system'] and force_epsg:  # rely on the existing chosen parameters
+                continue
             kwargs[ky] = val
 
     if kwargs['run_orientation'] and kwargs['run_beam_vec'] and kwargs['run_svcorr'] and kwargs['run_georef'] and kwargs['run_tpu']:

@@ -931,7 +931,6 @@ class BatchRead(ZarrBackend):
         self.converted_pth = None
         self.final_paths = {}
         self.fils = None
-        self.extents = None
         self.logfile = None
         self.logger = None
 
@@ -2129,22 +2128,9 @@ class BatchRead(ZarrBackend):
                 lever_prefix.append(leverarms[0])
         return lever_prefix
 
-    def get_minmax_extents(self):
-        """
-        Build dataset geographic extents
-        """
-
-        maxlat = self.raw_ping[0].latitude.max().compute()
-        maxlon = self.raw_ping[0].longitude.max().compute()
-        minlat = self.raw_ping[0].latitude.min().compute()
-        minlon = self.raw_ping[0].longitude.min().compute()
-        print('Max Lat/Lon: {}/{}'.format(maxlat, maxlon))
-        print('Min Lat/Lon: {}/{}'.format(minlat, minlon))
-        self.extents = [maxlat, maxlon, minlat, minlon]
-
     def return_utm_zone_number(self):
         """
-        Compute the minimum/maximum longitude values and returns the utm zone number
+        Get the minimum/maximum longitude values and return the utm zone number
 
         Returns
         -------
@@ -2152,10 +2138,7 @@ class BatchRead(ZarrBackend):
             zone number, e.g. '19N' for UTM Zone 19 N
         """
 
-        minlon = float(self.raw_ping[0].longitude.min().values)
-        maxlon = float(self.raw_ping[0].longitude.max().values)
-        minlat = float(self.raw_ping[0].latitude.min().values)
-        zne = return_zone_from_min_max_long(minlon, maxlon, minlat)
+        zne = return_zone_from_min_max_long(self.raw_ping[0].min_lon, self.raw_ping[0].max_lon, self.raw_ping[0].min_lat)
         return zne
 
 
