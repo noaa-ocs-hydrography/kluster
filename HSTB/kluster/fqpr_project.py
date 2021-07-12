@@ -465,34 +465,6 @@ class FqprProject:
         if relpath in self.surface_instances:
             self.surface_instances.pop(relpath)
 
-    def build_point_cloud_for_line(self, line: str):
-        """
-        Given line name, build out the point cloud for the line and store it in self.point_cloud_for_line as well as
-        returning it in a list of numpy arrays for x y z
-
-        Parameters
-        ----------
-        line
-            line name
-
-        Returns
-        -------
-        list
-            list of numpy arrays for x y z
-        """
-
-        xyz = None
-        if line not in self.point_cloud_for_line:
-            fq_inst = self.return_line_owner(line)
-            if fq_inst is not None:
-                line_start_time, line_end_time = fq_inst.multibeam.raw_ping[0].multibeam_files[line]
-                xyz = fq_inst.return_xyz(start_time=line_start_time, end_time=line_end_time, include_unc=False)
-                if xyz is not None:
-                    self.point_cloud_for_line[line] = xyz
-        else:
-            xyz = self.point_cloud_for_line[line]
-        return xyz
-
     def build_raw_attitude_for_line(self, line: str, subset: bool = True):
         """
         With the given linename, return the raw_attitude dataset from the fqpr_generation.FQPR instance that contains

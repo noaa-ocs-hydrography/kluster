@@ -1146,9 +1146,9 @@ class RealDualheadFqpr:
                 qf_data = np.expand_dims(qf_data, axis=0)
             quality_factor = xr.DataArray(qf_data, dims=['time', 'beam'], coords={'time': tme_coord, 'beam': bm_vals})
 
-            altitude = xr.DataArray(np.array(self.synth_altitude), dims=['time'], coords={'time': tme_coord})
-            latitude = xr.DataArray(np.array(self.synth_latitude), dims=['time'], coords={'time': tme_coord})
-            longitude = xr.DataArray(np.array(self.synth_longitude), dims=['time'], coords={'time': tme_coord})
+            altitude = xr.DataArray(np.array([self.synth_altitude[cnt]]), dims=['time'], coords={'time': tme_coord})
+            latitude = xr.DataArray(np.array([self.synth_latitude[cnt]]), dims=['time'], coords={'time': tme_coord})
+            longitude = xr.DataArray(np.array([self.synth_longitude[cnt]]), dims=['time'], coords={'time': tme_coord})
 
             dataset.append(xr.Dataset({'ntx': (['time'], ntx),
                                        'counter': (['time'], counter),

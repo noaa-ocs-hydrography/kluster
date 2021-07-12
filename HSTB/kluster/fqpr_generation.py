@@ -1331,14 +1331,15 @@ class Fqpr(ZarrBackend):
         """
 
         if self.backup_fqpr == {}:  # this is not a subset operation, overwrite the global min/max values
-            minx = min([np.nanmin(rp.x) for rp in self.multibeam.raw_ping])
-            miny = min([np.nanmin(rp.y) for rp in self.multibeam.raw_ping])
-            minz = round(np.float64(min([np.nanmin(rp.z) for rp in self.multibeam.raw_ping])), 3)  # cast as f64 to deal with json serializable error in zarr write attributes
-            maxx = max([np.nanmax(rp.x) for rp in self.multibeam.raw_ping])
-            maxy = max([np.nanmax(rp.y) for rp in self.multibeam.raw_ping])
-            maxz = round(np.float64(max([np.nanmax(rp.z) for rp in self.multibeam.raw_ping])), 3)
-            newattr = {'min_x': minx, 'min_y': miny, 'min_z': minz, 'max_x': maxx, 'max_y': maxy, 'max_z': maxz}
-            self.write_attribute_to_ping_records(newattr)
+            if 'x' in self.multibeam.raw_ping[0]:  # if they ran georeference but did not dump the data, it is still a future and inaccessible
+                minx = min([np.nanmin(rp.x) for rp in self.multibeam.raw_ping])
+                miny = min([np.nanmin(rp.y) for rp in self.multibeam.raw_ping])
+                minz = round(np.float64(min([np.nanmin(rp.z) for rp in self.multibeam.raw_ping])), 3)  # cast as f64 to deal with json serializable error in zarr write attributes
+                maxx = max([np.nanmax(rp.x) for rp in self.multibeam.raw_ping])
+                maxy = max([np.nanmax(rp.y) for rp in self.multibeam.raw_ping])
+                maxz = round(np.float64(max([np.nanmax(rp.z) for rp in self.multibeam.raw_ping])), 3)
+                newattr = {'min_x': minx, 'min_y': miny, 'min_z': minz, 'max_x': maxx, 'max_y': maxy, 'max_z': maxz}
+                self.write_attribute_to_ping_records(newattr)
 
     def _validate_calculate_total_uncertainty(self, subset_time: list, dump_data: bool):
         """
