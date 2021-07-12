@@ -287,7 +287,8 @@ class Fqpr(ZarrBackend):
 
     def write_attribute_to_ping_records(self, attr_dict: dict):
         """
-        Convenience method that allows you to write the provided attribute dictionary to each ping dataset
+        Convenience method that allows you to write the provided attribute dictionary to each ping dataset and change
+        the currently loaded instance as well
 
         Parameters
         ----------
@@ -298,6 +299,8 @@ class Fqpr(ZarrBackend):
         copy_dict = deepcopy(attr_dict)  # handle any conflicts with altering source dict
         for rp in self.multibeam.raw_ping:
             self.write_attributes('ping', copy_dict, sys_id=rp.system_identifier)
+            for ky in copy_dict:  # now set the in memory version to match the written one
+                rp.attrs[ky] = copy_dict[ky]
 
     def import_sound_velocity_files(self, src: Union[str, list]):
         """
@@ -1320,6 +1323,23 @@ class Fqpr(ZarrBackend):
                 self.logger.error(err)
                 raise ValueError(err)
 
+    def _overwrite_georef_stats(self):
+        """
+        Each georeference run (assuming it is not a subset operation) will overwrite the attributed georeference
+        max min values.  Have to write to disk with write_attribute and also set the currently loaded instance. Otherwise
+        we would have to do the costly reload_pingrecords for the inmemory ping record to match the disk copy.
+        """
+
+        if self.backup_fqpr == {}:  # this is not a subset operation, overwrite the global min/max values
+            minx = min([np.nanmin(rp.x) for rp in self.multibeam.raw_ping])
+            miny = min([np.nanmin(rp.y) for rp in self.multibeam.raw_ping])
+            minz = round(np.float64(min([np.nanmin(rp.z) for rp in self.multibeam.raw_ping])), 3)  # cast as f64 to deal with json serializable error in zarr write attributes
+            maxx = max([np.nanmax(rp.x) for rp in self.multibeam.raw_ping])
+            maxy = max([np.nanmax(rp.y) for rp in self.multibeam.raw_ping])
+            maxz = round(np.float64(max([np.nanmax(rp.z) for rp in self.multibeam.raw_ping])), 3)
+            newattr = {'min_x': minx, 'min_y': miny, 'min_z': minz, 'max_x': maxx, 'max_y': maxy, 'max_z': maxz}
+            self.write_attribute_to_ping_records(newattr)
+
     def _validate_calculate_total_uncertainty(self, subset_time: list, dump_data: bool):
         """
         Validation routine for running calculate_total_uncertainty.  Ensures you have all the data you need before kicking
@@ -1937,6 +1957,8 @@ class Fqpr(ZarrBackend):
                 del self.intermediate_dat[sys_ident]['georef']
 
         self.multibeam.reload_pingrecords(skip_dask=skip_dask)
+        self._overwrite_georef_stats()
+
         if self.subset_mintime and self.subset_maxtime:
             self.subset_by_time(self.subset_mintime, self.subset_maxtime)
 
