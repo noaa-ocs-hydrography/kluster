@@ -452,7 +452,12 @@ tx_att_times, tx_attitude_rotation = return_attitude_rotation_matrix(txatt)
 ans = (tx_attitude_rotation.data @ np.float32(leverarm)).compute()[:, 2]
 
 ####################################################################
-
-
+import numpy as np
 from HSTB.kluster.fqpr_convenience import reload_data
-fq = reload_data(r"D:\falkor\FK181005_processed\em302_105_10_05_2018")
+from HSTB.kluster.fqpr_generation import posfiles_to_xarray, interp_across_chunks
+from datetime import datetime
+fq = reload_data(r"C:\collab\dasktest\data_dir\tj_patch_test\S222_PatchTest_DN077\Raw\MBES\S222_2020_KongsbergEM710\2020-077\em710_241_03_17_2020")
+import os
+navfiles = [os.path.join(r'C:\collab\dasktest\data_dir\tj_patch_test\S222_PatchTest_DN077\Raw\Positioning\S222_2020_KongsbergEM710\2020-077', fil) for fil in os.listdir(r'C:\collab\dasktest\data_dir\tj_patch_test\S222_PatchTest_DN077\Raw\Positioning\S222_2020_KongsbergEM710\2020-077')]
+weekstart_year, weekstart_week, dy = datetime.strptime('03/17/2020', '%m/%d/%Y').isocalendar()
+navdata = posfiles_to_xarray(navfiles, weekstart_year=weekstart_year, weekstart_week=weekstart_week)

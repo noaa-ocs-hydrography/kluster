@@ -1508,15 +1508,24 @@ class Fqpr(ZarrBackend):
             print('import_post_processed_navigation: No valid navigation files to import')
             return
 
-        navdata = sbets_to_xarray(navfiles, smrmsgfiles=errorfiles, logfiles=logfiles, weekstart_year=weekstart_year,
-                                  weekstart_week=weekstart_week, override_datum=override_datum, override_grid=override_grid,
-                                  override_zone=override_zone, override_ellipsoid=override_ellipsoid)
+        try:
+            navdata = sbets_to_xarray(navfiles, smrmsgfiles=errorfiles, logfiles=logfiles, weekstart_year=weekstart_year,
+                                      weekstart_week=weekstart_week, override_datum=override_datum, override_grid=override_grid,
+                                      override_zone=override_zone, override_ellipsoid=override_ellipsoid)
+        except:
+            navdata = None
+        if not navdata:
+            print('import_post_processed_navigation: Unable to read from {}'.format(navfiles))
+            return
 
         # retain only nav records that are within existing ping times
-        navdata = slice_xarray_by_dim(navdata, 'time', start_time=float(self.multibeam.raw_ping[0].time.values[0]) - 2,
-                                      end_time=float(self.multibeam.raw_ping[0].time.values[-1]) + 2)
+        mintime = min([rp.time.values[0] for rp in self.multibeam.raw_ping])
+        maxtime = min([rp.time.values[-1] for rp in self.multibeam.raw_ping])
+        navdata = slice_xarray_by_dim(navdata, 'time', start_time=float(mintime) - 2, end_time=float(maxtime) + 2)
         if navdata is None:
-            raise ValueError('Unable to find timestamps in SBET that align with the raw navigation.')
+            print('import_post_processed_navigation: Unable to find timestamps in SBET that align with the raw navigation.')
+            return
+
         print('Writing {} new post processed navigation records'.format(navdata.time.shape[0]))
 
         navdata.attrs['reference'] = {'latitude': 'reference point', 'longitude': 'reference point',
@@ -1574,20 +1583,26 @@ class Fqpr(ZarrBackend):
 
         navfiles = self._validate_raw_navigation(navfiles, overwrite)
 
-        navdata = posfiles_to_xarray(navfiles, weekstart_year=weekstart_year, weekstart_week=weekstart_week)
-
+        try:
+            navdata = posfiles_to_xarray(navfiles, weekstart_year=weekstart_year, weekstart_week=weekstart_week)
+        except:
+            navdata = None
+        if not navdata:
+            print('Unable to generate xarray dataset from {}'.format(navfiles))
+            return
         for rp in self.multibeam.raw_ping:
+            if navdata.time.values[0] > rp.time.values[-1] or navdata.time.values[-1] < rp.time.values[0]:
+                print('{}: No overlap found between POS data and raw navigation, probably due to incorrect date entered.')
+                print('Raw navigation: UTC seconds from {} to {}.  POS data: UTC seconds from {} to {}'.format(rp.time.values[0], rp.time.values[-1],
+                                                                                                               navdata.time.values[0], navdata.time.values[-1]))
+                continue
             # find the nearest new record to each existing navigation record
-            nav_wise_data = interp_across_chunks(navdata, self.multibeam.raw_ping[0].time, 'time')
+            nav_wise_data = interp_across_chunks(navdata, rp.time, 'time')
             print('{}: Overwriting with {} new navigation records'.format(rp.system_identifier, nav_wise_data.time.shape[0]))
             nan_check = np.isnan(nav_wise_data.latitude)
             if nan_check.any():
                 print('{}: Found {} records that are not in the new navigation data, keeping these original values'.format(rp.system_identifier, np.count_nonzero(nan_check)))
                 nav_wise_data = nav_wise_data.dropna('time', how='any')
-
-            if self.multibeam.raw_ping[0].current_processing_status >= 4 and not isinstance(self.navigation, xr.Dataset):
-                # have to start over at georeference now, if there isn't any postprocessed navigation
-                self.write_attribute_to_ping_records({'current_processing_status': 3})
 
             navdata_attrs = nav_wise_data.attrs
             navdata_times = [nav_wise_data.time]
@@ -1597,6 +1612,9 @@ class Fqpr(ZarrBackend):
                 pass
             outfold, _ = self.write('ping', [nav_wise_data], time_array=navdata_times, attributes=navdata_attrs, sys_id=rp.system_identifier)
 
+        if self.multibeam.raw_ping[0].current_processing_status >= 4 and not isinstance(self.navigation, xr.Dataset):
+            # have to start over at georeference now, if there isn't any postprocessed navigation
+            self.write_attribute_to_ping_records({'current_processing_status': 3})
         self.multibeam.reload_pingrecords(skip_dask=self.client is None)
 
         endtime = perf_counter()
@@ -1636,7 +1654,7 @@ class Fqpr(ZarrBackend):
                     ping_wise_data = self.client.scatter(ping_wise_data)
                 except:  # not using dask distributed client
                     pass
-                self.write('ping', [ping_wise_data], time_array=ping_wise_times, sys_id=rp.system_identifier)
+                self.write('ping', [ping_wise_data], time_array=ping_wise_times, attributes=attributes, sys_id=rp.system_identifier)
         self.multibeam.reload_pingrecords(skip_dask=skip_dask)
         endtime = perf_counter()
         self.logger.info('****Interpolation complete: {}****\n'.format(seconds_to_formatted_string(int(endtime - starttime))))
