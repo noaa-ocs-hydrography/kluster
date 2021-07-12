@@ -2588,31 +2588,47 @@ class Fqpr(ZarrBackend):
             maxs = np.append(maxs, float(ping[varname].max()))
         return maxs.max()
 
-    def intersects(self, min_y: float, max_y: float, min_x: float, max_x: float, buffer: bool = True):
-        if buffer:
-            # quick and dirty latitude to distance table, we want about a 3000 meters buffer, doesnt have to be perfect
-            # 3000 meters because we are guessing that that would be the max half-swath you'd ever see
-            if abs(self.multibeam.raw_ping[0].max_lat) < 10:
-                lonbuffer = 0.03
-            elif abs(self.multibeam.raw_ping[0].max_lat) < 50:
-                lonbuffer = 0.06
-            elif abs(self.multibeam.raw_ping[0].max_lat) < 70:
-                lonbuffer = 0.09
-            else:
-                lonbuffer = 0.15
-            latbuffer = 0.027
-            fqpr_max_lon = self.multibeam.raw_ping[0].max_lon + lonbuffer
-            fqpr_min_lon = self.multibeam.raw_ping[0].min_lon - lonbuffer
-            fqpr_max_lat = self.multibeam.raw_ping[0].max_lat + latbuffer
-            fqpr_min_lat = self.multibeam.raw_ping[0].min_lon - latbuffer
+    def intersects(self, min_y: float, max_y: float, min_x: float, max_x: float, geographic: bool = True):
+        """
+        Check if the provided extents intersect with this fqpr instance.  Requires georeferencing has been performed
+
+        Parameters
+        ----------
+        min_y
+            minimum northing/latitude of extents
+        max_y
+            maximum northing/latitude of extents
+        min_x
+            minimum easting/longitude of extents
+        max_x
+            maximum easting/longitude of extents
+        geographic
+            if True, autotransforms to projected, if False, uses the northing/easting
+
+        Returns
+        -------
+        bool
+            True if the extents provided intersect with the fqpr instance, False if they do not
+        """
+
+        if 'min_x' in self.multibeam.raw_ping[0].attrs:
+            fqpr_max_x = self.multibeam.raw_ping[0].max_x
+            fqpr_min_x = self.multibeam.raw_ping[0].min_x
+            fqpr_max_y = self.multibeam.raw_ping[0].max_y
+            fqpr_min_y = self.multibeam.raw_ping[0].min_y
         else:
-            fqpr_max_lon = self.multibeam.raw_ping[0].max_lon
-            fqpr_min_lon = self.multibeam.raw_ping[0].min_lon
-            fqpr_max_lat = self.multibeam.raw_ping[0].max_lat
-            fqpr_min_lat = self.multibeam.raw_ping[0].min_lon
+            print('Unable to query by northing/easting, georeference has not been performed')
+            return False
+
+        if geographic:
+            trans = Transformer.from_crs(CRS.from_epsg(kluster_variables.epsg_wgs84),
+                                         CRS.from_epsg(self.multibeam.raw_ping[0].horizontal_crs), always_xy=True)
+            min_x, min_y = trans.transform(min_x, min_y)
+            max_x, max_y = trans.transform(max_x, max_y)
+
         in_bounds = False
-        if (min_x <= fqpr_max_lon) and (max_x >= fqpr_min_lon):
-            if (min_y <= fqpr_max_lat) and (max_y >= fqpr_min_lat):
+        if (min_x <= fqpr_max_x) and (max_x >= fqpr_min_x):
+            if (min_y <= fqpr_max_y) and (max_y >= fqpr_min_y):
                 in_bounds = True
         return in_bounds
 
@@ -2728,6 +2744,8 @@ class Fqpr(ZarrBackend):
         self.ping_filter = []
         polypath = mpl_path.Path(polygon)
         for rp in self.multibeam.raw_ping:
+            if 'z' not in self.multibeam.raw_ping[0]:
+                continue
             filt = polypath.contains_points(np.c_[rp.x.values.ravel(), rp.y.values.ravel()])
             self.ping_filter.append(filt)
             if filt.any():
