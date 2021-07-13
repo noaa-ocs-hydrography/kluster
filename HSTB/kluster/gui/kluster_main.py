@@ -539,6 +539,7 @@ class KlusterMain(QtWidgets.QMainWindow):
 
         If you have a data container selected, it will populate from it's xyzrph attribute.
         """
+
         vessel_file = self.project.vessel_file
         fqprs, _ = self.return_selected_fqprs()
 

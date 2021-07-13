@@ -1167,7 +1167,11 @@ class RealDualheadFqpr:
                                       attrs={list(self.profile.keys())[0]: self.profile[list(self.profile.keys())[0]],
                                              'system_serial_number': [self.serialnum],
                                              'secondary_system_serial_number': [self.secondary_serialnum],
-                                             'system_identifier': sec}).chunk())
+                                             'system_identifier': sec,
+                                             'min_lon': float(np.min(longitude)),
+                                             'min_lat': float(np.min(latitude)),
+                                             'max_lon': float(np.max(longitude)),
+                                             'max_lat': float(np.max(latitude))}).chunk())
         return dataset
 
     def construct_rawattitude(self):
@@ -3402,7 +3406,11 @@ class RealFqpr:
                                       attrs={list(self.profile.keys())[0]: self.profile[list(self.profile.keys())[0]],
                                              'system_serial_number': [self.serialnum],
                                              'secondary_system_serial_number': [self.secondary_serialnum],
-                                             'system_identifier': sec}).chunk())
+                                             'system_identifier': sec,
+                                             'min_lon': float(np.min(longitude)),
+                                             'min_lat': float(np.min(latitude)),
+                                             'max_lon': float(np.max(longitude)),
+                                             'max_lat': float(np.max(latitude))}).chunk())
         return dataset
 
     def construct_rawattitude(self):

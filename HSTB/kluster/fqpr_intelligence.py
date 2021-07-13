@@ -655,7 +655,8 @@ class FqprIntel(LoggerClass):
                 if action.action_type == 'processing' and action.output_destination not in all_current_project_paths:
                     self.action_container.remove_action(action)
             for relative_path, fqpr_instance in self.project.fqpr_instances.items():
-                identical_tpu, identical_offsets, identical_angles, new_waterline = self._update_offsets(fqpr_instance, vessel_file, keep_waterline_changes=keep_waterline_changes)
+                identical_tpu, identical_offsets, identical_angles, new_waterline = self._update_offsets(fqpr_instance, vessel_file,
+                                                                                                         keep_waterline_changes=keep_waterline_changes)
                 new_coord_system, forced_coordinate_match = self._build_new_crs(fqpr_instance)
                 if 'vert_ref' in self.processing_settings:  # if someone setup the project with a default vert ref
                     new_vert_ref = self.processing_settings['vert_ref']

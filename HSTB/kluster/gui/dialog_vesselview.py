@@ -2354,6 +2354,10 @@ class VesselWidget(QtWidgets.QWidget):
             print('Save cancelled')
 
     def add_to_configuration(self):
+        """
+        Add or modify the existing entry for this system in the vessel file with the currently loaded data
+        """
+
         msg, fil = RegistryHelpers.GetFilenameFromUserQT(self, RegistryKey='kluster',
                                                          Title='Add our configuration to this configuration file',
                                                          AppName='klustersave', bMulti=False, bSave=False,
@@ -2371,7 +2375,7 @@ class VesselWidget(QtWidgets.QWidget):
             else:
                 print('Unable to find file: {}'.format(fil))
         else:
-            print('Open cancelled')
+            print('Add to configuration cancelled')
 
     def load_from_existing_xyzrph(self):
         """
