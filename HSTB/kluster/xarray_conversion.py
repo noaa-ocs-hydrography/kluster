@@ -211,9 +211,7 @@ def _is_not_empty_sequential(rec: dict):
         If the chunk returned is full, this returns True (tells us to keep it)
     """
 
-    if rec['ping']['time'].any():
-        return True
-    elif rec['attitude']['time'].any():
+    if rec['ping']['time'].any() and rec['attitude']['time'].any():
         return True
     return False
 
