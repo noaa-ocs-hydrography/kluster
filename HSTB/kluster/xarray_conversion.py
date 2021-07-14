@@ -213,6 +213,8 @@ def _is_not_empty_sequential(rec: dict):
 
     if rec['ping']['time'].any():
         return True
+    elif rec['attitude']['time'].any():
+        return True
     return False
 
 
@@ -1274,7 +1276,7 @@ class BatchRead(ZarrBackend):
         drop_futures = []
         for cnt, isnotempty in enumerate(notempty):
             if not isnotempty:  # this is an empty chunk, no ping records
-                print('No ping records found in {}, startbyte:{}, endbyte:{}'.format(chnks_flat[cnt][0], chnks_flat[cnt][1], chnks_flat[cnt][2]))
+                print('No ping or attitude records found in {}, startbyte:{}, endbyte:{}'.format(chnks_flat[cnt][0], chnks_flat[cnt][1], chnks_flat[cnt][2]))
                 drop_futures.append(recfutures[cnt])
         for dpf in drop_futures:
             recfutures.remove(dpf)

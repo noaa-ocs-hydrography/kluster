@@ -40,7 +40,7 @@ class Kluster2dview(MapView):
         super().hide_surface(surfname, lyrname, resolution)
 
     def show_surface(self, surfname: str, lyrname: str, resolution):
-        super().show_surface(surfname, lyrname, resolution)
+        return super().show_surface(surfname, lyrname, resolution)
 
     def remove_surface(self, surfname, resolution):
         super().remove_surface(surfname, resolution)

@@ -1789,7 +1789,8 @@ def likelihood_start_end_times_close(filetimes: list, compare_times: list, allow
 
 def intel_process(filname: Union[str, list], outfold: str = None, coord_system: str = 'NAD83',
                   epsg: int = None, use_epsg: bool = False, vert_ref: str = 'waterline',
-                  parallel_write: bool = True, vdatum_directory: str = None, force_coordinate_system: bool = True):
+                  parallel_write: bool = True, vdatum_directory: str = None, force_coordinate_system: bool = True,
+                  logger: logging.Logger = None):
     """
     Use Kluster intelligence module to organize and process all input files.  Files can be a list of files, a single
     file, or a directory full of files.  Files can be multibeam files, .svp sound velocity profile files, SBET and
@@ -1817,6 +1818,8 @@ def intel_process(filname: Union[str, list], outfold: str = None, coord_system: 
         if True, will force all converted data to have the same coordinate system.  Only takes effect if you do not use_epsg.
         use_epsg overwrites this.  If coord_system/autoutm is used, this will ensure that all data added will have a
         utm zone equal to the first converted data instance.
+    logger
+        logging.Logger instance, if included will use this logger in Kluster
 
     Returns
     -------
@@ -1833,7 +1836,7 @@ def intel_process(filname: Union[str, list], outfold: str = None, coord_system: 
             project.open_project(potential_project_file)
         else:
             project._setup_new_project(outfold)
-    intel = FqprIntel(project)
+    intel = FqprIntel(project, logger=logger)
 
     settings = {'use_epsg': use_epsg, 'epsg': epsg, 'use_coord': not use_epsg, 'coord_system': coord_system,
                 'vert_ref': vert_ref, 'parallel_write': parallel_write, 'vdatum_directory': vdatum_directory,
@@ -1845,7 +1848,15 @@ def intel_process(filname: Union[str, list], outfold: str = None, coord_system: 
             filname = [os.path.join(filname, f) for f in os.listdir(filname)]
         filname = [filname]
     for f in filname:
-        updated_type, new_data, new_project = intel.add_file(f)
+        try:
+            updated_type, new_data, new_project = intel.add_file(f)
+        except Exception as e:
+            if logger:
+                logger.log(logging.ERROR, 'Unable to load from file {}'.format(f))
+                logger.log(logging.ERROR, e)
+            else:
+                print('Unable to load from file {}'.format(f))
+                print(e)
     while intel.has_actions:
         intel.execute_action()
     return intel, list(intel.project.fqpr_instances.values())
@@ -1853,7 +1864,8 @@ def intel_process(filname: Union[str, list], outfold: str = None, coord_system: 
 
 def intel_process_service(folder_path: str, is_recursive: bool = True, outfold: str = None, coord_system: str = 'NAD83',
                           epsg: int = None, use_epsg: bool = False, vert_ref: str = 'waterline',
-                          parallel_write: bool = True, vdatum_directory: str = None, force_coordinate_system: bool = True):
+                          parallel_write: bool = True, vdatum_directory: str = None, force_coordinate_system: bool = True,
+                          logger: logging.Logger = None):
     """
     Use Kluster intelligence module to start a new folder monitoring session and process all new files that show
     up in that directory.  Files can be multibeam files, .svp sound velocity profile files, SBET and
@@ -1883,6 +1895,8 @@ def intel_process_service(folder_path: str, is_recursive: bool = True, outfold: 
         if True, will force all converted data to have the same coordinate system.  Only takes effect if you do not use_epsg.
         use_epsg overwrites this.  If coord_system/autoutm is used, this will ensure that all data added will have a
         utm zone equal to the first converted data instance.
+    logger
+        logging.Logger instance, if included will use this logger in Kluster
     """
 
     # consider daemonizing this at some point: https://daemoniker.readthedocs.io/en/latest/index.html
@@ -1893,7 +1907,7 @@ def intel_process_service(folder_path: str, is_recursive: bool = True, outfold: 
             project.open_project(potential_project_file)
         else:
             project._setup_new_project(outfold)
-    intel = FqprIntel(project)
+    intel = FqprIntel(project, logger=logger)
 
     settings = {'use_epsg': use_epsg, 'epsg': epsg, 'use_coord': not use_epsg, 'coord_system': coord_system,
                 'vert_ref': vert_ref, 'parallel_write': parallel_write, 'vdatum_directory': vdatum_directory,

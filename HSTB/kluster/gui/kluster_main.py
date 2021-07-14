@@ -380,14 +380,16 @@ class KlusterMain(QtWidgets.QMainWindow):
                 shown = self.two_d.show_surface(add_surface, surface_layer_name, resolution)
                 if not shown:  # show didnt work, must need to add the surface instead
                     if qgis_enabled:
-                        data, geo_transform, bandnames = surf_object._gdal_preprocessing(resolution=resolution,
-                                                                                         nodatavalue=np.nan,
-                                                                                         z_positive_up=False,
-                                                                                         layer_names=(surface_layer_name,))
-                        self.two_d.add_surface([add_surface, surface_layer_name, data, geo_transform, surf_object.epsg, resolution])
+                        chunk_count = 1
+                        for geo_transform, maxdim, data in surf_object.get_chunks_of_tiles(resolution=resolution, layer=surface_layer_name,
+                                                                                           nodatavalue=np.float32(np.nan), z_positive_up=False,
+                                                                                           for_gdal=True):
+                            data = list(data.values())
+                            self.two_d.add_surface([add_surface, surface_layer_name + '_{}'.format(chunk_count),
+                                                    data, geo_transform, surf_object.epsg, resolution])
+                            chunk_count += 1
                     else:
-                        x, y, z, valid, newmins, newmaxs = surf_object.return_surf_xyz(surface_layer_name, pcolormesh=True)
-                        self.two_d.add_surface([add_surface, surface_layer_name, x, y, z, surf_object.epsg])
+                        raise EnvironmentError('QGIS required for viewing surface in 2dview')
                     self.two_d.set_extents_from_surfaces(add_surface, resolution)
         if remove_surface is not None:
             surf_object = self.project.surface_instances[remove_surface]
