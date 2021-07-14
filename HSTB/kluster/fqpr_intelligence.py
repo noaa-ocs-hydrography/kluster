@@ -1859,9 +1859,6 @@ def intel_process(filname: Union[str, list], outfold: str = None, coord_system: 
                 print(e)
     while intel.has_actions:
         intel.execute_action()
-        # dask processes appear to suffer from memory leaks regardless of how carefully we track and wait on futures, reset the client here to clear memory after processing
-        if project.client is not None:
-            project.client.restart()
     return intel, list(intel.project.fqpr_instances.values())
 
 
@@ -1921,6 +1918,3 @@ def intel_process_service(folder_path: str, is_recursive: bool = True, outfold: 
     while True:
         if intel.has_actions:
             intel.execute_action()
-            # dask processes appear to suffer from memory leaks regardless of how carefully we track and wait on futures, reset the client here to clear memory after processing
-            if project.client is not None:
-                project.client.restart()

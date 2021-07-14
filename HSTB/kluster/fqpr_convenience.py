@@ -11,7 +11,7 @@ from HSTB.drivers.par3 import AllRead
 from HSTB.drivers.kmall import kmall
 from HSTB.kluster.xarray_conversion import BatchRead
 from HSTB.kluster.fqpr_generation import Fqpr
-from HSTB.kluster.fqpr_helpers import return_directory_from_data, seconds_to_formatted_string
+from HSTB.kluster.fqpr_helpers import return_directory_from_data, seconds_to_formatted_string, return_files_from_path
 from HSTB.kluster import kluster_variables
 from bathygrid.convenience import create_grid, load_grid, BathyGrid
 
@@ -101,10 +101,16 @@ def convert_multibeam(filname: Union[str, list], outfold: str = None, client: Cl
         Fqpr containing converted source data
     """
 
-    mbes_read = BatchRead(filname, dest=outfold, client=client, skip_dask=skip_dask, show_progress=show_progress,
-                          parallel_write=parallel_write)
-    fqpr_inst = Fqpr(mbes_read, show_progress=show_progress, parallel_write=parallel_write)
-    fqpr_inst.read_from_source()
+    mfiles = return_files_from_path(filname, in_chunks=True)
+    for filchunk in mfiles:
+        mbes_read = BatchRead(filchunk, dest=outfold, client=client, skip_dask=skip_dask, show_progress=show_progress,
+                              parallel_write=parallel_write)
+        fqpr_inst = Fqpr(mbes_read, show_progress=show_progress, parallel_write=parallel_write)
+        fqpr_inst.read_from_source()
+
+        # dask processes appear to suffer from memory leaks regardless of how carefully we track and wait on futures, reset the client here to clear memory after processing
+        if fqpr_inst.client is not None:
+            fqpr_inst.client.restart()
     return fqpr_inst
 
 
@@ -294,8 +300,8 @@ def process_multibeam(fqpr_inst: Fqpr, run_orientation: bool = True, orientation
         fqpr_inst.calculate_total_uncertainty()
 
     # dask processes appear to suffer from memory leaks regardless of how carefully we track and wait on futures, reset the client here to clear memory after processing
-    # if fqpr_inst.client is not None:
-    #     fqpr_inst.client.restart()
+    if fqpr_inst.client is not None:
+        fqpr_inst.client.restart()
 
     return fqpr_inst
 

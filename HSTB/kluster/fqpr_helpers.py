@@ -1,4 +1,6 @@
 import os
+import numpy as np
+from glob import glob
 from typing import Union
 from pyproj import CRS
 from pyproj.exceptions import CRSError
@@ -96,7 +98,7 @@ def epsg_determinator(datum: str, zone: int = None, hemisphere: str = None):
     raise ValueError('epsg_determinator: no valid epsg for datum={} zone={} hemisphere={}'.format(datum, zone, hemisphere))
 
 
-def return_files_from_path(pth: str, file_ext: tuple = ('.all',)):
+def return_files_from_path(pth: str, in_chunks: bool = True):
     """
     Input files can be entered into an xarray_conversion.BatchRead instance as either a list, a path to a directory
     of multibeam files or as a path to a single file.  Here we return all the files in each of these scenarios as a list
@@ -108,8 +110,8 @@ def return_files_from_path(pth: str, file_ext: tuple = ('.all',)):
     ----------
     pth
         either a list of files, a string path to a directory or a string path to a file
-    file_ext
-        file extension of the file(s) you are looking for
+    in_chunks
+        if True, returns lists of lists of size kluster_variables.converted_files_at_once
 
     Returns
     -------
@@ -117,20 +119,29 @@ def return_files_from_path(pth: str, file_ext: tuple = ('.all',)):
         list of files found
     """
 
+    fils = None
     if type(pth) == list:
-        if len(pth) == 1 and os.path.isdir(pth[0]):  # a list one element long that is a path to a directory
-            return [os.path.join(pth[0], p) for p in os.listdir(pth[0]) if os.path.splitext(p)[1] in file_ext]
-        else:
-            return [p for p in pth if os.path.splitext(p)[1] in file_ext]
+        fils = pth
     elif os.path.isdir(pth):
-        return [os.path.join(pth, p) for p in os.listdir(pth) if os.path.splitext(p)[1] in file_ext]
+        for fext in kluster_variables.supported_multibeam:
+            fils = glob(os.path.join(pth, fext))
+            if fils:
+                break
     elif os.path.isfile(pth):
-        if os.path.splitext(pth)[1] in file_ext:
-            return [pth]
-        else:
-            return []
+        fils = [pth]
     else:
+        raise ValueError('_chunks_of_files: Expected either a multibeam file, a list of multibeam files or a directory')
+    if not fils:
         return []
+    fils = sorted(fils)  # should we sort by last modified time?  might be nice
+    if not in_chunks:
+        return fils
+    else:
+        maxchunks = kluster_variables.converted_files_at_once
+        final_fils = [fils[i * maxchunks:(i + 1) * maxchunks] for i in range(int(np.ceil((len(fils) + maxchunks - 1) / maxchunks)))]
+        if final_fils[-1] == []:
+            final_fils = final_fils[:-1]
+        return final_fils
 
 
 def return_directory_from_data(data: Union[list, str]):
