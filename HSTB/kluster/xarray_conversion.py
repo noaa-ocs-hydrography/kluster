@@ -270,7 +270,10 @@ def _sequential_to_xarray(rec: dict):
                             #  everything else isn't by beam, proceed normally
                             else:
                                 recs_to_merge[r][systemid][ky] = xr.DataArray(arr.astype(datadtype), coords=[tim], dims=['time'])
-                    recs_to_merge[r][systemid] = recs_to_merge[r][systemid].sortby('time')
+                    try:
+                        recs_to_merge[r][systemid] = recs_to_merge[r][systemid].sortby('time')
+                    except:  # no records to sort
+                        pass
             else:
                 recs_to_merge[r] = xr.Dataset()
                 for ky in rec[r]:
@@ -278,7 +281,10 @@ def _sequential_to_xarray(rec: dict):
                         recs_to_merge[r][ky] = xr.DataArray(np.float32(rec[r][ky]), coords=[rec[r]['time']], dims=['time'])
                     elif ky not in ['time', 'runtime_settings']:
                         recs_to_merge[r][ky] = xr.DataArray(rec[r][ky], coords=[rec[r]['time']], dims=['time'])
-                recs_to_merge[r] = recs_to_merge[r].sortby('time')
+                try:
+                    recs_to_merge[r] = recs_to_merge[r].sortby('time')
+                except:  # no records to sort
+                    pass
 
     for systemid in recs_to_merge['ping']:
         if 'mode' not in recs_to_merge['ping'][systemid]:

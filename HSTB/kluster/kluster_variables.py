@@ -2,6 +2,11 @@
 pass_color = 'color : green'  # color of the gui labels and text where a test passes
 error_color = 'color : red'  # color of the gui labels and text where a test does not pass
 
+# dask_helpers
+# when we get the Client to run a task, we expect all tasks to have finished.  If you get the client and the mem
+# utilization is greater than this percentage, we restart it automatically to clear the memory.
+mem_restart_threshold = 0.40
+
 # kluster_3dview
 selected_point_color = (1, 0.476, 0.953, 1)  # color of points selected in 3dview
 super_selected_point_color = (1, 1, 1, 1)  # color of points in super selection in 3dview

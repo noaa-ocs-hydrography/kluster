@@ -944,7 +944,13 @@ class Fqpr(ZarrBackend):
                 self.logger.info('Using raw navigation...')
             lat = xr.concat([ra.latitude[chnk] for chnk in idx_by_chunk], dim='time')
             lon = xr.concat([ra.longitude[chnk] for chnk in idx_by_chunk], dim='time')
-            alt = xr.concat([ra.altitude[chnk] for chnk in idx_by_chunk], dim='time')
+            try:
+                alt = xr.concat([ra.altitude[chnk] for chnk in idx_by_chunk], dim='time')
+            except:  # no raw altitude for some reason...
+                if self.vert_ref in kluster_variables.ellipse_based_vertical_references:
+                    raise ValueError('georef_xyz: No raw altitude found, and {} is an ellipsoidally based vertical reference'.format(self.vert_ref))
+                else:  # we can continue because we aren't going to use altitude anyway
+                    alt = xr.zeros_like(lon)
 
         if ('heading' in ra) and ('heave' in ra) and not self.motion_latency:
             hdng = ra.heading

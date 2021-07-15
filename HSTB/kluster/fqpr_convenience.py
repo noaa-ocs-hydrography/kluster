@@ -62,11 +62,12 @@ def perform_all_processing(filname: Union[str, list], navfiles: list = None, out
     """
 
     fqpr_inst = convert_multibeam(filname, outfold, skip_dask=skip_dask, show_progress=show_progress, parallel_write=parallel_write)
-    if navfiles is not None:
-        fqpr_inst = import_processed_navigation(fqpr_inst, navfiles, **kwargs)
-    fqpr_inst = process_multibeam(fqpr_inst, add_cast_files=add_cast_files, coord_system=coord_system, vert_ref=vert_ref,
-                                  orientation_initial_interpolation=orientation_initial_interpolation,
-                                  vdatum_directory=vdatum_directory)
+    if fqpr_inst is not None:
+        if navfiles is not None:
+            fqpr_inst = import_processed_navigation(fqpr_inst, navfiles, **kwargs)
+        fqpr_inst = process_multibeam(fqpr_inst, add_cast_files=add_cast_files, coord_system=coord_system, vert_ref=vert_ref,
+                                      orientation_initial_interpolation=orientation_initial_interpolation,
+                                      vdatum_directory=vdatum_directory)
     return fqpr_inst
 
 
@@ -101,6 +102,7 @@ def convert_multibeam(filname: Union[str, list], outfold: str = None, client: Cl
         Fqpr containing converted source data
     """
 
+    fqpr_inst = None
     mfiles = return_files_from_path(filname, in_chunks=True)
     for filchunk in mfiles:
         mbes_read = BatchRead(filchunk, dest=outfold, client=client, skip_dask=skip_dask, show_progress=show_progress,
