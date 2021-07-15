@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from types import FunctionType
 
 from HSTB.kluster.fqpr_generation import Fqpr
-from HSTB.kluster.dask_helpers import dask_find_or_start_client
+from HSTB.kluster.dask_helpers import dask_find_or_start_client, client_needs_restart
 from HSTB.kluster.fqpr_convenience import reload_data, reload_surface, get_attributes_from_fqpr
 from HSTB.kluster.xarray_helpers import slice_xarray_by_dim
 from HSTB.kluster.fqpr_vessel import VesselFile, create_new_vessel_file, convert_from_fqpr_xyzrph
@@ -202,6 +202,9 @@ class FqprProject:
 
         if self.client is None or (self.client.status != 'running'):
             self.client = dask_find_or_start_client()
+        needs_restart = client_needs_restart(self.client)  # handle memory leaks by restarting if memory utilization on fresh client is > 50%
+        if needs_restart:
+            self.client.restart()
         for fqname, fqinstance in self.fqpr_instances.items():
             fqinstance.client = self.client
             fqinstance.multibeam.client = self.client

@@ -619,7 +619,7 @@ class FqprIntel(LoggerClass):
                         except:
                             self.print_msg('Unable to generate EPSG from {}'.format(fqpr_instance.multibeam.raw_ping[0].horizontal_crs), logging.WARNING)
                 if new_coord_system is None:  # no valid coord systems in the project, have to auto pick this one
-                    self.print_msg('Force coordinate system match was used, but no existing coordinate systems found, defaulting to auto utm.', logging.WARNING)
+                    # self.print_msg('Force coordinate system match was used, but no existing coordinate systems found, defaulting to auto utm.', logging.WARNING)
                     new_coord_system, err = build_crs(zone_num=fqpr_instance.multibeam.return_utm_zone_number(),
                                                       datum=self.processing_settings['coord_system'])
             # otherwise just do the auto utm calc to get the new coordinate system
@@ -677,7 +677,7 @@ class FqprIntel(LoggerClass):
                         self.action_container.remove_action(action[0])
                     else:
                         settings = fqpr_actions.update_kwargs_for_processing(abs_path, args, kwargs, self.processing_settings,
-                                                                             )
+                                                                             force_epsg=forced_coordinate_match)
                         self.action_container.update_action(action[0], **settings)
                 else:  # if valid kwargs are returned, there is a new processing action to take
                     if kwargs != {}:

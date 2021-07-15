@@ -300,7 +300,13 @@ class Fqpr(ZarrBackend):
         for rp in self.multibeam.raw_ping:
             self.write_attributes('ping', copy_dict, sys_id=rp.system_identifier)
             for ky in copy_dict:  # now set the in memory version to match the written one
-                rp.attrs[ky] = copy_dict[ky]
+                if isinstance(copy_dict[ky], dict) and isinstance(rp.attrs[ky], dict):
+                    try:
+                        rp.attrs[ky].update(copy_dict[ky])
+                    except:
+                        rp.attrs[ky] = copy_dict[ky]
+                else:
+                    rp.attrs[ky] = copy_dict[ky]
 
     def import_sound_velocity_files(self, src: Union[str, list]):
         """
@@ -3025,13 +3031,13 @@ class Fqpr(ZarrBackend):
                 new_epsg = new_coordinate_system.to_epsg()
             except:
                 raise ValueError('return_next_action: Unable to convert new coordinate system to epsg: {}'.format(new_coordinate_system))
-            if self.horizontal_crs is not None:
+            if 'horizontal_crs' in self.multibeam.raw_ping[0].attrs:
                 try:
-                    existing_epsg = self.horizontal_crs.to_epsg()
+                    existing_epsg = int(self.multibeam.raw_ping[0].attrs['horizontal_crs'])
                 except:
                     raise ValueError('return_next_action: Unable to convert current coordinate system to epsg: {}'.format(self.horizontal_crs))
             else:
-                existing_epsg = 1  # construct_crs has not been run on this instance, so we always use the new epsg
+                existing_epsg = 1  # georeference has not been run yet, so we use this default value that always fails the next check
             if new_epsg != existing_epsg and new_epsg and existing_epsg:
                 new_diff_coordinate = True
                 default_use_epsg = True

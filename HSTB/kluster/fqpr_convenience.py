@@ -109,8 +109,8 @@ def convert_multibeam(filname: Union[str, list], outfold: str = None, client: Cl
         fqpr_inst.read_from_source()
 
         # dask processes appear to suffer from memory leaks regardless of how carefully we track and wait on futures, reset the client here to clear memory after processing
-        if fqpr_inst.client is not None:
-            fqpr_inst.client.restart()
+        # if fqpr_inst.client is not None:
+        #     fqpr_inst.client.restart()
     return fqpr_inst
 
 
@@ -300,8 +300,8 @@ def process_multibeam(fqpr_inst: Fqpr, run_orientation: bool = True, orientation
         fqpr_inst.calculate_total_uncertainty()
 
     # dask processes appear to suffer from memory leaks regardless of how carefully we track and wait on futures, reset the client here to clear memory after processing
-    if fqpr_inst.client is not None:
-        fqpr_inst.client.restart()
+    # if fqpr_inst.client is not None:
+    #     fqpr_inst.client.restart()
 
     return fqpr_inst
 

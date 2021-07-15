@@ -19,7 +19,7 @@ from HSTB.kluster.gui import dialog_vesselview, kluster_explorer, kluster_projec
     dialog_about
 from HSTB.kluster.fqpr_project import FqprProject
 from HSTB.kluster.fqpr_intelligence import FqprIntel
-from HSTB.kluster.fqpr_vessel import convert_from_fqpr_xyzrph
+from HSTB.kluster.fqpr_vessel import convert_from_fqpr_xyzrph, convert_from_vessel_xyzrph, compare_dict_data
 from HSTB.kluster import __version__ as kluster_version
 from HSTB.kluster import __file__ as kluster_init_file
 from HSTB.shared import RegistryHelpers, path_to_supplementals
@@ -548,6 +548,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.vessel_win = None
         self.vessel_win = dialog_vesselview.VesselWidget()
         self.vessel_win.vessel_file_modified.connect(self.regenerate_offsets_actions)
+        self.vessel_win.converted_xyzrph_modified.connect(self.update_offsets_vesselwidget)
 
         if vessel_file:
             self.vessel_win.load_from_config_file(vessel_file)
@@ -574,6 +575,39 @@ class KlusterMain(QtWidgets.QMainWindow):
         vessel_file = self.project.return_vessel_file()
         if vessel_file:
             self.intel.regenerate_actions()
+
+    def update_offsets_vesselwidget(self, vess_xyzrph: dict):
+        """
+        If the user brings up the vessel setup tool with a converted fqpr container selected in the main gui, it loads
+        from the xyzrph in that converted container.  The user can then make changes and save it back to the converted
+        data container, which is what this method does.  If the data saved back is different, we figure out where the
+        difference is and generate a new corresponding action by saving to the current_processing_status and running
+        regenerate_actions
+
+        Parameters
+        ----------
+        vess_xyzrph
+            the data from the vessel setup widget, used to overwrite the converted fqpr container xyzrph record
+        """
+
+        xyzrph, sonar_type, system_identifiers, source = convert_from_vessel_xyzrph(vess_xyzrph)
+        for cnt, sysident in enumerate(system_identifiers):
+            for fqname, fq in self.project.fqpr_instances.items():
+                if fq.multibeam.raw_ping[0].system_identifier == sysident:
+                    identical_offsets, identical_angles, identical_tpu, data_matches, new_waterline = compare_dict_data(fq.multibeam.xyzrph,
+                                                                                                                        xyzrph[cnt])
+                    # drop the vessel setup specific keys, like the vessel file used and the vess_center location
+                    drop_these = [ky for ky in xyzrph[cnt].keys() if ky not in fq.multibeam.xyzrph.keys()]
+                    [xyzrph[cnt].pop(ky) for ky in drop_these]
+                    fq.write_attribute_to_ping_records({'xyzrph': xyzrph[cnt]})
+                    fq.multibeam.xyzrph.update(xyzrph[cnt])
+                    if not identical_angles:  # if the angles changed then we have to start over at converted status
+                        fq.write_attribute_to_ping_records({'current_processing_status': 0})
+                    elif not identical_offsets or new_waterline is not None:  # have to re-soundvelocitycorrect
+                        fq.write_attribute_to_ping_records({'current_processing_status': 2})
+                    elif not identical_tpu:  # have to re-tpu
+                        fq.write_attribute_to_ping_records({'current_processing_status': 4})
+        self.intel.regenerate_actions()
 
     def reprocess_fqpr(self):
         """

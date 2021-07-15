@@ -124,7 +124,7 @@ def return_files_from_path(pth: str, in_chunks: bool = True):
         fils = pth
     elif os.path.isdir(pth):
         for fext in kluster_variables.supported_multibeam:
-            fils = glob(os.path.join(pth, fext))
+            fils = glob(os.path.join(pth, '*{}'.format(fext)))
             if fils:
                 break
     elif os.path.isfile(pth):

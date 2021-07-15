@@ -2453,16 +2453,21 @@ def return_xyzrph_from_mbes(mbesfil: str):
         sonar model number
     int
         primary system serial number
-
     """
+
     if os.path.splitext(mbesfil)[1] == '.all':
         mbes_object = par3.AllRead(mbesfil)
+        recs = mbes_object.sequential_read_records(first_installation_rec=True)
+        mbes_object.close()
     elif os.path.splitext(mbesfil)[1] == '.kmall':
-        mbes_object = kmall.kmall(mbesfil)
+        km = kmall.kmall(mbesfil)
+        # kmall doesnt have ping-wise serial number in header, we have to provide it from install params
+        serial_translator = km.fast_read_serial_number_translator()
+        recs = km.sequential_read_records(first_installation_rec=True, serial_translator=serial_translator)
+        km.closeFile()
     else:
         raise ValueError('{} not a supported multibeam file, must be one of {}'.format(mbesfil,
                                                                                        kluster_variables.supported_multibeam))
-    recs = mbes_object.sequential_read_records(first_installation_rec=True)
     try:
         settings_dict = {str(int(recs['installation_params']['time'][0])): recs['installation_params']['installation_settings'][0]}
         runtime_dict = {}

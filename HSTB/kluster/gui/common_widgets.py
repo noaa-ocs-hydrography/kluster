@@ -13,6 +13,28 @@ from HSTB.kluster import kluster_variables
 #   BrowseListWidget - You need a list widget with browse buttons and removing of items built in?  Check this out
 #   RangeSlider - Build a custom slider with two handles, allowing you to specify a range.
 #   PlotDataHandler - Widget allowing the user to provide a directory of kluster converted data and specify a time range in a number of different ways.
+#   AcceptDialog - Widget for yes/no dialog options or even three options
+
+
+class AcceptDialog(QtWidgets.QMessageBox):
+    def __init__(self, message: str = 'default message', title: str = 'default title', mode: str = 'threeoption'):
+        super().__init__()
+        self.setWindowTitle(title)
+        self.setText(message)
+        if mode == 'threeoption':
+            self.setStandardButtons(QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No | QtWidgets.QMessageBox.Cancel)
+        self.setDefaultButton(QtWidgets.QMessageBox.Yes)
+
+    def run(self):
+        result = self.exec_()
+        if result == QtWidgets.QMessageBox.Cancel:
+            return 'cancel'
+        elif result == QtWidgets.QMessageBox.No:
+            return 'no'
+        elif result == QtWidgets.QMessageBox.Yes:
+            return 'yes'
+        else:
+            raise ValueError('AcceptDialog: Unable to translate return code {}'.format(result))
 
 
 class PlotDataHandler(QtWidgets.QWidget):

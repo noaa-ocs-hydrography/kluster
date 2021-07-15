@@ -1,7 +1,31 @@
 import os
+from copy import deepcopy
 
 from HSTB.kluster.fqpr_vessel import VesselFile, get_overlapping_timestamps, compare_dict_data, carry_over_optional, \
-    create_new_vessel_file, only_retain_earliest_entry
+    create_new_vessel_file, only_retain_earliest_entry, convert_from_fqpr_xyzrph, convert_from_vessel_xyzrph
+
+
+test_xyzrph = {'antenna_x': {'1626354881': '0.000'}, 'antenna_y': {'1626354881': '0.000'},
+               'antenna_z': {'1626354881': '0.000'}, 'imu_h': {'1626354881': '0.000'},
+               'latency': {'1626354881': '0.000'}, 'imu_p': {'1626354881': '0.000'},
+               'imu_r': {'1626354881': '0.000'}, 'imu_x': {'1626354881': '0.000'},
+               'imu_y': {'1626354881': '0.000'}, 'imu_z': {'1626354881': '0.000'},
+               'rx_r': {'1626354881': '0.030'}, 'rx_p': {'1626354881': '0.124'},
+               'rx_h': {'1626354881': '0.087'}, 'rx_x': {'1626354881': '1.234'},
+               'rx_y': {'1626354881': '0.987'}, 'rx_z': {'1626354881': '0.543'},
+               'rx_x_0': {'1626354881': '0.204'}, 'rx_x_1': {'1626354881': '0.204'},
+               'rx_x_2': {'1626354881': '0.204'}, 'rx_y_0': {'1626354881': '0.0'},
+               'rx_y_1': {'1626354881': '0.0'}, 'rx_y_2': {'1626354881': '0.0'},
+               'rx_z_0': {'1626354881': '-0.0315'}, 'rx_z_1': {'1626354881': '-0.0315'},
+               'rx_z_2': {'1626354881': '-0.0315'}, 'tx_r': {'1626354881': '0.090'},
+               'tx_p': {'1626354881': '-0.123'}, 'tx_h': {'1626354881': '-0.050'},
+               'tx_x': {'1626354881': '1.540'}, 'tx_y': {'1626354881': '-0.987'},
+               'tx_z': {'1626354881': '1.535'}, 'tx_x_0': {'1626354881': '0.002'},
+               'tx_x_1': {'1626354881': '0.002'}, 'tx_x_2': {'1626354881': '0.002'},
+               'tx_y_0': {'1626354881': '-0.1042'}, 'tx_y_1': {'1626354881': '0.0'},
+               'tx_y_2': {'1626354881': '0.1042'}, 'tx_z_0': {'1626354881': '-0.0149'},
+               'tx_z_1': {'1626354881': '-0.006'}, 'tx_z_2': {'1626354881': '-0.0149'},
+               'waterline': {'1626354881': '0.200'}}
 
 
 def get_test_vesselfile():
@@ -223,3 +247,20 @@ def test_only_retain():
     assert data_one == {'roll_patch_error': {'1584426525': 0.1, '1584438532': 0.1},
                         'roll_sensor_error': {'1584426525': 0.0005, '1584438532': 0.001},
                         'rx_h': {'1584426525': 359.576, '1584438532': 359.576}}
+
+
+def test_convert_from_fqpr_xyzrph():
+    vess_xyzrph = convert_from_fqpr_xyzrph(test_xyzrph, 'em2040', '123', 'test.all')
+    assert list(vess_xyzrph.keys()) == ['123']
+    assert vess_xyzrph['123'].pop('sonar_type') == {'1626354881': 'em2040'}
+    assert vess_xyzrph['123'].pop('source') == {'1626354881': 'test.all'}
+    assert vess_xyzrph['123'] == test_xyzrph
+
+
+def test_convert_from_vessel_xyzrph():
+    vess_xyzrph = convert_from_fqpr_xyzrph(test_xyzrph, 'em2040', '123', 'test.all')
+    backconvert_xyzrph, sonar_type, system_identifier, source = convert_from_vessel_xyzrph(vess_xyzrph)
+    assert backconvert_xyzrph == [test_xyzrph]
+    assert sonar_type == [{'1626354881': 'em2040'}]
+    assert system_identifier == ['123']
+    assert source == [{'1626354881': 'test.all'}]

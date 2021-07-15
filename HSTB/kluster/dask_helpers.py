@@ -66,6 +66,10 @@ def dask_find_or_start_client(address: str = None, silent: bool = False):
             client = get_client(address=address)
             if not silent:
                 print('Using existing client on address {}...'.format(address))
+        needs_restart = client_needs_restart(client)
+        if needs_restart:
+            client.restart()
+
     except ValueError:  # no global client found and no address provided
         logical_core_count = psutil.cpu_count(True)
         mem_total_gb = psutil.virtual_memory().total / 1000000000
@@ -125,6 +129,33 @@ def get_number_of_workers(client: Client):
     """
 
     return len(client.scheduler_info()['workers'])
+
+
+def client_needs_restart(client: Client):
+    """
+    Having issues with memory leaks, even though workers have no assigned tasks.  Only way I have figured out how to
+    effectively deal with this is to check if the workers are using a bunch of memory when we go to get the client.
+    If so, it means memory is being used even though we aren't doing any processing.  This function tells us if this is
+    the case
+
+    Parameters
+    ----------
+    client
+        dask client
+
+    Returns
+    -------
+    bool
+        if True, the client needs a restart
+    """
+
+    worker_data = client.scheduler_info()['workers']
+    worker_ids = list(client.scheduler_info()['workers'].keys())
+    total_mem_limit = round(sum([worker_data[wrk]['memory_limit'] for wrk in worker_ids]) / 1073741824, 3)  # get it in GB
+    total_mem_used = round(sum([worker_data[wrk]['metrics']['memory'] for wrk in worker_ids]) / 1073741824, 3)
+    if total_mem_used >= total_mem_limit / 0.5:
+        return True
+    return False
 
 
 def determine_optimal_chunks(client: Client, beams_per_ping: float, safety_margin: float = 0.75,

@@ -360,9 +360,40 @@ def convert_from_fqpr_xyzrph(xyzrph: dict, sonar_model: str, system_identifier: 
         converted xyzrph ready to be passed to VesselFile
     """
 
+    xyzrph = deepcopy(xyzrph)  # don't alter the original
     first_sensor = list(xyzrph.keys())[0]
     tstmps = list(xyzrph[first_sensor].keys())
     vess_xyzrph = {str(system_identifier): xyzrph}
     vess_xyzrph[str(system_identifier)]['sonar_type'] = {tst: sonar_model for tst in tstmps}
     vess_xyzrph[str(system_identifier)]['source'] = {tst: source_identifier for tst in tstmps}
     return vess_xyzrph
+
+
+def convert_from_vessel_xyzrph(vess_xyzrph: dict):
+    """
+    Take the vessel xyzrph we converted with the convert_from_fqpr_xyzrph function and convert back to the format
+    used within the Fqpr instance.
+
+    Parameters
+    ----------
+    vess_xyzrph
+        vessel xyzrph generated with convert_from_fqpr_xyzrph that we want to convert back
+
+    Returns
+    -------
+    dict
+        dict of offsets/angles/tpu parameters for the fqpr instance
+    """
+
+    system_identifiers = list(vess_xyzrph.keys())
+    xyzrph = []
+    sonar_type = []
+    source = []
+    for sysident in system_identifiers:
+        xdata = deepcopy(vess_xyzrph[sysident])
+        xyzrph.append(xdata)
+        if 'sonar_type' in xdata:
+            sonar_type.append(xdata.pop('sonar_type'))
+        if 'source' in xdata:
+            source.append(xdata.pop('source'))
+    return xyzrph, sonar_type, system_identifiers, source
