@@ -154,7 +154,7 @@ def client_needs_restart(client: Client):
     worker_ids = list(client.scheduler_info()['workers'].keys())
     total_mem_limit = round(sum([worker_data[wrk]['memory_limit'] for wrk in worker_ids]) / 1073741824, 3)  # get it in GB
     total_mem_used = round(sum([worker_data[wrk]['metrics']['memory'] for wrk in worker_ids]) / 1073741824, 3)
-    if total_mem_used >= total_mem_limit / mem_restart_threshold:
+    if total_mem_used >= total_mem_limit * mem_restart_threshold:
         return True
     return False
 
