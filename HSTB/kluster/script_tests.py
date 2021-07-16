@@ -452,12 +452,91 @@ tx_att_times, tx_attitude_rotation = return_attitude_rotation_matrix(txatt)
 ans = (tx_attitude_rotation.data @ np.float32(leverarm)).compute()[:, 2]
 
 ####################################################################
-import numpy as np
 from HSTB.kluster.fqpr_convenience import reload_data
-from HSTB.kluster.fqpr_generation import posfiles_to_xarray, interp_across_chunks
-from datetime import datetime
-fq = reload_data(r"C:\collab\dasktest\data_dir\tj_patch_test\S222_PatchTest_DN077\Raw\MBES\S222_2020_KongsbergEM710\2020-077\em710_241_03_17_2020")
-import os
-navfiles = [os.path.join(r'C:\collab\dasktest\data_dir\tj_patch_test\S222_PatchTest_DN077\Raw\Positioning\S222_2020_KongsbergEM710\2020-077', fil) for fil in os.listdir(r'C:\collab\dasktest\data_dir\tj_patch_test\S222_PatchTest_DN077\Raw\Positioning\S222_2020_KongsbergEM710\2020-077')]
-weekstart_year, weekstart_week, dy = datetime.strptime('03/17/2020', '%m/%d/%Y').isocalendar()
-navdata = posfiles_to_xarray(navfiles, weekstart_year=weekstart_year, weekstart_week=weekstart_week)
+from dask.distributed import Client
+fq = reload_data(r"D:\falkor\FK005B_processed\em710_225_09_24_2012")
+fq.client.close()
+fq.client = None
+fq.get_orientation_vectors()
+
+####################################################################
+from HSTB.kluster.backends._zarr import *
+from HSTB.kluster.backends._zarr import _get_indices_dataset_exists, _get_indices_dataset_notexist, \
+    _my_xarr_to_zarr_build_arraydimensions, _my_xarr_to_zarr_writeattributes
+from HSTB.kluster.xarray_helpers import reload_zarr_records
+
+# first test do a baseline for writing a bunch of data to simulate a lot of pings in one day
+
+basefolder = r'C:\Pydro21_Dev\NOAA\site-packages\Python38\git_repos\hstb_kluster\test_data\zarrtest'
+zw = ZarrBackend(basefolder)
+
+data_arr = np.random.rand(1000000, 400, 3)
+time_arr = np.arange(1000000)
+dataset = xr.Dataset({'tx': (['time', 'beam', 'xyz'], data_arr)}, coords={'time': time_arr, 'beam': np.arange(400),
+                                                                          'xyz': np.array(['x', 'y', 'z'])})
+zarr_path, _ = zw.write('ping', [dataset], [time_arr], {}, skip_dask=True, sys_id='123')
+
+# above is just the baseline, should simulate a day of data that has a million pings
+# now we need to try an append test, none of the above should be in memory for this
+
+basefolder = r'C:\Pydro21_Dev\NOAA\site-packages\Python38\git_repos\hstb_kluster\test_data\zarrtest'
+zw = ZarrBackend(basefolder)
+
+data_arr = np.random.rand(1000, 400, 3)
+time_arr = np.arange(1000000, 1001000)
+dataset = xr.Dataset({'tx': (['time', 'beam', 'xyz'], data_arr)}, coords={'time': time_arr, 'beam': np.arange(400),
+                                                                          'xyz': np.array(['x', 'y', 'z'])})
+zarr_path, _ = zw.write('ping', [dataset], [time_arr], {}, skip_dask=True, sys_id='123')
+
+# how about an overwrite
+
+basefolder = r'C:\Pydro21_Dev\NOAA\site-packages\Python38\git_repos\hstb_kluster\test_data\zarrtest'
+zw = ZarrBackend(basefolder)
+
+data_arr = np.random.rand(1000, 400, 3)
+time_arr = np.arange(1000)
+time_arr[:500] = np.arange(2000, 2500)
+dataset = xr.Dataset({'tx': (['time', 'beam', 'xyz'], data_arr)}, coords={'time': time_arr, 'beam': np.arange(400),
+                                                                          'xyz': np.array(['x', 'y', 'z'])})
+zarr_path, _ = zw.write('ping', [dataset], [time_arr], {}, skip_dask=True, sys_id='123')
+
+xdataset = xr.open_zarr(r"C:\Pydro21_Dev\NOAA\site-packages\Python38\git_repos\hstb_kluster\test_data\zarrtest\ping_123.zarr")
+
+# time = 999 is NaN?
+# xdataset.time.isel(time=999).values
+# Out[37]: array(nan)
+# xdataset.tx.isel(time=999).isel(beam=0).values
+# Out[35]: array([0.58739387, 0.78475819, 0.04557245])
+# dataset.time.values[999]
+# Out[41]: 999
+# dataset.tx.values[999,0]
+# Out[43]: array([0.58739387, 0.78475819, 0.04557245])
+
+
+# looking at push forward rework, to address giant chunks of memory that it might load
+#  currently works like this
+
+# array of size [0,1000000]
+#
+# push_idx = 250
+# push_amount = 1000
+# starting_size = 1000000
+#
+# data_range = [250:1001000]
+# final_location_range = [1250, 1002250]
+# empty_range = [250:1250]
+#
+# move data from data_range to final_location_range
+# force data in empty_range to empty
+
+# need to push forward starting from the end I think
+#
+# data_size = starting_size + push_amount - push_idx = 1000750
+# move_size = 10000 if data_size > 10000 else data_size
+# data_size -= move_size
+#
+# data_range = [901000:1001000]
+# final_location_range = [902250:1002250]
+#
+# move data from [901000:1001000] to [902250:1002250]
+# move data from [801000:901000] to [802250:902250]

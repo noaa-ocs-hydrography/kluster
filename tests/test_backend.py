@@ -266,6 +266,28 @@ def test_zarr_write_prior():
     assert np.array_equal(zw.rootgroup['time'], expected_answer)
 
 
+def test_zarr_write_prior_bigone():
+    # for when data being written is prior to existing data
+    zw = ZarrWrite(None, desired_chunk_shape={'time': (1000,), 'data2': (1000,), 'data': (1000,)})
+    zw.rootgroup = zarr.group()
+
+    data_arr = np.arange(15000, 20000)
+    indices = _get_indices_dataset_notexist([data_arr])
+
+    dataset = xr.Dataset({'data': (['time'], data_arr), 'data2': (['time'], data_arr)}, coords={'time': data_arr})
+    zw.write_to_zarr(dataset, None, dataloc=indices[0], finalsize=5000)
+
+    data_arr2 = [np.arange(15000)]
+    indices, push_forward, total_push = _get_indices_dataset_exists(data_arr2, zw.rootgroup['time'])
+
+    dataset2 = xr.Dataset({'data': (['time'], data_arr2[0]), 'data2': (['time'], data_arr2[0])}, coords={'time': data_arr2[0]})
+    zw.write_to_zarr(dataset2, None, dataloc=indices[0], finalsize=20000, push_forward=push_forward)
+
+    assert np.array_equal(zw.rootgroup['data'], np.arange(20000))
+    assert np.array_equal(zw.rootgroup['data2'], np.arange(20000))
+    assert np.array_equal(zw.rootgroup['time'], np.arange(20000))
+
+
 def test_zarr_write_later_overlap():
     # for when data being written is both partly within existing data and later than existing data
     zw = ZarrWrite(None, desired_chunk_shape={'time': (10,), 'data2': (10,), 'data': (10,)})

@@ -5,6 +5,7 @@ import zarr
 import time
 from dask.distributed import wait, Client, progress, Future
 from typing import Union, Callable, Tuple, Any
+from itertools import groupby, count
 
 from HSTB.kluster import kluster_variables
 from HSTB.kluster.backends._base import BaseBackend
@@ -757,6 +758,42 @@ class ZarrWrite:
             self.rootgroup[variable_name][empty_chunk_idx] = self.rootgroup[variable_name].fill_value
             total_push += push_amount
 
+    def _overwrite_existing_rootgroup(self, xarr_data: np.array, data_loc_copy: Union[list, np.ndarray], var_name: str,
+                                      dims_of_arrays: dict, chunksize: tuple, timlength: int, timaxis: int):
+        """
+        Write this numpy array to zarr, overwriting the existing data or appending to an existing rootgroup array
+
+        Parameters
+        ----------
+        xarr_data
+            numpy array for the variable from the dataset we want to write to zarr
+        data_loc_copy
+            [start time index, end time index] for xarr, ex: [0,1000] if xarr time dimension is 1000 long
+        var_name
+            variable name
+        dims_of_arrays
+            where keys are array names and values list of dims/shape.  Example: 'beampointingangle': [['time', 'sector', 'beam'], (5000, 3, 400)]
+        chunksize
+            chunk shape used to create the zarr array
+        timlength
+            Length of the time dimension for the input xarray Dataset
+        timaxis
+            index of the time dimension
+        """
+
+        # the last write will often be less than the block size.  This is allowed in the zarr store, but we
+        #    need to correct the index for it.
+        if timlength != data_loc_copy[1] - data_loc_copy[0]:
+            data_loc_copy[1] = data_loc_copy[0] + timlength
+
+        # location for new data, assume constant chunksize (as we are doing this outside of this function)
+        chunk_time_range = slice(data_loc_copy[0], data_loc_copy[1])
+        # use the chunk_time_range for writes unless this variable is a non-time dim array (beam for example)
+        chunk_idx = tuple(
+            chunk_time_range if dims_of_arrays[var_name][1].index(i) == timaxis else slice(0, i) for i in
+            dims_of_arrays[var_name][1])
+        self.rootgroup[var_name][chunk_idx] = zarr.array(xarr_data, shape=dims_of_arrays[var_name][1], chunks=chunksize)
+
     def _write_existing_rootgroup(self, xarr: xr.Dataset, data_loc_copy: Union[list, np.ndarray], var_name: str, dims_of_arrays: dict,
                                   chunksize: tuple, timlength: int, timaxis: int, startingshp: tuple, push_forward: list):
         """
@@ -798,26 +835,36 @@ class ZarrWrite:
                 self._push_existing_data_forward(var_name, dims_of_arrays, timaxis, push_forward, starting_size)
 
         if isinstance(data_loc_copy, list):  # [start index, end index]
-            # the last write will often be less than the block size.  This is allowed in the zarr store, but we
-            #    need to correct the index for it.
-            if timlength != data_loc_copy[1] - data_loc_copy[0]:
-                data_loc_copy[1] = data_loc_copy[0] + timlength
-
-            # location for new data, assume constant chunksize (as we are doing this outside of this function)
-            chunk_time_range = slice(data_loc_copy[0], data_loc_copy[1])
-            # use the chunk_time_range for writes unless this variable is a non-time dim array (beam for example)
-            chunk_idx = tuple(
-                chunk_time_range if dims_of_arrays[var_name][1].index(i) == timaxis else slice(0, i) for i in
-                dims_of_arrays[var_name][1])
-            self.rootgroup[var_name][chunk_idx] = zarr.array(xarr_data, shape=dims_of_arrays[var_name][1], chunks=chunksize)
+            self._overwrite_existing_rootgroup(xarr_data, data_loc_copy, var_name, dims_of_arrays, chunksize,
+                                               timlength, timaxis)
         else:  # np.array([4,5,6,1,2,3,8,9...]), indices of the new data, might not be sorted
+            # sort lowers the chance that we end up with a gap in our data locations
             sorted_order = data_loc_copy.argsort()
             xarr_data = xarr_data[sorted_order]
             data_loc_copy = data_loc_copy[sorted_order]
-            zarr_mask = np.zeros_like(self.rootgroup[var_name], dtype=bool)
-            zarr_mask[data_loc_copy] = True
-            # seems to require me to ravel first, examples only show setting with integer, not sure what is going on here
-            self.rootgroup[var_name].set_mask_selection(zarr_mask, xarr_data.ravel())
+            contiguous_chunks = [list(g) for k, g in groupby(data_loc_copy, key=lambda i, j=count(): i - next(j))]
+            idx_start = 0
+            for chnk in contiguous_chunks:
+                chnkdata = xarr_data[idx_start:idx_start + len(chnk)]
+                chnkidx = [chnk[0], chnk[-1]]
+                chnkdims = dims_of_arrays.copy()
+                chnkdims_size = list(chnkdims[var_name][1])
+                chnkdims_size[0] = len(chnk)
+                timlength = len(chnk)
+                chnkdims[var_name][1] = tuple(chnkdims_size)
+                if 'time' in chnkdims:
+                    chnktime_size = list(chnkdims['time'][1])
+                    chnktime_size[0] = len(chnk)
+                    chnkdims['time'][1] = tuple(chnktime_size)
+                self._overwrite_existing_rootgroup(chnkdata, chnkidx, var_name, chnkdims, chunksize, timlength, timaxis)
+                idx_start += len(chnk)
+
+            # below works great except for when self.rootgroup[var_name] is a massive array, on the order of shape=(1000000,400,1)
+            #  then this method explodes your memory.  Instead, have to find contiguous lists and use the list method
+            # zarr_mask = np.zeros_like(self.rootgroup[var_name], dtype=bool)
+            # zarr_mask[data_loc_copy] = True
+            # # seems to require me to ravel first, examples only show setting with integer, not sure what is going on here
+            # self.rootgroup[var_name].set_mask_selection(zarr_mask, xarr_data.ravel())
 
     def _write_new_dataset_rootgroup(self, xarr: xr.Dataset, var_name: str, dims_of_arrays: dict, chunksize: tuple,
                                      startingshp: tuple):
