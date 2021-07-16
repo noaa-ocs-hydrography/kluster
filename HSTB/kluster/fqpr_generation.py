@@ -300,12 +300,9 @@ class Fqpr(ZarrBackend):
         for rp in self.multibeam.raw_ping:
             self.write_attributes('ping', copy_dict, sys_id=rp.system_identifier)
             for ky in copy_dict:  # now set the in memory version to match the written one
-                if isinstance(copy_dict[ky], dict) and isinstance(rp.attrs[ky], dict):
-                    try:
-                        rp.attrs[ky].update(copy_dict[ky])
-                    except:
-                        rp.attrs[ky] = copy_dict[ky]
-                else:
+                try:  # first try to update with a new dict, don't always want to replace existing keys in case the new dict is just a part of the original
+                    rp.attrs[ky].update(copy_dict[ky])
+                except:  # all other data ends up replacing which is fine
                     rp.attrs[ky] = copy_dict[ky]
 
     def import_sound_velocity_files(self, src: Union[str, list]):
