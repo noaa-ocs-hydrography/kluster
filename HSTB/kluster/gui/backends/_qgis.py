@@ -177,9 +177,13 @@ class QueryTool(qgis_gui.QgsMapTool):
                             lname = layer.name()
                             if lname[0:8] == '/vsimem/':
                                 lname = lname[8:]
-                            text += '\n\n{}'.format(lname)
-                            for ky, val in ident.results().items():
-                                text += '\n{}: {}'.format(layer.bandName(ky), round(val, 3))
+                            bands_under_cursor = ident.results()
+                            band_exists = False
+                            for ky, val in bands_under_cursor.items():
+                                band_name, band_value = layer.bandName(ky), round(val, 3)
+                                if not band_exists and band_name:
+                                    text += '\n\n{}'.format(lname)
+                                text += '\n{}: {}'.format(band_name, band_value)
                     except:  # point is outside of the transform
                         pass
         return text
