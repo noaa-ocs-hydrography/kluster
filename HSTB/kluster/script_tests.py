@@ -531,7 +531,19 @@ xdataset = xr.open_zarr(r"C:\Pydro21_Dev\NOAA\site-packages\Python38\git_repos\h
 
 # need to push forward starting from the end I think
 #
-# data_size = starting_size + push_amount - push_idx = 1000750
+push_idx = 250
+push_amount = 105000
+starting_size = 255000
+push_chunk_idx = 255000
+push_amount_chunked = [5000, 50000, 50000]
+
+pc = push_amount_chunked[0]
+data_range = slice(push_chunk_idx - pc, push_chunk_idx)
+final_location_range = slice(push_chunk_idx - pc + push_amount, push_chunk_idx + push_amount)
+push_chunk_idx -= pc
+
+
+# data_size = starting_size + push_amount - push_idx = 1050000
 # move_size = 10000 if data_size > 10000 else data_size
 # data_size -= move_size
 #
@@ -540,3 +552,5 @@ xdataset = xr.open_zarr(r"C:\Pydro21_Dev\NOAA\site-packages\Python38\git_repos\h
 #
 # move data from [901000:1001000] to [902250:1002250]
 # move data from [801000:901000] to [802250:902250]
+
+tst = 10000001

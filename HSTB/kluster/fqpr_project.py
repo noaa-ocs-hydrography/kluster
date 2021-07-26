@@ -164,12 +164,15 @@ class FqprProject:
             data = json.load(pf)
         # now translate the relative paths to absolute
         self.path = projfile
-        if data['vessel_file']:
-            self.vessel_file = self.absolute_path_from_relative(data['vessel_file'])
-            if not os.path.exists(self.vessel_file):
-                print('Unable to find vessel file: {}'.format(self.vessel_file))
-                self.vessel_file = None
-                data['vessel_file'] = None
+        if 'vessel_file' in data:
+            if data['vessel_file']:
+                self.vessel_file = self.absolute_path_from_relative(data['vessel_file'])
+                if not os.path.exists(self.vessel_file):
+                    print('Unable to find vessel file: {}'.format(self.vessel_file))
+                    self.vessel_file = None
+                    data['vessel_file'] = None
+        else:
+            data['vessel_file'] = None
         data['fqpr_paths'] = [self.absolute_path_from_relative(f) for f in data['fqpr_paths']]
         data['surface_paths'] = [self.absolute_path_from_relative(f) for f in data['surface_paths']]
         for ky in ['fqpr_paths', 'surface_paths']:
@@ -237,15 +240,22 @@ class FqprProject:
 
         if self.path is None:
             raise EnvironmentError('kluster_project save_project - no data found, you must add data before saving a project')
+        if os.path.exists(self.path):
+            try:
+                data = self._load_project_file(self.path)
+                data['fqpr_paths'] = [self.path_relative_to_project(pth) for pth in data['fqpr_paths']]
+                data['surface_paths'] = [self.path_relative_to_project(pth) for pth in data['surface_paths']]
+            except:
+                print('Warning: Unable to read from project file: {}'.format(self.path))
+                data = {'fqpr_paths': [], 'surface_paths': [], 'vessel_file': None}
+        else:
+            data = {'fqpr_paths': [], 'surface_paths': [], 'vessel_file': None}
         with open(self.path, 'w') as pf:
-            data = {}
-            data['fqpr_paths'] = self.return_fqpr_paths()
-            data['surface_paths'] = self.return_surface_paths()
+            data['fqpr_paths'] = list(set(self.return_fqpr_paths() + data['fqpr_paths']))
+            data['surface_paths'] = list(set(self.return_surface_paths() + data['surface_paths']))
             data['file_format'] = self.file_format
             if self.vessel_file:
                 data['vessel_file'] = self.path_relative_to_project(self.vessel_file)
-            else:
-                data['vessel_file'] = self.vessel_file
             data.update(self.settings)
             json.dump(data, pf, sort_keys=True, indent=4)
         print('Project saved to {}'.format(self.path))

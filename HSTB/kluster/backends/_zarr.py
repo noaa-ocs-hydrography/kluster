@@ -721,11 +721,16 @@ class ZarrWrite:
                 finalsize if dims_of_arrays[var][1].index(x) == timaxis else x for x in dims_of_arrays[var][1])
         return timaxis, timlength, startingshp
 
-    def _push_existing_data_forward(self, variable_name: str, dims_of_arrays: dict, timaxis: int, push_forward: list, starting_size: int):
+    def _push_existing_data_forward(self, variable_name: str, dims_of_arrays: dict, timaxis: int, push_forward: list,
+                                    starting_size: int, max_push_amount: int = 50000):
         """
         If the user is trying to write data that comes before the existing data in the time dimension, we need to push
         the existing data up to make room, after resizing to the total size.  This allows us to then write the new data
         prior to the existing data.
+
+        If the amount of data that we need to push forward is greater (in the time dimension) than the max_push_amount,
+        we push the data forward in chunks starting at the end.  This helps with datasets on disk that on trying to load
+        entirely into memory we exceed the total system memory.
 
         Recommend examining the test_backend tests if you want to understand this a bit more
 
@@ -741,20 +746,36 @@ class ZarrWrite:
             list of [index of push, total amount to push] for each push
         starting_size
             size of the array on disk before we resized to make room
+        max_push_amount
+            maximum size of the chunk of data that will be moved.  If the total amount of data that needs to be moved
+            is too large, it could cause memory errors.  This amount limits the amount of data read at a time.
         """
 
         total_push = 0
         for push_idx, push_amount in push_forward:
-            data_range = slice(push_idx, starting_size + total_push)
-            data_chunk_idx = tuple(data_range if dims_of_arrays[variable_name][1].index(i) == timaxis else slice(0, i) for i in
-                                   dims_of_arrays[variable_name][1])
-            final_location_range = slice(push_idx + push_amount, starting_size + push_amount + total_push)
-            loc_chunk_idx = tuple(final_location_range if dims_of_arrays[variable_name][1].index(i) == timaxis else slice(0, i) for i in
-                                  dims_of_arrays[variable_name][1])
+            push_amount_chunked = []
+            push_amount_working = starting_size - push_idx + total_push
+            while push_amount_working:
+                if push_amount_working > max_push_amount:
+                    push_amount_chunked.append(max_push_amount)
+                    push_amount_working -= max_push_amount
+                else:
+                    push_amount_chunked.append(push_amount_working)
+                    push_amount_working = 0
+            push_amount_chunked = push_amount_chunked[::-1]  # we push starting at the end to not overwrite data as we push
+            push_chunk_loc = starting_size
+            for pushchunk in push_amount_chunked:
+                data_range = slice(push_chunk_loc - pushchunk + total_push, push_chunk_loc + total_push)
+                data_chunk_idx = tuple(data_range if dims_of_arrays[variable_name][1].index(i) == timaxis else slice(0, i) for i in
+                                       dims_of_arrays[variable_name][1])
+                final_location_range = slice(push_chunk_loc - pushchunk + push_amount + total_push, push_chunk_loc + push_amount + total_push)
+                loc_chunk_idx = tuple(final_location_range if dims_of_arrays[variable_name][1].index(i) == timaxis else slice(0, i) for i in
+                                      dims_of_arrays[variable_name][1])
+                self.rootgroup[variable_name][loc_chunk_idx] = self.rootgroup[variable_name][data_chunk_idx]
+                push_chunk_loc -= pushchunk
             empty_range = slice(push_idx, push_idx + push_amount)
             empty_chunk_idx = tuple(empty_range if dims_of_arrays[variable_name][1].index(i) == timaxis else slice(0, i) for i in
                                     dims_of_arrays[variable_name][1])
-            self.rootgroup[variable_name][loc_chunk_idx] = self.rootgroup[variable_name][data_chunk_idx]
             self.rootgroup[variable_name][empty_chunk_idx] = self.rootgroup[variable_name].fill_value
             total_push += push_amount
 
