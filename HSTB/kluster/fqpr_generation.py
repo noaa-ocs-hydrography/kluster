@@ -2844,7 +2844,7 @@ class Fqpr(ZarrBackend):
                 self.ping_filter.append(seg_filter)
         return x, y, z, tvu, rejected, pointtime, beam
 
-    def return_soundings_in_polygon(self, polygon: np.ndarray, azimuth: float, geographic: bool = True,
+    def return_soundings_in_polygon(self, polygon: np.ndarray, geographic: bool = True,
                                     full_swath: bool = False):
         """
         Using provided coordinates (in either horizontal_crs projected or geographic coordinates), return the soundings
@@ -2853,9 +2853,7 @@ class Fqpr(ZarrBackend):
         Parameters
         ----------
         polygon
-            (N, 2) array of points that make up the selection polygon,  (latitude, longitude) in degrees
-        azimuth
-            azimuth of the selection polygon in radians
+            (N, 2) array of points that make up the selection polygon,  (longitude, latitude) in degrees
         geographic
             If True, the coordinates provided are geographic (latitude/longitude)
         full_swath
@@ -2877,8 +2875,6 @@ class Fqpr(ZarrBackend):
             list of 1d numpy arrays for the time of the soundings in the box
         list
             list of 1d numpy arrays for the beam number of the soundings in the box
-        list
-            list of 1d numpy arrays for the heading of the soundings in the box (empty if soundings_by_box)
         """
 
         if 'horizontal_crs' not in self.multibeam.raw_ping[0].attrs or 'z' not in self.multibeam.raw_ping[0].variables.keys():

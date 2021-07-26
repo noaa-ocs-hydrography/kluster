@@ -137,13 +137,13 @@ def is_inside_sm(polygon, point):
             if dy<0 or dy2<0:
                 F = dy*(polygon[jj][0] - polygon[ii][0])/(dy-dy2) + polygon[ii][0]
 
-                if point[0] > F: # if line is left from the point - the ray moving towards left, will intersect it
+                if point[0] > F:  # if line is left from the point - the ray moving towards left, will intersect it
                     intersections += 1
-                elif point[0] == F: # point on line
+                elif point[0] == F:  # point on line
                     return 2
 
             # point on upper peak (dy2=dx2=0) or horizontal line (dy=dy2=0 and dx*dx2<=0)
-            elif dy2==0 and (point[0]==polygon[jj][0] or (dy==0 and (point[0]-polygon[ii][0])*(point[0]-polygon[jj][0])<=0)):
+            elif dy2 == 0 and (point[0] == polygon[jj][0] or (dy == 0 and (point[0] - polygon[ii][0]) * (point[0] - polygon[jj][0]) <= 0)):
                 return 2
 
         ii = jj
@@ -158,7 +158,7 @@ def is_inside_sm_parallel(points, polygon):
     ln = len(points)
     D = np.empty(ln, dtype=numba.boolean)
     for i in numba.prange(ln):
-        D[i] = is_inside_sm(polygon,points[i])
+        D[i] = is_inside_sm(polygon, points[i])
     return D
 
 

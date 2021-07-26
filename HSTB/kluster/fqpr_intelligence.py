@@ -1045,8 +1045,6 @@ class FqprIntel(LoggerClass):
                 self.project.add_fqpr(output)
                 self.project.save_project()
                 self.update_intel_for_action_results(action_type)
-        else:
-            print('FqprIntel: no actions remaining')
 
     def update_intel_for_action_results(self, action_type: str):
         """

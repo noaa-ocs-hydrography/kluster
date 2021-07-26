@@ -716,7 +716,7 @@ class FqprProject:
                     lines_in_box.append(fq_line)
         return lines_in_box
 
-    def return_soundings_in_polygon(self, polygon: np.ndarray, azimuth: float):
+    def return_soundings_in_polygon(self, polygon: np.ndarray):
         """
         With the given latitude/longitude polygon, return the soundings that are within the boundaries.  Use the
         Fqpr horizontal_crs recorded EPSG to do the transformation to northing/easting, and then query all the x, y to get
@@ -728,8 +728,6 @@ class FqprProject:
         ----------
         polygon
             (N, 2) array of points that make up the selection polygon,  (longitude, latitude) in degrees
-        azimuth
-            azimuth of the selection polygon in radians
 
         Returns
         -------
@@ -740,7 +738,7 @@ class FqprProject:
         for fq_name, fq_inst in self.fqpr_instances.items():
             fq_inst.ping_filter = []  # reset ping filter for all instances when you try and make a new selection
             if fq_inst.intersects(polygon[:, 1].min(), polygon[:, 1].max(), polygon[:, 0].min(), polygon[:, 0].max(), geographic=True):
-                x, y, z, tvu, rejected, pointtime, beam = fq_inst.return_soundings_in_polygon(polygon, azimuth, geographic=True, full_swath=False)
+                x, y, z, tvu, rejected, pointtime, beam = fq_inst.return_soundings_in_polygon(polygon, geographic=True, full_swath=False)
                 if x is not None:
                     linenames = fq_inst.return_lines_for_times(pointtime)
                     data[fq_name] = [x, y, z, tvu, rejected, pointtime, beam, linenames]

@@ -172,6 +172,7 @@ class KlusterMain(QtWidgets.QMainWindow):
 
         self.points_view.points_selected.connect(self.show_points_in_explorer)
 
+        self.action_thread.started.connect(self._start_action_progress)
         self.action_thread.finished.connect(self._kluster_execute_action_results)
         self.overwrite_nav_thread.started.connect(self._start_action_progress)
         self.overwrite_nav_thread.finished.connect(self._kluster_overwrite_nav_results)
@@ -669,7 +670,7 @@ class KlusterMain(QtWidgets.QMainWindow):
 
         cancelled = False
         if not self.no_threads_running():
-            print('Processing is already occurring.  Please wait for the process to finish')
+            # print('Processing is already occurring.  Please wait for the process to finish')
             cancelled = True
         if not cancelled:
             self.output_window.clear()
@@ -1391,7 +1392,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         print('Selecting Points in Polygon...')
         pointcount = 0
         self.points_view.clear()
-        pts_data = self.project.return_soundings_in_polygon(polygon, azimuth)
+        pts_data = self.project.return_soundings_in_polygon(polygon)
         for fqpr_name, pointdata in pts_data.items():
             self.points_view.add_points(pointdata[0], pointdata[1], pointdata[2], pointdata[3], pointdata[4], pointdata[5],
                                         pointdata[6], fqpr_name, pointdata[7], is_3d=True)
@@ -1415,7 +1416,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         print('Selecting Points in Polygon...')
         pointcount = 0
         self.points_view.clear()
-        pts_data = self.project.return_soundings_in_polygon(polygon, azimuth)
+        pts_data = self.project.return_soundings_in_polygon(polygon)
         for fqpr_name, pointdata in pts_data.items():
             self.points_view.add_points(pointdata[0], pointdata[1], pointdata[2], pointdata[3], pointdata[4], pointdata[5],
                                         pointdata[6], fqpr_name, pointdata[7], is_3d=False)
