@@ -279,7 +279,7 @@ class TurntableCameraInteractive(scene.TurntableCamera):
             (x distance, y distance)
         """
 
-        dist = (start_pos - end_pos) / self._viewbox.size * self.scale_factor * 2
+        dist = (start_pos - end_pos) / self._viewbox.size * self.distance
         return dist
 
     def _handle_translate_event(self, start_pos, end_pos):
