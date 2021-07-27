@@ -78,6 +78,7 @@ class FqprIntel(LoggerClass):
         self.parent = parent
 
         self.keep_waterline_changes = True
+        self.force_coordinate_match = True
 
         self.multibeam_intel = MultibeamModule(silent=self.silent, logger=self.logger)
         self.nav_intel = NavigationModule(silent=self.silent, logger=self.logger)
@@ -152,6 +153,8 @@ class FqprIntel(LoggerClass):
             self._regenerate_multibeam_actions()
         if 'keep_waterline_changes' in settings:
             self.keep_waterline_changes = settings['keep_waterline_changes']
+        if 'force_coordinate_match' in settings:
+            self.force_coordinate_match = settings['force_coordinate_match']
         self.regenerate_actions()
 
     def update_from_project(self, project_updated: bool = True):
@@ -594,20 +597,41 @@ class FqprIntel(LoggerClass):
         """
         Build a new coordinate system instance (pyproj CRS object) based on the processing settings.  We will later compare
         this to the coordinate system in the fqpr instance to see if they match, if not they will need to be georeferenced.
+
+        If you have force_coordinate_match, the new CRS will always be the first CRS we find amongst the loaded fqpr instances.
         """
 
+        new_coord_system = None
+        forced_coordinate_match = False
         if 'use_epsg' in self.processing_settings:  # if someone setup the project with a default coord system
+            # use_epsg trumps all other checks, if they enter in an EPSG code, we use that.
             if self.processing_settings['use_epsg']:
                 new_coord_system, err = build_crs(epsg=self.processing_settings['epsg'])
+            # force coordinate match takes effect if they don't specify EPSG, we use the first EPSG of the loaded days of data for all days
+            elif self.force_coordinate_match and len(self.project.fqpr_instances) > 1:
+                for relative_path, fqpr_instance in self.project.fqpr_instances.items():
+                    if 'horizontal_crs' in fqpr_instance.multibeam.raw_ping[0].attrs:
+                        try:
+                            existing_epsg = int(fqpr_instance.multibeam.raw_ping[0].horizontal_crs)
+                            new_coord_system, err = build_crs(epsg=str(existing_epsg))
+                            forced_coordinate_match = True
+                            break
+                        except:
+                            self.print_msg('Unable to generate EPSG from {}'.format(fqpr_instance.multibeam.raw_ping[0].horizontal_crs), logging.WARNING)
+                if new_coord_system is None:  # no valid coord systems in the project, have to auto pick this one
+                    # self.print_msg('Force coordinate system match was used, but no existing coordinate systems found, defaulting to auto utm.', logging.WARNING)
+                    new_coord_system, err = build_crs(zone_num=fqpr_instance.multibeam.return_utm_zone_number(),
+                                                      datum=self.processing_settings['coord_system'])
+            # otherwise just do the auto utm calc to get the new coordinate system
             else:
                 new_coord_system, err = build_crs(zone_num=fqpr_instance.multibeam.return_utm_zone_number(),
                                                   datum=self.processing_settings['coord_system'])
             if err:
-                self.logger.error(err)
+                self.print_msg(err, logging.ERROR)
                 raise ValueError(err)
         else:
             new_coord_system = None
-        return new_coord_system
+        return new_coord_system, forced_coordinate_match
 
     def _regenerate_processing_actions(self, reprocess_fqpr: str = None, keep_waterline_changes: bool = True):
         """
@@ -631,8 +655,9 @@ class FqprIntel(LoggerClass):
                 if action.action_type == 'processing' and action.output_destination not in all_current_project_paths:
                     self.action_container.remove_action(action)
             for relative_path, fqpr_instance in self.project.fqpr_instances.items():
-                identical_tpu, identical_offsets, identical_angles, new_waterline = self._update_offsets(fqpr_instance, vessel_file, keep_waterline_changes=keep_waterline_changes)
-                new_coord_system = self._build_new_crs(fqpr_instance)
+                identical_tpu, identical_offsets, identical_angles, new_waterline = self._update_offsets(fqpr_instance, vessel_file,
+                                                                                                         keep_waterline_changes=keep_waterline_changes)
+                new_coord_system, forced_coordinate_match = self._build_new_crs(fqpr_instance)
                 if 'vert_ref' in self.processing_settings:  # if someone setup the project with a default vert ref
                     new_vert_ref = self.processing_settings['vert_ref']
                 else:
@@ -651,11 +676,13 @@ class FqprIntel(LoggerClass):
                     if kwargs == {}:
                         self.action_container.remove_action(action[0])
                     else:
-                        settings = fqpr_actions.update_kwargs_for_processing(abs_path, args, kwargs, self.processing_settings)
+                        settings = fqpr_actions.update_kwargs_for_processing(abs_path, args, kwargs, self.processing_settings,
+                                                                             force_epsg=forced_coordinate_match)
                         self.action_container.update_action(action[0], **settings)
                 else:  # if valid kwargs are returned, there is a new processing action to take
                     if kwargs != {}:
-                        newaction = fqpr_actions.build_processing_action(abs_path, args, kwargs, self.processing_settings)
+                        newaction = fqpr_actions.build_processing_action(abs_path, args, kwargs, self.processing_settings,
+                                                                         force_epsg=forced_coordinate_match)
                         self.action_container.add_action(newaction)
         else:
             print('FqprIntel: no project loaded, no processing actions constructed.')
@@ -1018,8 +1045,6 @@ class FqprIntel(LoggerClass):
                 self.project.add_fqpr(output)
                 self.project.save_project()
                 self.update_intel_for_action_results(action_type)
-        else:
-            print('FqprIntel: no actions remaining')
 
     def update_intel_for_action_results(self, action_type: str):
         """
@@ -1762,7 +1787,8 @@ def likelihood_start_end_times_close(filetimes: list, compare_times: list, allow
 
 def intel_process(filname: Union[str, list], outfold: str = None, coord_system: str = 'NAD83',
                   epsg: int = None, use_epsg: bool = False, vert_ref: str = 'waterline',
-                  parallel_write: bool = True, vdatum_directory: str = None):
+                  parallel_write: bool = True, vdatum_directory: str = None, force_coordinate_system: bool = True,
+                  logger: logging.Logger = None):
     """
     Use Kluster intelligence module to organize and process all input files.  Files can be a list of files, a single
     file, or a directory full of files.  Files can be multibeam files, .svp sound velocity profile files, SBET and
@@ -1786,6 +1812,12 @@ def intel_process(filname: Union[str, list], outfold: str = None, coord_system: 
         if True, will write in parallel to disk, Disable for permissions issues troubleshooting.
     vdatum_directory
         if 'NOAA MLLW' 'NOAA MHW' is the vertical reference, a path to the vdatum directory is required here
+    force_coordinate_system
+        if True, will force all converted data to have the same coordinate system.  Only takes effect if you do not use_epsg.
+        use_epsg overwrites this.  If coord_system/autoutm is used, this will ensure that all data added will have a
+        utm zone equal to the first converted data instance.
+    logger
+        logging.Logger instance, if included will use this logger in Kluster
 
     Returns
     -------
@@ -1802,10 +1834,11 @@ def intel_process(filname: Union[str, list], outfold: str = None, coord_system: 
             project.open_project(potential_project_file)
         else:
             project._setup_new_project(outfold)
-    intel = FqprIntel(project)
+    intel = FqprIntel(project, logger=logger)
 
     settings = {'use_epsg': use_epsg, 'epsg': epsg, 'use_coord': not use_epsg, 'coord_system': coord_system,
-                'vert_ref': vert_ref, 'parallel_write': parallel_write, 'vdatum_directory': vdatum_directory}
+                'vert_ref': vert_ref, 'parallel_write': parallel_write, 'vdatum_directory': vdatum_directory,
+                'force_coordinate_match': force_coordinate_system}
     intel.set_settings(settings)
 
     if isinstance(filname, str):
@@ -1813,7 +1846,15 @@ def intel_process(filname: Union[str, list], outfold: str = None, coord_system: 
             filname = [os.path.join(filname, f) for f in os.listdir(filname)]
         filname = [filname]
     for f in filname:
-        updated_type, new_data, new_project = intel.add_file(f)
+        try:
+            updated_type, new_data, new_project = intel.add_file(f)
+        except Exception as e:
+            if logger:
+                logger.log(logging.ERROR, 'Unable to load from file {}'.format(f))
+                logger.log(logging.ERROR, e)
+            else:
+                print('Unable to load from file {}'.format(f))
+                print(e)
     while intel.has_actions:
         intel.execute_action()
     return intel, list(intel.project.fqpr_instances.values())
@@ -1821,7 +1862,8 @@ def intel_process(filname: Union[str, list], outfold: str = None, coord_system: 
 
 def intel_process_service(folder_path: str, is_recursive: bool = True, outfold: str = None, coord_system: str = 'NAD83',
                           epsg: int = None, use_epsg: bool = False, vert_ref: str = 'waterline',
-                          parallel_write: bool = True, vdatum_directory: str = None):
+                          parallel_write: bool = True, vdatum_directory: str = None, force_coordinate_system: bool = True,
+                          logger: logging.Logger = None):
     """
     Use Kluster intelligence module to start a new folder monitoring session and process all new files that show
     up in that directory.  Files can be multibeam files, .svp sound velocity profile files, SBET and
@@ -1847,6 +1889,12 @@ def intel_process_service(folder_path: str, is_recursive: bool = True, outfold: 
         if True, will write in parallel to disk, Disable for permissions issues troubleshooting.
     vdatum_directory
         if 'NOAA MLLW' 'NOAA MHW' is the vertical reference, a path to the vdatum directory is required here
+    force_coordinate_system
+        if True, will force all converted data to have the same coordinate system.  Only takes effect if you do not use_epsg.
+        use_epsg overwrites this.  If coord_system/autoutm is used, this will ensure that all data added will have a
+        utm zone equal to the first converted data instance.
+    logger
+        logging.Logger instance, if included will use this logger in Kluster
     """
 
     # consider daemonizing this at some point: https://daemoniker.readthedocs.io/en/latest/index.html
@@ -1857,10 +1905,11 @@ def intel_process_service(folder_path: str, is_recursive: bool = True, outfold: 
             project.open_project(potential_project_file)
         else:
             project._setup_new_project(outfold)
-    intel = FqprIntel(project)
+    intel = FqprIntel(project, logger=logger)
 
     settings = {'use_epsg': use_epsg, 'epsg': epsg, 'use_coord': not use_epsg, 'coord_system': coord_system,
-                'vert_ref': vert_ref, 'parallel_write': parallel_write, 'vdatum_directory': vdatum_directory}
+                'vert_ref': vert_ref, 'parallel_write': parallel_write, 'vdatum_directory': vdatum_directory,
+                'force_coordinate_match': force_coordinate_system}
     intel.set_settings(settings)
 
     intel.start_folder_monitor(folder_path, is_recursive=is_recursive)

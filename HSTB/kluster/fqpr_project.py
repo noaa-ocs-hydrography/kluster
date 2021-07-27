@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from types import FunctionType
 
 from HSTB.kluster.fqpr_generation import Fqpr
-from HSTB.kluster.dask_helpers import dask_find_or_start_client
+from HSTB.kluster.dask_helpers import dask_find_or_start_client, client_needs_restart
 from HSTB.kluster.fqpr_convenience import reload_data, reload_surface, get_attributes_from_fqpr
 from HSTB.kluster.xarray_helpers import slice_xarray_by_dim
 from HSTB.kluster.fqpr_vessel import VesselFile, create_new_vessel_file, convert_from_fqpr_xyzrph
@@ -164,12 +164,15 @@ class FqprProject:
             data = json.load(pf)
         # now translate the relative paths to absolute
         self.path = projfile
-        if data['vessel_file']:
-            self.vessel_file = self.absolute_path_from_relative(data['vessel_file'])
-            if not os.path.exists(self.vessel_file):
-                print('Unable to find vessel file: {}'.format(self.vessel_file))
-                self.vessel_file = None
-                data['vessel_file'] = None
+        if 'vessel_file' in data:
+            if data['vessel_file']:
+                self.vessel_file = self.absolute_path_from_relative(data['vessel_file'])
+                if not os.path.exists(self.vessel_file):
+                    print('Unable to find vessel file: {}'.format(self.vessel_file))
+                    self.vessel_file = None
+                    data['vessel_file'] = None
+        else:
+            data['vessel_file'] = None
         data['fqpr_paths'] = [self.absolute_path_from_relative(f) for f in data['fqpr_paths']]
         data['surface_paths'] = [self.absolute_path_from_relative(f) for f in data['surface_paths']]
         for ky in ['fqpr_paths', 'surface_paths']:
@@ -202,6 +205,9 @@ class FqprProject:
 
         if self.client is None or (self.client.status != 'running'):
             self.client = dask_find_or_start_client()
+        needs_restart = client_needs_restart(self.client)  # handle memory leaks by restarting if memory utilization on fresh client is > 50%
+        if needs_restart:
+            self.client.restart()
         for fqname, fqinstance in self.fqpr_instances.items():
             fqinstance.client = self.client
             fqinstance.multibeam.client = self.client
@@ -234,15 +240,22 @@ class FqprProject:
 
         if self.path is None:
             raise EnvironmentError('kluster_project save_project - no data found, you must add data before saving a project')
+        if os.path.exists(self.path):
+            try:
+                data = self._load_project_file(self.path)
+                data['fqpr_paths'] = [self.path_relative_to_project(pth) for pth in data['fqpr_paths']]
+                data['surface_paths'] = [self.path_relative_to_project(pth) for pth in data['surface_paths']]
+            except:
+                print('Warning: Unable to read from project file: {}'.format(self.path))
+                data = {'fqpr_paths': [], 'surface_paths': [], 'vessel_file': None}
+        else:
+            data = {'fqpr_paths': [], 'surface_paths': [], 'vessel_file': None}
         with open(self.path, 'w') as pf:
-            data = {}
-            data['fqpr_paths'] = self.return_fqpr_paths()
-            data['surface_paths'] = self.return_surface_paths()
+            data['fqpr_paths'] = list(set(self.return_fqpr_paths() + data['fqpr_paths']))
+            data['surface_paths'] = list(set(self.return_surface_paths() + data['surface_paths']))
             data['file_format'] = self.file_format
             if self.vessel_file:
                 data['vessel_file'] = self.path_relative_to_project(self.vessel_file)
-            else:
-                data['vessel_file'] = self.vessel_file
             data.update(self.settings)
             json.dump(data, pf, sort_keys=True, indent=4)
         print('Project saved to {}'.format(self.path))
@@ -465,34 +478,6 @@ class FqprProject:
         if relpath in self.surface_instances:
             self.surface_instances.pop(relpath)
 
-    def build_point_cloud_for_line(self, line: str):
-        """
-        Given line name, build out the point cloud for the line and store it in self.point_cloud_for_line as well as
-        returning it in a list of numpy arrays for x y z
-
-        Parameters
-        ----------
-        line
-            line name
-
-        Returns
-        -------
-        list
-            list of numpy arrays for x y z
-        """
-
-        xyz = None
-        if line not in self.point_cloud_for_line:
-            fq_inst = self.return_line_owner(line)
-            if fq_inst is not None:
-                line_start_time, line_end_time = fq_inst.multibeam.raw_ping[0].multibeam_files[line]
-                xyz = fq_inst.return_xyz(start_time=line_start_time, end_time=line_end_time, include_unc=False)
-                if xyz is not None:
-                    self.point_cloud_for_line[line] = xyz
-        else:
-            xyz = self.point_cloud_for_line[line]
-        return xyz
-
     def build_raw_attitude_for_line(self, line: str, subset: bool = True):
         """
         With the given linename, return the raw_attitude dataset from the fqpr_generation.FQPR instance that contains
@@ -662,16 +647,14 @@ class FqprProject:
                 total_lines.append(fq_line)
         return sorted(total_lines)
 
-    def return_line_navigation(self, line: str, samplerate: float = 1.0):
+    def return_line_navigation(self, line: str):
         """
-        For given line name, return the latitude/longitude downsampled to the given samplerate
+        For given line name, return the latitude/longitude from the ping record
 
         Parameters
         ----------
         line
             line name
-        samplerate
-            new rate at which to downsample the line navigation in seconds
 
         Returns
         -------
@@ -685,11 +668,8 @@ class FqprProject:
             fq_inst = self.return_line_owner(line)
             if fq_inst is not None:
                 line_start_time, line_end_time = fq_inst.multibeam.raw_ping[0].multibeam_files[line]
-                lat, lon = fq_inst.return_downsampled_navigation(sample=samplerate, start_time=line_start_time,
-                                                                 end_time=line_end_time)
-                # convert to numpy
-                lat = lat.values
-                lon = lon.values
+                nav = fq_inst.multibeam.return_raw_navigation(line_start_time, line_end_time)
+                lat, lon = nav.latitude.values, nav.longitude.values
                 # save nav so we don't have to redo this routine if asked for the same line
                 self.buffered_fqpr_navigation[line] = [lat, lon]
             else:
@@ -724,7 +704,7 @@ class FqprProject:
 
         for fq_proj in self.fqpr_lines:
             for fq_line in self.fqpr_lines[fq_proj]:
-                lats, lons = self.return_line_navigation(fq_line, samplerate=2)
+                lats, lons = self.return_line_navigation(fq_line)
 
                 line_min_lat = np.min(lats)
                 line_max_lat = np.max(lats)
@@ -736,7 +716,7 @@ class FqprProject:
                     lines_in_box.append(fq_line)
         return lines_in_box
 
-    def return_soundings_in_polygon(self, polygon: np.ndarray, azimuth: float):
+    def return_soundings_in_polygon(self, polygon: np.ndarray):
         """
         With the given latitude/longitude polygon, return the soundings that are within the boundaries.  Use the
         Fqpr horizontal_crs recorded EPSG to do the transformation to northing/easting, and then query all the x, y to get
@@ -748,8 +728,6 @@ class FqprProject:
         ----------
         polygon
             (N, 2) array of points that make up the selection polygon,  (longitude, latitude) in degrees
-        azimuth
-            azimuth of the selection polygon in radians
 
         Returns
         -------
@@ -759,8 +737,8 @@ class FqprProject:
         data = {}
         for fq_name, fq_inst in self.fqpr_instances.items():
             fq_inst.ping_filter = []  # reset ping filter for all instances when you try and make a new selection
-            if fq_inst.intersects(polygon[:, 1].min(), polygon[:, 1].max(), polygon[:, 0].min(), polygon[:, 0].max(), buffer=True):
-                x, y, z, tvu, rejected, pointtime, beam = fq_inst.return_soundings_in_polygon(polygon, azimuth, geographic=True, full_swath=False)
+            if fq_inst.intersects(polygon[:, 1].min(), polygon[:, 1].max(), polygon[:, 0].min(), polygon[:, 0].max(), geographic=True):
+                x, y, z, tvu, rejected, pointtime, beam = fq_inst.return_soundings_in_polygon(polygon, geographic=True, full_swath=False)
                 if x is not None:
                     linenames = fq_inst.return_lines_for_times(pointtime)
                     data[fq_name] = [x, y, z, tvu, rejected, pointtime, beam, linenames]

@@ -2,6 +2,11 @@
 pass_color = 'color : green'  # color of the gui labels and text where a test passes
 error_color = 'color : red'  # color of the gui labels and text where a test does not pass
 
+# dask_helpers
+# when we get the Client to run a task, we expect all tasks to have finished.  If you get the client and the mem
+# utilization is greater than this percentage, we restart it automatically to clear the memory.
+mem_restart_threshold = 0.40
+
 # kluster_3dview
 selected_point_color = (1, 0.476, 0.953, 1)  # color of points selected in 3dview
 super_selected_point_color = (1, 1, 1, 1)  # color of points in super selection in 3dview
@@ -11,6 +16,7 @@ max_beams = 400  # starting max beams in kluster (can grow beyond)
 epsg_nad83 = 6319
 epsg_wgs84 = 7911
 default_number_of_chunks = 4
+converted_files_at_once = 10
 
 supported_multibeam = ['.all', '.kmall']
 multibeam_uses_quality_factor = ['.all']
@@ -77,6 +83,7 @@ default_beam_opening_angle = 1.0  # default parameter for beam opening angle in 
 ping_chunks = {'time': (ping_chunk_size,), 'beam': (max_beams,), 'xyz': (3,),
                'acrosstrack': (ping_chunk_size, max_beams),
                'alongtrack': (ping_chunk_size, max_beams),
+               'altitude': (ping_chunk_size,),
                'beampointingangle': (ping_chunk_size, max_beams),
                'corr_altitude': (ping_chunk_size,),
                'corr_heave': (ping_chunk_size,),
@@ -86,7 +93,9 @@ ping_chunks = {'time': (ping_chunk_size,), 'beam': (max_beams,), 'xyz': (3,),
                'delay': (ping_chunk_size, max_beams),
                'depthoffset': (ping_chunk_size, max_beams),
                'detectioninfo': (ping_chunk_size, max_beams),
-               'frequency': (ping_chunk_size, max_beams), 
+               'frequency': (ping_chunk_size, max_beams),
+               'latitude': (ping_chunk_size,),
+               'longitude': (ping_chunk_size,),
                'mode': (ping_chunk_size,),
                'modetwo': (ping_chunk_size,),
                'ntx': (ping_chunk_size,),

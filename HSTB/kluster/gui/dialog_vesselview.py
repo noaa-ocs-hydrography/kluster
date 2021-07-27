@@ -16,6 +16,7 @@ from vispy.color import Color
 from HSTB.kluster.xarray_conversion import return_xyzrph_from_posmv, return_xyzrph_from_mbes
 from HSTB.kluster.fqpr_vessel import VesselFile
 from HSTB.kluster import kluster_variables
+from HSTB.kluster.gui.common_widgets import AcceptDialog
 from HSTB.shared import RegistryHelpers
 
 launch_sensor_size = 0.6
@@ -1996,6 +1997,7 @@ class VesselWidget(QtWidgets.QWidget):
     two widgets.
     """
     vessel_file_modified = Signal(bool)
+    converted_xyzrph_modified = Signal(dict)
 
     def __init__(self, parent=None):
         QtWidgets.QWidget.__init__(self, parent)
@@ -2330,30 +2332,35 @@ class VesselWidget(QtWidgets.QWidget):
         self.vessview_window.clear_sensors()
         self.vessview_window.clear_vessel()
 
-    def save_configuration(self):
+    def save_configuration(self, event=None):
         """
         Save the xyzrph to kluster configuration file.  If you haven't changed the vessel or vessel position, you
         won't have recorded it just yet to xyzrph.  We do a last minute check to ensure the save config has all the
         right information.
         """
 
-        msg, fil = RegistryHelpers.GetFilenameFromUserQT(self, RegistryKey='kluster',
-                                                         Title='Save the kluster configuration to disk',
-                                                         AppName='klustersave', bMulti=False, bSave=True,
-                                                         fFilter='Kluster configuration (*.kfc)')
-        if fil:
-            if self.xyzrph is not None:
-                self.opts_window.config_name.setText(os.path.split(fil)[1])
-                vf = VesselFile()
-                vf.data = self.xyzrph
-                vf.save(fil)
-                self.vessel_file_modified.emit(True)
+        if self.opts_window.config_name.text() == 'None':  # this data loaded was not from a config file, so we can update or save a new file
+            save_first = AcceptDialog('Do you want to create a new vessel file or update the multibeam data offsets?\n' +
+                                      '(update only works when this data was loaded from the main Kluster display)\n\n' +
+                                      'Yes = create new vessel file, No = update multibeam data, Cancel = neither')
+            save_state = save_first.run()
+            if save_state == 'yes':
+                self.save_to_config_file()
+            elif save_state == 'no':
+                self.converted_xyzrph_modified.emit(self.xyzrph)
+                pass
             else:
-                print('No data found for xyzrph: {}'.format(self.xyzrph))
+                if event:
+                    event.ignore()
+                return
         else:
-            print('Save cancelled')
+            self.save_to_config_file()
 
     def add_to_configuration(self):
+        """
+        Add or modify the existing entry for this system in the vessel file with the currently loaded data
+        """
+
         msg, fil = RegistryHelpers.GetFilenameFromUserQT(self, RegistryKey='kluster',
                                                          Title='Add our configuration to this configuration file',
                                                          AppName='klustersave', bMulti=False, bSave=False,
@@ -2371,7 +2378,7 @@ class VesselWidget(QtWidgets.QWidget):
             else:
                 print('Unable to find file: {}'.format(fil))
         else:
-            print('Open cancelled')
+            print('Add to configuration cancelled')
 
     def load_from_existing_xyzrph(self):
         """
@@ -2432,6 +2439,23 @@ class VesselWidget(QtWidgets.QWidget):
         self.xyzrph = vf.data
         self.load_from_existing_xyzrph()
 
+    def save_to_config_file(self):
+        msg, fil = RegistryHelpers.GetFilenameFromUserQT(self, RegistryKey='kluster',
+                                                         Title='Save the kluster configuration to disk',
+                                                         AppName='klustersave', bMulti=False, bSave=True,
+                                                         fFilter='Kluster configuration (*.kfc)')
+        if fil:
+            if self.xyzrph is not None:
+                self.opts_window.config_name.setText(os.path.split(fil)[1])
+                vf = VesselFile()
+                vf.data = self.xyzrph
+                vf.save(fil)
+                self.vessel_file_modified.emit(True)
+            else:
+                print('No data found for xyzrph: {}'.format(self.xyzrph))
+        else:
+            print('Save cancelled')
+
     def open_configuration(self):
         """
         Open the kluster configuration file and store it as xyzrph
@@ -2451,18 +2475,17 @@ class VesselWidget(QtWidgets.QWidget):
             print('Open cancelled')
 
     def _handle_close_event(self, event=None):
+        """
+        Each time the dialog is closed, runs this dialog to check if we want to save changes.
+        """
         if self.xyzrph:
-            save_first = QtWidgets.QMessageBox()
-            save_first.setWindowTitle('Kluster Vessel Setup')
-            save_first.setText("Do you want to save your changes?")
-            save_first.setStandardButtons(QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No | QtWidgets.QMessageBox.Cancel)
-            save_first.setDefaultButton(QtWidgets.QMessageBox.Yes)
-            ret = save_first.exec_()
-            if ret == QtWidgets.QMessageBox.Yes:
-                self.save_configuration()
-            elif ret == QtWidgets.QMessageBox.No:
+            save_first = AcceptDialog("Do you want to save your changes?", 'Kluster Vessel Setup')
+            save_state = save_first.run()
+            if save_state == 'yes':
+                self.save_configuration(event)
+            elif save_state == 'no':
                 pass
-            elif ret == QtWidgets.QMessageBox.Cancel:
+            elif save_state == 'cancel':
                 if event:
                     event.ignore()
                 return

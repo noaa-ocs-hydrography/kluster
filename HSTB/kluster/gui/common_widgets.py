@@ -13,6 +13,28 @@ from HSTB.kluster import kluster_variables
 #   BrowseListWidget - You need a list widget with browse buttons and removing of items built in?  Check this out
 #   RangeSlider - Build a custom slider with two handles, allowing you to specify a range.
 #   PlotDataHandler - Widget allowing the user to provide a directory of kluster converted data and specify a time range in a number of different ways.
+#   AcceptDialog - Widget for yes/no dialog options or even three options
+
+
+class AcceptDialog(QtWidgets.QMessageBox):
+    def __init__(self, message: str = 'default message', title: str = 'default title', mode: str = 'threeoption'):
+        super().__init__()
+        self.setWindowTitle(title)
+        self.setText(message)
+        if mode == 'threeoption':
+            self.setStandardButtons(QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No | QtWidgets.QMessageBox.Cancel)
+        self.setDefaultButton(QtWidgets.QMessageBox.Yes)
+
+    def run(self):
+        result = self.exec_()
+        if result == QtWidgets.QMessageBox.Cancel:
+            return 'cancel'
+        elif result == QtWidgets.QMessageBox.No:
+            return 'no'
+        elif result == QtWidgets.QMessageBox.Yes:
+            return 'yes'
+        else:
+            raise ValueError('AcceptDialog: Unable to translate return code {}'.format(result))
 
 
 class PlotDataHandler(QtWidgets.QWidget):
@@ -154,7 +176,6 @@ class PlotDataHandler(QtWidgets.QWidget):
 
         C:\collab\dasktest\data_dir\kmall_test\mbes\converted
         C:\collab\dasktest\data_dir\kmall_test\mbes\converted\attitude.zarr
-        C:\collab\dasktest\data_dir\kmall_test\mbes\converted\navigation.zarr
         C:\collab\dasktest\data_dir\kmall_test\mbes\converted\ping_53011.zarr
 
         You would point at the converted folder using this browse button.
@@ -386,12 +407,15 @@ class PlotDataHandler(QtWidgets.QWidget):
             self._set_display_range(self.slider_mintime, self.slider_maxtime)
             self._set_display_minmax(self.fqpr_mintime, self.fqpr_maxtime)
 
-    def new_fqpr_path(self, fqpr_path: str):
+    def new_fqpr_path(self, fqpr_path: str, fqpr_loaded=None):
         """
         User selected a new fqpr instance (fqpr = the converted datastore, see file_browse)
         """
         try:
-            self.fqpr = reload_data(fqpr_path, skip_dask=True, silent=True)
+            if fqpr_loaded:
+                self.fqpr = fqpr_loaded
+            else:
+                self.fqpr = reload_data(fqpr_path, skip_dask=True, silent=True)
             self.fil_text.setText(fqpr_path)
 
             if self.fqpr is not None:

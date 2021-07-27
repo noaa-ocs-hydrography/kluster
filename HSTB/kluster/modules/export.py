@@ -378,25 +378,42 @@ class FqprExport:
         y = np.round(y.values, 2)
         z = np.round(z.values, 3)
 
-        hdr = laspy.header.Header(file_version=1.4, point_format=3)  # pt format 3 includes GPS time
-        hdr.x_scale = 0.01  # xyz precision, las stores data as int
-        hdr.y_scale = 0.01
-        hdr.z_scale = 0.001
-        # offset apparently used to store only differences, but you still write the actual value?  needs more understanding.
-        hdr.x_offset = np.floor(float(x.min()))
-        hdr.y_offset = np.floor(float(y.min()))
-        hdr.z_offset = np.floor(float(z.min()))
-        outfile = laspy.file.File(dest_path, mode='w', header=hdr)
-        outfile.x = x
-        outfile.y = y
-        outfile.z = z
-        if classification is not None:
-            classification[np.where(classification < 2)] = 1  # 1 = Unclassified according to LAS spec
-            classification[np.where(classification == 2)] = 7  # 7 = Low Point (noise) according to LAS spec
-            outfile.classification = classification.astype(np.int8)
-        # if uncertainty_included:  # putting it in Intensity for now as integer mm, Intensity is an int16 field
-        #     outfile.intensity = (uncertainty.values * 1000).astype(np.int16)
-        outfile.close()
+        try:  # pre laspy 2.0
+            hdr = laspy.header.Header(file_version=1.4, point_format=3)  # pt format 3 includes GPS time
+            hdr.x_scale = 0.01  # xyz precision, las stores data as int
+            hdr.y_scale = 0.01
+            hdr.z_scale = 0.001
+            # offset apparently used to store only differences, but you still write the actual value?  needs more understanding.
+            hdr.x_offset = np.floor(float(x.min()))
+            hdr.y_offset = np.floor(float(y.min()))
+            hdr.z_offset = np.floor(float(z.min()))
+            outfile = laspy.file.File(dest_path, mode='w', header=hdr)
+            outfile.x = x
+            outfile.y = y
+            outfile.z = z
+            if classification is not None:
+                classification[np.where(classification < 2)] = 1  # 1 = Unclassified according to LAS spec
+                classification[np.where(classification == 2)] = 7  # 7 = Low Point (noise) according to LAS spec
+                outfile.classification = classification.astype(np.int8)
+            # if uncertainty_included:  # putting it in Intensity for now as integer mm, Intensity is an int16 field
+            #     outfile.intensity = (uncertainty.values * 1000).astype(np.int16)
+            outfile.close()
+        except:  # the new way starting in 2.0
+            las = laspy.create(file_version="1.4", point_format=3)
+
+            las.header.offsets = [np.floor(float(x.min())), np.floor(float(y.min())), np.floor(float(z.min()))]
+            las.header.scales = [0.01, 0.01, 0.001]
+
+            las.x = x
+            las.y = y
+            las.z = z
+            if classification is not None:
+                classification[np.where(classification < 2)] = 1  # 1 = Unclassified according to LAS spec
+                classification[np.where(classification == 2)] = 7  # 7 = Low Point (noise) according to LAS spec
+                las.classification = classification.astype(np.int8)
+
+            las.write(dest_path)
+
 
     def export_pings_to_entwine(self, output_directory: str = None, las_export_folder: str = None, filter_by_detection: bool = True,
                                 z_pos_down: bool = True, export_by_identifiers: bool = True):

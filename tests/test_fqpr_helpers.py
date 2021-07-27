@@ -22,8 +22,16 @@ def test_epsg_determinator():
 
 def test_return_files_from_path():
     fil = get_testfile_paths()
+    assert return_files_from_path(fil) == [[fil]]
+    fil = ['a'] * 3
     assert return_files_from_path(fil) == [fil]
-
+    fil = ['a'] * (kluster_variables.converted_files_at_once + 1)
+    assert return_files_from_path(fil) == [['a'] * kluster_variables.converted_files_at_once, ['a']]
+    fil = ['a'] * (kluster_variables.converted_files_at_once * 3 + 1)
+    assert return_files_from_path(fil) == [['a'] * kluster_variables.converted_files_at_once,
+                                           ['a'] * kluster_variables.converted_files_at_once,
+                                           ['a'] * kluster_variables.converted_files_at_once,
+                                           ['a']]
 
 def test_seconds_to_formatted_string():
     assert seconds_to_formatted_string(666) == '11 minutes, 6 seconds'

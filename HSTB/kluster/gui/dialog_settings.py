@@ -25,13 +25,21 @@ class SettingsDialog(QtWidgets.QDialog):
         self.parallel_write = QtWidgets.QCheckBox('Enable Parallel Writes')
         self.parallel_write.setChecked(True)
         self.parallel_write.setToolTip('If checked, Kluster will write to the hard drive in parallel, disabling this ' +
-                                       ' is a useful step in troubleshooting PermissionErrors.')
+                                       'is a useful step in troubleshooting PermissionErrors.')
 
         self.keep_waterline_changes = QtWidgets.QCheckBox('Retain Waterline Changes')
         self.keep_waterline_changes.setChecked(True)
         self.keep_waterline_changes.setToolTip('If checked (only applicable if you are using a Vessel File), Kluster will save all ' +
                                                'waterline changes in later multibeam files to the vessel file.  \nUncheck this if you ' +
                                                'do not want changes in waterline to be new entries in the vessel file.')
+
+        self.force_coordinate_match = QtWidgets.QCheckBox('Force all days to have the same Coordinate System')
+        self.force_coordinate_match.setChecked(True)
+        self.force_coordinate_match.setToolTip('By default, Kluster will assign an automatic UTM zone number to each day of data.  If you ' +
+                                               'have data that crosses UTM zones, you might find that a project \ncontains data with ' +
+                                               'different coordinate systems.  Check this box if you want to force all days in a project ' +
+                                               '\nto have the same coordinate system as the first converted day.  use_epsg in project ' +
+                                               'settings will ignore this.')
 
         self.hlayout_one = QtWidgets.QHBoxLayout()
         self.vdatum_label = QtWidgets.QLabel('VDatum Directory')
@@ -57,6 +65,7 @@ class SettingsDialog(QtWidgets.QDialog):
 
         layout.addWidget(self.parallel_write)
         layout.addWidget(self.keep_waterline_changes)
+        layout.addWidget(self.force_coordinate_match)
         layout.addLayout(self.hlayout_one)
         layout.addStretch()
         layout.addWidget(self.status_msg)
@@ -90,6 +99,7 @@ class SettingsDialog(QtWidgets.QDialog):
         if not self.canceled:
             opts = {'write_parallel': self.parallel_write.isChecked(),
                     'keep_waterline_changes': self.keep_waterline_changes.isChecked(),
+                    'force_coordinate_match': self.force_coordinate_match.isChecked(),
                     'vdatum_directory': self.vdatum_pth}
         else:
             opts = None
@@ -127,6 +137,7 @@ class SettingsDialog(QtWidgets.QDialog):
         settings = self.settings_object
         settings.setValue('Kluster/settings_enable_parallel_writes', self.parallel_write.isChecked())
         settings.setValue('Kluster/settings_keep_waterline_changes', self.keep_waterline_changes.isChecked())
+        settings.setValue('Kluster/settings_force_coordinate_match', self.force_coordinate_match.isChecked())
         settings.setValue('Kluster/settings_vdatum_directory', self.vdatum_text.text())
         settings.sync()
 
@@ -149,6 +160,13 @@ class SettingsDialog(QtWidgets.QDialog):
             except:
                 try:
                     self.keep_waterline_changes.setChecked(settings.value('Kluster/settings_keep_waterline_changes'))
+                except:
+                    pass
+            try:
+                self.force_coordinate_match.setChecked(settings.value('Kluster/settings_force_coordinate_match').lower() == 'true')
+            except:
+                try:
+                    self.force_coordinate_match.setChecked(settings.value('Kluster/settings_force_coordinate_match'))
                 except:
                     pass
             self.vdatum_text.setText(settings.value('Kluster/settings_vdatum_directory'))

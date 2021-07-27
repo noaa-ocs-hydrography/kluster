@@ -438,21 +438,10 @@ bg.plot()
 
 
 ################################################################
-
-from HSTB.kluster.rotations import return_mounting_rotation_matrix, combine_rotation_matrix, \
-    return_attitude_rotation_matrix
-from HSTB.kluster.fqpr_convenience import reload_data, generate_new_surface
-from HSTB.kluster.xarray_helpers import interp_across_chunks, reform_nan_array, stack_nan_array
-
-fq = reload_data(r"C:\Users\eyou1\Downloads\em2040_40224_02_15_2021")
-leverarm = [0.0416, 2.3490, 5.6210]
-
-txatt = interp_across_chunks(fq.multibeam.raw_att, fq.multibeam.raw_ping[0].time.values)
-tx_att_times, tx_attitude_rotation = return_attitude_rotation_matrix(txatt)
-ans = (tx_attitude_rotation.data @ np.float32(leverarm)).compute()[:, 2]
-
-####################################################################
-
-
 from HSTB.kluster.fqpr_convenience import reload_data
-fq = reload_data(r"D:\falkor\FK181005_processed\em302_105_10_05_2018")
+import numpy as np
+
+fq = reload_data(r"C:\Pydro21_Dev\NOAA\site-packages\Python38\git_repos\hstb_kluster\test_data\em2040_40111_05_23_2017")
+polygon = np.array([[-122.47798556, 47.78949665], [-122.47798556, 47.78895117], [-122.47771027, 47.78895117],
+                    [-122.47771027, 47.78949665]])
+x, y, z, tvu, rejected, pointtime, beam = fq.return_soundings_in_polygon(polygon)

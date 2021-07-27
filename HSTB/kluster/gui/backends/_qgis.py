@@ -177,9 +177,13 @@ class QueryTool(qgis_gui.QgsMapTool):
                             lname = layer.name()
                             if lname[0:8] == '/vsimem/':
                                 lname = lname[8:]
-                            text += '\n\n{}'.format(lname)
-                            for ky, val in ident.results().items():
-                                text += '\n{}: {}'.format(layer.bandName(ky), round(val, 3))
+                            bands_under_cursor = ident.results()
+                            band_exists = False
+                            for ky, val in bands_under_cursor.items():
+                                band_name, band_value = layer.bandName(ky), round(val, 3)
+                                if not band_exists and band_name:
+                                    text += '\n\n{}'.format(lname)
+                                text += '\n{}: {}'.format(band_name, band_value)
                     except:  # point is outside of the transform
                         pass
         return text
@@ -1505,6 +1509,45 @@ class MapView(QtWidgets.QMainWindow):
         if refresh:
             self.layer_by_name(source).reload()
 
+    def _return_all_surface_tiles(self, surfname: str, lyrname: str, resolution: float):
+        """
+        We add surfaces in tiles, which would have matching surface/layer/resolutions.  In order to find all loaded tiles
+        that match the given parameters, we need to look for the surface names excluding the tile index.
+
+        tile index is attached to the layer name as seen below
+        ex: surfname=srgrid_mean_auto_depth, lyrname='depth_1', resolution=0.5
+
+        source = '/vsimem/srgrid_mean_auto_depth_0.5.tif'
+        search_string = '/vsimem/srgrid_mean_auto_depth'
+        matching_layer_names = ['/vsimem/srgrid_mean_auto_depth_1_0.5.tif', '/vsimem/srgrid_mean_auto_depth_1_1.0.tif'...]
+        match_resolution = ['/vsimem/srgrid_mean_auto_depth_1_0.5.tif', '/vsimem/srgrid_mean_auto_depth_2_0.5.tif'...]
+
+        Parameters
+        ----------
+        surfname
+            surface name, name of the parent folder
+        lyrname
+            layer name with tile index
+        resolution
+            resolution of the grid
+
+        Returns
+        -------
+        list
+            list of all vsimem file names that match the given parameters
+        """
+
+        # surface layers can be added in chunks, i.e. 'depth_1', 'depth_2', etc., but they should all use the same
+        #  extents and global stats.  Figure out which category the layer fits into here.
+        acceptedlayernames = ['depth', 'vertical_uncertainty', 'horizontal_uncertainty']
+        formatted_layername = [aln for aln in acceptedlayernames if lyrname.find(aln) > -1][0]
+
+        source = self.build_surface_source(surfname, formatted_layername, resolution)
+        search_string = os.path.splitext(source)[0].rstrip('_{}'.format(resolution))
+        matching_layer_names = [lyr for lyr in self.layer_manager.names_in_order if lyr.find(search_string) != -1]
+        match_resolution = [lyr for lyr in matching_layer_names if lyr.find('_{}.tif'.format(resolution)) != -1]
+        return match_resolution
+
     def add_surface(self, surfname: str, lyrname: str, data: list, geo_transform: list, crs: Union[CRS, int], resolution: float):
         """
         Add a new surface/layer with the provided data
@@ -1548,10 +1591,9 @@ class MapView(QtWidgets.QMainWindow):
             resolution in meters for the surface
         """
 
-        source = self.build_surface_source(surfname, lyrname, resolution)
-        hidelyr = gdal_output_file_exists(source)
-        if hidelyr:
-            self.hide_layer(source)
+        hidelyrs = self._return_all_surface_tiles(surfname, lyrname, resolution)
+        for lyr in hidelyrs:
+            self.hide_layer(lyr)
 
     def show_surface(self, surfname: str, lyrname: str, resolution: float):
         """
@@ -1567,10 +1609,12 @@ class MapView(QtWidgets.QMainWindow):
             resolution in meters for the surface
         """
 
-        source = self.build_surface_source(surfname, lyrname, resolution)
-        showlyr = gdal_output_file_exists(source)
-        if showlyr:
-            self.show_layer(source)
+        showlyrs = self._return_all_surface_tiles(surfname, lyrname, resolution)
+        if showlyrs:
+            for lyr in showlyrs:
+                self.show_layer(lyr)
+            return True
+        return False
 
     def remove_surface(self, surfname: str, resolution: float):
         """
@@ -1585,11 +1629,10 @@ class MapView(QtWidgets.QMainWindow):
         """
 
         possible_layers = ['depth', 'vertical_uncertainty']
-        for lyr in possible_layers:
-            source = self.build_surface_source(surfname, lyr, resolution)
-            remlyr = gdal_output_file_exists(source)
-            if remlyr:
-                self.remove_layer(source)
+        for lyrname in possible_layers:
+            remlyrs = self._return_all_surface_tiles(surfname, lyrname, resolution)
+            for lyr in remlyrs:
+                self.remove_layer(lyr)
 
     def layer_point_to_map_point(self, layer: Union[qgis_core.QgsRasterLayer, qgis_core.QgsVectorLayer],
                                  point: qgis_core.QgsPoint):
@@ -1733,18 +1776,22 @@ class MapView(QtWidgets.QMainWindow):
             stats = rlayer.dataProvider().bandStatistics(1)
             minval = stats.minimumValue
             maxval = stats.maximumValue
-            if layername in self.band_minmax:
-                self.band_minmax[layername][0] = min(minval, self.band_minmax[layername][0])
-                self.band_minmax[layername][1] = max(maxval, self.band_minmax[layername][1])
+            # surface layers can be added in chunks, i.e. 'depth_1', 'depth_2', etc., but they should all use the same
+            #  extents and global stats.  Figure out which category the layer fits into here.
+            acceptedlayernames = ['depth', 'vertical_uncertainty', 'horizontal_uncertainty']
+            formatted_layername = [aln for aln in acceptedlayernames if layername.find(aln) > -1][0]
+            if formatted_layername in self.band_minmax:
+                self.band_minmax[formatted_layername][0] = min(minval, self.band_minmax[formatted_layername][0])
+                self.band_minmax[formatted_layername][1] = max(maxval, self.band_minmax[formatted_layername][1])
             else:
-                self.band_minmax[layername] = [minval, maxval]
-            if layername in ['vertical_uncertainty', 'horizontal_uncertainty']:
+                self.band_minmax[formatted_layername] = [minval, maxval]
+            if formatted_layername in ['vertical_uncertainty', 'horizontal_uncertainty']:
                 shader = inv_raster_shader
             else:
                 shader = raster_shader
-            self._update_all_raster_layer_minmax(layername)
-            renderer = qgis_core.QgsSingleBandPseudoColorRenderer(rlayer.dataProvider(), 1, shader(self.band_minmax[layername][0],
-                                                                                                   self.band_minmax[layername][1]))
+            self._update_all_raster_layer_minmax(formatted_layername)
+            renderer = qgis_core.QgsSingleBandPseudoColorRenderer(rlayer.dataProvider(), 1, shader(self.band_minmax[formatted_layername][0],
+                                                                                                   self.band_minmax[formatted_layername][1]))
             rlayer.setRenderer(renderer)
             rlayer.renderer().setOpacity(1 - self.surface_transparency)
         rlayer.setName(source)
@@ -1879,15 +1926,14 @@ class MapView(QtWidgets.QMainWindow):
         """
 
         if subset_surf:
-            for lyrname in ['depth', 'vertical_uncertainty', 'horizontal_uncertainty']:
-                subset_surf_formatted = self.build_surface_source(subset_surf, lyrname, resolution)
-                lyr = self.layer_by_name(subset_surf_formatted, silent=True)
-                if lyr:
+            for lyrname in ['depth', 'vertical_uncertainty', 'horizontal_uncertainty']:  # find the first loaded layer
+                lyrs = self._return_all_surface_tiles(subset_surf, lyrname, resolution)  # get all tiles
+                lyrs = [self.layer_by_name(lyr, silent=True) for lyr in lyrs]  # get the actual layer data for each tile layer
+                if lyrs:
                     break
-            if lyr is None:
+            if not lyrs:
                 print('No layer loaded for {}'.format(subset_surf))
                 return
-            lyrs = [lyr]
         else:
             lyrs = self.layer_manager.surface_layers
         total_extent = None

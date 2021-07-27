@@ -1,8 +1,22 @@
 import sys
+from threading import Thread, Event
 
 from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal
 
 from HSTB.kluster.fqpr_project import FqprProject
+
+
+class AutoThread(Thread):
+    def __init__(self, event, myfunc, interval: int = 1):
+        Thread.__init__(self)
+        self.daemon = True
+        self.stopped = event
+        self.run_interval = interval
+        self.myfunc = myfunc
+
+    def run(self):
+        while not self.stopped.wait(self.run_interval):
+            self.myfunc()
 
 
 class KlusterActions(QtWidgets.QTreeView):
@@ -15,8 +29,9 @@ class KlusterActions(QtWidgets.QTreeView):
     exclude_unmatched_file = Signal(str)
     undo_exclude_file = Signal(list)
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, settings=None):
         super().__init__(parent)
+        self.external_settings = settings
 
         self.parent = parent
         self.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
@@ -45,18 +60,48 @@ class KlusterActions(QtWidgets.QTreeView):
         self.exclude_buffer = []
 
         self.start_button = QtWidgets.QPushButton('Start Process')
-        self.start_button.setMinimumWidth(120)
-        self.start_button.setMaximumWidth(150)
-        self.start_button.setMinimumHeight(30)
+        self.start_button.setMinimumWidth(100)
+        self.start_button.setMaximumWidth(100)
+        self.start_button.setMinimumHeight(22)
         self.start_button.clicked.connect(self.start_process)
         self.start_button.setDisabled(True)
 
-        self.progress = QtWidgets.QProgressBar(self)
-        self.progress.setMaximum(1)
-        self.progress.setMinimum(0)
+        self.auto_checkbox = QtWidgets.QCheckBox('Auto')
+        self.auto_checkbox.setCheckable(True)
+        self.auto_checkbox.setMinimumWidth(50)
+        self.auto_checkbox.setMaximumWidth(50)
+        self.auto_checkbox.setMinimumHeight(22)
+        self.auto_checkbox.clicked.connect(self.auto_process)
+
+        self.button_widget = QtWidgets.QWidget()
+        self.button_sizer = QtWidgets.QHBoxLayout()
+        self.button_sizer.addWidget(self.start_button)
+        self.button_sizer.addWidget(self.auto_checkbox)
+        self.button_sizer.setAlignment(QtCore.Qt.AlignLeft)
+        self.button_widget.setLayout(self.button_sizer)
+        self.button_widget.setToolTip('Start the action below by clicking "Start Process".\n' +
+                                      'If the "Start Process" button is greyed out, there is no viable action to run.\n\n' +
+                                      'If the "Auto" check box is checked, Kluster will automatically run all actions as they appear.\n' +
+                                      'You will not need to use the "Start Process" button with "Auto" enabled.')
+
+        self.stop_auto = Event()
+        self.stop_auto.set()
+        self.auto_thread = AutoThread(self.stop_auto, self.emit_auto_signal)
 
         self.customContextMenuRequested.connect(self.show_context_menu)
         self.configure()
+        self.read_settings()
+
+    @property
+    def settings_object(self):
+        if self.external_settings:
+            return self.external_settings
+        else:
+            return QtCore.QSettings("NOAA", "Kluster")
+
+    @property
+    def is_auto(self):
+        return self.auto_checkbox.isChecked()
 
     def setup_menu(self):
         """
@@ -134,11 +179,7 @@ class KlusterActions(QtWidgets.QTreeView):
                 proj_child = QtGui.QStandardItem('')  # empty entry to overwrite with setIndexWidget
                 parent.appendRow(proj_child)
                 qindex_button = parent.child(0, 0).index()
-                self.setIndexWidget(qindex_button, self.start_button)
-                proj_child = QtGui.QStandardItem('')  # empty entry to overwrite with setIndexWidget
-                parent.appendRow(proj_child)
-                qindex_progress = parent.child(1, 0).index()
-                self.setIndexWidget(qindex_progress, self.progress)
+                self.setIndexWidget(qindex_button, self.button_widget)
                 self.expand(parent.index())
 
     def _update_next_action(self, parent: QtGui.QStandardItem, actions: list):
@@ -153,7 +194,7 @@ class KlusterActions(QtWidgets.QTreeView):
             list of FqprActions sorted by priority, we are only interested in the first (the next one)
         """
 
-        parent.removeRows(2, parent.rowCount() - 2)
+        parent.removeRows(1, parent.rowCount() - 1)
         if actions:
             next_action = actions[0]
             action_text = next_action.text
@@ -169,7 +210,6 @@ class KlusterActions(QtWidgets.QTreeView):
                 self.tree_data['Next Action'].append(d)
             self.start_button.setDisabled(False)
             self.expand(parent.index())
-        self.progress.setMaximum(1)
 
     def _update_all_actions(self, parent: QtGui.QStandardItem, actions: list):
         """
@@ -286,8 +326,41 @@ class KlusterActions(QtWidgets.QTreeView):
         Emit the execute_action signal to trigger processing in kluster_main
         """
         self.start_button.setDisabled(True)
-        self.progress.setMaximum(0)
         self.execute_action.emit(0)
+
+    def auto_process(self):
+        if self.is_auto:
+            print('Enabling autoprocessing')
+            self.auto_thread = AutoThread(self.stop_auto, self.emit_auto_signal)
+            self.stop_auto.clear()
+            self.auto_thread.start()
+        else:
+            self.stop_auto.set()
+        self.save_settings()
+
+    def emit_auto_signal(self):
+        if self.is_auto:
+            self.start_process()
+
+    def save_settings(self):
+        """
+        Save the settings to the Qsettings registry
+        """
+        settings = self.settings_object
+        settings.setValue('Kluster/actions_window_auto', self.is_auto)
+
+    def read_settings(self):
+        """
+        Read from the Qsettings registry
+        """
+        settings = self.settings_object
+
+        try:
+            self.auto_checkbox.setChecked(settings.value('Kluster/actions_window_auto').lower() == 'true')
+            self.auto_process()
+        except AttributeError:
+            # no settings exist yet for this app, .lower failed
+            pass
 
 
 class OutWindow(QtWidgets.QMainWindow):

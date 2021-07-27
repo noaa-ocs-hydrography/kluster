@@ -159,6 +159,13 @@ def test_process_testfile():
     assert firsty == approx(5292783.977, 0.001)
     assert firstz == approx(np.float32(92.742), 0.001)
 
+    assert rp.min_x == 538922.066
+    assert rp.min_y == 5292774.566
+    assert rp.min_z == 72.961
+    assert rp.max_x == 539320.370
+    assert rp.max_y == 5293236.823
+    assert rp.max_z == 94.294
+
     datapath = out.multibeam.converted_pth
     out.close()
     out = None
@@ -183,13 +190,141 @@ def test_converted_data_content():
         totatt += rec.data['Time'].shape[0]
     assert out.multibeam.raw_att.time.shape[0] == totatt
 
-    totnav = 0
-    for i in range(ad.map.getnum(110)):
-        rec = ad.getrecord(110, i)
-        totnav += rec.data['Time'].shape[0]
-    assert out.multibeam.raw_nav.time.shape[0] == totnav
-
     ad.close()
+    out.close()
+    out = None
+
+
+def test_return_xyz():
+    if not os.path.exists(datapath):
+        print('Please run test_process_testfile first')
+    out = reload_data(datapath)
+    x, y, z = out.return_xyz()
+    assert x[0] == 539027.325
+    assert x[-1] == 539222.21
+    assert len(x) == 86400
+    assert y[0] == 5292784.603
+    assert y[-1] == 5293227.862
+    assert len(y) == 86400
+    assert z[0] == approx(92.742, 0.001)
+    assert z[-1] == approx(92.02, 0.001)
+    assert len(z) == 86400
+    out.close()
+    out = None
+
+
+def test_return_total_pings():
+    if not os.path.exists(datapath):
+        print('Please run test_process_testfile first')
+    out = reload_data(datapath)
+    pc = out.return_total_pings(min_time=1495563100, max_time=1495563130)
+    assert pc == 123
+    pc = out.return_total_pings()
+    assert pc == 216
+    out.close()
+    out = None
+
+
+def test_return_total_soundings():
+    if not os.path.exists(datapath):
+        print('Please run test_process_testfile first')
+    out = reload_data(datapath)
+    ts = out.return_total_soundings(min_time=1495563100, max_time=1495563130)
+    assert ts == 49200
+    ts = out.return_total_soundings()
+    assert ts == 86400
+    out.close()
+    out = None
+
+
+def test_return_soundings_in_polygon():
+    if not os.path.exists(datapath):
+        print('Please run test_process_testfile first')
+    out = reload_data(datapath)
+    polygon = np.array([[-122.47798556, 47.78949665], [-122.47798556, 47.78895117], [-122.47771027, 47.78895117],
+                        [-122.47771027, 47.78949665]])
+    x, y, z, tvu, rejected, pointtime, beam = out.return_soundings_in_polygon(polygon)
+    assert x.shape == y.shape == z.shape == tvu.shape == rejected.shape == pointtime.shape == beam.shape
+    assert x.shape == (1911,)
+    out.close()
+    out = None
+
+
+def test_return_cast_dict():
+    if not os.path.exists(datapath):
+        print('Please run test_process_testfile first')
+    out = reload_data(datapath)
+    cdict = out.return_cast_dict()
+    assert cdict == {'profile_1495563079': {'location': [47.78890945494799, -122.47711319986821],
+                                            'source': 'multibeam', 'time': 1495563079,
+                                            'data': [[0.0, 1489.2000732421875], [0.32, 1489.2000732421875], [0.5, 1488.7000732421875],
+                                                     [0.55, 1488.300048828125], [0.61, 1487.9000244140625], [0.65, 1488.2000732421875],
+                                                     [0.67, 1488.0], [0.79, 1487.9000244140625], [0.88, 1487.9000244140625],
+                                                     [1.01, 1488.2000732421875], [1.04, 1488.0999755859375], [1.62, 1488.0999755859375],
+                                                     [2.0300000000000002, 1488.300048828125], [2.43, 1488.9000244140625], [2.84, 1488.5],
+                                                     [3.25, 1487.7000732421875], [3.67, 1487.2000732421875], [4.45, 1486.800048828125],
+                                                     [4.8500000000000005, 1486.800048828125], [5.26, 1486.5999755859375], [6.09, 1485.7000732421875],
+                                                     [6.9, 1485.0999755859375], [7.71, 1484.800048828125], [8.51, 1484.0],
+                                                     [8.91, 1483.800048828125], [10.13, 1483.7000732421875], [11.8, 1483.0999755859375],
+                                                     [12.620000000000001, 1482.9000244140625], [16.79, 1482.9000244140625], [20.18, 1481.9000244140625],
+                                                     [23.93, 1481.300048828125], [34.79, 1480.800048828125], [51.15, 1480.800048828125],
+                                                     [56.13, 1481.0], [60.67, 1481.5], [74.2, 1481.9000244140625], [12000.0, 1675.800048828125]]}}
+    out.close()
+    out = None
+
+
+def test_subset_by_time():
+    if not os.path.exists(datapath):
+        print('Please run test_process_testfile first')
+    out = reload_data(datapath)
+    out.subset_by_time(mintime=1495563100, maxtime=1495563130)
+    assert len(out.multibeam.raw_ping[0].time) == 123
+    assert len(out.multibeam.raw_att.time) == 3001
+    out.restore_subset()
+    assert len(out.multibeam.raw_ping[0].time) == 216
+    assert len(out.multibeam.raw_att.time) == 5302
+    out.close()
+    out = None
+
+
+def test_intersects():
+    if not os.path.exists(datapath):
+        print('Please run test_process_testfile first')
+    out = reload_data(datapath)
+    assert out.intersects(5293000, 5330000, 538950, 539300, geographic=False)
+    assert not out.intersects(5320000, 5330000, 538950, 539300, geographic=False)
+    assert out.intersects(47.78895, 47.790, -122.478, -122.479, geographic=True)
+    assert not out.intersects(47.8899, 47.890, -122.478, -122.479, geographic=True)
+    out.close()
+    out = None
+
+
+def test_return_unique_mode():
+    if not os.path.exists(datapath):
+        print('Please run test_process_testfile first')
+    out = reload_data(datapath)
+    mode = out.return_unique_mode()
+    assert mode == ['FM']
+    out.close()
+    out = None
+
+
+def test_return_rounded_frequency():
+    if not os.path.exists(datapath):
+        print('Please run test_process_testfile first')
+    out = reload_data(datapath)
+    fq = out.return_rounded_frequency()
+    assert fq == [300000]
+    out.close()
+    out = None
+
+
+def test_return_lines_for_times():
+    if not os.path.exists(datapath):
+        print('Please run test_process_testfile first')
+    out = reload_data(datapath)
+    lns = out.return_lines_for_times(np.array([1495400000, 1495563100, 1495563132]))
+    assert np.array_equal(lns, ['', '0009_20170523_181119_FA2806.all', '0009_20170523_181119_FA2806.all'])
     out.close()
     out = None
 
@@ -817,5 +952,4 @@ def load_dataset(dset=None, skip_dask=True):
     kongs_dat.xyzrph = dset.xyzrph
     kongs_dat.raw_ping = dset.raw_ping
     kongs_dat.raw_att = dset.raw_att
-    kongs_dat.raw_nav = dset.raw_nav
     return kongs_dat

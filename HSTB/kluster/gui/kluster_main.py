@@ -6,6 +6,7 @@ import sys
 import webbrowser
 import numpy as np
 import multiprocessing
+from typing import Union
 from time import sleep
 
 from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal, qgis_enabled
@@ -19,7 +20,7 @@ from HSTB.kluster.gui import dialog_vesselview, kluster_explorer, kluster_projec
     dialog_about
 from HSTB.kluster.fqpr_project import FqprProject
 from HSTB.kluster.fqpr_intelligence import FqprIntel
-from HSTB.kluster.fqpr_vessel import convert_from_fqpr_xyzrph
+from HSTB.kluster.fqpr_vessel import convert_from_fqpr_xyzrph, convert_from_vessel_xyzrph, compare_dict_data
 from HSTB.kluster import __version__ as kluster_version
 from HSTB.kluster import __file__ as kluster_init_file
 from HSTB.shared import RegistryHelpers, path_to_supplementals
@@ -121,6 +122,11 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.iconpath = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'images', 'kluster_img.ico')
         self.setWindowIcon(QtGui.QIcon(self.iconpath))
 
+        self.generic_progressbar = QtWidgets.QProgressBar(self)
+        self.generic_progressbar.setMaximum(1)
+        self.generic_progressbar.setMinimum(0)
+        self.statusBar().addPermanentWidget(self.generic_progressbar, stretch=1)
+
         self.action_thread = kluster_worker.ActionWorker()
         self.import_ppnav_thread = kluster_worker.ImportNavigationWorker()
         self.overwrite_nav_thread = kluster_worker.OverwriteNavigationWorker()
@@ -129,8 +135,11 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.export_thread = kluster_worker.ExportWorker()
         self.export_grid_thread = kluster_worker.ExportGridWorker()
         self.open_project_thread = kluster_worker.OpenProjectWorker()
+        self.draw_navigation_thread = kluster_worker.DrawNavigationWorker()
+        self.draw_surface_thread = kluster_worker.DrawSurfaceWorker()
         self.allthreads = [self.action_thread, self.import_ppnav_thread, self.overwrite_nav_thread, self.surface_thread,
-                           self.surface_update_thread, self.export_thread, self.export_grid_thread, self.open_project_thread]
+                           self.surface_update_thread, self.export_thread, self.export_grid_thread, self.open_project_thread,
+                           self.draw_navigation_thread, self.draw_surface_thread]
 
         # connect FqprActionContainer with actions pane, called whenever actions changes
         self.intel.bind_to_action_update(self.actions.update_actions)
@@ -163,6 +172,7 @@ class KlusterMain(QtWidgets.QMainWindow):
 
         self.points_view.points_selected.connect(self.show_points_in_explorer)
 
+        self.action_thread.started.connect(self._start_action_progress)
         self.action_thread.finished.connect(self._kluster_execute_action_results)
         self.overwrite_nav_thread.started.connect(self._start_action_progress)
         self.overwrite_nav_thread.finished.connect(self._kluster_overwrite_nav_results)
@@ -178,6 +188,10 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.export_grid_thread.finished.connect(self._kluster_export_grid_results)
         self.open_project_thread.started.connect(self._start_action_progress)
         self.open_project_thread.finished.connect(self._kluster_open_project_results)
+        self.draw_navigation_thread.started.connect(self._start_action_progress)
+        self.draw_navigation_thread.finished.connect(self._kluster_draw_navigation_results)
+        self.draw_surface_thread.started.connect(self._start_action_progress)
+        self.draw_surface_thread.finished.connect(self._kluster_draw_surface_results)
 
         self.monitor.monitor_file_event.connect(self.intel._handle_monitor_event)
         self.monitor.monitor_start.connect(self._create_new_project_if_not_exist)
@@ -303,12 +317,12 @@ class KlusterMain(QtWidgets.QMainWindow):
         klusterhelp = menubar.addMenu('Help')
         klusterhelp.addAction(about_action)
 
-    def update_on_file_added(self, fil=''):
+    def update_on_file_added(self, fil: Union[str, list] = ''):
         """
         Adding a new path to a fqpr data store will update all the child widgets.  Will also load the data and add it
         to this class' project.
 
-        Menubar Convert Multibeam will just run this method with empty fil to get to the convert dialog
+        Dragging in multiple files/folders will mean fil is a list.
 
         fqpr = fully qualified ping record, the term for the datastore in kluster
 
@@ -323,14 +337,15 @@ class KlusterMain(QtWidgets.QMainWindow):
             fil = [fil]
 
         new_fqprs = []
-
         for f in fil:  # first pass to weed out a potential project, want to load that first
             fnorm = os.path.normpath(f)
             if os.path.split(fnorm)[1] == 'kluster_project.json':
                 self.open_project(fnorm)
                 fil.remove(f)
-                return
+                return  # we can't handle loading a new project and adding data at the same time, if a project is added, halt
 
+        potential_surface_paths = []
+        potential_fqpr_paths = []
         for f in fil:
             f = os.path.normpath(f)
             updated_type, new_data, new_project = self.intel.add_file(f)
@@ -338,16 +353,12 @@ class KlusterMain(QtWidgets.QMainWindow):
                 new_fqprs.extend([fqpr for fqpr in self.project.fqpr_instances.keys() if fqpr not in new_fqprs])
             if new_data is None:
                 if os.path.exists(os.path.join(f, 'SRGrid_Root')) or os.path.exists(os.path.join(f, 'VRGridTile_Root')):
-                    self.project.add_surface(f)
+                    potential_surface_paths.append(f)
                 else:
-                    fqpr_entry, already_in = self.project.add_fqpr(f, skip_dask=True)
-                    if fqpr_entry is None:  # no fqpr instance successfully loaded
-                        print('update_on_file_added: Unable to add to Project from existing: {}'.format(f))
-                    if already_in:
-                        print('{} already exists in {}'.format(f, self.project.path))
-                    elif fqpr_entry:
-                        new_fqprs.append(fqpr_entry)
+                    potential_fqpr_paths.append(f)
         self.refresh_project(new_fqprs)
+        self.open_project_thread.populate(self.project, force_add_fqprs=potential_fqpr_paths, force_add_surfaces=potential_surface_paths)
+        self.open_project_thread.start()
 
     def refresh_project(self, fqpr=None):
         if fqpr:
@@ -368,27 +379,6 @@ class KlusterMain(QtWidgets.QMainWindow):
         """
 
         self.project_tree.refresh_project(proj=self.project)
-        if new_fqprs is not None and new_fqprs:
-            for fq in new_fqprs:
-                for ln in self.project.return_project_lines(proj=fq, relative_path=True):
-                    lats, lons = self.project.return_line_navigation(ln, samplerate=5)
-                    self.two_d.add_line(ln, lats, lons)
-            self.two_d.set_extents_from_lines()
-        if add_surface is not None and surface_layer_name:
-            surf_object = self.project.surface_instances[add_surface]
-            for resolution in surf_object.resolutions:
-                shown = self.two_d.show_surface(add_surface, surface_layer_name, resolution)
-                if not shown:  # show didnt work, must need to add the surface instead
-                    if qgis_enabled:
-                        data, geo_transform, bandnames = surf_object._gdal_preprocessing(resolution=resolution,
-                                                                                         nodatavalue=np.nan,
-                                                                                         z_positive_up=False,
-                                                                                         layer_names=(surface_layer_name,))
-                        self.two_d.add_surface([add_surface, surface_layer_name, data, geo_transform, surf_object.epsg, resolution])
-                    else:
-                        x, y, z, valid, newmins, newmaxs = surf_object.return_surf_xyz(surface_layer_name, pcolormesh=True)
-                        self.two_d.add_surface([add_surface, surface_layer_name, x, y, z, surf_object.epsg])
-                    self.two_d.set_extents_from_surfaces(add_surface, resolution)
         if remove_surface is not None:
             surf_object = self.project.surface_instances[remove_surface]
             for resolution in surf_object.resolutions:
@@ -396,6 +386,17 @@ class KlusterMain(QtWidgets.QMainWindow):
                     self.two_d.hide_surface(remove_surface, surface_layer_name, resolution)
                 else:
                     self.two_d.remove_surface(remove_surface, resolution)
+        if add_surface is not None and surface_layer_name:
+            surf_object = self.project.surface_instances[add_surface]
+            for resolution in surf_object.resolutions:
+                shown = self.two_d.show_surface(add_surface, surface_layer_name, resolution)
+                if not shown:  # show didnt work, must need to add the surface instead, loading from disk...
+                    self.draw_surface_thread.populate(add_surface, surf_object, resolution, surface_layer_name)
+                    self.draw_surface_thread.start()
+
+        if new_fqprs is not None and new_fqprs:
+            self.draw_navigation_thread.populate(self.project, new_fqprs)
+            self.draw_navigation_thread.start()
 
     def close_fqpr(self, pth):
         """
@@ -439,7 +440,6 @@ class KlusterMain(QtWidgets.QMainWindow):
         absolute_fqpath = self.project.absolute_path_from_relative(pth)
         self.console.runCmd('data = reload_data(r"{}", skip_dask=True)'.format(absolute_fqpath))
         self.console.runCmd('first_system = data.multibeam.raw_ping[0]')
-        self.console.runCmd('nav = data.multibeam.raw_nav')
         self.console.runCmd('att = data.multibeam.raw_att')
         self.console.runCmd('# try plotting surface soundspeed, "first_system.soundspeed.plot()"')
 
@@ -540,12 +540,14 @@ class KlusterMain(QtWidgets.QMainWindow):
 
         If you have a data container selected, it will populate from it's xyzrph attribute.
         """
+
         vessel_file = self.project.vessel_file
-        fqprs = self.return_selected_fqprs()
+        fqprs, _ = self.return_selected_fqprs()
 
         self.vessel_win = None
         self.vessel_win = dialog_vesselview.VesselWidget()
         self.vessel_win.vessel_file_modified.connect(self.regenerate_offsets_actions)
+        self.vessel_win.converted_xyzrph_modified.connect(self.update_offsets_vesselwidget)
 
         if vessel_file:
             self.vessel_win.load_from_config_file(vessel_file)
@@ -573,6 +575,39 @@ class KlusterMain(QtWidgets.QMainWindow):
         if vessel_file:
             self.intel.regenerate_actions()
 
+    def update_offsets_vesselwidget(self, vess_xyzrph: dict):
+        """
+        If the user brings up the vessel setup tool with a converted fqpr container selected in the main gui, it loads
+        from the xyzrph in that converted container.  The user can then make changes and save it back to the converted
+        data container, which is what this method does.  If the data saved back is different, we figure out where the
+        difference is and generate a new corresponding action by saving to the current_processing_status and running
+        regenerate_actions
+
+        Parameters
+        ----------
+        vess_xyzrph
+            the data from the vessel setup widget, used to overwrite the converted fqpr container xyzrph record
+        """
+
+        xyzrph, sonar_type, system_identifiers, source = convert_from_vessel_xyzrph(vess_xyzrph)
+        for cnt, sysident in enumerate(system_identifiers):
+            for fqname, fq in self.project.fqpr_instances.items():
+                if fq.multibeam.raw_ping[0].system_identifier == sysident:
+                    identical_offsets, identical_angles, identical_tpu, data_matches, new_waterline = compare_dict_data(fq.multibeam.xyzrph,
+                                                                                                                        xyzrph[cnt])
+                    # drop the vessel setup specific keys, like the vessel file used and the vess_center location
+                    drop_these = [ky for ky in xyzrph[cnt].keys() if ky not in fq.multibeam.xyzrph.keys()]
+                    [xyzrph[cnt].pop(ky) for ky in drop_these]
+                    fq.write_attribute_to_ping_records({'xyzrph': xyzrph[cnt]})
+                    fq.multibeam.xyzrph.update(xyzrph[cnt])
+                    if not identical_angles:  # if the angles changed then we have to start over at converted status
+                        fq.write_attribute_to_ping_records({'current_processing_status': 0})
+                    elif not identical_offsets or new_waterline is not None:  # have to re-soundvelocitycorrect
+                        fq.write_attribute_to_ping_records({'current_processing_status': 2})
+                    elif not identical_tpu:  # have to re-tpu
+                        fq.write_attribute_to_ping_records({'current_processing_status': 4})
+        self.intel.regenerate_actions()
+
     def reprocess_fqpr(self):
         """
         Right click an fqpr instance and trigger full reprocessing, should only be necessary in case of emergency.
@@ -596,13 +631,13 @@ class KlusterMain(QtWidgets.QMainWindow):
         """
         Runs the basic plots dialog, for plotting the variables using the xarray/matplotlib functionality
         """
-        fqprs = self.return_selected_fqprs()
+        fqprspaths, fqprs = self.return_selected_fqprs()
 
         self.basicplots_win = None
         self.basicplots_win = dialog_basicplot.BasicPlotDialog()
 
         if fqprs:
-            self.basicplots_win.data_widget.new_fqpr_path(fqprs[0])
+            self.basicplots_win.data_widget.new_fqpr_path(fqprspaths[0], fqprs[0])
             self.basicplots_win.data_widget.initialize_controls()
         self.basicplots_win.show()
 
@@ -610,13 +645,13 @@ class KlusterMain(QtWidgets.QMainWindow):
         """
         Runs the advanced plots dialog, for plotting the sat tests and other more sophisticated stuff
         """
-        fqprs = self.return_selected_fqprs()
+        fqprspaths, fqprs = self.return_selected_fqprs()
 
         self.advancedplots_win = None
         self.advancedplots_win = dialog_advancedplot.AdvancedPlotDialog()
 
-        if fqprs:
-            self.advancedplots_win.data_widget.new_fqpr_path(fqprs[0])
+        if fqprspaths:
+            self.advancedplots_win.data_widget.new_fqpr_path(fqprspaths[0], fqprs[0])
             self.advancedplots_win.data_widget.initialize_controls()
         self.advancedplots_win.show()
 
@@ -635,7 +670,7 @@ class KlusterMain(QtWidgets.QMainWindow):
 
         cancelled = False
         if not self.no_threads_running():
-            print('Processing is already occurring.  Please wait for the process to finish')
+            # print('Processing is already occurring.  Please wait for the process to finish')
             cancelled = True
         if not cancelled:
             self.output_window.clear()
@@ -650,7 +685,7 @@ class KlusterMain(QtWidgets.QMainWindow):
 
         # fqpr is now the output path of the Fqpr instance
         fqpr = self.action_thread.result
-        if fqpr is not None:
+        if fqpr is not None and not self.action_thread.error:
             fqpr_entry, already_in = self.project.add_fqpr(fqpr)
             self.project.save_project()
             self.intel.update_intel_for_action_results(action_type=self.action_thread.action_type)
@@ -662,6 +697,7 @@ class KlusterMain(QtWidgets.QMainWindow):
                 self.refresh_project(fqpr=[fqpr_entry])
         else:
             print('kluster_action: no data returned from action execution: {}'.format(fqpr))
+        self._stop_action_progress()
 
     def kluster_overwrite_nav(self):
         """
@@ -677,7 +713,7 @@ class KlusterMain(QtWidgets.QMainWindow):
             print('Processing is already occurring.  Please wait for the process to finish')
             cancelled = True
         else:
-            fqprs = self.return_selected_fqprs()
+            fqprs, _ = self.return_selected_fqprs()
             dlog = dialog_overwritenav.OverwriteNavigationDialog()
             dlog.update_fqpr_instances(addtl_files=fqprs)
             cancelled = False
@@ -710,7 +746,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         and display.
         """
         fq_inst = self.overwrite_nav_thread.fqpr_instances
-        if fq_inst:
+        if fq_inst and not self.overwrite_nav_thread.error:
             for fq in fq_inst:
                 self.project.add_fqpr(fq)
                 self.refresh_explorer(fq)
@@ -731,7 +767,7 @@ class KlusterMain(QtWidgets.QMainWindow):
             print('Processing is already occurring.  Please wait for the process to finish')
             cancelled = True
         else:
-            fqprs = self.return_selected_fqprs()
+            fqprs, _ = self.return_selected_fqprs()
             dlog = dialog_importppnav.ImportPostProcNavigationDialog()
             dlog.update_fqpr_instances(addtl_files=fqprs)
             cancelled = False
@@ -764,7 +800,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         and display.
         """
         fq_inst = self.import_ppnav_thread.fqpr_instances
-        if fq_inst:
+        if fq_inst and not self.import_ppnav_thread.error:
             for fq in fq_inst:
                 self.project.add_fqpr(fq)
                 self.refresh_explorer(fq)
@@ -786,7 +822,7 @@ class KlusterMain(QtWidgets.QMainWindow):
             cancelled = True
         else:
             cancelled = False
-            fqprs = self.return_selected_fqprs()
+            fqprs, _ = self.return_selected_fqprs()
             dlog = dialog_surface.SurfaceDialog()
             dlog.update_fqpr_instances(addtl_files=fqprs)
             if dlog.exec_():
@@ -821,7 +857,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         """
 
         fq_surf = self.surface_thread.fqpr_surface
-        if fq_surf is not None:
+        if fq_surf is not None and not self.surface_thread.error:
             self.project.add_surface(fq_surf)
             self.redraw()
         else:
@@ -869,7 +905,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         """
 
         fq_surf = self.surface_update_thread.fqpr_surface
-        if fq_surf is not None:
+        if fq_surf is not None and not self.surface_thread.error:
             self.redraw(remove_surface=self.project.path_relative_to_project(os.path.normpath(fq_surf.output_folder)))
             self.project.remove_surface(os.path.normpath(fq_surf.output_folder))
             self.project.add_surface(fq_surf)
@@ -925,7 +961,10 @@ class KlusterMain(QtWidgets.QMainWindow):
         and display.
         """
 
-        print('Export Complete')
+        if self.export_grid_thread.error:
+            print('Export complete: Unable to export')
+        else:
+            print('Export complete.')
         self._stop_action_progress()
 
     def kluster_export(self):
@@ -938,7 +977,7 @@ class KlusterMain(QtWidgets.QMainWindow):
             print('Processing is already occurring.  Please wait for the process to finish')
             cancelled = True
         else:
-            fqprs = self.return_selected_fqprs()
+            fqprs, _ = self.return_selected_fqprs()
             dlog = dialog_export.ExportDialog()
             dlog.update_fqpr_instances(addtl_files=fqprs)
             cancelled = False
@@ -975,7 +1014,10 @@ class KlusterMain(QtWidgets.QMainWindow):
         and display.
         """
 
-        print('Export Complete.')
+        if self.export_thread.error:
+            print('Export complete: Unable to export')
+        else:
+            print('Export complete.')
         self._stop_action_progress()
 
     def _start_action_progress(self):
@@ -984,7 +1026,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         bar here.
         """
 
-        self.actions.progress.setMaximum(0)
+        self.generic_progressbar.setMaximum(0)
 
     def _stop_action_progress(self):
         """
@@ -992,7 +1034,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         here.
         """
 
-        self.actions.progress.setMaximum(1)
+        self.generic_progressbar.setMaximum(1)
 
     def _create_new_project_if_not_exist(self, pth):
         """
@@ -1048,10 +1090,44 @@ class KlusterMain(QtWidgets.QMainWindow):
             print('open_project: opening project was cancelled')
 
     def _kluster_open_project_results(self):
-        self.project = self.open_project_thread.project
-        self.redraw(new_fqprs=self.open_project_thread.new_fqprs)
+        """
+        After running the open_project_thread, we get here and replace the existing project with the newly opened
+        project.  We then draw the new lines to the screen.
+        """
+        if not self.open_project_thread.error:
+            self.project = self.open_project_thread.project
+            self.redraw(new_fqprs=self.open_project_thread.new_fqprs)
         self._stop_action_progress()
-        print('open_project: Opening project {} complete.'.format(self.open_project_thread.new_project_path))
+
+    def _kluster_draw_navigation_results(self):
+        """
+        After opening a project, we run the draw_navigation_thread to load all navigation for all lines in the project
+        """
+        if not self.draw_navigation_thread.error:
+            self.project = self.draw_navigation_thread.project
+            for ln in self.draw_navigation_thread.line_data:
+                self.two_d.add_line(ln, self.draw_navigation_thread.line_data[ln][0], self.draw_navigation_thread.line_data[ln][1])
+            self.two_d.set_extents_from_lines()
+        self.draw_navigation_thread.populate(None, None)
+        self._stop_action_progress()
+        print('draw_navigation: Drawing navigation complete.')
+
+    def _kluster_draw_surface_results(self):
+        """
+        After clicking on a surface layer, we load the data in this thread and in this method we draw the loaded data
+        """
+        if not self.draw_surface_thread.error:
+            surf_path = self.draw_surface_thread.surface_path
+            surf_epsg = self.draw_surface_thread.surf_object.epsg
+            surf_resolution = self.draw_surface_thread.resolution
+            for surflayername in self.draw_surface_thread.surface_data:
+                data = self.draw_surface_thread.surface_data[surflayername][0]
+                geo_transform = self.draw_surface_thread.surface_data[surflayername][1]
+                self.two_d.add_surface([surf_path, surflayername, data, geo_transform, surf_epsg, surf_resolution])
+            self.two_d.set_extents_from_surfaces(surf_path, surf_resolution)
+        self.draw_surface_thread.populate(None, None, None, None)
+        self._stop_action_progress()
+        print('draw_surface: Drawing surface complete.')
 
     def close_project(self):
         """
@@ -1317,7 +1393,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         print('Selecting Points in Polygon...')
         pointcount = 0
         self.points_view.clear()
-        pts_data = self.project.return_soundings_in_polygon(polygon, azimuth)
+        pts_data = self.project.return_soundings_in_polygon(polygon)
         for fqpr_name, pointdata in pts_data.items():
             self.points_view.add_points(pointdata[0], pointdata[1], pointdata[2], pointdata[3], pointdata[4], pointdata[5],
                                         pointdata[6], fqpr_name, pointdata[7], is_3d=True)
@@ -1341,7 +1417,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         print('Selecting Points in Polygon...')
         pointcount = 0
         self.points_view.clear()
-        pts_data = self.project.return_soundings_in_polygon(polygon, azimuth)
+        pts_data = self.project.return_soundings_in_polygon(polygon)
         for fqpr_name, pointdata in pts_data.items():
             self.points_view.add_points(pointdata[0], pointdata[1], pointdata[2], pointdata[3], pointdata[4], pointdata[5],
                                         pointdata[6], fqpr_name, pointdata[7], is_3d=False)
@@ -1608,16 +1684,30 @@ class KlusterMain(QtWidgets.QMainWindow):
 
     def return_selected_fqprs(self):
         """
-        Return absolute paths to fqprs selected
+        Return absolute paths to fqprs selected and the loaded fqpr instances
 
         Returns
         -------
         list
             absolute path to the fqprs selected in the GUI
+        list
+            list of loaded fqpr instances
         """
         fqprs = self.project_tree.return_selected_fqprs()
-        fqprs = [self.project.absolute_path_from_relative(f) for f in fqprs]
-        return fqprs
+        fqpr_loaded = []
+        fqpr_paths = []
+        for fq in fqprs:
+            try:
+                fqpr_paths.append(self.project.absolute_path_from_relative(fq))
+            except:
+                print('Unable to find {} in project'.format(fq))
+                continue
+            try:
+                fqpr_loaded.append(self.project.fqpr_instances[fq])
+            except:
+                print('Unable to find loaded converted data for {}'.format(fq))
+                fqpr_loaded.append(None)
+        return fqpr_paths, fqpr_loaded
 
     def return_selected_surfaces(self):
         """

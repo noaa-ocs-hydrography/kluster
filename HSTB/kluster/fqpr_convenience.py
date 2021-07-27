@@ -11,7 +11,7 @@ from HSTB.drivers.par3 import AllRead
 from HSTB.drivers.kmall import kmall
 from HSTB.kluster.xarray_conversion import BatchRead
 from HSTB.kluster.fqpr_generation import Fqpr
-from HSTB.kluster.fqpr_helpers import return_directory_from_data, seconds_to_formatted_string
+from HSTB.kluster.fqpr_helpers import return_directory_from_data, seconds_to_formatted_string, return_files_from_path
 from HSTB.kluster import kluster_variables
 from bathygrid.convenience import create_grid, load_grid, BathyGrid
 
@@ -62,11 +62,12 @@ def perform_all_processing(filname: Union[str, list], navfiles: list = None, out
     """
 
     fqpr_inst = convert_multibeam(filname, outfold, skip_dask=skip_dask, show_progress=show_progress, parallel_write=parallel_write)
-    if navfiles is not None:
-        fqpr_inst = import_processed_navigation(fqpr_inst, navfiles, **kwargs)
-    fqpr_inst = process_multibeam(fqpr_inst, add_cast_files=add_cast_files, coord_system=coord_system, vert_ref=vert_ref,
-                                  orientation_initial_interpolation=orientation_initial_interpolation,
-                                  vdatum_directory=vdatum_directory)
+    if fqpr_inst is not None:
+        if navfiles is not None:
+            fqpr_inst = import_processed_navigation(fqpr_inst, navfiles, **kwargs)
+        fqpr_inst = process_multibeam(fqpr_inst, add_cast_files=add_cast_files, coord_system=coord_system, vert_ref=vert_ref,
+                                      orientation_initial_interpolation=orientation_initial_interpolation,
+                                      vdatum_directory=vdatum_directory)
     return fqpr_inst
 
 
@@ -101,10 +102,17 @@ def convert_multibeam(filname: Union[str, list], outfold: str = None, client: Cl
         Fqpr containing converted source data
     """
 
-    mbes_read = BatchRead(filname, dest=outfold, client=client, skip_dask=skip_dask, show_progress=show_progress,
-                          parallel_write=parallel_write)
-    fqpr_inst = Fqpr(mbes_read, show_progress=show_progress, parallel_write=parallel_write)
-    fqpr_inst.read_from_source()
+    fqpr_inst = None
+    mfiles = return_files_from_path(filname, in_chunks=True)
+    for filchunk in mfiles:
+        mbes_read = BatchRead(filchunk, dest=outfold, client=client, skip_dask=skip_dask, show_progress=show_progress,
+                              parallel_write=parallel_write)
+        fqpr_inst = Fqpr(mbes_read, show_progress=show_progress, parallel_write=parallel_write)
+        fqpr_inst.read_from_source()
+
+        # dask processes appear to suffer from memory leaks regardless of how carefully we track and wait on futures, reset the client here to clear memory after processing
+        # if fqpr_inst.client is not None:
+        #     fqpr_inst.client.restart()
     return fqpr_inst
 
 
@@ -366,10 +374,10 @@ def reload_data(converted_folder: str, require_raw_data: bool = True, skip_dask:
     if final_paths is None:
         return None
 
-    if (require_raw_data and final_paths['ping'] and final_paths['attitude'] and final_paths['navigation']) or (final_paths['ping'] or final_paths['soundings']):
+    if (require_raw_data and final_paths['ping'] and final_paths['attitude']) or (final_paths['ping']):
         mbes_read = BatchRead(None, skip_dask=skip_dask, show_progress=show_progress)
         mbes_read.final_paths = final_paths
-        mbes_read.read_from_zarr_fils(final_paths['ping'], final_paths['attitude'][0], final_paths['navigation'][0], final_paths['logfile'])
+        mbes_read.read_from_zarr_fils(final_paths['ping'], final_paths['attitude'][0], final_paths['logfile'])
         fqpr_inst = Fqpr(mbes_read, show_progress=show_progress)
         if not silent:
             fqpr_inst.logger.info('****Reloading from file {}****'.format(converted_folder))
@@ -738,7 +746,7 @@ def return_processed_data_folders(converted_folder: str):
         directory paths according to record type (ex: navigation, attitude, etc.)
     """
 
-    final_paths = {'attitude': [], 'navigation': [], 'ping': [], 'soundings': [], 'ppnav': [], 'logfile': ''}
+    final_paths = {'attitude': [], 'ping': [], 'ppnav': [], 'logfile': ''}
     if os.path.isdir(converted_folder):
         for fldr in os.listdir(converted_folder):
             fldrpath = os.path.join(converted_folder, fldr)
@@ -749,7 +757,7 @@ def return_processed_data_folders(converted_folder: str):
                     elif ky in ['logfile']:
                         final_paths[ky] = fldrpath
 
-    for ky in ['attitude', 'navigation', 'soundings', 'ppnav']:
+    for ky in ['attitude', 'ppnav']:
         if len(final_paths[ky]) > 1:
             print(len(final_paths[ky]))
             print('return_processed_data_folders: Only one {} folder is allowed in a data store'.format(ky))
@@ -1355,7 +1363,7 @@ def get_attributes_from_fqpr(fqpr_instance, include_mode: bool = True):
 
     try:
         # update for the attributes in other datasets
-        for other_attrs in [fqpr_instance.multibeam.raw_nav.attrs, fqpr_instance.multibeam.raw_att.attrs]:
+        for other_attrs in [fqpr_instance.multibeam.raw_att.attrs]:
             for k, v in other_attrs.items():
                 if k not in newattrs:
                     try:
