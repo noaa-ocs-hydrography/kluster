@@ -697,6 +697,7 @@ class KlusterMain(QtWidgets.QMainWindow):
                 self.refresh_project(fqpr=[fqpr_entry])
         else:
             print('kluster_action: no data returned from action execution: {}'.format(fqpr))
+        self._stop_action_progress()
 
     def kluster_overwrite_nav(self):
         """
