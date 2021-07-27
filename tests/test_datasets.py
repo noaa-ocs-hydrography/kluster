@@ -91,11 +91,11 @@ class SyntheticFqpr:
             beam_pointing_angle = xr.DataArray(np.array(beam_pointing_angle_data), dims=['time', 'beam'],
                                                coords={'time': tme_coord, 'beam': bm_vals})
 
-            dataset.append(xr.Dataset({'delay': (['time'], delay), 'ntx': (['time'], ntx),
-                                       'tiltangle': (['time'], tiltangle),
-                                       'traveltime': (['time', 'beam'], twoway_travel_time),
-                                       'beampointingangle': (['time', 'beam'], beam_pointing_angle)},
-                                      coords={'time': tme_coord, 'beam': beam_coord},
+            dataset.append(xr.Dataset({'delay': (['time'], delay.data), 'ntx': (['time'], ntx.data),  # use the underlying numpy array to avoid problems in xarray 0.19.0
+                                       'tiltangle': (['time'], tiltangle.data),
+                                       'traveltime': (['time', 'beam'], twoway_travel_time.data),
+                                       'beampointingangle': (['time', 'beam'], beam_pointing_angle.data)},
+                                      coords={'time': tme_coord.data, 'beam': beam_coord.data},
                                       attrs={'system_serial_number': ['999'], 'sector_identifier': sec}).chunk())
         return dataset
 
@@ -121,8 +121,8 @@ class SyntheticFqpr:
         roll = xr.DataArray(np.array([self.synth_roll, self.synth_roll + 2, self.synth_roll + 3]), dims=['time'],
                             coords={'time': tme_coord})
 
-        return xr.Dataset({'heading': (['time'], heading), 'heave': (['time'], heave), 'pitch': (['time'], pitch),
-                           'roll': (['time'], roll)}, coords={'time': tme_coord}).chunk()
+        return xr.Dataset({'heading': (['time'], heading.data), 'heave': (['time'], heave.data), 'pitch': (['time'], pitch.data),
+                           'roll': (['time'], roll.data)}, coords={'time': tme_coord.data}).chunk()
 
 
 class RealDualheadFqpr:
@@ -1150,19 +1150,19 @@ class RealDualheadFqpr:
             latitude = xr.DataArray(np.array([self.synth_latitude[cnt]]), dims=['time'], coords={'time': tme_coord})
             longitude = xr.DataArray(np.array([self.synth_longitude[cnt]]), dims=['time'], coords={'time': tme_coord})
 
-            dataset.append(xr.Dataset({'ntx': (['time'], ntx),
-                                       'counter': (['time'], counter),
-                                       'soundspeed': (['time'], soundspeed),
-                                       'tiltangle': (['time', 'beam'], tiltangle),
-                                       'txsector_beam': (['time', 'beam'], txsector),
-                                       'delay': (['time', 'beam'], delay),
-                                       'frequency': (['time', 'beam'], frequency),
-                                       'traveltime': (['time', 'beam'], twoway_travel_time),
-                                       'beampointingangle': (['time', 'beam'], beam_pointing_angle),
-                                       'qualityfactor': (['time', 'beam'], quality_factor),
-                                       'altitude': (['time'], altitude),
-                                       'latitude': (['time'], latitude),
-                                       'longitude': (['time'], longitude)},
+            dataset.append(xr.Dataset({'ntx': (['time'], ntx.data),  # use the underlying numpy array to avoid problems in xarray 0.19.0
+                                       'counter': (['time'], counter.data),
+                                       'soundspeed': (['time'], soundspeed.data),
+                                       'tiltangle': (['time', 'beam'], tiltangle.data),
+                                       'txsector_beam': (['time', 'beam'], txsector.data),
+                                       'delay': (['time', 'beam'], delay.data),
+                                       'frequency': (['time', 'beam'], frequency.data),
+                                       'traveltime': (['time', 'beam'], twoway_travel_time.data),
+                                       'beampointingangle': (['time', 'beam'], beam_pointing_angle.data),
+                                       'qualityfactor': (['time', 'beam'], quality_factor.data),
+                                       'altitude': (['time'], altitude.data),
+                                       'latitude': (['time'], latitude.data),
+                                       'longitude': (['time'], longitude.data)},
                                       coords={'time': tme_coord, 'beam': beam_coord},
                                       attrs={list(self.profile.keys())[0]: self.profile[list(self.profile.keys())[0]],
                                              'system_serial_number': [self.serialnum],
@@ -1192,8 +1192,8 @@ class RealDualheadFqpr:
         pitch = xr.DataArray(np.array(self.synth_pitch), dims=['time'], coords={'time': tme_coord})
         roll = xr.DataArray(np.array(self.synth_roll), dims=['time'], coords={'time': tme_coord})
 
-        return xr.Dataset({'heading': (['time'], heading), 'heave': (['time'], heave), 'pitch': (['time'], pitch),
-                           'roll': (['time'], roll)}, coords={'time': tme_coord}).chunk()
+        return xr.Dataset({'heading': (['time'], heading.data), 'heave': (['time'], heave.data), 'pitch': (['time'], pitch.data),
+                           'roll': (['time'], roll.data)}, coords={'time': tme_coord.data}).chunk()
 
 
 class RealFqpr:
@@ -3389,20 +3389,20 @@ class RealFqpr:
             latitude = xr.DataArray(np.array(self.synth_latitude), dims=['time'], coords={'time': tme_coord})
             longitude = xr.DataArray(np.array(self.synth_longitude), dims=['time'], coords={'time': tme_coord})
 
-            dataset.append(xr.Dataset({'ntx': (['time'], ntx),
-                                       'counter': (['time'], counter),
-                                       'soundspeed': (['time'], soundspeed),
-                                       'tiltangle': (['time', 'beam'], tiltangle),
-                                       'txsector_beam': (['time', 'beam'], txsector),
-                                       'delay': (['time', 'beam'], delay),
-                                       'frequency': (['time', 'beam'], frequency),
-                                       'traveltime': (['time', 'beam'], twoway_travel_time),
-                                       'beampointingangle': (['time', 'beam'], beam_pointing_angle),
-                                       'qualityfactor': (['time', 'beam'], quality_factor),
-                                       'altitude': (['time'], altitude),
-                                       'latitude': (['time'], latitude),
-                                       'longitude': (['time'], longitude)},
-                                      coords={'time': tme_coord, 'beam': beam_coord},
+            dataset.append(xr.Dataset({'ntx': (['time'], ntx.data),  # use the underlying numpy array to avoid problems in xarray 0.19.0
+                                       'counter': (['time'], counter.data),
+                                       'soundspeed': (['time'], soundspeed.data),
+                                       'tiltangle': (['time', 'beam'], tiltangle.data),
+                                       'txsector_beam': (['time', 'beam'], txsector.data),
+                                       'delay': (['time', 'beam'], delay.data),
+                                       'frequency': (['time', 'beam'], frequency.data),
+                                       'traveltime': (['time', 'beam'], twoway_travel_time.data),
+                                       'beampointingangle': (['time', 'beam'], beam_pointing_angle.data),
+                                       'qualityfactor': (['time', 'beam'], quality_factor.data),
+                                       'altitude': (['time'], altitude.data),
+                                       'latitude': (['time'], latitude.data),
+                                       'longitude': (['time'], longitude.data)},
+                                      coords={'time': tme_coord.data, 'beam': beam_coord.data},
                                       attrs={list(self.profile.keys())[0]: self.profile[list(self.profile.keys())[0]],
                                              'system_serial_number': [self.serialnum],
                                              'secondary_system_serial_number': [self.secondary_serialnum],
@@ -3431,5 +3431,5 @@ class RealFqpr:
         pitch = xr.DataArray(np.array(self.synth_pitch), dims=['time'], coords={'time': tme_coord})
         roll = xr.DataArray(np.array(self.synth_roll), dims=['time'], coords={'time': tme_coord})
 
-        return xr.Dataset({'heading': (['time'], heading), 'heave': (['time'], heave), 'pitch': (['time'], pitch),
-                           'roll': (['time'], roll)}, coords={'time': tme_coord}).chunk()
+        return xr.Dataset({'heading': (['time'], heading.data), 'heave': (['time'], heave.data), 'pitch': (['time'], pitch.data),
+                           'roll': (['time'], roll.data)}, coords={'time': tme_coord.data}).chunk()

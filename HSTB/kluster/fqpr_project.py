@@ -228,8 +228,8 @@ class FqprProject:
             full_path = os.path.join(directory_path, fil)
             if os.path.isdir(full_path):
                 self.add_fqpr(full_path, skip_dask=True)
-            elif os.path.isfile(full_path):
-                self.add_surface(full_path)
+            # elif os.path.isfile(full_path):  # skip trying to load surfaces, we don't have a good way to tell, could just try except i guess
+            #     self.add_surface(full_path)
         self.path = os.path.join(directory_path, 'kluster_project.json')
         self.save_project()
 

@@ -721,11 +721,11 @@ def reload_zarr_records(pth: str, skip_dask: bool = False, sort_by: str = None):
     if os.path.exists(pth):
         sync = zarr.ProcessSynchronizer(pth + '.sync')
         if not skip_dask:
-            data = xr.open_zarr(pth, synchronizer=sync,
+            data = xr.open_zarr(pth, synchronizer=sync, consolidated=False,
                                 mask_and_scale=False, decode_coords=False, decode_times=False,
                                 decode_cf=False, concat_characters=False)
         else:
-            data = xr.open_zarr(pth, synchronizer=None,
+            data = xr.open_zarr(pth, synchronizer=None, consolidated=False,
                                 mask_and_scale=False, decode_coords=False, decode_times=False,
                                 decode_cf=False, concat_characters=False)
         if sort_by:
