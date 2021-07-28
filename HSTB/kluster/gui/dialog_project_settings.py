@@ -34,6 +34,7 @@ class ProjectSettingsDialog(QtWidgets.QDialog):
         self.hlayout_two.addWidget(self.auto_utm_radio)
         self.auto_utm_val = QtWidgets.QComboBox()
         self.auto_utm_val.addItems(kluster_variables.coordinate_systems)
+        self.auto_utm_val.setCurrentIndex(kluster_variables.coordinate_systems.index(kluster_variables.default_coordinate_system))
         self.auto_utm_val.setMaximumWidth(100)
         self.hlayout_two.addWidget(self.auto_utm_val)
         self.hlayout_two.addStretch(1)
@@ -171,7 +172,8 @@ class ProjectSettingsDialog(QtWidgets.QDialog):
                     self.epsg_radio.setChecked(settings.value('Kluster/proj_settings_epsgradio'))
                 except:
                     pass
-            self.epsg_val.setText(str(settings.value('Kluster/proj_settings_epsgval')))
+            if settings.value('Kluster/proj_settings_epsgval'):
+                self.epsg_val.setText(str(settings.value('Kluster/proj_settings_epsgval')))
             try:
                 self.auto_utm_radio.setChecked(settings.value('Kluster/proj_settings_utmradio').lower() == 'true')
             except AttributeError:
@@ -179,10 +181,12 @@ class ProjectSettingsDialog(QtWidgets.QDialog):
                     self.auto_utm_radio.setChecked(settings.value('Kluster/proj_settings_utmradio'))
                 except:
                     pass
-            self.auto_utm_val.setCurrentText(settings.value('Kluster/proj_settings_utmval'))
-            self.georef_vertref.setCurrentText(settings.value('Kluster/proj_settings_vertref'))
+            if settings.value('Kluster/proj_settings_utmval'):
+                self.auto_utm_val.setCurrentText(settings.value('Kluster/proj_settings_utmval'))
+            if settings.value('Kluster/proj_settings_vertref'):
+                self.georef_vertref.setCurrentText(settings.value('Kluster/proj_settings_vertref'))
         except TypeError:
-            # no settings exist yet for this app, .lower failed
+            # no settings exist yet for this app
             pass
 
 

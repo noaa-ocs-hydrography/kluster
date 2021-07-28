@@ -24,6 +24,7 @@ from HSTB.kluster.fqpr_vessel import convert_from_fqpr_xyzrph, convert_from_vess
 from HSTB.kluster import __version__ as kluster_version
 from HSTB.kluster import __file__ as kluster_init_file
 from HSTB.shared import RegistryHelpers, path_to_supplementals
+from HSTB.kluster import kluster_variables
 
 # list of icons
 # https://joekuan.wordpress.com/2015/09/23/list-of-qt-icons/
@@ -32,8 +33,8 @@ from HSTB.shared import RegistryHelpers, path_to_supplementals
 settings_translator = {'Kluster/proj_settings_epsgradio': {'newname': 'use_epsg', 'defaultvalue': False},
                        'Kluster/proj_settings_epsgval': {'newname': 'epsg', 'defaultvalue': ''},
                        'Kluster/proj_settings_utmradio': {'newname': 'use_coord', 'defaultvalue': True},
-                       'Kluster/proj_settings_utmval': {'newname': 'coord_system', 'defaultvalue': 'NAD83'},
-                       'Kluster/proj_settings_vertref': {'newname': 'vert_ref', 'defaultvalue': 'waterline'},
+                       'Kluster/proj_settings_utmval': {'newname': 'coord_system', 'defaultvalue': kluster_variables.default_coordinate_system},
+                       'Kluster/proj_settings_vertref': {'newname': 'vert_ref', 'defaultvalue': kluster_variables.default_vertical_reference},
                        'Kluster/layer_settings_background': {'newname': 'layer_background', 'defaultvalue': 'Default'},
                        'Kluster/layer_settings_transparency': {'newname': 'layer_transparency', 'defaultvalue': '0'},
                        'Kluster/layer_settings_surfacetransparency': {'newname': 'surface_transparency', 'defaultvalue': 0},

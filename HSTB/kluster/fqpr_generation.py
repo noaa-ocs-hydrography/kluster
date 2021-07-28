@@ -195,7 +195,7 @@ class Fqpr(ZarrBackend):
 
         self.navigation = reload_zarr_records(self.navigation_path, skip_dask)
 
-    def construct_crs(self, epsg: str = None, datum: str = 'NAD83', projected: bool = True, vert_ref: str = None):
+    def construct_crs(self, epsg: str = None, datum: str = 'WGS84', projected: bool = True, vert_ref: str = None):
         """
         Build pyproj crs from several different options, used with georef_across_along_depth.
 
@@ -3023,8 +3023,8 @@ class Fqpr(ZarrBackend):
         default_use_epsg = False
         default_use_coord = True
         default_epsg = None
-        default_coord_system = 'NAD83'
-        default_vert_ref = 'waterline'
+        default_coord_system = kluster_variables.default_coordinate_system
+        default_vert_ref = kluster_variables.default_vertical_reference
         if new_coordinate_system:
             try:
                 new_epsg = new_coordinate_system.to_epsg()

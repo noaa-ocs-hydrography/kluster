@@ -1785,7 +1785,7 @@ def likelihood_start_end_times_close(filetimes: list, compare_times: list, allow
     return close_times
 
 
-def intel_process(filname: Union[str, list], outfold: str = None, coord_system: str = 'NAD83',
+def intel_process(filname: Union[str, list], outfold: str = None, coord_system: str = 'WGS84',
                   epsg: int = None, use_epsg: bool = False, vert_ref: str = 'waterline',
                   parallel_write: bool = True, vdatum_directory: str = None, force_coordinate_system: bool = True,
                   logger: logging.Logger = None):
@@ -1860,7 +1860,7 @@ def intel_process(filname: Union[str, list], outfold: str = None, coord_system: 
     return intel, list(intel.project.fqpr_instances.values())
 
 
-def intel_process_service(folder_path: str, is_recursive: bool = True, outfold: str = None, coord_system: str = 'NAD83',
+def intel_process_service(folder_path: str, is_recursive: bool = True, outfold: str = None, coord_system: str = 'WGS84',
                           epsg: int = None, use_epsg: bool = False, vert_ref: str = 'waterline',
                           parallel_write: bool = True, vdatum_directory: str = None, force_coordinate_system: bool = True,
                           logger: logging.Logger = None):

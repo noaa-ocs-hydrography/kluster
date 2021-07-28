@@ -16,7 +16,7 @@ from HSTB.kluster import kluster_variables
 from bathygrid.convenience import create_grid, load_grid, BathyGrid
 
 
-def perform_all_processing(filname: Union[str, list], navfiles: list = None, outfold: str = None, coord_system: str = 'NAD83',
+def perform_all_processing(filname: Union[str, list], navfiles: list = None, outfold: str = None, coord_system: str = 'WGS84',
                            vert_ref: str = 'waterline', orientation_initial_interpolation: bool = False,
                            add_cast_files: Union[str, list] = None,
                            skip_dask: bool = False, show_progress: bool = True, parallel_write: bool = True,
@@ -235,7 +235,7 @@ def import_sound_velocity(fqpr_inst: Fqpr, sv_files: Union[str, list]):
 def process_multibeam(fqpr_inst: Fqpr, run_orientation: bool = True, orientation_initial_interpolation: bool = False,
                       run_beam_vec: bool = True, run_svcorr: bool = True, run_georef: bool = True, run_tpu: bool = True,
                       add_cast_files: Union[str, list] = None, use_epsg: bool = False,
-                      use_coord: bool = True, epsg: int = None, coord_system: str = 'NAD83',
+                      use_coord: bool = True, epsg: int = None, coord_system: str = 'WGS84',
                       vert_ref: str = 'waterline', vdatum_directory: str = None):
     """
     Use fqpr_generation to process already converted data on the local cluster and generate sound velocity corrected,
@@ -308,7 +308,7 @@ def process_multibeam(fqpr_inst: Fqpr, run_orientation: bool = True, orientation
     return fqpr_inst
 
 
-def process_and_export_soundings(filname: str, outfold: str = None, coord_system: str = 'NAD83', vert_ref: str = 'waterline'):
+def process_and_export_soundings(filname: str, outfold: str = None, coord_system: str = 'WGS84', vert_ref: str = 'waterline'):
     """
     Use fqpr_generation to process multibeam data on the local cluster and generate a sound velocity corrected,
     georeferenced xyz with uncertainty in csv files in the provided output folder.
@@ -1217,7 +1217,7 @@ def validation_against_xyz88(filname: str, analysis_mode: str = 'even', numplots
     return fq
 
 
-def return_data(pth: Union[list, str], coord_system: str = 'NAD83', vert_ref: str = 'waterline',
+def return_data(pth: Union[list, str], coord_system: str = 'WGS84', vert_ref: str = 'waterline',
                 require_raw_data: bool = True, autogenerate: bool = True, skip_dask: bool = False):
     """
     Take in a path to a zarr store, a path to a directory of multibeam files, a list of paths to multibeam files or a

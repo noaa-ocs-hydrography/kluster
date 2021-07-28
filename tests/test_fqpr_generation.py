@@ -98,7 +98,7 @@ def test_process_testfile():
 
     testfile_path, expected_output = get_testfile_paths()
     out = convert_multibeam(testfile_path)
-    out = process_multibeam(out)
+    out = process_multibeam(out, coord_system='NAD83')
 
     number_of_sectors = len(out.multibeam.raw_ping)
     rp = out.multibeam.raw_ping[0].isel(time=0).isel(beam=0)
@@ -360,6 +360,7 @@ def test_intelligence():
     proj = fqpr_project.create_new_project(os.path.dirname(testfile_path))
     proj_path = os.path.join(os.path.dirname(testfile_path), 'kluster_project.json')
     fintel = fqpr_intelligence.FqprIntel(proj)
+    fintel.set_settings({'coord_system': 'NAD83'})
     fintel.add_file(testfile_path)
     time.sleep(3)  # pause until the folder monitoring finds the multibeam file
 
