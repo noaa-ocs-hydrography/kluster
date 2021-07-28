@@ -16,14 +16,13 @@ jobs:
       - run: source activate test-environment
       
       - run: |    
-          conda install -c conda-forge qgis=3.18.0 vispy=0.6.6 pyside2=5.13.2 gdal=3.2.1
+          conda install -c conda-forge qgis=3.18.0 vispy=0.6.6 pyside2=5.13.2 gdal=3.2.1 h5py
           conda install pytest six pytest-cov pytest-mock
       
       - run: |
           conda install git pip
           pip install git+https://github.com/noaa-ocs-hydrography/kluster.git#egg=hstb.kluster
-          pip install git+https://github.com/noaa-ocs-hydrography/shared.git#egg=hstb.shared
-      
+
       - run: pip install -r requirements.txt
           
       # Run Tests
