@@ -8,8 +8,10 @@ from matplotlib.pyplot import Figure, Axes
 from typing import Union
 
 from HSTB.kluster.fqpr_helpers import return_directory_from_data
-from HSTB.kluster.fqpr_convenience import return_data, return_surface
 from HSTB.kluster.fqpr_generation import Fqpr
+from HSTB.kluster.fqpr_convenience import reload_data, reload_surface
+
+from bathygrid.bgrid import BathyGrid
 
 pulseform_translator = {'CW': 'CW', 'FM': 'FM', 'MIX': 'MixFM_CW'}
 pingmode_translator = {'VS': 'VeryShallow', 'SH': 'Shallow', 'ME': 'Medium', 'DE': 'Deep', 'VD': 'VeryDeep',
@@ -468,46 +470,43 @@ def calc_order(depth: np.array):
     return order1_min, order1_max, specialorder_min, specialorder_max
 
 
-# def difference_grid_and_soundings(bs: BaseSurface, linefq: Fqpr, ang: xr.DataArray):
-#     """
-#     Given base surface instance (bs) and Fqpr instance (linefq) determine the depth difference between the nearest
-#     soundings to the surface node and the nodal depth.
-#
-#     Parameters
-#     ----------
-#     bs
-#         fqpr_surface BaseSurface instance, represents the reference surface data
-#     linefq
-#         fqpr_generation Fqpr instance, represents the accuracy lines
-#     ang
-#         xarray DataArray, beam angle for soundings, added in here separately as this is not stored in the xyz_dat
-#         dataset so has to be reformed previously.
-#
-#     Returns
-#     -------
-#     np.array
-#         depth difference between grid node and sounding for each sounding
-#     np.array
-#         grid depth found for each sounding
-#     np.array
-#         beam numbers for each returned sounding
-#     np.array
-#         angle values for each returned sounding
-#     """
-#
-#     grid_loc_per_sounding_x, grid_loc_per_sounding_y = bs.calculate_grid_indices(linefq.soundings.x, linefq.soundings.y,
-#                                                                                  only_nearest=True)
-#     sounding_idx = grid_loc_per_sounding_x != -1  # soundings that are inside the grid
-#     grid_depth_at_loc = bs.surf[grid_loc_per_sounding_x[sounding_idx], grid_loc_per_sounding_y[sounding_idx]]
-#     empty_grid_idx = np.isnan(grid_depth_at_loc)
-#
-#     grid_depth_at_loc = grid_depth_at_loc[~empty_grid_idx]
-#     soundings_depth_at_loc = linefq.soundings.z[sounding_idx][~empty_grid_idx]
-#     soundings_beam_at_loc = linefq.soundings.beam_idx[sounding_idx][~empty_grid_idx]
-#     soundings_angle_at_loc = np.rad2deg(ang[sounding_idx][~empty_grid_idx])
-#     depth_diff = soundings_depth_at_loc - grid_depth_at_loc
-#
-#     return depth_diff.values, grid_depth_at_loc, soundings_beam_at_loc.values, soundings_angle_at_loc
+def difference_grid_and_soundings(bs: BathyGrid, fq: Fqpr):
+    """
+    Given bathygrid instance (bs) and Fqpr instance (fq) determine the depth difference between the
+    soundings and the nodal depth.
+
+    Parameters
+    ----------
+    bs
+        fqpr_surface BaseSurface instance, represents the reference surface data
+    fq
+        fqpr_generation Fqpr instance, represents the accuracy lines
+
+    Returns
+    -------
+    np.array
+        depth difference between grid node and sounding for each sounding
+    np.array
+        grid depth found for each sounding
+    np.array
+        beam numbers for each returned sounding
+    np.array
+        angle values for each returned sounding
+    """
+
+    sounding_x = np.concatenate
+    grid_loc_per_sounding_x, grid_loc_per_sounding_y = bs.layer_values_at_xy(fq.x, fq.y, 'depth')
+    sounding_idx = grid_loc_per_sounding_x != -1  # soundings that are inside the grid
+    grid_depth_at_loc = bs.surf[grid_loc_per_sounding_x[sounding_idx], grid_loc_per_sounding_y[sounding_idx]]
+    empty_grid_idx = np.isnan(grid_depth_at_loc)
+
+    grid_depth_at_loc = grid_depth_at_loc[~empty_grid_idx]
+    soundings_depth_at_loc = linefq.soundings.z[sounding_idx][~empty_grid_idx]
+    soundings_beam_at_loc = linefq.soundings.beam_idx[sounding_idx][~empty_grid_idx]
+    soundings_angle_at_loc = np.rad2deg(ang[sounding_idx][~empty_grid_idx])
+    depth_diff = soundings_depth_at_loc - grid_depth_at_loc
+
+    return depth_diff.values, grid_depth_at_loc, soundings_beam_at_loc.values, soundings_angle_at_loc
 
 
 def _acctest_generate_stats(soundings_xdim: np.array, depth_diff: np.array, surf_depth: np.array,
@@ -757,27 +756,49 @@ def _acctest_plots(arr_mean: np.array, arr_std: np.array, xdim: np.array, xdim_b
     return f, a
 
 
-def accuracy_test(ref_surf_pth: Union[list, str], line_pairs: list, resolution: int = 1,
-                  vert_ref: str = 'ellipse', output_directory: str = None):
+def accuracy_test(ref_surf_pth: Union[str, BathyGrid], fq: Union[str, Fqpr], output_directory: str = None):
     """
     Accuracy test: takes a reference surface and accuracy test lines and creates plots of depth difference between
-    surface and lines for the soundings nearest the grid nodes.  Plots are by beam/by angle averages.
+    surface and lines for the soundings nearest the grid nodes.  Plots are by beam/by angle averages.  This function
+    will determine the
 
     Parameters
     ----------
     ref_surf_pth
-        a path to a zarr store, a path to a directory of multibeam files, a list of paths to multibeam files, a path to
-        a single multibeam file or a path to an existing surface.
-    line_pairs
-        list of either a path to a zarr store, a path to a directory of multibeam files, a list of paths to multibeam
-        files or a path to a single multibeam file
-    resolution
-        int, resolution of the surface (if this is to make a surface)
-    vert_ref
-        str, vertical reference identifier ex: waterline
+        a path to a bathygrid instance to load or the already loaded bathygrid instance
+    fq
+        a path to a fqpr instance to load or the already loaded fqpr instance
     output_directory
         str, optional, if None, puts the output files where the input line_pairs are.
     """
+
+    if isinstance(fq, str):
+        fq = reload_data(fq)
+    if isinstance(ref_surf_pth, str):
+        ref_surf_pth = reload_surface(ref_surf_pth)
+
+    grouped_datasets = {}
+    print('loading data...')
+    linedata = fq.subset_variables_by_line(['x', 'y', 'z', 'beampointingangle', 'mode', 'frequency', 'modetwo'], filter_by_detection=True)
+    for mline, linedataset in linedata.items():
+        unique_mode = np.unique(linedataset.mode)
+        if len(unique_mode) > 1:
+            ucount = [np.count_nonzero(linedataset.mode == umode) for umode in unique_mode]
+            unique_mode = [x for _, x in sorted(zip(ucount, unique_mode))][0]
+        unique_modetwo = np.unique(linedataset.modetwo)
+        if len(unique_modetwo) > 1:
+            ucount = [np.count_nonzero(linedataset.modetwo == umode) for umode in unique_modetwo]
+            unique_modetwo = [x for _, x in sorted(zip(ucount, unique_modetwo))][0]
+        freq_numbers = np.unique(linedataset.frequency)
+        lens = np.max(np.unique([len(str(id)) for id in freq_numbers]))
+        freqs = [f for f in freq_numbers if len(str(f)) == lens]
+        digits = -(len(str(freqs[0])) - 1)
+        rounded_freq = list(np.unique([np.around(f, digits) for f in freqs]))[0]
+        print('{}: mode {} modetwo {} frequency {}'.format(mline, unique_mode, unique_modetwo, rounded_freq))
+        dkey = '{} - {} - {}hz'.format(unique_mode, unique_modetwo, rounded_freq)
+        grouped_datasets[dkey] = linedataset
+
+
 
     bs = return_surface(ref_surf_pth, vert_ref, resolution)
     for lines in line_pairs:

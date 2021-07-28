@@ -86,9 +86,7 @@ class FqprExport:
             tot = len(filter_stck)
             tot_valid = np.count_nonzero(valid_detections)
             tot_invalid = tot - tot_valid
-            self.fqpr.logger.info(
-                '{}: {} total soundings, {} retained, {} filtered'.format(ping_dataset.system_identifier, tot, tot_valid,
-                                                                          tot_invalid))
+            print('{}: {} total soundings, {} retained, {} filtered'.format(ping_dataset.system_identifier, tot, tot_valid, tot_invalid))
         # filter points by mask
         unc = None
         if filter_by_detection and valid_detections is not None:

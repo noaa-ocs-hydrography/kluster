@@ -2466,28 +2466,63 @@ class Fqpr(ZarrBackend):
             self.logger.error('restore_subset: no subset found to restore from')
             raise ValueError('restore_subset: no subset found to restore from')
 
-    def subset_variables(self, variable_selection: list, ping_times: Union[np.array, float, tuple] = None, skip_subset_by_time: bool = False):
+    def _filter_subset_by_detection(self, ping_dataset: xr.Dataset):
         """
-        Take specific variable names and a time, return the array across all sectors merged into one block.
+        Get only the non-rejected soundings.  Additionally, drop all the NaN values where we did not get a georeferenced
+        answer.  Returns the dataset stacked (sounding=(time, beam)) so all variables are one dimensional.  We do
+        this to make the filtering work, as it results in a non square array.
 
-        Do this by finding the ping counter number(s) at that time, and return the full ping(s) associated with that
-        ping counter number.
+        Parameters
+        ----------
+        ping_dataset
+            one of the raw_ping datasets
 
-        EM2040c will have multiple pings at the same time with different ping counters.  Sometimes there is a slight
-        time delay.  Most of the time not.  Tracking ping counter solves this
+        Returns
+        -------
+        xr.Dataset
+            1dim stacked ping dataset
+        """
 
-        DualHead sonar will have multiple pings at the same time with the same ping counter.  Ugh.  Only way of
-        differentiating is through the serial number associated with that sector.
+        # get to a 1dim space for filtering
+        ping_dataset = ping_dataset.stack({'sounding': ('time', 'beam')})
+
+        # first drop all nans, all the georeference variables (xyz) should have NaNs in the same place
+        if 'x' in ping_dataset.variables:
+            nan_mask = ~np.isnan(ping_dataset['x'])
+            ping_dataset = ping_dataset.isel(sounding=nan_mask)
+        elif 'y' in ping_dataset.variables:
+            nan_mask = ~np.isnan(ping_dataset['y'])
+            ping_dataset = ping_dataset.isel(sounding=nan_mask)
+        elif 'z' in ping_dataset.variables:
+            nan_mask = ~np.isnan(ping_dataset['z'])
+            ping_dataset = ping_dataset.isel(sounding=nan_mask)
+        else:  # no georeferenced data found
+            pass
+
+        # rejected soundings are where detectioninfo=2
+        dinfo = ping_dataset.detectioninfo
+        valid_detections = dinfo != 2
+        ping_dataset = ping_dataset.isel(sounding=valid_detections)
+        ping_dataset = ping_dataset.drop_vars('detectioninfo')
+        return ping_dataset
+
+    def subset_variables(self, variable_selection: list, ping_times: Union[np.array, float, tuple] = None,
+                         skip_subset_by_time: bool = False, filter_by_detection: bool = False):
+        """
+        Take specific variable names and return just those variables in a new xarray dataset.  If you provide ping_times,
+        either as the minmax of a range or individual times, it will return the variables just within those times.
 
         Parameters
         ----------
         variable_selection
-            variable names you want from the fqpr sectors
+            variable names you want from the fqpr dataset
         ping_times
             time to select the dataset by, can either be an array of times (will use the min/max of the array to subset),
             a float for a single time, or a tuple of (min time, max time).  If None, will use the min/max of the dataset
         skip_subset_by_time
             if True, will not run the subset by time method
+        filter_by_detection
+            if True, will filter the dataset by the detection info flag = 2 (rejected by multibeam system)
 
         Returns
         -------
@@ -2495,6 +2530,8 @@ class Fqpr(ZarrBackend):
             Dataset with the
         """
 
+        if filter_by_detection and 'detectioninfo' not in variable_selection:
+            variable_selection.append('detectioninfo')
         if not skip_subset_by_time:
             if ping_times is None:
                 ping_times = (np.min([rp.time.values[0] for rp in self.multibeam.raw_ping]),
@@ -2540,10 +2577,51 @@ class Fqpr(ZarrBackend):
         dset = xr.Dataset(dataset_variables, coords)
         dset = dset.sortby('time')
 
+        if filter_by_detection:
+            dset = self._filter_subset_by_detection(dset)
         if not skip_subset_by_time:
             self.restore_subset()
 
         return dset
+
+    def subset_variables_by_line(self, variable_selection: list, line_names: Union[str, list] = None, filter_by_detection: bool = False):
+        """
+        Apply subset_variables to get the data split up into lines for the variable_selection provided
+
+        Parameters
+        ----------
+        variable_selection
+            variable names you want from the fqpr dataset
+        line_names
+            if provided, only returns data for the line(s), otherwise, returns data for all lines
+        filter_by_detection
+            if True, will filter the dataset by the detection info flag = 2 (rejected by multibeam system)
+
+        Returns
+        -------
+        dict
+            dict of {linename: xr.Dataset} for each line name in the dataset (or just for the line names provided
+            if you provide line names)
+        """
+        mfiles = self.return_line_dict()
+        if line_names:
+            if isinstance(line_names, str):
+                line_names = [line_names]
+            [mfiles.pop(lnme) for lnme in mfiles.keys() if lnme not in line_names]
+        if not mfiles and line_names:
+            print('No lines found in dataset, looked only for {}.  Dataset lines: {}'.format(line_names, list(mfiles.keys())))
+            return {}
+        elif not mfiles:
+            print('No lines found in dataset.')
+            return {}
+
+        return_data = {}
+        for linename in mfiles.keys():
+            starttime, endtime = mfiles[linename]
+            dset = self.subset_variables(variable_selection, ping_times=(starttime, endtime), skip_subset_by_time=False,
+                                         filter_by_detection=filter_by_detection)
+            return_data[linename] = dset
+        return return_data
 
     def return_line_dict(self):
         """
@@ -2653,8 +2731,8 @@ class Fqpr(ZarrBackend):
             array of mode settings
         """
 
-        if 'sub_mode' in self.multibeam.raw_ping[0]:
-            mode = np.unique(np.concatenate([np.unique(f.sub_mode) for f in self.multibeam.raw_ping]))
+        if 'modetwo' in self.multibeam.raw_ping[0]:
+            mode = np.unique(np.concatenate([np.unique(f.modetwo) for f in self.multibeam.raw_ping]))
         else:
             mode = np.unique(np.concatenate([np.unique(f.mode) for f in self.multibeam.raw_ping]))
         if len(mode) > 1:

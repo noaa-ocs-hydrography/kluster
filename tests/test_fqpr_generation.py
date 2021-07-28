@@ -10,6 +10,7 @@ except:  # relative import as tests directory can vary in location depending on 
     from .test_datasets import RealFqpr, RealDualheadFqpr, SyntheticFqpr
 from HSTB.kluster.xarray_helpers import interp_across_chunks
 from HSTB.kluster.fqpr_convenience import *
+from HSTB.kluster.modules.export import generate_export_data
 from HSTB.drivers import par3
 
 
@@ -283,6 +284,51 @@ def test_subset_by_time():
     out.restore_subset()
     assert len(out.multibeam.raw_ping[0].time) == 216
     assert len(out.multibeam.raw_att.time) == 5302
+    out.close()
+    out = None
+
+
+def test_subset_variables():
+    if not os.path.exists(datapath):
+        print('Please run test_process_testfile first')
+    out = reload_data(datapath)
+    dset = out.subset_variables(['z'], ping_times=(1495563100, 1495563130))
+
+    assert len(dset.time) == 123
+    assert dset.z.shape[0] == 123
+
+    assert len(out.multibeam.raw_ping[0].time) == 216
+    assert out.multibeam.raw_ping[0].z.shape[0] == 216
+    assert len(out.multibeam.raw_att.time) == 5302
+    out.close()
+    out = None
+
+
+def test_subset_variables_filter():
+    if not os.path.exists(datapath):
+        print('Please run test_process_testfile first')
+    out = reload_data(datapath)
+    dset = out.subset_variables(['z'], ping_times=(1495563100, 1495563130), filter_by_detection=True)
+
+    assert len(dset.sounding) == 45059
+    assert dset.z.shape[0] == 45059
+
+    assert len(out.multibeam.raw_ping[0].time) == 216
+    assert out.multibeam.raw_ping[0].z.shape[0] == 216
+    assert len(out.multibeam.raw_att.time) == 5302
+    out.close()
+    out = None
+
+
+def test_subset_variables_by_line():
+    if not os.path.exists(datapath):
+        print('Please run test_process_testfile first')
+    out = reload_data(datapath)
+    dset = out.subset_variables_by_line(['z'])
+
+    assert list(dset.keys()) == ['0009_20170523_181119_FA2806.all']
+    assert len(dset['0009_20170523_181119_FA2806.all'].time) == 216
+    assert dset['0009_20170523_181119_FA2806.all'].z.shape[0] == 216
     out.close()
     out = None
 
