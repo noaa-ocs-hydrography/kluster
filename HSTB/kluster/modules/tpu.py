@@ -310,7 +310,7 @@ class Tpu:
         if datum_uncertainty is not None:
             self.separation_model_error = datum_uncertainty
 
-    def generate_total_uncertainties(self, vert_ref: str = 'ellipse', sigma: int = 2):
+    def generate_total_uncertainties(self, vert_ref: str = 'ellipse', sigma: float = 1.96):
         """
         Build the total vertical/horizontal uncertainties from the provided data.  The vertical uncertainty calculation
         depends on the vertical reference of the survey.  Ellipse will involve the sbet vert uncertainty, Tidal will
@@ -321,7 +321,7 @@ class Tpu:
         vert_ref
             vertical reference of the survey, one of 'ellipse', 'waterline', 'NOAA MLLW', 'NOAA MHW'
         sigma
-            specify the number of stddev you want the error to represent, sigma=2 would generate 2sigma uncertainty.
+            specify the number of stddev you want the error to represent, sigma=1.96 would generate 2sigma uncertainty.
 
         Returns
         -------

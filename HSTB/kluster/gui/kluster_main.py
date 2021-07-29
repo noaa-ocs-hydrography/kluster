@@ -7,7 +7,7 @@ import webbrowser
 import numpy as np
 import multiprocessing
 from typing import Union
-from time import sleep
+from datetime import datetime
 
 from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal, qgis_enabled
 if qgis_enabled:
@@ -647,6 +647,14 @@ class KlusterMain(QtWidgets.QMainWindow):
         Runs the advanced plots dialog, for plotting the sat tests and other more sophisticated stuff
         """
         fqprspaths, fqprs = self.return_selected_fqprs()
+        first_surf = None
+        default_plots = None
+        if self.project.surface_instances:
+            first_surf = list(self.project.surface_instances.keys())[0]
+            first_surf = self.project.absolute_path_from_relative(first_surf)
+            default_plots = os.path.join(os.path.dirname(first_surf), 'accuracy_test')
+            if os.path.exists(default_plots):
+                default_plots = os.path.join(os.path.dirname(first_surf), 'accuracy_test_{}'.format(datetime.now().strftime('%Y%m%d_%H%M%S')))
 
         self.advancedplots_win = None
         self.advancedplots_win = dialog_advancedplot.AdvancedPlotDialog()
@@ -654,6 +662,9 @@ class KlusterMain(QtWidgets.QMainWindow):
         if fqprspaths:
             self.advancedplots_win.data_widget.new_fqpr_path(fqprspaths[0], fqprs[0])
             self.advancedplots_win.data_widget.initialize_controls()
+        if first_surf:
+            self.advancedplots_win.surf_text.setText(first_surf)
+            self.advancedplots_win.out_text.setText(default_plots)
         self.advancedplots_win.show()
 
     def kluster_execute_action(self, action_container: list, action_index: int = 0):

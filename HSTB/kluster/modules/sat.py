@@ -470,14 +470,14 @@ def calc_order(depth: np.array):
     return order1_min, order1_max, specialorder_min, specialorder_max
 
 
-def difference_grid_and_soundings(bs: BathyGrid, fq: Fqpr):
+def difference_grid_and_soundings(ref_surf: BathyGrid, fq: Fqpr):
     """
-    Given bathygrid instance (bs) and Fqpr instance (fq) determine the depth difference between the
+    Given bathygrid instance (ref_surf) and Fqpr instance (fq) determine the depth difference between the
     soundings and the nodal depth.
 
     Parameters
     ----------
-    bs
+    ref_surf
         fqpr_surface BaseSurface instance, represents the reference surface data
     fq
         fqpr_generation Fqpr instance, represents the accuracy lines
@@ -494,19 +494,16 @@ def difference_grid_and_soundings(bs: BathyGrid, fq: Fqpr):
         angle values for each returned sounding
     """
 
-    sounding_x = np.concatenate
-    grid_loc_per_sounding_x, grid_loc_per_sounding_y = bs.layer_values_at_xy(fq.x, fq.y, 'depth')
-    sounding_idx = grid_loc_per_sounding_x != -1  # soundings that are inside the grid
-    grid_depth_at_loc = bs.surf[grid_loc_per_sounding_x[sounding_idx], grid_loc_per_sounding_y[sounding_idx]]
+    grid_depth_at_loc = ref_surf.layer_values_at_xy(fq.x, fq.y, 'depth')
     empty_grid_idx = np.isnan(grid_depth_at_loc)
 
     grid_depth_at_loc = grid_depth_at_loc[~empty_grid_idx]
-    soundings_depth_at_loc = linefq.soundings.z[sounding_idx][~empty_grid_idx]
-    soundings_beam_at_loc = linefq.soundings.beam_idx[sounding_idx][~empty_grid_idx]
-    soundings_angle_at_loc = np.rad2deg(ang[sounding_idx][~empty_grid_idx])
+    soundings_depth_at_loc = fq.z[~empty_grid_idx]
+    soundings_beam_at_loc = fq.beam[~empty_grid_idx]
+    soundings_angle_at_loc = np.rad2deg(fq.corr_pointing_angle[~empty_grid_idx])  # corrected beam angle is in radians
     depth_diff = soundings_depth_at_loc - grid_depth_at_loc
 
-    return depth_diff.values, grid_depth_at_loc, soundings_beam_at_loc.values, soundings_angle_at_loc
+    return depth_diff, grid_depth_at_loc, soundings_beam_at_loc, soundings_angle_at_loc
 
 
 def _acctest_generate_stats(soundings_xdim: np.array, depth_diff: np.array, surf_depth: np.array,
@@ -636,7 +633,8 @@ def _acctest_percent_plots(arr_mean: np.array, arr_std: np.array, xdim: np.array
 
     order1 = 100 * 0.013
     special = 100 * 0.0075
-    f, a = plt.subplots(1, 1)
+
+    f, a = plt.subplots(1, 1, figsize=(12, 8))
     plus = arr_mean + 1.96 * arr_std - depth_offset
     minus = arr_mean - 1.96 * arr_std - depth_offset
     # plot the soundings
@@ -649,7 +647,7 @@ def _acctest_percent_plots(arr_mean: np.array, arr_std: np.array, xdim: np.array
     # set axes
     a.grid()
     a.set_xlim(xdim_bins.min(), xdim_bins.max())
-    a.set_ylim(-5, 5)
+    a.set_ylim(-2.25, 2.25)
     a.set_xlabel(xlabel)
     a.set_ylabel(ylabel)
     a.set_title('accuracy test: percent depth bias vs {}'.format(mode, np.round(depth_offset, 1)))
@@ -726,7 +724,7 @@ def _acctest_plots(arr_mean: np.array, arr_std: np.array, xdim: np.array, xdim_b
 
     o1_min, o1_max, so_min, so_max = calc_order(surf_depth)
 
-    f, a = plt.subplots(1, 1)
+    f, a = plt.subplots(1, 1, figsize=(12, 8))
     plus = arr_mean + 1.96 * arr_std - depth_offset
     minus = arr_mean - 1.96 * arr_std - depth_offset
     # plot the soundings
@@ -738,7 +736,7 @@ def _acctest_plots(arr_mean: np.array, arr_std: np.array, xdim: np.array, xdim_b
     # set axes
     a.grid()
     a.set_xlim(xdim_bins.min(), xdim_bins.max())
-    a.set_ylim(-2, 2)
+    a.set_ylim(-1.3 * o1_max, 1.3 * o1_max)
     a.set_xlabel(xlabel)
     a.set_ylabel(ylabel)
     a.set_title('accuracy test: depth bias vs {}'.format(mode, np.round(depth_offset, 1)))
@@ -747,7 +745,7 @@ def _acctest_plots(arr_mean: np.array, arr_std: np.array, xdim: np.array, xdim_b
     a.fill_between(xdim_bins, -o1_min, -o1_max, facecolor='black', alpha=0.5)
     # Special Order Line
     a.fill_between(xdim_bins, so_min, so_max, facecolor='green', alpha=0.1, label='Special Order')
-    a.fill_between(-xdim_bins, -so_min, -so_max, facecolor='green', alpha=0.1)
+    a.fill_between(xdim_bins, -so_min, -so_max, facecolor='green', alpha=0.1)
     a.legend(loc='upper left')
 
     f.savefig(output_pth)
@@ -756,67 +754,68 @@ def _acctest_plots(arr_mean: np.array, arr_std: np.array, xdim: np.array, xdim_b
     return f, a
 
 
-def accuracy_test(ref_surf_pth: Union[str, BathyGrid], fq: Union[str, Fqpr], output_directory: str = None):
+def accuracy_test(ref_surf: Union[str, BathyGrid], fq: Union[str, Fqpr], output_directory: str, line_names: Union[str, list] = None,
+                  ping_times: tuple = None, show_plots: bool = False):
     """
     Accuracy test: takes a reference surface and accuracy test lines and creates plots of depth difference between
     surface and lines for the soundings nearest the grid nodes.  Plots are by beam/by angle averages.  This function
-    will determine the
+    will automatically determine the mode and frequency of each line in the dataset to organize the plots.
 
     Parameters
     ----------
-    ref_surf_pth
+    ref_surf
         a path to a bathygrid instance to load or the already loaded bathygrid instance
     fq
         a path to a fqpr instance to load or the already loaded fqpr instance
     output_directory
-        str, optional, if None, puts the output files where the input line_pairs are.
+        str, where you want to put the plot images
+    line_names
+        if provided, only returns data for the line(s), otherwise, returns data for all lines
+    ping_times
+        time to select the dataset by, must be a tuple of (min time, max time) in utc seconds.  If None, will use
+        the full min/max time of the dataset
+    show_plots
+        if True, will show the plots as well as save them to disk
     """
 
     if isinstance(fq, str):
         fq = reload_data(fq)
-    if isinstance(ref_surf_pth, str):
-        ref_surf_pth = reload_surface(ref_surf_pth)
+    if isinstance(ref_surf, str):
+        ref_surf = reload_surface(ref_surf)
+    os.makedirs(output_directory, exist_ok=True)
 
     grouped_datasets = {}
     print('loading data...')
-    linedata = fq.subset_variables_by_line(['x', 'y', 'z', 'beampointingangle', 'mode', 'frequency', 'modetwo'], filter_by_detection=True)
+    linedata = fq.subset_variables_by_line(['x', 'y', 'z', 'corr_pointing_angle', 'mode', 'frequency', 'modetwo'],
+                                           filter_by_detection=True, line_names=line_names, ping_times=ping_times)
     for mline, linedataset in linedata.items():
         unique_mode = np.unique(linedataset.mode)
         if len(unique_mode) > 1:
             ucount = [np.count_nonzero(linedataset.mode == umode) for umode in unique_mode]
             unique_mode = [x for _, x in sorted(zip(ucount, unique_mode))][0]
+        else:
+            unique_mode = unique_mode[0]
         unique_modetwo = np.unique(linedataset.modetwo)
         if len(unique_modetwo) > 1:
             ucount = [np.count_nonzero(linedataset.modetwo == umode) for umode in unique_modetwo]
             unique_modetwo = [x for _, x in sorted(zip(ucount, unique_modetwo))][0]
+        else:
+            unique_modetwo = unique_modetwo[0]
         freq_numbers = np.unique(linedataset.frequency)
         lens = np.max(np.unique([len(str(id)) for id in freq_numbers]))
         freqs = [f for f in freq_numbers if len(str(f)) == lens]
         digits = -(len(str(freqs[0])) - 1)
         rounded_freq = list(np.unique([np.around(f, digits) for f in freqs]))[0]
         print('{}: mode {} modetwo {} frequency {}'.format(mline, unique_mode, unique_modetwo, rounded_freq))
-        dkey = '{} - {} - {}hz'.format(unique_mode, unique_modetwo, rounded_freq)
-        grouped_datasets[dkey] = linedataset
+        dkey = '{}-{}-{}hz'.format(unique_mode, unique_modetwo, rounded_freq)
+        if dkey not in grouped_datasets:
+            grouped_datasets[dkey] = linedataset
+        else:
+            grouped_datasets[dkey] = xr.concat([grouped_datasets[dkey], linedataset], dim='sounding')
 
-
-
-    bs = return_surface(ref_surf_pth, vert_ref, resolution)
-    for lines in line_pairs:
-        if output_directory is None:
-            output_directory = return_directory_from_data(lines)
-        print('Operating on {}'.format(lines))
-        linefq = return_data(lines, vert_ref)
-        pingmode = linefq.return_unique_mode()
-        freq = linefq.return_rounded_freq()
-        print('mode: {}, freq: {}'.format(pingmode, freq))
-
-        u_tms = linefq.return_unique_times_across_sectors()
-        # Im returning detectioninfo here as well because I keep getting some instances where detection info is all
-        #   nan for a ping.  Checking against detection info will match the indexing used with xyz_dat
-        dat, ids, tms = linefq.reform_2d_vars_across_sectors_at_time(['corr_pointing_angle', 'detectioninfo'], u_tms)
-        line_fq_ang = dat[0].ravel()
-        depth_diff, surf_depth, soundings_beam, soundings_angle = difference_grid_and_soundings(bs, linefq,
-                                                                                                line_fq_ang.ravel())
+    print('building plots...')
+    for dkey, dset in grouped_datasets.items():
+        depth_diff, surf_depth, soundings_beam, soundings_angle = difference_grid_and_soundings(ref_surf, dset)
         d_rel_a_avg, d_rel_a_stddev, pd_rel_a_avg, pd_rel_a_stddev, ang_mean_surf, angbins = _acctest_generate_stats(
             soundings_angle, depth_diff, surf_depth)
         d_rel_b_avg, d_rel_b_stddev, pd_rel_b_avg, pd_rel_b_stddev, beam_mean_surf, beambins = _acctest_generate_stats(
@@ -829,14 +828,14 @@ def accuracy_test(ref_surf_pth: Union[str, BathyGrid], fq: Union[str, Fqpr], out
         filter_diff = depth_diff[::soundings_filter]
         filter_surf = surf_depth[::soundings_filter]
 
-        first_fname = os.path.splitext(list(linefq.soundings.multibeam_files.keys())[0])[0]
         _acctest_percent_plots(pd_rel_b_avg, pd_rel_b_stddev, filter_beam, beambins, filter_diff, filter_surf,
                                mode='beam',
-                               output_pth=os.path.join(output_directory, first_fname + '_acc_beampercent.png'))
+                               output_pth=os.path.join(output_directory, dkey + '_acc_beampercent.png'), show=show_plots)
         _acctest_percent_plots(pd_rel_a_avg, pd_rel_a_stddev, filter_angle, angbins, filter_diff, filter_surf,
                                mode='angle',
-                               output_pth=os.path.join(output_directory, first_fname + '_acc_anglepercent.png'))
+                               output_pth=os.path.join(output_directory, dkey + '_acc_anglepercent.png'), show=show_plots)
         _acctest_plots(d_rel_b_avg, d_rel_b_stddev, filter_beam, beambins, filter_diff, filter_surf, mode='beam',
-                       output_pth=os.path.join(output_directory, first_fname + '_acc_beam.png'))
+                       output_pth=os.path.join(output_directory, dkey + '_acc_beam.png'), show=show_plots)
         _acctest_plots(d_rel_a_avg, d_rel_a_stddev, filter_angle, angbins, filter_diff, filter_surf, mode='angle',
-                       output_pth=os.path.join(output_directory, first_fname + '_acc_angle.png'))
+                       output_pth=os.path.join(output_directory, dkey + '_acc_angle.png'), show=show_plots)
+    print('Accuracy test complete.')

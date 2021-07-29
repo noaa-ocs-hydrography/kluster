@@ -2584,7 +2584,8 @@ class Fqpr(ZarrBackend):
 
         return dset
 
-    def subset_variables_by_line(self, variable_selection: list, line_names: Union[str, list] = None, filter_by_detection: bool = False):
+    def subset_variables_by_line(self, variable_selection: list, line_names: Union[str, list] = None, ping_times: tuple = None,
+                                 filter_by_detection: bool = False):
         """
         Apply subset_variables to get the data split up into lines for the variable_selection provided
 
@@ -2594,6 +2595,9 @@ class Fqpr(ZarrBackend):
             variable names you want from the fqpr dataset
         line_names
             if provided, only returns data for the line(s), otherwise, returns data for all lines
+        ping_times
+            time to select the dataset by, must be a tuple of (min time, max time) in utc seconds.  If None, will use
+            the full min/max time of the dataset
         filter_by_detection
             if True, will filter the dataset by the detection info flag = 2 (rejected by multibeam system)
 
@@ -2603,7 +2607,40 @@ class Fqpr(ZarrBackend):
             dict of {linename: xr.Dataset} for each line name in the dataset (or just for the line names provided
             if you provide line names)
         """
-        mfiles = self.return_line_dict()
+
+        mfiles = self.return_line_dict(line_names=line_names, ping_times=ping_times)
+
+        return_data = {}
+        for linename in mfiles.keys():
+            starttime, endtime = mfiles[linename]
+            dset = self.subset_variables(variable_selection, ping_times=(starttime, endtime), skip_subset_by_time=False,
+                                         filter_by_detection=filter_by_detection)
+            return_data[linename] = dset
+        return return_data
+
+    def return_line_dict(self, line_names: Union[str, list] = None, ping_times: tuple = None):
+        """
+        Return all the lines with associated start and stop times for all sectors in the fqpr dataset.
+
+        If line_names is provide, only return line data for those lines.  If ping_times is provided, trim all lines
+        or drop lines that are not within the ping_times tuple (starttime in utc seconds, endtime in utc seconds)
+
+        Parameters
+        ----------
+        line_names
+            if provided, only returns data for the line(s), otherwise, returns data for all lines
+        ping_times
+            time to select the dataset by, must be a tuple of (min time, max time) in utc seconds.  If None, will use
+            the full min/max time of the dataset
+
+        Returns
+        -------
+        dict
+            dictionary of names/start and stop times for all lines, ex: {'0022_20190716_232128_S250.all':
+            [1563319288.304, 1563319774.876]}
+        """
+
+        mfiles = deepcopy(self.multibeam.raw_ping[0].multibeam_files)
         if line_names:
             if isinstance(line_names, str):
                 line_names = [line_names]
@@ -2614,27 +2651,25 @@ class Fqpr(ZarrBackend):
         elif not mfiles:
             print('No lines found in dataset.')
             return {}
-
-        return_data = {}
-        for linename in mfiles.keys():
-            starttime, endtime = mfiles[linename]
-            dset = self.subset_variables(variable_selection, ping_times=(starttime, endtime), skip_subset_by_time=False,
-                                         filter_by_detection=filter_by_detection)
-            return_data[linename] = dset
-        return return_data
-
-    def return_line_dict(self):
-        """
-        Return all the lines with associated start and stop times for all sectors in the fqpr dataset
-
-        Returns
-        -------
-        dict
-            dictionary of names/start and stop times for all lines, ex: {'0022_20190716_232128_S250.all':
-            [1563319288.304, 1563319774.876]}
-        """
-
-        return self.multibeam.raw_ping[0].multibeam_files
+        if ping_times:
+            try:
+                sel_start_time, sel_end_time = float(ping_times[0]), float(ping_times[1])
+            except:
+                raise ValueError('return_line_dict: ping_times must be a tuple of (start time utc seconds, end time utc seconds): {}'.format(ping_times))
+            corrected_mfiles = {}  # we need to trim the line start/end times by the given ping_times
+            for linename in mfiles.keys():
+                starttime, endtime = mfiles[linename]
+                if starttime > sel_end_time:
+                    continue
+                if endtime < sel_start_time:
+                    continue
+                if starttime <= sel_start_time:
+                    starttime = sel_start_time
+                if endtime >= sel_end_time:
+                    endtime = sel_end_time
+                corrected_mfiles[linename] = [starttime, endtime]
+            mfiles = corrected_mfiles
+        return mfiles
 
     def calc_min_var(self, varname: str = 'depthoffset'):
         """
