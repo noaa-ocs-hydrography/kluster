@@ -54,8 +54,8 @@ if __name__ == "__main__":  # run from command line
                          help='for use with --navigation, maximum allowable time gap in the sbet in seconds, default is 1 second')
     allproc.add_argument('-o', '--output_folder', required=False,
                          help='full file path to a directory you want to contain all the zarr folders.  Will create this folder if it does not exist.')
-    allproc.add_argument('-coord', '--coordinate_system', required=False, nargs='?', const='NAD83', default='NAD83',
-                         help='a valid datum identifier that pyproj CRS will accept (WGS84, NAD83, etc.), default is NAD83')
+    allproc.add_argument('-coord', '--coordinate_system', required=False, nargs='?', const='WGS84', default='WGS84',
+                         help='a valid datum identifier that pyproj CRS will accept (WGS84, NAD83, etc.), default is WGS84')
     allproc.add_argument('-vert', '--vertical_reference', required=False, nargs='?', const='waterline', default='waterline',
                          help='the vertical reference point, one of {}, default is waterline'.format(kluster_variables.vertical_references))
     allproc.add_argument('-cast', '--cast_profiles', nargs='+', required=False,
