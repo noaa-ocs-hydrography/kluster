@@ -2069,6 +2069,36 @@ class Fqpr(ZarrBackend):
                                                          z_pos_down=z_pos_down, export_by_identifiers=export_by_identifiers)
         return written_files
 
+    def export_variable(self, dataset_name: str, var_name: str, dest_path: str):
+        """
+        Run the export module to export the given variable to csv, writing to the provided path
+
+        Parameters
+        ----------
+        dataset_name
+            dataset identifier, one of ['multibeam', 'raw navigation', 'processed navigation', 'attitude']
+        var_name
+            variable identifier for a variable in the provided dataset, ex: 'latitude'
+        dest_path
+            path to the csv that we are going to write
+        """
+
+        self.export.export_variable_to_csv(dataset_name, var_name, dest_path)
+
+    def export_dataset(self, dataset_name: str, dest_path: str):
+        """
+        Run the export module to export each variable in the given dataset to one csv, writing to the provided path
+
+        Parameters
+        ----------
+        dataset_name
+            dataset identifier, one of ['multibeam', 'raw navigation', 'processed navigation', 'attitude']
+        dest_path
+            path to the csv that we are going to write
+        """
+
+        self.export.export_dataset_to_csv(dataset_name, dest_path)
+
     def _submit_data_to_cluster(self, rawping: xr.Dataset, mode: str, idx_by_chunk: list, max_chunks_at_a_time: int,
                                 timestmp: str, prefixes: str, dump_data: bool = True, skip_dask: bool = False,
                                 prefer_pp_nav: bool = True, vdatum_directory: str = None):

@@ -118,6 +118,10 @@ class ExportDialog(QtWidgets.QDialog):
         else:
             self.status_msg.setText('')
             self.ok_button.setEnabled(True)
+        if combobox_text == 'csv':
+            self.zdirect_check.show()
+        else:
+            self.zdirect_check.hide()
 
     def _show_hide_options(self, combobox_text):
         if combobox_text == 'csv':

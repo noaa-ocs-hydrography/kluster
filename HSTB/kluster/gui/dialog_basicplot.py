@@ -1,6 +1,8 @@
 from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal
 import matplotlib.pyplot as plt
 import numpy as np
+import os
+from HSTB.shared import RegistryHelpers
 
 from HSTB.kluster.gui import common_widgets
 
@@ -128,6 +130,12 @@ class BasicPlotDialog(QtWidgets.QDialog):
         self.plot_button.setMaximumWidth(70)
         self.plot_button.setDisabled(True)
         self.hlayout_four.addWidget(self.plot_button)
+        self.exportvar_button = QtWidgets.QPushButton(' Export Variable ', self)
+        self.exportvar_button.setDisabled(True)
+        self.hlayout_four.addWidget(self.exportvar_button)
+        self.exportsource_button = QtWidgets.QPushButton(' Export Source ', self)
+        self.exportsource_button.setDisabled(True)
+        self.hlayout_four.addWidget(self.exportsource_button)
         self.hlayout_four.addStretch()
 
         self.hlayout_six = QtWidgets.QHBoxLayout()
@@ -155,6 +163,8 @@ class BasicPlotDialog(QtWidgets.QDialog):
         self.variable_dropdown.currentTextChanged.connect(self.load_plot_types)
         self.plottype_dropdown.currentTextChanged.connect(self.plot_type_selected)
         self.plot_button.clicked.connect(self.plot)
+        self.exportvar_button.clicked.connect(self.export_variable)
+        self.exportsource_button.clicked.connect(self.export_source)
 
     def new_fqpr_loaded(self, loaded: bool):
         """
@@ -178,6 +188,8 @@ class BasicPlotDialog(QtWidgets.QDialog):
             self.variable_dimtwo.setText('')
             self.plottype_dropdown.clear()
             self.plot_button.setDisabled(True)
+            self.exportsource_button.setDisabled(True)
+            self.exportvar_button.setDisabled(True)
 
     def load_datasets(self):
         """
@@ -273,6 +285,8 @@ class BasicPlotDialog(QtWidgets.QDialog):
                         self.plottype_dropdown.addItems(plottypes)
                         self.plottype_dropdown.setCurrentIndex(0)
                         self.plot_button.setEnabled(True)
+                        self.exportvar_button.setEnabled(True)
+                        self.exportsource_button.setEnabled(True)
                     elif dset[dset_var].ndim == 2:
                         self.variable_dimone.setText(dset[dset_var].dims[0])
                         self.variable_dimtwo.setText(dset[dset_var].dims[1])
@@ -280,6 +294,8 @@ class BasicPlotDialog(QtWidgets.QDialog):
                         self.plottype_dropdown.addItems(plottypes)
                         self.plottype_dropdown.setCurrentIndex(0)
                         self.plot_button.setEnabled(True)
+                        self.exportvar_button.setEnabled(True)
+                        self.exportsource_button.setEnabled(True)
                     elif dset[dset_var].ndim == 1:
                         self.variable_dimone.setText(dset[dset_var].dims[0])
                         self.variable_dimtwo.setText('None')
@@ -289,6 +305,8 @@ class BasicPlotDialog(QtWidgets.QDialog):
                         self.plottype_dropdown.addItems(plottypes)
                         self.plottype_dropdown.setCurrentIndex(0)
                         self.plot_button.setEnabled(True)
+                        self.exportvar_button.setEnabled(True)
+                        self.exportsource_button.setEnabled(True)
                     else:
                         self.variable_dimone.setText('None')
                         self.variable_dimtwo.setText('None')
@@ -492,6 +510,51 @@ class BasicPlotDialog(QtWidgets.QDialog):
                 self._plot_variable(dsets, dset_name, dset_var, plottype, sonartype, serialnum)
             if min_max:
                 self.fqpr.restore_subset()
+
+    def export_variable(self):
+        """
+        Export the currently selected dataset/variable to csv
+        """
+
+        if self.datasets:
+            ky = self.dataset_dropdown.currentText()
+            try:
+                dvar = self.variable_reverse_lookup[self.variable_dropdown.currentText()]
+            except:
+                dvar = self.variable_dropdown.currentText()
+            defvalue = os.path.join(self.fqpr.output_folder, 'export_{}_{}.csv'.format(ky, dvar))
+            msg, output_pth = RegistryHelpers.GetFilenameFromUserQT(self, RegistryKey='Kluster', DefaultVal=self.fqpr.output_folder, fFilter="csv files|*.csv",
+                                                                    DefaultFile=defvalue, Title='Output dataset path for csv export', AppName='\\reghelp')
+            if output_pth:
+                min_max = self.data_widget.return_trim_times()
+                if min_max:
+                    self.fqpr.subset_by_time(min_max[0], min_max[1])
+                self.reload_datasets()
+                self.fqpr.export_variable(ky, dvar, output_pth)
+                if min_max:
+                    self.fqpr.restore_subset()
+
+    def export_source(self):
+        """
+        Export the currently selected dataset to csv
+        """
+        if self.datasets:
+            ky = self.dataset_dropdown.currentText()
+            defvalue = os.path.join(self.fqpr.output_folder, 'export_{}.csv'.format(ky))
+            msg, output_pth = RegistryHelpers.GetFilenameFromUserQT(self, RegistryKey='Kluster',
+                                                                    DefaultVal=self.fqpr.output_folder,
+                                                                    fFilter="csv files|*.csv",
+                                                                    DefaultFile=defvalue,
+                                                                    Title='Output dataset path for csv export',
+                                                                    AppName='\\reghelp')
+            if output_pth:
+                min_max = self.data_widget.return_trim_times()
+                if min_max:
+                    self.fqpr.subset_by_time(min_max[0], min_max[1])
+                self.reload_datasets()
+                self.fqpr.export_dataset(ky, output_pth)
+                if min_max:
+                    self.fqpr.restore_subset()
 
     def refresh_explanation(self):
         """
