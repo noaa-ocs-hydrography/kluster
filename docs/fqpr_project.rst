@@ -17,3 +17,5 @@ fqpr\_project module
    :skip: create_new_vessel_file
    :skip: convert_from_fqpr_xyzrph
    :skip: BathyGrid
+   :skip: client_needs_restart
+   

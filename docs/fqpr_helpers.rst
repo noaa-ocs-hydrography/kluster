@@ -6,3 +6,4 @@ fqpr\_helpers module
    :skip: Union
    :skip: CRS
    :skip: CRSError
+   :skip: glob

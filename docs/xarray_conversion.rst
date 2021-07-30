@@ -19,3 +19,5 @@ xarray\_conversion module
    :skip: my_xarr_add_attribute
    :skip: return_logger
    :skip: glob
+   :skip: seconds_to_formatted_string
+   :skip: slice_xarray_by_dim

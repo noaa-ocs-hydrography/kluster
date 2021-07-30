@@ -10,7 +10,6 @@ except:  # relative import as tests directory can vary in location depending on 
     from .test_datasets import RealFqpr, RealDualheadFqpr, SyntheticFqpr
 from HSTB.kluster.xarray_helpers import interp_across_chunks
 from HSTB.kluster.fqpr_convenience import *
-from HSTB.kluster.modules.export import generate_export_data
 from HSTB.drivers import par3
 
 
@@ -153,8 +152,8 @@ def test_process_testfile():
     assert first_status == 5
     assert firstrel_azimuth == approx(np.float32(4.703383), 0.00001)
     assert firstrx == approx(np.array([0.7870753, 0.60869384, -0.100021675], dtype=np.float32), 0.00001)
-    assert firstthu == approx(np.float32(8.857684), 0.0001)
-    assert firsttvu == approx(np.float32(2.4940288), 0.0001)
+    assert firstthu == approx(np.float32(8.680531), 0.0001)
+    assert firsttvu == approx(np.float32(2.444148), 0.0001)
     assert firsttx == approx(np.array([0.6074468, -0.79435784, 0.0020107413], dtype=np.float32), 0.00001)
     assert firstx == approx(539028.450, 0.001)
     assert firsty == approx(5292783.977, 0.001)

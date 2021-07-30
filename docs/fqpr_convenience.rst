@@ -11,6 +11,7 @@ fqpr\_convenience module
    :skip: kmall
    :skip: BatchRead
    :skip: Fqpr
-   :skip: return_directory_from_data
    :skip: create_grid
    :skip: load_grid
+   :skip: return_files_from_path
+   :skip: seconds_to_formatted_string

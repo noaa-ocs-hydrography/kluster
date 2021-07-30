@@ -41,3 +41,4 @@ fqpr\_generation module
    :skip: sbet_fast_read_start_end_time
    :skip: sbets_to_xarray
    :skip: posfiles_to_xarray
+   :skip: seconds_to_formatted_string

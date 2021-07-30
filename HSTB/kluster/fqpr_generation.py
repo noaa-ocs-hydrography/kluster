@@ -2796,10 +2796,7 @@ class Fqpr(ZarrBackend):
             array of mode settings
         """
 
-        if 'modetwo' in self.multibeam.raw_ping[0]:
-            mode = np.unique(np.concatenate([np.unique(f.modetwo) for f in self.multibeam.raw_ping]))
-        else:
-            mode = np.unique(np.concatenate([np.unique(f.mode) for f in self.multibeam.raw_ping]))
+        mode = np.unique(np.concatenate([np.unique(f.mode) for f in self.multibeam.raw_ping]))
         if len(mode) > 1:
             counts = []
             for m in mode:
