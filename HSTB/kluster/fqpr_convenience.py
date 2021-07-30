@@ -11,12 +11,11 @@ from HSTB.drivers.par3 import AllRead
 from HSTB.drivers.kmall import kmall
 from HSTB.kluster.xarray_conversion import BatchRead
 from HSTB.kluster.fqpr_generation import Fqpr
-from HSTB.kluster.fqpr_helpers import return_directory_from_data, seconds_to_formatted_string, return_files_from_path
-from HSTB.kluster import kluster_variables
+from HSTB.kluster.fqpr_helpers import seconds_to_formatted_string, return_files_from_path
 from bathygrid.convenience import create_grid, load_grid, BathyGrid
 
 
-def perform_all_processing(filname: Union[str, list], navfiles: list = None, outfold: str = None, coord_system: str = 'NAD83',
+def perform_all_processing(filname: Union[str, list], navfiles: list = None, outfold: str = None, coord_system: str = 'WGS84',
                            vert_ref: str = 'waterline', orientation_initial_interpolation: bool = False,
                            add_cast_files: Union[str, list] = None,
                            skip_dask: bool = False, show_progress: bool = True, parallel_write: bool = True,
@@ -235,7 +234,7 @@ def import_sound_velocity(fqpr_inst: Fqpr, sv_files: Union[str, list]):
 def process_multibeam(fqpr_inst: Fqpr, run_orientation: bool = True, orientation_initial_interpolation: bool = False,
                       run_beam_vec: bool = True, run_svcorr: bool = True, run_georef: bool = True, run_tpu: bool = True,
                       add_cast_files: Union[str, list] = None, use_epsg: bool = False,
-                      use_coord: bool = True, epsg: int = None, coord_system: str = 'NAD83',
+                      use_coord: bool = True, epsg: int = None, coord_system: str = 'WGS84',
                       vert_ref: str = 'waterline', vdatum_directory: str = None):
     """
     Use fqpr_generation to process already converted data on the local cluster and generate sound velocity corrected,
@@ -305,36 +304,6 @@ def process_multibeam(fqpr_inst: Fqpr, run_orientation: bool = True, orientation
     # if fqpr_inst.client is not None:
     #     fqpr_inst.client.restart()
 
-    return fqpr_inst
-
-
-def process_and_export_soundings(filname: str, outfold: str = None, coord_system: str = 'NAD83', vert_ref: str = 'waterline'):
-    """
-    Use fqpr_generation to process multibeam data on the local cluster and generate a sound velocity corrected,
-    georeferenced xyz with uncertainty in csv files in the provided output folder.
-
-    fqpr = fully qualified ping record, the term for the datastore in kluster
-
-    Parameters
-    ----------
-    filname
-        either a list of .all file paths, a single .all file path or a path to a directory with .all files
-    outfold
-        path to output folder where you want the csv files to go.  If None, will be the same folder that you've
-        converted your raw data to.
-    coord_system
-        a valid datum identifier that pyproj CRS will accept
-    vert_ref
-        the vertical reference point, one of ['ellipse', 'waterline', 'NOAA MLLW', 'NOAA MHW']
-
-    Returns
-    -------
-    Fqpr
-        Fqpr object containing processed xyz soundings
-    """
-
-    fqpr_inst = perform_all_processing(filname, outfold=outfold, coord_system=coord_system, vert_ref=vert_ref)
-    fqpr_inst.export_pings_to_file()
     return fqpr_inst
 
 
@@ -727,11 +696,9 @@ def return_processed_data_folders(converted_folder: str):
     return_processed_data_folders(converted_folder)
 
     | {'attitude': ['C:/data_dir/converted_093926/attitude.zarr'],
-    |  'navigation': ['C:/data_dir/converted_093926/navigation.zarr'],
     |  'ping': ['C:/data_dir/converted_093926/ping_40107_0_260000.zarr',
     |           'C:/data_dir/converted_093926/ping_40107_1_320000.zarr',
     |           'C:/data_dir/converted_093926/ping_40107_2_290000.zarr'],
-    |  'soundings': ['C:/data_dir/converted_093926/soundings.zarr'],
     |  'ppnav': [],
     |  'logfile': 'C:/data_dir/converted_093926/logfile_120826.txt'}
 
@@ -1215,86 +1182,6 @@ def validation_against_xyz88(filname: str, analysis_mode: str = 'even', numplots
         print('Figure saved to {}'.format(export))
     fq.close()
     return fq
-
-
-def return_data(pth: Union[list, str], coord_system: str = 'NAD83', vert_ref: str = 'waterline',
-                require_raw_data: bool = True, autogenerate: bool = True, skip_dask: bool = False):
-    """
-    Take in a path to a zarr store, a path to a directory of multibeam files, a list of paths to multibeam files or a
-    path to a single multibeam file and return a loaded or newly constructed fqpr_generation.Fqpr instance.
-
-    Parameters
-    ----------
-    pth
-        a path to a zarr store, a path to a directory of .all files, a list of paths to .all files or
-          a path to a single .all file.
-    coord_system
-        one of ['NAD83', 'WGS84']
-    vert_ref
-        one of ['waterline', 'ellipse', 'NOAA MLLW', 'NOAA MHW']
-    require_raw_data
-        if True, raise exception if you can't find the raw data
-    autogenerate
-        if True will build a new xyz dataset if a path is passed in
-    skip_dask
-        if True, will not start/find the dask client.  Only use this if you are just reading attribution
-
-    Returns
-    -------
-    fqpr_generation.Fqpr
-        processed or loaded instance for the given data
-    """
-
-    fqpr_instance = None
-    try:
-        fqpr_instance = reload_data(pth, require_raw_data=require_raw_data, skip_dask=skip_dask)
-    except (TypeError, ValueError):
-        if autogenerate:
-            fqpr_instance = process_and_export_soundings(pth, coord_system=coord_system, vert_ref=vert_ref)
-    return fqpr_instance
-
-
-def return_surface(ref_surf_pth: Union[list, str], vert_ref: str, resolution: int, autogenerate: bool = True):
-    """
-    Take in a path to a zarr store, a path to a directory of multibeam files, a list of paths to multibeam files, a path
-    to a single multibeam file or a path to an existing surface.  Return a loaded or newly constructed fqpr_surface
-    BaseSurface instance.
-
-    Parameters
-    ----------
-    ref_surf_pth
-        a path to a zarr store, a path to a directory of multibeam files, a list of paths to multibeam files, a path to
-        a single multibeam file or a path to an existing surface.
-    vert_ref
-        one of ['waterline', 'ellipse', 'NOAA MLLW', 'NOAA MHW']
-    resolution
-        resolution of the grid in meters
-    autogenerate
-        if True will build a new surface if a path is passed in
-
-    Returns
-    -------
-    fqpr_surface.BaseSurface
-        surface for the given data
-    """
-
-    need_surface = False
-    bs = None
-
-    if os.path.isfile(ref_surf_pth):
-        if os.path.splitext(ref_surf_pth)[1] not in kluster_variables.supported_multibeam:
-            bs = load_grid(ref_surf_pth)
-        else:
-            need_surface = True
-    else:
-        need_surface = True
-
-    if need_surface and autogenerate:
-        new_surf_path = os.path.join(return_directory_from_data(ref_surf_pth), 'surface_{}m.npy'.format(resolution))
-        fqpr_instance = return_data(ref_surf_pth, vert_ref, autogenerate=True)
-        bs = generate_new_surface(fqpr_instance, resolution=resolution)
-        bs.save(new_surf_path)
-    return bs
 
 
 def get_attributes_from_zarr_stores(list_dir_paths: list):

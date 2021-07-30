@@ -98,7 +98,7 @@ def test_process_testfile():
 
     testfile_path, expected_output = get_testfile_paths()
     out = convert_multibeam(testfile_path)
-    out = process_multibeam(out)
+    out = process_multibeam(out, coord_system='NAD83')
 
     number_of_sectors = len(out.multibeam.raw_ping)
     rp = out.multibeam.raw_ping[0].isel(time=0).isel(beam=0)
@@ -152,8 +152,8 @@ def test_process_testfile():
     assert first_status == 5
     assert firstrel_azimuth == approx(np.float32(4.703383), 0.00001)
     assert firstrx == approx(np.array([0.7870753, 0.60869384, -0.100021675], dtype=np.float32), 0.00001)
-    assert firstthu == approx(np.float32(8.857684), 0.0001)
-    assert firsttvu == approx(np.float32(2.4940288), 0.0001)
+    assert firstthu == approx(np.float32(8.680531), 0.0001)
+    assert firsttvu == approx(np.float32(2.444148), 0.0001)
     assert firsttx == approx(np.array([0.6074468, -0.79435784, 0.0020107413], dtype=np.float32), 0.00001)
     assert firstx == approx(539028.450, 0.001)
     assert firsty == approx(5292783.977, 0.001)
@@ -287,6 +287,51 @@ def test_subset_by_time():
     out = None
 
 
+def test_subset_variables():
+    if not os.path.exists(datapath):
+        print('Please run test_process_testfile first')
+    out = reload_data(datapath)
+    dset = out.subset_variables(['z'], ping_times=(1495563100, 1495563130))
+
+    assert len(dset.time) == 123
+    assert dset.z.shape[0] == 123
+
+    assert len(out.multibeam.raw_ping[0].time) == 216
+    assert out.multibeam.raw_ping[0].z.shape[0] == 216
+    assert len(out.multibeam.raw_att.time) == 5302
+    out.close()
+    out = None
+
+
+def test_subset_variables_filter():
+    if not os.path.exists(datapath):
+        print('Please run test_process_testfile first')
+    out = reload_data(datapath)
+    dset = out.subset_variables(['z'], ping_times=(1495563100, 1495563130), filter_by_detection=True)
+
+    assert len(dset.sounding) == 45059
+    assert dset.z.shape[0] == 45059
+
+    assert len(out.multibeam.raw_ping[0].time) == 216
+    assert out.multibeam.raw_ping[0].z.shape[0] == 216
+    assert len(out.multibeam.raw_att.time) == 5302
+    out.close()
+    out = None
+
+
+def test_subset_variables_by_line():
+    if not os.path.exists(datapath):
+        print('Please run test_process_testfile first')
+    out = reload_data(datapath)
+    dset = out.subset_variables_by_line(['z'])
+
+    assert list(dset.keys()) == ['0009_20170523_181119_FA2806.all']
+    assert len(dset['0009_20170523_181119_FA2806.all'].time) == 216
+    assert dset['0009_20170523_181119_FA2806.all'].z.shape[0] == 216
+    out.close()
+    out = None
+
+
 def test_intersects():
     if not os.path.exists(datapath):
         print('Please run test_process_testfile first')
@@ -360,6 +405,7 @@ def test_intelligence():
     proj = fqpr_project.create_new_project(os.path.dirname(testfile_path))
     proj_path = os.path.join(os.path.dirname(testfile_path), 'kluster_project.json')
     fintel = fqpr_intelligence.FqprIntel(proj)
+    fintel.set_settings({'coord_system': 'NAD83'})
     fintel.add_file(testfile_path)
     time.sleep(3)  # pause until the folder monitoring finds the multibeam file
 

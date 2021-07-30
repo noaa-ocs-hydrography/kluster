@@ -30,6 +30,8 @@ vdatum_vertical_references = ['NOAA MLLW', 'NOAA MHW']  # vertical reference opt
 ellipse_based_vertical_references = ['ellipse', 'NOAA MLLW', 'NOAA MHW']  # vertical reference options based on the ellipsoid
 waterline_based_vertical_references = ['waterline']  # vertical reference options based on waterline
 coordinate_systems = ['NAD83', 'WGS84']  # horizontal coordinate system options
+default_coordinate_system = 'WGS84'
+default_vertical_reference = 'waterline'
 
 # xarray conversion
 ping_chunk_size = 1000  # chunk size (in pings) of each written chunk of data in the ping records

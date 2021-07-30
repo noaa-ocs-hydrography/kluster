@@ -1,8 +1,11 @@
 from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal
 import numpy as np
+import os
 
 from HSTB.kluster.gui import common_widgets
 from HSTB.kluster.modules import wobble, sat
+
+from HSTB.shared import RegistryHelpers
 
 
 class AdvancedPlotDialog(QtWidgets.QDialog):
@@ -29,11 +32,11 @@ class AdvancedPlotDialog(QtWidgets.QDialog):
         self.needs_rebuilding = False
 
         #self.plottypes = ['Wobble Test', 'Accuracy Test', 'Extinction Test', 'Data Density Test', 'Ping Period Test']
-        self.plottypes = ['Wobble Test', 'Extinction Test', 'Ping Period Test']
+        self.plottypes = ['Wobble Test', 'Accuracy Test', 'Extinction Test', 'Ping Period Test']
         self.modetypes = {'Wobble Test': ['Dashboard', 'Allowable Percent Deviation', 'Attitude Scaling One', 'Attitude Scaling Two',
                                           'Attitude Latency', 'Yaw Alignment', 'X (Forward) Sonar Offset', 'Y (Starboard) Sonar Offset',
                                           'Heave Sound Speed One', 'Heave Sound Speed Two'],
-                          'Accuracy Test': ['Use most prevalent mode'],
+                          'Accuracy Test': ['Use most prevalent mode and frequency'],
                           'Extinction Test': ['Plot Extinction by Frequency', 'Plot Extinction by Mode',
                                               'Plot Extinction by Sub Mode'],
                           'Data Density Test': ['By Frequency', 'By Mode'],
@@ -88,6 +91,38 @@ class AdvancedPlotDialog(QtWidgets.QDialog):
         self.hlayout_extinction.addWidget(self.extinction_binsize)
         self.hlayout_extinction.addStretch()
 
+        self.vlayout_accuracy = QtWidgets.QVBoxLayout()
+        self.surface_label = QtWidgets.QLabel('Path to Kluster Surface:')
+        self.surface_label.hide()
+        self.hlayout_accone = QtWidgets.QHBoxLayout()
+        self.surf_text = QtWidgets.QLineEdit('', self)
+        self.surf_text.setMinimumWidth(200)
+        self.surf_text.setReadOnly(True)
+        self.surf_text.hide()
+        self.hlayout_accone.addWidget(self.surf_text)
+        self.surf_button = QtWidgets.QPushButton("Browse", self)
+        self.surf_button.hide()
+        self.hlayout_accone.addWidget(self.surf_button)
+        self.vlayout_accuracy.addWidget(self.surface_label)
+        self.vlayout_accuracy.addLayout(self.hlayout_accone)
+        self.output_label = QtWidgets.QLabel('Output Folder for Plots:')
+        self.output_label.hide()
+        self.hlayout_acctwo = QtWidgets.QHBoxLayout()
+        self.out_text = QtWidgets.QLineEdit('', self)
+        self.out_text.setMinimumWidth(200)
+        self.out_text.setReadOnly(True)
+        self.out_text.hide()
+        self.hlayout_acctwo.addWidget(self.out_text)
+        self.output_button = QtWidgets.QPushButton("Browse", self)
+        self.output_button.hide()
+        self.hlayout_acctwo.addWidget(self.output_button)
+        self.show_accuracy = QtWidgets.QCheckBox('Show plots')
+        self.show_accuracy.hide()
+        self.vlayout_accuracy.addWidget(self.output_label)
+        self.vlayout_accuracy.addLayout(self.hlayout_acctwo)
+        self.vlayout_accuracy.addWidget(self.show_accuracy)
+        self.vlayout_accuracy.addStretch()
+
         self.hlayout_four = QtWidgets.QHBoxLayout()
         self.hlayout_four.addStretch()
         self.plot_button = QtWidgets.QPushButton('Plot', self)
@@ -106,7 +141,10 @@ class AdvancedPlotDialog(QtWidgets.QDialog):
 
         self.vlayout_left.addLayout(self.hlayout_one)
         self.vlayout_left.addLayout(self.hlayout_two)
+        self.vlayout_left.addStretch()
         self.vlayout_left.addLayout(self.hlayout_extinction)
+        self.vlayout_left.addLayout(self.vlayout_accuracy)
+        self.vlayout_left.addStretch()
 
         self.vlayout_right.addLayout(self.hlayout_six)
 
@@ -117,12 +155,31 @@ class AdvancedPlotDialog(QtWidgets.QDialog):
         layout.addLayout(self.hlayout_four)
         self.setLayout(layout)
 
+        self.surf_button.clicked.connect(self.surf_browse)
+        self.output_button.clicked.connect(self.output_browse)
         self.data_widget.fqpr_loaded.connect(self.new_fqpr_loaded)
         self.data_widget.ping_count_changed.connect(self.new_ping_count)
         self.plot_type_dropdown.currentTextChanged.connect(self.plottype_changed)
         self.mode_dropdown.currentTextChanged.connect(self.mode_changed)
         self.plot_button.clicked.connect(self.plot)
         self.roundedfreq.clicked.connect(self._clear_alldata)
+
+    def surf_browse(self):
+        msg, surf_path = RegistryHelpers.GetDirFromUserQT(self, RegistryKey='Kluster',
+                                                          Title='Select gridded data folder',
+                                                          AppName='\\reghelp')
+        if surf_path:
+            if os.path.isdir(surf_path):
+                self.surf_text.setText(surf_path)
+            else:
+                print('{} is not an existing directory'.format(surf_path))
+
+    def output_browse(self):
+        msg, out_path = RegistryHelpers.GetDirFromUserQT(self, RegistryKey='Kluster',
+                                                         Title='Select folder to store plot images',
+                                                         AppName='\\reghelp')
+        if out_path:
+            self.out_text.setText(out_path)
 
     def _clear_alldata(self):
         """
@@ -205,6 +262,8 @@ class AdvancedPlotDialog(QtWidgets.QDialog):
                 data_is_there = False
                 if ky == 'Wobble Test':
                     data_is_there = np.all([x in self.fqpr.multibeam.raw_ping[0] for x in ['depthoffset', 'corr_pointing_angle', 'corr_heave', 'corr_altitude']])
+                elif ky == 'Accuracy Test':
+                    data_is_there = np.all([x in self.fqpr.multibeam.raw_ping[0] for x in ['x', 'y', 'z', 'corr_pointing_angle', 'mode', 'frequency', 'modetwo']])
                 elif ky == 'Extinction Test':
                     data_is_there = np.all([x in self.fqpr.multibeam.raw_ping[0] for x in ['acrosstrack', 'depthoffset', 'frequency', 'mode', 'modetwo']])
                 elif ky == 'Ping Period Test':
@@ -234,11 +293,37 @@ class AdvancedPlotDialog(QtWidgets.QDialog):
                     self.extinction_onlycomplete.show()
                 else:
                     self.extinction_onlycomplete.hide()
+                self.surface_label.hide()
+                self.surf_text.hide()
+                self.surf_button.hide()
+                self.output_label.hide()
+                self.out_text.hide()
+                self.output_button.hide()
+                self.show_accuracy.hide()
+            elif plottype == 'Accuracy Test':
+                self.extinction_binsize.hide()
+                self.extinction_binsizelabel.hide()
+                self.roundedfreq.hide()
+                self.extinction_onlycomplete.hide()
+                self.surface_label.show()
+                self.surf_text.show()
+                self.surf_button.show()
+                self.output_label.show()
+                self.out_text.show()
+                self.output_button.show()
+                self.show_accuracy.show()
             else:
                 self.extinction_binsize.hide()
                 self.extinction_binsizelabel.hide()
                 self.extinction_onlycomplete.hide()
                 self.roundedfreq.hide()
+                self.surface_label.hide()
+                self.surf_text.hide()
+                self.surf_button.hide()
+                self.output_label.hide()
+                self.out_text.hide()
+                self.show_accuracy.hide()
+                self.output_button.hide()
 
         self.load_helptext()
         self.update_ping_warnings()
@@ -314,7 +399,25 @@ class AdvancedPlotDialog(QtWidgets.QDialog):
                     mode_expl = "Group the plot by primary mode, if you don't see the groupings you expect, try the sub mode option"
                 elif mode == 'Plot Period by Sub Mode':
                     mode_expl = "Group the plot by secondary mode, if you don't see the groupings you expect, try the mode option"
-
+            elif plottype == 'Accuracy Test':
+                plottype_expl = "Takes a reference surface (you must build the surface first) and accuracy test lines and creates"
+                plottype_expl += " plots of depth difference between surface and lines for the soundings that are within grid cells."
+                plottype_expl += "  Provides statistics of the bias between surface and soundings by beam and by angle for each mode and frequency combination."
+                plottype_expl += "  Accuracy lines should be acquired on a flat seafloor and lines should be run with a variety of"
+                plottype_expl += " frequency and mode settings.  The lines will automatically be organized into frequency and mode"
+                plottype_expl += " categories.\n\n"
+                plottype_expl += "Order 1 line (grey) represents the 1.3% max allowable uncertainty wrt the depth range.\n"
+                plottype_expl += "Special Order line (green) represents the 0.75% max allowable uncertainty wrt the depth range.\n"
+                plottype_expl += "Mean depth line (blue) represents the mean depth for the beam/angle.\n"
+                plottype_expl += "Pink region represents two standard deviations from the mean.\n"
+                mode_expl = 'Will use the most prevalent mode and frequency found for each line.\n'
+                mode_expl += 'If "Show plots" is True, plots will be shown for you to edit, as well as saved to disk.\n'
+                mode_expl += 'Path to Kluster Surface should be a grid folder created by Kluster that contains a "XXXX_Root".\n'
+                mode_expl += 'Output Folder for Plots is the folder that Kluster will save the accuracy test plots to.\n\n'
+                mode_expl += 'Plots are saved with an encoded file name such as "CW-shCW-300000hz", which is equal to Mode-Modetwo-Frequency.\n\n'
+                mode_expl += 'Mode = (if TX Pulse Form) CW for continuous waveform, FM for frequency modulated, MIX for mix between FM and CW. (if Ping mode) VS for Very Shallow, SH for Shallow, ME for Medium, DE for Deep, VD for Very Deep, ED for Extra Deep\n\n'
+                mode_expl += 'ModeTwo = (if Pulse Length) vsCW = very short continuous waveform, shCW = short cw, meCW = medium cw, loCW = long cw, vlCW = very long cw, elCW = extra long cw, shFM = short frequency modulated, loFM = long fm. (if Depth Mode) VS = Very Shallow, SH = Shallow, ME = Medium, DE = Deep, DR = Deeper, VD = Very Deep, ED = Extra deep, XD = Extreme Deep, if followed by "m" system is in manual mode\n\n'
+                mode_expl += 'Frequency = Rounded frequency for the line in Hertz'
             if plottype_expl and mode_expl:
                 self.explanation.setText('{}\n\n{}'.format(plottype_expl, mode_expl))
             else:
@@ -387,8 +490,13 @@ class AdvancedPlotDialog(QtWidgets.QDialog):
                     self.period.plot(mode='mode', depth_bin_size=binsize)
                 elif mode == 'Plot Period by Sub Mode':
                     self.period.plot(mode='modetwo', depth_bin_size=binsize)
-
-            if min_max:
+            elif plottype == 'Accuracy Test':
+                if mode == 'Use most prevalent mode and frequency':
+                    ping_times = (np.min([rp.time.values[0] for rp in self.fqpr.multibeam.raw_ping]),
+                                  np.max([rp.time.values[-1] for rp in self.fqpr.multibeam.raw_ping]))
+                    sat.accuracy_test(self.surf_text.text(), self.fqpr, self.out_text.text(), ping_times=ping_times,
+                                      show_plots=self.show_accuracy.isChecked())
+            if min_max and plottype != 'Accuracy Test':  # acc test restores the subset after it runs automatically
                 self.fqpr.restore_subset()
 
     def new_ping_count(self, ping_count: int):

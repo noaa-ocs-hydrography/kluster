@@ -37,6 +37,7 @@ def setup_intel():
     proj = create_new_project(os.path.dirname(testfile))
     proj.add_vessel_file(vessel_file)
     fintel = FqprIntel(proj)
+    fintel.set_settings({'coord_system': 'NAD83'})
     return proj, fintel, proj_path, vessel_file, testfile, testsv, expected_data_folder_path
 
 

@@ -54,8 +54,8 @@ if __name__ == "__main__":  # run from command line
                          help='for use with --navigation, maximum allowable time gap in the sbet in seconds, default is 1 second')
     allproc.add_argument('-o', '--output_folder', required=False,
                          help='full file path to a directory you want to contain all the zarr folders.  Will create this folder if it does not exist.')
-    allproc.add_argument('-coord', '--coordinate_system', required=False, nargs='?', const='NAD83', default='NAD83',
-                         help='a valid datum identifier that pyproj CRS will accept (WGS84, NAD83, etc.), default is NAD83')
+    allproc.add_argument('-coord', '--coordinate_system', required=False, nargs='?', const=kluster_variables.default_coordinate_system, default=kluster_variables.default_coordinate_system,
+                         help='a valid datum identifier that pyproj CRS will accept {}, default is {}'.format(kluster_variables.coordinate_systems, kluster_variables.default_coordinate_system))
     allproc.add_argument('-vert', '--vertical_reference', required=False, nargs='?', const='waterline', default='waterline',
                          help='the vertical reference point, one of {}, default is waterline'.format(kluster_variables.vertical_references))
     allproc.add_argument('-cast', '--cast_profiles', nargs='+', required=False,
@@ -75,8 +75,8 @@ if __name__ == "__main__":  # run from command line
                            help='Either a single supported file, multiple supported files, or a path to a directory of files')
     intelproc.add_argument('-o', '--output_folder', required=False,
                            help='full file path to a directory you want to contain all the processed data.  Will create this folder if it does not exist.')
-    intelproc.add_argument('-coord', '--coordinate_system', required=False, nargs='?', const='NAD83', default='NAD83',
-                           help='a valid datum identifier that pyproj CRS will accept (WGS84, NAD83, etc.), default is NAD83')
+    intelproc.add_argument('-coord', '--coordinate_system', required=False, nargs='?', const=kluster_variables.default_coordinate_system, default=kluster_variables.default_coordinate_system,
+                           help='a valid datum identifier that pyproj CRS will accept {}, default is {}'.format(kluster_variables.coordinate_systems, kluster_variables.default_coordinate_system))
     intelproc.add_argument('-vert', '--vertical_reference', required=False, nargs='?', const='waterline',
                            default='waterline',
                            help='the vertical reference point, one of {}, default is waterline'.format(kluster_variables.vertical_references))
@@ -93,8 +93,8 @@ if __name__ == "__main__":  # run from command line
                               help='Either a single supported file, multiple supported files, or a path to a directory of files')
     intelservice.add_argument('-o', '--output_folder', required=False,
                               help='full file path to a directory you want to contain all the processed data.  Will create this folder if it does not exist.')
-    intelservice.add_argument('-coord', '--coordinate_system', required=False, nargs='?', const='NAD83', default='NAD83',
-                              help='a valid datum identifier that pyproj CRS will accept (WGS84, NAD83, etc.), default is NAD83')
+    intelservice.add_argument('-coord', '--coordinate_system', required=False, nargs='?', const=kluster_variables.default_coordinate_system, default=kluster_variables.default_coordinate_system,
+                              help='a valid datum identifier that pyproj CRS will accept {}, default is {}'.format(kluster_variables.coordinate_systems, kluster_variables.default_coordinate_system))
     intelservice.add_argument('-vert', '--vertical_reference', required=False, nargs='?', const='waterline',
                               default='waterline',
                               help='the vertical reference point, one of {}, default is waterline'.format(kluster_variables.vertical_references))
@@ -172,8 +172,8 @@ if __name__ == "__main__":  # run from command line
                              default=True, help='If true, will use the coordinate system identifier provided to build the coordinate system')
     processproc.add_argument('-epsg', '--epsg_code', type=int, required=False,
                              help='If -ep is True, will use this identifier to build the coordinate system (ex: 26917)')
-    processproc.add_argument('-coord', '--coordinate_identifier', type=str, required=False, nargs='?', const='NAD83', default='NAD83',
-                             help='If -co is True, will use this identifier to build the coordinate system, automatically picking a UTM zone (ex: NAD83)')
+    processproc.add_argument('-coord', '--coordinate_identifier', type=str, required=False, nargs='?', const=kluster_variables.default_coordinate_system, default=kluster_variables.default_coordinate_system,
+                             help='If -co is True, will use this identifier to build the coordinate system, automatically picking a UTM zone, default is {}'.format(kluster_variables.default_coordinate_system))
     processproc.add_argument('-vert', '--vertical_identifier', type=str, required=False, nargs='?', const='waterline', default='waterline',
                              help='Will use this identifier to build the vertical reference, one of {}, default is waterline'.format(kluster_variables.vertical_references))
 
