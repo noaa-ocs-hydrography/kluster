@@ -395,6 +395,7 @@ class KlusterMain(QtWidgets.QMainWindow):
                 if not shown:  # show didnt work, must need to add the surface instead, loading from disk...
                     needs_drawing.append(resolution)
             if needs_drawing:
+                print('Drawing {} - {}, resolution {}'.format(add_surface, surface_layer_name, needs_drawing))
                 self.draw_surface_thread.populate(add_surface, surf_object, needs_drawing, surface_layer_name)
                 self.draw_surface_thread.start()
 
