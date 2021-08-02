@@ -280,6 +280,8 @@ class KlusterMain(QtWidgets.QMainWindow):
 
         about_action = QtWidgets.QAction('About', self)
         about_action.triggered.connect(self._action_show_about)
+        videos_action = QtWidgets.QAction('YouTube Videos', self)
+        videos_action.triggered.connect(self.open_youtube_playlist)
 
         menubar = self.menuBar()
         file = menubar.addMenu("File")
@@ -317,6 +319,7 @@ class KlusterMain(QtWidgets.QMainWindow):
 
         klusterhelp = menubar.addMenu('Help')
         klusterhelp.addAction(about_action)
+        klusterhelp.addAction(videos_action)
 
     def update_on_file_added(self, fil: Union[str, list] = ''):
         """
@@ -1186,6 +1189,13 @@ class KlusterMain(QtWidgets.QMainWindow):
 
         self.project.get_dask_client()
         webbrowser.open_new(self.project.client.dashboard_link)
+
+    def open_youtube_playlist(self):
+        """
+        Opens the link to the Kluster 5 minute modules video playlist
+        """
+
+        webbrowser.open_new(r'https://www.youtube.com/playlist?list=PLrjCvP_J9AA_memBs2ZyKXGHG1AMx0GWx')
 
     def start_dask_client(self):
         """

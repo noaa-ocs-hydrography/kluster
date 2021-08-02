@@ -2069,7 +2069,8 @@ class Fqpr(ZarrBackend):
                                                          z_pos_down=z_pos_down, export_by_identifiers=export_by_identifiers)
         return written_files
 
-    def export_variable(self, dataset_name: str, var_name: str, dest_path: str):
+    def export_variable(self, dataset_name: str, var_name: str, dest_path: str, reduce_method: str = None,
+                        zero_centered: bool = False):
         """
         Run the export module to export the given variable to csv, writing to the provided path
 
@@ -2081,9 +2082,14 @@ class Fqpr(ZarrBackend):
             variable identifier for a variable in the provided dataset, ex: 'latitude'
         dest_path
             path to the csv that we are going to write
+        reduce_method
+            option for reducing the array, only for (time, beam) arrays.  One of (mean, nadir, port_outer_beam,
+            starboard_outer_beam).  If not provided, will export the full (time, beam) array
+        zero_centered
+            if zero_centered, will subtract the arithmetic mean from the array.
         """
 
-        self.export.export_variable_to_csv(dataset_name, var_name, dest_path)
+        self.export.export_variable_to_csv(dataset_name, var_name, dest_path, reduce_method, zero_centered)
 
     def export_dataset(self, dataset_name: str, dest_path: str):
         """
