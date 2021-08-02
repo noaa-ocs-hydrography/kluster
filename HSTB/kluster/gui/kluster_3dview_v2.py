@@ -828,7 +828,7 @@ class ThreeDView(QtWidgets.QWidget):
 
         self.displayed_points = np.stack([centered_x, centered_y, centered_z], axis=1)
         self.scatter = scene.visuals.Markers(parent=self.view.scene)
-        self.scatter.set_gl_state('translucent', blend=True, depth_test=True)
+        self.scatter.set_gl_state('opaque')
 
         if self.selected_points is not None and self.selected_points.any():
             msk = np.zeros(self.displayed_points.shape[0], dtype=bool)
