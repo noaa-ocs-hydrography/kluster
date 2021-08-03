@@ -655,7 +655,7 @@ def _acctest_percent_plots(arr_mean: np.array, arr_std: np.array, xdim: np.array
     minus = arr_mean - 1.96 * arr_std - depth_offset
     # plot the soundings
     sval = 100 * depth_diff / surf_depth
-    a.scatter(xdim, sval - depth_offset, c='0.5', alpha=0.1, edgecolors='none', label='Soundings')
+    a.scatter(xdim, sval - depth_offset, s=6, c='0.5', marker=',', alpha=0.3, edgecolors='none', label='Soundings')
     # plot 2 std
     a.fill_between(xdim_bins, minus, plus, facecolor='red', interpolate=True, alpha=0.1)
     # plot mean line
@@ -744,7 +744,8 @@ def _acctest_plots(arr_mean: np.array, arr_std: np.array, xdim: np.array, xdim_b
     plus = arr_mean + 1.96 * arr_std - depth_offset
     minus = arr_mean - 1.96 * arr_std - depth_offset
     # plot the soundings
-    a.scatter(xdim, depth_diff - depth_offset, c='0.5', alpha=0.1, edgecolors='none', label='Soundings')
+    a.scatter(xdim, depth_diff - depth_offset, s=6, c='0.5', marker=',', alpha=0.3, edgecolors='none', label='Soundings')
+
     # plot 2 std
     a.fill_between(xdim_bins, minus, plus, facecolor='red', interpolate=True, alpha=0.1)
     # plot mean line

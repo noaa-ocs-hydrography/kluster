@@ -400,16 +400,20 @@ class AdvancedPlotDialog(QtWidgets.QDialog):
                 elif mode == 'Plot Period by Sub Mode':
                     mode_expl = "Group the plot by secondary mode, if you don't see the groupings you expect, try the mode option"
             elif plottype == 'Accuracy Test':
-                plottype_expl = "Takes a reference surface (you must build the surface first) and accuracy test lines and creates"
+                plottype_expl = "Takes a surface (you must build the surface first) and accuracy test lines and creates"
                 plottype_expl += " plots of depth difference between surface and lines for the soundings that are within grid cells."
                 plottype_expl += "  Provides statistics of the bias between surface and soundings by beam and by angle for each mode and frequency combination."
                 plottype_expl += "  Accuracy lines should be acquired on a flat seafloor and lines should be run with a variety of"
                 plottype_expl += " frequency and mode settings.  The lines will automatically be organized into frequency and mode"
                 plottype_expl += " categories.\n\n"
+                plottype_expl += "The surface should only contain soundings from the accuracy test lines.  Using a grid that includes other multibeam"
+                plottype_expl += " systems introduces additional error related to offsets, vertical control and other biases between multibeam systems.  Here"
+                plottype_expl += " we try to isolate errors that scale with depth, such as sound speed, refraction, range measurements, etc."
+                plottype_expl += "  For that reason, the Order 1 and Special Order lines only include the 'b' factor from the IHO TVU formula.\n\n"
                 plottype_expl += "Order 1 line (grey) represents the 1.3% max allowable uncertainty wrt the depth range.\n"
                 plottype_expl += "Special Order line (green) represents the 0.75% max allowable uncertainty wrt the depth range.\n"
                 plottype_expl += "Mean depth line (blue) represents the mean depth for the beam/angle.\n"
-                plottype_expl += "Pink region represents two standard deviations from the mean.\n"
+                plottype_expl += "Pink region represents two standard deviations from the mean."
                 mode_expl = 'Will use the most prevalent mode and frequency found for each line.\n'
                 mode_expl += 'If "Show plots" is True, plots will be shown for you to edit, as well as saved to disk.\n'
                 mode_expl += 'Path to Kluster Surface should be a grid folder created by Kluster that contains a "XXXX_Root".\n'
