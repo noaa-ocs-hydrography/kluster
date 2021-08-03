@@ -433,16 +433,16 @@ class KlusterProjectTree(QtWidgets.QTreeView):
             elif top_lvl_name == 'Surfaces':
                 lname = mid_lvl_name + selected_name
                 ischecked = self.model.itemFromIndex(index).checkState()
-                if ischecked and lname in self.shown_layers:  # don't do anything, it is already shown
-                    pass
-                elif not ischecked and lname not in self.shown_layers:  # don't do anything, it is already hidden
-                    pass
-                else:
-                    if ischecked:
-                        self.shown_layers.append(lname)
-                    else:
-                        self.shown_layers.remove(lname)
-                    self.surface_layer_selected.emit(mid_lvl_name, selected_name, ischecked)
+                # if ischecked and lname in self.shown_layers:  # don't do anything, it is already shown
+                #     pass
+                # elif not ischecked and lname not in self.shown_layers:  # don't do anything, it is already hidden
+                #     pass
+                # else:
+                # if ischecked:
+                #     self.shown_layers.append(lname)
+                # else:
+                #     self.shown_layers.remove(lname)
+                self.surface_layer_selected.emit(mid_lvl_name, selected_name, ischecked)
         elif mid_lvl_name in self.categories:  # this is a sub item, like a converted fqpr path
             if mid_lvl_name == 'Converted':
                 self.fqpr_selected.emit(selected_name)

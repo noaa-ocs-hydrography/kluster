@@ -390,7 +390,6 @@ def test_export_files():
 
     out.close()
     out = None
-    cleanup_after_tests()
 
 
 def test_export_variable():
@@ -427,7 +426,6 @@ def test_export_variable():
 
     out.close()
     out = None
-    cleanup_after_tests()
 
 
 def test_export_dataset():
