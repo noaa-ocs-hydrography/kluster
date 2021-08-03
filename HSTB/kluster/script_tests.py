@@ -445,3 +445,10 @@ fq = reload_data(r"C:\Pydro21_Dev\NOAA\site-packages\Python38\git_repos\hstb_klu
 polygon = np.array([[-122.47798556, 47.78949665], [-122.47798556, 47.78895117], [-122.47771027, 47.78895117],
                     [-122.47771027, 47.78949665]])
 x, y, z, tvu, rejected, pointtime, beam = fq.return_soundings_in_polygon(polygon)
+
+###################################################################
+
+from HSTB.kluster.modules.sat import accuracy_test
+accuracy_test(r"C:\collab\dasktest\data_dir\EM2040_Fairweather_SmallFile\srgrid_mean_auto",
+              r"C:\collab\dasktest\data_dir\EM2040_Fairweather_SmallFile\em2040_40111_05_23_2017",
+              output_directory=r"C:\collab\dasktest\data_dir\EM2040_Fairweather_SmallFile\accuracy_test")
