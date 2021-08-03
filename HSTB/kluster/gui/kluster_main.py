@@ -280,6 +280,8 @@ class KlusterMain(QtWidgets.QMainWindow):
 
         about_action = QtWidgets.QAction('About', self)
         about_action.triggered.connect(self._action_show_about)
+        videos_action = QtWidgets.QAction('YouTube Videos', self)
+        videos_action.triggered.connect(self.open_youtube_playlist)
 
         menubar = self.menuBar()
         file = menubar.addMenu("File")
@@ -317,6 +319,7 @@ class KlusterMain(QtWidgets.QMainWindow):
 
         klusterhelp = menubar.addMenu('Help')
         klusterhelp.addAction(about_action)
+        klusterhelp.addAction(videos_action)
 
     def update_on_file_added(self, fil: Union[str, list] = ''):
         """
@@ -389,11 +392,15 @@ class KlusterMain(QtWidgets.QMainWindow):
                     self.two_d.remove_surface(remove_surface, resolution)
         if add_surface is not None and surface_layer_name:
             surf_object = self.project.surface_instances[add_surface]
+            needs_drawing = []
             for resolution in surf_object.resolutions:
                 shown = self.two_d.show_surface(add_surface, surface_layer_name, resolution)
                 if not shown:  # show didnt work, must need to add the surface instead, loading from disk...
-                    self.draw_surface_thread.populate(add_surface, surf_object, resolution, surface_layer_name)
-                    self.draw_surface_thread.start()
+                    needs_drawing.append(resolution)
+            if needs_drawing:
+                print('Drawing {} - {}, resolution {}'.format(add_surface, surface_layer_name, needs_drawing))
+                self.draw_surface_thread.populate(add_surface, surf_object, needs_drawing, surface_layer_name)
+                self.draw_surface_thread.start()
 
         if new_fqprs is not None and new_fqprs:
             self.draw_navigation_thread.populate(self.project, new_fqprs)
@@ -1131,12 +1138,16 @@ class KlusterMain(QtWidgets.QMainWindow):
         if not self.draw_surface_thread.error:
             surf_path = self.draw_surface_thread.surface_path
             surf_epsg = self.draw_surface_thread.surf_object.epsg
-            surf_resolution = self.draw_surface_thread.resolution
-            for surflayername in self.draw_surface_thread.surface_data:
-                data = self.draw_surface_thread.surface_data[surflayername][0]
-                geo_transform = self.draw_surface_thread.surface_data[surflayername][1]
-                self.two_d.add_surface([surf_path, surflayername, data, geo_transform, surf_epsg, surf_resolution])
-            self.two_d.set_extents_from_surfaces(surf_path, surf_resolution)
+            drawresolution = None
+            for surf_resolution in self.draw_surface_thread.surface_data:
+                for surflayername in self.draw_surface_thread.surface_data[surf_resolution]:
+                    data = self.draw_surface_thread.surface_data[surf_resolution][surflayername][0]
+                    geo_transform = self.draw_surface_thread.surface_data[surf_resolution][surflayername][1]
+                    self.two_d.add_surface([surf_path, surflayername, data, geo_transform, surf_epsg, surf_resolution])
+                    if not drawresolution:
+                        drawresolution = surf_resolution
+            if drawresolution:
+                self.two_d.set_extents_from_surfaces(surf_path, drawresolution)
         self.draw_surface_thread.populate(None, None, None, None)
         self._stop_action_progress()
         print('draw_surface: Drawing surface complete.')
@@ -1178,6 +1189,13 @@ class KlusterMain(QtWidgets.QMainWindow):
 
         self.project.get_dask_client()
         webbrowser.open_new(self.project.client.dashboard_link)
+
+    def open_youtube_playlist(self):
+        """
+        Opens the link to the Kluster 5 minute modules video playlist
+        """
+
+        webbrowser.open_new(r'https://www.youtube.com/playlist?list=PLrjCvP_J9AA_memBs2ZyKXGHG1AMx0GWx')
 
     def start_dask_client(self):
         """

@@ -157,13 +157,15 @@ class DrawSurfaceWorker(QtCore.QThread):
     def run(self):
         self.started.emit(True)
         try:
-            chunk_count = 1
-            for geo_transform, maxdim, data in self.surf_object.get_chunks_of_tiles(resolution=self.resolution, layer=self.surface_layer_name,
-                                                                                    nodatavalue=np.float32(np.nan), z_positive_up=False,
-                                                                                    for_gdal=True):
-                data = list(data.values())
-                self.surface_data[self.surface_layer_name + '_{}'.format(chunk_count)] = [data, geo_transform]
-                chunk_count += 1
+            for resolution in self.resolution:
+                self.surface_data[resolution] = {}
+                chunk_count = 1
+                for geo_transform, maxdim, data in self.surf_object.get_chunks_of_tiles(resolution=resolution, layer=self.surface_layer_name,
+                                                                                        nodatavalue=np.float32(np.nan), z_positive_up=False,
+                                                                                        for_gdal=True):
+                    data = list(data.values())
+                    self.surface_data[resolution][self.surface_layer_name + '_{}'.format(chunk_count)] = [data, geo_transform]
+                    chunk_count += 1
         except Exception as e:
             print(e)
             self.error = True

@@ -139,3 +139,20 @@ att_chunks = {'time': (attitude_chunk_size,),
               'pitch': (attitude_chunk_size,),
               'roll': (attitude_chunk_size,)
               }
+
+
+variable_format_str = {'time': '%1.6f', 'beam': '%d', 'xyz': '%s',
+                       'acrosstrack': '%1.3f', 'alongtrack': '%1.3f', 'altitude': '%1.3f',
+                       'beampointingangle': '%1.3f', 'corr_altitude': '%1.3f',
+                       'corr_heave': '%1.3f', 'corr_pointing_angle': '%1.6f',
+                       'counter': '%d', 'datum_uncertainty': '%1.3f', 'delay': '%1.6f',
+                       'depthoffset': '%1.3f', 'detectioninfo': '%d', 'frequency': '%d',
+                       'latitude': '%1.8f', 'longitude': '%1.8f', 'mode': '%s', 'modetwo': '%s', 'ntx': '%d',
+                       'processing_status': '%d', 'qualityfactor': '%d', 'rel_azimuth': '%f',
+                       'rx': '%f', 'soundspeed': '%1.3f', 'thu': '%1.3f', 'tiltangle': '%1.3f',
+                       'traveltime': '%1.6f', 'tvu': '%1.3f', 'tx': '%f', 'txsector_beam': '%d',
+                       'x': '%1.3f', 'y': '%1.3f', 'yawpitchstab': '%s', 'z': '%1.3f',
+                       'alongtrackvelocity': '%1.3f', 'down_position_error': '%1.3f', 'east_position_error': '%1.3f',
+                       'north_position_error': '%1.3f', 'pitch_error': '%1.3', 'roll_error': '%1.3f',
+                       'heading_error': '%1.3f', 'heading': '%1.3f', 'heave': '%1.3f', 'pitch': '%1.3f',
+                       'roll': '%1.3f'}

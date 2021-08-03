@@ -662,6 +662,22 @@ class LayerManager:
 
         return [lname for lname in self.surface_layer_names if lname.find('_{}_'.format(layertype)) != -1]
 
+    def surface_layers_by_type(self, layertype: str):
+        """
+        Return all layers that match a certain type, i.e. 'depth' or 'vertical_uncertainty'
+
+        Parameters
+        ----------
+        layertype
+            string identifier for the layer
+
+        Returns
+        -------
+        list
+            list of all qgis_core.QgsRasterLayer that match this layertype
+        """
+        return [self.layer_data_lookup[lname] for lname in self.surface_layer_names if lname.find('_{}_'.format(layertype)) != -1]
+
     def add_layer(self, layername: str, layerdata: Union[qgis_core.QgsRasterLayer, qgis_core.QgsVectorLayer], 
                   layertype: str):
         """
@@ -1628,11 +1644,15 @@ class MapView(QtWidgets.QMainWindow):
             resolution in meters for the surface
         """
 
-        possible_layers = ['depth', 'vertical_uncertainty']
+        possible_layers = ['depth', 'vertical_uncertainty', 'horizontal_uncertainty']
         for lyrname in possible_layers:
             remlyrs = self._return_all_surface_tiles(surfname, lyrname, resolution)
-            for lyr in remlyrs:
-                self.remove_layer(lyr)
+            if remlyrs:
+                for lyr in remlyrs:
+                    self.remove_layer(lyr)
+                self.band_minmax.pop(lyrname)
+                self._update_global_layer_minmax(lyrname)
+                self._update_all_raster_layer_minmax(lyrname)
 
     def layer_point_to_map_point(self, layer: Union[qgis_core.QgsRasterLayer, qgis_core.QgsVectorLayer],
                                  point: qgis_core.QgsPoint):
@@ -1738,7 +1758,40 @@ class MapView(QtWidgets.QMainWindow):
         self._manager_add_layer(source, lyr, layertype)
         return lyr
 
+    def _update_global_layer_minmax(self, layername: str):
+        """
+        Update the global band_minmax attribute with the min and max of all layers that match the provided layername.
+
+        Used when we remove a layer to get the new global minmax after that layer is removed.
+
+        Parameters
+        ----------
+        layername
+            layer name to use from the source data
+        """
+
+        for rlayer in self.layer_manager.surface_layers_by_type(layername):
+            stats = rlayer.dataProvider().bandStatistics(1)
+            minval = stats.minimumValue
+            maxval = stats.maximumValue
+
+            if layername in self.band_minmax:
+                self.band_minmax[layername][0] = min(minval, self.band_minmax[layername][0])
+                self.band_minmax[layername][1] = max(maxval, self.band_minmax[layername][1])
+            else:
+                self.band_minmax[layername] = [minval, maxval]
+
     def _update_all_raster_layer_minmax(self, layername: str):
+        """
+        Using the global band_minmax attribute, set the min/max of the band value for all raster layers that have the
+        provided layername
+
+        Parameters
+        ----------
+        layername
+            layer name to use from the source data
+        """
+
         for lname in self.layer_manager.surface_layer_names_by_type(layername):
             old_lyr = self.layer_manager.layer_data_lookup[lname]
             if layername in ['vertical_uncertainty', 'horizontal_uncertainty']:

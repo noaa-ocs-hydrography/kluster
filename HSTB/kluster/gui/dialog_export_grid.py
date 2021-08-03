@@ -143,7 +143,7 @@ class ExportGridDialog(QtWidgets.QDialog):
         layout.addLayout(self.hlayout_one_one)
         layout.addWidget(self.status_msg)
         layout.addLayout(self.hlayout_two)
-        # layout.setSizeConstraint(QtWidgets.QLayout.SetFixedSize)
+        layout.setSizeConstraint(QtWidgets.QLayout.SetFixedSize)
         self.setLayout(layout)
 
         self.input_pth = ''
@@ -229,8 +229,7 @@ class ExportGridDialog(QtWidgets.QDialog):
 
     def _event_update_status(self, combobox_text: str):
         """
-        Update the status message if an Error presents itself.  Also controls the OK button, to prevent kicking off
-        a process if we know it isn't going to work
+        Update the status message if an Error presents itself, triggered on changing the export type
 
         Parameters
         ----------
@@ -243,6 +242,7 @@ class ExportGridDialog(QtWidgets.QDialog):
         if curr_opts == 'bag':
             vers = return_gdal_version()
             majr, minr, hfix = vers.split('.')
+            self.zdirect_check.hide()
             if (int(majr) == 3 and int(minr) >= 2) or (int(majr) > 3):  # If this is the pydro environment, we know it has Entwine
                 self.status_msg.setStyleSheet("QLabel { " + kluster_variables.pass_color + "; }")
                 self.status_msg.setText('Gdal > 3.2 found, BAG export allowed')
@@ -254,6 +254,7 @@ class ExportGridDialog(QtWidgets.QDialog):
         else:
             self.status_msg.setText('')
             self.ok_button.setEnabled(True)
+            self.zdirect_check.show()
 
         if curr_opts != 'geotiff':
             ext = curr_opts

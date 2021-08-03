@@ -8,6 +8,7 @@ from datetime import datetime
 from HSTB.kluster.pydro_helpers import is_pydro
 from HSTB.kluster.pdal_entwine import build_entwine_points
 from HSTB.kluster.fqpr_helpers import seconds_to_formatted_string
+from HSTB.kluster.kluster_variables import variable_format_str
 
 
 class FqprExport:
@@ -468,7 +469,8 @@ class FqprExport:
         build_entwine_points(las_export_folder, output_directory)
         return [las_export_folder]
 
-    def export_variable_to_csv(self, dataset_name: str, var_name: str, dest_path: str):
+    def export_variable_to_csv(self, dataset_name: str, var_name: str, dest_path: str, reduce_method: str = None,
+                               zero_centered: bool = False):
         """
         Export the given variable to csv, writing to the provided path
 
@@ -480,6 +482,11 @@ class FqprExport:
             variable identifier for a variable in the provided dataset, ex: 'latitude'
         dest_path
             path to the csv that we are going to write
+        reduce_method
+            option for reducing the array, only for (time, beam) arrays.  One of (mean, nadir, port_outer_beam,
+            starboard_outer_beam).  If not provided, will export the full (time, beam) array
+        zero_centered
+            if zero_centered, will subtract the arithmetic mean from the array.
         """
 
         videntifiers = [rp.system_identifier for rp in self.fqpr.multibeam.raw_ping]
@@ -491,27 +498,45 @@ class FqprExport:
             var_array = [self.fqpr.multibeam.raw_att[var_name]]
         else:
             raise ValueError('export_variable_to_csv: Unable to find variable in dataset: {}, {}'.format(dataset_name, var_name))
+
+        tstmp = datetime.now().strftime('%Y%m%d_%H%M%S')
         for cnt, varray in enumerate(var_array):
             vpath = os.path.splitext(dest_path)[0] + '_{}.csv'.format(videntifiers[cnt])
             vbeam = None
             if varray.dims == ('time', 'beam'):  # we are currently ignoring the tx/rx variables (time, beam, xyz)
-                varray = varray.stack({'sounding': ('time', 'beam')})
-                vbeam = varray.beam.values
+                if reduce_method == 'mean':
+                    varray = varray.mean(axis=1)
+                elif reduce_method == 'nadir':
+                    nadir_beam_num = int((varray.beam.shape[0] / 2) - 1)
+                    varray = varray.isel(beam=nadir_beam_num)
+                elif reduce_method == 'port_outer_beam':
+                    varray = varray.isel(beam=0)
+                elif reduce_method == 'starboard_outer_beam':
+                    last_beam_num = int((varray.beam.shape[0]) - 1)
+                    varray = varray.isel(beam=last_beam_num)
+                else:
+                    varray = varray.stack({'sounding': ('time', 'beam')})
+                    vbeam = varray.beam.values
+            if zero_centered:
+                varray = (varray - varray.mean())
             vtime = varray.time.values
             varray = varray.values
-            if np.issubdtype(varray.dtype, np.floating):
-                if var_name == 'delay':
-                    vfmt = '%1.10f'
-                else:
-                    vfmt = '%f'
-            else:
-                vfmt = '%d'
+            if os.path.exists(vpath):
+                vpath = os.path.splitext(vpath)[0] + '_{}.csv'.format(tstmp)
             if vbeam is None:
-                np.savetxt(vpath, np.c_[vtime, varray], delimiter=',', header='{},{}'.format('time', var_name),
-                           fmt=['%d', vfmt], comments='')
+                try:
+                    np.savetxt(vpath, np.c_[vtime, varray], delimiter=',', header='{},{}'.format('time', var_name),
+                               fmt=[variable_format_str['time'], variable_format_str[var_name]], comments='')
+                except:
+                    np.savetxt(vpath, np.c_[vtime, varray], delimiter=',', header='{},{}'.format('time', var_name),
+                               fmt='%s', comments='')  # stacked array is a string type when you mix dtypes, %s is the only thing that works
             else:
-                np.savetxt(vpath, np.c_[vtime, vbeam, varray], delimiter=',', header='time,beam,{}'.format(var_name),
-                           fmt=['%d', '%d', vfmt], comments='')
+                try:
+                    np.savetxt(vpath, np.c_[vtime, vbeam, varray], delimiter=',', header='time,beam,{}'.format(var_name),
+                               fmt=[variable_format_str['time'], variable_format_str['beam'], variable_format_str[var_name]], comments='')
+                except:
+                    np.savetxt(vpath, np.c_[vtime, vbeam, varray], delimiter=',', header='time,beam,{}'.format(var_name),
+                               fmt='%s', comments='')  # stacked array is a string type when you mix dtypes, %s is the only thing that works
 
     def export_dataset_to_csv(self, dataset_name: str, dest_path: str):
         """
@@ -537,21 +562,14 @@ class FqprExport:
         else:
             raise ValueError('export_dataset_to_csv: Unable to find dataset: {}'.format(dataset_name))
 
+        tstmp = datetime.now().strftime('%Y%m%d_%H%M%S')
         for cnt, dset in enumerate(dataset_array):
             varrs = [dset.time.values]
             vnames = ['time']
-            vfmts = ['%d']
             vpath = os.path.splitext(dest_path)[0] + '_{}.csv'.format(videntifiers[cnt])
             for dvar in dset.variables:
                 if dvar not in ['time', 'beam', 'xyz', 'tx', 'rx']:
                     dvar_data = dset[dvar]
-                    if np.issubdtype(dvar_data.dtype, np.floating):
-                        if dvar == 'delay':
-                            vfmts.append('%1.10f')
-                        else:
-                            vfmts.append('%f')
-                    else:
-                        vfmts.append('%d')
                     if dvar_data.dims == ('time', 'beam'):  # we are currently ignoring the tx/rx variables (time, beam, xyz)
                         if np.issubdtype(dvar_data.dtype, np.floating):
                             vnames.append('mean_{}'.format(dvar))
@@ -562,7 +580,9 @@ class FqprExport:
                     elif dvar_data.dims == ('time', ):
                         vnames.append(dvar)
                         varrs.append(dvar_data.values)
-            np.savetxt(vpath, np.column_stack(varrs), delimiter=',', header=','.join(vnames), fmt='%s',
+            if os.path.exists(vpath):
+                vpath = os.path.splitext(vpath)[0] + '_{}.csv'.format(tstmp)
+            np.savetxt(vpath, np.column_stack(varrs), delimiter=',', header=','.join(vnames), fmt='%s',  # with an array with floats, strings, int, we just save with string format
                        comments='')
 
 

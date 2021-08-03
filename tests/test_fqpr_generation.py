@@ -390,6 +390,69 @@ def test_export_files():
 
     out.close()
     out = None
+
+
+def test_export_variable():
+    if not os.path.exists(datapath):
+        print('Please run test_process_testfile first')
+    out = reload_data(datapath)
+
+    multicheck = os.path.join(datapath, 'multicheck')
+    expected_multi = os.path.join(datapath, 'multicheck_40111.csv')
+    out.export_variable('multibeam', 'beampointingangle', multicheck)
+    assert os.path.exists(expected_multi)
+    with open(expected_multi) as fil:
+        assert fil.readline().rstrip() == 'time,beam,beampointingangle'
+        assert fil.readline().rstrip() == '1495563079.534001,0,74.640'
+    os.remove(expected_multi)
+
+    multicheck = os.path.join(datapath, 'multicheck')
+    expected_multi = os.path.join(datapath, 'multicheck_40111.csv')
+    out.export_variable('multibeam', 'beampointingangle', multicheck, reduce_method='mean', zero_centered=True)
+    assert os.path.exists(expected_multi)
+    with open(expected_multi) as fil:
+        assert fil.readline().rstrip() == 'time,beampointingangle'
+        assert fil.readline().rstrip() == '1495563079.534001,2.403'
+    os.remove(expected_multi)
+
+    navcheck = os.path.join(datapath, 'navcheck')
+    expected_nav = os.path.join(datapath, 'navcheck_40111.csv')
+    out.export_variable('raw navigation', 'latitude', navcheck)
+    assert os.path.exists(expected_nav)
+    with open(expected_nav) as fil:
+        assert fil.readline().rstrip() == 'time,latitude'
+        assert fil.readline().rstrip() == '1495563079.534001,47.78890945'
+    os.remove(expected_nav)
+
+    out.close()
+    out = None
+
+
+def test_export_dataset():
+    if not os.path.exists(datapath):
+        print('Please run test_process_testfile first')
+    out = reload_data(datapath)
+
+    multicheck = os.path.join(datapath, 'multicheck')
+    expected_multi = os.path.join(datapath, 'multicheck_40111.csv')
+    out.export_dataset('multibeam', multicheck)
+    assert os.path.exists(expected_multi)
+    with open(expected_multi) as fil:
+        assert fil.readline().rstrip() == 'time,mean_acrosstrack,mean_alongtrack,altitude,mean_beampointingangle,corr_altitude,corr_heave,mean_corr_pointing_angle,counter,mean_datum_uncertainty,mean_delay,mean_depthoffset,median_detectioninfo,median_frequency,latitude,longitude,mode,modetwo,ntx,median_processing_status,median_qualityfactor,mean_rel_azimuth,soundspeed,mean_thu,mean_tiltangle,mean_traveltime,mean_tvu,median_txsector_beam,mean_x,mean_y,yawpitchstab,mean_z'
+        assert fil.readline().rstrip() == '1495563079.5340009,23.80731,0.48085746,-23.933704,-3.8506494,0.0,-0.06,-0.15057938,61967,0.0,0.0022060382,88.12566,1.0,280000.0,47.78890945494799,-122.47711319986821,FM,__FM,3,5.0,6.0,2.9452024,1488.6,4.5293083,0.22404997,0.2170853,1.0640999,1.0,539178.870815,5292989.855275,PY,88.705666'
+    os.remove(expected_multi)
+
+    navcheck = os.path.join(datapath, 'navcheck')
+    expected_nav = os.path.join(datapath, 'navcheck_40111.csv')
+    out.export_dataset('raw navigation', navcheck)
+    assert os.path.exists(expected_nav)
+    with open(expected_nav) as fil:
+        assert fil.readline().rstrip() == 'time,altitude,latitude,longitude'
+        assert fil.readline().rstrip() == '1495563079.5340009,-23.933704376220703,47.78890945494799,-122.47711319986821'
+    os.remove(expected_nav)
+
+    out.close()
+    out = None
     cleanup_after_tests()
 
 

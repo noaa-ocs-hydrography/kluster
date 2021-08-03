@@ -470,6 +470,21 @@ def calc_order(depth: np.array):
     return order1_min, order1_max, specialorder_min, specialorder_max
 
 
+def calc_percent_order():
+    """
+    This function returns the percent values for the max tvu for order1 and special order
+
+    Returns
+    -------
+    order1: value according to IHO order 1
+    special: value according to IHO special order
+    """
+
+    order1 = 100 * 0.013
+    special = 100 * 0.0075
+    return order1, special
+
+
 def difference_grid_and_soundings(ref_surf: BathyGrid, fq: Fqpr):
     """
     Given bathygrid instance (ref_surf) and Fqpr instance (fq) determine the depth difference between the
@@ -543,6 +558,8 @@ def _acctest_generate_stats(soundings_xdim: np.array, depth_diff: np.array, surf
 
     bins = np.arange(int(soundings_xdim.min()), np.ceil(soundings_xdim.max()) + 1, 1)
     bins_dig = np.sort(np.digitize(soundings_xdim, bins))
+    bins_dig = np.delete(bins_dig, bins_dig >= len(bins))  # remove out of bounds data
+    bins_dig = np.delete(bins_dig, bins_dig < 0)  # remove out of bounds data
     unique_bins, u_idx = np.unique(bins_dig, return_index=True)
     percentdpth_rel_xdim_avg = []
     percentdpth_rel_xdim_stddev = []
@@ -567,7 +584,7 @@ def _acctest_generate_stats(soundings_xdim: np.array, depth_diff: np.array, surf
         raise NotImplementedError('Not yet ready for dask')
 
     dpth_avg = np.array(dpthdiff_rel_xdim_avg)
-    dpth_stddev = np.array(np.array(dpthdiff_rel_xdim_stddev))
+    dpth_stddev = np.array(dpthdiff_rel_xdim_stddev)
     per_dpth_avg = np.array(percentdpth_rel_xdim_avg)
     per_dpth_stddev = np.array(percentdpth_rel_xdim_stddev)
     mean_surf_depth = np.array(mean_surf_depth)
@@ -631,15 +648,14 @@ def _acctest_percent_plots(arr_mean: np.array, arr_std: np.array, xdim: np.array
         # get average depthdiff as vert offset between surf and accuracy lines
         depth_offset = np.mean(arr_mean)
 
-    order1 = 100 * 0.013
-    special = 100 * 0.0075
+    order1, special = calc_percent_order()
 
     f, a = plt.subplots(1, 1, figsize=(12, 8))
     plus = arr_mean + 1.96 * arr_std - depth_offset
     minus = arr_mean - 1.96 * arr_std - depth_offset
     # plot the soundings
     sval = 100 * depth_diff / surf_depth
-    a.scatter(xdim, sval - depth_offset, c='0.5', alpha=0.1, edgecolors='none', label='Soundings')
+    a.scatter(xdim, sval - depth_offset, s=6, c='0.5', marker=',', alpha=0.3, edgecolors='none', label='Soundings')
     # plot 2 std
     a.fill_between(xdim_bins, minus, plus, facecolor='red', interpolate=True, alpha=0.1)
     # plot mean line
@@ -728,7 +744,8 @@ def _acctest_plots(arr_mean: np.array, arr_std: np.array, xdim: np.array, xdim_b
     plus = arr_mean + 1.96 * arr_std - depth_offset
     minus = arr_mean - 1.96 * arr_std - depth_offset
     # plot the soundings
-    a.scatter(xdim, depth_diff - depth_offset, c='0.5', alpha=0.1, edgecolors='none', label='Soundings')
+    a.scatter(xdim, depth_diff - depth_offset, s=6, c='0.5', marker=',', alpha=0.3, edgecolors='none', label='Soundings')
+
     # plot 2 std
     a.fill_between(xdim_bins, minus, plus, facecolor='red', interpolate=True, alpha=0.1)
     # plot mean line
@@ -741,11 +758,17 @@ def _acctest_plots(arr_mean: np.array, arr_std: np.array, xdim: np.array, xdim_b
     a.set_ylabel(ylabel)
     a.set_title('accuracy test: depth bias vs {}'.format(mode, np.round(depth_offset, 1)))
     # Order 1 line
-    a.fill_between(xdim_bins, o1_min, o1_max, facecolor='black', alpha=0.5, label='Order 1')
-    a.fill_between(xdim_bins, -o1_min, -o1_max, facecolor='black', alpha=0.5)
+    a.hlines(o1_max, xdim_bins.min(), xdim_bins.max(), colors='k', linestyles='dashed', linewidth=3, alpha=0.5,
+             label='Order 1')
+    a.hlines(-o1_max, xdim_bins.min(), xdim_bins.max(), colors='k', linestyles='dashed', linewidth=3, alpha=0.5)
+    # a.fill_between(xdim_bins, o1_min, o1_max, facecolor='black', alpha=0.5, label='Order 1')
+    # a.fill_between(xdim_bins, -o1_min, -o1_max, facecolor='black', alpha=0.5)
     # Special Order Line
-    a.fill_between(xdim_bins, so_min, so_max, facecolor='green', alpha=0.1, label='Special Order')
-    a.fill_between(xdim_bins, -so_min, -so_max, facecolor='green', alpha=0.1)
+    a.hlines(so_max, xdim_bins.min(), xdim_bins.max(), colors='g', linestyles='dashed', linewidth=3, alpha=0.5,
+             label='Special Order')
+    a.hlines(-so_max, xdim_bins.min(), xdim_bins.max(), colors='g', linestyles='dashed', linewidth=3, alpha=0.5)
+    # a.fill_between(xdim_bins, so_min, so_max, facecolor='green', alpha=0.1, label='Special Order')
+    # a.fill_between(xdim_bins, -so_min, -so_max, facecolor='green', alpha=0.1)
     a.legend(loc='upper left')
 
     f.savefig(output_pth)

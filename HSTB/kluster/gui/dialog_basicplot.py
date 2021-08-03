@@ -2,6 +2,8 @@ from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal
 import matplotlib.pyplot as plt
 import numpy as np
 import os
+from datetime import datetime
+
 from HSTB.shared import RegistryHelpers
 
 from HSTB.kluster.gui import common_widgets
@@ -285,8 +287,8 @@ class BasicPlotDialog(QtWidgets.QDialog):
                         self.plottype_dropdown.addItems(plottypes)
                         self.plottype_dropdown.setCurrentIndex(0)
                         self.plot_button.setEnabled(True)
-                        self.exportvar_button.setEnabled(True)
-                        self.exportsource_button.setEnabled(True)
+                        self.exportvar_button.setEnabled(False)
+                        self.exportsource_button.setEnabled(False)
                     elif dset[dset_var].ndim == 2:
                         self.variable_dimone.setText(dset[dset_var].dims[0])
                         self.variable_dimtwo.setText(dset[dset_var].dims[1])
@@ -518,11 +520,32 @@ class BasicPlotDialog(QtWidgets.QDialog):
 
         if self.datasets:
             ky = self.dataset_dropdown.currentText()
+            plottype = self.plottype_dropdown.currentText()
+            reduce_method = None
+            zero_centered = False
+
             try:
                 dvar = self.variable_reverse_lookup[self.variable_dropdown.currentText()]
             except:
                 dvar = self.variable_dropdown.currentText()
             defvalue = os.path.join(self.fqpr.output_folder, 'export_{}_{}.csv'.format(ky, dvar))
+            if plottype[0:4] == 'Line':
+                zero_centered = self.zero_center_plot.isChecked()
+                if plottype.find('Mean') != -1:
+                    reduce_method = 'mean'
+                    defvalue = os.path.splitext(defvalue)[0] + '_mean.csv'
+                elif plottype.find('Nadir') != -1:
+                    reduce_method = 'nadir'
+                    defvalue = os.path.splitext(defvalue)[0] + '_nadir.csv'
+                elif plottype.find('Port') != -1:
+                    reduce_method = 'port_outer_beam'
+                    defvalue = os.path.splitext(defvalue)[0] + '_portbeam.csv'
+                elif plottype.find('Starboard') != -1:
+                    reduce_method = 'starboard_outer_beam'
+                    defvalue = os.path.splitext(defvalue)[0] + '_stbdbeam.csv'
+            if zero_centered:
+                defvalue = os.path.splitext(defvalue)[0] + '_zerocentered.csv'
+
             msg, output_pth = RegistryHelpers.GetFilenameFromUserQT(self, RegistryKey='Kluster', DefaultVal=self.fqpr.output_folder, fFilter="csv files|*.csv",
                                                                     DefaultFile=defvalue, Title='Output dataset path for csv export', AppName='\\reghelp')
             if output_pth:
@@ -530,7 +553,7 @@ class BasicPlotDialog(QtWidgets.QDialog):
                 if min_max:
                     self.fqpr.subset_by_time(min_max[0], min_max[1])
                 self.reload_datasets()
-                self.fqpr.export_variable(ky, dvar, output_pth)
+                self.fqpr.export_variable(ky, dvar, output_pth, reduce_method=reduce_method, zero_centered=zero_centered)
                 if min_max:
                     self.fqpr.restore_subset()
 
