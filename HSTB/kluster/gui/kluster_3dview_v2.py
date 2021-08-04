@@ -828,7 +828,10 @@ class ThreeDView(QtWidgets.QWidget):
 
         self.displayed_points = np.stack([centered_x, centered_y, centered_z], axis=1)
         self.scatter = scene.visuals.Markers(parent=self.view.scene)
-        self.scatter.set_gl_state(depth_test=False)
+        # still need to figure this out.  Disabling depth test handles the whole plot-is-dark-from-one-angle,
+        #   but you lose the intelligence it seems to have with depth of field of view, where stuff shows up in front
+        #   of other stuff.  For now we just deal with the darkness issue, and leave depth_test=True (the default).
+        # self.scatter.set_gl_state(depth_test=False)
 
         if self.selected_points is not None and self.selected_points.any():
             msk = np.zeros(self.displayed_points.shape[0], dtype=bool)

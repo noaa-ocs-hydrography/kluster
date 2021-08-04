@@ -999,7 +999,7 @@ class MapView(QtWidgets.QMainWindow):
             list of urls for each layer of the noaa enc
         """
         urls = []
-        lyrs = [0, 3, 4, 5, 6, 7, 8, 9, 10, 11, 1, 2]
+        lyrs = [0, 3, 4, 5, 6, 7, 8, 9, 10, 1, 2]  # leave out 11, the overscale warning
         for lyr in lyrs:
             url = 'https://gis.charttools.noaa.gov/arcgis/rest/services/MCS/ENCOnline/MapServer/exts/MaritimeChartService/WMSServer'
             fmat = 'image/png'
