@@ -841,6 +841,8 @@ class MapView(QtWidgets.QMainWindow):
         self.surface_transparency = 0
         self.background_data = {}
         self.band_minmax = {}
+        self.force_band_minmax = {}
+
         self._init_settings(settings)
 
         self.crs = qgis_core.QgsCoordinateReferenceSystem('EPSG:{}'.format(self.epsg))
@@ -1652,7 +1654,7 @@ class MapView(QtWidgets.QMainWindow):
                     self.remove_layer(lyr)
                 self.band_minmax.pop(lyrname)
                 self._update_global_layer_minmax(lyrname)
-                self._update_all_raster_layer_minmax(lyrname)
+                self.update_layer_minmax(lyrname)
 
     def layer_point_to_map_point(self, layer: Union[qgis_core.QgsRasterLayer, qgis_core.QgsVectorLayer],
                                  point: qgis_core.QgsPoint):
@@ -1781,7 +1783,7 @@ class MapView(QtWidgets.QMainWindow):
             else:
                 self.band_minmax[layername] = [minval, maxval]
 
-    def _update_all_raster_layer_minmax(self, layername: str):
+    def update_layer_minmax(self, layername: str):
         """
         Using the global band_minmax attribute, set the min/max of the band value for all raster layers that have the
         provided layername
@@ -1792,12 +1794,18 @@ class MapView(QtWidgets.QMainWindow):
             layer name to use from the source data
         """
 
+        if layername in self.force_band_minmax:
+            minl, maxl = self.force_band_minmax[layername]
+        elif layername in self.band_minmax:
+            minl, maxl = self.band_minmax[layername]
+        else:
+            return
         for lname in self.layer_manager.surface_layer_names_by_type(layername):
             old_lyr = self.layer_manager.layer_data_lookup[lname]
             if layername in ['vertical_uncertainty', 'horizontal_uncertainty']:
-                shader = inv_raster_shader(self.band_minmax[layername][0], self.band_minmax[layername][1])
+                shader = inv_raster_shader(minl, maxl)
             else:
-                shader = raster_shader(self.band_minmax[layername][0], self.band_minmax[layername][1])
+                shader = raster_shader(minl, maxl)
             old_lyr.renderer().setShader(shader)
 
     def _add_raster_layer(self, source: str, layername: str, providertype: str):
@@ -1842,7 +1850,7 @@ class MapView(QtWidgets.QMainWindow):
                 shader = inv_raster_shader
             else:
                 shader = raster_shader
-            self._update_all_raster_layer_minmax(formatted_layername)
+            self.update_layer_minmax(formatted_layername)
             renderer = qgis_core.QgsSingleBandPseudoColorRenderer(rlayer.dataProvider(), 1, shader(self.band_minmax[formatted_layername][0],
                                                                                                    self.band_minmax[formatted_layername][1]))
             rlayer.setRenderer(renderer)

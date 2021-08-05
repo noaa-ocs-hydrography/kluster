@@ -16,7 +16,7 @@ max_beams = 400  # starting max beams in kluster (can grow beyond)
 epsg_nad83 = 6319
 epsg_wgs84 = 7911
 default_number_of_chunks = 4
-converted_files_at_once = 10
+converted_files_at_once = 5
 
 supported_multibeam = ['.all', '.kmall']
 multibeam_uses_quality_factor = ['.all']

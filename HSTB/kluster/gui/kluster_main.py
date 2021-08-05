@@ -17,7 +17,7 @@ from HSTB.kluster.gui import dialog_vesselview, kluster_explorer, kluster_projec
     kluster_output_window, kluster_2dview, kluster_actions, kluster_monitor, dialog_daskclient, dialog_surface, \
     dialog_export, kluster_worker, kluster_interactive_console, dialog_basicplot, dialog_advancedplot, dialog_project_settings, \
     dialog_export_grid, dialog_layer_settings, dialog_settings, dialog_importppnav, dialog_overwritenav, dialog_surface_data, \
-    dialog_about
+    dialog_about, dialog_setcolors
 from HSTB.kluster.fqpr_project import FqprProject
 from HSTB.kluster.fqpr_intelligence import FqprIntel
 from HSTB.kluster.fqpr_vessel import convert_from_fqpr_xyzrph, convert_from_vessel_xyzrph, compare_dict_data
@@ -150,6 +150,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.project_tree.fqpr_selected.connect(self.tree_fqpr_selected)
         self.project_tree.surface_selected.connect(self.tree_surf_selected)
         self.project_tree.surface_layer_selected.connect(self.tree_surface_layer_selected)
+        self.project_tree.set_color_ranges.connect(self.set_color_ranges)
         self.project_tree.all_lines_selected.connect(self.tree_all_lines_selected)
         self.project_tree.close_fqpr.connect(self.close_fqpr)
         self.project_tree.close_surface.connect(self.close_surface)
@@ -1362,13 +1363,84 @@ class KlusterMain(QtWidgets.QMainWindow):
         surfpath: str, path to the surface, used as key in the project
         layername: str, layer name (depth, density, etc)
         checked: bool, True if checked
-
         """
 
         if checked:
             self.redraw(add_surface=surfpath, surface_layer_name=layername)
         else:
             self.redraw(remove_surface=surfpath, surface_layer_name=layername)
+
+    def set_color_ranges(self, set_ranges: bool):
+        """
+        Run when user right clicks Surfaces label and sets color ranges
+
+        Parameters
+        ----------
+        set_ranges: bool, if True user selected set color ranges
+        """
+
+        dlog = dialog_setcolors.ColorRanges()
+
+        if 'depth' in self.two_d.force_band_minmax:
+            dlog.mindepth.setText(str(self.two_d.force_band_minmax['depth'][0]))
+            dlog.maxdepth.setText(str(self.two_d.force_band_minmax['depth'][1]))
+            dlog.depth_box.setChecked(True)
+        elif 'depth' in self.two_d.band_minmax:
+            dlog.mindepth.setText(str(self.two_d.band_minmax['depth'][0]))
+            dlog.maxdepth.setText(str(self.two_d.band_minmax['depth'][1]))
+            dlog.depth_box.setChecked(False)
+        else:
+            dlog.mindepth.setText(str(0.0))
+            dlog.maxdepth.setText(str(0.0))
+            dlog.depth_box.setChecked(False)
+
+        if 'vertical_uncertainty' in self.two_d.force_band_minmax:
+            dlog.minvunc.setText(str(self.two_d.force_band_minmax['vertical_uncertainty'][0]))
+            dlog.maxvunc.setText(str(self.two_d.force_band_minmax['vertical_uncertainty'][1]))
+            dlog.vunc_box.setChecked(True)
+        elif 'vertical_uncertainty' in self.two_d.band_minmax:
+            dlog.minvunc.setText(str(self.two_d.band_minmax['vertical_uncertainty'][0]))
+            dlog.maxvunc.setText(str(self.two_d.band_minmax['vertical_uncertainty'][1]))
+            dlog.vunc_box.setChecked(False)
+        else:
+            dlog.minvunc.setText(str(0.0))
+            dlog.maxvunc.setText(str(0.0))
+            dlog.vunc_box.setChecked(False)
+
+        if 'horizontal_uncertainty' in self.two_d.force_band_minmax:
+            dlog.minhunc.setText(str(self.two_d.force_band_minmax['horizontal_uncertainty'][0]))
+            dlog.maxhunc.setText(str(self.two_d.force_band_minmax['horizontal_uncertainty'][1]))
+            dlog.hunc_box.setChecked(True)
+        elif 'horizontal_uncertainty' in self.two_d.band_minmax:
+            dlog.minhunc.setText(str(self.two_d.band_minmax['horizontal_uncertainty'][0]))
+            dlog.maxhunc.setText(str(self.two_d.band_minmax['horizontal_uncertainty'][1]))
+            dlog.hunc_box.setChecked(False)
+        else:
+            dlog.minhunc.setText(str(0.0))
+            dlog.maxhunc.setText(str(0.0))
+            dlog.hunc_box.setChecked(False)
+
+        if dlog.exec_():
+            if not dlog.cancelled:
+                if dlog.depth_box.isChecked():
+                    self.two_d.force_band_minmax['depth'] = [float(dlog.mindepth.text()), float(dlog.maxdepth.text())]
+                else:
+                    if 'depth' in self.two_d.force_band_minmax:
+                        self.two_d.force_band_minmax.pop('depth')
+                if dlog.vunc_box.isChecked():
+                    self.two_d.force_band_minmax['vertical_uncertainty'] = [float(dlog.minvunc.text()), float(dlog.maxvunc.text())]
+                else:
+                    if 'vertical_uncertainty' in self.two_d.force_band_minmax:
+                        self.two_d.force_band_minmax.pop('vertical_uncertainty')
+                if dlog.hunc_box.isChecked():
+                    self.two_d.force_band_minmax['horizontal_uncertainty'] = [float(dlog.minhunc.text()), float(dlog.maxhunc.text())]
+                else:
+                    if 'horizontal_uncertainty' in self.two_d.force_band_minmax:
+                        self.two_d.force_band_minmax.pop('horizontal_uncertainty')
+                self.two_d.update_layer_minmax('depth')
+                self.two_d.update_layer_minmax('vertical_uncertainty')
+                self.two_d.update_layer_minmax('horizontal_uncertainty')
+                self.two_d.canvas.redrawAllLayers()
 
     def tree_all_lines_selected(self, is_selected):
         """
