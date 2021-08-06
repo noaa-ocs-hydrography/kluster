@@ -544,7 +544,7 @@ def _acctest_generate_stats(soundings_xdim: np.array, depth_diff: np.array, bin_
 
     dpthdiff_rel_xdim_avg = []
     dpthdiff_rel_xdim_stddev = []
-    depth_offset = depth_diff.mean()
+    depth_offset = float(depth_diff.mean())
 
     if len(bins) != len(unique_bins):
         bins = bins[unique_bins]  # eliminate empty bins where there are no beams/angles
@@ -630,11 +630,14 @@ def _acctest_plots(arr_mean: np.array, arr_std: np.array, xdim: np.array, xdim_b
     a.grid()
     ymax = max((depth_diff - depth_offset).max(), 1.3 * o1_max)
     ymin = min((depth_diff - depth_offset).min(), -1.3 * o1_max)
-    a.set_xlim(xdim_bins.min(), xdim_bins.max())
+    if mode == 'Beam':
+        a.set_xlim(xdim_bins.min(), xdim_bins.max())
+    else:
+        a.set_xlim(xdim_bins.max(), xdim_bins.min())
     a.set_ylim(ymin, ymax)
     a.set_xlabel(xlabel)
     a.set_ylabel(ylabel)
-    a.set_title('Depth Bias vs {}'.format(mode))
+    a.set_title('Depth Bias vs {}\nremoved {}m offset from grid to sounding'.format(mode, round(depth_offset, 3)))
 
     # Order 1 line
     a.hlines(o1_max, xdim_bins.min(), xdim_bins.max(), colors='k', linestyles='dashed', linewidth=3, alpha=0.5,
@@ -717,7 +720,7 @@ def accuracy_test(ref_surf: Union[str, BathyGrid], fq: Union[str, Fqpr], output_
         depth_diff, surf_depth, soundings_beam, soundings_angle = difference_grid_and_soundings(ref_surf, dset)
 
         # for plots, we limit to max 30000 soundings, the plot chokes with more than that
-        soundings_filter = int(np.ceil(len(soundings_beam) / 30000))
+        soundings_filter = int(np.ceil(len(soundings_beam) / 100000))
         filter_beam = soundings_beam[::soundings_filter]
         filter_angle = soundings_angle[::soundings_filter]
         filter_diff = depth_diff[::soundings_filter]

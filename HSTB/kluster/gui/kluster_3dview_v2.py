@@ -149,10 +149,13 @@ class PanZoomInteractive(scene.PanZoomCamera):
         """
 
         if self.selected_callback:
+            startpos = [startpos[0] - 80, startpos[1]]  # camera transform seems to not handle the new twod_grid
+            endpos = [endpos[0] - 80, endpos[1]]        # add these on to handle the buffers until we figure it out
             startpos = self._transform.imap(startpos)
             endpos = self._transform.imap(endpos)
             new_startpos = np.array([min(startpos[0], endpos[0]), min(startpos[1], endpos[1])])
             new_endpos = np.array([max(startpos[0], endpos[0]), max(startpos[1], endpos[1])])
+
             if (new_startpos == new_endpos).all():
                 new_startpos -= 0.2
                 new_endpos += 0.2
@@ -484,6 +487,7 @@ class ThreeDView(QtWidgets.QWidget):
         self.axis_x = None
         self.axis_y = None
         self.axis_z = None
+        self.twod_grid = None
         # self.axis_labels = None
 
         self.is_3d = True
@@ -599,9 +603,30 @@ class ThreeDView(QtWidgets.QWidget):
         self.linename = np.concatenate([self.linename, linename])
         self.is_3d = is_3d
 
-        if is_3d:
+    def _configure_2d_3d_view(self):
+        """
+        Due to differences in how the view is constructed when we switch back and forth between 2d and 3d views, we
+        have to rebuild the view for each mode
+        """
+
+        if self.axis_x is not None:
+            self.axis_x.parent = None
+            self.axis_x = None
+        if self.axis_y is not None:
+            self.axis_y.parent = None
+            self.axis_y = None
+        if self.axis_z is not None:
+            self.axis_z.parent = None
+            self.axis_z = None
+        if self.is_3d:
+            self.view = None
+            self.view = self.canvas.central_widget.add_view()
             self.view.camera = TurntableCameraInteractive()
         else:
+            self.view = None
+            self.twod_grid = self.canvas.central_widget.add_grid(margin=10)
+            self.twod_grid.spacing = 0
+            self.view = self.twod_grid.add_view(row=1, col=1, border_color='white')
             self.view.camera = PanZoomInteractive()
         self.view.camera._bind_selecting_event(self._select_points)
 
@@ -623,6 +648,9 @@ class ThreeDView(QtWidgets.QWidget):
 
         if self.show_axis:
             if self.is_3d:  # just using arrows for now, nothing that cool
+                if self.twod_grid:
+                    self.canvas.central_widget.remove_widget(self.twod_grid)
+                self.twod_grid = None
                 diff_x = self.max_x - self.min_x
                 self.axis_x = scene.visuals.Arrow(pos=np.array([[0, 0], [diff_x, 0]]), color='r', parent=self.view.scene,
                                                   arrows=np.array([[diff_x/50, 0, diff_x, 0], [diff_x/50, 0, diff_x, 0]]),
@@ -636,18 +664,19 @@ class ThreeDView(QtWidgets.QWidget):
                                                   arrows=np.array([[0, 0, diff_z/50, 0, 0, diff_z], [0, 0, diff_z/50, 0, 0, diff_z]]),
                                                   arrow_size=8, arrow_color='b', arrow_type='triangle_60')
             else:
-                if self.view_direction == 'north':
-                    diff_x = self.max_x - self.min_x
-                    self.axis_x = scene.AxisWidget(orientation='bottom', domain=(0, diff_x))
-                    self.axis_x.size = (self.x.max() - self.x.min(), 3)
-                elif self.view_direction == 'east':
-                    diff_y = self.max_y - self.min_y
-                    self.axis_x = scene.AxisWidget(orientation='bottom', domain=(0, diff_y))
-                    self.axis_x.size = (self.y.max() - self.y.min(), 3)
-                self.view.add(self.axis_x)
-                self.axis_z = scene.AxisWidget(orientation='right', domain=(self.min_z, self.max_z))
-                self.axis_z.size = (3, (self.max_z - self.min_z) * self.vertical_exaggeration)
-                self.view.add(self.axis_z)
+                title = scene.Label(" ", color='white')
+                title.height_max = 10
+                self.twod_grid.add_widget(title, row=0, col=0, col_span=2)
+                self.axis_x = scene.AxisWidget(orientation='bottom', axis_font_size=12, axis_label_margin=50, tick_label_margin=18)
+                self.axis_x.height_max = 80
+                self.twod_grid.add_widget(self.axis_x, row=2, col=1)
+                self.axis_z = scene.AxisWidget(orientation='left', axis_font_size=12, axis_label_margin=50, tick_label_margin=5)
+                self.axis_z.width_max = 80
+                self.twod_grid.add_widget(self.axis_z, row=1, col=0)
+                right_padding = self.twod_grid.add_widget(row=1, col=2, row_span=1)
+                right_padding.width_max = 50
+                self.axis_x.link_view(self.view)
+                self.axis_z.link_view(self.view)
 
     def _build_color_by_soundings(self, color_by: str = 'depth'):
         """
@@ -705,6 +734,16 @@ class ThreeDView(QtWidgets.QWidget):
             clrs, cmap = normalized_arr_to_rgb_v2((sys_idx / max_val), band_count=max_val)
         else:
             raise ValueError('Coloring by {} is not supported at this time'.format(color_by))
+
+        if self.selected_points is not None and self.selected_points.any():
+            msk = np.zeros(self.displayed_points.shape[0], dtype=bool)
+            msk[self.selected_points] = True
+            clrs[msk, :] = kluster_variables.selected_point_color
+            if self.superselected_index is not None:
+                msk[:] = False
+                msk[self.selected_points[self.superselected_index]] = True
+                clrs[msk, :] = kluster_variables.super_selected_point_color
+
         return clrs, cmap, min_val, max_val
 
     def _build_scatter(self, clrs: np.ndarray):
@@ -805,6 +844,7 @@ class ThreeDView(QtWidgets.QWidget):
         if not self.z.any():
             return None, None, None
 
+        self._configure_2d_3d_view()
         self.view_direction = view_direction
         self.vertical_exaggeration = vertical_exaggeration
         self.show_axis = show_axis
@@ -821,31 +861,29 @@ class ThreeDView(QtWidgets.QWidget):
         centered_y = self.y - self.y_offset
         centered_z = self.z - self.z_offset
 
-        clrs, cmap, minval, maxval = self._build_color_by_soundings(color_by)
-
         # camera assumes z is positive up, flip the values
         centered_z = (centered_z - centered_z.max()) * -1 * vertical_exaggeration
 
         self.displayed_points = np.stack([centered_x, centered_y, centered_z], axis=1)
+        clrs, cmap, minval, maxval = self._build_color_by_soundings(color_by)
+
         self.scatter = scene.visuals.Markers(parent=self.view.scene)
         # still need to figure this out.  Disabling depth test handles the whole plot-is-dark-from-one-angle,
         #   but you lose the intelligence it seems to have with depth of field of view, where stuff shows up in front
         #   of other stuff.  For now we just deal with the darkness issue, and leave depth_test=True (the default).
         # self.scatter.set_gl_state(depth_test=False)
 
-        if self.selected_points is not None and self.selected_points.any():
-            msk = np.zeros(self.displayed_points.shape[0], dtype=bool)
-            msk[self.selected_points] = True
-            clrs[msk, :] = kluster_variables.selected_point_color
-            if self.superselected_index is not None:
-                msk[:] = False
-                msk[self.selected_points[self.superselected_index]] = True
-                clrs[msk, :] = kluster_variables.super_selected_point_color
-
         self._build_scatter(clrs)
         self.setup_axes()
 
         return cmap, minval, maxval
+
+    def highlight_selected_scatter(self, color_by):
+        clrs, cmap, minval, maxval = self._build_color_by_soundings(color_by)
+        self.scatter._data['a_fg_color'] = clrs
+        self.scatter._data['a_bg_color'] = clrs
+        self.scatter._vbo.set_data(self.scatter._data)
+        self.scatter.update()
 
     def transform_data_to_screen_coords(self, x, y, z):
         if not self.is_3d:
@@ -1032,6 +1070,9 @@ class ThreeDWidget(QtWidgets.QWidget):
                                   self.three_d_window.id[self.three_d_window.selected_points])
         self.refresh_settings(None)
 
+    def _select_points_color(self):
+        self.three_d_window.highlight_selected_scatter(self.colorby.currentText())
+
     def superselect_point(self, superselect_index):
         self.three_d_window.superselected_index = superselect_index
         self.refresh_settings(None)
@@ -1121,8 +1162,7 @@ if __name__ == '__main__':
     beam = np.random.randint(0, 399, size=x.shape[0])
     linename = np.full(x.shape[0], '')
     newid = 'test'
-
-    win.add_points(x, y, z, tvu, rejected, pointtime, beam, newid, linename, is_3d=True)
+    win.add_points(x, y, z, tvu, rejected, pointtime, beam, newid, linename, is_3d=False)
     win.display_points()
     win.show()
     app.exec_()
