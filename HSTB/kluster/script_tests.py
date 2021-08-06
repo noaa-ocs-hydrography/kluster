@@ -307,4 +307,14 @@ x, y, z, tvu, rejected, pointtime, beam = fq.return_soundings_in_polygon(polygon
 from HSTB.kluster.modules.sat import accuracy_test
 accuracy_test(r"C:\collab\dasktest\data_dir\EM2040_Fairweather_SmallFile\srgrid_mean_auto",
               r"C:\collab\dasktest\data_dir\EM2040_Fairweather_SmallFile\em2040_40111_05_23_2017",
-              output_directory=r"C:\collab\dasktest\data_dir\EM2040_Fairweather_SmallFile\accuracy_test")
+              output_directory=r"C:\collab\dasktest\data_dir\EM2040_Fairweather_SmallFile\accuracy_test", show_plots=True)
+
+# need
+# mean for each bin minus the global mean
+# stddev for each bin of the mean - global mean
+# soundings in beam/angle vs depth - global mean
+# grid depth for each sounding
+
+# dpth_avg = arr_mean
+# dpth_stddev = arr_std
+# bins = xdim

@@ -463,26 +463,11 @@ def calc_order(depth: np.array):
     specialorder_max: max value according to IHO special order
     """
 
-    order1_max = 0.013 * depth.max()
-    order1_min = 0.013 * depth.min()
-    specialorder_max = 0.0075 * depth.max()
-    specialorder_min = 0.0075 * depth.min()
+    order1_max = np.sqrt(0.5 ** 2 + (0.013 * depth.max()) ** 2)
+    order1_min = np.sqrt(0.5 ** 2 + (0.013 * depth.min()) ** 2)
+    specialorder_max = np.sqrt(0.25 ** 2 + (0.0075 * depth.max()) ** 2)
+    specialorder_min = np.sqrt(0.25 ** 2 + (0.0075 * depth.min()) ** 2)
     return order1_min, order1_max, specialorder_min, specialorder_max
-
-
-def calc_percent_order():
-    """
-    This function returns the percent values for the max tvu for order1 and special order
-
-    Returns
-    -------
-    order1: value according to IHO order 1
-    special: value according to IHO special order
-    """
-
-    order1 = 100 * 0.013
-    special = 100 * 0.0075
-    return order1, special
 
 
 def difference_grid_and_soundings(ref_surf: BathyGrid, fq: Fqpr):
@@ -521,8 +506,7 @@ def difference_grid_and_soundings(ref_surf: BathyGrid, fq: Fqpr):
     return depth_diff, grid_depth_at_loc, soundings_beam_at_loc, soundings_angle_at_loc
 
 
-def _acctest_generate_stats(soundings_xdim: np.array, depth_diff: np.array, surf_depth: np.array,
-                            client: Client = None):
+def _acctest_generate_stats(soundings_xdim: np.array, depth_diff: np.array, bin_size: float, client: Client = None):
     """
     Build the accuracy test statistics for given beam values/angle values and the depths determined previously.
 
@@ -532,8 +516,8 @@ def _acctest_generate_stats(soundings_xdim: np.array, depth_diff: np.array, surf
         numpy array, beam or angle values per sounding
     depth_diff
         numpy array, depth difference between grid node and sounding for each sounding
-    surf_depth
-        numpy array, grid depth found for each sounding
+    bin_size
+        size of the bin, i.e. the beams or degrees per bin depending on mode
     client
         optional, dask client instance if you want to do the operation in parallel (CURRENTLY NOT SUPPORTED)
 
@@ -543,12 +527,8 @@ def _acctest_generate_stats(soundings_xdim: np.array, depth_diff: np.array, surf
         mean depth difference at each beam/angle value
     np.array
         standard deviation of the soundings at each beam/angle value
-    np.array
-        mean depth difference at each beam/angle value as a percent of grid depth
-    np.array
-        standard deviation of the soundings at each beam/angle value as a percent of grid depth
-    np.array
-        mean surface depth at each beam/angle value
+    float
+        mean value of the difference between grid node and sounding
     np.array
         binned range of values for beam/angle
     """
@@ -556,138 +536,37 @@ def _acctest_generate_stats(soundings_xdim: np.array, depth_diff: np.array, surf
     if client is not None:
         raise NotImplementedError('Not yet ready for dask')
 
-    bins = np.arange(int(soundings_xdim.min()), np.ceil(soundings_xdim.max()) + 1, 1)
+    bins = np.arange(int(soundings_xdim.min()), np.ceil(soundings_xdim.max()) + bin_size, bin_size)
     bins_dig = np.sort(np.digitize(soundings_xdim, bins))
     bins_dig = np.delete(bins_dig, bins_dig >= len(bins))  # remove out of bounds data
     bins_dig = np.delete(bins_dig, bins_dig < 0)  # remove out of bounds data
     unique_bins, u_idx = np.unique(bins_dig, return_index=True)
-    percentdpth_rel_xdim_avg = []
-    percentdpth_rel_xdim_stddev = []
+
     dpthdiff_rel_xdim_avg = []
     dpthdiff_rel_xdim_stddev = []
-    mean_surf_depth = []
+    depth_offset = depth_diff.mean()
 
     if len(bins) != len(unique_bins):
         bins = bins[unique_bins]  # eliminate empty bins where there are no beams/angles
     split_diff = np.split(depth_diff, u_idx[1:])
-    split_dpth = np.split(surf_depth, u_idx[1:])
     if client is None:
         for i in range(len(split_diff)):
             split_diff_chnk = split_diff[i]
-            split_dpth_chunk = split_dpth[i]
-            dpthdiff_rel_xdim_avg.append(split_diff_chnk.mean())
-            dpthdiff_rel_xdim_stddev.append(split_diff_chnk.std())
-            percentdpth_rel_xdim_avg.append(100 * (split_diff_chnk / split_dpth_chunk).mean())
-            percentdpth_rel_xdim_stddev.append(100 * (split_diff_chnk / split_dpth_chunk).std())
-            mean_surf_depth.append(split_dpth_chunk.mean())
+            dpthdiff_rel_xdim_avg.append((split_diff_chnk - depth_offset).mean())
+            dpthdiff_rel_xdim_stddev.append((split_diff_chnk - depth_offset).std())
     else:
         raise NotImplementedError('Not yet ready for dask')
 
     dpth_avg = np.array(dpthdiff_rel_xdim_avg)
     dpth_stddev = np.array(dpthdiff_rel_xdim_stddev)
-    per_dpth_avg = np.array(percentdpth_rel_xdim_avg)
-    per_dpth_stddev = np.array(percentdpth_rel_xdim_stddev)
-    mean_surf_depth = np.array(mean_surf_depth)
 
-    return dpth_avg, dpth_stddev, per_dpth_avg, per_dpth_stddev, mean_surf_depth, bins
-
-
-def _acctest_percent_plots(arr_mean: np.array, arr_std: np.array, xdim: np.array, xdim_bins: np.array,
-                           depth_diff: np.array, surf_depth: np.array, mode: str, output_pth: str,
-                           depth_offset: float = None, show: bool = False):
-    """
-    Accuracy plots for percentage based values.  Different enough in comparison with _acctest_plots
-    to need a separate function. (unified function was too messy)
-
-    Plot the given mean/std for beam or angle based binned values as a blue line, the sounding depth difference
-    as a percent of surface depth as a point cloud and the 2 standard deviation fill values.  Include horizontal
-    lines for the IHO spec values.
-
-    Parameters
-    ----------
-    arr_mean
-        numpy array, mean depth difference at each beam/angle value as a percent of grid depth
-    arr_std
-        numpy array, standard deviation of the soundings at each beam/angle value as a percent of grid depth
-    xdim
-        numpy array, beam/angle values for each sounding
-    xdim_bins
-        numpy array, bins for the beam/angle values
-    depth_diff
-        numpy array, depth difference between grid node and sounding for each sounding
-    surf_depth
-        numpy array, grid depth found for each sounding
-    mode
-        str, one of 'beam' or 'angle', determines the plot labels
-    output_pth
-        str, path to where you want to save the plot
-    depth_offset
-        float, optional depth offset used to account for vert difference between surf and accuracy lines.  If
-        None, will use the mean diff between them
-    show
-        bool, if false, does not show the plot (useful when you batch run this many times)
-
-    Returns
-    -------
-    Figure
-        Figure for plot
-    Axes
-        Axes for plot
-    """
-
-    if mode == 'beam':
-        xlabel = 'Beam Number'
-        ylabel = 'Depth Bias (% Water Depth)'
-    elif mode == 'angle':
-        xlabel = 'Angle (Degrees)'
-        ylabel = 'Depth Bias (% Water Depth)'
-    else:
-        raise ValueError('Mode must be one of beam or angle')
-
-    if depth_offset is None:
-        # get average depthdiff as vert offset between surf and accuracy lines
-        depth_offset = np.mean(arr_mean)
-
-    order1, special = calc_percent_order()
-
-    f, a = plt.subplots(1, 1, figsize=(12, 8))
-    plus = arr_mean + 1.96 * arr_std - depth_offset
-    minus = arr_mean - 1.96 * arr_std - depth_offset
-    # plot the soundings
-    sval = 100 * depth_diff / surf_depth
-    a.scatter(xdim, sval - depth_offset, s=6, c='0.5', marker=',', alpha=0.3, edgecolors='none', label='Soundings')
-    # plot 2 std
-    a.fill_between(xdim_bins, minus, plus, facecolor='red', interpolate=True, alpha=0.1)
-    # plot mean line
-    a.plot(xdim_bins, arr_mean - depth_offset, 'b', linewidth=3, label='Mean Depth')
-    # set axes
-    a.grid()
-    a.set_xlim(xdim_bins.min(), xdim_bins.max())
-    a.set_ylim(-2.25, 2.25)
-    a.set_xlabel(xlabel)
-    a.set_ylabel(ylabel)
-    a.set_title('accuracy test: percent depth bias vs {}'.format(mode, np.round(depth_offset, 1)))
-    # Order 1 line
-    a.hlines(order1, xdim_bins.min(), xdim_bins.max(), colors='k', linestyles='dashed', linewidth=3, alpha=0.5,
-             label='Order 1')
-    a.hlines(-order1, xdim_bins.min(), xdim_bins.max(), colors='k', linestyles='dashed', linewidth=3, alpha=0.5)
-    # Special Order Line
-    a.hlines(special, xdim_bins.min(), xdim_bins.max(), colors='g', linestyles='dashed', linewidth=3, alpha=0.5,
-             label='Special Order')
-    a.hlines(-special, xdim_bins.min(), xdim_bins.max(), colors='g', linestyles='dashed', linewidth=3, alpha=0.5)
-    a.legend(loc='upper left')
-
-    f.savefig(output_pth)
-    if not show:
-        plt.close(f)
-    return f, a
+    return dpth_avg, dpth_stddev, depth_offset, bins
 
 
 def _acctest_plots(arr_mean: np.array, arr_std: np.array, xdim: np.array, xdim_bins: np.array, depth_diff: np.array,
-                   surf_depth: np.array, mode: str, output_pth: str, depth_offset: float = None, show: bool = False):
+                   surf_depth: np.array, depth_offset: float, mode: str, output_pth: str, show: bool = False):
     """
-    Accuracy plots for sounding/surface difference values.  Different enough in comparison with _acctest_percent_plots
-    to need a separate function. (unified function was too messy)
+    Accuracy plots for sounding/surface difference values.
 
     Plot the given mean/std for beam or angle based binned values as a blue line, the sounding depth difference
     as a percent of surface depth as a point cloud and the 2 standard deviation fill values.  Include fill for the IHO
@@ -707,13 +586,12 @@ def _acctest_plots(arr_mean: np.array, arr_std: np.array, xdim: np.array, xdim_b
         numpy array, depth difference between grid node and sounding for each sounding
     surf_depth
         numpy array, grid depth found for each sounding
+    depth_offset
+        mean value of the difference between soundings and grid nodes
     mode
         str, one of 'beam' or 'angle', determines the plot labels
     output_pth
         str, path to where you want to save the plot
-    depth_offset
-        float, optional depth offset used to account for vert difference between surf and accuracy lines.  If None,
-        will use the mean diff between them
     show
         bool, if false, does not show the plot (useful when you batch run this many times)
 
@@ -728,47 +606,45 @@ def _acctest_plots(arr_mean: np.array, arr_std: np.array, xdim: np.array, xdim_b
     if mode == 'beam':
         xlabel = 'Beam Number'
         ylabel = 'Depth Bias (meters)'
+        mode = 'Beam'
     elif mode == 'angle':
         xlabel = 'Angle (Degrees)'
         ylabel = 'Depth Bias (meters)'
+        mode = 'Angle'
     else:
         raise ValueError('Mode must be one of beam or angle')
-
-    if depth_offset is None:
-        # get average depthdiff as vert offset between surf and accuracy lines
-        depth_offset = np.mean(arr_mean)
 
     o1_min, o1_max, so_min, so_max = calc_order(surf_depth)
 
     f, a = plt.subplots(1, 1, figsize=(12, 8))
-    plus = arr_mean + 1.96 * arr_std - depth_offset
-    minus = arr_mean - 1.96 * arr_std - depth_offset
+    plus = arr_mean + 1.96 * arr_std
+    minus = arr_mean - 1.96 * arr_std
     # plot the soundings
     a.scatter(xdim, depth_diff - depth_offset, s=6, c='0.5', marker=',', alpha=0.3, edgecolors='none', label='Soundings')
 
     # plot 2 std
     a.fill_between(xdim_bins, minus, plus, facecolor='red', interpolate=True, alpha=0.1)
     # plot mean line
-    a.plot(xdim_bins, arr_mean - depth_offset, 'b', linewidth=3, label='Mean Depth')
+    a.plot(xdim_bins, arr_mean, 'b', linewidth=2, label='Mean Depth')
     # set axes
     a.grid()
+    ymax = max((depth_diff - depth_offset).max(), 1.3 * o1_max)
+    ymin = min((depth_diff - depth_offset).min(), -1.3 * o1_max)
     a.set_xlim(xdim_bins.min(), xdim_bins.max())
-    a.set_ylim(-1.3 * o1_max, 1.3 * o1_max)
+    a.set_ylim(ymin, ymax)
     a.set_xlabel(xlabel)
     a.set_ylabel(ylabel)
-    a.set_title('accuracy test: depth bias vs {}'.format(mode, np.round(depth_offset, 1)))
+    a.set_title('Depth Bias vs {}'.format(mode))
+
     # Order 1 line
     a.hlines(o1_max, xdim_bins.min(), xdim_bins.max(), colors='k', linestyles='dashed', linewidth=3, alpha=0.5,
              label='Order 1')
     a.hlines(-o1_max, xdim_bins.min(), xdim_bins.max(), colors='k', linestyles='dashed', linewidth=3, alpha=0.5)
-    # a.fill_between(xdim_bins, o1_min, o1_max, facecolor='black', alpha=0.5, label='Order 1')
-    # a.fill_between(xdim_bins, -o1_min, -o1_max, facecolor='black', alpha=0.5)
+
     # Special Order Line
     a.hlines(so_max, xdim_bins.min(), xdim_bins.max(), colors='g', linestyles='dashed', linewidth=3, alpha=0.5,
              label='Special Order')
     a.hlines(-so_max, xdim_bins.min(), xdim_bins.max(), colors='g', linestyles='dashed', linewidth=3, alpha=0.5)
-    # a.fill_between(xdim_bins, so_min, so_max, facecolor='green', alpha=0.1, label='Special Order')
-    # a.fill_between(xdim_bins, -so_min, -so_max, facecolor='green', alpha=0.1)
     a.legend(loc='upper left')
 
     f.savefig(output_pth)
@@ -839,26 +715,19 @@ def accuracy_test(ref_surf: Union[str, BathyGrid], fq: Union[str, Fqpr], output_
     print('building plots...')
     for dkey, dset in grouped_datasets.items():
         depth_diff, surf_depth, soundings_beam, soundings_angle = difference_grid_and_soundings(ref_surf, dset)
-        d_rel_a_avg, d_rel_a_stddev, pd_rel_a_avg, pd_rel_a_stddev, ang_mean_surf, angbins = _acctest_generate_stats(
-            soundings_angle, depth_diff, surf_depth)
-        d_rel_b_avg, d_rel_b_stddev, pd_rel_b_avg, pd_rel_b_stddev, beam_mean_surf, beambins = _acctest_generate_stats(
-            soundings_beam, depth_diff, surf_depth)
 
-        # for plots, we limit to max 10000 soundings, the plot chokes with more than that
+        # for plots, we limit to max 30000 soundings, the plot chokes with more than that
         soundings_filter = int(np.ceil(len(soundings_beam) / 30000))
         filter_beam = soundings_beam[::soundings_filter]
         filter_angle = soundings_angle[::soundings_filter]
         filter_diff = depth_diff[::soundings_filter]
         filter_surf = surf_depth[::soundings_filter]
 
-        _acctest_percent_plots(pd_rel_b_avg, pd_rel_b_stddev, filter_beam, beambins, filter_diff, filter_surf,
-                               mode='beam',
-                               output_pth=os.path.join(output_directory, dkey + '_acc_beampercent.png'), show=show_plots)
-        _acctest_percent_plots(pd_rel_a_avg, pd_rel_a_stddev, filter_angle, angbins, filter_diff, filter_surf,
-                               mode='angle',
-                               output_pth=os.path.join(output_directory, dkey + '_acc_anglepercent.png'), show=show_plots)
-        _acctest_plots(d_rel_b_avg, d_rel_b_stddev, filter_beam, beambins, filter_diff, filter_surf, mode='beam',
+        d_rel_a_avg, d_rel_a_stddev, depth_offset, angbins = _acctest_generate_stats(filter_angle, filter_diff, bin_size=1)
+        d_rel_b_avg, d_rel_b_stddev, depth_offset, beambins = _acctest_generate_stats(filter_beam, filter_diff, bin_size=1)
+
+        _acctest_plots(d_rel_b_avg, d_rel_b_stddev, filter_beam, beambins, filter_diff, filter_surf, depth_offset, mode='beam',
                        output_pth=os.path.join(output_directory, dkey + '_acc_beam.png'), show=show_plots)
-        _acctest_plots(d_rel_a_avg, d_rel_a_stddev, filter_angle, angbins, filter_diff, filter_surf, mode='angle',
+        _acctest_plots(d_rel_a_avg, d_rel_a_stddev, filter_angle, angbins, filter_diff, filter_surf, depth_offset, mode='angle',
                        output_pth=os.path.join(output_directory, dkey + '_acc_angle.png'), show=show_plots)
     print('Accuracy test complete.')
