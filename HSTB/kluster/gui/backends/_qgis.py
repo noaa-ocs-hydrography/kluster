@@ -302,13 +302,21 @@ class RectangleMapTool(qgis_gui.QgsMapToolEmitPoint):
     # minlat, maxlat, minlon, maxlon in Map coordinates (WGS84 for Kluster)
     select = Signal(object, float)
 
-    def __init__(self, canvas):
+    def __init__(self, canvas, show_direction: bool = False):
         self.canvas = canvas
         qgis_gui.QgsMapToolEmitPoint.__init__(self, self.canvas)
         self.rubberBand = qgis_gui.QgsRubberBand(self.canvas, True)
         self.rubberBand.setColor(QtCore.Qt.black)
         self.rubberBand.setFillColor(QtCore.Qt.transparent)
         self.rubberBand.setWidth(1)
+
+        if show_direction:
+            self.direction_arrow = qgis_gui.QgsRubberBand(self.canvas, True)
+            self.direction_arrow.setColor(QtCore.Qt.black)
+            self.direction_arrow.setFillColor(QtCore.Qt.transparent)
+            self.direction_arrow.setWidth(4)
+        else:
+            self.direction_arrow = None
 
         self.isEmittingPoint = False
         self.enable_rotation = False
@@ -330,6 +338,9 @@ class RectangleMapTool(qgis_gui.QgsMapToolEmitPoint):
         """
         self.rubberBand.setColor(QtCore.Qt.black)
         self.rubberBand.setFillColor(QtCore.Qt.transparent)
+        if self.direction_arrow:
+            self.direction_arrow.setColor(QtCore.Qt.black)
+            self.direction_arrow.setFillColor(QtCore.Qt.transparent)
         self.start_point = None
         self.end_point = None
         self.final_start_point = None
@@ -341,6 +352,8 @@ class RectangleMapTool(qgis_gui.QgsMapToolEmitPoint):
         self.isEmittingPoint = False
         self.enable_rotation = False
         self.rubberBand.reset(qgis_core.QgsWkbTypes.PolygonGeometry)
+        if self.direction_arrow:
+            self.direction_arrow.reset(qgis_core.QgsWkbTypes.LineGeometry)
 
     def keyPressEvent(self, e):
         ctrl_pressed = e.key() == 16777249
@@ -386,6 +399,10 @@ class RectangleMapTool(qgis_gui.QgsMapToolEmitPoint):
                 self.rubberBand.setColor(QtCore.Qt.green)
                 self.rubberBand.setFillColor(QtCore.Qt.transparent)
                 self.rubberBand.update()
+                if self.direction_arrow:
+                    self.direction_arrow.setColor(QtCore.Qt.green)
+                    self.direction_arrow.setFillColor(QtCore.Qt.transparent)
+                    self.direction_arrow.update()
                 poly, az = self.rectangle()
                 if poly is not None:
                     self.select.emit(poly, az)
@@ -454,6 +471,12 @@ class RectangleMapTool(qgis_gui.QgsMapToolEmitPoint):
             point2 = self.toMapCoordinates(QtCore.QPoint(point2.x(), point2.y()))
             point3 = self.toMapCoordinates(QtCore.QPoint(point3.x(), point3.y()))
             point4 = self.toMapCoordinates(QtCore.QPoint(point4.x(), point4.y()))
+
+        if self.direction_arrow:
+            self.direction_arrow.reset(qgis_core.QgsWkbTypes.LineGeometry)
+            self.direction_arrow.addPoint(qgis_core.QgsPointXY(point3.x(), point4.y() - point3.y()), False)
+            self.direction_arrow.addPoint(qgis_core.QgsPointXY(point3.x() + (point3.x() - point1.x()) / 2, point4.y() - point3.y()), False)
+            self.direction_arrow.show()
 
         self.rubberBand.reset(qgis_core.QgsWkbTypes.PolygonGeometry)
         self.rubberBand.addPoint(point1, False)
