@@ -929,7 +929,10 @@ class ThreeDView(QtWidgets.QWidget):
         # still need to figure this out.  Disabling depth test handles the whole plot-is-dark-from-one-angle,
         #   but you lose the intelligence it seems to have with depth of field of view, where stuff shows up in front
         #   of other stuff.  For now we just deal with the darkness issue, and leave depth_test=True (the default).
-        # self.scatter.set_gl_state(depth_test=False)
+        if self.is_3d:
+            self.scatter.set_gl_state(depth_test=True, blend=True, blend_func=('src_alpha', 'one_minus_src_alpha'))  # default
+        else:  # two d we dont need to worry about the field of view, we can just show all as a blob
+            self.scatter.set_gl_state(depth_test=False, blend=True, blend_func=('src_alpha', 'one_minus_src_alpha'))
 
         self._build_scatter(clrs)
         self.setup_axes()
@@ -1015,7 +1018,7 @@ class ThreeDWidget(QtWidgets.QWidget):
         self.viewdirection_label.hide()
         self.opts_layout.addWidget(self.viewdirection_label)
         self.viewdirection = QtWidgets.QComboBox()
-        self.viewdirection.addItems(['north', 'east', 'right'])
+        self.viewdirection.addItems(['north', 'east'])
         self.viewdirection.hide()
         self.opts_layout.addWidget(self.viewdirection)
         self.vertexag_label = QtWidgets.QLabel('Vertical Exaggeration: ')

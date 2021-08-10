@@ -329,7 +329,6 @@ class RectangleMapTool(qgis_gui.QgsMapToolEmitPoint):
 
         self.first_click = True
         self.second_click = False
-        self.third_click = False
         self.reset()
 
     def reset(self):
@@ -379,7 +378,7 @@ class RectangleMapTool(qgis_gui.QgsMapToolEmitPoint):
         left_click = e.button() == 1
         right_click = e.button() == 2
         if left_click:  # first click sets the origin of the rectangle
-            if not self.first_click and not self.second_click and not self.third_click:
+            if not self.first_click and not self.second_click:
                 self.reset()
                 self.first_click = True
                 self.second_click = False
@@ -413,7 +412,7 @@ class RectangleMapTool(qgis_gui.QgsMapToolEmitPoint):
         """
         On moving the mouse cursor, the rectangle continuously updates
         """
-        if not self.isEmittingPoint and not self.enable_rotation:
+        if (not self.isEmittingPoint and not self.enable_rotation) or (not self.first_click and not self.second_click):
             return
         self.end_point = self.toMapCoordinates(e.pos())
         self.showRect(self.start_point, self.end_point)
@@ -473,6 +472,7 @@ class RectangleMapTool(qgis_gui.QgsMapToolEmitPoint):
             point4 = self.toMapCoordinates(QtCore.QPoint(point4.x(), point4.y()))
 
         if self.direction_arrow:
+            print('here')
             self.direction_arrow.reset(qgis_core.QgsWkbTypes.LineGeometry)
             self.direction_arrow.addPoint(qgis_core.QgsPointXY(point3.x(), point4.y() - point3.y()), False)
             self.direction_arrow.addPoint(qgis_core.QgsPointXY(point3.x() + (point3.x() - point1.x()) / 2, point4.y() - point3.y()), False)
