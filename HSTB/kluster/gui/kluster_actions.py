@@ -206,6 +206,8 @@ class KlusterActions(QtWidgets.QTreeView):
 
             for d in data:
                 proj_child = QtGui.QStandardItem(d)
+                ttip = self._build_action_tooltip(next_action)
+                proj_child.setToolTip(ttip)
                 parent.appendRow(proj_child)
                 self.tree_data['Next Action'].append(d)
             self.start_button.setDisabled(False)
@@ -228,21 +230,39 @@ class KlusterActions(QtWidgets.QTreeView):
         if actions:
             for act in actions:
                 proj_child = QtGui.QStandardItem(act.text)
-                if act.input_files:
-                    ttip = '{}\n\nPriority:{}\nInput Files:\n-{}'.format(act.text, act.priority, '\n-'.join(act.input_files))
-                elif act.priority == 5:  # process multibeam action
-                    ttip = '{}\n\nPriority:{}\nRun Orientation:{}\nRun Correct Beam Vectors:{}\n'.format(act.text, act.priority, act.kwargs['run_orientation'], act.kwargs['run_beam_vec'])
-                    ttip += 'Run Sound Velocity:{}\nRun Georeference:{}\nRun TPU:{}'.format(act.kwargs['run_svcorr'], act.kwargs['run_georef'], act.kwargs['run_tpu'])
-                    if act.kwargs['run_georef']:
-                        if act.kwargs['use_epsg']:
-                            ttip += '\nEPSG: {}\nVertical Reference: {}'.format(act.kwargs['epsg'], act.kwargs['vert_ref'])
-                        else:
-                            ttip += '\nCoordinate System: {}\nVertical Reference: {}'.format(act.kwargs['coord_system'], act.kwargs['vert_ref'])
-                else:
-                    ttip = '{}\n\nPriority:{}'.format(act.text, act.priority)
+                ttip = self._build_action_tooltip(act)
                 proj_child.setToolTip(ttip)
                 parent.appendRow(proj_child)
                 self.tree_data['All Actions'].append(act.text)
+
+    def _build_action_tooltip(self, action):
+        """
+        Take the provided action and build a summary tooltip string
+
+        Parameters
+        ----------
+        action
+            FqprAction
+
+        Returns
+        -------
+        str
+            tooltip string
+        """
+
+        if action.input_files:
+            ttip = '{}\n\nPriority:{}\nInput Files:\n-{}'.format(action.text, action.priority, '\n-'.join(action.input_files))
+        elif action.priority == 5:  # process multibeam action
+            ttip = '{}\n\nPriority:{}\nRun Orientation:{}\nRun Correct Beam Vectors:{}\n'.format(action.text, action.priority, action.kwargs['run_orientation'], action.kwargs['run_beam_vec'])
+            ttip += 'Run Sound Velocity:{}\nRun Georeference:{}\nRun TPU:{}'.format(action.kwargs['run_svcorr'], action.kwargs['run_georef'], action.kwargs['run_tpu'])
+            if action.kwargs['run_georef']:
+                if action.kwargs['use_epsg']:
+                    ttip += '\nEPSG: {}\nVertical Reference: {}'.format(action.kwargs['epsg'], action.kwargs['vert_ref'])
+                else:
+                    ttip += '\nCoordinate System: {}\nVertical Reference: {}'.format(action.kwargs['coord_system'], action.kwargs['vert_ref'])
+        else:
+            ttip = '{}\n\nPriority:{}'.format(action.text, action.priority)
+        return ttip
 
     def _update_queued_files(self, parent: QtGui.QStandardItem, actions: list):
         """

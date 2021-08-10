@@ -1,6 +1,8 @@
 import sys
 import os
 import numpy as np
+import xarray as xr
+from copy import deepcopy
 from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal
 from datetime import datetime, timezone
 
@@ -51,8 +53,10 @@ class PlotDataHandler(QtWidgets.QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
 
+        self.basefqpr = None
         self.fqpr = None
         self.fqpr_path = None
+        self.additional_fqpr_path = None
         self.fqpr_mintime = 0
         self.fqpr_maxtime = 0
         self.fqpr_line_dict = None
@@ -72,6 +76,25 @@ class PlotDataHandler(QtWidgets.QWidget):
         self.hlayout_one.addWidget(self.fil_text)
         self.browse_button = QtWidgets.QPushButton("Browse", self)
         self.hlayout_one.addWidget(self.browse_button)
+
+        self.hlayout_add_converted = QtWidgets.QHBoxLayout()
+        self.add_converted_button = QtWidgets.QToolButton()
+        bfont = self.add_converted_button.font()
+        bfont.setBold(True)
+        self.add_converted_button.setFont(bfont)
+        self.add_converted_button.setText('+')
+        self.add_converted_button.setEnabled(False)
+        self.hlayout_add_converted.addWidget(self.add_converted_button)
+        self.add_converted_startlbl = QtWidgets.QLabel('Press button to add additional converted dataset')
+        self.hlayout_add_converted.addWidget(self.add_converted_startlbl)
+        self.fil_text_additional = QtWidgets.QLineEdit('', self)
+        self.fil_text_additional.setMinimumWidth(350)
+        self.fil_text_additional.setReadOnly(True)
+        self.fil_text_additional.hide()
+        self.hlayout_add_converted.addWidget(self.fil_text_additional)
+        self.browse_button_additional = QtWidgets.QPushButton("Browse", self)
+        self.browse_button_additional.hide()
+        self.hlayout_add_converted.addWidget(self.browse_button_additional)
 
         self.trim_time_check = QtWidgets.QGroupBox('Trim by time')
         self.trim_time_check.setCheckable(True)
@@ -151,6 +174,8 @@ class PlotDataHandler(QtWidgets.QWidget):
 
         layout.addWidget(self.start_msg)
         layout.addLayout(self.hlayout_one)
+        layout.addLayout(self.hlayout_add_converted)
+        layout.addSpacing(10)
         layout.addWidget(self.trim_time_check)
         layout.addWidget(self.trim_line_check)
         layout.addLayout(self.hlayout_four)
@@ -160,6 +185,8 @@ class PlotDataHandler(QtWidgets.QWidget):
         self.setLayout(layout)
 
         self.browse_button.clicked.connect(self.file_browse)
+        self.browse_button_additional.clicked.connect(self.file_browse_additional)
+        self.add_converted_button.clicked.connect(self.turn_on_additional)
         self.sliderbar.mouse_move.connect(self.update_from_slider)
         self.trim_time_start.textChanged.connect(self.update_from_trim_time)
         self.trim_time_end.textChanged.connect(self.update_from_trim_time)
@@ -186,6 +213,53 @@ class PlotDataHandler(QtWidgets.QWidget):
                                                           AppName='\\reghelp')
         if fqpr_path:
             self.new_fqpr_path(fqpr_path)
+            self.initialize_controls()
+
+    def file_browse_additional(self):
+        """
+        Browse to a Kluster converted data folder to add another converted data instance to the total
+        """
+
+        # dirpath will be None or a string
+        msg, fqpr_path = RegistryHelpers.GetDirFromUserQT(self, RegistryKey='Kluster',
+                                                          Title='Select additional converted data directory',
+                                                          AppName='\\reghelp')
+        if fqpr_path:
+            error = self.new_additional_fqpr_path(fqpr_path)
+            if not error:
+                self.initialize_controls()
+
+    def store_original_fqpr(self):
+        self.basefqpr = [[rp.copy() for rp in self.fqpr.multibeam.raw_ping],
+                         self.fqpr.multibeam.raw_att.copy()]
+        if self.fqpr.navigation:
+            self.basefqpr.append(self.fqpr.navigation.copy())
+        else:
+            self.basefqpr.append(None)
+        self.basefqpr.append(deepcopy(self.fqpr.multibeam.raw_ping[0].attrs['multibeam_files']))
+
+    def load_original_fqpr(self):
+        if self.basefqpr:
+            self.fqpr.multibeam.raw_ping = self.basefqpr[0]
+            self.fqpr.multibeam.raw_att = self.basefqpr[1]
+            self.fqpr.navigation = self.basefqpr[2]
+            self.fqpr.multibeam.raw_ping[0].attrs['multibeam_files'] = self.basefqpr[3]
+            self.basefqpr = None
+
+    def turn_on_additional(self):
+        curstate = self.add_converted_button.text()
+        if curstate == '+':
+            self.add_converted_startlbl.hide()
+            self.fil_text_additional.show()
+            self.browse_button_additional.show()
+            self.add_converted_button.setText('-')
+        elif curstate == '-':
+            self.add_converted_startlbl.show()
+            self.fil_text_additional.hide()
+            self.browse_button_additional.hide()
+            self.add_converted_button.setText('+')
+            self.fil_text_additional.setText('')
+            self.load_original_fqpr()
             self.initialize_controls()
 
     def update_from_slider(self, first_pos, second_pos):
@@ -412,19 +486,89 @@ class PlotDataHandler(QtWidgets.QWidget):
         User selected a new fqpr instance (fqpr = the converted datastore, see file_browse)
         """
         try:
+            self.basefqpr = None
             if fqpr_loaded:
                 self.fqpr = fqpr_loaded
             else:
                 self.fqpr = reload_data(fqpr_path, skip_dask=True, silent=True)
             self.fil_text.setText(fqpr_path)
+            self.fil_text_additional.setText('')
+            self.fil_text_additional.hide()
+            self.browse_button_additional.hide()
 
             if self.fqpr is not None:
                 self.fqpr_path = fqpr_path
+                self.add_converted_button.setEnabled(True)
             else:
                 self.fqpr_path = None
+                self.add_converted_button.setEnabled(False)
                 self.warning_message.setText('ERROR: Invalid path to converted data store')
         except:
             return
+
+    def new_additional_fqpr_path(self, fqpr_path: str):
+        """
+        User wants to add an additional FQPR instance to the base one
+        """
+        try:
+            add_fqpr = reload_data(fqpr_path, skip_dask=True, silent=True)
+            self.additional_fqpr_path = fqpr_path
+            self.fil_text_additional.setText(fqpr_path)
+
+            self.load_original_fqpr()
+
+            if add_fqpr:
+                sysid = self.fqpr.multibeam.raw_ping[0].system_identifier
+                new_sysid = add_fqpr.multibeam.raw_ping[0].system_identifier
+                if sysid == new_sysid:  # both converted data instances need to be from the same sonar
+                    sonartype = self.fqpr.multibeam.raw_ping[0].sonartype
+                    new_sonartype = add_fqpr.multibeam.raw_ping[0].sonartype
+                    if sonartype == new_sonartype:  # both converted data instances need to be from the same sonar
+                        vertref = self.fqpr.multibeam.raw_ping[0].vertical_reference
+                        new_vertref = add_fqpr.multibeam.raw_ping[0].vertical_reference
+                        if vertref != new_vertref:  # both converted data instances need to be from the same sonar
+                            self.warning_message.setText('WARNING: The vertical reference in both converted data folders does not match.')
+                        horizcrs = self.fqpr.horizontal_crs
+                        new_horizcrs = add_fqpr.horizontal_crs
+                        if horizcrs != new_horizcrs:
+                            self.warning_message.setText('WARNING: The coordinate system in both converted data folders does not match.')
+                        self.store_original_fqpr()
+                        base_time = self.fqpr.multibeam.raw_ping[0].time.values
+                        new_time = add_fqpr.multibeam.raw_ping[0].time.values
+                        duplicates = np.intersect1d(new_time, base_time)
+                        if duplicates.any():
+                            self.warning_message.setText('ERROR: Found duplicate time stamps between the two converted datasets')
+                            return True
+                        elif base_time[-1] < new_time[0]:
+                            firstfq = self.fqpr
+                            secondfq = add_fqpr
+                        else:
+                            firstfq = add_fqpr
+                            secondfq = self.fqpr
+
+                        mfiles = deepcopy(self.fqpr.multibeam.raw_ping[0].attrs['multibeam_files'])
+                        mfiles.update(add_fqpr.multibeam.raw_ping[0].attrs['multibeam_files'])
+                        self.fqpr.multibeam.raw_ping[0] = xr.concat([firstfq.multibeam.raw_ping[0], secondfq.multibeam.raw_ping[0]], dim='time')
+                        if len(self.fqpr.multibeam.raw_ping) == 2:
+                            self.fqpr.multibeam.raw_ping[1] = xr.concat([firstfq.multibeam.raw_ping[1], secondfq.multibeam.raw_ping[1]], dim='time')
+                        if len(self.fqpr.multibeam.raw_ping) > 2:
+                            raise ValueError('new_additional_fqpr_path: Currently only supporting maximum of 2 heads')
+                        self.fqpr.multibeam.raw_att = xr.concat([firstfq.multibeam.raw_att, secondfq.multibeam.raw_att], dim='time')
+                        if self.fqpr.navigation and add_fqpr.navigation:
+                            self.fqpr.navigation = xr.concat([firstfq.navigation, secondfq.navigation], dim='time')
+                        self.fqpr.multibeam.raw_ping[0].attrs['multibeam_files'] = mfiles
+                    else:
+                        self.warning_message.setText('ERROR: The sonar types must match in both converted data folders')
+                        return True
+                else:
+                    self.warning_message.setText('ERROR: The serial numbers must match in both converted data folders')
+                    return True
+            else:
+                self.warning_message.setText('ERROR: Invalid path to converted data store')
+                return True
+            return False
+        except:
+            return True
 
     def initialize_controls(self):
         """

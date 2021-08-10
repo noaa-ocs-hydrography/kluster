@@ -26,6 +26,7 @@ class KlusterProjectTree(QtWidgets.QTreeView):
     zoom_extents_surface = Signal(str)
     reprocess_instance = Signal(str)
     update_surface = Signal(str)
+    set_color_ranges = Signal(bool)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -51,6 +52,7 @@ class KlusterProjectTree(QtWidgets.QTreeView):
         self.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
         self.right_click_menu_converted = None
         self.right_click_menu_surfaces = None
+        self.right_click_menu_surfaces_global = None
         self.setup_menu()
 
         self.categories = ['Project', 'Vessel File', 'Converted', 'Surfaces']
@@ -67,6 +69,7 @@ class KlusterProjectTree(QtWidgets.QTreeView):
         """
         self.right_click_menu_converted = QtWidgets.QMenu('menu', self)
         self.right_click_menu_surfaces = QtWidgets.QMenu('menu', self)
+        self.right_click_menu_surfaces_global = QtWidgets.QMenu('menu', self)
 
         close_dat = QtWidgets.QAction('Close', self)
         close_dat.triggered.connect(self.close_item_event)
@@ -78,6 +81,8 @@ class KlusterProjectTree(QtWidgets.QTreeView):
         zoom_extents.triggered.connect(self.zoom_extents_event)
         update_surface = QtWidgets.QAction('Update Surface', self)
         update_surface.triggered.connect(self.update_surface_event)
+        set_global_surface = QtWidgets.QAction('Set Color Ranges', self)
+        set_global_surface.triggered.connect(self.set_color_ranges_event)
 
         self.right_click_menu_converted.addAction(close_dat)
         self.right_click_menu_converted.addAction(load_in_console)
@@ -91,6 +96,8 @@ class KlusterProjectTree(QtWidgets.QTreeView):
         self.right_click_menu_surfaces.addSeparator()
         self.right_click_menu_surfaces.addAction(update_surface)
 
+        self.right_click_menu_surfaces_global.addAction(set_global_surface)
+
     def show_context_menu(self):
         """
         Generate a close option when you right click on a mid level item (an fqpr instance or a fqpr surface instance).
@@ -98,6 +105,9 @@ class KlusterProjectTree(QtWidgets.QTreeView):
         Emit the appropriate signal and let kluster_main handle the rest.
         """
         index = self.currentIndex()
+        sel_name = index.data()
+        if sel_name == 'Surfaces':
+            self.right_click_menu_surfaces_global.exec_(QtGui.QCursor.pos())
         mid_lvl_name = index.parent().data()
         if mid_lvl_name == 'Converted':
             self.right_click_menu_converted.exec_(QtGui.QCursor.pos())
@@ -175,6 +185,20 @@ class KlusterProjectTree(QtWidgets.QTreeView):
 
         if mid_lvl_name == 'Surfaces':
             self.update_surface.emit(sel_data)
+
+    def set_color_ranges_event(self, e):
+        """
+        If a user right clicks on the Surfaces category label, triggers this event
+
+        Parameters
+        ----------
+        e: QEvent on menu button click
+        """
+        index = self.currentIndex()
+        sel_data = index.data()
+
+        if sel_data == 'Surfaces':
+            self.set_color_ranges.emit(True)
 
     def close_item_event(self, e):
         """
