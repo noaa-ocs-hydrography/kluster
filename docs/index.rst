@@ -91,6 +91,9 @@ sophisticated and modern software package.
 
 Installation
 ------------
+
+**We recommend that users try to run Kluster using the release attached to this GitHub repository, see [releases](https://github.com/noaa-ocs-hydrography/kluster/releases)**
+
 Kluster is not on PyPi, but can be installed using pip alongside the HSTB-drivers and HSTB-shared modules that are required.
 
 (For Windows Users) Download and install Visual Studio Build Tools 2019 (If you have not already): MSVC Build Tools (https://visualstudio.microsoft.com/visual-cpp-build-tools/)
@@ -103,17 +106,13 @@ Some dependencies need to be installed from the conda-forge channel.  I have an 
 
 Perform these in order:
 
-``conda create -n kluster_test python=3.8.2``
+``conda create -n kluster_test python=3.8.8``
 
 ``conda activate kluster_test``
 
-``conda install -c conda-forge qgis=3.18.0 vispy=0.6.4 pyside2=5.13.2 gdal=3.2.1``
+``conda install -c conda-forge qgis=3.18.0 vispy=0.6.6 pyside2=5.13.2 gdal=3.2.1 h5py``
 
 ``pip install git+https://github.com/noaa-ocs-hydrography/kluster.git#egg=hstb.kluster``
-
-``pip install git+https://github.com/noaa-ocs-hydrography/drivers.git#egg=hstb.drivers``
-
-``pip install git+https://github.com/noaa-ocs-hydrography/shared.git#egg=hstb.shared``
 
 Quickstart
 ----------
@@ -130,24 +129,26 @@ Start the main GUI by running the kluster gui module:
 Once the Kluster window appears, simply:
 
 - Go to 'Setup - Set Project Settings' and make sure the default settings look good for your system.
-- Create a new project ('File' - 'New Project') and point to a new empty folder, if you want to put all your processed data somewhere.  Otherwise, processed data will be created next to the raw multibeam files. 
-- Drag a multibeam file (Kongsberg .all/.kmall) into the 'Project Tree' window.  You can also drag in multiple files, but maybe stick with just one for this test.
-- You will see a new action in the 'Actions' tab.  Hit process to convert the multibeam data.
-- Drag in SBET/SMRMSG/POSPac Export Log files or Caris SVP files, and note the new actions that pop up.
+- Create a new project ('File' - 'New Project') and point to a new empty folder, if you want to put all your processed data somewhere. Otherwise, processed data will be created next to the raw multibeam files. 
+- Drag a multibeam file (Kongsberg .all/.kmall) into the 'Project Tree' window. You can also drag in multiple files, but maybe stick with just one for this test.
+- You will see a new action in the 'Actions' tab. Hit 'Start Process' to convert the multibeam data.
+- Go to 'View - Layer Settings' to enable a background layer
+- (Optional) Drag in SBET/SMRMSG/POSPac Export Log files or Caris SVP files, and note the new actions that pop up.
 - Use the 'Actions' tab - 'Unmatched Files' to get information on why some files might not be matched with converted data (mouse over to view the ToolTip).
+- Press 'Start Process' again to perform the multibeam processing.
 - Select a Converted data instance in 'Project Tree' and look at the 'Attributes tab' to get all the processed data attribution. 
-- Select the '3d view' tab and click a line in the 'Project Tree' to view the soundings in 3d.
-- Select the 'Attitude' tab and click a line in the 'Project Tree' to view the realtime attitude of the line.
+- Select the 'Points View' tab and use the Points Select or Swath Select tools in '2d View' to get a view of the soundings
 - Select the 'Console' tab at the bottom and right click the converted data path under 'Converted' in the 'Project Tree' and click 'Load in console' to get access to the xarray Datasets in the console.  Try 'first_system.soundspeed.plot()' to plot the surface sound speed used for the sonar!
 - Select a converted container in Project Tree and use 'File' - 'Export Soundings' to generate csv files for the processed soundings (x, y, z, uncertainty)
-- Select a converted container in Project Tree and use 'Process' - 'New Surface' to generate a single resolution surface using the processed sounding set.  Visualize the surface by checking one of the layers in the 'Project Tree' under 'Surfaces'.  Use the magnifying glass in 2d view if you need to zoom in to see the surface.  Surfaces are saved in the numpy compressed file format, and can be easily read using numpy.
+- Select a converted container in Project Tree and use 'Process' - 'New Surface' to generate a single resolution surface using the processed sounding set. Visualize the surface by checking one of the layers in the 'Project Tree' under 'Surfaces'. Use the magnifying glass in 2d view if you need to zoom in to see the surface. Surfaces are saved in the numpy compressed file format, and can be easily read using numpy.
 - Select a converted container in Project Tree and use 'Visualize' - 'Basic Plots' to plot all the converted and Kluster made datasets.
+- Select a converted container in Project Tree and use 'Visualize' - 'Advanced Plots' to see some of the more sophisticated tools available for data analysis
 
 You can also reload the generated multibeam data and surface by:
 
 - Going to 'File' - 'Open Project' and opening the kluster json file that is generated when you process data.
 - dragging in the output directory (see the second bullet above) to the Project Tree to load the multibeam records
-- dragging in the surface .npz file to the Project Tree to load the surface
+- dragging in the grid folder to the Project Tree to load the surface
 
 2. .. rubric:: Kluster through the console
       :name: kluster-through-the-console
@@ -195,34 +196,15 @@ to examine later using:
 .. _Xarray: http://xarray.pydata.org/en/stable/
 
 .. toctree::
-   :maxdepth: 4
 
-   fqpr_convenience
-   fqpr_generation   
-   fqpr_project
-   fqpr_intelligence
-   monitor
-   xarray_conversion
-   orientation
-   beampointingvector
-   svcorrect
-   georeference
-   tpu
-   visualizations
-   sat
-   wobble
-   export
-   rotations
-   pdal_entwine
-   dask_helpers
-   fqpr_helpers
-   numba_helpers
-   xarray_helpers
-   
+   quickstart/index
+   settings/index
+   vessel_setup/index
+   kluster_api/index
    
 
-Indices and tables
-==================
+Index
+=====
 
 * :ref:`genindex`
 * :ref:`modindex`
