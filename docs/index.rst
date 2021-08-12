@@ -120,13 +120,13 @@ Perform these in order:
 .. _Xarray: http://xarray.pydata.org/en/stable/
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 4
 
    quickstart/index
    settings/index
    vessel_setup/index
+   processing/index
    kluster_api/index
-   
 
 Index
 =====

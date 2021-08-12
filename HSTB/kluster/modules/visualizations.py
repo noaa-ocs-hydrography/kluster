@@ -500,7 +500,7 @@ class FqprVisualizations:
         """
 
         print('Building Sound Velocity Profile map...')
-        nav = self.fqpr.multibeam.return_navigation()
+        nav = self.fqpr.multibeam.return_raw_navigation()
         if nav is None:
             print('no navigation found!')
             return
