@@ -11,6 +11,7 @@ General Settings
 General settings are accessed through the "File - Settings" menu.
 
 .. image:: settings_1.png
+   :target: ../_images/settings_1.png
 
 - Enable Parallel Writes
 
@@ -36,6 +37,7 @@ Layer Settings
 Layer settings are accessed through the "View - Layer Settings" menu.
 
 .. image:: settings_2.png
+   :target: ../_images/settings_2.png
 
 - Background Layer
 
@@ -56,6 +58,7 @@ Project Settings
 Project settings are accessed through the "Setup - Set Project Settings"
 
 .. image:: settings_3.png
+   :target: ../_images/settings_3.png
 
 - Coordinate System
 

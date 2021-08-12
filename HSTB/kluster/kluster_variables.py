@@ -52,7 +52,7 @@ offset_parameter_names = ['tx_port_x', 'tx_stbd_x', 'rx_port_x', 'rx_stbd_x', 't
                           'tx_z', 'rx_z']
 angle_parameter_names = ['tx_port_r', 'tx_stbd_r', 'rx_port_r', 'rx_stbd_r', 'tx_r', 'rx_r', 'tx_port_p', 'tx_stbd_p',
                          'rx_port_p', 'rx_stbd_p', 'tx_p', 'rx_p', 'tx_port_h', 'tx_stbd_h', 'rx_port_h', 'rx_stbd_h',
-                         'tx_h', 'rx_h']
+                         'tx_h', 'rx_h', 'latency']
 # optional parameter names controls what is left out when comparing vessel entries to see if the new entry is worth keeping
 optional_parameter_names = ['source', 'vessel_file', 'sonar_type', 'imu_h', 'imu_p', 'imu_r', 'imu_x', 'imu_y',
                             'imu_z', 'tx_to_antenna_x', 'tx_to_antenna_y', 'tx_to_antenna_z', 'vess_center_x', 'vess_center_y',

@@ -604,9 +604,9 @@ class KlusterMain(QtWidgets.QMainWindow):
                 if fq.multibeam.raw_ping[0].system_identifier == sysident:
                     identical_offsets, identical_angles, identical_tpu, data_matches, new_waterline = compare_dict_data(fq.multibeam.xyzrph,
                                                                                                                         xyzrph[cnt])
-                    # drop the vessel setup specific keys, like the vessel file used and the vess_center location
-                    drop_these = [ky for ky in xyzrph[cnt].keys() if ky not in fq.multibeam.xyzrph.keys()]
-                    [xyzrph[cnt].pop(ky) for ky in drop_these]
+                    # # drop the vessel setup specific keys, like the vessel file used and the vess_center location
+                    # drop_these = [ky for ky in xyzrph[cnt].keys() if ky not in fq.multibeam.xyzrph.keys()]
+                    # [xyzrph[cnt].pop(ky) for ky in drop_these]
                     fq.write_attribute_to_ping_records({'xyzrph': xyzrph[cnt]})
                     fq.multibeam.xyzrph.update(xyzrph[cnt])
                     if not identical_angles:  # if the angles changed then we have to start over at converted status

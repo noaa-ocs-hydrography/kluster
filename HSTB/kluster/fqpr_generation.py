@@ -915,7 +915,7 @@ class Fqpr(ZarrBackend):
         latency = self.motion_latency
         tx_tstmp_idx = xr.concat([idx.time for idx in idx_by_chunk], dim='time')
         if latency and not silent:
-            self.logger.info('Applying motion latency of {}ms'.format(latency))
+            self.logger.info('Applying motion latency of {} seconds'.format(latency))
         try:
             if ra.input_datum == 'NAD83':
                 input_datum = CRS.from_epsg(kluster_variables.epsg_nad83)
@@ -1033,7 +1033,7 @@ class Fqpr(ZarrBackend):
         latency = self.motion_latency
         tx_tstmp_idx = xr.concat([idx.time for idx in idx_by_chunk], dim='time')
         if latency and not silent:
-            self.logger.info('Applying motion latency of {}ms'.format(latency))
+            self.logger.info('Applying motion latency of {} seconds'.format(latency))
 
         if 'qualityfactor' not in self.multibeam.raw_ping[0]:
             self.logger.error("_generate_chunks_tpu: sonar uncertainty ('qualityfactor') must exist to calculate uncertainty")
