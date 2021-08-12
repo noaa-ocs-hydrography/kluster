@@ -90,7 +90,7 @@ sophisticated and modern software package.
 Installation
 ------------
 
-**We recommend that users try to run Kluster using the release attached to this GitHub repository, see `releases`_ **
+** We recommend that users try to run Kluster using the release attached to this GitHub repository, see `releases <https://kluster.readthedocs.io/en/latest/>`_ **
 
 Kluster is not on PyPi, but can be installed using pip alongside the HSTB-drivers and HSTB-shared modules that are required.
 
@@ -118,7 +118,6 @@ Perform these in order:
 .. _Dask: https://dask.org/
 .. _Zarr: https://zarr.readthedocs.io/en/stable/
 .. _Xarray: http://xarray.pydata.org/en/stable/
-.. _releases: https://github.com/noaa-ocs-hydrography/kluster/releases/
 
 .. toctree::
    :maxdepth: 2
