@@ -1,0 +1,44 @@
+name: Pyinstaller Linux
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash -l {0}
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - uses: conda-incubator/setup-miniconda@v2
+      with:
+        activate-environment: test-environment
+        python-version: 3.8.8
+
+    - run: |
+        conda install -c conda-forge qgis=3.18.0 vispy=0.6.6 pyside2=5.13.2 gdal=3.2.1 h5py
+        conda install pytest six pytest-cov pytest-mock
+
+    - run: |
+        conda install git pip
+        pip install git+https://github.com/noaa-ocs-hydrography/kluster.git#egg=hstb.kluster
+
+    - run: pip install -r $GITHUB_WORKSPACE/requirements.txt
+
+    # build pyinstaller package
+    - name: Package Application
+      uses: JackMcKew/pyinstaller-action-linux@main
+      with:
+        path: HSTB/kluster/misc
+
+    - uses: actions/upload-artifact@v2
+      with:
+        name: pyinstaller_linux
+        path: src/dist/linux
