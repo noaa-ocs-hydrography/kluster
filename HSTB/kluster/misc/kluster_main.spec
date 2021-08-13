@@ -24,6 +24,7 @@ data_files = [
 	(os.path.join(pydro_sp, 'git_repos', 'hstb_kluster', 'HSTB', 'kluster', 'gui', 'vessel_stl_files'), os.path.join("HSTB", "kluster", "gui", "vessel_stl_files")),
 	(os.path.join(pydro_sp, 'git_repos', 'hstb_kluster', 'HSTB', 'kluster', 'images'), os.path.join("HSTB", "kluster", "images")),
 	(os.path.join(pydro_sp, 'git_repos', 'hstb_kluster', 'HSTB', 'kluster', 'background'), os.path.join("HSTB", "kluster", "background")),
+	(os.path.join(pydro_sp, 'git_repos', 'hstb_kluster', 'HSTB', 'kluster', 'docbuild'), os.path.join("HSTB", "kluster", "docbuild")),
 	(os.path.join(pydro_env, 'Lib', 'site-packages', 'vispy', 'util', 'fonts'), os.path.join("vispy", "util", "fonts")),
 	(os.path.join(pydro_env, 'Library', 'bin', 'libiomp5md.dll'), "."),
 	(os.path.join(pydro_env, 'Library', 'bin', 'mkl_intel_thread.dll'), "."),
