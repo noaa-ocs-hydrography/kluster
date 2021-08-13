@@ -1,0 +1,6 @@
+sort_and_drop_duplicates
+========================
+
+.. currentmodule:: HSTB.kluster.xarray_conversion
+
+.. autofunction:: sort_and_drop_duplicates

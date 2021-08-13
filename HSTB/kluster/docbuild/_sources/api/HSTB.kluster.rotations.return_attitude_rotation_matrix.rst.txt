@@ -1,0 +1,6 @@
+return_attitude_rotation_matrix
+===============================
+
+.. currentmodule:: HSTB.kluster.rotations
+
+.. autofunction:: return_attitude_rotation_matrix

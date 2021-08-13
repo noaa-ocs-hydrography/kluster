@@ -1,0 +1,27 @@
+FqprVisualizations
+==================
+
+.. currentmodule:: HSTB.kluster.modules.visualizations
+
+.. autoclass:: FqprVisualizations
+   :show-inheritance:
+
+   .. rubric:: Methods Summary
+
+   .. autosummary::
+
+      ~FqprVisualizations.plot_sound_velocity_map
+      ~FqprVisualizations.plot_sound_velocity_profiles
+      ~FqprVisualizations.soundings_plot_2d
+      ~FqprVisualizations.soundings_plot_3d
+      ~FqprVisualizations.visualize_beam_pointing_vectors
+      ~FqprVisualizations.visualize_orientation_vector
+
+   .. rubric:: Methods Documentation
+
+   .. automethod:: plot_sound_velocity_map
+   .. automethod:: plot_sound_velocity_profiles
+   .. automethod:: soundings_plot_2d
+   .. automethod:: soundings_plot_3d
+   .. automethod:: visualize_beam_pointing_vectors
+   .. automethod:: visualize_orientation_vector

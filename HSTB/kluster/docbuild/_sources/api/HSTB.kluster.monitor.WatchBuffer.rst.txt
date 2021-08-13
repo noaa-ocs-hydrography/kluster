@@ -1,0 +1,17 @@
+WatchBuffer
+===========
+
+.. currentmodule:: HSTB.kluster.monitor
+
+.. autoclass:: WatchBuffer
+   :show-inheritance:
+
+   .. rubric:: Methods Summary
+
+   .. autosummary::
+
+      ~WatchBuffer.run
+
+   .. rubric:: Methods Documentation
+
+   .. automethod:: run

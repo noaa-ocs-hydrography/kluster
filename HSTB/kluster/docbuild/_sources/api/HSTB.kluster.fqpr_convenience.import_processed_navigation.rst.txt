@@ -1,0 +1,6 @@
+import_processed_navigation
+===========================
+
+.. currentmodule:: HSTB.kluster.fqpr_convenience
+
+.. autofunction:: import_processed_navigation

@@ -1,0 +1,6 @@
+intel_process
+=============
+
+.. currentmodule:: HSTB.kluster.fqpr_intelligence
+
+.. autofunction:: intel_process

@@ -1,0 +1,6 @@
+bin2d
+=====
+
+.. currentmodule:: HSTB.kluster.numba_helpers
+
+.. autofunction:: bin2d

@@ -1,0 +1,17 @@
+NavErrorModule
+==============
+
+.. currentmodule:: HSTB.kluster.fqpr_intelligence
+
+.. autoclass:: NavErrorModule
+   :show-inheritance:
+
+   .. rubric:: Methods Summary
+
+   .. autosummary::
+
+      ~NavErrorModule.remove_file
+
+   .. rubric:: Methods Documentation
+
+   .. automethod:: remove_file

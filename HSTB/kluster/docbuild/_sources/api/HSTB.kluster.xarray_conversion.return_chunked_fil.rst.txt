@@ -1,0 +1,6 @@
+return_chunked_fil
+==================
+
+.. currentmodule:: HSTB.kluster.xarray_conversion
+
+.. autofunction:: return_chunked_fil

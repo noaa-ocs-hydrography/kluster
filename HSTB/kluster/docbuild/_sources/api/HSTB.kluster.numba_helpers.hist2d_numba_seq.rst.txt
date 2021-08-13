@@ -1,0 +1,6 @@
+hist2d_numba_seq
+================
+
+.. currentmodule:: HSTB.kluster.numba_helpers
+
+.. autofunction:: hist2d_numba_seq

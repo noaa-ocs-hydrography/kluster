@@ -1,0 +1,6 @@
+compute_relative_azimuth
+========================
+
+.. currentmodule:: HSTB.kluster.modules.beampointingvector
+
+.. autofunction:: compute_relative_azimuth

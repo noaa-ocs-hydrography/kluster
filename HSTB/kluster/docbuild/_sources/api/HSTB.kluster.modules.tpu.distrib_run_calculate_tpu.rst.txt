@@ -1,0 +1,6 @@
+distrib_run_calculate_tpu
+=========================
+
+.. currentmodule:: HSTB.kluster.modules.tpu
+
+.. autofunction:: distrib_run_calculate_tpu

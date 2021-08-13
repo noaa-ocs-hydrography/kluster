@@ -1,0 +1,181 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>build_orientation_vectors &#8212; kluster 0.7.4 documentation</title>
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" type="text/css" href="../_static/graphviz.css" />
+    <script id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="distrib_run_build_orientation_vectors" href="HSTB.kluster.modules.orientation.distrib_run_build_orientation_vectors.html" />
+    <link rel="prev" title="orientation module" href="../kluster_api/orientation.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="build-orientation-vectors">
+<h1>build_orientation_vectors<a class="headerlink" href="#build-orientation-vectors" title="Permalink to this headline">¶</a></h1>
+<dl class="py function">
+<dt id="HSTB.kluster.modules.orientation.build_orientation_vectors">
+<code class="sig-prename descclassname"><span class="pre">HSTB.kluster.modules.orientation.</span></code><code class="sig-name descname"><span class="pre">build_orientation_vectors</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">raw_att</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">twtt</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">delay</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tx_tstmp_idx</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tx_orientation</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rx_orientation</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">latency</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.modules.orientation.build_orientation_vectors" title="Permalink to this definition">¶</a></dt>
+<dd><p>Using attitude angles, mounting angles, build the tx/rx vectors that represent the orientation of the tx/rx at
+time of transmit/receive.  Transmitter vectors end up as the [x, y, z] for the transmitter orientation at the time
+of ping.  Receiver vectors have an additional beam dimension, and represent the slight changes in receiver
+orientation during ping receive</p>
+<p>(this ended up being more important than I thought, saw up to half a meter difference in some datasets)</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>raw_att</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">Dataset</span></code>) – raw attitude Dataset including roll, pitch, yaw</p></li>
+<li><p><strong>twtt</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">DataArray</span></code>) – 2dim (time/beam) array of timestamps representing time traveling through water for each beam</p></li>
+<li><p><strong>delay</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">DataArray</span></code>) – 2dim (time/beam) array of delays for each beam (must be added to ping time)</p></li>
+<li><p><strong>tx_tstmp_idx</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">DataArray</span></code>) – 1D ping times from the DataSet</p></li>
+<li><p><strong>tx_orientation</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">list</span></code>) – [numpy array with 3 elements (x,y,z) representing the ideal tx orientation, tx roll mounting angle,
+tx pitch mounting angle, tx yaw mounting angle, timestamp]</p></li>
+<li><p><strong>rx_orientation</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">list</span></code>) – [numpy array with 3 elements (x,y,z) representing the ideal rx orientation, rx roll mounting angle,
+rx pitch mounting angle, rx yaw mounting angle, timestamp]</p></li>
+<li><p><strong>latency</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code>) – if included is added as motion latency (in milliseconds)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><dl class="simple">
+<dt>[xr.DataArray 2 dim (time, xyz) representing tx 3d orientation in space across time,</dt><dd><p>xr.DataArray 3 dim (time, beam, xyz) representing rx 3d orientation in space across time/beam]</p>
+</dd>
+</dl>
+</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>list</p>
+</dd>
+</dl>
+</dd></dl>
+
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">kluster</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../quickstart/index.html">Quickstart</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../settings/index.html">Settings</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../vessel_setup/index.html">Vessel Setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../processing/index.html">Conversion and Processing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../products/index.html">Products</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../kluster_api/index.html">API</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/fqpr_convenience.html">fqpr_convenience module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/fqpr_generation.html">fqpr_generation module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/fqpr_project.html">fqpr_project module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/fqpr_intelligence.html">fqpr_intelligence module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/monitor.html">monitor module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/xarray_conversion.html">xarray_conversion module</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="../kluster_api/orientation.html">orientation module</a><ul class="current">
+<li class="toctree-l3 current"><a class="reference internal" href="../kluster_api/orientation.html#module-HSTB.kluster.modules.orientation">HSTB.kluster.modules.orientation Module</a><ul class="current">
+<li class="toctree-l4 current"><a class="reference internal" href="../kluster_api/orientation.html#functions">Functions</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/beampointingvector.html">beampointingvector module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/svcorrect.html">svcorrect module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/georeference.html">georeference module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/tpu.html">tpu module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/visualizations.html">visualizations module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/sat.html">sat module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/wobble.html">wobble module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/export.html">export module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/rotations.html">rotations module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/pdal_entwine.html">pdal_entwine module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/dask_helpers.html">dask_helpers module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/fqpr_helpers.html">fqpr_helpers module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/numba_helpers.html">numba_helpers module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/xarray_helpers.html">xarray_helpers module</a></li>
+</ul>
+</li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  <li><a href="../kluster_api/index.html">API</a><ul>
+  <li><a href="../kluster_api/orientation.html">orientation module</a><ul>
+      <li>Previous: <a href="../kluster_api/orientation.html" title="previous chapter">orientation module</a></li>
+      <li>Next: <a href="HSTB.kluster.modules.orientation.distrib_run_build_orientation_vectors.html" title="next chapter">distrib_run_build_orientation_vectors</a></li>
+  </ul></li>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2020, Eric Younkin.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.5.2</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="../_sources/api/HSTB.kluster.modules.orientation.build_orientation_vectors.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

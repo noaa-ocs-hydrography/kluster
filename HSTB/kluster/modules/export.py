@@ -356,7 +356,6 @@ class FqprExport:
                 self._las_write(export_data[0], export_data[1], export_data[2], export_data[3],
                                 export_data[5], export_data[7], dest_path)
                 written_files.append(dest_path)
-
         endtime = perf_counter()
         self.fqpr.logger.info('****Exporting xyz data to las complete: {}****\n'.format(seconds_to_formatted_string(int(endtime - starttime))))
         return written_files

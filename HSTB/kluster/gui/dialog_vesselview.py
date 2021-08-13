@@ -885,7 +885,7 @@ class OptionsWidget(QtWidgets.QWidget):
         config_layout = QtWidgets.QHBoxLayout()
         config_layout_labels = QtWidgets.QVBoxLayout()
         config_layout_controls = QtWidgets.QVBoxLayout()
-        configtxt = QtWidgets.QLabel('Config File: ')
+        configtxt = QtWidgets.QLabel('Vessel File: ')
         self.config_name = QtWidgets.QLabel('None')
         self.config_name.setMinimumHeight(18)
         sourcetxt = QtWidgets.QLabel('Source: ')

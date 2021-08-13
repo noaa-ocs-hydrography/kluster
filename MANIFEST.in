@@ -3,3 +3,4 @@ graft HSTB/kluster/gui
 graft HSTB/kluster/images
 graft HSTB/kluster/modules
 graft HSTB/kluster/background
+graft HSTB/kluster/docbuild
