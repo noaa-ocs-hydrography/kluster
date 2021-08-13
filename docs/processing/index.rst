@@ -262,6 +262,8 @@ The georeferenced depth and the sound velocity depth offset are pretty similar. 
 - Vertical Reference NOAA MLLW = sound velocity corrected offsets (relative to reference point) - altitude - MLLW Separation from VDatum
 - Vertical Reference NOAA MHW = sound velocity corrected offsets (relative to reference point) - altitude - MHW Separation from VDatum
 
+Note that using the NOAA MLLW / NOAA MHW options require a VDatum path set under File - Settings
+
 On running Georeference. you will see the following new data arrays:
 
 - ping_40111.zarr  (this would be the serial number of your system, if you are dual head, you'll see two ping folders, one for each head)

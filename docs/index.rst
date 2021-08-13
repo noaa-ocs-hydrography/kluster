@@ -126,6 +126,7 @@ Perform these in order:
    settings/index
    vessel_setup/index
    processing/index
+   products/index
    kluster_api/index
 
 Index

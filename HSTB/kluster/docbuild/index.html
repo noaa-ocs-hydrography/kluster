@@ -1,0 +1,1754 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>kluster 0.7.4 documentation</title>
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" type="text/css" href="_static/graphviz.css" />
+    <script id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+    <script src="_static/jquery.js"></script>
+    <script src="_static/underscore.js"></script>
+    <script src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="kluster">
+<h1>kluster<a class="headerlink" href="#kluster" title="Permalink to this headline">¶</a></h1>
+<p>A distributed multibeam processing system built on the Pangeo ecosystem (<a class="reference external" href="https://pangeo.io/">https://pangeo.io/</a>). Supports Kongsberg .all/.kmall multibeam formats, POS MV post-processed SBET/RMS navigation files and Caris svp sound velocity profile files.</p>
+<p>Kluster provides a fully open source hydrographic processing package to produce accessible bathymetry products in support of ocean mapping.</p>
+<p>Kluster is:</p>
+<ol class="arabic simple">
+<li><p><strong>Scalable</strong> - uses <a class="reference external" href="https://dask.org/">Dask</a> to provide distributed parallel
+processing on everything from a laptop to a cloud service (AWS
+Fargate for example)</p></li>
+<li><p><strong>Cloud ready</strong> - uses <a class="reference external" href="https://zarr.readthedocs.io/en/stable/">Zarr</a> as a cloud ready storage format for
+converted multibeam records and processed soundings</p></li>
+<li><p><strong>Open</strong> - data are presented using <a class="reference external" href="http://xarray.pydata.org/en/stable/">Xarray</a> objects for easy
+interactivity and stored with Zarr, all open formats</p></li>
+<li><p><strong>Scriptable</strong> - provides a GUI for visualization and processing, but
+can be run from the command line or scripted easily</p></li>
+<li><p><strong>Extensible</strong> - From data conversion to sound velocity correction,
+kluster is built using modules that can be replaced, enhanced or
+exchanged as needed.</p></li>
+</ol>
+<p>Kluster has been tested on:</p>
+<ul class="simple">
+<li><p>EM2040/2040c/2040p</p></li>
+<li><p>EM2040 dual tx/dual rx</p></li>
+<li><p>EM710</p></li>
+<li><p>EM3002</p></li>
+<li><p>EM302</p></li>
+<li><p>EM122</p></li>
+</ul>
+<p>Kluster is built from the ground up in Python, and was developed using
+Python 3.8. Kluster includes modules developed by the hydrographic
+community such as (see <cite>drivers</cite>):</p>
+<ul class="simple">
+<li><p>kmall - Kongsberg kmall file reader</p></li>
+<li><p>par3 - Kongsberg .all file reader</p></li>
+<li><p>sbet - POSPac sbet/rms file reader</p></li>
+</ul>
+<p>Kluster is a work in progress that has been in development since
+November 2019 by a small team, and is by no means feature complete. If
+you are interested in contributing or have questions, please contact
+Eric Younkin (<a class="reference external" href="mailto:eric&#46;g&#46;younkin&#37;&#52;&#48;noaa&#46;gov">eric<span>&#46;</span>g<span>&#46;</span>younkin<span>&#64;</span>noaa<span>&#46;</span>gov</a>)</p>
+<div class="section" id="why-kluster">
+<h2>Why Kluster?<a class="headerlink" href="#why-kluster" title="Permalink to this headline">¶</a></h2>
+<p>There are three principle motivations behind kluster:</p>
+<ol class="arabic">
+<li><p class="rubric" id="build-a-multibeam-processing-sandbox-for-scientistsengineers">Build a multibeam processing sandbox for
+scientists/engineers</p>
+</li>
+</ol>
+<p>The hydrographic community is continuously innovating. Oftentimes, we
+want to experiment with an algorithm or technique, but the data is
+inaccessible, or relies on intermediate products that are locked within
+the software. How do you get attitude corrected beam vectors into a
+numpy array? How can I test a new gridding algorithm without exporting
+soundings to text first?</p>
+<ol class="arabic" start="2">
+<li><p class="rubric" id="build-a-multibeam-cloud-processing-system-for-field-useproduction">Build a multibeam cloud processing system for field
+use/production</p>
+</li>
+</ol>
+<p>Cloud data storage and processing is quickly becoming a reality, as the
+advantages of not owning your own infrastructure become apparent. Where
+does this leave processing software and our traditional workflow?
+Kluster is designed from the ground up to address this issue, by
+providing processing that can be tailored and deployed in multiple
+different ways depending on the application. In addition, using the
+multiprocessing capabilities of Dask, kluster provides a powerful tool
+that can compete with existing software packages in terms of
+performance.</p>
+<ol class="arabic" start="3">
+<li><p class="rubric" id="evaluate-the-latest-in-open-source-scientific-software">Evaluate the latest in open source scientific software</p>
+</li>
+</ol>
+<p>Much of the existing open source software related to multibeam
+processing has been in development for decades. There has been an
+explosion in scientific libraries that can benefit the hydrographic
+community as a whole that have not been seriously evaluated. Kluster
+relies on the state of the art in Python libraries to provide a
+sophisticated and modern software package.</p>
+</div>
+<div class="section" id="installation">
+<h2>Installation<a class="headerlink" href="#installation" title="Permalink to this headline">¶</a></h2>
+<p>** We recommend that users try to run Kluster using the release attached to this GitHub repository, see <a class="reference external" href="https://kluster.readthedocs.io/en/latest/">releases</a> **</p>
+<p>Kluster is not on PyPi, but can be installed using pip alongside the HSTB-drivers and HSTB-shared modules that are required.</p>
+<p>(For Windows Users) Download and install Visual Studio Build Tools 2019 (If you have not already): MSVC Build Tools (<a class="reference external" href="https://visualstudio.microsoft.com/visual-cpp-build-tools/">https://visualstudio.microsoft.com/visual-cpp-build-tools/</a>)</p>
+<p>Download and install conda (If you have not already): conda installation (<a class="reference external" href="https://docs.conda.io/projects/conda/en/latest/user-guide/install/">https://docs.conda.io/projects/conda/en/latest/user-guide/install/</a>)</p>
+<p>Download and install git (If you have not already): git installation (<a class="reference external" href="https://git-scm.com/book/en/v2/Getting-Started-Installing-Git">https://git-scm.com/book/en/v2/Getting-Started-Installing-Git</a>)</p>
+<p>Some dependencies need to be installed from the conda-forge channel.  I have an example below of how to build this environment using conda.</p>
+<p>Perform these in order:</p>
+<p><code class="docutils literal notranslate"><span class="pre">conda</span> <span class="pre">create</span> <span class="pre">-n</span> <span class="pre">kluster_test</span> <span class="pre">python=3.8.8</span></code></p>
+<p><code class="docutils literal notranslate"><span class="pre">conda</span> <span class="pre">activate</span> <span class="pre">kluster_test</span></code></p>
+<p><code class="docutils literal notranslate"><span class="pre">conda</span> <span class="pre">install</span> <span class="pre">-c</span> <span class="pre">conda-forge</span> <span class="pre">qgis=3.18.0</span> <span class="pre">vispy=0.6.6</span> <span class="pre">pyside2=5.13.2</span> <span class="pre">gdal=3.2.1</span> <span class="pre">h5py</span></code></p>
+<p><code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">install</span> <span class="pre">git+https://github.com/noaa-ocs-hydrography/kluster.git#egg=hstb.kluster</span></code></p>
+<div class="toctree-wrapper compound">
+<span id="document-quickstart/index"></span><div class="section" id="quickstart">
+<h3>Quickstart<a class="headerlink" href="#quickstart" title="Permalink to this headline">¶</a></h3>
+<p>Welcome to Kluster!</p>
+<p>If you want to learn more, try the YouTube series: <a class="reference external" href="https://www.youtube.com/playlist?list=PLrjCvP_J9AA_memBs2ZyKXGHG1AMx0GWx">Kluster Playlist</a></p>
+<p>Kluster is an open-source multibeam processing system designed around ease of use and performance.  Currently Kluster supports Kongsberg multibeam formats (.all, .kmall), Caris SVP files (.svp) and Applanix POSPac SBET files (.sbet, .smrmsg), and you need to have at least a multibeam file to start.  I have one on the GitHub if you are just experimenting with this software:</p>
+<p><a class="reference external" href="https://github.com/noaa-ocs-hydrography/kluster/blob/master/test_data/0009_20170523_181119_FA2806.all">0009_20170523_181119_FA2806.all</a></p>
+<p>Head to the <a class="reference external" href="https://github.com/noaa-ocs-hydrography/kluster/releases">Kluster releases section</a> to get the Kluster zip file for the version you want.  Use the latest unless you are after a specific version.  Unzip the file and run the kluster_main.exe to start Kluster.</p>
+<div class="section" id="let-s-process">
+<h4>Let’s Process!<a class="headerlink" href="#let-s-process" title="Permalink to this headline">¶</a></h4>
+<p>On startup, Kluster will look something like this:</p>
+<a class="reference external image-reference" href="../_images/quickstart_1.png"><img alt="_images/quickstart_1.png" src="_images/quickstart_1.png" /></a>
+<p>The first thing you can do is experiment with background layers.  Go to View – Layer Settings and select one of the background layers.  Note that some require internet, these are marked as so.  If you know of some web map services that are not in this list, feel free to let me know and I can add them!  Here we are with the satellite layer and some transparency.</p>
+<a class="reference external image-reference" href="../_images/quickstart_2.png"><img alt="_images/quickstart_2.png" src="_images/quickstart_2.png" /></a>
+<p>OK, so let us convert some data.  Drag a multibeam file into the ‘Project Tree’ window on the left of Kluster to get this display.  For this demo, we are just including a single line, but you can grab multiple lines at once if you like.</p>
+<a class="reference external image-reference" href="../_images/quickstart_3.png"><img alt="_images/quickstart_3.png" src="_images/quickstart_3.png" /></a>
+<p>We have a new action (see the ‘Actions’ on the right) to convert this line.  All we need to do is hit ‘Start Process’ and it will start converting.  Since we did not setup a new project (‘File – New Project’) the converted data will go right next to the multibeam file along with a new project file ‘kluster_project.json’.  You will notice a 2 to 3 second delay right after hitting the ‘Start Process’ button.  That is the Dask Cluster starting up!  It powers all the parallel processing and must start the first time you hit that button.  Here we are with our new converted data.</p>
+<a class="reference external image-reference" href="../_images/quickstart_4.png"><img alt="_images/quickstart_4.png" src="_images/quickstart_4.png" /></a>
+<p>If you get an error talking about the coordinate system, you might have converted data outside the NAD83 bounds.  Try changing to WGS84 in the ‘Setup – Project Settings’ and then restart Kluster and try again.  While we are in the settings, let us set the Vertical Reference that we want.  If you want to use the NOAA MLLW option, you need to ensure that:</p>
+<ul class="simple">
+<li><p>VDatum is installed and you are pointing to it in Kluster in ‘File – Settings’</p></li>
+<li><p>Our data is within the VDatum bounds (once you get VDatum installed, it becomes a background layer you can select to view the regions)</p></li>
+</ul>
+<p>Otherwise pick a more basic reference such as ‘waterline’ (data referenced to the waterline of the vessel) or ‘ellipse’ (data referenced to the ellipsoid, either NAD83(GRS80)/WGS84 ellipsoid).</p>
+<a class="reference external image-reference" href="../_images/quickstart_5.png"><img alt="_images/quickstart_5.png" src="_images/quickstart_5.png" /></a>
+<p>As a side note, remember when I mentioned the Dask Cluster earlier?  You can also manually start the cluster with options that you select instead of letting Kluster auto start it.  You can find it under ‘Setup - Dask Client’.  There isn’t much there currently, but in the future, expect more advanced options for working in the Cloud!  When Kluster auto starts the cluster, we just use the Local Cluster.</p>
+<a class="reference external image-reference" href="../_images/quickstart_6.png"><img alt="_images/quickstart_6.png" src="_images/quickstart_6.png" /></a>
+<p>We should quickly discuss the containers.  Each system/day combination gets its own container.  For instance, if you used the .all file that I have on my GitHub, you will see under the ‘Converted’ section in the Project Tree, there is an entry called ‘em2040_40111_05_23_2017’.  This is the model number, followed by the serial number, followed by the date of the data.  If you dragged in 100 multibeam files, the data across all files would be organized this way.  This allows you to drag in data from all over the place, across different systems and dates, and Kluster will just handle it.</p>
+<a class="reference external image-reference" href="../_images/quickstart_7.png"><img alt="_images/quickstart_7.png" src="_images/quickstart_7.png" /></a>
+<p>With all that settled, you can now move on to the next action.  If you hover over the action in the Actions window, you can see the actions we are going to take.  They should reflect the settings you entered in the Project Settings.  Hit the Start Process button to complete the processing.  You will see that after we hit the start process button for the second time, there are no actions remaining.  Kluster is a two step process - first we convert data to the Kluster format, then we process the data to get the georeferenced soundings.</p>
+<a class="reference external image-reference" href="../_images/quickstart_8.png"><img alt="_images/quickstart_8.png" src="_images/quickstart_8.png" /></a>
+</div>
+<div class="section" id="analysis">
+<h4>Analysis!<a class="headerlink" href="#analysis" title="Permalink to this headline">¶</a></h4>
+<p>Now we have finished the processing.  You can do a number of things here.  All data can be visualized in the Basic Plots widget.  Simply select the data container and click ‘Visualize – Basic Plots’.  Explore this one to get everything from animations of the beam vectors to plotted attitude and navigation.  Use the trim options or drag the sliders around to get different time sections of the data container to plot.  You can also optionally export from this widget to CSV if you want the time series for a variable or the full dataset.</p>
+<a class="reference external image-reference" href="../_images/quickstart_9.png"><img alt="_images/quickstart_9.png" src="_images/quickstart_9.png" /></a>
+<p>There are also the advanced plots, which will be those plots useful for things like sonar acceptance tests.  Currently, there are only a few plots, like the extinction test and the accuracy test, but hopefully I will get around to building some more interesting ones in the future.  Here I am showing you the Wobble Test, based off of work done by John E. Hughes Clarke of the University of New Hampshire.  I find it to be a useful tool for analyzing wobbles in the data, particularly with isolating latency effects.</p>
+<a class="reference external image-reference" href="../_images/quickstart_10.png"><img alt="_images/quickstart_10.png" src="_images/quickstart_10.png" /></a>
+<p>Kluster reads the offsets and angles from the raw data and uses that information during processing automatically.  You can see the values it read by selecting the converted instance and clicking on ‘Setup – Vessel Offsets’.  Here you get a ship display, a blue waterline plane, and some colored boxes for the sensors.  You can move the boat around to match your sensors if you want to make it look good.  I only have two boat models currently; you can even import your own stl model if you want to see it here.  I am using the westcoast launch vessel, it lines up ok.  If you select the sensor in the Sensor dropdown, you will see the offsets and angles for the system, and it will light up letting you know where it is in space.</p>
+<a class="reference external image-reference" href="../_images/quickstart_11.png"><img alt="_images/quickstart_11.png" src="_images/quickstart_11.png" /></a>
+<p>Let’s say you get a better answer for the Sonar Receiver lever arm after processing in Kluster.  You got the sign wrong on the Z value, it was supposed to be positive 0.016!  Not an issue, we can alter this value in Vessel Setup, click the Update button, close the Vessel Setup window saving the changes, and select ‘No’ in the next screen to update the multibeam data.  If you hit ‘Yes’, it will create a new vessel file, which is another more advanced way to track changes in your project.</p>
+<p>If you select ‘No’ after saving changes, you should see a new action for ‘Process _____ starting with sound velocity’.  This is because a change in the offsets means we have to redo the sound velocity, georeferencing and TPU steps, which are the steps that use the lever arm values.  Mouse over the action to see the steps that we will perform.</p>
+<a class="reference external image-reference" href="../_images/quickstart_12.png"><img alt="_images/quickstart_12.png" src="_images/quickstart_12.png" /></a>
+<p>Clicking on the converted entry in the Project Tree will also populate the Attribute window.  Here you can see all kinds of things, from the time a process was run to the sound velocity profiles contained in the converted data.  Some useful attributes:</p>
+<ul class="simple">
+<li><p>_xxxxx_complete - times in UTC for when each subprocess completed</p></li>
+<li><p>horizontal_crs - coordinate system for the project</p></li>
+<li><p>installsettings - the raw attributes from the multibeam data</p></li>
+<li><p>runtimesettings - the raw sonar settings from the multibeam data</p></li>
+<li><p>profile - the sound velocity profile data, with the time encoded in the name in UTC seconds</p></li>
+<li><p>attributes - the sound velocity profile attributes, with the time encoded in the name in UTC seconds</p></li>
+<li><p>multibeam_files - the files in this dataset with the [starttime, endtime] in UTC seconds</p></li>
+</ul>
+<a class="reference external image-reference" href="../_images/quickstart_13.png"><img alt="_images/quickstart_13.png" src="_images/quickstart_13.png" /></a>
+<p>We previously mentioned the Dask Cluster that powers the Kluster parallel processing.  Well now that it is running, you can go to ‘View – Dashboard’ and get a dashboard of the cluster status.  This will display tasks currently running and the memory utilization across the workers.</p>
+<a class="reference external image-reference" href="../_images/quickstart_14.png"><img alt="_images/quickstart_14.png" src="_images/quickstart_14.png" /></a>
+<p>Let us look at some soundings now.  Take your 3d Points map tool (see the tooltip for how to use) and select a cross section of our line like below.  You will see the points displayed in 3d in the Points View window.  Experiment with the options to get different views of the data.  The 2d Points works similarly, displaying the data in 2 dimensions in the Points View tool.</p>
+<a class="reference external image-reference" href="../_images/quickstart_15.png"><img alt="_images/quickstart_15.png" src="_images/quickstart_15.png" /></a>
+</div>
+<div class="section" id="gridding">
+<h4>Gridding!<a class="headerlink" href="#gridding" title="Permalink to this headline">¶</a></h4>
+<p>Finally, let us talk grids.  Kluster uses the Bathygrid module I developed to do all the things we need a bathymetric gridding module to do.  With the converted data selected, go to ‘Process – New Surface’.  We can either build a single resolution grid or a variable resolution grid.  AUTO resolution follows the NOAA depth vs resolution specifications.  Let us just do a single resolution surface, AUTO resolution, and run in parallel.  The new surface will be in a folder right next to your processed multibeam data.</p>
+<a class="reference external image-reference" href="../_images/quickstart_16.png"><img alt="_images/quickstart_16.png" src="_images/quickstart_16.png" /></a>
+<p>You will see a new entry under the surfaces category in the Project Tree.  Expand the dropdown and select the grid.  Clicking the entry populates the attributes in the Attribute window.  Currently no data is loaded from the surface, let us check ‘depth’ to load the depth layer.</p>
+<a class="reference external image-reference" href="../_images/quickstart_17.png"><img alt="_images/quickstart_17.png" src="_images/quickstart_17.png" /></a>
+<p>Use the Query tool to get values under the mouse cursor.  Left click with Query to get a readout in the output window.  Hold CTRL and use the mouse wheel to zoom the output window if you have old eyes like me.</p>
+<a class="reference external image-reference" href="../_images/quickstart_18.png"><img alt="_images/quickstart_18.png" src="_images/quickstart_18.png" /></a>
+<p>Finally, we can export the surface into something that other software can visualize.  Let us stick with the BAG format, which is the preferred file format for NOAA hydrography.  With the surface selected in the Project Tree, go to ‘File – Export Surface’.  Select ‘BAG’.  Some of the metadata is populated for you, such as the Vertical Coordinate WKT (which has our NOAA MLLW value, yours might be ‘unknown’ if you used waterline or ellipse).  Populate this dialog and hit OK.</p>
+<a class="reference external image-reference" href="../_images/quickstart_19.png"><img alt="_images/quickstart_19.png" src="_images/quickstart_19.png" /></a>
+<p>Now we can look at our processed data.  Go to the folder that contains the multibeam file, and you will find folders like these:</p>
+<a class="reference external image-reference" href="../_images/quickstart_20.png"><img alt="_images/quickstart_20.png" src="_images/quickstart_20.png" /></a>
+<p>The em240_40111_05_23_2017 folder contains the converted and processed data, similar to Caris HDCS.  You can take this folder and drag it into Kluster to reload that data.  The kluster_project.json file is the project file, you can drag it into Kluster to reload all the converted data at once.  The srgrid_mean_auto is the gridded data; you can drag it back into Kluster to reload the grid.  Inside the grid folder is our exported BAG file.  You’ll see that there is a ‘_1’ suffix in the BAG file.  Kluster will export large grids in tiles to avoid overly large exported BAGs that do not load efficiently in other software.  Kluster also uses these grid tiles under the hood for the display, you’ll see the file names of the tiles when you use the query tool.</p>
+<a class="reference external image-reference" href="../_images/quickstart_21.png"><img alt="_images/quickstart_21.png" src="_images/quickstart_21.png" /></a>
+<p>You should be able to drag this BAG file into software such as Caris or QGIS and get the same surface display.</p>
+</div>
+<div class="section" id="in-the-console">
+<h4>In the Console<a class="headerlink" href="#in-the-console" title="Permalink to this headline">¶</a></h4>
+<p>All processing options are available in the Python console as well.  The simplest approach to processing is to use the intel_process (see API - fqpr_intelligence - intel_process)</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">HSTB.kluster.fqpr_intelligence</span> <span class="kn">import</span> <span class="n">intel_process</span>
+
+<span class="n">fq</span> <span class="o">=</span> <span class="n">intel_process</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;C:\collab\dasktest\data_dir\EM2040_Fairweather_SmallFile\0009_20170523_181119_FA2806.all&quot;</span><span class="p">,</span> <span class="n">coord_system</span><span class="o">=</span><span class="s1">&#39;WGS84&#39;</span><span class="p">,</span> <span class="n">vert_ref</span><span class="o">=</span><span class="s1">&#39;waterline&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>You can also run lower level processes as well.  Remember that Kluster is a two step process?  Let’s run them seperately.  Note that if you do not use the intel_process, Kluster will not be able to do the organizing data by vessel/day task.  You just end up with a folder with all the processed data regardless of the date/vessel in the raw data.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">HSTB.kluster.fqpr_convenience</span> <span class="kn">import</span> <span class="n">convert_multibeam</span><span class="p">,</span> <span class="n">process_multibeam</span><span class="p">,</span> <span class="n">perform_all_processing</span>
+
+<span class="c1"># only convert raw data to Kluster format</span>
+<span class="n">fq</span> <span class="o">=</span> <span class="n">convert_multibeam</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;C:\collab\dasktest\data_dir\EM2040_Fairweather_SmallFile\0009_20170523_181119_FA2806.all&quot;</span><span class="p">)</span>
+<span class="c1"># now do the second step and process the Kluster data</span>
+<span class="n">fq</span> <span class="o">=</span> <span class="n">process_multibeam</span><span class="p">(</span><span class="n">fq</span><span class="p">,</span> <span class="n">coord_system</span><span class="o">=</span><span class="s1">&#39;WGS84&#39;</span><span class="p">,</span> <span class="n">vert_ref</span><span class="o">=</span><span class="s1">&#39;waterline&#39;</span><span class="p">)</span>
+<span class="c1"># alternatively, perform both steps at the same time</span>
+<span class="n">fq</span> <span class="o">=</span> <span class="n">perform_all_processing</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;C:\collab\dasktest\data_dir\EM2040_Fairweather_SmallFile\0009_20170523_181119_FA2806.all&quot;</span><span class="p">,</span> <span class="n">coord_system</span><span class="o">=</span><span class="s1">&#39;WGS84&#39;</span><span class="p">,</span> <span class="n">vert_ref</span><span class="o">=</span><span class="s1">&#39;waterline&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>The ‘fqpr’ mentioned in the source code here is the Fully Qualified Ping Record, which is just the object that contains all the data for the processed file(s).  We can access the Xarray Dataset for the ping record by running the following (raw_ping is a list, where each element is a dataset for that head, dual head sonar would have two elements here)</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># get the ping dataset</span>
+<span class="n">ping_dataset</span> <span class="o">=</span> <span class="n">fq</span><span class="o">.</span><span class="n">multibeam</span><span class="o">.</span><span class="n">raw_ping</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+<span class="c1"># navigation is in the ping dataset, but you can also get it separately like this</span>
+<span class="n">navigation</span> <span class="o">=</span> <span class="n">fq</span><span class="o">.</span><span class="n">multibeam</span><span class="o">.</span><span class="n">return_raw_navigation</span><span class="p">()</span>
+<span class="c1"># attitude stored in a separate dataset to retain the high frequency data</span>
+<span class="n">attitude</span> <span class="o">=</span> <span class="n">fq</span><span class="o">.</span><span class="n">multibeam</span><span class="o">.</span><span class="n">raw_att</span>
+</pre></div>
+</div>
+<p>Gridding is just as easy!</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">HSTB.kluster.fqpr_convenience</span> <span class="kn">import</span> <span class="n">generate_new_surface</span>
+
+<span class="c1"># generate a new surface without writing to disk</span>
+<span class="n">surf</span> <span class="o">=</span> <span class="n">generate_new_surface</span><span class="p">(</span><span class="n">fq</span><span class="p">)</span>
+<span class="c1"># generate a new surface flushing to disk (usually necessary with moderate sized datasets</span>
+<span class="n">surf</span> <span class="o">=</span> <span class="n">generate_new_surface</span><span class="p">(</span><span class="n">fq</span><span class="p">,</span> <span class="n">output_path</span><span class="o">=</span><span class="sa">r</span><span class="s2">&quot;C:\collab\dasktest\data_dir\EM2040_Fairweather_SmallFile\mygrid&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>And that is it!  If you have concerns or issues, please consider submitting an issue on the GitHub here</p>
+<p><a class="reference external" href="https://github.com/noaa-ocs-hydrography/kluster/issues">https://github.com/noaa-ocs-hydrography/kluster/issues</a></p>
+<div class="toctree-wrapper compound">
+</div>
+</div>
+</div>
+<span id="document-settings/index"></span><div class="section" id="settings">
+<h3>Settings<a class="headerlink" href="#settings" title="Permalink to this headline">¶</a></h3>
+<p>Much of Kluster is automated, and I try to minimize the amount of setup options available to the user through the graphical interface.  I do this intentionally (not just because I am lazy) because I think the potential users of Kluster are a diverse audience that want a streamlined processing system.  Something that isn’t overwhelming, with toolbars and settings dialogs.</p>
+<p>In this section, I’ll be discussing the settings available to configure in Kluster.  Note that all settings are saved to the kluster ini file (\HSTB\kluster\misc\kluster.ini) so that when the program reopens, the settings are repopulated.  Project related settings are also saved to the project file (kluster_project.json) and set on loading a new project file.</p>
+<div class="section" id="general-settings">
+<h4>General Settings<a class="headerlink" href="#general-settings" title="Permalink to this headline">¶</a></h4>
+<p>General settings are accessed through the “File - Settings” menu.</p>
+<a class="reference external image-reference" href="../_images/settings_1.png"><img alt="_images/settings_1.png" src="_images/settings_1.png" /></a>
+<ul class="simple">
+<li><p>Enable Parallel Writes</p></li>
+</ul>
+<p>Although this should not be the case, I have seen occasional issues with how Kluster writes to disk in parallel.  There should no longer be issues with PermissionsErrors and writes to disk, but if you were to see this again, disabling the parallel writes would most likely eliminate those.  It will also slow down the Kluster performance, so keep this checked if you can</p>
+<ul class="simple">
+<li><p>Retain Waterline Changes</p></li>
+</ul>
+<p>Only used when you are using the Kluster vessel file.  With a vessel file loaded, when you add new multibeam data it will use the most recent entry in the vessel file for the offsets/angles/tpu parameters.  The vessel file will override the offsets/angles in the multibeam data.  This includes the waterline value, which is the one setting that might change
+across days of data that you want to keep.  If you want to retain the waterline changes in new multibeam data, keep this checked.  Otherwise, waterline changes will not be saved to the vessel file.</p>
+<ul class="simple">
+<li><p>Force all days to have the same Coordinate System</p></li>
+</ul>
+<p>This one is useful if you are using the Auto UTM option in project settings.  Sometimes you will have multibeam files in a project that span across multiple UTM zones.  If this is the case and this option is unchecked, each day of data will determine the best UTM zone to use in processing.  Check this option to force all added multibeam data to use the same UTM zone or EPSG code as the first processed day of data in the project.</p>
+<ul class="simple">
+<li><p>VDatum directory</p></li>
+</ul>
+<p>Only used when you are using the ‘NOAA MLLW’ or ‘NOAA MHW’ options under vertical reference in Project Settings.  These two options require VDatum to perform the vertical transformation from ellipse to MLLW/MHW.  With VDatum provided, you are able to process using these two vertical references natively in Kluster, without the need for a separate gridded transformation file.</p>
+</div>
+<div class="section" id="layer-settings">
+<h4>Layer Settings<a class="headerlink" href="#layer-settings" title="Permalink to this headline">¶</a></h4>
+<p>Layer settings are accessed through the “View - Layer Settings” menu.</p>
+<a class="reference external image-reference" href="../_images/settings_2.png"><img alt="_images/settings_2.png" src="_images/settings_2.png" /></a>
+<ul class="simple">
+<li><p>Background Layer</p></li>
+</ul>
+<p>The layer to show behind the multibeam lines and surface.  The Default option uses the shapefiles found in (\HSTB\kluster\background) and does not require internet.  You can actually replace these files if you like with the <a class="reference external" href="https://www.ngdc.noaa.gov/mgg/shorelines/">higher resolution options</a>.  I don’t, as mine are quicker to load and pan around, and I’m after performance in the default layer.  The Vdatum layer requires a Vdatum path in General Settings to a local instance of Vdatum.  All other layers require internet and a successful QGIS initialization.  If you find the other layers do not initialize correctly and you have internet, there must be an issue with the QGIS initialization.</p>
+<ul class="simple">
+<li><p>Background Transparency</p></li>
+</ul>
+<p>Percent transparency to apply to the background layer(s)</p>
+<ul class="simple">
+<li><p>Surface Transparency</p></li>
+</ul>
+<p>Percent transparency to apply to the surface layer(s)</p>
+</div>
+<div class="section" id="project-settings">
+<h4>Project Settings<a class="headerlink" href="#project-settings" title="Permalink to this headline">¶</a></h4>
+<p>Project settings are accessed through the “Setup - Set Project Settings”</p>
+<a class="reference external image-reference" href="../_images/settings_3.png"><img alt="_images/settings_3.png" src="_images/settings_3.png" /></a>
+<ul class="simple">
+<li><p>Coordinate System</p></li>
+</ul>
+<p>The Coordinate System is used during georeferencing to project the sound velocity corrected offsets to northing/easting/depth values.  Altering the Coordinate System will produce a new georeference/TPU action.  The Coordinate System specified here will apply to all currently loaded days of data.</p>
+<p>From EPSG will use an integer EPSG code to determine the coordinate system of this project.  See the currently available codes <a class="reference external" href="https://epsg.org/home.html">here</a>  Note that the coordinate system provide must be a projected coordinate system with units in meters/feet.</p>
+<p>Auto UTM is the primary way to set the coordinate system for a project.  This will use the provided coordinate system and the longitude of the provided data to automatically determine the appropriate UTM zone.  It will do this for each day, unless you use the Settings - Force all days to have the same Coordinate System option.  If that option is set and you are using Auto UTM, it will use the UTM zone of the first loaded day of data.</p>
+<ul class="simple">
+<li><p>Vertical Reference</p></li>
+</ul>
+<p>The Vertical Reference used during georeferencing to go from reference point relative depths to the specified reference.  Altering the Vertical Reference will produce a new georeference/TPU action.  The Vertical Reference specified here will apply to all currently loaded days of data.</p>
+<p>Waterline - sound velocity corrected offsets (relative to reference point) + heave - waterline</p>
+<p>Ellipse - sound velocity corrected offsets (relative to reference point) - altitude</p>
+<p>NOAA MLLW - sound velocity corrected offsets (relative to reference point) - altitude - MLLW Separation from VDatum</p>
+<p>NOAA MHW - sound velocity corrected offsets (relative to reference point) - altitude - MHW Separation from VDatum</p>
+<div class="toctree-wrapper compound">
+</div>
+</div>
+</div>
+<span id="document-vessel_setup/index"></span><div class="section" id="vessel-setup">
+<h3>Vessel Setup<a class="headerlink" href="#vessel-setup" title="Permalink to this headline">¶</a></h3>
+<p>The multibeam file contains a record of the sonar installation offsets and angles as they are entered in the multibeam acquisition software (SIS in the case of Kongsberg sonar).  Kluster will take that record and use it as a starting point, allowing you to further alter these records using the Vessel Setup screen.</p>
+<p>The Vessel Setup tool has the directions displayed at the bottom of the window for how to move and rotate the display.</p>
+<p>The basic idea here is that when you process in Kluster (the second step after conversion) you need to know offsets/angles and uncertainty parameters to do the calculations in the correct way.  You can’t use the positioning you get from the positioning system without knowing where it is in relation to the multibeam, now can you?  The data you see in the Vessel Setup allows you to do these calculations, so it is very important you get it right.  If your data looks ok in the sonar screens (SIS for Kongsberg), you are probably at least on the right track, as Kluster will use those values in the processing.  If there are multiple entries, it uses the nearest one in time that is prior to the time of acquisition, which is why all the entries in the Vessel Setup have an associated time.</p>
+<div class="section" id="using-the-multibeam-xyzrph">
+<h4>Using the multibeam xyzrph<a class="headerlink" href="#using-the-multibeam-xyzrph" title="Permalink to this headline">¶</a></h4>
+<p>The simplest way to do this is to highlight one of your converted datasets, and select Setup - Vessel Offsets.  The tool will take the entries in this converted data instance and show them on the screen.  These entries can also be viewed in the attribute window, see the xyzrph attribute.  You’ll see the xyzrph attribute has the entries with the corresponding UTC seconds, where the Vessel Setup tool shows the translated UTC date.  In the below example, we can see that 1495563079 in UTC seconds is equivalent to 05/23/2017 1411 UTC.</p>
+<a class="reference external image-reference" href="../_images/vessel_setup_1.png"><img alt="_images/vessel_setup_1.png" src="_images/vessel_setup_1.png" /></a>
+<p>In our case we are viewing without the use of a vessel file, which is why we see ‘Vessel File: None’ at the top.  More on this later.  We also see the Converted data identifier “em2040_40111_05_23_2017” which as a reminder is the sonar model_serial number_date of the data.</p>
+<p>The Vessel dropdown here controls the 3d model displayed.  This is optional and can even be disabled using View - Show Vessel.  I include two options currently, roughly modeled after NOAA vessels: noaa_ship_foster.obj and westcoast_28ft_launch.obj.  You can find these vessel models in the HSTBklusterguivessel_stl_files directory.  Any .obj file that you add here will be usable in the Vessel Setup tool, feel free to build your own!  Try to make it pretty simple, too many faces/vertices will make the display pretty ugly.</p>
+<p>Just to reiterate, messing with the vessel model is optional!  It does not affect the data.  Since I know that this data comes from a small boat, I’ll be using the westcoast_28ft_launch.obj Vessel.  If you change the Sensor to Basic Config, you get the options for moving the vessel model around.  Basically, you want to align the boat with the sensors, just so you can get a sense of where equipment is in relation to the vessel.  I like to turn off the waterline for this (the blue plane in the display) by going to Sensor=Waterline and unchecking Show Waterline.</p>
+<p>With that done, I head back to Basic Config and start changing these values.  First, I move the boat up by setting Z = -1.0 and clicking update.  I continue through this process until I get the sonar sensors about where they should be on the boat.  Here’s what I got.</p>
+<a class="reference external image-reference" href="../_images/vessel_setup_2.png"><img alt="_images/vessel_setup_2.png" src="_images/vessel_setup_2.png" /></a>
+<p>It’s not an exact process, but I think it is useful to just have a rough idea of a boat to picture where sensors are.  Again, you can always just ignore this part of the Vessel Setup if you like.</p>
+<p>Let’s save these changes we’ve made back to the original xyzrph record.  Simply go to close the Vessel Setup tool by clicking the X in the top right of the window.  It will ask you to save the changes.  Select Yes.  It then asks you if you want to update the multibeam data, build a new vessel file, or cancel.  Hit No here to update multibeam data.  Now when you reopen the Vessel Setup tool, it will show the changes we have made.  You can also see the changes in the xyzrph attribute.</p>
+<a class="reference external image-reference" href="../_images/vessel_setup_3.png"><img alt="_images/vessel_setup_3.png" src="_images/vessel_setup_3.png" /></a>
+</div>
+<div class="section" id="using-the-vessel-file">
+<h4>Using the Vessel File<a class="headerlink" href="#using-the-vessel-file" title="Permalink to this headline">¶</a></h4>
+<p>Now let’s talk about the vessel file.  Let’s say you want a single place to hold the offsets/angles for multiple vessels across multiple days.  You want to store those in a single place so that you can look at them later.  You also want the ability to override the offsets and angles in new multibeam data with values you have calculated yourself.  The vessel file can do this.  It’s a pretty simple process too!</p>
+<p>With our converted data loaded in Kluster, simply go to File - New Vessel File and add a new file.  Save it wherever you like.  I’m going to just put it next to my multibeam data.  You’ll notice that the vessel file shows up in the Project Tree.</p>
+<a class="reference external image-reference" href="../_images/vessel_setup_4.png"><img alt="_images/vessel_setup_4.png" src="_images/vessel_setup_4.png" /></a>
+<p>This new vessel file will contain all the xyzrph data of all currently loaded converted datasets.  We only have this one converted dataset, so that’s what will be in the file.  We can examine the file by going to Setup - Vessel Offsets.  You’ll see that this time, there is a file in the Vessel File section.  We can make changes to this file in the same way as before, except this time, we save a new file instead of updating the multibeam data.  You’ll notice that you no longer have that option, just to make sure we don’t mess up our multibeam data!</p>
+<p>If you want to go back to just working with the multibeam data xyzrph, you have to close the vessel file.</p>
+</div>
+<div class="section" id="vessel-setup-and-actions">
+<h4>Vessel Setup and Actions<a class="headerlink" href="#vessel-setup-and-actions" title="Permalink to this headline">¶</a></h4>
+<p>Let’s get rid of the vessel file for this next section (if you have one loaded) by going to File - Close Project.  Then we drag in our converted data (the ‘em2040_40111_05_23_2017’ if you are using the data I have on the GitHub repo) to get back to where we were prior to the Using the Vessel File section.</p>
+<a class="reference external image-reference" href="../_images/vessel_setup_5.png"><img alt="_images/vessel_setup_5.png" src="_images/vessel_setup_5.png" /></a>
+<p>Go ahead and go to Setup - Vessel Offsets again with the converted data highlighted to get back to the Vessel Setup tool.  Now we can discuss actions.  We already know about two actions: convert actions (which we get on adding new multibeam files) and processing actions (which we get on new converted data).  Now we can look at actions generated by changes in the Vessel Setup.  In Kluster, whenever you make a change that requires reprocessing, Kluster will automatically generate that action for you to run without you having to understand what needs to be done.  Here are the actions you’ll see on Kluster Vessel Setup changes:</p>
+<ul class="simple">
+<li><p>Changing an Uncertainty value - “Process only computing TPU”</p></li>
+<li><p>Changing an Offset value - “Process starting with sound velocity”</p></li>
+<li><p>Changing an Angle value - “Run all processing”</p></li>
+<li><p>Changing a Waterline value - “Process starting with sound velocity”</p></li>
+</ul>
+<p>There are a few actions that are less clear:</p>
+<ul class="simple">
+<li><p>Changing latency value will require restarting the full processing stack - “Run all processing”</p></li>
+<li><p>Changing Primary Antenna values only affect uncertainty - “Process only computing TPU”</p></li>
+<li><p>Changing Basic Config values do not generate actions, do not affect data!</p></li>
+</ul>
+<p>Let’s try it out!  Go ahead and change an uncertainty value to see what happens.  I’ll change Beam Opening Angle under Sensor=Uncertainty to 1.5 degrees.  This is going to result in a new TPU action.  Close the Vessel Setup, Save changes, and select No to update multibeam data.  You should see the new action in the Actions window.</p>
+<a class="reference external image-reference" href="../_images/vessel_setup_6.png"><img alt="_images/vessel_setup_6.png" src="_images/vessel_setup_6.png" /></a>
+<p>Go ahead and run this action to clear it.  It will only do the TPU processing, so it should be pretty quick.  Now let’s go back to the vessel file for a bit.  Go to File - Open Vessel File to load it back in.  On loading it back in, you’ll notice there is a new TPU action.  Its the action to reprocess to get us back to a Beam Opening Angle of 1.3 degrees, or whatever your original value was!  The original value is contained in the vessel file, since we added the vessel file to the project before we made the change to the Beam Opening Angle.</p>
+<p>And here is a nice feature of the vessel file.  Without the vessel file, we are locked in to any change we make when updating the multibeam xyzrph data.  But with the vessel file, we have a separate xyzrph dataset, so we can back out changes without running the actions!</p>
+<p>Let’s try this out.  We currently have an action to process only computing TPU, to get back to our original processed TPU before we made that Beam Opening Angle change.  If we go into Vessel Setup, change the Beam Opening Angle to 1.5 degrees and hit update, close the vessel setup saving our changes, and overwrite our existing vessel file, the action should go away!  This is because the vessel file now matches the multibeam xyzrph so there is no action anymore.  So we can make and undo changes with the vessel file, which is a pretty nice feature.</p>
+</div>
+<div class="section" id="importing-data">
+<h4>Importing Data<a class="headerlink" href="#importing-data" title="Permalink to this headline">¶</a></h4>
+<p>In addition to viewing and editing offsets and angles from converted multibeam data, we can also import directly from these files.  Let’s try it out here.  If you have data loaded in Kluster already, go ahead and go to File - Close Project.  You don’t have to do this, but it will make the import process and how it works a little bit clearer.  With no data loaded in Kluster, go to Setup - Vessel Offsets.  You’ll see it come up blank, just like this:</p>
+<a class="reference external image-reference" href="../_images/vessel_setup_7.png"><img alt="_images/vessel_setup_7.png" src="_images/vessel_setup_7.png" /></a>
+<p>Now we are going to try out an import.  In the Vessel Setup tool, go to File - Import from Kongsberg.  I’m going to pick a file that I know I have a corresponding POS MV .000 file for, just to show you the POS MV import later.  Here is the result after importing a Kongsberg multibeam file:</p>
+<a class="reference external image-reference" href="../_images/vessel_setup_8.png"><img alt="_images/vessel_setup_8.png" src="_images/vessel_setup_8.png" /></a>
+<p>Basically looks like before, right?  This is getting the same data from the multibeam file that is in the converted Kluster data.  You can also import from a POS MV file to get the values for the IMU and antenna position and angles.  Let’s do that here.</p>
+<a class="reference external image-reference" href="../_images/vessel_setup_9.png"><img alt="_images/vessel_setup_9.png" src="_images/vessel_setup_9.png" /></a>
+<p>Now we have an antenna location, shown here as the highlighted yellow box in the upper part of the vessel setup window.  Antenna location is used in the TPU calculation, so it is nice to have here to build that part of the uncertainty calculation.  This is also a useful part of the general workflow where you might do the following:</p>
+<ul class="simple">
+<li><p>Drag in a new multibeam file, and convert that data by hitting start process once.</p></li>
+<li><p>Go into Vessel Setup and import the POS MV file to get the antenna location.</p></li>
+<li><p>Save to multibeam xyzrph, and hit start process again to complete the processing.</p></li>
+</ul>
+</div>
+<div class="section" id="adding-and-editing-entries">
+<h4>Adding and Editing Entries<a class="headerlink" href="#adding-and-editing-entries" title="Permalink to this headline">¶</a></h4>
+<p>You might want to add a new timestamped entry manually to the Vessel Setup, or edit the time of an existing entry.  Kluster allows you to do both of these, using the Edit tools.</p>
+<p>To edit the timestamp of an existing entry, simply have that entry loaded (in the UTC Date dropdown) and go to Edit - Alter Timestamp.  Then put in a new timestamp.  Remember in Kluster, we will be using the Vessel Setup entry that is nearest in time to each ping but prior to the time of ping.</p>
+<p>To add a new timestamp to an existing entry, go to Edit - New Entry.  Enter in the timestamp for the new data and watch as the existing entry is duplicated under the new timestamp.  You can now edit this entry to have the values you want.</p>
+<div class="toctree-wrapper compound">
+</div>
+</div>
+</div>
+<span id="document-processing/index"></span><div class="section" id="conversion-and-processing">
+<h3>Conversion and Processing<a class="headerlink" href="#conversion-and-processing" title="Permalink to this headline">¶</a></h3>
+<p>Here we will talk about the conversion and processing steps, what they mean, how they work and what the resulting data looks like.  Kluster automates all of this for you, so you can process multibeam data without really understanding any of this.  Where this becomes useful, is when you process data and then wonder ‘why are these two lines not at roughly the same depth?’ or ‘why did only part of this line process?’.  So hopefully what I’m sharing here will help understand the behind the scenes elements of Kluster to help answer any questions you might have!</p>
+<p>Note that each beam keeps a status (processing status) telling which step it is on.  You can view this in basic plots as a histogram or image to get a sense of the state of the dataset.</p>
+<p>processing status = 0 (conversion complete)
+processing status = 1 (orientation complete)
+processing status = 2 (beam vector complete)
+processing status = 3 (sound velocity complete)
+processing status = 4 (georeference complete)
+processing status = 5 (tpu complete)</p>
+<div class="section" id="conversion">
+<h4>Conversion<a class="headerlink" href="#conversion" title="Permalink to this headline">¶</a></h4>
+<p>The first step in Kluster is to convert the data from the raw multibeam format to the Kluster data format.  This is the first action that appears on dragging in a new multibeam file.</p>
+<a class="reference external image-reference" href="../_images/processing_1.png"><img alt="_images/processing_1.png" src="_images/processing_1.png" /></a>
+<p>But what does conversion really mean?  Well, let’s take a closer look.  I’m going to go ahead and convert this line, to get the converted data folder.</p>
+<a class="reference external image-reference" href="../_images/processing_2.png"><img alt="_images/processing_2.png" src="_images/processing_2.png" /></a>
+<p>This folder contains all the converted data that matches up with this day.  If you look inside, you’ll see a bunch of directories kind of like this:</p>
+<ul class="simple">
+<li><dl class="simple">
+<dt>attitude.zarr  (a separate dataset because we keep attitude data at a higher frequency than the ping record)</dt><dd><ul>
+<li><p>heading - (heading of the vessel in degrees vs time)</p></li>
+<li><p>heave - (heave of the vessel in meters vs time)</p></li>
+<li><p>pitch - (pitch of the vessel in degrees vs time)</p></li>
+<li><p>roll - (roll of the vessel in degrees vs time)</p></li>
+<li><p>time - (time values in UTC seconds)</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+<li><dl class="simple">
+<dt>ping_40111.zarr  (this would be the serial number of your system, if you are dual head, you’ll see two ping folders, one for each head)</dt><dd><ul>
+<li><p>altitude - (altitude in meters vs time)</p></li>
+<li><p>beam - (array of beam numbers)</p></li>
+<li><p>beampointingangle - (raw beam angle in degrees vs time/beam)</p></li>
+<li><p>counter - (the ping counter for each ping vs time)</p></li>
+<li><p>delay - (the time delay applied to each beam vs time/beam)</p></li>
+<li><p>detectioninfo - (the accepted/rejected flag for each beam vs time/beam)</p></li>
+<li><p>frequency - (the frequency of each beam in Hertz vs time/beam)</p></li>
+<li><p>latitude - (the latitude value for each ping vs time)</p></li>
+<li><p>longitude - (the longitude value for each ping vs time)</p></li>
+<li><p>mode - (the first ping mode value for the ping vs time)</p></li>
+<li><p>modetwo - (the second ping mode value for the ping vs time)</p></li>
+<li><p>ntx - (the number of sectors for each ping vs time</p></li>
+<li><p>processing_status - (the status of each beam from 0=converted to 5=tpu corrected vs time/beam)</p></li>
+<li><p>qualityfactor - (the raw uncertainty record from the multibeam data vs time/beam)</p></li>
+<li><p>soundspeed - (the surface sound velocity data in meters per second vs time)</p></li>
+<li><p>tiltangle - (the steering angle of the sector transmit beam in degrees vs time/beam)</p></li>
+<li><p>time - (time values in UTC seconds)</p></li>
+<li><p>traveltime - (the two way travel time of each beam in seconds vs time/beam)</p></li>
+<li><p>txsector_beam - (the sector number associated with each beam vs time/beam)</p></li>
+<li><p>yawpitchstab - (the yaw/pitch stabilization flag for each ping vs time)</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+</ul>
+<p>Kluster saves all this data using Xarray and Zarr.  Zarr builds little chunks of data that are fast to load and use later.  If you look inside beampointingangle for instance, you’ll see a few different files.</p>
+<ul class="simple">
+<li><p>.zarray - (the size of this array and other metadata needed to make sense of beampointingangle data)</p></li>
+<li><p>.zattrs - (the dimension names and other attributes associated with the beampointingangle data)</p></li>
+<li><p>0.0, 0.1, etc. - (the actual binary data, stored in 1000 ping chunks, each one of these is the data for 1000 pings in Kluster)</p></li>
+</ul>
+<p>But we aren’t going to get much out of just looking at these files.  We need a real view of the data!  Let’s try something out here, feel free to follow along, or just take a look below at the image.</p>
+<a class="reference external image-reference" href="../_images/processing_3.png"><img alt="_images/processing_3.png" src="_images/processing_3.png" /></a>
+<p>We can load the Xarray Dataset by simply right clicking on the converted data instance and selecting Load in Console.  This will load the xarray datasets in the Python Console built in to Kluster.  Here I am running the following commands:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">first_system</span><span class="o">.</span><span class="n">beampointingangle</span>
+<span class="n">first_system</span><span class="o">.</span><span class="n">beampointingangle</span><span class="o">.</span><span class="n">values</span>
+<span class="n">first_system</span><span class="o">.</span><span class="n">beampointingangle</span><span class="o">.</span><span class="n">plot</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>Because we did Load in Console, first_system is now equivalent to the first sonar head in this dataset.  Since this is a single head system, the first sonar head is the only sonar head.  first_system is the xarray dataset that has all the data (except for attitude) for this sonar on this day.  You can just type in ‘first_system’ and hit enter to see the full dataset, but here we are just liking at the raw beam angles (i.e. beampointingangle).</p>
+<p>The first command gives you a view of the Xarray DataArray, which has some information about the length of the dataset and a few other things.  We can see that there are 216 pings and 400 beams in this dataset.  If you do first_system.beampointingangle.values, you get the Numpy array for this DataArray which gives you a view of the actual angle values.  Running plot gives you this 2d interpolated image of the angles.  You can see the numbers are positive to port and negative to starboard which we would expect.</p>
+<p>But what if I just want to view the data without dealing with Python?  Not everyone is a developer you know!  Relax, we have an answer for you with Kluster.  Let’s go to Visualize - Basic Plots with the converted data highlighted.  Set it up just like I have it below and hit Plot.  Aha!  The same plot!</p>
+<a class="reference external image-reference" href="../_images/processing_4.png"><img alt="_images/processing_4.png" src="_images/processing_4.png" /></a>
+<p>Let’s look a little closer.  I see 216 pings (see Ping Count in the middle left), and times from 1495563079 to 1495563133.  I am examining the Multibeam dataset and the Uncorrected_Beam_Angle variable which is the nice looking name version of beampointingangle.  So hitting the plot button here is basically doing the same thing as running plot in Python earlier.  Hit the export buttons and you get the data in csv to look at in a text editor or load in another program.</p>
+<p>The take home here is the Kluster provides a few easy ways to look at your converted data.  Hopefully this helps with troubleshooting and understanding your multibeam data.</p>
+<div class="section" id="in-the-console">
+<h5>In the Console<a class="headerlink" href="#in-the-console" title="Permalink to this headline">¶</a></h5>
+<p>You can easily convert data in the console as well</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">HSTB.kluster.fqpr_convenience</span> <span class="kn">import</span> <span class="n">convert_multibeam</span>
+<span class="n">fq</span> <span class="o">=</span> <span class="n">convert_multibeam</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;C:\collab\dasktest\data_dir\EM2040_Fairweather_SmallFile\0009_20170523_181119_FA2806.all&quot;</span><span class="p">)</span>
+<span class="n">first_system</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">multibeam</span><span class="o">.</span><span class="n">raw_ping</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="section" id="processing">
+<h4>Processing<a class="headerlink" href="#processing" title="Permalink to this headline">¶</a></h4>
+<p>Remember that Kluster is a two step process: conversion and processing.  So when I say the processing pipeline, I mean the second step in Kluster. This second step is composed of five sub-processes:</p>
+<ol class="arabic simple">
+<li><p>Orientation</p></li>
+<li><p>Correct Beam Vectors</p></li>
+<li><p>Sound Velocity</p></li>
+<li><p>Georeference</p></li>
+<li><p>TPU</p></li>
+</ol>
+<p>In the next sections we will be discussing these processes in detail.  Note that they have to be sequential.  Each step builds on the next.</p>
+<div class="section" id="orientation">
+<h5>Orientation<a class="headerlink" href="#orientation" title="Permalink to this headline">¶</a></h5>
+<p>Orientation is the first step in the processing pipeline.  It’s where we take the attitude values and the sonar mounting angles to build the vectors that represent the orientation of the transmitter/receiver at the time of ping.  So any new information we have regarding attitude (such as latency) or the sonar installation angles (vessel setup) will require redoing this step.  Kluster will generate the appropriate actions to enforce that.</p>
+<p>These vectors are necessary for the next step, where we go from beams in the transducer frame to the vessel frame, accounting for angular offsets and attitude.</p>
+<p>On running Orientation. you will see the following new data arrays:</p>
+<ul class="simple">
+<li><dl class="simple">
+<dt>ping_40111.zarr  (this would be the serial number of your system, if you are dual head, you’ll see two ping folders, one for each head)</dt><dd><ul>
+<li><p>tx - (orientation of the transmitter (x y and z) for each time/beam)</p></li>
+<li><p>rx - (orientation of the receiver (x y and z) for each time/beam)</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+</ul>
+<p>This isn’t a simple one to visualize, as it has many dimensions.  What I came up with is this custom visualization in the Basic Plots screen.  You can find it under Custom, animations, Vessel Orientation.  The Blue vector is the Transmitter and the Red vector is the Receiver.  You’ll see the values change as the boat turns or experiences roll/pitch etc.</p>
+<a class="reference external image-reference" href="../_images/processing_5.png"><img alt="_images/processing_5.png" src="_images/processing_5.png" /></a>
+<div class="section" id="id1">
+<h6>In the Console<a class="headerlink" href="#id1" title="Permalink to this headline">¶</a></h6>
+<p>You can easily compute the orientation in the console as well</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># starting with conversion</span>
+<span class="kn">from</span> <span class="nn">HSTB.kluster.fqpr_convenience</span> <span class="kn">import</span> <span class="n">convert_multibeam</span>
+<span class="n">fq</span> <span class="o">=</span> <span class="n">convert_multibeam</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;C:\collab\dasktest\data_dir\EM2040_Fairweather_SmallFile\0009_20170523_181119_FA2806.all&quot;</span><span class="p">)</span>
+
+<span class="c1"># starting from reloading data</span>
+<span class="kn">from</span> <span class="nn">HSTB.kluster.fqpr_convenience</span> <span class="kn">import</span> <span class="n">reload_data</span>
+<span class="n">fq</span> <span class="o">=</span> <span class="n">reload_data</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;C:\collab\dasktest\data_dir\EM2040_Fairweather_SmallFile\em2040_40111_05_23_2017&quot;</span><span class="p">)</span>
+
+<span class="n">fq</span><span class="o">.</span><span class="n">get_orientation_vectors</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="section" id="correct-beam-vectors">
+<h5>Correct Beam Vectors<a class="headerlink" href="#correct-beam-vectors" title="Permalink to this headline">¶</a></h5>
+<p>Correcting the beam vectors is the second step in the processing stack.  The beam vector is the vector arising from the intersection of the transmit ping and the receiver cone of sensitivity.  The raw beam angle is in the transducer frame and doesn’t account for the orientation of the sonar or the attitude of the vessel.  Since we know those things from the previous step (Orientation), we can now calculate the corrected beam vector datasets, which include:</p>
+<ul class="simple">
+<li><p>a new relative azimuth (relative to the vessel heading) that points at the beam endpoint</p></li>
+<li><p>a corrected beam angle corrected for roll relative to the horizontal of the vessel frame that points down at the beam endpoint</p></li>
+</ul>
+<p>These two arrays will be used (along with the beam travel time) in the next step, Sound Velocity.</p>
+<p>On running Correct Beam Vectors. you will see the following new data arrays:</p>
+<ul class="simple">
+<li><dl class="simple">
+<dt>ping_40111.zarr  (this would be the serial number of your system, if you are dual head, you’ll see two ping folders, one for each head)</dt><dd><ul>
+<li><p>rel_azimuth - (relative azimuth for each time/beam)</p></li>
+<li><p>corr_pointing_angle - (corrected beam angle in radians for each time/beam)</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+</ul>
+<p>You are able to plot both of these in Basic Plots and there is an additional animation you can view under Custom, animations, Corrected Beam Vectors.  Here I am showing plots from both as well as the Corrected (right) and Uncorrected (left) Beam Vectors animations.</p>
+<a class="reference external image-reference" href="../_images/processing_6.png"><img alt="_images/processing_6.png" src="_images/processing_6.png" /></a>
+<div class="section" id="id2">
+<h6>In the Console<a class="headerlink" href="#id2" title="Permalink to this headline">¶</a></h6>
+<p>You can easily compute the beam vector correction the console as well</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># starting with conversion</span>
+<span class="kn">from</span> <span class="nn">HSTB.kluster.fqpr_convenience</span> <span class="kn">import</span> <span class="n">convert_multibeam</span>
+<span class="n">fq</span> <span class="o">=</span> <span class="n">convert_multibeam</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;C:\collab\dasktest\data_dir\EM2040_Fairweather_SmallFile\0009_20170523_181119_FA2806.all&quot;</span><span class="p">)</span>
+
+<span class="c1"># starting from reloading data</span>
+<span class="kn">from</span> <span class="nn">HSTB.kluster.fqpr_convenience</span> <span class="kn">import</span> <span class="n">reload_data</span>
+<span class="n">fq</span> <span class="o">=</span> <span class="n">reload_data</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;C:\collab\dasktest\data_dir\EM2040_Fairweather_SmallFile\em2040_40111_05_23_2017&quot;</span><span class="p">)</span>
+
+<span class="c1"># assumes orientation has already been run</span>
+<span class="n">fq</span><span class="o">.</span><span class="n">get_beam_pointing_vectors</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="section" id="sound-velocity">
+<h5>Sound Velocity<a class="headerlink" href="#sound-velocity" title="Permalink to this headline">¶</a></h5>
+<p>Correcting for sound velocity is the third step in the processing stack.  Here we apply a sound velocity cast (which contains sound velocity measurements at different depths) and the surface sound speed reading to ray trace each beam.  Ray tracing is simply the calculation of the bending the beam experiences as it moves through each sound velocity change on it’s way to the sea floor.  To do this we apply Snell’s law and the beam azimuth/angles we got from the previous step to calculate the distance each beam traveled in all three dimensions.  The end result is the following three variables:</p>
+<ul class="simple">
+<li><p>alongtrack offset or the distance the beam traveled forward/backward relative to the vessel</p></li>
+<li><p>acrosstrack offset or the distance the beam traveled port/starboard relative to the vessel</p></li>
+<li><p>depth offset or the distance the beam traveled down relative to the vessel</p></li>
+</ul>
+<p>These three arrays will be used in the next step to get georeferenced beam locations.</p>
+<p>On running Sound Velocity. you will see the following new data arrays:</p>
+<ul class="simple">
+<li><dl class="simple">
+<dt>ping_40111.zarr  (this would be the serial number of your system, if you are dual head, you’ll see two ping folders, one for each head)</dt><dd><ul>
+<li><p>alongtrack - (alongtrack offset in meters for each time/beam)</p></li>
+<li><p>acrosstrack - (acrosstrack offset in meters for each time/beam)</p></li>
+<li><p>depthoffset - (depth offset in meters for each time/beam)</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+</ul>
+<p>You are able to plot these in Basic Plots with all the plot types available for two dimensional variables.</p>
+<a class="reference external image-reference" href="../_images/processing_7.png"><img alt="_images/processing_7.png" src="_images/processing_7.png" /></a>
+<p>Note that the sound velocity cast is an attribute of the converted data.  You can view it in the Attributes window, see:</p>
+<ul class="simple">
+<li><p>profile_xxxxxxxxx - the depth vs sound velocity data for the cast</p></li>
+<li><p>attributes_xxxxxxxxxx - the attributes for that cast</p></li>
+</ul>
+<p>You can plot this data by either looking at the sound velocity profiles for each cast or by looking at the map view for the lines and where the casts are in relation.</p>
+<a class="reference external image-reference" href="../_images/processing_8.png"><img alt="_images/processing_8.png" src="_images/processing_8.png" /></a>
+<div class="section" id="id3">
+<h6>In the Console<a class="headerlink" href="#id3" title="Permalink to this headline">¶</a></h6>
+<p>You can easily compute the sound velocity in the console as well</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># starting with conversion</span>
+<span class="kn">from</span> <span class="nn">HSTB.kluster.fqpr_convenience</span> <span class="kn">import</span> <span class="n">convert_multibeam</span>
+<span class="n">fq</span> <span class="o">=</span> <span class="n">convert_multibeam</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;C:\collab\dasktest\data_dir\EM2040_Fairweather_SmallFile\0009_20170523_181119_FA2806.all&quot;</span><span class="p">)</span>
+
+<span class="c1"># starting from reloading data</span>
+<span class="kn">from</span> <span class="nn">HSTB.kluster.fqpr_convenience</span> <span class="kn">import</span> <span class="n">reload_data</span>
+<span class="n">fq</span> <span class="o">=</span> <span class="n">reload_data</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;C:\collab\dasktest\data_dir\EM2040_Fairweather_SmallFile\em2040_40111_05_23_2017&quot;</span><span class="p">)</span>
+
+<span class="c1"># assumes orientation and correct beam vector has already been run</span>
+<span class="n">fq</span><span class="o">.</span><span class="n">sv_correct</span><span class="p">()</span>
+<span class="c1"># add new sound velocity files (.svp) if you like, should be one there already from the multibeam file</span>
+<span class="n">fq</span><span class="o">.</span><span class="n">sv_correct</span><span class="p">(</span><span class="n">add_cast_files</span><span class="o">=</span><span class="s1">&#39;path to sv file&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="section" id="georeference">
+<h5>Georeference<a class="headerlink" href="#georeference" title="Permalink to this headline">¶</a></h5>
+<p>Georeferencing is where it all starts to come together.  We use the vessel navigation and the heading to transform the sound velocity corrected offsets to georeferenced soundings.  If you remember, our sound velocity offsets were simply distances alongtrack/acrosstrack/down from the vessel reference point to where the beam intersects with the sea floor.  Georeferencing produces (Kluster always uses projected coordinate systems) northings/eastings in a provided coordinate system (WGS84 UTM 19 North for example) that we can now use and share with others.  It is at this point that we finally have real soundings, that we can, for example, export to LAS and view in other software.</p>
+<p>The end result is the following three variables:</p>
+<ul class="simple">
+<li><p>x or the eastings value for each sounding</p></li>
+<li><p>y or the northings value for each sounding</p></li>
+<li><p>z or the depth value relative to the vessel reference point</p></li>
+<li><p>corrected heave value, accounting for rotated sonar lever arm if the motion system is not the reference point (all zeros if Vertical Reference is not Waterline)</p></li>
+<li><p>corrected altitude value, accounting for rotated sonar lever arm if the motion system is not the reference point (all zeros if Vertical Reference is Waterline)</p></li>
+<li><p>VDatum uncertainty for transformation from ellipse to tidal datum for each sounding (all zeros if Vertical Reference is not NOAA MLLW, NOAA MHW)</p></li>
+</ul>
+<p>The georeferenced depth and the sound velocity depth offset are pretty similar.  Here are the differences with respect to the vertical coordinate system provided:</p>
+<ul class="simple">
+<li><p>Vertical Reference Waterline = sound velocity corrected offsets (relative to reference point) + heave - waterline</p></li>
+<li><p>Vertical Reference Ellipse = sound velocity corrected offsets (relative to reference point) - altitude</p></li>
+<li><p>Vertical Reference NOAA MLLW = sound velocity corrected offsets (relative to reference point) - altitude - MLLW Separation from VDatum</p></li>
+<li><p>Vertical Reference NOAA MHW = sound velocity corrected offsets (relative to reference point) - altitude - MHW Separation from VDatum</p></li>
+</ul>
+<p>Note that using the NOAA MLLW / NOAA MHW options require a VDatum path set under File - Settings</p>
+<p>On running Georeference. you will see the following new data arrays:</p>
+<ul class="simple">
+<li><dl class="simple">
+<dt>ping_40111.zarr  (this would be the serial number of your system, if you are dual head, you’ll see two ping folders, one for each head)</dt><dd><ul>
+<li><p>x - (alongtrack offset in meters for each time/beam)</p></li>
+<li><p>y - (acrosstrack offset in meters for each time/beam)</p></li>
+<li><p>z - (depth offset in meters for each time/beam)</p></li>
+<li><p>corr_heave - (corrected heave in meters for each time/beam)</p></li>
+<li><p>corr_altitude - (corrected altitude in meters for each time/beam)</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+</ul>
+<p>You are able to plot these in Basic Plots with all the plot types available for two dimensional variables.</p>
+<a class="reference external image-reference" href="../_images/processing_9.png"><img alt="_images/processing_9.png" src="_images/processing_9.png" /></a>
+<div class="section" id="id4">
+<h6>In the Console<a class="headerlink" href="#id4" title="Permalink to this headline">¶</a></h6>
+<p>You can easily georeference in the console as well</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># starting with conversion</span>
+<span class="kn">from</span> <span class="nn">HSTB.kluster.fqpr_convenience</span> <span class="kn">import</span> <span class="n">convert_multibeam</span>
+<span class="n">fq</span> <span class="o">=</span> <span class="n">convert_multibeam</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;C:\collab\dasktest\data_dir\EM2040_Fairweather_SmallFile\0009_20170523_181119_FA2806.all&quot;</span><span class="p">)</span>
+
+<span class="c1"># starting from reloading data</span>
+<span class="kn">from</span> <span class="nn">HSTB.kluster.fqpr_convenience</span> <span class="kn">import</span> <span class="n">reload_data</span>
+<span class="n">fq</span> <span class="o">=</span> <span class="n">reload_data</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;C:\collab\dasktest\data_dir\EM2040_Fairweather_SmallFile\em2040_40111_05_23_2017&quot;</span><span class="p">)</span>
+
+<span class="c1"># with no arguments, computes an automatic UTM zone and assumes WGS84 projected</span>
+<span class="c1"># this step is required if you have not georeferenced this dataset yet</span>
+<span class="n">fq</span><span class="o">.</span><span class="n">construct_crs</span><span class="p">()</span>
+
+<span class="c1"># georeference assuming svcorrect/beam correct/orientation have been run</span>
+<span class="n">fq</span><span class="o">.</span><span class="n">georef_xyz</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="section" id="tpu">
+<h5>TPU<a class="headerlink" href="#tpu" title="Permalink to this headline">¶</a></h5>
+<p>TPU, or Total Propagated Uncertainty, is the total vertical and horizontal uncertainty associated with the sounding.  It uses the uncertainty values stored in the vessel setup, the sonar uncertainty record (qualityfactor), SBET uncertainty if provided and many of the processed data variables, including the sound velocity offsets and the corrected beam angle.</p>
+<p>Total Propagated Uncertainty in Kluster includes:</p>
+<p>Horizontal</p>
+<ul class="simple">
+<li><p>sonar horizontal error from multibeam data</p></li>
+<li><p>horizontal distance variance (radial positioning error)</p></li>
+<li><p>horizontal error related to antenna - transducer lever arm</p></li>
+</ul>
+<p>Vertical</p>
+<ul class="simple">
+<li><p>sonar vertical error from multibeam data</p></li>
+<li><p>roll error (from vessel static value or SBET roll error)</p></li>
+<li><p>refraction error (sound velocity effects on range and beam angle)</p></li>
+<li><p>beam opening angle error (related to beam opening angle from vessel static value)</p></li>
+<li><p>(Waterline Only) heave error</p></li>
+<li><p>(Waterline Only) separation model error (vessel static value)</p></li>
+<li><p>(Waterline Only) waterline measurement error (vessel static value)</p></li>
+<li><p>(Ellipse/NOAA MLLW/NOAA MHW) down positioning error</p></li>
+<li><p>(Ellipse/NOAA MLLW/NOAA MHW) VDatum separation model error</p></li>
+</ul>
+<p>The end result is the following two variables:</p>
+<ul class="simple">
+<li><p>TVU or the total vertical uncertainty of each sounding, 2 sigma</p></li>
+<li><p>THU or the total horizontal uncertainty of each sounding, 2 sigma</p></li>
+</ul>
+<p>On running TPU. you will see the following new data arrays:</p>
+<ul class="simple">
+<li><dl class="simple">
+<dt>ping_40111.zarr  (this would be the serial number of your system, if you are dual head, you’ll see two ping folders, one for each head)</dt><dd><ul>
+<li><p>tvu - (total vertical uncertainty in meters for each time/beam)</p></li>
+<li><p>thu - (total horizontal uncertainty in meters for each time/beam)</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+</ul>
+<p>You are able to plot these in Basic Plots with all the plot types available for two dimensional variables.</p>
+<a class="reference external image-reference" href="../_images/processing_10.png"><img alt="_images/processing_10.png" src="_images/processing_10.png" /></a>
+<div class="section" id="id5">
+<h6>In the Console<a class="headerlink" href="#id5" title="Permalink to this headline">¶</a></h6>
+<p>You can easily calculate tpu in the console as well</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># starting with conversion</span>
+<span class="kn">from</span> <span class="nn">HSTB.kluster.fqpr_convenience</span> <span class="kn">import</span> <span class="n">convert_multibeam</span>
+<span class="n">fq</span> <span class="o">=</span> <span class="n">convert_multibeam</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;C:\collab\dasktest\data_dir\EM2040_Fairweather_SmallFile\0009_20170523_181119_FA2806.all&quot;</span><span class="p">)</span>
+
+<span class="c1"># starting from reloading data</span>
+<span class="kn">from</span> <span class="nn">HSTB.kluster.fqpr_convenience</span> <span class="kn">import</span> <span class="n">reload_data</span>
+<span class="n">fq</span> <span class="o">=</span> <span class="n">reload_data</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;C:\collab\dasktest\data_dir\EM2040_Fairweather_SmallFile\em2040_40111_05_23_2017&quot;</span><span class="p">)</span>
+
+<span class="c1"># compute tpu assuming all other steps have been run</span>
+<span class="n">fq</span><span class="o">.</span><span class="n">calculate_total_uncertainty</span><span class="p">()</span>
+</pre></div>
+</div>
+<div class="toctree-wrapper compound">
+</div>
+</div>
+</div>
+</div>
+</div>
+<span id="document-products/index"></span><div class="section" id="products">
+<h3>Products<a class="headerlink" href="#products" title="Permalink to this headline">¶</a></h3>
+<p>Kluster provides a number of ways to build and export products that you can use in other software packages.  I’ll go over those products here.</p>
+<div class="section" id="export-variables">
+<h4>Export Variables<a class="headerlink" href="#export-variables" title="Permalink to this headline">¶</a></h4>
+<p>We’ve already looked at how you can use the Basic Plots tool (Visualize - Basic Plots) to analyze individual variables like beam angle or travel time and produce plots and other visualizations.  Another thing you can do is take the data used for those plots and export it to text.  This might be useful if you want to use this data in other software packages for further analysis.  It’s fairly simple, just set up the Basic Plots tool for your plot and hit one of the export buttons.</p>
+<p>Here we have an example where we plot the TVU for a selection of this line.  See the blue slider bars we used to grab a subset of the dataset.  We plotted the TVU as a histogram, and then used both the Export Variable button and the Export Source button to get the data in CSV.</p>
+<a class="reference external image-reference" href="../_images/products_1.png"><img alt="_images/products_1.png" src="_images/products_1.png" /></a>
+<p>export_multibeam_40111.csv is the result of the Export Source button.  This will export the dataset for whatever you have in the Source dropdown.  Since the multibeam is a 2 dimensional (ping, beam) dataset, csv exports are a bit tough.  What I do is give you the mean value for all beams for each ping.  So in this example, notice that you have time values in UTC seconds, mean_alongtrack values and altitude values, as well as others for all multibeam variables.  mean_alongtrack is the average alongtrack value for all beams for each ping.  altitude is a 1 dimensional variable (one value for each ping) so I give you the altitude value as it is.</p>
+<p>export_multibeam_tvu_40111.csv is the result of the Export Variable button.  This will export just the variable (TVU for us here) in it’s base form.  Since TVU is a 2 dimensional dataset (ping, beam), this export has time, beam and tvu columns to it.  You’ll see that the time is the same as the beam changes, the time for each ping is the same across all beams.  If you were to want to export just the mean value for each ping, or the nadir value, use the different Plot Type options, such as ‘Line - Mean’ or ‘Line - Nadir’.  This will simplify the export to a 1 dimensional result.</p>
+</div>
+<div class="section" id="export-soundings">
+<h4>Export Soundings<a class="headerlink" href="#export-soundings" title="Permalink to this headline">¶</a></h4>
+<p>Now let’s discuss what is probably a more useful export, exporting the sounding position and depth as a point cloud that you can view in other software.  For this, we use the File - Export Soundings dialog, which looks like this.</p>
+<a class="reference external image-reference" href="../_images/products_2.png"><img alt="_images/products_2.png" src="_images/products_2.png" /></a>
+<p>Exporting to csv gives you a similar export as the Export Variables options above, but with just that data that allows you to visualize the soundings in 3d with uncertainty.  You can see in the image above that we get the eastings/northings, the depth value and the uncertainty value for each sounding, comma delimited.  Since we used the ‘Make Z Positive Down’, the depths are positive down.  Filter rejected only exports those soundings that do not have a rejected status for detectioninfo.  ‘Separate Files by Sector/Frequency’ will export to separate files for each sector/frequency combination, which is a useful way to isolate just one sector/frequency at a time.</p>
+<p>Exporting to LAS provides soundings in a format that is usable by a wide variety of software geared towards processing LIDAR and other point cloud products.  Bathymetry doesn’t exactly fit in the LAS format, as we can’t carry over uncertainty, but it does allow us to store the full point cloud, which is the important thing.  There is no ‘Make Z Positive Down’, as LAS specifies Z as positive up.  Just like with csv, we can filter and separate files if we wish.</p>
+</div>
+<div class="section" id="surface">
+<h4>Surface<a class="headerlink" href="#surface" title="Permalink to this headline">¶</a></h4>
+<p>So far, we have discussed working with point clouds, or the soundings visualized in 3d space.  But what about viewing the depth and uncertainty in 2d?  As a picture?  This is where the gridding tools come into play.  Kluster uses the <a class="reference external" href="https://github.com/noaa-ocs-hydrography/bathygrid">Bathygrid</a> module which I designed specifically for gridding multibeam data in an efficient and flexible way.  Let’s look at how to use this module in Kluster.  With a converted data instance selected, let’s go to Process - New Surface.</p>
+<a class="reference external image-reference" href="../_images/products_3.png"><img alt="_images/products_3.png" src="_images/products_3.png" /></a>
+<p>This is going to create a surface with all the points from each converted instance we had highlighted here.  The default is to create a single resolution surface where each grid node has a value equal to the mean depth/uncertainty value of all the soundings in that grid cell.  The size of the grid cell (resolution) is set to AUTO, which will pick the resolution based on the depth of the soundings in that region (based on the NOAA Specifications and Deliverables):</p>
+<ul class="simple">
+<li><p>0 to 20 meters = 0.5 meter resolution</p></li>
+<li><p>20 to 40 meters = 1.0 meter resolution</p></li>
+<li><p>40 to 80 meters = 4.0 meter resolution</p></li>
+<li><p>80 to 160 meters = 8.0 meter resolution</p></li>
+<li><p>160 to 320 meters = 16.0 meter resolution</p></li>
+<li><p>320 to 640 meters = 32.0 meter resolution</p></li>
+<li><p>640 to 1280 meters = 64.0 meter resolution</p></li>
+<li><p>1280 to 2560 meters = 128.0 meter resolution</p></li>
+<li><p>2560 to 5120 meters = 256.0 meter resolution</p></li>
+<li><p>5120 to 10204 meters = 512.0 meter resolution</p></li>
+<li><p>greater than 10204 meters = 1024.0 meter resolution</p></li>
+</ul>
+<p>You’ll notice that our resolutions are all powers of two.  This is intentional, as it allows us to build nice square tiles of the same size (1024 meters for example) that are completely and cleanly filled by grids of these resolutions.</p>
+<p>The tile size is a parameter that you can change to affect the performance of the grid in both visualization and processing.  Bathygrid will tile the area into tiles and then run the gridding algorithm on those tiles one after the other.  If you Process in Parallel, it ill process those tiles in parallel, which will greatly increase the performance of the gridding process.</p>
+<p>You want to adjust the tile size to have at least 100 tiles or so.  I’ve found this to be a rough guideline that gets me pretty good performance.  In this example here, using a Tile Sie of 1024 meters gives me 2 tiles (which I know because I just ran it to check).  So I probably want to drive the tile size down, maybe to 256 meters just to improve the performance of the parallel gridding process.  Let’s look at the results of 1024 meter tile size versus 256 meter tile size.</p>
+<a class="reference external image-reference" href="../_images/products_4.png"><img alt="_images/products_4.png" src="_images/products_4.png" /></a>
+<p>What I have done here is grid with the two different tile sizes, went into the output grid directories (which are srgrid_mean_auto and srgrid_mean_auto_20210813_104634 and are right next to our processed multibeam data by default) and looked at the number of folders.  Each folder represents a tile (with the folder name being the origin point of the tile in eastings_northings).  So we can see that a 1024 meter tile size created 2 tiles and a 256 meter tile size created 5 tiles.  Better but not ideal.  Of course in this instance, our surface generation only took about 1 second, so it’s not really worth trying to optimize.  But when you set the tile size, try to get more than just a few tiles for your survey area.  In the future, picking the tile size will be an automated process, so you won’t have to worry too much about this part.</p>
+<p>Let’s try a variable resolution grid now.  Variable resolution is going to allow us to have tiles where each tile can have it’s own resolution.  The only option currently is AUTO for resolution, and it uses the same lookup table as above to determine the resolution of the tile.</p>
+<a class="reference external image-reference" href="../_images/products_5.png"><img alt="_images/products_5.png" src="_images/products_5.png" /></a>
+<p>Variable resolution is going to create tiles of “Tile Size” (1024 meters in this example) with sub tiles of “Subtile Size” (128 meters in this example).  The result we can see in the Explorer window shown above.  We have 7 subtiles (all 128 meters by 128 meters) in this 1024 meter by 1024 meter tile.  Each subtile has a mean depth, and we look up that depth in the depth to resolution table above to get the resolution of the subtile.  Again, each subtile has it’s own resolution.  Since our depth in this example is basically flat across the line, we are probably going to see the same resolution in each of our Variable Resolution subtiles.  So the single resolution and variable resolution grids are probably basically the same.</p>
+<p>OK, enough about folders and tiles.  Let’s look at something already!  Let’s expand the folders in the Surfaces dropdown in the Project Tree and try turning on one of the Depth layers.</p>
+<a class="reference external image-reference" href="../_images/products_6.png"><img alt="_images/products_6.png" src="_images/products_6.png" /></a>
+<p>Turning on a Depth layer (or any layer) should make the display zoom to the area and show you the grid.  I just have a little multibeam file here, so the grid is fairly small.  I have the Query tool turned on in 2dview which lets me view the Depth layer value where my cursor is.  You can also left click to print the value in the Output window.  We can also turn on multiple layers to get the values across all layers.  Let’s do this now.</p>
+<a class="reference external image-reference" href="../_images/products_7.png"><img alt="_images/products_7.png" src="_images/products_7.png" /></a>
+<p>We can see that our single resolution grids with the different tile sizes and the variable resolution grid all produce the same answer for the same location.  That’s a relief!  If they didn’t, we’d have a real problem on our hands.  We can also see that the tile shown in all three is an 8 meter resolution tile.  Which makes sense since we used AUTO resolution and the depth is the same across all surfaces in this location.</p>
+<p>Gridding is a powerful tool for visualizing bathymetry in 2d, but how do we get this grid into a file that we can use in other software?  How do we get from this weird Bathygrid folder structure into a common file format?</p>
+</div>
+<div class="section" id="export-surface">
+<h4>Export Surface<a class="headerlink" href="#export-surface" title="Permalink to this headline">¶</a></h4>
+<p>After creating a surface, Kluster allows you to export that surface to a GDAL supported format as well as csv.  Currently, Kluster supports GeoTIFF and BAG export options.</p>
+<a class="reference external image-reference" href="../_images/products_8.png"><img alt="_images/products_8.png" src="_images/products_8.png" /></a>
+<p>As always, we start with the text export just to illustrate what we can do when exporting.  Here we have done a csv export with Z positive up.  You can see the data in the image above.  We export eastings/northings and depth and uncertainty, just as we do with our soundings export.  The main difference is the gridded nature of the dataset.  You can see that there are many no data values (nan) where our square grid has no data.  Currently Kluster will export, keeping these no data areas.</p>
+<p>The csv export doesn’t do much for us, however.  Let’s look at GeoTIFF, which is probably the most widely supported surface export across other software.  Here we export that surface to GeoTIFF and load it in QGIS.  You can see that we get the same data in both, with a slight difference in the display that I believe is related to QGIS viewing this in the projected UTM coordinate system that we exported it in and Kluster viewing it in WGS84 geographic.</p>
+<a class="reference external image-reference" href="../_images/products_9.png"><img alt="_images/products_9.png" src="_images/products_9.png" /></a>
+<p>In addition, Kluster supports BAG exports, which require more metadata to generate.  Kluster will autogenerate as much of the metadata as it can, and provide a dialog for you to enter the rest.</p>
+<div class="toctree-wrapper compound">
+</div>
+</div>
+</div>
+<span id="document-kluster_api/index"></span><div class="section" id="api">
+<h3>API<a class="headerlink" href="#api" title="Permalink to this headline">¶</a></h3>
+<div class="toctree-wrapper compound">
+<span id="document-kluster_api/fqpr_convenience"></span><div class="section" id="fqpr-convenience-module">
+<h4>fqpr_convenience module<a class="headerlink" href="#fqpr-convenience-module" title="Permalink to this headline">¶</a></h4>
+<div class="section" id="module-HSTB.kluster.fqpr_convenience">
+<span id="hstb-kluster-fqpr-convenience-module"></span><h5>HSTB.kluster.fqpr_convenience Module<a class="headerlink" href="#module-HSTB.kluster.fqpr_convenience" title="Permalink to this headline">¶</a></h5>
+<div class="section" id="functions">
+<h6>Functions<a class="headerlink" href="#functions" title="Permalink to this headline">¶</a></h6>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="index.html#HSTB.kluster.fqpr_convenience.convert_multibeam" title="HSTB.kluster.fqpr_convenience.convert_multibeam"><code class="xref py py-obj docutils literal notranslate"><span class="pre">convert_multibeam</span></code></a>(filname[, outfold, …])</p></td>
+<td><p>Use fqpr_generation to process multibeam data on the local cluster and generate a new Fqpr instance saved to the provided output folder.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="index.html#HSTB.kluster.fqpr_convenience.generate_new_surface" title="HSTB.kluster.fqpr_convenience.generate_new_surface"><code class="xref py py-obj docutils literal notranslate"><span class="pre">generate_new_surface</span></code></a>(fqpr_inst[, grid_type, …])</p></td>
+<td><p>Using the bathygrid create_grid convenience function, generate a new variable/single resolution surface for the provided Kluster fqpr instance(s).</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="index.html#HSTB.kluster.fqpr_convenience.get_attributes_from_fqpr" title="HSTB.kluster.fqpr_convenience.get_attributes_from_fqpr"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_attributes_from_fqpr</span></code></a>(fqpr_instance[, …])</p></td>
+<td><p>Takes in a FQPR instance.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="index.html#HSTB.kluster.fqpr_convenience.get_attributes_from_zarr_stores" title="HSTB.kluster.fqpr_convenience.get_attributes_from_zarr_stores"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_attributes_from_zarr_stores</span></code></a>(list_dir_paths)</p></td>
+<td><p>Takes in a list of paths to directories containing fqpr generated zarr stores.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="index.html#HSTB.kluster.fqpr_convenience.import_processed_navigation" title="HSTB.kluster.fqpr_convenience.import_processed_navigation"><code class="xref py py-obj docutils literal notranslate"><span class="pre">import_processed_navigation</span></code></a>(fqpr_inst, navfiles)</p></td>
+<td><p>Convenience function for importing post processed navigation from sbet/smrmsg files, for use in georeferencing xyz data.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="index.html#HSTB.kluster.fqpr_convenience.import_sound_velocity" title="HSTB.kluster.fqpr_convenience.import_sound_velocity"><code class="xref py py-obj docutils literal notranslate"><span class="pre">import_sound_velocity</span></code></a>(fqpr_inst, sv_files)</p></td>
+<td><p>Convenience function for passing in an instance of fqpr_generation.Fqpr and importing the provided sound velocity profile files as attributes.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="index.html#HSTB.kluster.fqpr_convenience.overwrite_raw_navigation" title="HSTB.kluster.fqpr_convenience.overwrite_raw_navigation"><code class="xref py py-obj docutils literal notranslate"><span class="pre">overwrite_raw_navigation</span></code></a>(fqpr_inst, navfiles)</p></td>
+<td><p>Convenience function for importing raw navigation from pos mv .000 files, for use in georeferencing xyz data.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="index.html#HSTB.kluster.fqpr_convenience.perform_all_processing" title="HSTB.kluster.fqpr_convenience.perform_all_processing"><code class="xref py py-obj docutils literal notranslate"><span class="pre">perform_all_processing</span></code></a>(filname[, navfiles, …])</p></td>
+<td><p>Use fqpr_generation to process multibeam data on the local cluster and generate a sound velocity corrected, georeferenced xyz with uncertainty in csv files in the provided output folder.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="index.html#HSTB.kluster.fqpr_convenience.process_multibeam" title="HSTB.kluster.fqpr_convenience.process_multibeam"><code class="xref py py-obj docutils literal notranslate"><span class="pre">process_multibeam</span></code></a>(fqpr_inst[, …])</p></td>
+<td><p>Use fqpr_generation to process already converted data on the local cluster and generate sound velocity corrected, georeferenced soundings in the same data store as the converted data.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="index.html#HSTB.kluster.fqpr_convenience.reload_data" title="HSTB.kluster.fqpr_convenience.reload_data"><code class="xref py py-obj docutils literal notranslate"><span class="pre">reload_data</span></code></a>(converted_folder[, …])</p></td>
+<td><p>Pick up from a previous session.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="index.html#HSTB.kluster.fqpr_convenience.reload_surface" title="HSTB.kluster.fqpr_convenience.reload_surface"><code class="xref py py-obj docutils literal notranslate"><span class="pre">reload_surface</span></code></a>(surface_path)</p></td>
+<td><p>Simple convenience method for reloading a surface from a path</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="index.html#HSTB.kluster.fqpr_convenience.reprocess_sounding_selection" title="HSTB.kluster.fqpr_convenience.reprocess_sounding_selection"><code class="xref py py-obj docutils literal notranslate"><span class="pre">reprocess_sounding_selection</span></code></a>(fqpr_inst[, …])</p></td>
+<td><p>Designed to feed a patch test tool.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="index.html#HSTB.kluster.fqpr_convenience.return_processed_data_folders" title="HSTB.kluster.fqpr_convenience.return_processed_data_folders"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_processed_data_folders</span></code></a>(converted_folder)</p></td>
+<td><p>After processing, you’ll have a directory of folders containing the kluster records.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="index.html#HSTB.kluster.fqpr_convenience.return_svcorr_xyz" title="HSTB.kluster.fqpr_convenience.return_svcorr_xyz"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_svcorr_xyz</span></code></a>(filname[, outfold, …])</p></td>
+<td><p>Using fqpr_generation, convert and sv correct multibeam file (or directory of files) and return the sound velocity corrected xyz soundings.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="index.html#HSTB.kluster.fqpr_convenience.update_surface" title="HSTB.kluster.fqpr_convenience.update_surface"><code class="xref py py-obj docutils literal notranslate"><span class="pre">update_surface</span></code></a>(surface_instance[, add_fqpr, …])</p></td>
+<td><p>Bathygrid instances can be updated with new points from new converted multibeam data, or have points removed from old multibeam data.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="index.html#HSTB.kluster.fqpr_convenience.validation_against_xyz88" title="HSTB.kluster.fqpr_convenience.validation_against_xyz88"><code class="xref py py-obj docutils literal notranslate"><span class="pre">validation_against_xyz88</span></code></a>(filname[, …])</p></td>
+<td><p>Function to take a multibeam file and compare the svcorrected xyz with the converted and sound velocity corrected data generated by Kluster/fqpr_generation.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="index.html#HSTB.kluster.fqpr_convenience.xyz_from_allfile" title="HSTB.kluster.fqpr_convenience.xyz_from_allfile"><code class="xref py py-obj docutils literal notranslate"><span class="pre">xyz_from_allfile</span></code></a>(filname)</p></td>
+<td><p>function using par to pull out the xyz88 datagram and return the xyz for each ping.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="index.html#HSTB.kluster.fqpr_convenience.xyz_from_kmallfile" title="HSTB.kluster.fqpr_convenience.xyz_from_kmallfile"><code class="xref py py-obj docutils literal notranslate"><span class="pre">xyz_from_kmallfile</span></code></a>(filname)</p></td>
+<td><p>function using kmall to pull out the xyz88 datagram and return the xyz for each ping.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<span id="document-kluster_api/fqpr_generation"></span><div class="section" id="fqpr-generation-module">
+<h4>fqpr_generation module<a class="headerlink" href="#fqpr-generation-module" title="Permalink to this headline">¶</a></h4>
+<div class="section" id="module-HSTB.kluster.fqpr_generation">
+<span id="hstb-kluster-fqpr-generation-module"></span><h5>HSTB.kluster.fqpr_generation Module<a class="headerlink" href="#module-HSTB.kluster.fqpr_generation" title="Permalink to this headline">¶</a></h5>
+<div class="section" id="functions">
+<h6>Functions<a class="headerlink" href="#functions" title="Permalink to this headline">¶</a></h6>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="index.html#HSTB.kluster.fqpr_generation.get_ping_times" title="HSTB.kluster.fqpr_generation.get_ping_times"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_ping_times</span></code></a>(pingrec_time, idx)</p></td>
+<td><p>Given a rangeangle Dataset and an index of values that we are interested in from the Dataset, return the ping time, which is just the time coordinate of the rangeangle Dataset</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section" id="classes">
+<h6>Classes<a class="headerlink" href="#classes" title="Permalink to this headline">¶</a></h6>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="index.html#HSTB.kluster.fqpr_generation.Fqpr" title="HSTB.kluster.fqpr_generation.Fqpr"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Fqpr</span></code></a>([multibeam, motion_latency, address, …])</p></td>
+<td><p>Fully qualified ping record: contains all records built from the raw MBES file and supporting data files.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<span id="document-kluster_api/fqpr_project"></span><div class="section" id="fqpr-project-module">
+<h4>fqpr_project module<a class="headerlink" href="#fqpr-project-module" title="Permalink to this headline">¶</a></h4>
+<div class="section" id="module-HSTB.kluster.fqpr_project">
+<span id="hstb-kluster-fqpr-project-module"></span><h5>HSTB.kluster.fqpr_project Module<a class="headerlink" href="#module-HSTB.kluster.fqpr_project" title="Permalink to this headline">¶</a></h5>
+<div class="section" id="functions">
+<h6>Functions<a class="headerlink" href="#functions" title="Permalink to this headline">¶</a></h6>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="index.html#HSTB.kluster.fqpr_project.create_new_project" title="HSTB.kluster.fqpr_project.create_new_project"><code class="xref py py-obj docutils literal notranslate"><span class="pre">create_new_project</span></code></a>([output_folder])</p></td>
+<td><p>Create a new FqprProject by taking in multibeam files, converting them, making a new Fqpr instance and loading that Fqpr into a new FqprProject.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="index.html#HSTB.kluster.fqpr_project.open_project" title="HSTB.kluster.fqpr_project.open_project"><code class="xref py py-obj docutils literal notranslate"><span class="pre">open_project</span></code></a>(project_path)</p></td>
+<td><p>Load from a saved fqpr_project file</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="index.html#HSTB.kluster.fqpr_project.return_project_data" title="HSTB.kluster.fqpr_project.return_project_data"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_project_data</span></code></a>(project_path)</p></td>
+<td><p>Return the data contained in the provided project file</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section" id="classes">
+<h6>Classes<a class="headerlink" href="#classes" title="Permalink to this headline">¶</a></h6>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="index.html#HSTB.kluster.fqpr_project.FqprProject" title="HSTB.kluster.fqpr_project.FqprProject"><code class="xref py py-obj docutils literal notranslate"><span class="pre">FqprProject</span></code></a>([is_gui])</p></td>
+<td><p>The FqprProject class contains all the fqpr_generated.Fqpr objects and has methods for interacting with multiple of these objects as one big project.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<span id="document-kluster_api/fqpr_intelligence"></span><div class="section" id="fqpr-intelligence-module">
+<h4>fqpr_intelligence module<a class="headerlink" href="#fqpr-intelligence-module" title="Permalink to this headline">¶</a></h4>
+<div class="section" id="module-HSTB.kluster.fqpr_intelligence">
+<span id="hstb-kluster-fqpr-intelligence-module"></span><h5>HSTB.kluster.fqpr_intelligence Module<a class="headerlink" href="#module-HSTB.kluster.fqpr_intelligence" title="Permalink to this headline">¶</a></h5>
+<div class="section" id="functions">
+<h6>Functions<a class="headerlink" href="#functions" title="Permalink to this headline">¶</a></h6>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="index.html#HSTB.kluster.fqpr_intelligence.gather_basic_file_info" title="HSTB.kluster.fqpr_intelligence.gather_basic_file_info"><code class="xref py py-obj docutils literal notranslate"><span class="pre">gather_basic_file_info</span></code></a>(filename)</p></td>
+<td><p>Build out the basic file metadata that can be gathered from any file on the file system.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="index.html#HSTB.kluster.fqpr_intelligence.gather_exportlogfile_info" title="HSTB.kluster.fqpr_intelligence.gather_exportlogfile_info"><code class="xref py py-obj docutils literal notranslate"><span class="pre">gather_exportlogfile_info</span></code></a>(exportlog_file)</p></td>
+<td><p>Gather the file information from the provided navigation log file</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="index.html#HSTB.kluster.fqpr_intelligence.gather_multibeam_info" title="HSTB.kluster.fqpr_intelligence.gather_multibeam_info"><code class="xref py py-obj docutils literal notranslate"><span class="pre">gather_multibeam_info</span></code></a>(multibeam_file)</p></td>
+<td><p>fast method to read info from a multibeam file without reading the whole file.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="index.html#HSTB.kluster.fqpr_intelligence.gather_naverrorfile_info" title="HSTB.kluster.fqpr_intelligence.gather_naverrorfile_info"><code class="xref py py-obj docutils literal notranslate"><span class="pre">gather_naverrorfile_info</span></code></a>(pperror_file)</p></td>
+<td><p>Gather the file information from the provided post_processed_navigation file</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="index.html#HSTB.kluster.fqpr_intelligence.gather_navfile_info" title="HSTB.kluster.fqpr_intelligence.gather_navfile_info"><code class="xref py py-obj docutils literal notranslate"><span class="pre">gather_navfile_info</span></code></a>(ppnav_file)</p></td>
+<td><p>Gather the file information from the provided post_processed_navigation file</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="index.html#HSTB.kluster.fqpr_intelligence.gather_svp_info" title="HSTB.kluster.fqpr_intelligence.gather_svp_info"><code class="xref py py-obj docutils literal notranslate"><span class="pre">gather_svp_info</span></code></a>(svp_file)</p></td>
+<td><p>read the provided svp file and generate a dictionary of attributes associated with the file</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="index.html#HSTB.kluster.fqpr_intelligence.intel_process" title="HSTB.kluster.fqpr_intelligence.intel_process"><code class="xref py py-obj docutils literal notranslate"><span class="pre">intel_process</span></code></a>(filname[, outfold, …])</p></td>
+<td><p>Use Kluster intelligence module to organize and process all input files.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="index.html#HSTB.kluster.fqpr_intelligence.intel_process_service" title="HSTB.kluster.fqpr_intelligence.intel_process_service"><code class="xref py py-obj docutils literal notranslate"><span class="pre">intel_process_service</span></code></a>(folder_path[, …])</p></td>
+<td><p>Use Kluster intelligence module to start a new folder monitoring session and process all new files that show up in that directory.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="index.html#HSTB.kluster.fqpr_intelligence.likelihood_file_name_match" title="HSTB.kluster.fqpr_intelligence.likelihood_file_name_match"><code class="xref py py-obj docutils literal notranslate"><span class="pre">likelihood_file_name_match</span></code></a>(filenames, …[, …])</p></td>
+<td><p>Find the closest match to compare_file in the list of file names provided (filenames).</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="index.html#HSTB.kluster.fqpr_intelligence.likelihood_files_are_close" title="HSTB.kluster.fqpr_intelligence.likelihood_files_are_close"><code class="xref py py-obj docutils literal notranslate"><span class="pre">likelihood_files_are_close</span></code></a>(filepaths, …)</p></td>
+<td><p>Find all of the paths in filepaths that are in the same directory alongside compare_paths</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="index.html#HSTB.kluster.fqpr_intelligence.likelihood_start_end_times_close" title="HSTB.kluster.fqpr_intelligence.likelihood_start_end_times_close"><code class="xref py py-obj docutils literal notranslate"><span class="pre">likelihood_start_end_times_close</span></code></a>(filetimes, …)</p></td>
+<td><p>Take in a list of [starttime, endtime] and find the closest match to compare_times.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section" id="classes">
+<h6>Classes<a class="headerlink" href="#classes" title="Permalink to this headline">¶</a></h6>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="index.html#HSTB.kluster.fqpr_intelligence.FqprIntel" title="HSTB.kluster.fqpr_intelligence.FqprIntel"><code class="xref py py-obj docutils literal notranslate"><span class="pre">FqprIntel</span></code></a>([project, parent])</p></td>
+<td><p>Kluster intelligence module.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="index.html#HSTB.kluster.fqpr_intelligence.IntelModule" title="HSTB.kluster.fqpr_intelligence.IntelModule"><code class="xref py py-obj docutils literal notranslate"><span class="pre">IntelModule</span></code></a>(**kwargs)</p></td>
+<td><p>Base module for the intelligence modules.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="index.html#HSTB.kluster.fqpr_intelligence.LoggerClass" title="HSTB.kluster.fqpr_intelligence.LoggerClass"><code class="xref py py-obj docutils literal notranslate"><span class="pre">LoggerClass</span></code></a>([silent, logger])</p></td>
+<td><p>Basic class for logging.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="index.html#HSTB.kluster.fqpr_intelligence.MultibeamModule" title="HSTB.kluster.fqpr_intelligence.MultibeamModule"><code class="xref py py-obj docutils literal notranslate"><span class="pre">MultibeamModule</span></code></a>(**kwargs)</p></td>
+<td><p>IntelModule specific for multibeam files, with multibeam specific attribution</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="index.html#HSTB.kluster.fqpr_intelligence.NavErrorModule" title="HSTB.kluster.fqpr_intelligence.NavErrorModule"><code class="xref py py-obj docutils literal notranslate"><span class="pre">NavErrorModule</span></code></a>(**kwargs)</p></td>
+<td><p>IntelModule specific for post processed nav error (SMRMSG) files, with SMRMSG specific attribution</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="index.html#HSTB.kluster.fqpr_intelligence.NavExportLogModule" title="HSTB.kluster.fqpr_intelligence.NavExportLogModule"><code class="xref py py-obj docutils literal notranslate"><span class="pre">NavExportLogModule</span></code></a>(**kwargs)</p></td>
+<td><p>IntelModule specific for sbet export log files, with log file specific attribution</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="index.html#HSTB.kluster.fqpr_intelligence.NavigationModule" title="HSTB.kluster.fqpr_intelligence.NavigationModule"><code class="xref py py-obj docutils literal notranslate"><span class="pre">NavigationModule</span></code></a>(**kwargs)</p></td>
+<td><p>IntelModule specific for post processed navigation (SBET) files, with SBET specific attribution</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="index.html#HSTB.kluster.fqpr_intelligence.SvpModule" title="HSTB.kluster.fqpr_intelligence.SvpModule"><code class="xref py py-obj docutils literal notranslate"><span class="pre">SvpModule</span></code></a>(**kwargs)</p></td>
+<td><p>IntelModule specific for caris svp files, with svp file specific attribution</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<span id="document-kluster_api/monitor"></span><div class="section" id="monitor-module">
+<h4>monitor module<a class="headerlink" href="#monitor-module" title="Permalink to this headline">¶</a></h4>
+<div class="section" id="module-HSTB.kluster.monitor">
+<span id="hstb-kluster-monitor-module"></span><h5>HSTB.kluster.monitor Module<a class="headerlink" href="#module-HSTB.kluster.monitor" title="Permalink to this headline">¶</a></h5>
+<div class="section" id="classes">
+<h6>Classes<a class="headerlink" href="#classes" title="Permalink to this headline">¶</a></h6>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="index.html#HSTB.kluster.monitor.DirectoryMonitor" title="HSTB.kluster.monitor.DirectoryMonitor"><code class="xref py py-obj docutils literal notranslate"><span class="pre">DirectoryMonitor</span></code></a>(directory_path[, is_recursive])</p></td>
+<td><p>Use watchdog to monitor the provided directory and kick off events based on the type of file system event</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="index.html#HSTB.kluster.monitor.IntelligenceMonitorHandler" title="HSTB.kluster.monitor.IntelligenceMonitorHandler"><code class="xref py py-obj docutils literal notranslate"><span class="pre">IntelligenceMonitorHandler</span></code></a>(parent, patterns, …)</p></td>
+<td><p>Event handler for the fqpr_intelligence directory monitoring.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="index.html#HSTB.kluster.monitor.WatchBuffer" title="HSTB.kluster.monitor.WatchBuffer"><code class="xref py py-obj docutils literal notranslate"><span class="pre">WatchBuffer</span></code></a>(event, timed_func[, runtime])</p></td>
+<td><p>Employ this thread to run the provided function every (runtime) seconds.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<span id="document-kluster_api/xarray_conversion"></span><div class="section" id="xarray-conversion-module">
+<h4>xarray_conversion module<a class="headerlink" href="#xarray-conversion-module" title="Permalink to this headline">¶</a></h4>
+<div class="section" id="module-HSTB.kluster.xarray_conversion">
+<span id="hstb-kluster-xarray-conversion-module"></span><h5>HSTB.kluster.xarray_conversion Module<a class="headerlink" href="#module-HSTB.kluster.xarray_conversion" title="Permalink to this headline">¶</a></h5>
+<div class="section" id="functions">
+<h6>Functions<a class="headerlink" href="#functions" title="Permalink to this headline">¶</a></h6>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="index.html#HSTB.kluster.xarray_conversion.batch_read_configure_options" title="HSTB.kluster.xarray_conversion.batch_read_configure_options"><code class="xref py py-obj docutils literal notranslate"><span class="pre">batch_read_configure_options</span></code></a>()</p></td>
+<td><p>Generate the parameters that drive the data conversion.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="index.html#HSTB.kluster.xarray_conversion.build_xyzrph" title="HSTB.kluster.xarray_conversion.build_xyzrph"><code class="xref py py-obj docutils literal notranslate"><span class="pre">build_xyzrph</span></code></a>(settdict, runtime_settdict, …)</p></td>
+<td><p>Translate the raw settings dictionary from the multibeam file (see sequential_read_records) into a dictionary of timestamped entries for each sensor offset/angle.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="index.html#HSTB.kluster.xarray_conversion.determine_good_chunksize" title="HSTB.kluster.xarray_conversion.determine_good_chunksize"><code class="xref py py-obj docutils literal notranslate"><span class="pre">determine_good_chunksize</span></code></a>(fil[, …])</p></td>
+<td><p>With given file, determine the best size of the chunk to read from it, given a minimum chunksize and a max number of chunks.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="index.html#HSTB.kluster.xarray_conversion.gather_dataset_attributes" title="HSTB.kluster.xarray_conversion.gather_dataset_attributes"><code class="xref py py-obj docutils literal notranslate"><span class="pre">gather_dataset_attributes</span></code></a>(dataset)</p></td>
+<td><p>Return the attributes within an Xarray DataSet</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="index.html#HSTB.kluster.xarray_conversion.get_nearest_runtime" title="HSTB.kluster.xarray_conversion.get_nearest_runtime"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_nearest_runtime</span></code></a>(timestamp, runtime_settdict)</p></td>
+<td><p>Both installation parameters and runtime parameters have timestamped entries of values.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="index.html#HSTB.kluster.xarray_conversion.return_chunked_fil" title="HSTB.kluster.xarray_conversion.return_chunked_fil"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_chunked_fil</span></code></a>(fil[, startoffset, chunksize])</p></td>
+<td><p>With given file, determine the best size of the chunk to read from it, given a minimum chunksize and a max number of chunks.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="index.html#HSTB.kluster.xarray_conversion.return_xyzrph_from_mbes" title="HSTB.kluster.xarray_conversion.return_xyzrph_from_mbes"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_xyzrph_from_mbes</span></code></a>(mbesfil)</p></td>
+<td><p>Currently being used to load Vessel View with the first installation parameters from a multibeam file.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="index.html#HSTB.kluster.xarray_conversion.return_xyzrph_from_posmv" title="HSTB.kluster.xarray_conversion.return_xyzrph_from_posmv"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_xyzrph_from_posmv</span></code></a>(posfile)</p></td>
+<td><p>Translate the MSG20 message in the POS File to xyzrph like sensor names.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="index.html#HSTB.kluster.xarray_conversion.sort_and_drop_duplicates" title="HSTB.kluster.xarray_conversion.sort_and_drop_duplicates"><code class="xref py py-obj docutils literal notranslate"><span class="pre">sort_and_drop_duplicates</span></code></a>(dset, dsetpath)</p></td>
+<td><p>Check for duplicates and sort if necessary.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section" id="classes">
+<h6>Classes<a class="headerlink" href="#classes" title="Permalink to this headline">¶</a></h6>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="index.html#HSTB.kluster.xarray_conversion.BatchRead" title="HSTB.kluster.xarray_conversion.BatchRead"><code class="xref py py-obj docutils literal notranslate"><span class="pre">BatchRead</span></code></a>([filfolder, dest, address, …])</p></td>
+<td><p>BatchRead - multibeam data converter using dask infrastructure and xarray data types Pass in multibeam files, call read(), and gain access to xarray Datasets for each data type</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section" id="class-inheritance-diagram">
+<h6>Class Inheritance Diagram<a class="headerlink" href="#class-inheritance-diagram" title="Permalink to this headline">¶</a></h6>
+<div class="graphviz"><img src="_images/inheritance-bac9bbfff0e3cfe19897eb37e1b1c735ac73b896.png" alt="Inheritance diagram of HSTB.kluster.xarray_conversion.BatchRead" usemap="#inheritance8575240f2d" class="inheritance graphviz" /></div>
+<map id="inheritance8575240f2d" name="inheritance8575240f2d">
+<area shape="rect" id="node2" href="index.html#HSTB.kluster.xarray_conversion.BatchRead" target="_top" title="BatchRead &#45; multibeam data converter using dask infrastructure and xarray data types" alt="" coords="316,5,407,31"/>
+</map></div>
+</div>
+</div>
+<span id="document-kluster_api/orientation"></span><div class="section" id="orientation-module">
+<h4>orientation module<a class="headerlink" href="#orientation-module" title="Permalink to this headline">¶</a></h4>
+<div class="section" id="module-HSTB.kluster.modules.orientation">
+<span id="hstb-kluster-modules-orientation-module"></span><h5>HSTB.kluster.modules.orientation Module<a class="headerlink" href="#module-HSTB.kluster.modules.orientation" title="Permalink to this headline">¶</a></h5>
+<div class="section" id="functions">
+<h6>Functions<a class="headerlink" href="#functions" title="Permalink to this headline">¶</a></h6>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="index.html#HSTB.kluster.modules.orientation.build_orientation_vectors" title="HSTB.kluster.modules.orientation.build_orientation_vectors"><code class="xref py py-obj docutils literal notranslate"><span class="pre">build_orientation_vectors</span></code></a>(raw_att, twtt, …)</p></td>
+<td><p>Using attitude angles, mounting angles, build the tx/rx vectors that represent the orientation of the tx/rx at time of transmit/receive.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="index.html#HSTB.kluster.modules.orientation.distrib_run_build_orientation_vectors" title="HSTB.kluster.modules.orientation.distrib_run_build_orientation_vectors"><code class="xref py py-obj docutils literal notranslate"><span class="pre">distrib_run_build_orientation_vectors</span></code></a>(dat)</p></td>
+<td><p>Convenience function for mapping build_orientation_vectors across cluster.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="index.html#HSTB.kluster.modules.orientation.get_times" title="HSTB.kluster.modules.orientation.get_times"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_times</span></code></a>(pingtime, additional)</p></td>
+<td><p>Given ping time and beamwise time addition, return the time for each beam.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<span id="document-kluster_api/beampointingvector"></span><div class="section" id="beampointingvector-module">
+<h4>beampointingvector module<a class="headerlink" href="#beampointingvector-module" title="Permalink to this headline">¶</a></h4>
+<div class="section" id="module-HSTB.kluster.modules.beampointingvector">
+<span id="hstb-kluster-modules-beampointingvector-module"></span><h5>HSTB.kluster.modules.beampointingvector Module<a class="headerlink" href="#module-HSTB.kluster.modules.beampointingvector" title="Permalink to this headline">¶</a></h5>
+<div class="section" id="functions">
+<h6>Functions<a class="headerlink" href="#functions" title="Permalink to this headline">¶</a></h6>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="index.html#HSTB.kluster.modules.beampointingvector.build_beam_pointing_vectors" title="HSTB.kluster.modules.beampointingvector.build_beam_pointing_vectors"><code class="xref py py-obj docutils literal notranslate"><span class="pre">build_beam_pointing_vectors</span></code></a>(hdng, bpa, …)</p></td>
+<td><p>Beam pointing vector is the beam specific vector that arises from the intersection of the tx ping and rx cone of sensitivity.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="index.html#HSTB.kluster.modules.beampointingvector.build_geographic_beam_vectors" title="HSTB.kluster.modules.beampointingvector.build_geographic_beam_vectors"><code class="xref py py-obj docutils literal notranslate"><span class="pre">build_geographic_beam_vectors</span></code></a>(rotgeo, beamvecs)</p></td>
+<td><p>Apply rotation matrix to bring transducer rel.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="index.html#HSTB.kluster.modules.beampointingvector.compute_geo_beam_pointing_angle" title="HSTB.kluster.modules.beampointingvector.compute_geo_beam_pointing_angle"><code class="xref py py-obj docutils literal notranslate"><span class="pre">compute_geo_beam_pointing_angle</span></code></a>(bv_geo, rx_angle)</p></td>
+<td><p>Build new beam pointing angle (rel to the vertical) and with the correct sign (+ to starboard) in the geographic ref frame.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="index.html#HSTB.kluster.modules.beampointingvector.compute_relative_azimuth" title="HSTB.kluster.modules.beampointingvector.compute_relative_azimuth"><code class="xref py py-obj docutils literal notranslate"><span class="pre">compute_relative_azimuth</span></code></a>(bv_geo, heading)</p></td>
+<td><p>Compute the relative azimuth from array to end of beam vector in geographic ref frame</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="index.html#HSTB.kluster.modules.beampointingvector.construct_array_relative_beamvector" title="HSTB.kluster.modules.beampointingvector.construct_array_relative_beamvector"><code class="xref py py-obj docutils literal notranslate"><span class="pre">construct_array_relative_beamvector</span></code></a>(maintx, …)</p></td>
+<td><p>Given the orientation vectors representing the transmitter/receiver at time of ping/receive (maintx, mainrx) and the TX/RX steering angles (tx_angle, rx_angle), determine new 3d beam vector components at the midpoint between the TX and RX.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="index.html#HSTB.kluster.modules.beampointingvector.cross" title="HSTB.kluster.modules.beampointingvector.cross"><code class="xref py py-obj docutils literal notranslate"><span class="pre">cross</span></code></a>(a, b, spatial_dim[, output_dtype])</p></td>
+<td><p>Xarray-compatible cross product.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="index.html#HSTB.kluster.modules.beampointingvector.distrib_run_build_beam_pointing_vector" title="HSTB.kluster.modules.beampointingvector.distrib_run_build_beam_pointing_vector"><code class="xref py py-obj docutils literal notranslate"><span class="pre">distrib_run_build_beam_pointing_vector</span></code></a>(dat)</p></td>
+<td><p>Convenience function for mapping build_beam_pointing_vectors across cluster.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="index.html#HSTB.kluster.modules.beampointingvector.return_array_geographic_rotation" title="HSTB.kluster.modules.beampointingvector.return_array_geographic_rotation"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_array_geographic_rotation</span></code></a>(maintx, mainrx)</p></td>
+<td><p>Use the transmitter/receiver array orientations to build a rotation matrix between the geographic/array rel reference frame.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<span id="document-kluster_api/svcorrect"></span><div class="section" id="svcorrect-module">
+<h4>svcorrect module<a class="headerlink" href="#svcorrect-module" title="Permalink to this headline">¶</a></h4>
+<div class="section" id="module-HSTB.kluster.modules.svcorrect">
+<span id="hstb-kluster-modules-svcorrect-module"></span><h5>HSTB.kluster.modules.svcorrect Module<a class="headerlink" href="#module-HSTB.kluster.modules.svcorrect" title="Permalink to this headline">¶</a></h5>
+<div class="section" id="functions">
+<h6>Functions<a class="headerlink" href="#functions" title="Permalink to this headline">¶</a></h6>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="index.html#HSTB.kluster.modules.svcorrect.cast_data_from_file" title="HSTB.kluster.modules.svcorrect.cast_data_from_file"><code class="xref py py-obj docutils literal notranslate"><span class="pre">cast_data_from_file</span></code></a>(profile_file)</p></td>
+<td><p>Read from the provided sound velocity file and return the data, method depends on file format</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="index.html#HSTB.kluster.modules.svcorrect.distributed_run_sv_correct" title="HSTB.kluster.modules.svcorrect.distributed_run_sv_correct"><code class="xref py py-obj docutils literal notranslate"><span class="pre">distributed_run_sv_correct</span></code></a>(worker_dat)</p></td>
+<td><p>Convenience function for mapping run_ray_trace_v2 across cluster.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="index.html#HSTB.kluster.modules.svcorrect.get_sv_files_from_directory" title="HSTB.kluster.modules.svcorrect.get_sv_files_from_directory"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_sv_files_from_directory</span></code></a>(dir_path[, …])</p></td>
+<td><p>Returns a list of all files that have an extension in the global variable supported_file_formats</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="index.html#HSTB.kluster.modules.svcorrect.return_supported_casts_from_list" title="HSTB.kluster.modules.svcorrect.return_supported_casts_from_list"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_supported_casts_from_list</span></code></a>(list_files)</p></td>
+<td><p>Take in a list of files, return all the valid cast files</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="index.html#HSTB.kluster.modules.svcorrect.run_ray_trace_v2" title="HSTB.kluster.modules.svcorrect.run_ray_trace_v2"><code class="xref py py-obj docutils literal notranslate"><span class="pre">run_ray_trace_v2</span></code></a>(cast, beam_azimuth, …)</p></td>
+<td><p>Apply the provided sound velocity cast and surface sound speed value to ray trace the angles/traveltime through each layer.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section" id="classes">
+<h6>Classes<a class="headerlink" href="#classes" title="Permalink to this headline">¶</a></h6>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="index.html#HSTB.kluster.modules.svcorrect.SoundSpeedProfile" title="HSTB.kluster.modules.svcorrect.SoundSpeedProfile"><code class="xref py py-obj docutils literal notranslate"><span class="pre">SoundSpeedProfile</span></code></a>(raw_profile, z_val, …[, …])</p></td>
+<td><p>DEPRECATED - See run_ray_trace_v2.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<span id="document-kluster_api/georeference"></span><div class="section" id="georeference-module">
+<h4>georeference module<a class="headerlink" href="#georeference-module" title="Permalink to this headline">¶</a></h4>
+<div class="section" id="module-HSTB.kluster.modules.georeference">
+<span id="hstb-kluster-modules-georeference-module"></span><h5>HSTB.kluster.modules.georeference Module<a class="headerlink" href="#module-HSTB.kluster.modules.georeference" title="Permalink to this headline">¶</a></h5>
+<div class="section" id="functions">
+<h6>Functions<a class="headerlink" href="#functions" title="Permalink to this headline">¶</a></h6>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="index.html#HSTB.kluster.modules.georeference.datum_to_wkt" title="HSTB.kluster.modules.georeference.datum_to_wkt"><code class="xref py py-obj docutils literal notranslate"><span class="pre">datum_to_wkt</span></code></a>(datum_identifier, min_lon, …)</p></td>
+<td><p>Translate the provided datum to vypercrs wkt string</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="index.html#HSTB.kluster.modules.georeference.distrib_run_georeference" title="HSTB.kluster.modules.georeference.distrib_run_georeference"><code class="xref py py-obj docutils literal notranslate"><span class="pre">distrib_run_georeference</span></code></a>(dat)</p></td>
+<td><p>Convenience function for mapping build_beam_pointing_vectors across cluster.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="index.html#HSTB.kluster.modules.georeference.georef_by_worker" title="HSTB.kluster.modules.georeference.georef_by_worker"><code class="xref py py-obj docutils literal notranslate"><span class="pre">georef_by_worker</span></code></a>(sv_corr, alt, lon, lat, …)</p></td>
+<td><p>Use the raw attitude/navigation to transform the vessel relative along/across/down offsets to georeferenced soundings.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="index.html#HSTB.kluster.modules.georeference.set_vyperdatum_vdatum_path" title="HSTB.kluster.modules.georeference.set_vyperdatum_vdatum_path"><code class="xref py py-obj docutils literal notranslate"><span class="pre">set_vyperdatum_vdatum_path</span></code></a>(vdatum_path)</p></td>
+<td><p>Set the vyperdatum VDatum path, required to use the VDatum grids to do the vertical transformations</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="index.html#HSTB.kluster.modules.georeference.transform_vyperdatum" title="HSTB.kluster.modules.georeference.transform_vyperdatum"><code class="xref py py-obj docutils literal notranslate"><span class="pre">transform_vyperdatum</span></code></a>(x, y, z[, …])</p></td>
+<td><p>When we specify a NOAA vertical datum (NOAA Mean Lower Low Water, NOAA Mean High Water) in Kluster, we use vyperdatum/VDatum to transform the points to the appropriate vertical datum.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<span id="document-kluster_api/tpu"></span><div class="section" id="tpu-module">
+<h4>tpu module<a class="headerlink" href="#tpu-module" title="Permalink to this headline">¶</a></h4>
+<div class="section" id="module-HSTB.kluster.modules.tpu">
+<span id="hstb-kluster-modules-tpu-module"></span><h5>HSTB.kluster.modules.tpu Module<a class="headerlink" href="#module-HSTB.kluster.modules.tpu" title="Permalink to this headline">¶</a></h5>
+<div class="section" id="functions">
+<h6>Functions<a class="headerlink" href="#functions" title="Permalink to this headline">¶</a></h6>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="index.html#HSTB.kluster.modules.tpu.calculate_tpu" title="HSTB.kluster.modules.tpu.calculate_tpu"><code class="xref py py-obj docutils literal notranslate"><span class="pre">calculate_tpu</span></code></a>(roll, raw_beam_angles, …[, …])</p></td>
+<td><p>Use the Tpu class to calculate total propagated uncertainty (horizontal and vertical) for the provided sounder data.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="index.html#HSTB.kluster.modules.tpu.calculate_uncertainty_ifremer" title="HSTB.kluster.modules.tpu.calculate_uncertainty_ifremer"><code class="xref py py-obj docutils literal notranslate"><span class="pre">calculate_uncertainty_ifremer</span></code></a>(depth_offset, …)</p></td>
+<td><p>Use the kongsberg reported Ifremer quality factor to calculate horizontal and vertical sonar uncertainty.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="index.html#HSTB.kluster.modules.tpu.calculate_uncertainty_kongsberg" title="HSTB.kluster.modules.tpu.calculate_uncertainty_kongsberg"><code class="xref py py-obj docutils literal notranslate"><span class="pre">calculate_uncertainty_kongsberg</span></code></a>(…)</p></td>
+<td><p>Use the kongsberg reported quality factor to calculate horizontal and vertical sonar uncertainty.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="index.html#HSTB.kluster.modules.tpu.distrib_run_calculate_tpu" title="HSTB.kluster.modules.tpu.distrib_run_calculate_tpu"><code class="xref py py-obj docutils literal notranslate"><span class="pre">distrib_run_calculate_tpu</span></code></a>(dat)</p></td>
+<td><p>Convenience function for mapping calculate_tpu across cluster.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section" id="classes">
+<h6>Classes<a class="headerlink" href="#classes" title="Permalink to this headline">¶</a></h6>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="index.html#HSTB.kluster.modules.tpu.Tpu" title="HSTB.kluster.modules.tpu.Tpu"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Tpu</span></code></a>([debug, plot_tpu])</p></td>
+<td><p><div class="line-block">
+<div class="line">Total propogated uncertainty - following the Rob Hare model</div>
+</div>
+</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<span id="document-kluster_api/visualizations"></span><div class="section" id="visualizations-module">
+<h4>visualizations module<a class="headerlink" href="#visualizations-module" title="Permalink to this headline">¶</a></h4>
+<div class="section" id="module-HSTB.kluster.modules.visualizations">
+<span id="hstb-kluster-modules-visualizations-module"></span><h5>HSTB.kluster.modules.visualizations Module<a class="headerlink" href="#module-HSTB.kluster.modules.visualizations" title="Permalink to this headline">¶</a></h5>
+<div class="section" id="functions">
+<h6>Functions<a class="headerlink" href="#functions" title="Permalink to this headline">¶</a></h6>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="index.html#HSTB.kluster.modules.visualizations.save_animation_mpeg" title="HSTB.kluster.modules.visualizations.save_animation_mpeg"><code class="xref py py-obj docutils literal notranslate"><span class="pre">save_animation_mpeg</span></code></a>(anim_instance, output_pth)</p></td>
+<td><p>Save a Matplotlib FuncAnimation object to Mpeg</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section" id="classes">
+<h6>Classes<a class="headerlink" href="#classes" title="Permalink to this headline">¶</a></h6>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="index.html#HSTB.kluster.modules.visualizations.FqprVisualizations" title="HSTB.kluster.modules.visualizations.FqprVisualizations"><code class="xref py py-obj docutils literal notranslate"><span class="pre">FqprVisualizations</span></code></a>(fqpr)</p></td>
+<td><p>Visualizations in Matplotlib built on top of FQPR class.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="index.html#HSTB.kluster.modules.visualizations.Player" title="HSTB.kluster.modules.visualizations.Player"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Player</span></code></a>(fig, func[, frames, init_func, …])</p></td>
+<td><p>Matplotlib FuncAnimation player that includes the ability to start/stop/speed up/slow down/skip frames.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<span id="document-kluster_api/sat"></span><div class="section" id="sat-module">
+<h4>sat module<a class="headerlink" href="#sat-module" title="Permalink to this headline">¶</a></h4>
+<div class="section" id="module-HSTB.kluster.modules.sat">
+<span id="hstb-kluster-modules-sat-module"></span><h5>HSTB.kluster.modules.sat Module<a class="headerlink" href="#module-HSTB.kluster.modules.sat" title="Permalink to this headline">¶</a></h5>
+<div class="section" id="functions">
+<h6>Functions<a class="headerlink" href="#functions" title="Permalink to this headline">¶</a></h6>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="index.html#HSTB.kluster.modules.sat.accuracy_test" title="HSTB.kluster.modules.sat.accuracy_test"><code class="xref py py-obj docutils literal notranslate"><span class="pre">accuracy_test</span></code></a>(ref_surf, fq, output_directory)</p></td>
+<td><p>Accuracy test: takes a reference surface and accuracy test lines and creates plots of depth difference between surface and lines for the soundings nearest the grid nodes.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="index.html#HSTB.kluster.modules.sat.calc_order" title="HSTB.kluster.modules.sat.calc_order"><code class="xref py py-obj docutils literal notranslate"><span class="pre">calc_order</span></code></a>(depth)</p></td>
+<td><p>This function takes an array of depths and returns Order 1 and Special Order values based on (b * depth).</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="index.html#HSTB.kluster.modules.sat.difference_grid_and_soundings" title="HSTB.kluster.modules.sat.difference_grid_and_soundings"><code class="xref py py-obj docutils literal notranslate"><span class="pre">difference_grid_and_soundings</span></code></a>(ref_surf, fq)</p></td>
+<td><p>Given bathygrid instance (ref_surf) and Fqpr instance (fq) determine the depth difference between the soundings and the nodal depth.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section" id="classes">
+<h6>Classes<a class="headerlink" href="#classes" title="Permalink to this headline">¶</a></h6>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="index.html#HSTB.kluster.modules.sat.BaseTest" title="HSTB.kluster.modules.sat.BaseTest"><code class="xref py py-obj docutils literal notranslate"><span class="pre">BaseTest</span></code></a>(fqpr, name)</p></td>
+<td><p>Base class for the sonar acceptance tests.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="index.html#HSTB.kluster.modules.sat.ExtinctionTest" title="HSTB.kluster.modules.sat.ExtinctionTest"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ExtinctionTest</span></code></a>(fqpr[, round_frequency])</p></td>
+<td><p>Plot the outermost sound velocity corrected alongtrack/depth offsets to give a sense of the maximum swath coverage versus depth.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="index.html#HSTB.kluster.modules.sat.PingPeriodTest" title="HSTB.kluster.modules.sat.PingPeriodTest"><code class="xref py py-obj docutils literal notranslate"><span class="pre">PingPeriodTest</span></code></a>(fqpr[, round_frequency])</p></td>
+<td><p>Plot the period of the pings binned by depth.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<span id="document-kluster_api/wobble"></span><div class="section" id="wobble-module">
+<h4>wobble module<a class="headerlink" href="#wobble-module" title="Permalink to this headline">¶</a></h4>
+<div class="section" id="module-HSTB.kluster.modules.wobble">
+<span id="hstb-kluster-modules-wobble-module"></span><h5>HSTB.kluster.modules.wobble Module<a class="headerlink" href="#module-HSTB.kluster.modules.wobble" title="Permalink to this headline">¶</a></h5>
+<div class="section" id="functions">
+<h6>Functions<a class="headerlink" href="#functions" title="Permalink to this headline">¶</a></h6>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="index.html#HSTB.kluster.modules.wobble.build_highpass_filter_coeff" title="HSTB.kluster.modules.wobble.build_highpass_filter_coeff"><code class="xref py py-obj docutils literal notranslate"><span class="pre">build_highpass_filter_coeff</span></code></a>(cutoff_freq[, …])</p></td>
+<td><p>Construct a highpass filter using Scipy</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="index.html#HSTB.kluster.modules.wobble.fit_sin" title="HSTB.kluster.modules.wobble.fit_sin"><code class="xref py py-obj docutils literal notranslate"><span class="pre">fit_sin</span></code></a>(x, y)</p></td>
+<td><p>Fit sin to the input time sequence, and return fitting parameters “amp”, “omega”, “phase”, “offset”, “freq”, “period” and “fitfunc”</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="index.html#HSTB.kluster.modules.wobble.linear_regression" title="HSTB.kluster.modules.wobble.linear_regression"><code class="xref py py-obj docutils literal notranslate"><span class="pre">linear_regression</span></code></a>(x, y)</p></td>
+<td><p>Wrap numpy’s polyfit (degree one) to also generate percent deviation from the standard error of y values</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="index.html#HSTB.kluster.modules.wobble.return_high_pass_filtered_depth" title="HSTB.kluster.modules.wobble.return_high_pass_filtered_depth"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_high_pass_filtered_depth</span></code></a>(z, max_period)</p></td>
+<td><p>Take in two dim array of depth (pings, beams) and return a high pass filtered mean depth for each ping.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="index.html#HSTB.kluster.modules.wobble.return_high_pass_filtered_slope" title="HSTB.kluster.modules.wobble.return_high_pass_filtered_slope"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_high_pass_filtered_slope</span></code></a>(y, z, max_period)</p></td>
+<td><p>Perform linear regression on acrosstrack/depth offsets to get ping slope.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="index.html#HSTB.kluster.modules.wobble.return_period_of_signal" title="HSTB.kluster.modules.wobble.return_period_of_signal"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_period_of_signal</span></code></a>(sig)</p></td>
+<td><p>Use autocorrelation to find the frequency/period of the signal.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="index.html#HSTB.kluster.modules.wobble.smooth_signal" title="HSTB.kluster.modules.wobble.smooth_signal"><code class="xref py py-obj docutils literal notranslate"><span class="pre">smooth_signal</span></code></a>(x[, window_len, window, …])</p></td>
+<td><p>smooth the data using a window with requested size.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section" id="classes">
+<h6>Classes<a class="headerlink" href="#classes" title="Permalink to this headline">¶</a></h6>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="index.html#HSTB.kluster.modules.wobble.WobbleTest" title="HSTB.kluster.modules.wobble.WobbleTest"><code class="xref py py-obj docutils literal notranslate"><span class="pre">WobbleTest</span></code></a>(fqpr)</p></td>
+<td><p>Implementation of ‘Dynamic Motion Residuals in Swath Sonar Data: Ironing out the Creases’ using Kluster processed multibeam data.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<span id="document-kluster_api/export"></span><div class="section" id="export-module">
+<h4>export module<a class="headerlink" href="#export-module" title="Permalink to this headline">¶</a></h4>
+<div class="section" id="module-HSTB.kluster.modules.export">
+<span id="hstb-kluster-modules-export-module"></span><h5>HSTB.kluster.modules.export Module<a class="headerlink" href="#module-HSTB.kluster.modules.export" title="Permalink to this headline">¶</a></h5>
+<div class="section" id="classes">
+<h6>Classes<a class="headerlink" href="#classes" title="Permalink to this headline">¶</a></h6>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="index.html#HSTB.kluster.modules.export.FqprExport" title="HSTB.kluster.modules.export.FqprExport"><code class="xref py py-obj docutils literal notranslate"><span class="pre">FqprExport</span></code></a>(fqpr)</p></td>
+<td><p>Visualizations in Matplotlib built on top of FQPR class.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<span id="document-kluster_api/rotations"></span><div class="section" id="rotations-module">
+<h4>rotations module<a class="headerlink" href="#rotations-module" title="Permalink to this headline">¶</a></h4>
+<div class="section" id="module-HSTB.kluster.rotations">
+<span id="hstb-kluster-rotations-module"></span><h5>HSTB.kluster.rotations Module<a class="headerlink" href="#module-HSTB.kluster.rotations" title="Permalink to this headline">¶</a></h5>
+<div class="section" id="functions">
+<h6>Functions<a class="headerlink" href="#functions" title="Permalink to this headline">¶</a></h6>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="index.html#HSTB.kluster.rotations.build_mounting_angle_mat" title="HSTB.kluster.rotations.build_mounting_angle_mat"><code class="xref py py-obj docutils literal notranslate"><span class="pre">build_mounting_angle_mat</span></code></a>(roll, pitch, yaw, tstmp)</p></td>
+<td><p>Feeds build_rot_mat, difference being this takes in single floating point numbers for rpy as you get from a surveyed mount angle data point.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="index.html#HSTB.kluster.rotations.build_rot_mat" title="HSTB.kluster.rotations.build_rot_mat"><code class="xref py py-obj docutils literal notranslate"><span class="pre">build_rot_mat</span></code></a>(roll, pitch, yaw[, order, degrees])</p></td>
+<td><p>Make the rotation matrix for a set of angles and return the matrix.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="index.html#HSTB.kluster.rotations.combine_rotation_matrix" title="HSTB.kluster.rotations.combine_rotation_matrix"><code class="xref py py-obj docutils literal notranslate"><span class="pre">combine_rotation_matrix</span></code></a>(mat_one, mat_two)</p></td>
+<td><p>Composing two rotation matrices is performed by taking the product of the two matrices</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="index.html#HSTB.kluster.rotations.return_attitude_rotation_matrix" title="HSTB.kluster.rotations.return_attitude_rotation_matrix"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_attitude_rotation_matrix</span></code></a>(attitude[, …])</p></td>
+<td><p>We start off doing calculations in array relative reference frame.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="index.html#HSTB.kluster.rotations.return_mounting_rotation_matrix" title="HSTB.kluster.rotations.return_mounting_rotation_matrix"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_mounting_rotation_matrix</span></code></a>(roll, pitch, …)</p></td>
+<td><p>Using the xyzrph record from xarray_conversion generated rangeangle DataSet, build the static mounting angle rotation matrix, pulling from the appropriate timestamp</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<span id="document-kluster_api/pdal_entwine"></span><div class="section" id="pdal-entwine-module">
+<h4>pdal_entwine module<a class="headerlink" href="#pdal-entwine-module" title="Permalink to this headline">¶</a></h4>
+<div class="section" id="module-HSTB.kluster.pdal_entwine">
+<span id="hstb-kluster-pdal-entwine-module"></span><h5>HSTB.kluster.pdal_entwine Module<a class="headerlink" href="#module-HSTB.kluster.pdal_entwine" title="Permalink to this headline">¶</a></h5>
+<div class="section" id="functions">
+<h6>Functions<a class="headerlink" href="#functions" title="Permalink to this headline">¶</a></h6>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="index.html#HSTB.kluster.pdal_entwine.build_entwine_points" title="HSTB.kluster.pdal_entwine.build_entwine_points"><code class="xref py py-obj docutils literal notranslate"><span class="pre">build_entwine_points</span></code></a>(input_las_directory, …)</p></td>
+<td><p>Take in exported LAS files and build entwine point tiles in the given output folder</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="index.html#HSTB.kluster.pdal_entwine.visualize_entwine" title="HSTB.kluster.pdal_entwine.visualize_entwine"><code class="xref py py-obj docutils literal notranslate"><span class="pre">visualize_entwine</span></code></a>(entwine_dir)</p></td>
+<td><p>Start an HTTP server and use potree to visualize the entwine point tiles in the given entwine_dir</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<span id="document-kluster_api/dask_helpers"></span><div class="section" id="dask-helpers-module">
+<h4>dask_helpers module<a class="headerlink" href="#dask-helpers-module" title="Permalink to this headline">¶</a></h4>
+<div class="section" id="module-HSTB.kluster.dask_helpers">
+<span id="hstb-kluster-dask-helpers-module"></span><h5>HSTB.kluster.dask_helpers Module<a class="headerlink" href="#module-HSTB.kluster.dask_helpers" title="Permalink to this headline">¶</a></h5>
+<div class="section" id="functions">
+<h6>Functions<a class="headerlink" href="#functions" title="Permalink to this headline">¶</a></h6>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="index.html#HSTB.kluster.dask_helpers.client_needs_restart" title="HSTB.kluster.dask_helpers.client_needs_restart"><code class="xref py py-obj docutils literal notranslate"><span class="pre">client_needs_restart</span></code></a>(client)</p></td>
+<td><p>Having issues with memory leaks, even though workers have no assigned tasks.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="index.html#HSTB.kluster.dask_helpers.dask_find_or_start_client" title="HSTB.kluster.dask_helpers.dask_find_or_start_client"><code class="xref py py-obj docutils literal notranslate"><span class="pre">dask_find_or_start_client</span></code></a>([address, silent])</p></td>
+<td><p>Either start or return Dask client in local/networked cluster mode</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="index.html#HSTB.kluster.dask_helpers.determine_optimal_chunks" title="HSTB.kluster.dask_helpers.determine_optimal_chunks"><code class="xref py py-obj docutils literal notranslate"><span class="pre">determine_optimal_chunks</span></code></a>(client, beams_per_ping)</p></td>
+<td><p>A very rudimentary placeholder-esque way to determine the chunk size and number of chunks for an array to process in memory.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="index.html#HSTB.kluster.dask_helpers.get_max_cluster_allocated_memory" title="HSTB.kluster.dask_helpers.get_max_cluster_allocated_memory"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_max_cluster_allocated_memory</span></code></a>(client)</p></td>
+<td><p>Retrieve the max memory across all workers in the cluster added together</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="index.html#HSTB.kluster.dask_helpers.get_number_of_workers" title="HSTB.kluster.dask_helpers.get_number_of_workers"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_number_of_workers</span></code></a>(client)</p></td>
+<td><p>Retrieve the total number of workers from the dask cluster</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="index.html#HSTB.kluster.dask_helpers.split_array_by_number_of_workers" title="HSTB.kluster.dask_helpers.split_array_by_number_of_workers"><code class="xref py py-obj docutils literal notranslate"><span class="pre">split_array_by_number_of_workers</span></code></a>(client, …)</p></td>
+<td><p>In order to operate on an array in a parallelized way, we need to split the array into equal chunks to pass to each worker.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section" id="classes">
+<h6>Classes<a class="headerlink" href="#classes" title="Permalink to this headline">¶</a></h6>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="index.html#HSTB.kluster.dask_helpers.DaskProcessSynchronizer" title="HSTB.kluster.dask_helpers.DaskProcessSynchronizer"><code class="xref py py-obj docutils literal notranslate"><span class="pre">DaskProcessSynchronizer</span></code></a>(path)</p></td>
+<td><p>Provides synchronization using file locks via the <a class="reference external" href="http://fasteners.readthedocs.io/en/latest/api/process_lock.html">fasteners</a> package.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<span id="document-kluster_api/fqpr_helpers"></span><div class="section" id="fqpr-helpers-module">
+<h4>fqpr_helpers module<a class="headerlink" href="#fqpr-helpers-module" title="Permalink to this headline">¶</a></h4>
+<div class="section" id="module-HSTB.kluster.fqpr_helpers">
+<span id="hstb-kluster-fqpr-helpers-module"></span><h5>HSTB.kluster.fqpr_helpers Module<a class="headerlink" href="#module-HSTB.kluster.fqpr_helpers" title="Permalink to this headline">¶</a></h5>
+<div class="section" id="functions">
+<h6>Functions<a class="headerlink" href="#functions" title="Permalink to this headline">¶</a></h6>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="index.html#HSTB.kluster.fqpr_helpers.build_crs" title="HSTB.kluster.fqpr_helpers.build_crs"><code class="xref py py-obj docutils literal notranslate"><span class="pre">build_crs</span></code></a>([zone_num, datum, epsg, projected])</p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="index.html#HSTB.kluster.fqpr_helpers.epsg_determinator" title="HSTB.kluster.fqpr_helpers.epsg_determinator"><code class="xref py py-obj docutils literal notranslate"><span class="pre">epsg_determinator</span></code></a>(datum[, zone, hemisphere])</p></td>
+<td><p>Take in a datum identifer and optional zone/hemi for projected and return an epsg code</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="index.html#HSTB.kluster.fqpr_helpers.return_directory_from_data" title="HSTB.kluster.fqpr_helpers.return_directory_from_data"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_directory_from_data</span></code></a>(data)</p></td>
+<td><p>Given either a path to a zarr store, a path to a directory of multibeam files, a list of paths to multibeam files or a path to a single multibeam file, return the parent directory.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="index.html#HSTB.kluster.fqpr_helpers.return_files_from_path" title="HSTB.kluster.fqpr_helpers.return_files_from_path"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_files_from_path</span></code></a>(pth[, in_chunks])</p></td>
+<td><p>Input files can be entered into an xarray_conversion.BatchRead instance as either a list, a path to a directory of multibeam files or as a path to a single file.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="index.html#HSTB.kluster.fqpr_helpers.seconds_to_formatted_string" title="HSTB.kluster.fqpr_helpers.seconds_to_formatted_string"><code class="xref py py-obj docutils literal notranslate"><span class="pre">seconds_to_formatted_string</span></code></a>(seconds)</p></td>
+<td><p>Get a nicely formatted time elapsed string</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<span id="document-kluster_api/numba_helpers"></span><div class="section" id="numba-helpers-module">
+<h4>numba_helpers module<a class="headerlink" href="#numba-helpers-module" title="Permalink to this headline">¶</a></h4>
+<div class="section" id="module-HSTB.kluster.numba_helpers">
+<span id="hstb-kluster-numba-helpers-module"></span><h5>HSTB.kluster.numba_helpers Module<a class="headerlink" href="#module-HSTB.kluster.numba_helpers" title="Permalink to this headline">¶</a></h5>
+<div class="section" id="functions">
+<h6>Functions<a class="headerlink" href="#functions" title="Permalink to this headline">¶</a></h6>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="index.html#HSTB.kluster.numba_helpers.bin1d" title="HSTB.kluster.numba_helpers.bin1d"><code class="xref py py-obj docutils literal notranslate"><span class="pre">bin1d</span></code></a>(x, xbins)</p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="index.html#HSTB.kluster.numba_helpers.bin2d" title="HSTB.kluster.numba_helpers.bin2d"><code class="xref py py-obj docutils literal notranslate"><span class="pre">bin2d</span></code></a>(x, y, xbins, ybins)</p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="index.html#HSTB.kluster.numba_helpers.hist2d_numba_seq" title="HSTB.kluster.numba_helpers.hist2d_numba_seq"><code class="xref py py-obj docutils literal notranslate"><span class="pre">hist2d_numba_seq</span></code></a>(x, y, bins, ranges)</p></td>
+<td><p>Custom function to build a histogram2d using numba.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="index.html#HSTB.kluster.numba_helpers.is_inside_sm" title="HSTB.kluster.numba_helpers.is_inside_sm"><code class="xref py py-obj docutils literal notranslate"><span class="pre">is_inside_sm</span></code></a>(polygon, point)</p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="index.html#HSTB.kluster.numba_helpers.is_inside_sm_parallel" title="HSTB.kluster.numba_helpers.is_inside_sm_parallel"><code class="xref py py-obj docutils literal notranslate"><span class="pre">is_inside_sm_parallel</span></code></a>(points, polygon)</p></td>
+<td><p></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<span id="document-kluster_api/xarray_helpers"></span><div class="section" id="xarray-helpers-module">
+<h4>xarray_helpers module<a class="headerlink" href="#xarray-helpers-module" title="Permalink to this headline">¶</a></h4>
+<div class="section" id="module-HSTB.kluster.xarray_helpers">
+<span id="hstb-kluster-xarray-helpers-module"></span><h5>HSTB.kluster.xarray_helpers Module<a class="headerlink" href="#module-HSTB.kluster.xarray_helpers" title="Permalink to this headline">¶</a></h5>
+<div class="section" id="functions">
+<h6>Functions<a class="headerlink" href="#functions" title="Permalink to this headline">¶</a></h6>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="index.html#HSTB.kluster.xarray_helpers.clear_data_vars_from_dataset" title="HSTB.kluster.xarray_helpers.clear_data_vars_from_dataset"><code class="xref py py-obj docutils literal notranslate"><span class="pre">clear_data_vars_from_dataset</span></code></a>(dataset, datavars)</p></td>
+<td><p>Some code to handle dropping data variables from xarray Datasets in different containers.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="index.html#HSTB.kluster.xarray_helpers.combine_arrays_to_dataset" title="HSTB.kluster.xarray_helpers.combine_arrays_to_dataset"><code class="xref py py-obj docutils literal notranslate"><span class="pre">combine_arrays_to_dataset</span></code></a>(arrs, arrnames)</p></td>
+<td><p>Build a dataset from a list of Xarray DataArrays, given a list of names for each array.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="index.html#HSTB.kluster.xarray_helpers.combine_xr_attributes" title="HSTB.kluster.xarray_helpers.combine_xr_attributes"><code class="xref py py-obj docutils literal notranslate"><span class="pre">combine_xr_attributes</span></code></a>(datasets)</p></td>
+<td><p>xarray open_mfdataset only retains the attributes of the first dataset.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="index.html#HSTB.kluster.xarray_helpers.compare_and_find_gaps" title="HSTB.kluster.xarray_helpers.compare_and_find_gaps"><code class="xref py py-obj docutils literal notranslate"><span class="pre">compare_and_find_gaps</span></code></a>(source_dat, new_dat[, …])</p></td>
+<td><p>So far, mostly used with Applanix POSPac SBETs.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="index.html#HSTB.kluster.xarray_helpers.divide_arrays_by_time_index" title="HSTB.kluster.xarray_helpers.divide_arrays_by_time_index"><code class="xref py py-obj docutils literal notranslate"><span class="pre">divide_arrays_by_time_index</span></code></a>(arrs, idx)</p></td>
+<td><p>Simple method for indexing a list of arrays</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="index.html#HSTB.kluster.xarray_helpers.get_beamwise_interpolation" title="HSTB.kluster.xarray_helpers.get_beamwise_interpolation"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_beamwise_interpolation</span></code></a>(pingtime, …)</p></td>
+<td><p>Given ping time and beamwise time addition (delay), return a 2d interpolated version of the provided 1d Dataarray.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="index.html#HSTB.kluster.xarray_helpers.interp_across_chunks" title="HSTB.kluster.xarray_helpers.interp_across_chunks"><code class="xref py py-obj docutils literal notranslate"><span class="pre">interp_across_chunks</span></code></a>(xarr, new_times[, …])</p></td>
+<td><p>Takes in xarr and interpolates to new_times.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="index.html#HSTB.kluster.xarray_helpers.my_open_mfdataset" title="HSTB.kluster.xarray_helpers.my_open_mfdataset"><code class="xref py py-obj docutils literal notranslate"><span class="pre">my_open_mfdataset</span></code></a>(paths[, chnks, …])</p></td>
+<td><p>Trying to address the limitations of the existing xr.open_mfdataset function.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="index.html#HSTB.kluster.xarray_helpers.reform_nan_array" title="HSTB.kluster.xarray_helpers.reform_nan_array"><code class="xref py py-obj docutils literal notranslate"><span class="pre">reform_nan_array</span></code></a>(dataarray_stack, orig_idx, …)</p></td>
+<td><p>To handle NaN values in our input arrays, we flatten and index only the valid values.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="index.html#HSTB.kluster.xarray_helpers.reload_zarr_records" title="HSTB.kluster.xarray_helpers.reload_zarr_records"><code class="xref py py-obj docutils literal notranslate"><span class="pre">reload_zarr_records</span></code></a>(pth[, skip_dask, sort_by])</p></td>
+<td><p>After writing new data to the zarr data store, you need to refresh the xarray Dataset object so that it sees the changes.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="index.html#HSTB.kluster.xarray_helpers.resize_zarr" title="HSTB.kluster.xarray_helpers.resize_zarr"><code class="xref py py-obj docutils literal notranslate"><span class="pre">resize_zarr</span></code></a>(zarrpth[, finaltimelength])</p></td>
+<td><p>Takes in the path to a zarr group and resizes the time dimension according to the provided finaltimelength</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="index.html#HSTB.kluster.xarray_helpers.return_chunk_slices" title="HSTB.kluster.xarray_helpers.return_chunk_slices"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_chunk_slices</span></code></a>(xarr)</p></td>
+<td><p>Xarray objects are chunked for easy parallelism.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="index.html#HSTB.kluster.xarray_helpers.slice_xarray_by_dim" title="HSTB.kluster.xarray_helpers.slice_xarray_by_dim"><code class="xref py py-obj docutils literal notranslate"><span class="pre">slice_xarray_by_dim</span></code></a>(arr[, dimname, …])</p></td>
+<td><p>Slice the input xarray dataset/dataarray by provided start_time and end_time.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="index.html#HSTB.kluster.xarray_helpers.stack_nan_array" title="HSTB.kluster.xarray_helpers.stack_nan_array"><code class="xref py py-obj docutils literal notranslate"><span class="pre">stack_nan_array</span></code></a>(dataarray[, stack_dims])</p></td>
+<td><p>To handle NaN values in our input arrays, we flatten and index only the valid values.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="index.html#HSTB.kluster.xarray_helpers.xarr_to_netcdf" title="HSTB.kluster.xarray_helpers.xarr_to_netcdf"><code class="xref py py-obj docutils literal notranslate"><span class="pre">xarr_to_netcdf</span></code></a>(xarr, pth, fname[, attrs, idx])</p></td>
+<td><p>Takes in an xarray Dataset and pushes it to netcdf.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="index.html#HSTB.kluster.xarray_helpers.xarr_to_zarr" title="HSTB.kluster.xarray_helpers.xarr_to_zarr"><code class="xref py py-obj docutils literal notranslate"><span class="pre">xarr_to_zarr</span></code></a>(xarr, outputpth[, attrs])</p></td>
+<td><p>Takes in an xarray Dataset and pushes it to zarr store.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="section" id="index">
+<h1>Index<a class="headerlink" href="#index" title="Permalink to this headline">¶</a></h1>
+<ul class="simple">
+<li><p><a class="reference internal" href="genindex.html"><span class="std std-ref">Index</span></a></p></li>
+<li><p><a class="reference internal" href="py-modindex.html"><span class="std std-ref">Module Index</span></a></p></li>
+<li><p><a class="reference internal" href="search.html"><span class="std std-ref">Search Page</span></a></p></li>
+</ul>
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="#">kluster</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="index.html#document-quickstart/index">Quickstart</a></li>
+<li class="toctree-l1"><a class="reference internal" href="index.html#document-settings/index">Settings</a></li>
+<li class="toctree-l1"><a class="reference internal" href="index.html#document-vessel_setup/index">Vessel Setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="index.html#document-processing/index">Conversion and Processing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="index.html#document-products/index">Products</a></li>
+<li class="toctree-l1"><a class="reference internal" href="index.html#document-kluster_api/index">API</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="#">Documentation overview</a><ul>
+  </ul></li>
+</ul>
+</div>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2020, Eric Younkin.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.5.2</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>
