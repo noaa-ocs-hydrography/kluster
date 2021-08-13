@@ -1,0 +1,6 @@
+calculate_uncertainty_kongsberg
+===============================
+
+.. currentmodule:: HSTB.kluster.modules.tpu
+
+.. autofunction:: calculate_uncertainty_kongsberg

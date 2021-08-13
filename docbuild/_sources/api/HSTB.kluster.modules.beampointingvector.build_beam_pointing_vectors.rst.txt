@@ -1,0 +1,6 @@
+build_beam_pointing_vectors
+===========================
+
+.. currentmodule:: HSTB.kluster.modules.beampointingvector
+
+.. autofunction:: build_beam_pointing_vectors

@@ -1,0 +1,6 @@
+get_sv_files_from_directory
+===========================
+
+.. currentmodule:: HSTB.kluster.modules.svcorrect
+
+.. autofunction:: get_sv_files_from_directory

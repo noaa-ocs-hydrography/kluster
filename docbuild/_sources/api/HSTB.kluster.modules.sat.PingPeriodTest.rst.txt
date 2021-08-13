@@ -1,0 +1,17 @@
+PingPeriodTest
+==============
+
+.. currentmodule:: HSTB.kluster.modules.sat
+
+.. autoclass:: PingPeriodTest
+   :show-inheritance:
+
+   .. rubric:: Methods Summary
+
+   .. autosummary::
+
+      ~PingPeriodTest.plot
+
+   .. rubric:: Methods Documentation
+
+   .. automethod:: plot

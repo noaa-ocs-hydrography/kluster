@@ -1,0 +1,6 @@
+reload_data
+===========
+
+.. currentmodule:: HSTB.kluster.fqpr_convenience
+
+.. autofunction:: reload_data

@@ -1,0 +1,6 @@
+stack_nan_array
+===============
+
+.. currentmodule:: HSTB.kluster.xarray_helpers
+
+.. autofunction:: stack_nan_array

@@ -1,0 +1,6 @@
+perform_all_processing
+======================
+
+.. currentmodule:: HSTB.kluster.fqpr_convenience
+
+.. autofunction:: perform_all_processing

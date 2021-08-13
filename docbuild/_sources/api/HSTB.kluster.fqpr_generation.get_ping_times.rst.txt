@@ -1,0 +1,6 @@
+get_ping_times
+==============
+
+.. currentmodule:: HSTB.kluster.fqpr_generation
+
+.. autofunction:: get_ping_times

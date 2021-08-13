@@ -1,0 +1,6 @@
+is_inside_sm_parallel
+=====================
+
+.. currentmodule:: HSTB.kluster.numba_helpers
+
+.. autofunction:: is_inside_sm_parallel

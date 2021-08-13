@@ -1,0 +1,6 @@
+return_supported_casts_from_list
+================================
+
+.. currentmodule:: HSTB.kluster.modules.svcorrect
+
+.. autofunction:: return_supported_casts_from_list

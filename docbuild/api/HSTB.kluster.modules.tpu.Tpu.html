@@ -1,0 +1,252 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tpu &#8212; kluster 0.7.4 documentation</title>
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" type="text/css" href="../_static/graphviz.css" />
+    <script id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="visualizations module" href="../kluster_api/visualizations.html" />
+    <link rel="prev" title="distrib_run_calculate_tpu" href="HSTB.kluster.modules.tpu.distrib_run_calculate_tpu.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="tpu">
+<h1>Tpu<a class="headerlink" href="#tpu" title="Permalink to this headline">¶</a></h1>
+<dl class="py class">
+<dt id="HSTB.kluster.modules.tpu.Tpu">
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">HSTB.kluster.modules.tpu.</span></code><code class="sig-name descname"><span class="pre">Tpu</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">debug</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">plot_tpu</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.modules.tpu.Tpu" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<div class="line-block">
+<div class="line">Total propogated uncertainty - following the Rob Hare model</div>
+<div class="line">See “Depth and Position Error Budgets for Multibeam Echosounding” by Rob Hare</div>
+</div>
+<p>Here we provide the framework of the Rob Hare model, replacing as much of the modeled uncertainty elements with
+manufacturer provided records.  Currently this class will use the following:
+- TVU (tidal) =&gt; sounder vert uncert, separation_model, dynamic_draft, waterline
+- TVU (ellipse) =&gt; sounder vert uncert, separation_model, pospac vert_position error
+- THU =&gt; sounder horizontal uncert, pospac north_position error, pospac east_position_error</p>
+<p>I suspect this is not a 100% complete interpretation of the Hare model.  The sounder uncertainty elements that
+rely on attitude/sound velocity (numbers 3-6 on page 67) and the horizontal elements that are not based on the
+positioning system (lines 2-4 in number 10) probably need to be included.</p>
+<p>All the attributes in this class are in degrees or meters.  The only inputs allowed to be in radians have
+switches in the load_from_data method.</p>
+<p class="rubric">Methods Summary</p>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.modules.tpu.Tpu.generate_total_uncertainties" title="HSTB.kluster.modules.tpu.Tpu.generate_total_uncertainties"><code class="xref py py-obj docutils literal notranslate"><span class="pre">generate_total_uncertainties</span></code></a>([vert_ref, sigma])</p></td>
+<td><p>Build the total vertical/horizontal uncertainties from the provided data.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.modules.tpu.Tpu.load_from_data" title="HSTB.kluster.modules.tpu.Tpu.load_from_data"><code class="xref py py-obj docutils literal notranslate"><span class="pre">load_from_data</span></code></a>(roll, raw_beam_angles, …[, …])</p></td>
+<td><p>Load the provided data here into the class, doing any necessary conversion of units and validation</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.modules.tpu.Tpu.populate_from_dict" title="HSTB.kluster.modules.tpu.Tpu.populate_from_dict"><code class="xref py py-obj docutils literal notranslate"><span class="pre">populate_from_dict</span></code></a>(tpu_dict)</p></td>
+<td><p>Populate the attribution of this class by matching with the provided dictionary of keys/values</p></td>
+</tr>
+</tbody>
+</table>
+<p class="rubric">Methods Documentation</p>
+<dl class="py method">
+<dt id="HSTB.kluster.modules.tpu.Tpu.generate_total_uncertainties">
+<code class="sig-name descname"><span class="pre">generate_total_uncertainties</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">vert_ref</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'ellipse'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sigma</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1.96</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.modules.tpu.Tpu.generate_total_uncertainties" title="Permalink to this definition">¶</a></dt>
+<dd><p>Build the total vertical/horizontal uncertainties from the provided data.  The vertical uncertainty calculation
+depends on the vertical reference of the survey.  Ellipse will involve the sbet vert uncertainty, Tidal will
+use the waterlevel related static uncertainty values.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>vert_ref</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>) – vertical reference of the survey, one of ‘ellipse’, ‘waterline’, ‘NOAA MLLW’, ‘NOAA MHW’</p></li>
+<li><p><strong>sigma</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code>) – specify the number of stddev you want the error to represent, sigma=1.96 would generate 2sigma uncertainty.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p><em>Union[xr.DataArray, np.array]</em> – total vertical uncertainty in meters for each sounding (time, beam)</p></li>
+<li><p><em>Union[xr.DataArray, np.array]</em> – total horizontal uncertainty in meters for each sounding (time, beam)</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="HSTB.kluster.modules.tpu.Tpu.load_from_data">
+<code class="sig-name descname"><span class="pre">load_from_data</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">roll</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">raw_beam_angles</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">beam_angles</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">acrosstrack_offset</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">depth_offset</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">surf_sound_speed</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">datum_uncertainty</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">quality_factor</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">north_position_error</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">east_position_error</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">down_position_error</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">roll_error</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pitch_error</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">heading_error</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">roll_in_degrees</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">raw_beam_angles_in_degrees</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">beam_angles_in_degrees</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">qf_type</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'ifremer'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.modules.tpu.Tpu.load_from_data" title="Permalink to this definition">¶</a></dt>
+<dd><p>Load the provided data here into the class, doing any necessary conversion of units and validation</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>roll</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">DataArray</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">array</span></code>]) – roll value at ping time</p></li>
+<li><p><strong>raw_beam_angles</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">DataArray</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">array</span></code>]) – raw beam angles</p></li>
+<li><p><strong>beam_angles</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">DataArray</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">array</span></code>]) – corrected beam angles, for attitude and mounting angles</p></li>
+<li><p><strong>acrosstrack_offset</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">DataArray</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">array</span></code>]) – offset in meters to each beam in across track direction (+ STBD)</p></li>
+<li><p><strong>depth_offset</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">DataArray</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">array</span></code>]) – offset in meters down to each sounding (+ DOWN)</p></li>
+<li><p><strong>surf_sound_speed</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">DataArray</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">array</span></code>]) – surface sound speed sensor (meters/second)</p></li>
+<li><p><strong>datum_uncertainty</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">DataArray</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">array</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code>, <code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code>]) – uncertainty associated with the vertical datum transformation, a beamwise value, optional, if not provided
+uses the value in the tpu_dict</p></li>
+<li><p><strong>quality_factor</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">DataArray</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">array</span></code>, <code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code>]) – sonar uncertainty provided as a quality factor, can either be Kongsberg std dev or Kongsberg reported Ifremer
+quality factor</p></li>
+<li><p><strong>north_position_error</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">DataArray</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">array</span></code>, <code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code>]) – pospac reported rms north position error</p></li>
+<li><p><strong>east_position_error</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">DataArray</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">array</span></code>, <code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code>]) – pospac reported rms east position error</p></li>
+<li><p><strong>down_position_error</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">DataArray</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">array</span></code>, <code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code>]) – pospac reported rms down position error</p></li>
+<li><p><strong>roll_error</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">DataArray</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">array</span></code>, <code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code>]) – pospac reported rms roll error in degrees</p></li>
+<li><p><strong>pitch_error</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">DataArray</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">array</span></code>, <code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code>]) – pospac reported rms pitch error in degrees</p></li>
+<li><p><strong>heading_error</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">DataArray</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">array</span></code>, <code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code>]) – pospac reported rms heading error in degrees</p></li>
+<li><p><strong>roll_in_degrees</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code>) – whether or not the provided roll is in degrees (True) or radians (False)</p></li>
+<li><p><strong>raw_beam_angles_in_degrees</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code>) – whether or not the provided raw_beam_angles are in degrees (True) or radians (False)</p></li>
+<li><p><strong>beam_angles_in_degrees</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code>) – whether or not the provided beam_angles are in degrees (True) or radians (False)</p></li>
+<li><p><strong>qf_type</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>) – whether or not the provided quality factor is Ifremer (‘ifremer’) or Kongsberg std dev (‘kongsberg’)</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="HSTB.kluster.modules.tpu.Tpu.populate_from_dict">
+<code class="sig-name descname"><span class="pre">populate_from_dict</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">tpu_dict</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.modules.tpu.Tpu.populate_from_dict" title="Permalink to this definition">¶</a></dt>
+<dd><p>Populate the attribution of this class by matching with the provided dictionary of keys/values</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>tpu_dict</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">dict</span></code>) – dictionary of keys that match the attributes of this class</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">kluster</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../quickstart/index.html">Quickstart</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../settings/index.html">Settings</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../vessel_setup/index.html">Vessel Setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../processing/index.html">Conversion and Processing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../products/index.html">Products</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../kluster_api/index.html">API</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/fqpr_convenience.html">fqpr_convenience module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/fqpr_generation.html">fqpr_generation module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/fqpr_project.html">fqpr_project module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/fqpr_intelligence.html">fqpr_intelligence module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/monitor.html">monitor module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/xarray_conversion.html">xarray_conversion module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/orientation.html">orientation module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/beampointingvector.html">beampointingvector module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/svcorrect.html">svcorrect module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/georeference.html">georeference module</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="../kluster_api/tpu.html">tpu module</a><ul class="current">
+<li class="toctree-l3 current"><a class="reference internal" href="../kluster_api/tpu.html#module-HSTB.kluster.modules.tpu">HSTB.kluster.modules.tpu Module</a><ul class="current">
+<li class="toctree-l4"><a class="reference internal" href="../kluster_api/tpu.html#functions">Functions</a></li>
+<li class="toctree-l4 current"><a class="reference internal" href="../kluster_api/tpu.html#classes">Classes</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/visualizations.html">visualizations module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/sat.html">sat module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/wobble.html">wobble module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/export.html">export module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/rotations.html">rotations module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/pdal_entwine.html">pdal_entwine module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/dask_helpers.html">dask_helpers module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/fqpr_helpers.html">fqpr_helpers module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/numba_helpers.html">numba_helpers module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/xarray_helpers.html">xarray_helpers module</a></li>
+</ul>
+</li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  <li><a href="../kluster_api/index.html">API</a><ul>
+  <li><a href="../kluster_api/tpu.html">tpu module</a><ul>
+      <li>Previous: <a href="HSTB.kluster.modules.tpu.distrib_run_calculate_tpu.html" title="previous chapter">distrib_run_calculate_tpu</a></li>
+      <li>Next: <a href="../kluster_api/visualizations.html" title="next chapter">visualizations module</a></li>
+  </ul></li>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2020, Eric Younkin.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.5.2</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="../_sources/api/HSTB.kluster.modules.tpu.Tpu.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

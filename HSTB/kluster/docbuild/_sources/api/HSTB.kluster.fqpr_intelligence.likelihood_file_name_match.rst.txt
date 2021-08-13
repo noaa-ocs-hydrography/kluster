@@ -1,0 +1,6 @@
+likelihood_file_name_match
+==========================
+
+.. currentmodule:: HSTB.kluster.fqpr_intelligence
+
+.. autofunction:: likelihood_file_name_match

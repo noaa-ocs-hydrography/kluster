@@ -1,0 +1,49 @@
+Player
+======
+
+.. currentmodule:: HSTB.kluster.modules.visualizations
+
+.. autoclass:: Player
+   :show-inheritance:
+
+   .. rubric:: Methods Summary
+
+   .. autosummary::
+
+      ~Player.backward
+      ~Player.bind_to
+      ~Player.clear_observers
+      ~Player.close_event
+      ~Player.forward
+      ~Player.onebackward
+      ~Player.oneforward
+      ~Player.onestep
+      ~Player.play
+      ~Player.save_event
+      ~Player.set_pos
+      ~Player.setup
+      ~Player.slowdown
+      ~Player.speedup
+      ~Player.start
+      ~Player.stop
+      ~Player.update
+
+   .. rubric:: Methods Documentation
+
+   .. automethod:: backward
+   .. automethod:: bind_to
+   .. automethod:: clear_observers
+   .. automethod:: close_event
+   .. automethod:: forward
+   .. automethod:: onebackward
+   .. automethod:: oneforward
+   .. automethod:: onestep
+   .. automethod:: play
+   .. automethod:: save_event
+   .. automethod:: set_pos
+   .. automethod:: setup
+   .. automethod:: slowdown
+   .. automethod:: speedup
+   .. automethod:: start
+   .. automethod:: stop
+   .. automethod:: update

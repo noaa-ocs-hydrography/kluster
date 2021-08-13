@@ -1,0 +1,176 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>likelihood_start_end_times_close &#8212; kluster 0.7.4 documentation</title>
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" type="text/css" href="../_static/graphviz.css" />
+    <script id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="FqprIntel" href="HSTB.kluster.fqpr_intelligence.FqprIntel.html" />
+    <link rel="prev" title="likelihood_files_are_close" href="HSTB.kluster.fqpr_intelligence.likelihood_files_are_close.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="likelihood-start-end-times-close">
+<h1>likelihood_start_end_times_close<a class="headerlink" href="#likelihood-start-end-times-close" title="Permalink to this headline">¶</a></h1>
+<dl class="py function">
+<dt id="HSTB.kluster.fqpr_intelligence.likelihood_start_end_times_close">
+<code class="sig-prename descclassname"><span class="pre">HSTB.kluster.fqpr_intelligence.</span></code><code class="sig-name descname"><span class="pre">likelihood_start_end_times_close</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">filetimes</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">compare_times</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">allowable_diff</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">2</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_intelligence.likelihood_start_end_times_close" title="Permalink to this definition">¶</a></dt>
+<dd><p>Take in a list of [starttime, endtime] and find the closest match to compare_times.  Times are provided in terms of
+utc seconds.  If none are close in allowable_diff seconds, returns empty list</p>
+<p>Otherwise returns the index of filetimes that are a valid match:</p>
+<p>filetimes = [[1607532013, 1607532313], [1607531513, 1607531813], [1607531013, 1607531513]]
+compare_times = [1607531514, 1607531812]
+likelihood_start_end_times_close(filetimes, compare_times)
+Out[15]: [1]
+filetimes[1]
+Out[16]: [1607531513, 1607531813]</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>filetimes</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">list</span></code>) – list of lists, start/end times of files</p></li>
+<li><p><strong>compare_times</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">list</span></code>) – list of start/end time for the file to compare</p></li>
+<li><p><strong>allowable_diff</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code>) – maximum allowable difference between start or end times</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>list of the indices that are a valid match in filetimes or an empty list if no matches</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>list</p>
+</dd>
+</dl>
+</dd></dl>
+
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">kluster</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../quickstart/index.html">Quickstart</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../settings/index.html">Settings</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../vessel_setup/index.html">Vessel Setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../processing/index.html">Conversion and Processing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../products/index.html">Products</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../kluster_api/index.html">API</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/fqpr_convenience.html">fqpr_convenience module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/fqpr_generation.html">fqpr_generation module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/fqpr_project.html">fqpr_project module</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="../kluster_api/fqpr_intelligence.html">fqpr_intelligence module</a><ul class="current">
+<li class="toctree-l3 current"><a class="reference internal" href="../kluster_api/fqpr_intelligence.html#module-HSTB.kluster.fqpr_intelligence">HSTB.kluster.fqpr_intelligence Module</a><ul class="current">
+<li class="toctree-l4 current"><a class="reference internal" href="../kluster_api/fqpr_intelligence.html#functions">Functions</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../kluster_api/fqpr_intelligence.html#classes">Classes</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/monitor.html">monitor module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/xarray_conversion.html">xarray_conversion module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/orientation.html">orientation module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/beampointingvector.html">beampointingvector module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/svcorrect.html">svcorrect module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/georeference.html">georeference module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/tpu.html">tpu module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/visualizations.html">visualizations module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/sat.html">sat module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/wobble.html">wobble module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/export.html">export module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/rotations.html">rotations module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/pdal_entwine.html">pdal_entwine module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/dask_helpers.html">dask_helpers module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/fqpr_helpers.html">fqpr_helpers module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/numba_helpers.html">numba_helpers module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/xarray_helpers.html">xarray_helpers module</a></li>
+</ul>
+</li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  <li><a href="../kluster_api/index.html">API</a><ul>
+  <li><a href="../kluster_api/fqpr_intelligence.html">fqpr_intelligence module</a><ul>
+      <li>Previous: <a href="HSTB.kluster.fqpr_intelligence.likelihood_files_are_close.html" title="previous chapter">likelihood_files_are_close</a></li>
+      <li>Next: <a href="HSTB.kluster.fqpr_intelligence.FqprIntel.html" title="next chapter">FqprIntel</a></li>
+  </ul></li>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2020, Eric Younkin.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.5.2</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="../_sources/api/HSTB.kluster.fqpr_intelligence.likelihood_start_end_times_close.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

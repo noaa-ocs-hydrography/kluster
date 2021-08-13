@@ -1,0 +1,212 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>fqpr_convenience module &#8212; kluster 0.7.4 documentation</title>
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" type="text/css" href="../_static/graphviz.css" />
+    <script id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="convert_multibeam" href="../api/HSTB.kluster.fqpr_convenience.convert_multibeam.html" />
+    <link rel="prev" title="API" href="index.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="fqpr-convenience-module">
+<h1>fqpr_convenience module<a class="headerlink" href="#fqpr-convenience-module" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="module-HSTB.kluster.fqpr_convenience">
+<span id="hstb-kluster-fqpr-convenience-module"></span><h2>HSTB.kluster.fqpr_convenience Module<a class="headerlink" href="#module-HSTB.kluster.fqpr_convenience" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="functions">
+<h3>Functions<a class="headerlink" href="#functions" title="Permalink to this headline">¶</a></h3>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="../api/HSTB.kluster.fqpr_convenience.convert_multibeam.html#HSTB.kluster.fqpr_convenience.convert_multibeam" title="HSTB.kluster.fqpr_convenience.convert_multibeam"><code class="xref py py-obj docutils literal notranslate"><span class="pre">convert_multibeam</span></code></a>(filname[, outfold, …])</p></td>
+<td><p>Use fqpr_generation to process multibeam data on the local cluster and generate a new Fqpr instance saved to the provided output folder.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="../api/HSTB.kluster.fqpr_convenience.generate_new_surface.html#HSTB.kluster.fqpr_convenience.generate_new_surface" title="HSTB.kluster.fqpr_convenience.generate_new_surface"><code class="xref py py-obj docutils literal notranslate"><span class="pre">generate_new_surface</span></code></a>(fqpr_inst[, grid_type, …])</p></td>
+<td><p>Using the bathygrid create_grid convenience function, generate a new variable/single resolution surface for the provided Kluster fqpr instance(s).</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="../api/HSTB.kluster.fqpr_convenience.get_attributes_from_fqpr.html#HSTB.kluster.fqpr_convenience.get_attributes_from_fqpr" title="HSTB.kluster.fqpr_convenience.get_attributes_from_fqpr"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_attributes_from_fqpr</span></code></a>(fqpr_instance[, …])</p></td>
+<td><p>Takes in a FQPR instance.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="../api/HSTB.kluster.fqpr_convenience.get_attributes_from_zarr_stores.html#HSTB.kluster.fqpr_convenience.get_attributes_from_zarr_stores" title="HSTB.kluster.fqpr_convenience.get_attributes_from_zarr_stores"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_attributes_from_zarr_stores</span></code></a>(list_dir_paths)</p></td>
+<td><p>Takes in a list of paths to directories containing fqpr generated zarr stores.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="../api/HSTB.kluster.fqpr_convenience.import_processed_navigation.html#HSTB.kluster.fqpr_convenience.import_processed_navigation" title="HSTB.kluster.fqpr_convenience.import_processed_navigation"><code class="xref py py-obj docutils literal notranslate"><span class="pre">import_processed_navigation</span></code></a>(fqpr_inst, navfiles)</p></td>
+<td><p>Convenience function for importing post processed navigation from sbet/smrmsg files, for use in georeferencing xyz data.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="../api/HSTB.kluster.fqpr_convenience.import_sound_velocity.html#HSTB.kluster.fqpr_convenience.import_sound_velocity" title="HSTB.kluster.fqpr_convenience.import_sound_velocity"><code class="xref py py-obj docutils literal notranslate"><span class="pre">import_sound_velocity</span></code></a>(fqpr_inst, sv_files)</p></td>
+<td><p>Convenience function for passing in an instance of fqpr_generation.Fqpr and importing the provided sound velocity profile files as attributes.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="../api/HSTB.kluster.fqpr_convenience.overwrite_raw_navigation.html#HSTB.kluster.fqpr_convenience.overwrite_raw_navigation" title="HSTB.kluster.fqpr_convenience.overwrite_raw_navigation"><code class="xref py py-obj docutils literal notranslate"><span class="pre">overwrite_raw_navigation</span></code></a>(fqpr_inst, navfiles)</p></td>
+<td><p>Convenience function for importing raw navigation from pos mv .000 files, for use in georeferencing xyz data.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="../api/HSTB.kluster.fqpr_convenience.perform_all_processing.html#HSTB.kluster.fqpr_convenience.perform_all_processing" title="HSTB.kluster.fqpr_convenience.perform_all_processing"><code class="xref py py-obj docutils literal notranslate"><span class="pre">perform_all_processing</span></code></a>(filname[, navfiles, …])</p></td>
+<td><p>Use fqpr_generation to process multibeam data on the local cluster and generate a sound velocity corrected, georeferenced xyz with uncertainty in csv files in the provided output folder.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="../api/HSTB.kluster.fqpr_convenience.process_multibeam.html#HSTB.kluster.fqpr_convenience.process_multibeam" title="HSTB.kluster.fqpr_convenience.process_multibeam"><code class="xref py py-obj docutils literal notranslate"><span class="pre">process_multibeam</span></code></a>(fqpr_inst[, …])</p></td>
+<td><p>Use fqpr_generation to process already converted data on the local cluster and generate sound velocity corrected, georeferenced soundings in the same data store as the converted data.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="../api/HSTB.kluster.fqpr_convenience.reload_data.html#HSTB.kluster.fqpr_convenience.reload_data" title="HSTB.kluster.fqpr_convenience.reload_data"><code class="xref py py-obj docutils literal notranslate"><span class="pre">reload_data</span></code></a>(converted_folder[, …])</p></td>
+<td><p>Pick up from a previous session.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="../api/HSTB.kluster.fqpr_convenience.reload_surface.html#HSTB.kluster.fqpr_convenience.reload_surface" title="HSTB.kluster.fqpr_convenience.reload_surface"><code class="xref py py-obj docutils literal notranslate"><span class="pre">reload_surface</span></code></a>(surface_path)</p></td>
+<td><p>Simple convenience method for reloading a surface from a path</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="../api/HSTB.kluster.fqpr_convenience.reprocess_sounding_selection.html#HSTB.kluster.fqpr_convenience.reprocess_sounding_selection" title="HSTB.kluster.fqpr_convenience.reprocess_sounding_selection"><code class="xref py py-obj docutils literal notranslate"><span class="pre">reprocess_sounding_selection</span></code></a>(fqpr_inst[, …])</p></td>
+<td><p>Designed to feed a patch test tool.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="../api/HSTB.kluster.fqpr_convenience.return_processed_data_folders.html#HSTB.kluster.fqpr_convenience.return_processed_data_folders" title="HSTB.kluster.fqpr_convenience.return_processed_data_folders"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_processed_data_folders</span></code></a>(converted_folder)</p></td>
+<td><p>After processing, you’ll have a directory of folders containing the kluster records.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="../api/HSTB.kluster.fqpr_convenience.return_svcorr_xyz.html#HSTB.kluster.fqpr_convenience.return_svcorr_xyz" title="HSTB.kluster.fqpr_convenience.return_svcorr_xyz"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_svcorr_xyz</span></code></a>(filname[, outfold, …])</p></td>
+<td><p>Using fqpr_generation, convert and sv correct multibeam file (or directory of files) and return the sound velocity corrected xyz soundings.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="../api/HSTB.kluster.fqpr_convenience.update_surface.html#HSTB.kluster.fqpr_convenience.update_surface" title="HSTB.kluster.fqpr_convenience.update_surface"><code class="xref py py-obj docutils literal notranslate"><span class="pre">update_surface</span></code></a>(surface_instance[, add_fqpr, …])</p></td>
+<td><p>Bathygrid instances can be updated with new points from new converted multibeam data, or have points removed from old multibeam data.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="../api/HSTB.kluster.fqpr_convenience.validation_against_xyz88.html#HSTB.kluster.fqpr_convenience.validation_against_xyz88" title="HSTB.kluster.fqpr_convenience.validation_against_xyz88"><code class="xref py py-obj docutils literal notranslate"><span class="pre">validation_against_xyz88</span></code></a>(filname[, …])</p></td>
+<td><p>Function to take a multibeam file and compare the svcorrected xyz with the converted and sound velocity corrected data generated by Kluster/fqpr_generation.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="../api/HSTB.kluster.fqpr_convenience.xyz_from_allfile.html#HSTB.kluster.fqpr_convenience.xyz_from_allfile" title="HSTB.kluster.fqpr_convenience.xyz_from_allfile"><code class="xref py py-obj docutils literal notranslate"><span class="pre">xyz_from_allfile</span></code></a>(filname)</p></td>
+<td><p>function using par to pull out the xyz88 datagram and return the xyz for each ping.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="../api/HSTB.kluster.fqpr_convenience.xyz_from_kmallfile.html#HSTB.kluster.fqpr_convenience.xyz_from_kmallfile" title="HSTB.kluster.fqpr_convenience.xyz_from_kmallfile"><code class="xref py py-obj docutils literal notranslate"><span class="pre">xyz_from_kmallfile</span></code></a>(filname)</p></td>
+<td><p>function using kmall to pull out the xyz88 datagram and return the xyz for each ping.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">kluster</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../quickstart/index.html">Quickstart</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../settings/index.html">Settings</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../vessel_setup/index.html">Vessel Setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../processing/index.html">Conversion and Processing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../products/index.html">Products</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">API</a><ul class="current">
+<li class="toctree-l2 current"><a class="current reference internal" href="#">fqpr_convenience module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#module-HSTB.kluster.fqpr_convenience">HSTB.kluster.fqpr_convenience Module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#functions">Functions</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="fqpr_generation.html">fqpr_generation module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="fqpr_project.html">fqpr_project module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="fqpr_intelligence.html">fqpr_intelligence module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="monitor.html">monitor module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="xarray_conversion.html">xarray_conversion module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="orientation.html">orientation module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="beampointingvector.html">beampointingvector module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="svcorrect.html">svcorrect module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="georeference.html">georeference module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tpu.html">tpu module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="visualizations.html">visualizations module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="sat.html">sat module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="wobble.html">wobble module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="export.html">export module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="rotations.html">rotations module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="pdal_entwine.html">pdal_entwine module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="dask_helpers.html">dask_helpers module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="fqpr_helpers.html">fqpr_helpers module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="numba_helpers.html">numba_helpers module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="xarray_helpers.html">xarray_helpers module</a></li>
+</ul>
+</li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  <li><a href="index.html">API</a><ul>
+      <li>Previous: <a href="index.html" title="previous chapter">API</a></li>
+      <li>Next: <a href="../api/HSTB.kluster.fqpr_convenience.convert_multibeam.html" title="next chapter">convert_multibeam</a></li>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2020, Eric Younkin.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.5.2</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="../_sources/kluster_api/fqpr_convenience.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

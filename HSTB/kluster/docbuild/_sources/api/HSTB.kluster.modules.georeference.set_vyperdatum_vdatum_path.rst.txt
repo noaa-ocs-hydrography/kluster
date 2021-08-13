@@ -1,0 +1,6 @@
+set_vyperdatum_vdatum_path
+==========================
+
+.. currentmodule:: HSTB.kluster.modules.georeference
+
+.. autofunction:: set_vyperdatum_vdatum_path

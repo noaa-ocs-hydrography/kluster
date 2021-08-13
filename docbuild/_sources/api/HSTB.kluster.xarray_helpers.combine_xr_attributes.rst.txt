@@ -1,0 +1,6 @@
+combine_xr_attributes
+=====================
+
+.. currentmodule:: HSTB.kluster.xarray_helpers
+
+.. autofunction:: combine_xr_attributes

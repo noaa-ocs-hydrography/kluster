@@ -1,0 +1,7 @@
+DaskProcessSynchronizer
+=======================
+
+.. currentmodule:: HSTB.kluster.dask_helpers
+
+.. autoclass:: DaskProcessSynchronizer
+   :show-inheritance:

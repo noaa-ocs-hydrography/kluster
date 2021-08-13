@@ -1,0 +1,6 @@
+return_high_pass_filtered_depth
+===============================
+
+.. currentmodule:: HSTB.kluster.modules.wobble
+
+.. autofunction:: return_high_pass_filtered_depth

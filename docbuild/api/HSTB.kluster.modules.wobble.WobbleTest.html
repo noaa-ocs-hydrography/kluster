@@ -1,0 +1,396 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>WobbleTest &#8212; kluster 0.7.4 documentation</title>
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" type="text/css" href="../_static/graphviz.css" />
+    <script id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="export module" href="../kluster_api/export.html" />
+    <link rel="prev" title="smooth_signal" href="HSTB.kluster.modules.wobble.smooth_signal.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="wobbletest">
+<h1>WobbleTest<a class="headerlink" href="#wobbletest" title="Permalink to this headline">¶</a></h1>
+<dl class="py class">
+<dt id="HSTB.kluster.modules.wobble.WobbleTest">
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">HSTB.kluster.modules.wobble.</span></code><code class="sig-name descname"><span class="pre">WobbleTest</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">fqpr</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.modules.wobble.WobbleTest" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Implementation of ‘Dynamic Motion Residuals in Swath Sonar Data: Ironing out the Creases’ using Kluster processed
+multibeam data.</p>
+<p><a class="reference external" href="http://www.omg.unb.ca/omg/papers/Lect_26_paper_ihr03.pdf">http://www.omg.unb.ca/omg/papers/Lect_26_paper_ihr03.pdf</a></p>
+<p>WobbleTest will generate the high pass filtered mean depth and ping-wise slope, and build the correlation plots
+as described in the paper.</p>
+<div class="line-block">
+<div class="line">test = r”C:data_dirkluster_converted”</div>
+<div class="line">fq = fqpr_convenience.reload_data(test)</div>
+<div class="line">fq.subset_by_time(mintime, maxtime)  # subset by the time of interest, will make this a bit faster</div>
+<div class="line">wb = WobbleTest(fq)</div>
+<div class="line">wb.generate_starting_data()</div>
+<div class="line">wb.plot_correlation_table()</div>
+</div>
+<p class="rubric">Methods Summary</p>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.modules.wobble.WobbleTest.generate_starting_data" title="HSTB.kluster.modules.wobble.WobbleTest.generate_starting_data"><code class="xref py py-obj docutils literal notranslate"><span class="pre">generate_starting_data</span></code></a>([filter_rugged])</p></td>
+<td><p>Use the depthoffset (an output from kluster svcorrect) and corr_pointing_angle (an output from kluster get_beam_pointing_vectors to build the highpass filtered slope and depth.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.modules.wobble.WobbleTest.plot_allowable_percent_deviation" title="HSTB.kluster.modules.wobble.WobbleTest.plot_allowable_percent_deviation"><code class="xref py py-obj docutils literal notranslate"><span class="pre">plot_allowable_percent_deviation</span></code></a>([subplot])</p></td>
+<td><p>Plot the correlation plot between ping time and percent deviation in the ping slope linear regression.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.modules.wobble.WobbleTest.plot_attitude_latency" title="HSTB.kluster.modules.wobble.WobbleTest.plot_attitude_latency"><code class="xref py py-obj docutils literal notranslate"><span class="pre">plot_attitude_latency</span></code></a>([subplot, add_regression])</p></td>
+<td><p>Plot to determine the attitude latency either in the POSMV initial processing or the transmission to the sonar.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.modules.wobble.WobbleTest.plot_attitude_scaling_one" title="HSTB.kluster.modules.wobble.WobbleTest.plot_attitude_scaling_one"><code class="xref py py-obj docutils literal notranslate"><span class="pre">plot_attitude_scaling_one</span></code></a>([subplot, …])</p></td>
+<td><p><div class="line-block">
+<div class="line">This plot (as well as the trimmed plot scaling_two) deal with identifying:</div>
+</div>
+</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.modules.wobble.WobbleTest.plot_attitude_scaling_two" title="HSTB.kluster.modules.wobble.WobbleTest.plot_attitude_scaling_two"><code class="xref py py-obj docutils literal notranslate"><span class="pre">plot_attitude_scaling_two</span></code></a>([subplot, …])</p></td>
+<td><p>See attitude_scaling_one, same concept.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.modules.wobble.WobbleTest.plot_correlation_table" title="HSTB.kluster.modules.wobble.WobbleTest.plot_correlation_table"><code class="xref py py-obj docutils literal notranslate"><span class="pre">plot_correlation_table</span></code></a>()</p></td>
+<td><p>Use the class methods for generating each plot and build a grid of plots.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.modules.wobble.WobbleTest.plot_heave_sound_speed_one" title="HSTB.kluster.modules.wobble.WobbleTest.plot_heave_sound_speed_one"><code class="xref py py-obj docutils literal notranslate"><span class="pre">plot_heave_sound_speed_one</span></code></a>([subplot, …])</p></td>
+<td><p>Plot to find error associated with heaving through sound speed layers.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.modules.wobble.WobbleTest.plot_heave_sound_speed_two" title="HSTB.kluster.modules.wobble.WobbleTest.plot_heave_sound_speed_two"><code class="xref py py-obj docutils literal notranslate"><span class="pre">plot_heave_sound_speed_two</span></code></a>([subplot, …])</p></td>
+<td><p>See plot_heave_sound_speed_one.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.modules.wobble.WobbleTest.plot_x_lever_arm_error" title="HSTB.kluster.modules.wobble.WobbleTest.plot_x_lever_arm_error"><code class="xref py py-obj docutils literal notranslate"><span class="pre">plot_x_lever_arm_error</span></code></a>([subplot, add_regression])</p></td>
+<td><p>Plot to find the x lever arm error, which is determined by looking at the correlation between filtered depth and pitch.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.modules.wobble.WobbleTest.plot_y_lever_arm_error" title="HSTB.kluster.modules.wobble.WobbleTest.plot_y_lever_arm_error"><code class="xref py py-obj docutils literal notranslate"><span class="pre">plot_y_lever_arm_error</span></code></a>([subplot, add_regression])</p></td>
+<td><p>Plot to find the y lever arm error, which is determined by looking at the correlation between filtered depth and roll.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.modules.wobble.WobbleTest.plot_yaw_alignment" title="HSTB.kluster.modules.wobble.WobbleTest.plot_yaw_alignment"><code class="xref py py-obj docutils literal notranslate"><span class="pre">plot_yaw_alignment</span></code></a>([subplot, add_regression])</p></td>
+<td><p>Plot to determine the misalignment between roll/pitch and heading.</p></td>
+</tr>
+</tbody>
+</table>
+<p class="rubric">Methods Documentation</p>
+<dl class="py method">
+<dt id="HSTB.kluster.modules.wobble.WobbleTest.generate_starting_data">
+<code class="sig-name descname"><span class="pre">generate_starting_data</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">filter_rugged</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.modules.wobble.WobbleTest.generate_starting_data" title="Permalink to this definition">¶</a></dt>
+<dd><p>Use the depthoffset (an output from kluster svcorrect) and corr_pointing_angle (an output from kluster
+get_beam_pointing_vectors to build the highpass filtered slope and depth.</p>
+<p>High pass filter window is based on the maximum period across all attitude signals (self.max_period).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>filter_rugged</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code>) – if True, will filter out data that has percent deviation greater than 5</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="HSTB.kluster.modules.wobble.WobbleTest.plot_allowable_percent_deviation">
+<code class="sig-name descname"><span class="pre">plot_allowable_percent_deviation</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">subplot</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.modules.wobble.WobbleTest.plot_allowable_percent_deviation" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plot the correlation plot between ping time and percent deviation in the ping slope linear regression.  Percent
+deviation here is related to the standard error of the y in the regression.  Include bounds for invalid data
+in the plot as a filled in red area.  According to source paper, greater than 5% should be rejected.</p>
+<p>Need to include segment identification in final version for exluding greater than 5%</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>subplot</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">subplot</span></code>]) – pyplot AxesSubplot instance to add to, if None will generate new instance</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="HSTB.kluster.modules.wobble.WobbleTest.plot_attitude_latency">
+<code class="sig-name descname"><span class="pre">plot_attitude_latency</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">subplot</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">add_regression</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.modules.wobble.WobbleTest.plot_attitude_latency" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plot to determine the attitude latency either in the POSMV initial processing or the transmission to the sonar.
+We use roll just because it is the most sensitive, most easy to notice.  It’s a linear tilt we are looking for,
+so the timing latency would be equal to the slope of the regression of roll rate vs ping slope.</p>
+<p>If you add_regression, you can get the slope that equates to the latency adjustment</p>
+<p>slope of regression = ping slope (deg) / roll rate (deg/s) = latency (s)</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>subplot</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">subplot</span></code>]) – pyplot AxesSubplot instance to add to, if None will generate new instance</p></li>
+<li><p><strong>add_regression</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code>) – bool, if True, will include a regression line</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="HSTB.kluster.modules.wobble.WobbleTest.plot_attitude_scaling_one">
+<code class="sig-name descname"><span class="pre">plot_attitude_scaling_one</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">subplot</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">add_regression</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.modules.wobble.WobbleTest.plot_attitude_scaling_one" title="Permalink to this definition">¶</a></dt>
+<dd><div class="line-block">
+<div class="line">This plot (as well as the trimmed plot scaling_two) deal with identifying:</div>
+<div class="line-block">
+<div class="line">1. sensor scaling issues (should not be present in modern systems I think)</div>
+<div class="line">2. rolling with imperfect sound speed (probably more likely)</div>
+</div>
+</div>
+<p>Focusing on the second one:</p>
+<p>When the soundspeed at the face is incorrect, roll angles will introduce steering angle error, so your
+beampointingangle will be off.  As the roll changes, the error will change, making this a dynamic error that
+is correlated with roll.</p>
+<p>We aren’t going to make up some kind of time series bpa corrector for this error, so if you have this, i
+believe you are just screwed.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>subplot</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">subplot</span></code>]) – pyplot AxesSubplot instance to add to, if None will generate new instance</p></li>
+<li><p><strong>add_regression</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code>) – bool, if True, will include a regression line</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="HSTB.kluster.modules.wobble.WobbleTest.plot_attitude_scaling_two">
+<code class="sig-name descname"><span class="pre">plot_attitude_scaling_two</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">subplot</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">add_regression</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.modules.wobble.WobbleTest.plot_attitude_scaling_two" title="Permalink to this definition">¶</a></dt>
+<dd><p>See attitude_scaling_one, same concept.  We have two plots for a good reason.  If you are trying to
+differentiate between 1. and 2., do the following:
+| - if scaling_one and scaling_two have your artifact, its probably a scaling issue
+| - otherwise, if the plots are different, it most likely is the sound speed one.  Inner swath and outer swath
+|   will differ as the swath is curved</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>subplot</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">subplot</span></code>]) – pyplot AxesSubplot instance to add to, if None will generate new instance</p></li>
+<li><p><strong>add_regression</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code>) – bool, if True, will include a regression line</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="HSTB.kluster.modules.wobble.WobbleTest.plot_correlation_table">
+<code class="sig-name descname"><span class="pre">plot_correlation_table</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.modules.wobble.WobbleTest.plot_correlation_table" title="Permalink to this definition">¶</a></dt>
+<dd><p>Use the class methods for generating each plot and build a grid of plots.  The table allows the user to
+view multiple results at once, to determine the appropriate course of action.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="HSTB.kluster.modules.wobble.WobbleTest.plot_heave_sound_speed_one">
+<code class="sig-name descname"><span class="pre">plot_heave_sound_speed_one</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">subplot</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">add_regression</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.modules.wobble.WobbleTest.plot_heave_sound_speed_one" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plot to find error associated with heaving through sound speed layers.  For flat face sonar that are mostly
+level while receiving, this affect should be minimal.  If I’m understanding this correctly, it’s because the
+system is actively steering the beams using the surface sv sensor.  For barrel arrays, there is no active
+beam steering so there will be an error in the beam angles.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>subplot</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">subplot</span></code>]) – pyplot AxesSubplot instance to add to, if None will generate new instance</p></li>
+<li><p><strong>add_regression</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code>) – bool, if True, will include a regression line</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="HSTB.kluster.modules.wobble.WobbleTest.plot_heave_sound_speed_two">
+<code class="sig-name descname"><span class="pre">plot_heave_sound_speed_two</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">subplot</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">add_regression</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.modules.wobble.WobbleTest.plot_heave_sound_speed_two" title="Permalink to this definition">¶</a></dt>
+<dd><p>See plot_heave_sound_speed_one.  There are two plots for the port/starboard swaths.  You need two as the
+swath artifact is a smile/frown, so the two plots should be mirror images if the artifact exists.  A full
+swath analysis would not show this.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>subplot</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">subplot</span></code>]) – pyplot AxesSubplot instance to add to, if None will generate new instance</p></li>
+<li><p><strong>add_regression</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code>) – bool, if True, will include a regression line</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="HSTB.kluster.modules.wobble.WobbleTest.plot_x_lever_arm_error">
+<code class="sig-name descname"><span class="pre">plot_x_lever_arm_error</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">subplot</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">add_regression</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.modules.wobble.WobbleTest.plot_x_lever_arm_error" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plot to find the x lever arm error, which is determined by looking at the correlation between filtered depth
+and pitch.  X lever arm error affects the induced heave by the following equation:</p>
+<p>Induced Heave Error = -(x_error) * sin(pitch) + (y_error) * sin(roll) * cos(pitch) + (z_error) * (1 - cos(roll) * cos(pitch))</p>
+<p>Or in isolating the x</p>
+<p>Induced Heave Error = -x_error * sin(pitch)</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>subplot</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">subplot</span></code>]) – pyplot AxesSubplot instance to add to, if None will generate new instance</p></li>
+<li><p><strong>add_regression</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code>) – bool, if True, will include a regression line</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="HSTB.kluster.modules.wobble.WobbleTest.plot_y_lever_arm_error">
+<code class="sig-name descname"><span class="pre">plot_y_lever_arm_error</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">subplot</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">add_regression</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.modules.wobble.WobbleTest.plot_y_lever_arm_error" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plot to find the y lever arm error, which is determined by looking at the correlation between filtered depth
+and roll.  Y lever arm error affects the induced heave by the following equation:</p>
+<dl class="simple">
+<dt>Induced Heave Error = -(x_error) * sin(pitch) + (y_error) * sin(roll) * cos(pitch) +</dt><dd><p>(z_error) * (1 - cos(roll) * cos(pitch))</p>
+</dd>
+</dl>
+<p>or in isloating the y</p>
+<p>Induced Heave Error (y) = y_error * sin(roll) * cos(pitch)</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>subplot</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">subplot</span></code>]) – pyplot AxesSubplot instance to add to, if None will generate new instance</p></li>
+<li><p><strong>add_regression</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code>) – bool, if True, will include a regression line</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="HSTB.kluster.modules.wobble.WobbleTest.plot_yaw_alignment">
+<code class="sig-name descname"><span class="pre">plot_yaw_alignment</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">subplot</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">add_regression</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.modules.wobble.WobbleTest.plot_yaw_alignment" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plot to determine the misalignment between roll/pitch and heading.  For us, the POSMV is a tightly
+coupled system that provides these three data streams, so there really shouldn’t be any yaw misalignment with
+roll/pitch.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>subplot</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">subplot</span></code>]) – pyplot AxesSubplot instance to add to, if None will generate new instance</p></li>
+<li><p><strong>add_regression</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code>) – bool, if True, will include a regression line</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">kluster</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../quickstart/index.html">Quickstart</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../settings/index.html">Settings</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../vessel_setup/index.html">Vessel Setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../processing/index.html">Conversion and Processing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../products/index.html">Products</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../kluster_api/index.html">API</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/fqpr_convenience.html">fqpr_convenience module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/fqpr_generation.html">fqpr_generation module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/fqpr_project.html">fqpr_project module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/fqpr_intelligence.html">fqpr_intelligence module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/monitor.html">monitor module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/xarray_conversion.html">xarray_conversion module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/orientation.html">orientation module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/beampointingvector.html">beampointingvector module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/svcorrect.html">svcorrect module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/georeference.html">georeference module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/tpu.html">tpu module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/visualizations.html">visualizations module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/sat.html">sat module</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="../kluster_api/wobble.html">wobble module</a><ul class="current">
+<li class="toctree-l3 current"><a class="reference internal" href="../kluster_api/wobble.html#module-HSTB.kluster.modules.wobble">HSTB.kluster.modules.wobble Module</a><ul class="current">
+<li class="toctree-l4"><a class="reference internal" href="../kluster_api/wobble.html#functions">Functions</a></li>
+<li class="toctree-l4 current"><a class="reference internal" href="../kluster_api/wobble.html#classes">Classes</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/export.html">export module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/rotations.html">rotations module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/pdal_entwine.html">pdal_entwine module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/dask_helpers.html">dask_helpers module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/fqpr_helpers.html">fqpr_helpers module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/numba_helpers.html">numba_helpers module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/xarray_helpers.html">xarray_helpers module</a></li>
+</ul>
+</li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  <li><a href="../kluster_api/index.html">API</a><ul>
+  <li><a href="../kluster_api/wobble.html">wobble module</a><ul>
+      <li>Previous: <a href="HSTB.kluster.modules.wobble.smooth_signal.html" title="previous chapter">smooth_signal</a></li>
+      <li>Next: <a href="../kluster_api/export.html" title="next chapter">export module</a></li>
+  </ul></li>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2020, Eric Younkin.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.5.2</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="../_sources/api/HSTB.kluster.modules.wobble.WobbleTest.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

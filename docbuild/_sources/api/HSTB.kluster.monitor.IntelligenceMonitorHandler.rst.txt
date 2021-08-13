@@ -1,0 +1,19 @@
+IntelligenceMonitorHandler
+==========================
+
+.. currentmodule:: HSTB.kluster.monitor
+
+.. autoclass:: IntelligenceMonitorHandler
+   :show-inheritance:
+
+   .. rubric:: Methods Summary
+
+   .. autosummary::
+
+      ~IntelligenceMonitorHandler.on_created
+      ~IntelligenceMonitorHandler.on_deleted
+
+   .. rubric:: Methods Documentation
+
+   .. automethod:: on_created
+   .. automethod:: on_deleted

@@ -1,0 +1,6 @@
+return_processed_data_folders
+=============================
+
+.. currentmodule:: HSTB.kluster.fqpr_convenience
+
+.. autofunction:: return_processed_data_folders

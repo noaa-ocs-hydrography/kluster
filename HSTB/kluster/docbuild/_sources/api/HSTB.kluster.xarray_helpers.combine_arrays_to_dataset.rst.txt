@@ -1,0 +1,6 @@
+combine_arrays_to_dataset
+=========================
+
+.. currentmodule:: HSTB.kluster.xarray_helpers
+
+.. autofunction:: combine_arrays_to_dataset

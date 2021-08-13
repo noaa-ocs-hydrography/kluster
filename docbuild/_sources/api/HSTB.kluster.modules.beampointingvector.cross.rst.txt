@@ -1,0 +1,6 @@
+cross
+=====
+
+.. currentmodule:: HSTB.kluster.modules.beampointingvector
+
+.. autofunction:: cross

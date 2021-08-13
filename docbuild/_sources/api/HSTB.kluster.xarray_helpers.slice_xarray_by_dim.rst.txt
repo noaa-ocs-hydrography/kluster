@@ -1,0 +1,6 @@
+slice_xarray_by_dim
+===================
+
+.. currentmodule:: HSTB.kluster.xarray_helpers
+
+.. autofunction:: slice_xarray_by_dim

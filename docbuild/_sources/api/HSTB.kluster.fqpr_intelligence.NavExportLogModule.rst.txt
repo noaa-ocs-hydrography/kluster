@@ -1,0 +1,17 @@
+NavExportLogModule
+==================
+
+.. currentmodule:: HSTB.kluster.fqpr_intelligence
+
+.. autoclass:: NavExportLogModule
+   :show-inheritance:
+
+   .. rubric:: Methods Summary
+
+   .. autosummary::
+
+      ~NavExportLogModule.remove_file
+
+   .. rubric:: Methods Documentation
+
+   .. automethod:: remove_file

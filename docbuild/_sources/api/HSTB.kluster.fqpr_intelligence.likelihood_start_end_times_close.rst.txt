@@ -1,0 +1,6 @@
+likelihood_start_end_times_close
+================================
+
+.. currentmodule:: HSTB.kluster.fqpr_intelligence
+
+.. autofunction:: likelihood_start_end_times_close

@@ -1,0 +1,6 @@
+linear_regression
+=================
+
+.. currentmodule:: HSTB.kluster.modules.wobble
+
+.. autofunction:: linear_regression

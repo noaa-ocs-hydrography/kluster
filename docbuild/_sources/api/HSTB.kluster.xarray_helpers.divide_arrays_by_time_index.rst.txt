@@ -1,0 +1,6 @@
+divide_arrays_by_time_index
+===========================
+
+.. currentmodule:: HSTB.kluster.xarray_helpers
+
+.. autofunction:: divide_arrays_by_time_index

@@ -1,0 +1,6 @@
+resize_zarr
+===========
+
+.. currentmodule:: HSTB.kluster.xarray_helpers
+
+.. autofunction:: resize_zarr

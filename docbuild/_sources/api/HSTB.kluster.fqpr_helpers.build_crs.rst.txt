@@ -1,0 +1,6 @@
+build_crs
+=========
+
+.. currentmodule:: HSTB.kluster.fqpr_helpers
+
+.. autofunction:: build_crs

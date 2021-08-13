@@ -1,0 +1,6 @@
+validation_against_xyz88
+========================
+
+.. currentmodule:: HSTB.kluster.fqpr_convenience
+
+.. autofunction:: validation_against_xyz88

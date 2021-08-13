@@ -1,0 +1,6 @@
+build_xyzrph
+============
+
+.. currentmodule:: HSTB.kluster.xarray_conversion
+
+.. autofunction:: build_xyzrph

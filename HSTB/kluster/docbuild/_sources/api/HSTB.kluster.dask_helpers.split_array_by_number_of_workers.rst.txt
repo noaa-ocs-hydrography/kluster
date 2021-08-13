@@ -1,0 +1,6 @@
+split_array_by_number_of_workers
+================================
+
+.. currentmodule:: HSTB.kluster.dask_helpers
+
+.. autofunction:: split_array_by_number_of_workers

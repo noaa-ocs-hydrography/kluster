@@ -1,0 +1,6 @@
+xyz_from_kmallfile
+==================
+
+.. currentmodule:: HSTB.kluster.fqpr_convenience
+
+.. autofunction:: xyz_from_kmallfile

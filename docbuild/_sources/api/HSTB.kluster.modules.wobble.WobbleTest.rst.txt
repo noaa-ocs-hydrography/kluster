@@ -1,0 +1,37 @@
+WobbleTest
+==========
+
+.. currentmodule:: HSTB.kluster.modules.wobble
+
+.. autoclass:: WobbleTest
+   :show-inheritance:
+
+   .. rubric:: Methods Summary
+
+   .. autosummary::
+
+      ~WobbleTest.generate_starting_data
+      ~WobbleTest.plot_allowable_percent_deviation
+      ~WobbleTest.plot_attitude_latency
+      ~WobbleTest.plot_attitude_scaling_one
+      ~WobbleTest.plot_attitude_scaling_two
+      ~WobbleTest.plot_correlation_table
+      ~WobbleTest.plot_heave_sound_speed_one
+      ~WobbleTest.plot_heave_sound_speed_two
+      ~WobbleTest.plot_x_lever_arm_error
+      ~WobbleTest.plot_y_lever_arm_error
+      ~WobbleTest.plot_yaw_alignment
+
+   .. rubric:: Methods Documentation
+
+   .. automethod:: generate_starting_data
+   .. automethod:: plot_allowable_percent_deviation
+   .. automethod:: plot_attitude_latency
+   .. automethod:: plot_attitude_scaling_one
+   .. automethod:: plot_attitude_scaling_two
+   .. automethod:: plot_correlation_table
+   .. automethod:: plot_heave_sound_speed_one
+   .. automethod:: plot_heave_sound_speed_two
+   .. automethod:: plot_x_lever_arm_error
+   .. automethod:: plot_y_lever_arm_error
+   .. automethod:: plot_yaw_alignment

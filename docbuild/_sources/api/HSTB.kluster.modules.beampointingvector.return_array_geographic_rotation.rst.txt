@@ -1,0 +1,6 @@
+return_array_geographic_rotation
+================================
+
+.. currentmodule:: HSTB.kluster.modules.beampointingvector
+
+.. autofunction:: return_array_geographic_rotation

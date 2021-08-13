@@ -1,0 +1,6 @@
+gather_dataset_attributes
+=========================
+
+.. currentmodule:: HSTB.kluster.xarray_conversion
+
+.. autofunction:: gather_dataset_attributes

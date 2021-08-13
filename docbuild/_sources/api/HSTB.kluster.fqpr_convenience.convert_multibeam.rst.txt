@@ -1,0 +1,6 @@
+convert_multibeam
+=================
+
+.. currentmodule:: HSTB.kluster.fqpr_convenience
+
+.. autofunction:: convert_multibeam
