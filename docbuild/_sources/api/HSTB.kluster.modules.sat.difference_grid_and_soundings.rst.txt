@@ -1,6 +1,0 @@
-difference_grid_and_soundings
-=============================
-
-.. currentmodule:: HSTB.kluster.modules.sat
-
-.. autofunction:: difference_grid_and_soundings

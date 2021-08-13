@@ -1,6 +1,0 @@
-smooth_signal
-=============
-
-.. currentmodule:: HSTB.kluster.modules.wobble
-
-.. autofunction:: smooth_signal

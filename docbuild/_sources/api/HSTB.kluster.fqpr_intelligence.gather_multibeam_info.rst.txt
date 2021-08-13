@@ -1,6 +1,0 @@
-gather_multibeam_info
-=====================
-
-.. currentmodule:: HSTB.kluster.fqpr_intelligence
-
-.. autofunction:: gather_multibeam_info

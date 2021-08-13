@@ -1,6 +1,0 @@
-calculate_tpu
-=============
-
-.. currentmodule:: HSTB.kluster.modules.tpu
-
-.. autofunction:: calculate_tpu

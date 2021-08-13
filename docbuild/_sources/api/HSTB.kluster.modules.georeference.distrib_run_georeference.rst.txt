@@ -1,6 +1,0 @@
-distrib_run_georeference
-========================
-
-.. currentmodule:: HSTB.kluster.modules.georeference
-
-.. autofunction:: distrib_run_georeference

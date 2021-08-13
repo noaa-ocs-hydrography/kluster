@@ -1,6 +1,0 @@
-seconds_to_formatted_string
-===========================
-
-.. currentmodule:: HSTB.kluster.fqpr_helpers
-
-.. autofunction:: seconds_to_formatted_string

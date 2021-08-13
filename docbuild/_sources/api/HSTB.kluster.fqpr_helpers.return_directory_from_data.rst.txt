@@ -1,6 +1,0 @@
-return_directory_from_data
-==========================
-
-.. currentmodule:: HSTB.kluster.fqpr_helpers
-
-.. autofunction:: return_directory_from_data

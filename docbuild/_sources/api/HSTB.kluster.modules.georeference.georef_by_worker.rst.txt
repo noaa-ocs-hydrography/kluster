@@ -1,6 +1,0 @@
-georef_by_worker
-================
-
-.. currentmodule:: HSTB.kluster.modules.georeference
-
-.. autofunction:: georef_by_worker

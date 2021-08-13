@@ -1,6 +1,0 @@
-get_number_of_workers
-=====================
-
-.. currentmodule:: HSTB.kluster.dask_helpers
-
-.. autofunction:: get_number_of_workers

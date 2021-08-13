@@ -1,6 +1,0 @@
-distributed_run_sv_correct
-==========================
-
-.. currentmodule:: HSTB.kluster.modules.svcorrect
-
-.. autofunction:: distributed_run_sv_correct

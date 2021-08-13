@@ -1,6 +1,0 @@
-is_inside_sm
-============
-
-.. currentmodule:: HSTB.kluster.numba_helpers
-
-.. autofunction:: is_inside_sm

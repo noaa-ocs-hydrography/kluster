@@ -1,6 +1,0 @@
-return_files_from_path
-======================
-
-.. currentmodule:: HSTB.kluster.fqpr_helpers
-
-.. autofunction:: return_files_from_path
