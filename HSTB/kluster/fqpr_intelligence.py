@@ -144,6 +144,7 @@ class FqprIntel(LoggerClass):
         settings
             dictionary of processing settings
         """
+
         desired_keys = ['use_epsg', 'epsg', 'use_coord', 'coord_system', 'vert_ref', 'vdatum_directory']
         self.processing_settings.update({ky: settings[ky] for ky in desired_keys if ky in settings})
         existing_kwargs = list(settings.keys())

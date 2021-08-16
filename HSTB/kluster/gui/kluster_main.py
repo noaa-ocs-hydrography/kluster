@@ -9,7 +9,7 @@ import multiprocessing
 from typing import Union
 from datetime import datetime
 
-from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal, qgis_enabled
+from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal, qgis_enabled, found_path
 if qgis_enabled:
     from HSTB.kluster.gui.backends._qt import qgis_core, qgis_gui
 
@@ -224,7 +224,7 @@ class KlusterMain(QtWidgets.QMainWindow):
             possible_vdatum = path_to_supplementals('VDatum')
             if possible_vdatum and os.path.exists(possible_vdatum):
                 self.settings['vdatum_directory'] = possible_vdatum
-                self.two_d.vdatum_directory = self.settings['vdatum_directory']
+                self.two_d.vdatum_directory = self.settings['vdatum_directory']  # used for the 2d vdatum region display
         if self.project.path is not None:
             self.project.set_settings(self.settings.copy())
         self.intel.set_settings(self.settings.copy())
@@ -1880,8 +1880,14 @@ def main():
         app = qgis_core.QgsApplication([], True)
         if ispyinstaller:
             plugin_dir = os.path.join(os.getcwd(), 'qgis_plugins')
-            app.setPrefixPath(os.getcwd(), True)
-            app.setPluginPath(plugin_dir)
+            prefix_dir = os.getcwd()
+        else:
+            plugin_dir = os.path.join(os.path.dirname(found_path), 'plugins')
+            prefix_dir = os.path.join(found_path, 'qgis')
+
+        app.setPrefixPath(prefix_dir, True)
+        app.setPluginPath(plugin_dir)
+
         app.initQgis()
         # print(app.showSettings())
     else:
