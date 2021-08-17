@@ -391,6 +391,12 @@ class FqprExport:
         y = np.round(y.values, 2)
         z = np.round(z.values, 3)
 
+        try:
+            vlrs = [laspy.header.VLR(user_id='LASF_Projection', record_id=2112, description='OGC Coordinate System WKT',
+                                     record_data=self.fqpr.horizontal_crs.to_wkt().encode('utf-8'))]
+        except Exception as e:
+            print('_las_write: Unable to build the Coordinate System VLR: {}'.format(e))
+
         try:  # pre laspy 2.0
             hdr = laspy.header.Header(file_version=1.4, point_format=3)  # pt format 3 includes GPS time
             hdr.x_scale = 0.01  # xyz precision, las stores data as int
@@ -400,6 +406,13 @@ class FqprExport:
             hdr.x_offset = np.floor(float(x.min()))
             hdr.y_offset = np.floor(float(y.min()))
             hdr.z_offset = np.floor(float(z.min()))
+
+            try:
+                hdr.vlrs = vlrs
+                hdr.wkt = 1
+            except Exception as e:
+                print('_las_write: Unable to set the Coordinate system to the Header VLR: {}'.format(e))
+
             outfile = laspy.file.File(dest_path, mode='w', header=hdr)
             outfile.x = x
             outfile.y = y
@@ -410,12 +423,19 @@ class FqprExport:
                 outfile.classification = classification.astype(np.int8)
             # if uncertainty_included:  # putting it in Intensity for now as integer mm, Intensity is an int16 field
             #     outfile.intensity = (uncertainty.values * 1000).astype(np.int16)
+
             outfile.close()
         except:  # the new way starting in 2.0
             las = laspy.create(file_version="1.4", point_format=3)
 
             las.header.offsets = [np.floor(float(x.min())), np.floor(float(y.min())), np.floor(float(z.min()))]
             las.header.scales = [0.01, 0.01, 0.001]
+
+            try:
+                las.header.vlrs = vlrs
+                las.header.global_encoding.wkt = 1
+            except Exception as e:
+                print('_las_write: Unable to set the Coordinate system to the Header VLR: {}'.format(e))
 
             las.x = x
             las.y = y

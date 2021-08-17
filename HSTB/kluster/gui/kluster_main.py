@@ -1879,8 +1879,10 @@ def main():
     if qgis_enabled:
         app = qgis_core.QgsApplication([], True)
         if ispyinstaller:
-            plugin_dir = os.path.join(os.getcwd(), 'qgis_plugins')
-            prefix_dir = os.getcwd()
+            kluster_main_exe = sys.argv[0]
+            curdir = os.path.dirname(kluster_main_exe)
+            plugin_dir = os.path.join(curdir, 'qgis_plugins')
+            prefix_dir = curdir
         else:
             plugin_dir = os.path.join(os.path.dirname(found_path), 'plugins')
             prefix_dir = os.path.join(found_path, 'qgis')
