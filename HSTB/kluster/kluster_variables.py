@@ -33,6 +33,10 @@ coordinate_systems = ['NAD83', 'WGS84']  # horizontal coordinate system options
 default_coordinate_system = 'WGS84'
 default_vertical_reference = 'waterline'
 
+# export
+pings_per_las = 50000  # LAS export will put this many pings in one file before starting a new file
+pings_per_csv = 15000  # csv export will put this many pings in one file before starting a new file
+
 # xarray conversion
 ping_chunk_size = 1000  # chunk size (in pings) of each written chunk of data in the ping records
 navigation_chunk_size = 50000  # chunk size (in time) of each written chunk of data in the navigation records

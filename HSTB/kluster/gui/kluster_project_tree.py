@@ -15,7 +15,7 @@ class KlusterProjectTree(QtWidgets.QTreeView):
     file_added = Signal(object)
     fqpr_selected = Signal(str)
     surface_selected = Signal(str)
-    line_selected = Signal(str)
+    lines_selected = Signal(object)
     all_lines_selected = Signal(bool)
     surface_layer_selected = Signal(str, str, bool)
     close_fqpr = Signal(str)
@@ -453,7 +453,7 @@ class KlusterProjectTree(QtWidgets.QTreeView):
 
         if top_lvl_name in self.categories:  # this is a sub sub item, something like a line name or a surface name
             if top_lvl_name == 'Converted':
-                self.line_selected.emit(selected_name)
+                self.lines_selected.emit(self.return_selected_lines())
             elif top_lvl_name == 'Surfaces':
                 lname = mid_lvl_name + selected_name
                 ischecked = self.model.itemFromIndex(index).checkState()
@@ -521,6 +521,27 @@ class KlusterProjectTree(QtWidgets.QTreeView):
             if new_surf not in surfs:
                 surfs.append(new_surf)
         return surfs
+
+    def return_selected_lines(self):
+        """
+        Return all the selected line instances that are selected.  Only returns unique line instances
+
+        Returns
+        -------
+        list
+            list of all str line names selected
+        """
+
+        linenames = []
+        idxs = self.selectedIndexes()
+        for idx in idxs:
+            new_line = ''
+            top_lvl_name = idx.parent().parent().data()
+            if top_lvl_name == 'Converted':  # user selected a line
+                new_line = self.model.data(idx)
+            if new_line and (new_line not in linenames):
+                linenames.append(new_line)
+        return linenames
 
 
 class OutWindow(QtWidgets.QMainWindow):

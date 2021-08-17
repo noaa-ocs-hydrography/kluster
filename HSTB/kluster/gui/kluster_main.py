@@ -146,7 +146,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.intel.bind_to_action_update(self.actions.update_actions)
 
         self.project_tree.file_added.connect(self.update_on_file_added)
-        self.project_tree.line_selected.connect(self.tree_line_selected)
+        self.project_tree.lines_selected.connect(self.tree_line_selected)
         self.project_tree.fqpr_selected.connect(self.tree_fqpr_selected)
         self.project_tree.surface_selected.connect(self.tree_surf_selected)
         self.project_tree.surface_layer_selected.connect(self.tree_surface_layer_selected)
@@ -1315,19 +1315,20 @@ class KlusterMain(QtWidgets.QMainWindow):
             if line in self.explorer.row_translated_attribution:
                 self.explorer.row_translated_attribution.pop(line)
 
-    def tree_line_selected(self, linename):
+    def tree_line_selected(self, linenames):
         """
         method is run on selecting a multibeam line in the KlusterProjectTree
 
         Parameters
         ----------
-        linename: str, line name
+        linenames: list, line names
 
         """
         self.two_d.reset_line_colors()
         self.explorer.clear_explorer_data()
-        self._line_selected(linename)
-        self.two_d.change_line_colors([linename], 'red')
+        for linename in linenames:
+            self._line_selected(linename)
+        self.two_d.change_line_colors(linenames, 'red')
 
     def tree_fqpr_selected(self, converted_pth):
         """

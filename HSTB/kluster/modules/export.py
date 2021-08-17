@@ -8,7 +8,8 @@ from datetime import datetime
 from HSTB.kluster.pydro_helpers import is_pydro
 from HSTB.kluster.pdal_entwine import build_entwine_points
 from HSTB.kluster.fqpr_helpers import seconds_to_formatted_string
-from HSTB.kluster.kluster_variables import variable_format_str
+from HSTB.kluster.xarray_helpers import slice_xarray_by_dim
+from HSTB.kluster.kluster_variables import variable_format_str, pings_per_csv, pings_per_las
 
 
 class FqprExport:
@@ -154,43 +155,73 @@ class FqprExport:
         if 'x' not in self.fqpr.multibeam.raw_ping[0]:
             self.fqpr.logger.error('export_pings_to_file: No xyz data found, please run All Processing - Georeference Soundings first.')
             return
-        if file_format not in ['csv', 'las', 'entwine']:
-            self.fqpr.logger.error('export_pings_to_file: Only csv, las and entwine format options supported at this time')
-            return
         if file_format == 'entwine' and not is_pydro():
-            self.fqpr.logger.error(
-             'export_pings_to_file: Only pydro environments support entwine tile building.  Please see https://entwine.io/configuration.html for instructions on installing entwine if you wish to use entwine outside of Kluster.  Kluster exported las files will work with the entwine build command')
+            self.fqpr.logger.error('export_pings_to_file: Only pydro environments support entwine tile building.  Please see https://entwine.io/configuration.html for instructions on installing entwine if you wish to use entwine outside of Kluster.  Kluster exported las files will work with the entwine build command')
+            return
 
         if output_directory is None:
             output_directory = self.fqpr.multibeam.converted_pth
 
         self.fqpr.logger.info('****Exporting xyz data to {}****'.format(file_format))
+        starttime = perf_counter()
+        written_files = []
 
         if file_format == 'csv':
+            chunksize = pings_per_csv
             fldr_path, suffix = _create_folder(output_directory, 'csv_export')
-            written_files = self._export_pings_to_csv(output_directory=fldr_path, suffix=suffix, csv_delimiter=csv_delimiter,
-                                                      filter_by_detection=filter_by_detection, z_pos_down=z_pos_down,
-                                                      export_by_identifiers=export_by_identifiers)
         elif file_format == 'las':
+            chunksize = pings_per_las
             fldr_path, suffix = _create_folder(output_directory, 'las_export')
-            written_files = self._export_pings_to_las(output_directory=fldr_path, suffix=suffix, filter_by_detection=filter_by_detection,
-                                                      export_by_identifiers=export_by_identifiers)
         elif file_format == 'entwine':
+            chunksize = pings_per_las
             fldr_path, suffix = _create_folder(output_directory, 'las_export')
-            entwine_fldr_path = _create_folder(output_directory, 'entwine_export')
-            written_files = self.export_pings_to_entwine(output_directory=entwine_fldr_path, suffix=suffix, las_export_folder=fldr_path,
-                                                         filter_by_detection=filter_by_detection, export_by_identifiers=export_by_identifiers)
+            entwine_fldr_path, _ = _create_folder(output_directory, 'entwine_export')
         else:
-            raise NotImplementedError('export_pings_to_file: {} is not a supported file format'.format(file_format))
+            self.fqpr.logger.error('export_pings_to_file: Only csv, las and entwine format options supported at this time')
+            return
+
+        chunk_count = 0
+        written_files = []
+        for rp in self.fqpr.multibeam.raw_ping:
+            self.fqpr.logger.info('Operating on system {}'.format(rp.system_identifier))
+            # build list of lists for the mintime and maxtime (inclusive) for each chunk, each chunk will contain number of pings equal to chunksize
+            chunktimes = [[float(rp.time.isel(time=int(i * chunksize))), float(rp.time.isel(time=int(min((i + 1) * chunksize - 1, rp.time.size - 1))))] for i in range(int(np.ceil(rp.time.size / 75000)))]
+            for mintime, maxtime in chunktimes:
+                chunk_count += 1
+                if suffix:
+                    new_suffix = suffix + '_{}'.format(chunk_count)
+                else:
+                    new_suffix = '{}'.format(chunk_count)
+                new_files = None
+                slice_rp = slice_xarray_by_dim(rp, dimname='time', start_time=mintime, end_time=maxtime)
+
+                if file_format == 'csv':
+                    new_files = self._export_pings_to_csv(rp=slice_rp, output_directory=fldr_path, suffix=new_suffix, csv_delimiter=csv_delimiter,
+                                                          filter_by_detection=filter_by_detection, z_pos_down=z_pos_down,
+                                                          export_by_identifiers=export_by_identifiers)
+                elif file_format in ['las', 'entwine']:
+                    new_files = self._export_pings_to_las(rp=slice_rp, output_directory=fldr_path, suffix=new_suffix, filter_by_detection=filter_by_detection,
+                                                          export_by_identifiers=export_by_identifiers)
+                if new_files:
+                    written_files += new_files
+            if file_format == 'entwine':
+                build_entwine_points(fldr_path, entwine_fldr_path)
+                written_files = [entwine_fldr_path]
+
+        endtime = perf_counter()
+        self.fqpr.logger.info('****Exporting xyz data to {} complete: {}****\n'.format(file_format, seconds_to_formatted_string(int(endtime - starttime))))
+
         return written_files
 
-    def _export_pings_to_csv(self, output_directory: str = None, suffix: str = None, csv_delimiter: str = ' ', filter_by_detection: bool = True,
+    def _export_pings_to_csv(self, rp: xr.Dataset, output_directory: str = None, suffix: str = None, csv_delimiter: str = ' ', filter_by_detection: bool = True,
                              z_pos_down: bool = True, export_by_identifiers: bool = True):
         """
         Method for exporting pings to csv files.  See export_pings_to_file to use.
 
         Parameters
         ----------
+        rp
+            Dataset from FQPR for a sonar head
         output_directory
             destination directory for the xyz exports, otherwise will auto export next to converted data
         suffix
@@ -210,43 +241,39 @@ class FqprExport:
             list of written file paths
         """
 
-        starttime = perf_counter()
         written_files = []
 
-        for rp in self.fqpr.multibeam.raw_ping:
-            self.fqpr.logger.info('Operating on system {}'.format(rp.system_identifier))
-            if filter_by_detection and 'detectioninfo' not in rp:
-                self.fqpr.logger.error('_export_pings_to_csv: Unable to filter by detection type, detectioninfo not found')
-                return
-            rp = rp.stack({'sounding': ('time', 'beam')})
-            if export_by_identifiers:
-                for freq in np.unique(rp.frequency):
-                    subset_rp = rp.where(rp.frequency == freq, drop=True)
-                    for secid in np.unique(subset_rp.txsector_beam).astype(np.int):
-                        sec_subset_rp = subset_rp.where(subset_rp.txsector_beam == secid, drop=True)
-                        if suffix:
-                            dest_path = os.path.join(output_directory, '{}_{}_{}_{}.csv'.format(rp.system_identifier, secid, freq, suffix))
-                        else:
-                            dest_path = os.path.join(output_directory, '{}_{}_{}.csv'.format(rp.system_identifier, secid, freq))
-                        self.fqpr.logger.info('writing to {}'.format(dest_path))
-                        export_data = self._generate_export_data(sec_subset_rp, filter_by_detection=filter_by_detection, z_pos_down=z_pos_down)
-                        self._csv_write(export_data[0], export_data[1], export_data[2], export_data[3], export_data[7],
-                                        dest_path, csv_delimiter)
-                        written_files.append(dest_path)
+        if filter_by_detection and 'detectioninfo' not in rp:
+            self.fqpr.logger.error('_export_pings_to_csv: Unable to filter by detection type, detectioninfo not found')
+            return
+        base_name = os.path.split(rp.output_path)[1]
+        rp = rp.stack({'sounding': ('time', 'beam')})
+        if export_by_identifiers:
+            for freq in np.unique(rp.frequency):
+                subset_rp = rp.where(rp.frequency == freq, drop=True)
+                for secid in np.unique(subset_rp.txsector_beam).astype(np.int):
+                    sec_subset_rp = subset_rp.where(subset_rp.txsector_beam == secid, drop=True)
+                    if suffix:
+                        dest_path = os.path.join(output_directory, '{}_{}_{}_{}.csv'.format(base_name, secid, freq, suffix))
+                    else:
+                        dest_path = os.path.join(output_directory, '{}_{}_{}.csv'.format(base_name, secid, freq))
+                    self.fqpr.logger.info('writing to {}'.format(dest_path))
+                    export_data = self._generate_export_data(sec_subset_rp, filter_by_detection=filter_by_detection, z_pos_down=z_pos_down)
+                    self._csv_write(export_data[0], export_data[1], export_data[2], export_data[3], export_data[7],
+                                    dest_path, csv_delimiter)
+                    written_files.append(dest_path)
 
+        else:
+            if suffix:
+                dest_path = os.path.join(output_directory, '{}_{}.csv'.format(base_name, suffix))
             else:
-                if suffix:
-                    dest_path = os.path.join(output_directory, '{}_{}.csv'.format(rp.system_identifier, suffix))
-                else:
-                    dest_path = os.path.join(output_directory, rp.system_identifier + '.csv')
-                self.fqpr.logger.info('writing to {}'.format(dest_path))
-                export_data = self._generate_export_data(rp, filter_by_detection=filter_by_detection, z_pos_down=z_pos_down)
-                self._csv_write(export_data[0], export_data[1], export_data[2], export_data[3], export_data[7],
-                                dest_path, csv_delimiter)
-                written_files.append(dest_path)
+                dest_path = os.path.join(output_directory, base_name + '.csv')
+            self.fqpr.logger.info('writing to {}'.format(dest_path))
+            export_data = self._generate_export_data(rp, filter_by_detection=filter_by_detection, z_pos_down=z_pos_down)
+            self._csv_write(export_data[0], export_data[1], export_data[2], export_data[3], export_data[7],
+                            dest_path, csv_delimiter)
+            written_files.append(dest_path)
 
-        endtime = perf_counter()
-        self.fqpr.logger.info('****Exporting xyz data to csv complete: {}****\n'.format(seconds_to_formatted_string(int(endtime - starttime))))
         return written_files
 
     def _csv_write(self, x: xr.DataArray, y: xr.DataArray, z: xr.DataArray, uncertainty: xr.DataArray,
@@ -289,7 +316,7 @@ class FqprExport:
                        header='easting{}northing{}depth'.format(delimiter, delimiter),
                        comments='')
 
-    def _export_pings_to_las(self, output_directory: str = None, suffix: str = '', filter_by_detection: bool = True,
+    def _export_pings_to_las(self, rp: xr.Dataset, output_directory: str = None, suffix: str = '', filter_by_detection: bool = True,
                              export_by_identifiers: bool = True):
         """
         Uses the output of georef_along_across_depth to build sounding exports.  Currently you can export to csv or las
@@ -307,6 +334,8 @@ class FqprExport:
 
         Parameters
         ----------
+        rp
+            Dataset from FQPR for a sonar head
         output_directory
             destination directory for the xyz exports, otherwise will auto export next to converted data
         suffix
@@ -323,41 +352,38 @@ class FqprExport:
         """
 
         z_pos_down = False  # LAS files should always be z positive up
-        starttime = perf_counter()
         written_files = []
+        base_name = os.path.split(rp.output_path)[1]
 
-        for rp in self.fqpr.multibeam.raw_ping:
-            self.fqpr.logger.info('Operating on system {}'.format(rp.system_identifier))
-            if filter_by_detection and 'detectioninfo' not in rp:
-                self.fqpr.logger.error('_export_pings_to_las: Unable to filter by detection type, detectioninfo not found')
-                return
-            rp = rp.stack({'sounding': ('time', 'beam')})
-            if export_by_identifiers:
-                for freq in np.unique(rp.frequency):
-                    subset_rp = rp.where(rp.frequency == freq, drop=True)
-                    for secid in np.unique(subset_rp.txsector_beam).astype(np.int):
-                        sec_subset_rp = subset_rp.where(subset_rp.txsector_beam == secid, drop=True)
-                        if suffix:
-                            dest_path = os.path.join(output_directory, '{}_{}_{}_{}.las'.format(rp.system_identifier, secid, freq, suffix))
-                        else:
-                            dest_path = os.path.join(output_directory, '{}_{}_{}.las'.format(rp.system_identifier, secid, freq))
-                        self.fqpr.logger.info('writing to {}'.format(dest_path))
-                        export_data = self._generate_export_data(sec_subset_rp, filter_by_detection=filter_by_detection, z_pos_down=z_pos_down)
-                        self._las_write(export_data[0], export_data[1], export_data[2], export_data[3],
-                                        export_data[5], export_data[7], dest_path)
-                        written_files.append(dest_path)
+        if filter_by_detection and 'detectioninfo' not in rp:
+            self.fqpr.logger.error('_export_pings_to_las: Unable to filter by detection type, detectioninfo not found')
+            return
+        rp = rp.stack({'sounding': ('time', 'beam')})
+        if export_by_identifiers:
+            for freq in np.unique(rp.frequency):
+                subset_rp = rp.where(rp.frequency == freq, drop=True)
+                for secid in np.unique(subset_rp.txsector_beam).astype(np.int):
+                    sec_subset_rp = subset_rp.where(subset_rp.txsector_beam == secid, drop=True)
+                    if suffix:
+                        dest_path = os.path.join(output_directory, '{}_{}_{}_{}.las'.format(base_name, secid, freq, suffix))
+                    else:
+                        dest_path = os.path.join(output_directory, '{}_{}_{}.las'.format(base_name, secid, freq))
+                    self.fqpr.logger.info('writing to {}'.format(dest_path))
+                    export_data = self._generate_export_data(sec_subset_rp, filter_by_detection=filter_by_detection, z_pos_down=z_pos_down)
+                    self._las_write(export_data[0], export_data[1], export_data[2], export_data[3],
+                                    export_data[5], export_data[7], dest_path)
+                    written_files.append(dest_path)
+        else:
+            if suffix:
+                dest_path = os.path.join(output_directory, '{}_{}.las'.format(base_name, suffix))
             else:
-                if suffix:
-                    dest_path = os.path.join(output_directory, '{}_{}.las'.format(rp.system_identifier, suffix))
-                else:
-                    dest_path = os.path.join(output_directory, rp.system_identifier + '.las')
-                self.fqpr.logger.info('writing to {}'.format(dest_path))
-                export_data = self._generate_export_data(rp, filter_by_detection=filter_by_detection, z_pos_down=z_pos_down)
-                self._las_write(export_data[0], export_data[1], export_data[2], export_data[3],
-                                export_data[5], export_data[7], dest_path)
-                written_files.append(dest_path)
-        endtime = perf_counter()
-        self.fqpr.logger.info('****Exporting xyz data to las complete: {}****\n'.format(seconds_to_formatted_string(int(endtime - starttime))))
+                dest_path = os.path.join(output_directory, base_name + '.las')
+            self.fqpr.logger.info('writing to {}'.format(dest_path))
+            export_data = self._generate_export_data(rp, filter_by_detection=filter_by_detection, z_pos_down=z_pos_down)
+            self._las_write(export_data[0], export_data[1], export_data[2], export_data[3],
+                            export_data[5], export_data[7], dest_path)
+            written_files.append(dest_path)
+
         return written_files
 
     def _las_write(self, x: xr.DataArray, y: xr.DataArray, z: xr.DataArray, uncertainty: xr.DataArray,
@@ -446,47 +472,6 @@ class FqprExport:
                 las.classification = classification.astype(np.int8)
 
             las.write(dest_path)
-
-    def export_pings_to_entwine(self, output_directory: str = None, suffix: str = '', las_export_folder: str = None, filter_by_detection: bool = True,
-                                export_by_identifiers: bool = True):
-        """
-        Uses the output of georef_along_across_depth to build sounding exports.  Currently you can export to csv or las
-        file formats, see file_format argument.
-
-        If you export to las and want to retain rejected soundings under the noise classification, set
-        filter_by_detection to False.
-
-        Filters using the detectioninfo variable if present in multibeam and filter_by_detection is set.
-
-        Will generate an xyz file for each sector in multibeam.  Results in one xyz file for each freq/sector id/serial
-        number combination.
-
-        entwine export will build las first, and then entwine from las
-
-        Parameters
-        ----------
-        output_directory
-            destination directory for the entwine point tiles
-        suffix
-            optional additional filename suffix
-        las_export_folder
-            Folder to export the las files to
-        filter_by_detection
-            optional, if True will only write soundings that are not rejected
-        export_by_identifiers
-            if True, will generate separate files for each combination of serial number/sector/frequency
-
-        Returns
-        -------
-        list
-            one element long list containing the entwine directory path
-        """
-
-        self._export_pings_to_las(output_directory=las_export_folder, suffix=suffix, filter_by_detection=filter_by_detection,
-                                  export_by_identifiers=export_by_identifiers)
-
-        build_entwine_points(las_export_folder, output_directory)
-        return [las_export_folder]
 
     def export_variable_to_csv(self, dataset_name: str, var_name: str, dest_path: str, reduce_method: str = None,
                                zero_centered: bool = False):
