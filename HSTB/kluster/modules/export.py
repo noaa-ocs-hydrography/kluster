@@ -88,7 +88,6 @@ class FqprExport:
             tot = len(filter_stck)
             tot_valid = np.count_nonzero(valid_detections)
             tot_invalid = tot - tot_valid
-            print('{}: {} total soundings, {} retained, {} filtered'.format(ping_dataset.system_identifier, tot, tot_valid, tot_invalid))
         # filter points by mask
         unc = None
         if filter_by_detection and valid_detections is not None:
@@ -98,6 +97,7 @@ class FqprExport:
             classification = filter_stck[valid_detections]
             if uncertainty_included:
                 unc = unc_stck[valid_detections]
+            print('{} total soundings, {} retained, {} filtered'.format(tot, tot_valid, tot_invalid))
         else:
             x = x_stck
             y = y_stck
@@ -113,20 +113,124 @@ class FqprExport:
 
         return x, y, z, unc, nan_mask, classification, valid_detections, uncertainty_included
 
+    def _validate_export(self, output_directory: str, file_format: str):
+        """
+        Determine the final directory path for the export and ensure the provided options make sense
+
+        Parameters
+        ----------
+        output_directory
+            optional, destination directory for the xyz exports, otherwise will auto export next to converted data
+        file_format
+            optional, destination file format, default is csv file, options include ['csv', 'las', 'entwine']
+
+        Returns
+        -------
+        int
+            pings per chunk for the export
+        str
+            output folder path
+        str
+            second folder path for the export, used by entwine when making data from las
+        str
+            file suffix if applicable
+        """
+
+        if 'x' not in self.fqpr.multibeam.raw_ping[0]:
+            self.fqpr.logger.error('export_pings_to_file: No xyz data found, please run All Processing - Georeference Soundings first.')
+            return None, None, None, None
+        if file_format == 'entwine' and not is_pydro():
+            self.fqpr.logger.error('export_pings_to_file: Only pydro environments support entwine tile building.  Please see https://entwine.io/configuration.html for instructions on installing entwine if you wish to use entwine outside of Kluster.  Kluster exported las files will work with the entwine build command')
+            return None, None, None, None
+
+        if output_directory is None:
+            output_directory = self.fqpr.multibeam.converted_pth
+
+        entwine_fldr_path = ''
+        if file_format == 'csv':
+            chunksize = pings_per_csv
+            fldr_path, suffix = _create_folder(output_directory, 'csv_export')
+        elif file_format == 'las':
+            chunksize = pings_per_las
+            fldr_path, suffix = _create_folder(output_directory, 'las_export')
+        elif file_format == 'entwine':
+            chunksize = pings_per_las
+            fldr_path, suffix = _create_folder(output_directory, 'las_export')
+            entwine_fldr_path, _ = _create_folder(output_directory, 'entwine_export')
+        else:
+            self.fqpr.logger.error('export_pings_to_file: Only csv, las and entwine format options supported at this time')
+            return None, None, None, None
+        return chunksize, fldr_path, entwine_fldr_path, suffix
+
+    def export_lines_to_file(self, linenames: list, output_directory: str = None, file_format: str = 'csv', csv_delimiter=' ',
+                             filter_by_detection: bool = True, z_pos_down: bool = True, export_by_identifiers: bool = True):
+        """
+        Take each provided line name and export it to the file_format provided
+
+        Parameters
+        ----------
+        linenames
+            list of line names to export
+        output_directory
+            optional, destination directory for the xyz exports, otherwise will auto export next to converted data
+        file_format
+            optional, destination file format, default is csv file, options include ['csv', 'las', 'entwine']
+        csv_delimiter
+            optional, if you choose file_format=csv, this will control the delimiter
+        filter_by_detection
+            optional, if True will only write soundings that are not rejected
+        z_pos_down
+            if True, will export soundings with z positive down (this is the native Kluster convention), only for csv
+            export
+        export_by_identifiers
+            if True, will generate separate files for each combination of serial number/sector/frequency
+
+        Returns
+        -------
+        list
+            list of written file paths
+        """
+
+        self.fqpr.logger.info('****Exporting xyz data to {}****'.format(file_format))
+        starttime = perf_counter()
+        chunksize, fldr_path, entwine_fldr_path, suffix = self._validate_export(output_directory, file_format)
+        if not chunksize:
+            return []
+
+        totalfiles = []
+        for linename in linenames:
+            try:
+                data_dict = self.fqpr.subset_variables_by_line(['x', 'y', 'z', 'tvu', 'frequency', 'txsector_beam', 'detectioninfo'], [linename], filter_by_detection=filter_by_detection)
+            except:
+                data_dict = self.fqpr.subset_variables_by_line(['x', 'y', 'z', 'frequency', 'txsector_beam', 'detectioninfo'], [linename], filter_by_detection=filter_by_detection)
+            if data_dict:  # we could get the data_dict for all lines at once, but we do it line by line to avoid memory issues
+                line_rp = data_dict[linename]
+                new_files = []
+                if file_format == 'csv':
+                    new_files = self._export_pings_to_csv(rp=line_rp, output_directory=fldr_path, suffix=suffix, csv_delimiter=csv_delimiter, filter_by_detection=False,
+                                                          z_pos_down=z_pos_down, export_by_identifiers=export_by_identifiers,
+                                                          base_name=os.path.splitext(linename)[0])
+                elif file_format in ['las', 'entwine']:
+                    new_files = self._export_pings_to_las(rp=line_rp, output_directory=fldr_path, suffix=suffix, filter_by_detection=False,
+                                                          export_by_identifiers=export_by_identifiers, base_name=os.path.splitext(linename)[0])
+                if new_files:
+                    totalfiles += new_files
+
+        endtime = perf_counter()
+        self.fqpr.logger.info('****Exporting xyz data to {} complete: {}****\n'.format(file_format, seconds_to_formatted_string(int(endtime - starttime))))
+        return totalfiles
+
     def export_pings_to_file(self, output_directory: str = None, file_format: str = 'csv', csv_delimiter=' ',
                              filter_by_detection: bool = True, z_pos_down: bool = True, export_by_identifiers: bool = True):
         """
         Uses the output of georef_along_across_depth to build sounding exports.  Currently you can export to csv, las or
-        entwine file formats, see file_format argument.
+        entwine file formats, see file_format argument.  This will use all soundings in the dataset.
 
         If you export to las and want to retain rejected soundings under the noise classification, set
         filter_by_detection to False.
 
         Filters using the detectioninfo variable if present in multibeam and filter_by_detection is set.  Set z_pos_down
         to False if you want positive up.  Otherwise you get positive down.
-
-        Will generate an xyz file for each sector in multibeam.  Results in one xyz file for each freq/sector id/serial
-        number combination.
 
         entwine export will build las first, and then entwine from las
 
@@ -152,34 +256,12 @@ class FqprExport:
             list of written file paths
         """
 
-        if 'x' not in self.fqpr.multibeam.raw_ping[0]:
-            self.fqpr.logger.error('export_pings_to_file: No xyz data found, please run All Processing - Georeference Soundings first.')
-            return
-        if file_format == 'entwine' and not is_pydro():
-            self.fqpr.logger.error('export_pings_to_file: Only pydro environments support entwine tile building.  Please see https://entwine.io/configuration.html for instructions on installing entwine if you wish to use entwine outside of Kluster.  Kluster exported las files will work with the entwine build command')
-            return
-
-        if output_directory is None:
-            output_directory = self.fqpr.multibeam.converted_pth
+        chunksize, fldr_path, entwine_fldr_path, suffix = self._validate_export(output_directory, file_format)
+        if not chunksize:
+            return []
 
         self.fqpr.logger.info('****Exporting xyz data to {}****'.format(file_format))
         starttime = perf_counter()
-        written_files = []
-
-        if file_format == 'csv':
-            chunksize = pings_per_csv
-            fldr_path, suffix = _create_folder(output_directory, 'csv_export')
-        elif file_format == 'las':
-            chunksize = pings_per_las
-            fldr_path, suffix = _create_folder(output_directory, 'las_export')
-        elif file_format == 'entwine':
-            chunksize = pings_per_las
-            fldr_path, suffix = _create_folder(output_directory, 'las_export')
-            entwine_fldr_path, _ = _create_folder(output_directory, 'entwine_export')
-        else:
-            self.fqpr.logger.error('export_pings_to_file: Only csv, las and entwine format options supported at this time')
-            return
-
         chunk_count = 0
         written_files = []
         for rp in self.fqpr.multibeam.raw_ping:
@@ -214,7 +296,7 @@ class FqprExport:
         return written_files
 
     def _export_pings_to_csv(self, rp: xr.Dataset, output_directory: str = None, suffix: str = None, csv_delimiter: str = ' ', filter_by_detection: bool = True,
-                             z_pos_down: bool = True, export_by_identifiers: bool = True):
+                             z_pos_down: bool = True, export_by_identifiers: bool = True, base_name: str = None):
         """
         Method for exporting pings to csv files.  See export_pings_to_file to use.
 
@@ -234,6 +316,8 @@ class FqprExport:
             if True, will export soundings with z positive down (this is the native Kluster convention)
         export_by_identifiers
             if True, will generate separate files for each combination of serial number/sector/frequency
+        base_name
+            optional, the base name of the exported file, if None it will use the folder name of the converted data
 
         Returns
         -------
@@ -246,8 +330,10 @@ class FqprExport:
         if filter_by_detection and 'detectioninfo' not in rp:
             self.fqpr.logger.error('_export_pings_to_csv: Unable to filter by detection type, detectioninfo not found')
             return
-        base_name = os.path.split(rp.output_path)[1]
-        rp = rp.stack({'sounding': ('time', 'beam')})
+        if not base_name:
+            base_name = os.path.split(rp.output_path)[1]
+        if 'sounding' not in rp.coords:  # check if this is already stacked, if not, stack
+            rp = rp.stack({'sounding': ('time', 'beam')})
         if export_by_identifiers:
             for freq in np.unique(rp.frequency):
                 subset_rp = rp.where(rp.frequency == freq, drop=True)
@@ -317,7 +403,7 @@ class FqprExport:
                        comments='')
 
     def _export_pings_to_las(self, rp: xr.Dataset, output_directory: str = None, suffix: str = '', filter_by_detection: bool = True,
-                             export_by_identifiers: bool = True):
+                             export_by_identifiers: bool = True, base_name: str = None):
         """
         Uses the output of georef_along_across_depth to build sounding exports.  Currently you can export to csv or las
         file formats, see file_format argument.
@@ -344,6 +430,8 @@ class FqprExport:
             optional, if True will only write soundings that are not rejected
         export_by_identifiers
             if True, will generate separate files for each combination of serial number/sector/frequency
+        base_name
+            optional, the base name of the exported file, if None it will use the folder name of the converted data
 
         Returns
         -------
@@ -353,12 +441,14 @@ class FqprExport:
 
         z_pos_down = False  # LAS files should always be z positive up
         written_files = []
-        base_name = os.path.split(rp.output_path)[1]
+        if not base_name:
+            base_name = os.path.split(rp.output_path)[1]
 
         if filter_by_detection and 'detectioninfo' not in rp:
             self.fqpr.logger.error('_export_pings_to_las: Unable to filter by detection type, detectioninfo not found')
             return
-        rp = rp.stack({'sounding': ('time', 'beam')})
+        if 'sounding' not in rp.coords:  # check if this is already stacked, if not, stack
+            rp = rp.stack({'sounding': ('time', 'beam')})
         if export_by_identifiers:
             for freq in np.unique(rp.frequency):
                 subset_rp = rp.where(rp.frequency == freq, drop=True)

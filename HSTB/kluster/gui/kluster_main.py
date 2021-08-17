@@ -1008,6 +1008,11 @@ class KlusterMain(QtWidgets.QMainWindow):
             dlog.update_fqpr_instances(addtl_files=fqprs)
             cancelled = False
             if dlog.exec_():
+                basic_export_mode = dlog.basic_export_group.isChecked()
+                line_export_mode = dlog.line_export.isChecked()
+                points_export_mode = dlog.points_view_export.isChecked()
+                linenames = self.project_tree.return_selected_lines()
+
                 export_type = dlog.export_opts.currentText()
                 delimiter = dlog.csvdelimiter_dropdown.currentText()
                 filterset = dlog.filter_chk.isChecked()
@@ -1026,8 +1031,8 @@ class KlusterMain(QtWidgets.QMainWindow):
                             fq_chunks.append([fq_inst])
                     if fq_chunks:
                         self.output_window.clear()
-                        self.export_thread.populate(fq_chunks, export_type, z_pos_down, delimiter, filterset,
-                                                    separateset)
+                        self.export_thread.populate(fq_chunks, linenames, export_type, z_pos_down, delimiter, filterset,
+                                                    separateset, basic_export_mode, line_export_mode, points_export_mode)
                         self.export_thread.start()
                 else:
                     cancelled = True

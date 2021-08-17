@@ -17,8 +17,9 @@ class ExportDialog(QtWidgets.QDialog):
         self.setWindowTitle('Export Soundings')
         layout = QtWidgets.QVBoxLayout()
 
-        self.input_msg = QtWidgets.QLabel('Export from the following:')
-
+        self.basic_export_group = QtWidgets.QGroupBox('Export from the following datasets:')
+        self.basic_export_group.setCheckable(True)
+        self.basic_export_group.setChecked(True)
         self.hlayout_zero = QtWidgets.QHBoxLayout()
         self.input_fqpr = BrowseListWidget(self)
         self.input_fqpr.sizeHint()
@@ -26,6 +27,13 @@ class ExportDialog(QtWidgets.QDialog):
                               filebrowse_title='Select input processed folder')
         self.input_fqpr.setMinimumWidth(600)
         self.hlayout_zero.addWidget(self.input_fqpr)
+        self.basic_export_group.setLayout(self.hlayout_zero)
+
+        self.line_export = QtWidgets.QCheckBox('Export selected lines')
+        self.line_export.setChecked(False)
+
+        self.points_view_export = QtWidgets.QCheckBox('Export points in Points View')
+        self.points_view_export.setChecked(False)
 
         self.hlayout_one = QtWidgets.QHBoxLayout()
         self.start_msg = QtWidgets.QLabel('Export to: ')
@@ -69,8 +77,10 @@ class ExportDialog(QtWidgets.QDialog):
         self.hlayout_two.addWidget(self.cancel_button)
         self.hlayout_two.addStretch(1)
 
-        layout.addWidget(self.input_msg)
-        layout.addLayout(self.hlayout_zero)
+        layout.addWidget(self.basic_export_group)
+        layout.addWidget(self.line_export)
+        layout.addWidget(self.points_view_export)
+        layout.addWidget(QtWidgets.QLabel(' '))
         layout.addLayout(self.hlayout_one)
         layout.addLayout(self.hlayout_one_one)
         layout.addLayout(self.hlayout_one_three)
@@ -81,10 +91,40 @@ class ExportDialog(QtWidgets.QDialog):
         self.fqpr_inst = []
         self.canceled = False
 
+        self.basic_export_group.toggled.connect(self._handle_basic_checked)
+        self.line_export.toggled.connect(self._handle_line_checked)
+        self.points_view_export.toggled.connect(self._handle_points_checked)
         self.input_fqpr.files_updated.connect(self._event_update_fqpr_instances)
         self.export_opts.currentTextChanged.connect(self._event_update_status)
         self.ok_button.clicked.connect(self.start_export)
         self.cancel_button.clicked.connect(self.cancel_export)
+
+    def _handle_basic_checked(self, evt):
+        """
+        Ensure only one group at a time is selected
+        """
+
+        if evt:
+            self.line_export.setChecked(False)
+            self.points_view_export.setChecked(False)
+
+    def _handle_line_checked(self, evt):
+        """
+        Ensure only one group at a time is selected
+        """
+
+        if evt:
+            self.basic_export_group.setChecked(False)
+            self.points_view_export.setChecked(False)
+
+    def _handle_points_checked(self, evt):
+        """
+        Ensure only one group at a time is selected
+        """
+
+        if evt:
+            self.line_export.setChecked(False)
+            self.basic_export_group.setChecked(False)
 
     def _event_update_fqpr_instances(self):
         """
@@ -148,9 +188,12 @@ class ExportDialog(QtWidgets.QDialog):
         """
         Dialog completes if the specified widgets are populated
         """
-        if not self.fqpr_inst:
+        if self.basic_export_group.isChecked() and not self.fqpr_inst:
             self.status_msg.setStyleSheet("QLabel { " + kluster_variables.error_color + "; }")
             self.status_msg.setText('Error: No data provided')
+        elif not self.basic_export_group.isChecked() and not self.line_export.isChecked() and not self.points_view_export.isChecked():
+            self.status_msg.setStyleSheet("QLabel { " + kluster_variables.error_color + "; }")
+            self.status_msg.setText('Error: You must select one of the three export modes (export datasets, export lines, export points)')
         else:
             self.canceled = False
             self.accept()

@@ -243,15 +243,25 @@ class ExportWorker(QtCore.QThread):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.fq_chunks = None
+        self.line_names = None
         self.fqpr_instances = []
         self.export_type = ''
+        self.mode = ''
         self.z_pos_down = False
         self.delimiter = ' '
         self.filterset = False
         self.separateset = False
         self.error = False
 
-    def populate(self, fq_chunks, export_type, z_pos_down, delimiter, filterset, separateset):
+    def populate(self, fq_chunks, line_names, export_type, z_pos_down, delimiter, filterset, separateset, basic_mode, line_mode, points_mode):
+        if basic_mode:
+            self.mode = 'basic'
+        elif line_mode:
+            self.mode = 'line'
+        elif points_mode:
+            self.mode = 'points'
+
+        self.line_names = line_names
         self.fq_chunks = fq_chunks
         self.export_type = export_type
         self.z_pos_down = z_pos_down
@@ -266,18 +276,22 @@ class ExportWorker(QtCore.QThread):
         self.error = False
 
     def export_process(self, fq):
-        fq.export_pings_to_file(file_format=self.export_type, csv_delimiter=self.delimiter, filter_by_detection=self.filterset,
-                                z_pos_down=self.z_pos_down, export_by_identifiers=self.separateset)
+        if self.mode == 'basic':
+            fq.export_pings_to_file(file_format=self.export_type, csv_delimiter=self.delimiter, filter_by_detection=self.filterset,
+                                    z_pos_down=self.z_pos_down, export_by_identifiers=self.separateset)
+        elif self.mode == 'line':
+            fq.export_lines_to_file(linenames=self.line_names, file_format=self.export_type, csv_delimiter=self.delimiter,
+                                    filter_by_detection=self.filterset, z_pos_down=self.z_pos_down, export_by_identifiers=self.separateset)
         return fq
 
     def run(self):
         self.started.emit(True)
-        try:
-            for chnk in self.fq_chunks:
-                self.fqpr_instances.append(self.export_process(chnk[0]))
-        except Exception as e:
-            print(e)
-            self.error = True
+        # try:
+        for chnk in self.fq_chunks:
+            self.fqpr_instances.append(self.export_process(chnk[0]))
+        # except Exception as e:
+        #     print(e)
+        #     self.error = True
         self.finished.emit(True)
 
 

@@ -2069,6 +2069,41 @@ class Fqpr(ZarrBackend):
                                                          z_pos_down=z_pos_down, export_by_identifiers=export_by_identifiers)
         return written_files
 
+    def export_lines_to_file(self, linenames: list, output_directory: str = None, file_format: str = 'csv', csv_delimiter=' ',
+                             filter_by_detection: bool = True, z_pos_down: bool = True, export_by_identifiers: bool = True):
+        """
+        Take each provided line name and export it to the file_format provided.  Similar to export_pings_to_file, except
+        only for the line names provided.
+
+        Parameters
+        ----------
+        linenames
+            list of line names to export
+        output_directory
+            optional, destination directory for the xyz exports, otherwise will auto export next to converted data
+        file_format
+            optional, destination file format, default is csv file, options include ['csv', 'las', 'entwine']
+        csv_delimiter
+            optional, if you choose file_format=csv, this will control the delimiter
+        filter_by_detection
+            optional, if True will only write soundings that are not rejected
+        z_pos_down
+            if True, will export soundings with z positive down (this is the native Kluster convention), only for csv
+            export
+        export_by_identifiers
+            if True, will generate separate files for each combination of serial number/sector/frequency
+
+        Returns
+        -------
+        list
+            list of written file paths
+        """
+        written_files = self.export.export_lines_to_file(linenames=linenames, output_directory=output_directory,
+                                                         file_format=file_format, csv_delimiter=csv_delimiter,
+                                                         filter_by_detection=filter_by_detection, z_pos_down=z_pos_down,
+                                                         export_by_identifiers=export_by_identifiers)
+        return written_files
+
     def export_variable(self, dataset_name: str, var_name: str, dest_path: str, reduce_method: str = None,
                         zero_centered: bool = False):
         """
@@ -2610,7 +2645,7 @@ class Fqpr(ZarrBackend):
             coords = {'time': times, 'beam': np.arange(maxbeams)}
         else:  # when variables are just time dimension
             coords = {'time': times}
-        dset = xr.Dataset(dataset_variables, coords)
+        dset = xr.Dataset(dataset_variables, coords, attrs=deepcopy(self.multibeam.raw_ping[0].attrs))
         dset = dset.sortby('time')
 
         if filter_by_detection:
@@ -2680,12 +2715,12 @@ class Fqpr(ZarrBackend):
         if line_names:
             if isinstance(line_names, str):
                 line_names = [line_names]
-            [mfiles.pop(lnme) for lnme in mfiles.keys() if lnme not in line_names]
+            [mfiles.pop(lnme) for lnme in self.multibeam.raw_ping[0].multibeam_files.keys() if lnme not in line_names]
         if not mfiles and line_names:
-            print('No lines found in dataset, looked only for {}.  Dataset lines: {}'.format(line_names, list(mfiles.keys())))
+            # print('No lines found in dataset, looked only for {}.  Dataset lines: {}'.format(line_names, list(mfiles.keys())))
             return {}
         elif not mfiles:
-            print('No lines found in dataset.')
+            # print('No lines found in dataset.')
             return {}
         if ping_times:
             try:
