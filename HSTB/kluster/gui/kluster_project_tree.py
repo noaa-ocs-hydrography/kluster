@@ -310,8 +310,9 @@ class KlusterProjectTree(QtWidgets.QTreeView):
                         if fq_line not in tree_lines:
                             line_child = QtGui.QStandardItem(fq_line)
                             proj_child.appendRow([line_child])
+        parent.sortChildren(0, order=QtCore.Qt.AscendingOrder)
 
-    def _add_new_surf_from_proj(self, parent, surf_data):
+    def _add_new_surf_from_proj(self, parent: QtGui.QStandardItem, surf_data):
         """
         Read from the kluster_main FqprProject (provided here is the line_data from that project) and add the surfaces
         that are not currently in project tree.  self.tree_data contains the record of the data in the tree.
@@ -335,6 +336,7 @@ class KlusterProjectTree(QtWidgets.QTreeView):
                     lyr_child.setCheckable(True)
                     surf_child.appendRow([lyr_child])
                 self.tree_data['Surfaces'].append(surf)
+        parent.sortChildren(0, order=QtCore.Qt.AscendingOrder)
 
     def _remove_fqpr_not_in_proj(self, parent, line_data):
         """
