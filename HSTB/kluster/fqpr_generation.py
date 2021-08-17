@@ -2104,6 +2104,36 @@ class Fqpr(ZarrBackend):
                                                          export_by_identifiers=export_by_identifiers)
         return written_files
 
+    def export_soundings_to_file(self, datablock: list, output_directory: str = None, file_format: str = 'csv',
+                                 csv_delimiter=' ', filter_by_detection: bool = True, z_pos_down: bool = True):
+        """
+        A convenience method for exporting the data currently in the Kluster Points View to file.
+
+        Parameters
+        ----------
+        datablock
+            list of [sounding_id, x, y, z, tvu, rejected, pointtime, beam, linename] arrays, all of the same size and shape.
+            sounding_id is the name of the converted instance for each sounding
+        output_directory
+            optional, destination directory for the xyz exports, otherwise will auto export next to converted data
+        file_format
+            optional, destination file format, default is csv file, options include ['csv', 'las', 'entwine']
+        csv_delimiter
+            optional, if you choose file_format=csv, this will control the delimiter
+        filter_by_detection
+            optional, if True will only write soundings that are not rejected
+        z_pos_down
+            if True, will export soundings with z positive down (this is the native Kluster convention), only for csv
+            export
+
+        Returns
+        -------
+        list
+            list of written file paths
+        """
+
+        self.export.export_soundings_to_file(datablock, output_directory, file_format, csv_delimiter, filter_by_detection, z_pos_down)
+
     def export_variable(self, dataset_name: str, var_name: str, dest_path: str, reduce_method: str = None,
                         zero_centered: bool = False):
         """

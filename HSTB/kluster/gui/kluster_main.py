@@ -1011,7 +1011,14 @@ class KlusterMain(QtWidgets.QMainWindow):
                 basic_export_mode = dlog.basic_export_group.isChecked()
                 line_export_mode = dlog.line_export.isChecked()
                 points_export_mode = dlog.points_view_export.isChecked()
-                linenames = self.project_tree.return_selected_lines()
+                if line_export_mode:
+                    linenames = self.project_tree.return_selected_lines()
+                else:
+                    linenames = []
+                if points_export_mode:
+                    datablock = self.points_view.return_points()
+                else:
+                    datablock = []
 
                 export_type = dlog.export_opts.currentText()
                 delimiter = dlog.csvdelimiter_dropdown.currentText()
@@ -1031,7 +1038,7 @@ class KlusterMain(QtWidgets.QMainWindow):
                             fq_chunks.append([fq_inst])
                     if fq_chunks:
                         self.output_window.clear()
-                        self.export_thread.populate(fq_chunks, linenames, export_type, z_pos_down, delimiter, filterset,
+                        self.export_thread.populate(fq_chunks, linenames, datablock, export_type, z_pos_down, delimiter, filterset,
                                                     separateset, basic_export_mode, line_export_mode, points_export_mode)
                         self.export_thread.start()
                 else:

@@ -295,6 +295,93 @@ class FqprExport:
 
         return written_files
 
+    def export_soundings_to_file(self, datablock: list, output_directory: str = None, file_format: str = 'csv', csv_delimiter=' ',
+                                 filter_by_detection: bool = True, z_pos_down: bool = True):
+        """
+        A convenience method for exporting the data currently in the Kluster Points View to file.
+
+        Parameters
+        ----------
+        datablock
+            list of [sounding_id, x, y, z, tvu, rejected, pointtime, beam, linename] arrays, all of the same size and shape.
+            sounding_id is the name of the converted instance for each sounding
+        output_directory
+            optional, destination directory for the xyz exports, otherwise will auto export next to converted data
+        file_format
+            optional, destination file format, default is csv file, options include ['csv', 'las', 'entwine']
+        csv_delimiter
+            optional, if you choose file_format=csv, this will control the delimiter
+        filter_by_detection
+            optional, if True will only write soundings that are not rejected
+        z_pos_down
+            if True, will export soundings with z positive down (this is the native Kluster convention), only for csv
+            export
+
+        Returns
+        -------
+        list
+            list of written file paths
+        """
+
+        chunksize, fldr_path, entwine_fldr_path, suffix = self._validate_export(output_directory, file_format)
+        if not chunksize:
+            return []
+
+        self.fqpr.logger.info('****Exporting xyz data to {}****'.format(file_format))
+        starttime = perf_counter()
+        written_files = []
+        if datablock:
+            try:
+                base_name = os.path.split(self.fqpr.multibeam.converted_pth)[1] + '_pointsview'
+                sounding_id, x, y, z, tvu, rejected, pointtime, beam, linename = datablock
+            except:
+                raise ValueError('export_soundings_to_file: datablock should be length 9 with sounding_id, x, y, z, tvu, rejected, pointtime, beam, linename, found length {}'.format(len(datablock)))
+            if not x.any():
+                print('export_soundings_to_file: no sounding data provided to export')
+                return written_files
+
+            unc_included = False
+            if tvu.any():
+                unc_included = True
+            if filter_by_detection:
+                valid_detections = rejected != 2
+                x = x[valid_detections]
+                y = y[valid_detections]
+                z = z[valid_detections]
+                if unc_included:
+                    tvu = tvu[valid_detections]
+                rejected = rejected[valid_detections]
+
+            if file_format in ['las', 'entwine']:
+                z_pos_down = False
+            if not z_pos_down:
+                z = z * -1
+
+            if file_format == 'csv':
+                if suffix:
+                    dest_path = os.path.join(fldr_path, '{}_{}.csv'.format(base_name, suffix))
+                else:
+                    dest_path = os.path.join(fldr_path, base_name + '.csv')
+                self.fqpr.logger.info('writing to {}'.format(dest_path))
+                self._csv_write(x, y, z, tvu, unc_included, dest_path, csv_delimiter)
+            else:
+                if suffix:
+                    dest_path = os.path.join(fldr_path, '{}_{}.las'.format(base_name, suffix))
+                else:
+                    dest_path = os.path.join(fldr_path, base_name + '.las')
+                self.fqpr.logger.info('writing to {}'.format(dest_path))
+                self._las_write(x, y, z, tvu, rejected, unc_included, dest_path)
+
+            if file_format == 'entwine':
+                build_entwine_points(fldr_path, entwine_fldr_path)
+                written_files = [entwine_fldr_path]
+        else:
+            print('export_soundings_to_file: no sounding data provided to export')
+        endtime = perf_counter()
+        self.fqpr.logger.info('****Exporting xyz data to {} complete: {}****\n'.format(file_format, seconds_to_formatted_string(int(endtime - starttime))))
+
+        return written_files
+
     def _export_pings_to_csv(self, rp: xr.Dataset, output_directory: str = None, suffix: str = None, csv_delimiter: str = ' ', filter_by_detection: bool = True,
                              z_pos_down: bool = True, export_by_identifiers: bool = True, base_name: str = None):
         """
@@ -503,9 +590,14 @@ class FqprExport:
             output path to write to
         """
 
-        x = np.round(x.values, 2)
-        y = np.round(y.values, 2)
-        z = np.round(z.values, 3)
+        try:  # xarray
+            x = np.round(x.values, 2)
+            y = np.round(y.values, 2)
+            z = np.round(z.values, 3)
+        except:  # numpy
+            x = np.round(x, 2)
+            y = np.round(y, 2)
+            z = np.round(z, 3)
 
         try:
             vlrs = [laspy.header.VLR(user_id='LASF_Projection', record_id=2112, description='OGC Coordinate System WKT',

@@ -244,6 +244,7 @@ class ExportWorker(QtCore.QThread):
         super().__init__(parent)
         self.fq_chunks = None
         self.line_names = None
+        self.datablock = []
         self.fqpr_instances = []
         self.export_type = ''
         self.mode = ''
@@ -253,7 +254,7 @@ class ExportWorker(QtCore.QThread):
         self.separateset = False
         self.error = False
 
-    def populate(self, fq_chunks, line_names, export_type, z_pos_down, delimiter, filterset, separateset, basic_mode, line_mode, points_mode):
+    def populate(self, fq_chunks, line_names, datablock, export_type, z_pos_down, delimiter, filterset, separateset, basic_mode, line_mode, points_mode):
         if basic_mode:
             self.mode = 'basic'
         elif line_mode:
@@ -262,6 +263,7 @@ class ExportWorker(QtCore.QThread):
             self.mode = 'points'
 
         self.line_names = line_names
+        self.datablock = datablock
         self.fq_chunks = fq_chunks
         self.export_type = export_type
         self.z_pos_down = z_pos_down
@@ -275,20 +277,27 @@ class ExportWorker(QtCore.QThread):
         self.separateset = separateset
         self.error = False
 
-    def export_process(self, fq):
+    def export_process(self, fq, datablock=None):
         if self.mode == 'basic':
             fq.export_pings_to_file(file_format=self.export_type, csv_delimiter=self.delimiter, filter_by_detection=self.filterset,
                                     z_pos_down=self.z_pos_down, export_by_identifiers=self.separateset)
         elif self.mode == 'line':
             fq.export_lines_to_file(linenames=self.line_names, file_format=self.export_type, csv_delimiter=self.delimiter,
                                     filter_by_detection=self.filterset, z_pos_down=self.z_pos_down, export_by_identifiers=self.separateset)
+        else:
+            fq.export_soundings_to_file(datablock=datablock, file_format=self.export_type, csv_delimiter=self.delimiter,
+                                        filter_by_detection=self.filterset, z_pos_down=self.z_pos_down)
         return fq
 
     def run(self):
         self.started.emit(True)
         # try:
-        for chnk in self.fq_chunks:
-            self.fqpr_instances.append(self.export_process(chnk[0]))
+        if self.mode in ['basic', 'line']:
+            for chnk in self.fq_chunks:
+                self.fqpr_instances.append(self.export_process(chnk[0]))
+        else:
+            fq = self.fq_chunks[0][0]
+            self.fqpr_instances.append(self.export_process(fq, datablock=self.datablock))
         # except Exception as e:
         #     print(e)
         #     self.error = True

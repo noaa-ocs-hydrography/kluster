@@ -107,6 +107,8 @@ class ExportDialog(QtWidgets.QDialog):
         if evt:
             self.line_export.setChecked(False)
             self.points_view_export.setChecked(False)
+            self.status_msg.setStyleSheet("QLabel { " + kluster_variables.pass_color + "; }")
+            self.status_msg.setText('')
 
     def _handle_line_checked(self, evt):
         """
@@ -116,6 +118,8 @@ class ExportDialog(QtWidgets.QDialog):
         if evt:
             self.basic_export_group.setChecked(False)
             self.points_view_export.setChecked(False)
+            self.status_msg.setStyleSheet("QLabel { " + kluster_variables.pass_color + "; }")
+            self.status_msg.setText('')
 
     def _handle_points_checked(self, evt):
         """
@@ -125,6 +129,12 @@ class ExportDialog(QtWidgets.QDialog):
         if evt:
             self.line_export.setChecked(False)
             self.basic_export_group.setChecked(False)
+            if not self.fqpr_inst:
+                self.status_msg.setStyleSheet("QLabel { " + kluster_variables.error_color + "; }")
+                self.status_msg.setText('Error: Ensure you have one of the datasets that contain these points listed in "Export from the following datasets"')
+            else:
+                self.status_msg.setStyleSheet("QLabel { " + kluster_variables.pass_color + "; }")
+                self.status_msg.setText('')
 
     def _event_update_fqpr_instances(self):
         """
@@ -183,6 +193,8 @@ class ExportDialog(QtWidgets.QDialog):
         if addtl_files is not None:
             self.input_fqpr.add_new_files(addtl_files)
         self.fqpr_inst = [self.input_fqpr.list_widget.item(i).text() for i in range(self.input_fqpr.list_widget.count())]
+        if self.points_view_export.isChecked():
+            self._handle_points_checked(True)
 
     def start_export(self):
         """
@@ -191,6 +203,9 @@ class ExportDialog(QtWidgets.QDialog):
         if self.basic_export_group.isChecked() and not self.fqpr_inst:
             self.status_msg.setStyleSheet("QLabel { " + kluster_variables.error_color + "; }")
             self.status_msg.setText('Error: No data provided')
+        elif self.points_view_export.isChecked() and not self.fqpr_inst:
+            self.status_msg.setStyleSheet("QLabel { " + kluster_variables.error_color + "; }")
+            self.status_msg.setText('Error: You must provide at least one dataset that the points come from before exporting')
         elif not self.basic_export_group.isChecked() and not self.line_export.isChecked() and not self.points_view_export.isChecked():
             self.status_msg.setStyleSheet("QLabel { " + kluster_variables.error_color + "; }")
             self.status_msg.setText('Error: You must select one of the three export modes (export datasets, export lines, export points)')
