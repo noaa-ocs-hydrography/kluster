@@ -1072,7 +1072,8 @@ class KlusterMain(QtWidgets.QMainWindow):
         here.
         """
 
-        self.generic_progressbar.setMaximum(1)
+        if self.no_threads_running():
+            self.generic_progressbar.setMaximum(1)
 
     def _create_new_project_if_not_exist(self, pth):
         """
