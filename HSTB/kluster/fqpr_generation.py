@@ -2031,38 +2031,7 @@ class Fqpr(ZarrBackend):
     def export_pings_to_file(self, output_directory: str = None, file_format: str = 'csv', csv_delimiter=' ',
                              filter_by_detection: bool = True, z_pos_down: bool = True, export_by_identifiers: bool = True):
         """
-        Uses the output of georef_along_across_depth to build sounding exports.  Currently you can export to csv or las
-        file formats, see file_format argument.
-
-        If you export to las and want to retain rejected soundings under the noise classification, set
-        filter_by_detection to False.
-
-        Filters using the detectioninfo variable if present in multibeam and filter_by_detection is set.
-
-        Will generate an xyz file for each sector in multibeam.  Results in one xyz file for each freq/sector id/serial
-        number combination.
-
-        entwine export will build las first, and then entwine from las
-
-        Parameters
-        ----------
-        output_directory
-            optional, destination directory for the xyz exports, otherwise will auto export next to converted data
-        file_format
-            optional, destination file format, default is csv file, options include ['csv', 'las', 'entwine']
-        csv_delimiter
-            optional, if you choose file_format=csv, this will control the delimiter
-        filter_by_detection
-            optional, if True will only write soundings that are not rejected
-        z_pos_down
-            if True, will export soundings with z positive down (this is the native Kluster convention)
-        export_by_identifiers
-            if True, will generate separate files for each combination of serial number/sector/frequency
-
-        Returns
-        -------
-        list
-            list of written file paths
+        Run the export module to export point cloud relevant data to file, see export.export_pings_to_file
         """
         written_files = self.export.export_pings_to_file(output_directory=output_directory, file_format=file_format,
                                                          csv_delimiter=csv_delimiter, filter_by_detection=filter_by_detection,
@@ -2072,31 +2041,7 @@ class Fqpr(ZarrBackend):
     def export_lines_to_file(self, linenames: list, output_directory: str = None, file_format: str = 'csv', csv_delimiter=' ',
                              filter_by_detection: bool = True, z_pos_down: bool = True, export_by_identifiers: bool = True):
         """
-        Take each provided line name and export it to the file_format provided.  Similar to export_pings_to_file, except
-        only for the line names provided.
-
-        Parameters
-        ----------
-        linenames
-            list of line names to export
-        output_directory
-            optional, destination directory for the xyz exports, otherwise will auto export next to converted data
-        file_format
-            optional, destination file format, default is csv file, options include ['csv', 'las', 'entwine']
-        csv_delimiter
-            optional, if you choose file_format=csv, this will control the delimiter
-        filter_by_detection
-            optional, if True will only write soundings that are not rejected
-        z_pos_down
-            if True, will export soundings with z positive down (this is the native Kluster convention), only for csv
-            export
-        export_by_identifiers
-            if True, will generate separate files for each combination of serial number/sector/frequency
-
-        Returns
-        -------
-        list
-            list of written file paths
+        Run the export module to export only the data belonging to the given lines to file, see export.export_lines_to_file
         """
         written_files = self.export.export_lines_to_file(linenames=linenames, output_directory=output_directory,
                                                          file_format=file_format, csv_delimiter=csv_delimiter,
@@ -2107,29 +2052,7 @@ class Fqpr(ZarrBackend):
     def export_soundings_to_file(self, datablock: list, output_directory: str = None, file_format: str = 'csv',
                                  csv_delimiter=' ', filter_by_detection: bool = True, z_pos_down: bool = True):
         """
-        A convenience method for exporting the data currently in the Kluster Points View to file.
-
-        Parameters
-        ----------
-        datablock
-            list of [sounding_id, x, y, z, tvu, rejected, pointtime, beam, linename] arrays, all of the same size and shape.
-            sounding_id is the name of the converted instance for each sounding
-        output_directory
-            optional, destination directory for the xyz exports, otherwise will auto export next to converted data
-        file_format
-            optional, destination file format, default is csv file, options include ['csv', 'las', 'entwine']
-        csv_delimiter
-            optional, if you choose file_format=csv, this will control the delimiter
-        filter_by_detection
-            optional, if True will only write soundings that are not rejected
-        z_pos_down
-            if True, will export soundings with z positive down (this is the native Kluster convention), only for csv
-            export
-
-        Returns
-        -------
-        list
-            list of written file paths
+        Run the export module to export given soundings to file, see export.export_soundings_to_file
         """
 
         self.export.export_soundings_to_file(datablock, output_directory, file_format, csv_delimiter, filter_by_detection, z_pos_down)
@@ -2137,35 +2060,14 @@ class Fqpr(ZarrBackend):
     def export_variable(self, dataset_name: str, var_name: str, dest_path: str, reduce_method: str = None,
                         zero_centered: bool = False):
         """
-        Run the export module to export the given variable to csv, writing to the provided path
-
-        Parameters
-        ----------
-        dataset_name
-            dataset identifier, one of ['multibeam', 'raw navigation', 'processed navigation', 'attitude']
-        var_name
-            variable identifier for a variable in the provided dataset, ex: 'latitude'
-        dest_path
-            path to the csv that we are going to write
-        reduce_method
-            option for reducing the array, only for (time, beam) arrays.  One of (mean, nadir, port_outer_beam,
-            starboard_outer_beam).  If not provided, will export the full (time, beam) array
-        zero_centered
-            if zero_centered, will subtract the arithmetic mean from the array.
+        Run the export module to export the given variable to csv, writing to the provided path, see export.export_variable_to_csv
         """
 
         self.export.export_variable_to_csv(dataset_name, var_name, dest_path, reduce_method, zero_centered)
 
     def export_dataset(self, dataset_name: str, dest_path: str):
         """
-        Run the export module to export each variable in the given dataset to one csv, writing to the provided path
-
-        Parameters
-        ----------
-        dataset_name
-            dataset identifier, one of ['multibeam', 'raw navigation', 'processed navigation', 'attitude']
-        dest_path
-            path to the csv that we are going to write
+        Run the export module to export each variable in the given dataset to one csv, writing to the provided path, see export.export_dataset_to_csv
         """
 
         self.export.export_dataset_to_csv(dataset_name, dest_path)
@@ -2359,65 +2261,6 @@ class Fqpr(ZarrBackend):
                        skip_dask=skip_dask)
 
         self.intermediate_dat[sys_ident][mode_settings[0]][timestmp] = []
-
-    def return_xyz(self, start_time: float = None, end_time: float = None, include_unc: bool = False):
-        """
-        Iterate through all the raw_ping datasets and append all the xyz records together into a list of one dimensional
-        arrays.  If start time and/or end time are provided, it will only include xyz records that are within that time
-        period.  If start time and end time are not provided, it returns all the xyz records in all the raw_ping datasets.
-
-        If include_unc and there is uncertainty in the raw_ping, it will include that as well.
-
-        Parameters
-        ----------
-        start_time
-            start time in utc seconds
-        end_time
-            end time in utc seconds
-        include_unc
-            if true it will also include uncertainty in the list
-
-        Returns
-        -------
-        list
-            list of numpy arrays for either x,y,z or x,y,z,uncertainty if include_unc
-        """
-
-        if 'x' not in self.multibeam.raw_ping[0]:
-            print('return_xyz: unable to find georeferenced xyz for {}'.format(self.multibeam.converted_pth))
-            return None
-
-        if 'tvu' not in self.multibeam.raw_ping[0] and include_unc:
-            print('return_xyz: unable to find uncertainty for {}'.format(self.multibeam.converted_pth))
-            return None
-
-        if start_time is not None or start_time is not None:
-            self.subset_by_time(start_time, end_time)
-
-        data = []
-        xyz = [[], [], [], []]
-        for rp in self.multibeam.raw_ping:
-            x_idx, x_stck = stack_nan_array(rp['x'], stack_dims=('time', 'beam'))
-            y_idx, y_stck = stack_nan_array(rp['y'], stack_dims=('time', 'beam'))
-            z_idx, z_stck = stack_nan_array(rp['z'], stack_dims=('time', 'beam'))
-
-            xyz[0].append(x_stck)
-            xyz[1].append(y_stck)
-            xyz[2].append(z_stck)
-            if 'tvu' in rp and include_unc:
-                unc_idx, unc_stck = stack_nan_array(rp['tvu'], stack_dims=('time', 'beam'))
-                xyz[3].append(unc_stck)
-
-        if xyz[0]:
-            if include_unc and xyz[3]:
-                data = [np.concatenate(xyz[0]), np.concatenate(xyz[1]), np.concatenate(xyz[2]), np.concatenate(xyz[3])]
-            else:
-                data = [np.concatenate(xyz[0]), np.concatenate(xyz[1]), np.concatenate(xyz[2])]
-
-        if start_time is not None or start_time is not None:
-            self.restore_subset()
-
-        return data
 
     def return_total_pings(self, min_time: float = None, max_time: float = None):
         """
