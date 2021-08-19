@@ -392,6 +392,24 @@ def test_export_files():
     out = None
 
 
+def test_export_lines_to_file():
+    if not os.path.exists(datapath):
+        print('Please run test_process_testfile first')
+    out = reload_data(datapath)
+    pths_one = out.export_lines_to_file(['0009_20170523_181119_FA2806.all'], file_format='csv', filter_by_detection=True, export_by_identifiers=True)
+    pths_two = out.export_lines_to_file(['0009_20170523_181119_FA2806.all'], file_format='csv', filter_by_detection=True, export_by_identifiers=False)
+    pths_three = out.export_pings_to_file(['0009_20170523_181119_FA2806.all'], file_format='las', filter_by_detection=True, export_by_identifiers=True)
+    pths_four = out.export_lines_to_file(['0009_20170523_181119_FA2806.all'], file_format='las', filter_by_detection=True, export_by_identifiers=False)
+
+    assert len(pths_one) == 6
+    assert len(pths_two) == 1
+    assert len(pths_three) == 6
+    assert len(pths_four) == 1
+
+    out.close()
+    out = None
+
+
 def test_export_variable():
     if not os.path.exists(datapath):
         print('Please run test_process_testfile first')
