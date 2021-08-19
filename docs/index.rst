@@ -6,6 +6,14 @@
 kluster
 =======
 
+Known Issues
+------------
+
+Kluster does not support 'multifrequency' as seen in the most recent KMALL logged data.
+
+Overview
+--------
+
 A distributed multibeam processing system built on the Pangeo ecosystem (https://pangeo.io/). Supports Kongsberg .all/.kmall multibeam formats, POS MV post-processed SBET/RMS navigation files and Caris svp sound velocity profile files.
 
 Kluster provides a fully open source hydrographic processing package to produce accessible bathymetry products in support of ocean mapping.
@@ -126,6 +134,7 @@ Perform these in order:
    settings/index
    vessel_setup/index
    processing/index
+   surface/index
    products/index
    kluster_api/index
 

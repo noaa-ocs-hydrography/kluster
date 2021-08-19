@@ -11,13 +11,15 @@ FqprExport
    .. autosummary::
 
       ~FqprExport.export_dataset_to_csv
-      ~FqprExport.export_pings_to_entwine
+      ~FqprExport.export_lines_to_file
       ~FqprExport.export_pings_to_file
+      ~FqprExport.export_soundings_to_file
       ~FqprExport.export_variable_to_csv
 
    .. rubric:: Methods Documentation
 
    .. automethod:: export_dataset_to_csv
-   .. automethod:: export_pings_to_entwine
+   .. automethod:: export_lines_to_file
    .. automethod:: export_pings_to_file
+   .. automethod:: export_soundings_to_file
    .. automethod:: export_variable_to_csv

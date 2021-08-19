@@ -5,7 +5,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Fqpr &#8212; kluster 0.7.4 documentation</title>
+    <title>Fqpr &#8212; kluster 0.7.5 documentation</title>
     <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
     <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
     <link rel="stylesheet" type="text/css" href="../_static/graphviz.css" />
@@ -95,13 +95,19 @@ Post-processing for Multi-Sector Multibeam Echosounders” by J.D. Beaudoin and 
 <td><p>From Kongsberg datagram doc: Note that heave is displayed and logged as positive downwards (the sign is changed) including roll and pitch induced lever arm translation to the system’s transmit transducer.</p></td>
 </tr>
 <tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.export_dataset" title="HSTB.kluster.fqpr_generation.Fqpr.export_dataset"><code class="xref py py-obj docutils literal notranslate"><span class="pre">export_dataset</span></code></a>(dataset_name, dest_path)</p></td>
-<td><p>Run the export module to export each variable in the given dataset to one csv, writing to the provided path</p></td>
+<td><p>Run the export module to export each variable in the given dataset to one csv, writing to the provided path, see export.export_dataset_to_csv</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.export_pings_to_file" title="HSTB.kluster.fqpr_generation.Fqpr.export_pings_to_file"><code class="xref py py-obj docutils literal notranslate"><span class="pre">export_pings_to_file</span></code></a>([output_directory, …])</p></td>
-<td><p>Uses the output of georef_along_across_depth to build sounding exports.</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.export_lines_to_file" title="HSTB.kluster.fqpr_generation.Fqpr.export_lines_to_file"><code class="xref py py-obj docutils literal notranslate"><span class="pre">export_lines_to_file</span></code></a>(linenames[, …])</p></td>
+<td><p>Run the export module to export only the data belonging to the given lines to file, see export.export_lines_to_file</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.export_pings_to_file" title="HSTB.kluster.fqpr_generation.Fqpr.export_pings_to_file"><code class="xref py py-obj docutils literal notranslate"><span class="pre">export_pings_to_file</span></code></a>([output_directory, …])</p></td>
+<td><p>Run the export module to export point cloud relevant data to file, see export.export_pings_to_file</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.export_soundings_to_file" title="HSTB.kluster.fqpr_generation.Fqpr.export_soundings_to_file"><code class="xref py py-obj docutils literal notranslate"><span class="pre">export_soundings_to_file</span></code></a>(datablock[, …])</p></td>
+<td><p>Run the export module to export given soundings to file, see export.export_soundings_to_file</p></td>
 </tr>
 <tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.export_variable" title="HSTB.kluster.fqpr_generation.Fqpr.export_variable"><code class="xref py py-obj docutils literal notranslate"><span class="pre">export_variable</span></code></a>(dataset_name, var_name, …)</p></td>
-<td><p>Run the export module to export the given variable to csv, writing to the provided path</p></td>
+<td><p>Run the export module to export the given variable to csv, writing to the provided path, see export.export_variable_to_csv</p></td>
 </tr>
 <tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.generate_starter_orientation_vectors" title="HSTB.kluster.fqpr_generation.Fqpr.generate_starter_orientation_vectors"><code class="xref py py-obj docutils literal notranslate"><span class="pre">generate_starter_orientation_vectors</span></code></a>([txrx, …])</p></td>
 <td><p>Take in identifiers to find the correct xyzrph entry, and use the heading value to figure out if the transmitter/receiver (tx/rx) is oriented backwards.</p></td>
@@ -193,31 +199,28 @@ Post-processing for Multi-Sector Multibeam Echosounders” by J.D. Beaudoin and 
 <tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.return_unique_mode" title="HSTB.kluster.fqpr_generation.Fqpr.return_unique_mode"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_unique_mode</span></code></a>()</p></td>
 <td><p>Finds the unique mode entries in raw_ping Datasets.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.return_xyz" title="HSTB.kluster.fqpr_generation.Fqpr.return_xyz"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_xyz</span></code></a>([start_time, end_time, include_unc])</p></td>
-<td><p>Iterate through all the raw_ping datasets and append all the xyz records together into a list of one dimensional arrays.</p></td>
-</tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.set_variable_by_filter" title="HSTB.kluster.fqpr_generation.Fqpr.set_variable_by_filter"><code class="xref py py-obj docutils literal notranslate"><span class="pre">set_variable_by_filter</span></code></a>([var_name, newval])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.set_variable_by_filter" title="HSTB.kluster.fqpr_generation.Fqpr.set_variable_by_filter"><code class="xref py py-obj docutils literal notranslate"><span class="pre">set_variable_by_filter</span></code></a>([var_name, newval])</p></td>
 <td><p></p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.set_vertical_reference" title="HSTB.kluster.fqpr_generation.Fqpr.set_vertical_reference"><code class="xref py py-obj docutils literal notranslate"><span class="pre">set_vertical_reference</span></code></a>(vert_ref)</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.set_vertical_reference" title="HSTB.kluster.fqpr_generation.Fqpr.set_vertical_reference"><code class="xref py py-obj docutils literal notranslate"><span class="pre">set_vertical_reference</span></code></a>(vert_ref)</p></td>
 <td><p>Set the Fqpr instance vertical reference.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.subset_by_time" title="HSTB.kluster.fqpr_generation.Fqpr.subset_by_time"><code class="xref py py-obj docutils literal notranslate"><span class="pre">subset_by_time</span></code></a>([mintime, maxtime])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.subset_by_time" title="HSTB.kluster.fqpr_generation.Fqpr.subset_by_time"><code class="xref py py-obj docutils literal notranslate"><span class="pre">subset_by_time</span></code></a>([mintime, maxtime])</p></td>
 <td><p>We save the line start/end time as an attribute within each raw_ping record.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.subset_variables" title="HSTB.kluster.fqpr_generation.Fqpr.subset_variables"><code class="xref py py-obj docutils literal notranslate"><span class="pre">subset_variables</span></code></a>(variable_selection[, …])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.subset_variables" title="HSTB.kluster.fqpr_generation.Fqpr.subset_variables"><code class="xref py py-obj docutils literal notranslate"><span class="pre">subset_variables</span></code></a>(variable_selection[, …])</p></td>
 <td><p>Take specific variable names and return just those variables in a new xarray dataset.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.subset_variables_by_line" title="HSTB.kluster.fqpr_generation.Fqpr.subset_variables_by_line"><code class="xref py py-obj docutils literal notranslate"><span class="pre">subset_variables_by_line</span></code></a>(variable_selection)</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.subset_variables_by_line" title="HSTB.kluster.fqpr_generation.Fqpr.subset_variables_by_line"><code class="xref py py-obj docutils literal notranslate"><span class="pre">subset_variables_by_line</span></code></a>(variable_selection)</p></td>
 <td><p>Apply subset_variables to get the data split up into lines for the variable_selection provided</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.sv_correct" title="HSTB.kluster.fqpr_generation.Fqpr.sv_correct"><code class="xref py py-obj docutils literal notranslate"><span class="pre">sv_correct</span></code></a>([add_cast_files, subset_time, …])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.sv_correct" title="HSTB.kluster.fqpr_generation.Fqpr.sv_correct"><code class="xref py py-obj docutils literal notranslate"><span class="pre">sv_correct</span></code></a>([add_cast_files, subset_time, …])</p></td>
 <td><p>Apply sv cast/surface sound speed to raytrace.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.write_attribute_to_ping_records" title="HSTB.kluster.fqpr_generation.Fqpr.write_attribute_to_ping_records"><code class="xref py py-obj docutils literal notranslate"><span class="pre">write_attribute_to_ping_records</span></code></a>(attr_dict)</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.write_attribute_to_ping_records" title="HSTB.kluster.fqpr_generation.Fqpr.write_attribute_to_ping_records"><code class="xref py py-obj docutils literal notranslate"><span class="pre">write_attribute_to_ping_records</span></code></a>(attr_dict)</p></td>
 <td><p>Convenience method that allows you to write the provided attribute dictionary to each ping dataset and change the currently loaded instance as well</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.write_intermediate_futs_to_zarr" title="HSTB.kluster.fqpr_generation.Fqpr.write_intermediate_futs_to_zarr"><code class="xref py py-obj docutils literal notranslate"><span class="pre">write_intermediate_futs_to_zarr</span></code></a>(mode, …[, …])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.write_intermediate_futs_to_zarr" title="HSTB.kluster.fqpr_generation.Fqpr.write_intermediate_futs_to_zarr"><code class="xref py py-obj docutils literal notranslate"><span class="pre">write_intermediate_futs_to_zarr</span></code></a>(mode, …[, …])</p></td>
 <td><p>Flush some of the intermediate data that was mapped to the cluster (and lives in futures objects) to disk, puts it in the multibeam, as the time dimension should be the same.</p></td>
 </tr>
 </tbody>
@@ -374,64 +377,31 @@ is reported at the tx of the primary system.  This will return all zeros for ind
 <dl class="py method">
 <dt id="HSTB.kluster.fqpr_generation.Fqpr.export_dataset">
 <code class="sig-name descname"><span class="pre">export_dataset</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dataset_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dest_path</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_generation.Fqpr.export_dataset" title="Permalink to this definition">¶</a></dt>
-<dd><p>Run the export module to export each variable in the given dataset to one csv, writing to the provided path</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>dataset_name</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>) – dataset identifier, one of [‘multibeam’, ‘raw navigation’, ‘processed navigation’, ‘attitude’]</p></li>
-<li><p><strong>dest_path</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>) – path to the csv that we are going to write</p></li>
-</ul>
-</dd>
-</dl>
+<dd><p>Run the export module to export each variable in the given dataset to one csv, writing to the provided path, see export.export_dataset_to_csv</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="HSTB.kluster.fqpr_generation.Fqpr.export_lines_to_file">
+<code class="sig-name descname"><span class="pre">export_lines_to_file</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">linenames</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_directory</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">file_format</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'csv'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">csv_delimiter</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'</span> <span class="pre">'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filter_by_detection</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">z_pos_down</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">export_by_identifiers</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_generation.Fqpr.export_lines_to_file" title="Permalink to this definition">¶</a></dt>
+<dd><p>Run the export module to export only the data belonging to the given lines to file, see export.export_lines_to_file</p>
 </dd></dl>
 
 <dl class="py method">
 <dt id="HSTB.kluster.fqpr_generation.Fqpr.export_pings_to_file">
 <code class="sig-name descname"><span class="pre">export_pings_to_file</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">output_directory</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">file_format</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'csv'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">csv_delimiter</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'</span> <span class="pre">'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filter_by_detection</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">z_pos_down</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">export_by_identifiers</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_generation.Fqpr.export_pings_to_file" title="Permalink to this definition">¶</a></dt>
-<dd><p>Uses the output of georef_along_across_depth to build sounding exports.  Currently you can export to csv or las
-file formats, see file_format argument.</p>
-<p>If you export to las and want to retain rejected soundings under the noise classification, set
-filter_by_detection to False.</p>
-<p>Filters using the detectioninfo variable if present in multibeam and filter_by_detection is set.</p>
-<p>Will generate an xyz file for each sector in multibeam.  Results in one xyz file for each freq/sector id/serial
-number combination.</p>
-<p>entwine export will build las first, and then entwine from las</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>output_directory</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]) – optional, destination directory for the xyz exports, otherwise will auto export next to converted data</p></li>
-<li><p><strong>file_format</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>) – optional, destination file format, default is csv file, options include [‘csv’, ‘las’, ‘entwine’]</p></li>
-<li><p><strong>csv_delimiter</strong> – optional, if you choose file_format=csv, this will control the delimiter</p></li>
-<li><p><strong>filter_by_detection</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code>) – optional, if True will only write soundings that are not rejected</p></li>
-<li><p><strong>z_pos_down</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code>) – if True, will export soundings with z positive down (this is the native Kluster convention)</p></li>
-<li><p><strong>export_by_identifiers</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code>) – if True, will generate separate files for each combination of serial number/sector/frequency</p></li>
-</ul>
-</dd>
-<dt class="field-even">Returns</dt>
-<dd class="field-even"><p>list of written file paths</p>
-</dd>
-<dt class="field-odd">Return type</dt>
-<dd class="field-odd"><p>list</p>
-</dd>
-</dl>
+<dd><p>Run the export module to export point cloud relevant data to file, see export.export_pings_to_file</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="HSTB.kluster.fqpr_generation.Fqpr.export_soundings_to_file">
+<code class="sig-name descname"><span class="pre">export_soundings_to_file</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">datablock</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_directory</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">file_format</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'csv'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">csv_delimiter</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'</span> <span class="pre">'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filter_by_detection</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">z_pos_down</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_generation.Fqpr.export_soundings_to_file" title="Permalink to this definition">¶</a></dt>
+<dd><p>Run the export module to export given soundings to file, see export.export_soundings_to_file</p>
 </dd></dl>
 
 <dl class="py method">
 <dt id="HSTB.kluster.fqpr_generation.Fqpr.export_variable">
 <code class="sig-name descname"><span class="pre">export_variable</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dataset_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">var_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dest_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">reduce_method</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">zero_centered</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_generation.Fqpr.export_variable" title="Permalink to this definition">¶</a></dt>
-<dd><p>Run the export module to export the given variable to csv, writing to the provided path</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>dataset_name</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>) – dataset identifier, one of [‘multibeam’, ‘raw navigation’, ‘processed navigation’, ‘attitude’]</p></li>
-<li><p><strong>var_name</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>) – variable identifier for a variable in the provided dataset, ex: ‘latitude’</p></li>
-<li><p><strong>dest_path</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>) – path to the csv that we are going to write</p></li>
-<li><p><strong>reduce_method</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]) – option for reducing the array, only for (time, beam) arrays.  One of (mean, nadir, port_outer_beam,
-starboard_outer_beam).  If not provided, will export the full (time, beam) array</p></li>
-<li><p><strong>zero_centered</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code>) – if zero_centered, will subtract the arithmetic mean from the array.</p></li>
-</ul>
-</dd>
-</dl>
+<dd><p>Run the export module to export the given variable to csv, writing to the provided path, see export.export_variable_to_csv</p>
 </dd></dl>
 
 <dl class="py method">
@@ -1038,30 +1008,6 @@ of most often found.</p>
 </dd></dl>
 
 <dl class="py method">
-<dt id="HSTB.kluster.fqpr_generation.Fqpr.return_xyz">
-<code class="sig-name descname"><span class="pre">return_xyz</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">start_time</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">end_time</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">include_unc</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_generation.Fqpr.return_xyz" title="Permalink to this definition">¶</a></dt>
-<dd><p>Iterate through all the raw_ping datasets and append all the xyz records together into a list of one dimensional
-arrays.  If start time and/or end time are provided, it will only include xyz records that are within that time
-period.  If start time and end time are not provided, it returns all the xyz records in all the raw_ping datasets.</p>
-<p>If include_unc and there is uncertainty in the raw_ping, it will include that as well.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>start_time</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code>]) – start time in utc seconds</p></li>
-<li><p><strong>end_time</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code>]) – end time in utc seconds</p></li>
-<li><p><strong>include_unc</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code>) – if true it will also include uncertainty in the list</p></li>
-</ul>
-</dd>
-<dt class="field-even">Returns</dt>
-<dd class="field-even"><p>list of numpy arrays for either x,y,z or x,y,z,uncertainty if include_unc</p>
-</dd>
-<dt class="field-odd">Return type</dt>
-<dd class="field-odd"><p>list</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py method">
 <dt id="HSTB.kluster.fqpr_generation.Fqpr.set_variable_by_filter">
 <code class="sig-name descname"><span class="pre">set_variable_by_filter</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">var_name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'detectioninfo'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">newval</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">2</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_generation.Fqpr.set_variable_by_filter" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
@@ -1225,6 +1171,7 @@ of the main processes for writing.</p>
 <li class="toctree-l1"><a class="reference internal" href="../settings/index.html">Settings</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../vessel_setup/index.html">Vessel Setup</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../processing/index.html">Conversion and Processing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../surface/index.html">Surfacing</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../products/index.html">Products</a></li>
 <li class="toctree-l1 current"><a class="reference internal" href="../kluster_api/index.html">API</a><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="../kluster_api/fqpr_convenience.html">fqpr_convenience module</a></li>
