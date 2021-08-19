@@ -80,4 +80,4 @@ Perform these in order:
 
 ## Quickstart
 
-See documentation for the new quick start guide 
+See documentation for the new quick start guide
