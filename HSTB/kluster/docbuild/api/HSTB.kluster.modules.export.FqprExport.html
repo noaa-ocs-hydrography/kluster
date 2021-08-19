@@ -5,7 +5,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>FqprExport &#8212; kluster 0.7.4 documentation</title>
+    <title>FqprExport &#8212; kluster 0.7.5 documentation</title>
     <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
     <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
     <link rel="stylesheet" type="text/css" href="../_static/graphviz.css" />
@@ -52,13 +52,16 @@ orientation.</p>
 <tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.modules.export.FqprExport.export_dataset_to_csv" title="HSTB.kluster.modules.export.FqprExport.export_dataset_to_csv"><code class="xref py py-obj docutils literal notranslate"><span class="pre">export_dataset_to_csv</span></code></a>(dataset_name, dest_path)</p></td>
 <td><p>Export each variable in the given dataset to one csv, writing to the provided path</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.modules.export.FqprExport.export_pings_to_entwine" title="HSTB.kluster.modules.export.FqprExport.export_pings_to_entwine"><code class="xref py py-obj docutils literal notranslate"><span class="pre">export_pings_to_entwine</span></code></a>([output_directory, …])</p></td>
-<td><p>Uses the output of georef_along_across_depth to build sounding exports.</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.modules.export.FqprExport.export_lines_to_file" title="HSTB.kluster.modules.export.FqprExport.export_lines_to_file"><code class="xref py py-obj docutils literal notranslate"><span class="pre">export_lines_to_file</span></code></a>(linenames[, …])</p></td>
+<td><p>Take each provided line name and export it to the file_format provided</p></td>
 </tr>
 <tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.modules.export.FqprExport.export_pings_to_file" title="HSTB.kluster.modules.export.FqprExport.export_pings_to_file"><code class="xref py py-obj docutils literal notranslate"><span class="pre">export_pings_to_file</span></code></a>([output_directory, …])</p></td>
 <td><p>Uses the output of georef_along_across_depth to build sounding exports.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.modules.export.FqprExport.export_variable_to_csv" title="HSTB.kluster.modules.export.FqprExport.export_variable_to_csv"><code class="xref py py-obj docutils literal notranslate"><span class="pre">export_variable_to_csv</span></code></a>(dataset_name, …[, …])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.modules.export.FqprExport.export_soundings_to_file" title="HSTB.kluster.modules.export.FqprExport.export_soundings_to_file"><code class="xref py py-obj docutils literal notranslate"><span class="pre">export_soundings_to_file</span></code></a>(datablock[, …])</p></td>
+<td><p>A convenience method for exporting the data currently in the Kluster Points View to file.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.modules.export.FqprExport.export_variable_to_csv" title="HSTB.kluster.modules.export.FqprExport.export_variable_to_csv"><code class="xref py py-obj docutils literal notranslate"><span class="pre">export_variable_to_csv</span></code></a>(dataset_name, …[, …])</p></td>
 <td><p>Export the given variable to csv, writing to the provided path</p></td>
 </tr>
 </tbody>
@@ -79,28 +82,24 @@ orientation.</p>
 </dd></dl>
 
 <dl class="py method">
-<dt id="HSTB.kluster.modules.export.FqprExport.export_pings_to_entwine">
-<code class="sig-name descname"><span class="pre">export_pings_to_entwine</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">output_directory</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">suffix</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">las_export_folder</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filter_by_detection</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">export_by_identifiers</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.modules.export.FqprExport.export_pings_to_entwine" title="Permalink to this definition">¶</a></dt>
-<dd><p>Uses the output of georef_along_across_depth to build sounding exports.  Currently you can export to csv or las
-file formats, see file_format argument.</p>
-<p>If you export to las and want to retain rejected soundings under the noise classification, set
-filter_by_detection to False.</p>
-<p>Filters using the detectioninfo variable if present in multibeam and filter_by_detection is set.</p>
-<p>Will generate an xyz file for each sector in multibeam.  Results in one xyz file for each freq/sector id/serial
-number combination.</p>
-<p>entwine export will build las first, and then entwine from las</p>
+<dt id="HSTB.kluster.modules.export.FqprExport.export_lines_to_file">
+<code class="sig-name descname"><span class="pre">export_lines_to_file</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">linenames</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_directory</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">file_format</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'csv'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">csv_delimiter</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'</span> <span class="pre">'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filter_by_detection</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">z_pos_down</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">export_by_identifiers</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.modules.export.FqprExport.export_lines_to_file" title="Permalink to this definition">¶</a></dt>
+<dd><p>Take each provided line name and export it to the file_format provided</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>output_directory</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]) – destination directory for the entwine point tiles</p></li>
-<li><p><strong>suffix</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>) – optional additional filename suffix</p></li>
-<li><p><strong>las_export_folder</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]) – Folder to export the las files to</p></li>
+<li><p><strong>linenames</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">list</span></code>) – list of line names to export</p></li>
+<li><p><strong>output_directory</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]) – optional, destination directory for the xyz exports, otherwise will auto export next to converted data</p></li>
+<li><p><strong>file_format</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>) – optional, destination file format, default is csv file, options include [‘csv’, ‘las’, ‘entwine’]</p></li>
+<li><p><strong>csv_delimiter</strong> – optional, if you choose file_format=csv, this will control the delimiter</p></li>
 <li><p><strong>filter_by_detection</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code>) – optional, if True will only write soundings that are not rejected</p></li>
+<li><p><strong>z_pos_down</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code>) – if True, will export soundings with z positive down (this is the native Kluster convention), only for csv
+export</p></li>
 <li><p><strong>export_by_identifiers</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code>) – if True, will generate separate files for each combination of serial number/sector/frequency</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns</dt>
-<dd class="field-even"><p>one element long list containing the entwine directory path</p>
+<dd class="field-even"><p>list of written file paths</p>
 </dd>
 <dt class="field-odd">Return type</dt>
 <dd class="field-odd"><p>list</p>
@@ -112,13 +111,11 @@ number combination.</p>
 <dt id="HSTB.kluster.modules.export.FqprExport.export_pings_to_file">
 <code class="sig-name descname"><span class="pre">export_pings_to_file</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">output_directory</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">file_format</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'csv'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">csv_delimiter</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'</span> <span class="pre">'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filter_by_detection</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">z_pos_down</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">export_by_identifiers</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.modules.export.FqprExport.export_pings_to_file" title="Permalink to this definition">¶</a></dt>
 <dd><p>Uses the output of georef_along_across_depth to build sounding exports.  Currently you can export to csv, las or
-entwine file formats, see file_format argument.</p>
+entwine file formats, see file_format argument.  This will use all soundings in the dataset.</p>
 <p>If you export to las and want to retain rejected soundings under the noise classification, set
 filter_by_detection to False.</p>
 <p>Filters using the detectioninfo variable if present in multibeam and filter_by_detection is set.  Set z_pos_down
 to False if you want positive up.  Otherwise you get positive down.</p>
-<p>Will generate an xyz file for each sector in multibeam.  Results in one xyz file for each freq/sector id/serial
-number combination.</p>
 <p>entwine export will build las first, and then entwine from las</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -130,6 +127,32 @@ number combination.</p>
 <li><p><strong>z_pos_down</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code>) – if True, will export soundings with z positive down (this is the native Kluster convention), only for csv
 export</p></li>
 <li><p><strong>export_by_identifiers</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code>) – if True, will generate separate files for each combination of serial number/sector/frequency</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>list of written file paths</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>list</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="HSTB.kluster.modules.export.FqprExport.export_soundings_to_file">
+<code class="sig-name descname"><span class="pre">export_soundings_to_file</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">datablock</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_directory</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">file_format</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'csv'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">csv_delimiter</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'</span> <span class="pre">'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filter_by_detection</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">z_pos_down</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.modules.export.FqprExport.export_soundings_to_file" title="Permalink to this definition">¶</a></dt>
+<dd><p>A convenience method for exporting the data currently in the Kluster Points View to file.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>datablock</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">list</span></code>) – list of [sounding_id, x, y, z, tvu, rejected, pointtime, beam, linename] arrays, all of the same size and shape.
+sounding_id is the name of the converted instance for each sounding</p></li>
+<li><p><strong>output_directory</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]) – optional, destination directory for the xyz exports, otherwise will auto export next to converted data</p></li>
+<li><p><strong>file_format</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>) – optional, destination file format, default is csv file, options include [‘csv’, ‘las’, ‘entwine’]</p></li>
+<li><p><strong>csv_delimiter</strong> – optional, if you choose file_format=csv, this will control the delimiter</p></li>
+<li><p><strong>filter_by_detection</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code>) – optional, if True will only write soundings that are not rejected</p></li>
+<li><p><strong>z_pos_down</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code>) – if True, will export soundings with z positive down (this is the native Kluster convention), only for csv
+export</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns</dt>
@@ -185,6 +208,7 @@ starboard_outer_beam).  If not provided, will export the full (time, beam) array
 <li class="toctree-l1"><a class="reference internal" href="../settings/index.html">Settings</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../vessel_setup/index.html">Vessel Setup</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../processing/index.html">Conversion and Processing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../surface/index.html">Surfacing</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../products/index.html">Products</a></li>
 <li class="toctree-l1 current"><a class="reference internal" href="../kluster_api/index.html">API</a><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="../kluster_api/fqpr_convenience.html">fqpr_convenience module</a></li>

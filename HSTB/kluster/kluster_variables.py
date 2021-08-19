@@ -1,6 +1,7 @@
 # generic gui
 pass_color = 'color : green'  # color of the gui labels and text where a test passes
 error_color = 'color : red'  # color of the gui labels and text where a test does not pass
+warning_color = 'color : orange'  # color of the gui labels and text where a warning is issued
 
 # dask_helpers
 # when we get the Client to run a task, we expect all tasks to have finished.  If you get the client and the mem
@@ -32,6 +33,10 @@ waterline_based_vertical_references = ['waterline']  # vertical reference option
 coordinate_systems = ['NAD83', 'WGS84']  # horizontal coordinate system options
 default_coordinate_system = 'WGS84'
 default_vertical_reference = 'waterline'
+
+# export
+pings_per_las = 50000  # LAS export will put this many pings in one file before starting a new file
+pings_per_csv = 15000  # csv export will put this many pings in one file before starting a new file
 
 # xarray conversion
 ping_chunk_size = 1000  # chunk size (in pings) of each written chunk of data in the ping records

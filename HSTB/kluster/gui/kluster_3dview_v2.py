@@ -637,6 +637,9 @@ class ThreeDView(QtWidgets.QWidget):
         self.linename = np.concatenate([self.linename, linename])
         self.is_3d = is_3d
 
+    def return_points(self):
+        return [self.id, self.x, self.y, self.z, self.tvu, self.rejected, self.pointtime, self.beam, self.linename]
+
     def _configure_2d_3d_view(self):
         """
         Due to differences in how the view is constructed when we switch back and forth between 2d and 3d views, we
@@ -1096,6 +1099,9 @@ class ThreeDWidget(QtWidgets.QWidget):
         self.three_d_window.selected_points = None
         self.three_d_window.superselected_index = None
         self.three_d_window.add_points(x, y, z, tvu, rejected, pointtime, beam, newid, linename, is_3d, azimuth=azimuth)
+
+    def return_points(self):
+        return self.three_d_window.return_points()
 
     def select_points(self, startpos, endpos, three_d: bool = False):
         """

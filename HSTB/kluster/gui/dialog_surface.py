@@ -61,10 +61,11 @@ class SurfaceDialog(QtWidgets.QDialog):
         self.hlayout_singlerez_one.addWidget(self.single_rez_tile_size_lbl)
         self.single_rez_tile_size = QtWidgets.QComboBox()
         self.single_rez_tile_size.addItems(['2048', '1024', '512', '256', '128'])
-        self.single_rez_tile_size.setCurrentText('1024')
-        self.single_rez_tile_size.setToolTip('The size of the single resolution tile in meters.  A larger value will improve performance\n' +
-                                             'if the survey area is very large, but it is recommended to leave this at 1024 most of the time.\n' +
-                                             'Lowering it will reduce performance, but might improve efficiency for small survey areas.')
+        self.single_rez_tile_size.setCurrentText('128')
+        self.single_rez_tile_size.setToolTip('The size of the single resolution tile in meters.  The default size of 128 meters is a\n' +
+                                             'good size for maximizing performance and minimizing memory usage.  Changing this value\n' +
+                                             'could result in a much slower computation.  For larger grids, a larger tile size may\n' +
+                                             'improve performance, but will require more memory to support the processing.')
         self.hlayout_singlerez_one.addWidget(self.single_rez_tile_size)
         self.hlayout_singlerez_one.addStretch()
         self.single_rez_resolution_lbl = QtWidgets.QLabel('Resolution: ')

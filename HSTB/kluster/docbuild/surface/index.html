@@ -1,0 +1,144 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Surfacing &#8212; kluster 0.7.5 documentation</title>
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" type="text/css" href="../_static/graphviz.css" />
+    <script id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Products" href="../products/index.html" />
+    <link rel="prev" title="Conversion and Processing" href="../processing/index.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="surfacing">
+<h1>Surfacing<a class="headerlink" href="#surfacing" title="Permalink to this headline">¶</a></h1>
+<p>So far, we have discussed working with point clouds, or the soundings visualized in 3d space.  But what about viewing the depth and uncertainty in 2d?  As a picture?  This is where the gridding tools come into play.  Kluster uses the <a class="reference external" href="https://github.com/noaa-ocs-hydrography/bathygrid">Bathygrid</a> module which I designed specifically for gridding multibeam data in an efficient and flexible way.  Let’s look at how to use this module in Kluster.  With a converted data instance selected, let’s go to Process - New Surface.</p>
+<a class="reference external image-reference" href="../_images/surface_1.png"><img alt="../_images/surface_1.png" src="../_images/surface_1.png" /></a>
+<p>This is going to create a surface with all the points from each converted instance we had highlighted here.  The default is to create a single resolution surface where each grid node has a value equal to the mean depth/uncertainty value of all the soundings in that grid cell.  The size of the grid cell (resolution) is set to AUTO, which will pick the resolution based on the depth of the soundings in that region (based on the NOAA Specifications and Deliverables):</p>
+<ul class="simple">
+<li><p>0 to 20 meters = 0.5 meter resolution</p></li>
+<li><p>20 to 40 meters = 1.0 meter resolution</p></li>
+<li><p>40 to 80 meters = 4.0 meter resolution</p></li>
+<li><p>80 to 160 meters = 8.0 meter resolution</p></li>
+<li><p>160 to 320 meters = 16.0 meter resolution</p></li>
+<li><p>320 to 640 meters = 32.0 meter resolution</p></li>
+<li><p>640 to 1280 meters = 64.0 meter resolution</p></li>
+<li><p>1280 to 2560 meters = 128.0 meter resolution</p></li>
+<li><p>2560 to 5120 meters = 256.0 meter resolution</p></li>
+<li><p>5120 to 10204 meters = 512.0 meter resolution</p></li>
+<li><p>greater than 10204 meters = 1024.0 meter resolution</p></li>
+</ul>
+<p>You’ll notice that our resolutions are all powers of two.  This is intentional, as it allows us to build nice square tiles of the same size (1024 meters for example) that are completely and cleanly filled by grids of these resolutions.</p>
+<p>The tile size is a parameter that you can change to affect the performance of the grid in both visualization and processing.  Bathygrid will tile the area into tiles and then run the gridding algorithm on those tiles one after the other.  If you Process in Parallel, it ill process those tiles in parallel, which will greatly increase the performance of the gridding process.</p>
+<p>You want to adjust the tile size to have at least 100 tiles or so.  I’ve found this to be a rough guideline that gets me pretty good performance.  In this example here, using a Tile Sie of 1024 meters gives me 2 tiles (which I know because I just ran it to check).  So I probably want to drive the tile size down, maybe to 256 meters just to improve the performance of the parallel gridding process.  Let’s look at the results of 1024 meter tile size versus 256 meter tile size.</p>
+<a class="reference external image-reference" href="../_images/surface_2.png"><img alt="../_images/surface_2.png" src="../_images/surface_2.png" /></a>
+<p>What I have done here is grid with the two different tile sizes, went into the output grid directories (which are srgrid_mean_auto and srgrid_mean_auto_20210813_104634 and are right next to our processed multibeam data by default) and looked at the number of folders.  Each folder represents a tile (with the folder name being the origin point of the tile in eastings_northings).  So we can see that a 1024 meter tile size created 2 tiles and a 256 meter tile size created 5 tiles.  Better but not ideal.  Of course in this instance, our surface generation only took about 1 second, so it’s not really worth trying to optimize.  But when you set the tile size, try to get more than just a few tiles for your survey area.  In the future, picking the tile size will be an automated process, so you won’t have to worry too much about this part.
+Let’s try a variable resolution grid now.  Variable resolution is going to allow us to have tiles where each tile can have it’s own resolution.  The only option currently is AUTO for resolution, and it uses the same lookup table as above to determine the resolution of the tile.</p>
+<a class="reference external image-reference" href="../_images/surface_3.png"><img alt="../_images/surface_3.png" src="../_images/surface_3.png" /></a>
+<p>Variable resolution is going to create tiles of “Tile Size” (1024 meters in this example) with sub tiles of “Subtile Size” (128 meters in this example).  The result we can see in the Explorer window shown above.  We have 7 subtiles (all 128 meters by 128 meters) in this 1024 meter by 1024 meter tile.  Each subtile has a mean depth, and we look up that depth in the depth to resolution table above to get the resolution of the subtile.  Again, each subtile has it’s own resolution.  Since our depth in this example is basically flat across the line, we are probably going to see the same resolution in each of our Variable Resolution subtiles.  So the single resolution and variable resolution grids are probably basically the same.
+OK, enough about folders and tiles.  Let’s look at something already!  Let’s expand the folders in the Surfaces dropdown in the Project Tree and try turning on one of the Depth layers.</p>
+<a class="reference external image-reference" href="../_images/surface_4.png"><img alt="../_images/surface_4.png" src="../_images/surface_4.png" /></a>
+<p>Turning on a Depth layer (or any layer) should make the display zoom to the area and show you the grid.  I just have a little multibeam file here, so the grid is fairly small.  I have the Query tool turned on in 2dview which lets me view the Depth layer value where my cursor is.  You can also left click to print the value in the Output window.  We can also turn on multiple layers to get the values across all layers.  Let’s do this now.</p>
+<a class="reference external image-reference" href="../_images/surface_5.png"><img alt="../_images/surface_5.png" src="../_images/surface_5.png" /></a>
+<p>We can see that our single resolution grids with the different tile sizes and the variable resolution grid all produce the same answer for the same location.  That’s a relief!  If they didn’t, we’d have a real problem on our hands.  We can also see that the tile shown in all three is an 8 meter resolution tile.  Which makes sense since we used AUTO resolution and the depth is the same across all surfaces in this location.</p>
+<p>Gridding is a powerful tool for visualizing bathymetry in 2d, but how do we get this grid into a file that we can use in other software?  How do we get from this weird Bathygrid folder structure into a common file format?  Head to the products section to learn how to export!</p>
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">kluster</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../quickstart/index.html">Quickstart</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../settings/index.html">Settings</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../vessel_setup/index.html">Vessel Setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../processing/index.html">Conversion and Processing</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Surfacing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../products/index.html">Products</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../kluster_api/index.html">API</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="../processing/index.html" title="previous chapter">Conversion and Processing</a></li>
+      <li>Next: <a href="../products/index.html" title="next chapter">Products</a></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2020, Eric Younkin.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.5.2</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="../_sources/surface/index.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

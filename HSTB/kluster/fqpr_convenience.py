@@ -425,7 +425,7 @@ def _add_points_to_surface(fqpr_inst: Fqpr, bgrid: BathyGrid, fqpr_crs: int, fqp
     for rp in fqpr_inst.multibeam.raw_ping:
         mintime, maxtime = rp.time.values[0], rp.time.values[-1]
         number_of_pings = rp.time.size
-        rp = rp.drop_vars([nms for nms in rp.variables if nms not in ['x', 'y', 'z', 'tvu', 'thu']])
+        rp = rp.drop_vars([nms for nms in rp.variables if nms not in ['x', 'y', 'z', 'tvu', 'thu', 'detectioninfo']])
         totalchunks = int(np.ceil(number_of_pings / chunksize))
         print('Adding points in {} chunks...\n'.format(totalchunks))
         for idx in range(totalchunks):
@@ -433,6 +433,9 @@ def _add_points_to_surface(fqpr_inst: Fqpr, bgrid: BathyGrid, fqpr_crs: int, fqp
             data = rp.isel(time=slice(strt, end)).stack({'sounding': ('time', 'beam')})
             # drop nan values in georeferenced data, generally where number of beams vary between pings
             data = data.where(~np.isnan(data['z']), drop=True)
+            # filter out rejected soundings, i.e. where detectioninfo = 2
+            data = data.where(data['detectioninfo'] != 2, drop=True)
+            data = data.drop_vars(['detectioninfo'])
             bgrid.add_points(data, '{}_{}'.format(cont_name, cont_name_idx), multibeamfiles, fqpr_crs, fqpr_vertref,
                              min_time=mintime, max_time=maxtime)
             cont_name_idx += 1

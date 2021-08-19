@@ -195,24 +195,6 @@ def test_converted_data_content():
     out = None
 
 
-def test_return_xyz():
-    if not os.path.exists(datapath):
-        print('Please run test_process_testfile first')
-    out = reload_data(datapath)
-    x, y, z = out.return_xyz()
-    assert x[0] == 539027.325
-    assert x[-1] == 539222.21
-    assert len(x) == 86400
-    assert y[0] == 5292784.603
-    assert y[-1] == 5293227.862
-    assert len(y) == 86400
-    assert z[0] == approx(92.742, 0.001)
-    assert z[-1] == approx(92.02, 0.001)
-    assert len(z) == 86400
-    out.close()
-    out = None
-
-
 def test_return_total_pings():
     if not os.path.exists(datapath):
         print('Please run test_process_testfile first')
@@ -382,6 +364,24 @@ def test_export_files():
     pths_two = out.export_pings_to_file(file_format='csv', filter_by_detection=True, export_by_identifiers=False)
     pths_three = out.export_pings_to_file(file_format='las', filter_by_detection=True, export_by_identifiers=True)
     pths_four = out.export_pings_to_file(file_format='las', filter_by_detection=True, export_by_identifiers=False)
+
+    assert len(pths_one) == 6
+    assert len(pths_two) == 1
+    assert len(pths_three) == 6
+    assert len(pths_four) == 1
+
+    out.close()
+    out = None
+
+
+def test_export_lines_to_file():
+    if not os.path.exists(datapath):
+        print('Please run test_process_testfile first')
+    out = reload_data(datapath)
+    pths_one = out.export_lines_to_file(['0009_20170523_181119_FA2806.all'], file_format='csv', filter_by_detection=True, export_by_identifiers=True)
+    pths_two = out.export_lines_to_file(['0009_20170523_181119_FA2806.all'], file_format='csv', filter_by_detection=True, export_by_identifiers=False)
+    pths_three = out.export_lines_to_file(['0009_20170523_181119_FA2806.all'], file_format='las', filter_by_detection=True, export_by_identifiers=True)
+    pths_four = out.export_lines_to_file(['0009_20170523_181119_FA2806.all'], file_format='las', filter_by_detection=True, export_by_identifiers=False)
 
     assert len(pths_one) == 6
     assert len(pths_two) == 1

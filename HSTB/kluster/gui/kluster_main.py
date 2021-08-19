@@ -146,7 +146,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.intel.bind_to_action_update(self.actions.update_actions)
 
         self.project_tree.file_added.connect(self.update_on_file_added)
-        self.project_tree.line_selected.connect(self.tree_line_selected)
+        self.project_tree.lines_selected.connect(self.tree_line_selected)
         self.project_tree.fqpr_selected.connect(self.tree_fqpr_selected)
         self.project_tree.surface_selected.connect(self.tree_surf_selected)
         self.project_tree.surface_layer_selected.connect(self.tree_surface_layer_selected)
@@ -1008,6 +1008,18 @@ class KlusterMain(QtWidgets.QMainWindow):
             dlog.update_fqpr_instances(addtl_files=fqprs)
             cancelled = False
             if dlog.exec_():
+                basic_export_mode = dlog.basic_export_group.isChecked()
+                line_export_mode = dlog.line_export.isChecked()
+                points_export_mode = dlog.points_view_export.isChecked()
+                if line_export_mode:
+                    linenames = self.project_tree.return_selected_lines()
+                else:
+                    linenames = []
+                if points_export_mode:
+                    datablock = self.points_view.return_points()
+                else:
+                    datablock = []
+
                 export_type = dlog.export_opts.currentText()
                 delimiter = dlog.csvdelimiter_dropdown.currentText()
                 filterset = dlog.filter_chk.isChecked()
@@ -1026,8 +1038,8 @@ class KlusterMain(QtWidgets.QMainWindow):
                             fq_chunks.append([fq_inst])
                     if fq_chunks:
                         self.output_window.clear()
-                        self.export_thread.populate(fq_chunks, export_type, z_pos_down, delimiter, filterset,
-                                                    separateset)
+                        self.export_thread.populate(fq_chunks, linenames, datablock, export_type, z_pos_down, delimiter, filterset,
+                                                    separateset, basic_export_mode, line_export_mode, points_export_mode)
                         self.export_thread.start()
                 else:
                     cancelled = True
@@ -1060,7 +1072,8 @@ class KlusterMain(QtWidgets.QMainWindow):
         here.
         """
 
-        self.generic_progressbar.setMaximum(1)
+        if self.no_threads_running():
+            self.generic_progressbar.setMaximum(1)
 
     def _create_new_project_if_not_exist(self, pth):
         """
@@ -1315,19 +1328,20 @@ class KlusterMain(QtWidgets.QMainWindow):
             if line in self.explorer.row_translated_attribution:
                 self.explorer.row_translated_attribution.pop(line)
 
-    def tree_line_selected(self, linename):
+    def tree_line_selected(self, linenames):
         """
         method is run on selecting a multibeam line in the KlusterProjectTree
 
         Parameters
         ----------
-        linename: str, line name
+        linenames: list, line names
 
         """
         self.two_d.reset_line_colors()
         self.explorer.clear_explorer_data()
-        self._line_selected(linename)
-        self.two_d.change_line_colors([linename], 'red')
+        for linename in linenames:
+            self._line_selected(linename)
+        self.two_d.change_line_colors(linenames, 'red')
 
     def tree_fqpr_selected(self, converted_pth):
         """

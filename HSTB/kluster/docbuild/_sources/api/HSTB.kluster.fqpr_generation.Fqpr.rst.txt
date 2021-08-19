@@ -18,7 +18,9 @@ Fqpr
       ~Fqpr.determine_altitude_corr
       ~Fqpr.determine_induced_heave
       ~Fqpr.export_dataset
+      ~Fqpr.export_lines_to_file
       ~Fqpr.export_pings_to_file
+      ~Fqpr.export_soundings_to_file
       ~Fqpr.export_variable
       ~Fqpr.generate_starter_orientation_vectors
       ~Fqpr.georef_xyz
@@ -50,7 +52,6 @@ Fqpr
       ~Fqpr.return_total_pings
       ~Fqpr.return_total_soundings
       ~Fqpr.return_unique_mode
-      ~Fqpr.return_xyz
       ~Fqpr.set_variable_by_filter
       ~Fqpr.set_vertical_reference
       ~Fqpr.subset_by_time
@@ -70,7 +71,9 @@ Fqpr
    .. automethod:: determine_altitude_corr
    .. automethod:: determine_induced_heave
    .. automethod:: export_dataset
+   .. automethod:: export_lines_to_file
    .. automethod:: export_pings_to_file
+   .. automethod:: export_soundings_to_file
    .. automethod:: export_variable
    .. automethod:: generate_starter_orientation_vectors
    .. automethod:: georef_xyz
@@ -102,7 +105,6 @@ Fqpr
    .. automethod:: return_total_pings
    .. automethod:: return_total_soundings
    .. automethod:: return_unique_mode
-   .. automethod:: return_xyz
    .. automethod:: set_variable_by_filter
    .. automethod:: set_vertical_reference
    .. automethod:: subset_by_time

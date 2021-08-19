@@ -15,7 +15,7 @@ class KlusterProjectTree(QtWidgets.QTreeView):
     file_added = Signal(object)
     fqpr_selected = Signal(str)
     surface_selected = Signal(str)
-    line_selected = Signal(str)
+    lines_selected = Signal(object)
     all_lines_selected = Signal(bool)
     surface_layer_selected = Signal(str, str, bool)
     close_fqpr = Signal(str)
@@ -310,8 +310,9 @@ class KlusterProjectTree(QtWidgets.QTreeView):
                         if fq_line not in tree_lines:
                             line_child = QtGui.QStandardItem(fq_line)
                             proj_child.appendRow([line_child])
+        parent.sortChildren(0, order=QtCore.Qt.AscendingOrder)
 
-    def _add_new_surf_from_proj(self, parent, surf_data):
+    def _add_new_surf_from_proj(self, parent: QtGui.QStandardItem, surf_data):
         """
         Read from the kluster_main FqprProject (provided here is the line_data from that project) and add the surfaces
         that are not currently in project tree.  self.tree_data contains the record of the data in the tree.
@@ -335,6 +336,7 @@ class KlusterProjectTree(QtWidgets.QTreeView):
                     lyr_child.setCheckable(True)
                     surf_child.appendRow([lyr_child])
                 self.tree_data['Surfaces'].append(surf)
+        parent.sortChildren(0, order=QtCore.Qt.AscendingOrder)
 
     def _remove_fqpr_not_in_proj(self, parent, line_data):
         """
@@ -453,7 +455,7 @@ class KlusterProjectTree(QtWidgets.QTreeView):
 
         if top_lvl_name in self.categories:  # this is a sub sub item, something like a line name or a surface name
             if top_lvl_name == 'Converted':
-                self.line_selected.emit(selected_name)
+                self.lines_selected.emit(self.return_selected_lines())
             elif top_lvl_name == 'Surfaces':
                 lname = mid_lvl_name + selected_name
                 ischecked = self.model.itemFromIndex(index).checkState()
@@ -521,6 +523,27 @@ class KlusterProjectTree(QtWidgets.QTreeView):
             if new_surf not in surfs:
                 surfs.append(new_surf)
         return surfs
+
+    def return_selected_lines(self):
+        """
+        Return all the selected line instances that are selected.  Only returns unique line instances
+
+        Returns
+        -------
+        list
+            list of all str line names selected
+        """
+
+        linenames = []
+        idxs = self.selectedIndexes()
+        for idx in idxs:
+            new_line = ''
+            top_lvl_name = idx.parent().parent().data()
+            if top_lvl_name == 'Converted':  # user selected a line
+                new_line = self.model.data(idx)
+            if new_line and (new_line not in linenames):
+                linenames.append(new_line)
+        return linenames
 
 
 class OutWindow(QtWidgets.QMainWindow):
