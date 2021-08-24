@@ -35,9 +35,6 @@ class KlusterProjectTree(QtWidgets.QTreeView):
         self.model = QtGui.QStandardItemModel()
         self.setModel(self.model)
         self.setUniformRowHeights(True)
-        self.setAcceptDrops(True)
-        self.viewport().setAcceptDrops(True)  # viewport is the total rendered area, this is recommended from my reading
-        self.setDropIndicatorShown(True)
 
         # ExtendedSelection - allows multiselection with shift/ctrl
         self.setSelectionMode(QtWidgets.QAbstractItemView.ExtendedSelection)
@@ -218,50 +215,6 @@ class KlusterProjectTree(QtWidgets.QTreeView):
             self.close_fqpr.emit(sel_data)
         elif mid_lvl_name == 'Surfaces':
             self.close_surface.emit(sel_data)
-
-    def dragEnterEvent(self, e):
-        """
-        Catch mouse drag enter events to block things not move/read related
-
-        Parameters
-        ----------
-        e: QEvent which is sent to a widget when a drag and drop action enters it
-
-        """
-        if e.mimeData().hasUrls():  # allow MIME type files, have a 'file://', 'http://', etc.
-            e.accept()
-        else:
-            e.ignore()
-
-    def dragMoveEvent(self, e):
-        """
-        Catch mouse drag enter events to block things not move/read related
-
-        Parameters
-        ----------
-        e: QEvent which is sent while a drag and drop action is in progress
-
-        """
-        if e.mimeData().hasUrls():
-            e.accept()
-        else:
-            e.ignore()
-
-    def dropEvent(self, e):
-        """
-        On drag and drop, handle incoming new data from zarr store
-
-        Parameters
-        ----------
-        e: QEvent which is sent when a drag and drop action is completed
-
-        """
-        if e.mimeData().hasUrls():
-            e.setDropAction(QtCore.Qt.CopyAction)
-            fils = [url.toLocalFile() for url in e.mimeData().urls()]
-            self.file_added.emit(fils)
-        else:
-            e.ignore()
 
     def configure(self):
         """
