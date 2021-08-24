@@ -347,7 +347,10 @@ def reload_data(converted_folder: str, require_raw_data: bool = True, skip_dask:
         print('Loading ping/attitude datasets...')
         mbes_read = BatchRead(None, skip_dask=skip_dask, show_progress=show_progress)
         mbes_read.final_paths = final_paths
-        mbes_read.read_from_zarr_fils(final_paths['ping'], final_paths['attitude'][0], final_paths['logfile'])
+        read_error = mbes_read.read_from_zarr_fils(final_paths['ping'], final_paths['attitude'][0], final_paths['logfile'])
+        if read_error:
+            return None
+
         fqpr_inst = Fqpr(mbes_read, show_progress=show_progress)
         if not silent:
             fqpr_inst.logger.info('****Reloading from file {}****'.format(converted_folder))
