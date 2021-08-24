@@ -1369,6 +1369,7 @@ class MapView(QtWidgets.QMainWindow):
         str
             generated vsimem path for the line
         """
+
         return '/vsimem/{}.shp'.format(linename)
 
     def build_surface_source(self, surfname: str, lyrname: str, resolution: float):
@@ -1485,13 +1486,15 @@ class MapView(QtWidgets.QMainWindow):
         if ogr_output_file_exists(source):
             # raise ValueError('Line {} already exists in this map view session'.format(line_name))
             return
-
-        vl = VectorLayer(source, 'ESRI Shapefile', self.epsg, False)
-        vl.write_to_layer(line_name, np.stack([lons, lats], axis=1), 2)  # ogr.wkbLineString
-        vl.close()
-        lyr = self.add_layer(source, line_name, 'ogr', QtGui.QColor('blue'), layertype='line')
-        if refresh:
-            lyr.reload()
+        try:
+            vl = VectorLayer(source, 'ESRI Shapefile', self.epsg, False)
+            vl.write_to_layer(line_name, np.stack([lons, lats], axis=1), 2)  # ogr.wkbLineString
+            vl.close()
+            lyr = self.add_layer(source, line_name, 'ogr', QtGui.QColor('blue'), layertype='line')
+            if refresh:
+                lyr.reload()
+        except:
+            print('ERROR: Unable to build navigation from line {}'.format(line_name))
 
     def remove_line(self, line_name: str, refresh: bool = False):
         """

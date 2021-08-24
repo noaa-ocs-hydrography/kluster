@@ -390,6 +390,8 @@ class FqprProject:
         else:  # pth is the new Fqpr instance, pull the actual path from the Fqpr attribution
             fq = pth
             pth = os.path.normpath(fq.multibeam.raw_ping[0].output_path)
+        print('Loading complete: {}'.format(pth))
+
         if fq is not None:
             if self.path is None:
                 self._setup_new_project(os.path.dirname(pth))

@@ -1182,6 +1182,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         if not self.open_project_thread.error:
             self.project = self.open_project_thread.project
             self.redraw(new_fqprs=self.open_project_thread.new_fqprs)
+        self.open_project_thread.populate(None)
         self._stop_action_progress()
 
     def _kluster_draw_navigation_results(self):

@@ -344,22 +344,20 @@ def reload_data(converted_folder: str, require_raw_data: bool = True, skip_dask:
         return None
 
     if (require_raw_data and final_paths['ping'] and final_paths['attitude']) or (final_paths['ping']):
+        print('Loading ping/attitude datasets...')
         mbes_read = BatchRead(None, skip_dask=skip_dask, show_progress=show_progress)
         mbes_read.final_paths = final_paths
         mbes_read.read_from_zarr_fils(final_paths['ping'], final_paths['attitude'][0], final_paths['logfile'])
         fqpr_inst = Fqpr(mbes_read, show_progress=show_progress)
         if not silent:
             fqpr_inst.logger.info('****Reloading from file {}****'.format(converted_folder))
-
         fqpr_inst.multibeam.xyzrph = fqpr_inst.multibeam.raw_ping[0].xyzrph
         if 'vertical_reference' in fqpr_inst.multibeam.raw_ping[0].attrs:
             fqpr_inst.set_vertical_reference(fqpr_inst.multibeam.raw_ping[0].vertical_reference)
-
         fqpr_inst.generate_starter_orientation_vectors(None, None)
 
         if 'horizontal_crs' in fqpr_inst.multibeam.raw_ping[0].attrs:
             fqpr_inst.construct_crs(epsg=fqpr_inst.multibeam.raw_ping[0].attrs['horizontal_crs'])
-
         try:
             fqpr_inst.navigation_path = final_paths['ppnav'][0]
             fqpr_inst.reload_ppnav_records(skip_dask=skip_dask)

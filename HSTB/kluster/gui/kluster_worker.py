@@ -87,6 +87,7 @@ class OpenProjectWorker(QtCore.QThread):
                     print('{} already exists in {}'.format(pth, self.project.path))
                 elif fqpr_entry:
                     self.new_fqprs.append(fqpr_entry)
+                print('**************************************************************************************')
             for pth in data['surface_paths']:
                 self.project.add_surface(pth)
             time.sleep(0.1)
@@ -121,7 +122,7 @@ class DrawNavigationWorker(QtCore.QThread):
         self.started.emit(True)
         try:
             for fq in self.new_fqprs:
-                print('building navigation for {}...'.format(fq))
+                print('building tracklines for {}...'.format(fq))
                 for ln in self.project.return_project_lines(proj=fq, relative_path=True):
                     lats, lons = self.project.return_line_navigation(ln)
                     self.line_data[ln] = [lats, lons]
