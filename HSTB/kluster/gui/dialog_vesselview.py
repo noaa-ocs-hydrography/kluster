@@ -97,12 +97,12 @@ test_xyzrph = {'123': {'sonar_type': {'1503413148': 'em2040', '1503423148': 'em2
                        'tx_z_0': {'1503413148': '-0.012', '1503423148': '-0.012', '1503443148': '-0.012'},
                        'tx_z_1': {'1503413148': '-0.006', '1503423148': '-0.006', '1503443148': '-0.006'},
                        'tx_z_2': {'1503413148': '-0.012', '1503423148': '-0.012', '1503443148': '-0.012'},
-                       'vess_center_p': {'1503413148': '-5.000', '1503423148': '-5.000', '1503443148': '-5.000'},
+                       'vess_center_p': {'1503413148': '0.000', '1503423148': '0.000', '1503443148': '0.000'},
                        'vess_center_r': {'1503413148': '0.000', '1503423148': '0.000', '1503443148': '0.000'},
-                       'vess_center_x': {'1503413148': '0.800', '1503423148': '0.800', '1503443148': '0.800'},
-                       'vess_center_y': {'1503413148': '-0.100', '1503423148': '-0.100', '1503443148': '-0.100'},
+                       'vess_center_x': {'1503413148': '0.000', '1503423148': '0.000', '1503443148': '0.800'},
+                       'vess_center_y': {'1503413148': '0.000', '1503423148': '0.000', '1503443148': '0.000'},
                        'vess_center_yaw': {'1503413148': '0.000', '1503423148': '0.000', '1503443148': '0.000'},
-                       'vess_center_z': {'1503413148': '-1.350', '1503423148': '-1.350', '1503443148': '-1.350'},
+                       'vess_center_z': {'1503413148': '0.000', '1503423148': '0.000', '1503443148': '0.000'},
                        'vessel_file': {'1503413148': r'C:\\PydroXL_19\\NOAA\\site-packages\\Python38\\HSTB\\kluster\\gui\\vessel_stl_files\\westcoast_28ft_launch.obj',
                                        '1503423148': r'C:\\PydroXL_19\\NOAA\\site-packages\\Python38\\HSTB\\kluster\\gui\\vessel_stl_files\\westcoast_28ft_launch.obj',
                                        '1503443148': r'C:\\PydroXL_19\\NOAA\\site-packages\\Python38\\HSTB\\kluster\\gui\\vessel_stl_files\\westcoast_28ft_launch.obj'},
@@ -895,6 +895,7 @@ class OptionsWidget(QtWidgets.QWidget):
         self.vess_select = QtWidgets.QComboBox()
         self.vess_select.setMinimumWidth(200)
         vessels = os.listdir(os.path.join(os.path.dirname(os.path.realpath(__file__)), 'vessel_stl_files'))
+        vessels = [vess for vess in vessels if os.path.splitext(vess)[1] in ['.obj', '.stl']]
         self.vess_select.addItems(vessels)
         self.vess_select.setEnabled(False)
         self.serial_descrip = QtWidgets.QLabel('S/N: ')
@@ -920,7 +921,7 @@ class OptionsWidget(QtWidgets.QWidget):
         second_item = QtWidgets.QHBoxLayout()
         sensorlabel = QtWidgets.QLabel('Sensor:')
         self.sensor_select = QtWidgets.QComboBox()
-        sensors = ['Basic Config', 'Sonar Transmitter', 'Sonar Receiver', 'Waterline', 'Latency', 'Uncertainty']
+        sensors = ['Display Config', 'Sonar Transmitter', 'Sonar Receiver', 'Waterline', 'Latency', 'Uncertainty']
         self.sensor_select.addItems(sensors)
         self.sensor_select.setEnabled(False)
         second_item.addWidget(sensorlabel)
@@ -959,7 +960,7 @@ class OptionsWidget(QtWidgets.QWidget):
         third_option.addLayout(third_option_sub)
         self.basic_lever.setLayout(third_option)
 
-        self.basic_config = QtWidgets.QGroupBox('Basic configuration options')
+        self.basic_config = QtWidgets.QGroupBox('Display configuration options')
         self.basic_config.setCheckable(False)
 
         fourth_option = QtWidgets.QVBoxLayout()
@@ -1147,7 +1148,7 @@ class OptionsWidget(QtWidgets.QWidget):
         sens = self.sensor_select.currentText()
         tstmp = self.get_currently_selected_time()
         serial_num = self.serial_select.currentText()
-        if sens == 'Basic Config':
+        if sens == 'Display Config':
             sensor_size = self.sensor_size.text()
             pos = [float(self.vcenter_x.text()), float(self.vcenter_y.text()), float(self.vcenter_z.text()),
                    float(self.vcenter_r.text()), float(self.vcenter_p.text()), float(self.vcenter_yaw.text()),
@@ -1374,11 +1375,11 @@ class OptionsWidget(QtWidgets.QWidget):
                 data = self.data[serial_num]
                 first_tstmp = list(data.keys())[0]
                 if data[first_tstmp]['Dual Head']:
-                    sensors = ['Basic Config', 'Vessel Reference Point', 'Port Sonar Transmitter', 'Port Sonar Receiver',
+                    sensors = ['Display Config', 'Vessel Reference Point', 'Port Sonar Transmitter', 'Port Sonar Receiver',
                                'Stbd Sonar Transmitter', 'Stbd Sonar Receiver', 'IMU', 'Primary Antenna', 'Waterline',
                                'Latency', 'Uncertainty']
                 else:
-                    sensors = ['Basic Config', 'Vessel Reference Point', 'Sonar Transmitter', 'Sonar Receiver', 'IMU',
+                    sensors = ['Display Config', 'Vessel Reference Point', 'Sonar Transmitter', 'Sonar Receiver', 'IMU',
                                'Primary Antenna', 'Waterline', 'Latency', 'Uncertainty']
                 curr_select = self.sensor_select.currentText()
                 self.sensor_select.clear()
@@ -1458,7 +1459,7 @@ class OptionsWidget(QtWidgets.QWidget):
         """
         sens = self.sensor_select.currentText()
         self.sensor_selected_sig.emit(sens)
-        if sens == 'Basic Config':
+        if sens == 'Display Config':
             self.basic_config.show()
             self.basic_lever.hide()
             self.basic_tpu.hide()
@@ -1582,7 +1583,7 @@ class OptionsWidget(QtWidgets.QWidget):
             if serial_num and tstmp:
                 refsensor = self.determine_reference_point(tstmp)
                 if refsensor:
-                    if sensor_label == 'Basic Config':
+                    if sensor_label == 'Display Config':
                         element_size = self.curr_sensor_size
                         self.dualhead_option.setChecked(self.data[serial_num][tstmp]['Dual Head'])
                         self.sensor_size.setText(str(element_size))
@@ -1889,7 +1890,7 @@ class VesselView(QtWidgets.QWidget):
                     old_sensor_state = old_sensor.get_sensor_state()
                     if old_sensor_state != 0:
                         old_sensor.toggle_sensor(1)  # dim
-        if not sensor_name or sensor_name in ['Basic Config', 'Vessel Reference Point', 'Latency']:
+        if not sensor_name or sensor_name in ['Display Config', 'Vessel Reference Point', 'Latency']:
             self.currselected = None
         else:
             if sensor_name and sensor_name in self.sensor_lookup:
