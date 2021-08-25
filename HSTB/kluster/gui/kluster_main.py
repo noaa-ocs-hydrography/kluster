@@ -405,7 +405,12 @@ class KlusterMain(QtWidgets.QMainWindow):
         potential_fqpr_paths = []
         for f in fil:
             f = os.path.normpath(f)
-            updated_type, new_data, new_project = self.intel.add_file(f)
+            try:
+                updated_type, new_data, new_project = self.intel.add_file(f)
+            except Exception as e:
+                print('Unable to load from file {}, {}'.format(f, e))
+                updated_type, new_data, new_project = None, True, None
+
             if new_project:  # user added a data file when there was no project, so we loaded or created a new one
                 new_fqprs.extend([fqpr for fqpr in self.project.fqpr_instances.keys() if fqpr not in new_fqprs])
             if new_data is None:
@@ -1272,7 +1277,10 @@ class KlusterMain(QtWidgets.QMainWindow):
         dlog = dialog_daskclient.DaskClientStart()
         if dlog.exec_():
             client = dlog.cl
-            self.project.client = client
+            if client is None:
+                print('start_dask_client: no client started successfully')
+            else:
+                self.project.client = client
 
     def set_project_settings(self):
         """

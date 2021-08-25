@@ -17,12 +17,47 @@ class DaskClientStart(QtWidgets.QDialog):
 
         self.client_vbox = QtWidgets.QVBoxLayout()
 
-        self.local_box = QtWidgets.QGroupBox('Local Cluster - only use your computer, probably what you want')
+        self.local_box = QtWidgets.QGroupBox('Local Cluster')
+        self.local_box.setToolTip('Uses your computer resources in starting the Local Cluster, this is what you want when running on a computer normally.')
         self.local_box.setCheckable(True)
         self.local_box.setChecked(True)
+        self.local_layout = QtWidgets.QVBoxLayout()
+
+        self.number_workers_layout = QtWidgets.QHBoxLayout()
+        self.number_workers_checkbox = QtWidgets.QCheckBox('Override Number of Workers')
+        self.number_workers_checkbox.setToolTip('Use this checkbox if you want to set a specific number of workers, default is the number of cores on your machine')
+        self.number_workers_checkbox.setChecked(False)
+        self.number_workers_layout.addWidget(self.number_workers_checkbox)
+        self.number_workers = QtWidgets.QLineEdit('')
+        self.number_workers.setMaximumWidth(40)
+        self.number_workers_layout.addWidget(self.number_workers)
+        self.local_layout.addLayout(self.number_workers_layout)
+
+        self.number_threads_layout = QtWidgets.QHBoxLayout()
+        self.number_threads_checkbox = QtWidgets.QCheckBox('Override Threads per Worker')
+        self.number_threads_checkbox.setToolTip('Use this checkbox if you want to set a specific number of threads per worker, default is based on the number of cores on your machine')
+        self.number_threads_checkbox.setChecked(False)
+        self.number_threads_layout.addWidget(self.number_threads_checkbox)
+        self.number_threads = QtWidgets.QLineEdit('')
+        self.number_threads.setMaximumWidth(40)
+        self.number_threads_layout.addWidget(self.number_threads)
+        self.local_layout.addLayout(self.number_threads_layout)
+
+        self.number_memory_layout = QtWidgets.QHBoxLayout()
+        self.number_memory_checkbox = QtWidgets.QCheckBox('Override Memory (GB) per Worker')
+        self.number_memory_checkbox.setToolTip('Use this amount of memory for each worker, default is the max memory available on your system')
+        self.number_memory_checkbox.setChecked(False)
+        self.number_memory_layout.addWidget(self.number_memory_checkbox)
+        self.number_memory = QtWidgets.QLineEdit('')
+        self.number_memory.setMaximumWidth(40)
+        self.number_memory_layout.addWidget(self.number_memory)
+        self.local_layout.addLayout(self.number_memory_layout)
+
+        self.local_box.setLayout(self.local_layout)
         self.client_vbox.addWidget(self.local_box)
 
-        self.remote_box = QtWidgets.QGroupBox('Remote Client - use remotely setup Dask server cluster')
+        self.remote_box = QtWidgets.QGroupBox('Remote Client')
+        self.remote_box.setToolTip('Use this when you have set up a Dask Cluster on a remote server, the address given here is the address of that server.')
         self.remote_box.setCheckable(True)
         self.remote_box.setChecked(False)
         self.remote_layout = QtWidgets.QVBoxLayout()
@@ -103,7 +138,41 @@ class DaskClientStart(QtWidgets.QDialog):
         if self.local_box.isChecked() or self.remote_box.isChecked():
             self.accept()
             if self.local_box.isChecked():
-                self.cl = dask_find_or_start_client()
+                try:  # have to close the existing local cluster/client first if you have one running before you can recreate
+                    client = get_client()
+                    client.close()
+                except:
+                    pass
+                numworker = None
+                threadsworker = None
+                memoryworker = None
+                multiprocessing = True
+                if self.number_workers_checkbox.isChecked():
+                    try:
+                        numworker = int(self.number_workers.text())
+                        if numworker < 1:
+                            numworker = 1
+                        if numworker == 1:
+                            multiprocessing = False
+                    except:
+                        print('Invalid number of workers provided, number must be an integer, ex: 4')
+                        return
+                if self.number_threads_checkbox.isChecked():
+                    try:
+                        threadsworker = int(self.number_threads.text())
+                        if threadsworker < 1:
+                            threadsworker = 1
+                    except:
+                        print('Invalid number of threads provided, number must be an integer, ex: 2')
+                        return
+                if self.number_memory_checkbox.isChecked():
+                    try:
+                        memoryworker = str(self.number_memory.text()) + 'GB'
+                    except:
+                        print('Invalid memory per worker provided, number must be an integer, ex: 5')
+                        return
+                self.cl = dask_find_or_start_client(number_of_workers=numworker, threads_per_worker=threadsworker,
+                                                    memory_per_worker=memoryworker, multiprocessing=multiprocessing)
             else:
                 if self.remote_ip_radio.isChecked():
                     full_address = self.remote_ip_address.text() + ':' + self.remote_ip_port.text()

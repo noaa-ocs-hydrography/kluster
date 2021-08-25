@@ -523,7 +523,8 @@ def _validate_fqpr_for_gridding(fqpr_instances: list):
 def generate_new_surface(fqpr_inst: Union[Fqpr, list], grid_type: str = 'single_resolution', tile_size: float = 1024.0,
                          subtile_size: float = 128, gridding_algorithm: str = 'mean', resolution: float = None,
                          use_dask: bool = False, output_path: str = None, export_path: str = None,
-                         export_format: str = 'geotiff', export_z_positive_up: bool = True, export_resolution: float = None):
+                         export_format: str = 'geotiff', export_z_positive_up: bool = True,
+                         export_resolution: float = None, client: Client = None):
     """
     Using the bathygrid create_grid convenience function, generate a new variable/single resolution surface for the
     provided Kluster fqpr instance(s).
@@ -563,6 +564,9 @@ def generate_new_surface(fqpr_inst: Union[Fqpr, list], grid_type: str = 'single_
         if True, will output bands with positive up convention
     export_resolution
         if provided, will only export the given resolution
+    client
+        dask.distributed.Client instance, if you don't include this, it will automatically start a LocalCluster with the
+        default options, if you set use_dask to True
 
     Returns
     -------
@@ -587,6 +591,8 @@ def generate_new_surface(fqpr_inst: Union[Fqpr, list], grid_type: str = 'single_
     # set some arbitrary number of pings to hold in memory at once, probably need a smarter way to do this eventually
     #  just make sure it is a multiple of 1000, the chunksize of the raw_ping dataset
     bg = create_grid(folder_path=output_path, grid_type=grid_type, tile_size=tile_size, subtile_size=subtile_size)
+    if client is not None:
+        bg.client = client
     for f in fqpr_inst:
         _add_points_to_surface(f, bg, unique_crs[0], unique_vertref[0])
 
