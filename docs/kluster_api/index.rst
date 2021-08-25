@@ -18,6 +18,7 @@ API
    sat
    wobble
    export
+   subset
    rotations
    pdal_entwine
    dask_helpers

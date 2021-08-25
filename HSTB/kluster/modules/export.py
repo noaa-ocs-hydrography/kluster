@@ -17,6 +17,8 @@ class FqprExport:
     Visualizations in Matplotlib built on top of FQPR class.  Includes animations of beam vectors and vessel
     orientation.
 
+    fqpr = fully qualified ping record, the term for the datastore in kluster
+
     Processed fqpr_generation.Fqpr instance is passed in as argument
     """
 

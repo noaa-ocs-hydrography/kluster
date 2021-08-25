@@ -7,6 +7,7 @@ from types import FunctionType
 from typing import Union
 from copy import deepcopy
 from collections import OrderedDict
+from dask.distributed import Client
 
 from HSTB.drivers import kmall, par3, sbet, svp
 from HSTB.kluster import monitor, fqpr_actions
@@ -1789,7 +1790,7 @@ def likelihood_start_end_times_close(filetimes: list, compare_times: list, allow
 def intel_process(filname: Union[str, list], outfold: str = None, coord_system: str = 'WGS84',
                   epsg: int = None, use_epsg: bool = False, vert_ref: str = 'waterline',
                   parallel_write: bool = True, vdatum_directory: str = None, force_coordinate_system: bool = True,
-                  logger: logging.Logger = None):
+                  logger: logging.Logger = None, client: Client = None):
     """
     Use Kluster intelligence module to organize and process all input files.  Files can be a list of files, a single
     file, or a directory full of files.  Files can be multibeam files, .svp sound velocity profile files, SBET and
@@ -1819,6 +1820,9 @@ def intel_process(filname: Union[str, list], outfold: str = None, coord_system: 
         utm zone equal to the first converted data instance.
     logger
         logging.Logger instance, if included will use this logger in Kluster
+    client
+        dask.distributed.Client instance, if you don't include this, it will automatically start a LocalCluster with the
+        default options
 
     Returns
     -------
@@ -1829,6 +1833,8 @@ def intel_process(filname: Union[str, list], outfold: str = None, coord_system: 
     """
 
     project = FqprProject(is_gui=False)
+    if client:
+        project.client = client
     if outfold:
         potential_project_file = os.path.join(outfold, 'kluster_project.json')
         if os.path.exists(potential_project_file):
@@ -1864,7 +1870,7 @@ def intel_process(filname: Union[str, list], outfold: str = None, coord_system: 
 def intel_process_service(folder_path: str, is_recursive: bool = True, outfold: str = None, coord_system: str = 'WGS84',
                           epsg: int = None, use_epsg: bool = False, vert_ref: str = 'waterline',
                           parallel_write: bool = True, vdatum_directory: str = None, force_coordinate_system: bool = True,
-                          logger: logging.Logger = None):
+                          logger: logging.Logger = None, client: Client = None):
     """
     Use Kluster intelligence module to start a new folder monitoring session and process all new files that show
     up in that directory.  Files can be multibeam files, .svp sound velocity profile files, SBET and
@@ -1896,10 +1902,15 @@ def intel_process_service(folder_path: str, is_recursive: bool = True, outfold: 
         utm zone equal to the first converted data instance.
     logger
         logging.Logger instance, if included will use this logger in Kluster
+    client
+        dask.distributed.Client instance, if you don't include this, it will automatically start a LocalCluster with the
+        default options
     """
 
     # consider daemonizing this at some point: https://daemoniker.readthedocs.io/en/latest/index.html
     project = FqprProject(is_gui=False)
+    if client:
+        project.client = client
     if outfold:
         potential_project_file = os.path.join(outfold, 'kluster_project.json')
         if os.path.exists(potential_project_file):

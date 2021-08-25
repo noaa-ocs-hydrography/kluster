@@ -145,7 +145,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         # connect FqprActionContainer with actions pane, called whenever actions changes
         self.intel.bind_to_action_update(self.actions.update_actions)
 
-        self.project_tree.file_added.connect(self.update_on_file_added)
+        # self.project_tree.file_added.connect(self.update_on_file_added)
         self.project_tree.lines_selected.connect(self.tree_line_selected)
         self.project_tree.fqpr_selected.connect(self.tree_fqpr_selected)
         self.project_tree.surface_selected.connect(self.tree_surf_selected)
@@ -202,6 +202,8 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.setup_widgets()
         self.read_settings()
 
+        self.setAcceptDrops(True)
+
     @property
     def settings_object(self):
         kluster_dir = os.path.dirname(kluster_init_file)
@@ -228,6 +230,50 @@ class KlusterMain(QtWidgets.QMainWindow):
         if self.project.path is not None:
             self.project.set_settings(self.settings.copy())
         self.intel.set_settings(self.settings.copy())
+
+    def dragEnterEvent(self, e):
+        """
+        Catch mouse drag enter events to block things not move/read related
+
+        Parameters
+        ----------
+        e: QEvent which is sent to a widget when a drag and drop action enters it
+
+        """
+        if e.mimeData().hasUrls():  # allow MIME type files, have a 'file://', 'http://', etc.
+            e.accept()
+        else:
+            e.ignore()
+
+    def dragMoveEvent(self, e):
+        """
+        Catch mouse drag enter events to block things not move/read related
+
+        Parameters
+        ----------
+        e: QEvent which is sent while a drag and drop action is in progress
+
+        """
+        if e.mimeData().hasUrls():
+            e.accept()
+        else:
+            e.ignore()
+
+    def dropEvent(self, e):
+        """
+        On drag and drop, handle incoming new data from zarr store
+
+        Parameters
+        ----------
+        e: QEvent which is sent when a drag and drop action is completed
+
+        """
+        if e.mimeData().hasUrls():
+            e.setDropAction(QtCore.Qt.CopyAction)
+            fils = [url.toLocalFile() for url in e.mimeData().urls()]
+            self.update_on_file_added(fils)
+        else:
+            e.ignore()
 
     def setup_menu(self):
         """
@@ -359,7 +405,12 @@ class KlusterMain(QtWidgets.QMainWindow):
         potential_fqpr_paths = []
         for f in fil:
             f = os.path.normpath(f)
-            updated_type, new_data, new_project = self.intel.add_file(f)
+            try:
+                updated_type, new_data, new_project = self.intel.add_file(f)
+            except Exception as e:
+                print('Unable to load from file {}, {}'.format(f, e))
+                updated_type, new_data, new_project = None, True, None
+
             if new_project:  # user added a data file when there was no project, so we loaded or created a new one
                 new_fqprs.extend([fqpr for fqpr in self.project.fqpr_instances.keys() if fqpr not in new_fqprs])
             if new_data is None:
@@ -1136,6 +1187,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         if not self.open_project_thread.error:
             self.project = self.open_project_thread.project
             self.redraw(new_fqprs=self.open_project_thread.new_fqprs)
+        self.open_project_thread.populate(None)
         self._stop_action_progress()
 
     def _kluster_draw_navigation_results(self):
@@ -1225,7 +1277,10 @@ class KlusterMain(QtWidgets.QMainWindow):
         dlog = dialog_daskclient.DaskClientStart()
         if dlog.exec_():
             client = dlog.cl
-            self.project.client = client
+            if client is None:
+                print('start_dask_client: no client started successfully')
+            else:
+                self.project.client = client
 
     def set_project_settings(self):
         """

@@ -24,13 +24,12 @@ fqpr\_generation module
    :skip: BatchRead
    :skip: FqprVisualizations
    :skip: FqprExport
+   :skip: FqprSubset
    :skip: combine_arrays_to_dataset
-   :skip: compare_and_find_gaps
    :skip: divide_arrays_by_time_index
    :skip: interp_across_chunks
    :skip: reload_zarr_records
    :skip: slice_xarray_by_dim
-   :skip: stack_nan_array
    :skip: get_beamwise_interpolation
    :skip: ZarrBackend
    :skip: get_number_of_workers

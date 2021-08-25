@@ -344,22 +344,23 @@ def reload_data(converted_folder: str, require_raw_data: bool = True, skip_dask:
         return None
 
     if (require_raw_data and final_paths['ping'] and final_paths['attitude']) or (final_paths['ping']):
+        print('Loading ping/attitude datasets...')
         mbes_read = BatchRead(None, skip_dask=skip_dask, show_progress=show_progress)
         mbes_read.final_paths = final_paths
-        mbes_read.read_from_zarr_fils(final_paths['ping'], final_paths['attitude'][0], final_paths['logfile'])
+        read_error = mbes_read.read_from_zarr_fils(final_paths['ping'], final_paths['attitude'][0], final_paths['logfile'])
+        if read_error:
+            return None
+
         fqpr_inst = Fqpr(mbes_read, show_progress=show_progress)
         if not silent:
             fqpr_inst.logger.info('****Reloading from file {}****'.format(converted_folder))
-
         fqpr_inst.multibeam.xyzrph = fqpr_inst.multibeam.raw_ping[0].xyzrph
         if 'vertical_reference' in fqpr_inst.multibeam.raw_ping[0].attrs:
             fqpr_inst.set_vertical_reference(fqpr_inst.multibeam.raw_ping[0].vertical_reference)
-
         fqpr_inst.generate_starter_orientation_vectors(None, None)
 
         if 'horizontal_crs' in fqpr_inst.multibeam.raw_ping[0].attrs:
             fqpr_inst.construct_crs(epsg=fqpr_inst.multibeam.raw_ping[0].attrs['horizontal_crs'])
-
         try:
             fqpr_inst.navigation_path = final_paths['ppnav'][0]
             fqpr_inst.reload_ppnav_records(skip_dask=skip_dask)
@@ -522,7 +523,8 @@ def _validate_fqpr_for_gridding(fqpr_instances: list):
 def generate_new_surface(fqpr_inst: Union[Fqpr, list], grid_type: str = 'single_resolution', tile_size: float = 1024.0,
                          subtile_size: float = 128, gridding_algorithm: str = 'mean', resolution: float = None,
                          use_dask: bool = False, output_path: str = None, export_path: str = None,
-                         export_format: str = 'geotiff', export_z_positive_up: bool = True, export_resolution: float = None):
+                         export_format: str = 'geotiff', export_z_positive_up: bool = True,
+                         export_resolution: float = None, client: Client = None):
     """
     Using the bathygrid create_grid convenience function, generate a new variable/single resolution surface for the
     provided Kluster fqpr instance(s).
@@ -562,6 +564,9 @@ def generate_new_surface(fqpr_inst: Union[Fqpr, list], grid_type: str = 'single_
         if True, will output bands with positive up convention
     export_resolution
         if provided, will only export the given resolution
+    client
+        dask.distributed.Client instance, if you don't include this, it will automatically start a LocalCluster with the
+        default options, if you set use_dask to True
 
     Returns
     -------
@@ -586,6 +591,8 @@ def generate_new_surface(fqpr_inst: Union[Fqpr, list], grid_type: str = 'single_
     # set some arbitrary number of pings to hold in memory at once, probably need a smarter way to do this eventually
     #  just make sure it is a multiple of 1000, the chunksize of the raw_ping dataset
     bg = create_grid(folder_path=output_path, grid_type=grid_type, tile_size=tile_size, subtile_size=subtile_size)
+    if client is not None:
+        bg.client = client
     for f in fqpr_inst:
         _add_points_to_surface(f, bg, unique_crs[0], unique_vertref[0])
 

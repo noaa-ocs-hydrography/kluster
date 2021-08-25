@@ -262,7 +262,7 @@ def test_subset_by_time():
     out.subset_by_time(mintime=1495563100, maxtime=1495563130)
     assert len(out.multibeam.raw_ping[0].time) == 123
     assert len(out.multibeam.raw_att.time) == 3001
-    out.restore_subset()
+    out.subset.restore_subset()
     assert len(out.multibeam.raw_ping[0].time) == 216
     assert len(out.multibeam.raw_att.time) == 5302
     out.close()
@@ -370,6 +370,13 @@ def test_export_files():
     assert len(pths_three) == 6
     assert len(pths_four) == 1
 
+    expected_las = os.path.join(datapath, 'las_export')
+    if os.path.exists(expected_las):
+        shutil.rmtree(expected_las)
+    expected_csv = os.path.join(datapath, 'csv_export')
+    if os.path.exists(expected_csv):
+        shutil.rmtree(expected_csv)
+
     out.close()
     out = None
 
@@ -387,6 +394,13 @@ def test_export_lines_to_file():
     assert len(pths_two) == 1
     assert len(pths_three) == 6
     assert len(pths_four) == 1
+
+    expected_las = os.path.join(datapath, 'las_export')
+    if os.path.exists(expected_las):
+        shutil.rmtree(expected_las)
+    expected_csv = os.path.join(datapath, 'csv_export')
+    if os.path.exists(expected_csv):
+        shutil.rmtree(expected_csv)
 
     out.close()
     out = None

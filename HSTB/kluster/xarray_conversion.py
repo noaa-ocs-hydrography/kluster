@@ -1091,6 +1091,7 @@ class BatchRead(ZarrBackend):
                     self.raw_ping.append(dset)
         except ValueError:
             self.logger.error('Unable to read from {}'.format(ping_pth))
+            return True
 
         if self.converted_pth is None:
             self.converted_pth = os.path.dirname(attitude_pth)
@@ -1100,6 +1101,8 @@ class BatchRead(ZarrBackend):
             # self.raw_att = sort_and_drop_duplicates(self.raw_att, attitude_pth)
         except (ValueError, AttributeError):
             self.logger.error('Unable to read from {}'.format(attitude_pth))
+            return True
+        return False
 
     def initialize_log(self):
         """
