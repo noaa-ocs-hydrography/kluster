@@ -7,6 +7,7 @@ fqpr\_intelligence module
    :skip: timezone
    :skip: get_close_matches
    :skip: FunctionType
+   :skip: Client
    :skip: Union
    :skip: deepcopy
    :skip: OrderedDict

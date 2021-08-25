@@ -5,7 +5,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>dask_find_or_start_client &#8212; kluster 0.7.5 documentation</title>
+    <title>dask_find_or_start_client &#8212; kluster 0.7.6 documentation</title>
     <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
     <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
     <link rel="stylesheet" type="text/css" href="../_static/graphviz.css" />
@@ -37,12 +37,17 @@
 <h1>dask_find_or_start_client<a class="headerlink" href="#dask-find-or-start-client" title="Permalink to this headline">¶</a></h1>
 <dl class="py function">
 <dt id="HSTB.kluster.dask_helpers.dask_find_or_start_client">
-<code class="sig-prename descclassname"><span class="pre">HSTB.kluster.dask_helpers.</span></code><code class="sig-name descname"><span class="pre">dask_find_or_start_client</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">address</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">silent</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.dask_helpers.dask_find_or_start_client" title="Permalink to this definition">¶</a></dt>
-<dd><p>Either start or return Dask client in local/networked cluster mode</p>
+<code class="sig-prename descclassname"><span class="pre">HSTB.kluster.dask_helpers.</span></code><code class="sig-name descname"><span class="pre">dask_find_or_start_client</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">address</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">number_of_workers</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">threads_per_worker</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">memory_per_worker</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">multiprocessing</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">silent</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.dask_helpers.dask_find_or_start_client" title="Permalink to this definition">¶</a></dt>
+<dd><p>Either start or return Dask client in local/networked cluster mode.  Use this function whenever you need access to
+a new or existing cluster</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>address</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]) – ip address for existing or desired new dask server instance</p></li>
+<li><p><strong>number_of_workers</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code>]) – integer number of workers in the LocalCluster, only used when address = None (local cluster)</p></li>
+<li><p><strong>threads_per_worker</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code>]) – integer number of threads per worker in the LocalCluster, only used when address = None (local cluster)</p></li>
+<li><p><strong>memory_per_worker</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]) – string representation of the memory allowed per worker, ex: ‘10GB’</p></li>
+<li><p><strong>multiprocessing</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code>) – if True, will allow multiple workers, if False, will only use threads</p></li>
 <li><p><strong>silent</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code>) – whether or not to print messages</p></li>
 </ul>
 </dd>
@@ -97,6 +102,7 @@
 <li class="toctree-l2"><a class="reference internal" href="../kluster_api/sat.html">sat module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../kluster_api/wobble.html">wobble module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../kluster_api/export.html">export module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/subset.html">subset module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../kluster_api/rotations.html">rotations module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../kluster_api/pdal_entwine.html">pdal_entwine module</a></li>
 <li class="toctree-l2 current"><a class="reference internal" href="../kluster_api/dask_helpers.html">dask_helpers module</a><ul class="current">

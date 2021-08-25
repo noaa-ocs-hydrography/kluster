@@ -1,0 +1,43 @@
+FqprSubset
+==========
+
+.. currentmodule:: HSTB.kluster.modules.subset
+
+.. autoclass:: FqprSubset
+   :show-inheritance:
+
+   .. rubric:: Attributes Summary
+
+   .. autosummary::
+
+      ~FqprSubset.is_subset
+
+   .. rubric:: Methods Summary
+
+   .. autosummary::
+
+      ~FqprSubset.redo_subset
+      ~FqprSubset.restore_subset
+      ~FqprSubset.return_soundings_in_polygon
+      ~FqprSubset.set_variable_by_filter
+      ~FqprSubset.soundings_by_poly
+      ~FqprSubset.subset_by_time
+      ~FqprSubset.subset_variables
+      ~FqprSubset.subset_variables_by_line
+      ~FqprSubset.swaths_by_poly
+
+   .. rubric:: Attributes Documentation
+
+   .. autoattribute:: is_subset
+
+   .. rubric:: Methods Documentation
+
+   .. automethod:: redo_subset
+   .. automethod:: restore_subset
+   .. automethod:: return_soundings_in_polygon
+   .. automethod:: set_variable_by_filter
+   .. automethod:: soundings_by_poly
+   .. automethod:: subset_by_time
+   .. automethod:: subset_variables
+   .. automethod:: subset_variables_by_line
+   .. automethod:: swaths_by_poly
