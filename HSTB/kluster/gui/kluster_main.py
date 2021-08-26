@@ -949,10 +949,8 @@ class KlusterMain(QtWidgets.QMainWindow):
             cancelled = False
             surfs = self.return_selected_surfaces()
             if surfs:
+                existing_container_names, possible_container_names = self.project.return_surface_containers(surfs[0], relative_path=False)
                 surf = self.project.surface_instances[self.project.path_relative_to_project(surfs[0])]
-                existing_container_names = surf.return_unique_containers()
-                possible_container_names = [os.path.split(fqpr_inst.multibeam.raw_ping[0].output_path)[1] for fqpr_inst in self.project.fqpr_instances.values()]
-                possible_container_names = [pname for pname in possible_container_names if pname not in existing_container_names]
                 dlog = dialog_surface_data.SurfaceDataDialog(title=surf.output_folder)
                 dlog.setup(existing_container_names, possible_container_names)
                 if dlog.exec_():

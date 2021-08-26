@@ -627,7 +627,7 @@ class FqprProject:
                 if relative_path:
                     return self.fqpr_lines[proj]
                 else:
-                    return self.fqpr_lines[self.absolute_path_from_relative(proj)]
+                    return self.fqpr_lines[self.path_relative_to_project(proj)]
             else:
                 print('return_project_lines: expected a string path to be provided to the kluster fqpr datastore')
                 return None
@@ -820,6 +820,50 @@ class FqprProject:
         else:
             vf = None
         return vf
+
+    def return_surface_containers(self, surface_name: str, relative_path: bool = True):
+        """
+        Project has loaded surface and fqpr instances.  This method will return the names of the existing fqpr instances
+        in the surface and a list of the fqpr instances in the project that are not in the surface yet.
+
+        Fqpr instances marked with an asterisk are those that need to be updated in the surface.  The surface soundings
+        for that instance are out of date relative to the last operation performed on the fqpr instance.
+
+        Parameters
+        ----------
+        surface_name
+
+        relative_path
+
+        Returns
+        -------
+
+        """
+        try:
+            if relative_path:
+                surf = self.surface_instances[surface_name]
+            else:
+                surf = self.surface_instances[self.path_relative_to_project(surface_name)]
+        except:
+            print('Surface {} not found in project'.format(surface_name))
+            return
+        existing_container_names = surf.return_unique_containers()
+        existing_needs_update = []
+        for existname in existing_container_names:
+            if existname in self.fqpr_instances:
+                existtime = None
+                for ename, etime in surf.container_timestamp.items():
+                    if ename.find(existname) != -1:
+                        existtime = datetime.strptime(etime, '%Y%m%d_%H%M%S')
+                        break
+                if existtime:
+                    last_time = self.fqpr_instances[existname].last_operation_date
+                    if last_time > existtime:
+                        existing_needs_update.append(existname)
+        existing_container_names = [exist if exist not in existing_needs_update else exist + '*' for exist in existing_container_names]
+        possible_container_names = [os.path.split(fqpr_inst.multibeam.raw_ping[0].output_path)[1] for fqpr_inst in self.fqpr_instances.values()]
+        possible_container_names = [pname for pname in possible_container_names if (pname not in existing_container_names) and (pname + '*' not in existing_container_names)]
+        return existing_container_names, possible_container_names
 
 
 def create_new_project(output_folder: str = None):

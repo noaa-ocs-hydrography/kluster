@@ -109,6 +109,29 @@ class Fqpr(ZarrBackend):
         self.logger = None
         self.initialize_log()
 
+    @property
+    def last_operation_date(self):
+        """
+        Get the datetime of the last operation performed on this fqpr instance
+
+        Returns
+        -------
+        datetime
+            datetime object of the last operation performed on this fqpr instance
+        """
+
+        time_attrs = ['_compute_orientation_complete', '_compute_beam_vectors_complete',
+                      '_sound_velocity_correct_complete', '_georeference_soundings_complete',
+                      '_total_uncertainty_complete']
+        last_time = None
+        for rp in self.multibeam.raw_ping:
+            for ky, val in rp.attrs.items():
+                if ky in time_attrs:
+                    new_time = datetime.strptime(val, '%c')
+                    if not last_time or new_time > last_time:
+                        last_time = new_time
+        return last_time
+
     def close(self):
         """
         Must forcibly close the logging handlers to allow the data written to disk to be moved or deleted.
