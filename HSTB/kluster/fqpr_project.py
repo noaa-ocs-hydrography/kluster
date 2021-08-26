@@ -832,13 +832,19 @@ class FqprProject:
         Parameters
         ----------
         surface_name
-
+            path to the surface, either relative to the project or absolute path
         relative_path
+            if True, surface_name is a relative path
 
         Returns
         -------
-
+        list
+            list of the fqpr instance names that are in the surface, with an asterisk at the end if the surface version
+            of the fqpr instance soundings is out of date
+        list
+            list of fqpr instances that are in the project and not in the surface
         """
+
         try:
             if relative_path:
                 surf = self.surface_instances[surface_name]
@@ -846,7 +852,7 @@ class FqprProject:
                 surf = self.surface_instances[self.path_relative_to_project(surface_name)]
         except:
             print('Surface {} not found in project'.format(surface_name))
-            return
+            return [], []
         existing_container_names = surf.return_unique_containers()
         existing_needs_update = []
         for existname in existing_container_names:

@@ -20,6 +20,10 @@ class SurfaceDataDialog(QtWidgets.QDialog):
         self.setWindowTitle('Update Surface Data')
 
         self.listdata = TwoListWidget(title, 'Current Containers', 'Possible Containers')
+        self.mark_for_update_button = QtWidgets.QPushButton('Mark Update')
+        self.mark_for_update_button.setDisabled(True)
+        self.listdata.center_layout.addWidget(self.mark_for_update_button)
+        self.listdata.center_layout.addStretch()
         self.toplayout.addWidget(self.listdata)
 
         self.update_checkbox = QtWidgets.QCheckBox('Update Existing Container Data')
@@ -58,8 +62,25 @@ class SurfaceDataDialog(QtWidgets.QDialog):
         self.original_current = []
         self.original_possible = []
 
+        self.mark_for_update_button.clicked.connect(self.mark_for_update)
+        self.listdata.left_list.itemClicked.connect(self.enable_markbutton)
+        self.listdata.right_list.itemClicked.connect(self.disable_markbutton)
         self.ok_button.clicked.connect(self.start_processing)
         self.cancel_button.clicked.connect(self.cancel_processing)
+
+    def mark_for_update(self):
+        curitem = self.listdata.left_list.selectedItems()[0]
+        curitem_text = curitem.text()
+        if curitem_text[-1] == '*':
+            curitem.setText(curitem_text[:-1])
+        else:
+            curitem.setText(curitem_text + '*')
+
+    def enable_markbutton(self):
+        self.mark_for_update_button.setDisabled(False)
+
+    def disable_markbutton(self):
+        self.mark_for_update_button.setDisabled(True)
 
     def setup(self, current_containers: list, possible_containers: list):
         for cont in current_containers:
@@ -86,9 +107,10 @@ class SurfaceDataDialog(QtWidgets.QDialog):
             if curr not in current_containers:
                 if curr[-1] == '*':
                     curr = curr[:-1]
-                remove_fqpr.append(curr)
+                if curr not in remove_fqpr:
+                    remove_fqpr.append(curr)
         for newcurr in current_containers:
-            if newcurr in self.original_possible:
+            if newcurr in self.original_possible and newcurr not in add_fqpr:
                 add_fqpr.append(newcurr)
         return add_fqpr, remove_fqpr, {'regrid': regrid_container, 'use_dask': self.use_dask_checkbox.isChecked()}
 
