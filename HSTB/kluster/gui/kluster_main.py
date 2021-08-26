@@ -1557,7 +1557,7 @@ class KlusterMain(QtWidgets.QMainWindow):
 
     def select_points_in_box(self, polygon: np.ndarray, azimuth: float):
         """
-        method run on using the 2dview points select tool.  Gathers all points in the box.
+        method run on using the 2dview points select tool.  Gathers all points in the box and shows in 3d.
 
         Parameters
         ----------
@@ -1568,19 +1568,20 @@ class KlusterMain(QtWidgets.QMainWindow):
         """
 
         print('Selecting Points in Polygon...')
+        print('Box select azimuth = {} degrees'.format(np.rad2deg(azimuth)))
         pointcount = 0
         self.points_view.clear()
         pts_data = self.project.return_soundings_in_polygon(polygon)
         for fqpr_name, pointdata in pts_data.items():
             self.points_view.add_points(pointdata[0], pointdata[1], pointdata[2], pointdata[3], pointdata[4], pointdata[5],
-                                        pointdata[6], fqpr_name, pointdata[7], is_3d=True)
+                                        pointdata[6], fqpr_name, pointdata[7], is_3d=True, azimuth=azimuth)
             pointcount += pointdata[0].size
         self.points_view.display_points()
         print('Selected {} Points for 3D display'.format(pointcount))
 
     def select_slice_in_box(self, polygon: np.ndarray, azimuth: float):
         """
-        method run on using the 2dview swath select tool.  Gathers all swaths in the box.
+        method run on using the 2dview swath select tool.  Gathers all points in polygon and shows in 2d
 
         Parameters
         ----------
@@ -1592,7 +1593,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         """
 
         print('Selecting Points in Polygon...')
-        # print('Box select azimuth = {} radians'.format(azimuth))
+        print('Box select azimuth = {} radians'.format(azimuth))
         pointcount = 0
         self.points_view.clear()
         pts_data = self.project.return_soundings_in_polygon(polygon)

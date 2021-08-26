@@ -302,18 +302,17 @@ class RectangleMapTool(qgis_gui.QgsMapToolEmitPoint):
     # minlat, maxlat, minlon, maxlon in Map coordinates (WGS84 for Kluster)
     select = Signal(object, float)
 
-    def __init__(self, canvas, show_direction: bool = False):
+    def __init__(self, canvas, show_direction: bool = True):
         self.canvas = canvas
         qgis_gui.QgsMapToolEmitPoint.__init__(self, self.canvas)
         self.rubberBand = qgis_gui.QgsRubberBand(self.canvas, True)
         self.rubberBand.setColor(QtCore.Qt.black)
         self.rubberBand.setFillColor(QtCore.Qt.transparent)
-        self.rubberBand.setWidth(1)
+        self.rubberBand.setWidth(3)
 
         if show_direction:
-            self.direction_arrow = qgis_gui.QgsRubberBand(self.canvas, True)
+            self.direction_arrow = qgis_gui.QgsRubberBand(self.canvas, False)
             self.direction_arrow.setColor(QtCore.Qt.black)
-            self.direction_arrow.setFillColor(QtCore.Qt.transparent)
             self.direction_arrow.setWidth(4)
         else:
             self.direction_arrow = None
@@ -339,7 +338,6 @@ class RectangleMapTool(qgis_gui.QgsMapToolEmitPoint):
         self.rubberBand.setFillColor(QtCore.Qt.transparent)
         if self.direction_arrow:
             self.direction_arrow.setColor(QtCore.Qt.black)
-            self.direction_arrow.setFillColor(QtCore.Qt.transparent)
         self.start_point = None
         self.end_point = None
         self.final_start_point = None
@@ -365,9 +363,9 @@ class RectangleMapTool(qgis_gui.QgsMapToolEmitPoint):
             self.enable_rotation = False
 
     def return_azimuth(self, start_x, start_y, end_x, end_y):
-        delta_x = end_x - start_x
-        az = np.arctan2((np.sin(delta_x) * np.cos(end_y)),
-                        (np.cos(start_y) * np.sin(end_y) - np.sin(start_y) * np.cos(end_y) * np.cos(delta_x)))
+        centerx = end_x - start_x
+        centery = end_y - start_y
+        az = np.arctan2(centerx, centery)
         return az
 
     def canvasPressEvent(self, e):
@@ -400,7 +398,6 @@ class RectangleMapTool(qgis_gui.QgsMapToolEmitPoint):
                 self.rubberBand.update()
                 if self.direction_arrow:
                     self.direction_arrow.setColor(QtCore.Qt.green)
-                    self.direction_arrow.setFillColor(QtCore.Qt.transparent)
                     self.direction_arrow.update()
                 poly, az = self.rectangle()
                 if poly is not None:
@@ -439,11 +436,6 @@ class RectangleMapTool(qgis_gui.QgsMapToolEmitPoint):
         point4 = qgis_core.QgsPointXY(end_point.x(), start_point.y())
 
         if self.enable_rotation and self.second_click:
-            az = self.return_azimuth(np.deg2rad(start_point.x()), np.deg2rad(start_point.y()),
-                                     np.deg2rad(end_point.x()), np.deg2rad(end_point.y()))
-            if not self.start_azimuth:
-                self.start_azimuth = az
-            self.azimuth = az - self.start_azimuth
 
             point1 = qgis_core.QgsPointXY(self.final_start_point.x(), self.final_start_point.y())
             point2 = qgis_core.QgsPointXY(self.final_start_point.x(), self.final_end_point.y())
@@ -451,6 +443,18 @@ class RectangleMapTool(qgis_gui.QgsMapToolEmitPoint):
             point4 = qgis_core.QgsPointXY(self.final_end_point.x(), self.final_start_point.y())
             center_pixel = qgis_core.QgsPointXY(((point3.x() - point1.x()) / 2) + point1.x(),
                                                 ((point3.y() - point1.y()) / 2) + point1.y())
+            arryposition = point4.y() + (point3.y() - point4.y()) / 2
+            arrpoint1 = qgis_core.QgsPointXY(int(point3.x()), int(arryposition))
+            arrpoint2 = qgis_core.QgsPointXY(int(point3.x() + 15), int(arryposition))
+            arrpoint3 = qgis_core.QgsPointXY(int(point3.x() + 10), int(arryposition - 5))
+            arrpoint4 = qgis_core.QgsPointXY(int(point3.x() + 10), int(arryposition + 5))
+            arrpoint5 = qgis_core.QgsPointXY(int(point3.x() + 15), int(arryposition))
+
+            az = self.return_azimuth(start_point.x(), start_point.y(), end_point.x(), end_point.y())
+            if not self.start_azimuth:
+                self.start_azimuth = az
+            self.azimuth = az - self.start_azimuth
+
             cos_az = np.cos(self.azimuth)
             sin_az = np.sin(self.azimuth)
 
@@ -466,23 +470,62 @@ class RectangleMapTool(qgis_gui.QgsMapToolEmitPoint):
             point4 = qgis_core.QgsPoint(
                 center_pixel.x() + cos_az * (point4.x() - center_pixel.x()) - sin_az * (point4.y() - center_pixel.y()),
                 center_pixel.y() + sin_az * (point4.x() - center_pixel.x()) + cos_az * (point4.y() - center_pixel.y()))
-            point1 = self.toMapCoordinates(QtCore.QPoint(point1.x(), point1.y()))
-            point2 = self.toMapCoordinates(QtCore.QPoint(point2.x(), point2.y()))
-            point3 = self.toMapCoordinates(QtCore.QPoint(point3.x(), point3.y()))
-            point4 = self.toMapCoordinates(QtCore.QPoint(point4.x(), point4.y()))
+            arrpoint1 = qgis_core.QgsPoint(
+                center_pixel.x() + cos_az * (arrpoint1.x() - center_pixel.x()) - sin_az * (arrpoint1.y() - center_pixel.y()),
+                center_pixel.y() + sin_az * (arrpoint1.x() - center_pixel.x()) + cos_az * (arrpoint1.y() - center_pixel.y()))
+            arrpoint2 = qgis_core.QgsPoint(
+                center_pixel.x() + cos_az * (arrpoint2.x() - center_pixel.x()) - sin_az * (arrpoint2.y() - center_pixel.y()),
+                center_pixel.y() + sin_az * (arrpoint2.x() - center_pixel.x()) + cos_az * (arrpoint2.y() - center_pixel.y()))
+            arrpoint3 = qgis_core.QgsPoint(
+                center_pixel.x() + cos_az * (arrpoint3.x() - center_pixel.x()) - sin_az * (arrpoint3.y() - center_pixel.y()),
+                center_pixel.y() + sin_az * (arrpoint3.x() - center_pixel.x()) + cos_az * (arrpoint3.y() - center_pixel.y()))
+            arrpoint4 = qgis_core.QgsPoint(
+                center_pixel.x() + cos_az * (arrpoint4.x() - center_pixel.x()) - sin_az * (arrpoint4.y() - center_pixel.y()),
+                center_pixel.y() + sin_az * (arrpoint4.x() - center_pixel.x()) + cos_az * (arrpoint4.y() - center_pixel.y()))
+            arrpoint5 = qgis_core.QgsPoint(
+                center_pixel.x() + cos_az * (arrpoint5.x() - center_pixel.x()) - sin_az * (arrpoint5.y() - center_pixel.y()),
+                center_pixel.y() + sin_az * (arrpoint5.x() - center_pixel.x()) + cos_az * (arrpoint5.y() - center_pixel.y()))
+
+            mappoint1 = self.toMapCoordinates(QtCore.QPoint(int(point1.x()), int(point1.y())))
+            mappoint2 = self.toMapCoordinates(QtCore.QPoint(int(point2.x()), int(point2.y())))
+            mappoint3 = self.toMapCoordinates(QtCore.QPoint(int(point3.x()), int(point3.y())))
+            mappoint4 = self.toMapCoordinates(QtCore.QPoint(int(point4.x()), int(point4.y())))
+
+            arrpoint1 = self.toMapCoordinates(QtCore.QPoint(int(arrpoint1.x()), int(arrpoint1.y())))
+            arrpoint2 = self.toMapCoordinates(QtCore.QPoint(int(arrpoint2.x()), int(arrpoint2.y())))
+            arrpoint3 = self.toMapCoordinates(QtCore.QPoint(int(arrpoint3.x()), int(arrpoint3.y())))
+            arrpoint4 = self.toMapCoordinates(QtCore.QPoint(int(arrpoint4.x()), int(arrpoint4.y())))
+            arrpoint5 = self.toMapCoordinates(QtCore.QPoint(int(arrpoint5.x()), int(arrpoint5.y())))
+        else:
+            mappoint1 = point1
+            mappoint2 = point2
+            mappoint3 = point3
+            mappoint4 = point4
+
+            canvaspoint3 = self.toCanvasCoordinates(point3)
+            canvaspoint4 = self.toCanvasCoordinates(point4)
+            arryposition = canvaspoint4.y() + (canvaspoint3.y() - canvaspoint4.y()) / 2
+
+            arrpoint1 = self.toMapCoordinates(QtCore.QPoint(int(canvaspoint3.x()), int(arryposition)))
+            arrpoint2 = self.toMapCoordinates(QtCore.QPoint(int(canvaspoint3.x() + 15), int(arryposition)))
+            arrpoint3 = self.toMapCoordinates(QtCore.QPoint(int(canvaspoint3.x() + 10), int(arryposition - 5)))
+            arrpoint4 = self.toMapCoordinates(QtCore.QPoint(int(canvaspoint3.x() + 10), int(arryposition + 5)))
+            arrpoint5 = self.toMapCoordinates(QtCore.QPoint(int(canvaspoint3.x() + 15), int(arryposition)))
 
         if self.direction_arrow:
-            print('here')
             self.direction_arrow.reset(qgis_core.QgsWkbTypes.LineGeometry)
-            self.direction_arrow.addPoint(qgis_core.QgsPointXY(point3.x(), point4.y() - point3.y()), False)
-            self.direction_arrow.addPoint(qgis_core.QgsPointXY(point3.x() + (point3.x() - point1.x()) / 2, point4.y() - point3.y()), False)
+            self.direction_arrow.addPoint(arrpoint1, False)
+            self.direction_arrow.addPoint(arrpoint2, False)
+            self.direction_arrow.addPoint(arrpoint3, False)
+            self.direction_arrow.addPoint(arrpoint4, False)
+            self.direction_arrow.addPoint(arrpoint5, True)
             self.direction_arrow.show()
 
         self.rubberBand.reset(qgis_core.QgsWkbTypes.PolygonGeometry)
-        self.rubberBand.addPoint(point1, False)
-        self.rubberBand.addPoint(point2, False)
-        self.rubberBand.addPoint(point3, False)
-        self.rubberBand.addPoint(point4, True)  # true to update canvas
+        self.rubberBand.addPoint(mappoint1, False)
+        self.rubberBand.addPoint(mappoint2, False)
+        self.rubberBand.addPoint(mappoint3, False)
+        self.rubberBand.addPoint(mappoint4, True)  # true to update canvas
 
         self.rubberBand.show()
 
