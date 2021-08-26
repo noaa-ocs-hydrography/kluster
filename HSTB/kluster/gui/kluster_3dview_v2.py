@@ -615,9 +615,6 @@ class ThreeDView(QtWidgets.QWidget):
         """
 
         if azimuth:
-            if azimuth < 0:
-                azimuth += 2 * np.pi
-            print('newaz = {}'.format(np.rad2deg(azimuth)))
             cos_az = np.cos(azimuth)
             sin_az = np.sin(azimuth)
 

@@ -1568,7 +1568,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         """
 
         print('Selecting Points in Polygon...')
-        print('Box select azimuth = {} degrees'.format(np.rad2deg(azimuth)))
+        # print('Box select azimuth = {} degrees'.format(np.rad2deg(azimuth)))
         pointcount = 0
         self.points_view.clear()
         pts_data = self.project.return_soundings_in_polygon(polygon)
@@ -1593,7 +1593,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         """
 
         print('Selecting Points in Polygon...')
-        print('Box select azimuth = {} radians'.format(azimuth))
+        # print('Box select azimuth = {} radians'.format(azimuth))
         pointcount = 0
         self.points_view.clear()
         pts_data = self.project.return_soundings_in_polygon(polygon)

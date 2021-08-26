@@ -363,6 +363,9 @@ class RectangleMapTool(qgis_gui.QgsMapToolEmitPoint):
             self.enable_rotation = False
 
     def return_azimuth(self, start_x, start_y, end_x, end_y):
+        """
+        build a new azimuth in radians from the given start/end points
+        """
         centerx = end_x - start_x
         centery = end_y - start_y
         az = np.arctan2(centerx, centery)
@@ -443,12 +446,12 @@ class RectangleMapTool(qgis_gui.QgsMapToolEmitPoint):
             point4 = qgis_core.QgsPointXY(self.final_end_point.x(), self.final_start_point.y())
             center_pixel = qgis_core.QgsPointXY(((point3.x() - point1.x()) / 2) + point1.x(),
                                                 ((point3.y() - point1.y()) / 2) + point1.y())
-            arryposition = point4.y() + (point3.y() - point4.y()) / 2
-            arrpoint1 = qgis_core.QgsPointXY(int(point3.x()), int(arryposition))
-            arrpoint2 = qgis_core.QgsPointXY(int(point3.x() + 15), int(arryposition))
-            arrpoint3 = qgis_core.QgsPointXY(int(point3.x() + 10), int(arryposition - 5))
-            arrpoint4 = qgis_core.QgsPointXY(int(point3.x() + 10), int(arryposition + 5))
-            arrpoint5 = qgis_core.QgsPointXY(int(point3.x() + 15), int(arryposition))
+            arryposition = point1.y() + (point2.y() - point1.y()) / 2
+            arrpoint1 = qgis_core.QgsPointXY(int(point2.x()), int(arryposition))
+            arrpoint2 = qgis_core.QgsPointXY(int(point2.x() - 15), int(arryposition))
+            arrpoint3 = qgis_core.QgsPointXY(int(point2.x() - 10), int(arryposition - 5))
+            arrpoint4 = qgis_core.QgsPointXY(int(point2.x() - 10), int(arryposition + 5))
+            arrpoint5 = qgis_core.QgsPointXY(int(point2.x() - 15), int(arryposition))
 
             az = self.return_azimuth(start_point.x(), start_point.y(), end_point.x(), end_point.y())
             if not self.start_azimuth:
@@ -502,15 +505,17 @@ class RectangleMapTool(qgis_gui.QgsMapToolEmitPoint):
             mappoint3 = point3
             mappoint4 = point4
 
+            canvaspoint1 = self.toCanvasCoordinates(point1)
+            canvaspoint2 = self.toCanvasCoordinates(point2)
             canvaspoint3 = self.toCanvasCoordinates(point3)
             canvaspoint4 = self.toCanvasCoordinates(point4)
-            arryposition = canvaspoint4.y() + (canvaspoint3.y() - canvaspoint4.y()) / 2
+            arryposition = canvaspoint1.y() + (canvaspoint2.y() - canvaspoint1.y()) / 2
 
-            arrpoint1 = self.toMapCoordinates(QtCore.QPoint(int(canvaspoint3.x()), int(arryposition)))
-            arrpoint2 = self.toMapCoordinates(QtCore.QPoint(int(canvaspoint3.x() + 15), int(arryposition)))
-            arrpoint3 = self.toMapCoordinates(QtCore.QPoint(int(canvaspoint3.x() + 10), int(arryposition - 5)))
-            arrpoint4 = self.toMapCoordinates(QtCore.QPoint(int(canvaspoint3.x() + 10), int(arryposition + 5)))
-            arrpoint5 = self.toMapCoordinates(QtCore.QPoint(int(canvaspoint3.x() + 15), int(arryposition)))
+            arrpoint1 = self.toMapCoordinates(QtCore.QPoint(int(canvaspoint2.x()), int(arryposition)))
+            arrpoint2 = self.toMapCoordinates(QtCore.QPoint(int(canvaspoint2.x() - 15), int(arryposition)))
+            arrpoint3 = self.toMapCoordinates(QtCore.QPoint(int(canvaspoint2.x() - 10), int(arryposition - 5)))
+            arrpoint4 = self.toMapCoordinates(QtCore.QPoint(int(canvaspoint2.x() - 10), int(arryposition + 5)))
+            arrpoint5 = self.toMapCoordinates(QtCore.QPoint(int(canvaspoint2.x() - 15), int(arryposition)))
 
         if self.direction_arrow:
             self.direction_arrow.reset(qgis_core.QgsWkbTypes.LineGeometry)
@@ -543,7 +548,9 @@ class RectangleMapTool(qgis_gui.QgsMapToolEmitPoint):
         if point1 is None or point2 is None or point3 is None or point4 is None:
             return None, 0
         polygon = np.vstack([point1, point2, point3, point4])
-        az = self.azimuth
+        # here we build the azimuth manually instead of using self.azimuth.  self.azimuth is the change from origin of
+        # box to the mouse cursor.  We want just the azimuth of the box, which we derive here using the bottom leg of the box
+        az = self.return_azimuth(point2.x(), point2.y(), point3.x(), point3.y()) - (np.pi / 2)
         return polygon, az
 
     def deactivate(self):
