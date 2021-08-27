@@ -657,8 +657,10 @@ class KlusterMain(QtWidgets.QMainWindow):
 
         xyzrph, sonar_type, system_identifiers, source = convert_from_vessel_xyzrph(vess_xyzrph)
         for cnt, sysident in enumerate(system_identifiers):
+            matching_fq = list(source[0].values())[0]
             for fqname, fq in self.project.fqpr_instances.items():
-                if fq.multibeam.raw_ping[0].system_identifier == sysident:
+                if fqname == matching_fq:
+                    print('Updating xyzrph record for {}'.format(fqname))
                     identical_offsets, identical_angles, identical_tpu, data_matches, new_waterline = compare_dict_data(fq.multibeam.xyzrph,
                                                                                                                         xyzrph[cnt])
                     # # drop the vessel setup specific keys, like the vessel file used and the vess_center location
