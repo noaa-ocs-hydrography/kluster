@@ -5,7 +5,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Surfacing &#8212; kluster 0.7.6 documentation</title>
+    <title>Surfacing &#8212; kluster 0.7.7 documentation</title>
     <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
     <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
     <link rel="stylesheet" type="text/css" href="../_static/graphviz.css" />
@@ -35,7 +35,10 @@
             
   <div class="section" id="surfacing">
 <h1>Surfacing<a class="headerlink" href="#surfacing" title="Permalink to this headline">¶</a></h1>
-<p>So far, we have discussed working with point clouds, or the soundings visualized in 3d space.  But what about viewing the depth and uncertainty in 2d?  As a picture?  This is where the gridding tools come into play.  Kluster uses the <a class="reference external" href="https://github.com/noaa-ocs-hydrography/bathygrid">Bathygrid</a> module which I designed specifically for gridding multibeam data in an efficient and flexible way.  Let’s look at how to use this module in Kluster.  With a converted data instance selected, let’s go to Process - New Surface.</p>
+<p>So far, we have discussed working with point clouds, or the soundings visualized in 3d space.  But what about viewing the depth and uncertainty in 2d?  As a picture?  This is where the gridding tools come into play.  Kluster uses the <a class="reference external" href="https://github.com/noaa-ocs-hydrography/bathygrid">Bathygrid</a> module which I designed specifically for gridding multibeam data in an efficient and flexible way.</p>
+<div class="section" id="overview">
+<h2>Overview<a class="headerlink" href="#overview" title="Permalink to this headline">¶</a></h2>
+<p>Let’s look at how to use this module in Kluster.  With a converted data instance selected, let’s go to Process - New Surface.</p>
 <a class="reference external image-reference" href="../_images/surface_1.png"><img alt="../_images/surface_1.png" src="../_images/surface_1.png" /></a>
 <p>This is going to create a surface with all the points from each converted instance we had highlighted here.  The default is to create a single resolution surface where each grid node has a value equal to the mean depth/uncertainty value of all the soundings in that grid cell.  The size of the grid cell (resolution) is set to AUTO, which will pick the resolution based on the depth of the soundings in that region (based on the NOAA Specifications and Deliverables):</p>
 <ul class="simple">
@@ -64,7 +67,18 @@ OK, enough about folders and tiles.  Let’s look at something already!  Let’s
 <p>Turning on a Depth layer (or any layer) should make the display zoom to the area and show you the grid.  I just have a little multibeam file here, so the grid is fairly small.  I have the Query tool turned on in 2dview which lets me view the Depth layer value where my cursor is.  You can also left click to print the value in the Output window.  We can also turn on multiple layers to get the values across all layers.  Let’s do this now.</p>
 <a class="reference external image-reference" href="../_images/surface_5.png"><img alt="../_images/surface_5.png" src="../_images/surface_5.png" /></a>
 <p>We can see that our single resolution grids with the different tile sizes and the variable resolution grid all produce the same answer for the same location.  That’s a relief!  If they didn’t, we’d have a real problem on our hands.  We can also see that the tile shown in all three is an 8 meter resolution tile.  Which makes sense since we used AUTO resolution and the depth is the same across all surfaces in this location.</p>
+</div>
+<div class="section" id="updating-a-surface">
+<h2>Updating a Surface<a class="headerlink" href="#updating-a-surface" title="Permalink to this headline">¶</a></h2>
+<p>The surface contains the soundings from your processed multibeam data.  But what if we change those soundings?  What if we use a different vertical reference, or we want to exclude some lines from the surface altogether?  That is where we need to use the Update Surface Data tool.  Here you can see that I have two multibeam datasets loaded, one for 9-20-2012 and one for 9-21-2012, and a variable resolution surface containing those two lines.  If you go to right click the surface name, you get this Update Surface Data box.</p>
+<a class="reference external image-reference" href="../_images/surface_6.png"><img alt="../_images/surface_6.png" src="../_images/surface_6.png" /></a>
+<p>Here we see that both of the multibeam datasets are ‘In the Surface’ and there are no ‘Possible Containers’, or multibeam datasets currently loaded in Kluster that are not in the surface.  If one of the datasets in the surface needs updating (i.e. the soundings or uncertainties have changed since they were last added to the surface), you’ll see an asterisk next to the name.  I’ll show you that by closing Update Surface Data and opening the Vessel Setup tool under Setup - Vessel Offsets with em710_225_09_20_2012 selected.  I’ll edit one of the uncertainty values, save to the multibeam data, triggering a new tpu processing action, which I will run by hitting Start Process.  After that finishes, we know that the em710_225_09_20_2012 uncertainty values that we include in the gridding process are now different!  Let’s see what happens when we open the Update Surface Data tool now.</p>
+<a class="reference external image-reference" href="../_images/surface_7.png"><img alt="../_images/surface_7.png" src="../_images/surface_7.png" /></a>
+<p>em710_225_09_20_2012 is now marked with an asterisk, showing that the points for this container are out of date in the surface and need updating!  We can easily update by using the Update Existing Container Data checkbox.  If you have this box checked, all containers marked with an asterisk will have their points removed from the surface and then the new points will be added in.  With regrid data checked and ‘Only where points have changed’, you’ll see that the updated points will be regridded automatically.</p>
+<a class="reference external image-reference" href="../_images/surface_8.png"><img alt="../_images/surface_8.png" src="../_images/surface_8.png" /></a>
+<p>You’ll see in the output window that we removed those points and then added them back in.  After removing/adding, we then regridded the VR surface, getting our 4 meter / 8 meter resolution layers back.</p>
 <p>Gridding is a powerful tool for visualizing bathymetry in 2d, but how do we get this grid into a file that we can use in other software?  How do we get from this weird Bathygrid folder structure into a common file format?  Head to the products section to learn how to export!</p>
+</div>
 </div>
 
 
@@ -89,7 +103,11 @@ OK, enough about folders and tiles.  Let’s look at something already!  Let’s
 <li class="toctree-l1"><a class="reference internal" href="../settings/index.html">Settings</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../vessel_setup/index.html">Vessel Setup</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../processing/index.html">Conversion and Processing</a></li>
-<li class="toctree-l1 current"><a class="current reference internal" href="#">Surfacing</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Surfacing</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#updating-a-surface">Updating a Surface</a></li>
+</ul>
+</li>
 <li class="toctree-l1"><a class="reference internal" href="../products/index.html">Products</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../kluster_api/index.html">API</a></li>
 </ul>
