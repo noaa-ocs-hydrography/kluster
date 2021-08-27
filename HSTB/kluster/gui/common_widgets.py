@@ -16,6 +16,68 @@ from HSTB.kluster import kluster_variables
 #   RangeSlider - Build a custom slider with two handles, allowing you to specify a range.
 #   PlotDataHandler - Widget allowing the user to provide a directory of kluster converted data and specify a time range in a number of different ways.
 #   AcceptDialog - Widget for yes/no dialog options or even three options
+#   SaveStateDialog - General purpose widget that saves settings
+
+
+class SaveStateDialog(QtWidgets.QDialog):
+    def __init__(self, parent=None, settings=None, widgetname='', appname='Kluster'):
+        super().__init__(parent)
+        self.external_settings = settings
+        self.text_controls = []  # append a [name as string, control] to this to save text controls
+        self.checkbox_controls = []  # append a [name as string, control] to this to save checkbox controls
+        self.widgetname = widgetname
+        self.appname = appname
+
+    @property
+    def settings_object(self):
+        if self.external_settings:
+            return self.external_settings
+        else:
+            return QtCore.QSettings("NOAA", self.appname)
+
+    def save_settings(self):
+        """
+        Save the settings to the Qsettings registry
+        """
+        settings = self.settings_object
+        if self.text_controls:
+            for cname, tcntrl in self.text_controls:
+                try:
+                    settings.setValue('{}/{}_{}'.format(self.appname, self.widgetname, cname), tcntrl.currentText())
+                except:
+                    settings.setValue('{}/{}_{}'.format(self.appname, self.widgetname, cname), tcntrl.text())
+        if self.checkbox_controls:
+            for cname, ccntrl in self.checkbox_controls:
+                settings.setValue('{}/{}_{}'.format(self.appname, self.widgetname, cname), ccntrl.isChecked())
+        settings.sync()
+
+    def read_settings(self):
+        """
+        Read from the Qsettings registry
+        """
+        settings = self.settings_object
+        try:
+            if self.text_controls:
+                for cname, tcntrl in self.text_controls:
+                    text_value = settings.value('{}/{}_{}'.format(self.appname, self.widgetname, cname))
+                    if text_value:
+                        try:
+                            tcntrl.setCurrentText(text_value)
+                        except:
+                            tcntrl.setText(text_value)
+            if self.checkbox_controls:
+                for cname, ccntrl in self.checkbox_controls:
+                    check_value = settings.value('{}/{}_{}'.format(self.appname, self.widgetname, cname))
+                    try:
+                        ccntrl.setChecked(check_value.lower() == 'true')
+                    except AttributeError:
+                        try:
+                            ccntrl.setChecked(check_value)
+                        except:
+                            pass
+        except TypeError:
+            # no settings exist yet for this app
+            pass
 
 
 class AcceptDialog(QtWidgets.QMessageBox):

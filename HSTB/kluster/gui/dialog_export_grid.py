@@ -1,22 +1,22 @@
 import os
 from datetime import datetime
 from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal
-
+from HSTB.kluster.gui.common_widgets import SaveStateDialog
 from HSTB.kluster.gdal_helpers import return_gdal_version
 from HSTB.shared import RegistryHelpers
 from HSTB.kluster import __version__ as kluster_version
 from HSTB.kluster import kluster_variables
 
 
-class ExportGridDialog(QtWidgets.QDialog):
+class ExportGridDialog(SaveStateDialog):
     """
     Dialog allows for providing kluster surface data for exporting and the desired export type, in self.export_opts.
 
     Uses GDAL, all GDAL formats are achievable with the dialog, currently only supports, GTiff and BAG
     """
 
-    def __init__(self, parent=None):
-        super().__init__(parent)
+    def __init__(self, parent=None, title='', settings=None):
+        super().__init__(parent, settings, widgetname='export_grid')
 
         self.setWindowTitle('Export Surface')
         layout = QtWidgets.QVBoxLayout()
@@ -156,6 +156,10 @@ class ExportGridDialog(QtWidgets.QDialog):
         self.ok_button.clicked.connect(self.start_export)
         self.cancel_button.clicked.connect(self.cancel_export)
 
+        self.text_controls = [['export_ops', self.export_opts]]
+        self.checkbox_controls = [['zdirect_check', self.zdirect_check]]
+
+        self.read_settings()
         self._event_update_status(self.export_opts.currentText())
         self._set_default_bag_options()
 
@@ -302,6 +306,7 @@ class ExportGridDialog(QtWidgets.QDialog):
             self.status_msg.setText('Error: No output path provided')
         else:
             self.canceled = False
+            self.save_settings()
             self.accept()
 
     def cancel_export(self):

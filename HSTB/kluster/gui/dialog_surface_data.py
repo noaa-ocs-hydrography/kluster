@@ -2,24 +2,24 @@ import os
 
 from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal
 
-from HSTB.kluster.gui.common_widgets import TwoListWidget
+from HSTB.kluster.gui.common_widgets import TwoListWidget, SaveStateDialog
 from HSTB.shared import RegistryHelpers
 from HSTB.kluster import kluster_variables
 
 
-class SurfaceDataDialog(QtWidgets.QDialog):
+class SurfaceDataDialog(SaveStateDialog):
     """
     Dialog for managing surface data, accessed when you right click on a surface and view the surface data.  You can
     add or remove days of multibeam data from this surface using this dialog, and optionally regrid the surface.
     """
 
-    def __init__(self, parent=None, title=''):
-        super().__init__(parent)
+    def __init__(self, parent=None, title='', settings=None):
+        super().__init__(parent, settings, widgetname='surface_data')
 
         self.toplayout = QtWidgets.QVBoxLayout()
         self.setWindowTitle('Update Surface Data')
 
-        self.listdata = TwoListWidget(title, 'Current Containers', 'Possible Containers')
+        self.listdata = TwoListWidget(title, 'In the Surface', 'Possible Containers')
         self.mark_for_update_button = QtWidgets.QPushButton('Mark Update')
         self.mark_for_update_button.setDisabled(True)
         self.listdata.center_layout.addWidget(self.mark_for_update_button)
@@ -61,12 +61,18 @@ class SurfaceDataDialog(QtWidgets.QDialog):
 
         self.original_current = []
         self.original_possible = []
+        self.canceled = False
 
         self.mark_for_update_button.clicked.connect(self.mark_for_update)
         self.listdata.left_list.itemClicked.connect(self.enable_markbutton)
         self.listdata.right_list.itemClicked.connect(self.disable_markbutton)
         self.ok_button.clicked.connect(self.start_processing)
         self.cancel_button.clicked.connect(self.cancel_processing)
+
+        self.text_controls = []
+        self.checkbox_controls = [['update_checkbox', self.update_checkbox], ['regrid_checkbox', self.regrid_checkbox],
+                                  ['use_dask_checkbox', self.use_dask_checkbox]]
+        self.read_settings()
 
     def mark_for_update(self):
         curitem = self.listdata.left_list.selectedItems()[0]
@@ -119,6 +125,7 @@ class SurfaceDataDialog(QtWidgets.QDialog):
             self.status_msg.setText('Error: You must include at least one point source to continue')
         else:
             self.canceled = False
+            self.save_settings()
             self.accept()
 
     def cancel_processing(self):

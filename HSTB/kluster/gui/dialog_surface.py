@@ -2,17 +2,18 @@ import os
 
 from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal
 
-from HSTB.kluster.gui.common_widgets import BrowseListWidget
+from HSTB.kluster.gui.common_widgets import BrowseListWidget, SaveStateDialog
 from HSTB.shared import RegistryHelpers
 from HSTB.kluster import kluster_variables
 
 
-class SurfaceDialog(QtWidgets.QDialog):
+class SurfaceDialog(SaveStateDialog):
     """
     Dialog for selecting surfacing options that we want to use to generate a new surface.
     """
-    def __init__(self, parent=None):
-        super().__init__(parent)
+
+    def __init__(self, parent=None, title='', settings=None):
+        super().__init__(parent, settings, widgetname='surface')
 
         self.setWindowTitle('Generate New Surface')
         layout = QtWidgets.QVBoxLayout()
@@ -160,6 +161,10 @@ class SurfaceDialog(QtWidgets.QDialog):
         self.ok_button.clicked.connect(self.start_processing)
         self.cancel_button.clicked.connect(self.cancel_processing)
 
+        self.text_controls = [['method', self.surf_method], ['gridtype', self.grid_type],
+                              ['singlerez_tilesize', self.single_rez_tile_size]]
+
+        self.read_settings()
         self._event_update_status(None)
 
     def _event_update_status(self, e):
@@ -241,6 +246,7 @@ class SurfaceDialog(QtWidgets.QDialog):
             self.status_msg.setText('Error: You must insert a surface path to continue')
         else:
             self.canceled = False
+            self.save_settings()
             self.accept()
 
     def cancel_processing(self):

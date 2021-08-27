@@ -1,16 +1,16 @@
 import numpy as np
 
 from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal
+from HSTB.kluster.gui.common_widgets import SaveStateDialog
 
 
-class LayerSettingsDialog(QtWidgets.QDialog):
+class LayerSettingsDialog(SaveStateDialog):
     """
     Dialog contains all layer settings for the 2d view.
     """
 
-    def __init__(self, parent=None, settings=None):
-        super().__init__(parent)
-        self.external_settings = settings
+    def __init__(self, parent=None, title='', settings=None):
+        super().__init__(parent, settings, widgetname='layer_settings')
 
         self.setWindowTitle('Layer Settings')
         layout = QtWidgets.QVBoxLayout()
@@ -74,13 +74,6 @@ class LayerSettingsDialog(QtWidgets.QDialog):
         self.read_settings()
         self.resize(600, 200)
 
-    @property
-    def settings_object(self):
-        if self.external_settings:
-            return self.external_settings
-        else:
-            return QtCore.QSettings("NOAA", "Kluster")
-
     def return_layer_options(self):
         """
         Return a dict of processing options to feed to fqpr_convenience.process_multibeam
@@ -126,6 +119,8 @@ class LayerSettingsDialog(QtWidgets.QDialog):
     def save_settings(self):
         """
         Save the settings to the Qsettings registry
+
+        Overriding the basic savestatedialog stuff with this custom code
         """
         settings = self.settings_object
         new_sets = self.return_layer_options()
@@ -136,6 +131,8 @@ class LayerSettingsDialog(QtWidgets.QDialog):
     def read_settings(self):
         """
         Read from the Qsettings registry
+
+        Overriding the basic savestatedialog stuff with this custom code
         """
         settings = self.settings_object
 

@@ -1,19 +1,20 @@
 import os
 
 from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal
+from HSTB.kluster.gui.common_widgets import SaveStateDialog
 from HSTB.kluster import kluster_variables
 
 
-class ProjectSettingsDialog(QtWidgets.QDialog):
+class ProjectSettingsDialog(SaveStateDialog):
     """
     Dialog contains all the processing steps post-conversion.  Use return_processing_options to get the kwargs to feed
     the fqpr_convenience.process_multibeam function.
 
     fqpr = fully qualified ping record, the term for the datastore in kluster
     """
-    def __init__(self, parent=None, settings=None):
-        super().__init__(parent)
-        self.external_settings = settings
+
+    def __init__(self, parent=None, title='', settings=None):
+        super().__init__(parent, settings, widgetname='proj_settings')
 
         self.setWindowTitle('Project Settings')
         layout = QtWidgets.QVBoxLayout()
@@ -79,15 +80,11 @@ class ProjectSettingsDialog(QtWidgets.QDialog):
         self.cancel_button.clicked.connect(self.cancel)
         self.georef_vertref.currentTextChanged.connect(self.find_vdatum)
 
+        self.text_controls = [['epsgval', self.epsg_val], ['utmval', self.auto_utm_val], ['vertref', self.georef_vertref]]
+        self.checkbox_controls = [['epsgradio', self.epsg_radio], ['utmradio', self.auto_utm_radio]]
+
         self.read_settings()
         self.resize(600, 200)
-
-    @property
-    def settings_object(self):
-        if self.external_settings:
-            return self.external_settings
-        else:
-            return QtCore.QSettings("NOAA", "Kluster")
 
     def find_vdatum(self):
         """
@@ -147,47 +144,6 @@ class ProjectSettingsDialog(QtWidgets.QDialog):
         """
         self.canceled = True
         self.accept()
-
-    def save_settings(self):
-        """
-        Save the settings to the Qsettings registry
-        """
-        settings = self.settings_object
-        settings.setValue('Kluster/proj_settings_epsgradio', self.epsg_radio.isChecked())
-        settings.setValue('Kluster/proj_settings_epsgval', self.epsg_val.text())
-        settings.setValue('Kluster/proj_settings_utmradio', self.auto_utm_radio.isChecked())
-        settings.setValue('Kluster/proj_settings_utmval', self.auto_utm_val.currentText())
-        settings.setValue('Kluster/proj_settings_vertref', self.georef_vertref.currentText())
-
-    def read_settings(self):
-        """
-        Read from the Qsettings registry
-        """
-        settings = self.settings_object
-        try:
-            try:
-                self.epsg_radio.setChecked(settings.value('Kluster/proj_settings_epsgradio').lower() == 'true')
-            except AttributeError:
-                try:
-                    self.epsg_radio.setChecked(settings.value('Kluster/proj_settings_epsgradio'))
-                except:
-                    pass
-            if settings.value('Kluster/proj_settings_epsgval'):
-                self.epsg_val.setText(str(settings.value('Kluster/proj_settings_epsgval')))
-            try:
-                self.auto_utm_radio.setChecked(settings.value('Kluster/proj_settings_utmradio').lower() == 'true')
-            except AttributeError:
-                try:
-                    self.auto_utm_radio.setChecked(settings.value('Kluster/proj_settings_utmradio'))
-                except:
-                    pass
-            if settings.value('Kluster/proj_settings_utmval'):
-                self.auto_utm_val.setCurrentText(settings.value('Kluster/proj_settings_utmval'))
-            if settings.value('Kluster/proj_settings_vertref'):
-                self.georef_vertref.setCurrentText(settings.value('Kluster/proj_settings_vertref'))
-        except TypeError:
-            # no settings exist yet for this app
-            pass
 
 
 if __name__ == '__main__':

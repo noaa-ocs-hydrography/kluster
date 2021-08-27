@@ -1,18 +1,20 @@
 from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal
 
 from HSTB.kluster.gui.common_widgets import BrowseListWidget
+from HSTB.kluster.gui.common_widgets import SaveStateDialog
 from HSTB.kluster.pydro_helpers import is_pydro
 from HSTB.kluster import kluster_variables
 
 
-class ExportDialog(QtWidgets.QDialog):
+class ExportDialog(SaveStateDialog):
     """
     Dialog allows for providing fqpr data for exporting and the desired export type, in self.export_opts.
 
     fqpr = fully qualified ping record, the term for the datastore in kluster
     """
-    def __init__(self, parent=None):
-        super().__init__(parent)
+
+    def __init__(self, parent=None, title='', settings=None):
+        super().__init__(parent, settings, widgetname='export')
 
         self.setWindowTitle('Export Soundings')
         layout = QtWidgets.QVBoxLayout()
@@ -98,6 +100,13 @@ class ExportDialog(QtWidgets.QDialog):
         self.export_opts.currentTextChanged.connect(self._event_update_status)
         self.ok_button.clicked.connect(self.start_export)
         self.cancel_button.clicked.connect(self.cancel_export)
+
+        self.text_controls = [['export_ops', self.export_opts], ['csvdelimiter_dropdown', self.csvdelimiter_dropdown]]
+        self.checkbox_controls = [['basic_export_group', self.basic_export_group], ['line_export', self.line_export],
+                                  ['points_view_export', self.points_view_export], ['zdirect_check', self.zdirect_check],
+                                  ['filter_chk', self.filter_chk], ['byidentifier_chk', self.byidentifier_chk]]
+        self.read_settings()
+        self._event_update_status(self.export_opts.currentText())
 
     def _handle_basic_checked(self, evt):
         """
@@ -211,6 +220,7 @@ class ExportDialog(QtWidgets.QDialog):
             self.status_msg.setText('Error: You must select one of the three export modes (export datasets, export lines, export points)')
         else:
             self.canceled = False
+            self.save_settings()
             self.accept()
 
     def cancel_export(self):

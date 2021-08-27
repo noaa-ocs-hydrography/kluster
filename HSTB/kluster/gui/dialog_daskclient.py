@@ -1,17 +1,18 @@
 from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal
 from dask.distributed import get_client
-
+from HSTB.kluster.gui.common_widgets import SaveStateDialog
 from HSTB.kluster.dask_helpers import dask_find_or_start_client
 from HSTB.kluster import kluster_variables
 
 
-class DaskClientStart(QtWidgets.QDialog):
+class DaskClientStart(SaveStateDialog):
     """
     Widget that allows you to manually start the dask client if you need to run it in a specific way.  If you don't
     use this, we just autostart a default LocalCluster.
     """
-    def __init__(self, parent=None):
-        super().__init__(parent)
+
+    def __init__(self, parent=None, title='', settings=None):
+        super().__init__(parent, settings, widgetname='daskclient')
 
         self.setWindowTitle('Setup Dask Client')
 
@@ -123,6 +124,16 @@ class DaskClientStart(QtWidgets.QDialog):
         self.ok_button.clicked.connect(self.setup_client)
         self.cancel_button.clicked.connect(self.cancel_client)
 
+        self.text_controls = [['number_workers', self.number_workers], ['number_memory', self.number_memory],
+                              ['number_threads', self.number_threads], ['remote_ip_address', self.remote_ip_address],
+                              ['remote_ip_port', self.remote_ip_port], ['remote_fqdn_address', self.remote_fqdn_address],
+                              ['remote_fqdn_port', self.remote_fqdn_port]]
+        self.checkbox_controls = [['local_box', self.local_box], ['remote_box', self.remote_box],
+                                  ['number_workers_checkbox', self.number_workers_checkbox],
+                                  ['number_threads_checkbox', self.number_threads_checkbox],
+                                  ['number_memory_checkbox', self.number_memory_checkbox]]
+        self.read_settings()
+
     def uncheck_local_box(self):
         self.local_box.setChecked(False)
 
@@ -137,6 +148,7 @@ class DaskClientStart(QtWidgets.QDialog):
 
         if self.local_box.isChecked() or self.remote_box.isChecked():
             self.accept()
+            self.save_settings()
             if self.local_box.isChecked():
                 try:  # have to close the existing local cluster/client first if you have one running before you can recreate
                     client = get_client()
