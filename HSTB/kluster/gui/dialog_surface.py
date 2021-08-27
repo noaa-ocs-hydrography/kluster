@@ -162,7 +162,10 @@ class SurfaceDialog(SaveStateDialog):
         self.cancel_button.clicked.connect(self.cancel_processing)
 
         self.text_controls = [['method', self.surf_method], ['gridtype', self.grid_type],
-                              ['singlerez_tilesize', self.single_rez_tile_size]]
+                              ['singlerez_tilesize', self.single_rez_tile_size], ['single_rez_resolution', self.single_rez_resolution],
+                              ['variabletile_tile_size', self.variabletile_tile_size], ['variabletile_resolution', self.variabletile_resolution],
+                              ['variabletile_subtile_size', self.variabletile_subtile_size]]
+        self.checkbox_controls = [['use_dask_checkbox', self.use_dask_checkbox]]
 
         self.read_settings()
         self._event_update_status(None)

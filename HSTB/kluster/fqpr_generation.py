@@ -120,9 +120,7 @@ class Fqpr(ZarrBackend):
             datetime object of the last operation performed on this fqpr instance
         """
 
-        time_attrs = ['_compute_orientation_complete', '_compute_beam_vectors_complete',
-                      '_sound_velocity_correct_complete', '_georeference_soundings_complete',
-                      '_total_uncertainty_complete']
+        time_attrs = kluster_variables.processing_log_names
         last_time = None
         for rp in self.multibeam.raw_ping:
             for ky, val in rp.attrs.items():

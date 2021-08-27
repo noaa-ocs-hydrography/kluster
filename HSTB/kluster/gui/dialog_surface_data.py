@@ -32,10 +32,21 @@ class SurfaceDataDialog(SaveStateDialog):
                                         'be done for changes made in Kluster to take effect in the surface.')
         self.update_checkbox.setChecked(True)
         self.toplayout.addWidget(self.update_checkbox)
-        self.regrid_checkbox = QtWidgets.QCheckBox('Rebuild Gridded Data')
-        self.regrid_checkbox.setToolTip('Check this box to immediately grid all new/updated containers after hitting OK')
+
+        self.regrid_layout = QtWidgets.QHBoxLayout()
+        self.regrid_checkbox = QtWidgets.QCheckBox('Re-Grid Data')
+        self.regrid_checkbox.setToolTip('Check this box to immediately grid all/updated containers after hitting OK')
         self.regrid_checkbox.setChecked(True)
-        self.toplayout.addWidget(self.regrid_checkbox)
+        self.regrid_layout.addWidget(self.regrid_checkbox)
+        self.regrid_options = QtWidgets.QComboBox()
+        self.regrid_options.addItems(['The whole grid', 'Only where points have changed'])
+        self.regrid_options.setToolTip('Controls what parts of the grid get re-gridded on running this tool\n\n' +
+                                       'The whole grid - will regrid the whole grid, generally this is not needed\n' +
+                                       'Only where points have changed - will only update the grid where containers have been removed or added')
+        self.regrid_options.setCurrentText('Only where points have changed')
+        self.regrid_layout.addWidget(self.regrid_options)
+        self.regrid_layout.addStretch()
+        self.toplayout.addLayout(self.regrid_layout)
 
         self.use_dask_checkbox = QtWidgets.QCheckBox('Process in Parallel')
         self.use_dask_checkbox.setToolTip('With this checked, gridding will be done in parallel using the Dask Client.  Assuming you have multiple\n' +
@@ -69,7 +80,7 @@ class SurfaceDataDialog(SaveStateDialog):
         self.ok_button.clicked.connect(self.start_processing)
         self.cancel_button.clicked.connect(self.cancel_processing)
 
-        self.text_controls = []
+        self.text_controls = [['regrid_options', self.regrid_options]]
         self.checkbox_controls = [['update_checkbox', self.update_checkbox], ['regrid_checkbox', self.regrid_checkbox],
                                   ['use_dask_checkbox', self.use_dask_checkbox]]
         self.read_settings()
@@ -101,6 +112,13 @@ class SurfaceDataDialog(SaveStateDialog):
         possible_containers = self.listdata.return_right_list_data()
         update_container = self.update_checkbox.isChecked()
         regrid_container = self.regrid_checkbox.isChecked()
+        regrid_option = self.regrid_options.currentText()
+        if regrid_option == 'The whole grid':
+            regrid_option = 'full'
+        elif regrid_option == 'Only where points have changed':
+            regrid_option = 'update'
+        else:
+            raise ValueError("Expected regrid option to be one of ['The whole grid', 'Only where points have changed'], found {}".format(regrid_option))
 
         add_fqpr = []
         remove_fqpr = []
@@ -118,7 +136,8 @@ class SurfaceDataDialog(SaveStateDialog):
         for newcurr in current_containers:
             if newcurr in self.original_possible and newcurr not in add_fqpr:
                 add_fqpr.append(newcurr)
-        return add_fqpr, remove_fqpr, {'regrid': regrid_container, 'use_dask': self.use_dask_checkbox.isChecked()}
+        return add_fqpr, remove_fqpr, {'regrid': regrid_container, 'use_dask': self.use_dask_checkbox.isChecked(),
+                                       'regrid_option': regrid_option}
 
     def start_processing(self):
         if not self.listdata.return_left_list_data():

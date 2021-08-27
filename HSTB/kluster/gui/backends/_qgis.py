@@ -1732,6 +1732,17 @@ class MapView(QtWidgets.QMainWindow):
                 self._update_global_layer_minmax(lyrname)
                 self.update_layer_minmax(lyrname)
 
+    def remove_all_surfaces(self):
+        """
+        Remove all surfaces from the display and layer manager
+        """
+        remlyrs = self.layer_manager.surface_layer_names
+        if remlyrs:
+            for lyr in remlyrs:
+                self.remove_layer(lyr)
+            self.band_minmax = {}
+            self.force_band_minmax = {}
+
     def layer_point_to_map_point(self, layer: Union[qgis_core.QgsRasterLayer, qgis_core.QgsVectorLayer],
                                  point: qgis_core.QgsPoint):
         """
@@ -2107,11 +2118,10 @@ class MapView(QtWidgets.QMainWindow):
         """
         Clears all data (except background data) from the Map
         """
+        self.remove_all_surfaces()
         for layername, layertype in self.layer_manager.layer_type_lookup.items():
             if layertype == 'line':
                 self.remove_line(layername)
-            elif layertype == 'surface':
-                self.remove_surface(layername)
         self.set_extent(90, -90, 180, -180, buffer=False)
 
     def zoomIn(self):
