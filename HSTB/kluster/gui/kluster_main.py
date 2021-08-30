@@ -1606,6 +1606,10 @@ class KlusterMain(QtWidgets.QMainWindow):
         print('Selected {} Points for 2D display'.format(pointcount))
 
     def clear_points(self, clrsig: bool):
+        """
+        Trigger clearing all currently loaded data in the points view widget
+        """
+
         self.points_view.clear()
 
     def show_points_in_explorer(self, point_index: np.array, linenames: np.array, point_times: np.array, beam: np.array,

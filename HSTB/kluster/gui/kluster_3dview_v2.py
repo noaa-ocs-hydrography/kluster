@@ -519,18 +519,20 @@ class ThreeDView(QtWidgets.QWidget):
         self.scatter_transform = None
         self.scatter_select_range = None
 
-        self.id = np.array([])
-        self.head = np.array([])
-        self.x = np.array([])
-        self.y = np.array([])
-        self.z = np.array([])
-        self.rotx = np.array([])
-        self.roty = np.array([])
-        self.tvu = np.array([])
-        self.rejected = np.array([])
-        self.pointtime = np.array([])
-        self.beam = np.array([])
-        self.linename = np.array([])
+        self.idrange = {}
+
+        self.id = np.array([], dtype=object)
+        self.head = np.array([], dtype=np.int8)
+        self.x = np.array([], dtype=np.float64)
+        self.y = np.array([], dtype=np.float64)
+        self.z = np.array([], dtype=np.float32)
+        self.rotx = np.array([], dtype=np.float64)
+        self.roty = np.array([], dtype=np.float64)
+        self.tvu = np.array([], dtype=np.float32)
+        self.rejected = np.array([], dtype=np.int32)
+        self.pointtime = np.array([], dtype=np.float64)
+        self.beam = np.array([], dtype=np.int32)
+        self.linename = np.array([], dtype=object)
 
         # statistics are populated on display_points
         self.x_offset = 0.0
@@ -631,6 +633,8 @@ class ThreeDView(QtWidgets.QWidget):
 
         # expand the identifier to be the size of the input arrays
         self.id = np.concatenate([self.id, np.full(x.shape[0], newid)])
+        self.idrange[newid] = [self.x.shape[0], self.x.shape[0] + x.shape[0]]
+
         self.head = np.concatenate([self.head, head])
         self.x = np.concatenate([self.x, x])
         self.y = np.concatenate([self.y, y])
@@ -976,18 +980,19 @@ class ThreeDView(QtWidgets.QWidget):
         Clear display and all stored data
         """
         self.clear_display()
-        self.id = np.array([])
-        self.head = np.array([])
-        self.x = np.array([])
-        self.y = np.array([])
-        self.z = np.array([])
-        self.rotx = np.array([])
-        self.roty = np.array([])
-        self.tvu = np.array([])
-        self.rejected = np.array([])
-        self.pointtime = np.array([])
-        self.beam = np.array([])
-        self.linename = np.array([])
+        self.id = np.array([], dtype=object)
+        self.head = np.array([], dtype=np.int8)
+        self.x = np.array([], dtype=np.float64)
+        self.y = np.array([], dtype=np.float64)
+        self.z = np.array([], dtype=np.float32)
+        self.rotx = np.array([], dtype=np.float64)
+        self.roty = np.array([], dtype=np.float64)
+        self.tvu = np.array([], dtype=np.float32)
+        self.rejected = np.array([], dtype=np.int32)
+        self.pointtime = np.array([], dtype=np.float64)
+        self.beam = np.array([], dtype=np.int32)
+        self.linename = np.array([], dtype=object)
+
         if self.axis_x is not None:
             self.axis_x.parent = None
             self.axis_x = None
@@ -1096,18 +1101,19 @@ class ThreeDWidget(QtWidgets.QWidget):
         """
         Adding new points will update the three d window with the boints and set the controls to show/hide
         """
-        if is_3d:
-            self.viewdirection.clear()
-            self.viewdirection.addItems(['top', 'arrow'])
-            self.show_axis.hide()
-            self.vertexag_label.show()
-            self.vertexag.show()
-        else:
-            self.viewdirection.clear()
-            self.viewdirection.addItems(['north', 'east', 'arrow'])
-            self.show_axis.hide()
-            self.vertexag_label.hide()
-            self.vertexag.hide()
+        if not self.three_d_window.x.any():  # no points loaded yet, this is the first add so set the controls
+            if is_3d:
+                self.viewdirection.clear()
+                self.viewdirection.addItems(['top', 'arrow'])
+                self.show_axis.hide()
+                self.vertexag_label.show()
+                self.vertexag.show()
+            else:
+                self.viewdirection.clear()
+                self.viewdirection.addItems(['north', 'east', 'arrow'])
+                self.show_axis.hide()
+                self.vertexag_label.hide()
+                self.vertexag.hide()
         self.three_d_window.selected_points = None
         self.three_d_window.superselected_index = None
         self.three_d_window.add_points(head, x, y, z, tvu, rejected, pointtime, beam, newid, linename, is_3d, azimuth=azimuth)
@@ -1148,6 +1154,39 @@ class ThreeDWidget(QtWidgets.QWidget):
                                   self.three_d_window.rejected[self.three_d_window.selected_points],
                                   self.three_d_window.id[self.three_d_window.selected_points])
         self.three_d_window.highlight_selected_scatter(self.colorby.currentText())
+        self.return_select_index()
+
+    def return_select_index(self):
+        """
+        Returns the selected point index as a raveled index that can be used with fqpr_generation.subset.ping_filter
+
+        Will be a dictionary of {container name: [head0_select_index, head1_select_index...]}
+
+        You can use these head select indexes to index the ping_filter record to get the index of the original record
+        in the fqpr object.  This is used with selecting and attributing points in the points view as 'rejected' by
+        saving a new rejected flag for the selected points to the original data on disk.
+
+        Returns
+        -------
+        dict
+            dictionary of {container name: [head0_select_index, head1_select_index...]}
+        """
+
+        idx = {}
+        if self.three_d_window.selected_points is not None:
+            select_id = self.three_d_window.id[self.three_d_window.selected_points]
+            uniq_ids = np.unique(select_id)
+            for uid in uniq_ids:
+                headidx = []
+                data_start, data_end = self.three_d_window.idrange[uid]
+                uid_filter = np.where(select_id == uid)[0]
+                select_filtered = self.three_d_window.selected_points[uid_filter]
+                select_filtered_head = self.three_d_window.head[select_filtered]
+                max_heads = np.max(select_filtered_head)
+                for i in range(max_heads + 1):
+                    headidx.append(select_filtered[np.where(select_filtered_head == i)[0]] - data_start)
+                idx[uid] = headidx
+        return idx
 
     def superselect_point(self, superselect_index):
         """
@@ -1206,7 +1245,8 @@ class ThreeDWidget(QtWidgets.QWidget):
         After any substantial change to the point data or scale, we clear and redraw the points
         """
         self.clear_display()
-        self.display_points()
+        if self.three_d_window.x.any():
+            self.display_points()
 
     def clear_display(self):
         self.three_d_window.clear_display()
