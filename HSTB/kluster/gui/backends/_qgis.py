@@ -301,6 +301,7 @@ class RectangleMapTool(qgis_gui.QgsMapToolEmitPoint):
     """
     # minlat, maxlat, minlon, maxlon in Map coordinates (WGS84 for Kluster)
     select = Signal(object, float)
+    clear_box = Signal(bool)
 
     def __init__(self, canvas, show_direction: bool = True):
         self.canvas = canvas
@@ -351,6 +352,7 @@ class RectangleMapTool(qgis_gui.QgsMapToolEmitPoint):
         self.rubberBand.reset(qgis_core.QgsWkbTypes.PolygonGeometry)
         if self.direction_arrow:
             self.direction_arrow.reset(qgis_core.QgsWkbTypes.LineGeometry)
+        self.clear_box.emit(True)
 
     def keyPressEvent(self, e):
         ctrl_pressed = e.key() == 16777249
@@ -904,6 +906,7 @@ class MapView(QtWidgets.QMainWindow):
     box_select = Signal(float, float, float, float)
     box_3dpoints = Signal(object, float)
     box_swath = Signal(object, float)
+    turn_off_pointsview = Signal(bool)
 
     def __init__(self, parent=None, settings=None, epsg: int = 4326):
         super().__init__()
@@ -1010,8 +1013,10 @@ class MapView(QtWidgets.QMainWindow):
         self.toolDistance.setAction(self.actionDistance)
         self.toolPoints = RectangleMapTool(self.canvas)
         self.toolPoints.setAction(self.actionPoints)
+        self.toolPoints.clear_box.connect(self.clear_points)
         self.toolSwath = RectangleMapTool(self.canvas)
         self.toolSwath.setAction(self.actionSwath)
+        self.toolSwath.clear_box.connect(self.clear_points)
 
     def wms_openstreetmap_url(self):
         """
@@ -2153,6 +2158,7 @@ class MapView(QtWidgets.QMainWindow):
         Activate the point select tool
         """
         self.toolSwath.reset()
+        self.clear_points()
         self.canvas.setMapTool(self.toolPoints)
 
     def selectSwath(self):
@@ -2160,6 +2166,7 @@ class MapView(QtWidgets.QMainWindow):
         Activate the point select tool
         """
         self.toolPoints.reset()
+        self.clear_points()
         self.canvas.setMapTool(self.toolSwath)
 
     def query(self):
@@ -2173,6 +2180,12 @@ class MapView(QtWidgets.QMainWindow):
         Activate the distance tool
         """
         self.canvas.setMapTool(self.toolDistance)
+
+    def clear_points(self):
+        """
+        switching off the 2d/3d points view tool or clearing the box with the tool will clear the already loaded data in the 3d view
+        """
+        self.turn_off_pointsview.emit(True)
 
 
 if __name__ == '__main__':

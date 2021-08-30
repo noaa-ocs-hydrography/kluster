@@ -2612,8 +2612,8 @@ class Fqpr(ZarrBackend):
         and sounding attributes for all soundings within the coordinates, see subset module.
         """
 
-        x, y, z, tvu, rejected, pointtime, beam = self.subset.return_soundings_in_polygon(polygon, geographic, full_swath)
-        return x, y, z, tvu, rejected, pointtime, beam
+        head, x, y, z, tvu, rejected, pointtime, beam = self.subset.return_soundings_in_polygon(polygon, geographic, full_swath)
+        return head, x, y, z, tvu, rejected, pointtime, beam
 
     def set_variable_by_filter(self, var_name: str = 'detectioninfo', newval: Union[int, str, float] = 2):
         """

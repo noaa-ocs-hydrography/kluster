@@ -520,6 +520,7 @@ class ThreeDView(QtWidgets.QWidget):
         self.scatter_select_range = None
 
         self.id = np.array([])
+        self.head = np.array([])
         self.x = np.array([])
         self.y = np.array([])
         self.z = np.array([])
@@ -583,13 +584,15 @@ class ThreeDView(QtWidgets.QWidget):
         if self.displayed_points is not None and self.parent is not None:
             self.parent.select_points(startpos, endpos, three_d=three_d)
 
-    def add_points(self, x: np.array, y: np.array, z: np.array, tvu: np.array, rejected: np.array, pointtime: np.array,
-                   beam: np.array, newid: str, linename: np.array, is_3d: bool, azimuth: float = None):
+    def add_points(self, head: np.array, x: np.array, y: np.array, z: np.array, tvu: np.array, rejected: np.array,
+                   pointtime: np.array, beam: np.array, newid: str, linename: np.array, is_3d: bool, azimuth: float = None):
         """
         Add points to the 3d view widget, we only display points after all points are added, hence the separate methods
 
         Parameters
         ----------
+        head
+            head index of the sounding
         x
             easting
         y
@@ -628,6 +631,7 @@ class ThreeDView(QtWidgets.QWidget):
 
         # expand the identifier to be the size of the input arrays
         self.id = np.concatenate([self.id, np.full(x.shape[0], newid)])
+        self.head = np.concatenate([self.head, head])
         self.x = np.concatenate([self.x, x])
         self.y = np.concatenate([self.y, y])
         self.z = np.concatenate([self.z, z])
@@ -639,7 +643,7 @@ class ThreeDView(QtWidgets.QWidget):
         self.is_3d = is_3d
 
     def return_points(self):
-        return [self.id, self.x, self.y, self.z, self.tvu, self.rejected, self.pointtime, self.beam, self.linename]
+        return [self.id, self.head, self.x, self.y, self.z, self.tvu, self.rejected, self.pointtime, self.beam, self.linename]
 
     def _configure_2d_3d_view(self):
         """
@@ -973,6 +977,7 @@ class ThreeDView(QtWidgets.QWidget):
         """
         self.clear_display()
         self.id = np.array([])
+        self.head = np.array([])
         self.x = np.array([])
         self.y = np.array([])
         self.z = np.array([])
@@ -1086,7 +1091,7 @@ class ThreeDWidget(QtWidgets.QWidget):
         else:
             self.colorbar.hide()
 
-    def add_points(self, x: np.array, y: np.array, z: np.array, tvu: np.array, rejected: np.array, pointtime: np.array,
+    def add_points(self, head: np.array, x: np.array, y: np.array, z: np.array, tvu: np.array, rejected: np.array, pointtime: np.array,
                    beam: np.array, newid: str, linename: np.array, is_3d: bool, azimuth: float = None):
         """
         Adding new points will update the three d window with the boints and set the controls to show/hide
@@ -1105,7 +1110,7 @@ class ThreeDWidget(QtWidgets.QWidget):
             self.vertexag.hide()
         self.three_d_window.selected_points = None
         self.three_d_window.superselected_index = None
-        self.three_d_window.add_points(x, y, z, tvu, rejected, pointtime, beam, newid, linename, is_3d, azimuth=azimuth)
+        self.three_d_window.add_points(head, x, y, z, tvu, rejected, pointtime, beam, newid, linename, is_3d, azimuth=azimuth)
 
     def return_points(self):
         return self.three_d_window.return_points()

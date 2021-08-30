@@ -225,8 +225,8 @@ def test_return_soundings_in_polygon():
     out = reload_data(datapath)
     polygon = np.array([[-122.47798556, 47.78949665], [-122.47798556, 47.78895117], [-122.47771027, 47.78895117],
                         [-122.47771027, 47.78949665]])
-    x, y, z, tvu, rejected, pointtime, beam = out.return_soundings_in_polygon(polygon)
-    assert x.shape == y.shape == z.shape == tvu.shape == rejected.shape == pointtime.shape == beam.shape
+    head, x, y, z, tvu, rejected, pointtime, beam = out.return_soundings_in_polygon(polygon)
+    assert head.shape == x.shape == y.shape == z.shape == tvu.shape == rejected.shape == pointtime.shape == beam.shape
     assert x.shape == (1911,)
     out.close()
     out = None

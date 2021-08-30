@@ -361,20 +361,22 @@ class FqprSubset:
 
         Returns
         -------
-        list
-            list of 1d numpy arrays for the x coordinate of the soundings in the box
-        list
-            list of 1d numpy arrays for the y coordinate of the soundings in the box
-        list
-            list of 1d numpy arrays for the z coordinate of the soundings in the box
-        list
-            list of 1d numpy arrays for the tvu value of the soundings in the box
-        list
-            list of 1d numpy arrays for the rejected flag of the soundings in the box
-        list
-            list of 1d numpy arrays for the time of the soundings in the box
-        list
-            list of 1d numpy arrays for the beam number of the soundings in the box
+        np.array
+            1d numpy array for the head index of the soundings in the box
+        np.array
+            1d numpy array for the x coordinate of the soundings in the box
+        np.array
+            1d numpy array for the y coordinate of the soundings in the box
+        np.array
+            1d numpy array for the z coordinate of the soundings in the box
+        np.array
+            1d numpy array for the tvu value of the soundings in the box
+        np.array
+            1d numpy array for the rejected flag of the soundings in the box
+        np.array
+            1d numpy array for the time of the soundings in the box
+        np.array
+            1d numpy array for the beam number of the soundings in the box
         """
 
         if 'horizontal_crs' not in self.fqpr.multibeam.raw_ping[0].attrs or 'z' not in self.fqpr.multibeam.raw_ping[0].variables.keys():
@@ -393,6 +395,7 @@ class FqprSubset:
             x, y, z, tvu, rejected, pointtime, beam = self.swaths_by_poly(polygon)
 
         if len(x) > 1:
+            head = np.concatenate([np.zeros_like(x_head, dtype=np.int8) for x_head in x])
             x = np.concatenate(x)
             y = np.concatenate(y)
             z = np.concatenate(z)
@@ -401,6 +404,7 @@ class FqprSubset:
             pointtime = np.concatenate(pointtime)
             beam = np.concatenate(beam)
         elif len(x) == 1:
+            head = np.zeros_like(x[0], dtype=np.int8)
             x = x[0]
             y = y[0]
             z = z[0]
@@ -409,6 +413,7 @@ class FqprSubset:
             pointtime = pointtime[0]
             beam = beam[0]
         else:
+            head = None
             x = None
             y = None
             z = None
@@ -416,9 +421,10 @@ class FqprSubset:
             rejected = None
             pointtime = None
             beam = None
-        return x, y, z, tvu, rejected, pointtime, beam
+        return head, x, y, z, tvu, rejected, pointtime, beam
 
-    def set_variable_by_filter(self, var_name: str = 'detectioninfo', newval: Union[int, str, float] = 2):
+    def set_variable_by_filter(self, var_name: str = 'detectioninfo', newval: Union[int, str, float] = 2,
+                               subset_index: Union[list, np.array] = None):
         if self.ping_filter is None:
             print('No soundings selected to set a variable.')
             return
@@ -426,6 +432,17 @@ class FqprSubset:
             raise NotImplementedError('Have not built the selecting by filter for swaths_by_box yet')
         for cnt, rp in enumerate(self.fqpr.multibeam.raw_ping):
             filt = self.ping_filter[cnt]
+
+            stckvar = rp[var_name].stack(sounding=('time', 'beam'))
+            stckvar = stckvar[filt]
+            unstckvar = stckvar.unstack()
+            savedata = rp[var_name].sel(time=unstckvar.time)
+
+            pingtime, pingbeam = np.unravel_index(np.where(filt), rp[var_name].shape)  # ping time and beam of the selected soundings
+
+
+
+
             var_vals = rp[var_name].values.ravel()
             var_vals[filt] = newval
             var_vals.reshape(rp[var_name].shape)

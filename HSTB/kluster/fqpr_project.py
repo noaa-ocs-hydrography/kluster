@@ -740,10 +740,10 @@ class FqprProject:
         for fq_name, fq_inst in self.fqpr_instances.items():
             fq_inst.ping_filter = []  # reset ping filter for all instances when you try and make a new selection
             if fq_inst.intersects(polygon[:, 1].min(), polygon[:, 1].max(), polygon[:, 0].min(), polygon[:, 0].max(), geographic=True):
-                x, y, z, tvu, rejected, pointtime, beam = fq_inst.return_soundings_in_polygon(polygon, geographic=True, full_swath=False)
+                head, x, y, z, tvu, rejected, pointtime, beam = fq_inst.return_soundings_in_polygon(polygon, geographic=True, full_swath=False)
                 if x is not None:
                     linenames = fq_inst.return_lines_for_times(pointtime)
-                    data[fq_name] = [x, y, z, tvu, rejected, pointtime, beam, linenames]
+                    data[fq_name] = [head, x, y, z, tvu, rejected, pointtime, beam, linenames]
         return data
 
     def return_project_folder(self):

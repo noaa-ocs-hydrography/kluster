@@ -171,6 +171,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.two_d.box_select.connect(self.select_line_by_box)
         self.two_d.box_3dpoints.connect(self.select_points_in_box)
         self.two_d.box_swath.connect(self.select_slice_in_box)
+        self.two_d.turn_off_pointsview.connect(self.clear_points)
 
         self.points_view.points_selected.connect(self.show_points_in_explorer)
 
@@ -1574,7 +1575,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         pts_data = self.project.return_soundings_in_polygon(polygon)
         for fqpr_name, pointdata in pts_data.items():
             self.points_view.add_points(pointdata[0], pointdata[1], pointdata[2], pointdata[3], pointdata[4], pointdata[5],
-                                        pointdata[6], fqpr_name, pointdata[7], is_3d=True, azimuth=azimuth)
+                                        pointdata[6], pointdata[7], fqpr_name, pointdata[8], is_3d=True, azimuth=azimuth)
             pointcount += pointdata[0].size
         self.points_view.display_points()
         print('Selected {} Points for 3D display'.format(pointcount))
@@ -1599,10 +1600,13 @@ class KlusterMain(QtWidgets.QMainWindow):
         pts_data = self.project.return_soundings_in_polygon(polygon)
         for fqpr_name, pointdata in pts_data.items():
             self.points_view.add_points(pointdata[0], pointdata[1], pointdata[2], pointdata[3], pointdata[4], pointdata[5],
-                                        pointdata[6], fqpr_name, pointdata[7], is_3d=False, azimuth=azimuth)
+                                        pointdata[6], pointdata[7], fqpr_name, pointdata[8], is_3d=True, azimuth=azimuth)
             pointcount += pointdata[0].size
         self.points_view.display_points()
         print('Selected {} Points for 2D display'.format(pointcount))
+
+    def clear_points(self, clrsig: bool):
+        self.points_view.clear()
 
     def show_points_in_explorer(self, point_index: np.array, linenames: np.array, point_times: np.array, beam: np.array,
                                 x: np.array, y: np.array, z: np.array, tvu: np.array, status: np.array, id: np.array):
