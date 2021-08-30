@@ -557,7 +557,7 @@ class RectangleMapTool(qgis_gui.QgsMapToolEmitPoint):
         """
         Deactivate the map tool
         """
-        self.reset()
+        # self.reset()  # we want to leave the rectangle on screen on deactivation (when user clicks another map tool)
         qgis_gui.QgsMapTool.deactivate(self)
         self.deactivated.emit()
 
@@ -2152,12 +2152,14 @@ class MapView(QtWidgets.QMainWindow):
         """
         Activate the point select tool
         """
+        self.toolSwath.reset()
         self.canvas.setMapTool(self.toolPoints)
 
     def selectSwath(self):
         """
         Activate the point select tool
         """
+        self.toolPoints.reset()
         self.canvas.setMapTool(self.toolSwath)
 
     def query(self):
