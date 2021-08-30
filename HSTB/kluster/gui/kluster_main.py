@@ -1600,7 +1600,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         pts_data = self.project.return_soundings_in_polygon(polygon)
         for fqpr_name, pointdata in pts_data.items():
             self.points_view.add_points(pointdata[0], pointdata[1], pointdata[2], pointdata[3], pointdata[4], pointdata[5],
-                                        pointdata[6], pointdata[7], fqpr_name, pointdata[8], is_3d=True, azimuth=azimuth)
+                                        pointdata[6], pointdata[7], fqpr_name, pointdata[8], is_3d=False, azimuth=azimuth)
             pointcount += pointdata[0].size
         self.points_view.display_points()
         print('Selected {} Points for 2D display'.format(pointcount))
