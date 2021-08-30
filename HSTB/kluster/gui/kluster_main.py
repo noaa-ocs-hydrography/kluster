@@ -1643,6 +1643,23 @@ class KlusterMain(QtWidgets.QMainWindow):
         """
 
         self.explorer.populate_explorer_with_points(point_index, linenames, point_times, beam, x, y, z, tvu, status, id)
+        # self.set_pointsview_points_status()  # this is an example of how we would use it, driven by points view mouse event
+
+    def set_pointsview_points_status(self, new_status: int = 2):
+        """
+        Take selected points in pointsview and set them to this new status (see detectioninfo).  Saved to memory and disk
+
+        Parameters
+        ----------
+        new_status
+            new integer flag for detection info status
+        """
+
+        selected_points = self.points_view.return_select_index()
+        for fqpr_name in selected_points:
+            fqpr = self.project.fqpr_instances[fqpr_name]
+            sel_points_idx = selected_points[fqpr_name]
+            fqpr.subset.set_variable_by_filter('detectioninfo', new_status, sel_points_idx)
 
     def dock_this_widget(self, title, objname, widget):
         """

@@ -1154,7 +1154,6 @@ class ThreeDWidget(QtWidgets.QWidget):
                                   self.three_d_window.rejected[self.three_d_window.selected_points],
                                   self.three_d_window.id[self.three_d_window.selected_points])
         self.three_d_window.highlight_selected_scatter(self.colorby.currentText())
-        self.return_select_index()
 
     def return_select_index(self):
         """
