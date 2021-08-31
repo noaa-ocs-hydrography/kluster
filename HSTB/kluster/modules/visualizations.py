@@ -1009,6 +1009,36 @@ class FqprVisualizations:
         self.proc_bpv_objects = None
         self.proc_bpv_anim = None
 
+    def plot_tvu_sample(self):
+        """
+        After running calculate_total_uncertainty, images are saved of the average ping tvu for the first 1000 pings.
+        That image is saved within the ping zarr folder.  This method will show the image for you to see.
+        """
+
+        first_sysid = self.fqpr.multibeam.raw_ping[0].system_identifier
+        ping_path = self.fqpr._get_zarr_path('ping', first_sysid)
+        tvu_image = os.path.join(ping_path, 'vertical_tpu_sample.png')
+        if os.path.exists(tvu_image):
+            print('Opening {}'.format(tvu_image))
+            os.startfile(tvu_image)
+        else:
+            print('Unable to find {}'.format(tvu_image))
+
+    def plot_thu_sample(self):
+        """
+        After running calculate_total_uncertainty, images are saved of the average ping thu for the first 1000 pings.
+        That image is saved within the ping zarr folder.  This method will show the image for you to see.
+        """
+
+        first_sysid = self.fqpr.multibeam.raw_ping[0].system_identifier
+        ping_path = self.fqpr._get_zarr_path('ping', first_sysid)
+        thu_image = os.path.join(ping_path, 'horizontal_tpu_sample.png')
+        if os.path.exists(thu_image):
+            print('Opening {}'.format(thu_image))
+            os.startfile(thu_image)
+        else:
+            print('Unable to find {}'.format(thu_image))
+
 
 def save_animation_mpeg(anim_instance: FuncAnimation, output_pth: str):
     """
