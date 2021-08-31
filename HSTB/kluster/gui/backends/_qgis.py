@@ -904,6 +904,7 @@ class MapView(QtWidgets.QMainWindow):
     """
 
     box_select = Signal(float, float, float, float)
+    lines_select = Signal(object)
     box_3dpoints = Signal(object, float)
     box_swath = Signal(object, float)
     turn_off_pointsview = Signal(bool)
@@ -1154,7 +1155,14 @@ class MapView(QtWidgets.QMainWindow):
             maximum longitude in map coordinates (generally wgs84 longitude)
         """
 
-        self.box_select.emit(min_lat, max_lat, min_lon, max_lon)
+        area_of_interest = qgis_core.QgsRectangle(min_lon, min_lat, max_lon, max_lat)
+        request = qgis_core.QgsFeatureRequest().setFilterRect(area_of_interest).setFlags(qgis_core.QgsFeatureRequest.ExactIntersect)
+        selected_line_names = []
+        for line_layer in self.layer_manager.line_layers:
+            for feature in line_layer.getFeatures(request):
+                selected_line_names.append(line_layer.name())
+        self.lines_select.emit(selected_line_names)
+        # self.box_select.emit(min_lat, max_lat, min_lon, max_lon)
 
     def _points_selected(self, polygon: np.ndarray, azimuth: float):
         """

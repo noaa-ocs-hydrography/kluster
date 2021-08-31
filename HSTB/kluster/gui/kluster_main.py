@@ -168,7 +168,8 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.actions.exclude_unmatched_file.connect(self._action_remove_file)
         self.actions.undo_exclude_file.connect(self._action_add_files)
 
-        self.two_d.box_select.connect(self.select_line_by_box)
+        #self.two_d.box_select.connect(self.select_line_by_box)
+        self.two_d.lines_select.connect(self.select_lines_by_name)
         self.two_d.box_3dpoints.connect(self.select_points_in_box)
         self.two_d.box_swath.connect(self.select_slice_in_box)
         self.two_d.turn_off_pointsview.connect(self.clear_points)
@@ -1535,6 +1536,13 @@ class KlusterMain(QtWidgets.QMainWindow):
             for cnt, ln in enumerate(all_lines):
                 self._line_selected(ln, idx=cnt)
             self.two_d.change_line_colors(all_lines, 'red')
+
+    def select_lines_by_name(self, linenames: list):
+        self.two_d.reset_line_colors()
+        self.explorer.clear_explorer_data()
+        for cnt, ln in enumerate(linenames):
+            self._line_selected(ln, idx=cnt)
+        self.two_d.change_line_colors(linenames, 'red')
 
     def select_line_by_box(self, min_lat, max_lat, min_lon, max_lon):
         """
