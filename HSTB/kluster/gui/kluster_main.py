@@ -1538,6 +1538,16 @@ class KlusterMain(QtWidgets.QMainWindow):
             self.two_d.change_line_colors(all_lines, 'red')
 
     def select_lines_by_name(self, linenames: list):
+        """
+        method run on using the 2dview box select tool, selects all lines that intersect the drawn box using the
+        QGIS intersect ability
+
+        Parameters
+        ----------
+        linenames
+            list of line names that are found to intersect the drawn box
+        """
+        
         self.two_d.reset_line_colors()
         self.explorer.clear_explorer_data()
         for cnt, ln in enumerate(linenames):
@@ -1546,6 +1556,8 @@ class KlusterMain(QtWidgets.QMainWindow):
 
     def select_line_by_box(self, min_lat, max_lat, min_lon, max_lon):
         """
+        Deprecated, select tool now uses select_lines_by_name
+
         method run on using the 2dview box select tool.  Selects all lines that are within the box boundaries
 
         Parameters
