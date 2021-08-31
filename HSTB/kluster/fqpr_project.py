@@ -390,7 +390,6 @@ class FqprProject:
         else:  # pth is the new Fqpr instance, pull the actual path from the Fqpr attribution
             fq = pth
             pth = os.path.normpath(fq.multibeam.raw_ping[0].output_path)
-        print('Loading complete: {}'.format(pth))
 
         if fq is not None:
             if self.path is None:
@@ -429,10 +428,19 @@ class FqprProject:
         if relpath in self.fqpr_instances:
             self.fqpr_instances[relpath].close()
             self.fqpr_instances.pop(relpath)
-            self.fqpr_attrs.pop(relpath)
+            if relpath in self.fqpr_attrs:
+                self.fqpr_attrs.pop(relpath)
+            else:
+                print('Warning: On removing from project, unable to find attributes for {}'.format(relpath))
             for linename in self.fqpr_lines[relpath]:
-                self.convert_path_lookup.pop(linename)
-            self.fqpr_lines.pop(relpath)
+                if linename in self.convert_path_lookup:
+                    self.convert_path_lookup.pop(linename)
+                else:
+                    print('Warning: On removing from project, unable to find loaded line attributes for {} in {}'.format(linename, relpath))
+            if relpath in self.fqpr_lines:
+                self.fqpr_lines.pop(relpath)
+            else:
+                print('Warning: On removing from project, unable to find loaded lines for {}'.format(relpath))
             for callback in self._project_observers:
                 callback(True)
 

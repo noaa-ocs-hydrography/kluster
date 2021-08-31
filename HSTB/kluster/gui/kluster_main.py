@@ -421,7 +421,7 @@ class KlusterMain(QtWidgets.QMainWindow):
                 else:
                     potential_fqpr_paths.append(f)
         self.refresh_project(new_fqprs)
-        self.open_project_thread.populate(self.project, force_add_fqprs=potential_fqpr_paths, force_add_surfaces=potential_surface_paths)
+        self.open_project_thread.populate(force_add_fqprs=potential_fqpr_paths, force_add_surfaces=potential_surface_paths)
         self.open_project_thread.start()
 
     def refresh_project(self, fqpr=None):
@@ -1175,7 +1175,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         else:
             self.close_project()
             self.output_window.clear()
-            self.open_project_thread.populate(self.project, pth)
+            self.open_project_thread.populate(new_project_path=pth)
             self.open_project_thread.start()
             cancelled = False
         if cancelled:
@@ -1187,8 +1187,13 @@ class KlusterMain(QtWidgets.QMainWindow):
         project.  We then draw the new lines to the screen.
         """
         if not self.open_project_thread.error:
-            self.project = self.open_project_thread.project
-            self.redraw(new_fqprs=self.open_project_thread.new_fqprs)
+            for new_fq in self.open_project_thread.new_fqprs:
+                fqpr_entry, already_in = self.project.add_fqpr(new_fq, skip_dask=True)
+                if already_in:
+                    print('{} already exists in {}'.format(new_fq.output_path, self.project.path))
+            for new_surf in self.open_project_thread.new_surfaces:
+                self.project.add_surface(new_surf)
+            self.redraw(new_fqprs=[self.project.path_relative_to_project(fq.output_folder) for fq in self.open_project_thread.new_fqprs])
         self.open_project_thread.populate(None)
         self._stop_action_progress()
 
@@ -1547,7 +1552,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         linenames
             list of line names that are found to intersect the drawn box
         """
-        
+
         self.two_d.reset_line_colors()
         self.explorer.clear_explorer_data()
         for cnt, ln in enumerate(linenames):

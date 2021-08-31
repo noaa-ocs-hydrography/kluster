@@ -344,7 +344,6 @@ def reload_data(converted_folder: str, require_raw_data: bool = True, skip_dask:
         return None
 
     if (require_raw_data and final_paths['ping'] and final_paths['attitude']) or (final_paths['ping']):
-        print('Loading ping/attitude datasets...')
         mbes_read = BatchRead(None, skip_dask=skip_dask, show_progress=show_progress)
         mbes_read.final_paths = final_paths
         read_error = mbes_read.read_from_zarr_fils(final_paths['ping'], final_paths['attitude'][0], final_paths['logfile'])
