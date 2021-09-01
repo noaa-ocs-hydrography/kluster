@@ -229,16 +229,6 @@ def test_return_soundings_in_polygon():
     head, x, y, z, tvu, rejected, pointtime, beam = out.return_soundings_in_polygon(polygon)
     assert head.shape == x.shape == y.shape == z.shape == tvu.shape == rejected.shape == pointtime.shape == beam.shape
     assert x.shape == (1911,)
-    assert np.count_nonzero(out.subset.ping_filter) == 1911  # ping filter is set on return_soundings, is a bool mask of which soundings are in the selection
-
-    assert rejected[0] == 0  # first sounding is 0 status
-    assert (out.subset.ping_filter[0][30171])  # the 30171th sounding in the flattened index of soundings is the first sounding in the selection
-    out.set_variable_by_filter('detectioninfo', 2, selected_index=[[30171]])  # set the selected point region to rejected=2
-    head, x, y, z, tvu, rejected, pointtime, beam = out.return_soundings_in_polygon(polygon)
-    assert rejected[0] == 2  # first sounding is now status=2
-    out.set_variable_by_filter('detectioninfo', 2)  # set the all poitns in the return_soundings selection to status=2
-    head, x, y, z, tvu, rejected, pointtime, beam = out.return_soundings_in_polygon(polygon)
-    assert (rejected == 2).all()
 
     out.close()
     out = None
@@ -482,6 +472,29 @@ def test_export_dataset():
     with open(expected_nav) as fil:
         assert fil.readline().rstrip() == 'time,altitude,latitude,longitude'
     os.remove(expected_nav)
+
+    out.close()
+    out = None
+
+
+def test_set_variable_by_filter():
+    if not os.path.exists(datapath):
+        print('Please run test_process_testfile first')
+    out = reload_data(datapath)
+    polygon = np.array([[-122.47798556, 47.78949665], [-122.47798556, 47.78895117], [-122.47771027, 47.78895117],
+                        [-122.47771027, 47.78949665]])
+    head, x, y, z, tvu, rejected, pointtime, beam = out.return_soundings_in_polygon(polygon)
+    assert head.shape == x.shape == y.shape == z.shape == tvu.shape == rejected.shape == pointtime.shape == beam.shape
+    assert x.shape == (1911,)
+    assert np.count_nonzero(out.subset.ping_filter) == 1911  # ping filter is set on return_soundings, is a bool mask of which soundings are in the selection
+
+    assert rejected[0] == 0  # first sounding is 0 status
+    out.set_variable_by_filter('detectioninfo', 2, selected_index=[[0]])  # set the first selected point region to rejected=2
+    head, x, y, z, tvu, rejected, pointtime, beam = out.return_soundings_in_polygon(polygon)
+    assert rejected[0] == 2  # first sounding is now status=2
+    out.set_variable_by_filter('detectioninfo', 2)  # set the all poitns in the return_soundings selection to status=2
+    head, x, y, z, tvu, rejected, pointtime, beam = out.return_soundings_in_polygon(polygon)
+    assert (rejected == 2).all()
 
     out.close()
     out = None

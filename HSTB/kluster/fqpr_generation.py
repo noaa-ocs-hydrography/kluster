@@ -2621,6 +2621,7 @@ class Fqpr(ZarrBackend):
         those points and set one of the variables with new data.  Optionally, you can include a selected_index that is a list
         of flattened indices to points in the ping_filter that you want to super-select, see subset module.
         """
+
         self.subset.set_variable_by_filter(var_name, newval, selected_index)
 
     def return_processing_dashboard(self):
