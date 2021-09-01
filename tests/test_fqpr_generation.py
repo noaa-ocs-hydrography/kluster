@@ -2,6 +2,7 @@ import os, shutil
 import time
 import logging
 from pytest import approx
+from datetime import datetime
 
 from HSTB.kluster import fqpr_generation, fqpr_project, xarray_conversion, fqpr_intelligence
 try:  # when running from pycharm console
@@ -228,6 +229,17 @@ def test_return_soundings_in_polygon():
     head, x, y, z, tvu, rejected, pointtime, beam = out.return_soundings_in_polygon(polygon)
     assert head.shape == x.shape == y.shape == z.shape == tvu.shape == rejected.shape == pointtime.shape == beam.shape
     assert x.shape == (1911,)
+    assert np.count_nonzero(out.subset.ping_filter) == 1911  # ping filter is set on return_soundings, is a bool mask of which soundings are in the selection
+
+    assert rejected[0] == 0  # first sounding is 0 status
+    assert (out.subset.ping_filter[0][30171])  # the 30171th sounding in the flattened index of soundings is the first sounding in the selection
+    out.set_variable_by_filter('detectioninfo', 2, selected_index=[[30171]])  # set the selected point region to rejected=2
+    head, x, y, z, tvu, rejected, pointtime, beam = out.return_soundings_in_polygon(polygon)
+    assert rejected[0] == 2  # first sounding is now status=2
+    out.set_variable_by_filter('detectioninfo', 2)  # set the all poitns in the return_soundings selection to status=2
+    head, x, y, z, tvu, rejected, pointtime, beam = out.return_soundings_in_polygon(polygon)
+    assert (rejected == 2).all()
+
     out.close()
     out = None
 
@@ -352,6 +364,17 @@ def test_return_lines_for_times():
     out = reload_data(datapath)
     lns = out.return_lines_for_times(np.array([1495400000, 1495563100, 1495563132]))
     assert np.array_equal(lns, ['', '0009_20170523_181119_FA2806.all', '0009_20170523_181119_FA2806.all'])
+    out.close()
+    out = None
+
+
+def test_last_operation_date():
+    if not os.path.exists(datapath):
+        print('Please run test_process_testfile first')
+    out = reload_data(datapath)
+    datetime_obj = out.last_operation_date
+    assert isinstance(datetime_obj, datetime)
+    assert datetime.strptime(out.multibeam.raw_ping[0]._total_uncertainty_complete, '%c') == datetime_obj
     out.close()
     out = None
 
