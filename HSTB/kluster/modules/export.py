@@ -305,7 +305,7 @@ class FqprExport:
         Parameters
         ----------
         datablock
-            list of [sounding_id, x, y, z, tvu, rejected, pointtime, beam, linename] arrays, all of the same size and shape.
+            list of [sounding_id, head_index, x, y, z, tvu, rejected, pointtime, beam, linename] arrays, all of the same size and shape.
             sounding_id is the name of the converted instance for each sounding
         output_directory
             optional, destination directory for the xyz exports, otherwise will auto export next to converted data
@@ -335,7 +335,7 @@ class FqprExport:
         if datablock:
             try:
                 base_name = os.path.split(self.fqpr.multibeam.converted_pth)[1] + '_pointsview'
-                sounding_id, x, y, z, tvu, rejected, pointtime, beam, linename = datablock
+                sounding_id, head_index, x, y, z, tvu, rejected, pointtime, beam, linename = datablock
             except:
                 raise ValueError('export_soundings_to_file: datablock should be length 9 with sounding_id, x, y, z, tvu, rejected, pointtime, beam, linename, found length {}'.format(len(datablock)))
             if not x.any():

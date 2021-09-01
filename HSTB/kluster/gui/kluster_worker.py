@@ -1,13 +1,9 @@
 import numpy as np
-import os
-from datetime import datetime
 
 from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal
 
 from HSTB.kluster.fqpr_convenience import generate_new_surface, import_processed_navigation, overwrite_raw_navigation, \
-    update_surface
-
-import time
+    update_surface, reload_data, reload_surface
 
 
 class ActionWorker(QtCore.QThread):
@@ -52,15 +48,14 @@ class OpenProjectWorker(QtCore.QThread):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.new_project_path = None
-        self.project = None
         self.force_add_fqprs = None
         self.force_add_surfaces = None
         self.new_fqprs = []
+        self.new_surfaces = []
         self.error = False
 
-    def populate(self, project, new_project_path=None, force_add_fqprs=None, force_add_surfaces=None):
+    def populate(self, new_project_path=None, force_add_fqprs=None, force_add_surfaces=None):
         self.new_project_path = new_project_path
-        self.project = project
         self.force_add_fqprs = force_add_fqprs
         self.force_add_surfaces = force_add_surfaces
         self.error = False
@@ -80,17 +75,13 @@ class OpenProjectWorker(QtCore.QThread):
 
             for pth in data['fqpr_paths']:
                 print('Loading from {}'.format(pth))
-                fqpr_entry, already_in = self.project.add_fqpr(pth, skip_dask=True)
-                if fqpr_entry is None:  # no fqpr instance successfully loaded
-                    print('update_on_file_added: Unable to add to Project from existing: {}'.format(pth))
-                if already_in:
-                    print('{} already exists in {}'.format(pth, self.project.path))
-                elif fqpr_entry:
+                fqpr_entry = reload_data(pth, skip_dask=True, silent=True, show_progress=True)
+                if fqpr_entry is not None:  # no fqpr instance successfully loaded
                     self.new_fqprs.append(fqpr_entry)
-                print('**************************************************************************************')
             for pth in data['surface_paths']:
-                self.project.add_surface(pth)
-            time.sleep(0.1)
+                surf_entry = reload_surface(pth)
+                if surf_entry is not None:  # no fqpr instance successfully loaded
+                    self.new_surfaces.append(surf_entry)
         except Exception as e:
             print(e)
             self.error = True

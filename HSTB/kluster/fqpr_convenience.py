@@ -344,7 +344,6 @@ def reload_data(converted_folder: str, require_raw_data: bool = True, skip_dask:
         return None
 
     if (require_raw_data and final_paths['ping'] and final_paths['attitude']) or (final_paths['ping']):
-        print('Loading ping/attitude datasets...')
         mbes_read = BatchRead(None, skip_dask=skip_dask, show_progress=show_progress)
         mbes_read.final_paths = final_paths
         read_error = mbes_read.read_from_zarr_fils(final_paths['ping'], final_paths['attitude'][0], final_paths['logfile'])
@@ -428,7 +427,7 @@ def _add_points_to_surface(fqpr_inst: Fqpr, bgrid: BathyGrid, fqpr_crs: int, fqp
         number_of_pings = rp.time.size
         rp = rp.drop_vars([nms for nms in rp.variables if nms not in ['x', 'y', 'z', 'tvu', 'thu', 'detectioninfo']])
         totalchunks = int(np.ceil(number_of_pings / chunksize))
-        print('Adding points in {} chunks...\n'.format(totalchunks))
+        print('Adding points from {} in {} chunks...\n'.format(os.path.split(fqpr_inst.output_folder)[1], totalchunks))
         for idx in range(totalchunks):
             strt, end = idx * chunksize, min((idx + 1) * chunksize, number_of_pings)
             data = rp.isel(time=slice(strt, end)).stack({'sounding': ('time', 'beam')})
@@ -453,13 +452,12 @@ def _remove_points_from_surface(fqpr_inst: Union[Fqpr, str], bgrid: BathyGrid):
     if isinstance(fqpr_inst, str):
         cont_name = fqpr_inst
     else:
-        cont_name = os.path.split(fqpr_inst.multibeam.raw_ping[0].output_path)[1]
+        cont_name = os.path.split(fqpr_inst.output_folder)[1]
     remove_these = []
     for existing_cont in bgrid.container:
         if existing_cont.find(cont_name) != -1:
             remove_these.append(existing_cont)
-    if remove_these:
-        print('Removing points from {}...'.format(cont_name))
+
     for remove_cont in remove_these:
         bgrid.remove_points(remove_cont)
 
@@ -608,7 +606,7 @@ def generate_new_surface(fqpr_inst: Union[Fqpr, list], grid_type: str = 'single_
 
 
 def update_surface(surface_instance: Union[str, BathyGrid], add_fqpr: Union[Fqpr, list] = None, remove_fqpr: Union[Fqpr, list, str] = None,
-                   regrid: bool = True, use_dask: bool = False):
+                   regrid: bool = True, regrid_option: str = 'update', use_dask: bool = False):
     """
     Bathygrid instances can be updated with new points from new converted multibeam data, or have points removed from
     old multibeam data.  If you want to update the surface for changes in the multibeam data, provide the same FQPR instance
@@ -627,6 +625,9 @@ def update_surface(surface_instance: Union[str, BathyGrid], add_fqpr: Union[Fqpr
         Either a list of Fqpr instances, a list of fqpr container names or a single Fqpr instance to remove from the surface
     regrid
         If True, will immediately run grid() after adding the points to update the gridded data
+    regrid_option
+        controls what parts of the grid will get re-gridded if regrid is True, one of 'full', 'update'.  Full mode will
+        regrid the entire grid.  Update mode will only update those tiles that have a point_count_changed=True
     use_dask
         if True, will start a dask LocalCluster instance and perform the gridding in parallel
 
@@ -666,7 +667,7 @@ def update_surface(surface_instance: Union[str, BathyGrid], add_fqpr: Union[Fqpr
             rez = None
         else:
             rez = surface_instance.grid_resolution
-        surface_instance.grid(surface_instance.grid_algorithm, rez, use_dask=use_dask)
+        surface_instance.grid(surface_instance.grid_algorithm, rez, regrid_option=regrid_option, use_dask=use_dask)
     return surface_instance
 
 

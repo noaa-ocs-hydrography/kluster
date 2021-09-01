@@ -519,17 +519,20 @@ class ThreeDView(QtWidgets.QWidget):
         self.scatter_transform = None
         self.scatter_select_range = None
 
-        self.id = np.array([])
-        self.x = np.array([])
-        self.y = np.array([])
-        self.z = np.array([])
-        self.rotx = np.array([])
-        self.roty = np.array([])
-        self.tvu = np.array([])
-        self.rejected = np.array([])
-        self.pointtime = np.array([])
-        self.beam = np.array([])
-        self.linename = np.array([])
+        self.idrange = {}
+
+        self.id = np.array([], dtype=object)
+        self.head = np.array([], dtype=np.int8)
+        self.x = np.array([], dtype=np.float64)
+        self.y = np.array([], dtype=np.float64)
+        self.z = np.array([], dtype=np.float32)
+        self.rotx = np.array([], dtype=np.float64)
+        self.roty = np.array([], dtype=np.float64)
+        self.tvu = np.array([], dtype=np.float32)
+        self.rejected = np.array([], dtype=np.int32)
+        self.pointtime = np.array([], dtype=np.float64)
+        self.beam = np.array([], dtype=np.int32)
+        self.linename = np.array([], dtype=object)
 
         # statistics are populated on display_points
         self.x_offset = 0.0
@@ -583,13 +586,15 @@ class ThreeDView(QtWidgets.QWidget):
         if self.displayed_points is not None and self.parent is not None:
             self.parent.select_points(startpos, endpos, three_d=three_d)
 
-    def add_points(self, x: np.array, y: np.array, z: np.array, tvu: np.array, rejected: np.array, pointtime: np.array,
-                   beam: np.array, newid: str, linename: np.array, is_3d: bool, azimuth: float = None):
+    def add_points(self, head: np.array, x: np.array, y: np.array, z: np.array, tvu: np.array, rejected: np.array,
+                   pointtime: np.array, beam: np.array, newid: str, linename: np.array, is_3d: bool, azimuth: float = None):
         """
         Add points to the 3d view widget, we only display points after all points are added, hence the separate methods
 
         Parameters
         ----------
+        head
+            head index of the sounding
         x
             easting
         y
@@ -617,8 +622,9 @@ class ThreeDView(QtWidgets.QWidget):
         if azimuth:
             cos_az = np.cos(azimuth)
             sin_az = np.sin(azimuth)
-            rotx = x * cos_az + y * sin_az
-            roty = y * cos_az - x * sin_az
+
+            rotx = cos_az * x - sin_az * y
+            roty = sin_az * x + cos_az * y
             self.rotx = np.concatenate([self.rotx, rotx])
             self.roty = np.concatenate([self.roty, roty])
         else:
@@ -627,6 +633,9 @@ class ThreeDView(QtWidgets.QWidget):
 
         # expand the identifier to be the size of the input arrays
         self.id = np.concatenate([self.id, np.full(x.shape[0], newid)])
+        self.idrange[newid] = [self.x.shape[0], self.x.shape[0] + x.shape[0]]
+
+        self.head = np.concatenate([self.head, head])
         self.x = np.concatenate([self.x, x])
         self.y = np.concatenate([self.y, y])
         self.z = np.concatenate([self.z, z])
@@ -638,7 +647,7 @@ class ThreeDView(QtWidgets.QWidget):
         self.is_3d = is_3d
 
     def return_points(self):
-        return [self.id, self.x, self.y, self.z, self.tvu, self.rejected, self.pointtime, self.beam, self.linename]
+        return [self.id, self.head, self.x, self.y, self.z, self.tvu, self.rejected, self.pointtime, self.beam, self.linename]
 
     def _configure_2d_3d_view(self):
         """
@@ -809,13 +818,13 @@ class ThreeDView(QtWidgets.QWidget):
                 self.view.camera.distance = (self.max_x - self.x_offset) * 2
                 self.view.camera.fresh_camera = False
         else:
-            if self.view_direction in ['north', 'right']:
+            if self.view_direction in ['north']:
                 self.scatter.set_data(self.displayed_points[:, [0, 2]], edge_color=clrs, face_color=clrs, symbol='o', size=3)
                 self.view.camera.center = (self.mean_x - self.x_offset, self.mean_z - self.min_z)
                 if self.view.camera.fresh_camera:
                     self.view.camera.zoom((self.max_x - self.x_offset) + 10)  # try and fit the swath in view on load
                     self.view.camera.fresh_camera = False
-            elif self.view_direction == 'east':
+            elif self.view_direction in ['east', 'arrow']:
                 self.scatter.set_data(self.displayed_points[:, [1, 2]], edge_color=clrs, face_color=clrs, symbol='o', size=3)
                 self.view.camera.center = (self.mean_y - self.y_offset, self.mean_z - self.min_z)
                 if self.view.camera.fresh_camera:
@@ -830,7 +839,7 @@ class ThreeDView(QtWidgets.QWidget):
         These are used later for constructing colormaps and setting the camera.
         """
 
-        if self.view_direction in ['north', 'east']:
+        if self.view_direction in ['north', 'east', 'top']:
             self.min_x = np.nanmin(self.x)
             self.min_y = np.nanmin(self.y)
             self.max_x = np.nanmax(self.x)
@@ -912,7 +921,7 @@ class ThreeDView(QtWidgets.QWidget):
         self.z_offset = self.min_z
         centered_z = self.z - self.z_offset
 
-        if view_direction in ['north', 'east']:
+        if view_direction in ['north', 'east', 'top']:
             centered_x = self.x - self.x_offset
             centered_y = self.y - self.y_offset
         else:
@@ -971,17 +980,19 @@ class ThreeDView(QtWidgets.QWidget):
         Clear display and all stored data
         """
         self.clear_display()
-        self.id = np.array([])
-        self.x = np.array([])
-        self.y = np.array([])
-        self.z = np.array([])
-        self.rotx = np.array([])
-        self.roty = np.array([])
-        self.tvu = np.array([])
-        self.rejected = np.array([])
-        self.pointtime = np.array([])
-        self.beam = np.array([])
-        self.linename = np.array([])
+        self.id = np.array([], dtype=object)
+        self.head = np.array([], dtype=np.int8)
+        self.x = np.array([], dtype=np.float64)
+        self.y = np.array([], dtype=np.float64)
+        self.z = np.array([], dtype=np.float32)
+        self.rotx = np.array([], dtype=np.float64)
+        self.roty = np.array([], dtype=np.float64)
+        self.tvu = np.array([], dtype=np.float32)
+        self.rejected = np.array([], dtype=np.int32)
+        self.pointtime = np.array([], dtype=np.float64)
+        self.beam = np.array([], dtype=np.int32)
+        self.linename = np.array([], dtype=object)
+
         if self.axis_x is not None:
             self.axis_x.parent = None
             self.axis_x = None
@@ -1016,13 +1027,18 @@ class ThreeDWidget(QtWidgets.QWidget):
         self.opts_layout.addWidget(self.colorby_label)
         self.colorby = QtWidgets.QComboBox()
         self.colorby.addItems(['depth', 'vertical_uncertainty', 'beam', 'rejected', 'system', 'linename'])
+        self.colorby.setToolTip('Attribute used to color the soundings, see the colorbar for values')
         self.opts_layout.addWidget(self.colorby)
         self.viewdirection_label = QtWidgets.QLabel('View Direction: ')
-        self.viewdirection_label.hide()
         self.opts_layout.addWidget(self.viewdirection_label)
         self.viewdirection = QtWidgets.QComboBox()
-        self.viewdirection.addItems(['north', 'east'])
-        self.viewdirection.hide()
+        self.viewdirection.addItems(['north', 'east', 'top', 'arrow'])
+        self.viewdirection.setToolTip('View direction shown in the Points View:\n\n' +
+                                      'north - in 2d, this will show the eastings (x) vs depth\n' +
+                                      'east - in 2d, this will show the northings (y) vs depth\n' +
+                                      'top - in 3d, this will show the unrotated soundings (soundings as is)\n' +
+                                      'arrow - in 2d, this will show the rotated soundings looking down the direction shown as the arrow of the box select tool in 2dview\n' +
+                                      '      - in 3d, this will show the rotated soundings in a top view, using the direction shown as the arrow of the box select tool in 2dview')
         self.opts_layout.addWidget(self.viewdirection)
         self.vertexag_label = QtWidgets.QLabel('Vertical Exaggeration: ')
         self.opts_layout.addWidget(self.vertexag_label)
@@ -1031,6 +1047,7 @@ class ThreeDWidget(QtWidgets.QWidget):
         self.vertexag.setMinimum(1.0)
         self.vertexag.setSingleStep(0.5)
         self.vertexag.setValue(1.0)
+        self.vertexag.setToolTip('Multiplier used for the depth values, displayed z is multiplied by this number')
         self.opts_layout.addWidget(self.vertexag)
         self.show_axis = QtWidgets.QCheckBox('Show Axis')
         self.show_axis.setChecked(True)
@@ -1079,26 +1096,27 @@ class ThreeDWidget(QtWidgets.QWidget):
         else:
             self.colorbar.hide()
 
-    def add_points(self, x: np.array, y: np.array, z: np.array, tvu: np.array, rejected: np.array, pointtime: np.array,
+    def add_points(self, head: np.array, x: np.array, y: np.array, z: np.array, tvu: np.array, rejected: np.array, pointtime: np.array,
                    beam: np.array, newid: str, linename: np.array, is_3d: bool, azimuth: float = None):
         """
         Adding new points will update the three d window with the boints and set the controls to show/hide
         """
-        if is_3d:
-            self.viewdirection.hide()
-            self.viewdirection_label.hide()
-            self.show_axis.hide()
-            self.vertexag_label.show()
-            self.vertexag.show()
-        else:
-            self.viewdirection.show()
-            self.viewdirection_label.show()
-            self.show_axis.hide()
-            self.vertexag_label.hide()
-            self.vertexag.hide()
+        if not self.three_d_window.x.any():  # no points loaded yet, this is the first add so set the controls
+            if is_3d:
+                self.viewdirection.clear()
+                self.viewdirection.addItems(['top', 'arrow'])
+                self.show_axis.hide()
+                self.vertexag_label.show()
+                self.vertexag.show()
+            else:
+                self.viewdirection.clear()
+                self.viewdirection.addItems(['north', 'east', 'arrow'])
+                self.show_axis.hide()
+                self.vertexag_label.hide()
+                self.vertexag.hide()
         self.three_d_window.selected_points = None
         self.three_d_window.superselected_index = None
-        self.three_d_window.add_points(x, y, z, tvu, rejected, pointtime, beam, newid, linename, is_3d, azimuth=azimuth)
+        self.three_d_window.add_points(head, x, y, z, tvu, rejected, pointtime, beam, newid, linename, is_3d, azimuth=azimuth)
 
     def return_points(self):
         return self.three_d_window.return_points()
@@ -1118,10 +1136,10 @@ class ThreeDWidget(QtWidgets.QWidget):
             points_in_screen = np.argwhere(mask_x_min & mask_x_max & mask_y_min & mask_y_max)
             self.three_d_window.selected_points = points_in_screen[:, 0]
         else:
-            if vd in ['north', 'right']:
+            if vd in ['north']:
                 m1 = self.three_d_window.displayed_points[:, [0, 2]] >= startpos[0:2]
                 m2 = self.three_d_window.displayed_points[:, [0, 2]] <= endpos[0:2]
-            elif vd == 'east':
+            elif vd in ['east', 'arrow']:
                 m1 = self.three_d_window.displayed_points[:, [1, 2]] >= startpos[0:2]
                 m2 = self.three_d_window.displayed_points[:, [1, 2]] <= endpos[0:2]
             self.three_d_window.selected_points = np.argwhere(m1[:, 0] & m1[:, 1] & m2[:, 0] & m2[:, 1])[:, 0]
@@ -1136,6 +1154,38 @@ class ThreeDWidget(QtWidgets.QWidget):
                                   self.three_d_window.rejected[self.three_d_window.selected_points],
                                   self.three_d_window.id[self.three_d_window.selected_points])
         self.three_d_window.highlight_selected_scatter(self.colorby.currentText())
+
+    def return_select_index(self):
+        """
+        Returns the selected point index as a raveled index that can be used with fqpr_generation.subset.ping_filter
+
+        Will be a dictionary of {container name: [head0_select_index, head1_select_index...]}
+
+        You can use these head select indexes to index the ping_filter record to get the index of the original record
+        in the fqpr object.  This is used with selecting and attributing points in the points view as 'rejected' by
+        saving a new rejected flag for the selected points to the original data on disk.
+
+        Returns
+        -------
+        dict
+            dictionary of {container name: [head0_select_index, head1_select_index...]}
+        """
+
+        idx = {}
+        if self.three_d_window.selected_points is not None:
+            select_id = self.three_d_window.id[self.three_d_window.selected_points]
+            uniq_ids = np.unique(select_id)
+            for uid in uniq_ids:
+                headidx = []
+                data_start, data_end = self.three_d_window.idrange[uid]
+                uid_filter = np.where(select_id == uid)[0]
+                select_filtered = self.three_d_window.selected_points[uid_filter]
+                select_filtered_head = self.three_d_window.head[select_filtered]
+                max_heads = np.max(select_filtered_head)
+                for i in range(max_heads + 1):
+                    headidx.append(select_filtered[np.where(select_filtered_head == i)[0]] - data_start)
+                idx[uid] = headidx
+        return idx
 
     def superselect_point(self, superselect_index):
         """
@@ -1194,7 +1244,8 @@ class ThreeDWidget(QtWidgets.QWidget):
         After any substantial change to the point data or scale, we clear and redraw the points
         """
         self.clear_display()
-        self.display_points()
+        if self.three_d_window.x.any():
+            self.display_points()
 
     def clear_display(self):
         self.three_d_window.clear_display()
@@ -1258,7 +1309,7 @@ if __name__ == '__main__':
     beam = np.random.randint(0, 399, size=x.shape[0])
     linename = np.full(x.shape[0], '')
     newid = 'test'
-    win.add_points(x, y, z, tvu, rejected, pointtime, beam, newid, linename, is_3d=False)
+    win.add_points(x, y, z, tvu, rejected, pointtime, beam, newid, linename, is_3d=True)
     win.display_points()
     win.show()
     app.exec_()

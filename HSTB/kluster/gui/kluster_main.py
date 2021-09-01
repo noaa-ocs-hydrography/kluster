@@ -168,9 +168,11 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.actions.exclude_unmatched_file.connect(self._action_remove_file)
         self.actions.undo_exclude_file.connect(self._action_add_files)
 
-        self.two_d.box_select.connect(self.select_line_by_box)
+        #self.two_d.box_select.connect(self.select_line_by_box)
+        self.two_d.lines_select.connect(self.select_lines_by_name)
         self.two_d.box_3dpoints.connect(self.select_points_in_box)
         self.two_d.box_swath.connect(self.select_slice_in_box)
+        self.two_d.turn_off_pointsview.connect(self.clear_points)
 
         self.points_view.points_selected.connect(self.show_points_in_explorer)
 
@@ -419,7 +421,7 @@ class KlusterMain(QtWidgets.QMainWindow):
                 else:
                     potential_fqpr_paths.append(f)
         self.refresh_project(new_fqprs)
-        self.open_project_thread.populate(self.project, force_add_fqprs=potential_fqpr_paths, force_add_surfaces=potential_surface_paths)
+        self.open_project_thread.populate(force_add_fqprs=potential_fqpr_paths, force_add_surfaces=potential_surface_paths)
         self.open_project_thread.start()
 
     def refresh_project(self, fqpr=None):
@@ -657,8 +659,10 @@ class KlusterMain(QtWidgets.QMainWindow):
 
         xyzrph, sonar_type, system_identifiers, source = convert_from_vessel_xyzrph(vess_xyzrph)
         for cnt, sysident in enumerate(system_identifiers):
+            matching_fq = list(source[0].values())[0]
             for fqname, fq in self.project.fqpr_instances.items():
-                if fq.multibeam.raw_ping[0].system_identifier == sysident:
+                if fqname == matching_fq:
+                    print('Updating xyzrph record for {}'.format(fqname))
                     identical_offsets, identical_angles, identical_tpu, data_matches, new_waterline = compare_dict_data(fq.multibeam.xyzrph,
                                                                                                                         xyzrph[cnt])
                     # # drop the vessel setup specific keys, like the vessel file used and the vess_center location
@@ -949,10 +953,8 @@ class KlusterMain(QtWidgets.QMainWindow):
             cancelled = False
             surfs = self.return_selected_surfaces()
             if surfs:
+                existing_container_names, possible_container_names = self.project.return_surface_containers(surfs[0], relative_path=False)
                 surf = self.project.surface_instances[self.project.path_relative_to_project(surfs[0])]
-                existing_container_names = surf.return_unique_containers()
-                possible_container_names = [os.path.split(fqpr_inst.multibeam.raw_ping[0].output_path)[1] for fqpr_inst in self.project.fqpr_instances.values()]
-                possible_container_names = [pname for pname in possible_container_names if pname not in existing_container_names]
                 dlog = dialog_surface_data.SurfaceDataDialog(title=surf.output_folder)
                 dlog.setup(existing_container_names, possible_container_names)
                 if dlog.exec_():
@@ -1173,7 +1175,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         else:
             self.close_project()
             self.output_window.clear()
-            self.open_project_thread.populate(self.project, pth)
+            self.open_project_thread.populate(new_project_path=pth)
             self.open_project_thread.start()
             cancelled = False
         if cancelled:
@@ -1185,8 +1187,13 @@ class KlusterMain(QtWidgets.QMainWindow):
         project.  We then draw the new lines to the screen.
         """
         if not self.open_project_thread.error:
-            self.project = self.open_project_thread.project
-            self.redraw(new_fqprs=self.open_project_thread.new_fqprs)
+            for new_fq in self.open_project_thread.new_fqprs:
+                fqpr_entry, already_in = self.project.add_fqpr(new_fq, skip_dask=True)
+                if already_in:
+                    print('{} already exists in {}'.format(new_fq.output_path, self.project.path))
+            for new_surf in self.open_project_thread.new_surfaces:
+                self.project.add_surface(new_surf)
+            self.redraw(new_fqprs=[self.project.path_relative_to_project(fq.output_folder) for fq in self.open_project_thread.new_fqprs])
         self.open_project_thread.populate(None)
         self._stop_action_progress()
 
@@ -1535,8 +1542,27 @@ class KlusterMain(QtWidgets.QMainWindow):
                 self._line_selected(ln, idx=cnt)
             self.two_d.change_line_colors(all_lines, 'red')
 
+    def select_lines_by_name(self, linenames: list):
+        """
+        method run on using the 2dview box select tool, selects all lines that intersect the drawn box using the
+        QGIS intersect ability
+
+        Parameters
+        ----------
+        linenames
+            list of line names that are found to intersect the drawn box
+        """
+
+        self.two_d.reset_line_colors()
+        self.explorer.clear_explorer_data()
+        for cnt, ln in enumerate(linenames):
+            self._line_selected(ln, idx=cnt)
+        self.two_d.change_line_colors(linenames, 'red')
+
     def select_line_by_box(self, min_lat, max_lat, min_lon, max_lon):
         """
+        Deprecated, select tool now uses select_lines_by_name
+
         method run on using the 2dview box select tool.  Selects all lines that are within the box boundaries
 
         Parameters
@@ -1557,7 +1583,7 @@ class KlusterMain(QtWidgets.QMainWindow):
 
     def select_points_in_box(self, polygon: np.ndarray, azimuth: float):
         """
-        method run on using the 2dview points select tool.  Gathers all points in the box.
+        method run on using the 2dview points select tool.  Gathers all points in the box and shows in 3d.
 
         Parameters
         ----------
@@ -1568,19 +1594,20 @@ class KlusterMain(QtWidgets.QMainWindow):
         """
 
         print('Selecting Points in Polygon...')
+        # print('Box select azimuth = {} degrees'.format(np.rad2deg(azimuth)))
         pointcount = 0
         self.points_view.clear()
         pts_data = self.project.return_soundings_in_polygon(polygon)
         for fqpr_name, pointdata in pts_data.items():
             self.points_view.add_points(pointdata[0], pointdata[1], pointdata[2], pointdata[3], pointdata[4], pointdata[5],
-                                        pointdata[6], fqpr_name, pointdata[7], is_3d=True)
+                                        pointdata[6], pointdata[7], fqpr_name, pointdata[8], is_3d=True, azimuth=azimuth)
             pointcount += pointdata[0].size
         self.points_view.display_points()
         print('Selected {} Points for 3D display'.format(pointcount))
 
     def select_slice_in_box(self, polygon: np.ndarray, azimuth: float):
         """
-        method run on using the 2dview swath select tool.  Gathers all swaths in the box.
+        method run on using the 2dview swath select tool.  Gathers all points in polygon and shows in 2d
 
         Parameters
         ----------
@@ -1598,10 +1625,17 @@ class KlusterMain(QtWidgets.QMainWindow):
         pts_data = self.project.return_soundings_in_polygon(polygon)
         for fqpr_name, pointdata in pts_data.items():
             self.points_view.add_points(pointdata[0], pointdata[1], pointdata[2], pointdata[3], pointdata[4], pointdata[5],
-                                        pointdata[6], fqpr_name, pointdata[7], is_3d=False, azimuth=azimuth)
+                                        pointdata[6], pointdata[7], fqpr_name, pointdata[8], is_3d=False, azimuth=azimuth)
             pointcount += pointdata[0].size
         self.points_view.display_points()
         print('Selected {} Points for 2D display'.format(pointcount))
+
+    def clear_points(self, clrsig: bool):
+        """
+        Trigger clearing all currently loaded data in the points view widget
+        """
+
+        self.points_view.clear()
 
     def show_points_in_explorer(self, point_index: np.array, linenames: np.array, point_times: np.array, beam: np.array,
                                 x: np.array, y: np.array, z: np.array, tvu: np.array, status: np.array, id: np.array):
@@ -1634,6 +1668,23 @@ class KlusterMain(QtWidgets.QMainWindow):
         """
 
         self.explorer.populate_explorer_with_points(point_index, linenames, point_times, beam, x, y, z, tvu, status, id)
+        # self.set_pointsview_points_status()  # this is an example of how we would use it, driven by points view mouse event
+
+    def set_pointsview_points_status(self, new_status: int = 2):
+        """
+        Take selected points in pointsview and set them to this new status (see detectioninfo).  Saved to memory and disk
+
+        Parameters
+        ----------
+        new_status
+            new integer flag for detection info status
+        """
+
+        selected_points = self.points_view.return_select_index()
+        for fqpr_name in selected_points:
+            fqpr = self.project.fqpr_instances[fqpr_name]
+            sel_points_idx = selected_points[fqpr_name]
+            fqpr.subset.set_variable_by_filter('detectioninfo', new_status, sel_points_idx)
 
     def dock_this_widget(self, title, objname, widget):
         """

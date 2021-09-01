@@ -390,7 +390,6 @@ class FqprProject:
         else:  # pth is the new Fqpr instance, pull the actual path from the Fqpr attribution
             fq = pth
             pth = os.path.normpath(fq.multibeam.raw_ping[0].output_path)
-        print('Loading complete: {}'.format(pth))
 
         if fq is not None:
             if self.path is None:
@@ -429,10 +428,19 @@ class FqprProject:
         if relpath in self.fqpr_instances:
             self.fqpr_instances[relpath].close()
             self.fqpr_instances.pop(relpath)
-            self.fqpr_attrs.pop(relpath)
+            if relpath in self.fqpr_attrs:
+                self.fqpr_attrs.pop(relpath)
+            else:
+                print('Warning: On removing from project, unable to find attributes for {}'.format(relpath))
             for linename in self.fqpr_lines[relpath]:
-                self.convert_path_lookup.pop(linename)
-            self.fqpr_lines.pop(relpath)
+                if linename in self.convert_path_lookup:
+                    self.convert_path_lookup.pop(linename)
+                else:
+                    print('Warning: On removing from project, unable to find loaded line attributes for {} in {}'.format(linename, relpath))
+            if relpath in self.fqpr_lines:
+                self.fqpr_lines.pop(relpath)
+            else:
+                print('Warning: On removing from project, unable to find loaded lines for {}'.format(relpath))
             for callback in self._project_observers:
                 callback(True)
 
@@ -627,7 +635,7 @@ class FqprProject:
                 if relative_path:
                     return self.fqpr_lines[proj]
                 else:
-                    return self.fqpr_lines[self.absolute_path_from_relative(proj)]
+                    return self.fqpr_lines[self.path_relative_to_project(proj)]
             else:
                 print('return_project_lines: expected a string path to be provided to the kluster fqpr datastore')
                 return None
@@ -740,10 +748,10 @@ class FqprProject:
         for fq_name, fq_inst in self.fqpr_instances.items():
             fq_inst.ping_filter = []  # reset ping filter for all instances when you try and make a new selection
             if fq_inst.intersects(polygon[:, 1].min(), polygon[:, 1].max(), polygon[:, 0].min(), polygon[:, 0].max(), geographic=True):
-                x, y, z, tvu, rejected, pointtime, beam = fq_inst.return_soundings_in_polygon(polygon, geographic=True, full_swath=False)
+                head, x, y, z, tvu, rejected, pointtime, beam = fq_inst.return_soundings_in_polygon(polygon, geographic=True, full_swath=False)
                 if x is not None:
                     linenames = fq_inst.return_lines_for_times(pointtime)
-                    data[fq_name] = [x, y, z, tvu, rejected, pointtime, beam, linenames]
+                    data[fq_name] = [head, x, y, z, tvu, rejected, pointtime, beam, linenames]
         return data
 
     def return_project_folder(self):
@@ -820,6 +828,56 @@ class FqprProject:
         else:
             vf = None
         return vf
+
+    def return_surface_containers(self, surface_name: str, relative_path: bool = True):
+        """
+        Project has loaded surface and fqpr instances.  This method will return the names of the existing fqpr instances
+        in the surface and a list of the fqpr instances in the project that are not in the surface yet.
+
+        Fqpr instances marked with an asterisk are those that need to be updated in the surface.  The surface soundings
+        for that instance are out of date relative to the last operation performed on the fqpr instance.
+
+        Parameters
+        ----------
+        surface_name
+            path to the surface, either relative to the project or absolute path
+        relative_path
+            if True, surface_name is a relative path
+
+        Returns
+        -------
+        list
+            list of the fqpr instance names that are in the surface, with an asterisk at the end if the surface version
+            of the fqpr instance soundings is out of date
+        list
+            list of fqpr instances that are in the project and not in the surface
+        """
+
+        try:
+            if relative_path:
+                surf = self.surface_instances[surface_name]
+            else:
+                surf = self.surface_instances[self.path_relative_to_project(surface_name)]
+        except:
+            print('Surface {} not found in project'.format(surface_name))
+            return [], []
+        existing_container_names = surf.return_unique_containers()
+        existing_needs_update = []
+        for existname in existing_container_names:
+            if existname in self.fqpr_instances:
+                existtime = None
+                for ename, etime in surf.container_timestamp.items():
+                    if ename.find(existname) != -1:
+                        existtime = datetime.strptime(etime, '%Y%m%d_%H%M%S')
+                        break
+                if existtime:
+                    last_time = self.fqpr_instances[existname].last_operation_date
+                    if last_time > existtime:
+                        existing_needs_update.append(existname)
+        existing_container_names = [exist if exist not in existing_needs_update else exist + '*' for exist in existing_container_names]
+        possible_container_names = [os.path.split(fqpr_inst.multibeam.raw_ping[0].output_path)[1] for fqpr_inst in self.fqpr_instances.values()]
+        possible_container_names = [pname for pname in possible_container_names if (pname not in existing_container_names) and (pname + '*' not in existing_container_names)]
+        return existing_container_names, possible_container_names
 
 
 def create_new_project(output_folder: str = None):

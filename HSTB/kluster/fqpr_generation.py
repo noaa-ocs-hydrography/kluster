@@ -109,6 +109,27 @@ class Fqpr(ZarrBackend):
         self.logger = None
         self.initialize_log()
 
+    @property
+    def last_operation_date(self):
+        """
+        Get the datetime of the last operation performed on this fqpr instance
+
+        Returns
+        -------
+        datetime
+            datetime object of the last operation performed on this fqpr instance
+        """
+
+        time_attrs = kluster_variables.processing_log_names
+        last_time = None
+        for rp in self.multibeam.raw_ping:
+            for ky, val in rp.attrs.items():
+                if ky in time_attrs:
+                    new_time = datetime.strptime(val, '%c')
+                    if not last_time or new_time > last_time:
+                        last_time = new_time
+        return last_time
+
     def close(self):
         """
         Must forcibly close the logging handlers to allow the data written to disk to be moved or deleted.
@@ -2591,14 +2612,17 @@ class Fqpr(ZarrBackend):
         and sounding attributes for all soundings within the coordinates, see subset module.
         """
 
-        x, y, z, tvu, rejected, pointtime, beam = self.subset.return_soundings_in_polygon(polygon, geographic, full_swath)
-        return x, y, z, tvu, rejected, pointtime, beam
+        head, x, y, z, tvu, rejected, pointtime, beam = self.subset.return_soundings_in_polygon(polygon, geographic, full_swath)
+        return head, x, y, z, tvu, rejected, pointtime, beam
 
-    def set_variable_by_filter(self, var_name: str = 'detectioninfo', newval: Union[int, str, float] = 2):
+    def set_variable_by_filter(self, var_name: str = 'detectioninfo', newval: Union[int, str, float] = 2, selected_index: list = None):
         """
-        not working just yet, will be a way to set a new 'rejected' status for all points selected in points view
+        ping_filter is set upon selecting points in 2d/3d in Kluster.  See return_soundings_in_polygon.  Here we can take
+        those points and set one of the variables with new data.  Optionally, you can include a selected_index that is a list
+        of flattened indices to points in the ping_filter that you want to super-select, see subset module.
         """
-        self.subset.set_variable_by_filter(var_name, newval)
+
+        self.subset.set_variable_by_filter(var_name, newval, selected_index)
 
     def return_processing_dashboard(self):
         """

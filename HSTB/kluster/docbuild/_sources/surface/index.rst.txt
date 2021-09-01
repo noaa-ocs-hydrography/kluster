@@ -1,7 +1,12 @@
 Surfacing
 =========
 
-So far, we have discussed working with point clouds, or the soundings visualized in 3d space.  But what about viewing the depth and uncertainty in 2d?  As a picture?  This is where the gridding tools come into play.  Kluster uses the `Bathygrid <https://github.com/noaa-ocs-hydrography/bathygrid>`_ module which I designed specifically for gridding multibeam data in an efficient and flexible way.  Let's look at how to use this module in Kluster.  With a converted data instance selected, let's go to Process - New Surface.
+So far, we have discussed working with point clouds, or the soundings visualized in 3d space.  But what about viewing the depth and uncertainty in 2d?  As a picture?  This is where the gridding tools come into play.  Kluster uses the `Bathygrid <https://github.com/noaa-ocs-hydrography/bathygrid>`_ module which I designed specifically for gridding multibeam data in an efficient and flexible way.
+
+Overview
+--------
+
+Let's look at how to use this module in Kluster.  With a converted data instance selected, let's go to Process - New Surface.
 
 .. image:: surface_1.png
    :target: ../_images/surface_1.png
@@ -20,7 +25,7 @@ This is going to create a surface with all the points from each converted instan
 - 5120 to 10204 meters = 512.0 meter resolution
 - greater than 10204 meters = 1024.0 meter resolution
 
-You'll notice that our resolutions are all powers of two.  This is intentional, as it allows us to build nice square tiles of the same size (1024 meters for example) that are completely and cleanly filled by grids of these resolutions.  
+You'll notice that our resolutions are all powers of two.  This is intentional, as it allows us to build nice square tiles of the same size (1024 meters for example) that are completely and cleanly filled by grids of these resolutions.
 
 The tile size is a parameter that you can change to affect the performance of the grid in both visualization and processing.  Bathygrid will tile the area into tiles and then run the gridding algorithm on those tiles one after the other.  If you Process in Parallel, it ill process those tiles in parallel, which will greatly increase the performance of the gridding process.
 
@@ -30,7 +35,7 @@ You want to adjust the tile size to have at least 100 tiles or so.  I've found t
    :target: ../_images/surface_2.png
 
 What I have done here is grid with the two different tile sizes, went into the output grid directories (which are srgrid_mean_auto and srgrid_mean_auto_20210813_104634 and are right next to our processed multibeam data by default) and looked at the number of folders.  Each folder represents a tile (with the folder name being the origin point of the tile in eastings_northings).  So we can see that a 1024 meter tile size created 2 tiles and a 256 meter tile size created 5 tiles.  Better but not ideal.  Of course in this instance, our surface generation only took about 1 second, so it's not really worth trying to optimize.  But when you set the tile size, try to get more than just a few tiles for your survey area.  In the future, picking the tile size will be an automated process, so you won't have to worry too much about this part.
-Let's try a variable resolution grid now.  Variable resolution is going to allow us to have tiles where each tile can have it's own resolution.  The only option currently is AUTO for resolution, and it uses the same lookup table as above to determine the resolution of the tile.  
+Let's try a variable resolution grid now.  Variable resolution is going to allow us to have tiles where each tile can have it's own resolution.  The only option currently is AUTO for resolution, and it uses the same lookup table as above to determine the resolution of the tile.
 
 .. image:: surface_3.png
    :target: ../_images/surface_3.png
@@ -45,7 +50,27 @@ Turning on a Depth layer (or any layer) should make the display zoom to the area
 
 .. image:: surface_5.png
    :target: ../_images/surface_5.png
-   
+
 We can see that our single resolution grids with the different tile sizes and the variable resolution grid all produce the same answer for the same location.  That's a relief!  If they didn't, we'd have a real problem on our hands.  We can also see that the tile shown in all three is an 8 meter resolution tile.  Which makes sense since we used AUTO resolution and the depth is the same across all surfaces in this location.
+
+Updating a Surface
+------------------
+
+The surface contains the soundings from your processed multibeam data.  But what if we change those soundings?  What if we use a different vertical reference, or we want to exclude some lines from the surface altogether?  That is where we need to use the Update Surface Data tool.  Here you can see that I have two multibeam datasets loaded, one for 9-20-2012 and one for 9-21-2012, and a variable resolution surface containing those two lines.  If you go to right click the surface name, you get this Update Surface Data box.
+
+.. image:: surface_6.png
+   :target: ../_images/surface_6.png
+
+Here we see that both of the multibeam datasets are 'In the Surface' and there are no 'Possible Containers', or multibeam datasets currently loaded in Kluster that are not in the surface.  If one of the datasets in the surface needs updating (i.e. the soundings or uncertainties have changed since they were last added to the surface), you'll see an asterisk next to the name.  I'll show you that by closing Update Surface Data and opening the Vessel Setup tool under Setup - Vessel Offsets with em710_225_09_20_2012 selected.  I'll edit one of the uncertainty values, save to the multibeam data, triggering a new tpu processing action, which I will run by hitting Start Process.  After that finishes, we know that the em710_225_09_20_2012 uncertainty values that we include in the gridding process are now different!  Let's see what happens when we open the Update Surface Data tool now.
+
+.. image:: surface_7.png
+   :target: ../_images/surface_7.png
+
+em710_225_09_20_2012 is now marked with an asterisk, showing that the points for this container are out of date in the surface and need updating!  We can easily update by using the Update Existing Container Data checkbox.  If you have this box checked, all containers marked with an asterisk will have their points removed from the surface and then the new points will be added in.  With regrid data checked and 'Only where points have changed', you'll see that the updated points will be regridded automatically.
+
+.. image:: surface_8.png
+   :target: ../_images/surface_8.png
+
+You'll see in the output window that we removed those points and then added them back in.  After removing/adding, we then regridded the VR surface, getting our 4 meter / 8 meter resolution layers back.
 
 Gridding is a powerful tool for visualizing bathymetry in 2d, but how do we get this grid into a file that we can use in other software?  How do we get from this weird Bathygrid folder structure into a common file format?  Head to the products section to learn how to export!

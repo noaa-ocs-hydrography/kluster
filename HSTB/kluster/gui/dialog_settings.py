@@ -4,20 +4,21 @@ if qgis_enabled:
     os.environ['PYDRO_GUI_FORCE_PYQT'] = 'True'
     from HSTB.kluster.gui.backends._qt import qgis_core, qgis_gui
 
+from HSTB.kluster.gui.common_widgets import SaveStateDialog
 from HSTB.shared import RegistryHelpers
 from HSTB.kluster import kluster_variables
 
 
-class SettingsDialog(QtWidgets.QDialog):
+class SettingsDialog(SaveStateDialog):
     """
     Dialog contains all the processing steps post-conversion.  Use return_processing_options to get the kwargs to feed
     the fqpr_convenience.process_multibeam function.
 
     fqpr = fully qualified ping record, the term for the datastore in kluster
     """
-    def __init__(self, parent=None, settings=None):
-        super().__init__(parent)
-        self.external_settings = settings
+
+    def __init__(self, parent=None, title='', settings=None):
+        super().__init__(parent, settings, widgetname='settings')
 
         self.setWindowTitle('Settings')
         layout = QtWidgets.QVBoxLayout()
@@ -80,16 +81,13 @@ class SettingsDialog(QtWidgets.QDialog):
         self.ok_button.clicked.connect(self.start)
         self.cancel_button.clicked.connect(self.cancel)
 
+        self.text_controls = [['vdatum_directory', self.vdatum_text]]
+        self.checkbox_controls = [['enable_parallel_writes', self.parallel_write], ['keep_waterline_changes', self.keep_waterline_changes],
+                                  ['force_coordinate_match', self.force_coordinate_match]]
+
         self.read_settings()
         self._refresh_error_message()
         self.resize(600, 150)
-
-    @property
-    def settings_object(self):
-        if self.external_settings:
-            return self.external_settings
-        else:
-            return QtCore.QSettings("NOAA", "Kluster")
 
     def return_options(self):
         """
@@ -130,50 +128,9 @@ class SettingsDialog(QtWidgets.QDialog):
         self.canceled = True
         self.accept()
 
-    def save_settings(self):
-        """
-        Save the settings to the Qsettings registry
-        """
-        settings = self.settings_object
-        settings.setValue('Kluster/settings_enable_parallel_writes', self.parallel_write.isChecked())
-        settings.setValue('Kluster/settings_keep_waterline_changes', self.keep_waterline_changes.isChecked())
-        settings.setValue('Kluster/settings_force_coordinate_match', self.force_coordinate_match.isChecked())
-        settings.setValue('Kluster/settings_vdatum_directory', self.vdatum_text.text())
-        settings.sync()
-
     def read_settings(self):
-        """
-        Read from the Qsettings registry
-        """
-        settings = self.settings_object
-
-        try:
-            try:
-                self.parallel_write.setChecked(settings.value('Kluster/settings_enable_parallel_writes').lower() == 'true')
-            except:
-                try:
-                    self.parallel_write.setChecked(settings.value('Kluster/settings_enable_parallel_writes'))
-                except:
-                    pass
-            try:
-                self.keep_waterline_changes.setChecked(settings.value('Kluster/settings_keep_waterline_changes').lower() == 'true')
-            except:
-                try:
-                    self.keep_waterline_changes.setChecked(settings.value('Kluster/settings_keep_waterline_changes'))
-                except:
-                    pass
-            try:
-                self.force_coordinate_match.setChecked(settings.value('Kluster/settings_force_coordinate_match').lower() == 'true')
-            except:
-                try:
-                    self.force_coordinate_match.setChecked(settings.value('Kluster/settings_force_coordinate_match'))
-                except:
-                    pass
-            self.vdatum_text.setText(settings.value('Kluster/settings_vdatum_directory'))
-            self.vdatum_pth = settings.value('Kluster/settings_vdatum_directory')
-        except AttributeError:
-            # no settings exist yet for this app, .lower failed
-            pass
+        super().read_settings()
+        self.vdatum_pth = self.vdatum_text.text()
 
     def _refresh_error_message(self):
         err = False

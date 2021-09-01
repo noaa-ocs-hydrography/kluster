@@ -63,6 +63,12 @@ optional_parameter_names = ['source', 'vessel_file', 'sonar_type', 'imu_h', 'imu
                             'imu_z', 'tx_to_antenna_x', 'tx_to_antenna_y', 'tx_to_antenna_z', 'vess_center_x', 'vess_center_y',
                             'vess_center_z', 'vess_center_yaw', 'vess_center_p', 'vess_center_r', 'sensor_size']
 
+# see fqpr_generation.last_operation_date.  This is a list of attribute entries that contribute to the date of the last process
+#     run.  The latest date of all of these is considered the last process (process being something that changes the data and would
+#     then require regridding or something like that)
+processing_log_names = ['_compute_orientation_complete', '_compute_beam_vectors_complete', '_sound_velocity_correct_complete',
+                        '_georeference_soundings_complete', '_total_uncertainty_complete']
+
 default_heave_error = 0.050  # default tpu parameter for heave
 default_roll_error = 0.001  # default tpu parameter for roll
 default_pitch_error = 0.001  # default tpu parameter for pitch

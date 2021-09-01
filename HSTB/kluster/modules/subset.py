@@ -229,6 +229,8 @@ class FqprSubset:
         Returns
         -------
         list
+            list of 1d numpy arrays for the head index of the soundings in the box
+        list
             list of 1d numpy arrays for the x coordinate of the soundings in the box
         list
             list of 1d numpy arrays for the y coordinate of the soundings in the box
@@ -244,6 +246,7 @@ class FqprSubset:
             list of 1d numpy arrays for the beam number of the soundings in the box
         """
 
+        head = []
         x = []
         y = []
         z = []
@@ -253,7 +256,7 @@ class FqprSubset:
         beam = []
         self.ping_filter = []
         polypath = mpl_path.Path(polygon)
-        for rp in self.fqpr.multibeam.raw_ping:
+        for cnt, rp in enumerate(self.fqpr.multibeam.raw_ping):
             if 'z' not in self.fqpr.multibeam.raw_ping[0]:
                 continue
             filt = polypath.contains_points(np.c_[rp.x.values.ravel(), rp.y.values.ravel()])
@@ -261,6 +264,7 @@ class FqprSubset:
             if filt.any():
                 xval = rp.x.values.ravel()[filt]
                 if xval.any():
+                    head.append(np.full_like(xval, cnt, dtype=np.int8))
                     x.append(xval)
                     y.append(rp.y.values.ravel()[filt])
                     z.append(rp.z.values.ravel()[filt])
@@ -268,8 +272,8 @@ class FqprSubset:
                     rejected.append(rp.detectioninfo.values.ravel()[filt])
                     # have to get time for each beam to then make the filter work
                     pointtime.append((rp.time.values[:, np.newaxis] * np.ones_like(rp.x)).ravel()[filt])
-                    beam.append((rp.beam.values[np.newaxis, :] * np.ones_like(rp.x)).ravel()[filt])
-        return x, y, z, tvu, rejected, pointtime, beam
+                    beam.append((rp.beam.values[np.newaxis, :] * np.ones_like(rp.x, dtype=np.int32)).ravel()[filt])
+        return head, x, y, z, tvu, rejected, pointtime, beam
 
     def swaths_by_poly(self, polygon: np.ndarray):
         """
@@ -283,6 +287,8 @@ class FqprSubset:
 
         Returns
         -------
+        list
+            list of 1d numpy arrays for the head index of the soundings in the box
         list
             list of 1d numpy arrays for the acrosstrack coordinate of the soundings in the box
         list
@@ -299,6 +305,7 @@ class FqprSubset:
             list of 1d numpy arrays for the beam number of the soundings in the box
         """
 
+        head = []
         x = []
         y = []
         z = []
@@ -328,11 +335,12 @@ class FqprSubset:
             for timeseg in time_segments:
                 seg_filter = []
                 mintime, maxtime = timeseg.min(), timeseg.max()
-                for rp in self.fqpr.multibeam.raw_ping:
+                for cnt, rp in enumerate(self.fqpr.multibeam.raw_ping):
                     ping_filter = np.logical_and(rp.time >= mintime, rp.time <= maxtime)
                     seg_filter.append([mintime, maxtime, ping_filter])
                     if ping_filter.any():
                         pings = rp.where(ping_filter, drop=True)
+                        head.append(np.full_like(pings.acrosstrack.values.ravel(), cnt, dtype=np.int8))
                         x.append(pings.acrosstrack.values.ravel())
                         y.append(pings.alongtrack.values.ravel())
                         z.append(pings.z.values.ravel())
@@ -340,9 +348,9 @@ class FqprSubset:
                         rejected.append(pings.detectioninfo.values.ravel())
                         # have to get time for each beam to then make the filter work
                         pointtime.append((pings.time.values[:, np.newaxis] * np.ones_like(pings.x)).ravel())
-                        beam.append((pings.beam.values[np.newaxis, :] * np.ones_like(pings.x)).ravel())
+                        beam.append((pings.beam.values[np.newaxis, :] * np.ones_like(pings.x, dtype=np.int32)).ravel())
                 self.ping_filter.append(seg_filter)
-        return x, y, z, tvu, rejected, pointtime, beam
+        return head, x, y, z, tvu, rejected, pointtime, beam
 
     def return_soundings_in_polygon(self, polygon: np.ndarray, geographic: bool = True,
                                     full_swath: bool = False):
@@ -361,20 +369,22 @@ class FqprSubset:
 
         Returns
         -------
-        list
-            list of 1d numpy arrays for the x coordinate of the soundings in the box
-        list
-            list of 1d numpy arrays for the y coordinate of the soundings in the box
-        list
-            list of 1d numpy arrays for the z coordinate of the soundings in the box
-        list
-            list of 1d numpy arrays for the tvu value of the soundings in the box
-        list
-            list of 1d numpy arrays for the rejected flag of the soundings in the box
-        list
-            list of 1d numpy arrays for the time of the soundings in the box
-        list
-            list of 1d numpy arrays for the beam number of the soundings in the box
+        np.array
+            1d numpy array for the head index of the soundings in the box
+        np.array
+            1d numpy array for the x coordinate of the soundings in the box
+        np.array
+            1d numpy array for the y coordinate of the soundings in the box
+        np.array
+            1d numpy array for the z coordinate of the soundings in the box
+        np.array
+            1d numpy array for the tvu value of the soundings in the box
+        np.array
+            1d numpy array for the rejected flag of the soundings in the box
+        np.array
+            1d numpy array for the time of the soundings in the box
+        np.array
+            1d numpy array for the beam number of the soundings in the box
         """
 
         if 'horizontal_crs' not in self.fqpr.multibeam.raw_ping[0].attrs or 'z' not in self.fqpr.multibeam.raw_ping[0].variables.keys():
@@ -388,11 +398,12 @@ class FqprSubset:
                                              CRS.from_epsg(self.fqpr.multibeam.raw_ping[0].horizontal_crs), always_xy=True)
                 polyx, polyy = trans.transform(polygon[:, 0], polygon[:, 1])
                 polygon = np.c_[polyx, polyy]
-            x, y, z, tvu, rejected, pointtime, beam = self.soundings_by_poly(polygon)
+            head, x, y, z, tvu, rejected, pointtime, beam = self.soundings_by_poly(polygon)
         else:
-            x, y, z, tvu, rejected, pointtime, beam = self.swaths_by_poly(polygon)
+            head, x, y, z, tvu, rejected, pointtime, beam = self.swaths_by_poly(polygon)
 
         if len(x) > 1:
+            head = np.concatenate(head)
             x = np.concatenate(x)
             y = np.concatenate(y)
             z = np.concatenate(z)
@@ -401,6 +412,7 @@ class FqprSubset:
             pointtime = np.concatenate(pointtime)
             beam = np.concatenate(beam)
         elif len(x) == 1:
+            head = head[0]
             x = x[0]
             y = y[0]
             z = z[0]
@@ -409,6 +421,7 @@ class FqprSubset:
             pointtime = pointtime[0]
             beam = beam[0]
         else:
+            head = None
             x = None
             y = None
             z = None
@@ -416,20 +429,43 @@ class FqprSubset:
             rejected = None
             pointtime = None
             beam = None
-        return x, y, z, tvu, rejected, pointtime, beam
+        return head, x, y, z, tvu, rejected, pointtime, beam
 
-    def set_variable_by_filter(self, var_name: str = 'detectioninfo', newval: Union[int, str, float] = 2):
-        if self.ping_filter is None:
-            print('No soundings selected to set a variable.')
-            return
-        if not isinstance(self.ping_filter[0], np.ndarray):  # must be swaths_by_box, not supported
-            raise NotImplementedError('Have not built the selecting by filter for swaths_by_box yet')
+    def set_variable_by_filter(self, variable_name: str, new_data: Union[np.array, float, int, str], selected_index: list = None):
+        """
+        ping_filter is set upon selecting points in 2d/3d in Kluster.  See return_soundings_in_polygon.  Here we can take
+        those points and set one of the variables with new data.  Optionally, you can include a selected_index that is a list
+        of flattened indices to points in the ping_filter that you want to super-select.  See kluster_main.set_pointsview_points_status
+
+        new data are set in memory and saved to disk
+
+        Parameters
+        ----------
+        variable_name
+            name of the variable to set, i.e. 'detectioninfo'
+        new_data
+            new data to set to the soundings selected by ping_filter for this variable.  Generally used for setting a new
+            sounding flag in detectioninfo, where all selected soundings would have new_data = 1 or 2
+        selected_index
+            super_selection of the ping_filter selection, done in points_view currently when selecting with the mouse
+        """
+
         for cnt, rp in enumerate(self.fqpr.multibeam.raw_ping):
-            filt = self.ping_filter[cnt]
-            var_vals = rp[var_name].values.ravel()
-            var_vals[filt] = newval
-            var_vals.reshape(rp[var_name].shape)
-            # still need to write to disk....
+            ping_filter = self.fqpr.subset.ping_filter[cnt]
+            data_var = rp[variable_name]
+            if selected_index:
+                rp_points_idx = selected_index[cnt]
+                point_idx = np.unravel_index(np.where(ping_filter)[0][rp_points_idx], data_var.shape)
+            else:
+                point_idx = np.unravel_index(np.where(ping_filter)[0], data_var.shape)
+
+            unique_time_vals, utime_index = np.unique(point_idx[0], return_inverse=True)
+            rp_detect = data_var.isel(time=unique_time_vals).load()
+            rp_detect_vals = rp_detect.values
+            rp_detect_vals[utime_index, point_idx[1]] = new_data
+            rp_detect[:] = rp_detect_vals
+            self.fqpr.write('ping', [rp_detect.to_dataset()], time_array=[rp_detect.time], sys_id=rp.system_identifier,
+                            skip_dask=True)
 
 
 def filter_subset_by_detection(ping_dataset: xr.Dataset):
