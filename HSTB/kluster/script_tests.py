@@ -359,3 +359,26 @@ yaxis.link_view(view)
 
 if __name__ == '__main__' and sys.flags.interactive == 0:
     app.run()
+
+#################################################
+
+# trying out geohashes
+
+from pyproj import Transformer, CRS
+import numpy as np
+import geohash
+
+from HSTB.kluster.fqpr_convenience import reload_data
+fq = reload_data(r"C:\collab\dasktest\data_dir\outputtest\tj_patch_test_710")
+
+georef_transformer = Transformer.from_crs(fq.horizontal_crs, CRS.from_epsg(4326), always_xy=True)
+newpos = georef_transformer.transform(np.ravel(fq.multibeam.raw_ping[0].x), np.ravel(fq.multibeam.raw_ping[0].y), errcheck=True)  # longitude / latitude order (x/y)
+
+
+def hashingit(x, y):
+   """Function to compute the geohash for a latitude/longitude"""
+   return geohash.encode(x, y, precision=7)
+
+
+vhash = np.vectorize(hashingit)
+gcodes = vhash(newpos[1], newpos[0])

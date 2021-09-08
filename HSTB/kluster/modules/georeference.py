@@ -3,6 +3,7 @@ import xarray as xr
 import numpy as np
 from pyproj import Transformer, CRS
 from typing import Union
+import geohash
 
 from HSTB.kluster.xarray_helpers import stack_nan_array, reform_nan_array
 from HSTB.kluster import kluster_variables
@@ -85,9 +86,12 @@ def georef_by_worker(sv_corr: list, alt: xr.DataArray, lon: xr.DataArray, lat: x
     Returns
     -------
     list
-        [xr.DataArray alongtrack offset (time, beam), xr.DataArray acrosstrack offset (time, beam),
-         xr.DataArray down offset (time, beam), xr.DataArray corrected heave for TX - RP lever arm, all zeros if in 'ellipse' mode (time),
-         xr.DataArray corrected altitude for TX - RP lever arm, all zeros if in 'vessel' or 'waterline' mode (time)]
+        [xr.DataArray easting (time, beam), xr.DataArray northing (time, beam), xr.DataArray depth (time, beam),
+         xr.DataArray corrected heave for TX - RP lever arm, all zeros if in 'ellipse' mode (time),
+         xr.DataArray corrected altitude for TX - RP lever arm, all zeros if in 'vessel' or 'waterline' mode (time),
+         xr.DataArray VDatum uncertainty if using a VDatum vertical reference, all zeros otherwise,
+         xr.DataArray computed geohash as string encoded base32,
+        ]
     """
     g = horizontal_crs.get_geod()
 
@@ -134,6 +138,9 @@ def georef_by_worker(sv_corr: list, alt: xr.DataArray, lon: xr.DataArray, lat: x
     else:
         vdatum_unc = xr.zeros_like(z)
 
+    # compute the geohash for each beam return, the base32 encoded cell that the beam falls within, used for spatial indexing
+    ghash = compute_geohash(pos[1], pos[0], precision=kluster_variables.geohash_precision)
+
     if horizontal_crs.is_projected:
         # Transformer.transform input order is based on the CRS, see CRS.geodetic_crs.axis_info
         # - lon, lat - this appears to be valid when using CRS from proj4 string
@@ -146,8 +153,9 @@ def georef_by_worker(sv_corr: list, alt: xr.DataArray, lon: xr.DataArray, lat: x
 
     x = reform_nan_array(np.around(newpos[0], 3), at_idx, alongtrack.shape, alongtrack.coords, alongtrack.dims)
     y = reform_nan_array(np.around(newpos[1], 3), ac_idx, acrosstrack.shape, acrosstrack.coords, acrosstrack.dims)
+    ghash = reform_nan_array(ghash, ac_idx, acrosstrack.shape, acrosstrack.coords, acrosstrack.dims)
 
-    return [x, y, z, corr_heave, corr_altitude, vdatum_unc]
+    return [x, y, z, corr_heave, corr_altitude, vdatum_unc, ghash]
 
 
 def transform_vyperdatum(x: np.array, y: np.array, z: np.array, source_datum: Union[str, int] = 'nad83',
@@ -239,3 +247,66 @@ def set_vyperdatum_vdatum_path(vdatum_path: str):
     assert vc.vdatum.grid_files
     assert vc.vdatum.polygon_files
     assert vc.vdatum.uncertainties
+
+
+def _new_geohash(latitude: float, longitude: float, precision: int):
+    """
+    compute new geohash for given latitude longitude
+
+    Parameters
+    ----------
+    latitude
+        latitude as float
+    longitude
+        longitude as float
+    precision
+        precision as integer
+
+    Returns
+    -------
+    str
+        geohash string
+    """
+
+    return geohash.encode(latitude, longitude, precision=precision)
+
+
+def compute_geohash(latitude: np.array, longitude: np.array, precision: int):
+    """
+    Geohash is a geocoding method to encode a specific latitude/longitude into a string representing an area of a given
+    precision.  String is a custom base32 implementation encoded string.  We use the python-geohash library to do this.
+    The result is a string of length = precision encoding the position.  Higher precision will give you a more
+    accurate geohash, i.e. smaller tile.
+
+    Parameters
+    ----------
+    latitude
+        numpy array of latitude values
+    longitude
+        numpy array of longitude values
+    precision
+        integer precision, the length of the returned string, higher precision generates a smaller cell area code
+
+    Returns
+    -------
+    np.array
+        array of dtype='UX' where X is the precision you have given
+    """
+
+    vectorhash = np.vectorize(_new_geohash)
+    return vectorhash(latitude, longitude, precision)
+
+
+def decode_geohash(ghash: str):
+    """
+    Take the given geohash and return the centroid of the geohash cell
+
+    Parameters
+    ----------
+    ghash
+        string geohash
+    Returns
+    -------
+
+    """
+    return geohash.decode(ghash)

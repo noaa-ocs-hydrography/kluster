@@ -34,6 +34,7 @@ REQUIRED = [
             'pyopengl==3.1.5',
             'pyproj==3.0.1',
             'pyqtgraph>=0.11.1',
+            'python-geohash==0.8.5',
             's3fs>=0.5.2',
             'scipy==1.6.0',
             'shapely==1.7.1',

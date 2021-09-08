@@ -2235,7 +2235,7 @@ class Fqpr(ZarrBackend):
                                        self.multibeam.raw_ping[0].max_lon, self.multibeam.raw_ping[0].max_lat)
             else:
                 vertcrs = 'Unknown'
-            mode_settings = ['georef', ['x', 'y', 'z', 'corr_heave', 'corr_altitude', 'datum_uncertainty', 'processing_status'],
+            mode_settings = ['georef', ['x', 'y', 'z', 'corr_heave', 'corr_altitude', 'datum_uncertainty', 'geohash', 'processing_status'],
                              'georeferenced soundings data',
                              {'horizontal_crs': crs, 'vertical_reference': self.vert_ref,
                               'vertical_crs': vertcrs,

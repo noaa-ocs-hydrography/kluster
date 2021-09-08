@@ -4,6 +4,7 @@ from HSTB.kluster.modules.orientation import *
 from HSTB.kluster.modules.beampointingvector import *
 from HSTB.kluster.modules.svcorrect import *
 from HSTB.kluster.modules.georeference import *
+from HSTB.kluster.modules.georeference import _new_geohash
 from HSTB.kluster.modules.tpu import *
 
 try:
@@ -1313,3 +1314,14 @@ def test_tpu():
                              quality_factor=qf, vert_ref='waterline')
     assert np.array_equal(thu, expected_thu)
     assert np.array_equal(tvu, expected_tvu)
+
+
+def test_geohash():
+    newhash_vector = compute_geohash(np.array([43.123456789, 43.123456789, 43.123456789]),
+                                     np.array([-73.123456789, -73.123456789, -73.123456789]), precision=7)
+    newhash = _new_geohash(43.123456789, -73.123456789, precision=7)
+    assert newhash == newhash_vector[0]
+    assert newhash == 'drsj243'
+    lat, lon = decode_geohash(newhash)
+    assert lat == pytest.approx(43.12339782714844, abs=0.00000001)
+    assert lon == pytest.approx(-73.12294006347656, abs=0.00000001)
