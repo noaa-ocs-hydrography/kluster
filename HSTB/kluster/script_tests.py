@@ -364,21 +364,13 @@ if __name__ == '__main__' and sys.flags.interactive == 0:
 
 # trying out geohashes
 
-from pyproj import Transformer, CRS
-import numpy as np
-import geohash
-
+from HSTB.kluster.modules.subset import filter_subset_by_polygon
 from HSTB.kluster.fqpr_convenience import reload_data
-fq = reload_data(r"C:\collab\dasktest\data_dir\outputtest\tj_patch_test_710")
+import numpy as np
 
-georef_transformer = Transformer.from_crs(fq.horizontal_crs, CRS.from_epsg(4326), always_xy=True)
-newpos = georef_transformer.transform(np.ravel(fq.multibeam.raw_ping[0].x), np.ravel(fq.multibeam.raw_ping[0].y), errcheck=True)  # longitude / latitude order (x/y)
+fq = reload_data(r"C:\collab\dasktest\data_dir\EM2040_Fairweather_SmallFile\em2040_40111_05_23_2017")
+ping_dataset = fq.multibeam.raw_ping[0]
 
-
-def hashingit(x, y):
-   """Function to compute the geohash for a latitude/longitude"""
-   return geohash.encode(x, y, precision=7)
-
-
-vhash = np.vectorize(hashingit)
-gcodes = vhash(newpos[1], newpos[0])
+test_poly = np.array([[-122.4780275, 47.7896705], [-122.4773215, 47.7896678], [-122.4773215, 47.7885687],
+                      [-122.478022, 47.7885631], [-122.4780275, 47.7896705]])
+insidedata, intersectdata = filter_subset_by_polygon(ping_dataset, test_poly)

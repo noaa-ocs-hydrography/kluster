@@ -462,7 +462,7 @@ def test_export_dataset():
     out.export_dataset('multibeam', multicheck)
     assert os.path.exists(expected_multi)
     with open(expected_multi) as fil:
-        assert fil.readline().rstrip() == 'time,mean_acrosstrack,mean_alongtrack,altitude,mean_beampointingangle,corr_altitude,corr_heave,mean_corr_pointing_angle,counter,mean_datum_uncertainty,mean_delay,mean_depthoffset,median_detectioninfo,median_frequency,latitude,longitude,mode,modetwo,ntx,median_processing_status,median_qualityfactor,mean_rel_azimuth,soundspeed,mean_thu,mean_tiltangle,mean_traveltime,mean_tvu,median_txsector_beam,mean_x,mean_y,yawpitchstab,mean_z'
+        assert fil.readline().rstrip() == 'time,mean_acrosstrack,mean_alongtrack,altitude,mean_beampointingangle,corr_altitude,corr_heave,mean_corr_pointing_angle,counter,mean_datum_uncertainty,mean_delay,mean_depthoffset,median_detectioninfo,median_frequency,nadir_geohash,latitude,longitude,mode,modetwo,ntx,median_processing_status,median_qualityfactor,mean_rel_azimuth,soundspeed,mean_thu,mean_tiltangle,mean_traveltime,mean_tvu,median_txsector_beam,mean_x,mean_y,yawpitchstab,mean_z'
     os.remove(expected_multi)
 
     navcheck = os.path.join(datapath, 'navcheck')
