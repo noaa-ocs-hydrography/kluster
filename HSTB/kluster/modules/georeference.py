@@ -266,11 +266,11 @@ def _new_geohash(latitude: float, longitude: float, precision: int):
 
     Returns
     -------
-    str
-        geohash string
+    bytes
+        geohash string encoded as bytes
     """
 
-    return geohash.encode(latitude, longitude, precision=precision)
+    return geohash.encode(latitude, longitude, precision=precision).encode()
 
 
 def compute_geohash(latitude: np.array, longitude: np.array, precision: int):
@@ -292,34 +292,54 @@ def compute_geohash(latitude: np.array, longitude: np.array, precision: int):
     Returns
     -------
     np.array
-        array of dtype='UX' where X is the precision you have given
+        array of bytestrings dtype='SX' where X is the precision you have given
     """
 
     vectorhash = np.vectorize(_new_geohash)
     return vectorhash(latitude, longitude, precision)
 
 
-def decode_geohash(ghash: str):
+def decode_geohash(ghash: Union[str, bytes]):
     """
     Take the given geohash and return the centroid of the geohash cell
 
     Parameters
     ----------
     ghash
-        string geohash
+        string geohash or bytestring geohash
     Returns
     -------
-
+    float
+        latitude
+    float
+        longitude
     """
-    return geohash.decode(ghash)
+
+    if isinstance(ghash, str):
+        return geohash.decode(ghash)
+    else:
+        return geohash.decode(ghash.decode())
 
 
-def geohash_to_polygon(geo):
+def geohash_to_polygon(ghash: Union[str, bytes]):
     """
-    :param geo: String that represents the geohash.
-    :return: Returns a Shapely's Polygon instance that represents the geohash.
+    Take a geohash string and return the shapely polygon object that represents the geohash cell
+
+    Parameters
+    ----------
+    ghash
+        string geohash or bytestring geohash
+
+    Returns
+    -------
+    geometry.Polygon
+        Polygon object for the geohash cell
     """
-    lat_centroid, lng_centroid, lat_offset, lng_offset = geohash.decode_exactly(geo)
+
+    if isinstance(ghash, str):
+        lat_centroid, lng_centroid, lat_offset, lng_offset = geohash.decode_exactly(ghash)
+    else:
+        lat_centroid, lng_centroid, lat_offset, lng_offset = geohash.decode_exactly(ghash.decode())
 
     corner_1 = (lat_centroid - lat_offset, lng_centroid - lng_offset)[::-1]
     corner_2 = (lat_centroid - lat_offset, lng_centroid + lng_offset)[::-1]
@@ -331,9 +351,22 @@ def geohash_to_polygon(geo):
 
 def polygon_to_geohashes(polygon: Union[np.array, geometry.Polygon], precision):
     """
-    :param polygon: shapely polygon.
-    :param precision: int. Geohashes' precision that form resulting polygon.
-    :return: set. Set of geohashes that form the polygon.
+    Take a polygon and return a list of all of the geohash codes/cells that are completely inside and those that are
+    intersecting
+
+    Parameters
+    ----------
+    polygon
+        polygon as an existing shapely polygon object or a numpy array of coordinates (lat, lon order)
+    precision
+        length of the geohash string
+
+    Returns
+    -------
+    list
+        list of bytestrings for the geohash cells that are completely inside the polygon
+    list
+        list of bytestrings for the geohash cells that only intersect the polygon
     """
 
     if not isinstance(polygon, geometry.Polygon):
@@ -347,7 +380,7 @@ def polygon_to_geohashes(polygon: Union[np.array, geometry.Polygon], precision):
     centroid = polygon.centroid
 
     testing_geohashes = queue.Queue()
-    testing_geohashes.put(geohash.encode(centroid.y, centroid.x, precision))
+    testing_geohashes.put(_new_geohash(centroid.y, centroid.x, precision))
 
     while not testing_geohashes.empty():
         current_geohash = testing_geohashes.get()
@@ -363,7 +396,8 @@ def polygon_to_geohashes(polygon: Union[np.array, geometry.Polygon], precision):
                 else:
                     outer_geohashes.add(current_geohash)
 
-                for neighbor in geohash.neighbors(current_geohash):
+                for neighbor in geohash.neighbors(current_geohash.decode()):
+                    neighbor = neighbor.encode()
                     if neighbor not in inner_geohashes and neighbor not in outer_geohashes and neighbor not in intersect_geohashes:
                         testing_geohashes.put(neighbor)
 

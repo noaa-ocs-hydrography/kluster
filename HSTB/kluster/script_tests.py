@@ -368,9 +368,6 @@ from HSTB.kluster.modules.subset import filter_subset_by_polygon
 from HSTB.kluster.fqpr_convenience import reload_data
 import numpy as np
 
-fq = reload_data(r"C:\collab\dasktest\data_dir\EM2040_Fairweather_SmallFile\em2040_40111_05_23_2017")
-ping_dataset = fq.multibeam.raw_ping[0]
-
-test_poly = np.array([[-122.4780275, 47.7896705], [-122.4773215, 47.7896678], [-122.4773215, 47.7885687],
-                      [-122.478022, 47.7885631], [-122.4780275, 47.7896705]])
-insidedata, intersectdata = filter_subset_by_polygon(ping_dataset, test_poly)
+fq = reload_data(r"D:\falkor\fk005b_geohashtest\em710_225_09_17_2012")
+test_poly = np.array([[-96.14630717,  27.85118748], [-96.10496133,  27.83500867], [-96.1036131 ,  27.83860396], [-96.14495893,  27.85478277]])
+fq.return_soundings_in_polygon(test_poly)

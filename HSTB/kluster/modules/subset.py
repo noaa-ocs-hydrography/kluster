@@ -263,30 +263,43 @@ class FqprSubset:
             if 'z' not in rp:
                 continue
             insidedata, intersectdata = filter_subset_by_polygon(rp, geo_polygon)
-            if insidedata is not None or intersectdata is not None:
-                ping_dataset = rp.stack({'sounding': ('time', 'beam')})
-                if insidedata is not None:
-                    base_filter = insidedata
-                else:  # we have some data that is completely in the polygon, no need for brute force here
-                    base_filter = np.zeros_like(ping_dataset.geohash, dtype=bool)
-                if intersectdata is not None:
-                    # only brute force check those points that are in intersecting geohash regions
-                    filt = polypath.contains_points(np.c_[ping_dataset.x[intersectdata], ping_dataset.y[intersectdata]])
-                    # replace intersectdata mask with this new brute force filter
-                    intersectdata[intersectdata] = filt
-                    base_filter = np.logical_or(base_filter, intersectdata)
-                self.ping_filter.append(base_filter)
-                if base_filter.any():
-                    xval = ping_dataset.x[base_filter].values
-                    if xval.any():
+            base_filter = np.zeros(rp.geohash.shape[0] * rp.geohash.shape[1], dtype=bool)
+            if insidedata or intersectdata:
+                # ping_dataset = rp.stack({'sounding': ('time', 'beam')})
+                if insidedata:
+                    for mline, mdata in insidedata.items():
+                        linemask, startidx, endidx, starttime, endtime = mdata
+                        slice_pd = slice_xarray_by_dim(rp, dimname='time', start_time=starttime, end_time=endtime)
+                        base_filter[startidx:endidx] = linemask
+                        stacked_slice = slice_pd.stack({'sounding': ('time', 'beam')})
+                        xval = stacked_slice.x[linemask].values
                         head.append(np.full_like(xval, cnt, dtype=np.int8))
                         x.append(xval)
-                        y.append(ping_dataset.y[base_filter].values)
-                        z.append(ping_dataset.z[base_filter].values)
-                        tvu.append(ping_dataset.tvu[base_filter].values)
-                        rejected.append(ping_dataset.detectioninfo[base_filter].values)
-                        pointtime.append(ping_dataset.time[base_filter].values)
-                        beam.append(ping_dataset.beam[base_filter].values)
+                        y.append(stacked_slice.y[linemask].values)
+                        z.append(stacked_slice.z[linemask].values)
+                        tvu.append(stacked_slice.tvu[linemask].values)
+                        rejected.append(stacked_slice.detectioninfo[linemask].values)
+                        pointtime.append(stacked_slice.time[linemask].values)
+                        beam.append(stacked_slice.beam[linemask].values)
+                if intersectdata:
+                    for mline, mdata in intersectdata.items():
+                        linemask, startidx, endidx, starttime, endtime = mdata
+                        # only brute force check those points that are in intersecting geohash regions
+                        slice_pd = slice_xarray_by_dim(rp, dimname='time', start_time=starttime, end_time=endtime)
+                        xintersect, yintersect = np.ravel(slice_pd.x), np.ravel(slice_pd.y)
+                        filt = polypath.contains_points(np.c_[xintersect[linemask], yintersect[linemask]])
+                        base_filter[startidx:endidx][linemask] = filt
+                        stacked_slice = slice_pd.stack({'sounding': ('time', 'beam')})
+                        xval = stacked_slice.x[linemask][filt].values
+                        head.append(np.full_like(xval, cnt, dtype=np.int8))
+                        x.append(xval)
+                        y.append(stacked_slice.y[linemask][filt].values)
+                        z.append(stacked_slice.z[linemask][filt].values)
+                        tvu.append(stacked_slice.tvu[linemask][filt].values)
+                        rejected.append(stacked_slice.detectioninfo[linemask][filt].values)
+                        pointtime.append(stacked_slice.time[linemask][filt].values)
+                        beam.append(stacked_slice.beam[linemask][filt].values)
+            self.ping_filter.append(base_filter)
         return head, x, y, z, tvu, rejected, pointtime, beam
 
     def swaths_by_poly(self, polygon: np.ndarray):
@@ -552,28 +565,32 @@ def filter_subset_by_polygon(ping_dataset: xr.Dataset, polygon: np.array):
         1dim flattened bool mask for soundings in a geohash that intersects with the polygon
     """
 
-    # get to a 1dim space for filtering
-    ping_dataset = ping_dataset.stack({'sounding': ('time', 'beam')})
-
     if 'geohash' in ping_dataset.variables:
         if 'geohashes' in ping_dataset.attrs:
-            gprecision = int(ping_dataset.geohash.dtype.str[2:])  # ex: dtype='<U7', precision=7
+            inside_mask_lines = {}
+            intersect_mask_lines = {}
+            gprecision = int(ping_dataset.geohash.dtype.str[2:])  # ex: dtype='|S7', precision=7
             innerhash, intersecthash = polygon_to_geohashes(polygon, precision=gprecision)
-            dset_geohashes = ping_dataset.attrs['geohashes']
-            inside_geohash = [x for x in innerhash if x in dset_geohashes]
-            intersect_geohash = [x for x in intersecthash if x in dset_geohashes]
-            if intersect_geohash:
-                intersect_mask = np.in1d(ping_dataset.geohash, intersect_geohash)
-            else:
-                intersect_mask = None
-            if inside_geohash:
-                inside_mask = np.in1d(ping_dataset.geohash, inside_geohash)
-            else:
-                inside_mask = None
-            return inside_mask, intersect_mask
-        else:
-            print('Warning: Unable to filter by polygon, cannot find the "geohashes" attribute in the ping record')
-            return None, np.ones_like(ping_dataset.sounding, dtype=bool)
+            for mline, mhashes in ping_dataset.attrs['geohashes'].items():
+                linestart, lineend = ping_dataset.attrs['multibeam_files'][mline]
+                mhashes = [x.encode() for x in mhashes]
+                inside_geohash = [x for x in innerhash if x in mhashes]
+                intersect_geohash = [x for x in intersecthash if x in mhashes]
+                if inside_geohash or intersect_geohash:
+                    slice_pd = slice_xarray_by_dim(ping_dataset, dimname='time', start_time=linestart, end_time=lineend)
+                    ghash = np.ravel(slice_pd.geohash)
+                    filt_start = np.searchsorted(ping_dataset.time, linestart) * ping_dataset.geohash.shape[1]
+                    filt_end = filt_start + ghash.shape[0]
+                    if inside_geohash:
+                        linemask = np.in1d(ghash, inside_geohash)
+                        inside_mask_lines[mline] = [linemask, filt_start, filt_end, linestart, lineend]
+                    if intersect_geohash:
+                        linemask = np.in1d(ghash, intersect_geohash)
+                        intersect_mask_lines[mline] = [linemask, filt_start, filt_end, linestart, lineend]
+            return inside_mask_lines, intersect_mask_lines
+        else:  # treat dataset as if all the data needs to be brute force checked, i.e. all data intersects with polygon
+            print('Warning: Unable to filter by polygon, cannot find the "geohashes" attribute in the ping record, treating all data as intersected')
+            return None, None
     else:
-        print('Warning: Unable to filter by polygon, geohash variable not found')
-        return None, np.ones_like(ping_dataset.sounding, dtype=bool)
+        print('Warning: Unable to filter by polygon, geohash variable not found, treating all data as intersected')
+        return None, None

@@ -1365,8 +1365,11 @@ class Fqpr(ZarrBackend):
                 maxx = max([np.nanmax(rp.x) for rp in self.multibeam.raw_ping])
                 maxy = max([np.nanmax(rp.y) for rp in self.multibeam.raw_ping])
                 maxz = round(np.float64(max([np.nanmax(rp.z) for rp in self.multibeam.raw_ping])), 3)
-                unique_geohash = np.unique(np.concatenate([np.unique(rp.geohash) for rp in self.multibeam.raw_ping]))
-                newattr = {'min_x': minx, 'min_y': miny, 'min_z': minz, 'max_x': maxx, 'max_y': maxy, 'max_z': maxz, 'geohashes': unique_geohash.tolist()}
+                geohash_by_line = self.subset_variables_by_line(['geohash'])
+                geohash_dict = {}
+                for mline, linedataset in geohash_by_line.items():
+                    geohash_dict[mline] = [x.decode() for x in np.unique(linedataset.geohash).tolist()]
+                newattr = {'min_x': minx, 'min_y': miny, 'min_z': minz, 'max_x': maxx, 'max_y': maxy, 'max_z': maxz, 'geohashes': geohash_dict}
                 self.write_attribute_to_ping_records(newattr)
 
     def _validate_calculate_total_uncertainty(self, subset_time: list, dump_data: bool):
