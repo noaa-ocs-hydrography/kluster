@@ -1,7 +1,7 @@
 import numpy as np
 
 from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal
-
+from HSTB.kluster.fqpr_project import return_project_data
 from HSTB.kluster.fqpr_convenience import generate_new_surface, import_processed_navigation, overwrite_raw_navigation, \
     update_surface, reload_data, reload_surface
 
@@ -65,7 +65,7 @@ class OpenProjectWorker(QtCore.QThread):
         try:
             self.new_fqprs = []
             if self.new_project_path:
-                data = self.project._load_project_file(self.new_project_path)
+                data = return_project_data(self.new_project_path)
             else:
                 data = {'fqpr_paths': [], 'surface_paths': []}
                 if self.force_add_fqprs:
