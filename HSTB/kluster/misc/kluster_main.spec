@@ -3,7 +3,7 @@
 # pip install -v --no-cache-dir numcodecs to avoid blosc import errors
 
 
-import sys
+import sys, os
 import glob
 from PyInstaller.compat import is_win, is_darwin, is_linux
 from PyInstaller.utils.hooks import collect_submodules
@@ -13,39 +13,51 @@ import distributed
 
 block_cipher = None
 
-pydro_path = r"C:\Pydro21_Dev"
-pydro_env = os.path.join(pydro_path, 'envs', 'Pydro38')
-pydro_sp = os.path.join(pydro_path, 'NOAA', 'site-packages', 'Python38')
-assert os.path.exists(pydro_env)
-assert os.path.exists(pydro_sp)
+specfile_path = os.path.join(SPECPATH, 'kluster_main.spec')
+pydro_python_env_name = 'Pydro38'
+
+
+# this should work with new environments in conda via github actions AND with the pydro environment
+klusterfolder_path = os.path.dirname(os.path.dirname(specfile_path))  # 'kluster'
+assert os.path.split(klusterfolder_path)[1] == 'kluster'
+try:  # this is for the Pydro directory structure
+    base_conda_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(klusterfolder_path)))))))
+    env_base_path = os.path.join(base_conda_path, 'envs', pydro_python_env_name)
+    assert os.path.exists(env_base_path)
+except AssertionError:  # this is for a fresh conda install of kluster
+    base_conda_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(klusterfolder_path))))))
+    env_base_path = os.path.join(base_conda_path, 'envs', 'kluster_test')
+    assert os.path.exists(env_base_path)
+env_folder = os.path.join(base_conda_path, 'envs')
+assert os.path.exists(env_folder)
 
 data_files = [
-	(os.path.join(pydro_env, 'Library', 'bin', 'acyclic.exe'), os.path.join("Library", "bin")),  # random file just to make the bin directory
-	(os.path.join(pydro_sp, 'git_repos', 'hstb_kluster', 'HSTB', 'kluster', 'gui', 'vessel_stl_files'), os.path.join("HSTB", "kluster", "gui", "vessel_stl_files")),
-	(os.path.join(pydro_sp, 'git_repos', 'hstb_kluster', 'HSTB', 'kluster', 'images'), os.path.join("HSTB", "kluster", "images")),
-	(os.path.join(pydro_sp, 'git_repos', 'hstb_kluster', 'HSTB', 'kluster', 'background'), os.path.join("HSTB", "kluster", "background")),
-	(os.path.join(pydro_sp, 'git_repos', 'hstb_kluster', 'HSTB', 'kluster', 'docbuild'), os.path.join("HSTB", "kluster", "docbuild")),
-	(os.path.join(pydro_env, 'Lib', 'site-packages', 'vispy', 'util', 'fonts'), os.path.join("vispy", "util", "fonts")),
-	(os.path.join(pydro_env, 'Library', 'bin', 'libiomp5md.dll'), "."),
-	(os.path.join(pydro_env, 'Library', 'bin', 'mkl_intel_thread.dll'), "."),
+	(os.path.join(env_base_path, 'Library', 'bin', 'designer.exe'), os.path.join("Library", "bin")),  # random file just to make the bin directory
+	(os.path.join(klusterfolder_path, 'gui', 'vessel_stl_files'), os.path.join("HSTB", "kluster", "gui", "vessel_stl_files")),
+	(os.path.join(klusterfolder_path, 'images'), os.path.join("HSTB", "kluster", "images")),
+	(os.path.join(klusterfolder_path, 'background'), os.path.join("HSTB", "kluster", "background")),
+	(os.path.join(klusterfolder_path, 'docbuild'), os.path.join("HSTB", "kluster", "docbuild")),
+	(os.path.join(env_base_path, 'Lib', 'site-packages', 'vispy', 'util', 'fonts'), os.path.join("vispy", "util", "fonts")),
+	(os.path.join(env_base_path, 'Library', 'bin', 'libiomp5md.dll'), "."),
+	(os.path.join(env_base_path, 'Library', 'bin', 'mkl_intel_thread.dll'), "."),
     (os.path.dirname(vispy.glsl.__file__), os.path.join("vispy", "glsl")),
     (os.path.join(os.path.dirname(vispy.io.__file__), "_data"), os.path.join("vispy", "io", "_data")),
     (os.path.join(os.path.dirname(distributed.__file__)), "distributed"),
-    (os.path.join(pydro_env, 'Lib', 'site-packages', 'numcodecs', 'blosc.cp38-win_amd64.pyd'), "numcodecs"),
-	(os.path.join(pydro_env, 'Lib', 'site-packages', 'numcodecs', 'compat_ext.cp38-win_amd64.pyd'), "numcodecs")
+    (os.path.join(env_base_path, 'Lib', 'site-packages', 'numcodecs', 'blosc.cp38-win_amd64.pyd'), "numcodecs"),
+	(os.path.join(env_base_path, 'Lib', 'site-packages', 'numcodecs', 'compat_ext.cp38-win_amd64.pyd'), "numcodecs")
 ]
 
-qgis_dlls = glob.glob(os.path.join(pydro_env, 'Library', 'plugins', '*.dll'))
+qgis_dlls = glob.glob(os.path.join(env_base_path, 'Library', 'plugins', '*.dll'))
 qgis_data_files = [(fil, "qgis_plugins") for fil in qgis_dlls]
-qgis_data_files += [(os.path.join(pydro_env, 'Library', 'bin', 'exiv2.dll'), ".")]
-qgis_data_files += [(os.path.join(pydro_env, 'Library', 'bin', 'expat.dll'), ".")]
+qgis_data_files += [(os.path.join(env_base_path, 'Library', 'bin', 'exiv2.dll'), ".")]
+qgis_data_files += [(os.path.join(env_base_path, 'Library', 'bin', 'expat.dll'), ".")]
 
 # these appear to be necessary for the WMS layers to work, removing them breaks this functionality in kluster
-qgis_data_files += [(os.path.join(pydro_env, 'Library', 'resources', 'qgis.db'), "resources")]
-qgis_data_files += [(os.path.join(pydro_env, 'Library', 'resources', 'qgis_global_settings.ini'), "resources")]
-qgis_data_files += [(os.path.join(pydro_env, 'Library', 'resources', 'spatialite.db'), "resources")]
-qgis_data_files += [(os.path.join(pydro_env, 'Library', 'resources', 'srs.db'), "resources")]
-qgis_data_files += [(os.path.join(pydro_env, 'Library', 'resources', 'symbology-style.xml'), "resources")]
+qgis_data_files += [(os.path.join(env_base_path, 'Library', 'resources', 'qgis.db'), "resources")]
+qgis_data_files += [(os.path.join(env_base_path, 'Library', 'resources', 'qgis_global_settings.ini'), "resources")]
+qgis_data_files += [(os.path.join(env_base_path, 'Library', 'resources', 'spatialite.db'), "resources")]
+qgis_data_files += [(os.path.join(env_base_path, 'Library', 'resources', 'srs.db'), "resources")]
+qgis_data_files += [(os.path.join(env_base_path, 'Library', 'resources', 'symbology-style.xml'), "resources")]
 
 data_files += qgis_data_files
 for fil in data_files:
@@ -65,10 +77,10 @@ hidden_imports = [
 if is_win:
     hidden_imports += collect_submodules("encodings")
 
-a = Analysis(["C:\\Pydro21_Dev\\NOAA\\site-packages\\Python38\\git_repos\\hstb_kluster\\HSTB\\kluster\\gui\\kluster_main.py"],
-             pathex=["C:\\Pydro21_Dev\\NOAA\\site-packages\\Python38\\git_repos\\hstb_kluster\\HSTB\\kluster\\gui",
-			         "C:\\Pydro21_Dev\\envs\\Pydro38\\Library\\bin",
-					 "C:\\Pydro21_Dev\\envs\\Pydro38\\Lib\\site-packages\\shiboken2"],
+a = Analysis([os.path.join(klusterfolder_path, 'gui', 'kluster_main.py')],
+             pathex=[os.path.join(klusterfolder_path, 'gui'),
+			         os.path.join(env_base_path, 'Library', 'bin'),
+					 os.path.join(env_base_path, 'Lib', 'site-packages', 'shiboken2')],
              binaries=[],
              datas=data_files,
              hiddenimports=hidden_imports,

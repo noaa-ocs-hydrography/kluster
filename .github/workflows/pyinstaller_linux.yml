@@ -29,6 +29,7 @@ jobs:
     - run: |
         conda install git pip
         pip install git+https://github.com/noaa-ocs-hydrography/kluster.git#egg=hstb.kluster
+        pip install -v --no-cache-dir numcodecs  # run to avoid blosc import errors on running pyinstaller
 
     - run: pip install -r $GITHUB_WORKSPACE/requirements.txt
 
