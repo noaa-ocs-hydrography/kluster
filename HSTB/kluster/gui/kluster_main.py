@@ -2004,6 +2004,9 @@ def main():
     # add support in windows for when you build this as a frozen executable (pyinstaller)
     multiprocessing.freeze_support()
 
+    kluster_dir = os.path.dirname(kluster_init_file)
+    kluster_icon = os.path.join(kluster_dir, 'images', 'kluster_img.ico')
+
     if qgis_enabled:
         app = qgis_core.QgsApplication([], True)
         if ispyinstaller:
@@ -2025,7 +2028,14 @@ def main():
             app = QtWidgets.QApplication()
         except TypeError:  # pyqt5
             app = QtWidgets.QApplication([])
-    app.setStyle(KlusterProxyStyle())
+    try:
+        app.setStyle(KlusterProxyStyle())
+    except:
+        print('Unable to set custom Kluster style')
+    try:
+        app.setWindowIcon(QtGui.QIcon(kluster_icon))
+    except:
+        print('Unable to set icon to {}'.format(kluster_icon))
     window = KlusterMain(app)
     window.show()
     exitcode = app.exec_()
