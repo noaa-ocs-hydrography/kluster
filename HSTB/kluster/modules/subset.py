@@ -263,7 +263,7 @@ class FqprSubset:
             if 'z' not in rp:
                 continue
             insidedata, intersectdata = filter_subset_by_polygon(rp, geo_polygon)
-            base_filter = np.zeros(rp.geohash.shape[0] * rp.geohash.shape[1], dtype=bool)
+            base_filter = np.zeros(rp.x.shape[0] * rp.x.shape[1], dtype=bool)
             if insidedata or intersectdata:
                 # ping_dataset = rp.stack({'sounding': ('time', 'beam')})
                 if insidedata:
@@ -589,8 +589,8 @@ def filter_subset_by_polygon(ping_dataset: xr.Dataset, polygon: np.array):
                         intersect_mask_lines[mline] = [linemask, filt_start, filt_end, linestart, lineend]
             return inside_mask_lines, intersect_mask_lines
         else:  # treat dataset as if all the data needs to be brute force checked, i.e. all data intersects with polygon
-            print('Warning: Unable to filter by polygon, cannot find the "geohashes" attribute in the ping record, treating all data as intersected')
+            print('Warning: Unable to filter by polygon, cannot find the "geohashes" attribute in the ping record')
             return None, None
     else:
-        print('Warning: Unable to filter by polygon, geohash variable not found, treating all data as intersected')
+        print('Warning: Unable to filter by polygon, geohash variable not found')
         return None, None

@@ -631,11 +631,13 @@ class ThreeDView(QtWidgets.QWidget):
             self.rotx = np.concatenate([self.rotx, x])
             self.roty = np.concatenate([self.roty, y])
 
+        self.head = np.concatenate([self.head, head])
+
         # expand the identifier to be the size of the input arrays
         self.id = np.concatenate([self.id, np.full(x.shape[0], newid)])
+        self.id = self.id + '_' + self.head.astype(str)
         self.idrange[newid] = [self.x.shape[0], self.x.shape[0] + x.shape[0]]
 
-        self.head = np.concatenate([self.head, head])
         self.x = np.concatenate([self.x, x])
         self.y = np.concatenate([self.y, y])
         self.z = np.concatenate([self.z, z])
