@@ -1038,15 +1038,16 @@ class FqprIntel(LoggerClass):
         if self.action_container.actions:
             self.project.get_dask_client()  # start dask if it has not been started already
             self.action_container.update_actions_client(self.project.client)
-            action = self.action_container.actions[idx]
-            action_type = action.action_type
-            if self.parent is not None:  # running from GUI
-                self.parent.kluster_execute_action(self.action_container, 0)
-            else:
-                output = self.action_container.execute_action(idx)
-                self.project.add_fqpr(output)
-                self.project.save_project()
-                self.update_intel_for_action_results(action_type)
+            if self.action_container.actions:
+                action = self.action_container.actions[idx]
+                action_type = action.action_type
+                if self.parent is not None:  # running from GUI
+                    self.parent.kluster_execute_action(self.action_container, 0)
+                else:
+                    output = self.action_container.execute_action(idx)
+                    self.project.add_fqpr(output)
+                    self.project.save_project()
+                    self.update_intel_for_action_results(action_type)
 
     def update_intel_for_action_results(self, action_type: str):
         """

@@ -7,6 +7,7 @@ import matplotlib.path as mpl_path
 from pyproj import CRS, Transformer
 
 from HSTB.kluster.xarray_helpers import slice_xarray_by_dim
+from HSTB.kluster.modules.georeference import polygon_to_geohashes
 from HSTB.kluster import kluster_variables
 
 
@@ -217,14 +218,16 @@ class FqprSubset:
             return_data[linename] = dset
         return return_data
 
-    def soundings_by_poly(self, polygon: np.ndarray):
+    def soundings_by_poly(self, geo_polygon: np.ndarray, proj_polygon: np.ndarray):
         """
         Return soundings and sounding attributes that are within the box formed by the provided coordinates.
 
         Parameters
         ----------
-        polygon
+        geo_polygon
             (N, 2) array of points that make up the selection polygon, (x, y) in Fqpr CRS
+        proj_polygon
+            (N, 2) array of points that make up the selection polygon, (longitude, latitude) in Fqpr CRS
 
         Returns
         -------
@@ -255,24 +258,48 @@ class FqprSubset:
         pointtime = []
         beam = []
         self.ping_filter = []
-        polypath = mpl_path.Path(polygon)
+        polypath = mpl_path.Path(proj_polygon)
         for cnt, rp in enumerate(self.fqpr.multibeam.raw_ping):
-            if 'z' not in self.fqpr.multibeam.raw_ping[0]:
+            if 'z' not in rp:
                 continue
-            filt = polypath.contains_points(np.c_[rp.x.values.ravel(), rp.y.values.ravel()])
-            self.ping_filter.append(filt)
-            if filt.any():
-                xval = rp.x.values.ravel()[filt]
-                if xval.any():
-                    head.append(np.full_like(xval, cnt, dtype=np.int8))
-                    x.append(xval)
-                    y.append(rp.y.values.ravel()[filt])
-                    z.append(rp.z.values.ravel()[filt])
-                    tvu.append(rp.tvu.values.ravel()[filt])
-                    rejected.append(rp.detectioninfo.values.ravel()[filt])
-                    # have to get time for each beam to then make the filter work
-                    pointtime.append((rp.time.values[:, np.newaxis] * np.ones_like(rp.x)).ravel()[filt])
-                    beam.append((rp.beam.values[np.newaxis, :] * np.ones_like(rp.x, dtype=np.int32)).ravel()[filt])
+            insidedata, intersectdata = filter_subset_by_polygon(rp, geo_polygon)
+            base_filter = np.zeros(rp.x.shape[0] * rp.x.shape[1], dtype=bool)
+            if insidedata or intersectdata:
+                # ping_dataset = rp.stack({'sounding': ('time', 'beam')})
+                if insidedata:
+                    for mline, mdata in insidedata.items():
+                        linemask, startidx, endidx, starttime, endtime = mdata
+                        slice_pd = slice_xarray_by_dim(rp, dimname='time', start_time=starttime, end_time=endtime)
+                        base_filter[startidx:endidx] = linemask
+                        stacked_slice = slice_pd.stack({'sounding': ('time', 'beam')})
+                        xval = stacked_slice.x[linemask].values
+                        head.append(np.full_like(xval, cnt, dtype=np.int8))
+                        x.append(xval)
+                        y.append(stacked_slice.y[linemask].values)
+                        z.append(stacked_slice.z[linemask].values)
+                        tvu.append(stacked_slice.tvu[linemask].values)
+                        rejected.append(stacked_slice.detectioninfo[linemask].values)
+                        pointtime.append(stacked_slice.time[linemask].values)
+                        beam.append(stacked_slice.beam[linemask].values)
+                if intersectdata:
+                    for mline, mdata in intersectdata.items():
+                        linemask, startidx, endidx, starttime, endtime = mdata
+                        # only brute force check those points that are in intersecting geohash regions
+                        slice_pd = slice_xarray_by_dim(rp, dimname='time', start_time=starttime, end_time=endtime)
+                        xintersect, yintersect = np.ravel(slice_pd.x), np.ravel(slice_pd.y)
+                        filt = polypath.contains_points(np.c_[xintersect[linemask], yintersect[linemask]])
+                        base_filter[startidx:endidx][linemask] = filt
+                        stacked_slice = slice_pd.stack({'sounding': ('time', 'beam')})
+                        xval = stacked_slice.x[linemask][filt].values
+                        head.append(np.full_like(xval, cnt, dtype=np.int8))
+                        x.append(xval)
+                        y.append(stacked_slice.y[linemask][filt].values)
+                        z.append(stacked_slice.z[linemask][filt].values)
+                        tvu.append(stacked_slice.tvu[linemask][filt].values)
+                        rejected.append(stacked_slice.detectioninfo[linemask][filt].values)
+                        pointtime.append(stacked_slice.time[linemask][filt].values)
+                        beam.append(stacked_slice.beam[linemask][filt].values)
+            self.ping_filter.append(base_filter)
         return head, x, y, z, tvu, rejected, pointtime, beam
 
     def swaths_by_poly(self, polygon: np.ndarray):
@@ -352,8 +379,7 @@ class FqprSubset:
                 self.ping_filter.append(seg_filter)
         return head, x, y, z, tvu, rejected, pointtime, beam
 
-    def return_soundings_in_polygon(self, polygon: np.ndarray, geographic: bool = True,
-                                    full_swath: bool = False):
+    def return_soundings_in_polygon(self, polygon: np.ndarray, geographic: bool = True, full_swath: bool = False):
         """
         Using provided coordinates (in either horizontal_crs projected or geographic coordinates), return the soundings
         and sounding attributes for all soundings within the coordinates.
@@ -392,15 +418,23 @@ class FqprSubset:
         if full_swath and not geographic:
             raise NotImplementedError('full swath mode can only be used in geographic mode')
 
-        if not full_swath:
-            if geographic:
-                trans = Transformer.from_crs(CRS.from_epsg(kluster_variables.epsg_wgs84),
-                                             CRS.from_epsg(self.fqpr.multibeam.raw_ping[0].horizontal_crs), always_xy=True)
-                polyx, polyy = trans.transform(polygon[:, 0], polygon[:, 1])
-                polygon = np.c_[polyx, polyy]
-            head, x, y, z, tvu, rejected, pointtime, beam = self.soundings_by_poly(polygon)
+        if not geographic:
+            proj_polygon = polygon
+            trans = Transformer.from_crs(CRS.from_epsg(self.fqpr.multibeam.raw_ping[0].horizontal_crs),
+                                         CRS.from_epsg(kluster_variables.epsg_wgs84), always_xy=True)
+            polyx, polyy = trans.transform(polygon[:, 0], polygon[:, 1])
+            geo_polygon = np.c_[polyx, polyy]
         else:
-            head, x, y, z, tvu, rejected, pointtime, beam = self.swaths_by_poly(polygon)
+            geo_polygon = polygon
+            trans = Transformer.from_crs(CRS.from_epsg(kluster_variables.epsg_wgs84),
+                                         CRS.from_epsg(self.fqpr.multibeam.raw_ping[0].horizontal_crs), always_xy=True)
+            polyx, polyy = trans.transform(polygon[:, 0], polygon[:, 1])
+            proj_polygon = np.c_[polyx, polyy]
+
+        if not full_swath:
+            head, x, y, z, tvu, rejected, pointtime, beam = self.soundings_by_poly(geo_polygon, proj_polygon)
+        else:
+            head, x, y, z, tvu, rejected, pointtime, beam = self.swaths_by_poly(geo_polygon)
 
         if len(x) > 1:
             head = np.concatenate(head)
@@ -499,6 +533,7 @@ def filter_subset_by_detection(ping_dataset: xr.Dataset):
         nan_mask = ~np.isnan(ping_dataset['z'])
         ping_dataset = ping_dataset.isel(sounding=nan_mask)
     else:  # no georeferenced data found
+        print('Warning: Unable to filter by sounding flag, no georeferenced data found')
         pass
 
     # rejected soundings are where detectioninfo=2
@@ -507,3 +542,55 @@ def filter_subset_by_detection(ping_dataset: xr.Dataset):
     ping_dataset = ping_dataset.isel(sounding=valid_detections)
     ping_dataset = ping_dataset.drop_vars('detectioninfo')
     return ping_dataset
+
+
+def filter_subset_by_polygon(ping_dataset: xr.Dataset, polygon: np.array):
+    """
+    Given the provided polygon coordinates, return the part of the ping dataset that is completely within
+    the polygon and the part of the dataset that intersects with the polygon
+
+    Parameters
+    ----------
+    ping_dataset
+        one of the multibeam.raw_ping datasets, containing the ping variables
+    polygon
+        coordinates of a polygon ex: np.array([[lon1, lat1], [lon2, lat2], ...]), first and last coordinate
+        must be the same
+
+    Returns
+    -------
+    xr.Dataset
+        1dim flattened bool mask for soundings in a geohash that is completely within the polygon
+    xr.Dataset
+        1dim flattened bool mask for soundings in a geohash that intersects with the polygon
+    """
+
+    if 'geohash' in ping_dataset.variables:
+        if 'geohashes' in ping_dataset.attrs:
+            inside_mask_lines = {}
+            intersect_mask_lines = {}
+            gprecision = int(ping_dataset.geohash.dtype.str[2:])  # ex: dtype='|S7', precision=7
+            innerhash, intersecthash = polygon_to_geohashes(polygon, precision=gprecision)
+            for mline, mhashes in ping_dataset.attrs['geohashes'].items():
+                linestart, lineend = ping_dataset.attrs['multibeam_files'][mline]
+                mhashes = [x.encode() for x in mhashes]
+                inside_geohash = [x for x in innerhash if x in mhashes]
+                intersect_geohash = [x for x in intersecthash if x in mhashes]
+                if inside_geohash or intersect_geohash:
+                    slice_pd = slice_xarray_by_dim(ping_dataset, dimname='time', start_time=linestart, end_time=lineend)
+                    ghash = np.ravel(slice_pd.geohash)
+                    filt_start = int(np.where(ping_dataset.time == slice_pd.time[0])[0]) * ping_dataset.geohash.shape[1]
+                    filt_end = filt_start + ghash.shape[0]
+                    if inside_geohash:
+                        linemask = np.in1d(ghash, inside_geohash)
+                        inside_mask_lines[mline] = [linemask, filt_start, filt_end, linestart, lineend]
+                    if intersect_geohash:
+                        linemask = np.in1d(ghash, intersect_geohash)
+                        intersect_mask_lines[mline] = [linemask, filt_start, filt_end, linestart, lineend]
+            return inside_mask_lines, intersect_mask_lines
+        else:  # treat dataset as if all the data needs to be brute force checked, i.e. all data intersects with polygon
+            print('Warning: Unable to filter by polygon, cannot find the "geohashes" attribute in the ping record')
+            return None, None
+    else:
+        print('Warning: Unable to filter by polygon, geohash variable not found')
+        return None, None

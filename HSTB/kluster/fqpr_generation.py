@@ -1365,7 +1365,11 @@ class Fqpr(ZarrBackend):
                 maxx = max([np.nanmax(rp.x) for rp in self.multibeam.raw_ping])
                 maxy = max([np.nanmax(rp.y) for rp in self.multibeam.raw_ping])
                 maxz = round(np.float64(max([np.nanmax(rp.z) for rp in self.multibeam.raw_ping])), 3)
-                newattr = {'min_x': minx, 'min_y': miny, 'min_z': minz, 'max_x': maxx, 'max_y': maxy, 'max_z': maxz}
+                geohash_by_line = self.subset_variables_by_line(['geohash'])
+                geohash_dict = {}
+                for mline, linedataset in geohash_by_line.items():
+                    geohash_dict[mline] = [x.decode() for x in np.unique(linedataset.geohash).tolist()]
+                newattr = {'min_x': minx, 'min_y': miny, 'min_z': minz, 'max_x': maxx, 'max_y': maxy, 'max_z': maxz, 'geohashes': geohash_dict}
                 self.write_attribute_to_ping_records(newattr)
 
     def _validate_calculate_total_uncertainty(self, subset_time: list, dump_data: bool):
@@ -2235,7 +2239,7 @@ class Fqpr(ZarrBackend):
                                        self.multibeam.raw_ping[0].max_lon, self.multibeam.raw_ping[0].max_lat)
             else:
                 vertcrs = 'Unknown'
-            mode_settings = ['georef', ['x', 'y', 'z', 'corr_heave', 'corr_altitude', 'datum_uncertainty', 'processing_status'],
+            mode_settings = ['georef', ['x', 'y', 'z', 'corr_heave', 'corr_altitude', 'datum_uncertainty', 'geohash', 'processing_status'],
                              'georeferenced soundings data',
                              {'horizontal_crs': crs, 'vertical_reference': self.vert_ref,
                               'vertical_crs': vertcrs,

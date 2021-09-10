@@ -5,6 +5,7 @@ import os
 from datetime import datetime
 
 from HSTB.shared import RegistryHelpers
+from HSTB.kluster import kluster_variables
 
 from HSTB.kluster.gui import common_widgets
 
@@ -27,32 +28,8 @@ class BasicPlotDialog(QtWidgets.QDialog):
         self.variables = None
         self.recent_plot = None
 
-        self.variable_translator = {'acrosstrack': 'SoundVelocity_AcrossTrack', 'alongtrack': 'SoundVelocity_AlongTrack',
-                                    'beampointingangle': 'Uncorrected_Beam_Angle', 'corr_altitude': 'Corrected_Altitude',
-                                    'corr_heave': 'Corrected_Heave', 'corr_pointing_angle': 'Corrected_Beam_Angle',
-                                    'counter': 'Ping_Counter', 'delay': 'Beam_Delay', 'depthoffset': 'SoundVelocity_Depth',
-                                    'detectioninfo': 'Beam_Filter', 'frequency': 'Beam_Frequency', 'mode': 'Ping_Mode',
-                                    'modetwo': 'Ping_Mode_Two', 'processing_status': 'Processing_Status',
-                                    'qualityfactor': 'Beam_Uncertainty', 'rel_azimuth': 'Relative_Azimuth',
-                                    'soundspeed': 'Surface_Sound_Velocity', 'thu': 'Beam_Total_Horizontal_Uncertainty',
-                                    'tiltangle': 'Ping_Tilt_Angle', 'traveltime': 'Beam_Travel_Time',
-                                    'tvu': 'Beam_Total_Vertical_Uncertainty', 'txsector_beam': 'Beam_Sector_Number',
-                                    'x': 'Georeferenced_Easting', 'y': 'Georeferenced_Northing',
-                                    'yawpitchstab': 'Yaw_Pitch_Stabilization', 'z': 'Georeferenced_Depth',
-                                    'datum_uncertainty': 'Vertical_Datum_Uncertainty'}
-        self.variable_reverse_lookup = {'SoundVelocity_AcrossTrack': 'acrosstrack', 'SoundVelocity_AlongTrack': 'alongtrack',
-                                        'Uncorrected_Beam_Angle': 'beampointingangle', 'Corrected_Altitude': 'corr_altitude',
-                                        'Corrected_Heave': 'corr_heave', 'Corrected_Beam_Angle': 'corr_pointing_angle',
-                                        'Ping_Counter': 'counter', 'Beam_Delay': 'delay',
-                                        'SoundVelocity_Depth': 'depthoffset', 'Beam_Filter': 'detectioninfo',
-                                        'Beam_Frequency': 'frequency', 'Ping_Mode': 'mode', 'Ping_Mode_Two': 'modetwo',
-                                        'Processing_Status': 'processing_status', 'Beam_Uncertainty': 'qualityfactor',
-                                        'Relative_Azimuth': 'rel_azimuth', 'Surface_Sound_Velocity': 'soundspeed',
-                                        'Beam_Total_Horizontal_Uncertainty': 'thu', 'Ping_Tilt_Angle': 'tiltangle',
-                                        'Beam_Travel_Time': 'traveltime', 'Beam_Total_Vertical_Uncertainty': 'tvu',
-                                        'Beam_Sector_Number': 'txsector_beam', 'Georeferenced_Easting': 'x',
-                                        'Georeferenced_Northing': 'y', 'Yaw_Pitch_Stabilization': 'yawpitchstab',
-                                        'Georeferenced_Depth': 'z', 'Vertical_Datum_Uncertainty': 'datum_uncertainty'}
+        self.variable_translator = kluster_variables.variable_translator
+        self.variable_reverse_lookup = kluster_variables.variable_reverse_lookup
         self.plot_lookup = {2: ['Histogram', 'Image', 'Contour', 'Line - Mean', 'Line - Nadir',
                                 'Line - Port Outer Beam', 'Line - Starboard Outer Beam'],
                             1: ['Line', 'Histogram', 'Scatter']}
@@ -405,6 +382,10 @@ class BasicPlotDialog(QtWidgets.QDialog):
                     custom_vartype = 'svcorr'
             else:
                 data = dset[variable]
+            if variable == 'geohash':  # geohash is a beam-wise string, need an integer for these plot methods to work
+                _, u_inv = np.unique(data, return_inverse=True)
+                data.load()[:] = u_inv.reshape(data.shape)
+                data = data.astype(np.int16)
 
             identifier = '{} {}'.format(dataset_name, translated_var)
             if plottype == 'Line':
@@ -600,60 +581,10 @@ class BasicPlotDialog(QtWidgets.QDialog):
 
         if source == 'multibeam':
             source_expl = 'Source = From the raw multibeam data, or from the Kluster processed intermediate variables.'
-            if variable == 'Beam_Delay':
-                variable_expl = 'Variable = The time delay applied to each sector, expanded to the beam dimension.  Comes from the multibeam raw data.  Generally fairly small, or zero.'
-            elif variable == 'Beam_Filter':
-                variable_expl = 'Variable = The accepted/rejected state of each beam.  2 = rejected, 1 = phase detection, 0 = amplitude detection.  See Kongsberg "detectioninfo".'
-            elif variable == 'Beam_Frequency':
-                variable_expl = 'Variable = The frequency of each beam in Hz.'
-            elif variable == 'Beam_Sector_Number':
-                variable_expl = 'Variable = The sector number of each beam.'
-            elif variable == 'Beam_Total_Horizontal_Uncertainty':
-                variable_expl = 'Variable = The Hare-Godin-Mayer TPU model - horizontal component.  In meters.'
-            elif variable == 'Beam_Total_Vertical_Uncertainty':
-                variable_expl = 'Variable = The Hare-Godin-Mayer TPU model - vertical component.  In meters.'
-            elif variable == 'Beam_Travel_Time':
-                variable_expl = 'Variable = The two way travel time of each beam in seconds.'
-            elif variable == 'Beam_Uncertainty':
-                variable_expl = 'Variable = The raw uncertainty record that comes from the multibeam.  Corresponds to the Kongsberg detectioninfo (.all) detectiontype (.kmall).  See datagram description for more information.'
-            elif variable == 'Corrected_Beam_Angle':
-                variable_expl = 'Variable = The result of running Compute Beam Vectors in Kluster.  This is the raw beam angles corrected for attitude and mounting angles, relative to nadir (straight down from sonar).'
-            elif variable == 'Corrected_Altitude':
-                variable_expl = 'Variable = If this dataset is processed to the waterline this will be zero.  Otherwise, the altitude correction is the attitude rotated lever arm between the reference point of the altitude and the transmitter, if non-zero.  This will be the original altitude plus this correction.'
-            elif variable == 'Corrected_Heave':
-                variable_expl = 'Variable = If this dataset is processed to the ellipse this will be zero.  Otherwise, the heave correction is the attitude rotated lever arm between the reference point of the heave and the transmitter, if non-zero. This will be the original heave plus this correction.'
-            elif variable == 'Georeferenced_Depth':
-                variable_expl = 'Variable = The result of running Georeference in Kluster.  This is the sound velocity offsets projected into the coordinate reference system you chose.  Depth is in meters from the vertical reference you chose.'
-            elif variable == 'Georeferenced_Easting':
-                variable_expl = 'Variable = The result of running Georeference in Kluster.  This is the sound velocity offsets projected into the coordinate reference system you chose.  Easting is in meters.'
-            elif variable == 'Georeferenced_Northing':
-                variable_expl = 'Variable = The result of running Georeference in Kluster.  This is the sound velocity offsets projected into the coordinate reference system you chose.  Northing is in meters.'
-            elif variable == 'Ping_Counter':
-                variable_expl = 'Variable = The identification number assigned to each ping.  For Kongsberg .all, this is a 16bit number, so you will see it reset at 65536.'
-            elif variable == 'Ping_Mode':
-                variable_expl = 'Variable = The first mode value. \n(if TX Pulse Form) CW for continuous waveform, FM for frequency modulated, MIX for mix between FM and CW. \n(if Ping mode) VS for Very Shallow, SH for Shallow, ME for Medium, DE for Deep, VD for Very Deep, ED for Extra Deep'
-            elif variable == 'Ping_Mode_Two':
-                variable_expl = 'Variable = The second mode value. \n(if Pulse Length) vsCW = very short continuous waveform, shCW = short cw, meCW = medium cw, loCW = long cw, vlCW = very long cw, elCW = extra long cw, shFM = short frequency modulated, loFM = long fm. \n(if Depth Mode) VS = Very Shallow, SH = Shallow, ME = Medium, DE = Deep, DR = Deeper, VD = Very Deep, ED = Extra deep, XD = Extreme Deep, if followed by "m" system is in manual mode'
-            elif variable == 'Ping_Tilt_Angle':
-                variable_expl = 'Variable = Steering angle of the sector transmit beam, in degrees'
-            elif variable == 'Processing_Status':
-                variable_expl = 'Variable = The Kluster processing status of each beam, the highest state of the beam.  EX: If 3, sounding is only processed up to sound velocity correction. 0 = converted, 1 = orientation, 2 = beamvector, 3 = soundvelocity, 4 = georeference, 5 = tpu'
-            elif variable == 'Relative_Azimuth':
-                variable_expl = 'Variable = The result of running Compute Beam Vectors in Kluster.  This is the direction to the beam footprint on the seafloor from the sonar in radians.'
-            elif variable == 'SoundVelocity_AcrossTrack':
-                variable_expl = 'Variable = The result of running Sound Velocity Correct in Kluster.  This is the acrosstrack (perpendicular to vessel movement) distance to the beam footprint on the seafloor from the vessel reference point in meters'
-            elif variable == 'SoundVelocity_AlongTrack':
-                variable_expl = 'Variable = The result of running Sound Velocity Correct in Kluster.  This is the alongtrack (vessel direction) distance to the beam footprint on the seafloor from the vessel reference point in meters'
-            elif variable == 'SoundVelocity_Depth':
-                variable_expl = 'Variable = The result of running Sound Velocity Correct in Kluster.  This is the down (positive down) distance to the beam footprint on the seafloor from the transmitter in meters.  Not from the vessel reference point to align with Kongsberg svcorrect convention.  We apply the z lever arm in georeferencing.'
-            elif variable == 'Surface_Sound_Velocity':
-                variable_expl = 'Variable = The surface sound velocimeter data, in meters per second'
-            elif variable == 'Uncorrected_Beam_Angle':
-                variable_expl = 'Variable = The raw beam angle that comes from the multibeam data.  Angle in degrees from the receiver to the beam footprint on the seafloor, does not take attitude or mounting angles into account.'
-            elif variable == 'Yaw_Pitch_Stabilization':
-                variable_expl = 'Variable = Tells you whether yaw/pitch stabilization was enabled on the sonar\nY = Only yaw stab, P = Only pitch stab, PY = Pitch and yaw stab, N = Neither.'
-            elif variable == 'Vertical_Datum_Uncertainty':
-                variable_expl = 'Variable = Included when VDatum is used for vertical transformation to NOAA Chart Datums, is the uncertainty of that transform.  Will be all zeros if NOAA_MLLW/NOAA_MHW is not selected.'
+            if kluster_variables.variable_reverse_lookup[variable] in kluster_variables.variable_descriptions:
+                variable_expl = 'Variable = {}'.format(kluster_variables.variable_descriptions[kluster_variables.variable_reverse_lookup[variable]])
+            else:
+                variable_expl = 'Variable = Description not found'
         elif source == 'attitude':
             source_expl = 'Source = Attitude from the raw multibeam file.'
             if variable == 'heading':

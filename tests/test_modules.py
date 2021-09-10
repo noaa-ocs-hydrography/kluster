@@ -4,6 +4,7 @@ from HSTB.kluster.modules.orientation import *
 from HSTB.kluster.modules.beampointingvector import *
 from HSTB.kluster.modules.svcorrect import *
 from HSTB.kluster.modules.georeference import *
+from HSTB.kluster.modules.georeference import _new_geohash
 from HSTB.kluster.modules.tpu import *
 
 try:
@@ -907,6 +908,7 @@ expected_georef_z = np.array([[90.528, 90.466, 90.399, 90.329, 90.295, 90.218, 9
                                75.261, 75.133, 74.758, 74.625, 74.461, 74.291, 73.922, 73.858, 73.679, 73.542,
                                73.126, 73.526, 73.269, 73.09, 72.909, 72.685, 72.499, 72.312, 72.263, 71.956]],
                              dtype=np.float32)
+
 expected_tvu = np.array([[10.931778, 8.664019, 10.4452, 5.537454, 10.760348,
                           12.510538, 17.200947, 18.384935, 8.664263, 6.397086,
                           6.394888, 9.040237, 12.098445, 6.6894407, 16.999441,
@@ -1185,13 +1187,13 @@ def test_georeference_module():
 
     z_offset = 1.0
 
-    georef_x, georef_y, georef_z, corrected_heave, corrected_altitude, vdatumunc = georef_by_worker(sv_corr, altitude,
-                                                                                                    longitude, latitude,
-                                                                                                    heading, heave,
-                                                                                                    waterline, vert_ref,
-                                                                                                    input_datum,
-                                                                                                    output_datum,
-                                                                                                    z_offset)
+    georef_x, georef_y, georef_z, corrected_heave, corrected_altitude, vdatumunc, geohashes = georef_by_worker(sv_corr, altitude,
+                                                                                                               longitude, latitude,
+                                                                                                               heading, heave,
+                                                                                                               waterline, vert_ref,
+                                                                                                               input_datum,
+                                                                                                               output_datum,
+                                                                                                               z_offset)
     assert np.array_equal(georef_x, expected_georef_x)
     assert np.array_equal(georef_y, expected_georef_y)
     assert np.array_equal(georef_z, expected_georef_z)
@@ -1232,13 +1234,13 @@ def test_georef_with_nan():
 
     z_offset = 1.0
 
-    georef_x, georef_y, georef_z, corrected_heave, corrected_altitude, vdatumunc = georef_by_worker(sv_corr, altitude,
-                                                                                                    longitude, latitude,
-                                                                                                    heading, heave,
-                                                                                                    waterline, vert_ref,
-                                                                                                    input_datum,
-                                                                                                    output_datum,
-                                                                                                    z_offset)
+    georef_x, georef_y, georef_z, corrected_heave, corrected_altitude, vdatumunc, geohashes = georef_by_worker(sv_corr, altitude,
+                                                                                                               longitude, latitude,
+                                                                                                               heading, heave,
+                                                                                                               waterline, vert_ref,
+                                                                                                               input_datum,
+                                                                                                               output_datum,
+                                                                                                               z_offset)
     assert np.isnan(georef_x.values[0][10])
     assert np.isnan(georef_x.values[0][20])
     assert np.isnan(georef_y.values[0][10])
@@ -1278,13 +1280,13 @@ def test_georef_with_depth_nan():
 
     z_offset = 1.0
 
-    georef_x, georef_y, georef_z, corrected_heave, corrected_altitude, vdatumunc = georef_by_worker(sv_corr, altitude,
-                                                                                                    longitude, latitude,
-                                                                                                    heading, heave,
-                                                                                                    waterline, vert_ref,
-                                                                                                    input_datum,
-                                                                                                    output_datum,
-                                                                                                    z_offset)
+    georef_x, georef_y, georef_z, corrected_heave, corrected_altitude, vdatumunc, geohashes = georef_by_worker(sv_corr, altitude,
+                                                                                                               longitude, latitude,
+                                                                                                               heading, heave,
+                                                                                                               waterline, vert_ref,
+                                                                                                               input_datum,
+                                                                                                               output_datum,
+                                                                                                               z_offset)
     assert np.array_equal(georef_x, expected_georef_x)
     assert np.array_equal(georef_y, expected_georef_y)
     assert np.isnan(georef_z.values[0][10])
@@ -1313,3 +1315,23 @@ def test_tpu():
                              quality_factor=qf, vert_ref='waterline')
     assert np.array_equal(thu, expected_thu)
     assert np.array_equal(tvu, expected_tvu)
+
+
+def test_geohash():
+    newhash_vector = compute_geohash(np.array([43.123456789, 43.123456789, 43.123456789]),
+                                     np.array([-73.123456789, -73.123456789, -73.123456789]), precision=7)
+    newhash = _new_geohash(43.123456789, -73.123456789, precision=7)
+    assert newhash == newhash_vector[0]
+    assert newhash == b'drsj243'
+    lat, lon = decode_geohash(newhash)
+    assert lat == pytest.approx(43.12339782714844, abs=0.00000001)
+    assert lon == pytest.approx(-73.12294006347656, abs=0.00000001)
+
+
+def test_geohash_polygon():
+    polygon_test = np.array([[-70.1810536, 42.0519741], [-70.178872, 42.0501041], [-70.1813097, 42.0471989],
+                             [-70.1835136, 42.0490578], [-70.1810536, 42.0519741]])
+    innerhash, intersecthash = polygon_to_geohashes(polygon_test, precision=7)
+    assert innerhash == [b'drqp4yz']  # this cell is completely within the polygon
+    assert sorted(intersecthash) == sorted([b'drqp4yv', b'drqp4zp', b'drqp4zn', b'drqp5nc', b'drqp4yz', b'drqp4yx', b'drqp5nb', b'drqp5p0',
+                                            b'drqp4yr', b'drqp5n8', b'drqp5p2', b'drqp4yw', b'drqp4zr', b'drqp4yy', b'drqp5p1'])

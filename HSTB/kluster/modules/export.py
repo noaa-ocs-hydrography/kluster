@@ -693,7 +693,12 @@ class FqprExport:
             vbeam = None
             if varray.dims == ('time', 'beam'):  # we are currently ignoring the tx/rx variables (time, beam, xyz)
                 if reduce_method == 'mean':
-                    varray = varray.mean(axis=1)
+                    try:
+                        varray = varray.mean(axis=1)
+                    except:
+                        print('Export: Unable to reduce {} using algorithm {} during export'.format(var_name, reduce_method))
+                        varray = varray.stack({'sounding': ('time', 'beam')})
+                        vbeam = varray.beam.values
                 elif reduce_method == 'nadir':
                     nadir_beam_num = int((varray.beam.shape[0] / 2) - 1)
                     varray = varray.isel(beam=nadir_beam_num)
@@ -706,7 +711,10 @@ class FqprExport:
                     varray = varray.stack({'sounding': ('time', 'beam')})
                     vbeam = varray.beam.values
             if zero_centered:
-                varray = (varray - varray.mean())
+                try:
+                    varray = (varray - varray.mean())
+                except:
+                    print('Export: Unable to zero center {}'.format(var_name))
             vtime = varray.time.values
             varray = varray.values
             if os.path.exists(vpath):
@@ -762,6 +770,10 @@ class FqprExport:
                         if np.issubdtype(dvar_data.dtype, np.floating):
                             vnames.append('mean_{}'.format(dvar))
                             varrs.append(dvar_data.mean(dim='beam').values)
+                        elif np.issubdtype(dvar_data.dtype, np.string_) or np.issubdtype(dvar_data.dtype, np.unicode_):
+                            vnames.append('nadir_{}'.format(dvar))
+                            nadir_beam_num = int((dvar_data.beam.shape[0] / 2) - 1)
+                            varrs.append(dvar_data.isel(beam=nadir_beam_num).values)
                         else:
                             vnames.append('median_{}'.format(dvar))
                             varrs.append(np.median(dvar_data, axis=1))

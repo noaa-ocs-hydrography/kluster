@@ -1,0 +1,6 @@
+decode_geohash
+==============
+
+.. currentmodule:: HSTB.kluster.modules.georeference
+
+.. autofunction:: decode_geohash

@@ -1,0 +1,6 @@
+geohash_to_polygon
+==================
+
+.. currentmodule:: HSTB.kluster.modules.georeference
+
+.. autofunction:: geohash_to_polygon

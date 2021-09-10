@@ -8,3 +8,4 @@ subset module
    :skip: Transformer
    :skip: CRS
    :skip: slice_xarray_by_dim
+   :skip: polygon_to_geohashes

@@ -359,3 +359,15 @@ yaxis.link_view(view)
 
 if __name__ == '__main__' and sys.flags.interactive == 0:
     app.run()
+
+#################################################
+
+# trying out geohashes
+
+from HSTB.kluster.modules.subset import filter_subset_by_polygon
+from HSTB.kluster.fqpr_convenience import reload_data
+import numpy as np
+
+fq = reload_data(r"D:\falkor\fk005b_geohashtest\em710_225_09_17_2012")
+test_poly = np.array([[-96.14630717,  27.85118748], [-96.10496133,  27.83500867], [-96.1036131 ,  27.83860396], [-96.14495893,  27.85478277]])
+fq.return_soundings_in_polygon(test_poly)

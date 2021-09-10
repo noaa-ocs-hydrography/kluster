@@ -807,7 +807,8 @@ class KlusterMain(QtWidgets.QMainWindow):
                     for fq in fqprs:
                         relfq = self.project.path_relative_to_project(fq)
                         if relfq not in self.project.fqpr_instances:
-                            self.update_on_file_added(fq)
+                            print('Unable to find {} in currently loaded project'.format(relfq))
+                            return
                         if relfq in self.project.fqpr_instances:
                             fq_inst = self.project.fqpr_instances[relfq]
                             # use the project client, or start a new LocalCluster if client is None
@@ -861,7 +862,8 @@ class KlusterMain(QtWidgets.QMainWindow):
                     for fq in fqprs:
                         relfq = self.project.path_relative_to_project(fq)
                         if relfq not in self.project.fqpr_instances:
-                            self.update_on_file_added(fq)
+                            print('Unable to find {} in currently loaded project'.format(relfq))
+                            return
                         if relfq in self.project.fqpr_instances:
                             fq_inst = self.project.fqpr_instances[relfq]
                             # use the project client, or start a new LocalCluster if client is None
@@ -914,9 +916,14 @@ class KlusterMain(QtWidgets.QMainWindow):
                     fqprs = surface_opts.pop('fqpr_inst')
                     fq_chunks = []
                     for fq in fqprs:
-                        relfq = self.project.path_relative_to_project(fq)
+                        try:
+                            relfq = self.project.path_relative_to_project(fq)
+                        except:
+                            print('No project loaded, you must load some data before generating a surface')
+                            return
                         if relfq not in self.project.fqpr_instances:
-                            self.update_on_file_added(fq)
+                            print('Unable to find {} in currently loaded project'.format(relfq))
+                            return
                         if relfq in self.project.fqpr_instances:
                             fq_inst = self.project.fqpr_instances[relfq]
                             # use the project client, or start a new LocalCluster if client is None
@@ -1020,7 +1027,8 @@ class KlusterMain(QtWidgets.QMainWindow):
                     z_pos_up = opts.pop('z_positive_up')
                     relsurf = self.project.path_relative_to_project(surf)
                     if relsurf not in self.project.surface_instances:
-                        self.update_on_file_added(surf)
+                        print('Unable to find {} in currently loaded project'.format(relsurf))
+                        return
                     if relsurf in self.project.surface_instances:
                         surf_inst = self.project.surface_instances[relsurf]
                         self.output_window.clear()
@@ -1083,7 +1091,8 @@ class KlusterMain(QtWidgets.QMainWindow):
                     for fq in fqprs:
                         relfq = self.project.path_relative_to_project(fq)
                         if relfq not in self.project.fqpr_instances:
-                            self.update_on_file_added(fq)
+                            print('Unable to find {} in currently loaded project'.format(relfq))
+                            return
                         if relfq in self.project.fqpr_instances:
                             fq_inst = self.project.fqpr_instances[relfq]
                             # use the project client, or start a new LocalCluster if client is None
@@ -1618,7 +1627,6 @@ class KlusterMain(QtWidgets.QMainWindow):
 
         """
 
-        print('Selecting Points in Polygon...')
         # print('Box select azimuth = {} radians'.format(azimuth))
         pointcount = 0
         self.points_view.clear()

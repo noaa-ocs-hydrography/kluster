@@ -5,7 +5,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Fqpr &#8212; kluster 0.7.7 documentation</title>
+    <title>Fqpr &#8212; kluster 0.7.8 documentation</title>
     <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
     <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
     <link rel="stylesheet" type="text/css" href="../_static/graphviz.css" />
@@ -199,8 +199,8 @@ Post-processing for Multi-Sector Multibeam Echosounders” by J.D. Beaudoin and 
 <tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.return_unique_mode" title="HSTB.kluster.fqpr_generation.Fqpr.return_unique_mode"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_unique_mode</span></code></a>()</p></td>
 <td><p>Finds the unique mode entries in raw_ping Datasets.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.set_variable_by_filter" title="HSTB.kluster.fqpr_generation.Fqpr.set_variable_by_filter"><code class="xref py py-obj docutils literal notranslate"><span class="pre">set_variable_by_filter</span></code></a>([var_name, newval])</p></td>
-<td><p>not working just yet, will be a way to set a new ‘rejected’ status for all points selected in points view</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.set_variable_by_filter" title="HSTB.kluster.fqpr_generation.Fqpr.set_variable_by_filter"><code class="xref py py-obj docutils literal notranslate"><span class="pre">set_variable_by_filter</span></code></a>([var_name, newval, …])</p></td>
+<td><p>ping_filter is set upon selecting points in 2d/3d in Kluster.</p></td>
 </tr>
 <tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.set_vertical_reference" title="HSTB.kluster.fqpr_generation.Fqpr.set_vertical_reference"><code class="xref py py-obj docutils literal notranslate"><span class="pre">set_vertical_reference</span></code></a>(vert_ref)</p></td>
 <td><p>Set the Fqpr instance vertical reference.</p></td>
@@ -988,8 +988,10 @@ of most often found.</p>
 
 <dl class="py method">
 <dt id="HSTB.kluster.fqpr_generation.Fqpr.set_variable_by_filter">
-<code class="sig-name descname"><span class="pre">set_variable_by_filter</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">var_name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'detectioninfo'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">newval</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">2</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_generation.Fqpr.set_variable_by_filter" title="Permalink to this definition">¶</a></dt>
-<dd><p>not working just yet, will be a way to set a new ‘rejected’ status for all points selected in points view</p>
+<code class="sig-name descname"><span class="pre">set_variable_by_filter</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">var_name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'detectioninfo'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">newval</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">selected_index</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_generation.Fqpr.set_variable_by_filter" title="Permalink to this definition">¶</a></dt>
+<dd><p>ping_filter is set upon selecting points in 2d/3d in Kluster.  See return_soundings_in_polygon.  Here we can take
+those points and set one of the variables with new data.  Optionally, you can include a selected_index that is a list
+of flattened indices to points in the ping_filter that you want to super-select, see subset module.</p>
 </dd></dl>
 
 <dl class="py method">
