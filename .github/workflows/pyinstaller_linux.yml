@@ -23,6 +23,8 @@ jobs:
         python-version: 3.8.8
 
     - run: |
+        conda create -n kluster_test python=3.8.8
+        conda activate kluster_test
         conda install -c conda-forge qgis=3.18.0 vispy=0.6.6 pyside2=5.13.2 gdal=3.2.1 h5py
         conda install pytest six pytest-cov pytest-mock
 

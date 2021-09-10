@@ -7,9 +7,9 @@ import sys, os
 import glob
 from PyInstaller.compat import is_win, is_darwin, is_linux
 from PyInstaller.utils.hooks import collect_submodules
+import distributed
 import vispy.glsl
 import vispy.io
-import distributed
 
 block_cipher = None
 
@@ -102,7 +102,8 @@ exe = EXE(pyz,
           bootloader_ignore_signals=False,
           strip=False,
           upx=True,
-          console=True )
+          console=True,
+          icon=os.path.join(klusterfolder_path, 'images', 'kluster_img.ico'))
 coll = COLLECT(exe,
                a.binaries,
                a.zipfiles,
