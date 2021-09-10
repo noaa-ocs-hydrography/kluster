@@ -5,7 +5,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Index &#8212; kluster 0.7.7 documentation</title>
+    <title>Index &#8212; kluster 0.7.8 documentation</title>
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
     <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
     <link rel="stylesheet" type="text/css" href="_static/graphviz.css" />
@@ -191,6 +191,8 @@
 </li>
       <li><a href="api/HSTB.kluster.modules.beampointingvector.compute_geo_beam_pointing_angle.html#HSTB.kluster.modules.beampointingvector.compute_geo_beam_pointing_angle">compute_geo_beam_pointing_angle() (in module HSTB.kluster.modules.beampointingvector)</a>
 </li>
+      <li><a href="api/HSTB.kluster.modules.georeference.compute_geohash.html#HSTB.kluster.modules.georeference.compute_geohash">compute_geohash() (in module HSTB.kluster.modules.georeference)</a>
+</li>
       <li><a href="api/HSTB.kluster.modules.beampointingvector.compute_relative_azimuth.html#HSTB.kluster.modules.beampointingvector.compute_relative_azimuth">compute_relative_azimuth() (in module HSTB.kluster.modules.beampointingvector)</a>
 </li>
       <li><a href="api/HSTB.kluster.modules.beampointingvector.construct_array_relative_beamvector.html#HSTB.kluster.modules.beampointingvector.construct_array_relative_beamvector">construct_array_relative_beamvector() (in module HSTB.kluster.modules.beampointingvector)</a>
@@ -216,6 +218,8 @@
       <li><a href="api/HSTB.kluster.dask_helpers.DaskProcessSynchronizer.html#HSTB.kluster.dask_helpers.DaskProcessSynchronizer">DaskProcessSynchronizer (class in HSTB.kluster.dask_helpers)</a>
 </li>
       <li><a href="api/HSTB.kluster.modules.georeference.datum_to_wkt.html#HSTB.kluster.modules.georeference.datum_to_wkt">datum_to_wkt() (in module HSTB.kluster.modules.georeference)</a>
+</li>
+      <li><a href="api/HSTB.kluster.modules.georeference.decode_geohash.html#HSTB.kluster.modules.georeference.decode_geohash">decode_geohash() (in module HSTB.kluster.modules.georeference)</a>
 </li>
       <li><a href="api/HSTB.kluster.fqpr_generation.Fqpr.html#HSTB.kluster.fqpr_generation.Fqpr.determine_altitude_corr">determine_altitude_corr() (HSTB.kluster.fqpr_generation.Fqpr method)</a>
 </li>
@@ -291,6 +295,8 @@
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="api/HSTB.kluster.modules.subset.filter_subset_by_detection.html#HSTB.kluster.modules.subset.filter_subset_by_detection">filter_subset_by_detection() (in module HSTB.kluster.modules.subset)</a>
 </li>
+      <li><a href="api/HSTB.kluster.modules.subset.filter_subset_by_polygon.html#HSTB.kluster.modules.subset.filter_subset_by_polygon">filter_subset_by_polygon() (in module HSTB.kluster.modules.subset)</a>
+</li>
       <li><a href="api/HSTB.kluster.modules.wobble.fit_sin.html#HSTB.kluster.modules.wobble.fit_sin">fit_sin() (in module HSTB.kluster.modules.wobble)</a>
 </li>
       <li><a href="api/HSTB.kluster.modules.visualizations.Player.html#HSTB.kluster.modules.visualizations.Player.forward">forward() (HSTB.kluster.modules.visualizations.Player method)</a>
@@ -339,12 +345,14 @@
 </li>
       <li><a href="api/HSTB.kluster.modules.tpu.Tpu.html#HSTB.kluster.modules.tpu.Tpu.generate_total_uncertainties">generate_total_uncertainties() (HSTB.kluster.modules.tpu.Tpu method)</a>
 </li>
-      <li><a href="api/HSTB.kluster.modules.georeference.georef_by_worker.html#HSTB.kluster.modules.georeference.georef_by_worker">georef_by_worker() (in module HSTB.kluster.modules.georeference)</a>
+      <li><a href="api/HSTB.kluster.modules.georeference.geohash_to_polygon.html#HSTB.kluster.modules.georeference.geohash_to_polygon">geohash_to_polygon() (in module HSTB.kluster.modules.georeference)</a>
 </li>
-      <li><a href="api/HSTB.kluster.fqpr_generation.Fqpr.html#HSTB.kluster.fqpr_generation.Fqpr.georef_xyz">georef_xyz() (HSTB.kluster.fqpr_generation.Fqpr method)</a>
+      <li><a href="api/HSTB.kluster.modules.georeference.georef_by_worker.html#HSTB.kluster.modules.georeference.georef_by_worker">georef_by_worker() (in module HSTB.kluster.modules.georeference)</a>
 </li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/HSTB.kluster.fqpr_generation.Fqpr.html#HSTB.kluster.fqpr_generation.Fqpr.georef_xyz">georef_xyz() (HSTB.kluster.fqpr_generation.Fqpr method)</a>
+</li>
       <li><a href="api/HSTB.kluster.fqpr_convenience.get_attributes_from_fqpr.html#HSTB.kluster.fqpr_convenience.get_attributes_from_fqpr">get_attributes_from_fqpr() (in module HSTB.kluster.fqpr_convenience)</a>
 </li>
       <li><a href="api/HSTB.kluster.fqpr_convenience.get_attributes_from_zarr_stores.html#HSTB.kluster.fqpr_convenience.get_attributes_from_zarr_stores">get_attributes_from_zarr_stores() (in module HSTB.kluster.fqpr_convenience)</a>
@@ -760,10 +768,10 @@
 </li>
       <li><a href="api/HSTB.kluster.modules.wobble.WobbleTest.html#HSTB.kluster.modules.wobble.WobbleTest.plot_attitude_scaling_two">plot_attitude_scaling_two() (HSTB.kluster.modules.wobble.WobbleTest method)</a>
 </li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="api/HSTB.kluster.modules.wobble.WobbleTest.html#HSTB.kluster.modules.wobble.WobbleTest.plot_correlation_table">plot_correlation_table() (HSTB.kluster.modules.wobble.WobbleTest method)</a>
 </li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="api/HSTB.kluster.modules.wobble.WobbleTest.html#HSTB.kluster.modules.wobble.WobbleTest.plot_heave_sound_speed_one">plot_heave_sound_speed_one() (HSTB.kluster.modules.wobble.WobbleTest method)</a>
 </li>
       <li><a href="api/HSTB.kluster.modules.wobble.WobbleTest.html#HSTB.kluster.modules.wobble.WobbleTest.plot_heave_sound_speed_two">plot_heave_sound_speed_two() (HSTB.kluster.modules.wobble.WobbleTest method)</a>
@@ -777,6 +785,8 @@
       <li><a href="api/HSTB.kluster.modules.wobble.WobbleTest.html#HSTB.kluster.modules.wobble.WobbleTest.plot_y_lever_arm_error">plot_y_lever_arm_error() (HSTB.kluster.modules.wobble.WobbleTest method)</a>
 </li>
       <li><a href="api/HSTB.kluster.modules.wobble.WobbleTest.html#HSTB.kluster.modules.wobble.WobbleTest.plot_yaw_alignment">plot_yaw_alignment() (HSTB.kluster.modules.wobble.WobbleTest method)</a>
+</li>
+      <li><a href="api/HSTB.kluster.modules.georeference.polygon_to_geohashes.html#HSTB.kluster.modules.georeference.polygon_to_geohashes">polygon_to_geohashes() (in module HSTB.kluster.modules.georeference)</a>
 </li>
       <li><a href="api/HSTB.kluster.modules.tpu.Tpu.html#HSTB.kluster.modules.tpu.Tpu.populate_from_dict">populate_from_dict() (HSTB.kluster.modules.tpu.Tpu method)</a>
 </li>

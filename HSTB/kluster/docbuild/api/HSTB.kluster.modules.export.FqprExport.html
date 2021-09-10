@@ -5,7 +5,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>FqprExport &#8212; kluster 0.7.7 documentation</title>
+    <title>FqprExport &#8212; kluster 0.7.8 documentation</title>
     <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
     <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
     <link rel="stylesheet" type="text/css" href="../_static/graphviz.css" />
@@ -146,7 +146,7 @@ export</p></li>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>datablock</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">list</span></code>) – list of [sounding_id, x, y, z, tvu, rejected, pointtime, beam, linename] arrays, all of the same size and shape.
+<li><p><strong>datablock</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">list</span></code>) – list of [sounding_id, head_index, x, y, z, tvu, rejected, pointtime, beam, linename] arrays, all of the same size and shape.
 sounding_id is the name of the converted instance for each sounding</p></li>
 <li><p><strong>output_directory</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]) – optional, destination directory for the xyz exports, otherwise will auto export next to converted data</p></li>
 <li><p><strong>file_format</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>) – optional, destination file format, default is csv file, options include [‘csv’, ‘las’, ‘entwine’]</p></li>

@@ -5,7 +5,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>georeference module &#8212; kluster 0.7.7 documentation</title>
+    <title>georeference module &#8212; kluster 0.7.8 documentation</title>
     <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
     <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
     <link rel="stylesheet" type="text/css" href="../_static/graphviz.css" />
@@ -15,7 +15,7 @@
     <script src="../_static/doctools.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="datum_to_wkt" href="../api/HSTB.kluster.modules.georeference.datum_to_wkt.html" />
+    <link rel="next" title="compute_geohash" href="../api/HSTB.kluster.modules.georeference.compute_geohash.html" />
     <link rel="prev" title="SoundSpeedProfile" href="../api/HSTB.kluster.modules.svcorrect.SoundSpeedProfile.html" />
    
   <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
@@ -45,14 +45,26 @@
 <col style="width: 90%" />
 </colgroup>
 <tbody>
-<tr class="row-odd"><td><p><a class="reference internal" href="../api/HSTB.kluster.modules.georeference.datum_to_wkt.html#HSTB.kluster.modules.georeference.datum_to_wkt" title="HSTB.kluster.modules.georeference.datum_to_wkt"><code class="xref py py-obj docutils literal notranslate"><span class="pre">datum_to_wkt</span></code></a>(datum_identifier, min_lon, …)</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="../api/HSTB.kluster.modules.georeference.compute_geohash.html#HSTB.kluster.modules.georeference.compute_geohash" title="HSTB.kluster.modules.georeference.compute_geohash"><code class="xref py py-obj docutils literal notranslate"><span class="pre">compute_geohash</span></code></a>(latitude, longitude, precision)</p></td>
+<td><p>Geohash is a geocoding method to encode a specific latitude/longitude into a string representing an area of a given precision.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="../api/HSTB.kluster.modules.georeference.datum_to_wkt.html#HSTB.kluster.modules.georeference.datum_to_wkt" title="HSTB.kluster.modules.georeference.datum_to_wkt"><code class="xref py py-obj docutils literal notranslate"><span class="pre">datum_to_wkt</span></code></a>(datum_identifier, min_lon, …)</p></td>
 <td><p>Translate the provided datum to vypercrs wkt string</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="../api/HSTB.kluster.modules.georeference.decode_geohash.html#HSTB.kluster.modules.georeference.decode_geohash" title="HSTB.kluster.modules.georeference.decode_geohash"><code class="xref py py-obj docutils literal notranslate"><span class="pre">decode_geohash</span></code></a>(ghash)</p></td>
+<td><p>Take the given geohash and return the centroid of the geohash cell</p></td>
 </tr>
 <tr class="row-even"><td><p><a class="reference internal" href="../api/HSTB.kluster.modules.georeference.distrib_run_georeference.html#HSTB.kluster.modules.georeference.distrib_run_georeference" title="HSTB.kluster.modules.georeference.distrib_run_georeference"><code class="xref py py-obj docutils literal notranslate"><span class="pre">distrib_run_georeference</span></code></a>(dat)</p></td>
 <td><p>Convenience function for mapping build_beam_pointing_vectors across cluster.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="../api/HSTB.kluster.modules.georeference.georef_by_worker.html#HSTB.kluster.modules.georeference.georef_by_worker" title="HSTB.kluster.modules.georeference.georef_by_worker"><code class="xref py py-obj docutils literal notranslate"><span class="pre">georef_by_worker</span></code></a>(sv_corr, alt, lon, lat, …)</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="../api/HSTB.kluster.modules.georeference.geohash_to_polygon.html#HSTB.kluster.modules.georeference.geohash_to_polygon" title="HSTB.kluster.modules.georeference.geohash_to_polygon"><code class="xref py py-obj docutils literal notranslate"><span class="pre">geohash_to_polygon</span></code></a>(ghash)</p></td>
+<td><p>Take a geohash string and return the shapely polygon object that represents the geohash cell</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="../api/HSTB.kluster.modules.georeference.georef_by_worker.html#HSTB.kluster.modules.georeference.georef_by_worker" title="HSTB.kluster.modules.georeference.georef_by_worker"><code class="xref py py-obj docutils literal notranslate"><span class="pre">georef_by_worker</span></code></a>(sv_corr, alt, lon, lat, …)</p></td>
 <td><p>Use the raw attitude/navigation to transform the vessel relative along/across/down offsets to georeferenced soundings.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="../api/HSTB.kluster.modules.georeference.polygon_to_geohashes.html#HSTB.kluster.modules.georeference.polygon_to_geohashes" title="HSTB.kluster.modules.georeference.polygon_to_geohashes"><code class="xref py py-obj docutils literal notranslate"><span class="pre">polygon_to_geohashes</span></code></a>(polygon, precision)</p></td>
+<td><p>Take a polygon and return a list of all of the geohash codes/cells that are completely inside and those that are intersecting</p></td>
 </tr>
 <tr class="row-even"><td><p><a class="reference internal" href="../api/HSTB.kluster.modules.georeference.set_vyperdatum_vdatum_path.html#HSTB.kluster.modules.georeference.set_vyperdatum_vdatum_path" title="HSTB.kluster.modules.georeference.set_vyperdatum_vdatum_path"><code class="xref py py-obj docutils literal notranslate"><span class="pre">set_vyperdatum_vdatum_path</span></code></a>(vdatum_path)</p></td>
 <td><p>Set the vyperdatum VDatum path, required to use the VDatum grids to do the vertical transformations</p></td>
@@ -129,7 +141,7 @@
   <li><a href="../index.html">Documentation overview</a><ul>
   <li><a href="index.html">API</a><ul>
       <li>Previous: <a href="../api/HSTB.kluster.modules.svcorrect.SoundSpeedProfile.html" title="previous chapter">SoundSpeedProfile</a></li>
-      <li>Next: <a href="../api/HSTB.kluster.modules.georeference.datum_to_wkt.html" title="next chapter">datum_to_wkt</a></li>
+      <li>Next: <a href="../api/HSTB.kluster.modules.georeference.compute_geohash.html" title="next chapter">compute_geohash</a></li>
   </ul></li>
   </ul></li>
 </ul>

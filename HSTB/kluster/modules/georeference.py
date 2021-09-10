@@ -92,9 +92,9 @@ def georef_by_worker(sv_corr: list, alt: xr.DataArray, lon: xr.DataArray, lat: x
          xr.DataArray corrected heave for TX - RP lever arm, all zeros if in 'ellipse' mode (time),
          xr.DataArray corrected altitude for TX - RP lever arm, all zeros if in 'vessel' or 'waterline' mode (time),
          xr.DataArray VDatum uncertainty if using a VDatum vertical reference, all zeros otherwise,
-         xr.DataArray computed geohash as string encoded base32,
-        ]
+         xr.DataArray computed geohash as string encoded base32]
     """
+
     g = horizontal_crs.get_geod()
 
     # unpack the sv corrected data output

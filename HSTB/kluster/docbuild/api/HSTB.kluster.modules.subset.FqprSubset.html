@@ -5,7 +5,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>FqprSubset &#8212; kluster 0.7.7 documentation</title>
+    <title>FqprSubset &#8212; kluster 0.7.8 documentation</title>
     <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
     <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
     <link rel="stylesheet" type="text/css" href="../_static/graphviz.css" />
@@ -16,7 +16,7 @@
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
     <link rel="next" title="rotations module" href="../kluster_api/rotations.html" />
-    <link rel="prev" title="filter_subset_by_detection" href="HSTB.kluster.modules.subset.filter_subset_by_detection.html" />
+    <link rel="prev" title="filter_subset_by_polygon" href="HSTB.kluster.modules.subset.filter_subset_by_polygon.html" />
    
   <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
   
@@ -70,10 +70,10 @@
 <tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.modules.subset.FqprSubset.return_soundings_in_polygon" title="HSTB.kluster.modules.subset.FqprSubset.return_soundings_in_polygon"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_soundings_in_polygon</span></code></a>(polygon[, …])</p></td>
 <td><p>Using provided coordinates (in either horizontal_crs projected or geographic coordinates), return the soundings and sounding attributes for all soundings within the coordinates.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.modules.subset.FqprSubset.set_variable_by_filter" title="HSTB.kluster.modules.subset.FqprSubset.set_variable_by_filter"><code class="xref py py-obj docutils literal notranslate"><span class="pre">set_variable_by_filter</span></code></a>([var_name, newval])</p></td>
-<td><p></p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.modules.subset.FqprSubset.set_variable_by_filter" title="HSTB.kluster.modules.subset.FqprSubset.set_variable_by_filter"><code class="xref py py-obj docutils literal notranslate"><span class="pre">set_variable_by_filter</span></code></a>(variable_name, new_data)</p></td>
+<td><p>ping_filter is set upon selecting points in 2d/3d in Kluster.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.modules.subset.FqprSubset.soundings_by_poly" title="HSTB.kluster.modules.subset.FqprSubset.soundings_by_poly"><code class="xref py py-obj docutils literal notranslate"><span class="pre">soundings_by_poly</span></code></a>(polygon)</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.modules.subset.FqprSubset.soundings_by_poly" title="HSTB.kluster.modules.subset.FqprSubset.soundings_by_poly"><code class="xref py py-obj docutils literal notranslate"><span class="pre">soundings_by_poly</span></code></a>(geo_polygon, proj_polygon)</p></td>
 <td><p>Return soundings and sounding attributes that are within the box formed by the provided coordinates.</p></td>
 </tr>
 <tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.modules.subset.FqprSubset.subset_by_time" title="HSTB.kluster.modules.subset.FqprSubset.subset_by_time"><code class="xref py py-obj docutils literal notranslate"><span class="pre">subset_by_time</span></code></a>([mintime, maxtime])</p></td>
@@ -124,13 +124,14 @@ and sounding attributes for all soundings within the coordinates.</p>
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p><ul class="simple">
-<li><p><em>list</em> – list of 1d numpy arrays for the x coordinate of the soundings in the box</p></li>
-<li><p><em>list</em> – list of 1d numpy arrays for the y coordinate of the soundings in the box</p></li>
-<li><p><em>list</em> – list of 1d numpy arrays for the z coordinate of the soundings in the box</p></li>
-<li><p><em>list</em> – list of 1d numpy arrays for the tvu value of the soundings in the box</p></li>
-<li><p><em>list</em> – list of 1d numpy arrays for the rejected flag of the soundings in the box</p></li>
-<li><p><em>list</em> – list of 1d numpy arrays for the time of the soundings in the box</p></li>
-<li><p><em>list</em> – list of 1d numpy arrays for the beam number of the soundings in the box</p></li>
+<li><p><em>np.array</em> – 1d numpy array for the head index of the soundings in the box</p></li>
+<li><p><em>np.array</em> – 1d numpy array for the x coordinate of the soundings in the box</p></li>
+<li><p><em>np.array</em> – 1d numpy array for the y coordinate of the soundings in the box</p></li>
+<li><p><em>np.array</em> – 1d numpy array for the z coordinate of the soundings in the box</p></li>
+<li><p><em>np.array</em> – 1d numpy array for the tvu value of the soundings in the box</p></li>
+<li><p><em>np.array</em> – 1d numpy array for the rejected flag of the soundings in the box</p></li>
+<li><p><em>np.array</em> – 1d numpy array for the time of the soundings in the box</p></li>
+<li><p><em>np.array</em> – 1d numpy array for the beam number of the soundings in the box</p></li>
 </ul>
 </p>
 </dd>
@@ -139,19 +140,37 @@ and sounding attributes for all soundings within the coordinates.</p>
 
 <dl class="py method">
 <dt id="HSTB.kluster.modules.subset.FqprSubset.set_variable_by_filter">
-<code class="sig-name descname"><span class="pre">set_variable_by_filter</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">var_name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'detectioninfo'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">newval</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">2</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.modules.subset.FqprSubset.set_variable_by_filter" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
+<code class="sig-name descname"><span class="pre">set_variable_by_filter</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">variable_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">new_data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">selected_index</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.modules.subset.FqprSubset.set_variable_by_filter" title="Permalink to this definition">¶</a></dt>
+<dd><p>ping_filter is set upon selecting points in 2d/3d in Kluster.  See return_soundings_in_polygon.  Here we can take
+those points and set one of the variables with new data.  Optionally, you can include a selected_index that is a list
+of flattened indices to points in the ping_filter that you want to super-select.  See kluster_main.set_pointsview_points_status</p>
+<p>new data are set in memory and saved to disk</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>variable_name</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>) – name of the variable to set, i.e. ‘detectioninfo’</p></li>
+<li><p><strong>new_data</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">array</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]) – new data to set to the soundings selected by ping_filter for this variable.  Generally used for setting a new
+sounding flag in detectioninfo, where all selected soundings would have new_data = 1 or 2</p></li>
+<li><p><strong>selected_index</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">list</span></code>]) – super_selection of the ping_filter selection, done in points_view currently when selecting with the mouse</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
 
 <dl class="py method">
 <dt id="HSTB.kluster.modules.subset.FqprSubset.soundings_by_poly">
-<code class="sig-name descname"><span class="pre">soundings_by_poly</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">polygon</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.modules.subset.FqprSubset.soundings_by_poly" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">soundings_by_poly</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">geo_polygon</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">proj_polygon</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.modules.subset.FqprSubset.soundings_by_poly" title="Permalink to this definition">¶</a></dt>
 <dd><p>Return soundings and sounding attributes that are within the box formed by the provided coordinates.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><p><strong>polygon</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">ndarray</span></code>) – (N, 2) array of points that make up the selection polygon, (x, y) in Fqpr CRS</p>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>geo_polygon</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">ndarray</span></code>) – (N, 2) array of points that make up the selection polygon, (x, y) in Fqpr CRS</p></li>
+<li><p><strong>proj_polygon</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">ndarray</span></code>) – (N, 2) array of points that make up the selection polygon, (longitude, latitude) in Fqpr CRS</p></li>
+</ul>
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p><ul class="simple">
+<li><p><em>list</em> – list of 1d numpy arrays for the head index of the soundings in the box</p></li>
 <li><p><em>list</em> – list of 1d numpy arrays for the x coordinate of the soundings in the box</p></li>
 <li><p><em>list</em> – list of 1d numpy arrays for the y coordinate of the soundings in the box</p></li>
 <li><p><em>list</em> – list of 1d numpy arrays for the z coordinate of the soundings in the box</p></li>
@@ -241,6 +260,7 @@ coordinates.  Only returns complete swaths.</p>
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p><ul class="simple">
+<li><p><em>list</em> – list of 1d numpy arrays for the head index of the soundings in the box</p></li>
 <li><p><em>list</em> – list of 1d numpy arrays for the acrosstrack coordinate of the soundings in the box</p></li>
 <li><p><em>list</em> – list of 1d numpy arrays for the y coordinate of the soundings in the box</p></li>
 <li><p><em>list</em> – list of 1d numpy arrays for the z coordinate of the soundings in the box</p></li>
@@ -322,7 +342,7 @@ coordinates.  Only returns complete swaths.</p>
   <li><a href="../index.html">Documentation overview</a><ul>
   <li><a href="../kluster_api/index.html">API</a><ul>
   <li><a href="../kluster_api/subset.html">subset module</a><ul>
-      <li>Previous: <a href="HSTB.kluster.modules.subset.filter_subset_by_detection.html" title="previous chapter">filter_subset_by_detection</a></li>
+      <li>Previous: <a href="HSTB.kluster.modules.subset.filter_subset_by_polygon.html" title="previous chapter">filter_subset_by_polygon</a></li>
       <li>Next: <a href="../kluster_api/rotations.html" title="next chapter">rotations module</a></li>
   </ul></li>
   </ul></li>
