@@ -1627,7 +1627,6 @@ class KlusterMain(QtWidgets.QMainWindow):
 
         """
 
-        print('Selecting Points in Polygon...')
         # print('Box select azimuth = {} radians'.format(azimuth))
         pointcount = 0
         self.points_view.clear()

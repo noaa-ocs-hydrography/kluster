@@ -579,7 +579,7 @@ def filter_subset_by_polygon(ping_dataset: xr.Dataset, polygon: np.array):
                 if inside_geohash or intersect_geohash:
                     slice_pd = slice_xarray_by_dim(ping_dataset, dimname='time', start_time=linestart, end_time=lineend)
                     ghash = np.ravel(slice_pd.geohash)
-                    filt_start = np.searchsorted(ping_dataset.time, linestart) * ping_dataset.geohash.shape[1]
+                    filt_start = int(np.where(ping_dataset.time == slice_pd.time[0])[0]) * ping_dataset.geohash.shape[1]
                     filt_end = filt_start + ghash.shape[0]
                     if inside_geohash:
                         linemask = np.in1d(ghash, inside_geohash)
