@@ -98,8 +98,14 @@ def test_process_testfile():
     global datapath
 
     testfile_path, expected_output = get_testfile_paths()
+    linename = os.path.split(testfile_path)[1]
     out = convert_multibeam(testfile_path)
+    assert not out.line_is_processed(linename)
+    assert out.return_next_unprocessed_line() == linename
+
     out = process_multibeam(out, coord_system='NAD83')
+    assert out.line_is_processed(linename)
+    assert out.return_next_unprocessed_line() == ''
 
     number_of_sectors = len(out.multibeam.raw_ping)
     rp = out.multibeam.raw_ping[0].isel(time=0).isel(beam=0)

@@ -80,6 +80,7 @@ class FqprIntel(LoggerClass):
 
         self.keep_waterline_changes = True
         self.force_coordinate_match = True
+        self.autoprocessing_mode = 'normal'
 
         self.multibeam_intel = MultibeamModule(silent=self.silent, logger=self.logger)
         self.nav_intel = NavigationModule(silent=self.silent, logger=self.logger)
@@ -157,6 +158,8 @@ class FqprIntel(LoggerClass):
             self.keep_waterline_changes = settings['keep_waterline_changes']
         if 'force_coordinate_match' in settings:
             self.force_coordinate_match = settings['force_coordinate_match']
+        if 'autoprocessing_mode' in settings:
+            self.autoprocessing_mode = settings['autoprocessing_mode']
         self.regenerate_actions()
 
     def update_from_project(self, project_updated: bool = True):
@@ -664,16 +667,21 @@ class FqprIntel(LoggerClass):
                     new_vert_ref = self.processing_settings['vert_ref']
                 else:
                     new_vert_ref = None
-                full_reprocess = reprocess_fqpr == relative_path
                 abs_path = self.project.absolute_path_from_relative(relative_path)
                 action = [a for a in existing_actions if a.output_destination == abs_path]
+                full_reprocess = reprocess_fqpr == relative_path
+                if full_reprocess:
+                    process_mode = 'reprocess'
+                else:
+                    process_mode = self.autoprocessing_mode
+
                 args, kwargs = fqpr_instance.return_next_action(new_coordinate_system=new_coord_system,
                                                                 new_vertical_reference=new_vert_ref,
                                                                 new_offsets=not identical_offsets,
                                                                 new_angles=not identical_angles,
                                                                 new_waterline=new_waterline is not None,
                                                                 new_tpu=not identical_tpu,
-                                                                full_reprocess=full_reprocess)
+                                                                process_mode=process_mode)
                 if len(action) == 1 and not action[0].is_running:  # modify the existing processing action
                     if kwargs == {}:
                         self.action_container.remove_action(action[0])
@@ -1791,7 +1799,7 @@ def likelihood_start_end_times_close(filetimes: list, compare_times: list, allow
 def intel_process(filname: Union[str, list], outfold: str = None, coord_system: str = 'WGS84',
                   epsg: int = None, use_epsg: bool = False, vert_ref: str = 'waterline',
                   parallel_write: bool = True, vdatum_directory: str = None, force_coordinate_system: bool = True,
-                  logger: logging.Logger = None, client: Client = None):
+                  process_mode: str = 'normal', logger: logging.Logger = None, client: Client = None):
     """
     Use Kluster intelligence module to organize and process all input files.  Files can be a list of files, a single
     file, or a directory full of files.  Files can be multibeam files, .svp sound velocity profile files, SBET and
@@ -1819,6 +1827,11 @@ def intel_process(filname: Union[str, list], outfold: str = None, coord_system: 
         if True, will force all converted data to have the same coordinate system.  Only takes effect if you do not use_epsg.
         use_epsg overwrites this.  If coord_system/autoutm is used, this will ensure that all data added will have a
         utm zone equal to the first converted data instance.
+    process_mode
+        one of the following process modes:
+        - normal = generate the next processing action using the current_processing_status attribute as normal
+        - convert_only = only convert incoming data, return no processing actions
+        - concatenate = process line by line if there is no processed data for that line
     logger
         logging.Logger instance, if included will use this logger in Kluster
     client
@@ -1846,7 +1859,7 @@ def intel_process(filname: Union[str, list], outfold: str = None, coord_system: 
 
     settings = {'use_epsg': use_epsg, 'epsg': epsg, 'use_coord': not use_epsg, 'coord_system': coord_system,
                 'vert_ref': vert_ref, 'parallel_write': parallel_write, 'vdatum_directory': vdatum_directory,
-                'force_coordinate_match': force_coordinate_system}
+                'force_coordinate_match': force_coordinate_system, 'autoprocessing_mode': process_mode}
     intel.set_settings(settings)
 
     if isinstance(filname, str):
@@ -1871,7 +1884,7 @@ def intel_process(filname: Union[str, list], outfold: str = None, coord_system: 
 def intel_process_service(folder_path: str, is_recursive: bool = True, outfold: str = None, coord_system: str = 'WGS84',
                           epsg: int = None, use_epsg: bool = False, vert_ref: str = 'waterline',
                           parallel_write: bool = True, vdatum_directory: str = None, force_coordinate_system: bool = True,
-                          logger: logging.Logger = None, client: Client = None):
+                          process_mode: str = 'normal', logger: logging.Logger = None, client: Client = None):
     """
     Use Kluster intelligence module to start a new folder monitoring session and process all new files that show
     up in that directory.  Files can be multibeam files, .svp sound velocity profile files, SBET and
@@ -1901,6 +1914,11 @@ def intel_process_service(folder_path: str, is_recursive: bool = True, outfold: 
         if True, will force all converted data to have the same coordinate system.  Only takes effect if you do not use_epsg.
         use_epsg overwrites this.  If coord_system/autoutm is used, this will ensure that all data added will have a
         utm zone equal to the first converted data instance.
+    process_mode
+        one of the following process modes:
+        - normal = generate the next processing action using the current_processing_status attribute as normal
+        - convert_only = only convert incoming data, return no processing actions
+        - concatenate = process line by line if there is no processed data for that line
     logger
         logging.Logger instance, if included will use this logger in Kluster
     client
@@ -1922,7 +1940,7 @@ def intel_process_service(folder_path: str, is_recursive: bool = True, outfold: 
 
     settings = {'use_epsg': use_epsg, 'epsg': epsg, 'use_coord': not use_epsg, 'coord_system': coord_system,
                 'vert_ref': vert_ref, 'parallel_write': parallel_write, 'vdatum_directory': vdatum_directory,
-                'force_coordinate_match': force_coordinate_system}
+                'force_coordinate_match': force_coordinate_system, 'autoprocessing_mode': process_mode}
     intel.set_settings(settings)
 
     intel.start_folder_monitor(folder_path, is_recursive=is_recursive)

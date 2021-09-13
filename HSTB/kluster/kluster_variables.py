@@ -19,6 +19,7 @@ epsg_wgs84 = 7911
 default_number_of_chunks = 4
 converted_files_at_once = 5
 geohash_precision = 7
+max_processing_status = 5
 
 supported_multibeam = ['.all', '.kmall']
 multibeam_uses_quality_factor = ['.all']

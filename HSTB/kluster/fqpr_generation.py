@@ -130,6 +130,53 @@ class Fqpr(ZarrBackend):
                         last_time = new_time
         return last_time
 
+    def line_is_processed(self, line_name: str):
+        """
+        If line is processed, the TVU will not be all NaN in the middle of the line.  This method will check that and
+        return whether or the given line is processed.  We use TVU because
+
+        Parameters
+        ----------
+        line_name
+            name of the line you want to check, ex: '0648_20180711_151142.all'
+
+        Returns
+        -------
+        bool
+            None if line is not found, False if line is not processed, True if line is processed.
+
+        """
+        for rp in self.multibeam.raw_ping:
+            mlinesdict = rp.attrs['multibeam_files']
+            if line_name in mlinesdict:
+                starttime, endtime = mlinesdict[line_name]
+                # nearest to start/end time could be the next line, so just use the midpoint
+                middle_time = starttime + ((endtime - starttime) / 2)
+                # if it is processed, you should have all max processing status for each beam
+                isprocessed = bool((rp.processing_status.sel(time=middle_time, method='nearest') == kluster_variables.max_processing_status).all())
+                return isprocessed
+        print('Warning: unable to find line {} in converted dataset'.format(line_name))
+        return None
+
+    def return_next_unprocessed_line(self):
+        """
+        Return the next unprocessed line in this container, see line_is_processed
+
+        Returns
+        -------
+        str
+            line name for the next unprocessed line
+        """
+        final_linename = ''
+        for rp in self.multibeam.raw_ping:
+            mlinesdict = rp.attrs['multibeam_files']
+            for linename in mlinesdict.keys():
+                lineisprocessed = self.line_is_processed(linename)
+                if lineisprocessed is not None and not lineisprocessed:
+                    final_linename = linename
+            break
+        return final_linename
+
     def close(self):
         """
         Must forcibly close the logging handlers to allow the data written to disk to be moved or deleted.
@@ -1746,13 +1793,13 @@ class Fqpr(ZarrBackend):
             if True dump the tx/rx vectors to the multibeam datastore.  Set this to false for an entirely in memory
             workflow
         initial_interp
-            if True, will interpolate attitude/navigation to the ping record and store in the raw_ping datasets.  This
+            if True, will interpolate attitude to the ping record and store in the raw_ping datasets.  This
             is not mandatory for processing, but useful for other kluster functions post processing.
         """
 
         self._validate_get_orientation_vectors(subset_time, dump_data)
         if initial_interp:  # optional step if you want to save interpolated attitude/navigation at ping time to disk
-            self.initial_att_nav_interpolation()
+            self.initial_att_interpolation()
 
         self.logger.info('****Building tx/rx vectors at time of transmit/receive****\n')
         starttime = perf_counter()  # use starttime to time the process
@@ -2609,6 +2656,29 @@ class Fqpr(ZarrBackend):
             lines[applicable_idx] = ln
         return lines
 
+    def return_line_time(self, line_name: str):
+        """
+        Return the start and end time for the given line name
+
+        Parameters
+        ----------
+        line_name
+            file name for the multibeam file, ex: 0000_testhis.all
+
+        Returns
+        -------
+        float
+            start time in utc seconds for the line
+        float
+            end time in utc seconds for the line
+        """
+
+        line_dict = self.return_line_dict(line_name)
+        if line_name in line_dict.keys():
+            return line_dict[line_name]
+        else:
+            return None, None
+
     def return_soundings_in_polygon(self, polygon: np.ndarray, geographic: bool = True,
                                     full_swath: bool = False):
         """
@@ -2672,7 +2742,7 @@ class Fqpr(ZarrBackend):
         return dashboard
 
     def return_next_action(self, new_vertical_reference: str = None, new_coordinate_system: CRS = None, new_offsets: bool = False,
-                           new_angles: bool = False, new_tpu: bool = False, new_waterline: bool = False, full_reprocess: bool = False):
+                           new_angles: bool = False, new_tpu: bool = False, new_waterline: bool = False, process_mode: str = 'normal'):
         """
         Determine the next action to take, building the arguments for the fqpr_convenience.process_multibeam function.
         Uses the processing status, which is updated as a process is completed at a sounding level.
@@ -2705,15 +2775,28 @@ class Fqpr(ZarrBackend):
             True if new tpu values have been set, requires compute TPU to run
         new_waterline
             True if a new waterline value has been set, requires processing starting at sound velocity correction
-        full_reprocess
-            True if you want to trigger a full reprocessing of this instance
+        process_mode
+            one of the following process modes:
+            - normal = generate the next processing action using the current_processing_status attribute as normal
+            - reprocess = perform a full reprocess of the dataset ignoring the current_processing_status
+            - convert_only = only convert incoming data, return no processing actions
+            - concatenate = process line by line if there is no processed data for that line
         """
 
         min_status = self.multibeam.raw_ping[0].current_processing_status
         args = [self]
         kwargs = {}
-        if full_reprocess:
+        if process_mode == 'reprocess':
             min_status = 1
+        elif process_mode == 'convert_only':
+            return args, kwargs
+        elif process_mode == 'concatenate':
+            nextline = self.return_next_unprocessed_line()
+            if nextline:
+                kwargs['only_this_line'] = nextline
+                min_status = 1
+            else:
+                return args, kwargs
 
         new_diff_vertref = False
         new_diff_coordinate = False

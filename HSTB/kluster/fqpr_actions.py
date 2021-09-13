@@ -80,7 +80,7 @@ class FqprActionContainer:
         """
         self.actions = sorted(self.actions, key=lambda i: i.priority)
         for callback in self._observers:
-            callback(self.actions, None)
+            callback(self.actions, None, self.parent.autoprocessing_mode)
 
     def update_unmatched(self, new_unmatched: dict):
         """
@@ -88,7 +88,7 @@ class FqprActionContainer:
         """
         self.unmatched = new_unmatched
         for callback in self._observers:
-            callback(None, self.unmatched)
+            callback(None, self.unmatched, self.parent.autoprocessing_mode)
 
     def update_actions_client(self, client: Client):
         """
