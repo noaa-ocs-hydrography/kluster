@@ -168,13 +168,15 @@ class Fqpr(ZarrBackend):
             line name for the next unprocessed line
         """
         final_linename = ''
-        for rp in self.multibeam.raw_ping:
-            mlinesdict = rp.attrs['multibeam_files']
-            for linename in mlinesdict.keys():
-                lineisprocessed = self.line_is_processed(linename)
-                if lineisprocessed is not None and not lineisprocessed:
-                    final_linename = linename
-            break
+        unprocessedlines = []
+        mlinesdict = self.multibeam.raw_ping[0].attrs['multibeam_files']
+        for linename in mlinesdict.keys():
+            lineisprocessed = self.line_is_processed(linename)
+            if lineisprocessed is not None and not lineisprocessed:
+                unprocessedlines.append(linename)
+        if unprocessedlines:
+            starttimes = [mlinesdict[x][0] for x in unprocessedlines]
+            final_linename = unprocessedlines[np.argmin(starttimes)]
         return final_linename
 
     def close(self):
@@ -1247,22 +1249,12 @@ class Fqpr(ZarrBackend):
                 last_subset_time = subset_time[-1]
             for ra in self.multibeam.raw_ping:
                 sysid = ra.system_identifier
-                # check to see if this sector is within the subset time
-                if np.logical_and(ra.time <= last_subset_time, ra.time >= first_subset_time).any():
+                # check to see if this dataset is within the subset time
+                if ra.time[0] <= last_subset_time or ra.time[-1] >= first_subset_time:
                     # nothing written to disk yet, first run has to include the first time
                     if 'tx' not in list(ra.keys()):
                         if first_subset_time > np.min(ra.time):
                             msg = 'get_orientation_vectors: {}: If your first run of this function uses subset_time, it must include the first ping.'.format(sysid)
-                            raise NotImplementedError(msg)
-                    # data written already, just make sure we aren't creating a gap
-                    else:
-                        try:
-                            last_written_time = ra.time[np.where(np.isnan(ra.tx.values))[0][0]]
-                        except IndexError:  # no NaNs, array is complete so we are all good here
-                            continue
-
-                        if first_subset_time > last_written_time:
-                            msg = 'get_orientation_vectors: {}: saved arrays must not have a time gap, subset_time must start at the last written time.'.format(sysid)
                             raise NotImplementedError(msg)
 
     def _validate_get_orientation_vectors(self, subset_time: list, dump_data: bool):

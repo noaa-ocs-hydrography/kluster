@@ -292,6 +292,7 @@ def process_multibeam(fqpr_inst: Fqpr, run_orientation: bool = True, orientation
     if not use_coord and not use_epsg and run_georef:
         print('process_multibeam: please select either use_coord or use_epsg to process')
         return
+    subset_time = None
     if only_this_line or only_these_times:
         if only_this_line:
             minimum_time, maximum_time = fqpr_inst.return_line_time(only_this_line)
@@ -299,22 +300,20 @@ def process_multibeam(fqpr_inst: Fqpr, run_orientation: bool = True, orientation
                 raise ValueError('process_multibeam: only_this_line={}, this line is not in the current fqpr instance'.format(only_this_line))
         else:
             minimum_time, maximum_time = only_these_times
-        fqpr_inst.subset_by_time(minimum_time, maximum_time)
+        subset_time = [minimum_time, maximum_time]
 
     fqpr_inst.construct_crs(epsg=epsg, datum=coord_system, projected=True, vert_ref=vert_ref)
     if run_orientation:
-        fqpr_inst.get_orientation_vectors(initial_interp=orientation_initial_interpolation)
+        fqpr_inst.get_orientation_vectors(initial_interp=orientation_initial_interpolation, subset_time=subset_time)
     if run_beam_vec:
-        fqpr_inst.get_beam_pointing_vectors()
+        fqpr_inst.get_beam_pointing_vectors(subset_time=subset_time)
     if run_svcorr:
-        fqpr_inst.sv_correct(add_cast_files=add_cast_files)
+        fqpr_inst.sv_correct(add_cast_files=add_cast_files, subset_time=subset_time)
     if run_georef:
-        fqpr_inst.georef_xyz(vdatum_directory=vdatum_directory)
+        fqpr_inst.georef_xyz(vdatum_directory=vdatum_directory, subset_time=subset_time)
     if run_tpu:
-        fqpr_inst.calculate_total_uncertainty()
+        fqpr_inst.calculate_total_uncertainty(subset_time=subset_time)
 
-    if only_this_line or only_these_times:
-        fqpr_inst.restore_subset()
     # dask processes appear to suffer from memory leaks regardless of how carefully we track and wait on futures, reset the client here to clear memory after processing
     # if fqpr_inst.client is not None:
     #     fqpr_inst.client.restart()
