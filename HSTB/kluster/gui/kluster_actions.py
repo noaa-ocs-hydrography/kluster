@@ -260,8 +260,9 @@ class KlusterActions(QtWidgets.QTreeView):
                     ttip += '\nEPSG: {}\nVertical Reference: {}'.format(action.kwargs['epsg'], action.kwargs['vert_ref'])
                 else:
                     ttip += '\nCoordinate System: {}\nVertical Reference: {}'.format(action.kwargs['coord_system'], action.kwargs['vert_ref'])
-            if action.kwargs['only_this_line']:
-                ttip += '\nLine: {}'.format(action.kwargs['only_this_line'])
+            if 'only_this_line' in action.kwargs:
+                if action.kwargs['only_this_line']:
+                    ttip += '\nLine: {}'.format(action.kwargs['only_this_line'])
         else:
             ttip = '{}\n\nPriority:{}'.format(action.text, action.priority)
         return ttip

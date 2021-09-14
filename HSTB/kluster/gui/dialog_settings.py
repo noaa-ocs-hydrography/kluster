@@ -43,7 +43,7 @@ class SettingsDialog(SaveStateDialog):
                                                'settings will ignore this.')
 
         self.hlayout_one_one = QtWidgets.QHBoxLayout()
-        self.auto_processing_mode_label = QtWidgets.QLabel('Auto Process Mode: ')
+        self.auto_processing_mode_label = QtWidgets.QLabel('Process Mode: ')
         self.hlayout_one_one.addWidget(self.auto_processing_mode_label)
         self.auto_processing_mode = QtWidgets.QComboBox()
         autooptions = ['normal', 'convert_only', 'concatenate']

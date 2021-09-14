@@ -5,7 +5,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Settings &#8212; kluster 0.7.8 documentation</title>
+    <title>Settings &#8212; kluster 0.7.9 documentation</title>
     <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
     <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
     <link rel="stylesheet" type="text/css" href="../_static/graphviz.css" />
@@ -15,8 +15,8 @@
     <script src="../_static/doctools.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="Vessel Setup" href="../vessel_setup/index.html" />
-    <link rel="prev" title="Quickstart" href="../quickstart/index.html" />
+    <link rel="next" title="Learn more about Kluster" href="../indepth/index.html" />
+    <link rel="prev" title="Products" href="../products/index.html" />
    
   <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
   
@@ -54,6 +54,14 @@ across days of data that you want to keep.  If you want to retain the waterline 
 <li><p>Force all days to have the same Coordinate System</p></li>
 </ul>
 <p>This one is useful if you are using the Auto UTM option in project settings.  Sometimes you will have multibeam files in a project that span across multiple UTM zones.  If this is the case and this option is unchecked, each day of data will determine the best UTM zone to use in processing.  Check this option to force all added multibeam data to use the same UTM zone or EPSG code as the first processed day of data in the project.</p>
+<ul class="simple">
+<li><p>Process Mode</p></li>
+</ul>
+<p>Controls what kind of processing actions will appear within Kluster.  See the following auto mode explanations for the currently available options:</p>
+<p>NORMAL = Data is converted and processed as it comes in, where each line added would reprocess the whole day.  This is how Kluster generally operates.  You add 10 lines, it converts 10 lines and then generates a processing action to process 10 lines all the way through TPU calculation.</p>
+<p>CONVERT ONLY = Data will only convert.  This can be useful if you want to process later.  Or if you just want access to the raw data for some reason</p>
+<p>CONCATENATE = Data will convert as normal but processing actions will occur on a line by line basis and only if that line has not been processed.  This one is a bit more complicated.  If you were monitoring a directory as the sonar was running, you would get a new line, wait 10 minutes, get a new line, etc.  In normal mode, Kluster would convert one line and then fully process that line, and then convert the next line and fully process both lines.  In normal mode, full days get processed at a time.  In this mode, Kluster will convert and process line by line to save time when you are adding files every now and then.</p>
+<p>WARNING: This mode will need to be changed back to normal mode if you want to use the processing actions generated as you change settings (i.e. changing vertical reference).  If you leave Kluster in concatenate mode, it will be satisfied with data that has been fully processed already regardless of settings.</p>
 <ul class="simple">
 <li><p>VDatum directory</p></li>
 </ul>
@@ -118,6 +126,10 @@ across days of data that you want to keep.  If you want to retain the waterline 
 <h3>Navigation</h3>
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="../quickstart/index.html">Quickstart</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../vessel_setup/index.html">Vessel Setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../processing/index.html">Processing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../surface/index.html">Surfacing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../products/index.html">Products</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Settings</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#general-settings">General Settings</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#layer-settings">Layer Settings</a></li>
@@ -126,10 +138,7 @@ across days of data that you want to keep.  If you want to retain the waterline 
 </li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="../vessel_setup/index.html">Vessel Setup</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../processing/index.html">Conversion and Processing</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../surface/index.html">Surfacing</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../products/index.html">Products</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../indepth/index.html">Learn more about Kluster</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../kluster_api/index.html">API</a></li>
 </ul>
 
@@ -137,8 +146,8 @@ across days of data that you want to keep.  If you want to retain the waterline 
 <h3>Related Topics</h3>
 <ul>
   <li><a href="../index.html">Documentation overview</a><ul>
-      <li>Previous: <a href="../quickstart/index.html" title="previous chapter">Quickstart</a></li>
-      <li>Next: <a href="../vessel_setup/index.html" title="next chapter">Vessel Setup</a></li>
+      <li>Previous: <a href="../products/index.html" title="previous chapter">Products</a></li>
+      <li>Next: <a href="../indepth/index.html" title="next chapter">Learn more about Kluster</a></li>
   </ul></li>
 </ul>
 </div>

@@ -5,7 +5,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Conversion and Processing &#8212; kluster 0.7.8 documentation</title>
+    <title>Processing &#8212; kluster 0.7.9 documentation</title>
     <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
     <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
     <link rel="stylesheet" type="text/css" href="../_static/graphviz.css" />
@@ -33,8 +33,8 @@
 
           <div class="body" role="main">
             
-  <div class="section" id="conversion-and-processing">
-<h1>Conversion and Processing<a class="headerlink" href="#conversion-and-processing" title="Permalink to this headline">¶</a></h1>
+  <div class="section" id="processing">
+<h1>Processing<a class="headerlink" href="#processing" title="Permalink to this headline">¶</a></h1>
 <p>Here we will talk about the conversion and processing steps, what they mean, how they work and what the resulting data looks like.  Kluster automates all of this for you, so you can process multibeam data without really understanding any of this.  Where this becomes useful, is when you process data and then wonder ‘why are these two lines not at roughly the same depth?’ or ‘why did only part of this line process?’.  So hopefully what I’m sharing here will help understand the behind the scenes elements of Kluster to help answer any questions you might have!</p>
 <p>Note that each beam keeps a status (processing status) telling which step it is on.  You can view this in basic plots as a histogram or image to get a sense of the state of the dataset.</p>
 <p>processing status = 0 (conversion complete)
@@ -119,8 +119,8 @@ processing status = 5 (tpu complete)</p>
 </div>
 </div>
 </div>
-<div class="section" id="processing">
-<h2>Processing<a class="headerlink" href="#processing" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="id1">
+<h2>Processing<a class="headerlink" href="#id1" title="Permalink to this headline">¶</a></h2>
 <p>Remember that Kluster is a two step process: conversion and processing.  So when I say the processing pipeline, I mean the second step in Kluster. This second step is composed of five sub-processes:</p>
 <ol class="arabic simple">
 <li><p>Orientation</p></li>
@@ -147,8 +147,8 @@ processing status = 5 (tpu complete)</p>
 </ul>
 <p>This isn’t a simple one to visualize, as it has many dimensions.  What I came up with is this custom visualization in the Basic Plots screen.  You can find it under Custom, animations, Vessel Orientation.  The Blue vector is the Transmitter and the Red vector is the Receiver.  You’ll see the values change as the boat turns or experiences roll/pitch etc.</p>
 <a class="reference external image-reference" href="../_images/processing_5.png"><img alt="../_images/processing_5.png" src="../_images/processing_5.png" /></a>
-<div class="section" id="id1">
-<h4>In the Console<a class="headerlink" href="#id1" title="Permalink to this headline">¶</a></h4>
+<div class="section" id="id2">
+<h4>In the Console<a class="headerlink" href="#id2" title="Permalink to this headline">¶</a></h4>
 <p>You can easily compute the orientation in the console as well</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># starting with conversion</span>
 <span class="kn">from</span> <span class="nn">HSTB.kluster.fqpr_convenience</span> <span class="kn">import</span> <span class="n">convert_multibeam</span>
@@ -184,8 +184,8 @@ processing status = 5 (tpu complete)</p>
 </ul>
 <p>You are able to plot both of these in Basic Plots and there is an additional animation you can view under Custom, animations, Corrected Beam Vectors.  Here I am showing plots from both as well as the Corrected (right) and Uncorrected (left) Beam Vectors animations.</p>
 <a class="reference external image-reference" href="../_images/processing_6.png"><img alt="../_images/processing_6.png" src="../_images/processing_6.png" /></a>
-<div class="section" id="id2">
-<h4>In the Console<a class="headerlink" href="#id2" title="Permalink to this headline">¶</a></h4>
+<div class="section" id="id3">
+<h4>In the Console<a class="headerlink" href="#id3" title="Permalink to this headline">¶</a></h4>
 <p>You can easily compute the beam vector correction the console as well</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># starting with conversion</span>
 <span class="kn">from</span> <span class="nn">HSTB.kluster.fqpr_convenience</span> <span class="kn">import</span> <span class="n">convert_multibeam</span>
@@ -231,8 +231,8 @@ processing status = 5 (tpu complete)</p>
 </ul>
 <p>You can plot this data by either looking at the sound velocity profiles for each cast or by looking at the map view for the lines and where the casts are in relation.</p>
 <a class="reference external image-reference" href="../_images/processing_8.png"><img alt="../_images/processing_8.png" src="../_images/processing_8.png" /></a>
-<div class="section" id="id3">
-<h4>In the Console<a class="headerlink" href="#id3" title="Permalink to this headline">¶</a></h4>
+<div class="section" id="id4">
+<h4>In the Console<a class="headerlink" href="#id4" title="Permalink to this headline">¶</a></h4>
 <p>You can easily compute the sound velocity in the console as well</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># starting with conversion</span>
 <span class="kn">from</span> <span class="nn">HSTB.kluster.fqpr_convenience</span> <span class="kn">import</span> <span class="n">convert_multibeam</span>
@@ -286,8 +286,8 @@ processing status = 5 (tpu complete)</p>
 </ul>
 <p>You are able to plot these in Basic Plots with all the plot types available for two dimensional variables.</p>
 <a class="reference external image-reference" href="../_images/processing_9.png"><img alt="../_images/processing_9.png" src="../_images/processing_9.png" /></a>
-<div class="section" id="id4">
-<h4>In the Console<a class="headerlink" href="#id4" title="Permalink to this headline">¶</a></h4>
+<div class="section" id="id5">
+<h4>In the Console<a class="headerlink" href="#id5" title="Permalink to this headline">¶</a></h4>
 <p>You can easily georeference in the console as well</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># starting with conversion</span>
 <span class="kn">from</span> <span class="nn">HSTB.kluster.fqpr_convenience</span> <span class="kn">import</span> <span class="n">convert_multibeam</span>
@@ -347,8 +347,8 @@ processing status = 5 (tpu complete)</p>
 </ul>
 <p>You are able to plot these in Basic Plots with all the plot types available for two dimensional variables.</p>
 <a class="reference external image-reference" href="../_images/processing_10.png"><img alt="../_images/processing_10.png" src="../_images/processing_10.png" /></a>
-<div class="section" id="id5">
-<h4>In the Console<a class="headerlink" href="#id5" title="Permalink to this headline">¶</a></h4>
+<div class="section" id="id6">
+<h4>In the Console<a class="headerlink" href="#id6" title="Permalink to this headline">¶</a></h4>
 <p>You can easily calculate tpu in the console as well</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># starting with conversion</span>
 <span class="kn">from</span> <span class="nn">HSTB.kluster.fqpr_convenience</span> <span class="kn">import</span> <span class="n">convert_multibeam</span>
@@ -388,32 +388,31 @@ processing status = 5 (tpu complete)</p>
 <h3>Navigation</h3>
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="../quickstart/index.html">Quickstart</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../settings/index.html">Settings</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../vessel_setup/index.html">Vessel Setup</a></li>
-<li class="toctree-l1 current"><a class="current reference internal" href="#">Conversion and Processing</a><ul>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Processing</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#conversion">Conversion</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#in-the-console">In the Console</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="#processing">Processing</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#id1">Processing</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#orientation">Orientation</a><ul>
-<li class="toctree-l4"><a class="reference internal" href="#id1">In the Console</a></li>
-</ul>
-</li>
-<li class="toctree-l3"><a class="reference internal" href="#correct-beam-vectors">Correct Beam Vectors</a><ul>
 <li class="toctree-l4"><a class="reference internal" href="#id2">In the Console</a></li>
 </ul>
 </li>
-<li class="toctree-l3"><a class="reference internal" href="#sound-velocity">Sound Velocity</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#correct-beam-vectors">Correct Beam Vectors</a><ul>
 <li class="toctree-l4"><a class="reference internal" href="#id3">In the Console</a></li>
 </ul>
 </li>
-<li class="toctree-l3"><a class="reference internal" href="#georeference">Georeference</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#sound-velocity">Sound Velocity</a><ul>
 <li class="toctree-l4"><a class="reference internal" href="#id4">In the Console</a></li>
 </ul>
 </li>
-<li class="toctree-l3"><a class="reference internal" href="#tpu">TPU</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#georeference">Georeference</a><ul>
 <li class="toctree-l4"><a class="reference internal" href="#id5">In the Console</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#tpu">TPU</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#id6">In the Console</a></li>
 </ul>
 </li>
 </ul>
@@ -422,6 +421,8 @@ processing status = 5 (tpu complete)</p>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="../surface/index.html">Surfacing</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../products/index.html">Products</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../settings/index.html">Settings</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../indepth/index.html">Learn more about Kluster</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../kluster_api/index.html">API</a></li>
 </ul>
 

@@ -131,11 +131,12 @@ Perform these in order:
    :maxdepth: 4
 
    quickstart/index
-   settings/index
    vessel_setup/index
    processing/index
    surface/index
    products/index
+   settings/index
+   indepth/index
    kluster_api/index
 
 Index

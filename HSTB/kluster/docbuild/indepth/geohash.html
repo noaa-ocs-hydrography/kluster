@@ -1,0 +1,142 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Geohashes and Spatial Indexing &#8212; kluster 0.7.9 documentation</title>
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" type="text/css" href="../_static/graphviz.css" />
+    <script id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="API" href="../kluster_api/index.html" />
+    <link rel="prev" title="Kluster Intelligence" href="intel.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="geohashes-and-spatial-indexing">
+<h1>Geohashes and Spatial Indexing<a class="headerlink" href="#geohashes-and-spatial-indexing" title="Permalink to this headline">¶</a></h1>
+<p>Have you heard of Geohashes?  I hadn’t until I ran into this pretty common problem in Kluster.  Namely, how do I load all the soundings in a given area fast!</p>
+<p>You can pretty quickly write some code to just brute force the check.  For a box with a minimum and maximum northing and easting, we just find all points with northings in-between
+the minimum maximum northing of the box and eastings in-between the minimum maximum easting of the box.  Where those queries intersect are all the points that are within the box.  So easy!  The problem is that to do this, we have to load all the northing/easting data for each point, which is a lot of data!  If your project has a billion soundings (which is certainly possible!) then it could take an hour to complete!  This is what Kluster used to do prior to v0.7.8.</p>
+<p>In Kluster 0.7.8, I introduced Geohashes in Kluster, which is an existing idea that revolves around subdividing the Earth into little tiles.  I find the easiest way to understand Geohashes is to see it, so check this site out: <a class="reference external" href="http://geohash.gofreerange.com/">GeohashExplorer</a></p>
+<p>If you click on Washington DC, you get a view similar to what I have below.  You can see the Geohash regions and the little squares getting smaller as you zoom in.  Notice the letters in each square, it seems to take more letters for a smaller square, right?  A longer string means a smaller cell, or a higher spatial resolution.  Looks like I can fit the White House in a cell with a string of 7 characters (dqcjqcp).</p>
+<a class="reference external image-reference" href="../_images/geohash1.png"><img alt="../_images/geohash1.png" src="../_images/geohash1.png" /></a>
+<p>But what is the point of this?  Let’s go back to the original problem, how do I get soundings within a specific region without loading a bunch of data and doing a brute force search?</p>
+<p>Here is what I do in Kluster to resolve this problem.</p>
+<ul class="simple">
+<li><p>Kluster employs geohash with a precision of 7, or a string that is 7 characters long.</p></li>
+<li><p>Kluster generates a geohash string for each sounding, so that each sounding knows which geohash region it is in.  Here you can see a plot of the unique geohash regions in the line.  I represent the geohash regions with integer identifiers instead of strings just so the plot works.</p></li>
+</ul>
+<a class="reference external image-reference" href="../_images/geohash2.png"><img alt="../_images/geohash2.png" src="../_images/geohash2.png" /></a>
+<ul class="simple">
+<li><p>Kluster records the unique geohashes for each line in the JSON attribution, so if a line goes through 5 different geohash regions, it knows those identifiers and can load them fast.   You can see these regions in the Attribute window for each line.</p></li>
+</ul>
+<a class="reference external image-reference" href="../_images/geohash3.png"><img alt="../_images/geohash3.png" src="../_images/geohash3.png" /></a>
+<p>So when we query for the Points View, we take the geohash regions in the query rectangle and only brute force those regions for the lines that the regions are in.  If I were to query a new rectangle like the one below, I’d know that the query rectangle (shown in green) intersects two geohash regions with precision 7, dq9guth and dq9gut5, so I just need to brute force the lines that have one or both of those regions.  And the brute force is simpler too, I just query the geohash data (that every sounding has now) to see which soundings are geohash=dq9guth or geohash=dq9gut5 and load northings/eastings for those soundings.  Much less data to load!  Sometimes I get lucky and the user will completely enclose a geohash region with a query rectangle, in which case I don’t have to do a brute force search at all!</p>
+<a class="reference external image-reference" href="../_images/geohash4.png"><img alt="../_images/geohash4.png" src="../_images/geohash4.png" /></a>
+<p>The soundings are shown here colored by the multibeam line they came from.  So you can see that I only had to load a fraction of the currently shown multibeam lines to get the final soundings!</p>
+<p>So you can see that spatial indexing is a powerful and almost necessary technique for hydrographic processing software.  There are certainly many different ways to handle this problem, with Kluster, I simply tried to pick an approach that aligned with the existing structure as much as possible.</p>
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">kluster</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../quickstart/index.html">Quickstart</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../vessel_setup/index.html">Vessel Setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../processing/index.html">Processing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../surface/index.html">Surfacing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../products/index.html">Products</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../settings/index.html">Settings</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Learn more about Kluster</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="intel.html">Kluster Intelligence</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Geohashes and Spatial Indexing</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../kluster_api/index.html">API</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  <li><a href="index.html">Learn more about Kluster</a><ul>
+      <li>Previous: <a href="intel.html" title="previous chapter">Kluster Intelligence</a></li>
+      <li>Next: <a href="../kluster_api/index.html" title="next chapter">API</a></li>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2020, Eric Younkin.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.5.2</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="../_sources/indepth/geohash.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>
