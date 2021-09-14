@@ -162,6 +162,20 @@ class FqprIntel(LoggerClass):
             self.autoprocessing_mode = settings['autoprocessing_mode']
         self.regenerate_actions()
 
+    def set_auto_processing_mode(self, process_mode: str = 'normal'):
+        """
+        Set the intel auto processing mode to one of the available options.
+
+        Parameters
+        ----------
+        process_mode
+            One of the following process modes: normal=generate the next processing action using the
+            current_processing_status attribute as normal, convert_only=only convert incoming data, return no
+            processing actions, concatenate=process line by line if there is no processed data for that line
+        """
+
+        self.set_settings({'autoprocessing_mode': process_mode})
+
     def update_from_project(self, project_updated: bool = True):
         """
         Called from FqprProject._bind_to_project_updated.  Whenever a fqpr instance is added or removed from the
@@ -1828,10 +1842,9 @@ def intel_process(filname: Union[str, list], outfold: str = None, coord_system: 
         use_epsg overwrites this.  If coord_system/autoutm is used, this will ensure that all data added will have a
         utm zone equal to the first converted data instance.
     process_mode
-        one of the following process modes:
-        - normal = generate the next processing action using the current_processing_status attribute as normal
-        - convert_only = only convert incoming data, return no processing actions
-        - concatenate = process line by line if there is no processed data for that line
+        One of the following process modes: normal=generate the next processing action using the
+        current_processing_status attribute as normal, convert_only=only convert incoming data, return no
+        processing actions, concatenate=process line by line if there is no processed data for that line
     logger
         logging.Logger instance, if included will use this logger in Kluster
     client
@@ -1915,10 +1928,9 @@ def intel_process_service(folder_path: str, is_recursive: bool = True, outfold: 
         use_epsg overwrites this.  If coord_system/autoutm is used, this will ensure that all data added will have a
         utm zone equal to the first converted data instance.
     process_mode
-        one of the following process modes:
-        - normal = generate the next processing action using the current_processing_status attribute as normal
-        - convert_only = only convert incoming data, return no processing actions
-        - concatenate = process line by line if there is no processed data for that line
+        One of the following process modes: normal=generate the next processing action using the
+        current_processing_status attribute as normal, convert_only=only convert incoming data, return no
+        processing actions, concatenate=process line by line if there is no processed data for that line
     logger
         logging.Logger instance, if included will use this logger in Kluster
     client
