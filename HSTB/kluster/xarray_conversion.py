@@ -2063,7 +2063,8 @@ class BatchRead(ZarrBackend):
         Returns
         -------
         list
-            list of indices for each system/timestamped offsets that are within the provided subset
+            list of indices for each system/timestamped offsets that are within the provided subset.  length of the list
+            is the number of heads for this sonar.
         """
 
         resulting_systems = []

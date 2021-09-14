@@ -83,6 +83,12 @@ if __name__ == "__main__":  # run from command line
     intelproc.add_argument('-parallel', '--parallel_write', type=str2bool, required=False, nargs='?', const=True,
                            default=True,
                            help='If true, writes to disk in parallel, turn this off to troubleshoot PermissionErrors, default is True')
+    intelproc.add_argument('-fc', '--force_coordinate_system', type=str2bool, required=False, nargs='?', const=True,
+                           default=True,
+                           help='If true, will force all converted data to have the same coordinate system')
+    intelproc.add_argument('-p', '--process_mode', required=False, nargs='?', const='normal',
+                           default='normal',
+                           help='One of the following process modes: normal=generate the next processing action using the current_processing_status attribute as normal, convert_only=only convert incoming data, return no processing actions, concatenate=process line by line if there is no processed data for that line')
 
     intelservicehelp = 'R|Use Kluster intelligence module to start a new folder monitoring session and process all new files that show '
     intelservicehelp += 'up in the directory.  Files can be multibeam files, .svp sound velocity profile files, SBET and '
@@ -101,6 +107,12 @@ if __name__ == "__main__":  # run from command line
     intelservice.add_argument('-parallel', '--parallel_write', type=str2bool, required=False, nargs='?', const=True,
                               default=True,
                               help='If true, writes to disk in parallel, turn this off to troubleshoot PermissionErrors, default is True')
+    intelservice.add_argument('-fc', '--force_coordinate_system', type=str2bool, required=False, nargs='?', const=True,
+                              default=True,
+                              help='If true, will force all converted data to have the same coordinate system')
+    intelservice.add_argument('-p', '--process_mode', required=False, nargs='?', const='normal',
+                              default='normal',
+                              help='One of the following process modes: normal=generate the next processing action using the current_processing_status attribute as normal, convert_only=only convert incoming data, return no processing actions, concatenate=process line by line if there is no processed data for that line')
 
     converthelp = 'R|Convert multibeam from raw files to xarray datasets within the kluster data structure\n'
     converthelp += 'example (relying on default arguments): convert -f fileone.all\n'
@@ -215,10 +227,10 @@ if __name__ == "__main__":  # run from command line
                                    max_gap_length=args.max_navigation_gap)
         elif funcname == 'intel_processing':
             intel_process(args.files, outfold=args.output_folder, coord_system=args.coordinate_system, vert_ref=args.vertical_reference,
-                          parallel_write=args.parallel_write)
+                          parallel_write=args.parallel_write, force_coordinate_system=args.force_coordinate_system, process_mode=args.process_mode)
         elif funcname == 'intel_service':
-            intel_process(args.folder, outfold=args.output_folder, coord_system=args.coordinate_system, vert_ref=args.vertical_reference,
-                          parallel_write=args.parallel_write)
+            intel_process_service(args.folder, outfold=args.output_folder, coord_system=args.coordinate_system, vert_ref=args.vertical_reference,
+                                  parallel_write=args.parallel_write, force_coordinate_system=args.force_coordinate_system, process_mode=args.process_mode)
         elif funcname == 'convert':
             convert_multibeam(args.files, outfold=args.output_folder, show_progress=args.show_progress,
                               parallel_write=args.parallel_write)
