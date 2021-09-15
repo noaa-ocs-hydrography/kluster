@@ -24,6 +24,15 @@ class StdOutFilter(logging.Filter):
 
 
 def return_log_name():
+    """
+    Return the log file name that we use throughout kluster.  Includes the utctimstamp in seconds as a unique id
+
+    Returns
+    -------
+    str
+        log file name
+    """
+
     return 'logfile_{}.txt'.format(int(datetime.utcnow().timestamp()))
 
 
