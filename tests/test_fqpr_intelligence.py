@@ -16,15 +16,16 @@ def get_testfile_paths():
 def cleanup_after_tests():
     testfile, testsv, expected_data_folder, expected_data_folder_path = get_testfile_paths()
     proj_path = os.path.join(os.path.dirname(testfile), 'kluster_project.json')
-    os.remove(proj_path)
+    if os.path.exists(proj_path):
+        os.remove(proj_path)
     vessel_file = os.path.join(os.path.dirname(testfile), 'vessel_file.kfc')
-    os.remove(vessel_file)
-
+    if os.path.exists(vessel_file):
+        os.remove(vessel_file)
     if os.path.exists(expected_data_folder_path):
         shutil.rmtree(expected_data_folder_path)
 
 
-def setup_intel():
+def setup_intel(include_vessel_file=True):
     testfile, testsv, expected_data_folder, expected_data_folder_path = get_testfile_paths()
 
     proj_path = os.path.join(os.path.dirname(testfile), 'kluster_project.json')
@@ -35,7 +36,8 @@ def setup_intel():
     if os.path.exists(vessel_file):
         os.remove(vessel_file)
     proj = create_new_project(os.path.dirname(testfile))
-    proj.add_vessel_file(vessel_file)
+    if include_vessel_file:
+        proj.add_vessel_file(vessel_file)
     fintel = FqprIntel(proj)
     fintel.set_settings({'coord_system': 'NAD83'})
     return proj, fintel, proj_path, vessel_file, testfile, testsv, expected_data_folder_path
@@ -187,6 +189,30 @@ def test_intel_remove_sv():
     assert fintel.svp_intel.file_name == {}
     assert fintel.svp_intel.unique_id_reverse == {}
     assert fintel.svp_intel.type == {}
+
+    fintel.clear()
+    proj.close()
+    fintel = None
+    proj = None
+    cleanup_after_tests()
+
+
+def test_intel_modes():
+    proj, fintel, proj_path, vessel_file, testfile, testsv, expected_data_folder_path = setup_intel(include_vessel_file=False)
+    updated_type, new_data, new_project = fintel.add_file(testfile)
+    # convert multibeam file
+    fintel.execute_action()
+    # normal mode will have a new processing action for that day
+    assert fintel.has_actions
+    assert fintel.action_container.actions[0].text == 'Run all processing on em2040_40111_05_23_2017'
+    # convert only will have no actions, since we've already converted
+    fintel.set_auto_processing_mode('convert_only')
+    assert not fintel.has_actions
+    # concatenate will have a new action to only convert this one line
+    fintel.set_auto_processing_mode('concatenate')
+    assert fintel.has_actions
+    assert fintel.action_container.actions[0].text == 'Run all processing on em2040_40111_05_23_2017'
+    assert fintel.action_container.actions[0].kwargs['only_this_line'] == '0009_20170523_181119_FA2806.all'
 
     fintel.clear()
     proj.close()

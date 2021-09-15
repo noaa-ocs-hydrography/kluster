@@ -26,10 +26,21 @@ across days of data that you want to keep.  If you want to retain the waterline 
 
 This one is useful if you are using the Auto UTM option in project settings.  Sometimes you will have multibeam files in a project that span across multiple UTM zones.  If this is the case and this option is unchecked, each day of data will determine the best UTM zone to use in processing.  Check this option to force all added multibeam data to use the same UTM zone or EPSG code as the first processed day of data in the project.
 
+- Process Mode
+
+Controls what kind of processing actions will appear within Kluster.  See the following auto mode explanations for the currently available options:
+
+NORMAL = Data is converted and processed as it comes in, where each line added would reprocess the whole day.  This is how Kluster generally operates.  You add 10 lines, it converts 10 lines and then generates a processing action to process 10 lines all the way through TPU calculation.
+
+CONVERT ONLY = Data will only convert.  This can be useful if you want to process later.  Or if you just want access to the raw data for some reason
+
+CONCATENATE = Data will convert as normal but processing actions will occur on a line by line basis and only if that line has not been processed.  This one is a bit more complicated.  If you were monitoring a directory as the sonar was running, you would get a new line, wait 10 minutes, get a new line, etc.  In normal mode, Kluster would convert one line and then fully process that line, and then convert the next line and fully process both lines.  In normal mode, full days get processed at a time.  In this mode, Kluster will convert and process line by line to save time when you are adding files every now and then.
+
+WARNING: This mode will need to be changed back to normal mode if you want to use the processing actions generated as you change settings (i.e. changing vertical reference).  If you leave Kluster in concatenate mode, it will be satisfied with data that has been fully processed already regardless of settings.
+
 - VDatum directory
 
 Only used when you are using the 'NOAA MLLW' or 'NOAA MHW' options under vertical reference in Project Settings.  These two options require VDatum to perform the vertical transformation from ellipse to MLLW/MHW.  With VDatum provided, you are able to process using these two vertical references natively in Kluster, without the need for a separate gridded transformation file.
-
 
 Layer Settings
 ----------------
@@ -64,7 +75,7 @@ Project settings are accessed through the "Setup - Set Project Settings"
 
 The Coordinate System is used during georeferencing to project the sound velocity corrected offsets to northing/easting/depth values.  Altering the Coordinate System will produce a new georeference/TPU action.  The Coordinate System specified here will apply to all currently loaded days of data.
 
-From EPSG will use an integer EPSG code to determine the coordinate system of this project.  See the currently available codes `here <https://epsg.org/home.html>`_  Note that the coordinate system provide must be a projected coordinate system with units in meters/feet.  
+From EPSG will use an integer EPSG code to determine the coordinate system of this project.  See the currently available codes `here <https://epsg.org/home.html>`_  Note that the coordinate system provide must be a projected coordinate system with units in meters/feet.
 
 Auto UTM is the primary way to set the coordinate system for a project.  This will use the provided coordinate system and the longitude of the provided data to automatically determine the appropriate UTM zone.  It will do this for each day, unless you use the Settings - Force all days to have the same Coordinate System option.  If that option is set and you are using Auto UTM, it will use the UTM zone of the first loaded day of data.
 
@@ -81,4 +92,4 @@ NOAA MLLW - sound velocity corrected offsets (relative to reference point) - alt
 NOAA MHW - sound velocity corrected offsets (relative to reference point) - altitude - MHW Separation from VDatum
 
 
-.. toctree:: 
+.. toctree::

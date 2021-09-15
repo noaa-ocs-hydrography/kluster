@@ -24,7 +24,7 @@ class KlusterActions(QtWidgets.QTreeView):
     Tree view showing the currently available actions and files generated from fqpr_intelligence
     """
 
-    execute_action = Signal(int)
+    execute_action = Signal(object)
     exclude_queued_file = Signal(str)
     exclude_unmatched_file = Signal(str)
     undo_exclude_file = Signal(list)
@@ -260,6 +260,9 @@ class KlusterActions(QtWidgets.QTreeView):
                     ttip += '\nEPSG: {}\nVertical Reference: {}'.format(action.kwargs['epsg'], action.kwargs['vert_ref'])
                 else:
                     ttip += '\nCoordinate System: {}\nVertical Reference: {}'.format(action.kwargs['coord_system'], action.kwargs['vert_ref'])
+            if 'only_this_line' in action.kwargs:
+                if action.kwargs['only_this_line']:
+                    ttip += '\nLine: {}'.format(action.kwargs['only_this_line'])
         else:
             ttip = '{}\n\nPriority:{}'.format(action.text, action.priority)
         return ttip
@@ -308,7 +311,7 @@ class KlusterActions(QtWidgets.QTreeView):
                 parent.appendRow(proj_child)
                 self.tree_data['Unmatched Files'].append(unmatched_file)
 
-    def update_actions(self, actions: list = None, unmatched: dict = None):
+    def update_actions(self, actions: list = None, unmatched: dict = None, process_mode: str = None):
         """
         Method driven by kluster_intelligence, can be used to either update actions, unmatched, or both.
 
@@ -330,6 +333,7 @@ class KlusterActions(QtWidgets.QTreeView):
         if unmatched is not None:
             self.unmatched = unmatched
 
+        self.model.setHorizontalHeaderLabels(['Actions ({})'.format(process_mode)])
         for cnt, c in enumerate(self.categories):
             parent = self.tree_data[c][0]
             if c == 'Next Action' and actions is not None:
@@ -346,7 +350,7 @@ class KlusterActions(QtWidgets.QTreeView):
         Emit the execute_action signal to trigger processing in kluster_main
         """
         self.start_button.setDisabled(True)
-        self.execute_action.emit(0)
+        self.execute_action.emit(False)
 
     def auto_process(self):
         if self.is_auto:
@@ -360,7 +364,8 @@ class KlusterActions(QtWidgets.QTreeView):
 
     def emit_auto_signal(self):
         if self.is_auto:
-            self.start_process()
+            self.start_button.setDisabled(True)
+            self.execute_action.emit(True)
 
     def save_settings(self):
         """

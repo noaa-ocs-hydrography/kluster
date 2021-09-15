@@ -40,7 +40,8 @@ settings_translator = {'Kluster/proj_settings_epsgradio': {'newname': 'use_epsg'
                        'Kluster/layer_settings_surfacetransparency': {'newname': 'surface_transparency', 'defaultvalue': 0},
                        'Kluster/settings_keep_waterline_changes': {'newname': 'keep_waterline_changes', 'defaultvalue': True},
                        'Kluster/settings_enable_parallel_writes': {'newname': 'write_parallel', 'defaultvalue': True},
-                       'Kluster/settings_vdatum_directory': {'newname': 'vdatum_directory', 'defaultvalue': ''}
+                       'Kluster/settings_vdatum_directory': {'newname': 'vdatum_directory', 'defaultvalue': ''},
+                       'Kluster/settings_auto_processing_mode': {'newname': 'autoprocessing_mode', 'defaultvalue': 'normal'}
                        }
 
 
@@ -109,6 +110,7 @@ class KlusterMain(QtWidgets.QMainWindow):
 
         self.actions = kluster_actions.KlusterActions(self)
         self.actions_dock = self.dock_this_widget('Actions', 'actions_dock', self.actions)
+        self.actions.update_actions(process_mode=self.intel.autoprocessing_mode)
 
         self.monitor = kluster_monitor.KlusterMonitor(self)
         self.monitor_dock = self.dock_this_widget('Monitor', 'monitor_dock', self.monitor)
@@ -163,7 +165,7 @@ class KlusterMain(QtWidgets.QMainWindow):
 
         self.explorer.row_selected.connect(self.points_view.superselect_point)
 
-        self.actions.execute_action.connect(self.intel.execute_action)
+        self.actions.execute_action.connect(self._action_process)
         self.actions.exclude_queued_file.connect(self._action_remove_file)
         self.actions.exclude_unmatched_file.connect(self._action_remove_file)
         self.actions.undo_exclude_file.connect(self._action_add_files)
@@ -550,6 +552,12 @@ class KlusterMain(QtWidgets.QMainWindow):
         if pth in self.project.surface_instances:
             self.two_d.set_extents_from_surfaces(subset_surf=pth,
                                                  resolution=self.project.surface_instances[pth].resolutions[0])
+
+    def _action_process(self, is_auto):
+        if is_auto:
+            self.intel.execute_action(0)
+        else:
+            self.intel.execute_action(0)
 
     def _action_remove_file(self, filname):
         self.intel.remove_file(filname)
@@ -2004,6 +2012,9 @@ def main():
     # add support in windows for when you build this as a frozen executable (pyinstaller)
     multiprocessing.freeze_support()
 
+    kluster_dir = os.path.dirname(kluster_init_file)
+    kluster_icon = os.path.join(kluster_dir, 'images', 'kluster_img.ico')
+
     if qgis_enabled:
         app = qgis_core.QgsApplication([], True)
         if ispyinstaller:
@@ -2025,7 +2036,14 @@ def main():
             app = QtWidgets.QApplication()
         except TypeError:  # pyqt5
             app = QtWidgets.QApplication([])
-    app.setStyle(KlusterProxyStyle())
+    try:
+        app.setStyle(KlusterProxyStyle())
+    except:
+        print('Unable to set custom Kluster style')
+    try:
+        app.setWindowIcon(QtGui.QIcon(kluster_icon))
+    except:
+        print('Unable to set icon to {}'.format(kluster_icon))
     window = KlusterMain(app)
     window.show()
     exitcode = app.exec_()

@@ -18,7 +18,7 @@ from HSTB.kluster.dask_helpers import dask_find_or_start_client
 from HSTB.kluster.xarray_helpers import resize_zarr, xarr_to_netcdf, combine_xr_attributes, reload_zarr_records, slice_xarray_by_dim
 from HSTB.kluster.fqpr_helpers import seconds_to_formatted_string
 from HSTB.kluster.backends._zarr import ZarrBackend, my_xarr_add_attribute
-from HSTB.kluster.logging_conf import return_logger
+from HSTB.kluster.logging_conf import return_logger, return_log_name
 from HSTB.kluster import kluster_variables
 
 
@@ -1110,7 +1110,7 @@ class BatchRead(ZarrBackend):
         """
 
         if self.logfile is None:
-            self.logfile = os.path.join(self.converted_pth, 'logfile_{}.txt'.format(datetime.now().strftime('%H%M%S')))
+            self.logfile = os.path.join(self.converted_pth, return_log_name())
         if self.logger is None:
             self.logger = return_logger(__name__, self.logfile)
 
@@ -1152,7 +1152,7 @@ class BatchRead(ZarrBackend):
         self.output_folder = self.converted_pth
         self.fils = fils
 
-        self.logfile = os.path.join(converted_pth, 'logfile_{}.txt'.format(datetime.now().strftime('%H%M%S')))
+        self.logfile = os.path.join(converted_pth, return_log_name())
         self.initialize_log()
 
     def _batch_read_chunk_generation(self, fils: list):
@@ -2063,7 +2063,8 @@ class BatchRead(ZarrBackend):
         Returns
         -------
         list
-            list of indices for each system/timestamped offsets that are within the provided subset
+            list of indices for each system/timestamped offsets that are within the provided subset.  length of the list
+            is the number of heads for this sonar.
         """
 
         resulting_systems = []

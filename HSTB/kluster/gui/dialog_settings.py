@@ -42,6 +42,22 @@ class SettingsDialog(SaveStateDialog):
                                                '\nto have the same coordinate system as the first converted day.  use_epsg in project ' +
                                                'settings will ignore this.')
 
+        self.hlayout_one_one = QtWidgets.QHBoxLayout()
+        self.auto_processing_mode_label = QtWidgets.QLabel('Process Mode: ')
+        self.hlayout_one_one.addWidget(self.auto_processing_mode_label)
+        self.auto_processing_mode = QtWidgets.QComboBox()
+        autooptions = ['normal', 'convert_only', 'concatenate']
+        self.auto_processing_mode.addItems(autooptions)
+        self.auto_processing_mode.setToolTip('Controls the processing actions that appear when new data is added or settings are changed.\n' +
+                                             'See the following mode explanations for the currently available options\n\n' +
+                                             'normal = data is converted and processed as it comes in, where each line added would reprocess the whole day\n' +
+                                             'convert only = data is only converted, data is never automatically processed\n' +
+                                             'concatenate = data is converted as lines are added and each line is processed individually.  Similar to normal\n' +
+                                             '  mode but more efficient if you are adding lines as they are acquired, normal mode would do a full reprocess of\n' +
+                                             '  the day after each new line is added')
+        self.hlayout_one_one.addWidget(self.auto_processing_mode)
+        self.hlayout_one_one.addStretch()
+
         self.hlayout_one = QtWidgets.QHBoxLayout()
         self.vdatum_label = QtWidgets.QLabel('VDatum Directory')
         self.hlayout_one.addWidget(self.vdatum_label)
@@ -67,6 +83,7 @@ class SettingsDialog(SaveStateDialog):
         layout.addWidget(self.parallel_write)
         layout.addWidget(self.keep_waterline_changes)
         layout.addWidget(self.force_coordinate_match)
+        layout.addLayout(self.hlayout_one_one)
         layout.addLayout(self.hlayout_one)
         layout.addStretch()
         layout.addWidget(self.status_msg)
@@ -81,7 +98,7 @@ class SettingsDialog(SaveStateDialog):
         self.ok_button.clicked.connect(self.start)
         self.cancel_button.clicked.connect(self.cancel)
 
-        self.text_controls = [['vdatum_directory', self.vdatum_text]]
+        self.text_controls = [['vdatum_directory', self.vdatum_text], ['auto_processing_mode', self.auto_processing_mode]]
         self.checkbox_controls = [['enable_parallel_writes', self.parallel_write], ['keep_waterline_changes', self.keep_waterline_changes],
                                   ['force_coordinate_match', self.force_coordinate_match]]
 
@@ -98,7 +115,8 @@ class SettingsDialog(SaveStateDialog):
             opts = {'write_parallel': self.parallel_write.isChecked(),
                     'keep_waterline_changes': self.keep_waterline_changes.isChecked(),
                     'force_coordinate_match': self.force_coordinate_match.isChecked(),
-                    'vdatum_directory': self.vdatum_pth}
+                    'vdatum_directory': self.vdatum_pth,
+                    'autoprocessing_mode': self.auto_processing_mode.currentText()}
         else:
             opts = None
         return opts

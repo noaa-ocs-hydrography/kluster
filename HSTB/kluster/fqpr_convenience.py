@@ -12,6 +12,7 @@ from HSTB.drivers.kmall import kmall
 from HSTB.kluster.xarray_conversion import BatchRead
 from HSTB.kluster.fqpr_generation import Fqpr
 from HSTB.kluster.fqpr_helpers import seconds_to_formatted_string, return_files_from_path
+from HSTB.kluster.logging_conf import return_log_name
 from bathygrid.convenience import create_grid, load_grid, BathyGrid
 
 
@@ -235,7 +236,8 @@ def process_multibeam(fqpr_inst: Fqpr, run_orientation: bool = True, orientation
                       run_beam_vec: bool = True, run_svcorr: bool = True, run_georef: bool = True, run_tpu: bool = True,
                       add_cast_files: Union[str, list] = None, use_epsg: bool = False,
                       use_coord: bool = True, epsg: int = None, coord_system: str = 'WGS84',
-                      vert_ref: str = 'waterline', vdatum_directory: str = None):
+                      vert_ref: str = 'waterline', vdatum_directory: str = None, only_this_line: str = None,
+                      only_these_times: tuple = None):
     """
     Use fqpr_generation to process already converted data on the local cluster and generate sound velocity corrected,
     georeferenced soundings in the same data store as the converted data.
@@ -249,7 +251,7 @@ def process_multibeam(fqpr_inst: Fqpr, run_orientation: bool = True, orientation
     run_orientation
         perform the get_orientation_vectors step
     orientation_initial_interpolation
-        If true and running orientation, this will interpolate the raw attitude and navigation to ping time and save
+        If true and running orientation, this will interpolate the raw attitude to ping time and save
         it in the respective arrays.  Otherwise, each processing step will do the interpolation on it's own.  Turn this
         off for the in memory workflow, ex: tests turn this off as we don't want to save to disk
     run_beam_vec
@@ -275,6 +277,10 @@ def process_multibeam(fqpr_inst: Fqpr, run_orientation: bool = True, orientation
         the vertical reference point, one of ['ellipse', 'waterline', 'NOAA MLLW', 'NOAA MHW']
     vdatum_directory
         if 'NOAA MLLW' 'NOAA MHW' is the vertical reference, a path to the vdatum directory is required here
+    only_this_line
+        only process this line, subset the full dataset by the min time and maximum time of the line name provided.  ex: 0000_testline.all
+    only_these_times
+        only process this time region, expects this to be a tuple, (minimum time in UTC seconds, maximum time in UTC seconds)
 
     Returns
     -------
@@ -287,18 +293,27 @@ def process_multibeam(fqpr_inst: Fqpr, run_orientation: bool = True, orientation
     if not use_coord and not use_epsg and run_georef:
         print('process_multibeam: please select either use_coord or use_epsg to process')
         return
+    subset_time = None
+    if only_this_line or only_these_times:
+        if only_this_line:
+            minimum_time, maximum_time = fqpr_inst.return_line_time(only_this_line)
+            if minimum_time is None or maximum_time is None:
+                raise ValueError('process_multibeam: only_this_line={}, this line is not in the current fqpr instance'.format(only_this_line))
+        else:
+            minimum_time, maximum_time = only_these_times
+        subset_time = [minimum_time, maximum_time]
 
     fqpr_inst.construct_crs(epsg=epsg, datum=coord_system, projected=True, vert_ref=vert_ref)
     if run_orientation:
-        fqpr_inst.get_orientation_vectors(initial_interp=orientation_initial_interpolation)
+        fqpr_inst.get_orientation_vectors(initial_interp=orientation_initial_interpolation, subset_time=subset_time)
     if run_beam_vec:
-        fqpr_inst.get_beam_pointing_vectors()
+        fqpr_inst.get_beam_pointing_vectors(subset_time=subset_time)
     if run_svcorr:
-        fqpr_inst.sv_correct(add_cast_files=add_cast_files)
+        fqpr_inst.sv_correct(add_cast_files=add_cast_files, subset_time=subset_time)
     if run_georef:
-        fqpr_inst.georef_xyz(vdatum_directory=vdatum_directory)
+        fqpr_inst.georef_xyz(vdatum_directory=vdatum_directory, subset_time=subset_time)
     if run_tpu:
-        fqpr_inst.calculate_total_uncertainty()
+        fqpr_inst.calculate_total_uncertainty(subset_time=subset_time)
 
     # dask processes appear to suffer from memory leaks regardless of how carefully we track and wait on futures, reset the client here to clear memory after processing
     # if fqpr_inst.client is not None:
@@ -734,6 +749,9 @@ def return_processed_data_folders(converted_folder: str):
                         final_paths[ky].append(fldrpath)
                     elif ky in ['logfile']:
                         final_paths[ky] = fldrpath
+        # no log file found for this data for some reason, generate a new path for a new logfile
+        if not final_paths['logfile']:
+            final_paths['logfile'] = os.path.join(converted_folder, return_log_name())
 
     for ky in ['attitude', 'ppnav']:
         if len(final_paths[ky]) > 1:

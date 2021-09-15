@@ -1,0 +1,140 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Kluster Intelligence &#8212; kluster 0.7.9 documentation</title>
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" type="text/css" href="../_static/graphviz.css" />
+    <script id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Geohashes and Spatial Indexing" href="geohash.html" />
+    <link rel="prev" title="Learn more about Kluster" href="index.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="kluster-intelligence">
+<h1>Kluster Intelligence<a class="headerlink" href="#kluster-intelligence" title="Permalink to this headline">¶</a></h1>
+<p>Kluster processing is largely just a one button affair.  The user adds data or changes an option, a new action is created (ex: ‘convert 5 multibeam files to …) and the user runs that action.  But how are those actions created?  And how can it know what to do without me telling it what to do?</p>
+<p>Enter the Kluster Intelligence module.  This is the behind-the-scenes technology that powers the actions you see in Kluster.  I have a basic diagram of the Intelligence module below.</p>
+<a class="reference external image-reference" href="../_images/intel1.png"><img alt="../_images/intel1.png" src="../_images/intel1.png" /></a>
+<p>It’s pretty simple really.  The user adds data, the Intelligence module gathers info about that data, it builds the next action and shows it to the viewer for approval (i.e. you hit the start button).  If the user changes a setting, the module will take that change and redo the actions with the change in mind.  Theoretically, all actions the user could take are covered by the Intelligence module, to the point that you no longer really have to know how to process multibeam data, which was the goal.</p>
+<p>So what can the Intelligence module handle?  What automated tasks will it make?  I have a chart below of all the possible actions.</p>
+<a class="reference external image-reference" href="../_images/intel2.png"><img alt="../_images/intel2.png" src="../_images/intel2.png" /></a>
+<p>You’ll notice a few interesting things:</p>
+<p>Kluster Intelligence knows which steps need to be repeated whenever a setting is changed.  This is due to the linear nature of the processing workflow, which must be performed in this order:</p>
+<ol class="arabic simple">
+<li><p>Compute vessel orientation using attitude and mounting angles</p></li>
+<li><p>Correct raw beam angles using new orientation</p></li>
+<li><p>Sound Velocity Correct using the corrected angles and travel time to get alongtrack, acrosstrack, depth offsets</p></li>
+<li><p>Georeference to turn SVC offsets into northing/easting according to coordinate system and to correct depth offset according to vertical reference</p></li>
+<li><p>Calculate the total vertical and horizontal uncertainty</p></li>
+</ol>
+<p>So if I change the coordinate system, I need to redo step 4 as the coordinate system changes and step 5 as uncertainty calculation relies on the output of georeferencing.  If I change the waterline, I need to redo steps 3, 4 and 5.  And so on.</p>
+<p>Kluster Intelligence keeps a lot of data related to each file, more than you might think, including modified times, file size, etc.  Early on, these fields were used extensively, but in later iterations, they are largely ignored.</p>
+<p>Actions have a priority, which determines the order in which they are run.  This is to ensure that you import navigation before you georeference, for example.</p>
+<p>Automatically building navigation actions using the POSPac sbet/smrmsg/export log is hard.  Basically impossible to do with 100% certainty.  This is due to the lack of metadata within the sbet.  What I have done is build a number of checks that if they all line up, should match the converted multibeam data to the correct sbet/smrmsg data.  You are always free to import sbet using the separate dialog instead of the Intelligence module.</p>
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">kluster</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../quickstart/index.html">Quickstart</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../vessel_setup/index.html">Vessel Setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../processing/index.html">Processing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../surface/index.html">Surfacing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../products/index.html">Products</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../settings/index.html">Settings</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Learn more about Kluster</a><ul class="current">
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Kluster Intelligence</a></li>
+<li class="toctree-l2"><a class="reference internal" href="geohash.html">Geohashes and Spatial Indexing</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../kluster_api/index.html">API</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  <li><a href="index.html">Learn more about Kluster</a><ul>
+      <li>Previous: <a href="index.html" title="previous chapter">Learn more about Kluster</a></li>
+      <li>Next: <a href="geohash.html" title="next chapter">Geohashes and Spatial Indexing</a></li>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2020, Eric Younkin.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.5.2</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="../_sources/indepth/intel.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

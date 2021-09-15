@@ -103,6 +103,7 @@ class FqprSubset:
         """
         Subset by the existing subset times, used after reload to get the subset back
         """
+        self.backup_fqpr = {}
         if self.subset_mintime and self.subset_maxtime:
             self.subset_by_time(self.subset_mintime, self.subset_maxtime)
 

@@ -1,6 +1,7 @@
 import logging
 import sys
 import os
+from datetime import datetime
 
 loglevel = logging.INFO
 log_counter = 0
@@ -20,6 +21,19 @@ class StdOutFilter(logging.Filter):
     """
     def filter(self, rec):
         return rec.levelno in (logging.DEBUG, logging.INFO)
+
+
+def return_log_name():
+    """
+    Return the log file name that we use throughout kluster.  Includes the utctimstamp in seconds as a unique id
+
+    Returns
+    -------
+    str
+        log file name
+    """
+
+    return 'logfile_{}.txt'.format(int(datetime.utcnow().timestamp()))
 
 
 def return_logger(name, logfile):

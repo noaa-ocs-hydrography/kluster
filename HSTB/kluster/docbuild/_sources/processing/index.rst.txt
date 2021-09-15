@@ -1,5 +1,5 @@
-Conversion and Processing
-*************************
+Processing
+**********
 
 Here we will talk about the conversion and processing steps, what they mean, how they work and what the resulting data looks like.  Kluster automates all of this for you, so you can process multibeam data without really understanding any of this.  Where this becomes useful, is when you process data and then wonder 'why are these two lines not at roughly the same depth?' or 'why did only part of this line process?'.  So hopefully what I'm sharing here will help understand the behind the scenes elements of Kluster to help answer any questions you might have!
 
