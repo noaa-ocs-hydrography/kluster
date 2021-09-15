@@ -48,8 +48,8 @@ class SettingsDialog(SaveStateDialog):
         self.auto_processing_mode = QtWidgets.QComboBox()
         autooptions = ['normal', 'convert_only', 'concatenate']
         self.auto_processing_mode.addItems(autooptions)
-        self.auto_processing_mode.setToolTip('Controls how the Auto mode actually works (the Auto checkbox next to the Start Process button)\n' +
-                                             'See the following auto mode explanations for the currently available options\n\n' +
+        self.auto_processing_mode.setToolTip('Controls the processing actions that appear when new data is added or settings are changed.\n' +
+                                             'See the following mode explanations for the currently available options\n\n' +
                                              'normal = data is converted and processed as it comes in, where each line added would reprocess the whole day\n' +
                                              'convert only = data is only converted, data is never automatically processed\n' +
                                              'concatenate = data is converted as lines are added and each line is processed individually.  Similar to normal\n' +

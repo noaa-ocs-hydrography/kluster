@@ -12,6 +12,7 @@ from HSTB.drivers.kmall import kmall
 from HSTB.kluster.xarray_conversion import BatchRead
 from HSTB.kluster.fqpr_generation import Fqpr
 from HSTB.kluster.fqpr_helpers import seconds_to_formatted_string, return_files_from_path
+from HSTB.kluster.logging_conf import return_log_name
 from bathygrid.convenience import create_grid, load_grid, BathyGrid
 
 
@@ -748,6 +749,9 @@ def return_processed_data_folders(converted_folder: str):
                         final_paths[ky].append(fldrpath)
                     elif ky in ['logfile']:
                         final_paths[ky] = fldrpath
+        # no log file found for this data for some reason, generate a new path for a new logfile
+        if not final_paths['logfile']:
+            final_paths['logfile'] = os.path.join(converted_folder, return_log_name())
 
     for ky in ['attitude', 'ppnav']:
         if len(final_paths[ky]) > 1:

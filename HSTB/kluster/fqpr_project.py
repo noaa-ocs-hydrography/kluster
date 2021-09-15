@@ -426,7 +426,7 @@ class FqprProject:
             relpath = self.path_relative_to_project(pth)
 
         if relpath in self.fqpr_instances:
-            self.fqpr_instances[relpath].close()
+            self.fqpr_instances[relpath].close(close_dask=False)
             self.fqpr_instances.pop(relpath)
             if relpath in self.fqpr_attrs:
                 self.fqpr_attrs.pop(relpath)
@@ -443,6 +443,8 @@ class FqprProject:
                 print('Warning: On removing from project, unable to find loaded lines for {}'.format(relpath))
             for callback in self._project_observers:
                 callback(True)
+        else:
+            print('Unable to remove instance {}'.format(relpath))
 
     def add_surface(self, pth: Union[str, BathyGrid]):
         """

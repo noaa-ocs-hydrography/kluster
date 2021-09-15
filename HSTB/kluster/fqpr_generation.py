@@ -179,11 +179,11 @@ class Fqpr(ZarrBackend):
             final_linename = unprocessedlines[np.argmin(starttimes)]
         return final_linename
 
-    def close(self):
+    def close(self, close_dask: bool = True):
         """
         Must forcibly close the logging handlers to allow the data written to disk to be moved or deleted.
         """
-        if self.client is not None:
+        if self.client is not None and close_dask:
             if self.client.status in ("running", "connecting"):
                 self.client.close()
         if self.logger is not None:
@@ -192,6 +192,7 @@ class Fqpr(ZarrBackend):
                 handler.flush()
                 handler.close()
                 self.logger.removeHandler(handler)
+            self.logger.handlers.clear()
             self.logger = None
         if self.multibeam is not None:
             if self.multibeam.logger is not None:
@@ -200,6 +201,7 @@ class Fqpr(ZarrBackend):
                     handler.flush()
                     handler.close()
                     self.multibeam.logger.removeHandler(handler)
+                self.multibeam.logger.handlers.clear()
                 self.multibeam.logger = None
 
     def initialize_log(self):
