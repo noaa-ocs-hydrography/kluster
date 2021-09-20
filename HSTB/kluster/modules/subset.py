@@ -362,7 +362,40 @@ class FqprSubset:
                             skip_dask=True)
 
     def get_variable_by_filter(self, variable_name: str, selected_index: list = None):
-        pass
+        """
+        ping_filter is set upon selecting points in 2d/3d in Kluster.  See return_soundings_in_polygon.  Here we can take
+        those points and set one of the variables with new data.  Optionally, you can include a selected_index that is a list
+        of flattened indices to points in the ping_filter that you want to super-select.  See kluster_main.set_pointsview_points_status
+
+        new data are set in memory and saved to disk
+
+        Parameters
+        ----------
+        variable_name
+            name of the variable to set, i.e. 'detectioninfo'
+        selected_index
+            super_selection of the ping_filter selection, done in points_view currently when selecting with the mouse
+        """
+
+        datablock = []
+        for cnt, rp in enumerate(self.fqpr.multibeam.raw_ping):
+            ping_filter = self.fqpr.subset.ping_filter[cnt]
+            data_var = rp[variable_name]
+            if selected_index:
+                rp_points_idx = selected_index[cnt]
+                point_idx = np.unravel_index(np.where(ping_filter)[0][rp_points_idx], data_var.shape)
+            else:
+                point_idx = np.unravel_index(np.where(ping_filter)[0], data_var.shape)
+
+            unique_time_vals, utime_index = np.unique(point_idx[0], return_inverse=True)
+            rp_detect = data_var.isel(time=unique_time_vals).load()
+            rp_detect_vals = rp_detect.values
+            try:  # 2d variable
+                datablock.append(rp_detect_vals[utime_index, point_idx[1]])
+            except:
+                datablock.append(rp_detect_vals[utime_index])
+        datablock = np.concatenate(datablock)
+        return datablock
 
 
 def filter_subset_by_detection(ping_dataset: xr.Dataset):

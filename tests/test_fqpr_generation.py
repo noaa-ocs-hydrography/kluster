@@ -212,6 +212,16 @@ def test_return_soundings_in_polygon():
     assert head.shape == x.shape == y.shape == z.shape == tvu.shape == rejected.shape == pointtime.shape == beam.shape
     assert x.shape == (1911,)
 
+    # now try just pulling the corrected beam angle for the soundings
+    beamangle = out.return_soundings_in_polygon(polygon, variable_selection=('corr_pointing_angle',))
+    assert beamangle[0].shape == (1911,)
+
+    # now use the existing filter that we set with the last return_soundings_in_polygon to get an additional variable
+    getbeamangle = out.get_variable_by_filter('corr_pointing_angle')
+    assert getbeamangle.shape == (1911,)
+
+    assert (beamangle == getbeamangle).all()
+
     out.close()
     out = None
 

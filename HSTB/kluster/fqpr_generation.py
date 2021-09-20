@@ -2673,14 +2673,15 @@ class Fqpr(ZarrBackend):
         else:
             return None, None
 
-    def return_soundings_in_polygon(self, polygon: np.ndarray, geographic: bool = True):
+    def return_soundings_in_polygon(self, polygon: np.ndarray, geographic: bool = True,
+                                    variable_selection: tuple = ('head', 'x', 'y', 'z', 'tvu', 'detectioninfo', 'time', 'beam')):
         """
         Using provided coordinates (in either horizontal_crs projected or geographic coordinates), return the soundings
         and sounding attributes for all soundings within the coordinates, see subset module.
         """
 
-        head, x, y, z, tvu, rejected, pointtime, beam = self.subset.return_soundings_in_polygon(polygon, geographic)
-        return head, x, y, z, tvu, rejected, pointtime, beam
+        datablock = self.subset.return_soundings_in_polygon(polygon, geographic, variable_selection)
+        return datablock
 
     def set_variable_by_filter(self, var_name: str = 'detectioninfo', newval: Union[int, str, float] = 2, selected_index: list = None):
         """
@@ -2690,6 +2691,18 @@ class Fqpr(ZarrBackend):
         """
 
         self.subset.set_variable_by_filter(var_name, newval, selected_index)
+
+    def get_variable_by_filter(self, var_name: str, selected_index: list = None):
+        """
+        ping_filter is set upon selecting points in 2d/3d in Kluster.  See return_soundings_in_polygon.  Here we can take
+        those points and get one of the variables individually.  This is going to be faster than running return_soundings_in_polygon
+        again and is kind of an added feature for just getting one other variable.
+
+        Optionally, you can include a selected_index that is a list of flattened indices to points in the ping_filter
+        that you want to super-select, see subset module.
+        """
+
+        return self.subset.get_variable_by_filter(var_name, selected_index)
 
     def return_processing_dashboard(self):
         """
