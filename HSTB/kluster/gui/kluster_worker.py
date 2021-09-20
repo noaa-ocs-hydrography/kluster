@@ -25,6 +25,7 @@ class ActionWorker(QtCore.QThread):
     def populate(self, action_container, action_index):
         self.action_container = action_container
         self.action_index = action_index
+        self.result = None
 
     def run(self):
         self.started.emit(True)
@@ -166,6 +167,41 @@ class DrawSurfaceWorker(QtCore.QThread):
         self.finished.emit(True)
 
 
+class LoadPointsWorker(QtCore.QThread):
+    """
+    Executes code in a seperate thread.
+    """
+
+    started = Signal(bool)
+    finished = Signal(bool)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.polygon = None
+        self.azimuth = None
+        self.project = None
+        self.is3d = False
+        self.points_data = None
+        self.error = False
+
+    def populate(self, polygon=None, azimuth=None, project=None, is3d=False):
+        self.polygon = polygon
+        self.azimuth = azimuth
+        self.project = project
+        self.is3d = is3d
+        self.points_data = None
+        self.error = False
+
+    def run(self):
+        self.started.emit(True)
+        try:
+            self.points_data = self.project.return_soundings_in_polygon(self.polygon)
+        except Exception as e:
+            print(e)
+            self.error = True
+        self.finished.emit(True)
+
+
 class ImportNavigationWorker(QtCore.QThread):
     """
     Executes code in a seperate thread.
@@ -182,6 +218,7 @@ class ImportNavigationWorker(QtCore.QThread):
 
     def populate(self, fq_chunks):
         self.fq_chunks = fq_chunks
+        self.fqpr_instances = []
         self.error = False
 
     def run(self):
@@ -212,6 +249,7 @@ class OverwriteNavigationWorker(QtCore.QThread):
     def populate(self, fq_chunks):
         self.fq_chunks = fq_chunks
         self.error = False
+        self.fqpr_instances = []
 
     def run(self):
         self.started.emit(True)
@@ -254,6 +292,7 @@ class ExportWorker(QtCore.QThread):
         elif points_mode:
             self.mode = 'points'
 
+        self.fqpr_instances = []
         self.line_names = line_names
         self.datablock = datablock
         self.fq_chunks = fq_chunks
@@ -349,6 +388,7 @@ class SurfaceWorker(QtCore.QThread):
 
     def populate(self, fqpr_instances, opts):
         self.fqpr_instances = fqpr_instances
+        self.fqpr_surface = None
         self.opts = opts
         self.error = False
 

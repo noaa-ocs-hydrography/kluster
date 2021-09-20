@@ -398,11 +398,11 @@ class RectangleMapTool(qgis_gui.QgsMapToolEmitPoint):
             elif self.second_click:  # third click loads
                 self.first_click = False
                 self.second_click = False
-                self.rubberBand.setColor(QtCore.Qt.green)
+                self.rubberBand.setColor(QtCore.Qt.darkYellow)
                 self.rubberBand.setFillColor(QtCore.Qt.transparent)
                 self.rubberBand.update()
                 if self.direction_arrow:
-                    self.direction_arrow.setColor(QtCore.Qt.green)
+                    self.direction_arrow.setColor(QtCore.Qt.darkYellow)
                     self.direction_arrow.update()
                 poly, az = self.rectangle()
                 if poly is not None:
@@ -554,6 +554,17 @@ class RectangleMapTool(qgis_gui.QgsMapToolEmitPoint):
         # box to the mouse cursor.  We want just the azimuth of the box, which we derive here using the bottom leg of the box
         az = self.return_azimuth(point2.x(), point2.y(), point3.x(), point3.y()) - (np.pi / 2)
         return polygon, az
+
+    def finalize(self):
+        """
+        After receiving notice that the points are fully loaded, we turn the tool Green to signify completion
+        """
+        self.rubberBand.setColor(QtCore.Qt.green)
+        self.rubberBand.setFillColor(QtCore.Qt.transparent)
+        self.rubberBand.update()
+        if self.direction_arrow:
+            self.direction_arrow.setColor(QtCore.Qt.green)
+            self.direction_arrow.update()
 
     def deactivate(self):
         """
@@ -2176,6 +2187,12 @@ class MapView(QtWidgets.QMainWindow):
         self.toolPoints.reset()
         self.clear_points()
         self.canvas.setMapTool(self.toolSwath)
+
+    def finalize_points_tool(self, is_3d: bool):
+        if is_3d:
+            self.toolPoints.finalize()
+        else:
+            self.toolSwath.finalize()
 
     def query(self):
         """

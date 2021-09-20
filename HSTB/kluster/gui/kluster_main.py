@@ -140,9 +140,10 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.open_project_thread = kluster_worker.OpenProjectWorker()
         self.draw_navigation_thread = kluster_worker.DrawNavigationWorker()
         self.draw_surface_thread = kluster_worker.DrawSurfaceWorker()
+        self.load_points_thread = kluster_worker.LoadPointsWorker()
         self.allthreads = [self.action_thread, self.import_ppnav_thread, self.overwrite_nav_thread, self.surface_thread,
                            self.surface_update_thread, self.export_thread, self.export_grid_thread, self.open_project_thread,
-                           self.draw_navigation_thread, self.draw_surface_thread]
+                           self.draw_navigation_thread, self.draw_surface_thread, self.load_points_thread]
 
         # connect FqprActionContainer with actions pane, called whenever actions changes
         self.intel.bind_to_action_update(self.actions.update_actions)
@@ -198,6 +199,8 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.draw_navigation_thread.finished.connect(self._kluster_draw_navigation_results)
         self.draw_surface_thread.started.connect(self._start_action_progress)
         self.draw_surface_thread.finished.connect(self._kluster_draw_surface_results)
+        self.load_points_thread.started.connect(self._start_action_progress)
+        self.load_points_thread.finished.connect(self._kluster_load_points_results)
 
         self.monitor.monitor_file_event.connect(self.intel._handle_monitor_event)
         self.monitor.monitor_start.connect(self._create_new_project_if_not_exist)
@@ -786,6 +789,7 @@ class KlusterMain(QtWidgets.QMainWindow):
                 self.refresh_project(fqpr=[fqpr_entry])
         else:
             print('kluster_action: no data returned from action execution: {}'.format(fqpr))
+        self.action_thread.populate(None, None)
         self._stop_action_progress()
 
     def kluster_overwrite_nav(self):
@@ -842,6 +846,7 @@ class KlusterMain(QtWidgets.QMainWindow):
                 self.refresh_explorer(fq)
         else:
             print('kluster_import_navigation: Unable to complete process')
+        self.overwrite_nav_thread.populate(None)
 
     def kluster_import_ppnav(self):
         """
@@ -897,6 +902,7 @@ class KlusterMain(QtWidgets.QMainWindow):
                 self.refresh_explorer(fq)
         else:
             print('kluster_import_navigation: Unable to complete process')
+        self.import_ppnav_thread.populate(None)
 
     def kluster_surface_generation(self):
         """
@@ -958,6 +964,7 @@ class KlusterMain(QtWidgets.QMainWindow):
             self.redraw()
         else:
             print('kluster_surface_generation: Unable to complete process')
+        self.surface_thread.populate(None, {})
         self._stop_action_progress()
 
     def kluster_surface_update(self):
@@ -1006,6 +1013,7 @@ class KlusterMain(QtWidgets.QMainWindow):
             self.project_tree.refresh_project(proj=self.project)
         else:
             print('kluster_surface_update: Unable to complete process')
+        self.surface_update_thread.populate(None, None, None, {})
         self._stop_action_progress()
 
     def kluster_export_grid(self):
@@ -1060,6 +1068,7 @@ class KlusterMain(QtWidgets.QMainWindow):
             print('Export complete: Unable to export')
         else:
             print('Export complete.')
+        self.export_grid_thread.populate(None, '', '', True, {})
         self._stop_action_progress()
 
     def kluster_export(self):
@@ -1126,6 +1135,7 @@ class KlusterMain(QtWidgets.QMainWindow):
             print('Export complete: Unable to export')
         else:
             print('Export complete.')
+        self.export_thread.populate(None, None, [], '', False, ' ', False, False, True, False, False)
         self._stop_action_progress()
 
     def _start_action_progress(self):
@@ -1610,17 +1620,15 @@ class KlusterMain(QtWidgets.QMainWindow):
             azimuth of the selection polygon in radians
         """
 
-        print('Selecting Points in Polygon...')
-        # print('Box select azimuth = {} degrees'.format(np.rad2deg(azimuth)))
-        pointcount = 0
-        self.points_view.clear()
-        pts_data = self.project.return_soundings_in_polygon(polygon)
-        for fqpr_name, pointdata in pts_data.items():
-            self.points_view.add_points(pointdata[0], pointdata[1], pointdata[2], pointdata[3], pointdata[4], pointdata[5],
-                                        pointdata[6], pointdata[7], fqpr_name, pointdata[8], is_3d=True, azimuth=azimuth)
-            pointcount += pointdata[0].size
-        self.points_view.display_points()
-        print('Selected {} Points for 3D display'.format(pointcount))
+        if not self.no_threads_running():
+            print('Processing is already occurring.  Please wait for the process to finish')
+            cancelled = True
+        else:
+            cancelled = False
+            self.load_points_thread.populate(polygon, azimuth, self.project, is3d=True)
+            self.load_points_thread.start()
+        if cancelled:
+            print('select_points_in_box: Processing was cancelled')
 
     def select_slice_in_box(self, polygon: np.ndarray, azimuth: float):
         """
@@ -1632,19 +1640,38 @@ class KlusterMain(QtWidgets.QMainWindow):
             (N, 2) array of points that make up the selection polygon,  (longitude, latitude) in degrees
         azimuth
             azimuth of the selection polygon in radians
-
         """
 
-        # print('Box select azimuth = {} radians'.format(azimuth))
+        if not self.no_threads_running():
+            print('Processing is already occurring.  Please wait for the process to finish')
+            cancelled = True
+        else:
+            cancelled = False
+            self.load_points_thread.populate(polygon, azimuth, self.project, is3d=False)
+            self.load_points_thread.start()
+        if cancelled:
+            print('select_points_in_box: Processing was cancelled')
+
+    def _kluster_load_points_results(self):
+        """
+        After running the load_points_thread to get the soundings in the polygon for every fqpr instance in the project,
+        we load the points into the Points View here.
+        """
+
         pointcount = 0
-        self.points_view.clear()
-        pts_data = self.project.return_soundings_in_polygon(polygon)
-        for fqpr_name, pointdata in pts_data.items():
-            self.points_view.add_points(pointdata[0], pointdata[1], pointdata[2], pointdata[3], pointdata[4], pointdata[5],
-                                        pointdata[6], pointdata[7], fqpr_name, pointdata[8], is_3d=False, azimuth=azimuth)
-            pointcount += pointdata[0].size
-        self.points_view.display_points()
-        print('Selected {} Points for 2D display'.format(pointcount))
+        if not self.load_points_thread.error:
+            points_data = self.load_points_thread.points_data
+            is_3d = self.load_points_thread.is3d
+            azimuth = self.load_points_thread.azimuth
+            for fqpr_name, pointdata in points_data.items():
+                self.points_view.add_points(pointdata[0], pointdata[1], pointdata[2], pointdata[3], pointdata[4], pointdata[5],
+                                            pointdata[6], pointdata[7], fqpr_name, pointdata[8], is_3d=is_3d, azimuth=azimuth)
+                pointcount += pointdata[0].size
+            self.points_view.display_points()
+        self.two_d.finalize_points_tool(is_3d)
+        print('Selected {} Points for display'.format(pointcount))
+        self.load_points_thread.populate()
+        self._stop_action_progress()
 
     def clear_points(self, clrsig: bool):
         """
