@@ -180,15 +180,13 @@ class LoadPointsWorker(QtCore.QThread):
         self.polygon = None
         self.azimuth = None
         self.project = None
-        self.is3d = False
         self.points_data = None
         self.error = False
 
-    def populate(self, polygon=None, azimuth=None, project=None, is3d=False):
+    def populate(self, polygon=None, azimuth=None, project=None):
         self.polygon = polygon
         self.azimuth = azimuth
         self.project = project
-        self.is3d = is3d
         self.points_data = None
         self.error = False
 

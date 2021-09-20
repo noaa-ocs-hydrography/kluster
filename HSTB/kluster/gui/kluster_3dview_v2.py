@@ -587,7 +587,7 @@ class ThreeDView(QtWidgets.QWidget):
             self.parent.select_points(startpos, endpos, three_d=three_d)
 
     def add_points(self, head: np.array, x: np.array, y: np.array, z: np.array, tvu: np.array, rejected: np.array,
-                   pointtime: np.array, beam: np.array, newid: str, linename: np.array, is_3d: bool, azimuth: float = None):
+                   pointtime: np.array, beam: np.array, newid: str, linename: np.array, azimuth: float = None):
         """
         Add points to the 3d view widget, we only display points after all points are added, hence the separate methods
 
@@ -613,8 +613,6 @@ class ThreeDView(QtWidgets.QWidget):
             container name the sounding came from, ex: 'EM710_234_02_10_2019'
         linename
             1d array of line names for each time
-        is_3d
-            Set this flag to notify widget that we are in 3d mode
         azimuth
             azimuth of the selection polygon in radians
         """
@@ -646,7 +644,6 @@ class ThreeDView(QtWidgets.QWidget):
         self.pointtime = np.concatenate([self.pointtime, pointtime])
         self.beam = np.concatenate([self.beam, beam])
         self.linename = np.concatenate([self.linename, linename])
-        self.is_3d = is_3d
 
     def return_points(self):
         return [self.id, self.head, self.x, self.y, self.z, self.tvu, self.rejected, self.pointtime, self.beam, self.linename]
@@ -1025,6 +1022,10 @@ class ThreeDWidget(QtWidgets.QWidget):
         self.mainlayout = QtWidgets.QVBoxLayout()
 
         self.opts_layout = QtWidgets.QHBoxLayout()
+        self.dimension = QtWidgets.QComboBox()
+        self.dimension.addItems(['2d view', '3d view'])
+        self.dimension.setToolTip('Change the view to either 2 or 3 dimensions.')
+        self.opts_layout.addWidget(self.dimension)
         self.colorby_label = QtWidgets.QLabel('Color By: ')
         self.opts_layout.addWidget(self.colorby_label)
         self.colorby = QtWidgets.QComboBox()
@@ -1033,15 +1034,21 @@ class ThreeDWidget(QtWidgets.QWidget):
         self.opts_layout.addWidget(self.colorby)
         self.viewdirection_label = QtWidgets.QLabel('View Direction: ')
         self.opts_layout.addWidget(self.viewdirection_label)
-        self.viewdirection = QtWidgets.QComboBox()
-        self.viewdirection.addItems(['north', 'east', 'top', 'arrow'])
-        self.viewdirection.setToolTip('View direction shown in the Points View:\n\n' +
-                                      'north - in 2d, this will show the eastings (x) vs depth\n' +
-                                      'east - in 2d, this will show the northings (y) vs depth\n' +
-                                      'top - in 3d, this will show the unrotated soundings (soundings as is)\n' +
-                                      'arrow - in 2d, this will show the rotated soundings looking down the direction shown as the arrow of the box select tool in 2dview\n' +
-                                      '      - in 3d, this will show the rotated soundings in a top view, using the direction shown as the arrow of the box select tool in 2dview')
-        self.opts_layout.addWidget(self.viewdirection)
+        self.viewdirection2d = QtWidgets.QComboBox()
+        self.viewdirection2d.addItems(['north', 'east', 'arrow'])
+        self.viewdirection2d.setToolTip('View direction shown in the Points View:\n\n' +
+                                        'north - this will show the eastings (x) vs depth\n' +
+                                        'east - this will show the northings (y) vs depth\n' +
+                                        'arrow - this will show the rotated soundings looking down the direction shown as the arrow of the box select tool in 2dview')
+        self.opts_layout.addWidget(self.viewdirection2d)
+        self.viewdirection3d = QtWidgets.QComboBox()
+        self.viewdirection3d.addItems(['top', 'arrow'])
+        self.viewdirection3d.setToolTip('View direction shown in the Points View:\n\n' +
+                                        'top - this will show the unrotated soundings (soundings as is)\n' +
+                                        'arrow - this will show the rotated soundings in a top view, using the direction shown as the arrow of the box select tool in 2dview')
+        self.viewdirection3d.hide()
+        self.opts_layout.addWidget(self.viewdirection3d)
+
         self.vertexag_label = QtWidgets.QLabel('Vertical Exaggeration: ')
         self.opts_layout.addWidget(self.vertexag_label)
         self.vertexag = QtWidgets.QDoubleSpinBox()
@@ -1082,11 +1089,17 @@ class ThreeDWidget(QtWidgets.QWidget):
         self.mainlayout.setStretchFactor(self.instructions, 0)
         self.setLayout(self.mainlayout)
 
+        self.dimension.currentTextChanged.connect(self._handle_dimension_change)
         self.colorby.currentTextChanged.connect(self.change_color_by)
-        self.viewdirection.currentTextChanged.connect(self.refresh_settings)
         self.vertexag.valueChanged.connect(self.refresh_settings)
         self.show_axis.stateChanged.connect(self.refresh_settings)
         self.show_colorbar.stateChanged.connect(self._event_show_colorbar)
+
+        self.is_3d = None
+        self.last_used_view = None
+        self._handle_dimension_change()
+        self.viewdirection2d.currentTextChanged.connect(self.refresh_settings)
+        self.viewdirection3d.currentTextChanged.connect(self.refresh_settings)
 
     def _event_show_colorbar(self, e):
         """
@@ -1099,26 +1112,14 @@ class ThreeDWidget(QtWidgets.QWidget):
             self.colorbar.hide()
 
     def add_points(self, head: np.array, x: np.array, y: np.array, z: np.array, tvu: np.array, rejected: np.array, pointtime: np.array,
-                   beam: np.array, newid: str, linename: np.array, is_3d: bool, azimuth: float = None):
+                   beam: np.array, newid: str, linename: np.array, azimuth: float = None):
         """
         Adding new points will update the three d window with the boints and set the controls to show/hide
         """
-        if not self.three_d_window.x.any():  # no points loaded yet, this is the first add so set the controls
-            if is_3d:
-                self.viewdirection.clear()
-                self.viewdirection.addItems(['top', 'arrow'])
-                self.show_axis.hide()
-                self.vertexag_label.show()
-                self.vertexag.show()
-            else:
-                self.viewdirection.clear()
-                self.viewdirection.addItems(['north', 'east', 'arrow'])
-                self.show_axis.hide()
-                self.vertexag_label.hide()
-                self.vertexag.hide()
+
         self.three_d_window.selected_points = None
         self.three_d_window.superselected_index = None
-        self.three_d_window.add_points(head, x, y, z, tvu, rejected, pointtime, beam, newid, linename, is_3d, azimuth=azimuth)
+        self.three_d_window.add_points(head, x, y, z, tvu, rejected, pointtime, beam, newid, linename, azimuth=azimuth)
 
     def return_points(self):
         return self.three_d_window.return_points()
@@ -1129,8 +1130,8 @@ class ThreeDWidget(QtWidgets.QWidget):
         to highlight those points and set the attributes in the Kluster explorer widget.
         """
 
-        vd = self.viewdirection.currentText()
         if three_d:
+            vd = self.viewdirection3d.currentText()
             mask_x_min = self.three_d_window.displayed_points[:, 0] >= np.min([startpos[0][0], startpos[1][0], endpos[0][0], endpos[1][0]])
             mask_x_max = self.three_d_window.displayed_points[:, 0] <= np.max([startpos[0][0], startpos[1][0], endpos[0][0], endpos[1][0]])
             mask_y_min = self.three_d_window.displayed_points[:, 1] >= np.min([startpos[0][1], startpos[1][1], endpos[0][1], endpos[1][1]])
@@ -1138,6 +1139,7 @@ class ThreeDWidget(QtWidgets.QWidget):
             points_in_screen = np.argwhere(mask_x_min & mask_x_max & mask_y_min & mask_y_max)
             self.three_d_window.selected_points = points_in_screen[:, 0]
         else:
+            vd = self.viewdirection2d.currentText()
             if vd in ['north']:
                 m1 = self.three_d_window.displayed_points[:, [0, 2]] >= startpos[0:2]
                 m2 = self.three_d_window.displayed_points[:, [0, 2]] <= endpos[0:2]
@@ -1229,17 +1231,41 @@ class ThreeDWidget(QtWidgets.QWidget):
         """
         After adding points, we trigger the display by running display_points
         """
+        if self.dimension.currentText() == '2d view':
+            vd = self.viewdirection2d.currentText()
+        else:
+            vd = self.viewdirection3d.currentText()
         showaxis = True  # freezes when hiding axes on 3d for some reason
         if self.vertexag.isHidden():
             vertexag = 1
         else:
             vertexag = self.vertexag.value()
         cmap, minval, maxval = self.three_d_window.display_points(color_by=self.colorby.currentText(),
-                                                                  vertical_exaggeration=vertexag,
-                                                                  view_direction=self.viewdirection.currentText(),
+                                                                  vertical_exaggeration=vertexag, view_direction=vd,
                                                                   show_axis=showaxis)
         if cmap is not None:
             self.change_colormap(cmap, minval, maxval)
+
+    def _handle_dimension_change(self):
+        if self.dimension.currentText() == '2d view':
+            is_3d = False
+        else:
+            is_3d = True
+
+        if is_3d:
+            self.viewdirection3d.show()
+            self.viewdirection2d.hide()
+            self.show_axis.hide()
+            self.vertexag_label.show()
+            self.vertexag.show()
+        else:
+            self.viewdirection3d.hide()
+            self.viewdirection2d.show()
+            self.show_axis.hide()
+            self.vertexag_label.hide()
+            self.vertexag.hide()
+        self.three_d_window.is_3d = is_3d
+        self.refresh_settings(None)
 
     def refresh_settings(self, e):
         """

@@ -173,8 +173,7 @@ class KlusterMain(QtWidgets.QMainWindow):
 
         #self.two_d.box_select.connect(self.select_line_by_box)
         self.two_d.lines_select.connect(self.select_lines_by_name)
-        self.two_d.box_3dpoints.connect(self.select_points_in_box)
-        self.two_d.box_swath.connect(self.select_slice_in_box)
+        self.two_d.box_points.connect(self.select_points_in_box)
         self.two_d.turn_off_pointsview.connect(self.clear_points)
 
         self.points_view.points_selected.connect(self.show_points_in_explorer)
@@ -1625,29 +1624,7 @@ class KlusterMain(QtWidgets.QMainWindow):
             cancelled = True
         else:
             cancelled = False
-            self.load_points_thread.populate(polygon, azimuth, self.project, is3d=True)
-            self.load_points_thread.start()
-        if cancelled:
-            print('select_points_in_box: Processing was cancelled')
-
-    def select_slice_in_box(self, polygon: np.ndarray, azimuth: float):
-        """
-        method run on using the 2dview swath select tool.  Gathers all points in polygon and shows in 2d
-
-        Parameters
-        ----------
-        polygon
-            (N, 2) array of points that make up the selection polygon,  (longitude, latitude) in degrees
-        azimuth
-            azimuth of the selection polygon in radians
-        """
-
-        if not self.no_threads_running():
-            print('Processing is already occurring.  Please wait for the process to finish')
-            cancelled = True
-        else:
-            cancelled = False
-            self.load_points_thread.populate(polygon, azimuth, self.project, is3d=False)
+            self.load_points_thread.populate(polygon, azimuth, self.project)
             self.load_points_thread.start()
         if cancelled:
             print('select_points_in_box: Processing was cancelled')
@@ -1661,14 +1638,13 @@ class KlusterMain(QtWidgets.QMainWindow):
         pointcount = 0
         if not self.load_points_thread.error:
             points_data = self.load_points_thread.points_data
-            is_3d = self.load_points_thread.is3d
             azimuth = self.load_points_thread.azimuth
             for fqpr_name, pointdata in points_data.items():
                 self.points_view.add_points(pointdata[0], pointdata[1], pointdata[2], pointdata[3], pointdata[4], pointdata[5],
-                                            pointdata[6], pointdata[7], fqpr_name, pointdata[8], is_3d=is_3d, azimuth=azimuth)
+                                            pointdata[6], pointdata[7], fqpr_name, pointdata[8], azimuth=azimuth)
                 pointcount += pointdata[0].size
             self.points_view.display_points()
-        self.two_d.finalize_points_tool(is_3d)
+        self.two_d.finalize_points_tool()
         print('Selected {} Points for display'.format(pointcount))
         self.load_points_thread.populate()
         self._stop_action_progress()

@@ -916,8 +916,7 @@ class MapView(QtWidgets.QMainWindow):
 
     box_select = Signal(float, float, float, float)
     lines_select = Signal(object)
-    box_3dpoints = Signal(object, float)
-    box_swath = Signal(object, float)
+    box_points = Signal(object, float)
     turn_off_pointsview = Signal(bool)
 
     def __init__(self, parent=None, settings=None, epsg: int = 4326):
@@ -953,7 +952,6 @@ class MapView(QtWidgets.QMainWindow):
 
         self.toolSelect.select.connect(self._area_selected)
         self.toolPoints.select.connect(self._points_selected)
-        self.toolSwath.select.connect(self._swath_selected)
         self.set_extent(90, -90, 180, -180, buffer=False)
 
     def init_toolbar(self):
@@ -977,10 +975,8 @@ class MapView(QtWidgets.QMainWindow):
         rectangle_instructions += 'Second left click - set end point of the rectangle, freezes selection area\n'
         rectangle_instructions += ' - After the second click, hold down CTRL and move the mouse to rotate the selection\n'
         rectangle_instructions += 'Third left click - load the data in Points View (if georeferenced soundings exist)'
-        self.actionPoints = QtWidgets.QAction("3d Points")
-        self.actionPoints.setToolTip('Select georeferenced points within an area to view in 3d using Points View tab.\n\n' + rectangle_instructions)
-        self.actionSwath = QtWidgets.QAction("2d Points")
-        self.actionSwath.setToolTip('Select georeferenced points within an area to view in 2d using Points View tab.\n\n' + rectangle_instructions)
+        self.actionPoints = QtWidgets.QAction("Points")
+        self.actionPoints.setToolTip('Select georeferenced points within an area to view in Points View tab.\n\n' + rectangle_instructions)
 
         self.actionZoomIn.setCheckable(True)
         self.actionZoomOut.setCheckable(True)
@@ -989,7 +985,6 @@ class MapView(QtWidgets.QMainWindow):
         self.actionQuery.setCheckable(True)
         self.actionDistance.setCheckable(True)
         self.actionPoints.setCheckable(True)
-        self.actionSwath.setCheckable(True)
 
         self.actionZoomIn.triggered.connect(self.zoomIn)
         self.actionZoomOut.triggered.connect(self.zoomOut)
@@ -998,7 +993,6 @@ class MapView(QtWidgets.QMainWindow):
         self.actionQuery.triggered.connect(self.query)
         self.actionDistance.triggered.connect(self.distance)
         self.actionPoints.triggered.connect(self.selectPoints)
-        self.actionSwath.triggered.connect(self.selectSwath)
 
         self.toolbar = self.addToolBar("Canvas actions")
         self.toolbar.addAction(self.actionZoomIn)
@@ -1008,7 +1002,6 @@ class MapView(QtWidgets.QMainWindow):
         self.toolbar.addAction(self.actionQuery)
         self.toolbar.addAction(self.actionDistance)
         self.toolbar.addAction(self.actionPoints)
-        self.toolbar.addAction(self.actionSwath)
 
         # create the map tools
         self.toolPan = qgis_gui.QgsMapToolPan(self.canvas)
@@ -1026,9 +1019,6 @@ class MapView(QtWidgets.QMainWindow):
         self.toolPoints = RectangleMapTool(self.canvas)
         self.toolPoints.setAction(self.actionPoints)
         self.toolPoints.clear_box.connect(self.clear_points)
-        self.toolSwath = RectangleMapTool(self.canvas)
-        self.toolSwath.setAction(self.actionSwath)
-        self.toolSwath.clear_box.connect(self.clear_points)
 
     def wms_openstreetmap_url(self):
         """
@@ -1177,7 +1167,7 @@ class MapView(QtWidgets.QMainWindow):
 
     def _points_selected(self, polygon: np.ndarray, azimuth: float):
         """
-        emit box_3dpoints signal when the Rectbox select tool is used, displays the points within the boundary in
+        emit box_points signal when the Rectbox select tool is used, displays the points within the boundary in
         3d viewer.
 
         Parameters
@@ -1188,22 +1178,7 @@ class MapView(QtWidgets.QMainWindow):
             azimuth of the selection polygon in radians
         """
 
-        self.box_3dpoints.emit(polygon, azimuth)
-
-    def _swath_selected(self, polygon: np.ndarray, azimuth: float):
-        """
-        emit box_swath signal when the Rectbox select tool is used, displays the swaths within the boundary in
-        3d viewer.
-
-        Parameters
-        ----------
-        polygon
-            (N, 2) array of points that make up the selection polygon,  (longitude, latitude) in degrees
-        azimuth
-            azimuth of the selection polygon in radians
-        """
-
-        self.box_swath.emit(polygon, azimuth)
+        self.box_points.emit(polygon, azimuth)
 
     def _init_none(self):
         """
@@ -2176,23 +2151,11 @@ class MapView(QtWidgets.QMainWindow):
         """
         Activate the point select tool
         """
-        self.toolSwath.reset()
         self.clear_points()
         self.canvas.setMapTool(self.toolPoints)
 
-    def selectSwath(self):
-        """
-        Activate the point select tool
-        """
-        self.toolPoints.reset()
-        self.clear_points()
-        self.canvas.setMapTool(self.toolSwath)
-
-    def finalize_points_tool(self, is_3d: bool):
-        if is_3d:
-            self.toolPoints.finalize()
-        else:
-            self.toolSwath.finalize()
+    def finalize_points_tool(self):
+        self.toolPoints.finalize()
 
     def query(self):
         """
