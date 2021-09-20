@@ -154,6 +154,18 @@ att_chunks = {'time': (attitude_chunk_size,),
               'roll': (attitude_chunk_size,)
               }
 
+# return soundings variable options, see subset.return_soundings_in_polygon
+subset_variable_selection = ['head', 'time', 'beam', 'acrosstrack', 'alongtrack', 'altitude', 'beampointingangle', 'corr_altitude',
+                             'corr_heave', 'corr_pointing_angle', 'counter', 'datum_uncertainty', 'delay', 'depthoffset', 'detectioninfo',
+                             'frequency', 'geohash', 'latitude', 'longitude', 'mode', 'modetwo', 'ntx', 'processing_status', 'qualityfactor',
+                             'rel_azimuth', 'soundspeed', 'thu', 'tiltangle', 'traveltime',
+                             'tvu', 'txsector_beam', 'x', 'y', 'yawpitchstab', 'z']
+subset_variable_2d = ['acrosstrack', 'alongtrack', 'beampointingangle', 'datum_uncertainty', 'delay', 'depthoffset', 'detectioninfo',
+                      'frequency', 'geohash', 'ntx', 'processing_status', 'qualityfactor', 'rel_azimuth', 'thu',
+                      'tiltangle', 'traveltime', 'tvu', 'tx', 'txsector_beam', 'x', 'y', 'yawpitchstab', 'z']
+subset_variable_1d = ['head', 'time', 'beam', 'altitude', 'corr_altitude', 'corr_heave', 'corr_pointing_angle', 'counter', 'latitude',
+                      'longitude', 'mode', 'modetwo', 'soundspeed']
+
 # export helper for formatting variables in ascii export
 variable_format_str = {'time': '%1.6f', 'beam': '%d', 'xyz': '%s',
                        'acrosstrack': '%1.3f', 'alongtrack': '%1.3f', 'altitude': '%1.3f',

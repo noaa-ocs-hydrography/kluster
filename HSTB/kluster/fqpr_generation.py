@@ -2673,14 +2673,13 @@ class Fqpr(ZarrBackend):
         else:
             return None, None
 
-    def return_soundings_in_polygon(self, polygon: np.ndarray, geographic: bool = True,
-                                    full_swath: bool = False):
+    def return_soundings_in_polygon(self, polygon: np.ndarray, geographic: bool = True):
         """
         Using provided coordinates (in either horizontal_crs projected or geographic coordinates), return the soundings
         and sounding attributes for all soundings within the coordinates, see subset module.
         """
 
-        head, x, y, z, tvu, rejected, pointtime, beam = self.subset.return_soundings_in_polygon(polygon, geographic, full_swath)
+        head, x, y, z, tvu, rejected, pointtime, beam = self.subset.return_soundings_in_polygon(polygon, geographic)
         return head, x, y, z, tvu, rejected, pointtime, beam
 
     def set_variable_by_filter(self, var_name: str = 'detectioninfo', newval: Union[int, str, float] = 2, selected_index: list = None):

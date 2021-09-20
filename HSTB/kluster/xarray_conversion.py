@@ -30,7 +30,7 @@ sonar_translator = {'em122': [None, 'tx', 'rx', None], 'em302': [None, 'tx', 'rx
                     # EM2040c is represented in the .all file as em2045
                     'em2045': [None, 'txrx', None, None], 'em2045_dual': [None, 'txrx_port', 'txrx_stbd', None],
                     'em3002': [None, 'tx', 'rx', None], 'em2040p': [None, 'txrx', None, None],
-                    'em3020': [None, 'tx', 'rx', None],
+                    'em3020': [None, 'tx', 'rx', None], 'em3020_dual': [None, 'txrx_port', 'txrx_stbd', None],
                     'me70bo': ['txrx', None, None, None]}
 
 install_parameter_modifier = {'em2040_dual_tx': {'rx_port': {'0': {'x': 0.011, 'y': 0.0, 'z': -0.006},
