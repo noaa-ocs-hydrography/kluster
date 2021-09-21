@@ -158,8 +158,7 @@ att_chunks = {'time': (attitude_chunk_size,),
 subset_variable_selection = ['head', 'time', 'beam', 'acrosstrack', 'alongtrack', 'altitude', 'beampointingangle', 'corr_altitude',
                              'corr_heave', 'corr_pointing_angle', 'counter', 'datum_uncertainty', 'delay', 'depthoffset', 'detectioninfo',
                              'frequency', 'geohash', 'latitude', 'longitude', 'mode', 'modetwo', 'ntx', 'processing_status', 'qualityfactor',
-                             'rel_azimuth', 'soundspeed', 'thu', 'tiltangle', 'traveltime',
-                             'tvu', 'txsector_beam', 'x', 'y', 'yawpitchstab', 'z']
+                             'rel_azimuth', 'soundspeed', 'thu', 'tiltangle', 'traveltime', 'tvu', 'txsector_beam', 'x', 'y', 'yawpitchstab', 'z']
 subset_variable_2d = ['acrosstrack', 'alongtrack', 'beampointingangle', 'datum_uncertainty', 'delay', 'depthoffset', 'detectioninfo',
                       'frequency', 'geohash', 'ntx', 'processing_status', 'qualityfactor', 'rel_azimuth', 'thu',
                       'tiltangle', 'traveltime', 'tvu', 'tx', 'txsector_beam', 'x', 'y', 'yawpitchstab', 'z']

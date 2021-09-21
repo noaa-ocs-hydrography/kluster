@@ -219,7 +219,7 @@ class FqprSubset:
             return_data[linename] = dset
         return return_data
 
-    def soundings_by_poly(self, geo_polygon: np.ndarray, proj_polygon: np.ndarray, variable_selection: tuple):
+    def _soundings_by_poly(self, geo_polygon: np.ndarray, proj_polygon: np.ndarray, variable_selection: tuple):
         """
         Return soundings and sounding attributes that are within the box formed by the provided coordinates.
 
@@ -247,7 +247,6 @@ class FqprSubset:
             insidedata, intersectdata = filter_subset_by_polygon(rp, geo_polygon)
             base_filter = np.zeros(rp.x.shape[0] * rp.x.shape[1], dtype=bool)
             if insidedata or intersectdata:
-                # ping_dataset = rp.stack({'sounding': ('time', 'beam')})
                 if insidedata:
                     for mline, mdata in insidedata.items():
                         linemask, startidx, endidx, starttime, endtime = mdata
@@ -276,29 +275,24 @@ class FqprSubset:
             self.ping_filter.append(base_filter)
         return data_vars
 
-    def return_soundings_in_polygon(self, polygon: np.ndarray, geographic: bool = True,
-                                    variable_selection: tuple = ('head', 'x', 'y', 'z', 'tvu', 'detectioninfo', 'time', 'beam')):
+    def _build_polygons(self, polygon: np.ndarray, geographic: bool):
         """
-        Using provided coordinates (in either horizontal_crs projected or geographic coordinates), return the soundings
-        and sounding attributes for all soundings within the coordinates.
+        Build separate geographic/projected polygon coordinates from the provided polygon coordinates
 
         Parameters
         ----------
         polygon
-            (N, 2) array of points that make up the selection polygon,  (longitude, latitude) in degrees
+            (N, 2) array of points that make up the selection polygon
         geographic
             If True, the coordinates provided are geographic (latitude/longitude)
-        variable_selection
-            list of the variables that you want to return for the soundings in the polygon
 
         Returns
         -------
-        list
-            list of numpy arrays for each variable in variable selection
+        polygon
+            (N, 2) array of points that make up the selection polygon in geographic coordinates
+        polygon
+            (N, 2) array of points that make up the selection polygon in projected coordinates in the Fqpr instance coordinate system
         """
-
-        if 'horizontal_crs' not in self.fqpr.multibeam.raw_ping[0].attrs or 'z' not in self.fqpr.multibeam.raw_ping[0].variables.keys():
-            raise ValueError('Georeferencing has not been run yet, you must georeference before you can get soundings')
         if isinstance(polygon, list):
             polygon = np.array(polygon)
 
@@ -314,8 +308,41 @@ class FqprSubset:
                                          CRS.from_epsg(self.fqpr.multibeam.raw_ping[0].horizontal_crs), always_xy=True)
             polyx, polyy = trans.transform(polygon[:, 0], polygon[:, 1])
             proj_polygon = np.c_[polyx, polyy]
+        return geo_polygon, proj_polygon
 
-        data_vars = self.soundings_by_poly(geo_polygon, proj_polygon, variable_selection)
+    def return_soundings_in_polygon(self, polygon: np.ndarray, geographic: bool = True,
+                                    variable_selection: tuple = ('head', 'x', 'y', 'z', 'tvu', 'detectioninfo', 'time', 'beam')):
+        """
+        Using provided coordinates (in either horizontal_crs projected or geographic coordinates), return the soundings
+        and sounding attributes for all soundings within the coordinates.
+
+        Using this method sets the ping_filter attribute so that you can now use the set_variable_by_filter and
+        get_variable_by_filter methods to get other variables or set data within the polygon selection.
+
+        Parameters
+        ----------
+        polygon
+            (N, 2) array of points that make up the selection polygon
+        geographic
+            If True, the coordinates provided are geographic (latitude/longitude)
+        variable_selection
+            list of the variables that you want to return for the soundings in the polygon
+
+        Returns
+        -------
+        list
+            list of numpy arrays for each variable in variable selection
+        """
+
+        not_valid_variable = [vr for vr in variable_selection if vr not in kluster_variables.subset_variable_selection]
+        if not_valid_variable:
+            raise NotImplementedError('These variables are not currently implemented within return_soundings_in_polygon, see '
+                                      'set_filter_by_polygon and get_variable_by_filter to use these variables: {}'.format(not_valid_variable))
+        if 'horizontal_crs' not in self.fqpr.multibeam.raw_ping[0].attrs or 'z' not in self.fqpr.multibeam.raw_ping[0].variables.keys():
+            raise ValueError('Georeferencing has not been run yet, you must georeference before you can get soundings')
+
+        geo_polygon, proj_polygon = self._build_polygons(polygon, geographic)
+        data_vars = self._soundings_by_poly(geo_polygon, proj_polygon, variable_selection)
 
         if len(data_vars[0]) > 1:
             data_vars = [np.concatenate(x) for x in data_vars]
@@ -324,6 +351,47 @@ class FqprSubset:
         else:
             data_vars = [None for x in data_vars]
         return data_vars
+
+    def set_filter_by_polygon(self, polygon: np.ndarray, geographic: bool = True):
+        """
+        Using this method sets the ping_filter attribute so that you can now use the set_variable_by_filter and
+        get_variable_by_filter methods to get other variables or set data within the polygon selection.
+
+        This is an alternative to return_soundings_in_polygon that you can use if you want to set the filter without
+        loading/returning a lot of data.
+
+        Parameters
+        ----------
+        polygon
+            (N, 2) array of points that make up the selection polygon
+        geographic
+            If True, the coordinates provided are geographic (latitude/longitude)
+        """
+
+        if 'horizontal_crs' not in self.fqpr.multibeam.raw_ping[0].attrs or 'z' not in self.fqpr.multibeam.raw_ping[0].variables.keys():
+            raise ValueError('Georeferencing has not been run yet, you must georeference before you can get soundings')
+
+        geo_polygon, proj_polygon = self._build_polygons(polygon, geographic)
+
+        self.ping_filter = []
+        polypath = mpl_path.Path(proj_polygon)
+        for cnt, rp in enumerate(self.fqpr.multibeam.raw_ping):
+            insidedata, intersectdata = filter_subset_by_polygon(rp, geo_polygon)
+            base_filter = np.zeros(rp.x.shape[0] * rp.x.shape[1], dtype=bool)
+            if insidedata or intersectdata:
+                if insidedata:
+                    for mline, mdata in insidedata.items():
+                        linemask, startidx, endidx, starttime, endtime = mdata
+                        base_filter[startidx:endidx] = linemask
+                if intersectdata:
+                    for mline, mdata in intersectdata.items():
+                        linemask, startidx, endidx, starttime, endtime = mdata
+                        # only brute force check those points that are in intersecting geohash regions
+                        slice_pd = slice_xarray_by_dim(rp, dimname='time', start_time=starttime, end_time=endtime)
+                        xintersect, yintersect = np.ravel(slice_pd.x), np.ravel(slice_pd.y)
+                        filt = polypath.contains_points(np.c_[xintersect[linemask], yintersect[linemask]])
+                        base_filter[startidx:endidx][linemask] = filt
+            self.ping_filter.append(base_filter)
 
     def set_variable_by_filter(self, variable_name: str, new_data: Union[np.array, float, int, str], selected_index: list = None):
         """
@@ -378,22 +446,32 @@ class FqprSubset:
         """
 
         datablock = []
+        raw_att = self.fqpr.multibeam.raw_att
         for cnt, rp in enumerate(self.fqpr.multibeam.raw_ping):
             ping_filter = self.fqpr.subset.ping_filter[cnt]
-            data_var = rp[variable_name]
+            # must have a 2d variable to determine the correct shape of the index, beampointingangle should always exist in converted kluster data
+            data_var_2d = rp['beampointingangle']
             if selected_index:
                 rp_points_idx = selected_index[cnt]
-                point_idx = np.unravel_index(np.where(ping_filter)[0][rp_points_idx], data_var.shape)
+                point_idx = np.unravel_index(np.where(ping_filter)[0][rp_points_idx], data_var_2d.shape)
             else:
-                point_idx = np.unravel_index(np.where(ping_filter)[0], data_var.shape)
-
+                point_idx = np.unravel_index(np.where(ping_filter)[0], data_var_2d.shape)
             unique_time_vals, utime_index = np.unique(point_idx[0], return_inverse=True)
-            rp_detect = data_var.isel(time=unique_time_vals).load()
-            rp_detect_vals = rp_detect.values
-            try:  # 2d variable
-                datablock.append(rp_detect_vals[utime_index, point_idx[1]])
-            except:
-                datablock.append(rp_detect_vals[utime_index])
+            if variable_name in rp:
+                data_var = rp[variable_name]
+                subsetdata = data_var.isel(time=unique_time_vals).load()
+                subsetdata_vals = subsetdata.values
+                try:  # 2d variable
+                    datablock.append(subsetdata_vals[utime_index, point_idx[1]])
+                except:
+                    datablock.append(subsetdata_vals[utime_index])
+            elif variable_name in raw_att:
+                data_var = raw_att[variable_name]
+                unique_times = rp.time[unique_time_vals]
+                subsetdata = data_var.sel(time=unique_times, method='nearest')
+                subsetdata_vals = subsetdata.values
+                datablock.append(subsetdata_vals[utime_index])
+
         datablock = np.concatenate(datablock)
         return datablock
 

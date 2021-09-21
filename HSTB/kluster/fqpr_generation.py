@@ -2677,11 +2677,20 @@ class Fqpr(ZarrBackend):
                                     variable_selection: tuple = ('head', 'x', 'y', 'z', 'tvu', 'detectioninfo', 'time', 'beam')):
         """
         Using provided coordinates (in either horizontal_crs projected or geographic coordinates), return the soundings
-        and sounding attributes for all soundings within the coordinates, see subset module.
+        and sounding attributes for all soundings within the coordinates, see subset module.  Also sets the ping_filter
+        attribute which can be used with set_variable_by_filter get_variable_by_filter
         """
 
         datablock = self.subset.return_soundings_in_polygon(polygon, geographic, variable_selection)
         return datablock
+
+    def set_filter_by_polygon(self, polygon: np.ndarray, geographic: bool = True):
+        """
+        Alternative way to set the ping_filter attribute which can be used with set_variable_by_filter
+        get_variable_by_filter, see subset module.
+        """
+
+        self.subset.set_filter_by_polygon(polygon, geographic)
 
     def set_variable_by_filter(self, var_name: str = 'detectioninfo', newval: Union[int, str, float] = 2, selected_index: list = None):
         """
