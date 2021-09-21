@@ -1137,7 +1137,7 @@ class KlusterMain(QtWidgets.QMainWindow):
             print('Export complete: Unable to export')
         else:
             print('Export complete.')
-        self.export_thread.populate(None, None, [], '', False, ' ', False, False, True, False, False)
+        self.export_thread.populate(None, None, [], '', False, 'comma', False, False, True, False, False)
         self._stop_action_progress()
 
     def _start_action_progress(self):
