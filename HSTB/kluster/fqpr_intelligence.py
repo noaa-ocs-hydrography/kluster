@@ -622,6 +622,7 @@ class FqprIntel(LoggerClass):
 
         new_coord_system = None
         forced_coordinate_match = False
+        forced_container = ''
         if 'use_epsg' in self.processing_settings:  # if someone setup the project with a default coord system
             # use_epsg trumps all other checks, if they enter in an EPSG code, we use that.
             if self.processing_settings['use_epsg']:
@@ -634,6 +635,7 @@ class FqprIntel(LoggerClass):
                             existing_epsg = int(fqpr_instance.multibeam.raw_ping[0].horizontal_crs)
                             new_coord_system, err = build_crs(epsg=str(existing_epsg))
                             forced_coordinate_match = True
+                            forced_container = os.path.split(fqpr_instance.output_folder)[1]
                             break
                         except:
                             self.print_msg('Unable to generate EPSG from {}'.format(fqpr_instance.multibeam.raw_ping[0].horizontal_crs), logging.WARNING)
@@ -641,6 +643,8 @@ class FqprIntel(LoggerClass):
                     # self.print_msg('Force coordinate system match was used, but no existing coordinate systems found, defaulting to auto utm.', logging.WARNING)
                     new_coord_system, err = build_crs(zone_num=fqpr_instance.multibeam.return_utm_zone_number(),
                                                       datum=self.processing_settings['coord_system'])
+                else:
+                    print('Forcing all Converted data to use EPSG:{} from {}, uncheck "Force all days to have the same Coordinate System" to disable this.'.format(new_coord_system.to_epsg(), forced_container))
             # otherwise just do the auto utm calc to get the new coordinate system
             else:
                 new_coord_system, err = build_crs(zone_num=fqpr_instance.multibeam.return_utm_zone_number(),
@@ -954,7 +958,7 @@ class FqprIntel(LoggerClass):
                     sbet_starttime_weekly = self.nav_intel.weekly_seconds_start[navfilepath]
                     for relpath, fqpr_instance in self.project.fqpr_instances.items():
                         # skip navigation files that are already in this instance
-                        if fqpr_instance.navigation and navfilename in fqpr_instance.navigation.nav_files:
+                        if 'nav_files' in fqpr_instance.multibeam.raw_ping[0] and navfilename in fqpr_instance.multibeam.raw_ping[0].nav_files:
                             already_imported = relpath
                             break
 

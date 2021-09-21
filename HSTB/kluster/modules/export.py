@@ -678,10 +678,8 @@ class FqprExport:
         """
 
         videntifiers = [rp.system_identifier for rp in self.fqpr.multibeam.raw_ping]
-        if dataset_name in ['multibeam', 'raw navigation']:
+        if dataset_name in ['multibeam', 'raw navigation', 'processed navigation']:
             var_array = [rp[var_name] for rp in self.fqpr.multibeam.raw_ping]
-        elif dataset_name == 'processed navigation':
-            var_array = [self.fqpr.navigation[var_name]]
         elif dataset_name == 'attitude':
             var_array = [self.fqpr.multibeam.raw_att[var_name]]
         else:
@@ -752,7 +750,8 @@ class FqprExport:
         elif dataset_name == 'raw navigation':
             dataset_array = [self.fqpr.multibeam.return_raw_navigation()]
         elif dataset_name == 'processed navigation':
-            dataset_array = [self.fqpr.navigation]
+            dataset_array = [self.fqpr.sbet_navigation
+                             ]
         elif dataset_name == 'attitude':
             dataset_array = [self.fqpr.multibeam.raw_att]
         else:

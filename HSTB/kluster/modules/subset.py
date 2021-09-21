@@ -78,9 +78,6 @@ class FqprSubset:
             slice_raw_ping.append(slice_ra)
         self.fqpr.multibeam.raw_ping = slice_raw_ping
         self.fqpr.multibeam.raw_att = slice_xarray_by_dim(self.fqpr.multibeam.raw_att, dimname='time', start_time=mintime, end_time=maxtime)
-        if isinstance(self.fqpr.navigation, xr.Dataset):  # if self.navigation is a dataset, make a backup
-            self.backup_fqpr['ppnav'] = self.fqpr.navigation.copy()
-            self.fqpr.navigation = slice_xarray_by_dim(self.fqpr.navigation, dimname='time', start_time=mintime, end_time=maxtime)
 
     def restore_subset(self):
         """
@@ -90,8 +87,6 @@ class FqprSubset:
         if self.backup_fqpr != {}:
             self.fqpr.multibeam.raw_ping = self.backup_fqpr['raw_ping']
             self.fqpr.multibeam.raw_att = self.backup_fqpr['raw_att']
-            if 'ppnav' in self.backup_fqpr:
-                self.fqpr.navigation = self.backup_fqpr['ppnav']
             self.backup_fqpr = {}
             self.subset_maxtime = 0
             self.subset_mintime = 0

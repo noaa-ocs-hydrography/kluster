@@ -315,7 +315,11 @@ class KlusterProjectTree(QtWidgets.QTreeView):
                 continue
             if idx != -1:
                 self.tree_data['Converted'].pop(idx + 1)
-                parent.removeRow(idx)
+                tree_idx = [idx for idx in range(parent.rowCount()) if parent.child(idx).text() == remv]
+                if tree_idx and len(tree_idx) == 1:
+                    parent.removeRow(tree_idx[0])
+                else:
+                    print('Unable to remove "{}"'.format(remv))
 
     def _remove_surf_not_in_proj(self, parent, surf_data):
         """
@@ -341,7 +345,11 @@ class KlusterProjectTree(QtWidgets.QTreeView):
                 continue
             if idx != -1:
                 self.tree_data['Surfaces'].pop(idx + 1)
-                parent.removeRow(idx)
+                tree_idx = [idx for idx in range(parent.rowCount()) if parent.child(idx).text() == remv]
+                if tree_idx and len(tree_idx) == 1:
+                    parent.removeRow(tree_idx[0])
+                else:
+                    print('Unable to remove "{}"'.format(remv))
 
     def _setup_project(self, parent, proj_directory):
         if len(self.tree_data['Project']) == 1:

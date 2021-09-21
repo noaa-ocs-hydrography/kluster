@@ -39,7 +39,7 @@ class SettingsDialog(SaveStateDialog):
         self.force_coordinate_match.setToolTip('By default, Kluster will assign an automatic UTM zone number to each day of data.  If you ' +
                                                'have data that crosses UTM zones, you might find that a project \ncontains data with ' +
                                                'different coordinate systems.  Check this box if you want to force all days in a project ' +
-                                               '\nto have the same coordinate system as the first converted day.  use_epsg in project ' +
+                                               '\nto have the same coordinate system as the first Converted entry in the Project Tree list.  use_epsg in project ' +
                                                'settings will ignore this.')
 
         self.hlayout_one_one = QtWidgets.QHBoxLayout()

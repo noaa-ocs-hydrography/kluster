@@ -41,7 +41,8 @@ settings_translator = {'Kluster/proj_settings_epsgradio': {'newname': 'use_epsg'
                        'Kluster/settings_keep_waterline_changes': {'newname': 'keep_waterline_changes', 'defaultvalue': True},
                        'Kluster/settings_enable_parallel_writes': {'newname': 'write_parallel', 'defaultvalue': True},
                        'Kluster/settings_vdatum_directory': {'newname': 'vdatum_directory', 'defaultvalue': ''},
-                       'Kluster/settings_auto_processing_mode': {'newname': 'autoprocessing_mode', 'defaultvalue': 'normal'}
+                       'Kluster/settings_auto_processing_mode': {'newname': 'autoprocessing_mode', 'defaultvalue': 'normal'},
+                       'Kluster/settings_force_coordinate_match': {'newname': 'force_coordinate_match', 'defaultvalue': False}
                        }
 
 
@@ -846,6 +847,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         else:
             print('kluster_import_navigation: Unable to complete process')
         self.overwrite_nav_thread.populate(None)
+        self._stop_action_progress()
 
     def kluster_import_ppnav(self):
         """
@@ -902,6 +904,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         else:
             print('kluster_import_navigation: Unable to complete process')
         self.import_ppnav_thread.populate(None)
+        self._stop_action_progress()
 
     def kluster_surface_generation(self):
         """

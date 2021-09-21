@@ -375,12 +375,6 @@ def reload_data(converted_folder: str, require_raw_data: bool = True, skip_dask:
 
         if 'horizontal_crs' in fqpr_inst.multibeam.raw_ping[0].attrs:
             fqpr_inst.construct_crs(epsg=fqpr_inst.multibeam.raw_ping[0].attrs['horizontal_crs'])
-        try:
-            fqpr_inst.navigation_path = final_paths['ppnav'][0]
-            fqpr_inst.reload_ppnav_records(skip_dask=skip_dask)
-        except IndexError:
-            if not silent:
-                print('No postprocessed navigation data found')
         fqpr_inst.client = mbes_read.client
     else:
         # not a valid zarr datastore
