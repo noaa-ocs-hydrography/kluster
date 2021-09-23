@@ -1515,7 +1515,7 @@ class Fqpr(ZarrBackend):
             duplicate_navfiles = []
             for new_file in navfiles:
                 root, filename = os.path.split(new_file)
-                if filename in rp.nav_files:
+                if 'nav_files' in rp and filename in rp.nav_files:
                     new_file_times = sbet_fast_read_start_end_time(new_file)
                     if rp.nav_files[filename] == new_file_times:
                         duplicate_navfiles.append(new_file)
