@@ -336,8 +336,8 @@ class KlusterMain(QtWidgets.QMainWindow):
         about_action.triggered.connect(self._action_show_about)
         docs_action = QtWidgets.QAction('Documentation', self)
         docs_action.triggered.connect(self._action_show_docs)
-        odocs_action = QtWidgets.QAction('Online Documentation', self)
-        odocs_action.triggered.connect(self._action_show_odocs)
+        # odocs_action = QtWidgets.QAction('Online Documentation', self)
+        # odocs_action.triggered.connect(self._action_show_odocs)
         videos_action = QtWidgets.QAction('YouTube Videos', self)
         videos_action.triggered.connect(self.open_youtube_playlist)
 
@@ -378,7 +378,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         klusterhelp = menubar.addMenu('Help')
         klusterhelp.addAction(about_action)
         klusterhelp.addAction(docs_action)
-        klusterhelp.addAction(odocs_action)
+        # klusterhelp.addAction(odocs_action)
         klusterhelp.addAction(videos_action)
 
     def update_on_file_added(self, fil: Union[str, list] = ''):
