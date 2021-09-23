@@ -1023,20 +1023,20 @@ class Fqpr(ZarrBackend):
                     raise ValueError('georef_xyz: No raw altitude found, and {} is an ellipsoidally based vertical reference'.format(self.vert_ref))
                 else:  # we can continue because we aren't going to use altitude anyway
                     alt = xr.zeros_like(lon)
-            input_datum = ra.input_datum
+            try:
+                input_datum = ra.input_datum
+            except AttributeError:
+                if not silent:
+                    self.logger.warning('No input datum attribute found, assuming WGS84')
+                input_datum = 'WGS84'
 
-        try:
-            if input_datum == 'NAD83':
-                input_datum = CRS.from_epsg(kluster_variables.epsg_nad83)
-            elif input_datum == 'WGS84':
-                input_datum = CRS.from_epsg(kluster_variables.epsg_wgs84)
-            else:
-                self.logger.error('{} not supported.  Only supports WGS84 and NAD83'.format(ra.input_datum))
-                raise ValueError('{} not supported.  Only supports WGS84 and NAD83'.format(ra.input_datum))
-        except AttributeError:
-            if not silent:
-                self.logger.warning('No input datum attribute found, assuming WGS84')
+        if input_datum.lower() == 'nad83':
+            input_datum = CRS.from_epsg(kluster_variables.epsg_nad83)
+        elif input_datum.lower() == 'wgs84':
             input_datum = CRS.from_epsg(kluster_variables.epsg_wgs84)
+        else:
+            self.logger.error('{} not supported.  Only supports WGS84 and NAD83'.format(ra.input_datum))
+            raise ValueError('{} not supported.  Only supports WGS84 and NAD83'.format(ra.input_datum))
 
         if ('heading' in ra) and ('heave' in ra) and not self.motion_latency:
             hdng = ra.heading
