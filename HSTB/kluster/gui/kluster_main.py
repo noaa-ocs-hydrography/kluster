@@ -41,7 +41,8 @@ settings_translator = {'Kluster/proj_settings_epsgradio': {'newname': 'use_epsg'
                        'Kluster/settings_keep_waterline_changes': {'newname': 'keep_waterline_changes', 'defaultvalue': True},
                        'Kluster/settings_enable_parallel_writes': {'newname': 'write_parallel', 'defaultvalue': True},
                        'Kluster/settings_vdatum_directory': {'newname': 'vdatum_directory', 'defaultvalue': ''},
-                       'Kluster/settings_auto_processing_mode': {'newname': 'autoprocessing_mode', 'defaultvalue': 'normal'}
+                       'Kluster/settings_auto_processing_mode': {'newname': 'autoprocessing_mode', 'defaultvalue': 'normal'},
+                       'Kluster/settings_force_coordinate_match': {'newname': 'force_coordinate_match', 'defaultvalue': False}
                        }
 
 
@@ -140,9 +141,10 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.open_project_thread = kluster_worker.OpenProjectWorker()
         self.draw_navigation_thread = kluster_worker.DrawNavigationWorker()
         self.draw_surface_thread = kluster_worker.DrawSurfaceWorker()
+        self.load_points_thread = kluster_worker.LoadPointsWorker()
         self.allthreads = [self.action_thread, self.import_ppnav_thread, self.overwrite_nav_thread, self.surface_thread,
                            self.surface_update_thread, self.export_thread, self.export_grid_thread, self.open_project_thread,
-                           self.draw_navigation_thread, self.draw_surface_thread]
+                           self.draw_navigation_thread, self.draw_surface_thread, self.load_points_thread]
 
         # connect FqprActionContainer with actions pane, called whenever actions changes
         self.intel.bind_to_action_update(self.actions.update_actions)
@@ -172,8 +174,7 @@ class KlusterMain(QtWidgets.QMainWindow):
 
         #self.two_d.box_select.connect(self.select_line_by_box)
         self.two_d.lines_select.connect(self.select_lines_by_name)
-        self.two_d.box_3dpoints.connect(self.select_points_in_box)
-        self.two_d.box_swath.connect(self.select_slice_in_box)
+        self.two_d.box_points.connect(self.select_points_in_box)
         self.two_d.turn_off_pointsview.connect(self.clear_points)
 
         self.points_view.points_selected.connect(self.show_points_in_explorer)
@@ -198,6 +199,8 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.draw_navigation_thread.finished.connect(self._kluster_draw_navigation_results)
         self.draw_surface_thread.started.connect(self._start_action_progress)
         self.draw_surface_thread.finished.connect(self._kluster_draw_surface_results)
+        self.load_points_thread.started.connect(self._start_action_progress)
+        self.load_points_thread.finished.connect(self._kluster_load_points_results)
 
         self.monitor.monitor_file_event.connect(self.intel._handle_monitor_event)
         self.monitor.monitor_start.connect(self._create_new_project_if_not_exist)
@@ -333,8 +336,8 @@ class KlusterMain(QtWidgets.QMainWindow):
         about_action.triggered.connect(self._action_show_about)
         docs_action = QtWidgets.QAction('Documentation', self)
         docs_action.triggered.connect(self._action_show_docs)
-        odocs_action = QtWidgets.QAction('Online Documentation', self)
-        odocs_action.triggered.connect(self._action_show_odocs)
+        # odocs_action = QtWidgets.QAction('Online Documentation', self)
+        # odocs_action.triggered.connect(self._action_show_odocs)
         videos_action = QtWidgets.QAction('YouTube Videos', self)
         videos_action.triggered.connect(self.open_youtube_playlist)
 
@@ -375,7 +378,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         klusterhelp = menubar.addMenu('Help')
         klusterhelp.addAction(about_action)
         klusterhelp.addAction(docs_action)
-        klusterhelp.addAction(odocs_action)
+        # klusterhelp.addAction(odocs_action)
         klusterhelp.addAction(videos_action)
 
     def update_on_file_added(self, fil: Union[str, list] = ''):
@@ -786,6 +789,7 @@ class KlusterMain(QtWidgets.QMainWindow):
                 self.refresh_project(fqpr=[fqpr_entry])
         else:
             print('kluster_action: no data returned from action execution: {}'.format(fqpr))
+        self.action_thread.populate(None, None)
         self._stop_action_progress()
 
     def kluster_overwrite_nav(self):
@@ -842,6 +846,8 @@ class KlusterMain(QtWidgets.QMainWindow):
                 self.refresh_explorer(fq)
         else:
             print('kluster_import_navigation: Unable to complete process')
+        self.overwrite_nav_thread.populate(None)
+        self._stop_action_progress()
 
     def kluster_import_ppnav(self):
         """
@@ -897,6 +903,8 @@ class KlusterMain(QtWidgets.QMainWindow):
                 self.refresh_explorer(fq)
         else:
             print('kluster_import_navigation: Unable to complete process')
+        self.import_ppnav_thread.populate(None)
+        self._stop_action_progress()
 
     def kluster_surface_generation(self):
         """
@@ -958,6 +966,7 @@ class KlusterMain(QtWidgets.QMainWindow):
             self.redraw()
         else:
             print('kluster_surface_generation: Unable to complete process')
+        self.surface_thread.populate(None, {})
         self._stop_action_progress()
 
     def kluster_surface_update(self):
@@ -1006,6 +1015,7 @@ class KlusterMain(QtWidgets.QMainWindow):
             self.project_tree.refresh_project(proj=self.project)
         else:
             print('kluster_surface_update: Unable to complete process')
+        self.surface_update_thread.populate(None, None, None, {})
         self._stop_action_progress()
 
     def kluster_export_grid(self):
@@ -1060,6 +1070,7 @@ class KlusterMain(QtWidgets.QMainWindow):
             print('Export complete: Unable to export')
         else:
             print('Export complete.')
+        self.export_grid_thread.populate(None, '', '', True, {})
         self._stop_action_progress()
 
     def kluster_export(self):
@@ -1126,6 +1137,7 @@ class KlusterMain(QtWidgets.QMainWindow):
             print('Export complete: Unable to export')
         else:
             print('Export complete.')
+        self.export_thread.populate(None, None, [], '', False, 'comma', False, False, True, False, False)
         self._stop_action_progress()
 
     def _start_action_progress(self):
@@ -1207,7 +1219,7 @@ class KlusterMain(QtWidgets.QMainWindow):
             for new_fq in self.open_project_thread.new_fqprs:
                 fqpr_entry, already_in = self.project.add_fqpr(new_fq, skip_dask=True)
                 if already_in:
-                    print('{} already exists in {}'.format(new_fq.output_path, self.project.path))
+                    print('{} already exists in project'.format(new_fq.output_folder))
             for new_surf in self.open_project_thread.new_surfaces:
                 self.project.add_surface(new_surf)
             self.redraw(new_fqprs=[self.project.path_relative_to_project(fq.output_folder) for fq in self.open_project_thread.new_fqprs])
@@ -1610,41 +1622,35 @@ class KlusterMain(QtWidgets.QMainWindow):
             azimuth of the selection polygon in radians
         """
 
-        print('Selecting Points in Polygon...')
-        # print('Box select azimuth = {} degrees'.format(np.rad2deg(azimuth)))
-        pointcount = 0
-        self.points_view.clear()
-        pts_data = self.project.return_soundings_in_polygon(polygon)
-        for fqpr_name, pointdata in pts_data.items():
-            self.points_view.add_points(pointdata[0], pointdata[1], pointdata[2], pointdata[3], pointdata[4], pointdata[5],
-                                        pointdata[6], pointdata[7], fqpr_name, pointdata[8], is_3d=True, azimuth=azimuth)
-            pointcount += pointdata[0].size
-        self.points_view.display_points()
-        print('Selected {} Points for 3D display'.format(pointcount))
+        if not self.no_threads_running():
+            print('Processing is already occurring.  Please wait for the process to finish')
+            cancelled = True
+        else:
+            cancelled = False
+            self.load_points_thread.populate(polygon, azimuth, self.project)
+            self.load_points_thread.start()
+        if cancelled:
+            print('select_points_in_box: Processing was cancelled')
 
-    def select_slice_in_box(self, polygon: np.ndarray, azimuth: float):
+    def _kluster_load_points_results(self):
         """
-        method run on using the 2dview swath select tool.  Gathers all points in polygon and shows in 2d
-
-        Parameters
-        ----------
-        polygon
-            (N, 2) array of points that make up the selection polygon,  (longitude, latitude) in degrees
-        azimuth
-            azimuth of the selection polygon in radians
-
+        After running the load_points_thread to get the soundings in the polygon for every fqpr instance in the project,
+        we load the points into the Points View here.
         """
 
-        # print('Box select azimuth = {} radians'.format(azimuth))
         pointcount = 0
-        self.points_view.clear()
-        pts_data = self.project.return_soundings_in_polygon(polygon)
-        for fqpr_name, pointdata in pts_data.items():
-            self.points_view.add_points(pointdata[0], pointdata[1], pointdata[2], pointdata[3], pointdata[4], pointdata[5],
-                                        pointdata[6], pointdata[7], fqpr_name, pointdata[8], is_3d=False, azimuth=azimuth)
-            pointcount += pointdata[0].size
-        self.points_view.display_points()
-        print('Selected {} Points for 2D display'.format(pointcount))
+        if not self.load_points_thread.error:
+            points_data = self.load_points_thread.points_data
+            azimuth = self.load_points_thread.azimuth
+            for fqpr_name, pointdata in points_data.items():
+                self.points_view.add_points(pointdata[0], pointdata[1], pointdata[2], pointdata[3], pointdata[4], pointdata[5],
+                                            pointdata[6], pointdata[7], fqpr_name, pointdata[8], azimuth=azimuth)
+                pointcount += pointdata[0].size
+            self.points_view.display_points()
+        self.two_d.finalize_points_tool()
+        print('Selected {} Points for display'.format(pointcount))
+        self.load_points_thread.populate()
+        self._stop_action_progress()
 
     def clear_points(self, clrsig: bool):
         """

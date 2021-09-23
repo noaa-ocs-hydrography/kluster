@@ -1,0 +1,17 @@
+MultibeamModule
+===============
+
+.. currentmodule:: HSTB.kluster.fqpr_intelligence
+
+.. autoclass:: MultibeamModule
+   :show-inheritance:
+
+   .. rubric:: Methods Summary
+
+   .. autosummary::
+
+      ~MultibeamModule.remove_file
+
+   .. rubric:: Methods Documentation
+
+   .. automethod:: remove_file

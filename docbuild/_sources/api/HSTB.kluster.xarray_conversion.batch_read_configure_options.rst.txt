@@ -1,0 +1,6 @@
+batch_read_configure_options
+============================
+
+.. currentmodule:: HSTB.kluster.xarray_conversion
+
+.. autofunction:: batch_read_configure_options

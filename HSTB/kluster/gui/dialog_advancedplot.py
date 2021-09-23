@@ -219,12 +219,12 @@ class AdvancedPlotDialog(QtWidgets.QDialog):
             if self.fqpr.multibeam.raw_ping:
                 self.datasets['multibeam'] = self.fqpr.multibeam.raw_ping
                 self.datasets['raw navigation'] = self.fqpr.multibeam.return_raw_navigation()
+                procnav = self.fqpr.sbet_navigation
+                if procnav is not None:
+                    self.datasets['processed navigation'] = procnav
 
             if self.fqpr.multibeam.raw_att:
                 self.datasets['attitude'] = self.fqpr.multibeam.raw_att
-
-            if self.fqpr.navigation:
-                self.datasets['processed navigation'] = self.fqpr.navigation
 
             self.plot_type_dropdown.clear()
             self.plot_type_dropdown.addItems(self.plottypes)
@@ -241,10 +241,11 @@ class AdvancedPlotDialog(QtWidgets.QDialog):
             if self.fqpr.multibeam.raw_ping:
                 self.datasets['multibeam'] = self.fqpr.multibeam.raw_ping
                 self.datasets['raw navigation'] = self.fqpr.multibeam.return_raw_navigation()
+                procnav = self.fqpr.sbet_navigation
+                if procnav is not None:
+                    self.datasets['processed navigation'] = procnav
             if self.fqpr.multibeam.raw_att:
                 self.datasets['attitude'] = self.fqpr.multibeam.raw_att
-            if self.fqpr.navigation:
-                self.datasets['processed navigation'] = self.fqpr.navigation
 
     def plottype_changed(self):
         """

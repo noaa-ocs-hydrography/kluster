@@ -1,0 +1,6 @@
+save_animation_mpeg
+===================
+
+.. currentmodule:: HSTB.kluster.modules.visualizations
+
+.. autofunction:: save_animation_mpeg

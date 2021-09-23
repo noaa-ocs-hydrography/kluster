@@ -1,0 +1,6 @@
+calc_order
+==========
+
+.. currentmodule:: HSTB.kluster.modules.sat
+
+.. autofunction:: calc_order

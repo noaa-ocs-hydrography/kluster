@@ -1,0 +1,6 @@
+reprocess_sounding_selection
+============================
+
+.. currentmodule:: HSTB.kluster.fqpr_convenience
+
+.. autofunction:: reprocess_sounding_selection

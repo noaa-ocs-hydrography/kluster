@@ -368,7 +368,11 @@ from HSTB.kluster.modules.subset import filter_subset_by_polygon
 from HSTB.kluster.fqpr_convenience import reload_data
 import numpy as np
 
-fq = reload_data(r"D:\falkor\fk005b_geohashtest\em710_225_09_17_2012")
-test_poly = np.array([[-96.14630717,  27.85118748], [-96.10496133,  27.83500867], [-96.1036131 ,  27.83860396], [-96.14495893,  27.85478277]])
-fq.return_soundings_in_polygon(test_poly)
+fq = reload_data(r"C:\Pydro21_Dev\NOAA\site-packages\Python38\git_repos\hstb_kluster\test_data\em2040_40111_05_23_2017")
+polygon = np.array([[-122.47798556, 47.78949665], [-122.47798556, 47.78895117], [-122.47771027, 47.78895117],
+                        [-122.47771027, 47.78949665]])
+fq.return_soundings_in_polygon(polygon)
 
+fq = reload_data(r"C:\collab\dasktest\data_dir\outputtest\EM2040_BHII")
+polygon = np.array([[-76.18624503, 38.21339807], [-76.18624503, 38.20954898], [-76.17469775, 38.20954898], [-76.17469775, 38.21339807]])
+fq.return_soundings_in_polygon(polygon)

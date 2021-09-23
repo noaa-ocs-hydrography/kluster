@@ -21,3 +21,5 @@ xarray\_conversion module
    :skip: glob
    :skip: seconds_to_formatted_string
    :skip: slice_xarray_by_dim
+   :skip: return_log_name
+   

@@ -1,0 +1,6 @@
+xarr_to_zarr
+============
+
+.. currentmodule:: HSTB.kluster.xarray_helpers
+
+.. autofunction:: xarr_to_zarr

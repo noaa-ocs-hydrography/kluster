@@ -294,18 +294,13 @@ class PlotDataHandler(QtWidgets.QWidget):
     def store_original_fqpr(self):
         self.basefqpr = [[rp.copy() for rp in self.fqpr.multibeam.raw_ping],
                          self.fqpr.multibeam.raw_att.copy()]
-        if self.fqpr.navigation:
-            self.basefqpr.append(self.fqpr.navigation.copy())
-        else:
-            self.basefqpr.append(None)
         self.basefqpr.append(deepcopy(self.fqpr.multibeam.raw_ping[0].attrs['multibeam_files']))
 
     def load_original_fqpr(self):
         if self.basefqpr:
             self.fqpr.multibeam.raw_ping = self.basefqpr[0]
             self.fqpr.multibeam.raw_att = self.basefqpr[1]
-            self.fqpr.navigation = self.basefqpr[2]
-            self.fqpr.multibeam.raw_ping[0].attrs['multibeam_files'] = self.basefqpr[3]
+            self.fqpr.multibeam.raw_ping[0].attrs['multibeam_files'] = self.basefqpr[2]
             self.basefqpr = None
 
     def turn_on_additional(self):
@@ -616,8 +611,6 @@ class PlotDataHandler(QtWidgets.QWidget):
                         if len(self.fqpr.multibeam.raw_ping) > 2:
                             raise ValueError('new_additional_fqpr_path: Currently only supporting maximum of 2 heads')
                         self.fqpr.multibeam.raw_att = xr.concat([firstfq.multibeam.raw_att, secondfq.multibeam.raw_att], dim='time')
-                        if self.fqpr.navigation and add_fqpr.navigation:
-                            self.fqpr.navigation = xr.concat([firstfq.navigation, secondfq.navigation], dim='time')
                         self.fqpr.multibeam.raw_ping[0].attrs['multibeam_files'] = mfiles
                     else:
                         self.warning_message.setText('ERROR: The sonar types must match in both converted data folders')

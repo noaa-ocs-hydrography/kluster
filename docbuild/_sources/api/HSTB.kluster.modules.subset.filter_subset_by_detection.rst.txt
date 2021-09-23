@@ -1,0 +1,6 @@
+filter_subset_by_detection
+==========================
+
+.. currentmodule:: HSTB.kluster.modules.subset
+
+.. autofunction:: filter_subset_by_detection

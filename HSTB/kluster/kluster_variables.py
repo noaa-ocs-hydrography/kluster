@@ -14,8 +14,8 @@ super_selected_point_color = (1, 1, 1, 1)  # color of points in super selection 
 
 # generic processing
 max_beams = 400  # starting max beams in kluster (can grow beyond)
-epsg_nad83 = 6319
-epsg_wgs84 = 7911
+epsg_nad83 = 6318
+epsg_wgs84 = 8999
 default_number_of_chunks = 4
 converted_files_at_once = 5
 geohash_precision = 7
@@ -121,6 +121,15 @@ ping_chunks = {'time': (ping_chunk_size,), 'beam': (max_beams,), 'xyz': (3,),
                'rx': (ping_chunk_size, max_beams, 3),
                'rxid': (ping_chunk_size,),
                'samplerate': (ping_chunk_size,),
+               'sbet_latitude': (ping_chunk_size,),
+               'sbet_longitude': (ping_chunk_size,),
+               'sbet_altitude': (ping_chunk_size,),
+               'sbet_north_position_error': (ping_chunk_size,),
+               'sbet_east_position_error': (ping_chunk_size,),
+               'sbet_down_position_error': (ping_chunk_size,),
+               'sbet_roll_error': (ping_chunk_size,),
+               'sbet_pitch_error': (ping_chunk_size,),
+               'sbet_heading_error': (ping_chunk_size,),
                'serial_num': (ping_chunk_size,), 
                'soundspeed': (ping_chunk_size,),
                'thu': (ping_chunk_size, max_beams),
@@ -154,6 +163,20 @@ att_chunks = {'time': (attitude_chunk_size,),
               'roll': (attitude_chunk_size,)
               }
 
+# return soundings variable options, see subset.return_soundings_in_polygon
+subset_variable_selection = ['head', 'time', 'beam', 'acrosstrack', 'alongtrack', 'altitude', 'beampointingangle', 'corr_altitude',
+                             'corr_heave', 'corr_pointing_angle', 'counter', 'datum_uncertainty', 'delay', 'depthoffset', 'detectioninfo',
+                             'frequency', 'geohash', 'latitude', 'longitude', 'mode', 'modetwo', 'ntx', 'processing_status', 'qualityfactor',
+                             'rel_azimuth', 'sbet_latitude', 'sbet_longitude', 'sbet_altitude', 'sbet_north_position_error',
+                             'sbet_east_position_error', 'sbet_down_position_error', 'sbet_roll_error', 'sbet_pitch_error', 'sbet_heading_error'
+                             'soundspeed', 'thu', 'tiltangle', 'traveltime', 'tvu', 'txsector_beam', 'x', 'y', 'yawpitchstab', 'z']
+subset_variable_2d = ['acrosstrack', 'alongtrack', 'beampointingangle', 'datum_uncertainty', 'delay', 'depthoffset', 'detectioninfo',
+                      'frequency', 'geohash', 'ntx', 'processing_status', 'qualityfactor', 'rel_azimuth', 'thu',
+                      'tiltangle', 'traveltime', 'tvu', 'tx', 'txsector_beam', 'x', 'y', 'yawpitchstab', 'z']
+subset_variable_1d = ['head', 'time', 'beam', 'altitude', 'corr_altitude', 'corr_heave', 'corr_pointing_angle', 'counter', 'latitude',
+                      'longitude', 'mode', 'modetwo', 'sbet_latitude', 'sbet_longitude', 'sbet_altitude', 'sbet_north_position_error',
+                      'sbet_east_position_error', 'sbet_down_position_error', 'sbet_roll_error', 'sbet_pitch_error', 'sbet_heading_error', 'soundspeed']
+
 # export helper for formatting variables in ascii export
 variable_format_str = {'time': '%1.6f', 'beam': '%d', 'xyz': '%s',
                        'acrosstrack': '%1.3f', 'alongtrack': '%1.3f', 'altitude': '%1.3f',
@@ -163,7 +186,10 @@ variable_format_str = {'time': '%1.6f', 'beam': '%d', 'xyz': '%s',
                        'depthoffset': '%1.3f', 'detectioninfo': '%d', 'frequency': '%d', 'geohash': '%s',
                        'latitude': '%1.8f', 'longitude': '%1.8f', 'mode': '%s', 'modetwo': '%s', 'ntx': '%d',
                        'processing_status': '%d', 'qualityfactor': '%d', 'rel_azimuth': '%f',
-                       'rx': '%f', 'soundspeed': '%1.3f', 'thu': '%1.3f', 'tiltangle': '%1.3f',
+                       'rx': '%f', 'sbet_latitude': '%1.8f', 'sbet_longitude': '%1.8f', 'sbet_altitude': '%1.3f',
+                       'sbet_north_position_error': '%1.3f', 'sbet_east_position_error': '%1.3f',
+                       'sbet_down_position_error': '%1.3f', 'sbet_roll_error': '%1.3f', 'sbet_pitch_error': '%1.3f', 'sbet_heading_error': '%1.3f',
+                       'soundspeed': '%1.3f', 'thu': '%1.3f', 'tiltangle': '%1.3f',
                        'traveltime': '%1.6f', 'tvu': '%1.3f', 'tx': '%f', 'txsector_beam': '%d',
                        'x': '%1.3f', 'y': '%1.3f', 'yawpitchstab': '%s', 'z': '%1.3f',
                        'alongtrackvelocity': '%1.3f', 'down_position_error': '%1.3f', 'east_position_error': '%1.3f',
@@ -172,13 +198,28 @@ variable_format_str = {'time': '%1.6f', 'beam': '%d', 'xyz': '%s',
                        'roll': '%1.3f'}
 
 # 2d plot helpers for handling variable information
+variables_by_key = {'multibeam': ['acrosstrack', 'alongtrack', 'beampointingangle', 'corr_altitude', 'corr_heave',
+                                  'corr_pointing_angle', 'counter', 'delay', 'depthoffset', 'detectioninfo',
+                                  'frequency', 'geohash', 'mode', 'modetwo', 'processing_status', 'qualityfactor',
+                                  'rel_azimuth', 'soundspeed', 'thu', 'tiltangle', 'traveltime', 'tvu', 'txsector_beam',
+                                  'x', 'y', 'yawpitchstab', 'z', 'datum_uncertainty'],
+                    'raw navigation': ['altitude', 'latitude', 'longitude'],
+                    'processed navigation': ['sbet_latitude', 'sbet_longitude', 'sbet_altitude', 'sbet_north_position_error',
+                                             'sbet_east_position_error', 'sbet_down_position_error', 'sbet_roll_error',
+                                             'sbet_pitch_error', 'sbet_heading_error']}
+
 variable_translator = {'acrosstrack': 'SoundVelocity_AcrossTrack', 'alongtrack': 'SoundVelocity_AlongTrack',
-                       'beampointingangle': 'Uncorrected_Beam_Angle', 'corr_altitude': 'Corrected_Altitude',
+                       'altitude': 'Altitude', 'beampointingangle': 'Uncorrected_Beam_Angle', 'corr_altitude': 'Corrected_Altitude',
                        'corr_heave': 'Corrected_Heave', 'corr_pointing_angle': 'Corrected_Beam_Angle',
                        'counter': 'Ping_Counter', 'delay': 'Beam_Delay', 'depthoffset': 'SoundVelocity_Depth',
-                       'detectioninfo': 'Beam_Filter', 'frequency': 'Beam_Frequency', 'geohash': 'Geohash', 'mode': 'Ping_Mode',
+                       'detectioninfo': 'Beam_Filter', 'frequency': 'Beam_Frequency', 'geohash': 'Geohash',
+                       'latitude': 'Latitude', 'longitude': 'Longitude', 'mode': 'Ping_Mode',
                        'modetwo': 'Ping_Mode_Two', 'processing_status': 'Processing_Status',
                        'qualityfactor': 'Beam_Uncertainty', 'rel_azimuth': 'Relative_Azimuth',
+                       'sbet_latitude': 'SBET_Latitude', 'sbet_longitude': 'SBET_Longitude', 'sbet_altitude': 'SBET_Altitude',
+                       'sbet_north_position_error': 'SBET_North_Position_Error', 'sbet_east_position_error': 'SBET_East_Position_Error',
+                       'sbet_down_position_error': 'SBET_Down_Position_Error', 'sbet_roll_error': 'SBET_Roll_Error',
+                       'sbet_pitch_error': 'SBET_Pitch_Error', 'sbet_heading_error': 'SBET_Heading_Error',
                        'soundspeed': 'Surface_Sound_Velocity', 'thu': 'Beam_Total_Horizontal_Uncertainty',
                        'tiltangle': 'Ping_Tilt_Angle', 'traveltime': 'Beam_Travel_Time',
                        'tvu': 'Beam_Total_Vertical_Uncertainty', 'txsector_beam': 'Beam_Sector_Number',
@@ -198,9 +239,16 @@ variable_reverse_lookup = {'SoundVelocity_AcrossTrack': 'acrosstrack', 'SoundVel
                            'Beam_Sector_Number': 'txsector_beam', 'Georeferenced_Easting': 'x',
                            'Georeferenced_Northing': 'y', 'Yaw_Pitch_Stabilization': 'yawpitchstab',
                            'Georeferenced_Depth': 'z', 'Vertical_Datum_Uncertainty': 'datum_uncertainty',
-                           'Geohash': 'geohash'}
+                           'Geohash': 'geohash',
+                           'SBET_Latitude': 'sbet_latitude', 'SBET_Longitude': 'sbet_longitude',
+                           'SBET_Altitude': 'sbet_altitude', 'SBET_North_Position_Error': 'sbet_north_position_error',
+                           'SBET_East_Position_Error': 'sbet_east_position_error', 'SBET_Down_Position_Error': 'sbet_down_position_error',
+                           'SBET_Roll_Error': 'sbet_roll_error', 'SBET_Pitch_Error': 'sbet_pitch_error', 'SBET_Heading_Error': 'sbet_heading_error',
+                           'Altitude': 'altitude', 'Longitude': 'longitude', 'Latitude': 'latitude'
+                           }
 variable_descriptions = {'acrosstrack': 'The result of running Sound Velocity Correct in Kluster.  This is the acrosstrack (perpendicular to vessel movement) distance to the beam footprint on the seafloor from the vessel reference point in meters.',
                          'alongtrack': 'The result of running Sound Velocity Correct in Kluster.  This is the alongtrack (vessel direction) distance to the beam footprint on the seafloor from the vessel reference point in meters.',
+                         'altitude': 'From the raw multibeam data, the logged altitude data from the navigation system in meters.  Relative to the ellipsoid chosen in the navigation system setup.',
                          'beampointingangle': 'The raw beam angle that comes from the multibeam data.  Angle in degrees from the receiver to the beam footprint on the seafloor, does not take attitude or mounting angles into account.',
                          'corr_altitude': 'If this dataset is processed to the waterline this will be zero.  Otherwise, the altitude correction is the attitude rotated lever arm between the reference point of the altitude and the transmitter, if non-zero.  This will be the original altitude plus this correction.',
                          'corr_heave': 'If this dataset is processed to the ellipse this will be zero.  Otherwise, the heave correction is the attitude rotated lever arm between the reference point of the heave and the transmitter, if non-zero. This will be the original heave plus this correction.',
@@ -212,11 +260,22 @@ variable_descriptions = {'acrosstrack': 'The result of running Sound Velocity Co
                          'detectioninfo': 'The accepted/rejected state of each beam.  2 = rejected, 1 = phase detection, 0 = amplitude detection.  See Kongsberg "detectioninfo".',
                          'frequency': 'The frequency of each beam in Hz.',
                          'geohash': 'The computed base32 representation of the geohash, a code that defines the location of each beam in a region. \nPlotting will show the unique integer identifier instead of the string, for visualization purposes.',
+                         'latitude': 'From the raw multibeam data, the logged latitude data from the navigation system in degrees.',
+                         'longitude': 'From the raw multibeam data, the logged longitude data from the navigation system in degrees.',
                          'mode': 'The first mode value. \n(if TX Pulse Form) CW for continuous waveform, FM for frequency modulated, MIX for mix between FM and CW. \n(if Ping mode) VS for Very Shallow, SH for Shallow, ME for Medium, DE for Deep, VD for Very Deep, ED for Extra Deep.',
                          'modetwo': 'The second mode value. \n(if Pulse Length) vsCW = very short continuous waveform, shCW = short cw, meCW = medium cw, loCW = long cw, vlCW = very long cw, elCW = extra long cw, shFM = short frequency modulated, loFM = long fm. \n(if Depth Mode) VS = Very Shallow, SH = Shallow, ME = Medium, DE = Deep, DR = Deeper, VD = Very Deep, ED = Extra deep, XD = Extreme Deep, if followed by "m" system is in manual mode.',
                          'processing_status': 'The Kluster processing status of each beam, the highest state of the beam.  EX: If 3, sounding is only processed up to sound velocity correction. 0 = converted, 1 = orientation, 2 = beamvector, 3 = soundvelocity, 4 = georeference, 5 = tpu.',
                          'qualityfactor': 'The raw uncertainty record that comes from the multibeam.  Corresponds to the Kongsberg detectioninfo (.all) detectiontype (.kmall).  See datagram description for more information.',
                          'rel_azimuth': 'The result of running Compute Beam Vectors in Kluster.  This is the direction to the beam footprint on the seafloor from the sonar in radians.',
+                         'sbet_latitude': 'From the imported post processed navigation, the logged latitude data from the navigation system in degrees.',
+                         'sbet_longitude': 'From the imported post processed navigation, the logged longitude data from the navigation system in degrees.',
+                         'sbet_altitude': 'From the imported post processed navigation, the exported altitude data in meters.  Relative to the ellipsoid chosen in the post processing software.',
+                         'sbet_north_position_error': 'From the imported post processed navigation, the logged north position error data from the navigation system in meters.',
+                         'sbet_east_position_error': 'From the imported post processed navigation, the logged east position error data from the navigation system in meters.',
+                         'sbet_down_position_error': 'From the imported post processed navigation, the logged down position error from the navigation system in meters.',
+                         'sbet_roll_error': 'From the imported post processed navigation, the logged roll error data from the navigation system in degrees.',
+                         'sbet_pitch_error': 'From the imported post processed navigation, the logged pitch error data from the navigation system in degrees.',
+                         'sbet_heading_error': 'From the imported post processed navigation, the logged heading error data from the navigation system in degrees.',
                          'soundspeed': 'The surface sound velocimeter data, in meters per second.',
                          'thu': 'The Hare-Godin-Mayer TPU model - horizontal component.  In meters.',
                          'tiltangle': 'Steering angle of the sector transmit beam, in degrees.',

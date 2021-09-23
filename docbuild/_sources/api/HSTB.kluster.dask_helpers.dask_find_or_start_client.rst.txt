@@ -1,0 +1,6 @@
+dask_find_or_start_client
+=========================
+
+.. currentmodule:: HSTB.kluster.dask_helpers
+
+.. autofunction:: dask_find_or_start_client

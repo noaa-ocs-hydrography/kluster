@@ -1,0 +1,6 @@
+distrib_run_build_orientation_vectors
+=====================================
+
+.. currentmodule:: HSTB.kluster.modules.orientation
+
+.. autofunction:: distrib_run_build_orientation_vectors

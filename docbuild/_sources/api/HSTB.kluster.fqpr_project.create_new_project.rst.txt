@@ -1,0 +1,6 @@
+create_new_project
+==================
+
+.. currentmodule:: HSTB.kluster.fqpr_project
+
+.. autofunction:: create_new_project

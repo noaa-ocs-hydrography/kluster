@@ -180,6 +180,9 @@ class BasicPlotDialog(QtWidgets.QDialog):
             if self.fqpr.multibeam.raw_ping:
                 self.datasets['multibeam'] = self.fqpr.multibeam.raw_ping
                 self.datasets['raw navigation'] = self.fqpr.multibeam.return_raw_navigation()
+                procnav = self.fqpr.sbet_navigation
+                if procnav is not None:
+                    self.datasets['processed navigation'] = procnav
             else:
                 print('No multibeam dataset(s) found in {}'.format(self.fqpr.multibeam.converted_pth))
 
@@ -187,11 +190,6 @@ class BasicPlotDialog(QtWidgets.QDialog):
                 self.datasets['attitude'] = self.fqpr.multibeam.raw_att
             else:
                 print('No attitude dataset found in {}'.format(self.fqpr.multibeam.converted_pth))
-
-            if self.fqpr.navigation:
-                self.datasets['processed navigation'] = self.fqpr.navigation
-            else:
-                print('No processed navigation dataset found in {}'.format(self.fqpr.multibeam.converted_pth))
 
             if 'alongtrack' in self.fqpr.multibeam.raw_ping[0] or 'x' in self.fqpr.multibeam.raw_ping[0]:
                 self.datasets['custom'] = self.fqpr.plot
@@ -213,10 +211,11 @@ class BasicPlotDialog(QtWidgets.QDialog):
             if self.fqpr.multibeam.raw_ping:
                 self.datasets['multibeam'] = self.fqpr.multibeam.raw_ping
                 self.datasets['raw navigation'] = self.fqpr.multibeam.return_raw_navigation()
+                procnav = self.fqpr.sbet_navigation
+                if procnav is not None:
+                    self.datasets['processed navigation'] = procnav
             if self.fqpr.multibeam.raw_att:
                 self.datasets['attitude'] = self.fqpr.multibeam.raw_att
-            if self.fqpr.navigation:
-                self.datasets['processed navigation'] = self.fqpr.navigation
             if 'alongtrack' in self.fqpr.multibeam.raw_ping[0] or 'x' in self.fqpr.multibeam.raw_ping[0]:
                 self.datasets['custom'] = self.fqpr
 
@@ -229,9 +228,14 @@ class BasicPlotDialog(QtWidgets.QDialog):
             ky = self.dataset_dropdown.currentText()
             if ky:
                 dset = self.datasets[ky]
-                if ky == 'multibeam':
-                    dset = dset[0]  # grab the first multibeam dataset (dual head will have two) for the lookup
-                    variable_names = [self.variable_translator[nm] for nm in list(dset.variables.keys()) if nm in self.variable_translator]
+                if ky in ['multibeam', 'raw navigation', 'processed navigation']:
+                    if ky == 'multibeam':
+                        dset = dset[0]  # grab the first multibeam dataset (dual head will have two) for the lookup
+                        variable_names = [nm for nm in list(dset.variables.keys()) if nm in self.variable_translator]
+                        variable_names = [vname for vname in variable_names if vname in kluster_variables.variables_by_key[ky]]
+                    else:
+                        variable_names = [nm for nm in list(dset.variables.keys()) if nm in self.variable_translator]
+                    variable_names = [self.variable_translator[nm] for nm in variable_names]
                 elif ky == 'custom':
                     variable_names = ['uncertainty', 'sound_velocity_profiles', 'sound_velocity_correct', 'georeferenced', 'animations']
                 else:
@@ -254,6 +258,7 @@ class BasicPlotDialog(QtWidgets.QDialog):
             if vari:
                 if ky == 'multibeam':
                     dset = dset[0]  # grab the first multibeam dataset (dual head will have two) for the lookup
+                if ky in ['multibeam', 'raw navigation', 'processed navigation']:
                     dset_var = self.variable_reverse_lookup[vari]
                 else:
                     dset_var = vari
@@ -484,8 +489,12 @@ class BasicPlotDialog(QtWidgets.QDialog):
                     self.data_widget.warning_message.setText('Bins must be an integer, user entered "{}"'.format(self.bincount.text()))
                     return
 
-            if ky == 'multibeam':
+            if ky in ['multibeam', 'raw navigation', 'processed navigation']:
                 dset_var = self.variable_reverse_lookup[self.variable_dropdown.currentText()]
+            else:
+                dset_var = self.variable_dropdown.currentText()
+
+            if ky == 'multibeam':
                 if len(dsets) > 1:
                     sonartype = [d.sonartype for d in dsets]
                     serialnum = [d.system_identifier for d in dsets]
@@ -494,7 +503,6 @@ class BasicPlotDialog(QtWidgets.QDialog):
                     serialnum = dsets[0].system_identifier
                 self._plot_variable(dsets, dset_name, dset_var, plottype, sonartype, serialnum)
             else:
-                dset_var = self.variable_dropdown.currentText()
                 sonartype = self.datasets['multibeam'][0].sonartype
                 serialnum = self.datasets['multibeam'][0].system_identifier
                 self._plot_variable(dsets, dset_name, dset_var, plottype, sonartype, serialnum)
@@ -579,8 +587,8 @@ class BasicPlotDialog(QtWidgets.QDialog):
         variable_expl = ''
         plot_expl = ''
 
-        if source == 'multibeam':
-            source_expl = 'Source = From the raw multibeam data, or from the Kluster processed intermediate variables.'
+        if source == 'multibeam' or source == 'processed navigation' or source == 'raw navigation':
+            source_expl = 'Source = From the {} data, or from the Kluster processed intermediate variables.'.format(source)
             if kluster_variables.variable_reverse_lookup[variable] in kluster_variables.variable_descriptions:
                 variable_expl = 'Variable = {}'.format(kluster_variables.variable_descriptions[kluster_variables.variable_reverse_lookup[variable]])
             else:
@@ -595,34 +603,6 @@ class BasicPlotDialog(QtWidgets.QDialog):
                 variable_expl = 'Variable = From the raw multibeam data, the logged pitch data from the attitude system in degrees.  Rotation of vessel (up and down) about the Y axis (transverse axis)'
             elif variable == 'roll':
                 variable_expl = 'Variable = From the raw multibeam data, the logged roll data from the attitude system in degrees.  Rotation of vessel (left to right) about the X axis (longitudinal axis)'
-        elif source == 'raw navigation':
-            source_expl = 'Source = Navigation from the raw multibeam file.'
-            if variable == 'altitude':
-                variable_expl = 'Variable = From the raw multibeam data, the logged altitude data from the navigation system in meters.  Relative to the ellipsoid chosen in the navigation system setup.'
-            elif variable == 'latitude':
-                variable_expl = 'Variable = From the raw multibeam data, the logged latitude data from the navigation system in degrees.'
-            elif variable == 'longitude':
-                variable_expl = 'Variable = From the raw multibeam data, the logged longitude data from the navigation system in degrees.'
-        elif source == 'processed navigation':
-            source_expl = 'Source = Navigation from imported post-processed navigation'
-            if variable == 'altitude':
-                variable_expl = 'Variable = From the imported post processed navigation, the exported altitude data in meters.  Relative to the ellipsoid chosen in the post processing software.'
-            elif variable == 'latitude':
-                variable_expl = 'Variable = From the imported post processed navigation, the logged latitude data from the navigation system in degrees.'
-            elif variable == 'longitude':
-                variable_expl = 'Variable = From the imported post processed navigation, the logged longitude data from the navigation system in degrees.'
-            elif variable == 'down_position_error':
-                variable_expl = 'Variable = From the imported post processed navigation, the logged down position error from the navigation system in meters.'
-            elif variable == 'east_position_error':
-                variable_expl = 'Variable = From the imported post processed navigation, the logged east position error data from the navigation system in meters.'
-            elif variable == 'north_position_error':
-                variable_expl = 'Variable = From the imported post processed navigation, the logged north position error data from the navigation system in meters.'
-            elif variable == 'roll_error':
-                variable_expl = 'Variable = From the imported post processed navigation, the logged roll error data from the navigation system in degrees.'
-            elif variable == 'pitch_error':
-                variable_expl = 'Variable = From the imported post processed navigation, the logged pitch error data from the navigation system in degrees.'
-            elif variable == 'heading_error':
-                variable_expl = 'Variable = From the imported post processed navigation, the logged heading error data from the navigation system in degrees.'
         elif source == 'custom':
             source_expl = 'Source = Custom Kluster plots from all converted and processed data'
             if variable == 'georeferenced':

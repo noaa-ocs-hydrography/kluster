@@ -72,8 +72,6 @@ class Fqpr(ZarrBackend):
             super().__init__()
 
         self.intermediate_dat = None
-        self.navigation_path = ''
-        self.navigation = None
         self.horizontal_crs = None
         self.vert_ref = None
         self.motion_latency = motion_latency
@@ -129,6 +127,38 @@ class Fqpr(ZarrBackend):
                     if not last_time or new_time > last_time:
                         last_time = new_time
         return last_time
+
+    @property
+    def sbet_navigation(self):
+        """
+        Return the sbet navigation for the first sonar head.  Can assume that all sonar heads have basically the same navigation
+        """
+
+        desired_vars = ['sbet_latitude', 'sbet_longitude', 'sbet_altitude', 'sbet_north_position_error',
+                        'sbet_east_position_error', 'sbet_down_position_error', 'sbet_roll_error', 'sbet_pitch_error',
+                        'sbet_heading_error']
+        keep_these_attributes = ['sbet_mission_date', 'sbet_datum', 'sbet_ellipsoid', 'sbet_logging rate (hz)', 'reference', 'units', 'nav_files', 'nav_error_files']
+        try:
+            if self.multibeam.raw_ping[0]:
+                chk = [x for x in desired_vars if x not in self.multibeam.raw_ping[0]]
+                if chk:
+                    return None
+
+                drop_these = [dvar for dvar in list(self.multibeam.raw_ping[0].keys()) if dvar not in desired_vars]
+                subset_nav = self.multibeam.raw_ping[0].drop(drop_these)
+                subset_nav.attrs = {ky: self.multibeam.raw_ping[0].attrs[ky] for ky in keep_these_attributes if
+                                    ky in self.multibeam.raw_ping[0].attrs}
+                return subset_nav
+        except:
+            return None
+
+    @property
+    def navigation(self):
+        """
+        Return the raw navigation from the multibeam data for the first sonar head. Can assume that all sonar heads have
+        basically the same navigation
+        """
+        return self.multibeam.return_raw_navigation()
 
     def line_is_processed(self, line_name: str):
         """
@@ -251,18 +281,6 @@ class Fqpr(ZarrBackend):
         else:
             self.client = dask_find_or_start_client(address=self.address)
         self.initialize_log()
-
-    def reload_ppnav_records(self, skip_dask: bool = False):
-        """
-        Reload the zarr datastore for the ppnav record using the navigation_path attribute
-
-        Parameters
-        ----------
-        skip_dask
-            if True, will open zarr datastore without Dask synchronizer object
-        """
-
-        self.navigation = reload_zarr_records(self.navigation_path, skip_dask)
 
     def construct_crs(self, epsg: str = None, datum: str = 'WGS84', projected: bool = True, vert_ref: str = None):
         """
@@ -985,26 +1003,14 @@ class Fqpr(ZarrBackend):
         tx_tstmp_idx = xr.concat([idx.time for idx in idx_by_chunk], dim='time')
         if latency and not silent:
             self.logger.info('Applying motion latency of {} seconds'.format(latency))
-        try:
-            if ra.input_datum == 'NAD83':
-                input_datum = CRS.from_epsg(kluster_variables.epsg_nad83)
-            elif ra.input_datum == 'WGS84':
-                input_datum = CRS.from_epsg(kluster_variables.epsg_wgs84)
-            else:
-                self.logger.error('{} not supported.  Only supports WGS84 and NAD83'.format(ra.input_datum))
-                raise ValueError('{} not supported.  Only supports WGS84 and NAD83'.format(ra.input_datum))
-        except AttributeError:
-            if not silent:
-                self.logger.warning('No input datum attribute found, assuming WGS84')
-            input_datum = CRS.from_epsg(kluster_variables.epsg_wgs84)
 
-        if prefer_pp_nav and isinstance(self.navigation, xr.Dataset):
+        if prefer_pp_nav and ('sbet_altitude' in ra) and ('sbet_latitude' in ra) and ('sbet_longitude' in ra):
             if not silent:
                 self.logger.info('Using post processed navigation...')
-            nav = interp_across_chunks(self.navigation, tx_tstmp_idx + latency, daskclient=self.client)
-            lat = nav.latitude
-            lon = nav.longitude
-            alt = nav.altitude
+            lat = xr.concat([ra.sbet_latitude[chnk] for chnk in idx_by_chunk], dim='time')
+            lon = xr.concat([ra.sbet_longitude[chnk] for chnk in idx_by_chunk], dim='time')
+            alt = xr.concat([ra.sbet_altitude[chnk] for chnk in idx_by_chunk], dim='time')
+            input_datum = ra.sbet_datum
         else:
             if not silent:
                 self.logger.info('Using raw navigation...')
@@ -1017,6 +1023,20 @@ class Fqpr(ZarrBackend):
                     raise ValueError('georef_xyz: No raw altitude found, and {} is an ellipsoidally based vertical reference'.format(self.vert_ref))
                 else:  # we can continue because we aren't going to use altitude anyway
                     alt = xr.zeros_like(lon)
+            try:
+                input_datum = ra.input_datum
+            except AttributeError:
+                if not silent:
+                    self.logger.warning('No input datum attribute found, assuming WGS84')
+                input_datum = 'WGS84'
+
+        if input_datum.lower() == 'nad83':
+            input_datum = CRS.from_epsg(kluster_variables.epsg_nad83)
+        elif input_datum.lower() == 'wgs84':
+            input_datum = CRS.from_epsg(kluster_variables.epsg_wgs84)
+        else:
+            self.logger.error('{} not supported.  Only supports WGS84 and NAD83'.format(ra.input_datum))
+            raise ValueError('{} not supported.  Only supports WGS84 and NAD83'.format(ra.input_datum))
 
         if ('heading' in ra) and ('heave' in ra) and not self.motion_latency:
             hdng = ra.heading
@@ -1107,8 +1127,6 @@ class Fqpr(ZarrBackend):
         if 'qualityfactor' not in self.multibeam.raw_ping[0]:
             self.logger.error("_generate_chunks_tpu: sonar uncertainty ('qualityfactor') must exist to calculate uncertainty")
             return None
-        if isinstance(self.navigation, xr.Dataset):
-            ppnav = interp_across_chunks(self.navigation, tx_tstmp_idx + latency, daskclient=self.client)
 
         roll = interp_across_chunks(self.multibeam.raw_att['roll'], tx_tstmp_idx + latency, daskclient=self.client)
 
@@ -1147,20 +1165,13 @@ class Fqpr(ZarrBackend):
                 fut_soundspeed = self.client.scatter(ra.soundspeed[chnk.values])
                 fut_qualityfactor = self.client.scatter(ra.qualityfactor[chnk.values])
                 fut_datumuncertainty = self.client.scatter(datum_unc)
-
-                # latency workflow is kind of strange.  We want to get data where the time equals the chunk time.  Which
-                #   means we have to apply the latency to the chunk time.  But then we need to remove the latency from the
-                #   data time so that it aligns with ping time again for writing to disk.
-                if latency:
-                    chnk = chnk.assign_coords({'time': chnk.time.time + latency})
-                fut_roll = self.client.scatter(roll.where(roll['time'] == chnk.time, drop=True).assign_coords({'time': chnk.time.time - latency}))
                 try:  # pospac uncertainty available
-                    fut_npe = self.client.scatter(ppnav.north_position_error.where(ppnav.north_position_error['time'] == chnk.time, drop=True).assign_coords({'time': chnk.time.time - latency}))
-                    fut_epe = self.client.scatter(ppnav.east_position_error.where(ppnav.east_position_error['time'] == chnk.time, drop=True).assign_coords({'time': chnk.time.time - latency}))
-                    fut_dpe = self.client.scatter(ppnav.down_position_error.where(ppnav.down_position_error['time'] == chnk.time, drop=True).assign_coords({'time': chnk.time.time - latency}))
-                    fut_rpe = self.client.scatter(ppnav.roll_error.where(ppnav.roll_error['time'] == chnk.time, drop=True).assign_coords({'time': chnk.time.time - latency}))
-                    fut_ppe = self.client.scatter(ppnav.pitch_error.where(ppnav.pitch_error['time'] == chnk.time, drop=True).assign_coords({'time': chnk.time.time - latency}))
-                    fut_hpe = self.client.scatter(ppnav.heading_error.where(ppnav.heading_error['time'] == chnk.time, drop=True).assign_coords({'time': chnk.time.time - latency}))
+                    fut_npe = self.client.scatter(ra.sbet_north_position_error[chnk.values])
+                    fut_epe = self.client.scatter(ra.sbet_east_position_error[chnk.values])
+                    fut_dpe = self.client.scatter(ra.sbet_down_position_error[chnk.values])
+                    fut_rpe = self.client.scatter(ra.sbet_roll_error[chnk.values])
+                    fut_ppe = self.client.scatter(ra.sbet_pitch_error[chnk.values])
+                    fut_hpe = self.client.scatter(ra.sbet_heading_error[chnk.values])
                 except:  # rely on static values
                     fut_npe = None
                     fut_epe = None
@@ -1168,6 +1179,12 @@ class Fqpr(ZarrBackend):
                     fut_rpe = None
                     fut_ppe = None
                     fut_hpe = None
+                # latency workflow is kind of strange.  We want to get data where the time equals the chunk time.  Which
+                #   means we have to apply the latency to the chunk time.  But then we need to remove the latency from the
+                #   data time so that it aligns with ping time again for writing to disk.
+                if latency:
+                    chnk = chnk.assign_coords({'time': chnk.time.time + latency})
+                fut_roll = self.client.scatter(roll.where(roll['time'] == chnk.time, drop=True).assign_coords({'time': chnk.time.time - latency}))
             except:  # client is not setup, run locally
                 fut_corr_point = ra.corr_pointing_angle[chnk.values]
                 fut_raw_point = raw_point
@@ -1176,17 +1193,13 @@ class Fqpr(ZarrBackend):
                 fut_soundspeed = ra.soundspeed[chnk.values]
                 fut_qualityfactor = ra.qualityfactor[chnk.values]
                 fut_datumuncertainty = datum_unc
-
-                if latency:
-                    chnk = chnk.assign_coords({'time': chnk.time.time + latency})
-                fut_roll = roll.where(roll['time'] == chnk.time, drop=True).assign_coords({'time': chnk.time.time - latency})
                 try:  # pospac uncertainty available
-                    fut_npe = ppnav.north_position_error.where(ppnav.north_position_error['time'] == chnk.time, drop=True).assign_coords({'time': chnk.time.time - latency})
-                    fut_epe = ppnav.east_position_error.where(ppnav.east_position_error['time'] == chnk.time, drop=True).assign_coords({'time': chnk.time.time - latency})
-                    fut_dpe = ppnav.down_position_error.where(ppnav.down_position_error['time'] == chnk.time, drop=True).assign_coords({'time': chnk.time.time - latency})
-                    fut_rpe = ppnav.roll_error.where(ppnav.roll_error['time'] == chnk.time, drop=True).assign_coords({'time': chnk.time.time - latency})
-                    fut_ppe = ppnav.pitch_error.where(ppnav.pitch_error['time'] == chnk.time, drop=True).assign_coords({'time': chnk.time.time - latency})
-                    fut_hpe = ppnav.heading_error.where(ppnav.heading_error['time'] == chnk.time, drop=True).assign_coords({'time': chnk.time.time - latency})
+                    fut_npe = ra.sbet_north_position_error[chnk.values]
+                    fut_epe = ra.sbet_east_position_error[chnk.values]
+                    fut_dpe = ra.sbet_down_position_error[chnk.values]
+                    fut_rpe = ra.sbet_roll_error[chnk.values]
+                    fut_ppe = ra.sbet_pitch_error[chnk.values]
+                    fut_hpe = ra.sbet_heading_error[chnk.values]
                 except:  # rely on static values
                     fut_npe = None
                     fut_epe = None
@@ -1194,7 +1207,9 @@ class Fqpr(ZarrBackend):
                     fut_rpe = None
                     fut_ppe = None
                     fut_hpe = None
-
+                if latency:
+                    chnk = chnk.assign_coords({'time': chnk.time.time + latency})
+                fut_roll = roll.where(roll['time'] == chnk.time, drop=True).assign_coords({'time': chnk.time.time - latency})
             data_for_workers.append([fut_roll, fut_raw_point, fut_corr_point, fut_acrosstrack, fut_depthoffset, fut_soundspeed,
                                      fut_datumuncertainty, tpu_params, fut_qualityfactor, fut_npe, fut_epe, fut_dpe,
                                      fut_rpe, fut_ppe, fut_hpe, qf_type, self.vert_ref, image_generation[cnt]])
@@ -1367,7 +1382,7 @@ class Fqpr(ZarrBackend):
             self.logger.error('georef_xyz: horizontal_crs object not found.  Please run Fqpr.construct_crs first.')
             raise ValueError('georef_xyz: horizontal_crs object not found.  Please run Fqpr.construct_crs first.')
         if self.vert_ref in kluster_variables.ellipse_based_vertical_references:
-            if 'altitude' not in self.multibeam.raw_ping[0] and self.navigation is None:
+            if 'altitude' not in self.multibeam.raw_ping[0] and 'sbet_altitude' not in self.multibeam.raw_ping[0]:
                 self.logger.error('georef_xyz: You must provide altitude for vert_ref=ellipse, not found in ping record or post processed navigation.')
                 raise ValueError('georef_xyz: You must provide altitude for vert_ref=ellipse, not found in ping record or post processed navigation.')
         if self.vert_ref in kluster_variables.vdatum_vertical_references:
@@ -1495,13 +1510,14 @@ class Fqpr(ZarrBackend):
 
         # remove any duplicate files, these would be files that already exist in the Fqpr instance.  Check by comparing
         #  file name and the start/end time of the navfile.
-        if isinstance(self.navigation, xr.Dataset) and not overwrite:
+        if not overwrite:
+            rp = self.multibeam.raw_ping[0]
             duplicate_navfiles = []
             for new_file in navfiles:
                 root, filename = os.path.split(new_file)
-                if filename in self.navigation.nav_files:
+                if 'nav_files' in rp and filename in rp.nav_files:
                     new_file_times = sbet_fast_read_start_end_time(new_file)
-                    if self.navigation.nav_files[filename] == new_file_times:
+                    if rp.nav_files[filename] == new_file_times:
                         duplicate_navfiles.append(new_file)
             for fil in duplicate_navfiles:
                 print('{} is already a converted navigation file within this dataset'.format(fil))
@@ -1557,11 +1573,8 @@ class Fqpr(ZarrBackend):
                                          max_gap_length: float = 1.0, overwrite: bool = False):
         """
         Load from post processed navigation files (currently just SBET and SMRMSG) to get lat/lon/altitude as well
-        as 3d error for further processing.  Will save to a zarr rootgroup alongside the raw navigation, so you can
-        compare and select as you wish.
-
-        No interpolation is done, but it will slice the incoming data to the time extents of the raw navigation and
-        identify time gaps larger than the provided max_gap_length in seconds.
+        as 3d error for further processing.  Will save as variables/attributes within the ping record for the nearest
+        data point to each ping time.
 
         Parameters
         ----------
@@ -1611,38 +1624,27 @@ class Fqpr(ZarrBackend):
             print('import_post_processed_navigation: Unable to read from {}'.format(navfiles))
             return
 
-        # retain only nav records that are within existing ping times
-        mintime = min([rp.time.values[0] for rp in self.multibeam.raw_ping])
-        maxtime = min([rp.time.values[-1] for rp in self.multibeam.raw_ping])
-        navdata = slice_xarray_by_dim(navdata, 'time', start_time=float(mintime) - 2, end_time=float(maxtime) + 2)
-        if navdata is None:
-            print('import_post_processed_navigation: Unable to find timestamps in SBET that align with the raw navigation.')
-            return
+        for rp in self.multibeam.raw_ping:
+            if navdata.time.values[0] > rp.time.values[-1] or navdata.time.values[-1] < rp.time.values[0]:
+                print('{}: No overlap found between ping data and SBET navigation.')
+                print('Raw navigation: UTC seconds from {} to {}.  SBET data: UTC seconds from {} to {}'.format(rp.time.values[0], rp.time.values[-1],
+                                                                                                                navdata.time.values[0], navdata.time.values[-1]))
+                continue
+            # find the nearest new record to each existing navigation record
+            nav_wise_data = interp_across_chunks(navdata, rp.time, 'time')
+            print('{}: Writing {} new SBET navigation records'.format(rp.system_identifier, nav_wise_data.time.shape[0]))
 
-        print('Writing {} new post processed navigation records'.format(navdata.time.shape[0]))
+            navdata_attrs = nav_wise_data.attrs
+            navdata_times = [nav_wise_data.time]
+            try:
+                nav_wise_data = self.client.scatter(nav_wise_data)
+            except:  # not using dask distributed client
+                pass
+            outfold, _ = self.write('ping', [nav_wise_data], time_array=navdata_times, attributes=navdata_attrs, sys_id=rp.system_identifier)
 
-        navdata.attrs['reference'] = {'latitude': 'reference point', 'longitude': 'reference point',
-                                      'altitude': 'reference point'}
-        if self.multibeam.raw_ping[0].current_processing_status >= 4:  # have to start over at georeference now
+        if self.multibeam.raw_ping[0].current_processing_status >= 4:
+            # have to start over at georeference now, if there isn't any postprocessed navigation
             self.write_attribute_to_ping_records({'current_processing_status': 3})
-
-        # find gaps that don't line up with existing nav gaps (like time between multibeam files)
-        # gaps = compare_and_find_gaps(self.multibeam.raw_ping[0], navdata, max_gap_length=max_gap_length, dimname='time')
-        # if gaps.any():
-        #     self.logger.info('Found gaps > {} in comparison between post processed navigation and realtime.'.format(max_gap_length))
-        #     for gp in gaps:
-        #         self.logger.info('mintime: {}, maxtime: {}, gap length {}'.format(gp[0], gp[1], gp[1] - gp[0]))
-
-        navdata_attrs = navdata.attrs
-        navdata_times = [navdata.time]
-        try:
-            navdata = self.client.scatter(navdata)
-        except:  # not using dask distributed client
-            pass
-
-        outfold, _ = self.write('ppnav', [navdata], time_array=navdata_times, attributes=navdata_attrs)
-        self.navigation_path = outfold
-        self.reload_ppnav_records()
         self.multibeam.reload_pingrecords(skip_dask=self.client is None)
 
         endtime = perf_counter()
@@ -1705,7 +1707,7 @@ class Fqpr(ZarrBackend):
                 pass
             outfold, _ = self.write('ping', [nav_wise_data], time_array=navdata_times, attributes=navdata_attrs, sys_id=rp.system_identifier)
 
-        if self.multibeam.raw_ping[0].current_processing_status >= 4 and not isinstance(self.navigation, xr.Dataset):
+        if self.multibeam.raw_ping[0].current_processing_status >= 4 and 'sbet_altitude' not in self.multibeam.raw_ping[0]:
             # have to start over at georeference now, if there isn't any postprocessed navigation
             self.write_attribute_to_ping_records({'current_processing_status': 3})
         self.multibeam.reload_pingrecords(skip_dask=self.client is None)
@@ -2674,14 +2676,23 @@ class Fqpr(ZarrBackend):
             return None, None
 
     def return_soundings_in_polygon(self, polygon: np.ndarray, geographic: bool = True,
-                                    full_swath: bool = False):
+                                    variable_selection: tuple = ('head', 'x', 'y', 'z', 'tvu', 'detectioninfo', 'time', 'beam')):
         """
         Using provided coordinates (in either horizontal_crs projected or geographic coordinates), return the soundings
-        and sounding attributes for all soundings within the coordinates, see subset module.
+        and sounding attributes for all soundings within the coordinates, see subset module.  Also sets the ping_filter
+        attribute which can be used with set_variable_by_filter get_variable_by_filter
         """
 
-        head, x, y, z, tvu, rejected, pointtime, beam = self.subset.return_soundings_in_polygon(polygon, geographic, full_swath)
-        return head, x, y, z, tvu, rejected, pointtime, beam
+        datablock = self.subset.return_soundings_in_polygon(polygon, geographic, variable_selection)
+        return datablock
+
+    def set_filter_by_polygon(self, polygon: np.ndarray, geographic: bool = True):
+        """
+        Alternative way to set the ping_filter attribute which can be used with set_variable_by_filter
+        get_variable_by_filter, see subset module.
+        """
+
+        self.subset.set_filter_by_polygon(polygon, geographic)
 
     def set_variable_by_filter(self, var_name: str = 'detectioninfo', newval: Union[int, str, float] = 2, selected_index: list = None):
         """
@@ -2691,6 +2702,18 @@ class Fqpr(ZarrBackend):
         """
 
         self.subset.set_variable_by_filter(var_name, newval, selected_index)
+
+    def get_variable_by_filter(self, var_name: str, selected_index: list = None):
+        """
+        ping_filter is set upon selecting points in 2d/3d in Kluster.  See return_soundings_in_polygon.  Here we can take
+        those points and get one of the variables individually.  This is going to be faster than running return_soundings_in_polygon
+        again and is kind of an added feature for just getting one other variable.
+
+        Optionally, you can include a selected_index that is a list of flattened indices to points in the ping_filter
+        that you want to super-select, see subset module.
+        """
+
+        return self.subset.get_variable_by_filter(var_name, selected_index)
 
     def return_processing_dashboard(self):
         """

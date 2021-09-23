@@ -1,0 +1,6 @@
+return_chunk_slices
+===================
+
+.. currentmodule:: HSTB.kluster.xarray_helpers
+
+.. autofunction:: return_chunk_slices

@@ -1,0 +1,6 @@
+determine_optimal_chunks
+========================
+
+.. currentmodule:: HSTB.kluster.dask_helpers
+
+.. autofunction:: determine_optimal_chunks
