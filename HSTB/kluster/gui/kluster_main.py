@@ -1219,7 +1219,7 @@ class KlusterMain(QtWidgets.QMainWindow):
             for new_fq in self.open_project_thread.new_fqprs:
                 fqpr_entry, already_in = self.project.add_fqpr(new_fq, skip_dask=True)
                 if already_in:
-                    print('{} already exists in {}'.format(new_fq.output_path, self.project.path))
+                    print('{} already exists in project'.format(new_fq.output_folder))
             for new_surf in self.open_project_thread.new_surfaces:
                 self.project.add_surface(new_surf)
             self.redraw(new_fqprs=[self.project.path_relative_to_project(fq.output_folder) for fq in self.open_project_thread.new_fqprs])

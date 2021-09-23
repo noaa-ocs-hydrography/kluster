@@ -197,7 +197,11 @@ def transform_vyperdatum(x: np.array, y: np.array, z: np.array, source_datum: Un
 
     if not os.path.exists(vp.vdatum.vdatum_path):
         raise EnvironmentError('Unable to find path to VDatum folder: {}'.format(vp.vdatum.vdatum_path))
-    vp.transform_points(source_datum, final_datum, x, y, z=z)
+    if source_datum == 'nad83':
+        source_datum = kluster_variables.epsg_nad83
+    elif source_datum == 'wgs84':
+        source_datum = kluster_variables.epsg_wgs84
+    vp.transform_points((source_datum, 'nad83'), final_datum, x, y, z=z)
 
     return np.around(vp.z, 3), np.around(vp.unc, 3)
 
@@ -226,9 +230,9 @@ def datum_to_wkt(datum_identifier: str, min_lon: float, min_lat: float, max_lon:
     """
 
     vc = VyperCore()
+    vc.set_input_datum((6318, datum_identifier))
     vc.set_region_by_bounds(min_lon, min_lat, max_lon, max_lat)
-    vc.set_output_datum(datum_identifier)
-    return vc.out_crs.to_wkt()
+    return vc.in_crs.to_wkt()
 
 
 def set_vyperdatum_vdatum_path(vdatum_path: str):

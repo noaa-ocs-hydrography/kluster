@@ -14,8 +14,8 @@ super_selected_point_color = (1, 1, 1, 1)  # color of points in super selection 
 
 # generic processing
 max_beams = 400  # starting max beams in kluster (can grow beyond)
-epsg_nad83 = 6319
-epsg_wgs84 = 7911
+epsg_nad83 = 6318
+epsg_wgs84 = 8999
 default_number_of_chunks = 4
 converted_files_at_once = 5
 geohash_precision = 7

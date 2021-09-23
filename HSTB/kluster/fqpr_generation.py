@@ -1003,18 +1003,6 @@ class Fqpr(ZarrBackend):
         tx_tstmp_idx = xr.concat([idx.time for idx in idx_by_chunk], dim='time')
         if latency and not silent:
             self.logger.info('Applying motion latency of {} seconds'.format(latency))
-        try:
-            if ra.input_datum == 'NAD83':
-                input_datum = CRS.from_epsg(kluster_variables.epsg_nad83)
-            elif ra.input_datum == 'WGS84':
-                input_datum = CRS.from_epsg(kluster_variables.epsg_wgs84)
-            else:
-                self.logger.error('{} not supported.  Only supports WGS84 and NAD83'.format(ra.input_datum))
-                raise ValueError('{} not supported.  Only supports WGS84 and NAD83'.format(ra.input_datum))
-        except AttributeError:
-            if not silent:
-                self.logger.warning('No input datum attribute found, assuming WGS84')
-            input_datum = CRS.from_epsg(kluster_variables.epsg_wgs84)
 
         if prefer_pp_nav and ('sbet_altitude' in ra) and ('sbet_latitude' in ra) and ('sbet_longitude' in ra):
             if not silent:
@@ -1022,6 +1010,7 @@ class Fqpr(ZarrBackend):
             lat = xr.concat([ra.sbet_latitude[chnk] for chnk in idx_by_chunk], dim='time')
             lon = xr.concat([ra.sbet_longitude[chnk] for chnk in idx_by_chunk], dim='time')
             alt = xr.concat([ra.sbet_altitude[chnk] for chnk in idx_by_chunk], dim='time')
+            input_datum = ra.sbet_datum
         else:
             if not silent:
                 self.logger.info('Using raw navigation...')
@@ -1034,6 +1023,20 @@ class Fqpr(ZarrBackend):
                     raise ValueError('georef_xyz: No raw altitude found, and {} is an ellipsoidally based vertical reference'.format(self.vert_ref))
                 else:  # we can continue because we aren't going to use altitude anyway
                     alt = xr.zeros_like(lon)
+            input_datum = ra.input_datum
+
+        try:
+            if input_datum == 'NAD83':
+                input_datum = CRS.from_epsg(kluster_variables.epsg_nad83)
+            elif input_datum == 'WGS84':
+                input_datum = CRS.from_epsg(kluster_variables.epsg_wgs84)
+            else:
+                self.logger.error('{} not supported.  Only supports WGS84 and NAD83'.format(ra.input_datum))
+                raise ValueError('{} not supported.  Only supports WGS84 and NAD83'.format(ra.input_datum))
+        except AttributeError:
+            if not silent:
+                self.logger.warning('No input datum attribute found, assuming WGS84')
+            input_datum = CRS.from_epsg(kluster_variables.epsg_wgs84)
 
         if ('heading' in ra) and ('heave' in ra) and not self.motion_latency:
             hdng = ra.heading
