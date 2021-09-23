@@ -1,0 +1,6 @@
+get_beamwise_interpolation
+==========================
+
+.. currentmodule:: HSTB.kluster.xarray_helpers
+
+.. autofunction:: get_beamwise_interpolation

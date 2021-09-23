@@ -1,0 +1,17 @@
+LoggerClass
+===========
+
+.. currentmodule:: HSTB.kluster.fqpr_intelligence
+
+.. autoclass:: LoggerClass
+   :show-inheritance:
+
+   .. rubric:: Methods Summary
+
+   .. autosummary::
+
+      ~LoggerClass.print_msg
+
+   .. rubric:: Methods Documentation
+
+   .. automethod:: print_msg

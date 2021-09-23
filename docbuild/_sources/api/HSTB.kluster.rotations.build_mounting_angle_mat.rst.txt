@@ -1,0 +1,6 @@
+build_mounting_angle_mat
+========================
+
+.. currentmodule:: HSTB.kluster.rotations
+
+.. autofunction:: build_mounting_angle_mat

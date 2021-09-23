@@ -1,0 +1,6 @@
+process_multibeam
+=================
+
+.. currentmodule:: HSTB.kluster.fqpr_convenience
+
+.. autofunction:: process_multibeam

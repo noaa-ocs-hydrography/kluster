@@ -1,0 +1,6 @@
+build_rot_mat
+=============
+
+.. currentmodule:: HSTB.kluster.rotations
+
+.. autofunction:: build_rot_mat

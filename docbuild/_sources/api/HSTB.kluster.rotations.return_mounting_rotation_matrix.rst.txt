@@ -1,0 +1,6 @@
+return_mounting_rotation_matrix
+===============================
+
+.. currentmodule:: HSTB.kluster.rotations
+
+.. autofunction:: return_mounting_rotation_matrix

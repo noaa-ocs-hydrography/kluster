@@ -1,0 +1,6 @@
+xarr_to_netcdf
+==============
+
+.. currentmodule:: HSTB.kluster.xarray_helpers
+
+.. autofunction:: xarr_to_netcdf

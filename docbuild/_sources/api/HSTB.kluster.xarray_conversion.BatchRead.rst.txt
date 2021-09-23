@@ -1,0 +1,57 @@
+BatchRead
+=========
+
+.. currentmodule:: HSTB.kluster.xarray_conversion
+
+.. autoclass:: BatchRead
+   :show-inheritance:
+
+   .. rubric:: Methods Summary
+
+   .. autosummary::
+
+      ~BatchRead.batch_read
+      ~BatchRead.build_offsets
+      ~BatchRead.correct_for_counter_reset
+      ~BatchRead.initialize_log
+      ~BatchRead.is_dual_head
+      ~BatchRead.read
+      ~BatchRead.read_from_netcdf_fils
+      ~BatchRead.read_from_zarr_fils
+      ~BatchRead.reload_pingrecords
+      ~BatchRead.return_all_profiles
+      ~BatchRead.return_nearest_soundspeed_profile
+      ~BatchRead.return_ping_counters_at_time
+      ~BatchRead.return_raw_navigation
+      ~BatchRead.return_rx_xyzrph
+      ~BatchRead.return_system_time_indexed_array
+      ~BatchRead.return_tpu_parameters
+      ~BatchRead.return_tx_xyzrph
+      ~BatchRead.return_utm_zone_number
+      ~BatchRead.return_waterline
+      ~BatchRead.return_xyz_prefixes_for_systems
+      ~BatchRead.return_xyzrph_sorted_timestamps
+
+   .. rubric:: Methods Documentation
+
+   .. automethod:: batch_read
+   .. automethod:: build_offsets
+   .. automethod:: correct_for_counter_reset
+   .. automethod:: initialize_log
+   .. automethod:: is_dual_head
+   .. automethod:: read
+   .. automethod:: read_from_netcdf_fils
+   .. automethod:: read_from_zarr_fils
+   .. automethod:: reload_pingrecords
+   .. automethod:: return_all_profiles
+   .. automethod:: return_nearest_soundspeed_profile
+   .. automethod:: return_ping_counters_at_time
+   .. automethod:: return_raw_navigation
+   .. automethod:: return_rx_xyzrph
+   .. automethod:: return_system_time_indexed_array
+   .. automethod:: return_tpu_parameters
+   .. automethod:: return_tx_xyzrph
+   .. automethod:: return_utm_zone_number
+   .. automethod:: return_waterline
+   .. automethod:: return_xyz_prefixes_for_systems
+   .. automethod:: return_xyzrph_sorted_timestamps

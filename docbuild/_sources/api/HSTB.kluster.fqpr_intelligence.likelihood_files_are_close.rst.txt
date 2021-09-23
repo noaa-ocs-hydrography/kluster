@@ -1,0 +1,6 @@
+likelihood_files_are_close
+==========================
+
+.. currentmodule:: HSTB.kluster.fqpr_intelligence
+
+.. autofunction:: likelihood_files_are_close

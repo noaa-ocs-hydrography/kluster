@@ -1,0 +1,6 @@
+compute_geo_beam_pointing_angle
+===============================
+
+.. currentmodule:: HSTB.kluster.modules.beampointingvector
+
+.. autofunction:: compute_geo_beam_pointing_angle

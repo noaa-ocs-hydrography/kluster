@@ -1,0 +1,6 @@
+import_sound_velocity
+=====================
+
+.. currentmodule:: HSTB.kluster.fqpr_convenience
+
+.. autofunction:: import_sound_velocity
