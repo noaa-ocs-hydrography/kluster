@@ -59,7 +59,10 @@ class SaveStateDialog(QtWidgets.QDialog):
         try:
             if self.text_controls:
                 for cname, tcntrl in self.text_controls:
-                    text_value = str(settings.value('{}/{}_{}'.format(self.appname, self.widgetname, cname)))
+                    base_value = settings.value('{}/{}_{}'.format(self.appname, self.widgetname, cname))
+                    if base_value is None:
+                        base_value = ''
+                    text_value = str(base_value)
                     if text_value:
                         try:
                             tcntrl.setCurrentText(text_value)
