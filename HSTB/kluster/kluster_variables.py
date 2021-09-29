@@ -44,6 +44,7 @@ pings_per_csv = 15000  # csv export will put this many pings in one file before 
 ping_chunk_size = 1000  # chunk size (in pings) of each written chunk of data in the ping records
 navigation_chunk_size = 50000  # chunk size (in time) of each written chunk of data in the navigation records
 attitude_chunk_size = 20000  # chunk size (in time) of each written chunk of data in the attitude records
+max_profile_length = 80  # maximum layers in a sound velocity profile, will interpolate if greater than this length
 
 single_head_sonar = ['em122', 'em302', 'em710', 'em2045', 'em2040', 'em2040p', 'em3002', 'em2040p', 'em3020', 'me70bo']  # all single head sonar models
 dual_head_sonar = ['em2040_dual_rx', 'em2040_dual_tx', 'em2045_dual']  # all dual head sonar models

@@ -194,9 +194,14 @@ def combine_xr_attributes(datasets: list):
         contains all unique attributes across all dataset, will append unique prim/secondary serial numbers and ignore duplicate settings entries
     """
 
+    sig_keys = ['transducer_{}_athwart_location', 'transducer_{}_vertical_location', 'transducer_{}_along_location',
+                'transducer_{}_roll_angle', 'transducer_{}_pitch_angle', 'transducer_{}_heading_angle']
+    sig_keys = [sk.format(i) for i in range(4) for sk in sig_keys]
+    sig_keys += ['waterline_vertical_location']
+
     finaldict = {}
 
-    buffered_settings = ''
+    buffered_settings = []
     buffered_runtime_settings = ''
 
     fnames = []
@@ -233,14 +238,17 @@ def combine_xr_attributes(datasets: list):
                 except KeyError:  # key exists in .all file but not in .kmall
                     pass
                     # print('{}: Unable to find "raw_file_name" key'.format(k))
+                chk_keys = [ky for sigk in sig_keys for ky in vals.keys() if ky.find(sigk) != -1]
+                chk_values = [vals[ky] for ky in chk_keys]
+                chk_value_string = json.dumps(chk_values)
                 vals = json.dumps(vals)
 
                 # This is for the duplicate entries, just ignore these
-                if vals == buffered_settings:
+                if chk_value_string in buffered_settings:
                     pass
                 # this is for the first settings entry
                 elif not buffered_settings:
-                    buffered_settings = vals
+                    buffered_settings.append(chk_value_string)
                     finaldict[k] = vals
                 # all unique entries after the first are saved
                 else:

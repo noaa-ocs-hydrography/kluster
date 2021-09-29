@@ -216,6 +216,35 @@ def _is_not_empty_sequential(rec: dict):
     return False
 
 
+def simplify_soundvelocity_profile(profile: np.ndarray):
+    """
+    Kluster currently has a memory issue when sound velocity correcting with very large cast tables.  If the profile
+    has too many layers, the memory usage will blow up.  Limit the cast layers to the max_profile_length variable in
+    kluster_variables.
+
+    Profiles that are too long are interpolated here
+
+    Parameters
+    ----------
+    profile
+
+    Returns
+    -------
+
+    """
+    if profile.shape[0] > kluster_variables.max_profile_length:
+        if profile[-1, 0] == 12000.0:  # this is an added on value by Kongsberg, linspace with the original profile depths to not throw off the step size
+            new_depths = np.linspace(profile[0, 0], profile[-2, 0], num=kluster_variables.max_profile_length - 1)
+            new_depths = np.concatenate([new_depths, [12000.0]])
+            extended_cast = True
+        else:
+            new_depths = np.linspace(profile[0, 0], profile[-1, 0], num=kluster_variables.max_profile_length)
+            extended_cast = False
+        new_vals = np.interp(new_depths, profile[:, 0], profile[:, 1])
+        profile = np.dstack([new_depths, new_vals])[0]
+    return profile
+
+
 def _sequential_to_xarray(rec: dict):
     """
     After running sequential read, this method will take in the dict of datagrams and return an xarray for rangeangle,
@@ -336,6 +365,7 @@ def _sequential_to_xarray(rec: dict):
         for t in rec['profile']['time']:
             idx = np.where(rec['profile']['time'] == t)
             profile = np.dstack([rec['profile']['depth'][idx][0], rec['profile']['soundspeed'][idx][0]])[0]
+            profile = simplify_soundvelocity_profile(profile)
             for systemid in recs_to_merge['ping']:
                 cst_name = 'profile_{}'.format(int(t))
                 attrs_name = 'attributes_{}'.format(int(t))
@@ -1544,7 +1574,7 @@ class BatchRead(ZarrBackend):
                         opts['ping']['final_attrs'] = combattrs
                         if len(input_xarrs_by_system) > 1:
                             # rebalance to get equal chunksize in time dimension (sector/beams are constant across)
-                            input_xarrs_by_system = self.fq  =(input_xarrs_by_system)
+                            input_xarrs_by_system = self._batch_read_correct_block_boundaries(input_xarrs_by_system)
                         opts[datatype]['output_arrs'], opts[datatype]['time_arrs'], opts[datatype]['chunksize'], totallen = self._batch_read_merge_blocks(input_xarrs_by_system, datatype, opts[datatype]['chunksize'])
                         del input_xarrs_by_system
                         finalpths[datatype].append(self._batch_read_write('zarr', datatype, opts, self.converted_pth, sysid=system))
