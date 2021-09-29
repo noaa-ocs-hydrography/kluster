@@ -233,6 +233,7 @@ def simplify_soundvelocity_profile(profile: np.ndarray):
 
     """
     if profile.shape[0] > kluster_variables.max_profile_length:
+        print('WARNING: Found a sound velocity profile with {} layers, interpolating to a maximum of {} layers'.format(profile.shape[0], kluster_variables.max_profile_length))
         if profile[-1, 0] == 12000.0:  # this is an added on value by Kongsberg, linspace with the original profile depths to not throw off the step size
             new_depths = np.linspace(profile[0, 0], profile[-2, 0], num=kluster_variables.max_profile_length - 1)
             new_depths = np.concatenate([new_depths, [12000.0]])
