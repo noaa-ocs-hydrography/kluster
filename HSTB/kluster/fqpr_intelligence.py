@@ -894,7 +894,9 @@ class FqprIntel(LoggerClass):
 
         self.multibeam_intel.line_groups = {}
         self.multibeam_intel.unmatched_files = {}
-        for mfilepath, mfilename in self.multibeam_intel.file_name.items():
+        sorted_mfilepath = self.multibeam_intel.file_path_sorted_by_time()
+        for mfilepath in sorted_mfilepath:
+            mfilename = self.multibeam_intel.file_name[mfilepath]
             if self.project:
                 start_time = self.multibeam_intel.data_start_time_utc[mfilepath]
                 prim_serial = self.multibeam_intel.primary_serial_number[mfilepath]
@@ -1307,6 +1309,15 @@ class MultibeamModule(IntelModule):
         if remove_key:
             self.line_groups.pop(remove_key)
         return uid
+
+    def file_path_sorted_by_time(self):
+        """
+        Return the list of file paths sorted by start time
+        """
+        if self.file_name:
+            return [self.file_path[self.file_name[k]] for k in sorted(self.data_start_time_utc, key=self.data_start_time_utc.get)]
+        else:
+            return []
 
 
 class NavigationModule(IntelModule):

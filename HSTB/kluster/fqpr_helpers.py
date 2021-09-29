@@ -133,7 +133,7 @@ def return_files_from_path(pth: str, in_chunks: bool = True):
         raise ValueError('_chunks_of_files: Expected either a multibeam file, a list of multibeam files or a directory')
     if not fils:
         return []
-    fils = sorted(fils)  # should we sort by last modified time?  might be nice
+
     if not in_chunks:
         return fils
     else:

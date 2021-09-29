@@ -230,10 +230,12 @@ def simplify_soundvelocity_profile(profile: np.ndarray):
 
     Returns
     -------
-
+    np.ndarray
+        Either interpolated cast record or the original if the original was not too large
     """
+
     if profile.shape[0] > kluster_variables.max_profile_length:
-        print('WARNING: Found a sound velocity profile with {} layers, interpolating to a maximum of {} layers'.format(profile.shape[0], kluster_variables.max_profile_length))
+        # print('WARNING: Found a sound velocity profile with {} layers, interpolating to a maximum of {} layers'.format(profile.shape[0], kluster_variables.max_profile_length))
         if profile[-1, 0] == 12000.0:  # this is an added on value by Kongsberg, linspace with the original profile depths to not throw off the step size
             new_depths = np.linspace(profile[0, 0], profile[-2, 0], num=kluster_variables.max_profile_length - 1)
             new_depths = np.concatenate([new_depths, [12000.0]])
@@ -623,7 +625,6 @@ def _merge_constant_blocks(newblocks: list):
     xr.Dataset
         all blocks merged along time dimension
     """
-
     xarrs = [i[2].isel(time=slice(i[0], i[1])) for i in newblocks]
     finalarr = xr.combine_nested(xarrs, 'time')
     return finalarr
@@ -1272,7 +1273,6 @@ class BatchRead(ZarrBackend):
         int
             total length of blocks
         """
-
         xlens = self.client.gather(self.client.map(_return_xarray_timelength, input_xarrs))
         balanced_data, totallength = _return_xarray_constant_blocks(xlens, input_xarrs, chunksize)
         self.logger.info('Rebalancing {} total {} records across {} blocks of size {}'.format(totallength, datatype,
