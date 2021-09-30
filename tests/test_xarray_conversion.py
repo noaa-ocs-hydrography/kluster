@@ -175,6 +175,14 @@ def test_closest_key_value():
     assert _closest_key_value(tstmps, key) == 100000.0
 
 
+def test_simplify_soundvelocity_profile():
+    dpths = np.linspace(0, 12000, 500)
+    vals = np.linspace(0, 12000, 500)
+    prof = np.dstack([dpths, vals])[0]
+    newprof = simplify_soundvelocity_profile(prof)
+    assert newprof.shape == (kluster_variables.max_profile_length, 2)
+
+
 def test_batch_read_configure_options():
     opts = batch_read_configure_options()
     expected_opts = {
