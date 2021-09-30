@@ -1,6 +1,0 @@
-return_project_data
-===================
-
-.. currentmodule:: HSTB.kluster.fqpr_project
-
-.. autofunction:: return_project_data

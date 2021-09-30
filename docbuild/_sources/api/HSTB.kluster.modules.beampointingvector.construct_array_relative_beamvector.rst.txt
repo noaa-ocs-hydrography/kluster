@@ -1,6 +1,0 @@
-construct_array_relative_beamvector
-===================================
-
-.. currentmodule:: HSTB.kluster.modules.beampointingvector
-
-.. autofunction:: construct_array_relative_beamvector

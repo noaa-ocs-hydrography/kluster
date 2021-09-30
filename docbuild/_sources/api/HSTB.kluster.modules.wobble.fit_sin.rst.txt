@@ -1,6 +1,0 @@
-fit_sin
-=======
-
-.. currentmodule:: HSTB.kluster.modules.wobble
-
-.. autofunction:: fit_sin

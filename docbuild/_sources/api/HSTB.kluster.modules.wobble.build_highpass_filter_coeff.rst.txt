@@ -1,6 +1,0 @@
-build_highpass_filter_coeff
-===========================
-
-.. currentmodule:: HSTB.kluster.modules.wobble
-
-.. autofunction:: build_highpass_filter_coeff

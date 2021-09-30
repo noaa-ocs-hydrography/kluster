@@ -1,6 +1,0 @@
-accuracy_test
-=============
-
-.. currentmodule:: HSTB.kluster.modules.sat
-
-.. autofunction:: accuracy_test

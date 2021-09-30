@@ -1,6 +1,0 @@
-cast_data_from_file
-===================
-
-.. currentmodule:: HSTB.kluster.modules.svcorrect
-
-.. autofunction:: cast_data_from_file

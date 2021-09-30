@@ -1,6 +1,0 @@
-my_open_mfdataset
-=================
-
-.. currentmodule:: HSTB.kluster.xarray_helpers
-
-.. autofunction:: my_open_mfdataset

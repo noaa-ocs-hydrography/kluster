@@ -138,6 +138,7 @@ Perform these in order:
    settings/index
    indepth/index
    kluster_api/index
+   changes
 
 Index
 =====

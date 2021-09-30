@@ -1,6 +1,0 @@
-overwrite_raw_navigation
-========================
-
-.. currentmodule:: HSTB.kluster.fqpr_convenience
-
-.. autofunction:: overwrite_raw_navigation

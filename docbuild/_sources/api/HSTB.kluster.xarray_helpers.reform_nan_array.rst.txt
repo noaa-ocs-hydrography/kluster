@@ -1,6 +1,0 @@
-reform_nan_array
-================
-
-.. currentmodule:: HSTB.kluster.xarray_helpers
-
-.. autofunction:: reform_nan_array

@@ -1,6 +1,0 @@
-epsg_determinator
-=================
-
-.. currentmodule:: HSTB.kluster.fqpr_helpers
-
-.. autofunction:: epsg_determinator

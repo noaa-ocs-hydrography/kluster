@@ -1,6 +1,0 @@
-run_ray_trace_v2
-================
-
-.. currentmodule:: HSTB.kluster.modules.svcorrect
-
-.. autofunction:: run_ray_trace_v2

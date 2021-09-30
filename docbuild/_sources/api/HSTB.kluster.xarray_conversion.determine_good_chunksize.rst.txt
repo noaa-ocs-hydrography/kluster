@@ -1,6 +1,0 @@
-determine_good_chunksize
-========================
-
-.. currentmodule:: HSTB.kluster.xarray_conversion
-
-.. autofunction:: determine_good_chunksize

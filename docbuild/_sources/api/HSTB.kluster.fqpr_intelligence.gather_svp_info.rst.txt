@@ -1,6 +1,0 @@
-gather_svp_info
-===============
-
-.. currentmodule:: HSTB.kluster.fqpr_intelligence
-
-.. autofunction:: gather_svp_info
