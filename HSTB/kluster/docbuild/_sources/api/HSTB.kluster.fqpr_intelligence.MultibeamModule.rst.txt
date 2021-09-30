@@ -10,8 +10,10 @@ MultibeamModule
 
    .. autosummary::
 
+      ~MultibeamModule.file_path_sorted_by_time
       ~MultibeamModule.remove_file
 
    .. rubric:: Methods Documentation
 
+   .. automethod:: file_path_sorted_by_time
    .. automethod:: remove_file
