@@ -627,6 +627,14 @@ def _merge_constant_blocks(newblocks: list):
     """
     xarrs = [i[2].isel(time=slice(i[0], i[1])) for i in newblocks]
     finalarr = xr.combine_nested(xarrs, 'time')
+    # can't have duplicate times in xarray dataset, apply tiny offset in time to handle this
+    finalarr = finalarr.sortby('time')
+    duptimes = np.where(np.diff(finalarr.time) == 0)[0]
+    if duptimes:
+        newtimes = finalarr.time.values
+        for dupt in duptimes:
+            newtimes[dupt + 1] += 0.000001
+        finalarr = finalarr.assign_coords(time=newtimes)
     return finalarr
 
 
