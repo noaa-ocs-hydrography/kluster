@@ -7,6 +7,7 @@ if qgis_enabled:
 from HSTB.kluster.gui.common_widgets import SaveStateDialog
 from HSTB.shared import RegistryHelpers
 from HSTB.kluster import kluster_variables
+from HSTB.kluster.modules.georeference import set_vyperdatum_vdatum_path
 
 
 class SettingsDialog(SaveStateDialog):
@@ -117,6 +118,8 @@ class SettingsDialog(SaveStateDialog):
                     'force_coordinate_match': self.force_coordinate_match.isChecked(),
                     'vdatum_directory': self.vdatum_pth,
                     'autoprocessing_mode': self.auto_processing_mode.currentText()}
+            if self.vdatum_pth:
+                set_vyperdatum_vdatum_path(self.vdatum_pth)
         else:
             opts = None
         return opts
