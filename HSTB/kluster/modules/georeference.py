@@ -131,9 +131,9 @@ def georef_by_worker(sv_corr: list, alt: xr.DataArray, lon: xr.DataArray, lat: x
     if vert_ref in ['NOAA MLLW', 'NOAA MHW']:
         z_stck = z.values[ac_idx]  # get the depth values where there are valid acrosstrack results (i.e. svcorrect worked)
         if vert_ref == 'NOAA MLLW':
-            sep, vdatum_unc = transform_vyperdatum(pos[0], pos[1], np.zeros_like(z_stck), input_crs.to_epsg(), 'mllw', vdatum_directory=vdatum_directory)
+            sep, vdatum_unc = transform_vyperdatum(pos[0], pos[1], None, input_crs.to_epsg(), 'mllw', vdatum_directory=vdatum_directory)
         else:
-            sep, vdatum_unc = transform_vyperdatum(pos[0], pos[1], np.zeros_like(z_stck), input_crs.to_epsg(), 'mhw', vdatum_directory=vdatum_directory)
+            sep, vdatum_unc = transform_vyperdatum(pos[0], pos[1], None, input_crs.to_epsg(), 'mhw', vdatum_directory=vdatum_directory)
         z_stck = z_stck + sep
         vdatum_unc = reform_nan_array(vdatum_unc, ac_idx, z.shape, z.coords, z.dims)
         z = reform_nan_array(z_stck, ac_idx, z.shape, z.coords, z.dims)
@@ -206,7 +206,7 @@ def transform_vyperdatum(x: np.array, y: np.array, z: np.array, source_datum: Un
         source_datum = kluster_variables.epsg_wgs84
 
     # expects positive up, so we need to flip the z
-    vp.transform_points((source_datum, 'ellipse'), final_datum, x, y, z=z * -1)
+    vp.transform_points((source_datum, 'ellipse'), final_datum, x, y, z=None, sample_distance=0.0001)  # sample distance in degrees
 
     return np.around(vp.z, 3), np.around(vp.unc, 3)
 
