@@ -204,7 +204,6 @@ def transform_vyperdatum(x: np.array, y: np.array, z: np.array, source_datum: Un
         source_datum = kluster_variables.epsg_nad83
     elif source_datum == 'wgs84':
         source_datum = kluster_variables.epsg_wgs84
-
     # expects positive up, so we need to flip the z
     vp.transform_points((source_datum, 'ellipse'), final_datum, x, y, z=None, sample_distance=0.0001)  # sample distance in degrees
 
