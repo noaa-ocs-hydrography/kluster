@@ -178,6 +178,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.two_d.turn_off_pointsview.connect(self.clear_points)
 
         self.points_view.points_selected.connect(self.show_points_in_explorer)
+        self.points_view.points_cleaned.connect(self.set_pointsview_points_status)
 
         self.action_thread.started.connect(self._start_action_progress)
         self.action_thread.finished.connect(self._kluster_execute_action_results)
@@ -1692,23 +1693,27 @@ class KlusterMain(QtWidgets.QMainWindow):
         """
 
         self.explorer.populate_explorer_with_points(point_index, linenames, point_times, beam, x, y, z, tvu, status, id)
-        # self.set_pointsview_points_status()  # this is an example of how we would use it, driven by points view mouse event
 
-    def set_pointsview_points_status(self, new_status: int = 2):
+    def set_pointsview_points_status(self, new_status: Union[np.array, int, str, float] = 2):
         """
         Take selected points in pointsview and set them to this new status (see detectioninfo).  Saved to memory and disk
 
         Parameters
         ----------
         new_status
-            new integer flag for detection info status
+            new integer flag for detection info status, 2 = Rejected
         """
 
         selected_points = self.points_view.return_select_index()
+        if isinstance(new_status, np.ndarray):
+            new_status = self.points_view.split_by_selected(new_status)
         for fqpr_name in selected_points:
             fqpr = self.project.fqpr_instances[fqpr_name]
             sel_points_idx = selected_points[fqpr_name]
-            fqpr.subset.set_variable_by_filter('detectioninfo', new_status, sel_points_idx)
+            if isinstance(new_status, dict):
+                fqpr.set_variable_by_filter('detectioninfo', new_status[fqpr_name], sel_points_idx)
+            else:
+                fqpr.set_variable_by_filter('detectioninfo', new_status, sel_points_idx)
 
     def dock_this_widget(self, title, objname, widget):
         """

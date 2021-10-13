@@ -11,6 +11,9 @@ mem_restart_threshold = 0.40
 # kluster_3dview
 selected_point_color = (1, 0.476, 0.953, 1)  # color of points selected in 3dview
 super_selected_point_color = (1, 1, 1, 1)  # color of points in super selection in 3dview
+rejected_flag = 2
+accepted_flag = 3
+last_change_buffer_size = 50
 
 # generic processing
 max_beams = 400  # starting max beams in kluster (can grow beyond)
@@ -258,7 +261,7 @@ variable_descriptions = {'acrosstrack': 'The result of running Sound Velocity Co
                          'datum_uncertainty': 'Included when VDatum is used for vertical transformation to NOAA Chart Datums, is the uncertainty of that transform.  Will be all zeros if NOAA_MLLW/NOAA_MHW is not selected.',
                          'delay': 'The time delay applied to each sector, expanded to the beam dimension.  Comes from the multibeam raw data.  Generally fairly small, or zero.',
                          'depthoffset': 'The result of running Sound Velocity Correct in Kluster.  This is the down (positive down) distance to the beam footprint on the seafloor from the transmitter in meters.  Not from the vessel reference point to align with Kongsberg svcorrect convention.  We apply the z lever arm in georeferencing.',
-                         'detectioninfo': 'The accepted/rejected state of each beam.  2 = rejected, 1 = phase detection, 0 = amplitude detection.  See Kongsberg "detectioninfo".',
+                         'detectioninfo': 'The accepted/rejected state of each beam.  3 = re-accepted, 2 = rejected, 1 = phase detection, 0 = amplitude detection.  See Kongsberg "detectioninfo".',
                          'frequency': 'The frequency of each beam in Hz.',
                          'geohash': 'The computed base32 representation of the geohash, a code that defines the location of each beam in a region. \nPlotting will show the unique integer identifier instead of the string, for visualization purposes.',
                          'latitude': 'From the raw multibeam data, the logged latitude data from the navigation system in degrees.',

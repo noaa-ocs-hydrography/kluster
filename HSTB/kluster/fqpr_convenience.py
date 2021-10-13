@@ -14,6 +14,7 @@ from HSTB.kluster.fqpr_generation import Fqpr
 from HSTB.kluster.fqpr_helpers import seconds_to_formatted_string, return_files_from_path
 from HSTB.kluster.logging_conf import return_log_name
 from bathygrid.convenience import create_grid, load_grid, BathyGrid
+from HSTB.kluster import kluster_variables
 
 
 def perform_all_processing(filname: Union[str, list], navfiles: list = None, outfold: str = None, coord_system: str = 'WGS84',
@@ -443,7 +444,7 @@ def _add_points_to_surface(fqpr_inst: Fqpr, bgrid: BathyGrid, fqpr_crs: int, fqp
             # drop nan values in georeferenced data, generally where number of beams vary between pings
             data = data.where(~np.isnan(data['z']), drop=True)
             # filter out rejected soundings, i.e. where detectioninfo = 2
-            data = data.where(data['detectioninfo'] != 2, drop=True)
+            data = data.where(data['detectioninfo'] != kluster_variables.rejected_flag, drop=True)
             data = data.drop_vars(['detectioninfo'])
             bgrid.add_points(data, '{}_{}'.format(cont_name, cont_name_idx), multibeamfiles, fqpr_crs, fqpr_vertref,
                              min_time=mintime, max_time=maxtime)

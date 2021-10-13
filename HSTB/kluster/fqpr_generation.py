@@ -2694,7 +2694,7 @@ class Fqpr(ZarrBackend):
 
         self.subset.set_filter_by_polygon(polygon, geographic)
 
-    def set_variable_by_filter(self, var_name: str = 'detectioninfo', newval: Union[int, str, float] = 2, selected_index: list = None):
+    def set_variable_by_filter(self, var_name: str = 'detectioninfo', newval: Union[np.array, int, str, float] = 2, selected_index: list = None):
         """
         ping_filter is set upon selecting points in 2d/3d in Kluster.  See return_soundings_in_polygon.  Here we can take
         those points and set one of the variables with new data.  Optionally, you can include a selected_index that is a list
