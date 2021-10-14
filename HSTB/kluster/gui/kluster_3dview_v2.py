@@ -402,6 +402,7 @@ class TurntableCameraInteractive(scene.TurntableCamera):
         dx, dy, dz = ff[0] * dx, ff[1] * dy, dz * ff[2]
         c = self._event_value
         self.center = c[0] + dx, c[1] + dy, c[2] + dz
+        self.view_changed()
 
     def _handle_zoom_event(self, distance):
         """
@@ -470,7 +471,7 @@ class TurntableCameraInteractive(scene.TurntableCamera):
 
         print('Selecting points in 3d is currently not implemented')
         # if self.selected_callback:
-            # self.selected_callback(startpos, endpos, three_d=True)
+        #     self.selected_callback(startpos, endpos, three_d=True)
 
     def _handle_data_cleaned(self, startpos, endpos):
         """
@@ -1222,9 +1223,9 @@ class ThreeDWidget(QtWidgets.QWidget):
 
         self.viewlayout = QtWidgets.QHBoxLayout()
         self.viewlayout.addWidget(self.three_d_window)
-        self.viewlayout.addWidget(self.colorbar)
+        # self.viewlayout.addWidget(self.colorbar)
         self.viewlayout.setStretchFactor(self.three_d_window, 6)
-        self.viewlayout.setStretchFactor(self.colorbar, 1)
+        # self.viewlayout.setStretchFactor(self.colorbar, 1)
 
         self.mainlayout.addLayout(self.opts_layout)
         self.mainlayout.addLayout(self.viewlayout)
@@ -1233,7 +1234,7 @@ class ThreeDWidget(QtWidgets.QWidget):
         instruct += 'Left Mouse Button: Hold down and move to rotate the camera\n'
         instruct += 'Right Mouse Button: Hold down and move to zoom the camera\n'
         instruct += 'Mouse Wheel: Wheel in/out to zoom the camera\n'
-        instruct += 'Shift + Left Mouse Button: Move/Translate the camera center location\n'
+        instruct += '(3D ONLY) Shift + Left Mouse Button: Move/Translate the camera center location\n'
         instruct += 'Ctrl + Left Mouse Button: Query points (see Explorer window)\n'
         instruct += 'Alt + Left Mouse Button: Clean points (mark as Rejected, see Color By: Rejected)\n'
         instruct += 'Alt + Right Mouse Button: Accept points (mark as Accepted, see Color By: Rejected)\n'
