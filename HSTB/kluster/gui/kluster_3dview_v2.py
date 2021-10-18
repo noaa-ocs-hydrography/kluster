@@ -1216,9 +1216,9 @@ class ThreeDWidget(QtWidgets.QWidget):
 
         self.viewlayout = QtWidgets.QHBoxLayout()
         self.viewlayout.addWidget(self.three_d_window)
-        # self.viewlayout.addWidget(self.colorbar)
+        self.viewlayout.addWidget(self.colorbar)
         self.viewlayout.setStretchFactor(self.three_d_window, 6)
-        # self.viewlayout.setStretchFactor(self.colorbar, 1)
+        self.viewlayout.setStretchFactor(self.colorbar, 1)
 
         self.mainlayout.addLayout(self.opts_layout)
         self.mainlayout.addLayout(self.viewlayout)
