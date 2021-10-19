@@ -246,7 +246,7 @@ class FqprSubset:
                     for mline, mdata in insidedata.items():
                         linemask, startidx, endidx, starttime, endtime = mdata
                         slice_pd = slice_xarray_by_dim(rp, dimname='time', start_time=starttime, end_time=endtime)
-                        base_filter[startidx:endidx] = linemask
+                        base_filter[startidx:endidx][linemask] = True
                         stacked_slice = slice_pd.stack({'sounding': ('time', 'beam')})
                         for cnt, dvarname in enumerate(variable_selection):
                             if dvarname == 'head':
@@ -544,7 +544,7 @@ def filter_subset_by_polygon(ping_dataset: xr.Dataset, polygon: np.array):
                 linestart, lineend = ping_dataset.attrs['multibeam_files'][mline]
                 mhashes = [x.encode() for x in mhashes]
                 inside_geohash = [x for x in innerhash if x in mhashes]
-                intersect_geohash = [x for x in intersecthash if x in mhashes]
+                intersect_geohash = [x for x in intersecthash if x in mhashes and x not in inside_geohash]
                 if inside_geohash or intersect_geohash:
                     slice_pd = slice_xarray_by_dim(ping_dataset, dimname='time', start_time=linestart, end_time=lineend)
                     ghash = np.ravel(slice_pd.geohash)

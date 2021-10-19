@@ -1080,14 +1080,7 @@ class ThreeDView(QtWidgets.QWidget):
         """
 
         clrs, cmap, minval, maxval = self._build_color_by_soundings(color_by, color_selected)
-        try:  # this works when show rejected is False
-            self.scatter._data['a_fg_color'] = clrs
-            self.scatter._data['a_bg_color'] = clrs
-            self.scatter._vbo.set_data(self.scatter._data)
-            self.scatter.update()
-        except:
-            # if show rejected is false, it messes up the indexing, so we have to start over
-            # try the quicker way first, then you get here
+        if self.scatter is not None:
             if not self.show_rejected:
                 msk = self.rejected != kluster_variables.rejected_flag
             else:
@@ -1157,8 +1150,12 @@ class ThreeDWidget(QtWidgets.QWidget):
     points_selected = Signal(object, object, object, object, object, object, object, object, object, object)
     points_cleaned = Signal(object)
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, settings=None):
         super().__init__(parent)
+
+        self.external_settings = settings
+        self.widgetname = '3dview'
+        self.appname = 'kluster'
 
         self.three_d_window = ThreeDView(self)
 
@@ -1253,10 +1250,72 @@ class ThreeDWidget(QtWidgets.QWidget):
 
         self.is_3d = None
         self.last_change_buffer = []
+        self.text_controls = [['dimension', self.dimension], ['colorby', self.colorby],
+                              ['viewdirection2d', self.viewdirection2d],
+                              ['viewdirection3d', self.viewdirection3d], ['vertexag', self.vertexag]]
+        self.checkbox_controls = [['show_colorbar', self.show_colorbar], ['show_rejected', self.show_rejected]]
 
         self._handle_dimension_change()
         self.viewdirection2d.currentTextChanged.connect(self.refresh_settings)
         self.viewdirection3d.currentTextChanged.connect(self.refresh_settings)
+        self.read_settings()
+
+    @property
+    def settings_object(self):
+        if self.external_settings:
+            return self.external_settings
+        else:
+            return QtCore.QSettings("NOAA", self.appname)
+
+    def save_settings(self):
+        """
+        Save the settings to the Qsettings registry
+        """
+        settings = self.settings_object
+        if self.text_controls:
+            for cname, tcntrl in self.text_controls:
+                try:
+                    settings.setValue('{}/{}_{}'.format(self.appname, self.widgetname, cname), tcntrl.currentText())
+                except:
+                    settings.setValue('{}/{}_{}'.format(self.appname, self.widgetname, cname), tcntrl.text())
+        if self.checkbox_controls:
+            for cname, ccntrl in self.checkbox_controls:
+                settings.setValue('{}/{}_{}'.format(self.appname, self.widgetname, cname), ccntrl.isChecked())
+        settings.sync()
+
+    def read_settings(self):
+        """
+        Read from the Qsettings registry
+        """
+        settings = self.settings_object
+        try:
+            if self.text_controls:
+                for cname, tcntrl in self.text_controls:
+                    base_value = settings.value('{}/{}_{}'.format(self.appname, self.widgetname, cname))
+                    if base_value is None:
+                        base_value = ''
+                    text_value = str(base_value)
+                    if text_value:
+                        try:
+                            tcntrl.setCurrentText(text_value)
+                        except:
+                            try:
+                                tcntrl.setText(text_value)
+                            except:
+                                tcntrl.setValue(float(text_value))
+            if self.checkbox_controls:
+                for cname, ccntrl in self.checkbox_controls:
+                    check_value = settings.value('{}/{}_{}'.format(self.appname, self.widgetname, cname))
+                    try:
+                        ccntrl.setChecked(check_value.lower() == 'true')
+                    except AttributeError:
+                        try:
+                            ccntrl.setChecked(check_value)
+                        except:
+                            pass
+        except TypeError:
+            # no settings exist yet for this app
+            pass
 
     def _event_show_colorbar(self, e):
         """
@@ -1341,6 +1400,9 @@ class ThreeDWidget(QtWidgets.QWidget):
                                   self.three_d_window.id[self.three_d_window.selected_points])
         self.three_d_window.highlight_selected_scatter(self.colorby.currentText())
 
+    def clear_selection(self):
+        self.three_d_window.selected_points = None
+
     def clean_points(self, startpos, endpos, three_d: bool = False):
         """
         Triggers when the user ALT+Mouse1 selects data in the 3dview.  We set the selected points and let the widget know to reject these points.
@@ -1349,10 +1411,9 @@ class ThreeDWidget(QtWidgets.QWidget):
         points_in_screen = self._handle_point_selection(startpos, endpos, three_d)
         self.three_d_window.selected_points = points_in_screen
         self.last_change_buffer.append([self.three_d_window.selected_points, self.three_d_window.rejected[self.three_d_window.selected_points]])
-
-        self.points_cleaned.emit(kluster_variables.rejected_flag)
         self.three_d_window.rejected[self.three_d_window.selected_points] = kluster_variables.rejected_flag
-        self.three_d_window.highlight_selected_scatter(self.colorby.currentText(), color_selected=False)
+        self.points_cleaned.emit(kluster_variables.rejected_flag)
+        self.three_d_window.highlight_selected_scatter(self.colorby.currentText(), False)
 
         if len(self.last_change_buffer) > kluster_variables.last_change_buffer_size:
             print('WARNING: Points view will only retain the last {} cleaning actions for undo'.format(kluster_variables.last_change_buffer_size))
@@ -1366,10 +1427,9 @@ class ThreeDWidget(QtWidgets.QWidget):
         points_in_screen = self._handle_point_selection(startpos, endpos, three_d)
         self.three_d_window.selected_points = points_in_screen
         self.last_change_buffer.append([self.three_d_window.selected_points, self.three_d_window.rejected[self.three_d_window.selected_points]])
-
-        self.points_cleaned.emit(kluster_variables.accepted_flag)
         self.three_d_window.rejected[self.three_d_window.selected_points] = kluster_variables.accepted_flag
-        self.three_d_window.highlight_selected_scatter(self.colorby.currentText(), color_selected=False)
+        self.points_cleaned.emit(kluster_variables.accepted_flag)
+        self.three_d_window.highlight_selected_scatter(self.colorby.currentText(), False)
 
         if len(self.last_change_buffer) > kluster_variables.last_change_buffer_size:
             print('WARNING: Points view will only retain the last {} cleaning actions for undo'.format(kluster_variables.last_change_buffer_size))
@@ -1379,9 +1439,9 @@ class ThreeDWidget(QtWidgets.QWidget):
         if self.last_change_buffer:
             last_select, last_status = self.last_change_buffer.pop(-1)
             self.three_d_window.selected_points = last_select
-            self.points_cleaned.emit(last_status)
             self.three_d_window.rejected[self.three_d_window.selected_points] = last_status
-            self.three_d_window.highlight_selected_scatter(self.colorby.currentText(), color_selected=False)
+            self.points_cleaned.emit(last_status)
+            self.three_d_window.highlight_selected_scatter(self.colorby.currentText())
         else:
             print('Points View: No changes to undo')
 

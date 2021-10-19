@@ -93,7 +93,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.two_d = kluster_2dview.Kluster2dview(self, self.settings.copy())
         self.two_d_dock = self.dock_this_widget('2d View', 'two_d_dock', self.two_d)
 
-        self.points_view = kluster_3dview_v2.ThreeDWidget(self)
+        self.points_view = kluster_3dview_v2.ThreeDWidget(self, self.settings_object)
         self.points_dock = self.dock_this_widget("Points View", 'points_dock', self.points_view)
         # for now we remove the ability to undock the three d window, vispy wont work if we do
         self.points_dock.setFeatures(QtWidgets.QDockWidget.DockWidgetMovable)
@@ -1704,6 +1704,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         """
 
         selected_points = self.points_view.return_select_index()
+        self.points_view.clear_selection()
         if isinstance(new_status, np.ndarray):
             new_status = self.points_view.split_by_selected(new_status)
         for fqpr_name in selected_points:
@@ -2011,6 +2012,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.close_project()
         settings.setValue('Kluster/geometry', self.saveGeometry())
         settings.setValue('Kluster/windowState', self.saveState(version=0))
+        self.points_view.save_settings()
 
         if qgis_enabled:
             self.app.exitQgis()
