@@ -249,9 +249,27 @@ def set_vyperdatum_vdatum_path(vdatum_path: str):
     ----------
     vdatum_path
         path to the vdatum folder
+
+    Returns
+    -------
+    err
+        True if there was an error in setting the vyperdatum vdatum path
+    status
+        status message from vyperdatum
     """
-    # first time setting vdatum path sets the settings file with the correct path
-    vc = VyperCore(vdatum_directory=vdatum_path)
+
+    err = False
+    status = ''
+    try:
+        # first time setting vdatum path sets the settings file with the correct path
+        vc = VyperCore(vdatum_directory=vdatum_path)
+        if not vc.vdatum.vdatum_version:
+            assert False
+        status = 'Found {} at {}'.format(vc.vdatum.vdatum_version, vc.vdatum.vdatum_path)
+    except:
+        err = True
+        status = 'No valid vdatum found at {}'.format(vdatum_path)
+    return err, status
 
 
 def _new_geohash(latitude: float, longitude: float, precision: int):
