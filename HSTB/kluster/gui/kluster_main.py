@@ -60,13 +60,11 @@ class KlusterProxyStyle(QtWidgets.QProxyStyle):
 class KlusterMain(QtWidgets.QMainWindow):
     """
     Main window for kluster application
-
     """
     def __init__(self, app=None):
         """
         Build out the dock widgets with the kluster widgets inside.  Will use QSettings object to retain size and
         position.
-
         """
         super().__init__()
 
