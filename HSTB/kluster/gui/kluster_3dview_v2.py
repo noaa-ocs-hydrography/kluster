@@ -549,7 +549,7 @@ class TurntableCameraInteractive(scene.TurntableCamera):
                 self._update_rotation(event)
             elif 1 in event.buttons and keys.SHIFT in modifiers:
                 self._handle_translate_event(p1, p2)
-            elif 2 in event.buttons:
+            elif 2 in event.buttons and not modifiers:
                 self._handle_zoom_event(d)
         else:
             event.handled = False
@@ -1355,7 +1355,7 @@ class ThreeDWidget(QtWidgets.QWidget):
         self.three_d_window.highlight_selected_scatter(self.colorby.currentText(), color_selected=False)
 
         if len(self.last_change_buffer) > kluster_variables.last_change_buffer_size:
-            print('WARNING: Points view will only retain the last {} cleaning actions'.format(kluster_variables.last_change_buffer_size))
+            print('WARNING: Points view will only retain the last {} cleaning actions for undo'.format(kluster_variables.last_change_buffer_size))
             self.last_change_buffer.pop(0)
 
     def accept_points(self, startpos, endpos, three_d: bool = False):
@@ -1372,7 +1372,7 @@ class ThreeDWidget(QtWidgets.QWidget):
         self.three_d_window.highlight_selected_scatter(self.colorby.currentText(), color_selected=False)
 
         if len(self.last_change_buffer) > kluster_variables.last_change_buffer_size:
-            print('WARNING: Points view will only retain the last {} cleaning actions'.format(kluster_variables.last_change_buffer_size))
+            print('WARNING: Points view will only retain the last {} cleaning actions for undo'.format(kluster_variables.last_change_buffer_size))
             self.last_change_buffer.pop(0)
 
     def undo_clean(self):

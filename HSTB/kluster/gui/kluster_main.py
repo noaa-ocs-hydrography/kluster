@@ -688,6 +688,7 @@ class KlusterMain(QtWidgets.QMainWindow):
                         fq.write_attribute_to_ping_records({'current_processing_status': 2})
                     elif not identical_tpu:  # have to re-tpu
                         fq.write_attribute_to_ping_records({'current_processing_status': 4})
+                    self.project.refresh_fqpr_attribution(fqname, relative_path=True)
         self.intel.regenerate_actions()
 
     def reprocess_fqpr(self):
@@ -699,6 +700,7 @@ class KlusterMain(QtWidgets.QMainWindow):
             # start over at 1, which is conversion in our state machine
             fq = self.project.fqpr_instances[fqprs[0]]
             fq.write_attribute_to_ping_records({'current_processing_status': 1})
+            self.project.refresh_fqpr_attribution(fqprs[0], relative_path=True)
             fq.multibeam.reload_pingrecords(skip_dask=fq.client is None)
             self.intel.regenerate_actions()
 
@@ -995,7 +997,6 @@ class KlusterMain(QtWidgets.QMainWindow):
                         if add_fqpr_names:
                             print('kluster_surface_update: {} must be loaded in Kluster for it to be added to the surface.'.format(add_fqpr_names))
                             return
-
                         self.output_window.clear()
                         self.surface_update_thread.populate(surf, add_fqpr, remove_fqpr_names, opts)
                         self.surface_update_thread.start()
@@ -1714,6 +1715,8 @@ class KlusterMain(QtWidgets.QMainWindow):
                 fqpr.set_variable_by_filter('detectioninfo', new_status[fqpr_name], sel_points_idx)
             else:
                 fqpr.set_variable_by_filter('detectioninfo', new_status, sel_points_idx)
+            fqpr.write_attribute_to_ping_records({'_soundings_last_cleaned': datetime.utcnow().strftime('%c')})
+            self.project.refresh_fqpr_attribution(fqpr_name, relative_path=True)
 
     def dock_this_widget(self, title, objname, widget):
         """

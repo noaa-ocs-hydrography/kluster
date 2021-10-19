@@ -2750,9 +2750,7 @@ class Fqpr(ZarrBackend):
                 if int(i) in unique_status:
                     dashboard['sounding_status'][ra.system_identifier][status_lookup[str(i)]] = cnts[list(unique_status).index(int(i))]
 
-            dashboard['last_run'][ra.system_identifier] = {'_conversion_complete': '', '_compute_orientation_complete': '',
-                                                           '_compute_beam_vectors_complete': '', '_sound_velocity_correct_complete': '',
-                                                           '_georeference_soundings_complete': '', '_total_uncertainty_complete': ''}
+            dashboard['last_run'][ra.system_identifier] = {k: '' for k in kluster_variables.processing_log_names}
             for ky in list(dashboard['last_run'][ra.system_identifier].keys()):
                 if ky in ra.attrs:
                     dashboard['last_run'][ra.system_identifier][ky] = ra.attrs[ky]
