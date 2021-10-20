@@ -1704,7 +1704,6 @@ class KlusterMain(QtWidgets.QMainWindow):
         """
 
         selected_points = self.points_view.return_select_index()
-        self.points_view.clear_selection()
         if isinstance(new_status, np.ndarray):
             new_status = self.points_view.split_by_selected(new_status)
         for fqpr_name in selected_points:
@@ -1716,6 +1715,7 @@ class KlusterMain(QtWidgets.QMainWindow):
                 fqpr.set_variable_by_filter('detectioninfo', new_status, sel_points_idx)
             fqpr.write_attribute_to_ping_records({'_soundings_last_cleaned': datetime.utcnow().strftime('%c')})
             self.project.refresh_fqpr_attribution(fqpr_name, relative_path=True)
+        self.points_view.clear_selection()
 
     def dock_this_widget(self, title, objname, widget):
         """

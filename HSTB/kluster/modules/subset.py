@@ -236,7 +236,7 @@ class FqprSubset:
         data_vars = [[] for _ in variable_selection]
         self.ping_filter = []
         polypath = mpl_path.Path(proj_polygon)
-        for cnt, rp in enumerate(self.fqpr.multibeam.raw_ping):
+        for rpcnt, rp in enumerate(self.fqpr.multibeam.raw_ping):
             if 'z' not in rp:
                 continue
             insidedata, intersectdata = filter_subset_by_polygon(rp, geo_polygon)
@@ -250,7 +250,7 @@ class FqprSubset:
                         stacked_slice = slice_pd.stack({'sounding': ('time', 'beam')})
                         for cnt, dvarname in enumerate(variable_selection):
                             if dvarname == 'head':
-                                data_vars[cnt].append(np.full(stacked_slice.beampointingangle[linemask].shape, cnt, dtype=np.int8))
+                                data_vars[cnt].append(np.full(stacked_slice.beampointingangle[linemask].shape, rpcnt, dtype=np.int8))
                             else:
                                 data_vars[cnt].append(stacked_slice[dvarname][linemask].values)
                 if intersectdata:
@@ -264,7 +264,7 @@ class FqprSubset:
                         stacked_slice = slice_pd.stack({'sounding': ('time', 'beam')})
                         for cnt, dvarname in enumerate(variable_selection):
                             if dvarname == 'head':
-                                data_vars[cnt].append(np.full(stacked_slice.beampointingangle[linemask][filt].shape, cnt, dtype=np.int8))
+                                data_vars[cnt].append(np.full(stacked_slice.beampointingangle[linemask][filt].shape, rpcnt, dtype=np.int8))
                             else:
                                 data_vars[cnt].append(stacked_slice[dvarname][linemask][filt].values)
             self.ping_filter.append(base_filter)
@@ -388,7 +388,7 @@ class FqprSubset:
                         base_filter[startidx:endidx][linemask] = filt
             self.ping_filter.append(base_filter)
 
-    def set_variable_by_filter(self, variable_name: str, new_data: Union[np.array, float, int, str], selected_index: list = None):
+    def set_variable_by_filter(self, variable_name: str, new_data: Union[np.array, list, float, int, str], selected_index: list = None):
         """
         ping_filter is set upon selecting points in 2d/3d in Kluster.  See return_soundings_in_polygon.  Here we can take
         those points and set one of the variables with new data.  Optionally, you can include a selected_index that is a list
@@ -419,7 +419,12 @@ class FqprSubset:
             unique_time_vals, utime_index = np.unique(point_idx[0], return_inverse=True)
             rp_detect = data_var.isel(time=unique_time_vals).load()
             rp_detect_vals = rp_detect.values
-            rp_detect_vals[utime_index, point_idx[1]] = new_data
+            if isinstance(new_data, list) and len(new_data) == len(self.fqpr.multibeam.raw_ping):
+                # new data is indexed by head
+                rp_detect_vals[utime_index, point_idx[1]] = new_data[cnt]
+            else:  # new data is a simple replacement, is identical between heads
+                rp_detect_vals[utime_index, point_idx[1]] = new_data
+
             rp_detect[:] = rp_detect_vals
             self.fqpr.write('ping', [rp_detect.to_dataset()], time_array=[rp_detect.time], sys_id=rp.system_identifier,
                             skip_dask=True)

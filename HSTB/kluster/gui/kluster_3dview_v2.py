@@ -17,8 +17,52 @@ from vispy.util import keys
 use(backend, 'gl2')
 
 
-# examine https://github.com/vispy/vispy/blob/64e76c40c8d7d38efc53c9a1a50ca7f336b9ffc2/examples/basics/scene/points_selection.py
-# for ideas on lasso/box tool stuff
+def rectangle_vertice(center, height, width):
+    # Borrow from _generate_vertices in vispy/visuals/rectangle.py
+    # examine https://github.com/vispy/vispy/blob/64e76c40c8d7d38efc53c9a1a50ca7f336b9ffc2/examples/basics/scene/points_selection.py
+    # for ideas on lasso/box tool stuff
+
+    half_height = height / 2.
+    half_width = width / 2.
+
+    bias1 = np.ones(4) * half_width
+    bias2 = np.ones(4) * half_height
+
+    corner1 = np.empty([1, 3], dtype=np.float32)
+    corner2 = np.empty([1, 3], dtype=np.float32)
+    corner3 = np.empty([1, 3], dtype=np.float32)
+    corner4 = np.empty([1, 3], dtype=np.float32)
+
+    corner1[:, 0] = center[0] - bias1[0]
+    corner1[:, 1] = center[1] - bias2[0]
+    corner1[:, 2] = 0
+
+    corner2[:, 0] = center[0] + bias1[1]
+    corner2[:, 1] = center[1] - bias2[1]
+    corner2[:, 2] = 0
+
+    corner3[:, 0] = center[0] + bias1[2]
+    corner3[:, 1] = center[1] + bias2[2]
+    corner3[:, 2] = 0
+
+    corner4[:, 0] = center[0] - bias1[3]
+    corner4[:, 1] = center[1] + bias2[3]
+    corner4[:, 2] = 0
+
+    # Get vertices between each corner of the rectangle for border drawing
+    vertices = np.concatenate(([[center[0], center[1], 0.]],
+                               [[center[0] - half_width, center[1], 0.]],
+                               corner1,
+                               [[center[0], center[1] - half_height, 0.]],
+                               corner2,
+                               [[center[0] + half_width, center[1], 0.]],
+                               corner3,
+                               [[center[0], center[1] + half_height, 0.]],
+                               corner4,
+                               [[center[0] - half_width, center[1], 0.]]))
+
+    # vertices = np.array(output, dtype=np.float32)
+    return vertices[1:, ..., :2]
 
 
 class ScaleAxisWidget(scene.AxisWidget):
@@ -48,7 +92,7 @@ class ColorBar(FigureCanvasQTAgg):
         self.fig = Figure(figsize=(width, height), dpi=dpi)
         self.fig.gca().set_visible(False)
         super().__init__(self.fig)
-        self.c_map_ax = self.fig.add_axes([0.05, 0.05, 0.45, 0.9])
+        self.c_map_ax = self.fig.add_axes([0.05, 0.05, 0.25, 0.9])
         self.c_map_ax.get_xaxis().set_visible(False)
         self.c_map_ax.get_yaxis().set_visible(False)
 
@@ -631,6 +675,35 @@ class ThreeDView(QtWidgets.QWidget):
         layout.addWidget(self.canvas.native)
         self.setLayout(layout)
 
+        # Connect events just for handling the box display.  Otherwise the camera handles the translation/rotation/picking
+        self.canvas.events.mouse_press.connect(self._on_mouse_press)
+        self.canvas.events.mouse_release.connect(self._on_mouse_release)
+        self.canvas.events.mouse_move.connect(self._on_mouse_move)
+
+        # Set up for rectangle drawing
+        self.line_pos = []
+        self.line_origin = None
+        self.line = scene.visuals.Line(color='white', method='gl', parent=self.canvas.scene)
+
+    def _on_mouse_press(self, event):
+        self.line_origin = event.pos
+
+    def _on_mouse_release(self, event):
+        self.line_pos = []
+        self.line_origin = None
+        self.line.visible = False
+
+    def _on_mouse_move(self, event):
+        if self.line_origin is not None:
+            modifiers = event.modifiers
+            if keys.CONTROL in modifiers or keys.ALT in modifiers:
+                self.line.visible = True
+                width = event.pos[0] - self.line_origin[0]
+                height = event.pos[1] - self.line_origin[1]
+                center = (width / 2. + self.line_origin[0], height / 2. + self.line_origin[1], 0)
+                self.line_pos = rectangle_vertice(center, height, width)
+                self.line.set_data(np.array(self.line_pos))
+
     def _select_points(self, startpos, endpos, three_d: bool = False):
         """
         Trigger the parent method to highlight and display point data within the bounds provided by the two points
@@ -726,10 +799,15 @@ class ThreeDView(QtWidgets.QWidget):
         self.head = np.concatenate([self.head, head])
 
         # expand the identifier to be the size of the input arrays
-        self.id = np.concatenate([self.id, np.full(x.shape[0], newid)])
-        self.id = self.id + '_' + self.head.astype(str)
-        self.idlookup[self.id[0]] = newid
-        self.idrange[self.id[0]] = [self.x.shape[0], self.x.shape[0] + x.shape[0]]
+        newid_array = np.full(head.shape[0], newid, dtype=object) + '_' + head.astype(str)
+        self.id = np.concatenate([self.id, newid_array])
+        uniqids = np.unique(newid_array)
+        for unid in uniqids:
+            headnum = int(unid[-1])
+            self.idlookup[unid] = newid
+            headwhere = np.where(head == headnum)[0]
+            headstart, headend = headwhere[0], headwhere[-1] + 1
+            self.idrange[unid] = [self.x.shape[0] + headstart, self.x.shape[0] + headend]
 
         self.x = np.concatenate([self.x, x])
         self.y = np.concatenate([self.y, y])
@@ -1461,16 +1539,26 @@ class ThreeDWidget(QtWidgets.QWidget):
         if self.three_d_window.selected_points is not None:
             select_id = self.three_d_window.id[self.three_d_window.selected_points]
             uniq_ids = np.unique(select_id)
-            for uid in uniq_ids:
-                headidx = []
+            source_ids = [self.three_d_window.idlookup[uqid] for uqid in uniq_ids]
+            for uid, sid in zip(uniq_ids, source_ids):
+                headnum = int(uid[-1])
                 uid_filter = np.where(select_id == uid)[0]
                 selarray_filtered = selarray[uid_filter]
-                select_filtered = self.three_d_window.selected_points[uid_filter]
-                select_filtered_head = self.three_d_window.head[select_filtered]
-                max_heads = np.max(select_filtered_head)
-                for i in range(max_heads + 1):
-                    headidx.append(selarray_filtered[np.where(select_filtered_head == i)[0]])
-                idx[self.three_d_window.idlookup[uid]] = headidx
+                idx_key = self.three_d_window.idlookup[uid]
+                if idx_key not in idx:
+                    if headnum == 0:
+                        idx[idx_key] = [selarray_filtered]
+                    else:
+                        idx[idx_key] = []
+                        for i in range(headnum):
+                            idx[idx_key].append([])
+                        idx[idx_key].append(selarray_filtered)
+                else:
+                    if len(idx[idx_key]) == headnum:
+                        idx[idx_key].append(selarray_filtered)
+                    else:
+                        for i in range(headnum - len(idx[idx_key])):
+                            idx[idx_key].append([])
         return idx
 
     def return_select_index(self):
@@ -1493,16 +1581,28 @@ class ThreeDWidget(QtWidgets.QWidget):
         if self.three_d_window.selected_points is not None:
             select_id = self.three_d_window.id[self.three_d_window.selected_points]
             uniq_ids = np.unique(select_id)
-            for uid in uniq_ids:
-                headidx = []
+            source_ids = [self.three_d_window.idlookup[uqid] for uqid in uniq_ids]
+            for uid, sid in zip(uniq_ids, source_ids):
+                headnum = int(uid[-1])
                 data_start, data_end = self.three_d_window.idrange[uid]
                 uid_filter = np.where(select_id == uid)[0]
                 select_filtered = self.three_d_window.selected_points[uid_filter]
-                select_filtered_head = self.three_d_window.head[select_filtered]
-                max_heads = np.max(select_filtered_head)
-                for i in range(max_heads + 1):
-                    headidx.append(select_filtered[np.where(select_filtered_head == i)[0]] - data_start)
-                idx[self.three_d_window.idlookup[uid]] = headidx
+                dat = select_filtered - data_start
+                idx_key = self.three_d_window.idlookup[uid]
+                if idx_key not in idx:
+                    if headnum == 0:
+                        idx[idx_key] = [dat]
+                    else:
+                        idx[idx_key] = []
+                        for i in range(headnum):
+                            idx[idx_key].append([])
+                        idx[idx_key].append(dat)
+                else:
+                    if len(idx[idx_key]) == headnum:
+                        idx[idx_key].append(dat)
+                    else:
+                        for i in range(headnum - len(idx[idx_key])):
+                            idx[idx_key].append([])
         return idx
 
     def superselect_point(self, superselect_index):
