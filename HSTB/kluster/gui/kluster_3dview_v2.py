@@ -18,9 +18,10 @@ use(backend, 'gl2')
 
 
 def rectangle_vertice(center, height, width):
-    # Borrow from _generate_vertices in vispy/visuals/rectangle.py
-    # examine https://github.com/vispy/vispy/blob/64e76c40c8d7d38efc53c9a1a50ca7f336b9ffc2/examples/basics/scene/points_selection.py
-    # for ideas on lasso/box tool stuff
+    """
+    See https://github.com/vispy/vispy/blob/64e76c40c8d7d38efc53c9a1a50ca7f336b9ffc2/examples/basics/scene/points_selection.py
+    for source.  Build rectangle coordinates using the provided center, height, width
+    """
 
     half_height = height / 2.
     half_width = width / 2.
@@ -218,6 +219,25 @@ class PanZoomInteractive(scene.PanZoomCamera):
         self.fresh_camera = False
 
     def _handle_data_events(self, startpos, endpos):
+        """
+        Take the provided startpos/endpos mouse positions and build the data coordinates for the selection box using
+        the camera transform
+
+        Parameters
+        ----------
+        startpos
+            [x coordinate, y coordinate] in pixel coordinates of the start of the box
+        endpos
+            [x coordinate, y coordinate] in pixel coordinates of the end of the box
+
+        Returns
+        -------
+        list
+            [x coordinate, y coordinate] in data coordinates of the start of the box
+        list
+            [x coordinate, y coordinate] in data coordinates of the end of the box
+        """
+
         startpos = [startpos[0] - 80, startpos[1] - 10]  # camera transform seems to not handle the new twod_grid
         endpos = [endpos[0] - 80, endpos[1] - 10]  # add these on to handle the buffers until we figure it out
         startpos = self._transform.imap(startpos)
@@ -686,17 +706,30 @@ class ThreeDView(QtWidgets.QWidget):
         self.line = scene.visuals.Line(color='white', method='gl', parent=self.canvas.scene)
 
     def _on_mouse_press(self, event):
+        """
+        Capture the mouse event before the camera gets it for point selection/cleaning to set the origin of the drawn
+        selection box.
+        """
+
         self.line_origin = event.pos
 
     def _on_mouse_release(self, event):
+        """
+        Capture the mouse event before the camera gets it for point selection/cleaning to clear the selection box
+        """
+
         self.line_pos = []
         self.line_origin = None
         self.line.visible = False
 
     def _on_mouse_move(self, event):
+        """
+        Capture the mouse event before the camera gets it for point selection/cleaning to update the selection box
+        """
+
         if self.line_origin is not None:
             modifiers = event.modifiers
-            if keys.CONTROL in modifiers or keys.ALT in modifiers:
+            if keys.CONTROL in modifiers or keys.ALT in modifiers:  # these are the cleaning and selection mode buttons
                 self.line.visible = True
                 width = event.pos[0] - self.line_origin[0]
                 height = event.pos[1] - self.line_origin[1]
@@ -750,6 +783,10 @@ class ThreeDView(QtWidgets.QWidget):
             self.parent.accept_points(startpos, endpos, three_d=three_d)
 
     def _undo_clean(self):
+        """
+        Trigger the parent method to undo the last cleaning action
+        """
+
         if self.displayed_points is not None and self.parent is not None:
             self.parent.undo_clean()
 
@@ -819,6 +856,9 @@ class ThreeDView(QtWidgets.QWidget):
         self.linename = np.concatenate([self.linename, linename])
 
     def return_points(self):
+        """
+        Return all the data in the 3dview
+        """
         return [self.id, self.head, self.x, self.y, self.z, self.tvu, self.rejected, self.pointtime, self.beam, self.linename]
 
     def _configure_2d_3d_view(self):
