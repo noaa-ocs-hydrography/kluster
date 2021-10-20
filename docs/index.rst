@@ -134,6 +134,7 @@ Perform these in order:
    vessel_setup/index
    processing/index
    surface/index
+   cleaning/index
    products/index
    settings/index
    indepth/index
