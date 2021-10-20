@@ -999,7 +999,7 @@ class ThreeDView(QtWidgets.QWidget):
         elif color_by == 'rejected':
             min_val = 0
             max_val = 3
-            cmap = ListedColormap(['white', 'blue', 'red', 'green'])
+            cmap = ListedColormap(['white', 'blue', 'red', 'cyan'])
             clrs = cmap(self.rejected / 3)
         elif color_by in ['system', 'linename']:
             min_val = 0
