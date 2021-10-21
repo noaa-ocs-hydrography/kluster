@@ -704,6 +704,7 @@ class ThreeDView(QtWidgets.QWidget):
         self.line_pos = []
         self.line_origin = None
         self.line = scene.visuals.Line(color='white', method='gl', parent=self.canvas.scene)
+        self.line.visible = False  # set initially to invisible so it doesn't block the initial camera event
 
     def _on_mouse_press(self, event):
         """
