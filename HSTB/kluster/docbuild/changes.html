@@ -1,0 +1,511 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Changes List &#8212; kluster 0.8.0 documentation</title>
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" type="text/css" href="_static/graphviz.css" />
+    <script id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+    <script src="_static/jquery.js"></script>
+    <script src="_static/underscore.js"></script>
+    <script src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="prev" title="xarr_to_zarr" href="api/HSTB.kluster.xarray_helpers.xarr_to_zarr.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="changes-list">
+<h1>Changes List<a class="headerlink" href="#changes-list" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="kluster-v0-8-0">
+<h2>Kluster v0.8.0<a class="headerlink" href="#kluster-v0-8-0" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li><p>greatly improve performance with NOAA_MLLW NOAA_MHW datum selections by sampling points passed to vyperdatum</p></li>
+<li><p>3d Points view now supports selection/cleaning mouse actions</p></li>
+<li><p>new re-accept detectioninfo flag for when the user chooses to accept points manually in Points View</p></li>
+<li><p>new clean/accept/undo events in Points view for manually cleaning data</p></li>
+<li><p>new show rejected flag to hide rejected soundings</p></li>
+<li><p>cleaning points updates a new _soundings_last_cleaned attribute for tracking date of last cleaning action, used to mark grids as out of date</p></li>
+<li><p>closing Kluster now saves the last used Points view settings to then reload on startup</p></li>
+<li><p>selection/cleaning mouse events now draw a rectangle to the screen to show the selection area</p></li>
+<li><p>add this changes list to track changes</p></li>
+<li><p>align with bathygrid 1.0.17 - resolve bugs on reloading after altering folder path or name</p></li>
+<li><p>align with vyperdatum 0.1.4 - support specific vdatum versions, include 3d transformation/geoid selection by region</p></li>
+<li><p>resolve bug with vyperdatum CRS, now correctly shows positive down</p></li>
+<li><p>resolve bug with loading bathygrid layers that have decimal point in name</p></li>
+<li><p>set new vdatum directory path will run the vyperdatum vdatum version check on setting global settings</p></li>
+<li><p>resolve bugs with matching sbet to converted multibeam data</p></li>
+<li><p>resolve bug with project not updating buffered attribution on attribution change</p></li>
+<li><p>resolve bug with rotation and cleaning actions in Points view 3d</p></li>
+<li><p>bug with filter_subset_by_polygon, intersect hashes cannot include inside hashes, was loading double the points in some instances</p></li>
+<li><p>bug with Points view - correctly maintain head index when adding points from dual head sonar</p></li>
+</ul>
+</div>
+<div class="section" id="kluster-v0-7-11">
+<h2>Kluster v0.7.11<a class="headerlink" href="#kluster-v0-7-11" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li><p>Remove duplicate installation parameters on conversion. Duplicates are determined only based on changes to important fields (i.e. offsets, angles, waterline)</p></li>
+<li><p>Simplify profiles when profile layers exceed maximum set by Kluster</p></li>
+<li><p>Correctly sort multibeam files by start time instead of file name when converting, eliminates need to reorder data on disk</p></li>
+<li><p>Correctly sort multibeam datasets post conversion when pings are found to be out of order.</p></li>
+<li><p>Bug fix - when reloading previous used string settings for a dialog, will now set value to ‘’ instead of ‘None’ when value is not set</p></li>
+</ul>
+</div>
+<div class="section" id="kluster-v0-7-10">
+<h2>Kluster v0.7.10<a class="headerlink" href="#kluster-v0-7-10" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li><p>SBET import now imports to ping record instead of separate dataset</p></li>
+<li><p>Loading data for points view now occurs in its own thread</p></li>
+<li><p>Points view now has new toggleable 2d/3d view instead of separate tools</p></li>
+<li><p>Points tool now alters the color of the box to provide feedback on use</p></li>
+<li><p>improvements to returning variables by filter</p></li>
+<li><p>Show only offline docs in the built Kluster exe, online docs seem to be slow to change and should be used as a backup alternative</p></li>
+<li><p>Bug - kongsberg .all import would sometimes use the incorrect model number and or single/dual determination</p></li>
+<li><p>Bug - clear out worker data after running</p></li>
+<li><p>Bug - disable drag and drop in project tree</p></li>
+<li><p>Bug - with closing project using the right index in the project tree</p></li>
+<li><p>Bug - with loading force coordinate system setting on startup</p></li>
+<li><p>Bug - with stopping the progress bar on completing import sbet and overwrite raw nav</p></li>
+<li><p>Bug - with using the SBET datum instead of the default input datum on georeference</p></li>
+<li><p>Bug - sbet validation now works when no sbet has been imported yet</p></li>
+</ul>
+</div>
+<div class="section" id="kluster-v0-7-9">
+<h2>Kluster v0.7.9<a class="headerlink" href="#kluster-v0-7-9" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li><p>surfacing efficiency improvements during gridding</p></li>
+<li><p>new processing modes in settings - normal, convert only, concatenate</p></li>
+<li><p>updated CLI for intelligence changes</p></li>
+<li><p>updated docs, new docs for indepth info</p></li>
+<li><p>bugfix closing data keeps the log file open, this should not happen now</p></li>
+<li><p>bugfix using the subset time option in the processing convenience function now works correctly</p></li>
+<li><p>bugfix kmall driver and maintaining unique times across ping record</p></li>
+<li><p>bugfix resolve icon issue with pyinstaller</p></li>
+</ul>
+</div>
+<div class="section" id="kluster-v0-7-8">
+<h2>Kluster v0.7.8<a class="headerlink" href="#kluster-v0-7-8" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li><p>sync with bathygrid 1.0.14 - improvements to the gridding process to avoid looping in python</p></li>
+<li><p>new variable ‘geohash’ - tracks the geohash cell for each sounding, used as a spatial index when querying points for points view widget</p></li>
+<li><p>new attribute ‘geohashes’ - saves to the Dataset attrs the unique geohashes for each line</p></li>
+<li><p>geohash is an encoded bytestring, saves space (byte per char vs 4 bytes per char)</p></li>
+<li><p>return_soundings_in_polygon now uses the geohash to pre-filter the data before the brute force x y query</p></li>
+<li><p>allow for nadir_geohash during export of data</p></li>
+<li><p>pointsview - add head index to the system identifier, color by system shows head number</p></li>
+<li><p>bug fix - disable adding to project through dialogs</p></li>
+<li><p>bug fix - fix for loading project from kluster project json file</p></li>
+</ul>
+</div>
+<div class="section" id="kluster-v0-7-7">
+<h2>Kluster v0.7.7<a class="headerlink" href="#kluster-v0-7-7" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li><p>points view allows viewing points in the direction of the arrow displayed on the 2dview box</p></li>
+<li><p>change box display to be easier to see</p></li>
+<li><p>add property for finding the last data change date in an fqpr instance</p></li>
+<li><p>revamped the surface update dialog, allow for manual update of points, reads the last added date to determine which containers need to be updated</p></li>
+<li><p>all dialogs now retain settings correctly</p></li>
+<li><p>regridding correctly tracks existing resolutions where no updates to the grid are needed</p></li>
+<li><p>gridding will skip tiles if regrid option is update and points count hasnt changed</p></li>
+<li><p>add new ability to set sounding flag based on superselection in points view, not hooked up just yet</p></li>
+<li><p>add tvu/thu plots to basic plots - custom - uncertainty</p></li>
+<li><p>select tool now selects lines based on intersection using QGIS request, much faster and more powerful</p></li>
+<li><p>open project worker now only loads the fqpr/surface data</p></li>
+<li><p>worker results will add the newly loaded data to the project</p></li>
+<li><p>not passing the project to the worker seems to get past the intermittent hard crash seen on loading lots of data at once</p></li>
+<li><p>bug fix with surfaces, clear data will now correctly close all surfaces</p></li>
+<li><p>bug fix with savestatedialog, casts text values to string</p></li>
+<li><p>bug fix to ensure vessel setup only updates the selected fqpr container</p></li>
+</ul>
+</div>
+<div class="section" id="kluster-v0-7-6">
+<h2>Kluster v0.7.6<a class="headerlink" href="#kluster-v0-7-6" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li><p>allow drag and drop events on any part of the main window</p></li>
+<li><p>refine 3d models in Vessel Setup to have better default positions</p></li>
+<li><p>restructuring project, new ‘subset’ module to hold subset/sounding select code</p></li>
+<li><p>raise error on trying to reload data that has missing data</p></li>
+<li><p>new parameters for setting up Dask Client - LocalCluster mode</p></li>
+<li><p>docs and tests</p></li>
+</ul>
+</div>
+<div class="section" id="kluster-v0-7-5">
+<h2>Kluster v0.7.5<a class="headerlink" href="#kluster-v0-7-5" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li><p>Exporting LAS now includes the Kluster horizontal system in the header</p></li>
+<li><p>Exporting soundings now exports in chunks to resolve memory errors</p></li>
+<li><p>New - Export soundings for selected lines</p></li>
+<li><p>New - Export soundings for only those points in the Points View</p></li>
+<li><p>Selecting lines in Project Tree now shows data and highlights all lines selected</p></li>
+<li><p>Adding new instances to Project Tree now sorts alphabetically</p></li>
+<li><p>Update guidance for new 128 meter tile size benchmark</p></li>
+<li><p>Improve performance in gridding (approx 15% improvement) related to moving from flatiter to unravel_index</p></li>
+<li><p>Fix bug with QGIS not initializing properly on startup</p></li>
+<li><p>Fix bug with Shoalest gridding algorithm and grid initialization</p></li>
+<li><p>Fix bug with gridding not honoring rejected soundings</p></li>
+<li><p>Fix bug with progress bar halting while running multiple threads</p></li>
+</ul>
+</div>
+<div class="section" id="kluster-v0-7-4">
+<h2>Kluster v0.7.4<a class="headerlink" href="#kluster-v0-7-4" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li><p>New documentation system, help menu item for viewing online/offline</p></li>
+<li><p>changing latency in vessel setup generates full processing action on change, same as changing angle values</p></li>
+<li><p>vessel setup labels vessel files as ‘Vessel File’</p></li>
+<li><p>saving changes to multibeam from vessel setup retains changes in vessel model setup (basic config)</p></li>
+<li><p>resolve bug with navigation in custom sound velocity map plot</p></li>
+</ul>
+</div>
+<div class="section" id="kluster-v0-7-3">
+<h2>Kluster v0.7.3<a class="headerlink" href="#kluster-v0-7-3" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li><p>Add the ability to handle two dataset instances in the plot data handlers</p></li>
+<li><p>Add ability to right click ‘surfaces’ category and set min max values</p></li>
+<li><p>Rebuild 2dview - constant scale, altering color/selecting points now does not force redraw, depth/x/y now track actual values,</p></li>
+<li><p>Clean up accuracy test, show full uncertainties, remove old percentage plots</p></li>
+<li><p>disable overscale layer in ENC</p></li>
+<li><p>show action tooltip on next action as well</p></li>
+<li><p>bug fixed with altering box after third click</p></li>
+</ul>
+</div>
+<div class="section" id="kluster-v0-7-2">
+<h2>Kluster v0.7.2<a class="headerlink" href="#kluster-v0-7-2" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li><p>Export variable/dataset now exports time as a float, add more precise rounding to the exported variables</p></li>
+<li><p>exports now support the reduction methods and zero_centered options that are in the plotting widget</p></li>
+<li><p>disable the export buttons for custom plots that have no export</p></li>
+<li><p>create unique filenames for the exported files</p></li>
+<li><p>add show youtube playlist to the help file menu bar</p></li>
+<li><p>Fix darkness in 3d plot based on camera direction</p></li>
+<li><p>Fix bug with selecting surface layer checkbox, now correctly hides/shows layers</p></li>
+<li><p>removing a surface now updates the global min_max band values for all surface layers</p></li>
+<li><p>Fix bug with accuracy test and soundings outside the surface extents</p></li>
+<li><p>Fix bug with VR Surfaces - will now load all resolutions on selecting layer checkbox</p></li>
+<li><p>Add message on drawing surface to indicate something is happening</p></li>
+</ul>
+</div>
+<div class="section" id="kluster-v0-7-1">
+<h2>Kluster v0.7.1<a class="headerlink" href="#kluster-v0-7-1" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li><p>added new advanced plot type ‘Accuracy Test’</p></li>
+<li><p>added export variable option to basic plot</p></li>
+<li><p>added export dataset option to basic plot</p></li>
+<li><p>changed default coordinate system to WGS84 to handle out-of-bounds datasets without issue for new users</p></li>
+<li><p>force las exports to be z positive up</p></li>
+<li><p>sounding export files now have matching names with containing folder</p></li>
+<li><p>alter tvu/thu 2 sigma factor to 1.96 rather than 2</p></li>
+<li><p>update tests and docs</p></li>
+<li><p>update command line options</p></li>
+</ul>
+</div>
+<div class="section" id="kluster-v0-7-0">
+<h2>Kluster v0.7.0<a class="headerlink" href="#kluster-v0-7-0" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li><p>move navigation from external dataset to the ping record datasets. Should improve load times, decrease memory consumption and improve processing times.</p></li>
+<li><p>new setting under file - settings, “Force all days to have the same coordinate system”, see tooltip</p></li>
+<li><p>Grids now load and export as tiles, will allow sparse grids over huge areas to load efficiently and export successfully</p></li>
+<li><p>Kluster will now skip successfully over multibeam files that are unable to be read</p></li>
+<li><p>Dask client will now automatically restart when memory leaks exceed memory capacity threshold</p></li>
+<li><p>Conversion now operates over chunks of files to handle memory errors seen when converting too many files at once</p></li>
+<li><p>You can now update offsets/angles/tpu values in the vessel setup window without having to use the vessel file</p></li>
+<li><p>add support for laspy &gt;= 2.0 when exporting soundings</p></li>
+<li><p>improvements for writing to disk when datasets are very large, now correctly writes chunks of data, sorts, and resizes data on disk without loading the whole dataset to memory</p></li>
+<li><p>draw navigation, loading datasets, loading surface are all threaded now, will not lock up the screen</p></li>
+<li><p>progress moved to main window toolbar, progress bar will now stop running when action fails</p></li>
+<li><p>query tool now only displays layers that are under the cursor</p></li>
+<li><p>plots use the already loaded datasets instead of reloading</p></li>
+<li><p>import/overwrite navigation now handles dualhead times and returns safely if there is no time overlap between source and ping record dataset</p></li>
+<li><p>ping record retains min max georeferenced x and y as attribute</p></li>
+<li><p>improve performance in 2dview 3dview loading times</p></li>
+<li><p>bug - move h5py install recommendation to conda to avoid dll errors</p></li>
+<li><p>bug with show surface not correctly returning whether the surface was shown (forced rebuild where unnecessary)</p></li>
+<li><p>bug fixed where data chunk without attitude records will now be dropped</p></li>
+<li><p>bug fixed where georeference actions were generating based on the wrong CRS attribute</p></li>
+</ul>
+</div>
+<div class="section" id="kluster-v0-6-6">
+<h2>Kluster v0.6.6<a class="headerlink" href="#kluster-v0-6-6" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li><p>forgot the format string for surface generation</p></li>
+<li><p>hide gdal errors on checking if layers are loaded</p></li>
+<li><p>bug for zooming to surface extents</p></li>
+</ul>
+</div>
+<div class="section" id="kluster-v0-6-5">
+<h2>Kluster v0.6.5<a class="headerlink" href="#kluster-v0-6-5" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li><p>improvements to reload speed (thanks to work ensuring data is written in correct time order without duplicate times)</p></li>
+<li><p>improved reload speed by dropping unnecessary zone number calculation</p></li>
+<li><p>.all driver - sorts/drops unique times in attitude and navigation</p></li>
+<li><p>remove all NaN values before adding data to grid</p></li>
+<li><p>handle NaN values with georeference and MLLW/MHW selection</p></li>
+<li><p>Bug fix with clicking on surface name, no longer tries to load surface layer</p></li>
+<li><p>grids now contain minumum/maximum time from the data</p></li>
+<li><p>grids now contain the Vertical CRS WKT string if using MLLW/MHW</p></li>
+<li><p>gridding in parallel now dumps to disk between groups (no longer eats up huge memory)</p></li>
+<li><p>grids exported to BAG have correct band min/max values, handles the current bug in GDAL (resolved in GDAL 3.3.2)</p></li>
+<li><p>grids exported to BAG now have _rxl file that allows Caris to understand the coordinate system.</p></li>
+<li><p>export grid dialog is now populated with the vertical CRS WKT string</p></li>
+<li><p>clean up time elapsed strings so it isn’t just 235980235 seconds elapsed.</p></li>
+</ul>
+</div>
+<div class="section" id="kluster-v0-6-4">
+<h2>Kluster v0.6.4<a class="headerlink" href="#kluster-v0-6-4" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li><p>kmall - fix for incorrectly translated detection info flag</p></li>
+<li><p>converting multibeam files now correctly drops empty files/chunks of data that have no pings</p></li>
+<li><p>add in .close() for the multibeam classes to clear file handler</p></li>
+<li><p>_zarr backend - now reorders data on disk to ensure data is in order of ascending times</p></li>
+<li><p>disable sorting/dropping duplicate times on reload to conserve memory, rely on data being in correct time order</p></li>
+<li><p>add Help - About screen with versions</p></li>
+<li><p>slice_xarray_by_dim no longer uses xarray sel, does it in numpy instead, this is much more memory efficient</p></li>
+<li><p>move to np.argmin instead of daskarray.argmin() to clear deprecation warnings</p></li>
+<li><p>fix for project return_project_folder incorrectly returning relative path</p></li>
+<li><p>fix for intel process using isdir on non string filname</p></li>
+<li><p>fix for intel process, will load an existing project now</p></li>
+<li><p>fix for pyinstaller routine - will carry over the correct qgis files for loading WMS layers</p></li>
+</ul>
+</div>
+<div class="section" id="kluster-v0-6-3">
+<h2>Kluster v0.6.3<a class="headerlink" href="#kluster-v0-6-3" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li><p>update setup to include later versions of modules</p></li>
+<li><p>removed old quadtree gridding</p></li>
+<li><p>include bathygrid for gridding routines</p></li>
+<li><p>bathygrid supports single and variable resolution surfaces</p></li>
+<li><p>bathygrid can export variable resolution with one file per resolution</p></li>
+<li><p>bathygrid supports gridding in parallel with Dask</p></li>
+<li><p>bathygrid supports updating surface (right click the surface) for new data</p></li>
+<li><p>bathygrid shows attribution in attribute window on left click</p></li>
+</ul>
+</div>
+<div class="section" id="kluster-v0-6-2">
+<h2>Kluster v0.6.2<a class="headerlink" href="#kluster-v0-6-2" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li><p>add ability to rotate 2d/3d point selection in map view</p></li>
+<li><p>clear old ping selection on selecting new 2d/3d point data</p></li>
+<li><p>force tooltips to show immediately</p></li>
+<li><p>added support for em304, em712 sonar</p></li>
+<li><p>fixes to KMALL driver to support new sonar data/formats</p></li>
+<li><p>bug resolved when duplicate times are found after converting multibeam data</p></li>
+</ul>
+</div>
+<div class="section" id="kluster-v0-6-1">
+<h2>Kluster v0.6.1<a class="headerlink" href="#kluster-v0-6-1" title="Permalink to this headline">¶</a></h2>
+<p>Skipped to v0.6.2 due to issues with the release</p>
+</div>
+<div class="section" id="kluster-v0-6-0">
+<h2>Kluster v0.6.0<a class="headerlink" href="#kluster-v0-6-0" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li><p>Move TPU parameters into the xyzrph record</p></li>
+<li><p>Add beamangle TPU calculation</p></li>
+<li><p>New class for managing vessel files and updates (fqpr_vessel)</p></li>
+<li><p>vessel file will update by carrying over the nearest tpu entries, and will only update when the entry is a new one (or on waterline change if option is checked)</p></li>
+<li><p>new actions generated when vessel_file presents new offsets or new tpu parameters</p></li>
+<li><p>new intelligence routine to build actions on comparing vessel file xyzrph and existing fqpr xyzrph</p></li>
+<li><p>new intelligence routine only triggers re-svc when new applicable casts are added</p></li>
+<li><p>kluster_main - Add new/open vessel file</p></li>
+<li><p>add entry in project tree for vessel file</p></li>
+<li><p>add right click - reprocess action in kluster main</p></li>
+<li><p>new procedure for point selection, add tooltips for map tools</p></li>
+<li><p>Vessel Setup now allows displaying offsets/angles from multiple serial numbers at a time</p></li>
+<li><p>Vessel Setup shows source and config file</p></li>
+<li><p>Vessel Setup allows for altering/adding timestamped entries</p></li>
+<li><p>add latency to vessel view</p></li>
+<li><p>add tpu to vessel view</p></li>
+<li><p>bug fixed where writing to zarr attributes now skips if doing the in memory workflow</p></li>
+<li><p>bug fixed with writing attributes, always generates deep copy first</p></li>
+<li><p>bug fixed with loading xyzrph entries that lacked imu/antenna entries in vesselview</p></li>
+</ul>
+</div>
+<div class="section" id="kluster-v0-5-2">
+<h2>Kluster v0.5.2<a class="headerlink" href="#kluster-v0-5-2" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li><p>added new backends for data storage, zarr backend the only one for now</p></li>
+<li><p>xarrayconversion/fqprgeneration now inherit from zarr backend</p></li>
+<li><p>fqpr_generation processes now load data - dump to disk all at once, eliminates memory issue with loading all the raw data and then chunking it off for processes.</p></li>
+<li><p>bug resolved with loading attribution in reload_data, now correctly combines attribution from all datasets</p></li>
+<li><p>stick with default two threads per worker, seen good results in tests</p></li>
+<li><p>set default number of chunks to a kluster_variable</p></li>
+</ul>
+</div>
+<div class="section" id="kluster-v0-5-1">
+<h2>Kluster v0.5.1<a class="headerlink" href="#kluster-v0-5-1" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li><p>added a 2d swath view</p></li>
+<li><p>querying in 2d and 3d</p></li>
+<li><p>queried points show attributes in explorer widget</p></li>
+<li><p>separate out commonly accessed variables to kluster_variables</p></li>
+<li><p>add axis to 2d and 3d</p></li>
+<li><p>add colorbar to 2d and 3d</p></li>
+<li><p>controls for showing/hiding colorbar/axis</p></li>
+</ul>
+</div>
+<div class="section" id="kluster-v0-5-0">
+<h2>Kluster v0.5.0<a class="headerlink" href="#kluster-v0-5-0" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li><p>new 3dview using vispy Scatter data</p></li>
+<li><p>added vdatum integration with vyperdatum, new NOAA MLLW and NOAA MHW options</p></li>
+<li><p>Pass vdatum path directly to georeferencing process</p></li>
+<li><p>Move all references to xyz_crs to horizontal_crs</p></li>
+<li><p>add new ability to return soundings in box, added to fqpr_gen and project</p></li>
+<li><p>add in intel convenience functions</p></li>
+<li><p>add command line functions for intel module</p></li>
+<li><p>update all vert_ref references to include the new noaa mllw/mhw</p></li>
+<li><p>dialogs now update the ini file settings</p></li>
+<li><p>project settings dialog issues warning regarding vdatum directory</p></li>
+<li><p>correctly update the vdatum_directory attribute for the 2dview</p></li>
+<li><p>scatter the times for xarray_helpers interp_across_chunks</p></li>
+<li><p>changing project settings no longer alters the current_processing_status attribute</p></li>
+<li><p>changing project settings generates processing actions based on new vert/coord system</p></li>
+<li><p>resolve bugs with settings dialogs not reading ini file properly, not writing new settings correctly</p></li>
+<li><p>correct docstrings</p></li>
+</ul>
+</div>
+<div class="section" id="kluster-v0-4-10">
+<h2>Kluster v0.4.10<a class="headerlink" href="#kluster-v0-4-10" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li><p>bug with _closest_key_value, need an abs there</p></li>
+<li><p>fqpr_generation.Fqpr should skip the logger build if not provided</p></li>
+<li><p>gdal.__version__ does work, skip the custom code ive written in gdal_helpers</p></li>
+<li><p>use update in VectorLayer when file does not exist as well, for write access</p></li>
+<li><p>VectorLayer must create layer with the same name as the file before I can create a layer with a custom name</p></li>
+<li><p>VectorLayer should set lyr = None to close and save the layer</p></li>
+<li><p>rename UTC to follow convention</p></li>
+<li><p>add svp, tif, shp test files</p></li>
+<li><p>add tests for most of the remaining modules</p></li>
+</ul>
+</div>
+<div class="section" id="kluster-v0-4-9">
+<h2>Kluster v0.4.9<a class="headerlink" href="#kluster-v0-4-9" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li><p>added import ppnav dialog back in to manually import sbet</p></li>
+<li><p>added new overwrite navigation dialog to import from posmv</p></li>
+<li><p>added overwrite navigation convenience/generation code</p></li>
+<li><p>trigger action progress bar on import/overwrite nav</p></li>
+<li><p>up the default number of retries on PermissionError</p></li>
+</ul>
+</div>
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="index.html">kluster</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="quickstart/index.html">Quickstart</a></li>
+<li class="toctree-l1"><a class="reference internal" href="vessel_setup/index.html">Vessel Setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="processing/index.html">Processing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="surface/index.html">Surfacing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="cleaning/index.html">Cleaning</a></li>
+<li class="toctree-l1"><a class="reference internal" href="products/index.html">Products</a></li>
+<li class="toctree-l1"><a class="reference internal" href="settings/index.html">Settings</a></li>
+<li class="toctree-l1"><a class="reference internal" href="indepth/index.html">Learn more about Kluster</a></li>
+<li class="toctree-l1"><a class="reference internal" href="kluster_api/index.html">API</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Changes List</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#kluster-v0-8-0">Kluster v0.8.0</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#kluster-v0-7-11">Kluster v0.7.11</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#kluster-v0-7-10">Kluster v0.7.10</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#kluster-v0-7-9">Kluster v0.7.9</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#kluster-v0-7-8">Kluster v0.7.8</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#kluster-v0-7-7">Kluster v0.7.7</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#kluster-v0-7-6">Kluster v0.7.6</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#kluster-v0-7-5">Kluster v0.7.5</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#kluster-v0-7-4">Kluster v0.7.4</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#kluster-v0-7-3">Kluster v0.7.3</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#kluster-v0-7-2">Kluster v0.7.2</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#kluster-v0-7-1">Kluster v0.7.1</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#kluster-v0-7-0">Kluster v0.7.0</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#kluster-v0-6-6">Kluster v0.6.6</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#kluster-v0-6-5">Kluster v0.6.5</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#kluster-v0-6-4">Kluster v0.6.4</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#kluster-v0-6-3">Kluster v0.6.3</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#kluster-v0-6-2">Kluster v0.6.2</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#kluster-v0-6-1">Kluster v0.6.1</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#kluster-v0-6-0">Kluster v0.6.0</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#kluster-v0-5-2">Kluster v0.5.2</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#kluster-v0-5-1">Kluster v0.5.1</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#kluster-v0-5-0">Kluster v0.5.0</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#kluster-v0-4-10">Kluster v0.4.10</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#kluster-v0-4-9">Kluster v0.4.9</a></li>
+</ul>
+</li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="api/HSTB.kluster.xarray_helpers.xarr_to_zarr.html" title="previous chapter">xarr_to_zarr</a></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2020, Eric Younkin.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.5.2</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="_sources/changes.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

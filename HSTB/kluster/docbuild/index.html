@@ -5,7 +5,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>kluster &#8212; kluster 0.7.11 documentation</title>
+    <title>kluster &#8212; kluster 0.8.0 documentation</title>
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
     <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
     <link rel="stylesheet" type="text/css" href="_static/graphviz.css" />
@@ -185,6 +185,13 @@ sophisticated and modern software package.</p>
 <li class="toctree-l1"><a class="reference internal" href="surface/index.html">Surfacing</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="surface/index.html#overview">Overview</a></li>
 <li class="toctree-l2"><a class="reference internal" href="surface/index.html#updating-a-surface">Updating a Surface</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="cleaning/index.html">Cleaning</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="cleaning/index.html#loading-points">Loading points</a></li>
+<li class="toctree-l2"><a class="reference internal" href="cleaning/index.html#interacting-in-2d">Interacting in 2d</a></li>
+<li class="toctree-l2"><a class="reference internal" href="cleaning/index.html#interacting-in-3d">Interacting in 3d</a></li>
+<li class="toctree-l2"><a class="reference internal" href="cleaning/index.html#regridding">Regridding</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="products/index.html">Products</a><ul>
@@ -377,6 +384,34 @@ sophisticated and modern software package.</p>
 </li>
 </ul>
 </li>
+<li class="toctree-l1"><a class="reference internal" href="changes.html">Changes List</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="changes.html#kluster-v0-8-0">Kluster v0.8.0</a></li>
+<li class="toctree-l2"><a class="reference internal" href="changes.html#kluster-v0-7-11">Kluster v0.7.11</a></li>
+<li class="toctree-l2"><a class="reference internal" href="changes.html#kluster-v0-7-10">Kluster v0.7.10</a></li>
+<li class="toctree-l2"><a class="reference internal" href="changes.html#kluster-v0-7-9">Kluster v0.7.9</a></li>
+<li class="toctree-l2"><a class="reference internal" href="changes.html#kluster-v0-7-8">Kluster v0.7.8</a></li>
+<li class="toctree-l2"><a class="reference internal" href="changes.html#kluster-v0-7-7">Kluster v0.7.7</a></li>
+<li class="toctree-l2"><a class="reference internal" href="changes.html#kluster-v0-7-6">Kluster v0.7.6</a></li>
+<li class="toctree-l2"><a class="reference internal" href="changes.html#kluster-v0-7-5">Kluster v0.7.5</a></li>
+<li class="toctree-l2"><a class="reference internal" href="changes.html#kluster-v0-7-4">Kluster v0.7.4</a></li>
+<li class="toctree-l2"><a class="reference internal" href="changes.html#kluster-v0-7-3">Kluster v0.7.3</a></li>
+<li class="toctree-l2"><a class="reference internal" href="changes.html#kluster-v0-7-2">Kluster v0.7.2</a></li>
+<li class="toctree-l2"><a class="reference internal" href="changes.html#kluster-v0-7-1">Kluster v0.7.1</a></li>
+<li class="toctree-l2"><a class="reference internal" href="changes.html#kluster-v0-7-0">Kluster v0.7.0</a></li>
+<li class="toctree-l2"><a class="reference internal" href="changes.html#kluster-v0-6-6">Kluster v0.6.6</a></li>
+<li class="toctree-l2"><a class="reference internal" href="changes.html#kluster-v0-6-5">Kluster v0.6.5</a></li>
+<li class="toctree-l2"><a class="reference internal" href="changes.html#kluster-v0-6-4">Kluster v0.6.4</a></li>
+<li class="toctree-l2"><a class="reference internal" href="changes.html#kluster-v0-6-3">Kluster v0.6.3</a></li>
+<li class="toctree-l2"><a class="reference internal" href="changes.html#kluster-v0-6-2">Kluster v0.6.2</a></li>
+<li class="toctree-l2"><a class="reference internal" href="changes.html#kluster-v0-6-1">Kluster v0.6.1</a></li>
+<li class="toctree-l2"><a class="reference internal" href="changes.html#kluster-v0-6-0">Kluster v0.6.0</a></li>
+<li class="toctree-l2"><a class="reference internal" href="changes.html#kluster-v0-5-2">Kluster v0.5.2</a></li>
+<li class="toctree-l2"><a class="reference internal" href="changes.html#kluster-v0-5-1">Kluster v0.5.1</a></li>
+<li class="toctree-l2"><a class="reference internal" href="changes.html#kluster-v0-5-0">Kluster v0.5.0</a></li>
+<li class="toctree-l2"><a class="reference internal" href="changes.html#kluster-v0-4-10">Kluster v0.4.10</a></li>
+<li class="toctree-l2"><a class="reference internal" href="changes.html#kluster-v0-4-9">Kluster v0.4.9</a></li>
+</ul>
+</li>
 </ul>
 </div>
 </div>
@@ -412,10 +447,12 @@ sophisticated and modern software package.</p>
 <li class="toctree-l1"><a class="reference internal" href="vessel_setup/index.html">Vessel Setup</a></li>
 <li class="toctree-l1"><a class="reference internal" href="processing/index.html">Processing</a></li>
 <li class="toctree-l1"><a class="reference internal" href="surface/index.html">Surfacing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="cleaning/index.html">Cleaning</a></li>
 <li class="toctree-l1"><a class="reference internal" href="products/index.html">Products</a></li>
 <li class="toctree-l1"><a class="reference internal" href="settings/index.html">Settings</a></li>
 <li class="toctree-l1"><a class="reference internal" href="indepth/index.html">Learn more about Kluster</a></li>
 <li class="toctree-l1"><a class="reference internal" href="kluster_api/index.html">API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="changes.html">Changes List</a></li>
 </ul>
 
 <div class="relations">

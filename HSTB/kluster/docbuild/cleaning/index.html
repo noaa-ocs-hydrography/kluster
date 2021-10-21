@@ -1,0 +1,183 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Cleaning &#8212; kluster 0.8.0 documentation</title>
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" type="text/css" href="../_static/graphviz.css" />
+    <script id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Products" href="../products/index.html" />
+    <link rel="prev" title="Surfacing" href="../surface/index.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="cleaning">
+<h1>Cleaning<a class="headerlink" href="#cleaning" title="Permalink to this headline">¶</a></h1>
+<p>Now we can talk about visualizing points and doing some cleaning.  Cleaning is the process of removing outliers or noise
+from the multibeam sonar point cloud.  In Kluster, we have a detectioninfo attribute that is associated with each point.
+This detectioninfo attribute has one of the following values:</p>
+<ul class="simple">
+<li><p>3 = re-accepted</p></li>
+<li><p>2 = rejected</p></li>
+<li><p>1 = phase detection (accepted)</p></li>
+<li><p>0 = amplitude detection (accepted)</p></li>
+</ul>
+<p>So if I were to reject a point that is currently a ‘phase detection’ level accepted value, it would mark that point as a ‘2’ instead of a ‘1’.  Then, when I go to make a surface
+from the data, it will only use the non-rejected data (detectioninfo that is not 2), effectively ‘cleaning’ the rejected data from the final product.</p>
+<p>Cleaning is <strong>not</strong> deleting data.  Kluster retains all converted data throughout all the workflows.</p>
+<div class="section" id="loading-points">
+<h2>Loading points<a class="headerlink" href="#loading-points" title="Permalink to this headline">¶</a></h2>
+<p>The first step is to load the points in the Points View. The Points View is just that, the window that gives you a view of the multibeam point cloud.  Let’s first go over the controls:</p>
+<p>Hold the mouse over any of these controls to get more information</p>
+<ul class="simple">
+<li><p>View = One of ‘2d view’, ‘3d view’, controls the dimension of the display, two or three dimensions</p></li>
+<li><p>Color By = Choose the attribute to color the data by, is reflected in the color bar on the right hand side of the Points View</p></li>
+<li><p>View Direction = Choose the view direction of the view, ‘arrow’ will view the dataset in the direction of the arrow of the selection box in the 2d View</p></li>
+<li><p>Vertical Exaggeration (Only 3d view) = multiplier for the z value of the point cloud</p></li>
+<li><p>Show Colorbar = Check to show/hide the color bar on the right side of the Points View</p></li>
+<li><p>Show Rejected = Check to show/hide rejected soundings in the multibeam point cloud</p></li>
+</ul>
+<p>More on these later.</p>
+<p>Now let’s select the Points tool in the 2d View and draw a box around some lines.  <strong>Note that you must have finished processing/georeferencing to load soundings!</strong>
+Click on ‘Points’ at the top of the 2d View, click once in the display to set the corner, again to set the opposite corner, and a third time to load the points.
+If it works, you should get a display that looks something like this.</p>
+<a class="reference external image-reference" href="../_images/cleaning_1.png"><img alt="../_images/cleaning_1.png" src="../_images/cleaning_1.png" /></a>
+<p>You can get these instructions from holding the mouse over the Points button as well.</p>
+<p>The 2d display is a little weird, and takes some getting used to.  We are in the two dimensional view, with a view direction of ‘north’, so what we see here is the eastings on the x axis and the depth values on the y axis.  Now our line is heading east/west, so what we probably want to do is view it along the line direction.  So let’s try switching to view direction = east.  You’ll see that you get a line of dots that appear to be shallower on the left side and deeper on the right side, just like the grid that we have in 2d view!  It’s easier to see if you use the right mouse button to scale the display so that it zooms in a bit more.</p>
+<a class="reference external image-reference" href="../_images/cleaning_2.png"><img alt="../_images/cleaning_2.png" src="../_images/cleaning_2.png" /></a>
+<p>But what if the line is going north-west, or is otherwise not a north-south or east-west line?  Well, then we need to rotate the selection box to align with the line azimuth to get the correct view.  To do that, we click on ‘Points’ again and follow a process similar to what we did before: click once to set the first corner, click again to set the last corner, <strong>hold CTRL and move the mouse to rotate the selection box</strong>, click a third time to load the points.  Let’s try this out to see if we can get a north-west south-east aligned selection box.</p>
+<a class="reference external image-reference" href="../_images/cleaning_3.png"><img alt="../_images/cleaning_3.png" src="../_images/cleaning_3.png" /></a>
+<p>For the 3d display, it generally doesn’t matter how we rotate the selection box, as you’ll see in the later sections.</p>
+</div>
+<div class="section" id="interacting-in-2d">
+<h2>Interacting in 2d<a class="headerlink" href="#interacting-in-2d" title="Permalink to this headline">¶</a></h2>
+<p>First, try to mouse over the ‘Mouse over for instructions’ part of the Points View to get the tooltip that explains how to interact with the points.</p>
+<p>Basically, you can move the points around with left mouse button, zoom in/out with mouse wheel and zoom in/out in a user controlled way with right mouse button.</p>
+<p>You can select points to view more information about them by holding CTRL and dragging a box with the left mouse button.  You can view the attributes of the selected points in the Explorer window.  Selected points are highlighted in pink.</p>
+<a class="reference external image-reference" href="../_images/cleaning_4.png"><img alt="../_images/cleaning_4.png" src="../_images/cleaning_4.png" /></a>
+<p>Now we can try out cleaning!  First, let’s take note of a few things.  We have ‘Show Rejected’ as checked, so if we reject some points, they will remain in the display unchanged  unless we happen to have Color By set to ‘rejected’.  Let’s do that now.  We could reject points just fine with Color By set to a different mode, but you wouldn’t see it in the display until you switched to the ‘rejected’ mode.</p>
+<p>To reject/clean points, simply hold ALT and drag a box just like you did to select points.  If you are coloring by rejected, you will see these points turn red.</p>
+<p>To re-accept points, simply use ALT and right mouse button.  You’ll see the points turn cyan.  Cyan means ‘re-accepted’ and indicates that the points are accepted manually.  Note that re-accepted points will not have a phase/amplitude detect description.  Try both these modes out for a bit.</p>
+<a class="reference external image-reference" href="../_images/cleaning_5.png"><img alt="../_images/cleaning_5.png" src="../_images/cleaning_5.png" /></a>
+<p>There is one last thing we can try, which is to undo the changes we have made!  Note that this only works while the points are loaded, if you go to a different area and come back here, you will not be able to undo the cleaning/accepting.  Undo is pretty simple, just hold ALT and middle mouse click to watch each change revert back to what it was.  You’ll see that the cyan/red go away and the original detectioninfo is now back!</p>
+</div>
+<div class="section" id="interacting-in-3d">
+<h2>Interacting in 3d<a class="headerlink" href="#interacting-in-3d" title="Permalink to this headline">¶</a></h2>
+<p>Much of what we discussed with the 2d interaction works here as well.  First, let’s switch to the 3d mode by changing ‘2d view’ to ‘3d view’ at the top of the Points View.</p>
+<a class="reference external image-reference" href="../_images/cleaning_6.png"><img alt="../_images/cleaning_6.png" src="../_images/cleaning_6.png" /></a>
+<p>Basically all of the mouse controls are the same.  The one difference is that you need to use SHIFT + Left mouse button to move the camera in 3d view, where left mouse button effectively rotates the camera.</p>
+<p>One of the big differences is the way the z scaling works.  You’ll need to manually enter in a Vertical Exaggeration at the top to scale in that axis.  Try it now, you’ll see that altering the Vertical Exaggeration is a way to effectively zoom in on the points in 3d view.</p>
+<p>Cleaning is much the same as well.  You drag boxes to select, clean and accept the points.</p>
+</div>
+<div class="section" id="regridding">
+<h2>Regridding<a class="headerlink" href="#regridding" title="Permalink to this headline">¶</a></h2>
+<p>After cleaning, you will want to update the surface to reflect the new changes in the point cloud.  Each time you clean, it sets a new date for the last cleaning action for each day of data.  This allows the grid to check this date to see if the grid is older than the last cleaned date.  If it is, the grid will be marked with an asterisk to identify it as out of date in the surface data dialog.  See Surfacing - Updating a Surface.</p>
+</div>
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">kluster</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../quickstart/index.html">Quickstart</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../vessel_setup/index.html">Vessel Setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../processing/index.html">Processing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../surface/index.html">Surfacing</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Cleaning</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#loading-points">Loading points</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#interacting-in-2d">Interacting in 2d</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#interacting-in-3d">Interacting in 3d</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#regridding">Regridding</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../products/index.html">Products</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../settings/index.html">Settings</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../indepth/index.html">Learn more about Kluster</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../kluster_api/index.html">API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../changes.html">Changes List</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="../surface/index.html" title="previous chapter">Surfacing</a></li>
+      <li>Next: <a href="../products/index.html" title="next chapter">Products</a></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2020, Eric Younkin.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.5.2</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="../_sources/cleaning/index.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>
