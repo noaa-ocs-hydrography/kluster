@@ -134,8 +134,11 @@ class ColorBar(FigureCanvasQTAgg):
             self.c_map_ax.set_yticklabels(by_name)
             self.c_map_ax.tick_params(labelsize=6)
         else:
-            self.fig.colorbar(cm.ScalarMappable(norm=norm, cmap=cmap), orientation='vertical', cax=self.c_map_ax)
-            self.c_map_ax.tick_params(labelsize=8)
+            try:
+                self.fig.colorbar(cm.ScalarMappable(norm=norm, cmap=cmap), orientation='vertical', cax=self.c_map_ax)
+                self.c_map_ax.tick_params(labelsize=8)
+            except IndexError:  # some colorbars like 'system' can rely on data that might not be loaded on starting Kluster
+                pass
         if invert_y:
             self.c_map_ax.invert_yaxis()
         self.draw()

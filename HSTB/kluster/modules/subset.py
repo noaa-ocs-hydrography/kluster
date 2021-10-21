@@ -411,11 +411,15 @@ class FqprSubset:
             ping_filter = self.fqpr.subset.ping_filter[cnt]
             data_var = rp[variable_name]
             if selected_index:
-                rp_points_idx = selected_index[cnt]
+                try:
+                    rp_points_idx = selected_index[cnt]
+                except:  # no selected soundings, happens for second head when no selected soundings found for second head
+                    continue
                 point_idx = np.unravel_index(np.where(ping_filter)[0][rp_points_idx], data_var.shape)
             else:
                 point_idx = np.unravel_index(np.where(ping_filter)[0], data_var.shape)
-
+            if not point_idx[0].any():  # no selected soundings, happens for first head in dual head when no selected soundings found for first head
+                continue
             unique_time_vals, utime_index = np.unique(point_idx[0], return_inverse=True)
             rp_detect = data_var.isel(time=unique_time_vals).load()
             rp_detect_vals = rp_detect.values
