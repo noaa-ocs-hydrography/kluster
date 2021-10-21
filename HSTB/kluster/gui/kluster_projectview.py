@@ -168,7 +168,7 @@ class KlusterProjectView(QtWidgets.QWidget):
     QTableWidget to display the data from an fqpr_intelligence IntelModule.
     """
 
-    file_added = QtCore.Signal(str)
+    file_added = Signal(str)
 
     def __init__(self, parent=None, *args, **kwargs):
         super().__init__(*args, **kwargs)

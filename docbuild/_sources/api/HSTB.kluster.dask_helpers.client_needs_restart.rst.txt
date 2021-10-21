@@ -1,6 +1,0 @@
-client_needs_restart
-====================
-
-.. currentmodule:: HSTB.kluster.dask_helpers
-
-.. autofunction:: client_needs_restart

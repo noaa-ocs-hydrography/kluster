@@ -7,6 +7,7 @@ if qgis_enabled:
 from HSTB.kluster.gui.common_widgets import SaveStateDialog
 from HSTB.shared import RegistryHelpers
 from HSTB.kluster import kluster_variables
+from HSTB.kluster.modules.georeference import set_vyperdatum_vdatum_path
 
 
 class SettingsDialog(SaveStateDialog):
@@ -103,8 +104,18 @@ class SettingsDialog(SaveStateDialog):
                                   ['force_coordinate_match', self.force_coordinate_match]]
 
         self.read_settings()
-        self._refresh_error_message()
         self.resize(600, 150)
+
+    def set_vyperdatum_path(self):
+        if self.vdatum_pth:
+            err, status = set_vyperdatum_vdatum_path(self.vdatum_pth)
+            if err:
+                self.status_msg.setStyleSheet("QLabel { " + kluster_variables.error_color + "; }")
+            else:
+                self.status_msg.setStyleSheet("QLabel { " + kluster_variables.pass_color + "; }")
+            self.status_msg.setText(status)
+        else:
+            self.status_msg.setText('')
 
     def return_options(self):
         """
@@ -117,17 +128,19 @@ class SettingsDialog(SaveStateDialog):
                     'force_coordinate_match': self.force_coordinate_match.isChecked(),
                     'vdatum_directory': self.vdatum_pth,
                     'autoprocessing_mode': self.auto_processing_mode.currentText()}
+            self.set_vyperdatum_path()
         else:
             opts = None
         return opts
 
     def vdatum_browse(self):
         # dirpath will be None or a string
-        msg, self.vdatum_pth = RegistryHelpers.GetDirFromUserQT(self, RegistryKey='Kluster',
-                                                                Title='Select Vdatum directory', AppName='\\reghelp')
-        if self.vdatum_pth:
+        msg, vdatum_pth = RegistryHelpers.GetDirFromUserQT(self, RegistryKey='Kluster',
+                                                           Title='Select Vdatum directory', AppName='\\reghelp')
+        if vdatum_pth:
+            self.vdatum_pth = vdatum_pth
             self.vdatum_text.setText(self.vdatum_pth)
-        self._refresh_error_message()
+        self.set_vyperdatum_path()
 
     def start(self):
         """
@@ -149,16 +162,7 @@ class SettingsDialog(SaveStateDialog):
     def read_settings(self):
         super().read_settings()
         self.vdatum_pth = self.vdatum_text.text()
-
-    def _refresh_error_message(self):
-        err = False
-        if self.vdatum_pth:
-            expected_vdatum_path = os.path.join(self.vdatum_pth, 'vdatum.bat')
-            if not os.path.exists(expected_vdatum_path):
-                self.status_msg.setText('VDatum Directory: Unable to find {}'.format(expected_vdatum_path))
-                err = True
-        if not err:
-            self.status_msg.setText('')
+        self.set_vyperdatum_path()
 
 
 if __name__ == '__main__':

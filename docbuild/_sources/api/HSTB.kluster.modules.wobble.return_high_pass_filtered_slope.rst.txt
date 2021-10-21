@@ -1,6 +1,0 @@
-return_high_pass_filtered_slope
-===============================
-
-.. currentmodule:: HSTB.kluster.modules.wobble
-
-.. autofunction:: return_high_pass_filtered_slope

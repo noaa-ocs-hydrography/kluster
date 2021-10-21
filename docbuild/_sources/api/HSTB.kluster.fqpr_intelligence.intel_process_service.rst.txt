@@ -1,6 +1,0 @@
-intel_process_service
-=====================
-
-.. currentmodule:: HSTB.kluster.fqpr_intelligence
-
-.. autofunction:: intel_process_service

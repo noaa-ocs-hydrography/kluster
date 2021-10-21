@@ -2694,7 +2694,7 @@ class Fqpr(ZarrBackend):
 
         self.subset.set_filter_by_polygon(polygon, geographic)
 
-    def set_variable_by_filter(self, var_name: str = 'detectioninfo', newval: Union[int, str, float] = 2, selected_index: list = None):
+    def set_variable_by_filter(self, var_name: str = 'detectioninfo', newval: Union[np.array, int, str, float] = 2, selected_index: list = None):
         """
         ping_filter is set upon selecting points in 2d/3d in Kluster.  See return_soundings_in_polygon.  Here we can take
         those points and set one of the variables with new data.  Optionally, you can include a selected_index that is a list
@@ -2750,9 +2750,7 @@ class Fqpr(ZarrBackend):
                 if int(i) in unique_status:
                     dashboard['sounding_status'][ra.system_identifier][status_lookup[str(i)]] = cnts[list(unique_status).index(int(i))]
 
-            dashboard['last_run'][ra.system_identifier] = {'_conversion_complete': '', '_compute_orientation_complete': '',
-                                                           '_compute_beam_vectors_complete': '', '_sound_velocity_correct_complete': '',
-                                                           '_georeference_soundings_complete': '', '_total_uncertainty_complete': ''}
+            dashboard['last_run'][ra.system_identifier] = {k: '' for k in kluster_variables.processing_log_names}
             for ky in list(dashboard['last_run'][ra.system_identifier].keys()):
                 if ky in ra.attrs:
                     dashboard['last_run'][ra.system_identifier][ky] = ra.attrs[ky]

@@ -1,6 +1,0 @@
-gather_navfile_info
-===================
-
-.. currentmodule:: HSTB.kluster.fqpr_intelligence
-
-.. autofunction:: gather_navfile_info

@@ -1,6 +1,0 @@
-simplify_soundvelocity_profile
-==============================
-
-.. currentmodule:: HSTB.kluster.xarray_conversion
-
-.. autofunction:: simplify_soundvelocity_profile

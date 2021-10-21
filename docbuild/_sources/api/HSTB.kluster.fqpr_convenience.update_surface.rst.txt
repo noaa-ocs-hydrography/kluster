@@ -1,6 +1,0 @@
-update_surface
-==============
-
-.. currentmodule:: HSTB.kluster.fqpr_convenience
-
-.. autofunction:: update_surface

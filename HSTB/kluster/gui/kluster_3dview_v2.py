@@ -3,6 +3,7 @@ matplotlib.use('qt5agg')
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
 from matplotlib import cm
 from matplotlib.figure import Figure
+from matplotlib.colors import ListedColormap
 
 import numpy as np
 
@@ -14,6 +15,55 @@ from HSTB.kluster import kluster_variables
 from vispy import use, visuals, scene
 from vispy.util import keys
 use(backend, 'gl2')
+
+
+def rectangle_vertice(center, height, width):
+    """
+    See https://github.com/vispy/vispy/blob/64e76c40c8d7d38efc53c9a1a50ca7f336b9ffc2/examples/basics/scene/points_selection.py
+    for source.  Build rectangle coordinates using the provided center, height, width
+    """
+
+    half_height = height / 2.
+    half_width = width / 2.
+
+    bias1 = np.ones(4) * half_width
+    bias2 = np.ones(4) * half_height
+
+    corner1 = np.empty([1, 3], dtype=np.float32)
+    corner2 = np.empty([1, 3], dtype=np.float32)
+    corner3 = np.empty([1, 3], dtype=np.float32)
+    corner4 = np.empty([1, 3], dtype=np.float32)
+
+    corner1[:, 0] = center[0] - bias1[0]
+    corner1[:, 1] = center[1] - bias2[0]
+    corner1[:, 2] = 0
+
+    corner2[:, 0] = center[0] + bias1[1]
+    corner2[:, 1] = center[1] - bias2[1]
+    corner2[:, 2] = 0
+
+    corner3[:, 0] = center[0] + bias1[2]
+    corner3[:, 1] = center[1] + bias2[2]
+    corner3[:, 2] = 0
+
+    corner4[:, 0] = center[0] - bias1[3]
+    corner4[:, 1] = center[1] + bias2[3]
+    corner4[:, 2] = 0
+
+    # Get vertices between each corner of the rectangle for border drawing
+    vertices = np.concatenate(([[center[0], center[1], 0.]],
+                               [[center[0] - half_width, center[1], 0.]],
+                               corner1,
+                               [[center[0], center[1] - half_height, 0.]],
+                               corner2,
+                               [[center[0] + half_width, center[1], 0.]],
+                               corner3,
+                               [[center[0], center[1] + half_height, 0.]],
+                               corner4,
+                               [[center[0] - half_width, center[1], 0.]]))
+
+    # vertices = np.array(output, dtype=np.float32)
+    return vertices[1:, ..., :2]
 
 
 class ScaleAxisWidget(scene.AxisWidget):
@@ -43,7 +93,7 @@ class ColorBar(FigureCanvasQTAgg):
         self.fig = Figure(figsize=(width, height), dpi=dpi)
         self.fig.gca().set_visible(False)
         super().__init__(self.fig)
-        self.c_map_ax = self.fig.add_axes([0.05, 0.05, 0.45, 0.9])
+        self.c_map_ax = self.fig.add_axes([0.05, 0.05, 0.25, 0.9])
         self.c_map_ax.get_xaxis().set_visible(False)
         self.c_map_ax.get_yaxis().set_visible(False)
 
@@ -75,17 +125,20 @@ class ColorBar(FigureCanvasQTAgg):
         norm = matplotlib.colors.Normalize(vmin=minval, vmax=maxval)
         if is_rejected:
             self.fig.colorbar(cm.ScalarMappable(norm=norm, cmap=cmap), orientation='vertical', cax=self.c_map_ax,
-                              ticks=[2, 1, 0])
-            self.c_map_ax.set_yticklabels(['Reject', 'Phase', 'Amp'])
-            self.c_map_ax.tick_params(labelsize=8)
+                              ticks=[3, 2, 1, 0])
+            self.c_map_ax.set_yticklabels(['Re-Accept', 'Reject', 'Phase', 'Amp'])
+            self.c_map_ax.tick_params(labelsize=7)
         elif by_name:
             self.fig.colorbar(cm.ScalarMappable(norm=norm, cmap=cmap), orientation='vertical', cax=self.c_map_ax,
                               ticks=(np.arange(len(by_name)) + 0.5).tolist())
             self.c_map_ax.set_yticklabels(by_name)
             self.c_map_ax.tick_params(labelsize=6)
         else:
-            self.fig.colorbar(cm.ScalarMappable(norm=norm, cmap=cmap), orientation='vertical', cax=self.c_map_ax)
-            self.c_map_ax.tick_params(labelsize=8)
+            try:
+                self.fig.colorbar(cm.ScalarMappable(norm=norm, cmap=cmap), orientation='vertical', cax=self.c_map_ax)
+                self.c_map_ax.tick_params(labelsize=8)
+            except IndexError:  # some colorbars like 'system' can rely on data that might not be loaded on starting Kluster
+                pass
         if invert_y:
             self.c_map_ax.invert_yaxis()
         self.draw()
@@ -114,14 +167,26 @@ class PanZoomInteractive(scene.PanZoomCamera):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.selected_callback = None
+        self.clean_callback = None
+        self.accept_callback = None
+        self.undo_callback = None
         self.fresh_camera = True
 
-    def _bind_selecting_event(self, selfunc):
+    def _bind_event(self, selfunc, eventname):
         """
         Emit the top left/bottom right 3d coordinates of the selection.  Parent widget will control the 3dview and
         highlight the points as well as populating the explorer widget with the values so you can see.
         """
-        self.selected_callback = selfunc
+        if eventname == 'select':
+            self.selected_callback = selfunc
+        elif eventname == 'clean':
+            self.clean_callback = selfunc
+        elif eventname == 'undo':
+            self.undo_callback = selfunc
+        elif eventname == 'accept':
+            self.accept_callback = selfunc
+        else:
+            raise NotImplementedError('Only select, clean, accept and undo functions currently supported, received {}'.format(eventname))
 
     def _handle_mousewheel_zoom_event(self, event):
         """
@@ -156,6 +221,38 @@ class PanZoomInteractive(scene.PanZoomCamera):
         self.pan(p1s - p2s)
         self.fresh_camera = False
 
+    def _handle_data_events(self, startpos, endpos):
+        """
+        Take the provided startpos/endpos mouse positions and build the data coordinates for the selection box using
+        the camera transform
+
+        Parameters
+        ----------
+        startpos
+            [x coordinate, y coordinate] in pixel coordinates of the start of the box
+        endpos
+            [x coordinate, y coordinate] in pixel coordinates of the end of the box
+
+        Returns
+        -------
+        list
+            [x coordinate, y coordinate] in data coordinates of the start of the box
+        list
+            [x coordinate, y coordinate] in data coordinates of the end of the box
+        """
+
+        startpos = [startpos[0] - 80, startpos[1] - 10]  # camera transform seems to not handle the new twod_grid
+        endpos = [endpos[0] - 80, endpos[1] - 10]  # add these on to handle the buffers until we figure it out
+        startpos = self._transform.imap(startpos)
+        endpos = self._transform.imap(endpos)
+        new_startpos = np.array([min(startpos[0], endpos[0]), min(startpos[1], endpos[1])])
+        new_endpos = np.array([max(startpos[0], endpos[0]), max(startpos[1], endpos[1])])
+
+        if (new_startpos == new_endpos).all():
+            new_startpos -= np.array([0.1, 0.02])
+            new_endpos += np.array([0.1, 0.02])
+        return new_startpos, new_endpos
+
     def _handle_data_selected(self, startpos, endpos):
         """
         Runs the parent method (selected_callback) to select points when the user holds down control and selects points
@@ -170,17 +267,50 @@ class PanZoomInteractive(scene.PanZoomCamera):
         """
 
         if self.selected_callback:
-            startpos = [startpos[0] - 80, startpos[1] - 10]  # camera transform seems to not handle the new twod_grid
-            endpos = [endpos[0] - 80, endpos[1] - 10]        # add these on to handle the buffers until we figure it out
-            startpos = self._transform.imap(startpos)
-            endpos = self._transform.imap(endpos)
-            new_startpos = np.array([min(startpos[0], endpos[0]), min(startpos[1], endpos[1])])
-            new_endpos = np.array([max(startpos[0], endpos[0]), max(startpos[1], endpos[1])])
-
-            if (new_startpos == new_endpos).all():
-                new_startpos -= np.array([0.1, 0.02])
-                new_endpos += np.array([0.1, 0.02])
+            new_startpos, new_endpos = self._handle_data_events(startpos, endpos)
             self.selected_callback(new_startpos, new_endpos, three_d=False)
+
+    def _handle_data_cleaned(self, startpos, endpos):
+        """
+        Runs the parent method (clean_callback) to reject points when the user holds down alt and selects points
+        with this camera.
+
+        Parameters
+        ----------
+        startpos
+            click position in screen coordinates
+        endpos
+            mouse click release position in screen coordinates
+        """
+
+        if self.clean_callback:
+            new_startpos, new_endpos = self._handle_data_events(startpos, endpos)
+            self.clean_callback(new_startpos, new_endpos, three_d=False)
+
+    def _handle_data_accepted(self, startpos, endpos):
+        """
+        Runs the parent method (clean_callback) to accept points when the user holds down alt and selects points
+        with this camera.
+
+        Parameters
+        ----------
+        startpos
+            click position in screen coordinates
+        endpos
+            mouse click release position in screen coordinates
+        """
+
+        if self.accept_callback:
+            new_startpos, new_endpos = self._handle_data_events(startpos, endpos)
+            self.accept_callback(new_startpos, new_endpos, three_d=False)
+
+    def _handle_data_undo(self):
+        """
+        Runs the parent method (undo_callback) to undo reject points when the user holds down alt and right clicks with this camera.
+        """
+
+        if self.undo_callback:
+            self.undo_callback()
 
     def viewbox_mouse_event(self, event):
         """
@@ -206,6 +336,12 @@ class PanZoomInteractive(scene.PanZoomCamera):
             p2 = event.mouse_event.pos
             if 1 in event.buttons and keys.CONTROL in modifiers:
                 self._handle_data_selected(p1, p2)
+            if 1 in event.buttons and keys.ALT in modifiers:
+                self._handle_data_cleaned(p1, p2)
+            if 2 in event.buttons and keys.ALT in modifiers:
+                self._handle_data_accepted(p1, p2)
+            if 3 in event.buttons and keys.ALT in modifiers:
+                self._handle_data_undo()
             event.handled = True
         elif event.type == 'mouse_move':
             if event.press_event is None:
@@ -238,20 +374,27 @@ class TurntableCameraInteractive(scene.TurntableCamera):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.selected_callback = None
+        self.clean_callback = None
+        self.accept_callback = None
+        self.undo_callback = None
         self.fresh_camera = True
-        self.min_z = None
-        self.max_z = None
 
-    def set_z_limits(self, minz, maxz):
-        self.min_z = minz
-        self.max_z = maxz
-
-    def _bind_selecting_event(self, selfunc):
+    def _bind_event(self, selfunc, eventname):
         """
         Emit the top left/bottom right 3d coordinates of the selection.  Parent widget will control the 3dview and
         highlight the points as well as populating the explorer widget with the values so you can see.
         """
-        self.selected_callback = selfunc
+        if eventname == 'select':
+            self.selected_callback = selfunc
+        elif eventname == 'clean':
+            self.clean_callback = selfunc
+        elif eventname == 'undo':
+            self.undo_callback = selfunc
+        elif eventname == 'accept':
+            self.accept_callback = selfunc
+        else:
+            raise NotImplementedError(
+                'Only select, clean, accept and undo functions currently supported, received {}'.format(eventname))
 
     def _3drot_vector(self, x, y, z, inv: bool = False):
         """
@@ -330,6 +473,7 @@ class TurntableCameraInteractive(scene.TurntableCamera):
         dx, dy, dz = ff[0] * dx, ff[1] * dy, dz * ff[2]
         c = self._event_value
         self.center = c[0] + dx, c[1] + dy, c[2] + dz
+        self.view_changed()
 
     def _handle_zoom_event(self, distance):
         """
@@ -364,54 +508,6 @@ class TurntableCameraInteractive(scene.TurntableCamera):
             self._distance *= s
         self.view_changed()
 
-    def screen_to_data_coordinate(self, x: float, y: float):
-        """
-        Take data coordinates provided here and convert to screen coordinates.  Will return a list of two points, one the
-        data coordinate in the foreground, and one the data coordinate in the background.
-        """
-        pt = np.array([x, y])
-        center_mouse_coords = np.array(self._viewbox.size) / 2
-
-        dist_cnrn = self._dist_between_mouse_coords(center_mouse_coords, pt)
-        dist_crnr_back = self._3drot_vector(-dist_cnrn[0], dist_cnrn[1], 0)
-        dist_crnr_front = self._3drot_vector(-dist_cnrn[0], dist_cnrn[1], 1)
-        if dist_crnr_front[2] > dist_crnr_back[2]:
-            final_pts = [np.array(dist_crnr_back) + np.array(self.center), np.array(dist_crnr_front) + np.array(self.center)]
-        else:
-            final_pts = [np.array(dist_crnr_front) + np.array(self.center), np.array(dist_crnr_back) + np.array(self.center)]
-        return final_pts
-
-    def _screen_corners_data_coordinates(self):
-        """
-        Take the screen coordinates of the corner points of the view (in pixels) and return the corner coordinates
-        in data coordinates.  EX: top left (0,0) might be converted to (-3, 1, 10) if the top left is that in data
-        coordinates.
-
-        Returns
-        -------
-        list
-            list of lists, [top left back, top left forward, top right back, top right forward,
-                            bottom left back, bottom left forward, bottom left back, bottom left forward]
-        """
-
-        final_corner_points = []
-        corner_pts = [np.array([0, 0]), np.array([self._viewbox.size[0], 0]), np.array([0, self._viewbox.size[1]]),
-                      np.array([self._viewbox.size[0], self._viewbox.size[1]])]
-        for crnr in corner_pts:
-            final_corners = self.screen_to_data_coordinate(crnr[0], crnr[1])
-            final_corner_points.append(final_corners[0])
-            final_corner_points.append(final_corners[1])
-        return np.array(final_corner_points)
-
-    def data_coordinates_to_screen(self, x, y, z):
-        newx, newy, newz = self._3drot_vector(x, y, z, inv=True)
-        print('rotated {}->{} {}->{} {}->{}'.format(round(newx.min(), 3), round(newx.max(), 3), round(newy.min(), 3),
-                                                    round(newy.max(), 3), round(newz.min(), 3), round(newz.max(), 3)))
-        print('factor = {}'.format((1 / self._distance / np.sqrt(2)) * self._viewbox.size[0]))
-        newx = (newx) / (self._distance / np.sqrt(2)) * self._viewbox.size[0]
-        newy = (newy) / (self._distance / np.sqrt(2)) * self._viewbox.size[1]
-        return newx, newy
-
     def _handle_data_selected(self, startpos, endpos):
         """
         Runs the parent method (selected_callback) to select points when the user holds down control and selects points
@@ -424,26 +520,49 @@ class TurntableCameraInteractive(scene.TurntableCamera):
         endpos
             mouse click release position in screen coordinates
         """
-        # TODO
-        # build 4 infinite lines (each screen xy corner) and rotate (rotate equations of lines into utm)
-        #  - assume 0 and 1 for z to get unit vector
-        # solve for corners to get utm xyz for each end of segment, gives volume in utm
-        #  - have to extend segment to min max utm z, should alter utm x y and z
-        # clip point utm data to the min/max volume xy
-        # inv rotate clipped xyz to screen xy to get subset of points to select from
-        #  - think about check here to see if too many points selected
-        # select from drag-selected xy to get selected points
 
-        print('Selecting data in 3d is currently not implemented.')
-        # if self.selected_callback:
-        #     if (startpos == endpos).all():
-        #         startpos -= 10
-        #         endpos += 10
-        #     new_startpos = np.array([int(min(startpos[0], endpos[0])), int(min(startpos[1], endpos[1]))])
-        #     new_endpos = np.array([int(max(startpos[0], endpos[0])), int(max(startpos[1], endpos[1]))])
-        #     new_startpos = self.screen_to_data_coordinate(new_startpos[0], new_startpos[1])
-        #     new_endpos = self.screen_to_data_coordinate(new_endpos[0], new_endpos[1])
-        #     self.selected_callback(new_startpos, new_endpos, three_d=True)
+        if self.selected_callback:
+            self.selected_callback(startpos, endpos, three_d=True)
+
+    def _handle_data_cleaned(self, startpos, endpos):
+        """
+        Runs the parent method (clean_callback) to reject points when the user holds down alt and selects points
+        with this camera.
+
+        Parameters
+        ----------
+        startpos
+            click position in screen coordinates
+        endpos
+            mouse click release position in screen coordinates
+        """
+
+        if self.clean_callback:
+            self.clean_callback(startpos, endpos, three_d=True)
+
+    def _handle_data_accepted(self, startpos, endpos):
+        """
+        Runs the parent method (clean_callback) to Accept points when the user holds down alt and selects points
+        with this camera.
+
+        Parameters
+        ----------
+        startpos
+            click position in screen coordinates
+        endpos
+            mouse click release position in screen coordinates
+        """
+
+        if self.accept_callback:
+            self.accept_callback(startpos, endpos, three_d=True)
+
+    def _handle_data_undo(self):
+        """
+        Runs the parent method (undo_callback) to undo reject points when the user holds down alt and right clicks with this camera.
+        """
+
+        if self.undo_callback:
+            self.undo_callback()
 
     def viewbox_mouse_event(self, event):
         """
@@ -475,6 +594,12 @@ class TurntableCameraInteractive(scene.TurntableCamera):
             p2 = event.mouse_event.pos
             if 1 in event.buttons and keys.CONTROL in modifiers:
                 self._handle_data_selected(p1, p2)
+            if 1 in event.buttons and keys.ALT in modifiers:
+                self._handle_data_cleaned(p1, p2)
+            if 2 in event.buttons and keys.ALT in modifiers:
+                self._handle_data_accepted(p1, p2)
+            if 3 in event.buttons and keys.ALT in modifiers:
+                self._handle_data_undo()
             self._event_value = None  # Reset
             event.handled = True
         elif event.type == 'mouse_press':
@@ -491,7 +616,7 @@ class TurntableCameraInteractive(scene.TurntableCamera):
                 self._update_rotation(event)
             elif 1 in event.buttons and keys.SHIFT in modifiers:
                 self._handle_translate_event(p1, p2)
-            elif 2 in event.buttons:
+            elif 2 in event.buttons and not modifiers:
                 self._handle_zoom_event(d)
         else:
             event.handled = False
@@ -520,6 +645,7 @@ class ThreeDView(QtWidgets.QWidget):
         self.scatter_select_range = None
 
         self.idrange = {}
+        self.idlookup = {}
 
         self.id = np.array([], dtype=object)
         self.head = np.array([], dtype=np.int8)
@@ -562,6 +688,7 @@ class ThreeDView(QtWidgets.QWidget):
         self.vertical_exaggeration = 1.0
         self.view_direction = 'north'
         self.show_axis = True
+        self.show_rejected = True
 
         self.displayed_points = None
         self.selected_points = None
@@ -570,6 +697,49 @@ class ThreeDView(QtWidgets.QWidget):
         layout = QtWidgets.QHBoxLayout()
         layout.addWidget(self.canvas.native)
         self.setLayout(layout)
+
+        # Connect events just for handling the box display.  Otherwise the camera handles the translation/rotation/picking
+        self.canvas.events.mouse_press.connect(self._on_mouse_press)
+        self.canvas.events.mouse_release.connect(self._on_mouse_release)
+        self.canvas.events.mouse_move.connect(self._on_mouse_move)
+
+        # Set up for rectangle drawing
+        self.line_pos = []
+        self.line_origin = None
+        self.line = scene.visuals.Line(color='white', method='gl', parent=self.canvas.scene)
+        self.line.visible = False  # set initially to invisible so it doesn't block the initial camera event
+
+    def _on_mouse_press(self, event):
+        """
+        Capture the mouse event before the camera gets it for point selection/cleaning to set the origin of the drawn
+        selection box.
+        """
+
+        self.line_origin = event.pos
+
+    def _on_mouse_release(self, event):
+        """
+        Capture the mouse event before the camera gets it for point selection/cleaning to clear the selection box
+        """
+
+        self.line_pos = []
+        self.line_origin = None
+        self.line.visible = False
+
+    def _on_mouse_move(self, event):
+        """
+        Capture the mouse event before the camera gets it for point selection/cleaning to update the selection box
+        """
+
+        if self.line_origin is not None:
+            modifiers = event.modifiers
+            if keys.CONTROL in modifiers or keys.ALT in modifiers:  # these are the cleaning and selection mode buttons
+                self.line.visible = True
+                width = event.pos[0] - self.line_origin[0]
+                height = event.pos[1] - self.line_origin[1]
+                center = (width / 2. + self.line_origin[0], height / 2. + self.line_origin[1], 0)
+                self.line_pos = rectangle_vertice(center, height, width)
+                self.line.set_data(np.array(self.line_pos))
 
     def _select_points(self, startpos, endpos, three_d: bool = False):
         """
@@ -585,6 +755,44 @@ class ThreeDView(QtWidgets.QWidget):
 
         if self.displayed_points is not None and self.parent is not None:
             self.parent.select_points(startpos, endpos, three_d=three_d)
+
+    def _clean_points(self, startpos, endpos, three_d: bool = False):
+        """
+        Trigger the parent method to clean (reject) points data within the bounds provided by the two points
+
+        Parameters
+        ----------
+        startpos
+            Point where you first clicked
+        endpos
+            Point where you released the mouse button after dragging
+        """
+
+        if self.displayed_points is not None and self.parent is not None:
+            self.parent.clean_points(startpos, endpos, three_d=three_d)
+
+    def _accept_points(self, startpos, endpos, three_d: bool = False):
+        """
+        Trigger the parent method to accept (re-accept) points data within the bounds provided by the two points
+
+        Parameters
+        ----------
+        startpos
+            Point where you first clicked
+        endpos
+            Point where you released the mouse button after dragging
+        """
+
+        if self.displayed_points is not None and self.parent is not None:
+            self.parent.accept_points(startpos, endpos, three_d=three_d)
+
+    def _undo_clean(self):
+        """
+        Trigger the parent method to undo the last cleaning action
+        """
+
+        if self.displayed_points is not None and self.parent is not None:
+            self.parent.undo_clean()
 
     def add_points(self, head: np.array, x: np.array, y: np.array, z: np.array, tvu: np.array, rejected: np.array,
                    pointtime: np.array, beam: np.array, newid: str, linename: np.array, azimuth: float = None):
@@ -604,7 +812,7 @@ class ThreeDView(QtWidgets.QWidget):
         tvu
             vertical uncertainty
         rejected
-            The accepted/rejected state of each beam.  2 = rejected, 1 = phase detection, 0 = amplitude detection
+            The accepted/rejected state of each beam.  3 = reaccepted, 2 = rejected, 1 = phase detection, 0 = amplitude detection
         pointtime
             time of the sounding
         beam
@@ -632,9 +840,15 @@ class ThreeDView(QtWidgets.QWidget):
         self.head = np.concatenate([self.head, head])
 
         # expand the identifier to be the size of the input arrays
-        self.id = np.concatenate([self.id, np.full(x.shape[0], newid)])
-        self.id = self.id + '_' + self.head.astype(str)
-        self.idrange[newid] = [self.x.shape[0], self.x.shape[0] + x.shape[0]]
+        newid_array = np.full(head.shape[0], newid, dtype=object) + '_' + head.astype(str)
+        self.id = np.concatenate([self.id, newid_array])
+        uniqids = np.unique(newid_array)
+        for unid in uniqids:
+            headnum = int(unid[-1])
+            self.idlookup[unid] = newid
+            headwhere = np.where(head == headnum)[0]
+            headstart, headend = headwhere[0], headwhere[-1] + 1
+            self.idrange[unid] = [self.x.shape[0] + headstart, self.x.shape[0] + headend]
 
         self.x = np.concatenate([self.x, x])
         self.y = np.concatenate([self.y, y])
@@ -646,6 +860,9 @@ class ThreeDView(QtWidgets.QWidget):
         self.linename = np.concatenate([self.linename, linename])
 
     def return_points(self):
+        """
+        Return all the data in the 3dview
+        """
         return [self.id, self.head, self.x, self.y, self.z, self.tvu, self.rejected, self.pointtime, self.beam, self.linename]
 
     def _configure_2d_3d_view(self):
@@ -676,7 +893,10 @@ class ThreeDView(QtWidgets.QWidget):
             self.twod_grid.spacing = 0
             self.view = self.twod_grid.add_view(row=1, col=1, border_color='white')
             self.view.camera = PanZoomInteractive()
-        self.view.camera._bind_selecting_event(self._select_points)
+        self.view.camera._bind_event(self._select_points, 'select')
+        self.view.camera._bind_event(self._clean_points, 'clean')
+        self.view.camera._bind_event(self._accept_points, 'accept')
+        self.view.camera._bind_event(self._undo_clean, 'undo')
 
     def setup_axes(self):
         """
@@ -730,7 +950,7 @@ class ThreeDView(QtWidgets.QWidget):
                 self.axis_x.link_view(self.view)
                 self.axis_z.link_view(self.view)
 
-    def _build_color_by_soundings(self, color_by: str = 'depth'):
+    def _build_color_by_soundings(self, color_by: str = 'depth', color_selected: bool = True):
         """
         Build out a RGBA value for each point based on the color_by argument.  We use the matplotlib colormap to
         return these values.  If you pick something like system or linename, we just return a mapped value for each
@@ -740,6 +960,8 @@ class ThreeDView(QtWidgets.QWidget):
         ----------
         color_by
             one of depth, vertical_uncertainty, beam, rejected, system, linename
+        color_selected
+            to color the user selected points or not
 
         Returns
         -------
@@ -754,7 +976,19 @@ class ThreeDView(QtWidgets.QWidget):
         """
 
         # normalize the arrays and build the colors for each sounding
-        if color_by == 'depth':
+        if color_by == 'id':
+            if len(self.z) + 1 > 2**32:
+                raise NotImplementedError('Got more than 2^32 points, cant encode an ID as RGBA...')
+            # color each sounding by a unique id encoded as RGBA
+            ids = np.arange(1, len(self.z) + 1, dtype=np.uint32).view(np.uint8)
+            ids = ids.reshape(-1, 4)
+            clrs = np.divide(ids, 255, dtype=np.float32)
+            cmap = None
+            if color_selected:
+                raise NotImplementedError('color_selected not allowed when coloring by ID, this is just for picking points...')
+            min_val = 0
+            max_val = 0
+        elif color_by == 'depth':
             min_val = self.min_z
             max_val = self.max_z
             clrs, cmap = normalized_arr_to_rgb_v2((self.z - self.min_z) / (self.max_z - self.min_z), reverse=True)
@@ -768,8 +1002,9 @@ class ThreeDView(QtWidgets.QWidget):
             clrs, cmap = normalized_arr_to_rgb_v2(self.beam / self.max_beam, band_count=self.max_beam)
         elif color_by == 'rejected':
             min_val = 0
-            max_val = 2
-            clrs, cmap = normalized_arr_to_rgb_v2(self.rejected / 2, band_count=3, colormap='bwr')
+            max_val = 3
+            cmap = ListedColormap(['white', 'blue', 'red', 'cyan'])
+            clrs = cmap(self.rejected / 3)
         elif color_by in ['system', 'linename']:
             min_val = 0
             if color_by == 'system':
@@ -787,7 +1022,7 @@ class ThreeDView(QtWidgets.QWidget):
         else:
             raise ValueError('Coloring by {} is not supported at this time'.format(color_by))
 
-        if self.selected_points is not None and self.selected_points.any():
+        if self.selected_points is not None and self.selected_points.any() and color_selected:
             msk = np.zeros(self.displayed_points.shape[0], dtype=bool)
             msk[self.selected_points] = True
             clrs[msk, :] = kluster_variables.selected_point_color
@@ -795,6 +1030,12 @@ class ThreeDView(QtWidgets.QWidget):
                 msk[:] = False
                 msk[self.selected_points[self.superselected_index]] = True
                 clrs[msk, :] = kluster_variables.super_selected_point_color
+
+        if not self.show_rejected:
+            msk = self.rejected != kluster_variables.rejected_flag
+        else:
+            msk = np.ones_like(self.rejected, dtype=bool)
+        clrs = clrs[msk]
 
         return clrs, cmap, min_val, max_val
 
@@ -810,21 +1051,26 @@ class ThreeDView(QtWidgets.QWidget):
             (N,4) array, where N is the number of points and the values are the RGBA values for each point
         """
 
+        if not self.show_rejected:
+            msk = self.rejected != kluster_variables.rejected_flag
+        else:
+            msk = np.ones_like(self.rejected, dtype=bool)
         if self.is_3d:
-            self.scatter.set_data(self.displayed_points, edge_color=clrs, face_color=clrs, symbol='o', size=3)
+            self.scatter.set_data(self.displayed_points[msk], edge_color=clrs, face_color=clrs, symbol='o', size=3)
             if self.view.camera.fresh_camera:
                 self.view.camera.center = (self.mean_x - self.x_offset, self.mean_y - self.y_offset, self.mean_z - self.min_z)
                 self.view.camera.distance = (self.max_x - self.x_offset) * 2
                 self.view.camera.fresh_camera = False
+                self.view.camera.view_changed()
         else:
             if self.view_direction in ['north']:
-                self.scatter.set_data(self.displayed_points[:, [0, 2]], edge_color=clrs, face_color=clrs, symbol='o', size=3)
+                self.scatter.set_data(self.displayed_points[msk][:, [0, 2]], edge_color=clrs, face_color=clrs, symbol='o', size=3)
                 self.view.camera.center = (self.mean_x - self.x_offset, self.mean_z - self.min_z)
                 if self.view.camera.fresh_camera:
                     self.view.camera.zoom((self.max_x - self.x_offset) + 10)  # try and fit the swath in view on load
                     self.view.camera.fresh_camera = False
             elif self.view_direction in ['east', 'arrow']:
-                self.scatter.set_data(self.displayed_points[:, [1, 2]], edge_color=clrs, face_color=clrs, symbol='o', size=3)
+                self.scatter.set_data(self.displayed_points[msk][:, [1, 2]], edge_color=clrs, face_color=clrs, symbol='o', size=3)
                 self.view.camera.center = (self.mean_y - self.y_offset, self.mean_z - self.min_z)
                 if self.view.camera.fresh_camera:
                     self.view.camera.zoom((self.max_y - self.y_offset) + 10)  # try and fit the swath in view on load
@@ -871,11 +1117,8 @@ class ThreeDView(QtWidgets.QWidget):
         self.unique_systems = np.unique(self.id).tolist()
         self.unique_linenames = np.unique(self.linename).tolist()
 
-        if self.is_3d:
-            self.view.camera.set_z_limits(self.min_z, self.max_z)
-
     def display_points(self, color_by: str = 'depth', vertical_exaggeration: float = 1.0, view_direction: str = 'north',
-                       show_axis: bool = True):
+                       show_axis: bool = True, show_rejected: bool = True):
         """
         After adding all the points you want to add, call this method to then load them in opengl and draw them to the
         scatter plot
@@ -891,6 +1134,8 @@ class ThreeDView(QtWidgets.QWidget):
             picks either northings or eastings for display, only for 2d view
         show_axis
             to build or not build the axis
+        show_rejected
+            to show or not to show the rejected soundings
 
         Returns
         -------
@@ -909,6 +1154,7 @@ class ThreeDView(QtWidgets.QWidget):
         self.view_direction = view_direction
         self.vertical_exaggeration = vertical_exaggeration
         self.show_axis = show_axis
+        self.show_rejected = show_rejected
 
         self._build_statistics()
         # we need to subtract the min of our arrays.  There is a known issue with vispy (maybe in opengl in general) that large
@@ -950,16 +1196,24 @@ class ThreeDView(QtWidgets.QWidget):
 
         return cmap, minval, maxval
 
-    def highlight_selected_scatter(self, color_by):
+    def highlight_selected_scatter(self, color_by, color_selected=True):
         """
         A quick highlight method that circumvents the slower set_data.  Simply set the new colors and update the data.
         """
 
-        clrs, cmap, minval, maxval = self._build_color_by_soundings(color_by)
-        self.scatter._data['a_fg_color'] = clrs
-        self.scatter._data['a_bg_color'] = clrs
-        self.scatter._vbo.set_data(self.scatter._data)
-        self.scatter.update()
+        clrs, cmap, minval, maxval = self._build_color_by_soundings(color_by, color_selected)
+        if self.scatter is not None:
+            if not self.show_rejected:
+                msk = self.rejected != kluster_variables.rejected_flag
+            else:
+                msk = np.ones_like(self.rejected, dtype=bool)
+            if self.is_3d:
+                self.scatter.set_data(self.displayed_points[msk], edge_color=clrs, face_color=clrs, symbol='o', size=3)
+            else:
+                if self.view_direction in ['north']:
+                    self.scatter.set_data(self.displayed_points[msk][:, [0, 2]], edge_color=clrs, face_color=clrs, symbol='o', size=3)
+                elif self.view_direction in ['east', 'arrow']:
+                    self.scatter.set_data(self.displayed_points[msk][:, [1, 2]], edge_color=clrs, face_color=clrs, symbol='o', size=3)
         return cmap, minval, maxval
 
     def clear_display(self):
@@ -992,6 +1246,9 @@ class ThreeDView(QtWidgets.QWidget):
         self.beam = np.array([], dtype=np.int32)
         self.linename = np.array([], dtype=object)
 
+        self.idrange = {}
+        self.idlookup = {}
+
         if self.axis_x is not None:
             self.axis_x.parent = None
             self.axis_x = None
@@ -1013,9 +1270,14 @@ class ThreeDWidget(QtWidgets.QWidget):
     """
 
     points_selected = Signal(object, object, object, object, object, object, object, object, object, object)
+    points_cleaned = Signal(object)
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, settings=None):
         super().__init__(parent)
+
+        self.external_settings = settings
+        self.widgetname = '3dview'
+        self.appname = 'kluster'
 
         self.three_d_window = ThreeDView(self)
 
@@ -1064,6 +1326,9 @@ class ThreeDWidget(QtWidgets.QWidget):
         self.show_colorbar = QtWidgets.QCheckBox('Show Colorbar')
         self.show_colorbar.setChecked(True)
         self.opts_layout.addWidget(self.show_colorbar)
+        self.show_rejected = QtWidgets.QCheckBox('Show Rejected')
+        self.show_rejected.setChecked(True)
+        self.opts_layout.addWidget(self.show_rejected)
         self.opts_layout.addStretch()
 
         self.colorbar = ColorBar()
@@ -1071,18 +1336,27 @@ class ThreeDWidget(QtWidgets.QWidget):
         self.viewlayout = QtWidgets.QHBoxLayout()
         self.viewlayout.addWidget(self.three_d_window)
         self.viewlayout.addWidget(self.colorbar)
-        self.viewlayout.setStretchFactor(self.three_d_window, 1)
-        self.viewlayout.setStretchFactor(self.colorbar, 0)
+        self.viewlayout.setStretchFactor(self.three_d_window, 6)
+        self.viewlayout.setStretchFactor(self.colorbar, 1)
 
         self.mainlayout.addLayout(self.opts_layout)
         self.mainlayout.addLayout(self.viewlayout)
 
-        instruct = 'Left Mouse Button: Rotate,  Right Mouse Button/Mouse wheel: Zoom,  Shift + Left Mouse Button: Move,'
-        instruct += ' Ctrl + Left Mouse Button: Query'
-        self.instructions = QtWidgets.QLabel(instruct)
+        instruct = 'You can interact with Points View using the following keyboard/mouse shortcuts:\n\n'
+        instruct += 'Left Mouse Button: Hold down and move to rotate the camera\n'
+        instruct += 'Right Mouse Button: Hold down and move to zoom the camera\n'
+        instruct += 'Mouse Wheel: Wheel in/out to zoom the camera\n'
+        instruct += '(3D ONLY) Shift + Left Mouse Button: Move/Translate the camera center location\n'
+        instruct += 'Ctrl + Left Mouse Button: Query points (see Explorer window)\n'
+        instruct += 'Alt + Left Mouse Button: Clean points (mark as Rejected, see Color By: Rejected)\n'
+        instruct += 'Alt + Right Mouse Button: Accept points (mark as Accepted, see Color By: Rejected)\n'
+        instruct += 'Alt + Middle Mouse Button: Undo last cleaning operation'
+
+        self.instructions = QtWidgets.QLabel('Mouse over for Instructions')
         self.instructions.setAlignment(QtCore.Qt.AlignCenter)
         self.instructions.setStyleSheet("QLabel { font-style : italic }")
         self.instructions.setWordWrap(True)
+        self.instructions.setToolTip(instruct)
         self.mainlayout.addWidget(self.instructions)
 
         self.mainlayout.setStretchFactor(self.viewlayout, 1)
@@ -1094,12 +1368,76 @@ class ThreeDWidget(QtWidgets.QWidget):
         self.vertexag.valueChanged.connect(self.refresh_settings)
         self.show_axis.stateChanged.connect(self.refresh_settings)
         self.show_colorbar.stateChanged.connect(self._event_show_colorbar)
+        self.show_rejected.stateChanged.connect(self.refresh_settings)
 
         self.is_3d = None
-        self.last_used_view = None
+        self.last_change_buffer = []
+        self.text_controls = [['dimension', self.dimension], ['colorby', self.colorby],
+                              ['viewdirection2d', self.viewdirection2d],
+                              ['viewdirection3d', self.viewdirection3d], ['vertexag', self.vertexag]]
+        self.checkbox_controls = [['show_colorbar', self.show_colorbar], ['show_rejected', self.show_rejected]]
+
         self._handle_dimension_change()
         self.viewdirection2d.currentTextChanged.connect(self.refresh_settings)
         self.viewdirection3d.currentTextChanged.connect(self.refresh_settings)
+        self.read_settings()
+
+    @property
+    def settings_object(self):
+        if self.external_settings:
+            return self.external_settings
+        else:
+            return QtCore.QSettings("NOAA", self.appname)
+
+    def save_settings(self):
+        """
+        Save the settings to the Qsettings registry
+        """
+        settings = self.settings_object
+        if self.text_controls:
+            for cname, tcntrl in self.text_controls:
+                try:
+                    settings.setValue('{}/{}_{}'.format(self.appname, self.widgetname, cname), tcntrl.currentText())
+                except:
+                    settings.setValue('{}/{}_{}'.format(self.appname, self.widgetname, cname), tcntrl.text())
+        if self.checkbox_controls:
+            for cname, ccntrl in self.checkbox_controls:
+                settings.setValue('{}/{}_{}'.format(self.appname, self.widgetname, cname), ccntrl.isChecked())
+        settings.sync()
+
+    def read_settings(self):
+        """
+        Read from the Qsettings registry
+        """
+        settings = self.settings_object
+        try:
+            if self.text_controls:
+                for cname, tcntrl in self.text_controls:
+                    base_value = settings.value('{}/{}_{}'.format(self.appname, self.widgetname, cname))
+                    if base_value is None:
+                        base_value = ''
+                    text_value = str(base_value)
+                    if text_value:
+                        try:
+                            tcntrl.setCurrentText(text_value)
+                        except:
+                            try:
+                                tcntrl.setText(text_value)
+                            except:
+                                tcntrl.setValue(float(text_value))
+            if self.checkbox_controls:
+                for cname, ccntrl in self.checkbox_controls:
+                    check_value = settings.value('{}/{}_{}'.format(self.appname, self.widgetname, cname))
+                    try:
+                        ccntrl.setChecked(check_value.lower() == 'true')
+                    except AttributeError:
+                        try:
+                            ccntrl.setChecked(check_value)
+                        except:
+                            pass
+        except TypeError:
+            # no settings exist yet for this app
+            pass
 
     def _event_show_colorbar(self, e):
         """
@@ -1117,6 +1455,7 @@ class ThreeDWidget(QtWidgets.QWidget):
         Adding new points will update the three d window with the boints and set the controls to show/hide
         """
 
+        self.last_change_buffer = []
         self.three_d_window.selected_points = None
         self.three_d_window.superselected_index = None
         self.three_d_window.add_points(head, x, y, z, tvu, rejected, pointtime, beam, newid, linename, azimuth=azimuth)
@@ -1124,20 +1463,32 @@ class ThreeDWidget(QtWidgets.QWidget):
     def return_points(self):
         return self.three_d_window.return_points()
 
-    def select_points(self, startpos, endpos, three_d: bool = False):
-        """
-        Triggers when the user CTRL+Mouse selects data in the 3dview.  We set the selected points and let the view know
-        to highlight those points and set the attributes in the Kluster explorer widget.
-        """
-
+    def _handle_point_selection(self, startpos, endpos, three_d: bool = False):
         if three_d:
-            vd = self.viewdirection3d.currentText()
-            mask_x_min = self.three_d_window.displayed_points[:, 0] >= np.min([startpos[0][0], startpos[1][0], endpos[0][0], endpos[1][0]])
-            mask_x_max = self.three_d_window.displayed_points[:, 0] <= np.max([startpos[0][0], startpos[1][0], endpos[0][0], endpos[1][0]])
-            mask_y_min = self.three_d_window.displayed_points[:, 1] >= np.min([startpos[0][1], startpos[1][1], endpos[0][1], endpos[1][1]])
-            mask_y_max = self.three_d_window.displayed_points[:, 1] <= np.max([startpos[0][1], startpos[1][1], endpos[0][1], endpos[1][1]])
-            points_in_screen = np.argwhere(mask_x_min & mask_x_max & mask_y_min & mask_y_max)
-            self.three_d_window.selected_points = points_in_screen[:, 0]
+            # color the points by a unique rgba value, render with the new color and pull the id of the point by its color
+            #  this is a workaround for the 3d camera transforms not working.  See https://github.com/vispy/vispy/issues/1336
+            startpos_canvas = self.three_d_window.canvas.transforms.canvas_transform.map(startpos)
+            endpos_canvas = self.three_d_window.canvas.transforms.canvas_transform.map(endpos)
+            points_in_screen = np.zeros_like(self.three_d_window.displayed_points[:, 0], dtype=bool)
+            self.three_d_window.scatter.update_gl_state(blend=False)
+            self.three_d_window.scatter.antialias = 0
+            self.three_d_window.highlight_selected_scatter('id', False)
+            minx, miny = min(startpos_canvas[0], endpos_canvas[0]), min(startpos_canvas[1], endpos_canvas[1])
+            window_width, window_height = max(abs(startpos_canvas[0] - endpos_canvas[0]), 1), max(abs(startpos_canvas[1] - endpos_canvas[1]), 1)
+            img = self.three_d_window.canvas.render((int(minx), int(miny), int(window_width), int(window_height)), bgcolor=(0, 0, 0, 0))
+            idxs = img.ravel().view(np.uint32)
+            if idxs.any():
+                idxs = np.unique(idxs)
+                idx = idxs[idxs != 0]
+                if idx.any():
+                    # subtract one; color 0 was reserved for the background
+                    idx = idx - 1
+                    # filter out the out of bounds indices
+                    idx = idx[np.logical_and(idx > 0, idx < points_in_screen.shape[0])]
+                    points_in_screen[idx] = True
+            self.three_d_window.scatter.update_gl_state(blend=True)
+            self.three_d_window.scatter.antialias = 1
+            points_in_screen = np.argwhere(points_in_screen)[:, 0]
         else:
             vd = self.viewdirection2d.currentText()
             if vd in ['north']:
@@ -1146,7 +1497,19 @@ class ThreeDWidget(QtWidgets.QWidget):
             elif vd in ['east', 'arrow']:
                 m1 = self.three_d_window.displayed_points[:, [1, 2]] >= startpos[0:2]
                 m2 = self.three_d_window.displayed_points[:, [1, 2]] <= endpos[0:2]
-            self.three_d_window.selected_points = np.argwhere(m1[:, 0] & m1[:, 1] & m2[:, 0] & m2[:, 1])[:, 0]
+            else:
+                raise NotImplementedError('View direction not one of north, east, arrow: {}'.format(vd))
+            points_in_screen = np.argwhere(m1[:, 0] & m1[:, 1] & m2[:, 0] & m2[:, 1])[:, 0]
+        return points_in_screen
+
+    def select_points(self, startpos, endpos, three_d: bool = False):
+        """
+        Triggers when the user CTRL+Mouse selects data in the 3dview.  We set the selected points and let the view know
+        to highlight those points and set the attributes in the Kluster explorer widget.
+        """
+
+        points_in_screen = self._handle_point_selection(startpos, endpos, three_d)
+        self.three_d_window.selected_points = points_in_screen
         self.points_selected.emit(np.arange(self.three_d_window.selected_points.shape[0]),
                                   self.three_d_window.linename[self.three_d_window.selected_points],
                                   self.three_d_window.pointtime[self.three_d_window.selected_points],
@@ -1158,6 +1521,89 @@ class ThreeDWidget(QtWidgets.QWidget):
                                   self.three_d_window.rejected[self.three_d_window.selected_points],
                                   self.three_d_window.id[self.three_d_window.selected_points])
         self.three_d_window.highlight_selected_scatter(self.colorby.currentText())
+
+    def clear_selection(self):
+        self.three_d_window.selected_points = None
+
+    def clean_points(self, startpos, endpos, three_d: bool = False):
+        """
+        Triggers when the user ALT+Mouse1 selects data in the 3dview.  We set the selected points and let the widget know to reject these points.
+        """
+
+        points_in_screen = self._handle_point_selection(startpos, endpos, three_d)
+        self.three_d_window.selected_points = points_in_screen
+        self.last_change_buffer.append([self.three_d_window.selected_points, self.three_d_window.rejected[self.three_d_window.selected_points]])
+        self.three_d_window.rejected[self.three_d_window.selected_points] = kluster_variables.rejected_flag
+        self.points_cleaned.emit(kluster_variables.rejected_flag)
+        self.three_d_window.highlight_selected_scatter(self.colorby.currentText(), False)
+
+        if len(self.last_change_buffer) > kluster_variables.last_change_buffer_size:
+            print('WARNING: Points view will only retain the last {} cleaning actions for undo'.format(kluster_variables.last_change_buffer_size))
+            self.last_change_buffer.pop(0)
+
+    def accept_points(self, startpos, endpos, three_d: bool = False):
+        """
+        Triggers when the user ALT+Mouse2 selects data in the 3dview.  We set the selected points and let the widget know to accept these points.
+        """
+
+        points_in_screen = self._handle_point_selection(startpos, endpos, three_d)
+        self.three_d_window.selected_points = points_in_screen
+        self.last_change_buffer.append([self.three_d_window.selected_points, self.three_d_window.rejected[self.three_d_window.selected_points]])
+        self.three_d_window.rejected[self.three_d_window.selected_points] = kluster_variables.accepted_flag
+        self.points_cleaned.emit(kluster_variables.accepted_flag)
+        self.three_d_window.highlight_selected_scatter(self.colorby.currentText(), False)
+
+        if len(self.last_change_buffer) > kluster_variables.last_change_buffer_size:
+            print('WARNING: Points view will only retain the last {} cleaning actions for undo'.format(kluster_variables.last_change_buffer_size))
+            self.last_change_buffer.pop(0)
+
+    def undo_clean(self):
+        if self.last_change_buffer:
+            last_select, last_status = self.last_change_buffer.pop(-1)
+            self.three_d_window.selected_points = last_select
+            self.three_d_window.rejected[self.three_d_window.selected_points] = last_status
+            self.points_cleaned.emit(last_status)
+            self.three_d_window.highlight_selected_scatter(self.colorby.currentText())
+        else:
+            print('Points View: No changes to undo')
+
+    def split_by_selected(self, selarray: np.array):
+        """
+        Takes an array of the same size as the selected index and returns that array split by system/head indexes
+
+        Will be a dictionary of {container name: [head0_select_index, head1_select_index...]}
+
+        Returns
+        -------
+        dict
+            dictionary of {container name: [head0_select_index, head1_select_index...]}
+        """
+
+        idx = {}
+        if self.three_d_window.selected_points is not None:
+            select_id = self.three_d_window.id[self.three_d_window.selected_points]
+            uniq_ids = np.unique(select_id)
+            source_ids = [self.three_d_window.idlookup[uqid] for uqid in uniq_ids]
+            for uid, sid in zip(uniq_ids, source_ids):
+                headnum = int(uid[-1])
+                uid_filter = np.where(select_id == uid)[0]
+                selarray_filtered = selarray[uid_filter]
+                idx_key = self.three_d_window.idlookup[uid]
+                if idx_key not in idx:
+                    if headnum == 0:
+                        idx[idx_key] = [selarray_filtered]
+                    else:
+                        idx[idx_key] = []
+                        for i in range(headnum):
+                            idx[idx_key].append([])
+                        idx[idx_key].append(selarray_filtered)
+                else:
+                    if len(idx[idx_key]) == headnum:
+                        idx[idx_key].append(selarray_filtered)
+                    else:
+                        for i in range(headnum - len(idx[idx_key])):
+                            idx[idx_key].append([])
+        return idx
 
     def return_select_index(self):
         """
@@ -1179,16 +1625,28 @@ class ThreeDWidget(QtWidgets.QWidget):
         if self.three_d_window.selected_points is not None:
             select_id = self.three_d_window.id[self.three_d_window.selected_points]
             uniq_ids = np.unique(select_id)
-            for uid in uniq_ids:
-                headidx = []
+            source_ids = [self.three_d_window.idlookup[uqid] for uqid in uniq_ids]
+            for uid, sid in zip(uniq_ids, source_ids):
+                headnum = int(uid[-1])
                 data_start, data_end = self.three_d_window.idrange[uid]
                 uid_filter = np.where(select_id == uid)[0]
                 select_filtered = self.three_d_window.selected_points[uid_filter]
-                select_filtered_head = self.three_d_window.head[select_filtered]
-                max_heads = np.max(select_filtered_head)
-                for i in range(max_heads + 1):
-                    headidx.append(select_filtered[np.where(select_filtered_head == i)[0]] - data_start)
-                idx[uid] = headidx
+                dat = select_filtered - data_start
+                idx_key = self.three_d_window.idlookup[uid]
+                if idx_key not in idx:
+                    if headnum == 0:
+                        idx[idx_key] = [dat]
+                    else:
+                        idx[idx_key] = []
+                        for i in range(headnum):
+                            idx[idx_key].append([])
+                        idx[idx_key].append(dat)
+                else:
+                    if len(idx[idx_key]) == headnum:
+                        idx[idx_key].append(dat)
+                    else:
+                        for i in range(headnum - len(idx[idx_key])):
+                            idx[idx_key].append([])
         return idx
 
     def superselect_point(self, superselect_index):
@@ -1236,13 +1694,14 @@ class ThreeDWidget(QtWidgets.QWidget):
         else:
             vd = self.viewdirection3d.currentText()
         showaxis = True  # freezes when hiding axes on 3d for some reason
+        showrejected = self.show_rejected.isChecked()
         if self.vertexag.isHidden():
             vertexag = 1
         else:
             vertexag = self.vertexag.value()
         cmap, minval, maxval = self.three_d_window.display_points(color_by=self.colorby.currentText(),
                                                                   vertical_exaggeration=vertexag, view_direction=vd,
-                                                                  show_axis=showaxis)
+                                                                  show_axis=showaxis, show_rejected=showrejected)
         if cmap is not None:
             self.change_colormap(cmap, minval, maxval)
 
@@ -1324,20 +1783,15 @@ if __name__ == '__main__':
             app = QtWidgets.QApplication([])
 
     win = ThreeDWidget()
-    x = np.arange(10)
-    y = np.arange(10)
-    z = np.arange(10)
-    xx, yy, zz = np.meshgrid(x, y, z)
-    x = xx.ravel()
-    y = yy.ravel()
-    z = zz.ravel()
-    tvu = np.random.rand(x.shape[0])
-    rejected = np.random.randint(0, 3, size=x.shape[0])
-    pointtime = np.arange(x.shape[0])
-    beam = np.random.randint(0, 399, size=x.shape[0])
-    linename = np.full(x.shape[0], '')
+    data = np.random.randn(10000, 3)
+    tvu = np.random.rand(data.shape[0])
+    rejected = np.random.randint(0, 3, size=data.shape[0])
+    pointtime = np.arange(data.shape[0])
+    beam = np.random.randint(0, 399, size=data.shape[0])
+    linename = np.full(data.shape[0], '')
+    head = np.full(data.shape[0], 0)
     newid = 'test'
-    win.add_points(x, y, z, tvu, rejected, pointtime, beam, newid, linename, is_3d=True)
+    win.add_points(head, data[:, 0], data[:, 1], data[:, 2], tvu, rejected, pointtime, beam, newid, linename)
     win.display_points()
     win.show()
     app.exec_()

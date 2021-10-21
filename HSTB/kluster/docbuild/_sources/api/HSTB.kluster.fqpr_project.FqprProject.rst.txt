@@ -22,6 +22,7 @@ FqprProject
       ~FqprProject.new_project_from_directory
       ~FqprProject.open_project
       ~FqprProject.path_relative_to_project
+      ~FqprProject.refresh_fqpr_attribution
       ~FqprProject.regenerate_fqpr_lines
       ~FqprProject.remove_fqpr
       ~FqprProject.remove_surface
@@ -54,6 +55,7 @@ FqprProject
    .. automethod:: new_project_from_directory
    .. automethod:: open_project
    .. automethod:: path_relative_to_project
+   .. automethod:: refresh_fqpr_attribution
    .. automethod:: regenerate_fqpr_lines
    .. automethod:: remove_fqpr
    .. automethod:: remove_surface

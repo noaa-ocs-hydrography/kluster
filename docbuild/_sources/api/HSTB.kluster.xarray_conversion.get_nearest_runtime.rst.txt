@@ -1,6 +1,0 @@
-get_nearest_runtime
-===================
-
-.. currentmodule:: HSTB.kluster.xarray_conversion
-
-.. autofunction:: get_nearest_runtime

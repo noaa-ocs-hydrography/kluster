@@ -1,6 +1,0 @@
-build_geographic_beam_vectors
-=============================
-
-.. currentmodule:: HSTB.kluster.modules.beampointingvector
-
-.. autofunction:: build_geographic_beam_vectors

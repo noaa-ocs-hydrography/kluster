@@ -1,6 +1,0 @@
-compare_and_find_gaps
-=====================
-
-.. currentmodule:: HSTB.kluster.xarray_helpers
-
-.. autofunction:: compare_and_find_gaps

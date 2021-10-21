@@ -1,6 +1,0 @@
-combine_rotation_matrix
-=======================
-
-.. currentmodule:: HSTB.kluster.rotations
-
-.. autofunction:: combine_rotation_matrix

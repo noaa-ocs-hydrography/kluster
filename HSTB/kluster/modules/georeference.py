@@ -131,10 +131,10 @@ def georef_by_worker(sv_corr: list, alt: xr.DataArray, lon: xr.DataArray, lat: x
     if vert_ref in ['NOAA MLLW', 'NOAA MHW']:
         z_stck = z.values[ac_idx]  # get the depth values where there are valid acrosstrack results (i.e. svcorrect worked)
         if vert_ref == 'NOAA MLLW':
-            sep, vdatum_unc = transform_vyperdatum(pos[0], pos[1], np.zeros_like(z_stck), input_crs.to_epsg(), 'mllw', vdatum_directory=vdatum_directory)
+            sep, vdatum_unc = transform_vyperdatum(pos[0], pos[1], None, input_crs.to_epsg(), 'mllw', vdatum_directory=vdatum_directory)
         else:
-            sep, vdatum_unc = transform_vyperdatum(pos[0], pos[1], np.zeros_like(z_stck), input_crs.to_epsg(), 'mhw', vdatum_directory=vdatum_directory)
-        z_stck = z_stck - sep
+            sep, vdatum_unc = transform_vyperdatum(pos[0], pos[1], None, input_crs.to_epsg(), 'mhw', vdatum_directory=vdatum_directory)
+        z_stck = z_stck + sep
         vdatum_unc = reform_nan_array(vdatum_unc, ac_idx, z.shape, z.coords, z.dims)
         z = reform_nan_array(z_stck, ac_idx, z.shape, z.coords, z.dims)
     else:
@@ -190,6 +190,9 @@ def transform_vyperdatum(x: np.array, y: np.array, z: np.array, source_datum: Un
         uncertainty associated with the vertical transformation between the source and destination datum
     """
 
+    if final_datum == 'mllw':  # we need to let vyperdatum know this is positive down, do that by giving it the mllw epsg
+        final_datum = 5866
+
     if vdatum_directory:
         vp = VyperPoints(vdatum_directory=vdatum_directory, silent=True)
     else:
@@ -201,7 +204,8 @@ def transform_vyperdatum(x: np.array, y: np.array, z: np.array, source_datum: Un
         source_datum = kluster_variables.epsg_nad83
     elif source_datum == 'wgs84':
         source_datum = kluster_variables.epsg_wgs84
-    vp.transform_points((source_datum, 'nad83'), final_datum, x, y, z=z)
+    # expects positive up, so we need to flip the z
+    vp.transform_points((source_datum, 'ellipse'), final_datum, x, y, z=None, sample_distance=0.0001)  # sample distance in degrees
 
     return np.around(vp.z, 3), np.around(vp.unc, 3)
 
@@ -228,6 +232,8 @@ def datum_to_wkt(datum_identifier: str, min_lon: float, min_lat: float, max_lon:
     str
         vypercrs wkt string
     """
+    if datum_identifier == 'mllw':  # we need to let vyperdatum know this is positive down, do that by giving it the mllw epsg
+        datum_identifier = 5866
 
     vc = VyperCore()
     vc.set_input_datum((6318, datum_identifier))
@@ -243,16 +249,27 @@ def set_vyperdatum_vdatum_path(vdatum_path: str):
     ----------
     vdatum_path
         path to the vdatum folder
+
+    Returns
+    -------
+    err
+        True if there was an error in setting the vyperdatum vdatum path
+    status
+        status message from vyperdatum
     """
-    # first time setting vdatum path sets the settings file with the correct path
-    vc = VyperCore(vdatum_directory=vdatum_path)
-    vc = None
-    # vdatum path should be autoloaded now on instantiating the VyperCore
-    vc = VyperCore()
-    assert os.path.exists(vc.vdatum.vdatum_path)
-    assert vc.vdatum.grid_files
-    assert vc.vdatum.polygon_files
-    assert vc.vdatum.uncertainties
+
+    err = False
+    status = ''
+    try:
+        # first time setting vdatum path sets the settings file with the correct path
+        vc = VyperCore(vdatum_directory=vdatum_path)
+        if not vc.vdatum.vdatum_version:
+            assert False
+        status = 'Found {} at {}'.format(vc.vdatum.vdatum_version, vc.vdatum.vdatum_path)
+    except:
+        err = True
+        status = 'No valid vdatum found at {}'.format(vdatum_path)
+    return err, status
 
 
 def _new_geohash(latitude: float, longitude: float, precision: int):

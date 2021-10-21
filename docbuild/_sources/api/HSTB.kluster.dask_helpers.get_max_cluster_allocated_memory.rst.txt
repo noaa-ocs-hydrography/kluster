@@ -1,6 +1,0 @@
-get_max_cluster_allocated_memory
-================================
-
-.. currentmodule:: HSTB.kluster.dask_helpers
-
-.. autofunction:: get_max_cluster_allocated_memory

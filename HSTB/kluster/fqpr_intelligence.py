@@ -960,7 +960,7 @@ class FqprIntel(LoggerClass):
                     sbet_starttime_weekly = self.nav_intel.weekly_seconds_start[navfilepath]
                     for relpath, fqpr_instance in self.project.fqpr_instances.items():
                         # skip navigation files that are already in this instance
-                        if 'nav_files' in fqpr_instance.multibeam.raw_ping[0] and navfilename in fqpr_instance.multibeam.raw_ping[0].nav_files:
+                        if 'nav_files' in fqpr_instance.multibeam.raw_ping[0].attrs and navfilename in fqpr_instance.multibeam.raw_ping[0].attrs['nav_files']:
                             already_imported = relpath
                             break
 
@@ -1688,11 +1688,10 @@ def gather_exportlogfile_info(exportlog_file: str):
     basic = gather_basic_file_info(exportlog_file)
     loginfo = sbet.get_export_info_from_log(exportlog_file)
     if loginfo is not None:
-        info_data = OrderedDict({'file_path': basic['file_path'], 'input_sbet_file': loginfo['input_sbet_file'],
+        info_data = OrderedDict({'file_path': basic['file_path'], 'type': 'sbet_export_log',
                                  'exported_sbet_file': loginfo['exported_sbet_file'],
-                                 'sample_rate_hertz': loginfo['sample_rate_hertz'], 'type': 'sbet_export_log',
-                                 'mission_date': loginfo['mission_date'], 'datum': loginfo['datum'],
-                                 'ellipsoid': loginfo['ellipsoid'], 'last_modified_time_utc': basic['last_modified_time_utc'],
+                                 'mission_date': loginfo['sbet_mission_date'], 'datum': loginfo['sbet_datum'],
+                                 'ellipsoid': loginfo['sbet_ellipsoid'], 'last_modified_time_utc': basic['last_modified_time_utc'],
                                  'created_time_utc': basic['created_time_utc'], 'file_size_kb': basic['file_size_kb'],
                                  'time_added': basic['time_added']})
     else:

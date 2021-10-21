@@ -1439,7 +1439,9 @@ class MapView(QtWidgets.QMainWindow):
         str
             generated vsimem path for the surface/layer
         """
-        newname = '{}_{}_{}.tif'.format(os.path.splitext(surfname)[0], lyrname, resolution)
+        if surfname[-4:].lower() in ['.tif', '.bag']:
+            surfname = surfname[:-4]
+        newname = '{}_{}_{}.tif'.format(surfname, lyrname, resolution)
         source = '/vsimem/{}'.format(newname)
         return source
 

@@ -60,13 +60,11 @@ class KlusterProxyStyle(QtWidgets.QProxyStyle):
 class KlusterMain(QtWidgets.QMainWindow):
     """
     Main window for kluster application
-
     """
     def __init__(self, app=None):
         """
         Build out the dock widgets with the kluster widgets inside.  Will use QSettings object to retain size and
         position.
-
         """
         super().__init__()
 
@@ -95,7 +93,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.two_d = kluster_2dview.Kluster2dview(self, self.settings.copy())
         self.two_d_dock = self.dock_this_widget('2d View', 'two_d_dock', self.two_d)
 
-        self.points_view = kluster_3dview_v2.ThreeDWidget(self)
+        self.points_view = kluster_3dview_v2.ThreeDWidget(self, self.settings_object)
         self.points_dock = self.dock_this_widget("Points View", 'points_dock', self.points_view)
         # for now we remove the ability to undock the three d window, vispy wont work if we do
         self.points_dock.setFeatures(QtWidgets.QDockWidget.DockWidgetMovable)
@@ -178,6 +176,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.two_d.turn_off_pointsview.connect(self.clear_points)
 
         self.points_view.points_selected.connect(self.show_points_in_explorer)
+        self.points_view.points_cleaned.connect(self.set_pointsview_points_status)
 
         self.action_thread.started.connect(self._start_action_progress)
         self.action_thread.finished.connect(self._kluster_execute_action_results)
@@ -687,6 +686,7 @@ class KlusterMain(QtWidgets.QMainWindow):
                         fq.write_attribute_to_ping_records({'current_processing_status': 2})
                     elif not identical_tpu:  # have to re-tpu
                         fq.write_attribute_to_ping_records({'current_processing_status': 4})
+                    self.project.refresh_fqpr_attribution(fqname, relative_path=True)
         self.intel.regenerate_actions()
 
     def reprocess_fqpr(self):
@@ -698,6 +698,7 @@ class KlusterMain(QtWidgets.QMainWindow):
             # start over at 1, which is conversion in our state machine
             fq = self.project.fqpr_instances[fqprs[0]]
             fq.write_attribute_to_ping_records({'current_processing_status': 1})
+            self.project.refresh_fqpr_attribution(fqprs[0], relative_path=True)
             fq.multibeam.reload_pingrecords(skip_dask=fq.client is None)
             self.intel.regenerate_actions()
 
@@ -994,7 +995,6 @@ class KlusterMain(QtWidgets.QMainWindow):
                         if add_fqpr_names:
                             print('kluster_surface_update: {} must be loaded in Kluster for it to be added to the surface.'.format(add_fqpr_names))
                             return
-
                         self.output_window.clear()
                         self.surface_update_thread.populate(surf, add_fqpr, remove_fqpr_names, opts)
                         self.surface_update_thread.start()
@@ -1044,6 +1044,8 @@ class KlusterMain(QtWidgets.QMainWindow):
                     export_format = opts.pop('export_format')
                     z_pos_up = opts.pop('z_positive_up')
                     relsurf = self.project.path_relative_to_project(surf)
+                    if (export_format == 'BAG' or z_pos_up) and opts['vert_crs']:
+                        opts['vert_crs'] = opts['vert_crs'].replace('"depth (D)",down', '"gravity-related height (H),up')
                     if relsurf not in self.project.surface_instances:
                         print('Unable to find {} in currently loaded project'.format(relsurf))
                         return
@@ -1690,23 +1692,30 @@ class KlusterMain(QtWidgets.QMainWindow):
         """
 
         self.explorer.populate_explorer_with_points(point_index, linenames, point_times, beam, x, y, z, tvu, status, id)
-        # self.set_pointsview_points_status()  # this is an example of how we would use it, driven by points view mouse event
 
-    def set_pointsview_points_status(self, new_status: int = 2):
+    def set_pointsview_points_status(self, new_status: Union[np.array, int, str, float] = 2):
         """
         Take selected points in pointsview and set them to this new status (see detectioninfo).  Saved to memory and disk
 
         Parameters
         ----------
         new_status
-            new integer flag for detection info status
+            new integer flag for detection info status, 2 = Rejected
         """
 
         selected_points = self.points_view.return_select_index()
+        if isinstance(new_status, np.ndarray):
+            new_status = self.points_view.split_by_selected(new_status)
         for fqpr_name in selected_points:
             fqpr = self.project.fqpr_instances[fqpr_name]
             sel_points_idx = selected_points[fqpr_name]
-            fqpr.subset.set_variable_by_filter('detectioninfo', new_status, sel_points_idx)
+            if isinstance(new_status, dict):
+                fqpr.set_variable_by_filter('detectioninfo', new_status[fqpr_name], sel_points_idx)
+            else:
+                fqpr.set_variable_by_filter('detectioninfo', new_status, sel_points_idx)
+            fqpr.write_attribute_to_ping_records({'_soundings_last_cleaned': datetime.utcnow().strftime('%c')})
+            self.project.refresh_fqpr_attribution(fqpr_name, relative_path=True)
+        self.points_view.clear_selection()
 
     def dock_this_widget(self, title, objname, widget):
         """
@@ -2003,6 +2012,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.close_project()
         settings.setValue('Kluster/geometry', self.saveGeometry())
         settings.setValue('Kluster/windowState', self.saveState(version=0))
+        self.points_view.save_settings()
 
         if qgis_enabled:
             self.app.exitQgis()

@@ -1,6 +1,0 @@
-get_times
-=========
-
-.. currentmodule:: HSTB.kluster.modules.orientation
-
-.. autofunction:: get_times

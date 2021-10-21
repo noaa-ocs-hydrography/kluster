@@ -446,6 +446,17 @@ class FqprProject:
         else:
             print('Unable to remove instance {}'.format(relpath))
 
+    def refresh_fqpr_attribution(self, pth: str, relative_path: bool = False):
+        if relative_path:
+            relpath = pth
+        else:
+            relpath = self.path_relative_to_project(pth)
+        if relpath in self.fqpr_instances:
+            fq = self.fqpr_instances[relpath]
+            self.fqpr_attrs[relpath] = get_attributes_from_fqpr(fq, include_mode=False)
+        else:
+            print('Warning: {} not found in project, unable to refresh attribution'.format(relpath))
+
     def add_surface(self, pth: Union[str, BathyGrid]):
         """
         Add a new Bathygrid object to the project, either by loading from file or by directly adding a Bathygrid

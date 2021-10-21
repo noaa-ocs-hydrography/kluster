@@ -1,6 +1,0 @@
-return_period_of_signal
-=======================
-
-.. currentmodule:: HSTB.kluster.modules.wobble
-
-.. autofunction:: return_period_of_signal

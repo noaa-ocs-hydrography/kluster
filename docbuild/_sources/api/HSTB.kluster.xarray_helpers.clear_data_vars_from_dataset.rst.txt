@@ -1,6 +1,0 @@
-clear_data_vars_from_dataset
-============================
-
-.. currentmodule:: HSTB.kluster.xarray_helpers
-
-.. autofunction:: clear_data_vars_from_dataset

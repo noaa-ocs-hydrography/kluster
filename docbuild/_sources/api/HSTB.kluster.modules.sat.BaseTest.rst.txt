@@ -1,7 +1,0 @@
-BaseTest
-========
-
-.. currentmodule:: HSTB.kluster.modules.sat
-
-.. autoclass:: BaseTest
-   :show-inheritance:
