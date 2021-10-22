@@ -1,0 +1,6 @@
+retrieve_install_prefix
+=======================
+
+.. currentmodule:: HSTB.kluster.pydro_helpers
+
+.. autofunction:: retrieve_install_prefix

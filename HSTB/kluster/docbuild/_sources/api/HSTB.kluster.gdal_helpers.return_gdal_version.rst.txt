@@ -1,0 +1,6 @@
+return_gdal_version
+===================
+
+.. currentmodule:: HSTB.kluster.gdal_helpers
+
+.. autofunction:: return_gdal_version

@@ -1,0 +1,17 @@
+StdErrFilter
+============
+
+.. currentmodule:: HSTB.kluster.logging_conf
+
+.. autoclass:: StdErrFilter
+   :show-inheritance:
+
+   .. rubric:: Methods Summary
+
+   .. autosummary::
+
+      ~StdErrFilter.filter
+
+   .. rubric:: Methods Documentation
+
+   .. automethod:: filter

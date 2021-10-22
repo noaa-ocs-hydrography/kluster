@@ -1,0 +1,37 @@
+FqprActionContainer
+===================
+
+.. currentmodule:: HSTB.kluster.fqpr_actions
+
+.. autoclass:: FqprActionContainer
+   :show-inheritance:
+
+   .. rubric:: Methods Summary
+
+   .. autosummary::
+
+      ~FqprActionContainer.add_action
+      ~FqprActionContainer.clear
+      ~FqprActionContainer.clear_actions_by_type
+      ~FqprActionContainer.execute_action
+      ~FqprActionContainer.get_next_action
+      ~FqprActionContainer.remove_action
+      ~FqprActionContainer.return_actions_by_type
+      ~FqprActionContainer.update_action
+      ~FqprActionContainer.update_action_from_list
+      ~FqprActionContainer.update_actions_client
+      ~FqprActionContainer.update_unmatched
+
+   .. rubric:: Methods Documentation
+
+   .. automethod:: add_action
+   .. automethod:: clear
+   .. automethod:: clear_actions_by_type
+   .. automethod:: execute_action
+   .. automethod:: get_next_action
+   .. automethod:: remove_action
+   .. automethod:: return_actions_by_type
+   .. automethod:: update_action
+   .. automethod:: update_action_from_list
+   .. automethod:: update_actions_client
+   .. automethod:: update_unmatched

@@ -1,0 +1,6 @@
+return_logger
+=============
+
+.. currentmodule:: HSTB.kluster.logging_conf
+
+.. autofunction:: return_logger

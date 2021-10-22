@@ -1,0 +1,6 @@
+ogr_output_file_exists
+======================
+
+.. currentmodule:: HSTB.kluster.gdal_helpers
+
+.. autofunction:: ogr_output_file_exists

@@ -1,0 +1,6 @@
+only_retain_earliest_entry
+==========================
+
+.. currentmodule:: HSTB.kluster.fqpr_vessel
+
+.. autofunction:: only_retain_earliest_entry

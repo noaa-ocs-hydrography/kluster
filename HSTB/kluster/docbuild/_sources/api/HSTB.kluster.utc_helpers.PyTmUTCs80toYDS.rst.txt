@@ -1,0 +1,6 @@
+PyTmUTCs80toYDS
+===============
+
+.. currentmodule:: HSTB.kluster.utc_helpers
+
+.. autofunction:: PyTmUTCs80toYDS

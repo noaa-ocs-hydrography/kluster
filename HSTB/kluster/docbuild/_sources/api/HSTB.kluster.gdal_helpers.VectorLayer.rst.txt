@@ -1,0 +1,37 @@
+VectorLayer
+===========
+
+.. currentmodule:: HSTB.kluster.gdal_helpers
+
+.. autoclass:: VectorLayer
+   :show-inheritance:
+
+   .. rubric:: Attributes Summary
+
+   .. autosummary::
+
+      ~VectorLayer.is_virtual
+
+   .. rubric:: Methods Summary
+
+   .. autosummary::
+
+      ~VectorLayer.close
+      ~VectorLayer.delete_layer
+      ~VectorLayer.get_layer_by_name
+      ~VectorLayer.hide_layer
+      ~VectorLayer.show_layer
+      ~VectorLayer.write_to_layer
+
+   .. rubric:: Attributes Documentation
+
+   .. autoattribute:: is_virtual
+
+   .. rubric:: Methods Documentation
+
+   .. automethod:: close
+   .. automethod:: delete_layer
+   .. automethod:: get_layer_by_name
+   .. automethod:: hide_layer
+   .. automethod:: show_layer
+   .. automethod:: write_to_layer

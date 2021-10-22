@@ -1,0 +1,6 @@
+compare_dict_data
+=================
+
+.. currentmodule:: HSTB.kluster.fqpr_vessel
+
+.. autofunction:: compare_dict_data

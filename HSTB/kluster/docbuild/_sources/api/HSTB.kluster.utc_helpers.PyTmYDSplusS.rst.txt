@@ -1,0 +1,6 @@
+PyTmYDSplusS
+============
+
+.. currentmodule:: HSTB.kluster.utc_helpers
+
+.. autofunction:: PyTmYDSplusS

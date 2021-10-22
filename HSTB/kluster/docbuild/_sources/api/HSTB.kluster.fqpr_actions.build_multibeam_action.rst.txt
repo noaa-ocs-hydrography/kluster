@@ -1,0 +1,6 @@
+build_multibeam_action
+======================
+
+.. currentmodule:: HSTB.kluster.fqpr_actions
+
+.. autofunction:: build_multibeam_action

@@ -1,0 +1,6 @@
+is_pydro
+========
+
+.. currentmodule:: HSTB.kluster.pydro_helpers
+
+.. autofunction:: is_pydro

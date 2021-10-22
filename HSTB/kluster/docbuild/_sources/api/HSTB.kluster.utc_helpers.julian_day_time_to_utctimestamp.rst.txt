@@ -1,0 +1,6 @@
+julian_day_time_to_utctimestamp
+===============================
+
+.. currentmodule:: HSTB.kluster.utc_helpers
+
+.. autofunction:: julian_day_time_to_utctimestamp

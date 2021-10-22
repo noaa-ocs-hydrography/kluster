@@ -1,0 +1,6 @@
+retrieve_activate_batch
+=======================
+
+.. currentmodule:: HSTB.kluster.pydro_helpers
+
+.. autofunction:: retrieve_activate_batch

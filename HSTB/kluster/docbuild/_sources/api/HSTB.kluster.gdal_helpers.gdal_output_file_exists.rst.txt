@@ -1,0 +1,6 @@
+gdal_output_file_exists
+=======================
+
+.. currentmodule:: HSTB.kluster.gdal_helpers
+
+.. autofunction:: gdal_output_file_exists

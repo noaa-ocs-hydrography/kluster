@@ -1,0 +1,21 @@
+FqprAction
+==========
+
+.. currentmodule:: HSTB.kluster.fqpr_actions
+
+.. autoclass:: FqprAction
+   :show-inheritance:
+
+   .. rubric:: Methods Summary
+
+   .. autosummary::
+
+      ~FqprAction.execute
+      ~FqprAction.print_summary
+      ~FqprAction.set
+
+   .. rubric:: Methods Documentation
+
+   .. automethod:: execute
+   .. automethod:: print_summary
+   .. automethod:: set

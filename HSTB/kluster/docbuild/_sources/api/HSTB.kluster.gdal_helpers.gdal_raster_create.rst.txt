@@ -1,0 +1,6 @@
+gdal_raster_create
+==================
+
+.. currentmodule:: HSTB.kluster.gdal_helpers
+
+.. autofunction:: gdal_raster_create

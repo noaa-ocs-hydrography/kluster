@@ -1,0 +1,347 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>FqprActionContainer &#8212; kluster 0.8.0 documentation</title>
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" type="text/css" href="../_static/graphviz.css" />
+    <script id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="fqpr_vessel module" href="../kluster_api/fqpr_vessel.html" />
+    <link rel="prev" title="FqprAction" href="HSTB.kluster.fqpr_actions.FqprAction.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="fqpractioncontainer">
+<h1>FqprActionContainer<a class="headerlink" href="#fqpractioncontainer" title="Permalink to this headline">¶</a></h1>
+<dl class="py class">
+<dt id="HSTB.kluster.fqpr_actions.FqprActionContainer">
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">HSTB.kluster.fqpr_actions.</span></code><code class="sig-name descname"><span class="pre">FqprActionContainer</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">parent</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_actions.FqprActionContainer" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>ActionContainer attached to the fqpr_intelligence.FqprIntel object.  Holds the FqprActions and manages the adding/
+removing/updating/executing of actions.</p>
+<p>fqpr = fully qualified ping record, the term for the datastore in kluster, see fqpr_generation</p>
+<p class="rubric">Methods Summary</p>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_actions.FqprActionContainer.add_action" title="HSTB.kluster.fqpr_actions.FqprActionContainer.add_action"><code class="xref py py-obj docutils literal notranslate"><span class="pre">add_action</span></code></a>(action)</p></td>
+<td><p>Add a new action, autosort by priority whenever we do</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_actions.FqprActionContainer.clear" title="HSTB.kluster.fqpr_actions.FqprActionContainer.clear"><code class="xref py py-obj docutils literal notranslate"><span class="pre">clear</span></code></a>()</p></td>
+<td><p>Clear all actions and trigger any observers using the _update_actions method</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_actions.FqprActionContainer.clear_actions_by_type" title="HSTB.kluster.fqpr_actions.FqprActionContainer.clear_actions_by_type"><code class="xref py py-obj docutils literal notranslate"><span class="pre">clear_actions_by_type</span></code></a>(action_type)</p></td>
+<td><p>Remove all actions from the actions buffer that are of the provided type</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_actions.FqprActionContainer.execute_action" title="HSTB.kluster.fqpr_actions.FqprActionContainer.execute_action"><code class="xref py py-obj docutils literal notranslate"><span class="pre">execute_action</span></code></a>([idx])</p></td>
+<td><p>Run the action selected from the action list using the provided index.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_actions.FqprActionContainer.get_next_action" title="HSTB.kluster.fqpr_actions.FqprActionContainer.get_next_action"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_next_action</span></code></a>()</p></td>
+<td><p>Actions are sorted on update, so the first action in the list is always the highest priority one</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_actions.FqprActionContainer.remove_action" title="HSTB.kluster.fqpr_actions.FqprActionContainer.remove_action"><code class="xref py py-obj docutils literal notranslate"><span class="pre">remove_action</span></code></a>(action)</p></td>
+<td><p>Remove an action, autosort by priority whenever we do</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_actions.FqprActionContainer.return_actions_by_type" title="HSTB.kluster.fqpr_actions.FqprActionContainer.return_actions_by_type"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_actions_by_type</span></code></a>(action_type)</p></td>
+<td><p>Return all actions from the actions buffer that are of the provided type</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_actions.FqprActionContainer.update_action" title="HSTB.kluster.fqpr_actions.FqprActionContainer.update_action"><code class="xref py py-obj docutils literal notranslate"><span class="pre">update_action</span></code></a>(action, **kwargs)</p></td>
+<td><p>Update an existing action with new arguments.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_actions.FqprActionContainer.update_action_from_list" title="HSTB.kluster.fqpr_actions.FqprActionContainer.update_action_from_list"><code class="xref py py-obj docutils literal notranslate"><span class="pre">update_action_from_list</span></code></a>(action_type, …)</p></td>
+<td><p>Remove any actions that have destinations not in the action_destination_list.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_actions.FqprActionContainer.update_actions_client" title="HSTB.kluster.fqpr_actions.FqprActionContainer.update_actions_client"><code class="xref py py-obj docutils literal notranslate"><span class="pre">update_actions_client</span></code></a>(client)</p></td>
+<td><p>On executing an action, we trigger this to update the action with the new client that we might have generated AFTER building the action originally.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_actions.FqprActionContainer.update_unmatched" title="HSTB.kluster.fqpr_actions.FqprActionContainer.update_unmatched"><code class="xref py py-obj docutils literal notranslate"><span class="pre">update_unmatched</span></code></a>(new_unmatched)</p></td>
+<td><p>Update the unmatched files dict, used to provide a tooltip in the action gui</p></td>
+</tr>
+</tbody>
+</table>
+<p class="rubric">Methods Documentation</p>
+<dl class="py method">
+<dt id="HSTB.kluster.fqpr_actions.FqprActionContainer.add_action">
+<code class="sig-name descname"><span class="pre">add_action</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">action</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_actions.FqprActionContainer.add_action" title="Permalink to this definition">¶</a></dt>
+<dd><p>Add a new action, autosort by priority whenever we do</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>action</strong> (<a class="reference internal" href="HSTB.kluster.fqpr_actions.FqprAction.html#HSTB.kluster.fqpr_actions.FqprAction" title="HSTB.kluster.fqpr_actions.FqprAction"><code class="xref py py-class docutils literal notranslate"><span class="pre">FqprAction</span></code></a>) – new FqprAction instance to add</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="HSTB.kluster.fqpr_actions.FqprActionContainer.clear">
+<code class="sig-name descname"><span class="pre">clear</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_actions.FqprActionContainer.clear" title="Permalink to this definition">¶</a></dt>
+<dd><p>Clear all actions and trigger any observers using the _update_actions method</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="HSTB.kluster.fqpr_actions.FqprActionContainer.clear_actions_by_type">
+<code class="sig-name descname"><span class="pre">clear_actions_by_type</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">action_type</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_actions.FqprActionContainer.clear_actions_by_type" title="Permalink to this definition">¶</a></dt>
+<dd><p>Remove all actions from the actions buffer that are of the provided type</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>action_type</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>) – one of ‘multibeam’, ‘svp’, ‘navigation’, ‘processing’</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="HSTB.kluster.fqpr_actions.FqprActionContainer.execute_action">
+<code class="sig-name descname"><span class="pre">execute_action</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">idx</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_actions.FqprActionContainer.execute_action" title="Permalink to this definition">¶</a></dt>
+<dd><p>Run the action selected from the action list using the provided index.  Removes the action after execution.
+Return is generally the affected fqpr_instance.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>idx</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code>) – index of the action in the actions list</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="HSTB.kluster.fqpr_actions.FqprActionContainer.get_next_action">
+<code class="sig-name descname"><span class="pre">get_next_action</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_actions.FqprActionContainer.get_next_action" title="Permalink to this definition">¶</a></dt>
+<dd><p>Actions are sorted on update, so the first action in the list is always the highest priority one</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>highest priority action</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p><a class="reference internal" href="HSTB.kluster.fqpr_actions.FqprAction.html#HSTB.kluster.fqpr_actions.FqprAction" title="HSTB.kluster.fqpr_actions.FqprAction">FqprAction</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="HSTB.kluster.fqpr_actions.FqprActionContainer.remove_action">
+<code class="sig-name descname"><span class="pre">remove_action</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">action</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_actions.FqprActionContainer.remove_action" title="Permalink to this definition">¶</a></dt>
+<dd><p>Remove an action, autosort by priority whenever we do</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>action</strong> (<a class="reference internal" href="HSTB.kluster.fqpr_actions.FqprAction.html#HSTB.kluster.fqpr_actions.FqprAction" title="HSTB.kluster.fqpr_actions.FqprAction"><code class="xref py py-class docutils literal notranslate"><span class="pre">FqprAction</span></code></a>) – FqprAction instance to remove</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="HSTB.kluster.fqpr_actions.FqprActionContainer.return_actions_by_type">
+<code class="sig-name descname"><span class="pre">return_actions_by_type</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">action_type</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_actions.FqprActionContainer.return_actions_by_type" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return all actions from the actions buffer that are of the provided type</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>action_type</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>) – one of ‘multibeam’, ‘svp’, ‘navigation’, ‘processing’</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>list of actions that are of the provided type</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>list</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="HSTB.kluster.fqpr_actions.FqprActionContainer.update_action">
+<code class="sig-name descname"><span class="pre">update_action</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">action</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_actions.FqprActionContainer.update_action" title="Permalink to this definition">¶</a></dt>
+<dd><p>Update an existing action with new arguments.  Example would be if you have a conversion action and the
+quantity of multibeam files changes.  Action would be updated with the new list of files to convert.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>action</strong> (<a class="reference internal" href="HSTB.kluster.fqpr_actions.FqprAction.html#HSTB.kluster.fqpr_actions.FqprAction" title="HSTB.kluster.fqpr_actions.FqprAction"><code class="xref py py-class docutils literal notranslate"><span class="pre">FqprAction</span></code></a>) – FqprAction to update</p></li>
+<li><p><strong>kwargs</strong> – dict of keyword arguments to update</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="HSTB.kluster.fqpr_actions.FqprActionContainer.update_action_from_list">
+<code class="sig-name descname"><span class="pre">update_action_from_list</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">action_type</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">action_destination_list</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_actions.FqprActionContainer.update_action_from_list" title="Permalink to this definition">¶</a></dt>
+<dd><p>Remove any actions that have destinations not in the action_destination_list.  This method allows us to remove
+actions that no longer apply.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>action_type</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>) – type of action, ex: ‘multibeam’</p></li>
+<li><p><strong>action_destination_list</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">list</span></code>) – list of valid destinations to filter the actions by</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p><em>list</em> – list of valid actions that match the provided action type (after removing actions)</p></li>
+<li><p><em>list</em> – list of destinations from all valid actions</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="HSTB.kluster.fqpr_actions.FqprActionContainer.update_actions_client">
+<code class="sig-name descname"><span class="pre">update_actions_client</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">client</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_actions.FqprActionContainer.update_actions_client" title="Permalink to this definition">¶</a></dt>
+<dd><p>On executing an action, we trigger this to update the action with the new client that we might have
+generated AFTER building the action originally.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>client</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">Client</span></code>) – dask distributed client instance</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="HSTB.kluster.fqpr_actions.FqprActionContainer.update_unmatched">
+<code class="sig-name descname"><span class="pre">update_unmatched</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">new_unmatched</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_actions.FqprActionContainer.update_unmatched" title="Permalink to this definition">¶</a></dt>
+<dd><p>Update the unmatched files dict, used to provide a tooltip in the action gui</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">kluster</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../quickstart/index.html">Quickstart</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../vessel_setup/index.html">Vessel Setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../processing/index.html">Processing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../surface/index.html">Surfacing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../cleaning/index.html">Cleaning</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../products/index.html">Products</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../settings/index.html">Settings</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../indepth/index.html">Learn more about Kluster</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../kluster_api/index.html">API</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/fqpr_convenience.html">fqpr_convenience module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/fqpr_generation.html">fqpr_generation module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/fqpr_project.html">fqpr_project module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/fqpr_intelligence.html">fqpr_intelligence module</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="../kluster_api/fqpr_actions.html">fqpr_actions module</a><ul class="current">
+<li class="toctree-l3 current"><a class="reference internal" href="../kluster_api/fqpr_actions.html#module-HSTB.kluster.fqpr_actions">HSTB.kluster.fqpr_actions Module</a><ul class="current">
+<li class="toctree-l4"><a class="reference internal" href="../kluster_api/fqpr_actions.html#functions">Functions</a></li>
+<li class="toctree-l4 current"><a class="reference internal" href="../kluster_api/fqpr_actions.html#classes">Classes</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/fqpr_vessel.html">fqpr_vessel module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/monitor.html">monitor module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/xarray_conversion.html">xarray_conversion module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/orientation.html">orientation module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/beampointingvector.html">beampointingvector module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/svcorrect.html">svcorrect module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/georeference.html">georeference module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/tpu.html">tpu module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/visualizations.html">visualizations module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/sat.html">sat module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/wobble.html">wobble module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/export.html">export module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/subset.html">subset module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/rotations.html">rotations module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/pdal_entwine.html">pdal_entwine module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/dask_helpers.html">dask_helpers module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/fqpr_helpers.html">fqpr_helpers module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/gdal_helpers.html">gdal_helpers module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/numba_helpers.html">numba_helpers module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/pydro_helpers.html">pydro_helpers module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/xarray_helpers.html">xarray_helpers module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/utc_helpers.html">utc_helpers module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/logging_conf.html">logging_conf module</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../changes.html">Changes List</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  <li><a href="../kluster_api/index.html">API</a><ul>
+  <li><a href="../kluster_api/fqpr_actions.html">fqpr_actions module</a><ul>
+      <li>Previous: <a href="HSTB.kluster.fqpr_actions.FqprAction.html" title="previous chapter">FqprAction</a></li>
+      <li>Next: <a href="../kluster_api/fqpr_vessel.html" title="next chapter">fqpr_vessel module</a></li>
+  </ul></li>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2020, Eric Younkin.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.5.2</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="../_sources/api/HSTB.kluster.fqpr_actions.FqprActionContainer.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

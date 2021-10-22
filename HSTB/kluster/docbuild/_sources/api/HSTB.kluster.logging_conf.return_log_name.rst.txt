@@ -1,0 +1,6 @@
+return_log_name
+===============
+
+.. currentmodule:: HSTB.kluster.logging_conf
+
+.. autofunction:: return_log_name

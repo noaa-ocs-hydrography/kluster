@@ -1,0 +1,23 @@
+VesselFile
+==========
+
+.. currentmodule:: HSTB.kluster.fqpr_vessel
+
+.. autoclass:: VesselFile
+   :show-inheritance:
+
+   .. rubric:: Methods Summary
+
+   .. autosummary::
+
+      ~VesselFile.open
+      ~VesselFile.return_data
+      ~VesselFile.save
+      ~VesselFile.update
+
+   .. rubric:: Methods Documentation
+
+   .. automethod:: open
+   .. automethod:: return_data
+   .. automethod:: save
+   .. automethod:: update

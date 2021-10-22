@@ -1,0 +1,17 @@
+StdOutFilter
+============
+
+.. currentmodule:: HSTB.kluster.logging_conf
+
+.. autoclass:: StdOutFilter
+   :show-inheritance:
+
+   .. rubric:: Methods Summary
+
+   .. autosummary::
+
+      ~StdOutFilter.filter
+
+   .. rubric:: Methods Documentation
+
+   .. automethod:: filter

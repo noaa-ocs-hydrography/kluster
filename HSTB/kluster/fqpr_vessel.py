@@ -9,11 +9,7 @@ class VesselFile:
     """
     Class to manage the vessel configuration file (.kfc) for Kluster.  Holds the tpu parameters and lever arm information
     for each system in the project.  Stored in a nested dictionary that looks like this:
-
-    {serial number1: {sensor_name1: {utc timestamp1: value, utc timestamp2: value, ...},
-                      sensor_name2: {utc timestamp1: value, utc timestamp2: value, ...}, ...},
-     serial number2: {sensor_name1: {utc timestamp1: value, utc timestamp2: value, ...},
-                      sensor_name2: {utc timestamp1: value, utc timestamp2: value, ...}, ...}, ... }
+    serial number1: {sensor_name1: {utc timestamp1: value, utc timestamp2: value, ...}, ...
     """
 
     def __init__(self, filepath: str = None):
@@ -45,13 +41,14 @@ class VesselFile:
         """
         Call to update the internal vessel settings data (still must call save to write to disk).  If the data provided
         does not match the internal data, will overwrite the internal data.  Will do the following additional tasks:
-        - compare the provided data and the internal data and determine if:
-            - identical_offsets = offsets and angles match between the two data
-            - identical_tpu = tpu parameters match between the two data
-            - data_matches = the two data have values that exactly match (can match even if the keys are different, happens
-                when timestamps (the keys) do not match but the data does.)
-        - populate the optional and tpu parameters in the new data with the latest existing entry
-        - compare all entries and only retain the earliest entry if you find two entries that match exactly
+        compare the provided data and the internal data and determine if:
+
+        identical_offsets = offsets and angles match between the two data
+        identical_tpu = tpu parameters match between the two data
+        data_matches = the two data have values that exactly match (can match even if the keys are different, happens
+        when timestamps (the keys) do not match but the data does.)
+        populate the optional and tpu parameters in the new data with the latest existing entry
+        compare all entries and only retain the earliest entry if you find two entries that match exactly
 
         Parameters
         ----------
@@ -61,6 +58,7 @@ class VesselFile:
             dictionary with the offsets, angles and tpu parameters for the new data to add to the vessel file
         carry_over_tpu
             if True, will use the latest existing tpu parameters to populate the newly provided data
+
         """
 
         if serial_number in self.data:

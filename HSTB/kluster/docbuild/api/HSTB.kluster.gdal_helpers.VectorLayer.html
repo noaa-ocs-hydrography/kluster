@@ -1,0 +1,273 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>VectorLayer &#8212; kluster 0.8.0 documentation</title>
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" type="text/css" href="../_static/graphviz.css" />
+    <script id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="numba_helpers module" href="../kluster_api/numba_helpers.html" />
+    <link rel="prev" title="return_gdal_version" href="HSTB.kluster.gdal_helpers.return_gdal_version.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="vectorlayer">
+<h1>VectorLayer<a class="headerlink" href="#vectorlayer" title="Permalink to this headline">¶</a></h1>
+<dl class="py class">
+<dt id="HSTB.kluster.gdal_helpers.VectorLayer">
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">HSTB.kluster.gdal_helpers.</span></code><code class="sig-name descname"><span class="pre">VectorLayer</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">output_file</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">driver_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">input_crs</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">update</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">silent</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.gdal_helpers.VectorLayer" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Convert numpy arrays and metadata to OGR geometry to then generate OGR files.  Includes methods for the common
+geometry types like polygons, lines and points.  Would need to be expanded if there are types outside of these
+basic types.</p>
+<p>ex:</p>
+<div class="line-block">
+<div class="line">&gt;&gt;&gt; vl = VectorLayer(‘C:collabdasktestdata_dirSHAM_ERStst.shp’, ‘ESRI Shapefile’, 26917, False)</div>
+<div class="line">Creating new file C:collabdasktestdata_dirSHAM_ERStst.shp</div>
+<div class="line">&gt;&gt;&gt; vl.write_to_layer(‘new_poly’, np.array([[1116651.439379124, 637392.6969887456], [1188804.0108498496, 652655.7409537067], [1226730.3625203592, 637392.6969887456], [1188804.0108498496, 622467.6640211721]]), ogr.wkbPolygon)</div>
+<div class="line">Successfully generated 1 out of 1 features in layer new_poly</div>
+<div class="line">&gt;&gt;&gt; vl.close()</div>
+</div>
+<p>Or write to virtual file system object (using gpkg driver for variety, is not driver specific)
+vl = VectorLayer(‘/vsimem/tst.gpkg’, ‘GPKG’, 26917, False)</p>
+<p class="rubric">Attributes Summary</p>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.gdal_helpers.VectorLayer.is_virtual" title="HSTB.kluster.gdal_helpers.VectorLayer.is_virtual"><code class="xref py py-obj docutils literal notranslate"><span class="pre">is_virtual</span></code></a></p></td>
+<td><p>Returns if the output_file is a gdal virtual file system path</p></td>
+</tr>
+</tbody>
+</table>
+<p class="rubric">Methods Summary</p>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.gdal_helpers.VectorLayer.close" title="HSTB.kluster.gdal_helpers.VectorLayer.close"><code class="xref py py-obj docutils literal notranslate"><span class="pre">close</span></code></a>()</p></td>
+<td><p>Close the dataset</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.gdal_helpers.VectorLayer.delete_layer" title="HSTB.kluster.gdal_helpers.VectorLayer.delete_layer"><code class="xref py py-obj docutils literal notranslate"><span class="pre">delete_layer</span></code></a>(layer_name)</p></td>
+<td><p>Delete the layer from the dataset</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.gdal_helpers.VectorLayer.get_layer_by_name" title="HSTB.kluster.gdal_helpers.VectorLayer.get_layer_by_name"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_layer_by_name</span></code></a>(layer_name)</p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.gdal_helpers.VectorLayer.hide_layer" title="HSTB.kluster.gdal_helpers.VectorLayer.hide_layer"><code class="xref py py-obj docutils literal notranslate"><span class="pre">hide_layer</span></code></a>(layer_name)</p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.gdal_helpers.VectorLayer.show_layer" title="HSTB.kluster.gdal_helpers.VectorLayer.show_layer"><code class="xref py py-obj docutils literal notranslate"><span class="pre">show_layer</span></code></a>(layer_name)</p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.gdal_helpers.VectorLayer.write_to_layer" title="HSTB.kluster.gdal_helpers.VectorLayer.write_to_layer"><code class="xref py py-obj docutils literal notranslate"><span class="pre">write_to_layer</span></code></a>(layer_name, coords_dset, …)</p></td>
+<td><p>Build the requested geometry and write to layer_name.</p></td>
+</tr>
+</tbody>
+</table>
+<p class="rubric">Attributes Documentation</p>
+<dl class="py attribute">
+<dt id="HSTB.kluster.gdal_helpers.VectorLayer.is_virtual">
+<code class="sig-name descname"><span class="pre">is_virtual</span></code><a class="headerlink" href="#HSTB.kluster.gdal_helpers.VectorLayer.is_virtual" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns if the output_file is a gdal virtual file system path</p>
+</dd></dl>
+
+<p class="rubric">Methods Documentation</p>
+<dl class="py method">
+<dt id="HSTB.kluster.gdal_helpers.VectorLayer.close">
+<code class="sig-name descname"><span class="pre">close</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.gdal_helpers.VectorLayer.close" title="Permalink to this definition">¶</a></dt>
+<dd><p>Close the dataset</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="HSTB.kluster.gdal_helpers.VectorLayer.delete_layer">
+<code class="sig-name descname"><span class="pre">delete_layer</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">layer_name</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.gdal_helpers.VectorLayer.delete_layer" title="Permalink to this definition">¶</a></dt>
+<dd><p>Delete the layer from the dataset</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>layer_name</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>) – name of the dataset layer</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="HSTB.kluster.gdal_helpers.VectorLayer.get_layer_by_name">
+<code class="sig-name descname"><span class="pre">get_layer_by_name</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">layer_name</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.gdal_helpers.VectorLayer.get_layer_by_name" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="HSTB.kluster.gdal_helpers.VectorLayer.hide_layer">
+<code class="sig-name descname"><span class="pre">hide_layer</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">layer_name</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.gdal_helpers.VectorLayer.hide_layer" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="HSTB.kluster.gdal_helpers.VectorLayer.show_layer">
+<code class="sig-name descname"><span class="pre">show_layer</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">layer_name</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.gdal_helpers.VectorLayer.show_layer" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="HSTB.kluster.gdal_helpers.VectorLayer.write_to_layer">
+<code class="sig-name descname"><span class="pre">write_to_layer</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">layer_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">coords_dset</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">geom_type</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.gdal_helpers.VectorLayer.write_to_layer" title="Permalink to this definition">¶</a></dt>
+<dd><p>Build the requested geometry and write to layer_name.  If that layer exists, will update as long as the
+update switch is on.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>layer_name</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>) – name of the dataset layer</p></li>
+<li><p><strong>coords_dset</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">ndarray</span></code>) – either a numpy array of coords for the feature, or a list of numpy arrays if there are multiple features
+you are writing to the layer</p></li>
+<li><p><strong>geom_type</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code>) – The geometry type of the layer</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">kluster</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../quickstart/index.html">Quickstart</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../vessel_setup/index.html">Vessel Setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../processing/index.html">Processing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../surface/index.html">Surfacing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../cleaning/index.html">Cleaning</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../products/index.html">Products</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../settings/index.html">Settings</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../indepth/index.html">Learn more about Kluster</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../kluster_api/index.html">API</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/fqpr_convenience.html">fqpr_convenience module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/fqpr_generation.html">fqpr_generation module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/fqpr_project.html">fqpr_project module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/fqpr_intelligence.html">fqpr_intelligence module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/fqpr_actions.html">fqpr_actions module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/fqpr_vessel.html">fqpr_vessel module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/monitor.html">monitor module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/xarray_conversion.html">xarray_conversion module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/orientation.html">orientation module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/beampointingvector.html">beampointingvector module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/svcorrect.html">svcorrect module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/georeference.html">georeference module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/tpu.html">tpu module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/visualizations.html">visualizations module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/sat.html">sat module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/wobble.html">wobble module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/export.html">export module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/subset.html">subset module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/rotations.html">rotations module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/pdal_entwine.html">pdal_entwine module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/dask_helpers.html">dask_helpers module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/fqpr_helpers.html">fqpr_helpers module</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="../kluster_api/gdal_helpers.html">gdal_helpers module</a><ul class="current">
+<li class="toctree-l3 current"><a class="reference internal" href="../kluster_api/gdal_helpers.html#module-HSTB.kluster.gdal_helpers">HSTB.kluster.gdal_helpers Module</a><ul class="current">
+<li class="toctree-l4"><a class="reference internal" href="../kluster_api/gdal_helpers.html#functions">Functions</a></li>
+<li class="toctree-l4 current"><a class="reference internal" href="../kluster_api/gdal_helpers.html#classes">Classes</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/numba_helpers.html">numba_helpers module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/pydro_helpers.html">pydro_helpers module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/xarray_helpers.html">xarray_helpers module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/utc_helpers.html">utc_helpers module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/logging_conf.html">logging_conf module</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../changes.html">Changes List</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  <li><a href="../kluster_api/index.html">API</a><ul>
+  <li><a href="../kluster_api/gdal_helpers.html">gdal_helpers module</a><ul>
+      <li>Previous: <a href="HSTB.kluster.gdal_helpers.return_gdal_version.html" title="previous chapter">return_gdal_version</a></li>
+      <li>Next: <a href="../kluster_api/numba_helpers.html" title="next chapter">numba_helpers module</a></li>
+  </ul></li>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2020, Eric Younkin.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.5.2</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="../_sources/api/HSTB.kluster.gdal_helpers.VectorLayer.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

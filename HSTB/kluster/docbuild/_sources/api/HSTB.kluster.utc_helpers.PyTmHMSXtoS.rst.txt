@@ -1,0 +1,6 @@
+PyTmHMSXtoS
+===========
+
+.. currentmodule:: HSTB.kluster.utc_helpers
+
+.. autofunction:: PyTmHMSXtoS

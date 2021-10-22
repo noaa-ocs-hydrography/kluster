@@ -1,0 +1,6 @@
+retrieve_noaa_folder_path
+=========================
+
+.. currentmodule:: HSTB.kluster.pydro_helpers
+
+.. autofunction:: retrieve_noaa_folder_path
