@@ -623,6 +623,7 @@ class FqprIntel(LoggerClass):
         new_coord_system = None
         forced_coordinate_match = False
         forced_container = ''
+        err = ''
         if 'use_epsg' in self.processing_settings:  # if someone setup the project with a default coord system
             # use_epsg trumps all other checks, if they enter in an EPSG code, we use that.
             if self.processing_settings['use_epsg']:
@@ -640,18 +641,17 @@ class FqprIntel(LoggerClass):
                         except:
                             self.print_msg('Unable to generate EPSG from {}'.format(fqpr_instance.multibeam.raw_ping[0].horizontal_crs), logging.WARNING)
                 if new_coord_system is None:  # no valid coord systems in the project, have to auto pick this one
-                    # self.print_msg('Force coordinate system match was used, but no existing coordinate systems found, defaulting to auto utm.', logging.WARNING)
+                    self.print_msg('Force coordinate system match was used, but no existing coordinate systems found, defaulting to auto utm.', logging.WARNING)
                     new_coord_system, err = build_crs(zone_num=fqpr_instance.multibeam.return_utm_zone_number(),
                                                       datum=self.processing_settings['coord_system'])
                 else:
-                    print('Forcing all Converted data to use EPSG:{} from {}, uncheck "Force all days to have the same Coordinate System" to disable this.'.format(new_coord_system.to_epsg(), forced_container))
+                    self.print_msg('Forcing all Converted data to use EPSG:{} from {}, uncheck "Force all days to have the same Coordinate System" to disable this.'.format(new_coord_system.to_epsg(), forced_container), logging.WARNING)
             # otherwise just do the auto utm calc to get the new coordinate system
             else:
                 new_coord_system, err = build_crs(zone_num=fqpr_instance.multibeam.return_utm_zone_number(),
                                                   datum=self.processing_settings['coord_system'])
             if err:
                 self.print_msg(err, logging.ERROR)
-                raise ValueError(err)
         else:
             new_coord_system = None
         return new_coord_system, forced_coordinate_match
