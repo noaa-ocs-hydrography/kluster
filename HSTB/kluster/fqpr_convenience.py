@@ -370,6 +370,8 @@ def reload_data(converted_folder: str, require_raw_data: bool = True, skip_dask:
         if not silent:
             fqpr_inst.logger.info('****Reloading from file {}****'.format(converted_folder))
         fqpr_inst.multibeam.xyzrph = fqpr_inst.multibeam.raw_ping[0].xyzrph
+        for rp in fqpr_inst.multibeam.raw_ping:
+            rp.attrs['output_path'] = fqpr_inst.multibeam.converted_pth
         if 'vertical_reference' in fqpr_inst.multibeam.raw_ping[0].attrs:
             fqpr_inst.set_vertical_reference(fqpr_inst.multibeam.raw_ping[0].vertical_reference)
         fqpr_inst.generate_starter_orientation_vectors(None, None)
