@@ -1510,6 +1510,7 @@ class ThreeDWidget(QtWidgets.QWidget):
 
         points_in_screen = self._handle_point_selection(startpos, endpos, three_d)
         self.three_d_window.selected_points = points_in_screen
+        self.three_d_window.superselected_index = None
         self.points_selected.emit(np.arange(self.three_d_window.selected_points.shape[0]),
                                   self.three_d_window.linename[self.three_d_window.selected_points],
                                   self.three_d_window.pointtime[self.three_d_window.selected_points],
