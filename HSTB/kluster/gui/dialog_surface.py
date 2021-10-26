@@ -84,7 +84,7 @@ class SurfaceDialog(SaveStateDialog):
         self.variabletile_tile_size_lbl = QtWidgets.QLabel('Tile Size (meters): ')
         self.hlayout_variabletile_one.addWidget(self.variabletile_tile_size_lbl)
         self.variabletile_tile_size = QtWidgets.QComboBox()
-        self.variabletile_tile_size.addItems(['2048', '1024', '512', '256', '128'])
+        self.variabletile_tile_size.addItems(['2048', '1024', '512', '256', '128', '64', '32'])
         self.variabletile_tile_size.setCurrentText('1024')
         self.variabletile_tile_size.setToolTip('The size of the subgrid in the variable resolution grid in meters.  The subgrid is all the same resolution, so this is the\n' +
                                                'smallest unit of resolution change.  With a value of 128 meters, each 128x128 tile can be a different resolution.  Make this\n' +
