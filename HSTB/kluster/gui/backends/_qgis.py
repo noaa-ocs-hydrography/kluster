@@ -1634,7 +1634,7 @@ class MapView(QtWidgets.QMainWindow):
 
         # surface layers can be added in chunks, i.e. 'depth_1', 'depth_2', etc., but they should all use the same
         #  extents and global stats.  Figure out which category the layer fits into here.
-        acceptedlayernames = ['depth', 'vertical_uncertainty', 'horizontal_uncertainty']
+        acceptedlayernames = ['depth', 'density', 'vertical_uncertainty', 'horizontal_uncertainty']
         formatted_layername = [aln for aln in acceptedlayernames if lyrname.find(aln) > -1][0]
 
         source = self.build_surface_source(surfname, formatted_layername, resolution)
@@ -1667,7 +1667,10 @@ class MapView(QtWidgets.QMainWindow):
         showlyr = gdal_output_file_exists(source)
 
         if not showlyr:
-            gdal_raster_create(source, data, geo_transform, crs, np.nan, (lyrname,))
+            if lyrname[0:7] != 'density':
+                gdal_raster_create(source, data, geo_transform, crs, np.nan, (lyrname,))
+            else:
+                gdal_raster_create(source, data, geo_transform, crs, 0, (lyrname,))
             self.add_layer(source, lyrname, 'gdal', layertype='surface')
         else:
             self.show_surface(surfname, lyrname, resolution)
@@ -1723,7 +1726,7 @@ class MapView(QtWidgets.QMainWindow):
             resolution in meters for the surface
         """
 
-        possible_layers = ['depth', 'vertical_uncertainty', 'horizontal_uncertainty']
+        possible_layers = ['depth', 'density', 'vertical_uncertainty', 'horizontal_uncertainty']
         for lyrname in possible_layers:
             remlyrs = self._return_all_surface_tiles(surfname, lyrname, resolution)
             if remlyrs:
@@ -1927,7 +1930,7 @@ class MapView(QtWidgets.QMainWindow):
             maxval = stats.maximumValue
             # surface layers can be added in chunks, i.e. 'depth_1', 'depth_2', etc., but they should all use the same
             #  extents and global stats.  Figure out which category the layer fits into here.
-            acceptedlayernames = ['depth', 'vertical_uncertainty', 'horizontal_uncertainty']
+            acceptedlayernames = ['depth', 'density', 'vertical_uncertainty', 'horizontal_uncertainty']
             formatted_layername = [aln for aln in acceptedlayernames if layername.find(aln) > -1][0]
             if formatted_layername in self.band_minmax:
                 self.band_minmax[formatted_layername][0] = min(minval, self.band_minmax[formatted_layername][0])
@@ -2075,7 +2078,7 @@ class MapView(QtWidgets.QMainWindow):
         """
 
         if subset_surf:
-            for lyrname in ['depth', 'vertical_uncertainty', 'horizontal_uncertainty']:  # find the first loaded layer
+            for lyrname in ['depth', 'density', 'vertical_uncertainty', 'horizontal_uncertainty']:  # find the first loaded layer
                 lyrs = self._return_all_surface_tiles(subset_surf, lyrname, resolution)  # get all tiles
                 lyrs = [self.layer_by_name(lyr, silent=True) for lyr in lyrs]  # get the actual layer data for each tile layer
                 if lyrs:

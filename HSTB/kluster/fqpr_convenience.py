@@ -532,6 +532,7 @@ def _validate_fqpr_for_gridding(fqpr_instances: list):
 
 def generate_new_surface(fqpr_inst: Union[Fqpr, list], grid_type: str = 'single_resolution', tile_size: float = 1024.0,
                          subtile_size: float = 128, gridding_algorithm: str = 'mean', resolution: float = None,
+                         auto_resolution_mode: str = 'depth',
                          use_dask: bool = False, output_path: str = None, export_path: str = None,
                          export_format: str = 'geotiff', export_z_positive_up: bool = True,
                          export_resolution: float = None, client: Client = None):
@@ -562,6 +563,8 @@ def generate_new_surface(fqpr_inst: Union[Fqpr, list], grid_type: str = 'single_
         algorithm to grid by, one of 'mean', 'shoalest
     resolution
         resolution of the gridded data in the Tiles
+    auto_resolution_mode
+        one of density, depth; chooses the algorithm used to determine the resolution for the grid/tile
     use_dask
         if True, will start a dask LocalCluster instance and perform the gridding in parallel
     output_path
@@ -607,7 +610,7 @@ def generate_new_surface(fqpr_inst: Union[Fqpr, list], grid_type: str = 'single_
         _add_points_to_surface(f, bg, unique_crs[0], unique_vertref[0])
 
     # now after all points are added, run grid with the options presented
-    bg.grid(algorithm=gridding_algorithm, resolution=resolution, use_dask=use_dask)
+    bg.grid(algorithm=gridding_algorithm, resolution=resolution, auto_resolution_mode=auto_resolution_mode, use_dask=use_dask)
     if export_path:
         bg.export(output_path=export_path, export_format=export_format, z_positive_up=export_z_positive_up,
                   resolution=export_resolution)

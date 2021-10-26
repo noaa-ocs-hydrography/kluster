@@ -59,6 +59,8 @@ class OpenProjectWorker(QtCore.QThread):
         self.new_project_path = new_project_path
         self.force_add_fqprs = force_add_fqprs
         self.force_add_surfaces = force_add_surfaces
+        self.new_fqprs = []
+        self.new_surfaces = []
         self.error = False
 
     def run(self):
@@ -73,7 +75,6 @@ class OpenProjectWorker(QtCore.QThread):
                     data['fqpr_paths'] = self.force_add_fqprs
                 if self.force_add_surfaces:
                     data['surface_paths'] = self.force_add_surfaces
-
             for pth in data['fqpr_paths']:
                 fqpr_entry = reload_data(pth, skip_dask=True, silent=True, show_progress=True)
                 if fqpr_entry is not None:  # no fqpr instance successfully loaded
@@ -82,7 +83,7 @@ class OpenProjectWorker(QtCore.QThread):
                     print('Unable to load converted data from {}'.format(pth))
             for pth in data['surface_paths']:
                 surf_entry = reload_surface(pth)
-                if surf_entry is not None:  # no fqpr instance successfully loaded
+                if surf_entry is not None:  # no grid instance successfully loaded
                     self.new_surfaces.append(surf_entry)
                 else:
                     print('Unable to load surface from {}'.format(pth))
