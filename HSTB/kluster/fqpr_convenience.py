@@ -678,11 +678,17 @@ def update_surface(surface_instance: Union[str, BathyGrid], add_fqpr: Union[Fqpr
             _add_points_to_surface(afqpr, surface_instance, unique_crs[0], unique_vertref[0])
 
     if regrid:
-        if surface_instance.grid_resolution == 'AUTO':
+        if surface_instance.grid_resolution.lower() == 'auto_depth':
             rez = None
+            automode = 'depth'
+        elif surface_instance.grid_resolution.lower() == 'auto_density':
+            rez = None
+            automode = 'density'
         else:
             rez = surface_instance.grid_resolution
-        surface_instance.grid(surface_instance.grid_algorithm, rez, regrid_option=regrid_option, use_dask=use_dask)
+            automode = 'depth'  # the default value, this will not be used when resolution is specified
+        surface_instance.grid(surface_instance.grid_algorithm, rez, auto_resolution_mode=automode,
+                              regrid_option=regrid_option, use_dask=use_dask)
     return surface_instance
 
 
