@@ -1507,6 +1507,19 @@ class KlusterMain(QtWidgets.QMainWindow):
             dlog.maxdepth.setText(str(0.0))
             dlog.depth_box.setChecked(False)
 
+        if 'density' in self.two_d.force_band_minmax:
+            dlog.mindensity.setText(str(int(self.two_d.force_band_minmax['density'][0])))
+            dlog.maxdensity.setText(str(int(self.two_d.force_band_minmax['density'][1])))
+            dlog.density_box.setChecked(True)
+        elif 'density' in self.two_d.band_minmax:
+            dlog.mindensity.setText(str(int(self.two_d.band_minmax['density'][0])))
+            dlog.maxdensity.setText(str(int(self.two_d.band_minmax['density'][1])))
+            dlog.density_box.setChecked(False)
+        else:
+            dlog.mindensity.setText(str(0))
+            dlog.maxdensity.setText(str(0))
+            dlog.density_box.setChecked(False)
+
         if 'vertical_uncertainty' in self.two_d.force_band_minmax:
             dlog.minvunc.setText(str(self.two_d.force_band_minmax['vertical_uncertainty'][0]))
             dlog.maxvunc.setText(str(self.two_d.force_band_minmax['vertical_uncertainty'][1]))
@@ -1540,6 +1553,11 @@ class KlusterMain(QtWidgets.QMainWindow):
                 else:
                     if 'depth' in self.two_d.force_band_minmax:
                         self.two_d.force_band_minmax.pop('depth')
+                if dlog.density_box.isChecked():
+                    self.two_d.force_band_minmax['density'] = [int(dlog.mindensity.text()), int(dlog.mindensity.text())]
+                else:
+                    if 'density' in self.two_d.force_band_minmax:
+                        self.two_d.force_band_minmax.pop('density')
                 if dlog.vunc_box.isChecked():
                     self.two_d.force_band_minmax['vertical_uncertainty'] = [float(dlog.minvunc.text()), float(dlog.maxvunc.text())]
                 else:
@@ -1551,6 +1569,7 @@ class KlusterMain(QtWidgets.QMainWindow):
                     if 'horizontal_uncertainty' in self.two_d.force_band_minmax:
                         self.two_d.force_band_minmax.pop('horizontal_uncertainty')
                 self.two_d.update_layer_minmax('depth')
+                self.two_d.update_layer_minmax('density')
                 self.two_d.update_layer_minmax('vertical_uncertainty')
                 self.two_d.update_layer_minmax('horizontal_uncertainty')
                 self.two_d.canvas.redrawAllLayers()

@@ -29,6 +29,21 @@ class ColorRanges(QtWidgets.QDialog):
         self.depth_box.setLayout(self.depth_layout)
         self.ranges_layout.addWidget(self.depth_box)
 
+        self.density_box = QtWidgets.QGroupBox('Override Density Ranges')
+        self.density_box.setCheckable(True)
+        self.density_box.setChecked(False)
+        self.density_layout = QtWidgets.QHBoxLayout()
+        self.mindensity_lbl = QtWidgets.QLabel('Minimum')
+        self.density_layout.addWidget(self.mindensity_lbl)
+        self.mindensity = QtWidgets.QLineEdit('0')
+        self.density_layout.addWidget(self.mindensity)
+        self.maxdensity_lbl = QtWidgets.QLabel('Maximum')
+        self.density_layout.addWidget(self.maxdensity_lbl)
+        self.maxdensity = QtWidgets.QLineEdit('0')
+        self.density_layout.addWidget(self.maxdensity)
+        self.density_box.setLayout(self.density_layout)
+        self.ranges_layout.addWidget(self.density_box)
+
         self.vunc_box = QtWidgets.QGroupBox('Override Vertical Uncertainty Ranges')
         self.vunc_box.setCheckable(True)
         self.vunc_box.setChecked(False)
@@ -94,6 +109,16 @@ class ColorRanges(QtWidgets.QDialog):
             float(self.maxdepth.text())
         except:
             self.status_msg.setText('Maximum Depth {} is not a valid integer or floating point number'.format(self.maxdepth.text()))
+            return
+        try:
+            int(self.mindensity.text())
+        except:
+            self.status_msg.setText('Minimum Density {} is not a valid integer'.format(self.mindensity.text()))
+            return
+        try:
+            int(self.maxdensity.text())
+        except:
+            self.status_msg.setText('Maximum Density {} is not a valid integer'.format(self.maxdensity.text()))
             return
         try:
             float(self.minvunc.text())
