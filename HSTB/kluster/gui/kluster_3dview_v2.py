@@ -126,7 +126,7 @@ class ColorBar(FigureCanvasQTAgg):
         if is_rejected:
             self.fig.colorbar(cm.ScalarMappable(norm=norm, cmap=cmap), orientation='vertical', cax=self.c_map_ax,
                               ticks=[3, 2, 1, 0])
-            self.c_map_ax.set_yticklabels(['Re-Accept', 'Reject', 'Phase', 'Amp'])
+            self.c_map_ax.set_yticklabels(['Re-Accept', 'Reject', 'Phase', 'Amplitude'])
             self.c_map_ax.tick_params(labelsize=7)
         elif by_name:
             self.fig.colorbar(cm.ScalarMappable(norm=norm, cmap=cmap), orientation='vertical', cax=self.c_map_ax,
