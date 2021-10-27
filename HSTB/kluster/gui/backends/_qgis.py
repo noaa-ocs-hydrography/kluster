@@ -14,6 +14,10 @@ from HSTB.kluster.gdal_helpers import gdal_raster_create, VectorLayer, gdal_outp
 from HSTB.kluster import kluster_variables
 
 
+acceptedlayernames = ['depth', 'density', 'vertical_uncertainty', 'horizontal_uncertainty']
+invert_colormap_layernames = ['vertical_uncertainty', 'horizontal_uncertainty']
+
+
 class DistanceTool(qgis_gui.QgsMapTool):
     """
     Render a green line and give distance from start to end point using the WGS84 ellipsoid curvature.  Each click
@@ -1634,7 +1638,6 @@ class MapView(QtWidgets.QMainWindow):
 
         # surface layers can be added in chunks, i.e. 'depth_1', 'depth_2', etc., but they should all use the same
         #  extents and global stats.  Figure out which category the layer fits into here.
-        acceptedlayernames = ['depth', 'density', 'vertical_uncertainty', 'horizontal_uncertainty']
         formatted_layername = [aln for aln in acceptedlayernames if lyrname.find(aln) > -1][0]
 
         source = self.build_surface_source(surfname, formatted_layername, resolution)
@@ -1726,8 +1729,7 @@ class MapView(QtWidgets.QMainWindow):
             resolution in meters for the surface
         """
 
-        possible_layers = ['depth', 'density', 'vertical_uncertainty', 'horizontal_uncertainty']
-        for lyrname in possible_layers:
+        for lyrname in acceptedlayernames:
             remlyrs = self._return_all_surface_tiles(surfname, lyrname, resolution)
             if remlyrs:
                 for lyr in remlyrs:
@@ -1893,7 +1895,7 @@ class MapView(QtWidgets.QMainWindow):
             return
         for lname in self.layer_manager.surface_layer_names_by_type(layername):
             old_lyr = self.layer_manager.layer_data_lookup[lname]
-            if layername in ['vertical_uncertainty', 'horizontal_uncertainty']:
+            if layername in invert_colormap_layernames:
                 shader = inv_raster_shader(minl, maxl)
             else:
                 shader = raster_shader(minl, maxl)
@@ -1930,14 +1932,13 @@ class MapView(QtWidgets.QMainWindow):
             maxval = stats.maximumValue
             # surface layers can be added in chunks, i.e. 'depth_1', 'depth_2', etc., but they should all use the same
             #  extents and global stats.  Figure out which category the layer fits into here.
-            acceptedlayernames = ['depth', 'density', 'vertical_uncertainty', 'horizontal_uncertainty']
             formatted_layername = [aln for aln in acceptedlayernames if layername.find(aln) > -1][0]
             if formatted_layername in self.band_minmax:
                 self.band_minmax[formatted_layername][0] = min(minval, self.band_minmax[formatted_layername][0])
                 self.band_minmax[formatted_layername][1] = max(maxval, self.band_minmax[formatted_layername][1])
             else:
                 self.band_minmax[formatted_layername] = [minval, maxval]
-            if formatted_layername in ['vertical_uncertainty', 'horizontal_uncertainty']:
+            if formatted_layername in invert_colormap_layernames:
                 shader = inv_raster_shader
             else:
                 shader = raster_shader
@@ -2078,7 +2079,7 @@ class MapView(QtWidgets.QMainWindow):
         """
 
         if subset_surf:
-            for lyrname in ['depth', 'density', 'vertical_uncertainty', 'horizontal_uncertainty']:  # find the first loaded layer
+            for lyrname in acceptedlayernames:  # find the first loaded layer
                 lyrs = self._return_all_surface_tiles(subset_surf, lyrname, resolution)  # get all tiles
                 lyrs = [self.layer_by_name(lyr, silent=True) for lyr in lyrs]  # get the actual layer data for each tile layer
                 if lyrs:
