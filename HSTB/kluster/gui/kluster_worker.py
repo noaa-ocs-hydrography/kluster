@@ -161,7 +161,7 @@ class DrawSurfaceWorker(QtCore.QThread):
     def run(self):
         self.started.emit(True)
         try:
-            if self.surface_layer_name == 'outline':
+            if self.surface_layer_name == 'tiles':
                 x, y = self.surf_object.get_tile_boundaries()
                 self.surface_data = [x, y]
             else:

@@ -450,7 +450,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.project_tree.refresh_project(proj=self.project)
         if remove_surface is not None:
             surf_object = self.project.surface_instances[remove_surface]
-            if surface_layer_name in 'outline':
+            if surface_layer_name == 'tiles':
                 if surface_layer_name:
                     self.two_d.hide_line(remove_surface)
                 else:
@@ -464,7 +464,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         if add_surface is not None and surface_layer_name:
             surf_object = self.project.surface_instances[add_surface]
             needs_drawing = []
-            if surface_layer_name in 'outline':
+            if surface_layer_name == 'tiles':
                 shown = self.two_d.show_line(add_surface)
                 if not shown:  # show didnt work, must need to add the surface instead, loading from disk...
                     needs_drawing.append(None)
@@ -1263,7 +1263,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         if not self.draw_surface_thread.error:
             surf_path = self.draw_surface_thread.surface_path
             surf_epsg = self.draw_surface_thread.surf_object.epsg
-            if self.draw_surface_thread.surface_layer_name == 'outline':
+            if self.draw_surface_thread.surface_layer_name == 'tiles':
                 x, y = self.draw_surface_thread.surface_data
                 trans = Transformer.from_crs(CRS.from_epsg(self.draw_surface_thread.surf_object.epsg),
                                              CRS.from_epsg(4326), always_xy=True)
