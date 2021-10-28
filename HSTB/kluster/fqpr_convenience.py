@@ -431,7 +431,7 @@ def _add_points_to_surface(fqpr_inst: Fqpr, bgrid: BathyGrid, fqpr_crs: int, fqp
     """
     Add this FQPR instance to the bathygrid provided.
     """
-    cont_name = os.path.split(fqpr_inst.multibeam.raw_ping[0].output_path)[1]
+    cont_name = os.path.split(fqpr_inst.output_folder)[1]
     multibeamfiles = list(fqpr_inst.multibeam.raw_ping[0].multibeam_files.keys())
     cont_name_idx = 0
     for rp in fqpr_inst.multibeam.raw_ping:
