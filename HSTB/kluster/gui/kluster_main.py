@@ -8,6 +8,7 @@ import numpy as np
 import multiprocessing
 from typing import Union
 from datetime import datetime
+from pyproj import CRS, Transformer
 
 from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal, qgis_enabled, found_path
 if qgis_enabled:
@@ -449,18 +450,29 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.project_tree.refresh_project(proj=self.project)
         if remove_surface is not None:
             surf_object = self.project.surface_instances[remove_surface]
-            for resolution in surf_object.resolutions:
+            if surface_layer_name in 'outline':
                 if surface_layer_name:
-                    self.two_d.hide_surface(remove_surface, surface_layer_name, resolution)
+                    self.two_d.hide_line(remove_surface)
                 else:
-                    self.two_d.remove_surface(remove_surface, resolution)
+                    self.two_d.remove_line(remove_surface)
+            else:
+                for resolution in surf_object.resolutions:
+                    if surface_layer_name:
+                        self.two_d.hide_surface(remove_surface, surface_layer_name, resolution)
+                    else:
+                        self.two_d.remove_surface(remove_surface, resolution)
         if add_surface is not None and surface_layer_name:
             surf_object = self.project.surface_instances[add_surface]
             needs_drawing = []
-            for resolution in surf_object.resolutions:
-                shown = self.two_d.show_surface(add_surface, surface_layer_name, resolution)
+            if surface_layer_name in 'outline':
+                shown = self.two_d.show_line(add_surface)
                 if not shown:  # show didnt work, must need to add the surface instead, loading from disk...
-                    needs_drawing.append(resolution)
+                    needs_drawing.append(None)
+            else:
+                for resolution in surf_object.resolutions:
+                    shown = self.two_d.show_surface(add_surface, surface_layer_name, resolution)
+                    if not shown:  # show didnt work, must need to add the surface instead, loading from disk...
+                        needs_drawing.append(resolution)
             if needs_drawing:
                 print('Drawing {} - {}, resolution {}'.format(add_surface, surface_layer_name, needs_drawing))
                 self.draw_surface_thread.populate(add_surface, surf_object, needs_drawing, surface_layer_name)
@@ -1248,16 +1260,24 @@ class KlusterMain(QtWidgets.QMainWindow):
         if not self.draw_surface_thread.error:
             surf_path = self.draw_surface_thread.surface_path
             surf_epsg = self.draw_surface_thread.surf_object.epsg
-            drawresolution = None
-            for surf_resolution in self.draw_surface_thread.surface_data:
-                for surflayername in self.draw_surface_thread.surface_data[surf_resolution]:
-                    data = self.draw_surface_thread.surface_data[surf_resolution][surflayername][0]
-                    geo_transform = self.draw_surface_thread.surface_data[surf_resolution][surflayername][1]
-                    self.two_d.add_surface([surf_path, surflayername, data, geo_transform, surf_epsg, surf_resolution])
-                    if not drawresolution:
-                        drawresolution = surf_resolution
-            if drawresolution:
-                self.two_d.set_extents_from_surfaces(surf_path, drawresolution)
+            if self.draw_surface_thread.surface_layer_name == 'outline':
+                x, y = self.draw_surface_thread.surface_data
+                trans = Transformer.from_crs(CRS.from_epsg(self.draw_surface_thread.surf_object.epsg),
+                                             CRS.from_epsg(4326), always_xy=True)
+                lon, lat = trans.transform(x, y)
+                self.two_d.add_line(surf_path, lat, lon, color='black')
+                self.two_d.set_extents_from_lines()
+            else:
+                drawresolution = None
+                for surf_resolution in self.draw_surface_thread.surface_data:
+                    for surflayername in self.draw_surface_thread.surface_data[surf_resolution]:
+                        data = self.draw_surface_thread.surface_data[surf_resolution][surflayername][0]
+                        geo_transform = self.draw_surface_thread.surface_data[surf_resolution][surflayername][1]
+                        self.two_d.add_surface([surf_path, surflayername, data, geo_transform, surf_epsg, surf_resolution])
+                        if not drawresolution:
+                            drawresolution = surf_resolution
+                if drawresolution:
+                    self.two_d.set_extents_from_surfaces(surf_path, drawresolution)
         self.draw_surface_thread.populate(None, None, None, None)
         self._stop_action_progress()
         print('draw_surface: Drawing surface complete.')

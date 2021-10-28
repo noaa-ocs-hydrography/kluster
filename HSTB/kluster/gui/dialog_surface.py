@@ -5,6 +5,11 @@ from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal
 from HSTB.kluster.gui.common_widgets import BrowseListWidget, SaveStateDialog
 from HSTB.shared import RegistryHelpers
 from HSTB.kluster import kluster_variables
+from bathygrid.grid_variables import depth_resolution_lookup
+
+depth_lookup_formatted = 'MAX DEPTH: RESOLUTION\n'
+for dval, rval in depth_resolution_lookup.items():
+    depth_lookup_formatted += '{}: {}\n'.format(dval, rval)
 
 
 class SurfaceDialog(SaveStateDialog):
@@ -52,8 +57,8 @@ class SurfaceDialog(SaveStateDialog):
                                   'that is then tiled (tile size) where each tile is the same resolution.  Single resolution\n' +
                                   'grids are simple to compute but will struggle when there is a lot of depth change in your\n' +
                                   'survey area.\n\nVariable Resolution Tile grid is a large grid that encompasses other smaller\n' +
-                                  'grids (tile size) that can contain tiles (subtile size) of any resolution (that is a power of two).\n' +
-                                  "Setting the resolution to auto will allow each subtile to determine it's own resolution.")
+                                  'grids (tile size) that can contain grids of any resolution (that is a power of two).\n' +
+                                  "Setting the resolution to auto will allow each tile to determine it's own resolution.")
         self.hlayout_one_one.addWidget(self.grid_type)
         self.surf_layout.addLayout(self.hlayout_one_one)
 
@@ -74,9 +79,12 @@ class SurfaceDialog(SaveStateDialog):
         self.single_rez_resolution = QtWidgets.QComboBox()
         self.single_rez_resolution.addItems(['AUTO_depth', 'AUTO_density', '0.25', '0.50', '1.0', '2.0', '4.0', '8.0', '16.0', '32.0', '64.0', '128.0'])
         self.single_rez_resolution.setCurrentText('AUTO_depth')
-        self.single_rez_resolution.setToolTip('The resolution of the single resolution tile in meters.  Higher resolution values allow for a more detailed grid,\n' +
-                                              'but will produce holes in the grid if there is not enough data.  Auto will follow the NOAA specifications guidance,\n' +
-                                              'using the depth in the resolution lookup table or estimating the resolution based on the density of the data.')
+        self.single_rez_resolution.setToolTip('The resolution of the grid within each single resolution tile in meters.  Higher resolution values allow for a more detailed grid,\n' +
+                                              'but will produce holes in the grid if there is not enough data.\n\n' +
+                                              'AUTO_depth will follow the NOAA specifications guidance, using the depth in the resolution lookup table:\n\n'
+                                              '{}\n'.format(depth_lookup_formatted) +
+                                              'AUTO_density will base the resolution on the density/area of each tile using the following formula:\n\n' +
+                                              'resolution_estimate=squareroot(2 * minimum_points_per_cell * 1.75 / cell_point_density)')
         self.hlayout_singlerez_one.addWidget(self.single_rez_resolution)
         self.surf_layout.addLayout(self.hlayout_singlerez_one)
 
@@ -86,9 +94,9 @@ class SurfaceDialog(SaveStateDialog):
         self.variabletile_tile_size = QtWidgets.QComboBox()
         self.variabletile_tile_size.addItems(['2048', '1024', '512', '256', '128', '64', '32'])
         self.variabletile_tile_size.setCurrentText('1024')
-        self.variabletile_tile_size.setToolTip('The size of the subgrid in the variable resolution grid in meters.  The subgrid is all the same resolution, so this is the\n' +
+        self.variabletile_tile_size.setToolTip('The size of the tile in the variable resolution grid in meters.  The tile is all the same resolution, so this is the\n' +
                                                'smallest unit of resolution change.  With a value of 128 meters, each 128x128 tile can be a different resolution.  Make this\n' +
-                                               'larger if you want less change in resolution.  The minimum resolution is the tile size divided by two.')
+                                               'larger if you want better performance.  The minimum resolution is the tile size.')
         self.hlayout_variabletile_one.addWidget(self.variabletile_tile_size)
         self.variabletile_resolution_lbl = QtWidgets.QLabel('Resolution (meters): ')
         self.hlayout_variabletile_one.addStretch()
@@ -96,8 +104,11 @@ class SurfaceDialog(SaveStateDialog):
         self.variabletile_resolution = QtWidgets.QComboBox()
         self.variabletile_resolution.addItems(['AUTO_depth', 'AUTO_density'])
         self.variabletile_resolution.setCurrentText('AUTO_depth')
-        self.single_rez_resolution.setToolTip('The resolution of the variable resolution subtile.  Auto will follow the NOAA specifications guidance,\n' +
-                                              'using the depth in the resolution lookup table or estimating the resolution based on the density of the data.')
+        self.variabletile_resolution.setToolTip('The resolution of the grid within each variable resolution tile.\n\n'
+                                                'AUTO_depth will follow the NOAA specifications guidance, using the depth in the resolution lookup table:\n\n'
+                                                '{}\n'.format(depth_lookup_formatted) +
+                                                'AUTO_density will base the resolution on the density/area of each tile using the following formula:\n\n' +
+                                                'resolution_estimate=squareroot(2 * minimum_points_per_cell * 1.75 / cell_point_density)')
         self.hlayout_variabletile_one.addWidget(self.variabletile_resolution)
 
         self.surf_layout.addLayout(self.hlayout_variabletile_one)

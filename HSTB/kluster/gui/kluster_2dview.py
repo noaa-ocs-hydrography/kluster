@@ -22,11 +22,14 @@ class Kluster2dview(MapView):
     def set_extent(self, max_lat: float, min_lat: float, max_lon: float, min_lon: float, buffer: bool = True):
         super().set_extent(max_lat, min_lat, max_lon, min_lon, buffer)
 
-    def add_line(self, line_name: str, lats: np.ndarray, lons: np.ndarray, refresh: bool = False):
-        super().add_line(line_name, lats, lons, refresh)
+    def add_line(self, line_name: str, lats: np.ndarray, lons: np.ndarray, refresh: bool = False, color: str = 'blue'):
+        super().add_line(line_name, lats, lons, refresh, color)
 
     def remove_line(self, line_name, refresh=False):
         super().remove_line(line_name, refresh)
+
+    def hide_line(self, line_name, refresh=False):
+        super().hide_line(line_name, refresh)
 
     def add_surface(self, data_block: list):
         if backend == 'qgis':

@@ -1523,7 +1523,7 @@ class MapView(QtWidgets.QMainWindow):
         self.canvas.setExtent(qgis_core.QgsRectangle(qgis_core.QgsPointXY(min_lon, min_lat),
                                                      qgis_core.QgsPointXY(max_lon, max_lat)))
 
-    def add_line(self, line_name: str, lats: np.ndarray, lons: np.ndarray, refresh: bool = False):
+    def add_line(self, line_name: str, lats: np.ndarray, lons: np.ndarray, refresh: bool = False, color: str = 'blue'):
         """
         Draw a new multibeam trackline on the mapcanvas, unless it is already there
 
@@ -1538,6 +1538,8 @@ class MapView(QtWidgets.QMainWindow):
         refresh
             set to True if you want to show the line after adding here, kluster will redraw the screen after adding
             lines itself
+        color
+            color of the line
         """
         source = self.build_line_source(line_name)
         if ogr_output_file_exists(source):
@@ -1547,7 +1549,7 @@ class MapView(QtWidgets.QMainWindow):
             vl = VectorLayer(source, 'ESRI Shapefile', self.epsg, False)
             vl.write_to_layer(line_name, np.stack([lons, lats], axis=1), 2)  # ogr.wkbLineString
             vl.close()
-            lyr = self.add_layer(source, line_name, 'ogr', QtGui.QColor('blue'), layertype='line')
+            lyr = self.add_layer(source, line_name, 'ogr', QtGui.QColor(color), layertype='line')
             if refresh:
                 lyr.reload()
         except:
