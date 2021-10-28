@@ -474,6 +474,9 @@ class KlusterMain(QtWidgets.QMainWindow):
                     if not shown:  # show didnt work, must need to add the surface instead, loading from disk...
                         needs_drawing.append(resolution)
             if needs_drawing:
+                if self.surface_update_thread.isRunning():
+                    print('Surface is currently updating, please wait until after that process is complete.')
+                    return
                 print('Drawing {} - {}, resolution {}'.format(add_surface, surface_layer_name, needs_drawing))
                 self.draw_surface_thread.populate(add_surface, surf_object, needs_drawing, surface_layer_name)
                 self.draw_surface_thread.start()
@@ -1021,8 +1024,8 @@ class KlusterMain(QtWidgets.QMainWindow):
 
         fq_surf = self.surface_update_thread.fqpr_surface
         if fq_surf is not None and not self.surface_thread.error:
-            self.redraw(remove_surface=self.project.path_relative_to_project(os.path.normpath(fq_surf.output_folder)))
-            self.project.remove_surface(os.path.normpath(fq_surf.output_folder))
+            relpath_surf = self.project.path_relative_to_project(os.path.normpath(fq_surf.output_folder))
+            self.close_surface(relpath_surf)
             self.project.add_surface(fq_surf)
             self.project_tree.refresh_project(proj=self.project)
         else:
@@ -1420,10 +1423,19 @@ class KlusterMain(QtWidgets.QMainWindow):
         linename: str, line name
         idx: int, optional, the index of the provided line in the list of lines that are to be selected
 
+        Returns
+        -------
+        bool
+            True if this line was successfully selected, if a grid outline was selected for example, that would not
+            be a valid multibeam line and would return False
         """
-        convert_pth = self.project.convert_path_lookup[linename]
-        raw_attribution = self.project.fqpr_attrs[convert_pth]
-        self.explorer.populate_explorer_with_lines(linename, raw_attribution)
+        try:
+            convert_pth = self.project.convert_path_lookup[linename]
+            raw_attribution = self.project.fqpr_attrs[convert_pth]
+            self.explorer.populate_explorer_with_lines(linename, raw_attribution)
+            return True
+        except KeyError:  # surface outline is added to 2d view as a 'line' but it would not be used here
+            return False
 
     def refresh_explorer(self, fq_inst):
         """
@@ -1625,8 +1637,12 @@ class KlusterMain(QtWidgets.QMainWindow):
 
         self.two_d.reset_line_colors()
         self.explorer.clear_explorer_data()
+        skip_these = []
         for cnt, ln in enumerate(linenames):
-            self._line_selected(ln, idx=cnt)
+            valid = self._line_selected(ln, idx=cnt)
+            if not valid:
+                skip_these.append(ln)
+        linenames = [ln for ln in linenames if ln not in skip_these]
         self.two_d.change_line_colors(linenames, 'red')
 
     def select_line_by_box(self, min_lat, max_lat, min_lon, max_lon):

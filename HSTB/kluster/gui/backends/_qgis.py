@@ -173,25 +173,26 @@ class QueryTool(qgis_gui.QgsMapTool):
         text = 'Latitude: {}, Longitude: {}'.format(round(point.y(), 7), round(point.x(), 7))
         for name, layer in self.parent.project.mapLayers().items():
             if layer.type() == qgis_core.QgsMapLayerType.RasterLayer:
-                if 'hillshade' in layer.name():
-                    continue
+                # if 'hillshade' in layer.name():
+                #     continue
                 if layer.dataProvider().name() != 'wms':
-                    try:
-                        layer_point = self.parent.map_point_to_layer_point(layer, point)
-                        ident = layer.dataProvider().identify(layer_point, qgis_core.QgsRaster.IdentifyFormatValue)
-                        if ident:
-                            lname = layer.name()
-                            if lname[0:8] == '/vsimem/':
-                                lname = lname[8:]
-                            bands_under_cursor = ident.results()
-                            band_exists = False
-                            for ky, val in bands_under_cursor.items():
-                                band_name, band_value = layer.bandName(ky), round(val, 3)
-                                if not band_exists and band_name:
-                                    text += '\n\n{}'.format(lname)
-                                text += '\n{}: {}'.format(band_name, band_value)
-                    except:  # point is outside of the transform
-                        pass
+                    if layer.name() in self.parent.layer_manager.shown_layer_names:
+                        try:
+                            layer_point = self.parent.map_point_to_layer_point(layer, point)
+                            ident = layer.dataProvider().identify(layer_point, qgis_core.QgsRaster.IdentifyFormatValue)
+                            if ident:
+                                lname = layer.name()
+                                if lname[0:8] == '/vsimem/':
+                                    lname = lname[8:]
+                                bands_under_cursor = ident.results()
+                                band_exists = False
+                                for ky, val in bands_under_cursor.items():
+                                    band_name, band_value = layer.bandName(ky), round(val, 3)
+                                    if not band_exists and band_name:
+                                        text += '\n\n{}'.format(lname)
+                                    text += '\n{}: {}'.format(band_name, band_value)
+                        except:  # point is outside of the transform
+                            pass
         return text
 
 
@@ -1611,6 +1612,7 @@ class MapView(QtWidgets.QMainWindow):
             self.show_layer(source)
         if refresh:
             self.layer_by_name(source).reload()
+        return showlyr
 
     def _return_all_surface_tiles(self, surfname: str, lyrname: str, resolution: float):
         """
@@ -2063,8 +2065,9 @@ class MapView(QtWidgets.QMainWindow):
 
         lyrs = self.layer_manager.line_layers
         for lyr in lyrs:
-            lyr.renderer().symbol().setColor(QtGui.QColor('blue'))
-            lyr.triggerRepaint()
+            if lyr.renderer().symbol().color().name() == '#ff0000':  # red
+                lyr.renderer().symbol().setColor(QtGui.QColor('blue'))
+                lyr.triggerRepaint()
 
     def set_extents_from_lines(self, subset_lines: list = None):
         """
