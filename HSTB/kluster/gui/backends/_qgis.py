@@ -14,7 +14,7 @@ from HSTB.kluster.gdal_helpers import gdal_raster_create, VectorLayer, gdal_outp
 from HSTB.kluster import kluster_variables
 
 
-acceptedlayernames = ['depth', 'density', 'vertical_uncertainty', 'horizontal_uncertainty']
+acceptedlayernames = ['hillshade', 'depth', 'density', 'vertical_uncertainty', 'horizontal_uncertainty']
 invert_colormap_layernames = ['vertical_uncertainty', 'horizontal_uncertainty']
 
 
@@ -173,6 +173,8 @@ class QueryTool(qgis_gui.QgsMapTool):
         text = 'Latitude: {}, Longitude: {}'.format(round(point.y(), 7), round(point.x(), 7))
         for name, layer in self.parent.project.mapLayers().items():
             if layer.type() == qgis_core.QgsMapLayerType.RasterLayer:
+                if 'hillshade' in layer.name():
+                    continue
                 if layer.dataProvider().name() != 'wms':
                     try:
                         layer_point = self.parent.map_point_to_layer_point(layer, point)
@@ -1894,6 +1896,8 @@ class MapView(QtWidgets.QMainWindow):
         else:
             return
         for lname in self.layer_manager.surface_layer_names_by_type(layername):
+            if layername == 'hillshade':
+                continue
             old_lyr = self.layer_manager.layer_data_lookup[lname]
             if layername in invert_colormap_layernames:
                 shader = inv_raster_shader(minl, maxl)
@@ -1943,8 +1947,11 @@ class MapView(QtWidgets.QMainWindow):
             else:
                 shader = raster_shader
             self.update_layer_minmax(formatted_layername)
-            renderer = qgis_core.QgsSingleBandPseudoColorRenderer(rlayer.dataProvider(), 1, shader(self.band_minmax[formatted_layername][0],
-                                                                                                   self.band_minmax[formatted_layername][1]))
+            if formatted_layername == 'hillshade':
+                renderer = qgis_core.QgsHillshadeRenderer(rlayer.dataProvider(), 1, 315, 45)
+            else:
+                renderer = qgis_core.QgsSingleBandPseudoColorRenderer(rlayer.dataProvider(), 1, shader(self.band_minmax[formatted_layername][0],
+                                                                                                       self.band_minmax[formatted_layername][1]))
             rlayer.setRenderer(renderer)
             rlayer.renderer().setOpacity(1 - self.surface_transparency)
         rlayer.setName(source)

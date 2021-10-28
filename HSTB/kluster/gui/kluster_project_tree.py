@@ -288,6 +288,10 @@ class KlusterProjectTree(QtWidgets.QTreeView):
                     lyr_child = QtGui.QStandardItem(lyr)
                     lyr_child.setCheckable(True)
                     surf_child.appendRow([lyr_child])
+                    if lyr == 'depth':  # add optional hillshade layer
+                        lyr_child = QtGui.QStandardItem('hillshade')
+                        lyr_child.setCheckable(True)
+                        surf_child.appendRow([lyr_child])
                 self.tree_data['Surfaces'].append(surf)
         parent.sortChildren(0, order=QtCore.Qt.AscendingOrder)
 

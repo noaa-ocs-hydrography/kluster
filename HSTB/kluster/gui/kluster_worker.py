@@ -153,6 +153,7 @@ class DrawSurfaceWorker(QtCore.QThread):
         self.surface_path = surface_path
         self.surf_object = surf_object
         self.resolution = resolution
+        # handle optional hillshade layer
         self.surface_layer_name = surface_layer_name
         self.error = False
         self.surface_data = {}
@@ -160,10 +161,14 @@ class DrawSurfaceWorker(QtCore.QThread):
     def run(self):
         self.started.emit(True)
         try:
+            if self.surface_layer_name == 'hillshade':
+                surface_layer_name = 'depth'
+            else:
+                surface_layer_name = self.surface_layer_name
             for resolution in self.resolution:
                 self.surface_data[resolution] = {}
                 chunk_count = 1
-                for geo_transform, maxdim, data in self.surf_object.get_chunks_of_tiles(resolution=resolution, layer=self.surface_layer_name,
+                for geo_transform, maxdim, data in self.surf_object.get_chunks_of_tiles(resolution=resolution, layer=surface_layer_name,
                                                                                         nodatavalue=np.float32(np.nan), z_positive_up=False,
                                                                                         for_gdal=True):
                     data = list(data.values())
