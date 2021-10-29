@@ -34,6 +34,35 @@
             
   <div class="section" id="changes-list">
 <h1>Changes List<a class="headerlink" href="#changes-list" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="kluster-v0-8-1">
+<h2>Kluster v0.8.1<a class="headerlink" href="#kluster-v0-8-1" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li><p>aligns with bathygrid 1.1.3</p>
+<ul>
+<li><p>add density resolution estimation method</p></li>
+<li><p>add density layer for display</p></li>
+<li><p>add ability to set density color ranges</p></li>
+<li><p>add hillshade layer for display</p></li>
+<li><p>add tiles layer for display</p></li>
+<li><p>allow loading pre 1.1.0 grids that do not have density</p></li>
+<li><p>save lengthy metadata to array instead of json for bgrid metadata</p></li>
+</ul>
+</li>
+<li><p>new dark mode view</p></li>
+<li><p>add smaller tile size options for variable resolution gridding</p></li>
+<li><p>better error message when unable to build epsg from user provided coordinate system, zone, hemisphere</p></li>
+<li><p>better messaging with force coordinate system</p></li>
+<li><p>warning message for when you are unable to load from surface/converted</p></li>
+<li><p>update tooltips, documentation</p></li>
+<li><p>bug fix for loading converted data after moving the folder</p></li>
+<li><p>bug - reset superselection on selecting new points to avoid index error</p></li>
+<li><p>correct status flag colorbar labels</p></li>
+<li><p>only query shown layers</p></li>
+<li><p>only color on select multibeam lines (not tiles)</p></li>
+<li><p>update surface correctly clears the loaded surface layers after reloading</p></li>
+<li><p>select skips tiles for loading line attribution</p></li>
+</ul>
+</div>
 <div class="section" id="kluster-v0-8-0">
 <h2>Kluster v0.8.0<a class="headerlink" href="#kluster-v0-8-0" title="Permalink to this headline">¶</a></h2>
 <ul class="simple">
@@ -433,6 +462,7 @@
 <li class="toctree-l1"><a class="reference internal" href="indepth/index.html">Learn more about Kluster</a></li>
 <li class="toctree-l1"><a class="reference internal" href="kluster_api/index.html">API</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Changes List</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#kluster-v0-8-1">Kluster v0.8.1</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#kluster-v0-8-0">Kluster v0.8.0</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#kluster-v0-7-11">Kluster v0.7.11</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#kluster-v0-7-10">Kluster v0.7.10</a></li>
