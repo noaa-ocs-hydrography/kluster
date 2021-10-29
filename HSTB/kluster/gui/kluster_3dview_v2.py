@@ -1288,7 +1288,7 @@ class ThreeDWidget(QtWidgets.QWidget):
 
         self.external_settings = settings
         self.widgetname = '3dview'
-        self.appname = 'kluster'
+        self.appname = 'Kluster'
 
         self.three_d_window = ThreeDView(self)
 
