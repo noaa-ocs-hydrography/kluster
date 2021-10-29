@@ -288,6 +288,17 @@ class KlusterProjectTree(QtWidgets.QTreeView):
                     lyr_child = QtGui.QStandardItem(lyr)
                     lyr_child.setCheckable(True)
                     surf_child.appendRow([lyr_child])
+                    if lyr == 'depth':  # add optional hillshade layer
+                        lyr_child = QtGui.QStandardItem('hillshade')
+                        lyr_child.setCheckable(True)
+                        surf_child.appendRow([lyr_child])
+                try:  # add the ability to draw the grid outline, new in bathygrid 1.1.2
+                    surf_data[surf].get_tile_boundaries
+                    lyr_child = QtGui.QStandardItem('tiles')
+                    lyr_child.setCheckable(True)
+                    surf_child.appendRow([lyr_child])
+                except AttributeError:  # bathygrid does not support this method
+                    pass
                 self.tree_data['Surfaces'].append(surf)
         parent.sortChildren(0, order=QtCore.Qt.AscendingOrder)
 

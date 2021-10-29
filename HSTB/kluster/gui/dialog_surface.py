@@ -5,6 +5,11 @@ from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal
 from HSTB.kluster.gui.common_widgets import BrowseListWidget, SaveStateDialog
 from HSTB.shared import RegistryHelpers
 from HSTB.kluster import kluster_variables
+from bathygrid.grid_variables import depth_resolution_lookup
+
+depth_lookup_formatted = 'MAX DEPTH: RESOLUTION\n'
+for dval, rval in depth_resolution_lookup.items():
+    depth_lookup_formatted += '{}: {}\n'.format(dval, rval)
 
 
 class SurfaceDialog(SaveStateDialog):
@@ -52,8 +57,8 @@ class SurfaceDialog(SaveStateDialog):
                                   'that is then tiled (tile size) where each tile is the same resolution.  Single resolution\n' +
                                   'grids are simple to compute but will struggle when there is a lot of depth change in your\n' +
                                   'survey area.\n\nVariable Resolution Tile grid is a large grid that encompasses other smaller\n' +
-                                  'grids (tile size) that can contain tiles (subtile size) of any resolution (that is a power of two).\n' +
-                                  "Setting the resolution to auto will allow each subtile to determine it's own resolution.")
+                                  'grids (tile size) that can contain grids of any resolution (that is a power of two).\n' +
+                                  "Setting the resolution to auto will allow each tile to determine it's own resolution.")
         self.hlayout_one_one.addWidget(self.grid_type)
         self.surf_layout.addLayout(self.hlayout_one_one)
 
@@ -63,20 +68,23 @@ class SurfaceDialog(SaveStateDialog):
         self.single_rez_tile_size = QtWidgets.QComboBox()
         self.single_rez_tile_size.addItems(['2048', '1024', '512', '256', '128'])
         self.single_rez_tile_size.setCurrentText('128')
-        self.single_rez_tile_size.setToolTip('The size of the single resolution tile in meters.  The default size of 128 meters is a\n' +
+        self.single_rez_tile_size.setToolTip('The size of the single resolution tile in meters.  The default size of 1024 meters is a\n' +
                                              'good size for maximizing performance and minimizing memory usage.  Changing this value\n' +
                                              'could result in a much slower computation.  For larger grids, a larger tile size may\n' +
                                              'improve performance, but will require more memory to support the processing.')
         self.hlayout_singlerez_one.addWidget(self.single_rez_tile_size)
         self.hlayout_singlerez_one.addStretch()
-        self.single_rez_resolution_lbl = QtWidgets.QLabel('Resolution: ')
+        self.single_rez_resolution_lbl = QtWidgets.QLabel('Resolution (meters): ')
         self.hlayout_singlerez_one.addWidget(self.single_rez_resolution_lbl)
         self.single_rez_resolution = QtWidgets.QComboBox()
-        self.single_rez_resolution.addItems(['AUTO', '0.25', '0.50', '1.0', '2.0', '4.0', '8.0', '16.0', '32.0', '64.0', '128.0'])
-        self.single_rez_resolution.setCurrentText('AUTO')
-        self.single_rez_resolution.setToolTip('The resolution of the single resolution tile in meters.  Higher resolution values allow for a more detailed grid,\n' +
-                                              'but will produce holes in the grid if there is not enough data.  Auto will follow the NOAA specifications guidance,\n' +
-                                              'using the depth to resolution lookup table.')
+        self.single_rez_resolution.addItems(['AUTO_depth', 'AUTO_density', '0.25', '0.50', '1.0', '2.0', '4.0', '8.0', '16.0', '32.0', '64.0', '128.0'])
+        self.single_rez_resolution.setCurrentText('AUTO_depth')
+        self.single_rez_resolution.setToolTip('The resolution of the grid within each single resolution tile in meters.  Higher resolution values allow for a more detailed grid,\n' +
+                                              'but will produce holes in the grid if there is not enough data.\n\n' +
+                                              'AUTO_depth will follow the NOAA specifications guidance, using the depth in the resolution lookup table:\n\n'
+                                              '{}\n'.format(depth_lookup_formatted) +
+                                              'AUTO_density will base the resolution on the density/area of each tile using the following formula:\n\n' +
+                                              'resolution_estimate=squareroot(2 * minimum_points_per_cell * 1.75 / cell_point_density)')
         self.hlayout_singlerez_one.addWidget(self.single_rez_resolution)
         self.surf_layout.addLayout(self.hlayout_singlerez_one)
 
@@ -84,41 +92,46 @@ class SurfaceDialog(SaveStateDialog):
         self.variabletile_tile_size_lbl = QtWidgets.QLabel('Tile Size (meters): ')
         self.hlayout_variabletile_one.addWidget(self.variabletile_tile_size_lbl)
         self.variabletile_tile_size = QtWidgets.QComboBox()
-        self.variabletile_tile_size.addItems(['2048', '1024', '512', '256', '128'])
+        self.variabletile_tile_size.addItems(['2048', '1024', '512', '256', '128', '64', '32'])
         self.variabletile_tile_size.setCurrentText('1024')
-        self.variabletile_tile_size.setToolTip('The size of the subgrid in the variable resolution grid in meters.  Largly matters when running in parallel with Dask,\n'
-                                               'this is the size of the chunk of the survey that a single worker will handle.')
+        self.variabletile_tile_size.setToolTip('The size of the tile in the variable resolution grid in meters.  The tile is all the same resolution, so this is the\n' +
+                                               'smallest unit of resolution change.  With a value of 128 meters, each 128x128 tile can be a different resolution.  Make this\n' +
+                                               'larger if you want better performance.  The minimum resolution is the tile size.')
         self.hlayout_variabletile_one.addWidget(self.variabletile_tile_size)
         self.variabletile_resolution_lbl = QtWidgets.QLabel('Resolution (meters): ')
         self.hlayout_variabletile_one.addStretch()
         self.hlayout_variabletile_one.addWidget(self.variabletile_resolution_lbl)
         self.variabletile_resolution = QtWidgets.QComboBox()
-        self.variabletile_resolution.addItems(['AUTO'])
-        self.variabletile_resolution.setCurrentText('AUTO')
-        self.single_rez_resolution.setToolTip('The resolution of the variable resolution subtile.  Auto will follow the NOAA specifications guidance,\n' +
-                                              'using the depth to resolution lookup table.  This is currently the only option.')
+        self.variabletile_resolution.addItems(['AUTO_depth', 'AUTO_density'])
+        self.variabletile_resolution.setCurrentText('AUTO_depth')
+        self.variabletile_resolution.setToolTip('The resolution of the grid within each variable resolution tile.\n\n'
+                                                'AUTO_depth will follow the NOAA specifications guidance, using the depth in the resolution lookup table:\n\n'
+                                                '{}\n'.format(depth_lookup_formatted) +
+                                                'AUTO_density will base the resolution on the density/area of each tile using the following formula:\n\n' +
+                                                'resolution_estimate=squareroot(2 * minimum_points_per_cell * 1.75 / cell_point_density)')
         self.hlayout_variabletile_one.addWidget(self.variabletile_resolution)
+
         self.surf_layout.addLayout(self.hlayout_variabletile_one)
 
-        self.hlayout_variabletile_two = QtWidgets.QHBoxLayout()
-        self.variabletile_subtile_size_lbl = QtWidgets.QLabel('Subtile Size (meters): ')
-        self.hlayout_variabletile_two.addWidget(self.variabletile_subtile_size_lbl)
-        self.variabletile_subtile_size = QtWidgets.QComboBox()
-        self.variabletile_subtile_size.addItems(['512', '256', '128', '64'])
-        self.variabletile_subtile_size.setCurrentText('128')
-        self.variabletile_subtile_size.setToolTip('The size of the subtile in the variable resolution grid in meters.  The subtile is all the same resolution, so this is the\n' +
-                                                  'smallest unit of resolution change.  With a value of 128 meters, each 128x128 tile can be a different resolution.  Make this\n' +
-                                                  'larger if you want less change in resolution.  Careful making this too small for deep areas, this size cannot be greater than\n' +
-                                                  'your resolution.')
-        self.hlayout_variabletile_two.addWidget(self.variabletile_subtile_size)
-        self.hlayout_variabletile_two.addStretch()
-        self.surf_layout.addLayout(self.hlayout_variabletile_two)
+        # self.hlayout_variabletile_two = QtWidgets.QHBoxLayout()
+        # self.variabletile_subtile_size_lbl = QtWidgets.QLabel('Subtile Size (meters): ')
+        # self.hlayout_variabletile_two.addWidget(self.variabletile_subtile_size_lbl)
+        # self.variabletile_subtile_size = QtWidgets.QComboBox()
+        # self.variabletile_subtile_size.addItems(['512', '256', '128', '64'])
+        # self.variabletile_subtile_size.setCurrentText('128')
+        # self.variabletile_subtile_size.setToolTip('The size of the subtile in the variable resolution grid in meters.  The subtile is all the same resolution, so this is the\n' +
+        #                                           'smallest unit of resolution change.  With a value of 128 meters, each 128x128 tile can be a different resolution.  Make this\n' +
+        #                                           'larger if you want less change in resolution.  Careful making this too small for deep areas, this size cannot be greater than\n' +
+        #                                           'your resolution.')
+        # self.hlayout_variabletile_two.addWidget(self.variabletile_subtile_size)
+        # self.hlayout_variabletile_two.addStretch()
+        # self.surf_layout.addLayout(self.hlayout_variabletile_two)
 
-        self.use_dask_checkbox = QtWidgets.QCheckBox('Process in Parallel')
-        self.use_dask_checkbox.setToolTip('With this checked, gridding will be done in parallel using the Dask Client.  Assuming you have multiple\n' +
-                                          'tiles, this should improve performance significantly.  You may experience some instability, although this\n' +
-                                          'current implementation has not shown any during testing.')
-        self.surf_layout.addWidget(self.use_dask_checkbox)
+        # self.use_dask_checkbox = QtWidgets.QCheckBox('Process in Parallel')
+        # self.use_dask_checkbox.setToolTip('With this checked, gridding will be done in parallel using the Dask Client.  Assuming you have multiple\n' +
+        #                                   'tiles, this should improve performance significantly.  You may experience some instability, although this\n' +
+        #                                   'current implementation has not shown any during testing.')
+        # self.surf_layout.addWidget(self.use_dask_checkbox)
 
         # self.output_msg = QtWidgets.QLabel('Select the output path for the surface')
         # self.surf_layout.addWidget(self.output_msg)
@@ -163,9 +176,9 @@ class SurfaceDialog(SaveStateDialog):
 
         self.text_controls = [['method', self.surf_method], ['gridtype', self.grid_type],
                               ['singlerez_tilesize', self.single_rez_tile_size], ['single_rez_resolution', self.single_rez_resolution],
-                              ['variabletile_tile_size', self.variabletile_tile_size], ['variabletile_resolution', self.variabletile_resolution],
-                              ['variabletile_subtile_size', self.variabletile_subtile_size]]
-        self.checkbox_controls = [['use_dask_checkbox', self.use_dask_checkbox]]
+                              ['variabletile_tile_size', self.variabletile_tile_size], ['variabletile_resolution', self.variabletile_resolution]]
+                              # ['variabletile_subtile_size', self.variabletile_subtile_size]]
+        # self.checkbox_controls = [['use_dask_checkbox', self.use_dask_checkbox]]
 
         self.read_settings()
         self._event_update_status(None)
@@ -179,8 +192,8 @@ class SurfaceDialog(SaveStateDialog):
             self.single_rez_tile_size_lbl.show()
             self.variabletile_resolution.hide()
             self.variabletile_resolution_lbl.hide()
-            self.variabletile_subtile_size.hide()
-            self.variabletile_subtile_size_lbl.hide()
+            # self.variabletile_subtile_size.hide()
+            # self.variabletile_subtile_size_lbl.hide()
             self.variabletile_tile_size.hide()
             self.variabletile_tile_size_lbl.hide()
         elif curr_opts == 'Variable Resolution Tile':
@@ -190,8 +203,8 @@ class SurfaceDialog(SaveStateDialog):
             self.single_rez_tile_size_lbl.hide()
             self.variabletile_resolution.show()
             self.variabletile_resolution_lbl.show()
-            self.variabletile_subtile_size.show()
-            self.variabletile_subtile_size_lbl.show()
+            # self.variabletile_subtile_size.show()
+            # self.variabletile_subtile_size_lbl.show()
             self.variabletile_tile_size.show()
             self.variabletile_tile_size_lbl.show()
 
@@ -219,25 +232,38 @@ class SurfaceDialog(SaveStateDialog):
             if curr_opts == 'Single Resolution':
                 outpth = os.path.join(self.output_pth, 'srgrid_{}_{}'.format(self.surf_method.currentText(),
                                                                              self.single_rez_resolution.currentText()).lower())
-                if self.single_rez_resolution.currentText() == 'AUTO':
+                if self.single_rez_resolution.currentText() == 'AUTO_depth':
                     rez = None
+                    automode = 'depth'
+                elif self.single_rez_resolution.currentText() == 'AUTO_density':
+                    rez = None
+                    automode = 'density'
                 else:
                     rez = float(self.single_rez_resolution.currentText())
+                    automode = 'depth'
                 opts = {'fqpr_inst': self.fqpr_inst, 'grid_type': 'single_resolution',
                         'tile_size': float(self.single_rez_tile_size.currentText()),
                         'gridding_algorithm': self.surf_method.currentText().lower(),
-                        'resolution': rez, 'output_path': outpth, 'use_dask': self.use_dask_checkbox.isChecked()}
+                        'auto_resolution_mode': automode,
+                        'resolution': rez, 'output_path': outpth, 'use_dask': False}
             elif curr_opts == 'Variable Resolution Tile':
                 outpth = os.path.join(self.output_pth, 'vrtilegrid_{}'.format(self.surf_method.currentText()).lower())
-                if self.variabletile_resolution.currentText() == 'AUTO':
+                if self.variabletile_resolution.currentText() == 'AUTO_depth':
                     rez = None
+                    automode = 'depth'
+                elif self.variabletile_resolution.currentText() == 'AUTO_density':
+                    rez = None
+                    automode = 'density'
                 else:
-                    rez = float(self.variabletile_resolution.currentText())
+                    raise ValueError('Should not get here, variable rez is only an auto resolution mode operation')
+
                 opts = {'fqpr_inst': self.fqpr_inst, 'grid_type': 'variable_resolution_tile',
                         'tile_size': float(self.variabletile_tile_size.currentText()),
-                        'subtile_size': float(self.variabletile_subtile_size.currentText()),
+                        # 'subtile_size': float(self.variabletile_subtile_size.currentText()),
+                        'subtile_size': float(self.variabletile_tile_size.currentText()),
                         'gridding_algorithm': self.surf_method.currentText().lower(),
-                        'resolution': rez, 'output_path': outpth, 'use_dask': self.use_dask_checkbox.isChecked()}
+                        'auto_resolution_mode': automode,
+                        'resolution': rez, 'output_path': outpth, 'use_dask': False}
             else:
                 raise ValueError('dialog_surface: unexpected grid type {}'.format(curr_opts))
         else:

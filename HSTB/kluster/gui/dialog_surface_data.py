@@ -48,11 +48,11 @@ class SurfaceDataDialog(SaveStateDialog):
         self.regrid_layout.addStretch()
         self.toplayout.addLayout(self.regrid_layout)
 
-        self.use_dask_checkbox = QtWidgets.QCheckBox('Process in Parallel')
-        self.use_dask_checkbox.setToolTip('With this checked, gridding will be done in parallel using the Dask Client.  Assuming you have multiple\n' +
-                                          'tiles, this should improve performance significantly.  You may experience some instability, although this\n' +
-                                          'current implementation has not shown any during testing.')
-        self.toplayout.addWidget(self.use_dask_checkbox)
+        # self.use_dask_checkbox = QtWidgets.QCheckBox('Process in Parallel')
+        # self.use_dask_checkbox.setToolTip('With this checked, gridding will be done in parallel using the Dask Client.  Assuming you have multiple\n' +
+        #                                   'tiles, this should improve performance significantly.  You may experience some instability, although this\n' +
+        #                                   'current implementation has not shown any during testing.')
+        # self.toplayout.addWidget(self.use_dask_checkbox)
 
         self.status_msg = QtWidgets.QLabel('')
         self.status_msg.setStyleSheet("QLabel { " + kluster_variables.error_color + "; }")
@@ -81,8 +81,7 @@ class SurfaceDataDialog(SaveStateDialog):
         self.cancel_button.clicked.connect(self.cancel_processing)
 
         self.text_controls = [['regrid_options', self.regrid_options]]
-        self.checkbox_controls = [['update_checkbox', self.update_checkbox], ['regrid_checkbox', self.regrid_checkbox],
-                                  ['use_dask_checkbox', self.use_dask_checkbox]]
+        self.checkbox_controls = [['update_checkbox', self.update_checkbox], ['regrid_checkbox', self.regrid_checkbox]]
         self.read_settings()
 
     def mark_for_update(self):
@@ -136,7 +135,7 @@ class SurfaceDataDialog(SaveStateDialog):
         for newcurr in current_containers:
             if newcurr in self.original_possible and newcurr not in add_fqpr:
                 add_fqpr.append(newcurr)
-        return add_fqpr, remove_fqpr, {'regrid': regrid_container, 'use_dask': self.use_dask_checkbox.isChecked(),
+        return add_fqpr, remove_fqpr, {'regrid': regrid_container, 'use_dask': False,
                                        'regrid_option': regrid_option}
 
     def start_processing(self):

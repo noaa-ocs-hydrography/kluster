@@ -1,6 +1,33 @@
 Changes List
 ============
 
+Kluster v0.8.1
+--------------
+- aligns with bathygrid 1.1.3
+
+  - add density resolution estimation method
+  - add density layer for display
+  - add ability to set density color ranges
+  - add hillshade layer for display
+  - add tiles layer for display
+  - allow loading pre 1.1.0 grids that do not have density
+  - save lengthy metadata to array instead of json for bgrid metadata
+
+- new dark mode view
+- add smaller tile size options for variable resolution gridding
+- better error message when unable to build epsg from user provided coordinate system, zone, hemisphere
+- better messaging with force coordinate system
+- warning message for when you are unable to load from surface/converted
+- update tooltips, documentation
+
+- bug fix for loading converted data after moving the folder
+- bug - reset superselection on selecting new points to avoid index error
+- correct status flag colorbar labels
+- only query shown layers
+- only color on select multibeam lines (not tiles)
+- update surface correctly clears the loaded surface layers after reloading
+- select skips tiles for loading line attribution
+
 Kluster v0.8.0
 --------------
 - greatly improve performance with NOAA_MLLW NOAA_MHW datum selections by sampling points passed to vyperdatum

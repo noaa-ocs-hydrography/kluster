@@ -1,5 +1,6 @@
 from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal, qgis_enabled
 
+
 try:
     from HSTB.kluster import __version__ as klustervers
     if not isinstance(klustervers, str):
@@ -135,10 +136,6 @@ class AboutDialog(QtWidgets.QDialog):
         self.toplayout.addLayout(self.hlayout_button)
 
         self.setLayout(self.toplayout)
-        self.setMinimumWidth(210)
-        self.setMaximumWidth(210)
-        self.setMinimumHeight(250)
-        self.setMaximumHeight(250)
 
         self.ok_button.clicked.connect(self.ok_dialog)
 
@@ -151,6 +148,7 @@ if __name__ == '__main__':
         app = QtWidgets.QApplication()
     except TypeError:  # pyqt5
         app = QtWidgets.QApplication([])
+
     dlog = AboutDialog()
     dlog.show()
     app.exec_()

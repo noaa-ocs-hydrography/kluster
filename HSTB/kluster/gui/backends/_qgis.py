@@ -14,6 +14,10 @@ from HSTB.kluster.gdal_helpers import gdal_raster_create, VectorLayer, gdal_outp
 from HSTB.kluster import kluster_variables
 
 
+acceptedlayernames = ['hillshade', 'depth', 'density', 'vertical_uncertainty', 'horizontal_uncertainty']
+invert_colormap_layernames = ['vertical_uncertainty', 'horizontal_uncertainty']
+
+
 class DistanceTool(qgis_gui.QgsMapTool):
     """
     Render a green line and give distance from start to end point using the WGS84 ellipsoid curvature.  Each click
@@ -169,23 +173,26 @@ class QueryTool(qgis_gui.QgsMapTool):
         text = 'Latitude: {}, Longitude: {}'.format(round(point.y(), 7), round(point.x(), 7))
         for name, layer in self.parent.project.mapLayers().items():
             if layer.type() == qgis_core.QgsMapLayerType.RasterLayer:
+                # if 'hillshade' in layer.name():
+                #     continue
                 if layer.dataProvider().name() != 'wms':
-                    try:
-                        layer_point = self.parent.map_point_to_layer_point(layer, point)
-                        ident = layer.dataProvider().identify(layer_point, qgis_core.QgsRaster.IdentifyFormatValue)
-                        if ident:
-                            lname = layer.name()
-                            if lname[0:8] == '/vsimem/':
-                                lname = lname[8:]
-                            bands_under_cursor = ident.results()
-                            band_exists = False
-                            for ky, val in bands_under_cursor.items():
-                                band_name, band_value = layer.bandName(ky), round(val, 3)
-                                if not band_exists and band_name:
-                                    text += '\n\n{}'.format(lname)
-                                text += '\n{}: {}'.format(band_name, band_value)
-                    except:  # point is outside of the transform
-                        pass
+                    if layer.name() in self.parent.layer_manager.shown_layer_names:
+                        try:
+                            layer_point = self.parent.map_point_to_layer_point(layer, point)
+                            ident = layer.dataProvider().identify(layer_point, qgis_core.QgsRaster.IdentifyFormatValue)
+                            if ident:
+                                lname = layer.name()
+                                if lname[0:8] == '/vsimem/':
+                                    lname = lname[8:]
+                                bands_under_cursor = ident.results()
+                                band_exists = False
+                                for ky, val in bands_under_cursor.items():
+                                    band_name, band_value = layer.bandName(ky), round(val, 3)
+                                    if not band_exists and band_name:
+                                        text += '\n\n{}'.format(lname)
+                                    text += '\n{}: {}'.format(band_name, band_value)
+                        except:  # point is outside of the transform
+                            pass
         return text
 
 
@@ -304,16 +311,17 @@ class RectangleMapTool(qgis_gui.QgsMapToolEmitPoint):
     clear_box = Signal(bool)
 
     def __init__(self, canvas, show_direction: bool = True):
+        self.base_color = QtCore.Qt.black
         self.canvas = canvas
         qgis_gui.QgsMapToolEmitPoint.__init__(self, self.canvas)
         self.rubberBand = qgis_gui.QgsRubberBand(self.canvas, True)
-        self.rubberBand.setColor(QtCore.Qt.black)
+        self.rubberBand.setColor(self.base_color)
         self.rubberBand.setFillColor(QtCore.Qt.transparent)
         self.rubberBand.setWidth(3)
 
         if show_direction:
             self.direction_arrow = qgis_gui.QgsRubberBand(self.canvas, False)
-            self.direction_arrow.setColor(QtCore.Qt.black)
+            self.direction_arrow.setColor(self.base_color)
             self.direction_arrow.setWidth(4)
         else:
             self.direction_arrow = None
@@ -335,10 +343,10 @@ class RectangleMapTool(qgis_gui.QgsMapToolEmitPoint):
         """
         Clear the rectangle
         """
-        self.rubberBand.setColor(QtCore.Qt.black)
+        self.rubberBand.setColor(self.base_color)
         self.rubberBand.setFillColor(QtCore.Qt.transparent)
         if self.direction_arrow:
-            self.direction_arrow.setColor(QtCore.Qt.black)
+            self.direction_arrow.setColor(self.base_color)
         self.start_point = None
         self.end_point = None
         self.final_start_point = None
@@ -919,7 +927,7 @@ class MapView(QtWidgets.QMainWindow):
     box_points = Signal(object, float)
     turn_off_pointsview = Signal(bool)
 
-    def __init__(self, parent=None, settings=None, epsg: int = 4326):
+    def __init__(self, parent=None, settings=None, epsg: int = kluster_variables.qgis_epsg):
         super().__init__()
         self.epsg = epsg
         self.vdatum_directory = None
@@ -1517,7 +1525,7 @@ class MapView(QtWidgets.QMainWindow):
         self.canvas.setExtent(qgis_core.QgsRectangle(qgis_core.QgsPointXY(min_lon, min_lat),
                                                      qgis_core.QgsPointXY(max_lon, max_lat)))
 
-    def add_line(self, line_name: str, lats: np.ndarray, lons: np.ndarray, refresh: bool = False):
+    def add_line(self, line_name: str, lats: np.ndarray, lons: np.ndarray, refresh: bool = False, color: str = 'blue'):
         """
         Draw a new multibeam trackline on the mapcanvas, unless it is already there
 
@@ -1532,6 +1540,8 @@ class MapView(QtWidgets.QMainWindow):
         refresh
             set to True if you want to show the line after adding here, kluster will redraw the screen after adding
             lines itself
+        color
+            color of the line
         """
         source = self.build_line_source(line_name)
         if ogr_output_file_exists(source):
@@ -1541,7 +1551,7 @@ class MapView(QtWidgets.QMainWindow):
             vl = VectorLayer(source, 'ESRI Shapefile', self.epsg, False)
             vl.write_to_layer(line_name, np.stack([lons, lats], axis=1), 2)  # ogr.wkbLineString
             vl.close()
-            lyr = self.add_layer(source, line_name, 'ogr', QtGui.QColor('blue'), layertype='line')
+            lyr = self.add_layer(source, line_name, 'ogr', QtGui.QColor(color), layertype='line')
             if refresh:
                 lyr.reload()
         except:
@@ -1603,6 +1613,7 @@ class MapView(QtWidgets.QMainWindow):
             self.show_layer(source)
         if refresh:
             self.layer_by_name(source).reload()
+        return showlyr
 
     def _return_all_surface_tiles(self, surfname: str, lyrname: str, resolution: float):
         """
@@ -1634,7 +1645,6 @@ class MapView(QtWidgets.QMainWindow):
 
         # surface layers can be added in chunks, i.e. 'depth_1', 'depth_2', etc., but they should all use the same
         #  extents and global stats.  Figure out which category the layer fits into here.
-        acceptedlayernames = ['depth', 'vertical_uncertainty', 'horizontal_uncertainty']
         formatted_layername = [aln for aln in acceptedlayernames if lyrname.find(aln) > -1][0]
 
         source = self.build_surface_source(surfname, formatted_layername, resolution)
@@ -1667,7 +1677,10 @@ class MapView(QtWidgets.QMainWindow):
         showlyr = gdal_output_file_exists(source)
 
         if not showlyr:
-            gdal_raster_create(source, data, geo_transform, crs, np.nan, (lyrname,))
+            if lyrname[0:7] != 'density':
+                gdal_raster_create(source, data, geo_transform, crs, np.nan, (lyrname,))
+            else:
+                gdal_raster_create(source, data, geo_transform, crs, 0, (lyrname,))
             self.add_layer(source, lyrname, 'gdal', layertype='surface')
         else:
             self.show_surface(surfname, lyrname, resolution)
@@ -1723,8 +1736,7 @@ class MapView(QtWidgets.QMainWindow):
             resolution in meters for the surface
         """
 
-        possible_layers = ['depth', 'vertical_uncertainty', 'horizontal_uncertainty']
-        for lyrname in possible_layers:
+        for lyrname in acceptedlayernames:
             remlyrs = self._return_all_surface_tiles(surfname, lyrname, resolution)
             if remlyrs:
                 for lyr in remlyrs:
@@ -1889,8 +1901,10 @@ class MapView(QtWidgets.QMainWindow):
         else:
             return
         for lname in self.layer_manager.surface_layer_names_by_type(layername):
+            if layername == 'hillshade':
+                continue
             old_lyr = self.layer_manager.layer_data_lookup[lname]
-            if layername in ['vertical_uncertainty', 'horizontal_uncertainty']:
+            if layername in invert_colormap_layernames:
                 shader = inv_raster_shader(minl, maxl)
             else:
                 shader = raster_shader(minl, maxl)
@@ -1927,20 +1941,22 @@ class MapView(QtWidgets.QMainWindow):
             maxval = stats.maximumValue
             # surface layers can be added in chunks, i.e. 'depth_1', 'depth_2', etc., but they should all use the same
             #  extents and global stats.  Figure out which category the layer fits into here.
-            acceptedlayernames = ['depth', 'vertical_uncertainty', 'horizontal_uncertainty']
             formatted_layername = [aln for aln in acceptedlayernames if layername.find(aln) > -1][0]
             if formatted_layername in self.band_minmax:
                 self.band_minmax[formatted_layername][0] = min(minval, self.band_minmax[formatted_layername][0])
                 self.band_minmax[formatted_layername][1] = max(maxval, self.band_minmax[formatted_layername][1])
             else:
                 self.band_minmax[formatted_layername] = [minval, maxval]
-            if formatted_layername in ['vertical_uncertainty', 'horizontal_uncertainty']:
+            if formatted_layername in invert_colormap_layernames:
                 shader = inv_raster_shader
             else:
                 shader = raster_shader
             self.update_layer_minmax(formatted_layername)
-            renderer = qgis_core.QgsSingleBandPseudoColorRenderer(rlayer.dataProvider(), 1, shader(self.band_minmax[formatted_layername][0],
-                                                                                                   self.band_minmax[formatted_layername][1]))
+            if formatted_layername == 'hillshade':
+                renderer = qgis_core.QgsHillshadeRenderer(rlayer.dataProvider(), 1, 315, 45)
+            else:
+                renderer = qgis_core.QgsSingleBandPseudoColorRenderer(rlayer.dataProvider(), 1, shader(self.band_minmax[formatted_layername][0],
+                                                                                                       self.band_minmax[formatted_layername][1]))
             rlayer.setRenderer(renderer)
             rlayer.renderer().setOpacity(1 - self.surface_transparency)
         rlayer.setName(source)
@@ -2050,8 +2066,9 @@ class MapView(QtWidgets.QMainWindow):
 
         lyrs = self.layer_manager.line_layers
         for lyr in lyrs:
-            lyr.renderer().symbol().setColor(QtGui.QColor('blue'))
-            lyr.triggerRepaint()
+            if lyr.renderer().symbol().color().name() == '#ff0000':  # red
+                lyr.renderer().symbol().setColor(QtGui.QColor('blue'))
+                lyr.triggerRepaint()
 
     def set_extents_from_lines(self, subset_lines: list = None):
         """
@@ -2075,7 +2092,7 @@ class MapView(QtWidgets.QMainWindow):
         """
 
         if subset_surf:
-            for lyrname in ['depth', 'vertical_uncertainty', 'horizontal_uncertainty']:  # find the first loaded layer
+            for lyrname in acceptedlayernames:  # find the first loaded layer
                 lyrs = self._return_all_surface_tiles(subset_surf, lyrname, resolution)  # get all tiles
                 lyrs = [self.layer_by_name(lyr, silent=True) for lyr in lyrs]  # get the actual layer data for each tile layer
                 if lyrs:

@@ -1,4 +1,5 @@
 import numpy as np
+import traceback
 
 from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal
 from HSTB.kluster.fqpr_project import return_project_data
@@ -33,7 +34,8 @@ class ActionWorker(QtCore.QThread):
             self.action_type = self.action_container.actions[self.action_index].action_type
             self.result = self.action_container.execute_action(self.action_index)
         except Exception as e:
-            print(e)
+            print('Error running action {}'.format(self.action_type))
+            print(traceback.format_exc())
             self.error = True
         self.finished.emit(True)
 
@@ -59,6 +61,8 @@ class OpenProjectWorker(QtCore.QThread):
         self.new_project_path = new_project_path
         self.force_add_fqprs = force_add_fqprs
         self.force_add_surfaces = force_add_surfaces
+        self.new_fqprs = []
+        self.new_surfaces = []
         self.error = False
 
     def run(self):
@@ -73,18 +77,21 @@ class OpenProjectWorker(QtCore.QThread):
                     data['fqpr_paths'] = self.force_add_fqprs
                 if self.force_add_surfaces:
                     data['surface_paths'] = self.force_add_surfaces
-
             for pth in data['fqpr_paths']:
-                print('Loading from {}'.format(pth))
                 fqpr_entry = reload_data(pth, skip_dask=True, silent=True, show_progress=True)
                 if fqpr_entry is not None:  # no fqpr instance successfully loaded
                     self.new_fqprs.append(fqpr_entry)
+                else:
+                    print('Unable to load converted data from {}'.format(pth))
             for pth in data['surface_paths']:
                 surf_entry = reload_surface(pth)
-                if surf_entry is not None:  # no fqpr instance successfully loaded
+                if surf_entry is not None:  # no grid instance successfully loaded
                     self.new_surfaces.append(surf_entry)
+                else:
+                    print('Unable to load surface from {}'.format(pth))
         except Exception as e:
-            print(e)
+            print('Error on opening data:')
+            print(traceback.format_exc())
             self.error = True
         self.finished.emit(True)
 
@@ -119,7 +126,8 @@ class DrawNavigationWorker(QtCore.QThread):
                     lats, lons = self.project.return_line_navigation(ln)
                     self.line_data[ln] = [lats, lons]
         except Exception as e:
-            print(e)
+            print('Error drawing lines from {}'.format(self.new_fqprs))
+            print(traceback.format_exc())
             self.error = True
         self.finished.emit(True)
 
@@ -145,6 +153,7 @@ class DrawSurfaceWorker(QtCore.QThread):
         self.surface_path = surface_path
         self.surf_object = surf_object
         self.resolution = resolution
+        # handle optional hillshade layer
         self.surface_layer_name = surface_layer_name
         self.error = False
         self.surface_data = {}
@@ -152,17 +161,26 @@ class DrawSurfaceWorker(QtCore.QThread):
     def run(self):
         self.started.emit(True)
         try:
-            for resolution in self.resolution:
-                self.surface_data[resolution] = {}
-                chunk_count = 1
-                for geo_transform, maxdim, data in self.surf_object.get_chunks_of_tiles(resolution=resolution, layer=self.surface_layer_name,
-                                                                                        nodatavalue=np.float32(np.nan), z_positive_up=False,
-                                                                                        for_gdal=True):
-                    data = list(data.values())
-                    self.surface_data[resolution][self.surface_layer_name + '_{}'.format(chunk_count)] = [data, geo_transform]
-                    chunk_count += 1
+            if self.surface_layer_name == 'tiles':
+                x, y = self.surf_object.get_tile_boundaries()
+                self.surface_data = [x, y]
+            else:
+                if self.surface_layer_name == 'hillshade':
+                    surface_layer_name = 'depth'
+                else:
+                    surface_layer_name = self.surface_layer_name
+                for resolution in self.resolution:
+                    self.surface_data[resolution] = {}
+                    chunk_count = 1
+                    for geo_transform, maxdim, data in self.surf_object.get_chunks_of_tiles(resolution=resolution, layer=surface_layer_name,
+                                                                                            nodatavalue=np.float32(np.nan), z_positive_up=False,
+                                                                                            for_gdal=True):
+                        data = list(data.values())
+                        self.surface_data[resolution][self.surface_layer_name + '_{}'.format(chunk_count)] = [data, geo_transform]
+                        chunk_count += 1
         except Exception as e:
-            print(e)
+            print('Error drawing surface {}'.format(self.surface_path))
+            print(traceback.format_exc())
             self.error = True
         self.finished.emit(True)
 
@@ -195,7 +213,8 @@ class LoadPointsWorker(QtCore.QThread):
         try:
             self.points_data = self.project.return_soundings_in_polygon(self.polygon)
         except Exception as e:
-            print(e)
+            print('Error loading points from project')
+            print(traceback.format_exc())
             self.error = True
         self.finished.emit(True)
 
@@ -225,7 +244,8 @@ class ImportNavigationWorker(QtCore.QThread):
             for chnk in self.fq_chunks:
                 self.fqpr_instances.append(import_processed_navigation(chnk[0], **chnk[1]))
         except Exception as e:
-            print(e)
+            print('Error importing navigation')
+            print(traceback.format_exc())
             self.error = True
         self.finished.emit(True)
 
@@ -255,7 +275,8 @@ class OverwriteNavigationWorker(QtCore.QThread):
             for chnk in self.fq_chunks:
                 self.fqpr_instances.append(overwrite_raw_navigation(chnk[0], **chnk[1]))
         except Exception as e:
-            print(e)
+            print('Error overwriting raw navigation')
+            print(traceback.format_exc())
             self.error = True
         self.finished.emit(True)
 
@@ -364,7 +385,8 @@ class ExportGridWorker(QtCore.QThread):
             # None in the 4th arg to indicate you want to export all resolutions
             self.surf_instance.export(self.output_path, self.export_type, self.z_pos_up, None, **self.bag_kwargs)
         except Exception as e:
-            print(e)
+            print('Error exporting grid')
+            print(traceback.format_exc())
             self.error = True
         self.finished.emit(True)
 
@@ -395,7 +417,8 @@ class SurfaceWorker(QtCore.QThread):
         try:
             self.fqpr_surface = generate_new_surface(self.fqpr_instances, **self.opts)
         except Exception as e:
-            print(e)
+            print('Error building surface')
+            print(traceback.format_exc())
             self.error = True
         self.finished.emit(True)
 
@@ -429,6 +452,7 @@ class SurfaceUpdateWorker(QtCore.QThread):
             self.fqpr_surface = update_surface(self.fqpr_surface, self.add_fqpr_instances, self.remove_fqpr_instances,
                                                **self.opts)
         except Exception as e:
-            print(e)
+            print('Error updating surface')
+            print(traceback.format_exc())
             self.error = True
         self.finished.emit(True)

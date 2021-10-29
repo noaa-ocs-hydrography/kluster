@@ -370,6 +370,8 @@ def reload_data(converted_folder: str, require_raw_data: bool = True, skip_dask:
         if not silent:
             fqpr_inst.logger.info('****Reloading from file {}****'.format(converted_folder))
         fqpr_inst.multibeam.xyzrph = fqpr_inst.multibeam.raw_ping[0].xyzrph
+        for rp in fqpr_inst.multibeam.raw_ping:
+            rp.attrs['output_path'] = fqpr_inst.multibeam.converted_pth
         if 'vertical_reference' in fqpr_inst.multibeam.raw_ping[0].attrs:
             fqpr_inst.set_vertical_reference(fqpr_inst.multibeam.raw_ping[0].vertical_reference)
         fqpr_inst.generate_starter_orientation_vectors(None, None)
@@ -429,7 +431,7 @@ def _add_points_to_surface(fqpr_inst: Fqpr, bgrid: BathyGrid, fqpr_crs: int, fqp
     """
     Add this FQPR instance to the bathygrid provided.
     """
-    cont_name = os.path.split(fqpr_inst.multibeam.raw_ping[0].output_path)[1]
+    cont_name = os.path.split(fqpr_inst.output_folder)[1]
     multibeamfiles = list(fqpr_inst.multibeam.raw_ping[0].multibeam_files.keys())
     cont_name_idx = 0
     for rp in fqpr_inst.multibeam.raw_ping:
@@ -530,6 +532,7 @@ def _validate_fqpr_for_gridding(fqpr_instances: list):
 
 def generate_new_surface(fqpr_inst: Union[Fqpr, list], grid_type: str = 'single_resolution', tile_size: float = 1024.0,
                          subtile_size: float = 128, gridding_algorithm: str = 'mean', resolution: float = None,
+                         auto_resolution_mode: str = 'depth',
                          use_dask: bool = False, output_path: str = None, export_path: str = None,
                          export_format: str = 'geotiff', export_z_positive_up: bool = True,
                          export_resolution: float = None, client: Client = None):
@@ -560,6 +563,8 @@ def generate_new_surface(fqpr_inst: Union[Fqpr, list], grid_type: str = 'single_
         algorithm to grid by, one of 'mean', 'shoalest
     resolution
         resolution of the gridded data in the Tiles
+    auto_resolution_mode
+        one of density, depth; chooses the algorithm used to determine the resolution for the grid/tile
     use_dask
         if True, will start a dask LocalCluster instance and perform the gridding in parallel
     output_path
@@ -605,7 +610,7 @@ def generate_new_surface(fqpr_inst: Union[Fqpr, list], grid_type: str = 'single_
         _add_points_to_surface(f, bg, unique_crs[0], unique_vertref[0])
 
     # now after all points are added, run grid with the options presented
-    bg.grid(algorithm=gridding_algorithm, resolution=resolution, use_dask=use_dask)
+    bg.grid(algorithm=gridding_algorithm, resolution=resolution, auto_resolution_mode=auto_resolution_mode, use_dask=use_dask)
     if export_path:
         bg.export(output_path=export_path, export_format=export_format, z_positive_up=export_z_positive_up,
                   resolution=export_resolution)
@@ -673,11 +678,17 @@ def update_surface(surface_instance: Union[str, BathyGrid], add_fqpr: Union[Fqpr
             _add_points_to_surface(afqpr, surface_instance, unique_crs[0], unique_vertref[0])
 
     if regrid:
-        if surface_instance.grid_resolution == 'AUTO':
+        if surface_instance.grid_resolution.lower() == 'auto_depth':
             rez = None
+            automode = 'depth'
+        elif surface_instance.grid_resolution.lower() == 'auto_density':
+            rez = None
+            automode = 'density'
         else:
             rez = surface_instance.grid_resolution
-        surface_instance.grid(surface_instance.grid_algorithm, rez, regrid_option=regrid_option, use_dask=use_dask)
+            automode = 'depth'  # the default value, this will not be used when resolution is specified
+        surface_instance.grid(surface_instance.grid_algorithm, rez, auto_resolution_mode=automode,
+                              regrid_option=regrid_option, use_dask=use_dask)
     return surface_instance
 
 

@@ -22,7 +22,7 @@ def build_crs(zone_num: str = None, datum: str = None, epsg: str = None, project
         elif datum == 'WGS84':
             horizontal_crs = CRS.from_epsg(epsg_determinator('wgs84'))
         else:
-            err = '{} not supported.  Only supports WGS84 and NAD83'.format(datum)
+            err = 'ERROR: {} not supported.  Only supports WGS84 and NAD83'.format(datum)
             return horizontal_crs, err
     elif not epsg and projected:
         datum = datum.upper()
@@ -30,16 +30,24 @@ def build_crs(zone_num: str = None, datum: str = None, epsg: str = None, project
         try:
             zone, hemi = int(zone[:-1]), str(zone[-1:])
         except:
-            raise ValueError(
-                'construct_crs: found invalid projected zone/hemisphere identifier: {}, expected something like "10N"'.format(
-                    zone))
-
+            err = 'ERROR: found invalid projected zone/hemisphere identifier: {}, expected something like "10N"'.format(zone)
+            return horizontal_crs, err
         if datum == 'NAD83':
-            horizontal_crs = CRS.from_epsg(epsg_determinator('nad83(2011)', zone=zone, hemisphere=hemi))
+            try:
+                myepsg = epsg_determinator('nad83(2011)', zone=zone, hemisphere=hemi)
+            except:
+                err = 'ERROR: unable to determine epsg for NAD83(2011), zone={}, hemisphere={}, out of bounds?'.format(zone, hemi)
+                return horizontal_crs, err
+            horizontal_crs = CRS.from_epsg(myepsg)
         elif datum == 'WGS84':
-            horizontal_crs = CRS.from_epsg(epsg_determinator('wgs84', zone=zone, hemisphere=hemi))
+            try:
+                myepsg = epsg_determinator('wgs84', zone=zone, hemisphere=hemi)
+            except:
+                err = 'ERROR: unable to determine epsg for WGS84, zone={}, hemisphere={}, out of bounds?'.format(zone, hemi)
+                return horizontal_crs, err
+            horizontal_crs = CRS.from_epsg(myepsg)
         else:
-            err = '{} not supported.  Only supports WGS84 and NAD83'.format(datum)
+            err = 'ERROR: {} not supported.  Only supports WGS84 and NAD83'.format(datum)
             return horizontal_crs, err
     return horizontal_crs, ''
 

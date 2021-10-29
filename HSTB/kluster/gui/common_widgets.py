@@ -371,7 +371,7 @@ class PlotDataHandler(QtWidgets.QWidget):
             try:
                 try:  # pyside
                     set_datetime = self.trim_time_datetime_start.dateTime().toPython()
-                except AttributeError:  # pyqt5
+                except:  # pyqt5
                     set_datetime = self.trim_time_datetime_start.dateTime().toPyDateTime()
                 set_datetime = set_datetime.replace(tzinfo=timezone.utc)
                 set_mintime = int(float(set_datetime.timestamp()))
@@ -385,7 +385,7 @@ class PlotDataHandler(QtWidgets.QWidget):
             try:
                 try:  # pyside
                     set_datetime = self.trim_time_datetime_end.dateTime().toPython()
-                except AttributeError:  # pyqt5
+                except:  # pyqt5
                     set_datetime = self.trim_time_datetime_end.dateTime().toPyDateTime()
                 set_datetime = set_datetime.replace(tzinfo=timezone.utc)
                 set_maxtime = int(float(set_datetime.timestamp()))
