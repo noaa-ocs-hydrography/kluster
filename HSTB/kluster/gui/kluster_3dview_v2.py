@@ -96,6 +96,7 @@ class ColorBar(FigureCanvasQTAgg):
         self.c_map_ax = self.fig.add_axes([0.05, 0.05, 0.25, 0.9])
         self.c_map_ax.get_xaxis().set_visible(False)
         self.c_map_ax.get_yaxis().set_visible(False)
+        # self.fig.set_facecolor('black')
 
     def setup_colorbar(self, cmap: matplotlib.colors.Colormap, minval: float, maxval: float, is_rejected: bool = False,
                        by_name: list = None, invert_y: bool = False):
@@ -127,16 +128,16 @@ class ColorBar(FigureCanvasQTAgg):
             self.fig.colorbar(cm.ScalarMappable(norm=norm, cmap=cmap), orientation='vertical', cax=self.c_map_ax,
                               ticks=[3, 2, 1, 0])
             self.c_map_ax.set_yticklabels(['Re-Accept', 'Reject', 'Phase', 'Amplitude'])
-            self.c_map_ax.tick_params(labelsize=7)
+            self.c_map_ax.tick_params(labelsize=8)
         elif by_name:
             self.fig.colorbar(cm.ScalarMappable(norm=norm, cmap=cmap), orientation='vertical', cax=self.c_map_ax,
                               ticks=(np.arange(len(by_name)) + 0.5).tolist())
             self.c_map_ax.set_yticklabels(by_name)
-            self.c_map_ax.tick_params(labelsize=6)
+            self.c_map_ax.tick_params(labelsize=7)
         else:
             try:
                 self.fig.colorbar(cm.ScalarMappable(norm=norm, cmap=cmap), orientation='vertical', cax=self.c_map_ax)
-                self.c_map_ax.tick_params(labelsize=8)
+                self.c_map_ax.tick_params(labelsize=9)
             except IndexError:  # some colorbars like 'system' can rely on data that might not be loaded on starting Kluster
                 pass
         if invert_y:
@@ -638,6 +639,7 @@ class ThreeDView(QtWidgets.QWidget):
         self.twod_grid = None
         # self.axis_labels = None
 
+        self._select_rect_color = 'white'
         self.is_3d = True
 
         self.scatter = None
@@ -706,8 +708,17 @@ class ThreeDView(QtWidgets.QWidget):
         # Set up for rectangle drawing
         self.line_pos = []
         self.line_origin = None
-        self.line = scene.visuals.Line(color='white', method='gl', parent=self.canvas.scene)
+        self.line = scene.visuals.Line(color=self.select_rect_color, method='gl', parent=self.canvas.scene)
         self.line.visible = False  # set initially to invisible so it doesn't block the initial camera event
+
+    @property
+    def select_rect_color(self):
+        return self._select_rect_color
+
+    @select_rect_color.setter
+    def select_rect_color(self, clr):
+        self._select_rect_color = clr
+        self.line._color = clr
 
     def _on_mouse_press(self, event):
         """
@@ -1325,9 +1336,11 @@ class ThreeDWidget(QtWidgets.QWidget):
         self.opts_layout.addWidget(self.show_axis)
         self.show_colorbar = QtWidgets.QCheckBox('Show Colorbar')
         self.show_colorbar.setChecked(True)
+        self.show_colorbar.setToolTip('Uncheck to hide the colorbar, check to show the colorbar')
         self.opts_layout.addWidget(self.show_colorbar)
         self.show_rejected = QtWidgets.QCheckBox('Show Rejected')
         self.show_rejected.setChecked(True)
+        self.show_rejected.setToolTip('Check this box to show all soundings that have been rejected.')
         self.opts_layout.addWidget(self.show_rejected)
         self.opts_layout.addStretch()
 
@@ -1376,6 +1389,7 @@ class ThreeDWidget(QtWidgets.QWidget):
                               ['viewdirection2d', self.viewdirection2d],
                               ['viewdirection3d', self.viewdirection3d], ['vertexag', self.vertexag]]
         self.checkbox_controls = [['show_colorbar', self.show_colorbar], ['show_rejected', self.show_rejected]]
+        self._select_rect_color = 'black'
 
         self._handle_dimension_change()
         self.viewdirection2d.currentTextChanged.connect(self.refresh_settings)
@@ -1388,6 +1402,15 @@ class ThreeDWidget(QtWidgets.QWidget):
             return self.external_settings
         else:
             return QtCore.QSettings("NOAA", self.appname)
+
+    @property
+    def select_rect_color(self):
+        return self._select_rect_color
+
+    @select_rect_color.setter
+    def select_rect_color(self, clr):
+        self._select_rect_color = clr
+        self.three_d_window.select_rect_color = clr
 
     def save_settings(self):
         """

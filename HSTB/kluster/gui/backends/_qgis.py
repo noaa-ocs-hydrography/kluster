@@ -311,16 +311,17 @@ class RectangleMapTool(qgis_gui.QgsMapToolEmitPoint):
     clear_box = Signal(bool)
 
     def __init__(self, canvas, show_direction: bool = True):
+        self.base_color = QtCore.Qt.black
         self.canvas = canvas
         qgis_gui.QgsMapToolEmitPoint.__init__(self, self.canvas)
         self.rubberBand = qgis_gui.QgsRubberBand(self.canvas, True)
-        self.rubberBand.setColor(QtCore.Qt.black)
+        self.rubberBand.setColor(self.base_color)
         self.rubberBand.setFillColor(QtCore.Qt.transparent)
         self.rubberBand.setWidth(3)
 
         if show_direction:
             self.direction_arrow = qgis_gui.QgsRubberBand(self.canvas, False)
-            self.direction_arrow.setColor(QtCore.Qt.black)
+            self.direction_arrow.setColor(self.base_color)
             self.direction_arrow.setWidth(4)
         else:
             self.direction_arrow = None
@@ -342,10 +343,10 @@ class RectangleMapTool(qgis_gui.QgsMapToolEmitPoint):
         """
         Clear the rectangle
         """
-        self.rubberBand.setColor(QtCore.Qt.black)
+        self.rubberBand.setColor(self.base_color)
         self.rubberBand.setFillColor(QtCore.Qt.transparent)
         if self.direction_arrow:
-            self.direction_arrow.setColor(QtCore.Qt.black)
+            self.direction_arrow.setColor(self.base_color)
         self.start_point = None
         self.end_point = None
         self.final_start_point = None
@@ -926,7 +927,7 @@ class MapView(QtWidgets.QMainWindow):
     box_points = Signal(object, float)
     turn_off_pointsview = Signal(bool)
 
-    def __init__(self, parent=None, settings=None, epsg: int = 4326):
+    def __init__(self, parent=None, settings=None, epsg: int = kluster_variables.qgis_epsg):
         super().__init__()
         self.epsg = epsg
         self.vdatum_directory = None

@@ -9,6 +9,9 @@ import multiprocessing
 from typing import Union
 from datetime import datetime
 from pyproj import CRS, Transformer
+import qdarkstyle
+from qdarkstyle.dark.palette import DarkPalette
+import matplotlib.pyplot as plt
 
 from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal, qgis_enabled, found_path
 if qgis_enabled:
@@ -31,7 +34,8 @@ from HSTB.kluster import kluster_variables
 # https://joekuan.wordpress.com/2015/09/23/list-of-qt-icons/
 
 
-settings_translator = {'Kluster/proj_settings_epsgradio': {'newname': 'use_epsg', 'defaultvalue': False},
+settings_translator = {'Kluster/dark_mode': {'newname': 'dark_mode', 'defaultvalue': False},
+                       'Kluster/proj_settings_epsgradio': {'newname': 'use_epsg', 'defaultvalue': False},
                        'Kluster/proj_settings_epsgval': {'newname': 'epsg', 'defaultvalue': ''},
                        'Kluster/proj_settings_utmradio': {'newname': 'use_coord', 'defaultvalue': True},
                        'Kluster/proj_settings_utmval': {'newname': 'coord_system', 'defaultvalue': kluster_variables.default_coordinate_system},
@@ -43,7 +47,7 @@ settings_translator = {'Kluster/proj_settings_epsgradio': {'newname': 'use_epsg'
                        'Kluster/settings_enable_parallel_writes': {'newname': 'write_parallel', 'defaultvalue': True},
                        'Kluster/settings_vdatum_directory': {'newname': 'vdatum_directory', 'defaultvalue': ''},
                        'Kluster/settings_auto_processing_mode': {'newname': 'autoprocessing_mode', 'defaultvalue': 'normal'},
-                       'Kluster/settings_force_coordinate_match': {'newname': 'force_coordinate_match', 'defaultvalue': False}
+                       'Kluster/settings_force_coordinate_match': {'newname': 'force_coordinate_match', 'defaultvalue': False},
                        }
 
 
@@ -62,7 +66,7 @@ class KlusterMain(QtWidgets.QMainWindow):
     """
     Main window for kluster application
     """
-    def __init__(self, app=None):
+    def __init__(self, app=None, app_library='pyqt5'):
         """
         Build out the dock widgets with the kluster widgets inside.  Will use QSettings object to retain size and
         position.
@@ -70,6 +74,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         super().__init__()
 
         self.app = app
+        self.app_library = app_library
         self.start_horiz_size = 1360
         self.start_vert_size = 768
 
@@ -210,6 +215,10 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.read_settings()
 
         self.setAcceptDrops(True)
+        if self.settings.get('dark_mode'):
+            self.set_dark_mode(self.settings['dark_mode'])
+        else:
+            self.set_dark_mode(False)
 
     @property
     def settings_object(self):
@@ -306,6 +315,9 @@ class KlusterMain(QtWidgets.QMainWindow):
         export_grid_action = QtWidgets.QAction('Export Surface', self)
         export_grid_action.triggered.connect(self._action_export_grid)
 
+        view_darkstyle = QtWidgets.QAction('Dark Mode', self)
+        view_darkstyle.setCheckable(True)
+        view_darkstyle.triggered.connect(self.set_dark_mode)
         view_layers = QtWidgets.QAction('Layer Settings', self)
         view_layers.triggered.connect(self.set_layer_settings)
         view_dashboard_action = QtWidgets.QAction('Dashboard', self)
@@ -357,6 +369,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         file.addAction(export_grid_action)
 
         view = menubar.addMenu('View')
+        view.addAction(view_darkstyle)
         view.addAction(view_layers)
         view.addAction(view_dashboard_action)
         view.addAction(view_reset_action)
@@ -1266,7 +1279,7 @@ class KlusterMain(QtWidgets.QMainWindow):
             if self.draw_surface_thread.surface_layer_name == 'tiles':
                 x, y = self.draw_surface_thread.surface_data
                 trans = Transformer.from_crs(CRS.from_epsg(self.draw_surface_thread.surf_object.epsg),
-                                             CRS.from_epsg(4326), always_xy=True)
+                                             CRS.from_epsg(self.two_d.epsg), always_xy=True)
                 lon, lat = trans.transform(x, y)
                 self.two_d.add_line(surf_path, lat, lon, color='black')
                 self.two_d.set_extents_from_lines()
@@ -1395,6 +1408,48 @@ class KlusterMain(QtWidgets.QMainWindow):
             if self.project.path is not None:
                 self.project.set_settings(settings)
             self.intel.set_settings(settings)
+
+    def set_dark_mode(self, check_state: bool):
+        """
+        Using the excellent qdarkstyle module, set the qt app style to darkmode if the user selects it under view - dark mode
+
+        Parameters
+        ----------
+        check_state
+            check state of the dark mode checkbox
+        """
+
+        self.settings['dark_mode'] = check_state
+        settings_obj = self.settings_object
+        for settname, opts in settings_translator.items():
+            settings_obj.setValue(settname, self.settings[opts['newname']])
+        if check_state:
+            try:
+                self.app.setStyleSheet(qdarkstyle.load_stylesheet(qt_api=self.app_library))
+                self.two_d.canvas.setCanvasColor(QtCore.Qt.black)
+                self.two_d.toolPoints.base_color = QtCore.Qt.white
+                self.points_view.colorbar.fig.set_facecolor('black')
+                plt.style.use('dark_background')
+            except:
+                print('Unable to set qdarkstyle style sheet for app library {}'.format(self.app_library))
+        else:
+            self.app.setStyleSheet('')
+            self.two_d.canvas.setCanvasColor(QtCore.Qt.white)
+            self.two_d.toolPoints.base_color = QtCore.Qt.black
+            self.points_view.colorbar.fig.set_facecolor('white')
+            plt.style.use('seaborn')
+        # now update the control if we are doing this manually, not through the checkbox event
+        view_menu = [mn for mn in self.menuBar().actions() if mn.text() == 'View']
+        if view_menu:
+            view_menu = view_menu[0]
+            darkaction = [mn for mn in view_menu.menu().actions() if mn.text() == 'Dark Mode']
+            if darkaction:
+                darkaction = darkaction[0]
+                darkaction.setChecked(check_state)
+            else:
+                print('Warning: Can not find the Dark Mode action to set dark mode control!')
+        else:
+            print('Warning: Can not find the view menu to set dark mode control!')
 
     def dockwidget_is_visible(self, widg):
         """
@@ -2087,6 +2142,7 @@ def main():
     kluster_icon = os.path.join(kluster_dir, 'images', 'kluster_img.ico')
 
     if qgis_enabled:
+        app_library = 'pyqt5'
         app = qgis_core.QgsApplication([], True)
         if ispyinstaller:
             kluster_main_exe = sys.argv[0]
@@ -2104,8 +2160,10 @@ def main():
         # print(app.showSettings())
     else:
         try:  # pyside2
+            app_library = 'pyside2'
             app = QtWidgets.QApplication()
         except TypeError:  # pyqt5
+            app_library = 'pyqt5'
             app = QtWidgets.QApplication([])
     try:
         app.setStyle(KlusterProxyStyle())
@@ -2115,7 +2173,7 @@ def main():
         app.setWindowIcon(QtGui.QIcon(kluster_icon))
     except:
         print('Unable to set icon to {}'.format(kluster_icon))
-    window = KlusterMain(app)
+    window = KlusterMain(app, app_library=app_library)
     window.show()
     exitcode = app.exec_()
     sys.exit(exitcode)
