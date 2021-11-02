@@ -478,7 +478,10 @@ class KlusterMain(QtWidgets.QMainWindow):
             surf_object = self.project.surface_instances[add_surface]
             needs_drawing = []
             if surface_layer_name == 'tiles':
-                shown = self.two_d.show_line(add_surface)
+                if self.settings['dark_mode']:
+                    shown = self.two_d.show_line(add_surface, color='white')
+                else:
+                    shown = self.two_d.show_line(add_surface, color='black')
                 if not shown:  # show didnt work, must need to add the surface instead, loading from disk...
                     needs_drawing.append(None)
             else:
@@ -1281,7 +1284,10 @@ class KlusterMain(QtWidgets.QMainWindow):
                 trans = Transformer.from_crs(CRS.from_epsg(self.draw_surface_thread.surf_object.epsg),
                                              CRS.from_epsg(self.two_d.epsg), always_xy=True)
                 lon, lat = trans.transform(x, y)
-                self.two_d.add_line(surf_path, lat, lon, color='black')
+                if self.settings['dark_mode']:
+                    self.two_d.add_line(surf_path, lat, lon, color='white')
+                else:
+                    self.two_d.add_line(surf_path, lat, lon, color='black')
                 self.two_d.set_extents_from_lines()
             else:
                 drawresolution = None

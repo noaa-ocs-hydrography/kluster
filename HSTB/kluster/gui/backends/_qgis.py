@@ -1595,7 +1595,7 @@ class MapView(QtWidgets.QMainWindow):
         if refresh:
             self.layer_by_name(source).reload()
 
-    def show_line(self, line_name, refresh=False):
+    def show_line(self, line_name, refresh=False, color: str = None):
         """
         Show the line so that it is displayed, if it was hidden
 
@@ -1607,9 +1607,16 @@ class MapView(QtWidgets.QMainWindow):
             optional screen refresh, True most of the time, unless you want to remove multiple lines and then refresh
             at the end
         """
+
         source = self.build_line_source(line_name)
         showlyr = ogr_output_file_exists(source)
         if showlyr:
+            if color:
+                color = QtGui.QColor(color)
+                line_lyr = [lyr for lyr in self.layer_manager.line_layers if lyr.name() == line_name]
+                if line_lyr:
+                    line_lyr[0].renderer().symbol().setColor(color)
+                    line_lyr[0].triggerRepaint()
             self.show_layer(source)
         if refresh:
             self.layer_by_name(source).reload()
