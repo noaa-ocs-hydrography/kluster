@@ -1892,7 +1892,8 @@ def intel_process(filname: Union[str, list], outfold: str = None, coord_system: 
     if isinstance(filname, str):
         if os.path.isdir(filname):
             filname = [os.path.join(filname, f) for f in os.listdir(filname)]
-        filname = [filname]
+        else:
+            filname = [filname]
     for f in filname:
         try:
             updated_type, new_data, new_project = intel.add_file(f)
