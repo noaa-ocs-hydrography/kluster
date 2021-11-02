@@ -89,6 +89,7 @@ class Fqpr(ZarrBackend):
         self.rx_reversed = False
         self.ideal_tx_vec = None
         self.ideal_rx_vec = None
+        self._using_sbet = False
 
         self.orientation_time_complete = ''
         self.bpv_time_complete = ''
@@ -106,6 +107,200 @@ class Fqpr(ZarrBackend):
         self.logfile = None
         self.logger = None
         self.initialize_log()
+
+    def __repr__(self):
+        try:
+            kvers = self.multibeam.raw_ping[0].attrs['kluster_version']
+        except:
+            kvers = 'Unknown'
+        heads = self.number_of_heads
+        output = 'FQPR: Fully Qualified Ping Record built by Kluster Processing\n'
+        output += '-------------------------------------------------------------\n'
+        output += 'Contains:\n'
+        if heads == 1:
+            output += '1 sonar head, '
+        else:
+            output += '{} sonar heads, '.format(heads)
+        output += '{} pings, version {}\n'.format(self.number_of_pings, kvers)
+        output += 'Start: {}\n'.format(self.min_time)
+        output += 'End: {}\n'.format(self.max_time)
+        try:
+            output += 'Minimum Latitude: {} '.format(self.multibeam.raw_ping[0].attrs['min_lat'])
+            output += 'Maximum Latitude: {}\n'.format(self.multibeam.raw_ping[0].attrs['max_lat'])
+        except:
+            output += 'Minimum Latitude: Unknown '
+            output += 'Maximum Latitude: Unknown\n'
+        try:
+            output += 'Minimum Longitude: {} '.format(self.multibeam.raw_ping[0].attrs['min_lon'])
+            output += 'Maximum Longitude: {}\n'.format(self.multibeam.raw_ping[0].attrs['max_lon'])
+        except:
+            output += 'Minimum Longitude: Unknown '
+            output += 'Maximum Longitude: Unknown\n'
+        try:
+            output += 'Minimum Northing: {} '.format(self.multibeam.raw_ping[0].attrs['min_y'])
+            output += 'Maximum Northing: {}\n'.format(self.multibeam.raw_ping[0].attrs['max_y'])
+        except:
+            output += 'Minimum Northing: Unknown '
+            output += 'Maximum Northing: Unknown\n'
+        try:
+            output += 'Minimum Easting: {} '.format(self.multibeam.raw_ping[0].attrs['min_x'])
+            output += 'Maximum Easting: {}\n'.format(self.multibeam.raw_ping[0].attrs['max_x'])
+        except:
+            output += 'Minimum Easting: Unknown '
+            output += 'Maximum Easting: Unknown\n'
+        try:
+            output += 'Minimum Depth: {} '.format(self.multibeam.raw_ping[0].attrs['min_z'])
+            output += 'Maximum Depth: {}\n'.format(self.multibeam.raw_ping[0].attrs['max_z'])
+        except:
+            output += 'Minimum Depth: Unknown '
+            output += 'Maximum Depth: Unknown\n'
+        output += 'Current Status: {}\n'.format(self.status)
+        output += 'Sonar Model Number: {}\n'.format(self.sonar_model)
+        try:
+            output += 'Primary/Secondary System Serial Number: {}/{}\n'.format(self.multibeam.raw_ping[0].attrs['system_serial_number'][0],
+                                                                               self.multibeam.raw_ping[0].attrs['secondary_system_serial_number'][0])
+        except:
+            output += 'Primary/Secondary System Serial Number: Unknown\n'
+        if self.horizontal_crs:
+            output += 'Horizontal Datum: {}\n'.format(self.horizontal_crs.to_epsg())
+        else:
+            output += 'Horizontal Datum: Unknown\n'
+        try:
+            output += 'Vertical Datum: {}\n'.format(self.vert_ref)
+        except:
+            output += 'Vertical Datum: Unknown\n'
+        try:
+            output += 'Navigation Source: {}\n'.format(self.multibeam.raw_ping[0].attrs['navigation_source'])
+        except:
+            output += 'Navigation Source: Unknown\n'
+        output += 'Sound Velocity Profiles: {}\n'.format(len([ky for ky in self.multibeam.raw_ping[0].attrs.keys() if ky[:7] == 'profile']))
+        return output
+
+    @property
+    def sonar_model(self):
+        """
+        Get the sonar type from the ping record
+
+        Returns
+        -------
+        str
+            the sonar model string
+        """
+
+        try:
+            sonarmodel = self.multibeam.raw_ping[0].attrs['sonartype']
+        except:
+            sonarmodel = None
+        return sonarmodel
+
+    @property
+    def status(self):
+        """
+        Get the processing status of the Fqpr
+
+        Returns
+        -------
+        str
+            the processing status of the Fqpr object
+        """
+
+        try:
+            cur_status = [rp.current_processing_status for rp in self.multibeam.raw_ping]
+            does_match = all([cur_status[0] == curst for curst in cur_status])
+            if not does_match:
+                print('Warning: found the processing status of the datasets across the heads do not match')
+                cur_status = [min(cur_status)]
+            cur_status_descrp = self.multibeam.raw_ping[0].attrs['status_lookup'][str(cur_status[0])]
+        except:
+            cur_status_descrp = None
+        return cur_status_descrp
+
+    @property
+    def min_time(self):
+        """
+        Get the nicely formatted time in UTC for the start time of this fqpr object
+
+        Returns
+        -------
+        str
+            the formatted string representation of the minimum time of this dataset in UTC
+
+        """
+        try:
+            min_time = np.min([rp.time.values[0] for rp in self.multibeam.raw_ping])
+            min_time = datetime.utcfromtimestamp(min_time).strftime('%c')
+            min_time += ' UTC'
+        except:
+            min_time = None
+        return min_time
+
+    @property
+    def max_time(self):
+        """
+        Get the nicely formatted time in UTC for the end time of this fqpr object
+
+        Returns
+        -------
+        str
+            the formatted string representation of the maximum time of this dataset in UTC
+
+        """
+        try:
+            max_time = np.max([rp.time.values[-1] for rp in self.multibeam.raw_ping])
+            max_time = datetime.utcfromtimestamp(max_time).strftime('%c')
+            max_time += ' UTC'
+        except:
+            max_time = None
+        return max_time
+
+    @property
+    def number_of_pings(self):
+        """
+        Get the number of pings for the sonar in this FQPR instance
+
+        Returns
+        -------
+        int
+            number of sonar heads
+        """
+        try:
+            numpings = [rp.time.size for rp in self.multibeam.raw_ping]
+            numpings = sum(numpings)
+        except:
+            numpings = 0
+        return numpings
+
+    @property
+    def number_of_heads(self):
+        """
+        Get the number of sonar heads for the sonar in this FQPR instance
+
+        Returns
+        -------
+        int
+            number of sonar heads
+        """
+        try:
+            numheads = len(self.multibeam.raw_ping)
+        except:
+            numheads = 0
+        return numheads
+
+    @property
+    def has_sbet(self):
+        """
+        True if an SBET has been imported into this FQPR instance
+
+        Returns
+        -------
+        bool
+            If SBET has been imported, return True
+        """
+        try:
+            hassbet = 'sbet_altitude' in self.multibeam.raw_ping[0]
+        except:
+            hassbet = False
+        return hassbet
 
     @property
     def last_operation_date(self):
@@ -1004,13 +1199,14 @@ class Fqpr(ZarrBackend):
         if latency and not silent:
             self.logger.info('Applying motion latency of {} seconds'.format(latency))
 
-        if prefer_pp_nav and ('sbet_altitude' in ra) and ('sbet_latitude' in ra) and ('sbet_longitude' in ra):
+        if prefer_pp_nav and self.has_sbet:
             if not silent:
                 self.logger.info('Using post processed navigation...')
             lat = xr.concat([ra.sbet_latitude[chnk] for chnk in idx_by_chunk], dim='time')
             lon = xr.concat([ra.sbet_longitude[chnk] for chnk in idx_by_chunk], dim='time')
             alt = xr.concat([ra.sbet_altitude[chnk] for chnk in idx_by_chunk], dim='time')
             input_datum = ra.sbet_datum
+            self._using_sbet = True
         else:
             if not silent:
                 self.logger.info('Using raw navigation...')
@@ -1029,6 +1225,7 @@ class Fqpr(ZarrBackend):
                 if not silent:
                     self.logger.warning('No input datum attribute found, assuming WGS84')
                 input_datum = 'WGS84'
+            self._using_sbet = False
 
         if input_datum.lower() == 'nad83':
             input_datum = CRS.from_epsg(kluster_variables.epsg_nad83)
@@ -1707,7 +1904,7 @@ class Fqpr(ZarrBackend):
                 pass
             outfold, _ = self.write('ping', [nav_wise_data], time_array=navdata_times, attributes=navdata_attrs, sys_id=rp.system_identifier)
 
-        if self.multibeam.raw_ping[0].current_processing_status >= 4 and 'sbet_altitude' not in self.multibeam.raw_ping[0]:
+        if self.multibeam.raw_ping[0].current_processing_status >= 4 and not self.has_sbet:
             # have to start over at georeference now, if there isn't any postprocessed navigation
             self.write_attribute_to_ping_records({'current_processing_status': 3})
         self.multibeam.reload_pingrecords(skip_dask=self.client is None)
@@ -2282,10 +2479,14 @@ class Fqpr(ZarrBackend):
                                        self.multibeam.raw_ping[0].max_lon, self.multibeam.raw_ping[0].max_lat)
             else:
                 vertcrs = 'Unknown'
+            if self._using_sbet:
+                navigation_source = 'sbet'
+            else:
+                navigation_source = 'multibeam'
             mode_settings = ['georef', ['x', 'y', 'z', 'corr_heave', 'corr_altitude', 'datum_uncertainty', 'geohash', 'processing_status'],
                              'georeferenced soundings data',
                              {'horizontal_crs': crs, 'vertical_reference': self.vert_ref,
-                              'vertical_crs': vertcrs,
+                              'vertical_crs': vertcrs, 'navigation_source': navigation_source,
                               '_georeference_soundings_complete': self.georef_time_complete,
                               'current_processing_status': 4,
                               'reference': {'x': 'reference', 'y': 'reference', 'z': 'reference',
