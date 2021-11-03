@@ -9,12 +9,14 @@
 
 # --- SKIP TO 3 FOR THE RECOMMENDED PROCESSING ROUTINE --- #
 
+from HSTB.kluster.fqpr_convenience import convert_multibeam, process_multibeam, import_processed_navigation, \
+    perform_all_processing, reload_data
+from HSTB.kluster.fqpr_intelligence import intel_process, intel_process_service
+
 #####################################
 # 1. piece-wise lower level approach
 #####################################
 
-from HSTB.kluster.fqpr_convenience import convert_multibeam, process_multibeam, import_processed_navigation, \
-    perform_all_processing
 # conversion will generate data in the Kluster zarr/xarray format for you to use
 # can either be a list of multibeam files
 # fq = convert_multibeam([r"C:\data_dir\0009_20170523_181119_FA2806.all",])
@@ -122,6 +124,8 @@ fq = process_multibeam(fq, add_cast_files=r'C:\data_dir\mysvpfile.svp')
 # specify coordinate system and vertical reference
 fq = process_multibeam(fq, coord_system='WGS84', vert_ref='ellipse')
 
+# reload the data later on
+fq = reload_data(r"C:\data_dir\converted")
 #####################################
 # 2. merged lower level approach
 #####################################
@@ -130,7 +134,8 @@ fq = process_multibeam(fq, coord_system='WGS84', vert_ref='ellipse')
 fq = perform_all_processing(r"C:\data_dir\0009_20170523_181119_FA2806.all", navfiles=[r'C:\data_dir\sbet.out'],
                             errorfiles=[r'C:\data_dir\smrmsg.out'], logfiles=[r'C:\data_dir\export_log.txt'],
                             add_cast_files=r'C:\data_dir\mysvpfile.svp', coord_system='WGS84', vert_ref='ellipse')
-
+# reload the data later on
+fq = reload_data(r"C:\data_dir\converted")
 ########################################################################
 # 3. high level automated processing = use the intel process/service
 ########################################################################
@@ -142,7 +147,6 @@ fq = perform_all_processing(r"C:\data_dir\0009_20170523_181119_FA2806.all", navf
 #  steps that are required.  For this reason it is recommended that you use the intelligence module rather than
 #  the core processing routines described in 1 and 2.  Learn more here: https://kluster.readthedocs.io/en/latest/indepth/intel.html
 
-from HSTB.kluster.fqpr_intelligence import intel_process, intel_process_service
 # the intel process command will perform just like if you were to drag in new files in Kluster.  You just provide all the
 #  files that you want to add, and Kluster Intelligence determines the type of file, how to add it and what processing
 #  steps to take.  Those steps are all performed and you get the Fqpr object back
@@ -164,3 +168,6 @@ fq[0].output_folder
 #  will monitor a folder and add/process any files that you add to that directory (or are already in there)
 _, fq = intel_process_service(r"C:\data_dir")
 # this will lock up the console until you force it to quit
+
+# reload the data later on
+fq = reload_data(r"C:\data_dir\em2040_40111_05_23_2017")

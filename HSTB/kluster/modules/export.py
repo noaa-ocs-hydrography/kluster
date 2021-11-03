@@ -637,7 +637,6 @@ class FqprExport:
             outfile.close()
         except:  # the new way starting in 2.0
             las = laspy.create(file_version="1.4", point_format=3)
-
             las.header.offsets = [np.floor(float(x.min())), np.floor(float(y.min())), np.floor(float(z.min()))]
             las.header.scales = [0.01, 0.01, 0.001]
 
