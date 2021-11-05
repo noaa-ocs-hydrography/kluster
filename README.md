@@ -25,6 +25,7 @@ Contents
  * [Why Kluster](#why-kluster)
  * [Installation](#installation)
  * [Quickstart](#quickstart)
+ * [Kluster on the console](#kluster-on-the-console)
 
 ### Known Issues:
  - Kluster does not support 'multifrequency' as seen in the most recent KMALL logged data.
@@ -43,9 +44,9 @@ Kluster has been tested on:
 
 - EM2040/2040c/2040p
 - EM2040 dual tx/dual rx
-- EM710
+- EM710/712
 - EM3002
-- EM302
+- EM302/304
 - EM122
 
 Kluster is built from the ground up in Python, and was developed using Python 3.8.  Kluster includes modules developed by the hydrographic community such as (see [drivers](https://github.com/noaa-ocs-hydrography/drivers)):
