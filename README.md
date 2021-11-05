@@ -12,16 +12,24 @@ Documentation: [readthedocs](https://kluster.readthedocs.io/en/latest/)
 
 Youtube Series: [Kluster Playlist](https://www.youtube.com/playlist?list=PLrjCvP_J9AA_memBs2ZyKXGHG1AMx0GWx)
 
-Known Issues:
- - Kluster does not support 'multifrequency' as seen in the most recent KMALL logged data.
-
 A distributed multibeam processing system built on the [Pangeo ecosystem](https://pangeo.io/). Supports Kongsberg .all/.kmall multibeam formats, POS MV post-processed SBET/RMS navigation files and Caris svp sound velocity profile files.
 
 Kluster provides a fully open source hydrographic processing package to produce accessible bathymetry products in support of ocean mapping.
 
 ![Kluster](./docs/readme/overview.png)
 
-Kluster is:
+Contents
+========
+ * [Known Issues](#known-issues) 
+ * [Kluster is...](#kluster-is)
+ * [Why Kluster](#why-kluster)
+ * [Installation](#installation)
+ * [Quickstart](#quickstart)
+
+### Known Issues:
+ - Kluster does not support 'multifrequency' as seen in the most recent KMALL logged data.
+  
+### Kluster is:
 
 1. **Scalable** - uses [Dask](https://dask.org/) to provide distributed parallel processing on everything from a laptop to a cloud service (AWS Fargate for example)
 2. **Cloud ready** - uses [Zarr](https://zarr.readthedocs.io/en/stable/) as a cloud ready storage format for converted multibeam records and processed soundings
@@ -48,7 +56,7 @@ Kluster is built from the ground up in Python, and was developed using Python 3.
 
 Kluster is a work in progress that has been in development since November 2019 by a small 'team', and is by no means feature complete.  If you are interested in contributing or have questions, please contact Eric Younkin (eric.g.younkin@noaa.gov)
 
-## Why Kluster?
+### Why Kluster?
 
 There are three principle motivations behind kluster:
 
@@ -64,7 +72,7 @@ Cloud data storage and processing is quickly becoming a reality, as the advantag
 
 Much of the existing open source software related to multibeam processing has been in development for decades.  There has been an explosion in scientific libraries that can benefit the hydrographic community as a whole that have not been seriously evaluated.  Kluster relies on the state of the art in Python libraries to provide a sophisticated and modern software package.
 
-## Installation
+### Installation
 
 **We recommend that users try to run Kluster using the release attached to this GitHub repository, see [releases](https://github.com/noaa-ocs-hydrography/kluster/releases)**
 
@@ -88,6 +96,10 @@ Perform these in order:
 
 `pip install git+https://github.com/noaa-ocs-hydrography/kluster.git#egg=hstb.kluster `
 
-## Quickstart
+### Quickstart
 
-See documentation for the new quick start guide
+See [documentation](https://kluster.readthedocs.io/en/latest/quickstart/index.html)  for the new quick start guide
+
+### Kluster on the console
+
+See examples or notebooks for examples on how to use Kluster in the console.
