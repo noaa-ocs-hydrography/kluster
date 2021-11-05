@@ -7,6 +7,7 @@
 
 <img src="./HSTB/kluster/images/kluster_img.png" align="right" alt="Kluster Logo" width="120" height="120">
 
+
 Documentation: [readthedocs](https://kluster.readthedocs.io/en/latest/) 
 
 Youtube Series: [Kluster Playlist](https://www.youtube.com/playlist?list=PLrjCvP_J9AA_memBs2ZyKXGHG1AMx0GWx)
@@ -18,6 +19,8 @@ A distributed multibeam processing system built on the [Pangeo ecosystem](https:
 
 Kluster provides a fully open source hydrographic processing package to produce accessible bathymetry products in support of ocean mapping.
 
+![Kluster](./docs/readme/overview.png)
+
 Kluster is:
 
 1. **Scalable** - uses [Dask](https://dask.org/) to provide distributed parallel processing on everything from a laptop to a cloud service (AWS Fargate for example)
@@ -25,6 +28,8 @@ Kluster is:
 3. **Open** - data are presented using [Xarray](http://xarray.pydata.org/en/stable/) objects for easy interactivity and stored with Zarr, all open formats
 4. **Scriptable** - provides a GUI for visualization and processing, but can be run from the command line or scripted easily
 5. **Extensible** - From data conversion to sound velocity correction, kluster is built using modules that can be replaced, enhanced or exchanged as needed.
+
+![Kluster](./docs/readme/environment.png)
 
 Kluster has been tested on:
 
