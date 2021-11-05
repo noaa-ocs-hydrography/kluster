@@ -5,6 +5,8 @@
 [![Documentation Status](https://readthedocs.org/projects/kluster/badge/?version=latest)](https://kluster.readthedocs.io/en/latest/?badge=latest)
 [![Binder](https://binder.pangeo.io/badge_logo.svg)](https://binder.pangeo.io/v2/gh/noaa-ocs-hydrography/kluster/master)
 
+<img src="./HSTB/kluster/images/kluster_img.png" align="right" alt="Kluster Logo" width="120" height="120">
+
 Documentation: [readthedocs](https://kluster.readthedocs.io/en/latest/) 
 
 Youtube Series: [Kluster Playlist](https://www.youtube.com/playlist?list=PLrjCvP_J9AA_memBs2ZyKXGHG1AMx0GWx)
