@@ -608,7 +608,7 @@ class FqprExport:
             print('_las_write: Unable to build the Coordinate System VLR: {}'.format(e))
 
         try:  # pre laspy 2.0
-            hdr = laspy.header.Header(file_version=1.4, point_format=3)  # pt format 3 includes GPS time
+            hdr = laspy.header.Header(file_version=1.4, point_format=6)  # pt format 3 includes GPS time
             hdr.x_scale = 0.01  # xyz precision, las stores data as int
             hdr.y_scale = 0.01
             hdr.z_scale = 0.001
@@ -636,8 +636,7 @@ class FqprExport:
 
             outfile.close()
         except:  # the new way starting in 2.0
-            las = laspy.create(file_version="1.4", point_format=3)
-
+            las = laspy.create(file_version="1.4", point_format=6)
             las.header.offsets = [np.floor(float(x.min())), np.floor(float(y.min())), np.floor(float(z.min()))]
             las.header.scales = [0.01, 0.01, 0.001]
 
@@ -654,7 +653,12 @@ class FqprExport:
                 classification[np.where(classification < 2)] = 1  # 1 = Unclassified according to LAS spec
                 classification[np.where(classification == 2)] = 7  # 7 = Low Point (noise) according to LAS spec
                 las.classification = classification.astype(np.int8)
-
+            if uncertainty_included:
+                pass
+                # this seems to work to build a file that is supported by laspy and LASTools, but not the QGIS-Entwine workflow
+                # las.add_extra_dim(laspy.ExtraBytesParams(name='uncertainty', type=np.float32,
+                #                                          description='Total Vertical Uncertainty'))
+                # las.uncertainty = uncertainty.values
             las.write(dest_path)
 
     def export_variable_to_csv(self, dataset_name: str, var_name: str, dest_path: str, reduce_method: str = None,

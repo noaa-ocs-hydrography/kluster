@@ -5,7 +5,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Fqpr &#8212; kluster 0.8.1 documentation</title>
+    <title>Fqpr &#8212; kluster 0.8.2 documentation</title>
     <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
     <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
     <link rel="stylesheet" type="text/css" href="../_static/graphviz.css" />
@@ -73,14 +73,35 @@ Post-processing for Multi-Sector Multibeam Echosounders” by J.D. Beaudoin and 
 <col style="width: 90%" />
 </colgroup>
 <tbody>
-<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.last_operation_date" title="HSTB.kluster.fqpr_generation.Fqpr.last_operation_date"><code class="xref py py-obj docutils literal notranslate"><span class="pre">last_operation_date</span></code></a></p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.has_sbet" title="HSTB.kluster.fqpr_generation.Fqpr.has_sbet"><code class="xref py py-obj docutils literal notranslate"><span class="pre">has_sbet</span></code></a></p></td>
+<td><p>True if an SBET has been imported into this FQPR instance</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.last_operation_date" title="HSTB.kluster.fqpr_generation.Fqpr.last_operation_date"><code class="xref py py-obj docutils literal notranslate"><span class="pre">last_operation_date</span></code></a></p></td>
 <td><p>Get the datetime of the last operation performed on this fqpr instance</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.navigation" title="HSTB.kluster.fqpr_generation.Fqpr.navigation"><code class="xref py py-obj docutils literal notranslate"><span class="pre">navigation</span></code></a></p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.max_time" title="HSTB.kluster.fqpr_generation.Fqpr.max_time"><code class="xref py py-obj docutils literal notranslate"><span class="pre">max_time</span></code></a></p></td>
+<td><p>Get the nicely formatted time in UTC for the end time of this fqpr object</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.min_time" title="HSTB.kluster.fqpr_generation.Fqpr.min_time"><code class="xref py py-obj docutils literal notranslate"><span class="pre">min_time</span></code></a></p></td>
+<td><p>Get the nicely formatted time in UTC for the start time of this fqpr object</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.navigation" title="HSTB.kluster.fqpr_generation.Fqpr.navigation"><code class="xref py py-obj docutils literal notranslate"><span class="pre">navigation</span></code></a></p></td>
 <td><p>Return the raw navigation from the multibeam data for the first sonar head.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.sbet_navigation" title="HSTB.kluster.fqpr_generation.Fqpr.sbet_navigation"><code class="xref py py-obj docutils literal notranslate"><span class="pre">sbet_navigation</span></code></a></p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.number_of_heads" title="HSTB.kluster.fqpr_generation.Fqpr.number_of_heads"><code class="xref py py-obj docutils literal notranslate"><span class="pre">number_of_heads</span></code></a></p></td>
+<td><p>Get the number of sonar heads for the sonar in this FQPR instance</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.number_of_pings" title="HSTB.kluster.fqpr_generation.Fqpr.number_of_pings"><code class="xref py py-obj docutils literal notranslate"><span class="pre">number_of_pings</span></code></a></p></td>
+<td><p>Get the number of pings for the sonar in this FQPR instance</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.sbet_navigation" title="HSTB.kluster.fqpr_generation.Fqpr.sbet_navigation"><code class="xref py py-obj docutils literal notranslate"><span class="pre">sbet_navigation</span></code></a></p></td>
 <td><p>Return the sbet navigation for the first sonar head.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.sonar_model" title="HSTB.kluster.fqpr_generation.Fqpr.sonar_model"><code class="xref py py-obj docutils literal notranslate"><span class="pre">sonar_model</span></code></a></p></td>
+<td><p>Get the sonar type from the ping record</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.status" title="HSTB.kluster.fqpr_generation.Fqpr.status"><code class="xref py py-obj docutils literal notranslate"><span class="pre">status</span></code></a></p></td>
+<td><p>Get the processing status of the Fqpr</p></td>
 </tr>
 </tbody>
 </table>
@@ -257,6 +278,20 @@ Post-processing for Multi-Sector Multibeam Echosounders” by J.D. Beaudoin and 
 </table>
 <p class="rubric">Attributes Documentation</p>
 <dl class="py attribute">
+<dt id="HSTB.kluster.fqpr_generation.Fqpr.has_sbet">
+<code class="sig-name descname"><span class="pre">has_sbet</span></code><a class="headerlink" href="#HSTB.kluster.fqpr_generation.Fqpr.has_sbet" title="Permalink to this definition">¶</a></dt>
+<dd><p>True if an SBET has been imported into this FQPR instance</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>If SBET has been imported, return True</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
 <dt id="HSTB.kluster.fqpr_generation.Fqpr.last_operation_date">
 <code class="sig-name descname"><span class="pre">last_operation_date</span></code><a class="headerlink" href="#HSTB.kluster.fqpr_generation.Fqpr.last_operation_date" title="Permalink to this definition">¶</a></dt>
 <dd><p>Get the datetime of the last operation performed on this fqpr instance</p>
@@ -271,6 +306,34 @@ Post-processing for Multi-Sector Multibeam Echosounders” by J.D. Beaudoin and 
 </dd></dl>
 
 <dl class="py attribute">
+<dt id="HSTB.kluster.fqpr_generation.Fqpr.max_time">
+<code class="sig-name descname"><span class="pre">max_time</span></code><a class="headerlink" href="#HSTB.kluster.fqpr_generation.Fqpr.max_time" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get the nicely formatted time in UTC for the end time of this fqpr object</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>the formatted string representation of the maximum time of this dataset in UTC</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt id="HSTB.kluster.fqpr_generation.Fqpr.min_time">
+<code class="sig-name descname"><span class="pre">min_time</span></code><a class="headerlink" href="#HSTB.kluster.fqpr_generation.Fqpr.min_time" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get the nicely formatted time in UTC for the start time of this fqpr object</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>the formatted string representation of the minimum time of this dataset in UTC</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
 <dt id="HSTB.kluster.fqpr_generation.Fqpr.navigation">
 <code class="sig-name descname"><span class="pre">navigation</span></code><a class="headerlink" href="#HSTB.kluster.fqpr_generation.Fqpr.navigation" title="Permalink to this definition">¶</a></dt>
 <dd><p>Return the raw navigation from the multibeam data for the first sonar head. Can assume that all sonar heads have
@@ -278,9 +341,65 @@ basically the same navigation</p>
 </dd></dl>
 
 <dl class="py attribute">
+<dt id="HSTB.kluster.fqpr_generation.Fqpr.number_of_heads">
+<code class="sig-name descname"><span class="pre">number_of_heads</span></code><a class="headerlink" href="#HSTB.kluster.fqpr_generation.Fqpr.number_of_heads" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get the number of sonar heads for the sonar in this FQPR instance</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>number of sonar heads</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt id="HSTB.kluster.fqpr_generation.Fqpr.number_of_pings">
+<code class="sig-name descname"><span class="pre">number_of_pings</span></code><a class="headerlink" href="#HSTB.kluster.fqpr_generation.Fqpr.number_of_pings" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get the number of pings for the sonar in this FQPR instance</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>number of sonar heads</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
 <dt id="HSTB.kluster.fqpr_generation.Fqpr.sbet_navigation">
 <code class="sig-name descname"><span class="pre">sbet_navigation</span></code><a class="headerlink" href="#HSTB.kluster.fqpr_generation.Fqpr.sbet_navigation" title="Permalink to this definition">¶</a></dt>
 <dd><p>Return the sbet navigation for the first sonar head.  Can assume that all sonar heads have basically the same navigation</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt id="HSTB.kluster.fqpr_generation.Fqpr.sonar_model">
+<code class="sig-name descname"><span class="pre">sonar_model</span></code><a class="headerlink" href="#HSTB.kluster.fqpr_generation.Fqpr.sonar_model" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get the sonar type from the ping record</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>the sonar model string</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt id="HSTB.kluster.fqpr_generation.Fqpr.status">
+<code class="sig-name descname"><span class="pre">status</span></code><a class="headerlink" href="#HSTB.kluster.fqpr_generation.Fqpr.status" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get the processing status of the Fqpr</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>the processing status of the Fqpr object</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p>str</p>
+</dd>
+</dl>
 </dd></dl>
 
 <p class="rubric">Methods Documentation</p>

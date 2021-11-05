@@ -376,3 +376,41 @@ fq.return_soundings_in_polygon(polygon)
 fq = reload_data(r"C:\collab\dasktest\data_dir\outputtest\EM2040_BHII")
 polygon = np.array([[-76.18624503, 38.21339807], [-76.18624503, 38.20954898], [-76.17469775, 38.20954898], [-76.17469775, 38.21339807]])
 fq.return_soundings_in_polygon(polygon)
+
+###################################################
+
+# testing entwine
+fq = reload_data(r"C:\collab\dasktest\data_dir\EM2040_Fairweather_SmallFile\em2040_40111_05_23_2017")
+rp = fq.multibeam.raw_ping[0].stack({'sounding': ('time', 'beam')})
+x, y, z, unc, nan_mask, classification, valid_detections, uncertainty_included = fq.export._generate_export_data(rp)
+newarr = np.empty(x.shape[0], dtype=[('x', 'float32'), ('y', 'float32'), ('z', 'float32'), ('uncertainty', 'float32')])
+newarr['x'] = x
+newarr['y'] = y
+newarr['z'] = z
+newarr['uncertainty'] = unc
+np.save(r'C:\collab\dasktest\data_dir\EM2040_Fairweather_SmallFile\tst.npy', newarr)
+
+import json
+schema = {
+    "schema": [
+        { "name": "x", "type": "float" },
+        { "name": "y", "type": "float" },
+        { "name": "z", "type": "float" },
+        { "name": "uncertainty", "type": "float" }
+    ]
+}
+
+with open(r"C:\collab\dasktest\data_dir\EM2040_Fairweather_SmallFile\tst_schema.json", 'w') as ofil:
+    json.dump(schema, ofil)
+
+from HSTB.kluster.pydro_helpers import retrieve_activate_batch
+import subprocess
+
+activate_file = retrieve_activate_batch()
+
+args = ["cmd.exe", "/C", "set pythonpath=", "&&", activate_file, "Pydro38_test", "&&",
+        'entwine', 'build', '-i', r"C:\collab\dasktest\data_dir\EM2040_Fairweather_SmallFile\tst.npy",
+        '-o', r'C:\collab\dasktest\data_dir\EM2040_Fairweather_SmallFile\entwine_out',
+        '-c', r"C:\collab\dasktest\data_dir\EM2040_Fairweather_SmallFile\tst_schema.json"]
+
+subprocess.Popen(' '.join(args), creationflags=subprocess.CREATE_NEW_CONSOLE)

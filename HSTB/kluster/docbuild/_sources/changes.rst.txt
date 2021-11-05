@@ -1,6 +1,14 @@
 Changes List
 ============
 
+Kluster v0.8.2
+--------------
+- bathygrid tile outlines now change color in dark mode
+- add string representation to kluster fqpr object
+- add new examples folder with code examples for using Kluster in the console
+- new jupyter notebooks matching examples additions
+- bug fix for intel processing when input is directory
+
 Kluster v0.8.1
 --------------
 - aligns with bathygrid 1.1.3
