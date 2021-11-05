@@ -10,9 +10,16 @@ Fqpr
 
    .. autosummary::
 
+      ~Fqpr.has_sbet
       ~Fqpr.last_operation_date
+      ~Fqpr.max_time
+      ~Fqpr.min_time
       ~Fqpr.navigation
+      ~Fqpr.number_of_heads
+      ~Fqpr.number_of_pings
       ~Fqpr.sbet_navigation
+      ~Fqpr.sonar_model
+      ~Fqpr.status
 
    .. rubric:: Methods Summary
 
@@ -75,9 +82,16 @@ Fqpr
 
    .. rubric:: Attributes Documentation
 
+   .. autoattribute:: has_sbet
    .. autoattribute:: last_operation_date
+   .. autoattribute:: max_time
+   .. autoattribute:: min_time
    .. autoattribute:: navigation
+   .. autoattribute:: number_of_heads
+   .. autoattribute:: number_of_pings
    .. autoattribute:: sbet_navigation
+   .. autoattribute:: sonar_model
+   .. autoattribute:: status
 
    .. rubric:: Methods Documentation
 
