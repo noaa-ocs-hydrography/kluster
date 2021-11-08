@@ -154,7 +154,7 @@ class Fqpr(ZarrBackend):
         except:
             output += 'Minimum Depth: Unknown '
             output += 'Maximum Depth: Unknown\n'
-        output += 'Current Status: {}\n'.format(self.status)
+        output += 'Current Status: {}\n'.format(self.status + ' complete')
         output += 'Sonar Model Number: {}\n'.format(self.sonar_model)
         try:
             output += 'Primary/Secondary System Serial Number: {}/{}\n'.format(self.multibeam.raw_ping[0].attrs['system_serial_number'][0],
