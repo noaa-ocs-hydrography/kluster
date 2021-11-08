@@ -383,3 +383,155 @@ Finally, here is a brief description of each variable, and the information it co
 - y - The result of running Georeference in Kluster.  This is the sound velocity offsets projected into the coordinate reference system you chose.  Northing is in meters.
 - yawpitchstab - Tells you whether yaw/pitch stabilization was enabled on the sonar.  Y = Only yaw stab, P = Only pitch stab, PY = Pitch and yaw stab, N = Neither.
 - z - The result of running Georeference in Kluster.  This is the sound velocity offsets projected into the coordinate reference system you chose.  Depth is in meters from the vertical reference you chose.
+
+Bathygrid
+=========
+
+Bathygrid is the Python module I developed to fit this role, of gridding multibeam soundings in such a way as to support billions of soundings over large areas while being memory and computation efficient.  Bathygrid leverages Dask and Zarr as well, so it shares a lot of the same elements as the FQPR object.  The three fundamental elements of the Bathygrid object are the points, the attribution and the grid itself.
+
+To get access to the Bathygrid grid, you do the same thing we did with the FQPR object.  You either drag in the folder to Kluster, or use the load convenience method to load from disk.
+
+.. code-block:: python
+
+    > from HSTB.kluster.fqpr_convenience import reload_data
+
+    > bg = reload_surface(r"C:\collab\dasktest\data_dir\outputtest\vrtilegrid_mean")
+
+    > bg
+    Out[4]:
+    Time (UTC): 2017-05-23T18:11:19 to 2017-05-23T18:12:12
+    EPSG: 6339
+    Path: C:\collab\dasktest\data_dir\EM2040_Fairweather_SmallFile\vrtilegrid_mean
+    Bathygrid Version: 1.1.3
+    Resolutions (meters): [8.0]
+    Containers: em2040_40111_05_23_2017_0
+    Mean Depth: 88.715
+    Minimum Northing: 5292544.0 Maximum Northing: 5293312.0
+    Minimum Easting: 538880.0 Maximum Easting: 539392.0
+
+You can see that we get a similar representation to the FQPR object, and can access this same data using the attributes of the class:
+
+.. code-block:: python
+
+    > surf.min_x
+    Out[6]: 538880.0
+
+    > surf.min_time
+    Out[7]: '2017-05-23T18:11:19'
+
+    > surf.container
+    Out[8]: {'em2040_40111_05_23_2017_0': ['0009_20170523_181119_FA2806.all']}
+
+You can see a similar display of the attributes in the Attributes winwdow in Kluster, when you click on the surface in the Project Tree.
+
+.. image:: datastructures4.png
+   :target: ../_images/datastructures4.png
+
+Points, Tiles and Grids
+^^^^^^^^^^^^^^^^^^^^^^^
+
+This section is best explained by a picture.  The image below shows the relationship between points, tiles and grids/cells.
+
+.. image:: datastructures5.png
+   :target: ../_images/datastructures5.png
+
+To define these terms:
+
+- SRGrid/VRGridTile - Single/Variable resolution structures that hold tiles or grids depending. The Root of the grid.
+- Tile - a structure that holds cells and points. A SRGrid only contains Tiles and is of the same resolution throughout
+- Grid - a structure that holds Tiles (SRGrid is a Grid), the VRGridTile basically holds miniature SRGrids within it
+- Cell - a unit of the Tile that has a depth, uncertainty, etc. based on the points within it
+- Point - a multibeam sounding
+
+You can also see those relationships between the Root, Tile and Grid by looking at the folder structure.  Here we have the folder structure for our variable resolution grid.  The Root folder contains the Grids, each Grid folder contains one Tile, and each Tile contains points (data) and cell data (cells)
+
+.. image:: datastructures6.png
+   :target: ../_images/datastructures6.png
+
+Using the console is similar:
+
+.. code-block:: python
+
+    > first_grid = surf.tiles[0][0]
+    > first_grid
+    Out[12]:
+    Bathygrid Version: 1.1.3
+    Resolutions (meters): [8.0]
+    Containers: em2040_40111_05_23_2017_0
+    Mean Depth: 91.363
+    Minimum Northing: 5292544.0 Maximum Northing: 5292800.0
+    Minimum Easting: 538880.0 Maximum Easting: 539136.0
+
+    > first_grid_tile = first_grid.tiles[0][0]
+    > first_grid_tile
+    Out[15]: <bathygrid.tile.SRTile at 0x2a43f816c70>
+
+    > soundings = first_grid_tile.data
+    > soundings
+    Out[18]: dask.array<from-npy-stack, shape=(98,), dtype=[('x', '<f8'), ('y', '<f8'), ('z', '<f8'), ('tvu', '<f4'), ('thu', '<f4')], chunksize=(98,), chunktype=numpy.ndarray>
+
+    first_grid_tile.cells
+    {8.0: {'depth': dask.array<from-npy-stack, shape=(32, 32), dtype=float32, chunksize=(32, 32), chunktype=numpy.ndarray>,
+           'density': dask.array<from-npy-stack, shape=(32, 32), dtype=int32, chunksize=(32, 32), chunktype=numpy.ndarray>,
+           'vertical_uncertainty': dask.array<from-npy-stack, shape=(32, 32), dtype=float32, chunksize=(32, 32), chunktype=numpy.ndarray>,
+           'horizontal_uncertainty': dask.array<from-npy-stack, shape=(32, 32), dtype=float32, chunksize=(32, 32), chunktype=numpy.ndarray>}}
+
+Grids in the root, a Tile in each grid, and soundings and cells in the Tile.  This is the basic architecture of the Variable Resolution Bathygrid object.  The Single resolution is simpler, with just Tiles and soundings.
+
+Note that all data is available as a Dask array, as data added is immediately flushed to disk to conserve memory.
+
+Attributes
+^^^^^^^^^^
+
+Attributes are stored in JSON within the data structure.  The attributes that you see in the Attributes window in Kluster are the result of running return_attribution to gather the attributes from the Bathygrid structure.
+
+.. code-block:: python
+
+    > surf.return_attribution()
+    Out[9]:
+    {'grid_folder': 'C:\\collab\\dasktest\\data_dir\\EM2040_Fairweather_SmallFile\\vrtilegrid_mean',
+     'name': 'VRGridTile_Root',
+     'type': bathygrid.maingrid.VRGridTile,
+     'grid_resolution': 'AUTO_DENSITY',
+     'grid_algorithm': 'mean',
+     'epsg': 6339,
+     'vertical_reference': 'COMPOUNDCRS["NAD83(2011) + MLLW depth",GEOGCRS["NAD83(2011)",DATUM["NAD83 (National Spatial Reference System 2011)",ELLIPSOID["GRS 1980",6378137,298.257222101,LENGTHUNIT["metre",1]]],PRIMEM["Greenwich",0,ANGLEUNIT["degree",0.0174532925199433]],CS[ellipsoidal,2],AXIS["geodetic latitude (Lat)",north,ORDER[1],ANGLEUNIT["degree",0.0174532925199433]],AXIS["geodetic longitude (Lon)",east,ORDER[2],ANGLEUNIT["degree",0.0174532925199433]],USAGE[SCOPE["Horizontal component of 3D system."],AREA["Puerto Rico - onshore and offshore. United States (USA) onshore and offshore - Alabama; Alaska; Arizona; Arkansas; California; Colorado; Connecticut; Delaware; Florida; Georgia; Idaho; Illinois; Indiana; Iowa; Kansas; Kentucky; Louisiana; Maine; Maryland; Massachusetts; Michigan; Minnesota; Mississippi; Missouri; Montana; Nebraska; Nevada; New Hampshire; New Jersey; New Mexico; New York; North Carolina; North Dakota; Ohio; Oklahoma; Oregon; Pennsylvania; Rhode Island; South Carolina; South Dakota; Tennessee; Texas; Utah; Vermont; Virginia; Washington; West Virginia; Wisconsin; Wyoming. US Virgin Islands - onshore and offshore."],BBOX[14.92,167.65,74.71,-63.88]],ID["EPSG",6318]],VERTCRS["MLLW depth",VDATUM["MLLW depth"],CS[vertical,1],AXIS["depth (D)",down,LENGTHUNIT["metre",1,ID["EPSG",9001]]],REMARK["vdatum=vdatum_4.1.2_20201203,vyperdatum=0.1.4,base_datum=[NAD83(2011)],regions=[WApugets02_8301],pipelines=[+proj=pipeline +step +proj=vgridshift grids=core\\geoid12b\\g2012bu0.gtx +step +inv +proj=vgridshift grids=WApugets02_8301\\tss.gtx +step +proj=vgridshift grids=WApugets02_8301\\mllw.gtx]"]]]',
+     'height': 768.0,
+     'width': 512.0,
+     'minimum_x': 538880.0,
+     'maximum_x': 539392.0,
+     'minimum_y': 5292544.0,
+     'maximum_y': 5293312.0,
+     'minimum_time_utc': '2017-05-23T18:11:19',
+     'maximum_time_utc': '2017-05-23T18:12:12',
+     'tile_size': 256.0,
+     'subtile_size': 256.0,
+     'tile_count': 5,
+     'resolutions': [8.0],
+     'storage_type': 'numpy',
+     'source_em2040_40111_05_23_2017': {'time': '20211108_135603',
+     'multibeam_lines': ['0009_20170523_181119_FA2806.all']}}
+
+The attributes are defined as:
+
+- grid_folder/output_folder - the current path to the root of the grid folder structure
+- name - the grid identifier, corresponds to the name of the root folder
+- type - the grid type
+- grid resolution - the grid method the user selected on making the grid
+- grid_algorithm - the algorithm the user selected on making the grid
+- epsg - the user specified epsg identifier for the grid points
+- vertical reference - the user specified reference for the grid points
+- height - the height of the grid in meters, including all empty areas
+- width - the width of the grid in meters, including all empty areas
+- minimum_x - the minimum easting of the grid
+- minimum_y - the minimum northing of the grid
+- maximum_x - the maximum easting of the grid
+- maximum_y - the maximum northing of the grid
+- minimum_time_utc - the minimum UTC time of the soundings provided to the grid
+- maximum_time_utc - the maximum UTC time of the soundings provided to the grid
+- tile_size - the size of the tile in meters
+- subtile_size - if VR, the size of the subtile in meters
+- tile_count - the number of tiles in the grid
+- resolutions - the total resolutions in the grid
+- storage_type - he specified backend of the grid
+- source_XXXXXXXXXXXXXXXXXXXXX - the time/files added for each add to the grid
