@@ -1,4 +1,4 @@
-import os, sys
+import os, sys, re
 import numpy as np
 from typing import Union
 from pyproj import CRS
@@ -754,7 +754,7 @@ class LayerManager:
             list of all surface layer names that match this layertype
         """
 
-        return [lname for lname in self.surface_layer_names if lname.find('_{}_'.format(layertype)) != -1]
+        return [lname for lname in self.surface_layer_names if re.findall(r'_{}_[0-9]*_[0-9]'.format(layertype), lname)]
 
     def surface_layers_by_type(self, layertype: str):
         """
@@ -770,7 +770,7 @@ class LayerManager:
         list
             list of all qgis_core.QgsRasterLayer that match this layertype
         """
-        return [self.layer_data_lookup[lname] for lname in self.surface_layer_names if lname.find('_{}_'.format(layertype)) != -1]
+        return [self.layer_data_lookup[lname] for lname in self.surface_layer_names if re.findall(r'_{}_[0-9]*_[0-9]'.format(layertype), lname)]
 
     def add_layer(self, layername: str, layerdata: Union[qgis_core.QgsRasterLayer, qgis_core.QgsVectorLayer], 
                   layertype: str):
