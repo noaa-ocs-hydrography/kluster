@@ -22,11 +22,14 @@ class ActionWorker(QtCore.QThread):
         self.result = None
         self.action_type = None
         self.error = False
+        self.exceptiontxt = None
 
     def populate(self, action_container, action_index):
         self.action_container = action_container
         self.action_index = action_index
         self.result = None
+        self.error = False
+        self.exceptiontxt = None
 
     def run(self):
         self.started.emit(True)
@@ -34,9 +37,8 @@ class ActionWorker(QtCore.QThread):
             self.action_type = self.action_container.actions[self.action_index].action_type
             self.result = self.action_container.execute_action(self.action_index)
         except Exception as e:
-            print('Error running action {}'.format(self.action_type))
-            print(traceback.format_exc())
             self.error = True
+            self.exceptiontxt = traceback.format_exc()
         self.finished.emit(True)
 
 
@@ -56,6 +58,7 @@ class OpenProjectWorker(QtCore.QThread):
         self.new_fqprs = []
         self.new_surfaces = []
         self.error = False
+        self.exceptiontxt = None
 
     def populate(self, new_project_path=None, force_add_fqprs=None, force_add_surfaces=None):
         self.new_project_path = new_project_path
@@ -64,6 +67,7 @@ class OpenProjectWorker(QtCore.QThread):
         self.new_fqprs = []
         self.new_surfaces = []
         self.error = False
+        self.exceptiontxt = None
 
     def run(self):
         self.started.emit(True)
@@ -90,9 +94,8 @@ class OpenProjectWorker(QtCore.QThread):
                 else:
                     print('Unable to load surface from {}'.format(pth))
         except Exception as e:
-            print('Error on opening data:')
-            print(traceback.format_exc())
             self.error = True
+            self.exceptiontxt = traceback.format_exc()
         self.finished.emit(True)
 
 
@@ -110,11 +113,13 @@ class DrawNavigationWorker(QtCore.QThread):
         self.new_fqprs = None
         self.line_data = {}
         self.error = False
+        self.exceptiontxt = None
 
     def populate(self, project, new_fqprs):
         self.project = project
         self.new_fqprs = new_fqprs
         self.error = False
+        self.exceptiontxt = None
         self.line_data = {}
 
     def run(self):
@@ -126,9 +131,8 @@ class DrawNavigationWorker(QtCore.QThread):
                     lats, lons = self.project.return_line_navigation(ln)
                     self.line_data[ln] = [lats, lons]
         except Exception as e:
-            print('Error drawing lines from {}'.format(self.new_fqprs))
-            print(traceback.format_exc())
             self.error = True
+            self.exceptiontxt = traceback.format_exc()
         self.finished.emit(True)
 
 
@@ -148,6 +152,7 @@ class DrawSurfaceWorker(QtCore.QThread):
         self.surface_layer_name = None
         self.surface_data = {}
         self.error = False
+        self.exceptiontxt = None
 
     def populate(self, surface_path, surf_object, resolution, surface_layer_name):
         self.surface_path = surface_path
@@ -156,6 +161,7 @@ class DrawSurfaceWorker(QtCore.QThread):
         # handle optional hillshade layer
         self.surface_layer_name = surface_layer_name
         self.error = False
+        self.exceptiontxt = None
         self.surface_data = {}
 
     def run(self):
@@ -179,9 +185,8 @@ class DrawSurfaceWorker(QtCore.QThread):
                         self.surface_data[resolution][self.surface_layer_name + '_{}'.format(chunk_count)] = [data, geo_transform]
                         chunk_count += 1
         except Exception as e:
-            print('Error drawing surface {}'.format(self.surface_path))
-            print(traceback.format_exc())
             self.error = True
+            self.exceptiontxt = traceback.format_exc()
         self.finished.emit(True)
 
 
@@ -200,6 +205,7 @@ class LoadPointsWorker(QtCore.QThread):
         self.project = None
         self.points_data = None
         self.error = False
+        self.exceptiontxt = None
 
     def populate(self, polygon=None, azimuth=None, project=None):
         self.polygon = polygon
@@ -207,15 +213,15 @@ class LoadPointsWorker(QtCore.QThread):
         self.project = project
         self.points_data = None
         self.error = False
+        self.exceptiontxt = None
 
     def run(self):
         self.started.emit(True)
         try:
             self.points_data = self.project.return_soundings_in_polygon(self.polygon)
         except Exception as e:
-            print('Error loading points from project')
-            print(traceback.format_exc())
             self.error = True
+            self.exceptiontxt = traceback.format_exc()
         self.finished.emit(True)
 
 
@@ -232,11 +238,13 @@ class ImportNavigationWorker(QtCore.QThread):
         self.fq_chunks = None
         self.fqpr_instances = []
         self.error = False
+        self.exceptiontxt = None
 
     def populate(self, fq_chunks):
         self.fq_chunks = fq_chunks
         self.fqpr_instances = []
         self.error = False
+        self.exceptiontxt = None
 
     def run(self):
         self.started.emit(True)
@@ -244,9 +252,8 @@ class ImportNavigationWorker(QtCore.QThread):
             for chnk in self.fq_chunks:
                 self.fqpr_instances.append(import_processed_navigation(chnk[0], **chnk[1]))
         except Exception as e:
-            print('Error importing navigation')
-            print(traceback.format_exc())
             self.error = True
+            self.exceptiontxt = traceback.format_exc()
         self.finished.emit(True)
 
 
@@ -263,10 +270,12 @@ class OverwriteNavigationWorker(QtCore.QThread):
         self.fq_chunks = None
         self.fqpr_instances = []
         self.error = False
+        self.exceptiontxt = None
 
     def populate(self, fq_chunks):
         self.fq_chunks = fq_chunks
         self.error = False
+        self.exceptiontxt = None
         self.fqpr_instances = []
 
     def run(self):
@@ -275,9 +284,8 @@ class OverwriteNavigationWorker(QtCore.QThread):
             for chnk in self.fq_chunks:
                 self.fqpr_instances.append(overwrite_raw_navigation(chnk[0], **chnk[1]))
         except Exception as e:
-            print('Error overwriting raw navigation')
-            print(traceback.format_exc())
             self.error = True
+            self.exceptiontxt = traceback.format_exc()
         self.finished.emit(True)
 
 
@@ -302,6 +310,7 @@ class ExportWorker(QtCore.QThread):
         self.filterset = False
         self.separateset = False
         self.error = False
+        self.exceptiontxt = None
 
     def populate(self, fq_chunks, line_names, datablock, export_type, z_pos_down, delimiter, filterset, separateset, basic_mode, line_mode, points_mode):
         if basic_mode:
@@ -326,6 +335,7 @@ class ExportWorker(QtCore.QThread):
         self.filterset = filterset
         self.separateset = separateset
         self.error = False
+        self.exceptiontxt = None
 
     def export_process(self, fq, datablock=None):
         if self.mode == 'basic':
@@ -341,16 +351,16 @@ class ExportWorker(QtCore.QThread):
 
     def run(self):
         self.started.emit(True)
-        # try:
-        if self.mode in ['basic', 'line']:
-            for chnk in self.fq_chunks:
-                self.fqpr_instances.append(self.export_process(chnk[0]))
-        else:
-            fq = self.fq_chunks[0][0]
-            self.fqpr_instances.append(self.export_process(fq, datablock=self.datablock))
-        # except Exception as e:
-        #     print(e)
-        #     self.error = True
+        try:
+            if self.mode in ['basic', 'line']:
+                for chnk in self.fq_chunks:
+                    self.fqpr_instances.append(self.export_process(chnk[0]))
+            else:
+                fq = self.fq_chunks[0][0]
+                self.fqpr_instances.append(self.export_process(fq, datablock=self.datablock))
+        except Exception as e:
+            self.error = True
+            self.exceptiontxt = traceback.format_exc()
         self.finished.emit(True)
 
 
@@ -370,6 +380,7 @@ class ExportGridWorker(QtCore.QThread):
         self.z_pos_up = True
         self.bag_kwargs = {}
         self.error = False
+        self.exceptiontxt = None
 
     def populate(self, surf_instance, export_type, output_path, z_pos_up, bag_kwargs):
         self.surf_instance = surf_instance
@@ -378,6 +389,7 @@ class ExportGridWorker(QtCore.QThread):
         self.bag_kwargs = bag_kwargs
         self.z_pos_up = z_pos_up
         self.error = False
+        self.exceptiontxt = None
 
     def run(self):
         self.started.emit(True)
@@ -385,9 +397,8 @@ class ExportGridWorker(QtCore.QThread):
             # None in the 4th arg to indicate you want to export all resolutions
             self.surf_instance.export(self.output_path, self.export_type, self.z_pos_up, None, **self.bag_kwargs)
         except Exception as e:
-            print('Error exporting grid')
-            print(traceback.format_exc())
             self.error = True
+            self.exceptiontxt = traceback.format_exc()
         self.finished.emit(True)
 
 
@@ -405,21 +416,22 @@ class SurfaceWorker(QtCore.QThread):
         self.fqpr_surface = None
         self.opts = {}
         self.error = False
+        self.exceptiontxt = None
 
     def populate(self, fqpr_instances, opts):
         self.fqpr_instances = fqpr_instances
         self.fqpr_surface = None
         self.opts = opts
         self.error = False
+        self.exceptiontxt = None
 
     def run(self):
         self.started.emit(True)
         try:
             self.fqpr_surface = generate_new_surface(self.fqpr_instances, **self.opts)
         except Exception as e:
-            print('Error building surface')
-            print(traceback.format_exc())
             self.error = True
+            self.exceptiontxt = traceback.format_exc()
         self.finished.emit(True)
 
 
@@ -438,6 +450,7 @@ class SurfaceUpdateWorker(QtCore.QThread):
         self.remove_fqpr_instances = None
         self.opts = {}
         self.error = False
+        self.exceptiontxt = None
 
     def populate(self, fqpr_surface, add_fqpr_instances, remove_fqpr_instances, opts):
         self.fqpr_surface = fqpr_surface
@@ -445,6 +458,7 @@ class SurfaceUpdateWorker(QtCore.QThread):
         self.remove_fqpr_instances = remove_fqpr_instances
         self.opts = opts
         self.error = False
+        self.exceptiontxt = None
 
     def run(self):
         self.started.emit(True)
@@ -452,7 +466,6 @@ class SurfaceUpdateWorker(QtCore.QThread):
             self.fqpr_surface = update_surface(self.fqpr_surface, self.add_fqpr_instances, self.remove_fqpr_instances,
                                                **self.opts)
         except Exception as e:
-            print('Error updating surface')
-            print(traceback.format_exc())
             self.error = True
+            self.exceptiontxt = traceback.format_exc()
         self.finished.emit(True)

@@ -820,6 +820,8 @@ class KlusterMain(QtWidgets.QMainWindow):
             else:  # new fqpr, or conversion actions always need a full refresh
                 self.refresh_project(fqpr=[fqpr_entry])
         else:
+            print('Error running action {}'.format(self.action_thread.action_type))
+            print(self.action_thread.exceptiontxt)
             print('kluster_action: no data returned from action execution: {}'.format(fqpr))
         self.action_thread.populate(None, None)
         self._stop_action_progress()
@@ -877,7 +879,8 @@ class KlusterMain(QtWidgets.QMainWindow):
                 self.project.add_fqpr(fq)
                 self.refresh_explorer(fq)
         else:
-            print('kluster_import_navigation: Unable to complete process')
+            print('Error overwriting raw navigation')
+            print(self.overwrite_nav_thread.exceptiontxt)
         self.overwrite_nav_thread.populate(None)
         self._stop_action_progress()
 
@@ -934,7 +937,8 @@ class KlusterMain(QtWidgets.QMainWindow):
                 self.project.add_fqpr(fq)
                 self.refresh_explorer(fq)
         else:
-            print('kluster_import_navigation: Unable to complete process')
+            print('Error importing post processed navigation')
+            print(self.import_ppnav_thread.exceptiontxt)
         self.import_ppnav_thread.populate(None)
         self._stop_action_progress()
 
@@ -997,7 +1001,8 @@ class KlusterMain(QtWidgets.QMainWindow):
             self.project.add_surface(fq_surf)
             self.redraw()
         else:
-            print('kluster_surface_generation: Unable to complete process')
+            print('Error building surface')
+            print(self.surface_thread.exceptiontxt)
         self.surface_thread.populate(None, {})
         self._stop_action_progress()
 
@@ -1045,7 +1050,8 @@ class KlusterMain(QtWidgets.QMainWindow):
             self.project.add_surface(fq_surf)
             self.project_tree.refresh_project(proj=self.project)
         else:
-            print('kluster_surface_update: Unable to complete process')
+            print('Error updating surface')
+            print(self.surface_update_thread.exceptiontxt)
         self.surface_update_thread.populate(None, None, None, {})
         self._stop_action_progress()
 
@@ -1100,7 +1106,8 @@ class KlusterMain(QtWidgets.QMainWindow):
         """
 
         if self.export_grid_thread.error:
-            print('Export complete: Unable to export')
+            print('Error exporting grid')
+            print(self.export_grid_thread.exceptiontxt)
         else:
             print('Export complete.')
         self.export_grid_thread.populate(None, '', '', True, {})
@@ -1168,6 +1175,7 @@ class KlusterMain(QtWidgets.QMainWindow):
 
         if self.export_thread.error:
             print('Export complete: Unable to export')
+            print(self.export_thread.exceptiontxt)
         else:
             print('Export complete.')
         self.export_thread.populate(None, None, [], '', False, 'comma', False, False, True, False, False)
@@ -1256,6 +1264,9 @@ class KlusterMain(QtWidgets.QMainWindow):
             for new_surf in self.open_project_thread.new_surfaces:
                 self.project.add_surface(new_surf)
             self.redraw(new_fqprs=[self.project.path_relative_to_project(fq.output_folder) for fq in self.open_project_thread.new_fqprs])
+        else:
+            print('Error on opening data')
+            print(self.open_project_thread.exceptiontxt)
         self.open_project_thread.populate(None)
         self._stop_action_progress()
 
@@ -1268,6 +1279,9 @@ class KlusterMain(QtWidgets.QMainWindow):
             for ln in self.draw_navigation_thread.line_data:
                 self.two_d.add_line(ln, self.draw_navigation_thread.line_data[ln][0], self.draw_navigation_thread.line_data[ln][1])
             self.two_d.set_extents_from_lines()
+        else:
+            print('Error drawing lines from {}'.format(self.draw_navigation_thread.new_fqprs))
+            print(self.draw_navigation_thread.exceptiontxt)
         self.draw_navigation_thread.populate(None, None)
         self._stop_action_progress()
         print('draw_navigation: Drawing navigation complete.')
@@ -1300,6 +1314,9 @@ class KlusterMain(QtWidgets.QMainWindow):
                             drawresolution = surf_resolution
                 if drawresolution:
                     self.two_d.set_extents_from_surfaces(surf_path, drawresolution)
+        else:
+            print('Error drawing surface {}'.format(self.draw_surface_thread.surface_path))
+            print(self.draw_surface_thread.exceptiontxt)
         self.draw_surface_thread.populate(None, None, None, None)
         self._stop_action_progress()
         print('draw_surface: Drawing surface complete.')
@@ -1765,6 +1782,9 @@ class KlusterMain(QtWidgets.QMainWindow):
                                             pointdata[6], pointdata[7], fqpr_name, pointdata[8], azimuth=azimuth)
                 pointcount += pointdata[0].size
             self.points_view.display_points()
+        else:
+            print('Error loading points from project')
+            print(self.load_points_thread.exceptiontxt)
         self.two_d.finalize_points_tool()
         print('Selected {} Points for display'.format(pointcount))
         self.load_points_thread.populate()
