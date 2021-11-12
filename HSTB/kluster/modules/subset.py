@@ -32,6 +32,7 @@ class FqprSubset:
         self.backup_fqpr = {}
         self.subset_mintime = 0
         self.subset_maxtime = 0
+        self.subset_lines = []
 
         self.ping_filter = None
 
@@ -69,6 +70,7 @@ class FqprSubset:
             self.restore_subset()
         self.subset_mintime = mintime
         self.subset_maxtime = maxtime
+        self.subset_lines = []
         self.backup_fqpr['raw_ping'] = [ping.copy() for ping in self.fqpr.multibeam.raw_ping]
         self.backup_fqpr['raw_att'] = self.fqpr.multibeam.raw_att.copy()
 
@@ -78,6 +80,56 @@ class FqprSubset:
             slice_raw_ping.append(slice_ra)
         self.fqpr.multibeam.raw_ping = slice_raw_ping
         self.fqpr.multibeam.raw_att = slice_xarray_by_dim(self.fqpr.multibeam.raw_att, dimname='time', start_time=mintime, end_time=maxtime)
+
+    def subset_by_lines(self, line_names: Union[str, list]):
+        """
+        Use the logged start time, end time of the multibeam files to exclude data from all other lines.  The result is
+        the data only for the lines provided, concatenated into a single dataset.
+
+        To return to the full original dataset, use restore_subset
+
+        Parameters
+        ----------
+        line_names
+            multibeam file names that you want to include in the subset datasets, all other lines are excluded
+        """
+
+        if self.backup_fqpr != {}:
+            self.restore_subset()
+        self.subset_mintime = 0
+        self.subset_maxtime = 0
+        self.backup_fqpr['raw_ping'] = [ping.copy() for ping in self.fqpr.multibeam.raw_ping]
+        self.backup_fqpr['raw_att'] = self.fqpr.multibeam.raw_att.copy()
+
+        mfiles = self.fqpr.return_line_dict(line_names=line_names)
+        # ensure files are sorted by line start time, so the resultant dataset is also sorted when you concatenate
+        mfiles = dict(sorted(mfiles.items(), key=lambda tme: tme[1][0]))
+        self.subset_lines = list(mfiles.keys())
+        original_lines = list(self.fqpr.multibeam.raw_ping[0].multibeam_files.keys())
+        slice_raw_ping = []
+        for ra in self.fqpr.multibeam.raw_ping:
+            final_ra = None
+            for linename in self.subset_lines:
+                starttime, endtime = mfiles[linename]
+                slice_ra = slice_xarray_by_dim(ra, dimname='time', start_time=starttime, end_time=endtime)
+                if final_ra:
+                    final_ra = xr.concat([final_ra, slice_ra], dim='time')
+                else:
+                    final_ra = slice_ra
+            slice_raw_ping.append(final_ra)
+        self.fqpr.multibeam.raw_ping = slice_raw_ping
+        # ensure the multibeam files that we say are in this dataset match the subset of files
+        [self.fqpr.multibeam.raw_ping[0].multibeam_files.pop(mfil) for mfil in original_lines if mfil not in mfiles.keys()]
+
+        final_att = None
+        for linename in self.subset_lines:
+            starttime, endtime = mfiles[linename]
+            slice_nav = slice_xarray_by_dim(self.fqpr.multibeam.raw_att, dimname='time', start_time=starttime, end_time=endtime)
+            if final_att:
+                final_att = xr.concat([final_att, slice_nav], dim='time')
+            else:
+                final_att = slice_nav
+        self.fqpr.multibeam.raw_att = final_att
 
     def restore_subset(self):
         """
@@ -90,6 +142,7 @@ class FqprSubset:
             self.backup_fqpr = {}
             self.subset_maxtime = 0
             self.subset_mintime = 0
+            self.subset_lines = []
         else:
             self.fqpr.logger.error('restore_subset: no subset found to restore from')
             raise ValueError('restore_subset: no subset found to restore from')
@@ -101,6 +154,8 @@ class FqprSubset:
         self.backup_fqpr = {}
         if self.subset_mintime and self.subset_maxtime:
             self.subset_by_time(self.subset_mintime, self.subset_maxtime)
+        elif self.subset_lines:
+            self.subset_by_lines(self.subset_lines)
 
     def subset_variables(self, variable_selection: list, ping_times: Union[np.array, float, tuple] = None,
                          skip_subset_by_time: bool = False, filter_by_detection: bool = False):

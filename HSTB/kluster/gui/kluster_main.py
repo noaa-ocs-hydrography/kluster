@@ -12,6 +12,8 @@ from pyproj import CRS, Transformer
 import qdarkstyle
 from qdarkstyle.dark.palette import DarkPalette
 import matplotlib.pyplot as plt
+from copy import deepcopy
+import xarray as xr
 
 from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal, qgis_enabled, found_path
 if qgis_enabled:
@@ -724,7 +726,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         """
         Right click an fqpr instance and trigger full reprocessing, should only be necessary in case of emergency.
         """
-        fqprs = self.project_tree.return_selected_fqprs()
+        fqprs, linedict = self.project_tree.return_selected_fqprs()
         if fqprs:
             # start over at 1, which is conversion in our state machine
             fq = self.project.fqpr_instances[fqprs[0]]
@@ -744,7 +746,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         """
         Runs the basic plots dialog, for plotting the variables using the xarray/matplotlib functionality
         """
-        fqprspaths, fqprs = self.return_selected_fqprs()
+        fqprspaths, fqprs = self.return_selected_fqprs(subset_by_line=True)
 
         self.basicplots_win = None
         self.basicplots_win = dialog_basicplot.BasicPlotDialog()
@@ -758,7 +760,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         """
         Runs the advanced plots dialog, for plotting the sat tests and other more sophisticated stuff
         """
-        fqprspaths, fqprs = self.return_selected_fqprs()
+        fqprspaths, fqprs = self.return_selected_fqprs(subset_by_line=True)
         first_surf = None
         default_plots = None
         if self.project.surface_instances:
@@ -2094,7 +2096,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         # self.setUpdatesEnabled(True)
         print('Reset interface settings to default')
 
-    def return_selected_fqprs(self):
+    def return_selected_fqprs(self, subset_by_line: bool = False):
         """
         Return absolute paths to fqprs selected and the loaded fqpr instances
 
@@ -2105,20 +2107,53 @@ class KlusterMain(QtWidgets.QMainWindow):
         list
             list of loaded fqpr instances
         """
-        fqprs = self.project_tree.return_selected_fqprs()
+        fqprs, linedict = self.project_tree.return_selected_fqprs()
         fqpr_loaded = []
         fqpr_paths = []
         for fq in fqprs:
             try:
-                fqpr_paths.append(self.project.absolute_path_from_relative(fq))
+                newfq = self.project.absolute_path_from_relative(fq)
+                fqpr_paths.append(newfq)
             except:
                 print('Unable to find {} in project'.format(fq))
                 continue
             try:
-                fqpr_loaded.append(self.project.fqpr_instances[fq])
+                if linedict and subset_by_line:  # only get the data for the selected lines
+                    if fq in linedict:
+                        fqlines = linedict[fq]
+                        basefq = self.project.fqpr_instances[fq]
+                        # cannnot deepcopy the dask client, must remove reference first
+                        basefq.client = None
+                        basefq.multibeam.client = None
+                        basefq = deepcopy(basefq)
+                        basefq.subset_by_lines(fqlines)
+                        fqpr_loaded.append(basefq)
+                    else:  # this Fqpr instance does not contain any selected lines
+                        pass
+                else:
+                    fqpr_loaded.append(self.project.fqpr_instances[fq])
             except:
                 print('Unable to find loaded converted data for {}'.format(fq))
                 fqpr_loaded.append(None)
+
+        if linedict and subset_by_line:
+            sysids = [fq.multibeam.raw_ping[0].attrs['system_serial_number'][0] for fq in fqpr_loaded]
+            if not all([sysids[0] == sid for sid in sysids]):
+                print('ERROR: Data from multiple different sonars found, returning only the data for the first selected sonar')
+                return [fqpr_paths[0]], [fqpr_loaded[0]]
+            first_xyzrph = fqpr_loaded[0].multibeam.xyzrph
+            for fq in fqpr_loaded:
+                offsets, angles, _, _, _ = compare_dict_data(first_xyzrph, fq.multibeam.xyzrph)
+                if not offsets or not angles:
+                    print('Warning: loading data for selected lines when installation offsets/angles do not match between converted instances')
+            # ensure they are sorted before concatenating
+            fqpr_loaded = sorted(fqpr_loaded, key=lambda tst: tst.multibeam.raw_ping[0].time.values[0])
+            final_fqpr = deepcopy(fqpr_loaded[0])
+            final_fqpr.multibeam.raw_ping = [xr.concat([fq.multibeam.raw_ping[cnt] for fq in fqpr_loaded], dim='time') for cnt in range(len(fqpr_loaded[0].multibeam.raw_ping))]
+            [final_fqpr.multibeam.raw_ping[0].multibeam_files.update(fq.multibeam.raw_ping[0].multibeam_files) for fq in fqpr_loaded]
+            final_fqpr.multibeam.raw_att = xr.concat([fq.multibeam.raw_att for fq in fqpr_loaded], dim='time')
+            fqpr_loaded = [final_fqpr]
+            fqpr_paths = [';'.join(fqpr_paths)]
         return fqpr_paths, fqpr_loaded
 
     def return_selected_surfaces(self):

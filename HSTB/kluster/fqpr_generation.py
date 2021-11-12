@@ -2621,6 +2621,13 @@ class Fqpr(ZarrBackend):
 
         self.subset.subset_by_time(mintime, maxtime)
 
+    def subset_by_lines(self, line_names: Union[str, list]):
+        """
+        Use subset module to trim the fqpr instance to the given lines
+        """
+
+        self.subset.subset_by_lines(line_names)
+
     def subset_variables(self, variable_selection: list, ping_times: Union[np.array, float, tuple] = None,
                          skip_subset_by_time: bool = False, filter_by_detection: bool = False):
         """

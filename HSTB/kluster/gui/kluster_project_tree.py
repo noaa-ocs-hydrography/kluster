@@ -458,22 +458,30 @@ class KlusterProjectTree(QtWidgets.QTreeView):
 
         Returns
         -------
-        fqprs: list, list of all str paths to fqpr instances selected, either directly or through selecting a line
-
+        list
+            list of all str paths to fqpr instances selected, either directly or through selecting a line
+        dict
+            dictionary of all selected lines, with the fqpr as key
         """
         fqprs = []
+        line_list = {}
         idxs = self.selectedIndexes()
         for idx in idxs:
             new_fqpr = ''
             top_lvl_name = idx.parent().parent().data()
             mid_lvl_name = idx.parent().data()
+            low_lvl_name = idx.data()
             if mid_lvl_name == 'Converted':  # user has selected a fqpr instance
-                new_fqpr = self.model.data(idx)
+                new_fqpr = low_lvl_name
             elif top_lvl_name == 'Converted':  # user selected a line
                 new_fqpr = mid_lvl_name
+                if new_fqpr in line_list:
+                    line_list[new_fqpr].append(low_lvl_name)
+                else:
+                    line_list[new_fqpr] = [low_lvl_name]
             if new_fqpr and (new_fqpr not in fqprs):
                 fqprs.append(new_fqpr)
-        return fqprs
+        return fqprs, line_list
 
     def return_selected_surfaces(self):
         """
