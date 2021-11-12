@@ -412,6 +412,27 @@ class KlusterProjectTree(QtWidgets.QTreeView):
                 if proj.vessel_file:
                     self._setup_vessel_file(parent, proj.vessel_file)
 
+    def select_multibeam_lines(self, line_names: list, clear_existing_selection: bool = True):
+        parent = self.tree_data['Converted'][0]
+        num_containers = parent.rowCount()
+        clrfirst = clear_existing_selection
+        if line_names:
+            for cnt in range(num_containers):
+                container_item = parent.child(cnt, 0)
+                numlines = container_item.rowCount()
+                for lcnt in range(numlines):
+                    lineitem = container_item.child(lcnt, 0)
+                    if lineitem.text() in line_names:
+                        sel = lineitem.index()
+                        if clrfirst:  # we programmatically select it with ClearAndSelect
+                            self.selectionModel().select(sel, QtCore.QItemSelectionModel.ClearAndSelect | QtCore.QItemSelectionModel.Rows)
+                            clrfirst = False
+                        else:
+                            self.selectionModel().select(sel, QtCore.QItemSelectionModel.Select | QtCore.QItemSelectionModel.Rows)
+                        self.item_selected(sel)
+        else:
+            self.selectionModel().select(parent.index(), QtCore.QItemSelectionModel.Clear | QtCore.QItemSelectionModel.Rows)
+
     def item_selected(self, index):
         """
         Selecting one of the items in the tree will activate an event depending on the item type.  See comments below.

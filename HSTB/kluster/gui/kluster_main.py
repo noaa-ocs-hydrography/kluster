@@ -1715,15 +1715,17 @@ class KlusterMain(QtWidgets.QMainWindow):
             list of line names that are found to intersect the drawn box
         """
 
-        self.two_d.reset_line_colors()
-        self.explorer.clear_explorer_data()
         skip_these = []
         for cnt, ln in enumerate(linenames):
             valid = self._line_selected(ln, idx=cnt)
             if not valid:
                 skip_these.append(ln)
         linenames = [ln for ln in linenames if ln not in skip_these]
-        self.two_d.change_line_colors(linenames, 'red')
+        self.project_tree.select_multibeam_lines(linenames, clear_existing_selection=True)
+        if not linenames:
+            self.two_d.reset_line_colors()
+            self.explorer.clear_explorer_data()
+            self.two_d.change_line_colors(linenames, 'red')
 
     def select_line_by_box(self, min_lat, max_lat, min_lon, max_lon):
         """
@@ -2149,7 +2151,18 @@ class KlusterMain(QtWidgets.QMainWindow):
             # ensure they are sorted before concatenating
             fqpr_loaded = sorted(fqpr_loaded, key=lambda tst: tst.multibeam.raw_ping[0].time.values[0])
             final_fqpr = deepcopy(fqpr_loaded[0])
-            final_fqpr.multibeam.raw_ping = [xr.concat([fq.multibeam.raw_ping[cnt] for fq in fqpr_loaded], dim='time') for cnt in range(len(fqpr_loaded[0].multibeam.raw_ping))]
+            try:
+                final_fqpr.multibeam.raw_ping = [xr.concat([fq.multibeam.raw_ping[cnt] for fq in fqpr_loaded], dim='time') for cnt in range(len(fqpr_loaded[0].multibeam.raw_ping))]
+            except ValueError:  # must have sbet or something that is in one dataset but not in another
+                for cnt in range(len(fqpr_loaded[0].multibeam.raw_ping)):  # for each sonar head
+                    fkeys = [set(list(fq.multibeam.raw_ping[cnt].variables.keys())) for fq in fqpr_loaded]
+                    commonkeys = fkeys[0].intersection(*fkeys)
+                    for fq in fqpr_loaded:  # for each dataset
+                        dropthese = [ky for ky in fq.multibeam.raw_ping[cnt].variables.keys() if ky not in commonkeys]
+                        if dropthese:
+                            print('Warning: forced to drop {} when merging these datasets'.format(dropthese))
+                            fq.multibeam.raw_ping[cnt] = fq.multibeam.raw_ping[cnt].drop(dropthese)
+                final_fqpr.multibeam.raw_ping = [xr.concat([fq.multibeam.raw_ping[cnt] for fq in fqpr_loaded], dim='time') for cnt in range(len(fqpr_loaded[0].multibeam.raw_ping))]
             [final_fqpr.multibeam.raw_ping[0].multibeam_files.update(fq.multibeam.raw_ping[0].multibeam_files) for fq in fqpr_loaded]
             final_fqpr.multibeam.raw_att = xr.concat([fq.multibeam.raw_att for fq in fqpr_loaded], dim='time')
             fqpr_loaded = [final_fqpr]
