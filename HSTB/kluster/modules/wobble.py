@@ -596,7 +596,10 @@ def return_period_of_signal(sig: xr.DataArray):
     # first index is always zero of course, since the two signals with zero delay will match
     inflection = np.diff(np.sign(np.diff(acf)))  # Find the second-order differences
     peaks = (inflection < 0).nonzero()[0] + 1  # Find where they are negative
-    delay = peaks[acf[peaks].argmax()]  # Of those, find the index with the maximum value
+    try:
+        delay = peaks[acf[peaks].argmax()]  # Of those, find the index with the maximum value
+    except ValueError:
+        raise ValueError('Not enough data provided to determine period of attitude signal, provide a greater time range')
 
     period = sig.time.values[delay] - sig.time.values[0]
     return period
