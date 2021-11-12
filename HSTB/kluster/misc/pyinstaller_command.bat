@@ -1,1 +1,3 @@
-cd C:\Pydro21_Dev\NOAA\site-packages\Python38\git_repos\hstb_kluster\HSTB\kluster\misc && C:\Pydro21_Dev\Scripts\activate Pydro38 && pyinstaller "C:\Pydro21_Dev\NOAA\site-packages\Python38\git_repos\hstb_kluster\HSTB\kluster\misc\kluster_main.spec"
+cd C:\Pydro21_Dev\NOAA\site-packages\Python38\git_repos\hstb_kluster\HSTB\kluster\misc && call C:\Pydro21_Dev\Scripts\activate Pydro38 && pyinstaller "C:\Pydro21_Dev\NOAA\site-packages\Python38\git_repos\hstb_kluster\HSTB\kluster\misc\kluster_main.spec"
+REM Gdal expects the bag_template.xml to be accessible, put it next to the executable
+echo f | xcopy /f /y "C:\Pydro21_Dev\NOAA\site-packages\Python38\git_repos\hstb_kluster\HSTB\kluster\misc\dist\kluster_main\Library\share\gdal\bag_template.xml" "C:\Pydro21_Dev\NOAA\site-packages\Python38\git_repos\hstb_kluster\HSTB\kluster\misc\dist\kluster_main\bag_template.xml"
