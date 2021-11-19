@@ -110,7 +110,7 @@ class FqprSubset:
         for ra in self.fqpr.multibeam.raw_ping:
             final_ra = None
             for linename in self.subset_lines:
-                starttime, endtime = mfiles[linename]
+                starttime, endtime = mfiles[linename][0], mfiles[linename][1]
                 slice_ra = slice_xarray_by_dim(ra, dimname='time', start_time=starttime, end_time=endtime)
                 if final_ra:
                     final_ra = xr.concat([final_ra, slice_ra], dim='time')
@@ -123,7 +123,7 @@ class FqprSubset:
 
         final_att = None
         for linename in self.subset_lines:
-            starttime, endtime = mfiles[linename]
+            starttime, endtime = mfiles[linename][0], mfiles[linename][1]
             slice_nav = slice_xarray_by_dim(self.fqpr.multibeam.raw_att, dimname='time', start_time=starttime, end_time=endtime)
             if final_att:
                 final_att = xr.concat([final_att, slice_nav], dim='time')
@@ -263,7 +263,7 @@ class FqprSubset:
 
         return_data = {}
         for linename in mfiles.keys():
-            starttime, endtime = mfiles[linename]
+            starttime, endtime = mfiles[linename][0], mfiles[linename][1]
             dset = self.subset_variables(variable_selection, ping_times=(starttime, endtime), skip_subset_by_time=False,
                                          filter_by_detection=filter_by_detection)
             return_data[linename] = dset

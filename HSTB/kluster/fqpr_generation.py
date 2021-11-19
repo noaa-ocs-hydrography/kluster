@@ -2904,7 +2904,7 @@ class Fqpr(ZarrBackend):
 
         line_dict = self.return_line_dict(line_name)
         if line_name in line_dict.keys():
-            return line_dict[line_name]
+            return line_dict[line_name][0], line_dict[line_name][1]
         else:
             return None, None
 
