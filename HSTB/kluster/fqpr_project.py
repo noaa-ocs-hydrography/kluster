@@ -526,7 +526,7 @@ class FqprProject:
             line_att = fq_inst.multibeam.raw_att
             if subset:
                 # attributes are all the same across raw_ping datasets, just use the first
-                line_start_time, line_end_time = fq_inst.multibeam.raw_ping[0].multibeam_files[line]
+                line_start_time, line_end_time = fq_inst.multibeam.raw_ping[0].multibeam_files[line][0], fq_inst.multibeam.raw_ping[0].multibeam_files[line][1]
                 line_att = slice_xarray_by_dim(line_att, dimname='time', start_time=line_start_time, end_time=line_end_time)
         return line_att
 
@@ -691,7 +691,7 @@ class FqprProject:
         if line not in self.buffered_fqpr_navigation:
             fq_inst = self.return_line_owner(line)
             if fq_inst is not None:
-                line_start_time, line_end_time = fq_inst.multibeam.raw_ping[0].multibeam_files[line]
+                line_start_time, line_end_time = fq_inst.multibeam.raw_ping[0].multibeam_files[line][0], fq_inst.multibeam.raw_ping[0].multibeam_files[line][1]
                 nav = fq_inst.multibeam.return_raw_navigation(line_start_time, line_end_time)
                 lat, lon = nav.latitude.values, nav.longitude.values
                 # save nav so we don't have to redo this routine if asked for the same line
@@ -916,6 +916,73 @@ class FqprProject:
             fqpr_abs_paths = [';'.join(fqpr_abs_paths)]
             return fqpr_abs_paths, fqpr_loaded
 
+    def sort_lines_patch_test_pairs(self, line_list: str):
+        """
+        Take the provided list of linenames and sort them into pairs for the patch test tool.  Each pair consists of two lines
+        that are reciprocal and start/end in the same place.
+
+        Parameters
+        ----------
+        line_list
+            list of line names that we want to sort
+
+        Returns
+        -------
+        list
+            list of lists of line names in pairs
+        dict
+            line dict containing the start position, end position and azimuth of each line
+        """
+
+        final_grouping = []
+        az_grouping = [[], []]
+        line_dict = {}
+        for multibeam_line in line_list:  # first pass to get the azimuth and positions of the lines
+            if multibeam_line not in self.convert_path_lookup:
+                print('Unable to find {} in project'.format(multibeam_line))
+            fqpr_rel_pth = self.convert_path_lookup[multibeam_line]
+            fq = self.fqpr_instances[fqpr_rel_pth]
+            line_start, line_end = fq.multibeam.raw_ping[0].multibeam_files[multibeam_line][0], fq.multibeam.raw_ping[0].multibeam_files[multibeam_line][1]
+            dstart = fq.multibeam.raw_ping[0].interp(time=max(line_start, fq.multibeam.raw_ping[0].time.values[0]), method='nearest', assume_sorted=True)
+            start_position = [dstart.latitude.values, dstart.longitude.values]
+            dend = fq.multibeam.raw_ping[0].interp(time=min(line_end, fq.multibeam.raw_ping[0].time.values[-1]), method='nearest', assume_sorted=True)
+            end_position = [dend.latitude.values, dend.longitude.values]
+            line_az = fq.multibeam.raw_att.interp(time=line_start + (line_end - line_start) / 2, method='nearest', assume_sorted=True).heading.values
+            line_dict[multibeam_line] = {'start_position': start_position, 'end_position': end_position, 'azimuth': line_az}
+        first_az = None
+        for line_name, line_data in line_dict.items():
+            if first_az is None:
+                first_az = line_data['azimuth']
+            az_diff = abs(first_az - line_data['azimuth'])
+            if (150 <= az_diff <= 210) or ((330 <= az_diff) or (az_diff <= 30)):  # parallel/recipricol to first line, within 30 degrees
+                az_grouping[0].append(line_name)
+            elif (210 < az_diff < 330) or (30 < az_diff < 150):
+                az_grouping[1].append(line_name)
+        paired_lines = []
+        for az_group in az_grouping:
+            for az_line in az_group:
+                if az_line in paired_lines:
+                    continue
+                line_pair = [az_line]
+                paired_lines.append(az_line)
+                min_dist = None
+                min_line = None
+                az_start, az_end = line_dict[az_line]['start_position'], line_dict[az_line]['end_position']
+                for az_line_new in az_group:
+                    if az_line_new in paired_lines:
+                        continue
+                    strt_dist = haversine(line_dict[az_line_new]['start_position'][0], line_dict[az_line_new]['start_position'][1], az_start[0], az_start[1])
+                    end_dist = haversine(line_dict[az_line_new]['end_position'][0], line_dict[az_line_new]['end_position'][1], az_end[0], az_end[1])
+                    dist = min(strt_dist, end_dist)
+                    if (min_dist is None) or (dist < min_dist):
+                        min_dist = dist
+                        min_line = az_line_new
+                if min_line:
+                    line_pair.append(min_line)
+                    paired_lines.append(min_line)
+                final_grouping.append(line_pair)
+        return final_grouping, line_dict
+
     def return_vessel_file(self):
         """
         Return the VesselFile instance for this project's vessel_file path
@@ -1050,3 +1117,32 @@ def return_project_data(project_path: str):
     fqp = FqprProject()
     data = fqp._load_project_file(project_path)
     return data
+
+
+def haversine(lon1, lat1, lon2, lat2):
+    """
+    Calculate the great circle distance in kilometers between two points
+    on the earth (specified in decimal degrees)
+
+    Parameters
+    ----------
+    lon1
+        longitude in degrees of position one
+    lat1
+        latitude in degrees of position one
+    lon2
+        longitude in degrees of position two
+    lat2
+        latitude in degrees of position two
+    """
+
+    # convert decimal degrees to radians
+    lon1, lat1, lon2, lat2 = np.deg2rad(lon1), np.deg2rad(lat1), np.deg2rad(lon2), np.deg2rad(lat2)
+
+    # haversine formula
+    dlon = lon2 - lon1
+    dlat = lat2 - lat1
+    a = np.sin(dlat/2)**2 + np.cos(lat1) * np.cos(lat2) * np.sin(dlon/2)**2
+    c = 2 * np.arcsin(np.sqrt(a))
+    r = 6371 # Radius of earth in kilometers. Use 3956 for miles. Determines return value units.
+    return c * r

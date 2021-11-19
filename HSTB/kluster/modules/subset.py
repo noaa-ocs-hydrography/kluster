@@ -605,7 +605,7 @@ def filter_subset_by_polygon(ping_dataset: xr.Dataset, polygon: np.array):
             gprecision = int(ping_dataset.geohash.dtype.str[2:])  # ex: dtype='|S7', precision=7
             innerhash, intersecthash = polygon_to_geohashes(polygon, precision=gprecision)
             for mline, mhashes in ping_dataset.attrs['geohashes'].items():
-                linestart, lineend = ping_dataset.attrs['multibeam_files'][mline]
+                linestart, lineend = ping_dataset.attrs['multibeam_files'][mline][0], ping_dataset.attrs['multibeam_files'][mline][1]
                 mhashes = [x.encode() for x in mhashes]
                 inside_geohash = [x for x in innerhash if x in mhashes]
                 intersect_geohash = [x for x in intersecthash if x in mhashes and x not in inside_geohash]

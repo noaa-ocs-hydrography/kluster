@@ -397,7 +397,7 @@ class Fqpr(ZarrBackend):
         for rp in self.multibeam.raw_ping:
             mlinesdict = rp.attrs['multibeam_files']
             if line_name in mlinesdict:
-                starttime, endtime = mlinesdict[line_name]
+                starttime, endtime = mlinesdict[line_name][0], mlinesdict[line_name][1]
                 # nearest to start/end time could be the next line, so just use the midpoint
                 middle_time = starttime + ((endtime - starttime) / 2)
                 # if it is processed, you should have all max processing status for each beam
@@ -2714,7 +2714,7 @@ class Fqpr(ZarrBackend):
                 raise ValueError('return_line_dict: ping_times must be a tuple of (start time utc seconds, end time utc seconds): {}'.format(ping_times))
             corrected_mfiles = {}  # we need to trim the line start/end times by the given ping_times
             for linename in mfiles.keys():
-                starttime, endtime = mfiles[linename]
+                starttime, endtime = mfiles[linename][0], mfiles[linename][1]
                 if starttime > sel_end_time:
                     continue
                 if endtime < sel_start_time:
@@ -2723,7 +2723,9 @@ class Fqpr(ZarrBackend):
                     starttime = sel_start_time
                 if endtime >= sel_end_time:
                     endtime = sel_end_time
-                corrected_mfiles[linename] = [starttime, endtime]
+                corrected_mfiles[linename] = mfiles[linename]
+                corrected_mfiles[linename][0] = starttime
+                corrected_mfiles[linename][1] = endtime
             mfiles = corrected_mfiles
         return mfiles
 
