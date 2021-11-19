@@ -5,12 +5,13 @@ import json
 from typing import Union
 from datetime import datetime, timezone
 from types import FunctionType
+from copy import deepcopy
 
 from HSTB.kluster.fqpr_generation import Fqpr
 from HSTB.kluster.dask_helpers import dask_find_or_start_client, client_needs_restart
 from HSTB.kluster.fqpr_convenience import reload_data, reload_surface, get_attributes_from_fqpr
 from HSTB.kluster.xarray_helpers import slice_xarray_by_dim
-from HSTB.kluster.fqpr_vessel import VesselFile, create_new_vessel_file, convert_from_fqpr_xyzrph
+from HSTB.kluster.fqpr_vessel import VesselFile, create_new_vessel_file, convert_from_fqpr_xyzrph, compare_dict_data
 from bathygrid.bgrid import BathyGrid
 
 
@@ -821,6 +822,99 @@ class FqprProject:
         if matches > 1:
             raise ValueError("Found {} matches by serial number, project should not have multiple fqpr instances with the same serial number".format(matches))
         return out_path, out_instance
+
+    def get_fqprs_by_paths(self, fqpr_paths: list, line_dict: dict = None, relative_path: bool = True, allow_different_offsets: bool = True):
+        """
+        Return a list of the paths and Fqpr instances associated with each provided path.  Path can be relative to the project
+        or an absolute path.
+
+        If a line_dict is provided, we will subset each Fqpr object to just the data associated with the lines in the line_dict.
+        If you provide multiple fqpr_paths, it will take the data for the lines across all fqpr_paths provided, and merge
+        them into one Fqpr object.  So if you provide 2 fqpr_paths, and a line_dict that includes 2 lines from each fqpr
+        object, the end result is a single Fqpr object with the data for all four lines across the two original Fqpr instances.
+
+        multibeam_files attribute the in the returned fqpr object is adjusted for the actual lines in the Fqpr returned.
+
+        Parameters
+        ----------
+        fqpr_paths
+            list of relative/absolute paths to the Fqpr objects we want
+        line_dict
+            dict of {fqpr_path: [line1, line2, ...]} for the desired lines
+        relative_path
+            if True, provided paths are relative to the project, otherwise they are absolute paths
+        allow_different_offsets
+            if True, will merge Fqpr instances that have different offsets/angles.  Otherwise will reject
+
+        Returns
+        -------
+        list
+            absolute paths to the fqprs queried
+        list
+            list of loaded fqpr instances
+        """
+
+        fqpr_loaded = []
+        fqpr_abs_paths = []
+        for fq in fqpr_paths:
+            if relative_path:
+                fq_path = self.absolute_path_from_relative(fq)
+            else:
+                fq_path = fq
+                fq = self.path_relative_to_project(fq)
+            fqpr_abs_paths.append(fq_path)  # the full file path to the Fqpr data
+            if fq not in self.fqpr_instances:
+                print('Unable to find {} in project'.format(fq))
+                fqpr_loaded.append(None)
+                continue
+            if line_dict:  # only get the data for the desired lines
+                if fq in line_dict:
+                    fqlines = line_dict[fq]
+                    basefq = self.fqpr_instances[fq].copy()
+                    basefq.subset_by_lines(fqlines)  # trim the data to the desired lines that happen to be in this Fqpr object
+                    basefq.subset.backup_fqpr = {}  # don't retain the backup, we are making a whole new fqpr object here
+                    fqpr_loaded.append(basefq)
+                else:  # this Fqpr instance does not contain any selected lines
+                    fqpr_loaded.append(None)
+            else:
+                fqpr_loaded.append(self.fqpr_instances[fq])
+        if line_dict:
+            sysids = [fq.multibeam.raw_ping[0].attrs['system_serial_number'][0] for fq in fqpr_loaded]
+            if not all([sysids[0] == sid for sid in sysids]):
+                print('ERROR: Data from multiple different sonars found, returning only the data for the first selected sonar')
+                return [fqpr_abs_paths[0]], [fqpr_loaded[0]]
+            first_xyzrph = fqpr_loaded[0].multibeam.xyzrph
+            for fq in fqpr_loaded:
+                offsets, angles, _, _, _ = compare_dict_data(first_xyzrph, fq.multibeam.xyzrph)
+                if not offsets or not angles:
+                    if allow_different_offsets:
+                        print('Warning: loading data for selected lines when installation offsets/angles do not match between converted instances')
+                    else:
+                        print('ERROR: loading data for selected lines when installation offsets/angles do not match between converted instances is not allowed, returning only the data for the first selected sonar')
+                        return [fqpr_abs_paths[0]], [fqpr_loaded[0]]
+
+            # ensure they are sorted in time before concatenating
+            fqpr_loaded = sorted(fqpr_loaded, key=lambda tst: tst.multibeam.raw_ping[0].time.values[0])
+            final_fqpr = deepcopy(fqpr_loaded[0])
+            try:
+                final_fqpr.multibeam.raw_ping = [xr.concat([fq.multibeam.raw_ping[cnt] for fq in fqpr_loaded], dim='time') for cnt in range(len(fqpr_loaded[0].multibeam.raw_ping))]
+            except ValueError:
+                # must have sbet or some other variable that is in one dataset but not in another, you must have the same variables
+                #  across all datasets that you are merging
+                for cnt in range(len(fqpr_loaded[0].multibeam.raw_ping)):  # for each sonar head
+                    fkeys = [set(list(fq.multibeam.raw_ping[cnt].variables.keys())) for fq in fqpr_loaded]
+                    commonkeys = fkeys[0].intersection(*fkeys)
+                    for fq in fqpr_loaded:  # for each dataset
+                        dropthese = [ky for ky in fq.multibeam.raw_ping[cnt].variables.keys() if ky not in commonkeys]
+                        if dropthese:
+                            print('Warning: forced to drop {} when merging these datasets, variables found in one dataset but not the other'.format(dropthese))
+                            fq.multibeam.raw_ping[cnt] = fq.multibeam.raw_ping[cnt].drop(dropthese)
+                final_fqpr.multibeam.raw_ping = [xr.concat([fq.multibeam.raw_ping[cnt] for fq in fqpr_loaded], dim='time') for cnt in range(len(fqpr_loaded[0].multibeam.raw_ping))]
+            [final_fqpr.multibeam.raw_ping[0].multibeam_files.update(fq.multibeam.raw_ping[0].multibeam_files) for fq in fqpr_loaded]
+            final_fqpr.multibeam.raw_att = xr.concat([fq.multibeam.raw_att for fq in fqpr_loaded], dim='time')
+            fqpr_loaded = [final_fqpr]
+            fqpr_abs_paths = [';'.join(fqpr_abs_paths)]
+            return fqpr_abs_paths, fqpr_loaded
 
     def return_vessel_file(self):
         """

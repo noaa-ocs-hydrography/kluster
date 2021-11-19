@@ -8,6 +8,7 @@ import json
 from copy import deepcopy
 from dask.distributed import wait, progress
 from pyproj import CRS, Transformer
+import traceback
 
 from HSTB.kluster.modules.orientation import distrib_run_build_orientation_vectors
 from HSTB.kluster.modules.beampointingvector import distrib_run_build_beam_pointing_vector
@@ -110,71 +111,77 @@ class Fqpr(ZarrBackend):
 
     def __repr__(self):
         try:
-            kvers = self.multibeam.raw_ping[0].attrs['kluster_version']
+            try:
+                kvers = self.multibeam.raw_ping[0].attrs['kluster_version']
+            except:
+                kvers = 'Unknown'
+            heads = self.number_of_heads
+            output = 'FQPR: Fully Qualified Ping Record built by Kluster Processing\n'
+            output += '-------------------------------------------------------------\n'
+            output += 'Contains:\n'
+            if heads == 1:
+                output += '1 sonar head, '
+            else:
+                output += '{} sonar heads, '.format(heads)
+            output += '{} pings, version {}\n'.format(self.number_of_pings, kvers)
+            output += 'Start: {}\n'.format(self.min_time)
+            output += 'End: {}\n'.format(self.max_time)
+            try:
+                output += 'Minimum Latitude: {} '.format(self.multibeam.raw_ping[0].attrs['min_lat'])
+                output += 'Maximum Latitude: {}\n'.format(self.multibeam.raw_ping[0].attrs['max_lat'])
+            except:
+                output += 'Minimum Latitude: Unknown '
+                output += 'Maximum Latitude: Unknown\n'
+            try:
+                output += 'Minimum Longitude: {} '.format(self.multibeam.raw_ping[0].attrs['min_lon'])
+                output += 'Maximum Longitude: {}\n'.format(self.multibeam.raw_ping[0].attrs['max_lon'])
+            except:
+                output += 'Minimum Longitude: Unknown '
+                output += 'Maximum Longitude: Unknown\n'
+            try:
+                output += 'Minimum Northing: {} '.format(self.multibeam.raw_ping[0].attrs['min_y'])
+                output += 'Maximum Northing: {}\n'.format(self.multibeam.raw_ping[0].attrs['max_y'])
+            except:
+                output += 'Minimum Northing: Unknown '
+                output += 'Maximum Northing: Unknown\n'
+            try:
+                output += 'Minimum Easting: {} '.format(self.multibeam.raw_ping[0].attrs['min_x'])
+                output += 'Maximum Easting: {}\n'.format(self.multibeam.raw_ping[0].attrs['max_x'])
+            except:
+                output += 'Minimum Easting: Unknown '
+                output += 'Maximum Easting: Unknown\n'
+            try:
+                output += 'Minimum Depth: {} '.format(self.multibeam.raw_ping[0].attrs['min_z'])
+                output += 'Maximum Depth: {}\n'.format(self.multibeam.raw_ping[0].attrs['max_z'])
+            except:
+                output += 'Minimum Depth: Unknown '
+                output += 'Maximum Depth: Unknown\n'
+            output += 'Current Status: {}\n'.format(self.status + ' complete')
+            output += 'Sonar Model Number: {}\n'.format(self.sonar_model)
+            try:
+                output += 'Primary/Secondary System Serial Number: {}/{}\n'.format(self.multibeam.raw_ping[0].attrs['system_serial_number'][0],
+                                                                                   self.multibeam.raw_ping[0].attrs['secondary_system_serial_number'][0])
+            except:
+                output += 'Primary/Secondary System Serial Number: Unknown\n'
+            if self.horizontal_crs:
+                output += 'Horizontal Datum: {}\n'.format(self.horizontal_crs.to_epsg())
+            else:
+                output += 'Horizontal Datum: Unknown\n'
+            try:
+                output += 'Vertical Datum: {}\n'.format(self.vert_ref)
+            except:
+                output += 'Vertical Datum: Unknown\n'
+            try:
+                output += 'Navigation Source: {}\n'.format(self.multibeam.raw_ping[0].attrs['navigation_source'])
+            except:
+                output += 'Navigation Source: Unknown\n'
+            output += 'Sound Velocity Profiles: {}\n'.format(len([ky for ky in self.multibeam.raw_ping[0].attrs.keys() if ky[:7] == 'profile']))
         except:
-            kvers = 'Unknown'
-        heads = self.number_of_heads
-        output = 'FQPR: Fully Qualified Ping Record built by Kluster Processing\n'
-        output += '-------------------------------------------------------------\n'
-        output += 'Contains:\n'
-        if heads == 1:
-            output += '1 sonar head, '
-        else:
-            output += '{} sonar heads, '.format(heads)
-        output += '{} pings, version {}\n'.format(self.number_of_pings, kvers)
-        output += 'Start: {}\n'.format(self.min_time)
-        output += 'End: {}\n'.format(self.max_time)
-        try:
-            output += 'Minimum Latitude: {} '.format(self.multibeam.raw_ping[0].attrs['min_lat'])
-            output += 'Maximum Latitude: {}\n'.format(self.multibeam.raw_ping[0].attrs['max_lat'])
-        except:
-            output += 'Minimum Latitude: Unknown '
-            output += 'Maximum Latitude: Unknown\n'
-        try:
-            output += 'Minimum Longitude: {} '.format(self.multibeam.raw_ping[0].attrs['min_lon'])
-            output += 'Maximum Longitude: {}\n'.format(self.multibeam.raw_ping[0].attrs['max_lon'])
-        except:
-            output += 'Minimum Longitude: Unknown '
-            output += 'Maximum Longitude: Unknown\n'
-        try:
-            output += 'Minimum Northing: {} '.format(self.multibeam.raw_ping[0].attrs['min_y'])
-            output += 'Maximum Northing: {}\n'.format(self.multibeam.raw_ping[0].attrs['max_y'])
-        except:
-            output += 'Minimum Northing: Unknown '
-            output += 'Maximum Northing: Unknown\n'
-        try:
-            output += 'Minimum Easting: {} '.format(self.multibeam.raw_ping[0].attrs['min_x'])
-            output += 'Maximum Easting: {}\n'.format(self.multibeam.raw_ping[0].attrs['max_x'])
-        except:
-            output += 'Minimum Easting: Unknown '
-            output += 'Maximum Easting: Unknown\n'
-        try:
-            output += 'Minimum Depth: {} '.format(self.multibeam.raw_ping[0].attrs['min_z'])
-            output += 'Maximum Depth: {}\n'.format(self.multibeam.raw_ping[0].attrs['max_z'])
-        except:
-            output += 'Minimum Depth: Unknown '
-            output += 'Maximum Depth: Unknown\n'
-        output += 'Current Status: {}\n'.format(self.status + ' complete')
-        output += 'Sonar Model Number: {}\n'.format(self.sonar_model)
-        try:
-            output += 'Primary/Secondary System Serial Number: {}/{}\n'.format(self.multibeam.raw_ping[0].attrs['system_serial_number'][0],
-                                                                               self.multibeam.raw_ping[0].attrs['secondary_system_serial_number'][0])
-        except:
-            output += 'Primary/Secondary System Serial Number: Unknown\n'
-        if self.horizontal_crs:
-            output += 'Horizontal Datum: {}\n'.format(self.horizontal_crs.to_epsg())
-        else:
-            output += 'Horizontal Datum: Unknown\n'
-        try:
-            output += 'Vertical Datum: {}\n'.format(self.vert_ref)
-        except:
-            output += 'Vertical Datum: Unknown\n'
-        try:
-            output += 'Navigation Source: {}\n'.format(self.multibeam.raw_ping[0].attrs['navigation_source'])
-        except:
-            output += 'Navigation Source: Unknown\n'
-        output += 'Sound Velocity Profiles: {}\n'.format(len([ky for ky in self.multibeam.raw_ping[0].attrs.keys() if ky[:7] == 'profile']))
+            output = 'Unable to build string representation: {}'.format(traceback.format_exc())
         return output
+
+    def __copy__(self):
+        return self.copy()
 
     @property
     def sonar_model(self):
@@ -354,6 +361,22 @@ class Fqpr(ZarrBackend):
         basically the same navigation
         """
         return self.multibeam.return_raw_navigation()
+
+    def copy(self):
+        """
+        Return a copy of this Fqpr instance.  The xarray datasets will be distinct, so you can subset them without
+        affecting this instance.
+
+        Returns
+        -------
+        Fqpr
+            copy of the current Fqpr object
+        """
+        # cannnot deepcopy the dask client, must remove reference first
+        self.client = None
+        self.multibeam.client = None
+        copyfq = deepcopy(self)
+        return copyfq
 
     def line_is_processed(self, line_name: str):
         """

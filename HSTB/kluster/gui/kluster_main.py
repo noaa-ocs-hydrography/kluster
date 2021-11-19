@@ -12,8 +12,6 @@ from pyproj import CRS, Transformer
 import qdarkstyle
 from qdarkstyle.dark.palette import DarkPalette
 import matplotlib.pyplot as plt
-from copy import deepcopy
-import xarray as xr
 
 from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal, qgis_enabled, found_path
 if qgis_enabled:
@@ -2100,7 +2098,8 @@ class KlusterMain(QtWidgets.QMainWindow):
 
     def return_selected_fqprs(self, subset_by_line: bool = False):
         """
-        Return absolute paths to fqprs selected and the loaded fqpr instances
+        Return absolute paths to fqprs selected and the loaded fqpr instances.  In most instances, this is pretty simple,
+        you
 
         Returns
         -------
@@ -2110,63 +2109,10 @@ class KlusterMain(QtWidgets.QMainWindow):
             list of loaded fqpr instances
         """
         fqprs, linedict = self.project_tree.return_selected_fqprs()
-        fqpr_loaded = []
-        fqpr_paths = []
-        for fq in fqprs:
-            try:
-                newfq = self.project.absolute_path_from_relative(fq)
-                fqpr_paths.append(newfq)
-            except:
-                print('Unable to find {} in project'.format(fq))
-                continue
-            try:
-                if linedict and subset_by_line:  # only get the data for the selected lines
-                    if fq in linedict:
-                        fqlines = linedict[fq]
-                        basefq = self.project.fqpr_instances[fq]
-                        # cannnot deepcopy the dask client, must remove reference first
-                        basefq.client = None
-                        basefq.multibeam.client = None
-                        basefq = deepcopy(basefq)
-                        basefq.subset_by_lines(fqlines)
-                        fqpr_loaded.append(basefq)
-                    else:  # this Fqpr instance does not contain any selected lines
-                        pass
-                else:
-                    fqpr_loaded.append(self.project.fqpr_instances[fq])
-            except:
-                print('Unable to find loaded converted data for {}'.format(fq))
-                fqpr_loaded.append(None)
-
-        if linedict and subset_by_line:
-            sysids = [fq.multibeam.raw_ping[0].attrs['system_serial_number'][0] for fq in fqpr_loaded]
-            if not all([sysids[0] == sid for sid in sysids]):
-                print('ERROR: Data from multiple different sonars found, returning only the data for the first selected sonar')
-                return [fqpr_paths[0]], [fqpr_loaded[0]]
-            first_xyzrph = fqpr_loaded[0].multibeam.xyzrph
-            for fq in fqpr_loaded:
-                offsets, angles, _, _, _ = compare_dict_data(first_xyzrph, fq.multibeam.xyzrph)
-                if not offsets or not angles:
-                    print('Warning: loading data for selected lines when installation offsets/angles do not match between converted instances')
-            # ensure they are sorted before concatenating
-            fqpr_loaded = sorted(fqpr_loaded, key=lambda tst: tst.multibeam.raw_ping[0].time.values[0])
-            final_fqpr = deepcopy(fqpr_loaded[0])
-            try:
-                final_fqpr.multibeam.raw_ping = [xr.concat([fq.multibeam.raw_ping[cnt] for fq in fqpr_loaded], dim='time') for cnt in range(len(fqpr_loaded[0].multibeam.raw_ping))]
-            except ValueError:  # must have sbet or something that is in one dataset but not in another
-                for cnt in range(len(fqpr_loaded[0].multibeam.raw_ping)):  # for each sonar head
-                    fkeys = [set(list(fq.multibeam.raw_ping[cnt].variables.keys())) for fq in fqpr_loaded]
-                    commonkeys = fkeys[0].intersection(*fkeys)
-                    for fq in fqpr_loaded:  # for each dataset
-                        dropthese = [ky for ky in fq.multibeam.raw_ping[cnt].variables.keys() if ky not in commonkeys]
-                        if dropthese:
-                            print('Warning: forced to drop {} when merging these datasets'.format(dropthese))
-                            fq.multibeam.raw_ping[cnt] = fq.multibeam.raw_ping[cnt].drop(dropthese)
-                final_fqpr.multibeam.raw_ping = [xr.concat([fq.multibeam.raw_ping[cnt] for fq in fqpr_loaded], dim='time') for cnt in range(len(fqpr_loaded[0].multibeam.raw_ping))]
-            [final_fqpr.multibeam.raw_ping[0].multibeam_files.update(fq.multibeam.raw_ping[0].multibeam_files) for fq in fqpr_loaded]
-            final_fqpr.multibeam.raw_att = xr.concat([fq.multibeam.raw_att for fq in fqpr_loaded], dim='time')
-            fqpr_loaded = [final_fqpr]
-            fqpr_paths = [';'.join(fqpr_paths)]
+        if subset_by_line:
+            fqpr_paths, fqpr_loaded = self.project.get_fqprs_by_paths(fqprs, linedict)
+        else:
+            fqpr_paths, fqpr_loaded = self.project.get_fqprs_by_paths(fqprs)
         return fqpr_paths, fqpr_loaded
 
     def return_selected_surfaces(self):
