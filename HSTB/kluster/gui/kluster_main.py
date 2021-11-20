@@ -475,6 +475,9 @@ class KlusterMain(QtWidgets.QMainWindow):
                     else:
                         self.two_d.remove_surface(remove_surface, resolution)
         if add_surface is not None and surface_layer_name:
+            if self.surface_update_thread.isRunning():
+                print('Surface is currently updating, please wait until after that process is complete.')
+                return
             surf_object = self.project.surface_instances[add_surface]
             needs_drawing = []
             if surface_layer_name == 'tiles':
@@ -490,9 +493,6 @@ class KlusterMain(QtWidgets.QMainWindow):
                     if not shown:  # show didnt work, must need to add the surface instead, loading from disk...
                         needs_drawing.append(resolution)
             if needs_drawing:
-                if self.surface_update_thread.isRunning():
-                    print('Surface is currently updating, please wait until after that process is complete.')
-                    return
                 print('Drawing {} - {}, resolution {}'.format(add_surface, surface_layer_name, needs_drawing))
                 self.draw_surface_thread.populate(add_surface, surf_object, needs_drawing, surface_layer_name)
                 self.draw_surface_thread.start()
@@ -2109,7 +2109,7 @@ class KlusterMain(QtWidgets.QMainWindow):
             list of loaded fqpr instances
         """
         fqprs, linedict = self.project_tree.return_selected_fqprs()
-        if subset_by_line:
+        if subset_by_line and linedict:
             fqpr_paths, fqpr_loaded = self.project.get_fqprs_by_paths(fqprs, linedict)
         else:
             fqpr_paths, fqpr_loaded = self.project.get_fqprs_by_paths(fqprs)

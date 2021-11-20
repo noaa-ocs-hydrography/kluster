@@ -109,11 +109,10 @@ def convert_multibeam(filname: Union[str, list], outfold: str = None, client: Cl
         mbes_read = BatchRead(filchunk, dest=outfold, client=client, skip_dask=skip_dask, show_progress=show_progress,
                               parallel_write=parallel_write)
         fqpr_inst = Fqpr(mbes_read, show_progress=show_progress, parallel_write=parallel_write)
-        fqpr_inst.read_from_source()
+        fqpr_inst.read_from_source(build_offsets=False)
 
-        # dask processes appear to suffer from memory leaks regardless of how carefully we track and wait on futures, reset the client here to clear memory after processing
-        # if fqpr_inst.client is not None:
-        #     fqpr_inst.client.restart()
+    fqpr_inst.multibeam.build_offsets(save_pths=fqpr_inst.multibeam.final_paths['ping'])  # write offsets to ping rootgroup
+    fqpr_inst.multibeam.build_additional_line_metadata(save_pths=fqpr_inst.multibeam.final_paths['ping'])
     return fqpr_inst
 
 
@@ -678,14 +677,22 @@ def update_surface(surface_instance: Union[str, BathyGrid], add_fqpr: Union[Fqpr
             _add_points_to_surface(afqpr, surface_instance, unique_crs[0], unique_vertref[0])
 
     if regrid:
-        if surface_instance.grid_resolution.lower() == 'auto_depth':
-            rez = None
-            automode = 'depth'
-        elif surface_instance.grid_resolution.lower() == 'auto_density':
-            rez = None
-            automode = 'density'
+        if isinstance(surface_instance.grid_resolution, str):
+            if surface_instance.grid_resolution.lower() == 'auto_depth':
+                rez = None
+                automode = 'depth'
+            elif surface_instance.grid_resolution.lower() == 'auto_density':
+                rez = None
+                automode = 'density'
+            else:
+                try:
+                    rez = float(surface_instance.grid_resolution)
+                    automode = 'depth'  # the default value, this will not be used when resolution is specified
+                except:
+                    print('Unrecognized grid resolution: {}'.format(surface_instance.grid_resolution))
+                    return
         else:
-            rez = surface_instance.grid_resolution
+            rez = float(surface_instance.grid_resolution)
             automode = 'depth'  # the default value, this will not be used when resolution is specified
         surface_instance.grid(surface_instance.grid_algorithm, rez, auto_resolution_mode=automode,
                               regrid_option=regrid_option, use_dask=use_dask)

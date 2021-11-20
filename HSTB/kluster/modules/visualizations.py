@@ -1,7 +1,7 @@
 import os
 import numpy as np
 import xarray as xr
-import json
+from copy import deepcopy
 from datetime import datetime
 
 import matplotlib.pyplot as plt
@@ -513,14 +513,17 @@ class FqprVisualizations:
         fig = plt.figure()
 
         # these times based on the Fqpr subset time, which restricts the source dataset times
-        min_search_time = float(nav.time[0].values - 5)
-        max_search_time = float(nav.time[-1].values + 5)
+        start_navigation_time = float(nav.time[0].values)
+        last_navigation_time = float(nav.time[-1].values)
+        min_search_time = float(start_navigation_time - 5)
+        max_search_time = float(last_navigation_time + 5)
 
-        for line, times in self.fqpr.multibeam.raw_ping[0].multibeam_files.items():
+        line_dict = deepcopy(self.fqpr.multibeam.raw_ping[0].multibeam_files)
+        for line, times in line_dict.items():
             # if the line start/end is within the time range...
-            if max_search_time >= times[0] >= min_search_time or max_search_time >= times[-1] >= min_search_time:
-                times[0] = max(times[0], nav.time[0])
-                times[1] = min(times[1], nav.time[-1])
+            if max_search_time >= times[0] >= min_search_time or max_search_time >= times[1] >= min_search_time:
+                times[0] = max(times[0], start_navigation_time)
+                times[1] = min(times[1], last_navigation_time)
                 try:
                     nav = self.fqpr.multibeam.return_raw_navigation(times[0], times[1])
                     lats, lons = nav.latitude.values, nav.longitude.values

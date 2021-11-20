@@ -984,13 +984,19 @@ class BatchRead(ZarrBackend):
         self.sonartype = None
         self.xyzrph = None
 
-    def read(self):
+    def read(self, build_offsets: bool = True):
         """
         Run the batch_read method on all available lines, writes to datastore (netcdf/zarr depending on self.filtype),
         and loads the data back into the class as self.raw_ping, self.raw_att.
 
         If data loads correctly, builds out the self.xyzrph attribute and translates the runtime parameters to a usable
         form.
+
+        Parameters
+        ----------
+        build_offsets
+            if this is set, also build the xyzrph attribute, which is mandatory for processing later in Kluster.  Make
+            it optional so that when processing chunks of files, we can just run it once at the end after read()
         """
 
         if self.filtype not in ['zarr']:  # NETCDF is currently not supported
@@ -1003,18 +1009,19 @@ class BatchRead(ZarrBackend):
             self.final_paths = final_pths
             if self.filtype == 'netcdf':
                 self.read_from_netcdf_fils(final_pths['ping'], final_pths['attitude'])
-                self.build_offsets()
+                if build_offsets:
+                    self.build_offsets()
             elif self.filtype == 'zarr':
                 self.read_from_zarr_fils(final_pths['ping'], final_pths['attitude'][0], self.logfile)
-                self.build_offsets(save_pths=final_pths['ping'])  # write offsets to ping rootgroup
-                self.build_additional_line_metadata(save_pths=final_pths['ping'])
+                if build_offsets:
+                    self.build_offsets(save_pths=final_pths['ping'])  # write offsets to ping rootgroup
+                    self.build_additional_line_metadata(save_pths=final_pths['ping'])
         else:
             self.logger.error('Unable to start/connect to the Dask distributed cluster.')
             raise ValueError('Unable to start/connect to the Dask distributed cluster.')
 
         if self.raw_ping is not None:
             self.readsuccess = True
-            self.logger.info('read successful\n')
         else:
             self.logger.warning('read unsuccessful, data paths: {}\n'.format(final_pths))
 

@@ -486,15 +486,21 @@ class Fqpr(ZarrBackend):
             raise ValueError("Unable to set vertical reference to {}: expected one of {}".format(vert_ref, kluster_variables.vertical_references))
         self.vert_ref = vert_ref
 
-    def read_from_source(self):
+    def read_from_source(self, build_offsets: bool = True):
         """
         Activate rawdat object's appropriate read class
+
+        Parameters
+        ----------
+        build_offsets
+            if this is set, also build the xyzrph attribute, which is mandatory for processing later in Kluster.  Make
+            it optional so that when processing chunks of files, we can just run it once at the end after read()
         """
 
         if self.multibeam is not None:
             self.client = self.multibeam.client  # mbes read is first, pull dask distributed client from it
             if self.multibeam.raw_ping is None:
-                self.multibeam.read()
+                self.multibeam.read(build_offsets=build_offsets)
             self.output_folder = self.multibeam.converted_pth
         else:
             self.client = dask_find_or_start_client(address=self.address)

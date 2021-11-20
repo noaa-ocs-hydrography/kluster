@@ -914,7 +914,7 @@ class FqprProject:
             final_fqpr.multibeam.raw_att = xr.concat([fq.multibeam.raw_att for fq in fqpr_loaded], dim='time')
             fqpr_loaded = [final_fqpr]
             fqpr_abs_paths = [';'.join(fqpr_abs_paths)]
-            return fqpr_abs_paths, fqpr_loaded
+        return fqpr_abs_paths, fqpr_loaded
 
     def sort_lines_patch_test_pairs(self, line_list: str):
         """

@@ -304,7 +304,7 @@ class KlusterExplorer(QtWidgets.QTableWidget):
                     newline_attr['Start Longitude'] = ln[1][3]
                     newline_attr['End Latitude'] = ln[1][4]
                     newline_attr['End Longitude'] = ln[1][5]
-                    newline_attr['Heading'] = ln[1][6]
+                    newline_attr['Heading'] = '{:3.3f}'.format(ln[1][6]).zfill(7)
                 except:
                     pass
                 if 'horizontal_crs' in attrs:
