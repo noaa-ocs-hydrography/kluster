@@ -916,7 +916,7 @@ class FqprProject:
             fqpr_abs_paths = [';'.join(fqpr_abs_paths)]
         return fqpr_abs_paths, fqpr_loaded
 
-    def sort_lines_patch_test_pairs(self, line_list: str):
+    def sort_lines_patch_test_pairs(self, line_list: list):
         """
         Take the provided list of linenames and sort them into pairs for the patch test tool.  Each pair consists of two lines
         that are reciprocal and start/end in the same place.

@@ -472,10 +472,16 @@ class KlusterProjectTree(QtWidgets.QTreeView):
                 # self.all_lines_selected.emit(True)
                 pass
 
-    def return_selected_fqprs(self):
+    def return_selected_fqprs(self, force_line_list: bool = False):
         """
         Return all the selected fqpr instances that are selected.  If the user selects a line (a child of the fqpr),
         return the line owner fqpr.  Only returns unique fqpr instances
+
+        Parameters
+        ----------
+        force_line_list
+            if you want to force the return of all the lines when a parent Fqpr converted instance is selected,
+            use this option.
 
         Returns
         -------
@@ -494,6 +500,17 @@ class KlusterProjectTree(QtWidgets.QTreeView):
             low_lvl_name = idx.data()
             if mid_lvl_name == 'Converted':  # user has selected a fqpr instance
                 new_fqpr = low_lvl_name
+                if force_line_list:
+                    cont_index = idx.row()
+                    parent = self.tree_data['Converted'][0]
+                    container_item = parent.child(cont_index, 0)
+                    numlines = container_item.rowCount()
+                    for lcnt in range(numlines):
+                        linename = container_item.child(lcnt, 0).text()
+                        if new_fqpr in line_list:
+                            line_list[new_fqpr].append(linename)
+                        else:
+                            line_list[new_fqpr] = [linename]
             elif top_lvl_name == 'Converted':  # user selected a line
                 new_fqpr = mid_lvl_name
                 if new_fqpr in line_list:

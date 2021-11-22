@@ -21,7 +21,7 @@ from HSTB.kluster.gui import dialog_vesselview, kluster_explorer, kluster_projec
     kluster_output_window, kluster_2dview, kluster_actions, kluster_monitor, dialog_daskclient, dialog_surface, \
     dialog_export, kluster_worker, kluster_interactive_console, dialog_basicplot, dialog_advancedplot, dialog_project_settings, \
     dialog_export_grid, dialog_layer_settings, dialog_settings, dialog_importppnav, dialog_overwritenav, dialog_surface_data, \
-    dialog_about, dialog_setcolors
+    dialog_about, dialog_setcolors, dialog_patchtest
 from HSTB.kluster.fqpr_project import FqprProject
 from HSTB.kluster.fqpr_intelligence import FqprIntel
 from HSTB.kluster.fqpr_vessel import convert_from_fqpr_xyzrph, convert_from_vessel_xyzrph, compare_dict_data
@@ -209,6 +209,7 @@ class KlusterMain(QtWidgets.QMainWindow):
 
         self.monitor.monitor_file_event.connect(self.intel._handle_monitor_event)
         self.monitor.monitor_start.connect(self._create_new_project_if_not_exist)
+        self._patch = None  # retain patch test dialog object while running it for updates
 
         self.setup_menu()
         self.setup_widgets()
@@ -338,6 +339,8 @@ class KlusterMain(QtWidgets.QMainWindow):
         overwritenav_action.triggered.connect(self._action_overwrite_nav)
         surface_action = QtWidgets.QAction('New Surface', self)
         surface_action.triggered.connect(self._action_surface_generation)
+        patch_action = QtWidgets.QAction('Patch Test', self)
+        patch_action.triggered.connect(self._action_patch_test)
 
         basicplots_action = QtWidgets.QAction('Basic Plots', self)
         basicplots_action.triggered.connect(self._action_basicplots)
@@ -383,6 +386,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         process.addAction(overwritenav_action)
         process.addAction(importppnav_action)
         process.addAction(surface_action)
+        process.addAction(patch_action)
 
         visual = menubar.addMenu('Visualize')
         visual.addAction(basicplots_action)
@@ -941,6 +945,38 @@ class KlusterMain(QtWidgets.QMainWindow):
             print(self.import_ppnav_thread.exceptiontxt)
         self.import_ppnav_thread.populate(None)
         self._stop_action_progress()
+
+    def kluster_patch_test(self):
+        if not self.no_threads_running():
+            print('Processing is already occurring.  Please wait for the process to finish')
+            cancelled = True
+        else:
+            cancelled = False
+            self._patch = dialog_patchtest.PatchTestDialog()
+            self._patch.patch_query.connect(self.feed_patch_test_dialog)
+            if self._patch.exec_():
+                cancelled = self._patch.canceled
+        if cancelled:
+            print('kluster_surface_generation: Processing was cancelled')
+        self._patch = None
+
+    def feed_patch_test_dialog(self, mode: str):
+        if self._patch is None:
+            print('ERROR: Lost handle on patch test dialog')
+            return
+        self._patch.clear()
+        if mode == 'pointsview':
+            # get lineinfo from points view
+            pass
+        else:
+            fqprs, linedict = self.project_tree.return_selected_fqprs(force_line_list=True)
+            total_lines = [x for y in linedict.values() for x in y]
+            pair_list, ldict = self.project.sort_lines_patch_test_pairs(total_lines)
+            cur_cnt = 0
+            for lpair in pair_list:
+                for lline in lpair:
+                    self._patch.add_line([cur_cnt, lline, ldict[lline]['azimuth']])
+                cur_cnt += 1
 
     def kluster_surface_generation(self):
         """
@@ -1981,6 +2017,12 @@ class KlusterMain(QtWidgets.QMainWindow):
         Connect menu action 'New Surface' with surface dialog
         """
         self.kluster_surface_generation()
+
+    def _action_patch_test(self):
+        """
+        Connect menu action 'Patch Test' with patch test dialog
+        """
+        self.kluster_patch_test()
 
     def _action_new_project(self):
         """
