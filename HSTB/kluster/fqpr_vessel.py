@@ -267,6 +267,32 @@ def compare_dict_data(dict_one: dict, dict_two: dict):
     return check['identical_offsets'], check['identical_angles'], check['identical_tpu'], check['data_matches'], check['new_waterline']
 
 
+def split_by_timestamp(xyzrph: dict):
+    """
+    Takes a Kluster xyzrph (the dictionary object that stores uncertainty, offsets, angles, etc. settings) and returns
+    a new dictionary for each timestamped entry.
+
+    Parameters
+    ----------
+    xyzrph
+        dict of offsets/angles/tpu parameters from the fqpr instance
+
+    Returns
+    -------
+    list
+        list of dictionaries, one for each timestamp entry in the base xyzrph
+
+    """
+    first_sensor = list(xyzrph.keys())[0]
+    tstmps = list(xyzrph[first_sensor].keys())
+    split_data = [{} for t in tstmps]
+    for ky, dictdata in xyzrph.items():
+        for tstmp, val in dictdata.items():
+            tindex = tstmps.index(tstmp)
+            split_data[tindex][ky] = {tstmp: val}
+    return split_data
+
+
 def carry_over_optional(starting_data: dict, new_data: dict):
     """
     Populate the optional and tpu parameters in the new data with the latest existing entry

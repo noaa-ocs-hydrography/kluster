@@ -10,10 +10,13 @@ class PatchTestDialog(SaveStateDialog):
         super().__init__(parent, settings, widgetname='patchtestdialog')
 
         self.setWindowTitle('Patch Test')
-        self.setMinimumWidth(410)
+        self.setMinimumWidth(900)
+        self.setMinimumHeight(400)
 
         self.main_layout = QtWidgets.QVBoxLayout()
 
+        self.listlayout = QtWidgets.QHBoxLayout()
+        self.leftlayout = QtWidgets.QVBoxLayout()
         self.choose_layout = QtWidgets.QHBoxLayout()
         self.from_selected_lines = QtWidgets.QRadioButton('Use selected lines')
         self.from_selected_lines.setChecked(True)
@@ -23,16 +26,25 @@ class PatchTestDialog(SaveStateDialog):
         self.from_points_view.setDisabled(True)
         self.choose_layout.addWidget(self.from_points_view)
         self.choose_layout.addStretch()
-        self.main_layout.addLayout(self.choose_layout)
+        self.leftlayout.addLayout(self.choose_layout)
 
         self.button_layout = QtWidgets.QHBoxLayout()
         self.analyze_button = QtWidgets.QPushButton('Analyze')
         self.button_layout.addWidget(self.analyze_button)
         self.button_layout.addStretch()
-        self.main_layout.addLayout(self.button_layout)
+        self.leftlayout.addLayout(self.button_layout)
 
         self.line_list = LineList(self)
-        self.main_layout.addWidget(self.line_list)
+        self.leftlayout.addWidget(self.line_list)
+
+        self.rightlayout = QtWidgets.QHBoxLayout()
+        self.explanation = QtWidgets.QTextEdit('', self)
+        self.explanation.setMinimumWidth(150)
+        self.rightlayout.addWidget(self.explanation)
+
+        self.listlayout.addLayout(self.leftlayout)
+        self.listlayout.addLayout(self.rightlayout)
+        self.main_layout.addLayout(self.listlayout)
 
         self.button_layout = QtWidgets.QHBoxLayout()
         self.button_layout.addStretch(1)
@@ -52,6 +64,7 @@ class PatchTestDialog(SaveStateDialog):
 
         self.setLayout(self.main_layout)
         self.canceled = False
+        self.return_pairs = None
 
         self.from_selected_lines.clicked.connect(self.radio_selected)
         self.from_points_view.clicked.connect(self.radio_selected)
@@ -62,10 +75,17 @@ class PatchTestDialog(SaveStateDialog):
         self.text_controls = []
         self.checkbox_controls = [['from_points_view', self.from_points_view], ['from_selected_lines', self.from_selected_lines]]
         self.read_settings()
+        self._set_explanation()
 
     @property
     def row_full_attribution(self):
         return self.line_list.final_attribution
+
+    def _set_explanation(self):
+        msg = 'Based on "Computation of Calibration Parameters for Multibeam Echo Sounders Using the Least Squares Method"'
+        msg += ', by Jan Terje Bjorke\n\nCompute new offsets/angles for the data provided using this automated least squares'
+        msg += ' adjustment.'
+        self.explanation.setText(msg)
 
     def err_message(self, text: str = ''):
         if text:
@@ -99,7 +119,7 @@ class PatchTestDialog(SaveStateDialog):
         self.canceled = False
         err, pairdict = self.validate_pairs()
         if not err:
-            print(pairdict)
+            self.return_pairs = pairdict
             self.save_settings()
             self.accept()
 
@@ -134,7 +154,7 @@ class LineList(QtWidgets.QTableWidget):
         self.setColumnCount(3)
         self.setHorizontalHeaderLabels(self.headr)
         self.setColumnWidth(0, 40)
-        self.setColumnWidth(1, 250)
+        self.setColumnWidth(1, 299)
         self.setColumnWidth(2, 80)
         self.row_full_attribution = {}
 
@@ -318,14 +338,18 @@ class LineList(QtWidgets.QTableWidget):
 
     def form_pairs(self):
         pair_dict = {}
+        az_dict = {}
         err = False
         msg = ''
         for lname, ldata in self.final_attribution.items():
             pair_index = int(ldata[0])
+            azimuth = float(ldata[1])
             if pair_index in pair_dict:
                 pair_dict[pair_index].append(lname)
+                az_dict[pair_index].append(azimuth)
             else:
                 pair_dict[pair_index] = [lname]
+                az_dict[pair_index] = [azimuth]
         for pair_cnt, pair_lines in pair_dict.items():
             if len(pair_lines) > 2:
                 msg = 'Pair {} has {} lines, can only have 2'.format(pair_cnt, len(pair_lines))
@@ -333,6 +357,8 @@ class LineList(QtWidgets.QTableWidget):
             elif len(pair_lines) < 2:
                 msg = 'Pair {} has less than 2 lines, each pair must have 2 lines'.format(pair_cnt)
                 err = True
+        for pairidx, az_list in az_dict.items():  # tack on the lowest azimuth
+            pair_dict[pairidx].append(min(az_list))
         return pair_dict, err, msg
 
 

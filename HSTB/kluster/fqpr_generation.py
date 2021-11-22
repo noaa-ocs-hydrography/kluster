@@ -21,7 +21,7 @@ from HSTB.kluster.modules.visualizations import FqprVisualizations
 from HSTB.kluster.modules.export import FqprExport
 from HSTB.kluster.modules.subset import FqprSubset
 from HSTB.kluster.xarray_helpers import combine_arrays_to_dataset, divide_arrays_by_time_index, \
-    interp_across_chunks, reload_zarr_records, slice_xarray_by_dim, get_beamwise_interpolation
+    interp_across_chunks, slice_xarray_by_dim, get_beamwise_interpolation
 from HSTB.kluster.backends._zarr import ZarrBackend
 from HSTB.kluster.dask_helpers import dask_find_or_start_client, get_number_of_workers
 from HSTB.kluster.fqpr_helpers import build_crs, seconds_to_formatted_string
@@ -376,6 +376,9 @@ class Fqpr(ZarrBackend):
         self.client = None
         self.multibeam.client = None
         copyfq = deepcopy(self)
+        for cnt, rp in enumerate(self.multibeam.raw_ping):
+            copyfq.multibeam.raw_ping[cnt].attrs = deepcopy(rp.attrs)
+        copyfq.multibeam.raw_att.attrs = deepcopy(self.multibeam.raw_att.attrs)
         return copyfq
 
     def line_is_processed(self, line_name: str):

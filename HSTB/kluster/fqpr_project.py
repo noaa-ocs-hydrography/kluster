@@ -12,6 +12,7 @@ from HSTB.kluster.dask_helpers import dask_find_or_start_client, client_needs_re
 from HSTB.kluster.fqpr_convenience import reload_data, reload_surface, get_attributes_from_fqpr
 from HSTB.kluster.xarray_helpers import slice_xarray_by_dim
 from HSTB.kluster.fqpr_vessel import VesselFile, create_new_vessel_file, convert_from_fqpr_xyzrph, compare_dict_data
+from HSTB.kluster.modules.patch import PatchTest
 from bathygrid.bgrid import BathyGrid
 
 
@@ -975,7 +976,8 @@ class FqprProject:
                 min_line = None
                 az_start, az_end = line_dict[az_line]['start_position'], line_dict[az_line]['end_position']
                 for az_line_new in az_group:
-                    if az_line_new in paired_lines:
+                    az_diff = abs(line_dict[az_line_new]['azimuth'] - line_dict[az_line]['azimuth'])
+                    if az_line_new in paired_lines or az_diff < 45 or az_diff > 315:
                         continue
                     strt_dist = haversine(line_dict[az_line_new]['start_position'][0], line_dict[az_line_new]['start_position'][1], az_start[0], az_start[1])
                     end_dist = haversine(line_dict[az_line_new]['end_position'][0], line_dict[az_line_new]['end_position'][1], az_end[0], az_end[1])
@@ -1058,6 +1060,25 @@ class FqprProject:
         possible_container_names = [os.path.split(fqpr_inst.multibeam.raw_ping[0].output_path)[1] for fqpr_inst in self.fqpr_instances.values()]
         possible_container_names = [pname for pname in possible_container_names if (pname not in existing_container_names) and (pname + '*' not in existing_container_names)]
         return existing_container_names, possible_container_names
+
+    def _return_xyz_for_line_pair(self, line_list: list):
+        lineone, linetwo = line_list
+        fqone, fqtwo = self.convert_path_lookup[lineone], self.convert_path_lookup[linetwo]
+        if fqone != fqtwo:
+            dsetone = self.fqpr_instances[fqone].subset_variables_by_line(['x', 'y', 'z'], lineone)
+            dsettwo = self.fqpr_instances[fqtwo].subset_variables_by_line(['x', 'y', 'z'], linetwo)
+            xyz = [np.concatenate([dsetone[lineone].x.values, dsettwo[linetwo].x.values]),
+                   np.concatenate([dsetone[lineone].y.values, dsettwo[linetwo].y.values]),
+                   np.concatenate([dsetone[lineone].z.values, dsettwo[linetwo].z.values])]
+        else:
+            dsetone = self.fqpr_instances[fqone].subset_variables_by_line(['x', 'y', 'z'], [lineone, linetwo])
+            xyz = [dsetone[lineone].x.values, dsetone[lineone].y.values, dsetone[lineone].z.values]
+        return xyz
+
+    def run_patch_test(self, line_pairs: dict):
+        for pair_index, pair_data in line_pairs.items():
+            lineone, linetwo, azimuth = pair_data[0], pair_data[1], pair_data[2]
+            xyz = self._return_xyz_for_line_pair([lineone, linetwo])
 
 
 def create_new_project(output_folder: str = None):
