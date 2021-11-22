@@ -1719,14 +1719,15 @@ class BatchRead(ZarrBackend):
         rp = self.raw_ping[0]  # first head gets the same values basically
         line_dict = rp.attrs['multibeam_files']
         for line_name, line_times in line_dict.items():
-            line_time_start, line_time_end = line_times[0], line_times[1]
-            dstart = rp.interp(time=max(line_time_start, rp.time.values[0]), method='nearest', assume_sorted=True)
-            start_position = [dstart.latitude.values, dstart.longitude.values]
-            dend = rp.interp(time=min(line_time_end, rp.time.values[-1]), method='nearest', assume_sorted=True)
-            end_position = [dend.latitude.values, dend.longitude.values]
-            line_az = self.raw_att.interp(time=line_time_start + (line_time_end - line_time_start) / 2, method='nearest', assume_sorted=True).heading.values
-            line_dict[line_name] += [float(start_position[0]), float(start_position[1]), float(end_position[0]),
-                                     float(end_position[1]), round(float(line_az), 3)]
+            if len(line_times) == 2:  # this line needs the additional line metadata, otherwise it must have been computed already
+                line_time_start, line_time_end = line_times[0], line_times[1]
+                dstart = rp.interp(time=max(line_time_start, rp.time.values[0]), method='nearest', assume_sorted=True)
+                start_position = [dstart.latitude.values, dstart.longitude.values]
+                dend = rp.interp(time=min(line_time_end, rp.time.values[-1]), method='nearest', assume_sorted=True)
+                end_position = [dend.latitude.values, dend.longitude.values]
+                line_az = self.raw_att.interp(time=line_time_start + (line_time_end - line_time_start) / 2, method='nearest', assume_sorted=True).heading.values
+                line_dict[line_name] += [float(start_position[0]), float(start_position[1]), float(end_position[0]),
+                                         float(end_position[1]), round(float(line_az), 3)]
         if save_pths is not None:
             for svpth in save_pths:  # write the new attributes to disk
                 my_xarr_add_attribute({'multibeam_files': line_dict}, svpth)

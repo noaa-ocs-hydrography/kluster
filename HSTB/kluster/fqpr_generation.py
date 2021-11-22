@@ -406,6 +406,28 @@ class Fqpr(ZarrBackend):
         print('Warning: unable to find line {} in converted dataset'.format(line_name))
         return None
 
+    def line_attributes(self, line_name: str):
+        """
+        Attributes by line are added after conversion to the ping attribution.  This is a shortcut for returning the attribution
+        for a line
+
+        Parameters
+        ----------
+        line_name
+            name of the line file, ex: 0634_20180711_142125.all
+
+        Returns
+        -------
+        list
+            list of line attributes, [start time, end time, start latitude, start longitude, end latitude, end longitude,
+            line azimuth]
+        """
+
+        if line_name in self.multibeam.raw_ping[0].multibeam_files:
+            return self.multibeam.raw_ping[0].multibeam_files[line_name]
+        else:
+            return None
+
     def return_next_unprocessed_line(self):
         """
         Return the next unprocessed line in this container, see line_is_processed
