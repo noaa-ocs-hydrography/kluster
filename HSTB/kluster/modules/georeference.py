@@ -75,7 +75,7 @@ def georef_by_worker(sv_corr: list, alt: xr.DataArray, lon: xr.DataArray, lat: x
     wline
         waterline offset from reference point
     vert_ref
-        vertical reference point, one of ['ellipse', 'vessel', 'waterline']
+        vertical reference point, one of ['ellipse', 'vessel', 'waterline', 'NOAA MLLW', 'NOAA MHW]
     input_crs
         pyproj CRS object, input coordinate reference system information for this run
     horizontal_crs

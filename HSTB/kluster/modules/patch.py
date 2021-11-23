@@ -17,12 +17,15 @@ class PatchTest:
         self.min_x = None
         self.min_y = None
         self.grid = None
+        self.a_matrix = None
 
         self._generate_rotated_points()
         self._grid()
 
+        print('here')
+
     def _generate_rotated_points(self):
-        ang = self.azimuth - 90
+        ang = self.azimuth - 90  # rotations are counter clockwise, we want it eventually facing east
         cos_az = np.cos(np.deg2rad(ang))
         sin_az = np.sin(np.deg2rad(ang))
         finalx = None
@@ -55,7 +58,24 @@ class PatchTest:
 
     def _grid(self):
         grid_class = create_grid(grid_type='single_resolution')
-        grid_class.add_points(self.points, 'patch')
-        grid_class.grid()
+        grid_class.add_points(self.points, 'patch', ['line1', 'line2'])
+        grid_class.grid(progress_bar=False)
         self.grid = grid_class
-        self.grid.plot()
+
+    def _build_patch_test_values(self):
+        dpth, xslope, yslope = self.grid.get_layers_by_name(['depth', 'x_slope', 'y_slope'])
+        valid_index = ~np.isnan(dpth)
+        xval = np.arange(self.grid.min_x, self.grid.max_x, self.grid.resolutions[0])
+        yval = np.arange(self.grid.min_y, self.grid.max_y, self.grid.resolutions[0])
+        grid_rez = self.grid.resolutions[0]
+        x_node_locs, y_node_locs = np.meshgrid(xval + grid_rez / 2, yval + grid_rez / 2, copy=False)
+
+        dpth_valid = dpth[valid_index]
+        y_node_valid = y_node_locs[valid_index]
+        xslope_valid = xslope[valid_index]
+        yslope_valid = yslope[valid_index]
+
+        # A-matrix is in order of roll, pitch, heading, x_translation, y_translation, horizontal scale factor
+        self.a_matrix = np.column_stack([yslope_valid * dpth_valid - y_node_valid, xslope_valid * dpth_valid,
+                                         xslope_valid * y_node_valid, xslope_valid, yslope_valid,
+                                         yslope_valid * y_node_valid])
