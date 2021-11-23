@@ -17,6 +17,7 @@ from HSTB.kluster.modules.svcorrect import get_sv_files_from_directory, return_s
 from HSTB.kluster.modules.georeference import distrib_run_georeference, datum_to_wkt, vyperdatum_found
 from HSTB.kluster.modules.tpu import distrib_run_calculate_tpu
 from HSTB.kluster.xarray_conversion import BatchRead
+from HSTB.kluster.fqpr_vessel import trim_xyzrprh_to_times
 from HSTB.kluster.modules.visualizations import FqprVisualizations
 from HSTB.kluster.modules.export import FqprExport
 from HSTB.kluster.modules.subset import FqprSubset
@@ -2938,6 +2939,28 @@ class Fqpr(ZarrBackend):
             return line_dict[line_name][0], line_dict[line_name][1]
         else:
             return None, None
+
+    def return_line_xyzrph(self, line_name: str):
+        """
+        Return only the relevant xyzrph (kluster vessel config data) entries for the given line name.
+
+        Parameters
+        ----------
+        line_name
+            file name of the multibeam line
+
+        Returns
+        -------
+        dict
+            xyzrph trimmed to only the relevant entries for the line
+        """
+
+        start_time, end_time = self.return_line_time(line_name)
+        if start_time and end_time:
+            return trim_xyzrprh_to_times(self.multibeam.xyzrph, start_time, end_time)
+        else:
+            print('return_line_xyzrph: Line {} is not a part of this converted data instance'.format(line_name))
+            return None
 
     def return_soundings_in_polygon(self, polygon: np.ndarray, geographic: bool = True,
                                     variable_selection: tuple = ('head', 'x', 'y', 'z', 'tvu', 'detectioninfo', 'time', 'beam')):
