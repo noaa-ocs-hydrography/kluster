@@ -1171,7 +1171,8 @@ class FqprProject:
                 fqprs = [fqone]
                 line_dict = {fqone: [lineone, linetwo]}
             fqpr_paths, fqpr_loaded = self.get_fqprs_by_paths(fqprs, line_dict, raise_exception=True)
-            patch = PatchTest(fqpr_loaded[0], azimuth=azimuth, initial_xyzrph=deepcopy(xyzrph))
+            patch = PatchTest(fqpr_loaded[0], azimuth=azimuth)
+            patch.run_patch()
 
 
 def create_new_project(output_folder: str = None):

@@ -207,7 +207,7 @@ The attributes window in Kluster shows the attributes from both datasets for you
 - min_x - the minimum easting that we get from the georeference process in Kluster
 - min_y - the minimum northing that we get from the georeference process in Kluster
 - min_z - the minimum depth that we get from the georeference process in Kluster
-- multibeam_files - the multibeam files in this dataset provided with the start and end times of the file in UTC seconds
+- multibeam_files - the multibeam files in this dataset provided with [start time, end time, start latitude, start longitude, end latitude, end longitude, azimuth]
 - nav_error_files (IF SBET ERROR IS PROVIDED) - the smrmsg files used in this dataset with the start and end times of the file in week seconds
 - nav_files (IF SBET IS PROVIDED) - the sbet files used in this dataset with the start and end times of the file in week seconds
 - navigation_source - either 'sbet' if sbet was used during georeferencing or 'multibeam' if raw navigation from the multibeam data was used
