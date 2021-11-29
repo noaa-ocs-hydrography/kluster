@@ -63,6 +63,17 @@ class PatchTest:
         self._build_patch_test_values()
         self._compute_least_squares()
 
+    def display_results(self):
+        print('Patch test results')
+        if self.fqpr is not None and self.result is not None:
+            print('Lines: {}'.format(list(self.fqpr.multibeam.raw_ping[0].multibeam_files.keys())))
+            print('roll: {}'.format([x for x in self.result[0]]))
+            print('pitch: {}'.format([x for x in self.result[1]]))
+            print('heading: {}'.format([x for x in self.result[2]]))
+            print('x_translation: {}'.format([x for x in self.result[3]]))
+            print('y_translation: {}'.format([x for x in self.result[4]]))
+            print('horizontal scale factor: {}'.format([x for x in self.result[5]]))
+
     def _generate_rotated_points(self):
         """
         Convert the northings/eastings/depths to the model coordinate system.  This coordinate system is defined as:
@@ -111,18 +122,21 @@ class PatchTest:
             self.points['y'] = finaly
             self.points['z'] = finalz
 
+            # # normalize the y axis
+            # self.points['y'] = self.points['y'] - self.points['y'].min()
+            # # normalize the x axis
+            # self.points['x'] = self.points['x'] - self.points['x'].min()
+
             # calculate center of rotation
             self.min_x = self.points['x'].min()
             self.min_y = self.points['y'].min()
             centered_x = self.points['x'] - self.min_x
             centered_y = self.points['y'] - self.min_y
+
             # rotate according to the provided line azimuth
             self.points['x'] = self.min_x + cos_az * centered_x - sin_az * centered_y
             self.points['y'] = self.min_y + sin_az * centered_x + cos_az * centered_y
-            # flip and normalize the y axis
-            self.points['y'] = abs(self.points['y'].max() - self.points['y'])
-            # normalize the x axis
-            self.points['x'] = self.points['x'] - self.points['x'].min()
+
         else:
             print('Found no valid points for {}'.format(list(self.multibeam_files.keys())))
 

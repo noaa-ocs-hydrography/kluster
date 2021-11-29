@@ -960,7 +960,7 @@ class KlusterMain(QtWidgets.QMainWindow):
                 if pairs:
                     self.project.run_patch_test(pairs)
         if cancelled:
-            print('kluster_surface_generation: Processing was cancelled')
+            print('kluster_patch_test: Processing was cancelled')
         self._patch = None
 
     def feed_patch_test_dialog(self, mode: str):
