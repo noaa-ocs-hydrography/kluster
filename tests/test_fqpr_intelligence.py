@@ -2,13 +2,13 @@ import os
 import shutil
 import unittest
 from datetime import datetime, timezone
+import tempfile
 
 from HSTB.kluster.fqpr_intelligence import FqprIntel
 
-# TODO: Mock
 from HSTB.kluster.fqpr_project import create_new_project
 
-#TODO: clean up
+
 class TestFqprIntelligence(unittest.TestCase):
 
     @classmethod
@@ -18,24 +18,17 @@ class TestFqprIntelligence(unittest.TestCase):
         cls.testfile = os.path.join(os.path.dirname(__file__), 'resources', cls.filename)
         cls.testsv = os.path.join(os.path.dirname(cls.testfile), cls.svname)
         cls.expected_data_folder = 'em2040_40111_05_23_2017'
-        cls.expected_data_folder_path = os.path.join(os.path.dirname(cls.testfile), cls.expected_data_folder)
 
-    @classmethod
-    def tearDownClass(cls) -> None:
-        proj_path = os.path.join(os.path.dirname(cls.testfile), 'kluster_project.json')
-        if os.path.exists(proj_path):
-            os.remove(proj_path)
-        vessel_file = os.path.join(os.path.dirname(cls.testfile), 'vessel_file.kfc')
-        if os.path.exists(vessel_file):
-            os.remove(vessel_file)
-        if os.path.exists(cls.expected_data_folder_path):
-            shutil.rmtree(cls.expected_data_folder_path)
+        cls.clsFolder = os.path.join(tempfile.tempdir, 'TestFqprIntelligence')
+        os.mkdir(cls.clsFolder)
 
     def setUp(self) -> None:
-        self.proj_path = os.path.join(os.path.dirname(self.testfile), 'kluster_project.json')
-        self.vessel_file = os.path.join(os.path.dirname(self.testfile), 'vessel_file.kfc')
+        self.tmpfolder = tempfile.mkdtemp(dir=self.clsFolder)
+        self.expected_data_folder_path = os.path.join(self.tmpfolder, self.expected_data_folder)
+        self.proj_path = os.path.join(self.tmpfolder, 'kluster_project.json')
+        self.vessel_file = os.path.join(self.tmpfolder, 'vessel_file.kfc')
 
-        self.proj = create_new_project(os.path.dirname(self.testfile))
+        self.proj = create_new_project(self.tmpfolder)
         self.proj.add_vessel_file(self.vessel_file)
         self.fintel = FqprIntel(self.proj)
         self.fintel.set_settings({'coord_system': 'NAD83'})
@@ -43,8 +36,10 @@ class TestFqprIntelligence(unittest.TestCase):
     def tearDown(self) -> None:
         self.fintel.clear()
         self.proj.close()
-        os.remove(self.proj_path)
-        os.remove(self.vessel_file)
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        shutil.rmtree(cls.clsFolder)
 
     def test_intel_add_multibeam(self):
         updated_type, new_data, new_project = self.fintel.add_file(self.testfile)
@@ -164,25 +159,21 @@ class TestFqprIntelligence(unittest.TestCase):
         assert self.fintel.svp_intel.unique_id_reverse == {}
         assert self.fintel.svp_intel.type == {}
 
-    #todo: get working
     def test_intel_modes(self):
-        proj = create_new_project(os.path.dirname(self.testfile))
-        fintel = FqprIntel(proj)
-        fintel.set_settings({'coord_system': 'NAD83'})
-
+        self.fintel.add_file(self.testfile)
         # convert multibeam file
-        fintel.execute_action()
+        self.fintel.execute_action()
         # normal mode will have a new processing action for that day
-        assert fintel.has_actions
-        assert fintel.action_container.actions[0].text == 'Run all processing on em2040_40111_05_23_2017'
+        assert self.fintel.has_actions
+        assert self.fintel.action_container.actions[0].text == 'Run all processing on em2040_40111_05_23_2017'
         # convert only will have no actions, since we've already converted
-        fintel.set_auto_processing_mode('convert_only')
-        assert not fintel.has_actions
+        self.fintel.set_auto_processing_mode('convert_only')
+        assert not self.fintel.has_actions
         # concatenate will have a new action to only convert this one line
-        fintel.set_auto_processing_mode('concatenate')
-        assert fintel.has_actions
-        assert fintel.action_container.actions[0].text == 'Run all processing on em2040_40111_05_23_2017'
-        assert fintel.action_container.actions[0].kwargs['only_this_line'] == self.filename
+        self.fintel.set_auto_processing_mode('concatenate')
+        assert self.fintel.has_actions
+        assert self.fintel.action_container.actions[0].text == 'Run all processing on em2040_40111_05_23_2017'
+        assert self.fintel.action_container.actions[0].kwargs['only_this_line'] == self.filename
 
     def test_intel_vessel_file(self):
         self.fintel.add_file(self.testfile)
@@ -298,7 +289,6 @@ class TestFqprIntelligence(unittest.TestCase):
             vf = self.fintel.project.return_vessel_file()
             assert vf.data['40111']['waterline']['1495563079'] == waterline_val
 
-
     def test_folder_monitoring(self):
         """
         Test fqpr intelligence by kicking off a folder monitoring session, finding the test multibeam file, and checking
@@ -332,7 +322,6 @@ class TestFqprIntelligence(unittest.TestCase):
                                  'use_coord': True, 'epsg': None, 'coord_system': 'NAD83', 'vert_ref': 'waterline'}
         assert self.proj.fqpr_instances['em2040_40111_05_23_2017'] == self.proj.return_line_owner(
             '0009_20170523_181119_FA2806.all')
-
 
     # some issue with pytest hanging when we use the folder monitoring stuff
     # not sure what to do here, stopping/joining the observer is what the docs say to do

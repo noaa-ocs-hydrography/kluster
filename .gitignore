@@ -16,4 +16,4 @@ docs/doctrees
 docs/api
 docs/_build
 
-HSTB/tests/resources
+tests/resources

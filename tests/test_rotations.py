@@ -35,7 +35,6 @@ class TestRotations(unittest.TestCase):
     @staticmethod
     def assert_matrix(act_mat, expected_mat):
         for data in act_mat.data:
-            print(data)
             for d_row, e_row in zip(data, expected_mat):
                 assert pytest.approx(d_row, 0.00000001) == e_row
 
@@ -46,21 +45,32 @@ class TestRotations(unittest.TestCase):
 
     def test_build_rot_mat(self):
         rotmat = build_rot_mat(self.roll, self.pitch, self.yaw, order='rpy', degrees=True)
-        expected = [[0.9999619078338804, 0.00872682681276807, 0.00015929534287439177],
-                    [-0.0087265353654609, 0.9999603973772001, -0.0017467849745820114],
-                    [-0.0001745329243133368, 0.0017453283393154377, 0.99999846168244],
-                    [0.9997806225647237, -0.020941074095018365, 0.00042208984884417513],
-                    [0.02094241860747179, 0.9997746179864385, -0.00348257561876403],
-                    [-0.00034906584331009674, 0.0034906512025610886, 0.9999938467346782],
-                    [0.9991941516168411, -0.040134894863113696, -0.000487431049527475],
-                    [0.040131782752685655, 0.9991805517074703, -0.005259762603623477],
-                    [0.0006981316440875792, 0.005235962555446998, 0.9999860485568414]]
-        print(rotmat)
-        self.assert_matrix(rotmat, expected)
+        assert pytest.approx(rotmat.isel(time=0).values[0, :], 0.00000001) == np.array(
+            [0.9999619078338804, 0.00872682681276807, 0.00015929534287439177])
+        assert pytest.approx(rotmat.isel(time=0).values[1, :], 0.00000001) == np.array(
+            [-0.0087265353654609, 0.9999603973772001, -0.0017467849745820114])
+        assert pytest.approx(rotmat.isel(time=0).values[2, :], 0.00000001) == np.array(
+            [-0.0001745329243133368, 0.0017453283393154377, 0.99999846168244])
+
+        assert pytest.approx(rotmat.isel(time=1).values[0, :], 0.00000001) == np.array(
+            [0.9997806225647237, -0.020941074095018365, 0.00042208984884417513])
+        assert pytest.approx(rotmat.isel(time=1).values[1, :], 0.00000001) == np.array(
+            [0.02094241860747179, 0.9997746179864385, -0.00348257561876403])
+        assert pytest.approx(rotmat.isel(time=1).values[2, :], 0.00000001) == np.array(
+            [-0.00034906584331009674, 0.0034906512025610886, 0.9999938467346782])
+
+        assert pytest.approx(rotmat.isel(time=2).values[0, :], 0.00000001) == np.array(
+            [0.9991941516168411, -0.040134894863113696, -0.000487431049527475])
+        assert pytest.approx(rotmat.isel(time=2).values[1, :], 0.00000001) == np.array(
+            [0.040131782752685655, 0.9991805517074703, -0.005259762603623477])
+        assert pytest.approx(rotmat.isel(time=2).values[2, :], 0.00000001) == np.array(
+            [0.0006981316440875792, 0.005235962555446998, 0.9999860485568414])
 
         # should be able to do this manually too, and get the right answer
-        manual_mat = self.make_matrix(0.1, 0.01, 359.5, None)
-        self.assert_matrix(rotmat, manual_mat)
+        manual_mat = self.make_matrix(0.1, 0.01, 359.5, dtype= None)
+        assert pytest.approx(rotmat.isel(time=0).values[0, :], 0.00000001) == manual_mat[0]
+        assert pytest.approx(rotmat.isel(time=0).values[1, :], 0.00000001) == manual_mat[1]
+        assert pytest.approx(rotmat.isel(time=0).values[2, :], 0.00000001) == manual_mat[2]
 
     def test_build_mounting_angle_mat(self):
         rollval = 0.142

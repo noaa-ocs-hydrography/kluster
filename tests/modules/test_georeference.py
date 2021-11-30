@@ -5,18 +5,19 @@ import pytest
 from HSTB.kluster.modules.georeference import georef_by_worker, compute_geohash, _new_geohash, decode_geohash, \
     polygon_to_geohashes
 from pyproj import CRS
-from xarray import load_dataset
 import xarray as xr
 import numpy as np
 
-from modules import expected_alongtrack, expected_acrosstrack, expected_depth, \
+from tests.test_datasets import load_dataset, RealFqpr
+from tests.modules.module_test_arrays import expected_alongtrack, expected_acrosstrack, expected_depth, \
     expected_georef_x, expected_georef_y, expected_georef_z
 
 
 class TestGeoReference(unittest.TestCase):
 
+    @classmethod
     def setUpClass(cls) -> None:
-        cls.dset = load_dataset('009_20170523_12119_FA2806.all')
+        cls.dset = load_dataset(RealFqpr())
 
     def test_georeference_module(self):
         multibeam = self.dset.raw_ping[0].isel(time=0).expand_dims('time')

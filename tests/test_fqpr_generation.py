@@ -4,13 +4,14 @@ import logging
 
 from HSTB.kluster.fqpr_convenience import process_multibeam, convert_multibeam
 
-import fqpr_generation
+from HSTB.kluster.fqpr_generation import Fqpr
 from pytest import approx
 from datetime import datetime
 import unittest
 import numpy as np
+import tempfile
 
-from test_datasets import RealFqpr, RealDualheadFqpr, load_dataset
+from tests.test_datasets import RealFqpr, RealDualheadFqpr, load_dataset
 
 
 class TestFqprGeneration(unittest.TestCase):
@@ -18,7 +19,8 @@ class TestFqprGeneration(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         cls.testfile = os.path.join(os.path.dirname(__file__), 'resources', '0009_20170523_181119_FA2806.all')
-        cls.expected_output = os.path.join(os.path.dirname(__file__), 'resources', 'converted')
+        cls.expected_output = os.path.join(tempfile.tempdir, 'TestFqprGeneration')
+        os.mkdir(cls.expected_output)
 
     def setUp(self) -> None:
         self.out = process_multibeam(convert_multibeam(self.testfile), coord_system='NAD83')
@@ -31,6 +33,10 @@ class TestFqprGeneration(unittest.TestCase):
 
     def tearDown(self) -> None:
         self.out.close()
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        shutil.rmtree(cls.expected_output)
 
     def test_set_variable_by_filter(self):
         polygon = np.array([[-122.47798556, 47.78949665], [-122.47798556, 47.78895117], [-122.47771027, 47.78895117],
@@ -317,7 +323,7 @@ class TestFqprGeneration(unittest.TestCase):
         else:
             raise NotImplementedError('mode not recognized')
 
-        fq = fqpr_generation.Fqpr(synth)
+        fq = Fqpr(synth)
         fq.logger = logging.getLogger()
         fq.logger.setLevel(logging.INFO)
         fq.read_from_source()
@@ -378,7 +384,7 @@ class TestFqprGeneration(unittest.TestCase):
         else:
             raise NotImplementedError('mode not recognized')
 
-        fq = fqpr_generation.Fqpr(synth)
+        fq = Fqpr(synth)
         fq.logger = logging.getLogger()
         fq.logger.setLevel(logging.INFO)
         fq.read_from_source()
@@ -439,7 +445,7 @@ class TestFqprGeneration(unittest.TestCase):
         else:
             raise NotImplementedError('mode not recognized')
 
-        fq = fqpr_generation.Fqpr(synth)
+        fq = Fqpr(synth)
         fq.logger = logging.getLogger()
         fq.logger.setLevel(logging.INFO)
         fq.read_from_source()
@@ -510,7 +516,7 @@ class TestFqprGeneration(unittest.TestCase):
         else:
             raise NotImplementedError('mode not recognized')
 
-        fq = fqpr_generation.Fqpr(synth)
+        fq = Fqpr(synth)
         fq.logger = logging.getLogger()
         fq.logger.setLevel(logging.INFO)
         fq.read_from_source()
@@ -549,6 +555,86 @@ class TestFqprGeneration(unittest.TestCase):
 
         fq.close()
         print('Passed: georef_xyz')
+
+
+    #TODO: Move back to generation
+    def test_process_testfile(self):
+        """
+        Run conversion and basic processing on the test file
+        """
+        linename = os.path.split(self.testfile)[1]
+        assert not self.out.line_is_processed(linename)
+        assert self.out.return_next_unprocessed_line() == linename
+
+        out = process_multibeam(self.out, coord_system='NAD83')
+        assert out.line_is_processed(linename)
+        assert out.return_next_unprocessed_line() == ''
+
+        number_of_sectors = len(out.multibeam.raw_ping)
+        rp = out.multibeam.raw_ping[0].isel(time=0).isel(beam=0)
+        firstbeam_angle = rp.beampointingangle.values
+        firstbeam_traveltime = rp.traveltime.values
+        first_counter = rp.counter.values
+        first_dinfo = rp.detectioninfo.values
+        first_mode = rp.mode.values
+        first_modetwo = rp.modetwo.values
+        first_ntx = rp.ntx.values
+        firstbeam_procstatus = rp.processing_status.values
+        firstbeam_qualityfactor = rp.qualityfactor.values
+        first_soundspeed = rp.soundspeed.values
+        first_tiltangle = rp.tiltangle.values
+        first_delay = rp.delay.values
+        first_frequency = rp.frequency.values
+        first_yawpitch = rp.yawpitchstab.values
+        firstcorr_angle = rp.corr_pointing_angle.values
+        firstcorr_altitude = rp.corr_altitude.values
+        firstcorr_heave = rp.corr_heave.values
+        firstdepth_offset = rp.depthoffset.values
+        first_status = rp.processing_status.values
+        firstrel_azimuth = rp.rel_azimuth.values
+        firstrx = rp.rx.values
+        firstthu = rp.thu.values
+        firsttvu = rp.tvu.values
+        firsttx = rp.tx.values
+        firstx = rp.x.values
+        firsty = rp.y.values
+        firstz = rp.z.values
+
+        assert number_of_sectors == 1
+        assert firstbeam_angle == approx(np.float32(74.640), 0.001)
+        assert firstbeam_traveltime == approx(np.float32(0.3360895), 0.000001)
+        assert first_counter == 61967
+        assert first_dinfo == 2
+        assert first_mode == 'FM'
+        assert first_modetwo == '__FM'
+        assert first_ntx == 3
+        assert firstbeam_procstatus == 5
+        assert firstbeam_qualityfactor == 42
+        assert first_soundspeed == np.float32(1488.6)
+        assert first_tiltangle == np.float32(-0.44)
+        assert first_delay == approx(np.float32(0.002206038), 0.000001)
+        assert first_frequency == 275000
+        assert first_yawpitch == 'PY'
+        assert firstcorr_angle == approx(np.float32(1.2028906), 0.000001)
+        assert firstcorr_altitude == np.float32(0.0)
+        assert firstcorr_heave == approx(np.float32(-0.06), 0.01)
+        assert firstdepth_offset == approx(np.float32(92.162), 0.001)
+        assert first_status == 5
+        assert firstrel_azimuth == approx(np.float32(4.703383), 0.00001)
+        assert firstrx == approx(np.array([0.7870753, 0.60869384, -0.100021675], dtype=np.float32), 0.00001)
+        assert firstthu == approx(np.float32(8.680531), 0.0001)
+        assert firsttvu == approx(np.float32(2.444148), 0.0001)
+        assert firsttx == approx(np.array([0.6074468, -0.79435784, 0.0020107413], dtype=np.float32), 0.00001)
+        assert firstx == approx(539028.450, 0.001)
+        assert firsty == approx(5292783.977, 0.001)
+        assert firstz == approx(np.float32(92.742), 0.001)
+
+        assert rp.min_x == 538922.066
+        assert rp.min_y == 5292774.566
+        assert rp.min_z == 72.961
+        assert rp.max_x == 539320.370
+        assert rp.max_y == 5293236.823
+        assert rp.max_z == 94.294
 
     # def build_georef_correct_comparison(self, dset='realdual', vert_ref='waterline', datum='NAD83'):
     #     """

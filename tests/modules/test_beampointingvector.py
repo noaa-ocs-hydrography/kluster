@@ -1,29 +1,22 @@
 import unittest
-from pprint import pprint
 
 import pytest
 import xarray as xr
 from HSTB.kluster.modules.beampointingvector import build_beam_pointing_vectors
-from xarray import load_dataset
 import numpy as np
 
-from modules import expected_tx_vector, expected_rx_vector, expected_beam_azimuth, \
+from tests.test_datasets import RealFqpr, load_dataset
+from tests.modules.module_test_arrays import expected_tx_vector, expected_rx_vector, expected_beam_azimuth, \
     expected_corrected_beam_angles
-import importlib.resources
 
 
 # or for a file-like stream:
-#template = pkg_resources.open_text(resources, 'temp_file')
+# template = pkg_resources.open_text(resources, 'temp_file')
 
 class TestBeamPointingVector(unittest.TestCase):
+
     def test_beampointingvector_module(self):
-
-        my_resources = importlib.resources.Resource("package")
-        pprint(my_resources)
-        data = (my_resources / "templates" / "temp_file").read_bytes()
-
-
-        dset = load_dataset('009_20170523_12119_FA2806.all')  # load_dataset(RealFqpr())
+        dset = load_dataset(RealFqpr())
         raw_attitude = dset.raw_att
         heading = raw_attitude.heading
 

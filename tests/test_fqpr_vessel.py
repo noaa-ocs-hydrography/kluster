@@ -1,11 +1,10 @@
 import os
-import pathlib
-
+import shutil
+import tempfile
 import unittest
 from HSTB.kluster.fqpr_vessel import VesselFile, get_overlapping_timestamps, compare_dict_data, carry_over_optional, \
     create_new_vessel_file, only_retain_earliest_entry, convert_from_fqpr_xyzrph, convert_from_vessel_xyzrph
 
-#TODO: Come back and rewrite so tests arent reliant on one another
 test_xyzrph = {'antenna_x': {'1626354881': '0.000'}, 'antenna_y': {'1626354881': '0.000'},
                'antenna_z': {'1626354881': '0.000'}, 'imu_h': {'1626354881': '0.000'},
                'latency': {'1626354881': '0.000'}, 'imu_p': {'1626354881': '0.000'},
@@ -33,20 +32,23 @@ class TestFqprVessel(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls) -> None:
-        cls.testfile = os.path.join(os.path.dirname(__file__), 'resources', 'vessel_file.kfc')
-        cls.vf = create_new_vessel_file(cls.testfile)
-        cls.key = ['123', '345']
-        cls.data = [
+        cls.clsFolder = os.path.join(tempfile.tempdir, 'TestFqprVessel')
+        os.mkdir(cls.clsFolder)
+
+    def setUp(self) -> None:
+        self.testfile = os.path.join(tempfile.mkdtemp(dir=self.clsFolder), 'vessel_file.kfc')
+        self.vf = create_new_vessel_file(self.testfile)
+        self.key = ['123', '345']
+        self.data = [
             {'beam_opening_angle': {"1234": 1.0, '1244': 1.5, '1254': 2.0},
              'rx_x': {"1234": 0.345, '1244': 0.456, '1254': 0.789}},
             {'beam_opening_angle': {"1234": 3.0, '1244': 3.5, '1254': 4.0},
-                          'rx_x': {"1234": 1.345, '1244': 2.456, '1254': 3.789}}]
-        cls.data_dict = dict.fromkeys (cls.key, cls.data)
+             'rx_x': {"1234": 1.345, '1244': 2.456, '1254': 3.789}}]
+        self.data_dict = {self.key[0]: self.data[0], self.key[1]: self.data[1]}
 
     @classmethod
     def tearDownClass(cls) -> None:
-        os.remove(cls.testfile)
-        assert not os.path.exists(cls.testfile)
+        shutil.rmtree(cls.clsFolder)
 
     def test_save_empty_file(self):
         assert self.vf.data == {}
@@ -67,6 +69,7 @@ class TestFqprVessel(unittest.TestCase):
         assert self.vf.data == {self.key[0]: self.data[0]}
 
     def test_update_existing(self):
+        self.vf.update(self.key[0], self.data[0])
         self.vf.update(self.key[1], self.data[1])
         assert self.vf.data == self.data_dict
         self.vf.save(self.testfile)
@@ -74,30 +77,34 @@ class TestFqprVessel(unittest.TestCase):
         assert self.vf.data == self.data_dict
 
     def test_overwrite_existing(self):
+        self.vf.update(self.key[0], self.data[0])
+        self.vf.update(self.key[1], self.data[1])
+        self.vf.save(self.testfile)
         self.vf.update(self.key[1], {'beam_opening_angle': {"1234": 999}})
-        print (self.data_dict.get('beam_opening_angle'))
-        #self.data_dict.update('beam_opening_angle').update('1234') = 999
+        # self.data_dict.update('beam_opening_angle').update('1234') = 999
         #  no change made, will always try to carry over the last tpu entry
         assert self.vf.data == {'123': {'beam_opening_angle': {"1234": 1.0, '1244': 1.5, '1254': 2.0},
-                                   'rx_x': {"1234": 0.345, '1244': 0.456, '1254': 0.789}},
-                           '345': {'beam_opening_angle': {"1234": 4.0, '1244': 3.5, '1254': 4.0},
-                                   'rx_x': {"1234": 1.345, '1244': 2.456, '1254': 3.789}}}
+                                        'rx_x': {"1234": 0.345, '1244': 0.456, '1254': 0.789}},
+                                '345': {'beam_opening_angle': {"1234": 4.0, '1244': 3.5, '1254': 4.0},
+                                        'rx_x': {"1234": 1.345, '1244': 2.456, '1254': 3.789}}}
         #  force the overwrite
         self.vf.update('345', {'beam_opening_angle': {"1234": 999}}, carry_over_tpu=False)
         assert self.vf.data == {'123': {'beam_opening_angle': {"1234": 1.0, '1244': 1.5, '1254': 2.0},
-                                   'rx_x': {"1234": 0.345, '1244': 0.456, '1254': 0.789}},
-                           '345': {'beam_opening_angle': {"1234": 999, '1244': 3.5, '1254': 4.0},
-                                   'rx_x': {"1234": 1.345, '1244': 2.456, '1254': 3.789}}}
+                                        'rx_x': {"1234": 0.345, '1244': 0.456, '1254': 0.789}},
+                                '345': {'beam_opening_angle': {"1234": 999, '1244': 3.5, '1254': 4.0},
+                                        'rx_x': {"1234": 1.345, '1244': 2.456, '1254': 3.789}}}
         self.vf.save(self.testfile)
         self.vf = VesselFile(self.testfile)
         assert self.vf.data == {'123': {'beam_opening_angle': {"1234": 1.0, '1244': 1.5, '1254': 2.0},
-                                   'rx_x': {"1234": 0.345, '1244': 0.456, '1254': 0.789}},
-                           '345': {'beam_opening_angle': {"1234": 999, '1244': 3.5, '1254': 4.0},
-                                   'rx_x': {"1234": 1.345, '1244': 2.456, '1254': 3.789}}}
+                                        'rx_x': {"1234": 0.345, '1244': 0.456, '1254': 0.789}},
+                                '345': {'beam_opening_angle': {"1234": 999, '1244': 3.5, '1254': 4.0},
+                                        'rx_x': {"1234": 1.345, '1244': 2.456, '1254': 3.789}}}
 
     def test_return_data(self):
+        self.vf.update(self.key[1], self.data[1])
+        self.vf.save(self.testfile)
         new_data = self.vf.return_data('345', 1239, 1250)
-        assert new_data == {'beam_opening_angle': {"1234": 999, '1244': 3.5},
+        assert new_data == {'beam_opening_angle': {"1234": 3.0, '1244': 3.5},
                             'rx_x': {"1234": 1.345, '1244': 2.456}}
 
     def test_return_singletimestamp(self):
@@ -112,8 +119,6 @@ class TestFqprVessel(unittest.TestCase):
         # data that is after the timestamp uses the closest previous timestamp
         new_data = self.vf.return_data('123', 1300, 1400)
         assert new_data == {'beam_opening_angle': {"1234": 1.0}, 'rx_x': {"1234": 0.345}}
-
-
 
     def test_overlapping_timestamps(self):
         timestamps = [1584426525, 1584429900, 1584430000, 1584438532, 1597569340]

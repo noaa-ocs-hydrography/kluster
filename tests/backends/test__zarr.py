@@ -1,25 +1,33 @@
-import os, shutil
+import os
+import shutil
+
 import numpy as np
 import xarray as xr
 import zarr
+import tempfile
 
 from HSTB.kluster.backends._zarr import _get_indices_dataset_exists, _get_indices_dataset_notexist, \
     _my_xarr_to_zarr_build_arraydimensions, _my_xarr_to_zarr_writeattributes, ZarrWrite, ZarrBackend, search_not_sorted
 from HSTB.kluster.xarray_helpers import reload_zarr_records
 import unittest
 
-#TODO: clean up
+
 class TestZarr(unittest.TestCase):
 
-    def setUp(self) -> None:
-        self.zarr_folder = os.path.join(os.path.dirname(__file__), 'resources', 'zarrtest')
-        if os.path.exists(self.zarr_folder):
-            shutil.rmtree(self.zarr_folder)
-        os.makedirs(self.zarr_folder, exist_ok=True)
-        self.zw = ZarrBackend(self.zarr_folder)
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.clsFolder = os.path.join(tempfile.tempdir, 'TestZarr')
+        os.mkdir(cls.clsFolder)
 
-    def tearDown(self) -> None:
-        shutil.rmtree(self.zarr_folder)
+    def setUp(self) -> None:
+        self.zarr_folder = tempfile.mkdtemp(dir=self.clsFolder)
+        self.zb = ZarrBackend(self.zarr_folder)
+        self.zw = ZarrWrite(self.zarr_folder, desired_chunk_shape={'time': (10,), 'data2': (10,), 'data': (10,)})
+        self.zw.rootgroup = zarr.group()
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        shutil.rmtree(cls.clsFolder)
 
     def test_search_not_sorted(self):
         master = np.array([3, 4, 5, 6, 1, 9, 0, 2, 7, 8])
@@ -142,79 +150,67 @@ class TestZarr(unittest.TestCase):
     def test_zarr_write_create(self):
         # simulated write to disk
         #  this is for the first write, where we have to use zarr to create the dataset
-        zw = ZarrWrite(None, desired_chunk_shape={'time': (10,), 'data2': (10,), 'data': (10,)})
-        zw.rootgroup = zarr.group()
-
         data_arr = np.arange(100)
         indices = _get_indices_dataset_notexist([data_arr])
 
         dataset = xr.Dataset({'data': (['time'], data_arr), 'data2': (['time'], data_arr)}, coords={'time': data_arr})
-        zw.write_to_zarr(dataset, {'testthis': 123}, dataloc=indices[0], finalsize=100)
+        self.zw.write_to_zarr(dataset, {'testthis': 123}, dataloc=indices[0], finalsize=100)
 
-        assert np.array_equal(zw.rootgroup['data'], data_arr)
-        assert np.array_equal(zw.rootgroup['data2'], data_arr)
-        assert np.array_equal(zw.rootgroup['time'], data_arr)
-        assert zw.rootgroup.attrs == {'testthis': 123}
+        assert np.array_equal(self.zw.rootgroup['data'], data_arr)
+        assert np.array_equal(self.zw.rootgroup['data2'], data_arr)
+        assert np.array_equal(self.zw.rootgroup['time'], data_arr)
+        assert self.zw.rootgroup.attrs == {'testthis': 123}
 
     def test_zarr_write_append(self):
         #  this is for the first write, where we have to use zarr to create the dataset
-        zw = ZarrWrite(None, desired_chunk_shape={'time': (10,), 'data2': (10,), 'data': (10,)})
-        zw.rootgroup = zarr.group()
-
         data_arr = np.arange(10)
         indices = _get_indices_dataset_notexist([data_arr])
 
         dataset = xr.Dataset({'data': (['time'], data_arr), 'data2': (['time'], data_arr)}, coords={'time': data_arr})
-        zw.write_to_zarr(dataset, None, dataloc=indices[0], finalsize=10)
+        self.zw.write_to_zarr(dataset, None, dataloc=indices[0], finalsize=10)
 
         data_arr2 = np.array([10, 11, 12, 13, 14])
-        indices, push_forward, total_push = _get_indices_dataset_exists([data_arr2], zw.rootgroup['time'])
+        indices, push_forward, total_push = _get_indices_dataset_exists([data_arr2], self.zw.rootgroup['time'])
 
         dataset = xr.Dataset({'data': (['time'], data_arr2), 'data2': (['time'], data_arr2)},
                              coords={'time': data_arr2})
-        zw.write_to_zarr(dataset, None, dataloc=indices[0], finalsize=15)
+        self.zw.write_to_zarr(dataset, None, dataloc=indices[0], finalsize=15)
 
-        assert np.array_equal(zw.rootgroup['data'], np.concatenate([data_arr, data_arr2]))
-        assert np.array_equal(zw.rootgroup['data2'], np.concatenate([data_arr, data_arr2]))
-        assert np.array_equal(zw.rootgroup['time'], np.concatenate([data_arr, data_arr2]))
+        assert np.array_equal(self.zw.rootgroup['data'], np.concatenate([data_arr, data_arr2]))
+        assert np.array_equal(self.zw.rootgroup['data2'], np.concatenate([data_arr, data_arr2]))
+        assert np.array_equal(self.zw.rootgroup['time'], np.concatenate([data_arr, data_arr2]))
 
     def test_zarr_write_overwrite(self):
         # overwrite existing data with this new dataset since the times overlap
-        zw = ZarrWrite(None, desired_chunk_shape={'time': (10,), 'data2': (10,), 'data': (10,)})
-        zw.rootgroup = zarr.group()
-
         data_arr = np.arange(10)
         indices = _get_indices_dataset_notexist([data_arr])
 
         dataset = xr.Dataset({'data': (['time'], data_arr), 'data2': (['time'], data_arr)}, coords={'time': data_arr})
-        zw.write_to_zarr(dataset, None, dataloc=indices[0], finalsize=10)
+        self.zw.write_to_zarr(dataset, None, dataloc=indices[0], finalsize=10)
 
         data_arr2 = np.array([3, 4, 5, 6, 7])
         new_data = np.array([999, 999, 999, 999, 999])
-        indices, push_forward, total_push = _get_indices_dataset_exists([data_arr2], zw.rootgroup['time'])
+        indices, push_forward, total_push = _get_indices_dataset_exists([data_arr2], self.zw.rootgroup['time'])
 
         dataset = xr.Dataset({'data': (['time'], new_data), 'data2': (['time'], new_data)}, coords={'time': data_arr2})
-        zw.write_to_zarr(dataset, None, dataloc=indices[0], finalsize=10)
+        self.zw.write_to_zarr(dataset, None, dataloc=indices[0], finalsize=10)
 
         expected_answer = np.array([0, 1, 2, 999, 999, 999, 999, 999, 8, 9])
-        assert np.array_equal(zw.rootgroup['data'], expected_answer)
-        assert np.array_equal(zw.rootgroup['data2'], expected_answer)
-        assert np.array_equal(zw.rootgroup['time'], data_arr)
+        assert np.array_equal(self.zw.rootgroup['data'], expected_answer)
+        assert np.array_equal(self.zw.rootgroup['data2'], expected_answer)
+        assert np.array_equal(self.zw.rootgroup['time'], data_arr)
 
     def test_zarr_write_prior_overlap(self):
         # for when data being written is both partly within existing data and prior to existing data
-        zw = ZarrWrite(None, desired_chunk_shape={'time': (10,), 'data2': (10,), 'data': (10,)})
-        zw.rootgroup = zarr.group()
-
         data_arr = np.arange(20, 40, 1)
         indices = _get_indices_dataset_notexist([data_arr])
 
         dataset = xr.Dataset({'data': (['time'], data_arr), 'data2': (['time'], data_arr)}, coords={'time': data_arr})
-        zw.write_to_zarr(dataset, None, dataloc=indices[0], finalsize=20)
+        self.zw.write_to_zarr(dataset, None, dataloc=indices[0], finalsize=20)
 
         data_arr2 = [np.array([10, 11, 12, 13, 14, 15, 16, 17, 18, 19]),
                      np.array([20, 21, 22, 23, 24, 25, 26, 27, 28, 29])]
-        indices, push_forward, total_push = _get_indices_dataset_exists(data_arr2, zw.rootgroup['time'])
+        indices, push_forward, total_push = _get_indices_dataset_exists(data_arr2, self.zw.rootgroup['time'])
 
         for cnt, arr in enumerate(data_arr2):
             if cnt == 0:
@@ -222,29 +218,26 @@ class TestZarr(unittest.TestCase):
             else:
                 fsize = None
             dataset2 = xr.Dataset({'data': (['time'], arr), 'data2': (['time'], arr)}, coords={'time': arr})
-            zw.write_to_zarr(dataset2, None, dataloc=indices[cnt], finalsize=fsize, push_forward=push_forward)
+            self.zw.write_to_zarr(dataset2, None, dataloc=indices[cnt], finalsize=fsize, push_forward=push_forward)
 
         expected_answer = np.array(
             [10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36,
              37, 38, 39])
-        assert np.array_equal(zw.rootgroup['data'], expected_answer)
-        assert np.array_equal(zw.rootgroup['data2'], expected_answer)
-        assert np.array_equal(zw.rootgroup['time'], expected_answer)
+        assert np.array_equal(self.zw.rootgroup['data'], expected_answer)
+        assert np.array_equal(self.zw.rootgroup['data2'], expected_answer)
+        assert np.array_equal(self.zw.rootgroup['time'], expected_answer)
 
     def test_zarr_write_prior(self):
         # for when data being written is prior to existing data
-        zw = ZarrWrite(None, desired_chunk_shape={'time': (10,), 'data2': (10,), 'data': (10,)})
-        zw.rootgroup = zarr.group()
-
         data_arr = np.arange(30, 50, 1)
         indices = _get_indices_dataset_notexist([data_arr])
 
         dataset = xr.Dataset({'data': (['time'], data_arr), 'data2': (['time'], data_arr)}, coords={'time': data_arr})
-        zw.write_to_zarr(dataset, None, dataloc=indices[0], finalsize=20)
+        self.zw.write_to_zarr(dataset, None, dataloc=indices[0], finalsize=20)
 
         data_arr2 = [np.array([10, 11, 12, 13, 14, 15, 16, 17, 18, 19]),
                      np.array([20, 21, 22, 23, 24, 25, 26, 27, 28, 29])]
-        indices, push_forward, total_push = _get_indices_dataset_exists(data_arr2, zw.rootgroup['time'])
+        indices, push_forward, total_push = _get_indices_dataset_exists(data_arr2, self.zw.rootgroup['time'])
 
         for cnt, arr in enumerate(data_arr2):
             if cnt == 0:
@@ -252,49 +245,43 @@ class TestZarr(unittest.TestCase):
             else:
                 fsize = None
             dataset2 = xr.Dataset({'data': (['time'], arr), 'data2': (['time'], arr)}, coords={'time': arr})
-            zw.write_to_zarr(dataset2, None, dataloc=indices[cnt], finalsize=fsize, push_forward=push_forward)
+            self.zw.write_to_zarr(dataset2, None, dataloc=indices[cnt], finalsize=fsize, push_forward=push_forward)
 
         expected_answer = np.array([10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29,
                                     30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49])
-        assert np.array_equal(zw.rootgroup['data'], expected_answer)
-        assert np.array_equal(zw.rootgroup['data2'], expected_answer)
-        assert np.array_equal(zw.rootgroup['time'], expected_answer)
+        assert np.array_equal(self.zw.rootgroup['data'], expected_answer)
+        assert np.array_equal(self.zw.rootgroup['data2'], expected_answer)
+        assert np.array_equal(self.zw.rootgroup['time'], expected_answer)
 
     def test_zarr_write_prior_bigone(self):
         # for when data being written is prior to existing data
-        zw = ZarrWrite(None, desired_chunk_shape={'time': (1000,), 'data2': (1000,), 'data': (1000,)})
-        zw.rootgroup = zarr.group()
-
         data_arr = np.arange(150000, 255000)
         indices = _get_indices_dataset_notexist([data_arr])
 
         dataset = xr.Dataset({'data': (['time'], data_arr), 'data2': (['time'], data_arr)}, coords={'time': data_arr})
-        zw.write_to_zarr(dataset, None, dataloc=indices[0], finalsize=105000)
+        self.zw.write_to_zarr(dataset, None, dataloc=indices[0], finalsize=105000)
 
         data_arr2 = [np.arange(150000)]
-        indices, push_forward, total_push = _get_indices_dataset_exists(data_arr2, zw.rootgroup['time'])
+        indices, push_forward, total_push = _get_indices_dataset_exists(data_arr2, self.zw.rootgroup['time'])
 
         dataset2 = xr.Dataset({'data': (['time'], data_arr2[0]), 'data2': (['time'], data_arr2[0])},
                               coords={'time': data_arr2[0]})
-        zw.write_to_zarr(dataset2, None, dataloc=indices[0], finalsize=255000, push_forward=push_forward)
+        self.zw.write_to_zarr(dataset2, None, dataloc=indices[0], finalsize=255000, push_forward=push_forward)
 
-        assert np.array_equal(zw.rootgroup['data'], np.arange(255000))
-        assert np.array_equal(zw.rootgroup['data2'], np.arange(255000))
-        assert np.array_equal(zw.rootgroup['time'], np.arange(255000))
+        assert np.array_equal(self.zw.rootgroup['data'], np.arange(255000))
+        assert np.array_equal(self.zw.rootgroup['data2'], np.arange(255000))
+        assert np.array_equal(self.zw.rootgroup['time'], np.arange(255000))
 
     def test_zarr_write_prior_multiplepushes(self):
         # for when data being written is prior to existing data and is in pieces
-        zw = ZarrWrite(None, desired_chunk_shape={'time': (1000,), 'data2': (1000,), 'data': (1000,)})
-        zw.rootgroup = zarr.group()
-
         data_arr = np.concatenate([np.arange(100000, 150000), np.arange(200000, 255000)])
         indices = _get_indices_dataset_notexist([data_arr])
 
         dataset = xr.Dataset({'data': (['time'], data_arr), 'data2': (['time'], data_arr)}, coords={'time': data_arr})
-        zw.write_to_zarr(dataset, None, dataloc=indices[0], finalsize=105000)
+        self.zw.write_to_zarr(dataset, None, dataloc=indices[0], finalsize=105000)
 
         data_arr2 = [np.arange(100000), np.arange(150000, 200000)]
-        indices, push_forward, total_push = _get_indices_dataset_exists(data_arr2, zw.rootgroup['time'])
+        indices, push_forward, total_push = _get_indices_dataset_exists(data_arr2, self.zw.rootgroup['time'])
 
         for cnt, arr in enumerate(data_arr2):
             if cnt == 0:
@@ -302,26 +289,23 @@ class TestZarr(unittest.TestCase):
             else:
                 fsize = None
             dataset2 = xr.Dataset({'data': (['time'], arr), 'data2': (['time'], arr)}, coords={'time': arr})
-            zw.write_to_zarr(dataset2, None, dataloc=indices[cnt], finalsize=fsize, push_forward=push_forward)
+            self.zw.write_to_zarr(dataset2, None, dataloc=indices[cnt], finalsize=fsize, push_forward=push_forward)
 
-        assert np.array_equal(zw.rootgroup['data'], np.arange(255000))
-        assert np.array_equal(zw.rootgroup['data2'], np.arange(255000))
-        assert np.array_equal(zw.rootgroup['time'], np.arange(255000))
+        assert np.array_equal(self.zw.rootgroup['data'], np.arange(255000))
+        assert np.array_equal(self.zw.rootgroup['data2'], np.arange(255000))
+        assert np.array_equal(self.zw.rootgroup['time'], np.arange(255000))
 
     def test_zarr_write_later_overlap(self):
         # for when data being written is both partly within existing data and later than existing data
-        zw = ZarrWrite(None, desired_chunk_shape={'time': (10,), 'data2': (10,), 'data': (10,)})
-        zw.rootgroup = zarr.group()
-
         data_arr = np.arange(20, 40, 1)
         indices = _get_indices_dataset_notexist([data_arr])
 
         dataset = xr.Dataset({'data': (['time'], data_arr), 'data2': (['time'], data_arr)}, coords={'time': data_arr})
-        zw.write_to_zarr(dataset, None, dataloc=indices[0], finalsize=20)
+        self.zw.write_to_zarr(dataset, None, dataloc=indices[0], finalsize=20)
 
         data_arr2 = [np.array([30, 31, 32, 33, 34, 35, 36, 37, 38, 39]),
                      np.array([40, 41, 42, 43, 44, 45, 46, 47, 48, 49])]
-        indices, push_forward, total_push = _get_indices_dataset_exists(data_arr2, zw.rootgroup['time'])
+        indices, push_forward, total_push = _get_indices_dataset_exists(data_arr2, self.zw.rootgroup['time'])
 
         for cnt, arr in enumerate(data_arr2):
             if cnt == 0:
@@ -329,29 +313,26 @@ class TestZarr(unittest.TestCase):
             else:
                 fsize = None
             dataset2 = xr.Dataset({'data': (['time'], arr), 'data2': (['time'], arr)}, coords={'time': arr})
-            zw.write_to_zarr(dataset2, None, dataloc=indices[cnt], finalsize=fsize, push_forward=push_forward)
+            self.zw.write_to_zarr(dataset2, None, dataloc=indices[cnt], finalsize=fsize, push_forward=push_forward)
 
         expected_answer = np.array(
             [20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46,
              47, 48, 49])
-        assert np.array_equal(zw.rootgroup['data'], expected_answer)
-        assert np.array_equal(zw.rootgroup['data2'], expected_answer)
-        assert np.array_equal(zw.rootgroup['time'], expected_answer)
+        assert np.array_equal(self.zw.rootgroup['data'], expected_answer)
+        assert np.array_equal(self.zw.rootgroup['data2'], expected_answer)
+        assert np.array_equal(self.zw.rootgroup['time'], expected_answer)
 
     def test_zarr_write_later(self):
         # for when data being written is after existing data
-        zw = ZarrWrite(None, desired_chunk_shape={'time': (10,), 'data2': (10,), 'data': (10,)})
-        zw.rootgroup = zarr.group()
-
         data_arr = np.arange(30, 50, 1)
         indices = _get_indices_dataset_notexist([data_arr])
 
         dataset = xr.Dataset({'data': (['time'], data_arr), 'data2': (['time'], data_arr)}, coords={'time': data_arr})
-        zw.write_to_zarr(dataset, None, dataloc=indices[0], finalsize=20)
+        self.zw.write_to_zarr(dataset, None, dataloc=indices[0], finalsize=20)
 
         data_arr2 = [np.array([50, 51, 52, 53, 54, 55, 56, 57, 58, 59]),
                      np.array([60, 61, 62, 63, 64, 65, 66, 67, 68, 69])]
-        indices, push_forward, total_push = _get_indices_dataset_exists(data_arr2, zw.rootgroup['time'])
+        indices, push_forward, total_push = _get_indices_dataset_exists(data_arr2, self.zw.rootgroup['time'])
 
         for cnt, arr in enumerate(data_arr2):
             if cnt == 0:
@@ -359,61 +340,55 @@ class TestZarr(unittest.TestCase):
             else:
                 fsize = None
             dataset2 = xr.Dataset({'data': (['time'], arr), 'data2': (['time'], arr)}, coords={'time': arr})
-            zw.write_to_zarr(dataset2, None, dataloc=indices[cnt], finalsize=fsize, push_forward=push_forward)
+            self.zw.write_to_zarr(dataset2, None, dataloc=indices[cnt], finalsize=fsize, push_forward=push_forward)
 
         expected_answer = np.array([30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49,
                                     50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69])
-        assert np.array_equal(zw.rootgroup['data'], expected_answer)
-        assert np.array_equal(zw.rootgroup['data2'], expected_answer)
-        assert np.array_equal(zw.rootgroup['time'], expected_answer)
+        assert np.array_equal(self.zw.rootgroup['data'], expected_answer)
+        assert np.array_equal(self.zw.rootgroup['data2'], expected_answer)
+        assert np.array_equal(self.zw.rootgroup['time'], expected_answer)
 
     def test_zarr_write_inbetween(self):
         # for when data is written inbetween existing data without overlap
-        zw = ZarrWrite(None, desired_chunk_shape={'time': (10,), 'data2': (10,), 'data': (10,)})
-        zw.rootgroup = zarr.group()
-
         data_arr = np.arange(10)
         indices = _get_indices_dataset_notexist([data_arr])
         dataset = xr.Dataset({'data': (['time'], data_arr), 'data2': (['time'], data_arr)}, coords={'time': data_arr})
-        zw.write_to_zarr(dataset, None, dataloc=indices[0], finalsize=10)
+        self.zw.write_to_zarr(dataset, None, dataloc=indices[0], finalsize=10)
 
         data_arr2 = np.array([20, 21, 22, 23, 24, 25, 26, 27, 28, 29])
-        indices, push_forward, total_push = _get_indices_dataset_exists([data_arr2], zw.rootgroup['time'])
+        indices, push_forward, total_push = _get_indices_dataset_exists([data_arr2], self.zw.rootgroup['time'])
         dataset2 = xr.Dataset({'data': (['time'], data_arr2), 'data2': (['time'], data_arr2)},
                               coords={'time': data_arr2})
-        zw.write_to_zarr(dataset2, None, dataloc=indices[0], finalsize=20, push_forward=push_forward)
+        self.zw.write_to_zarr(dataset2, None, dataloc=indices[0], finalsize=20, push_forward=push_forward)
 
         data_arr3 = np.array([10, 11, 12, 13, 14, 15, 16, 17, 18, 19])
-        indices, push_forward, total_push = _get_indices_dataset_exists([data_arr3], zw.rootgroup['time'])
+        indices, push_forward, total_push = _get_indices_dataset_exists([data_arr3], self.zw.rootgroup['time'])
         dataset3 = xr.Dataset({'data': (['time'], data_arr3), 'data2': (['time'], data_arr3)},
                               coords={'time': data_arr3})
-        zw.write_to_zarr(dataset3, None, dataloc=indices[0], finalsize=30, push_forward=push_forward)
+        self.zw.write_to_zarr(dataset3, None, dataloc=indices[0], finalsize=30, push_forward=push_forward)
 
         expected_answer = np.array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
                                     17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29])
-        assert np.array_equal(zw.rootgroup['data'], expected_answer)
-        assert np.array_equal(zw.rootgroup['data2'], expected_answer)
-        assert np.array_equal(zw.rootgroup['time'], expected_answer)
+        assert np.array_equal(self.zw.rootgroup['data'], expected_answer)
+        assert np.array_equal(self.zw.rootgroup['data2'], expected_answer)
+        assert np.array_equal(self.zw.rootgroup['time'], expected_answer)
 
     def test_zarr_write_merge(self):
         # merge is for when we have an existing rootgroup, but the new dataset has a variable that is not in the rootgroup
-        zw = ZarrWrite(None, desired_chunk_shape={'time': (10,), 'data2': (10,), 'data': (10,)})
-        zw.rootgroup = zarr.group()
-
         data_arr = np.arange(10)
         indices = _get_indices_dataset_notexist([data_arr])
 
         dataset = xr.Dataset({'data': (['time'], data_arr)}, coords={'time': data_arr})
-        zw.write_to_zarr(dataset, None, dataloc=indices[0], finalsize=10)
+        self.zw.write_to_zarr(dataset, None, dataloc=indices[0], finalsize=10)
 
-        indices, push_forward, total_push = _get_indices_dataset_exists([data_arr], zw.rootgroup['time'])
+        indices, push_forward, total_push = _get_indices_dataset_exists([data_arr], self.zw.rootgroup['time'])
 
         dataset = xr.Dataset({'data2': (['time'], data_arr)}, coords={'time': data_arr})
-        zw.write_to_zarr(dataset, None, dataloc=indices[0], finalsize=10)
+        self.zw.write_to_zarr(dataset, None, dataloc=indices[0], finalsize=10)
 
-        assert np.array_equal(zw.rootgroup['data'], data_arr)
-        assert np.array_equal(zw.rootgroup['data2'], data_arr)
-        assert np.array_equal(zw.rootgroup['time'], data_arr)
+        assert np.array_equal(self.zw.rootgroup['data'], data_arr)
+        assert np.array_equal(self.zw.rootgroup['data2'], data_arr)
+        assert np.array_equal(self.zw.rootgroup['time'], data_arr)
 
     def _return_basic_datasets(self, start: int, end: int):
         dataset_name = 'ping'
@@ -434,7 +409,7 @@ class TestZarr(unittest.TestCase):
     def test_zarr_backend_newdata(self):
         # write actual data to disk in the following tests.  This test illustrates writing data to a new data store
         dataset_name, datasets, dataset_time_arrays, attributes, sysid = self._return_basic_datasets(0, 3)
-        zarr_path, _ = self.zw.write(dataset_name, datasets, dataset_time_arrays, attributes, skip_dask=True,
+        zarr_path, _ = self.zb.write(dataset_name, datasets, dataset_time_arrays, attributes, skip_dask=True,
                                      sys_id=sysid)
         xdataset = reload_zarr_records(zarr_path, skip_dask=True)
 
@@ -448,11 +423,11 @@ class TestZarr(unittest.TestCase):
     def test_zarr_backend_overwrite(self):
         # write new data to disk
         dataset_name, datasets, dataset_time_arrays, attributes, sysid = self._return_basic_datasets(0, 4)
-        zarr_path, _ = self.zw.write(dataset_name, datasets, dataset_time_arrays, attributes, skip_dask=True,
+        zarr_path, _ = self.zb.write(dataset_name, datasets, dataset_time_arrays, attributes, skip_dask=True,
                                      sys_id=sysid)
         # now build data inside the existing data
         dataset_name, newdatasets, dataset_time_arrays, attributes, sysid = self._return_basic_datasets(1, 3)
-        zarr_path, _ = self.zw.write(dataset_name, newdatasets, dataset_time_arrays, attributes, skip_dask=True,
+        zarr_path, _ = self.zb.write(dataset_name, newdatasets, dataset_time_arrays, attributes, skip_dask=True,
                                      sys_id=sysid)
         xdataset = reload_zarr_records(zarr_path, skip_dask=True)
 
@@ -468,11 +443,11 @@ class TestZarr(unittest.TestCase):
     def test_zarr_backend_partial_before(self):
         # write new data to disk
         dataset_name, datasets, dataset_time_arrays, attributes, sysid = self._return_basic_datasets(3, 7)
-        zarr_path, _ = self.zw.write(dataset_name, datasets, dataset_time_arrays, attributes, skip_dask=True,
+        zarr_path, _ = self.zb.write(dataset_name, datasets, dataset_time_arrays, attributes, skip_dask=True,
                                      sys_id=sysid)
         # now build data partially before and inside the existing dataset
         dataset_name, newdatasets, dataset_time_arrays, attributes, sysid = self._return_basic_datasets(2, 4)
-        zarr_path, _ = self.zw.write(dataset_name, newdatasets, dataset_time_arrays, attributes, skip_dask=True,
+        zarr_path, _ = self.zb.write(dataset_name, newdatasets, dataset_time_arrays, attributes, skip_dask=True,
                                      sys_id=sysid)
         xdataset = reload_zarr_records(zarr_path, skip_dask=True)
 
@@ -488,11 +463,11 @@ class TestZarr(unittest.TestCase):
     def test_zarr_backend_partial_after(self):
         # write new data to disk
         dataset_name, datasets, dataset_time_arrays, attributes, sysid = self._return_basic_datasets(3, 7)
-        zarr_path, _ = self.zw.write(dataset_name, datasets, dataset_time_arrays, attributes, skip_dask=True,
+        zarr_path, _ = self.zb.write(dataset_name, datasets, dataset_time_arrays, attributes, skip_dask=True,
                                      sys_id=sysid)
         # now build data partially after and inside the existing dataset
         dataset_name, newdatasets, dataset_time_arrays, attributes, sysid = self._return_basic_datasets(6, 8)
-        zarr_path, _ = self.zw.write(dataset_name, newdatasets, dataset_time_arrays, attributes, skip_dask=True,
+        zarr_path, _ = self.zb.write(dataset_name, newdatasets, dataset_time_arrays, attributes, skip_dask=True,
                                      sys_id=sysid)
         xdataset = reload_zarr_records(zarr_path, skip_dask=True)
 
@@ -509,11 +484,11 @@ class TestZarr(unittest.TestCase):
         # write new data to disk
 
         dataset_name, datasets, dataset_time_arrays, attributes, sysid = self._return_basic_datasets(3, 7)
-        zarr_path, _ = self.zw.write(dataset_name, datasets, dataset_time_arrays, attributes, skip_dask=True,
+        zarr_path, _ = self.zb.write(dataset_name, datasets, dataset_time_arrays, attributes, skip_dask=True,
                                      sys_id=sysid)
         # now build data fully before the existing data
         dataset_name, newdatasets, dataset_time_arrays, attributes, sysid = self._return_basic_datasets(1, 3)
-        zarr_path, _ = self.zw.write(dataset_name, newdatasets, dataset_time_arrays, attributes, skip_dask=True,
+        zarr_path, _ = self.zb.write(dataset_name, newdatasets, dataset_time_arrays, attributes, skip_dask=True,
                                      sys_id=sysid)
         xdataset = reload_zarr_records(zarr_path, skip_dask=True)
 
@@ -530,11 +505,11 @@ class TestZarr(unittest.TestCase):
     def test_zarr_backend_fully_after(self):
         # write new data to disk
         dataset_name, datasets, dataset_time_arrays, attributes, sysid = self._return_basic_datasets(3, 7)
-        zarr_path, _ = self.zw.write(dataset_name, datasets, dataset_time_arrays, attributes, skip_dask=True,
+        zarr_path, _ = self.zb.write(dataset_name, datasets, dataset_time_arrays, attributes, skip_dask=True,
                                      sys_id=sysid)
         # now build data fully before the existing data
         dataset_name, newdatasets, dataset_time_arrays, attributes, sysid = self._return_basic_datasets(7, 9)
-        zarr_path, _ = self.zw.write(dataset_name, newdatasets, dataset_time_arrays, attributes, skip_dask=True,
+        zarr_path, _ = self.zb.write(dataset_name, newdatasets, dataset_time_arrays, attributes, skip_dask=True,
                                      sys_id=sysid)
         xdataset = reload_zarr_records(zarr_path, skip_dask=True)
 
@@ -550,17 +525,17 @@ class TestZarr(unittest.TestCase):
     def test_zarr_backend_newdata_inside(self):
         # write new data to disk
         dataset_name, firstdatasets, dataset_time_arrays, attributes, sysid = self._return_basic_datasets(0, 1)
-        zarr_path, _ = self.zw.write(dataset_name, firstdatasets, dataset_time_arrays, attributes, skip_dask=True,
+        zarr_path, _ = self.zb.write(dataset_name, firstdatasets, dataset_time_arrays, attributes, skip_dask=True,
                                      sys_id=sysid)
 
         # write next data to disk, with a gap between it and existing data
         dataset_name, thirddatasets, dataset_time_arrays, attributes, sysid = self._return_basic_datasets(2, 3)
-        zarr_path, _ = self.zw.write(dataset_name, thirddatasets, dataset_time_arrays, attributes, skip_dask=True,
+        zarr_path, _ = self.zb.write(dataset_name, thirddatasets, dataset_time_arrays, attributes, skip_dask=True,
                                      sys_id=sysid)
 
         # now write inbetween
         dataset_name, seconddatasets, dataset_time_arrays, attributes, sysid = self._return_basic_datasets(1, 2)
-        zarr_path, _ = self.zw.write(dataset_name, seconddatasets, dataset_time_arrays, attributes, skip_dask=True,
+        zarr_path, _ = self.zb.write(dataset_name, seconddatasets, dataset_time_arrays, attributes, skip_dask=True,
                                      sys_id=sysid)
         xdataset = reload_zarr_records(zarr_path, skip_dask=True)
 
@@ -575,22 +550,22 @@ class TestZarr(unittest.TestCase):
     def test_zarr_backend_alternating(self):
         # write new data to disk
         dataset_name, firstdatasets, dataset_time_arrays, attributes, sysid = self._return_basic_datasets(0, 1)
-        zarr_path, _ = self.zw.write(dataset_name, firstdatasets, dataset_time_arrays, attributes, skip_dask=True,
+        zarr_path, _ = self.zb.write(dataset_name, firstdatasets, dataset_time_arrays, attributes, skip_dask=True,
                                      sys_id=sysid)
 
         # write next data to disk, with a gap between it and existing data
         dataset_name, thirddatasets, dataset_time_arrays, attributes, sysid = self._return_basic_datasets(2, 3)
-        zarr_path, _ = self.zw.write(dataset_name, thirddatasets, dataset_time_arrays, attributes, skip_dask=True,
+        zarr_path, _ = self.zb.write(dataset_name, thirddatasets, dataset_time_arrays, attributes, skip_dask=True,
                                      sys_id=sysid)
 
         # now write inbetween
         dataset_name, seconddatasets, dataset_time_arrays, attributes, sysid = self._return_basic_datasets(1, 2)
-        zarr_path, _ = self.zw.write(dataset_name, seconddatasets, dataset_time_arrays, attributes, skip_dask=True,
+        zarr_path, _ = self.zb.write(dataset_name, seconddatasets, dataset_time_arrays, attributes, skip_dask=True,
                                      sys_id=sysid)
 
         # write new data at the end
         dataset_name, fourthdatasets, dataset_time_arrays, attributes, sysid = self._return_basic_datasets(3, 4)
-        zarr_path, _ = self.zw.write(dataset_name, fourthdatasets, dataset_time_arrays, attributes, skip_dask=True,
+        zarr_path, _ = self.zb.write(dataset_name, fourthdatasets, dataset_time_arrays, attributes, skip_dask=True,
                                      sys_id=sysid)
         xdataset = reload_zarr_records(zarr_path, skip_dask=True)
 
@@ -605,17 +580,17 @@ class TestZarr(unittest.TestCase):
     def test_zarr_backend_write_backwards(self):
         # write new data to disk
         dataset_name, thirddatasets, dataset_time_arrays, attributes, sysid = self._return_basic_datasets(2, 3)
-        zarr_path, _ = self.zw.write(dataset_name, thirddatasets, dataset_time_arrays, attributes, skip_dask=True,
+        zarr_path, _ = self.zb.write(dataset_name, thirddatasets, dataset_time_arrays, attributes, skip_dask=True,
                                      sys_id=sysid)
 
         # now write data prior
         dataset_name, seconddatasets, dataset_time_arrays, attributes, sysid = self._return_basic_datasets(1, 2)
-        zarr_path, _ = self.zw.write(dataset_name, seconddatasets, dataset_time_arrays, attributes, skip_dask=True,
+        zarr_path, _ = self.zb.write(dataset_name, seconddatasets, dataset_time_arrays, attributes, skip_dask=True,
                                      sys_id=sysid)
 
         # now write prior to that entry
         dataset_name, firstdatasets, dataset_time_arrays, attributes, sysid = self._return_basic_datasets(0, 1)
-        zarr_path, _ = self.zw.write(dataset_name, firstdatasets, dataset_time_arrays, attributes, skip_dask=True,
+        zarr_path, _ = self.zb.write(dataset_name, firstdatasets, dataset_time_arrays, attributes, skip_dask=True,
                                      sys_id=sysid)
         xdataset = reload_zarr_records(zarr_path, skip_dask=True)
 
@@ -631,17 +606,17 @@ class TestZarr(unittest.TestCase):
     def test_zarr_backend_multiple_concatenations(self):
         # write new data to disk
         dataset_name, firstdatasets, dataset_time_arrays, attributes, sysid = self._return_basic_datasets(0, 1)
-        zarr_path, _ = self.zw.write(dataset_name, firstdatasets, dataset_time_arrays, attributes, skip_dask=True,
+        zarr_path, _ = self.zb.write(dataset_name, firstdatasets, dataset_time_arrays, attributes, skip_dask=True,
                                      sys_id=sysid)
 
         # now write data after
         dataset_name, seconddatasets, dataset_time_arrays, attributes, sysid = self._return_basic_datasets(1, 2)
-        zarr_path, _ = self.zw.write(dataset_name, seconddatasets, dataset_time_arrays, attributes, skip_dask=True,
+        zarr_path, _ = self.zb.write(dataset_name, seconddatasets, dataset_time_arrays, attributes, skip_dask=True,
                                      sys_id=sysid)
 
         # now write after that entry
         dataset_name, thirddatasets, dataset_time_arrays, attributes, sysid = self._return_basic_datasets(2, 3)
-        zarr_path, _ = self.zw.write(dataset_name, thirddatasets, dataset_time_arrays, attributes, skip_dask=True,
+        zarr_path, _ = self.zb.write(dataset_name, thirddatasets, dataset_time_arrays, attributes, skip_dask=True,
                                      sys_id=sysid)
         xdataset = reload_zarr_records(zarr_path, skip_dask=True)
 
@@ -657,17 +632,17 @@ class TestZarr(unittest.TestCase):
     def test_zarr_backend_overlap_inside(self):
         # write new data to disk
         dataset_name, firstdatasets, dataset_time_arrays, attributes, sysid = self._return_basic_datasets(0, 2)
-        zarr_path, _ = self.zw.write(dataset_name, firstdatasets, dataset_time_arrays, attributes, skip_dask=True,
+        zarr_path, _ = self.zb.write(dataset_name, firstdatasets, dataset_time_arrays, attributes, skip_dask=True,
                                      sys_id=sysid)
 
         # now write data after
         dataset_name, thirddatasets, dataset_time_arrays, attributes, sysid = self._return_basic_datasets(3, 4)
-        zarr_path, _ = self.zw.write(dataset_name, thirddatasets, dataset_time_arrays, attributes, skip_dask=True,
+        zarr_path, _ = self.zb.write(dataset_name, thirddatasets, dataset_time_arrays, attributes, skip_dask=True,
                                      sys_id=sysid)
 
         # now write prior to that entry that overlaps the first
         dataset_name, seconddatasets, dataset_time_arrays, attributes, sysid = self._return_basic_datasets(1, 3)
-        zarr_path, _ = self.zw.write(dataset_name, seconddatasets, dataset_time_arrays, attributes, skip_dask=True,
+        zarr_path, _ = self.zb.write(dataset_name, seconddatasets, dataset_time_arrays, attributes, skip_dask=True,
                                      sys_id=sysid)
         xdataset = reload_zarr_records(zarr_path, skip_dask=True)
 
@@ -682,22 +657,22 @@ class TestZarr(unittest.TestCase):
     def test_zarr_backend_multiple_overlap_inside(self):
         # write new data to disk
         dataset_name, firstdatasets, dataset_time_arrays, attributes, sysid = self._return_basic_datasets(0, 2)
-        zarr_path, _ = self.zw.write(dataset_name, firstdatasets, dataset_time_arrays, attributes, skip_dask=True,
+        zarr_path, _ = self.zb.write(dataset_name, firstdatasets, dataset_time_arrays, attributes, skip_dask=True,
                                      sys_id=sysid)
 
         # now write data after
         dataset_name, fourthdatasets, dataset_time_arrays, attributes, sysid = self._return_basic_datasets(4, 6)
-        zarr_path, _ = self.zw.write(dataset_name, fourthdatasets, dataset_time_arrays, attributes, skip_dask=True,
+        zarr_path, _ = self.zb.write(dataset_name, fourthdatasets, dataset_time_arrays, attributes, skip_dask=True,
                                      sys_id=sysid)
 
         # now write prior to that entry that overlaps the second
         dataset_name, thirddatasets, dataset_time_arrays, attributes, sysid = self._return_basic_datasets(3, 5)
-        zarr_path, _ = self.zw.write(dataset_name, thirddatasets, dataset_time_arrays, attributes, skip_dask=True,
+        zarr_path, _ = self.zb.write(dataset_name, thirddatasets, dataset_time_arrays, attributes, skip_dask=True,
                                      sys_id=sysid)
 
         # now write prior to that entry that overlaps the first
         dataset_name, seconddatasets, dataset_time_arrays, attributes, sysid = self._return_basic_datasets(1, 3)
-        zarr_path, _ = self.zw.write(dataset_name, seconddatasets, dataset_time_arrays, attributes, skip_dask=True,
+        zarr_path, _ = self.zb.write(dataset_name, seconddatasets, dataset_time_arrays, attributes, skip_dask=True,
                                      sys_id=sysid)
         xdataset = reload_zarr_records(zarr_path, skip_dask=True)
 

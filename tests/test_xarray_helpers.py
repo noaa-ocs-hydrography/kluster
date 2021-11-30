@@ -8,7 +8,7 @@ from pytest import approx
 from HSTB.kluster.xarray_helpers import compare_and_find_gaps, get_beamwise_interpolation, return_chunk_slices, \
     stack_nan_array, reform_nan_array, clear_data_vars_from_dataset, interp_across_chunks, slice_xarray_by_dim, \
     combine_arrays_to_dataset, combine_xr_attributes
-from test_datasets import RealFqpr, load_dataset
+from tests.test_datasets import RealFqpr, load_dataset
 
 
 class TestXArrayHelper(unittest.TestCase):

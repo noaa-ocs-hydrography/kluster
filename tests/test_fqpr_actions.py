@@ -1,5 +1,7 @@
 import os
+import shutil
 import unittest
+import tempfile
 
 from HSTB.kluster import fqpr_generation
 
@@ -12,8 +14,13 @@ class TestFqprActions(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         cls.testfile = os.path.join(os.path.dirname(__file__), 'resources', '0009_20170523_181119_FA2806.all')
-        cls.expected_output = os.path.join(os.path.dirname(cls.testfile), 'converted')
+        cls.expected_output = os.path.join(tempfile.tempdir, 'TestFqprAction')
+        os.mkdir(cls.expected_output)
         cls.testsv = os.path.join(os.path.dirname(cls.testfile), '2020_036_182635.svp')
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        shutil.rmtree(cls.expected_output)
 
     def test_build_multibeam_action(self):
         act = build_multibeam_action(self.expected_output, [self.testfile], settings={'parallel_write': False})

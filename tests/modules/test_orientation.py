@@ -1,16 +1,16 @@
 import unittest
 import numpy as np
 import pytest
-from xarray import load_dataset
 
 from HSTB.kluster.modules.orientation import build_orientation_vectors
-from modules import expected_tx_vector, expected_rx_vector
+from tests.test_datasets import RealFqpr, load_dataset
+from tests.modules.module_test_arrays import expected_tx_vector, expected_rx_vector
 
 
 class TestOrientation(unittest.TestCase):
 
     def test_orientation_module(self):
-        dset = load_dataset('009_20170523_12119_FA2806.all') #load_dataset(RealFqpr())
+        dset = load_dataset(RealFqpr())
         raw_attitude = dset.raw_att
         # expand_dims required to maintain the time dimension metadata when you select only one value
         multibeam = dset.raw_ping[0].isel(time=0).expand_dims('time')

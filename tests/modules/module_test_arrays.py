@@ -1,6 +1,7 @@
 import numpy as np
 
 # tx vector is a 3d vector representing the transmitter orientation for each beam
+
 tx_vector = np.array([0.6136555921172974, -0.7895255928982701, 0.008726535498373935])
 beamwise_tx_vector = np.repeat(tx_vector[:, np.newaxis], 400, axis=1).T
 expected_tx_vector = np.array([beamwise_tx_vector])

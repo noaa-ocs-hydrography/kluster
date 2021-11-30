@@ -1,17 +1,18 @@
 import unittest
 import xarray as xr
-from xarray import load_dataset
+import numpy as np
 
 from HSTB.kluster.modules.tpu import calculate_tpu
+from tests.test_datasets import load_dataset, RealFqpr
 
-from modules import expected_corrected_beam_angles, expected_alongtrack, expected_depth, \
+from tests.modules.module_test_arrays import expected_corrected_beam_angles, expected_alongtrack, expected_depth, \
     expected_thu, expected_tvu
 
 
 class TestTPU(unittest.TestCase):
 
     def test_tpu(self):
-        dset = load_dataset('009_20170523_12119_FA2806.all')
+        dset = load_dataset(RealFqpr())
         multibeam = dset.raw_ping[0].isel(time=0).expand_dims('time')
         qf = multibeam.qualityfactor
         tpu = dset.return_tpu_parameters(list(dset.xyzrph['waterline'].keys())[0])
