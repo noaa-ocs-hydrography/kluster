@@ -4,7 +4,7 @@ from xarray import load_dataset
 
 from HSTB.kluster.modules.tpu import calculate_tpu
 
-from HSTB.tests.modules.module_test_arrays import expected_corrected_beam_angles, expected_alongtrack, expected_depth, \
+from modules import expected_corrected_beam_angles, expected_alongtrack, expected_depth, \
     expected_thu, expected_tvu
 
 

@@ -9,8 +9,8 @@ from xarray import load_dataset
 import xarray as xr
 import numpy as np
 
-from HSTB.tests.modules.module_test_arrays import expected_alongtrack, expected_acrosstrack, expected_depth, \
-    expected_georef_x, expected_georef_y, expected_georef_z, expected_corrected_beam_angles, expected_thu, expected_tvu
+from modules import expected_alongtrack, expected_acrosstrack, expected_depth, \
+    expected_georef_x, expected_georef_y, expected_georef_z
 
 
 class TestGeoReference(unittest.TestCase):

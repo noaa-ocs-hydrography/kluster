@@ -6,7 +6,7 @@ from xarray import load_dataset
 import xarray as xr
 
 import numpy as np
-from HSTB.tests.modules.module_test_arrays import expected_beam_azimuth, expected_corrected_beam_angles, \
+from modules import expected_beam_azimuth, expected_corrected_beam_angles, \
     expected_alongtrack, expected_acrosstrack, expected_depth
 
 

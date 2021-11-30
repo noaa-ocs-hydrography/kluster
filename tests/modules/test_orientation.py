@@ -4,7 +4,7 @@ import pytest
 from xarray import load_dataset
 
 from HSTB.kluster.modules.orientation import build_orientation_vectors
-from HSTB.tests.modules.module_test_arrays import expected_tx_vector, expected_rx_vector
+from modules import expected_tx_vector, expected_rx_vector
 
 
 class TestOrientation(unittest.TestCase):

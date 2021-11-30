@@ -1,20 +1,17 @@
 import unittest
-from collections import Iterator
 from pprint import pprint
-from typing import ContextManager
 
 import pytest
 import xarray as xr
 from HSTB.kluster.modules.beampointingvector import build_beam_pointing_vectors
 from xarray import load_dataset
 import numpy as np
-import HSTB.tests.resources
 
-from HSTB.tests.modules.module_test_arrays import expected_tx_vector, expected_rx_vector, expected_beam_azimuth, \
+from modules import expected_tx_vector, expected_rx_vector, expected_beam_azimuth, \
     expected_corrected_beam_angles
 import importlib.resources
 
-from HSTB.tests import resources # relative-import the *package* containing the templates
+
 # or for a file-like stream:
 #template = pkg_resources.open_text(resources, 'temp_file')
 
