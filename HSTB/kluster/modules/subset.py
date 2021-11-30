@@ -571,7 +571,7 @@ def filter_subset_by_detection(ping_dataset: xr.Dataset):
 
     # rejected soundings are where detectioninfo=2
     dinfo = ping_dataset.detectioninfo
-    valid_detections = dinfo != 2
+    valid_detections = dinfo != kluster_variables.rejected_flag
     ping_dataset = ping_dataset.isel(sounding=valid_detections)
     ping_dataset = ping_dataset.drop_vars('detectioninfo')
     return ping_dataset

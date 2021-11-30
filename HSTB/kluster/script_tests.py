@@ -264,6 +264,8 @@ if self.client is None:  # small datasets benefit from just running it without d
 systems = self.multibeam.return_system_time_indexed_array(subset_time=subset_time)
 
 for s_cnt, system in enumerate(systems):
+    if system is None:  # get here if one of the heads is disabled (set to None)
+        continue
     ra = self.multibeam.raw_ping[s_cnt]
     sys_ident = ra.system_identifier
     self.logger.info('Operating on system serial number = {}'.format(sys_ident))

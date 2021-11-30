@@ -2148,6 +2148,9 @@ class BatchRead(ZarrBackend):
         resulting_systems = []
         prefixes = self.return_xyz_prefixes_for_systems()
         for cnt, ra in enumerate(self.raw_ping):
+            if ra is None:  # get here if we turn one of the heads off but just setting the dataset to None
+                resulting_systems.append(None)
+                continue
             txrx = prefixes[cnt]
             tstmps = self.return_xyzrph_sorted_timestamps(txrx[0] + '_x')
             resulting_tstmps = []

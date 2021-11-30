@@ -12,6 +12,7 @@ from HSTB.drivers.kmall import kmall
 from HSTB.kluster.xarray_conversion import BatchRead
 from HSTB.kluster.fqpr_generation import Fqpr
 from HSTB.kluster.fqpr_helpers import seconds_to_formatted_string, return_files_from_path
+from HSTB.kluster.dask_helpers import dask_find_or_start_client
 from HSTB.kluster.logging_conf import return_log_name
 from bathygrid.convenience import create_grid, load_grid, BathyGrid
 from HSTB.kluster import kluster_variables
@@ -775,7 +776,7 @@ def return_processed_data_folders(converted_folder: str):
     return final_paths
 
 
-def reprocess_sounding_selection(fqpr_inst: Fqpr, new_xyzrph: dict = None, subset_time: list = None,
+def reprocess_sounding_selection(fqpr_inst: Fqpr, new_xyzrph: dict = None, subset_time: list = None, return_soundings: bool = False,
                                  georeference: bool = False, turn_off_dask: bool = True, turn_dask_back_on: bool = False,
                                  override_datum: str = None, override_vertical_reference: str = None):
     """
@@ -804,6 +805,8 @@ def reprocess_sounding_selection(fqpr_inst: Fqpr, new_xyzrph: dict = None, subse
         ex: subset_time=[1531317999, 1531321000] means only process times that are from 1531317999 to 1531321000\n
         ex: subset_time=[[1531317999, 1531318885], [1531318886, 1531321000]] means only process times that are\n
               from either 1531317999 to 1531318885 or 1531318886 to 1531321000
+    return_soundings
+        if True, will compute and return the soundings as well
     georeference
         if True, will georeference the soundings, else will return the vessel coordinate system aligned sv corrected
         offsets (forward, starboard, down)
@@ -862,26 +865,30 @@ def reprocess_sounding_selection(fqpr_inst: Fqpr, new_xyzrph: dict = None, subse
     else:
         data_store = 'sv_corr'
 
-    soundings = [[], [], [], []]
-    for sector in fqpr_inst.intermediate_dat:
-        if data_store in fqpr_inst.intermediate_dat[sector]:
-            for tstmp in fqpr_inst.intermediate_dat[sector][data_store]:
-                dat = fqpr_inst.intermediate_dat[sector][data_store][tstmp]
-                for d in dat:
-                    x_vals = np.ravel(d[0][0])
-                    y_vals = np.ravel(d[0][1])
-                    z_vals = np.ravel(d[0][2])
-                    idx = ~np.isnan(x_vals)
-                    soundings[0].append(x_vals[idx])
-                    soundings[1].append(y_vals[idx])
-                    soundings[2].append(z_vals[idx])
-                    soundings[3].append([tstmp] * len(z_vals[idx]))
-        else:
-            print('No soundings found for {}'.format(sector))
+    if return_soundings:
+        soundings = [[], [], [], []]
+        for sector in fqpr_inst.intermediate_dat:
+            if data_store in fqpr_inst.intermediate_dat[sector]:
+                for tstmp in fqpr_inst.intermediate_dat[sector][data_store]:
+                    dat = fqpr_inst.intermediate_dat[sector][data_store][tstmp]
+                    for d in dat:
+                        x_vals = np.ravel(d[0][0])
+                        y_vals = np.ravel(d[0][1])
+                        z_vals = np.ravel(d[0][2])
+                        idx = ~np.isnan(x_vals)
+                        soundings[0].append(x_vals[idx])
+                        soundings[1].append(y_vals[idx])
+                        soundings[2].append(z_vals[idx])
+                        soundings[3].append([tstmp] * len(z_vals[idx]))
+            else:
+                print('No soundings found for {}'.format(sector))
 
-    soundings = [np.concatenate(s, axis=0) for s in soundings]
+        soundings = [np.concatenate(s, axis=0) for s in soundings]
+    else:
+        soundings = None
     if turn_dask_back_on and fqpr_inst.client is None:
-        fqpr_inst = reload_data(os.path.dirname(fqpr_inst.multibeam.final_paths['ping'][0]))
+        fqpr_inst.client = dask_find_or_start_client(address=fqpr_inst.multibeam.address)
+        fqpr_inst.multibeam.client = fqpr_inst.client
     return fqpr_inst, soundings
 
 

@@ -1,8 +1,11 @@
 import numpy as np
+from copy import deepcopy
+from time import perf_counter
 
 from bathygrid.convenience import create_grid
-from HSTB.kluster.kluster_variables import default_roll_error, default_pitch_error, default_heading_error, \
-    default_x_offset_error, default_y_offset_error
+from HSTB.kluster.fqpr_convenience import reprocess_sounding_selection
+from HSTB.kluster import kluster_variables
+from HSTB.kluster.fqpr_helpers import seconds_to_formatted_string
 
 
 class PatchTest:
@@ -17,7 +20,7 @@ class PatchTest:
     The six parameters are roll, pitch, heading, x translation, y translation and horizontal scale factor.
     """
 
-    def __init__(self, fqpr, azimuth: float = None, initial_parameters: dict = None):
+    def __init__(self, fqpr, azimuth: float, sonar_head_index: int = None):
         """
         Parameters
         ----------
@@ -25,25 +28,34 @@ class PatchTest:
             'Fully processed ping record', Kluster processed FQPR instance subset to just the two lines of interest
         azimuth
             azimuth of one of the lines that we will use to rotate all points
-        initial_parameters
-            either a dict of the initial parameters or None, which will use zeros for the start values and default
-            standard uncertainties
+        sonar_head_index
+            only used with dual head systems, 0 = port head, 1 = starboard head
         """
 
         self.fqpr = fqpr
         self.azimuth = azimuth
-        self._default_parameters = {'roll': 0.0, 'roll_unc': default_roll_error, 'pitch': 0.0, 'pitch_unc': default_pitch_error,
-                                    'heading': 0.0, 'heading_unc': default_heading_error, 'x_unc': default_x_offset_error,
-                                    'y_unc': default_y_offset_error, 'h_scale_unc': 0.01}
-        if initial_parameters is None:
-            self.initial_parameters = self._default_parameters
+        if self.fqpr.multibeam.is_dual_head():
+            if sonar_head_index is None:
+                raise ValueError('PatchTest: Sonar head index must be provided if the sonar is a dual head system')
+            self.sonar_head_index = sonar_head_index
+            if sonar_head_index == 0:
+                self.fqpr.multibeam.raw_ping[1] = None
+                self.xyzrph_key = 'port_'
+            elif sonar_head_index == 1:
+                self.fqpr.multibeam.raw_ping[0] = None
+                self.xyzrph_key = 'stbd_'
+            else:
+                raise ValueError('PatchTest: Sonar head index must be either 0 or 1 for selecting the head to use')
         else:
-            missing_keys = [x for x in self._default_parameters.keys() if x not in initial_parameters.keys()]
-            if missing_keys:
-                raise ValueError('The following keys are not in the provided parameters dict, they must be included: {}'.format(missing_keys))
-            self.initial_parameters = initial_parameters
+            self.xyzrph_key = ''
+            self.sonar_head_index = 0
 
-        self.multibeam_files = None
+        self.xyzrph_timestamp = None
+        self.initial_parameters = None
+        self.current_parameters = None
+        self._convert_parameters()
+
+        self.multibeam_files = self.fqpr.multibeam.raw_ping[0].multibeam_files
         self.multibeam_indexes = None
         self.points = None
         self.min_x = None
@@ -57,13 +69,30 @@ class PatchTest:
         """
         Run the patch test procedure, saving the adjustments to the result attribute.
         """
+        print('Initializing patch test for lines {}'.format(list(self.multibeam_files.keys())))
+        starttime = perf_counter()
+        self._build_initial_points()
+        endtime = perf_counter()
+        print('Initialization complete: {}'.format(seconds_to_formatted_string(int(endtime - starttime))))
+        for i in range(5):
+            print('****Patch run {} start****'.format(i + 1))
+            starttime = perf_counter()
+            self._generate_rotated_points()
+            self._grid()
+            self._build_patch_test_values()
+            self._compute_least_squares()
+            self._reprocess_points()
+            endtime = perf_counter()
+            print('****Patch run {} complete: {}****'.format(i + 1, seconds_to_formatted_string(int(endtime - starttime))))
 
-        self._generate_rotated_points()
-        self._grid()
-        self._build_patch_test_values()
-        self._compute_least_squares()
+            # break here for troubleshooting
+            break
 
     def display_results(self):
+        """
+        Print the current adjustment value derived in the last least squares operation
+        """
+
         print('Patch test results')
         if self.fqpr is not None and self.result is not None:
             print('Lines: {}'.format(list(self.fqpr.multibeam.raw_ping[0].multibeam_files.keys())))
@@ -73,6 +102,152 @@ class PatchTest:
             print('x_translation: {}'.format([x for x in self.result[3]]))
             print('y_translation: {}'.format([x for x in self.result[4]]))
             print('horizontal scale factor: {}'.format([x for x in self.result[5]]))
+
+    def _convert_parameters(self):
+        """
+        All the current offsets and angles are stored in the xyzrph dict attribute in the Fqpr object.  Here we log the
+        current offsets/angles to the initial_parameters attribute and a copy of those same parameters to the current_parameters
+        attribute.  The current_parameters will be updated on each iteration of reprocessing
+        """
+
+        initial_parameters = self.fqpr.multibeam.xyzrph
+        self.xyzrph_timestamp = list(initial_parameters['roll_sensor_error'].keys())[0]
+        self.initial_parameters = {'roll': float(initial_parameters['rx_' + self.xyzrph_key + 'r'][self.xyzrph_timestamp]),
+                                   'roll_unc': float(initial_parameters['roll_sensor_error'][self.xyzrph_timestamp]),
+                                   'pitch': float(initial_parameters['rx_' + self.xyzrph_key + 'p'][self.xyzrph_timestamp]),
+                                   'pitch_unc': float(initial_parameters['pitch_sensor_error'][self.xyzrph_timestamp]),
+                                   'heading': float(initial_parameters['rx_' + self.xyzrph_key + 'h'][self.xyzrph_timestamp]),
+                                   'heading_unc': float(initial_parameters['heading_sensor_error'][self.xyzrph_timestamp]),
+                                   'x_offset': float(initial_parameters['rx_' + self.xyzrph_key + 'x'][self.xyzrph_timestamp]),
+                                   'x_unc': float(initial_parameters['x_offset_error'][self.xyzrph_timestamp]),
+                                   'y_offset': float(initial_parameters['rx_' + self.xyzrph_key + 'y'][self.xyzrph_timestamp]),
+                                   'y_unc': float(initial_parameters['y_offset_error'][self.xyzrph_timestamp]),
+                                   'h_scale_unc': 0.01}
+        self.current_parameters = deepcopy(self.initial_parameters)
+
+    def _adjust_original_xyzrph(self, roll, pitch, heading, x_offset, y_offset):
+        """
+        Add the provided values to the xyzrph dictionary that the Fqpr uses during reprocessing.  Also cache the new
+        values in the current_parameters dictionary object.
+
+        Parameters
+        ----------
+        roll
+            roll adjustment value in degrees
+        pitch
+            pitch adjustment value in degrees
+        heading
+            heading adjustment value in degrees
+        x_offset
+            x offset adjustment value in meters
+        y_offset
+            y offset adjustment value in meters
+        """
+
+        tstmp = list(self.fqpr.multibeam.xyzrph['roll_sensor_error'].keys())[0]
+        self.fqpr.multibeam.xyzrph['rx_' + self.xyzrph_key + 'r'][tstmp] += roll
+        self.current_parameters['roll'] += roll
+        self.fqpr.multibeam.xyzrph['rx_' + self.xyzrph_key + 'p'][tstmp] += pitch
+        self.current_parameters['pitch'] += pitch
+        self.fqpr.multibeam.xyzrph['rx_' + self.xyzrph_key + 'h'][tstmp] += heading
+        self.current_parameters['heading'] += heading
+        self.fqpr.multibeam.xyzrph['rx_' + self.xyzrph_key + 'x'][tstmp] += x_offset
+        self.current_parameters['x_offset'] += x_offset
+        self.fqpr.multibeam.xyzrph['rx_' + self.xyzrph_key + 'y'][tstmp] += y_offset
+        self.current_parameters['y_offset'] += y_offset
+
+    def _build_initial_points(self):
+        """
+        The first run, we can pull the points from the currently loaded Fqpr object and store them in the points
+        numpy structured array.  We keep a multibeam_indexes lookup so that we can know which points go with which line
+        file.  This is important later in constructing the L1 matrix.
+        """
+
+        curr_point_index = 0
+        finalx = None
+        finaly = None
+        finalz = None
+        self.points = None
+        self.multibeam_indexes = {}
+        for mfilename in self.multibeam_files.keys():
+            data = self.fqpr.subset_variables_by_line(['x', 'y', 'z'], mfilename, filter_by_detection=True)[mfilename]
+            x, y, z = data.x.values, data.y.values, data.z.values
+            self.multibeam_indexes[mfilename] = [curr_point_index, curr_point_index + x.size]
+            curr_point_index = curr_point_index + x.size
+            if finalx is None:
+                finalx = x
+                finaly = y
+                finalz = z
+            else:
+                finalx = np.concatenate([finalx, x])
+                finaly = np.concatenate([finaly, y])
+                finalz = np.concatenate([finalz, z])
+        if finalx.any():
+            dtyp = [('x', np.float64), ('y', np.float64), ('z', np.float32)]
+            self.points = np.empty(len(finalx), dtype=dtyp)
+            self.points['x'] = finalx
+            self.points['y'] = finaly
+            self.points['z'] = finalz
+
+    def _reprocess_points(self):
+        """
+        Add the latest adjustment values to the Fqpr xyzrph record and reprocess with those values.  We reprocess using
+        the in-memory workflow in Kluster, which means the results of the reprocessing (new georeferenced values) are not
+        saved to disk, they are kept in the intermediate_data lookup.  Pull out those values and clear the computed Kluster
+        result.  The new points are kept in the points numpy structured array for the next least squares operation.
+        """
+
+        roll = np.round(float(np.mean(self.result[0])), 4)
+        pitch = np.round(float(np.mean(self.result[1])), 4)
+        heading = np.round(float(np.mean(self.result[2])), 4)
+        x_translation = np.round(float(np.mean(self.result[3])), 4)
+        y_translation = np.round(float(np.mean(self.result[4])), 4)
+        print('reprocessing with adjustments: roll={}, pitch={}, heading={}, x_translation={}, y_translation={}'.format(roll, pitch, heading, x_translation, y_translation))
+        self._adjust_original_xyzrph(roll, pitch, heading, x_translation, y_translation)
+        newfq, _ = reprocess_sounding_selection(self.fqpr, georeference=True, turn_off_dask=False)
+
+        curr_point_index = 0
+        finalx = None
+        finaly = None
+        finalz = None
+        self.points = None
+        cached_data = None
+        ra = self.fqpr.multibeam.raw_ping[self.sonar_head_index]
+        for sector in newfq.intermediate_dat:
+            if 'georef' in newfq.intermediate_dat[sector]:
+                for tstmp in newfq.intermediate_dat[sector]['georef']:
+                    # there should only be one cached_data in intermediate_dat, no need to break here
+                    cached_data = newfq.intermediate_dat[sector]['georef'][tstmp]
+        if cached_data is None:
+            raise ValueError('PatchTest: reprocessing failed, no cached data found')
+
+        mfiles = self.fqpr.return_line_dict()
+        good_soundings = ra.detectioninfo != kluster_variables.rejected_flag
+        for linename in mfiles.keys():
+            starttime, endtime = mfiles[linename][0], mfiles[linename][1]
+            # valid_index would be the boolean mask for the line we are currently looking at
+            valid_index = np.logical_and(ra.time >= float(starttime), ra.time <= float(endtime))
+            valid_goodsoundings = good_soundings[valid_index, :]
+            x = np.concatenate([c[0][0] for c in cached_data])[valid_index, :][valid_goodsoundings]
+            y = np.concatenate([c[0][1] for c in cached_data])[valid_index, :][valid_goodsoundings]
+            z = np.concatenate([c[0][2] for c in cached_data])[valid_index, :][valid_goodsoundings]
+            self.multibeam_indexes[linename] = [curr_point_index, curr_point_index + x.size]
+            curr_point_index = curr_point_index + x.size
+            if finalx is None:
+                finalx = np.ravel(x)
+                finaly = np.ravel(y)
+                finalz = np.ravel(z)
+            else:
+                finalx = np.concatenate([finalx, x])
+                finaly = np.concatenate([finaly, y])
+                finalz = np.concatenate([finalz, z])
+        self.fqpr.intermediate_dat = {}
+        if finalx.any():
+            dtyp = [('x', np.float64), ('y', np.float64), ('z', np.float32)]
+            self.points = np.empty(len(finalx), dtype=dtyp)
+            self.points['x'] = finalx
+            self.points['y'] = finaly
+            self.points['z'] = finalz
 
     def _generate_rotated_points(self):
         """
@@ -96,32 +271,9 @@ class PatchTest:
         ang = self.azimuth - 90  # rotations are counter clockwise, we want it eventually facing east
         cos_az = np.cos(np.deg2rad(ang))
         sin_az = np.sin(np.deg2rad(ang))
-        finalx = None
-        finaly = None
-        finalz = None
-        self.multibeam_files = self.fqpr.multibeam.raw_ping[0].multibeam_files
-        self.multibeam_indexes = {}
-        curr_point_index = 0
-        for mfilename in self.multibeam_files.keys():
-            data = self.fqpr.subset_variables_by_line(['x', 'y', 'z'], mfilename, filter_by_detection=True)[mfilename]
-            x, y, z = data.x.values, data.y.values, data.z.values
-            self.multibeam_indexes[mfilename] = [curr_point_index, curr_point_index + x.size]
-            curr_point_index = x.size
-            if finalx is None:
-                finalx = x
-                finaly = y
-                finalz = z
-            else:
-                finalx = np.concatenate([finalx, x])
-                finaly = np.concatenate([finaly, y])
-                finalz = np.concatenate([finalz, z])
-        if finalx.any():
-            dtyp = [('x', np.float64), ('y', np.float64), ('z', np.float32)]
-            self.points = np.empty(len(finalx), dtype=dtyp)
-            self.points['x'] = finalx
-            self.points['y'] = finaly
-            self.points['z'] = finalz
 
+        print('Rotating points by {} degrees...'.format(ang))
+        if self.points is not None:
             # # normalize the y axis
             # self.points['y'] = self.points['y'] - self.points['y'].min()
             # # normalize the x axis
@@ -148,6 +300,7 @@ class PatchTest:
         """
 
         if self.points is not None and self.points.size > 0:
+            print('Building in memory grid for {} soundings...'.format(self.points.size))
             grid_class = create_grid(grid_type='single_resolution')
             for linename in self.multibeam_indexes:
                 idxs = self.multibeam_indexes[linename]
@@ -165,6 +318,7 @@ class PatchTest:
         """
 
         if self.grid is not None:
+            print('Building patch test matrices...')
             line_layers = list(self.multibeam_indexes.keys())
             dpth, xslope, yslope, lineone, linetwo = self.grid.get_layers_by_name(['depth', 'x_slope', 'y_slope', line_layers[0], line_layers[1]])
             valid_index = np.logical_and(~np.isnan(lineone), ~np.isnan(linetwo))
@@ -204,4 +358,5 @@ class PatchTest:
 
     def _compute_least_squares(self):
         if self.a_matrix is not None and self.b_matrix is not None:
+            print('Computing least squares result')
             self.result, residuals, rank, singular = np.linalg.lstsq(self.a_matrix, self.b_matrix, rcond=None)
