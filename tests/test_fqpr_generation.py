@@ -557,16 +557,16 @@ class TestFqprGeneration(unittest.TestCase):
         print('Passed: georef_xyz')
 
 
-    #TODO: Move back to generation
     def test_process_testfile(self):
         """
         Run conversion and basic processing on the test file
         """
         linename = os.path.split(self.testfile)[1]
-        assert not self.out.line_is_processed(linename)
-        assert self.out.return_next_unprocessed_line() == linename
+        out = convert_multibeam(self.testfile)
+        assert not out.line_is_processed(linename)
+        assert out.return_next_unprocessed_line() == linename
 
-        out = process_multibeam(self.out, coord_system='NAD83')
+        out = process_multibeam(out, coord_system='NAD83')
         assert out.line_is_processed(linename)
         assert out.return_next_unprocessed_line() == ''
 
