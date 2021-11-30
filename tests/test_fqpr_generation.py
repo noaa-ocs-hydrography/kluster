@@ -23,9 +23,9 @@ class TestFqprGeneration(unittest.TestCase):
         os.mkdir(cls.expected_output)
 
     def setUp(self) -> None:
-        self.out = process_multibeam(convert_multibeam(self.testfile), coord_system='NAD83')
+        self.datapath =  tempfile.mkdtemp(dir=self.expected_output)
+        self.out = process_multibeam(convert_multibeam(self.testfile, outfold=self.datapath), coord_system='NAD83')
 
-        self.datapath = self.out.multibeam.converted_pth
         self.multicheck = os.path.join(self.datapath, 'multicheck')
         self.expected_multi = os.path.join(self.datapath, 'multicheck_40111.csv')
         self.navcheck = os.path.join(self.datapath, 'navcheck')
@@ -33,6 +33,7 @@ class TestFqprGeneration(unittest.TestCase):
 
     def tearDown(self) -> None:
         self.out.close()
+        shutil.rmtree(self.datapath)
 
     @classmethod
     def tearDownClass(cls) -> None:
@@ -562,13 +563,14 @@ class TestFqprGeneration(unittest.TestCase):
         Run conversion and basic processing on the test file
         """
         linename = os.path.split(self.testfile)[1]
-        out = convert_multibeam(self.testfile)
+        out = convert_multibeam(self.testfile, outfold=self.datapath)
         assert not out.line_is_processed(linename)
         assert out.return_next_unprocessed_line() == linename
 
         out = process_multibeam(out, coord_system='NAD83')
         assert out.line_is_processed(linename)
         assert out.return_next_unprocessed_line() == ''
+        out.close()
 
         number_of_sectors = len(out.multibeam.raw_ping)
         rp = out.multibeam.raw_ping[0].isel(time=0).isel(beam=0)
