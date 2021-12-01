@@ -1,5 +1,8 @@
+import logging
+
 import numpy as np
 import xarray as xr
+from HSTB.kluster import xarray_conversion
 
 
 class SyntheticFqpr:
@@ -3433,3 +3436,34 @@ class RealFqpr:
 
         return xr.Dataset({'heading': (['time'], heading.data), 'heave': (['time'], heave.data), 'pitch': (['time'], pitch.data),
                            'roll': (['time'], roll.data)}, coords={'time': tme_coord.data}).chunk()
+
+
+def load_dataset(dset=None, skip_dask=True):
+    """
+    Returns the 'real' dataset constructed using one of the synth data classes.  If None, uses SyntheticFqpr with some
+    dummy values.  Otherwise, expects one of RealFqpr, RealDualheadFqpr, SyntheticFqpr, etc.  Builds the
+    xarray_conversion BatchRead class using the dataset data.
+
+    Parameters
+    ----------
+    dset: optional, if None will use SyntheticFqpr with zeroed values, otherwise one of RealFqpr, RealDualheadFqpr,
+           SyntheticFqpr, etc classes.
+    skip_dask
+
+    Returns
+    -------
+    kongs_dat: xarray_conversion BatchRead object
+
+    """
+    if dset is None:
+        dset = SyntheticFqpr(synth_time=0, synth_heave=0, synth_roll=0, synth_pitch=0, synth_yaw=0,
+                             synth_tx_mountroll=0, synth_tx_mountpitch=0, synth_tx_mountyaw=0, synth_rx_mountroll=0,
+                             synth_rx_mountpitch=0, synth_rx_mountyaw=0, secs=('999_0_290000', '999_0_300000'))
+
+    kongs_dat = xarray_conversion.BatchRead('', skip_dask=skip_dask)
+    kongs_dat.logger = logging.getLogger()
+    kongs_dat.logger.setLevel(logging.INFO)
+    kongs_dat.xyzrph = dset.xyzrph
+    kongs_dat.raw_ping = dset.raw_ping
+    kongs_dat.raw_att = dset.raw_att
+    return kongs_dat
