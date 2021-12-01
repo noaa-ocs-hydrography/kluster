@@ -1,16 +1,18 @@
 import unittest
-
 import pytest
-
-from HSTB.kluster.modules.georeference import georef_by_worker, compute_geohash, _new_geohash, decode_geohash, \
-    polygon_to_geohashes
 from pyproj import CRS
 import xarray as xr
 import numpy as np
 
-from tests.test_datasets import load_dataset, RealFqpr
-from tests.modules.module_test_arrays import expected_alongtrack, expected_acrosstrack, expected_depth, \
-    expected_georef_x, expected_georef_y, expected_georef_z
+try:  # when running from pycharm console
+    from hstb_kluster.tests.test_datasets import RealFqpr, load_dataset
+    from hstb_kluster.tests.modules.module_test_arrays import expected_alongtrack, expected_acrosstrack, expected_depth, \
+        expected_georef_x, expected_georef_y, expected_georef_z
+except ImportError:  # relative import as tests directory can vary in location depending on how kluster is installed
+    from ..test_datasets import RealFqpr, load_dataset
+    from ..modules.module_test_arrays import expected_alongtrack, expected_acrosstrack, expected_depth, \
+        expected_georef_x, expected_georef_y, expected_georef_z
+from HSTB.kluster.modules.georeference import georef_by_worker, compute_geohash, _new_geohash, decode_geohash, polygon_to_geohashes
 
 
 class TestGeoReference(unittest.TestCase):

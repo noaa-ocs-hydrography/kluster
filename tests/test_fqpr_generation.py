@@ -2,16 +2,18 @@ import os
 import shutil
 import logging
 
-from HSTB.kluster.fqpr_convenience import process_multibeam, convert_multibeam
-
+from HSTB.kluster.fqpr_convenience import process_multibeam, convert_multibeam, reload_data
 from HSTB.kluster.fqpr_generation import Fqpr
+try:  # when running from pycharm console
+    from hstb_kluster.tests.test_datasets import RealFqpr, RealDualheadFqpr, SyntheticFqpr, load_dataset
+except ImportError:  # relative import as tests directory can vary in location depending on how kluster is installed
+    from .test_datasets import RealFqpr, RealDualheadFqpr, SyntheticFqpr, load_dataset
+
 from pytest import approx
 from datetime import datetime
 import unittest
 import numpy as np
 import tempfile
-
-from tests.test_datasets import RealFqpr, RealDualheadFqpr, load_dataset
 
 
 class TestFqprGeneration(unittest.TestCase):
@@ -20,41 +22,141 @@ class TestFqprGeneration(unittest.TestCase):
     def setUpClass(cls) -> None:
         cls.testfile = os.path.join(os.path.dirname(__file__), 'resources', '0009_20170523_181119_FA2806.all')
         cls.expected_output = os.path.join(tempfile.tempdir, 'TestFqprGeneration')
-        os.mkdir(cls.expected_output)
+        try:
+            os.mkdir(cls.expected_output)
+        except FileExistsError:
+            shutil.rmtree(cls.expected_output)
+            os.mkdir(cls.expected_output)
+        cls.datapath = tempfile.mkdtemp(dir=cls.expected_output)
 
     def setUp(self) -> None:
-        self.datapath =  tempfile.mkdtemp(dir=self.expected_output)
-        self.out = process_multibeam(convert_multibeam(self.testfile, outfold=self.datapath), coord_system='NAD83')
-
         self.multicheck = os.path.join(self.datapath, 'multicheck')
         self.expected_multi = os.path.join(self.datapath, 'multicheck_40111.csv')
         self.navcheck = os.path.join(self.datapath, 'navcheck')
         self.expected_nav = os.path.join(self.datapath, 'navcheck_40111.csv')
 
     def tearDown(self) -> None:
-        self.out.close()
-        shutil.rmtree(self.datapath)
+        try:
+            self.out.close()
+        except:
+            pass
 
     @classmethod
     def tearDownClass(cls) -> None:
+        shutil.rmtree(cls.datapath)
         shutil.rmtree(cls.expected_output)
+        resources_folder = os.path.join(os.path.dirname(__file__), 'resources')
+        data_folders = [os.path.join(resources_folder, fldr) for fldr in os.listdir(resources_folder) if fldr[:9] == 'converted']
+        [shutil.rmtree(fold) for fold in data_folders]
+
+    def _access_processed_data(self):
+        """
+        Either reload (if data has already been processed once here) or process the test line
+        """
+        try:
+            self.out = reload_data(self.datapath)
+            if not self.out:
+                self.out = process_multibeam(convert_multibeam(self.testfile, outfold=self.datapath), coord_system='NAD83')
+            print('reload')
+        except:
+            self.out = process_multibeam(convert_multibeam(self.testfile, outfold=self.datapath), coord_system='NAD83')
+            print('process')
+
+    def test_process_testfile(self):
+        """
+        Run conversion and basic processing on the test file
+        """
+
+        linename = os.path.split(self.testfile)[1]
+        out = convert_multibeam(self.testfile, outfold=self.datapath)
+        assert not out.line_is_processed(linename)
+        assert out.return_next_unprocessed_line() == linename
+
+        out = process_multibeam(out, coord_system='NAD83')
+        assert out.line_is_processed(linename)
+        assert out.return_next_unprocessed_line() == ''
+        out.close()
+
+        number_of_sectors = len(out.multibeam.raw_ping)
+        rp = out.multibeam.raw_ping[0].isel(time=0).isel(beam=0)
+        firstbeam_angle = rp.beampointingangle.values
+        firstbeam_traveltime = rp.traveltime.values
+        first_counter = rp.counter.values
+        first_dinfo = rp.detectioninfo.values
+        first_mode = rp.mode.values
+        first_modetwo = rp.modetwo.values
+        first_ntx = rp.ntx.values
+        firstbeam_procstatus = rp.processing_status.values
+        firstbeam_qualityfactor = rp.qualityfactor.values
+        first_soundspeed = rp.soundspeed.values
+        first_tiltangle = rp.tiltangle.values
+        first_delay = rp.delay.values
+        first_frequency = rp.frequency.values
+        first_yawpitch = rp.yawpitchstab.values
+        firstcorr_angle = rp.corr_pointing_angle.values
+        firstcorr_altitude = rp.corr_altitude.values
+        firstcorr_heave = rp.corr_heave.values
+        firstdepth_offset = rp.depthoffset.values
+        first_status = rp.processing_status.values
+        firstrel_azimuth = rp.rel_azimuth.values
+        firstrx = rp.rx.values
+        firstthu = rp.thu.values
+        firsttvu = rp.tvu.values
+        firsttx = rp.tx.values
+        firstx = rp.x.values
+        firsty = rp.y.values
+        firstz = rp.z.values
+
+        assert number_of_sectors == 1
+        assert firstbeam_angle == approx(np.float32(74.640), 0.001)
+        assert firstbeam_traveltime == approx(np.float32(0.3360895), 0.000001)
+        assert first_counter == 61967
+        assert first_dinfo == 2
+        assert first_mode == 'FM'
+        assert first_modetwo == '__FM'
+        assert first_ntx == 3
+        assert firstbeam_procstatus == 5
+        assert firstbeam_qualityfactor == 42
+        assert first_soundspeed == np.float32(1488.6)
+        assert first_tiltangle == np.float32(-0.44)
+        assert first_delay == approx(np.float32(0.002206038), 0.000001)
+        assert first_frequency == 275000
+        assert first_yawpitch == 'PY'
+        assert firstcorr_angle == approx(np.float32(1.2028906), 0.000001)
+        assert firstcorr_altitude == np.float32(0.0)
+        assert firstcorr_heave == approx(np.float32(-0.06), 0.01)
+        assert firstdepth_offset == approx(np.float32(92.162), 0.001)
+        assert first_status == 5
+        assert firstrel_azimuth == approx(np.float32(4.703383), 0.00001)
+        assert firstrx == approx(np.array([0.7870753, 0.60869384, -0.100021675], dtype=np.float32), 0.00001)
+        assert firstthu == approx(np.float32(8.680531), 0.0001)
+        assert firsttvu == approx(np.float32(2.444148), 0.0001)
+        assert firsttx == approx(np.array([0.6074468, -0.79435784, 0.0020107413], dtype=np.float32), 0.00001)
+        assert firstx == approx(539028.450, 0.001)
+        assert firsty == approx(5292783.977, 0.001)
+        assert firstz == approx(np.float32(92.742), 0.001)
+
+        assert rp.min_x == 538922.066
+        assert rp.min_y == 5292774.566
+        assert rp.min_z == 72.961
+        assert rp.max_x == 539320.370
+        assert rp.max_y == 5293236.823
+        assert rp.max_z == 94.294
 
     def test_set_variable_by_filter(self):
+        self._access_processed_data()
         polygon = np.array([[-122.47798556, 47.78949665], [-122.47798556, 47.78895117], [-122.47771027, 47.78895117],
                             [-122.47771027, 47.78949665]])
         head, x, y, z, tvu, rejected, pointtime, beam = self.out.return_soundings_in_polygon(polygon)
         assert head.shape == x.shape == y.shape == z.shape == tvu.shape == rejected.shape == pointtime.shape == beam.shape
         assert x.shape == (1911,)
-        assert np.count_nonzero(
-            self.out.subset.ping_filter) == 1911  # ping filter is set on return_soundings, is a bool mask of which soundings are in the selection
+        assert np.count_nonzero(self.out.subset.ping_filter) == 1911  # ping filter is set on return_soundings, is a bool mask of which soundings are in the selection
 
         assert rejected[0] == 0  # first sounding is 0 status
-        self.out.set_variable_by_filter('detectioninfo', 2,
-                                        selected_index=[[0]])  # set the first selected point region to rejected=2
+        self.out.set_variable_by_filter('detectioninfo', 2, selected_index=[[0]])  # set the first selected point region to rejected=2
         head, x, y, z, tvu, rejected, pointtime, beam = self.out.return_soundings_in_polygon(polygon)
         assert rejected[0] == 2  # first sounding is now status=2
-        self.out.set_variable_by_filter('detectioninfo',
-                                        2)  # set the all poitns in the return_soundings selection to status=2
+        self.out.set_variable_by_filter('detectioninfo', 2)  # set the all poitns in the return_soundings selection to status=2
         head, x, y, z, tvu, rejected, pointtime, beam = self.out.return_soundings_in_polygon(polygon)
         assert (rejected == 2).all()
 
@@ -115,12 +217,14 @@ class TestFqprGeneration(unittest.TestCase):
         self.georef_xyz(dset='realdualhead')
 
     def test_return_total_soundings(self):
+        self._access_processed_data()
         ts = self.out.return_total_soundings(min_time=1495563100, max_time=1495563130)
         assert ts == 49200
         ts = self.out.return_total_soundings()
         assert ts == 86400
 
     def test_return_soundings_in_polygon(self):
+        self._access_processed_data()
         polygon = np.array([[-122.47798556, 47.78949665], [-122.47798556, 47.78895117], [-122.47771027, 47.78895117],
                             [-122.47771027, 47.78949665]])
         head, x, y, z, tvu, rejected, pointtime, beam = self.out.return_soundings_in_polygon(polygon)
@@ -152,6 +256,7 @@ class TestFqprGeneration(unittest.TestCase):
         assert (beamangle == next_getbeamangle).all()
 
     def test_return_cast_dict(self):
+        self._access_processed_data()
         cdict = self.out.return_cast_dict()
         assert cdict == {'profile_1495563079': {'location': [47.78890945494799, -122.47711319986821],
                                                 'source': 'multibeam', 'time': 1495563079,
@@ -181,6 +286,7 @@ class TestFqprGeneration(unittest.TestCase):
                                                          [12000.0, 1675.800048828125]]}}
 
     def test_subset_by_time(self):
+        self._access_processed_data()
         self.out.subset_by_time(mintime=1495563100, maxtime=1495563130)
         assert len(self.out.multibeam.raw_ping[0].time) == 123
         assert len(self.out.multibeam.raw_att.time) == 3001
@@ -189,6 +295,7 @@ class TestFqprGeneration(unittest.TestCase):
         assert len(self.out.multibeam.raw_att.time) == 5302
 
     def test_subset_variables(self):
+        self._access_processed_data()
         dset = self.out.subset_variables(['z'], ping_times=(1495563100, 1495563130))
 
         assert len(dset.time) == 123
@@ -199,16 +306,22 @@ class TestFqprGeneration(unittest.TestCase):
         assert len(self.out.multibeam.raw_att.time) == 5302
 
     def test_subset_variables_filter(self):
+        self._access_processed_data()
         dset = self.out.subset_variables(['z'], ping_times=(1495563100, 1495563130), filter_by_detection=True)
 
-        assert len(dset.sounding) == 45059
-        assert dset.z.shape[0] == 45059
+        try:
+            assert len(dset.sounding) == 45059
+            assert dset.z.shape[0] == 45059
+        except AssertionError:  # these are true if the test suite hit test_set_variable_by_filter first
+            assert len(dset.sounding) == 43178
+            assert dset.z.shape[0] == 43178
 
         assert len(self.out.multibeam.raw_ping[0].time) == 216
         assert self.out.multibeam.raw_ping[0].z.shape[0] == 216
         assert len(self.out.multibeam.raw_att.time) == 5302
 
     def test_subset_variables_by_line(self):
+        self._access_processed_data()
         dset = self.out.subset_variables_by_line(['z'])
 
         assert list(dset.keys()) == ['0009_20170523_181119_FA2806.all']
@@ -216,26 +329,32 @@ class TestFqprGeneration(unittest.TestCase):
         assert dset['0009_20170523_181119_FA2806.all'].z.shape[0] == 216
 
     def test_intersects(self):
+        self._access_processed_data()
         assert self.out.intersects(5293000, 5330000, 538950, 539300, geographic=False)
         assert not self.out.intersects(5320000, 5330000, 538950, 539300, geographic=False)
         assert self.out.intersects(47.78895, 47.790, -122.478, -122.479, geographic=True)
         assert not self.out.intersects(47.8899, 47.890, -122.478, -122.479, geographic=True)
 
     def test_return_unique_mode(self):
+        self._access_processed_data()
         assert self.out.return_unique_mode() == ['FM']
 
     def test_return_rounded_frequency(self):
+        self._access_processed_data()
         assert self.out.return_rounded_frequency() == [300000]
 
     def test_return_lines_for_times(self):
+        self._access_processed_data()
         lns = self.out.return_lines_for_times(np.array([1495400000, 1495563100, 1495563132]))
         assert np.array_equal(lns, ['', '0009_20170523_181119_FA2806.all', '0009_20170523_181119_FA2806.all'])
 
     def test_last_operation_date(self):
+        self._access_processed_data()
         assert datetime.strptime(self.out.multibeam.raw_ping[0]._total_uncertainty_complete, '%c') ==\
                self.out.last_operation_date
 
     def test_export_files(self):
+        self._access_processed_data()
         assert len(self.out.export_pings_to_file(file_format='csv', filter_by_detection=True,
                                                  export_by_identifiers=True)) == 6
         assert len(self.out.export_pings_to_file(file_format='csv', filter_by_detection=True,
@@ -249,6 +368,7 @@ class TestFqprGeneration(unittest.TestCase):
         self.remove_export_file('las_export')
 
     def test_export_lines_to_file(self):
+        self._access_processed_data()
         assert len(self.out.export_lines_to_file(['0009_20170523_181119_FA2806.all'], file_format='csv',
                                                  filter_by_detection=True, export_by_identifiers=True)) == 6
         assert len(self.out.export_lines_to_file(['0009_20170523_181119_FA2806.all'], file_format='csv',
@@ -262,6 +382,7 @@ class TestFqprGeneration(unittest.TestCase):
         self.remove_export_file('las_export')
 
     def test_export_variable(self):
+        self._access_processed_data()
         self.out.export_variable('multibeam', 'beampointingangle', self.multicheck)
         self.check_export(self.expected_multi, 'time,beam,beampointingangle')
 
@@ -273,6 +394,7 @@ class TestFqprGeneration(unittest.TestCase):
         self.check_export(self.expected_nav, 'time,latitude')
 
     def test_export_dataset(self):
+        self._access_processed_data()
         self.out.export_dataset('multibeam', self.multicheck)
         self.check_export(self.expected_multi, 'time,mean_acrosstrack,mean_alongtrack,altitude,mean_beampointingangle,'
                                                'corr_altitude,corr_heave,mean_corr_pointing_angle,counter,'
@@ -557,87 +679,6 @@ class TestFqprGeneration(unittest.TestCase):
         fq.close()
         print('Passed: georef_xyz')
 
-
-    def test_process_testfile(self):
-        """
-        Run conversion and basic processing on the test file
-        """
-        linename = os.path.split(self.testfile)[1]
-        out = convert_multibeam(self.testfile, outfold=self.datapath)
-        assert not out.line_is_processed(linename)
-        assert out.return_next_unprocessed_line() == linename
-
-        out = process_multibeam(out, coord_system='NAD83')
-        assert out.line_is_processed(linename)
-        assert out.return_next_unprocessed_line() == ''
-        out.close()
-
-        number_of_sectors = len(out.multibeam.raw_ping)
-        rp = out.multibeam.raw_ping[0].isel(time=0).isel(beam=0)
-        firstbeam_angle = rp.beampointingangle.values
-        firstbeam_traveltime = rp.traveltime.values
-        first_counter = rp.counter.values
-        first_dinfo = rp.detectioninfo.values
-        first_mode = rp.mode.values
-        first_modetwo = rp.modetwo.values
-        first_ntx = rp.ntx.values
-        firstbeam_procstatus = rp.processing_status.values
-        firstbeam_qualityfactor = rp.qualityfactor.values
-        first_soundspeed = rp.soundspeed.values
-        first_tiltangle = rp.tiltangle.values
-        first_delay = rp.delay.values
-        first_frequency = rp.frequency.values
-        first_yawpitch = rp.yawpitchstab.values
-        firstcorr_angle = rp.corr_pointing_angle.values
-        firstcorr_altitude = rp.corr_altitude.values
-        firstcorr_heave = rp.corr_heave.values
-        firstdepth_offset = rp.depthoffset.values
-        first_status = rp.processing_status.values
-        firstrel_azimuth = rp.rel_azimuth.values
-        firstrx = rp.rx.values
-        firstthu = rp.thu.values
-        firsttvu = rp.tvu.values
-        firsttx = rp.tx.values
-        firstx = rp.x.values
-        firsty = rp.y.values
-        firstz = rp.z.values
-
-        assert number_of_sectors == 1
-        assert firstbeam_angle == approx(np.float32(74.640), 0.001)
-        assert firstbeam_traveltime == approx(np.float32(0.3360895), 0.000001)
-        assert first_counter == 61967
-        assert first_dinfo == 2
-        assert first_mode == 'FM'
-        assert first_modetwo == '__FM'
-        assert first_ntx == 3
-        assert firstbeam_procstatus == 5
-        assert firstbeam_qualityfactor == 42
-        assert first_soundspeed == np.float32(1488.6)
-        assert first_tiltangle == np.float32(-0.44)
-        assert first_delay == approx(np.float32(0.002206038), 0.000001)
-        assert first_frequency == 275000
-        assert first_yawpitch == 'PY'
-        assert firstcorr_angle == approx(np.float32(1.2028906), 0.000001)
-        assert firstcorr_altitude == np.float32(0.0)
-        assert firstcorr_heave == approx(np.float32(-0.06), 0.01)
-        assert firstdepth_offset == approx(np.float32(92.162), 0.001)
-        assert first_status == 5
-        assert firstrel_azimuth == approx(np.float32(4.703383), 0.00001)
-        assert firstrx == approx(np.array([0.7870753, 0.60869384, -0.100021675], dtype=np.float32), 0.00001)
-        assert firstthu == approx(np.float32(8.680531), 0.0001)
-        assert firsttvu == approx(np.float32(2.444148), 0.0001)
-        assert firsttx == approx(np.array([0.6074468, -0.79435784, 0.0020107413], dtype=np.float32), 0.00001)
-        assert firstx == approx(539028.450, 0.001)
-        assert firsty == approx(5292783.977, 0.001)
-        assert firstz == approx(np.float32(92.742), 0.001)
-
-        assert rp.min_x == 538922.066
-        assert rp.min_y == 5292774.566
-        assert rp.min_z == 72.961
-        assert rp.max_x == 539320.370
-        assert rp.max_y == 5293236.823
-        assert rp.max_z == 94.294
-
     # def build_georef_correct_comparison(self, dset='realdual', vert_ref='waterline', datum='NAD83'):
     #     """
     #    Generate mine/kongsberg xyz88 data set from the test dataset.
@@ -817,4 +858,3 @@ class TestFqprGeneration(unittest.TestCase):
     #             plots.append([fig, z_plt, x_plt, y_plt, ang_plt])
     #
     #     return plots
-    #

@@ -5,10 +5,10 @@ import numpy as np
 from osgeo import gdal, ogr
 from osgeo.osr import SpatialReference
 import tempfile
+from pyproj import CRS
 
 from HSTB.kluster.gdal_helpers import pyproj_crs_to_osgeo, crs_to_osgeo, return_gdal_version, ogr_output_file_exists, \
     gdal_output_file_exists, gdal_raster_create, VectorLayer
-from pyproj import CRS
 
 
 class TestGdalHelpers(unittest.TestCase):
@@ -16,12 +16,15 @@ class TestGdalHelpers(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         cls.clsFolder = os.path.join(tempfile.tempdir, 'TestGdalHelpers')
-        os.mkdir(cls.clsFolder)
+        try:
+            os.mkdir(cls.clsFolder)
+        except FileExistsError:
+            shutil.rmtree(cls.clsFolder)
+            os.mkdir(cls.clsFolder)
 
     @classmethod
     def tearDownClass(cls) -> None:
         shutil.rmtree(cls.clsFolder)
-
 
     def test_pyproj_crs_to_osgeo(self):
         test_crs = 4326

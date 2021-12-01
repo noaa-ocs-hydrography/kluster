@@ -2,7 +2,6 @@ import os
 import unittest
 
 from HSTB.kluster import kluster_variables
-
 from HSTB.kluster.fqpr_helpers import epsg_determinator, return_files_from_path, seconds_to_formatted_string
 
 

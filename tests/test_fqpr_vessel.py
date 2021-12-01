@@ -33,7 +33,11 @@ class TestFqprVessel(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         cls.clsFolder = os.path.join(tempfile.tempdir, 'TestFqprVessel')
-        os.mkdir(cls.clsFolder)
+        try:
+            os.mkdir(cls.clsFolder)
+        except FileExistsError:
+            shutil.rmtree(cls.clsFolder)
+            os.mkdir(cls.clsFolder)
 
     def setUp(self) -> None:
         self.testfile = os.path.join(tempfile.mkdtemp(dir=self.clsFolder), 'vessel_file.kfc')

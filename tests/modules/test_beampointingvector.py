@@ -2,12 +2,15 @@ import unittest
 
 import pytest
 import xarray as xr
-from HSTB.kluster.modules.beampointingvector import build_beam_pointing_vectors
 import numpy as np
 
-from tests.test_datasets import RealFqpr, load_dataset
-from tests.modules.module_test_arrays import expected_tx_vector, expected_rx_vector, expected_beam_azimuth, \
-    expected_corrected_beam_angles
+from HSTB.kluster.modules.beampointingvector import build_beam_pointing_vectors
+try:  # when running from pycharm console
+    from hstb_kluster.tests.test_datasets import RealFqpr, load_dataset
+    from hstb_kluster.tests.modules.module_test_arrays import expected_tx_vector, expected_rx_vector, expected_beam_azimuth, expected_corrected_beam_angles
+except ImportError:  # relative import as tests directory can vary in location depending on how kluster is installed
+    from ..test_datasets import RealFqpr, load_dataset
+    from ..modules.module_test_arrays import expected_tx_vector, expected_rx_vector, expected_beam_azimuth, expected_corrected_beam_angles
 
 
 # or for a file-like stream:

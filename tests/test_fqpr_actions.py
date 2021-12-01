@@ -4,7 +4,6 @@ import unittest
 import tempfile
 
 from HSTB.kluster import fqpr_generation
-
 from HSTB.kluster.fqpr_actions import build_multibeam_action, update_kwargs_for_multibeam, build_svp_action, \
     update_kwargs_for_svp
 

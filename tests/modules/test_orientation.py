@@ -3,8 +3,12 @@ import numpy as np
 import pytest
 
 from HSTB.kluster.modules.orientation import build_orientation_vectors
-from tests.test_datasets import RealFqpr, load_dataset
-from tests.modules.module_test_arrays import expected_tx_vector, expected_rx_vector
+try:  # when running from pycharm console
+    from hstb_kluster.tests.test_datasets import RealFqpr, load_dataset
+    from hstb_kluster.tests.modules.module_test_arrays import expected_tx_vector, expected_rx_vector
+except ImportError:  # relative import as tests directory can vary in location depending on how kluster is installed
+    from ..test_datasets import RealFqpr, load_dataset
+    from ..modules.module_test_arrays import expected_tx_vector, expected_rx_vector
 
 
 class TestOrientation(unittest.TestCase):

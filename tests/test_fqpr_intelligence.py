@@ -5,7 +5,6 @@ from datetime import datetime, timezone
 import tempfile
 
 from HSTB.kluster.fqpr_intelligence import FqprIntel
-
 from HSTB.kluster.fqpr_project import create_new_project
 
 
@@ -20,7 +19,11 @@ class TestFqprIntelligence(unittest.TestCase):
         cls.expected_data_folder = 'em2040_40111_05_23_2017'
 
         cls.clsFolder = os.path.join(tempfile.tempdir, 'TestFqprIntelligence')
-        os.mkdir(cls.clsFolder)
+        try:
+            os.mkdir(cls.clsFolder)
+        except FileExistsError:
+            shutil.rmtree(cls.clsFolder)
+            os.mkdir(cls.clsFolder)
 
     def setUp(self) -> None:
         self.tmpfolder = tempfile.mkdtemp(dir=self.clsFolder)
@@ -40,6 +43,10 @@ class TestFqprIntelligence(unittest.TestCase):
     @classmethod
     def tearDownClass(cls) -> None:
         shutil.rmtree(cls.clsFolder)
+        resources_folder = os.path.join(os.path.dirname(__file__), 'resources')
+        data_folders = [os.path.join(resources_folder, fldr) for fldr in os.listdir(resources_folder) if
+                        fldr[:9] == 'converted']
+        [shutil.rmtree(fold) for fold in data_folders]
 
     def test_intel_add_multibeam(self):
         updated_type, new_data, new_project = self.fintel.add_file(self.testfile)

@@ -3,8 +3,8 @@ import shutil
 import unittest
 import numpy as np
 import tempfile
-from HSTB.drivers import par3
 
+from HSTB.drivers import par3
 from HSTB.kluster.fqpr_convenience import convert_multibeam, reload_data
 
 
@@ -14,7 +14,12 @@ class TestFqprConvenience(unittest.TestCase):
     def setUpClass(cls) -> None:
         cls.testfile = os.path.join(os.path.dirname(__file__), 'resources', '0009_20170523_181119_FA2806.all')
         cls.expected_output = os.path.join(tempfile.tempdir, 'TestFqprConvenience')
-        os.mkdir(cls.expected_output)
+        try:
+            os.mkdir(cls.expected_output)
+        except FileExistsError:
+            shutil.rmtree(cls.expected_output)
+            os.mkdir(cls.expected_output)
+
         assert os.path.exists(cls.testfile)
 
         cls.out = convert_multibeam(cls.testfile)

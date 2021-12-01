@@ -3,10 +3,14 @@ import xarray as xr
 import numpy as np
 
 from HSTB.kluster.modules.tpu import calculate_tpu
-from tests.test_datasets import load_dataset, RealFqpr
-
-from tests.modules.module_test_arrays import expected_corrected_beam_angles, expected_alongtrack, expected_depth, \
-    expected_thu, expected_tvu
+try:  # when running from pycharm console
+    from hstb_kluster.tests.test_datasets import RealFqpr, load_dataset
+    from hstb_kluster.tests.modules.module_test_arrays import expected_corrected_beam_angles, expected_alongtrack, expected_depth, \
+        expected_thu, expected_tvu
+except ImportError:  # relative import as tests directory can vary in location depending on how kluster is installed
+    from ..test_datasets import RealFqpr, load_dataset
+    from ..modules.module_test_arrays import expected_corrected_beam_angles, expected_alongtrack, expected_depth, \
+        expected_thu, expected_tvu
 
 
 class TestTPU(unittest.TestCase):
