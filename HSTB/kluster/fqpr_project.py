@@ -5,12 +5,14 @@ import json
 from typing import Union
 from datetime import datetime, timezone
 from types import FunctionType
+from copy import deepcopy
 
 from HSTB.kluster.fqpr_generation import Fqpr
 from HSTB.kluster.dask_helpers import dask_find_or_start_client, client_needs_restart
 from HSTB.kluster.fqpr_convenience import reload_data, reload_surface, get_attributes_from_fqpr
 from HSTB.kluster.xarray_helpers import slice_xarray_by_dim
-from HSTB.kluster.fqpr_vessel import VesselFile, create_new_vessel_file, convert_from_fqpr_xyzrph
+from HSTB.kluster.fqpr_vessel import VesselFile, create_new_vessel_file, convert_from_fqpr_xyzrph, compare_dict_data, split_by_timestamp
+from HSTB.kluster.modules.patch import PatchTest
 from bathygrid.bgrid import BathyGrid
 
 
@@ -525,7 +527,7 @@ class FqprProject:
             line_att = fq_inst.multibeam.raw_att
             if subset:
                 # attributes are all the same across raw_ping datasets, just use the first
-                line_start_time, line_end_time = fq_inst.multibeam.raw_ping[0].multibeam_files[line]
+                line_start_time, line_end_time = fq_inst.multibeam.raw_ping[0].multibeam_files[line][0], fq_inst.multibeam.raw_ping[0].multibeam_files[line][1]
                 line_att = slice_xarray_by_dim(line_att, dimname='time', start_time=line_start_time, end_time=line_end_time)
         return line_att
 
@@ -690,7 +692,7 @@ class FqprProject:
         if line not in self.buffered_fqpr_navigation:
             fq_inst = self.return_line_owner(line)
             if fq_inst is not None:
-                line_start_time, line_end_time = fq_inst.multibeam.raw_ping[0].multibeam_files[line]
+                line_start_time, line_end_time = fq_inst.multibeam.raw_ping[0].multibeam_files[line][0], fq_inst.multibeam.raw_ping[0].multibeam_files[line][1]
                 nav = fq_inst.multibeam.return_raw_navigation(line_start_time, line_end_time)
                 lat, lon = nav.latitude.values, nav.longitude.values
                 # save nav so we don't have to redo this routine if asked for the same line
@@ -822,6 +824,210 @@ class FqprProject:
             raise ValueError("Found {} matches by serial number, project should not have multiple fqpr instances with the same serial number".format(matches))
         return out_path, out_instance
 
+    def get_fqprs_by_paths(self, fqpr_paths: list, line_dict: dict = None, relative_path: bool = True,
+                           allow_different_offsets: bool = True, raise_exception: bool = False):
+        """
+        Return a list of the paths and Fqpr instances associated with each provided path.  Path can be relative to the project
+        or an absolute path.
+
+        If a line_dict is provided, we will subset each Fqpr object to just the data associated with the lines in the line_dict.
+        If you provide multiple fqpr_paths, it will take the data for the lines across all fqpr_paths provided, and merge
+        them into one Fqpr object.  So if you provide 2 fqpr_paths, and a line_dict that includes 2 lines from each fqpr
+        object, the end result is a single Fqpr object with the data for all four lines across the two original Fqpr instances.
+
+        multibeam_files attribute the in the returned fqpr object is adjusted for the actual lines in the Fqpr returned.
+
+        Parameters
+        ----------
+        fqpr_paths
+            list of relative/absolute paths to the Fqpr objects we want
+        line_dict
+            dict of {fqpr_path: [line1, line2, ...]} for the desired lines
+        relative_path
+            if True, provided paths are relative to the project, otherwise they are absolute paths
+        allow_different_offsets
+            if True, will merge Fqpr instances that have different offsets/angles.  Otherwise will reject
+        raise_exception
+            if True, will raise an exception instead of handling the error
+
+        Returns
+        -------
+        list
+            absolute paths to the fqprs queried
+        list
+            list of loaded fqpr instances
+        """
+
+        fqpr_loaded = []
+        fqpr_abs_paths = []
+        for fq in fqpr_paths:
+            if relative_path:
+                fq_path = self.absolute_path_from_relative(fq)
+            else:
+                fq_path = fq
+                fq = self.path_relative_to_project(fq)
+            fqpr_abs_paths.append(fq_path)  # the full file path to the Fqpr data
+            if fq not in self.fqpr_instances:
+                if not raise_exception:
+                    print('Unable to find {} in project'.format(fq))
+                    fqpr_loaded.append(None)
+                    continue
+                else:
+                    raise ValueError('get_fqprs_by_paths: Unable to find {} in project'.format(fq))
+            if line_dict:  # only get the data for the desired lines
+                if fq in line_dict:
+                    fqlines = line_dict[fq]
+                    basefq = self.fqpr_instances[fq].copy()
+                    basefq.subset_by_lines(fqlines)  # trim the data to the desired lines that happen to be in this Fqpr object
+                    basefq.subset.backup_fqpr = {}  # don't retain the backup, we are making a whole new fqpr object here
+                    fqpr_loaded.append(basefq)
+                else:  # this Fqpr instance does not contain any selected lines
+                    fqpr_loaded.append(None)
+            else:
+                fqpr_loaded.append(self.fqpr_instances[fq])
+        if line_dict:
+            sysids = [fq.multibeam.raw_ping[0].attrs['system_serial_number'][0] for fq in fqpr_loaded]
+            if not all([sysids[0] == sid for sid in sysids]):
+                if not raise_exception:
+                    print('ERROR: Data from multiple different sonars found, returning only the data for the first selected sonar')
+                    return [fqpr_abs_paths[0]], [fqpr_loaded[0]]
+                else:
+                    raise ValueError('get_fqprs_by_paths: Data from multiple different sonars found')
+            first_xyzrph = fqpr_loaded[0].multibeam.xyzrph
+            for fq in fqpr_loaded:
+                offsets, angles, _, _, _ = compare_dict_data(first_xyzrph, fq.multibeam.xyzrph)
+                if not offsets or not angles:
+                    if allow_different_offsets:
+                        print('Warning: loading data for selected lines when installation offsets/angles do not match between converted instances')
+                    else:
+                        if not raise_exception:
+                            print('ERROR: loading data for selected lines when installation offsets/angles do not match between converted instances is not allowed, returning only the data for the first selected sonar')
+                            return [fqpr_abs_paths[0]], [fqpr_loaded[0]]
+                        else:
+                            raise ValueError('get_fqprs_by_paths: loading data for selected lines when installation offsets/angles do not match between converted instances is not allowed')
+
+            # ensure they are sorted in time before concatenating
+            fqpr_loaded = sorted(fqpr_loaded, key=lambda tst: tst.multibeam.raw_ping[0].time.values[0])
+            final_fqpr = fqpr_loaded[0].copy()
+            try:
+                final_fqpr.multibeam.raw_ping = [xr.concat([fq.multibeam.raw_ping[cnt] for fq in fqpr_loaded], dim='time') for cnt in range(len(fqpr_loaded[0].multibeam.raw_ping))]
+            except ValueError:
+                # must have sbet or some other variable that is in one dataset but not in another, you must have the same variables
+                #  across all datasets that you are merging
+                for cnt in range(len(fqpr_loaded[0].multibeam.raw_ping)):  # for each sonar head
+                    fkeys = [set(list(fq.multibeam.raw_ping[cnt].variables.keys())) for fq in fqpr_loaded]
+                    commonkeys = fkeys[0].intersection(*fkeys)
+                    for fq in fqpr_loaded:  # for each dataset
+                        dropthese = [ky for ky in fq.multibeam.raw_ping[cnt].variables.keys() if ky not in commonkeys]
+                        if dropthese:
+                            print('Warning: forced to drop {} when merging these datasets, variables found in one dataset but not the other'.format(dropthese))
+                            fq.multibeam.raw_ping[cnt] = fq.multibeam.raw_ping[cnt].drop(dropthese)
+                final_fqpr.multibeam.raw_ping = [xr.concat([fq.multibeam.raw_ping[cnt] for fq in fqpr_loaded], dim='time') for cnt in range(len(fqpr_loaded[0].multibeam.raw_ping))]
+            [final_fqpr.multibeam.raw_ping[0].multibeam_files.update(fq.multibeam.raw_ping[0].multibeam_files) for fq in fqpr_loaded]
+            final_fqpr.multibeam.raw_att = xr.concat([fq.multibeam.raw_att for fq in fqpr_loaded], dim='time')
+            fqpr_loaded = [final_fqpr]
+            fqpr_abs_paths = [';'.join(fqpr_abs_paths)]
+        return fqpr_abs_paths, fqpr_loaded
+
+    def _return_patch_test_line_data(self, line_list: list):
+        """
+        Gather the line specific attribution for the patch test lines.  In kluster 0.8.3, this was added as a saved
+        attribute, so we just have to gather the attributes.  Prior to this version, we have to compute them.
+
+        Parameters
+        ----------
+        line_list
+            list of multibeam file names
+
+        Returns
+        -------
+        dict
+            dictionary of line name: attributes
+        list
+            list of relative paths to the fqpr instance for each line
+        """
+
+        line_dict = {}
+        fqpaths = []
+        for multibeam_line in line_list:  # first pass to get the azimuth and positions of the lines
+            if multibeam_line not in self.convert_path_lookup:
+                print('Unable to find {} in project'.format(multibeam_line))
+            fqpr_rel_pth = self.convert_path_lookup[multibeam_line]
+            fq = self.fqpr_instances[fqpr_rel_pth]
+            try:
+                start_time, end_time, start_latitude, start_longitude, end_latitude, end_longitude, line_az = fq.line_attributes(multibeam_line)
+                start_position = [start_latitude, start_longitude]
+                end_position = [end_latitude, end_longitude]
+            except:
+                print('Warning: unable to pull line attributes added in Kluster 0.8.3, is this an older version of Kluster?')
+                line_start, line_end = fq.multibeam.raw_ping[0].multibeam_files[multibeam_line][0], fq.multibeam.raw_ping[0].multibeam_files[multibeam_line][1]
+                dstart = fq.multibeam.raw_ping[0].interp(time=max(line_start, fq.multibeam.raw_ping[0].time.values[0]), method='nearest', assume_sorted=True)
+                start_position = [dstart.latitude.values, dstart.longitude.values]
+                dend = fq.multibeam.raw_ping[0].interp(time=min(line_end, fq.multibeam.raw_ping[0].time.values[-1]), method='nearest', assume_sorted=True)
+                end_position = [dend.latitude.values, dend.longitude.values]
+                line_az = fq.multibeam.raw_att.interp(time=line_start + (line_end - line_start) / 2, method='nearest', assume_sorted=True).heading.values
+            line_dict[multibeam_line] = {'start_position': start_position, 'end_position': end_position, 'azimuth': line_az, 'fqpath': fqpr_rel_pth}
+            if fqpr_rel_pth not in fqpaths:
+                fqpaths.append(fqpr_rel_pth)
+        return line_dict, fqpaths
+
+    def sort_lines_patch_test_pairs(self, line_list: list):
+        """
+        Take the provided list of linenames and sort them into pairs for the patch test tool.  Each pair consists of two lines
+        that are reciprocal and start/end in the same place.
+
+        Parameters
+        ----------
+        line_list
+            list of line names that we want to sort
+
+        Returns
+        -------
+        list
+            list of lists of line names in pairs
+        dict
+            line dict containing the start position, end position and azimuth of each line
+        """
+
+        final_grouping = []
+        az_grouping = [[], []]
+        xyzrph = None
+        line_dict, fqpaths = self._return_patch_test_line_data(line_list)
+        first_az = None
+        for line_name, line_data in line_dict.items():
+            if first_az is None:
+                first_az = line_data['azimuth']
+            az_diff = abs(first_az - line_data['azimuth'])
+            if (150 <= az_diff <= 210) or ((330 <= az_diff) or (az_diff <= 30)):  # parallel/recipricol to first line, within 30 degrees
+                az_grouping[0].append(line_name)
+            elif (210 < az_diff < 330) or (30 < az_diff < 150):
+                az_grouping[1].append(line_name)
+        paired_lines = []
+        for az_group in az_grouping:
+            for az_line in az_group:
+                if az_line in paired_lines:
+                    continue
+                line_pair = [az_line]
+                paired_lines.append(az_line)
+                min_dist = None
+                min_line = None
+                az_start, az_end = line_dict[az_line]['start_position'], line_dict[az_line]['end_position']
+                for az_line_new in az_group:
+                    az_diff = abs(line_dict[az_line_new]['azimuth'] - line_dict[az_line]['azimuth'])
+                    if az_line_new in paired_lines or az_diff < 45 or az_diff > 315:
+                        continue
+                    strt_dist = haversine(line_dict[az_line_new]['start_position'][0], line_dict[az_line_new]['start_position'][1], az_start[0], az_start[1])
+                    end_dist = haversine(line_dict[az_line_new]['end_position'][0], line_dict[az_line_new]['end_position'][1], az_end[0], az_end[1])
+                    dist = min(strt_dist, end_dist)
+                    if (min_dist is None) or (dist < min_dist):
+                        min_dist = dist
+                        min_line = az_line_new
+                if min_line:
+                    line_pair.append(min_line)
+                    paired_lines.append(min_line)
+                final_grouping.append(line_pair)
+        return final_grouping, line_dict
+
     def return_vessel_file(self):
         """
         Return the VesselFile instance for this project's vessel_file path
@@ -892,6 +1098,83 @@ class FqprProject:
         possible_container_names = [pname for pname in possible_container_names if (pname not in existing_container_names) and (pname + '*' not in existing_container_names)]
         return existing_container_names, possible_container_names
 
+    def _validate_xyzrph_for_lines(self, line_list: list):
+        """
+        Ensure that the offsets/angles portion of the kluster installation parameters match across all lines.  This is
+        mandatory for the patch test.
+
+        Parameters
+        ----------
+        line_list
+            list of multibeam file names for the patch test lines
+
+        Returns
+        -------
+        dict
+            single timestamp entry for the xyzrph record that we will use for all lines in the patch test
+        """
+
+        xyzrph = None
+        for line in line_list:
+            fq = self.convert_path_lookup[line]
+            line_xyzrph = self.fqpr_instances[fq].return_line_xyzrph(line)
+            if xyzrph is None:
+                # only retain the first time stamp entry, there really should only be one timestamp that applies to the line anyway
+                line_xyzrph = split_by_timestamp(line_xyzrph)[0]
+                xyzrph = line_xyzrph
+            else:
+                offsets, angles, _, _, _ = compare_dict_data(xyzrph, line_xyzrph)
+                if not offsets or not angles:
+                    msg = '_validate_xyzrph_for_lines: line {} was found to have different offsets/angles relative to the other lines.'.format(line)
+                    msg += '  All lines must have the same offsets/angles for the patch test to be valid.'
+                    raise NotImplementedError(msg)
+        return xyzrph
+
+    def _return_xyz_for_lines(self, line_list: list):
+        """
+        Return the soundings for the provided line pair
+
+        Parameters
+        ----------
+        line_list
+            multibeam file names for the pair of lines
+
+        Returns
+        -------
+        list
+            list of numpy arrays for the xyz data
+        """
+
+        lineone, linetwo = line_list
+        fqone, fqtwo = self.convert_path_lookup[lineone], self.convert_path_lookup[linetwo]
+        if fqone != fqtwo:
+            dsetone = self.fqpr_instances[fqone].subset_variables_by_line(['x', 'y', 'z'], lineone)
+            dsettwo = self.fqpr_instances[fqtwo].subset_variables_by_line(['x', 'y', 'z'], linetwo)
+            xyz = [np.concatenate([dsetone[lineone].x.values, dsettwo[linetwo].x.values]),
+                   np.concatenate([dsetone[lineone].y.values, dsettwo[linetwo].y.values]),
+                   np.concatenate([dsetone[lineone].z.values, dsettwo[linetwo].z.values])]
+        else:
+            dsetone = self.fqpr_instances[fqone].subset_variables_by_line(['x', 'y', 'z'], [lineone, linetwo])
+            xyz = [dsetone[lineone].x.values, dsetone[lineone].y.values, dsetone[lineone].z.values]
+        return xyz
+
+    def run_patch_test(self, line_pairs: dict):
+        total_lines = [x for y in line_pairs.values() for x in y[0:2]]
+        xyzrph = self._validate_xyzrph_for_lines(total_lines)
+        for pair_index, pair_data in line_pairs.items():
+            lineone, linetwo, azimuth = pair_data[0], pair_data[1], pair_data[2]
+            fqone, fqtwo = self.convert_path_lookup[lineone], self.convert_path_lookup[linetwo]
+            if fqone != fqtwo:
+                fqprs = [fqone, fqtwo]
+                line_dict = {fqone: [lineone], fqtwo: [linetwo]}
+            else:
+                fqprs = [fqone]
+                line_dict = {fqone: [lineone, linetwo]}
+            fqpr_paths, fqpr_loaded = self.get_fqprs_by_paths(fqprs, line_dict, raise_exception=True)
+            patch = PatchTest(fqpr_loaded[0], azimuth=azimuth)
+            patch.run_patch()
+            patch.display_results()
+
 
 def create_new_project(output_folder: str = None):
     """
@@ -956,3 +1239,32 @@ def return_project_data(project_path: str):
     fqp = FqprProject()
     data = fqp._load_project_file(project_path)
     return data
+
+
+def haversine(lon1, lat1, lon2, lat2):
+    """
+    Calculate the great circle distance in kilometers between two points
+    on the earth (specified in decimal degrees)
+
+    Parameters
+    ----------
+    lon1
+        longitude in degrees of position one
+    lat1
+        latitude in degrees of position one
+    lon2
+        longitude in degrees of position two
+    lat2
+        latitude in degrees of position two
+    """
+
+    # convert decimal degrees to radians
+    lon1, lat1, lon2, lat2 = np.deg2rad(lon1), np.deg2rad(lat1), np.deg2rad(lon2), np.deg2rad(lat2)
+
+    # haversine formula
+    dlon = lon2 - lon1
+    dlat = lat2 - lat1
+    a = np.sin(dlat/2)**2 + np.cos(lat1) * np.cos(lat2) * np.sin(dlon/2)**2
+    c = 2 * np.arcsin(np.sqrt(a))
+    r = 6371 # Radius of earth in kilometers. Use 3956 for miles. Determines return value units.
+    return c * r

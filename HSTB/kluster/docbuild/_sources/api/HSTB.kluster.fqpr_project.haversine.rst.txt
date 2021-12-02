@@ -1,0 +1,6 @@
+haversine
+=========
+
+.. currentmodule:: HSTB.kluster.fqpr_project
+
+.. autofunction:: haversine

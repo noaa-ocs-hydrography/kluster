@@ -196,16 +196,21 @@ class KlusterExplorer(QtWidgets.QTableWidget):
         self.mode = explorer_mode
         self.clear_explorer_data()
         if explorer_mode == 'line':
-            self.setColumnCount(6)
-            self.headr = ['Name', 'Survey Identifier', 'EPSG', 'Min Time', 'Max Time', 'Source']
+            self.setColumnCount(11)
+            self.headr = ['Name', 'Survey Identifier', 'EPSG', 'Min Time', 'Max Time', 'Start Latitude', 'Start Longitude', 'End Latitude', 'End Longitude', 'Heading', 'Source']
             self.setHorizontalHeaderLabels(self.headr)
             self.horizontalHeader().setStretchLastSection(True)
             self.setColumnWidth(0, 250)
             self.setColumnWidth(1, 150)
             self.setColumnWidth(2, 80)
-            self.setColumnWidth(3, 150)
-            self.setColumnWidth(4, 150)
-            self.setColumnWidth(5, 200)
+            self.setColumnWidth(3, 110)
+            self.setColumnWidth(4, 110)
+            self.setColumnWidth(5, 120)
+            self.setColumnWidth(6, 120)
+            self.setColumnWidth(7, 120)
+            self.setColumnWidth(8, 120)
+            self.setColumnWidth(9, 80)
+            self.setColumnWidth(10, 200)
         elif explorer_mode == 'point':
             self.setColumnCount(10)
             self.headr = ['index', 'line', 'time', 'beam', 'x', 'y', 'z', 'tvu', 'status', 'Source']
@@ -294,6 +299,14 @@ class KlusterExplorer(QtWidgets.QTableWidget):
                 max_line_time = ln[1][1]
                 newline_attr['Min Time'] = datetime.utcfromtimestamp(min_line_time).strftime('%D %H%M%S')
                 newline_attr['Max Time'] = datetime.utcfromtimestamp(max_line_time).strftime('%D %H%M%S')
+                try:  # additional attributes added in 0.8.3
+                    newline_attr['Start Latitude'] = ln[1][2]
+                    newline_attr['Start Longitude'] = ln[1][3]
+                    newline_attr['End Latitude'] = ln[1][4]
+                    newline_attr['End Longitude'] = ln[1][5]
+                    newline_attr['Heading'] = '{:3.3f}'.format(ln[1][6]).zfill(7)
+                except:
+                    pass
                 if 'horizontal_crs' in attrs:
                     newline_attr['EPSG'] = str(attrs['horizontal_crs'])
                 translated_attrs.append(newline_attr)
@@ -349,7 +362,7 @@ class KlusterExplorer(QtWidgets.QTableWidget):
             self.insertRow(next_row)
 
             for column_index, column_data in enumerate(line_data):
-                item = QtWidgets.QTableWidgetItem(line_data[column_data])
+                item = QtWidgets.QTableWidgetItem(str(line_data[column_data]))
 
                 if self.headr[column_index] == 'Source':
                     item.setToolTip(raw_attrs['output_path'])

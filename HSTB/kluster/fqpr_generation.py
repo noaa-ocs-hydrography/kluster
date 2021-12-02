@@ -8,6 +8,7 @@ import json
 from copy import deepcopy
 from dask.distributed import wait, progress
 from pyproj import CRS, Transformer
+import traceback
 
 from HSTB.kluster.modules.orientation import distrib_run_build_orientation_vectors
 from HSTB.kluster.modules.beampointingvector import distrib_run_build_beam_pointing_vector
@@ -16,11 +17,12 @@ from HSTB.kluster.modules.svcorrect import get_sv_files_from_directory, return_s
 from HSTB.kluster.modules.georeference import distrib_run_georeference, datum_to_wkt, vyperdatum_found
 from HSTB.kluster.modules.tpu import distrib_run_calculate_tpu
 from HSTB.kluster.xarray_conversion import BatchRead
+from HSTB.kluster.fqpr_vessel import trim_xyzrprh_to_times
 from HSTB.kluster.modules.visualizations import FqprVisualizations
 from HSTB.kluster.modules.export import FqprExport
 from HSTB.kluster.modules.subset import FqprSubset
 from HSTB.kluster.xarray_helpers import combine_arrays_to_dataset, divide_arrays_by_time_index, \
-    interp_across_chunks, reload_zarr_records, slice_xarray_by_dim, get_beamwise_interpolation
+    interp_across_chunks, slice_xarray_by_dim, get_beamwise_interpolation
 from HSTB.kluster.backends._zarr import ZarrBackend
 from HSTB.kluster.dask_helpers import dask_find_or_start_client, get_number_of_workers
 from HSTB.kluster.fqpr_helpers import build_crs, seconds_to_formatted_string
@@ -110,71 +112,77 @@ class Fqpr(ZarrBackend):
 
     def __repr__(self):
         try:
-            kvers = self.multibeam.raw_ping[0].attrs['kluster_version']
+            try:
+                kvers = self.multibeam.raw_ping[0].attrs['kluster_version']
+            except:
+                kvers = 'Unknown'
+            heads = self.number_of_heads
+            output = 'FQPR: Fully Qualified Ping Record built by Kluster Processing\n'
+            output += '-------------------------------------------------------------\n'
+            output += 'Contains:\n'
+            if heads == 1:
+                output += '1 sonar head, '
+            else:
+                output += '{} sonar heads, '.format(heads)
+            output += '{} pings, version {}\n'.format(self.number_of_pings, kvers)
+            output += 'Start: {}\n'.format(self.min_time)
+            output += 'End: {}\n'.format(self.max_time)
+            try:
+                output += 'Minimum Latitude: {} '.format(self.multibeam.raw_ping[0].attrs['min_lat'])
+                output += 'Maximum Latitude: {}\n'.format(self.multibeam.raw_ping[0].attrs['max_lat'])
+            except:
+                output += 'Minimum Latitude: Unknown '
+                output += 'Maximum Latitude: Unknown\n'
+            try:
+                output += 'Minimum Longitude: {} '.format(self.multibeam.raw_ping[0].attrs['min_lon'])
+                output += 'Maximum Longitude: {}\n'.format(self.multibeam.raw_ping[0].attrs['max_lon'])
+            except:
+                output += 'Minimum Longitude: Unknown '
+                output += 'Maximum Longitude: Unknown\n'
+            try:
+                output += 'Minimum Northing: {} '.format(self.multibeam.raw_ping[0].attrs['min_y'])
+                output += 'Maximum Northing: {}\n'.format(self.multibeam.raw_ping[0].attrs['max_y'])
+            except:
+                output += 'Minimum Northing: Unknown '
+                output += 'Maximum Northing: Unknown\n'
+            try:
+                output += 'Minimum Easting: {} '.format(self.multibeam.raw_ping[0].attrs['min_x'])
+                output += 'Maximum Easting: {}\n'.format(self.multibeam.raw_ping[0].attrs['max_x'])
+            except:
+                output += 'Minimum Easting: Unknown '
+                output += 'Maximum Easting: Unknown\n'
+            try:
+                output += 'Minimum Depth: {} '.format(self.multibeam.raw_ping[0].attrs['min_z'])
+                output += 'Maximum Depth: {}\n'.format(self.multibeam.raw_ping[0].attrs['max_z'])
+            except:
+                output += 'Minimum Depth: Unknown '
+                output += 'Maximum Depth: Unknown\n'
+            output += 'Current Status: {}\n'.format(self.status + ' complete')
+            output += 'Sonar Model Number: {}\n'.format(self.sonar_model)
+            try:
+                output += 'Primary/Secondary System Serial Number: {}/{}\n'.format(self.multibeam.raw_ping[0].attrs['system_serial_number'][0],
+                                                                                   self.multibeam.raw_ping[0].attrs['secondary_system_serial_number'][0])
+            except:
+                output += 'Primary/Secondary System Serial Number: Unknown\n'
+            if self.horizontal_crs:
+                output += 'Horizontal Datum: {}\n'.format(self.horizontal_crs.to_epsg())
+            else:
+                output += 'Horizontal Datum: Unknown\n'
+            try:
+                output += 'Vertical Datum: {}\n'.format(self.vert_ref)
+            except:
+                output += 'Vertical Datum: Unknown\n'
+            try:
+                output += 'Navigation Source: {}\n'.format(self.multibeam.raw_ping[0].attrs['navigation_source'])
+            except:
+                output += 'Navigation Source: Unknown\n'
+            output += 'Sound Velocity Profiles: {}\n'.format(len([ky for ky in self.multibeam.raw_ping[0].attrs.keys() if ky[:7] == 'profile']))
         except:
-            kvers = 'Unknown'
-        heads = self.number_of_heads
-        output = 'FQPR: Fully Qualified Ping Record built by Kluster Processing\n'
-        output += '-------------------------------------------------------------\n'
-        output += 'Contains:\n'
-        if heads == 1:
-            output += '1 sonar head, '
-        else:
-            output += '{} sonar heads, '.format(heads)
-        output += '{} pings, version {}\n'.format(self.number_of_pings, kvers)
-        output += 'Start: {}\n'.format(self.min_time)
-        output += 'End: {}\n'.format(self.max_time)
-        try:
-            output += 'Minimum Latitude: {} '.format(self.multibeam.raw_ping[0].attrs['min_lat'])
-            output += 'Maximum Latitude: {}\n'.format(self.multibeam.raw_ping[0].attrs['max_lat'])
-        except:
-            output += 'Minimum Latitude: Unknown '
-            output += 'Maximum Latitude: Unknown\n'
-        try:
-            output += 'Minimum Longitude: {} '.format(self.multibeam.raw_ping[0].attrs['min_lon'])
-            output += 'Maximum Longitude: {}\n'.format(self.multibeam.raw_ping[0].attrs['max_lon'])
-        except:
-            output += 'Minimum Longitude: Unknown '
-            output += 'Maximum Longitude: Unknown\n'
-        try:
-            output += 'Minimum Northing: {} '.format(self.multibeam.raw_ping[0].attrs['min_y'])
-            output += 'Maximum Northing: {}\n'.format(self.multibeam.raw_ping[0].attrs['max_y'])
-        except:
-            output += 'Minimum Northing: Unknown '
-            output += 'Maximum Northing: Unknown\n'
-        try:
-            output += 'Minimum Easting: {} '.format(self.multibeam.raw_ping[0].attrs['min_x'])
-            output += 'Maximum Easting: {}\n'.format(self.multibeam.raw_ping[0].attrs['max_x'])
-        except:
-            output += 'Minimum Easting: Unknown '
-            output += 'Maximum Easting: Unknown\n'
-        try:
-            output += 'Minimum Depth: {} '.format(self.multibeam.raw_ping[0].attrs['min_z'])
-            output += 'Maximum Depth: {}\n'.format(self.multibeam.raw_ping[0].attrs['max_z'])
-        except:
-            output += 'Minimum Depth: Unknown '
-            output += 'Maximum Depth: Unknown\n'
-        output += 'Current Status: {}\n'.format(self.status)
-        output += 'Sonar Model Number: {}\n'.format(self.sonar_model)
-        try:
-            output += 'Primary/Secondary System Serial Number: {}/{}\n'.format(self.multibeam.raw_ping[0].attrs['system_serial_number'][0],
-                                                                               self.multibeam.raw_ping[0].attrs['secondary_system_serial_number'][0])
-        except:
-            output += 'Primary/Secondary System Serial Number: Unknown\n'
-        if self.horizontal_crs:
-            output += 'Horizontal Datum: {}\n'.format(self.horizontal_crs.to_epsg())
-        else:
-            output += 'Horizontal Datum: Unknown\n'
-        try:
-            output += 'Vertical Datum: {}\n'.format(self.vert_ref)
-        except:
-            output += 'Vertical Datum: Unknown\n'
-        try:
-            output += 'Navigation Source: {}\n'.format(self.multibeam.raw_ping[0].attrs['navigation_source'])
-        except:
-            output += 'Navigation Source: Unknown\n'
-        output += 'Sound Velocity Profiles: {}\n'.format(len([ky for ky in self.multibeam.raw_ping[0].attrs.keys() if ky[:7] == 'profile']))
+            output = 'Unable to build string representation: {}'.format(traceback.format_exc())
         return output
+
+    def __copy__(self):
+        return self.copy()
 
     @property
     def sonar_model(self):
@@ -355,6 +363,25 @@ class Fqpr(ZarrBackend):
         """
         return self.multibeam.return_raw_navigation()
 
+    def copy(self):
+        """
+        Return a copy of this Fqpr instance.  The xarray datasets will be distinct, so you can subset them without
+        affecting this instance.
+
+        Returns
+        -------
+        Fqpr
+            copy of the current Fqpr object
+        """
+        # cannnot deepcopy the dask client, must remove reference first
+        self.client = None
+        self.multibeam.client = None
+        copyfq = deepcopy(self)
+        for cnt, rp in enumerate(self.multibeam.raw_ping):
+            copyfq.multibeam.raw_ping[cnt].attrs = deepcopy(rp.attrs)
+        copyfq.multibeam.raw_att.attrs = deepcopy(self.multibeam.raw_att.attrs)
+        return copyfq
+
     def line_is_processed(self, line_name: str):
         """
         If line is processed, the TVU will not be all NaN in the middle of the line.  This method will check that and
@@ -374,7 +401,7 @@ class Fqpr(ZarrBackend):
         for rp in self.multibeam.raw_ping:
             mlinesdict = rp.attrs['multibeam_files']
             if line_name in mlinesdict:
-                starttime, endtime = mlinesdict[line_name]
+                starttime, endtime = mlinesdict[line_name][0], mlinesdict[line_name][1]
                 # nearest to start/end time could be the next line, so just use the midpoint
                 middle_time = starttime + ((endtime - starttime) / 2)
                 # if it is processed, you should have all max processing status for each beam
@@ -382,6 +409,28 @@ class Fqpr(ZarrBackend):
                 return isprocessed
         print('Warning: unable to find line {} in converted dataset'.format(line_name))
         return None
+
+    def line_attributes(self, line_name: str):
+        """
+        Attributes by line are added after conversion to the ping attribution.  This is a shortcut for returning the attribution
+        for a line
+
+        Parameters
+        ----------
+        line_name
+            name of the line file, ex: 0634_20180711_142125.all
+
+        Returns
+        -------
+        list
+            list of line attributes, [start time, end time, start latitude, start longitude, end latitude, end longitude,
+            line azimuth]
+        """
+
+        if line_name in self.multibeam.raw_ping[0].multibeam_files:
+            return self.multibeam.raw_ping[0].multibeam_files[line_name]
+        else:
+            return None
 
     def return_next_unprocessed_line(self):
         """
@@ -463,15 +512,21 @@ class Fqpr(ZarrBackend):
             raise ValueError("Unable to set vertical reference to {}: expected one of {}".format(vert_ref, kluster_variables.vertical_references))
         self.vert_ref = vert_ref
 
-    def read_from_source(self):
+    def read_from_source(self, build_offsets: bool = True):
         """
         Activate rawdat object's appropriate read class
+
+        Parameters
+        ----------
+        build_offsets
+            if this is set, also build the xyzrph attribute, which is mandatory for processing later in Kluster.  Make
+            it optional so that when processing chunks of files, we can just run it once at the end after read()
         """
 
         if self.multibeam is not None:
             self.client = self.multibeam.client  # mbes read is first, pull dask distributed client from it
             if self.multibeam.raw_ping is None:
-                self.multibeam.read()
+                self.multibeam.read(build_offsets=build_offsets)
             self.output_folder = self.multibeam.converted_pth
         else:
             self.client = dask_find_or_start_client(address=self.address)
@@ -544,6 +599,8 @@ class Fqpr(ZarrBackend):
         if txrx is None and tstmp is None:
             sectors = self.multibeam.return_system_time_indexed_array()
             for s_cnt, sector in enumerate(sectors):
+                if sector is None:  # get here if one of the heads is disabled (set to None)
+                    continue
                 for applicable_index, timestmp, prefixes in sector:
                     txrx = prefixes
                     tstmp = timestmp
@@ -730,6 +787,8 @@ class Fqpr(ZarrBackend):
         systems = self.multibeam.return_system_time_indexed_array()
         profnames, casts, cast_times, castlocations = self.multibeam.return_all_profiles()
         for s_cnt, system in enumerate(systems):
+            if system is None:  # get here if one of the heads is disabled (set to None)
+                continue
             ra = self.multibeam.raw_ping[s_cnt]
             pings_per_chunk, max_chunks_at_a_time = self.get_cluster_params()
             for applicable_index, timestmp, prefixes in system:
@@ -777,7 +836,7 @@ class Fqpr(ZarrBackend):
         is_primary_system = int(ra.system_identifier) == int(ra.system_serial_number[0])
         if self.multibeam.is_dual_head():  # dual dual systems
             if not is_primary_system:  # secondary head
-                self.logger.info('Building induced heave for secondary system in dual head arrangement')
+                # self.logger.info('Building induced heave for secondary system in dual head arrangement')
 
                 # lever arms for secondary head to ref pt
                 secondary_x_lever = float(self.multibeam.xyzrph[prefixes[0] + '_x'][timestmp])
@@ -796,13 +855,13 @@ class Fqpr(ZarrBackend):
                 final_lever = np.array([primary_x_lever - secondary_x_lever, primary_y_lever - secondary_y_lever,
                                         primary_z_lever - secondary_z_lever])
             else:
-                self.logger.info('No induced heave in primary system in dual head arrangement')
+                # self.logger.info('No induced heave in primary system in dual head arrangement')
                 return hve
         else:
-            self.logger.info('No induced heave in primary system in single head arrangement')
+            # self.logger.info('No induced heave in primary system in single head arrangement')
             return hve
 
-        self.logger.info('Rotating: {}'.format(final_lever))
+        # self.logger.info('Rotating: {}'.format(final_lever))
 
         # build rotation matrix for attitude at each ping time
         att = interp_across_chunks(raw_att, tx_tstmp_idx)
@@ -854,7 +913,7 @@ class Fqpr(ZarrBackend):
             # There exists a lever arm between tx and rp, and the altitude is at the rp
             #  - svcorrected offsets are at tx/rx so there will be a correction necessary to use altitude
             rp_to_tx_leverarm = np.array([-x_lever, -y_lever, -z_lever])
-            self.logger.info('Applying altitude correction for RP to TX offset: {}'.format(rp_to_tx_leverarm))
+            # self.logger.info('Applying altitude correction for RP to TX offset: {}'.format(rp_to_tx_leverarm))
 
             # build rotation matrix for attitude at each ping time
             att = interp_across_chunks(raw_att, tx_tstmp_idx)
@@ -869,8 +928,8 @@ class Fqpr(ZarrBackend):
             #      Keep that diff by subtracting the original lever arm.
             rot_lever[:, 2] = rot_lever[:, 2] - rp_to_tx_leverarm[2]
             alt = alt + rot_lever[:, 2].values
-        else:
-            self.logger.info('no altitude correction for RP at TX')
+        # else:
+            # self.logger.info('no altitude correction for RP at TX')
 
         return alt
 
@@ -1042,7 +1101,7 @@ class Fqpr(ZarrBackend):
             data_for_workers.append([worker_att, worker_twtt, worker_delay, worker_tx_tstmp_idx, tx_orientation, rx_orientation, latency])
         return data_for_workers
 
-    def _generate_chunks_bpv(self, ra: xr.Dataset, idx_by_chunk: list, timestmp: str, silent: bool = False):
+    def _generate_chunks_bpv(self, ra: xr.Dataset, idx_by_chunk: list, timestmp: str, run_index: int, silent: bool = False):
         """
         Take a single system, and build the data for the distributed system to process.
         distrib_run_build_beam_pointing_vector requires the heading, beampointingangle, tx tiltangle, tx/rx orientation,
@@ -1056,6 +1115,8 @@ class Fqpr(ZarrBackend):
             list of dataarrays, values are the integer indexes of the pings to use, coords are the time of ping
         timestmp
             timestamp of the installation parameters instance used
+        run_index
+            the run counter that we are currently on, used in the in memory workflow to figure out which intermediate chunks of data to use
         silent
             if True, does not print out the log messages
 
@@ -1068,24 +1129,23 @@ class Fqpr(ZarrBackend):
         if not silent:
             self.logger.info('transducers mounted backwards - TX: {} RX: {}'.format(self.tx_reversed, self.rx_reversed))
 
-        if 'orientation' in self.intermediate_dat[ra.system_identifier]:
-            # workflow for data that is not written to disk.  Preference given for data in memory
-            tx_rx_futs = [f[0] for f in self.intermediate_dat[ra.system_identifier]['orientation'][timestmp]] * len(idx_by_chunk)
-            try:
-                tx_rx_data = self.client.map(divide_arrays_by_time_index, tx_rx_futs, [chnk for chnk in idx_by_chunk])
-            except:  # client is not setup, run locally
-                tx_rx_data = []
-                for cnt, fut in enumerate(tx_rx_futs):
-                    tx_rx_data.append(divide_arrays_by_time_index(fut, idx_by_chunk[cnt]))
-        else:
-            # workflow for data that is written to disk
-            try:
-                tx_rx_data = self.client.scatter([[ra.tx[chnk], ra.rx[chnk]] for chnk in idx_by_chunk])
-            except:  # client is not setup, run locally
-                tx_rx_data = [[ra.tx[chnk], ra.rx[chnk]] for chnk in idx_by_chunk]
-
         data_for_workers = []
         for cnt, chnk in enumerate(idx_by_chunk):
+            if 'orientation' in self.intermediate_dat[ra.system_identifier]:
+                # workflow for data that is not written to disk.  Preference given for data in memory
+                intermediate_index = cnt + run_index
+                tx_rx_data = self.intermediate_dat[ra.system_identifier]['orientation'][timestmp][intermediate_index][0]
+                try:
+                    tx_rx_data = self.client.submit(_drop_list_element, tx_rx_data, -1)
+                except:  # client is not setup, run locally
+                    tx_rx_data = _drop_list_element(tx_rx_data, -1)
+            else:
+                # workflow for data that is written to disk
+                try:  # drop the processing status record that is unnecessary
+                    tx_rx_data = self.client.scatter([ra.tx[chnk], ra.rx[chnk]])
+                except:  # client is not setup, run locally
+                    tx_rx_data = [ra.tx[chnk], ra.rx[chnk]]
+
             heading = get_beamwise_interpolation(chnk.time + latency, ra.delay[chnk.values], self.multibeam.raw_att.heading)
             try:
                 fut_hdng = self.client.scatter(heading)
@@ -1095,11 +1155,11 @@ class Fqpr(ZarrBackend):
                 fut_hdng = heading
                 fut_bpa = ra.beampointingangle[chnk.values]
                 fut_tilt = ra.tiltangle[chnk.values]
-            data_for_workers.append([fut_hdng, fut_bpa, fut_tilt, tx_rx_data[cnt], self.tx_reversed, self.rx_reversed])
+            data_for_workers.append([fut_hdng, fut_bpa, fut_tilt, tx_rx_data, self.tx_reversed, self.rx_reversed])
         return data_for_workers
 
     def _generate_chunks_svcorr(self, ra: xr.Dataset, cast_chunks: list, casts: list,
-                                prefixes: str, timestmp: str, addtl_offsets: list, silent: bool = False):
+                                prefixes: str, timestmp: str, addtl_offsets: list, run_index: int, silent: bool = False):
         """
         Take a single sector, and build the data for the distributed system to process.  Svcorrect requires the
         relative azimuth (to ship heading) and the corrected beam pointing angle (corrected for attitude/mounting angle)
@@ -1119,6 +1179,8 @@ class Fqpr(ZarrBackend):
             timestamp of the installation parameters instance used
         total offsets
             [float, additional x offset, float, additional y offset, float, additional z offset]
+        run_index
+            the run counter that we are currently on, used in the in memory workflow to figure out which intermediate chunks of data to use
         silent
             if True, does not print out the log messages
 
@@ -1129,21 +1191,6 @@ class Fqpr(ZarrBackend):
         """
 
         data_for_workers = []
-        if 'bpv' in self.intermediate_dat[ra.system_identifier]:
-            # workflow for data that is not written to disk.  Preference given for data in memory
-            bpv_futs = [f[0] for f in self.intermediate_dat[ra.system_identifier]['bpv'][timestmp]] * len(cast_chunks)
-            try:
-                bpv_data = self.client.map(divide_arrays_by_time_index, bpv_futs, [d[0] for d in cast_chunks])
-            except:  # client is not setup, run locally
-                bpv_data = []
-                for cnt, fut in enumerate(bpv_futs):
-                    bpv_data.append(divide_arrays_by_time_index(fut, cast_chunks[cnt][0]))
-        else:
-            # workflow for data that is written to disk, break it up according to cast_chunks
-            try:
-                bpv_data = self.client.scatter([[ra.rel_azimuth[d[0]], ra.corr_pointing_angle[d[0]]] for d in cast_chunks])
-            except:  # client is not setup, run locally
-                bpv_data = [[ra.rel_azimuth[d[0]], ra.corr_pointing_angle[d[0]]] for d in cast_chunks]
 
         # this should be the transducer to waterline, positive down
         z_pos = -float(self.multibeam.xyzrph[prefixes[0] + '_z'][timestmp]) + float(self.multibeam.xyzrph['waterline'][timestmp])
@@ -1158,12 +1205,26 @@ class Fqpr(ZarrBackend):
             ss_data = [ra.soundspeed[d[0]] for d in cast_chunks]
 
         for cnt, dat in enumerate(cast_chunks):
-            data_for_workers.append([casts[dat[1]], bpv_data[cnt], twtt_data[cnt], ss_data[cnt], z_pos, addtl_offsets[cnt]])
+            intermediate_index = cnt + run_index
+            if 'bpv' in self.intermediate_dat[ra.system_identifier]:
+                # workflow for data that is not written to disk.  Preference given for data in memory
+                bpv_data = self.intermediate_dat[ra.system_identifier]['bpv'][timestmp][intermediate_index][0]
+                try:  # drop the processing status record that is unnecessary
+                    bpv_data = self.client.submit(_drop_list_element, bpv_data, -1)
+                except:  # client is not setup, run locally
+                    bpv_data = _drop_list_element(bpv_data, -1)
+            else:
+                # workflow for data that is written to disk, break it up according to cast_chunks
+                try:
+                    bpv_data = self.client.scatter([ra.rel_azimuth[dat[0]], ra.corr_pointing_angle[dat[0]]])
+                except:  # client is not setup, run locally
+                    bpv_data = [ra.rel_azimuth[dat[0]], ra.corr_pointing_angle[dat[0]]]
+            data_for_workers.append([casts[dat[1]], bpv_data, twtt_data[cnt], ss_data[cnt], z_pos, addtl_offsets[cnt]])
         return data_for_workers
 
     def _generate_chunks_georef(self, ra: xr.Dataset, idx_by_chunk: xr.DataArray,
                                 prefixes: str, timestmp: str, z_offset: float, prefer_pp_nav: bool,
-                                vdatum_directory: str, silent: bool = False):
+                                vdatum_directory: str, run_index: int, silent: bool = False):
         """
         Take a single sector, and build the data for the distributed system to process.  Georeference requires the
         sv_corrected acrosstrack/alongtrack/depthoffsets, as well as navigation, heading, heave and the quality
@@ -1185,6 +1246,8 @@ class Fqpr(ZarrBackend):
             if True will use post-processed navigation/height (SBET)
         vdatum_directory
             if 'NOAA MLLW' 'NOAA MHW' is the vertical reference, a path to the vdatum directory is required here
+        run_index
+            the run counter that we are currently on, used in the in memory workflow to figure out which intermediate chunks of data to use
         silent
             if True, does not print out the log messages
 
@@ -1255,10 +1318,15 @@ class Fqpr(ZarrBackend):
         data_for_workers = []
         min_chunk_index = np.min([idx.min() for idx in idx_by_chunk])
 
-        for chnk in idx_by_chunk:
+        for cnt, chnk in enumerate(idx_by_chunk):
+            intermediate_index = cnt + run_index
             if 'sv_corr' in self.intermediate_dat[ra.system_identifier]:
                 # workflow for data that is not written to disk.  Preference given for data in memory
-                sv_data = self.intermediate_dat[ra.system_identifier]['sv_corr'][timestmp][0][0]
+                sv_data = self.intermediate_dat[ra.system_identifier]['sv_corr'][timestmp][intermediate_index][0]
+                try:  # drop the processing status record that is unnecessary
+                    sv_data = self.client.submit(_drop_list_element, sv_data, -1)
+                except:  # client is not setup, run locally
+                    sv_data = _drop_list_element(sv_data, -1)
             else:
                 try:  # workflow for data that is written to disk
                     sv_data = self.client.scatter([ra.alongtrack[chnk], ra.acrosstrack[chnk], ra.depthoffset[chnk]])
@@ -1293,7 +1361,7 @@ class Fqpr(ZarrBackend):
                                      input_datum, self.horizontal_crs, z_offset, vdatum_directory])
         return data_for_workers
 
-    def _generate_chunks_tpu(self, ra: xr.Dataset, idx_by_chunk: xr.DataArray, timestmp: str, silent: bool = False):
+    def _generate_chunks_tpu(self, ra: xr.Dataset, idx_by_chunk: xr.DataArray, timestmp: str, run_index: int, silent: bool = False):
         """
         Take a single sector, and build the data for the distributed system to process.  Georeference requires the
         sv_corrected acrosstrack/alongtrack/depthoffsets, as well as navigation, heading, heave and the quality
@@ -1307,6 +1375,8 @@ class Fqpr(ZarrBackend):
             xarray Datarray, values are the integer indexes of the pings to use, coords are the time of ping
         timestmp
             timestamp of the installation parameters instance used
+        run_index
+            the run counter that we are currently on, used in the in memory workflow to figure out which intermediate chunks of data to use
         silent
             if True, does not print out the log messages
 
@@ -1345,6 +1415,9 @@ class Fqpr(ZarrBackend):
 
         tpu_params = self.multibeam.return_tpu_parameters(timestmp)
         for cnt, chnk in enumerate(idx_by_chunk):
+            if 'georef' in self.intermediate_dat[ra.system_identifier]:
+                raise NotImplementedError('_generate_chunks_tpu: in memory workflow not currently implemented for compute tpu')
+            intermediate_index = cnt + run_index
             raw_point = ra.beampointingangle[chnk.values]
             if self.rx_reversed:
                 # if reversed, we have to reverse the raw angles to match the already reversed corr angles
@@ -1514,7 +1587,6 @@ class Fqpr(ZarrBackend):
         if self.intermediate_dat is not None:
             for rawping in self.multibeam.raw_ping:
                 if 'orientation' in self.intermediate_dat[rawping.system_identifier]:
-                    print('get_beam_pointing_vectors: in memory workflow')
                     return
 
         required = ['tx', 'rx', 'beampointingangle', 'tiltangle']
@@ -1543,7 +1615,6 @@ class Fqpr(ZarrBackend):
         if self.intermediate_dat is not None:
             for rawping in self.multibeam.raw_ping:
                 if 'bpv' in self.intermediate_dat[rawping.system_identifier]:
-                    print('sv_correct: in memory workflow')
                     return
 
         required = ['rel_azimuth', 'corr_pointing_angle']
@@ -1591,7 +1662,6 @@ class Fqpr(ZarrBackend):
         if self.intermediate_dat is not None:
             for rawping in self.multibeam.raw_ping:
                 if 'sv_corr' in self.intermediate_dat[rawping.system_identifier]:
-                    print('georef_xyz: in memory workflow')
                     return
 
         required = ['alongtrack', 'acrosstrack', 'depthoffset']
@@ -1993,11 +2063,11 @@ class Fqpr(ZarrBackend):
         self._validate_get_orientation_vectors(subset_time, dump_data)
         if initial_interp:  # optional step if you want to save interpolated attitude/navigation at ping time to disk
             self.initial_att_interpolation()
-
-        self.logger.info('****Building tx/rx vectors at time of transmit/receive****\n')
-        starttime = perf_counter()  # use starttime to time the process
-        # each run of this process overwrites existing offsets/angles with the currently set ones
-        self.write_attribute_to_ping_records({'xyzrph': self.multibeam.xyzrph})
+        if dump_data:
+            self.logger.info('****Building tx/rx vectors at time of transmit/receive****\n')
+            starttime = perf_counter()  # use starttime to time the process
+            # each run of this process overwrites existing offsets/angles with the currently set ones
+            self.write_attribute_to_ping_records({'xyzrph': self.multibeam.xyzrph})
 
         skip_dask = False  # skip dask will allow us to process without dask distributed
         if self.client is None:  # small datasets benefit from just running it without dask distributed
@@ -2011,9 +2081,12 @@ class Fqpr(ZarrBackend):
 
         # for each serial number combination...only one loop here unless you have a dual head system
         for s_cnt, system in enumerate(systems):
+            if system is None:  # get here if one of the heads is disabled (set to None)
+                continue
             ra = self.multibeam.raw_ping[s_cnt]  # raw ping record
             sys_ident = ra.system_identifier
-            self.logger.info('Operating on system serial number = {}'.format(sys_ident))
+            if dump_data:
+                self.logger.info('Operating on system serial number = {}'.format(sys_ident))
             # when we process, we store the futures in self.intermediate_dat, so we can access it later
             self.initialize_intermediate_data(sys_ident, 'orientation')
             # get the settings we want to use for this sector, controls the amount of data we pass at once
@@ -2021,7 +2094,8 @@ class Fqpr(ZarrBackend):
 
             # for each installation parameters record...
             for applicable_index, timestmp, prefixes in system:
-                self.logger.info('using installation params {}'.format(timestmp))
+                if dump_data:
+                    self.logger.info('using installation params {}'.format(timestmp))
                 self.motion_latency = float(self.multibeam.xyzrph['latency'][timestmp])
                 self.generate_starter_orientation_vectors(prefixes, timestmp)
                 idx_by_chunk = self.return_chunk_indices(applicable_index, pings_per_chunk)
@@ -2029,16 +2103,17 @@ class Fqpr(ZarrBackend):
                     self._submit_data_to_cluster(ra, 'orientation', idx_by_chunk, max_chunks_at_a_time,
                                                  timestmp, prefixes, dump_data=dump_data, skip_dask=skip_dask)
                 else:
-                    self.logger.info('No pings found for {}-{}'.format(sys_ident, timestmp))
+                    if dump_data:
+                        self.logger.info('No pings found for {}-{}'.format(sys_ident, timestmp))
 
             if dump_data:
                 del self.intermediate_dat[sys_ident]['orientation']
-        # after each full processing step, reload the raw_ping datasets to get the new metadata
-        self.multibeam.reload_pingrecords(skip_dask=skip_dask)
-        self.subset.redo_subset()
-
-        endtime = perf_counter()
-        self.logger.info('****Get Orientation Vectors complete: {}****\n'.format(seconds_to_formatted_string(int(endtime - starttime))))
+        if dump_data:
+            # after each full processing step, reload the raw_ping datasets to get the new metadata
+            self.multibeam.reload_pingrecords(skip_dask=skip_dask)
+            self.subset.redo_subset()
+            endtime = perf_counter()
+            self.logger.info('****Get Orientation Vectors complete: {}****\n'.format(seconds_to_formatted_string(int(endtime - starttime))))
 
     def get_beam_pointing_vectors(self, subset_time: list = None, dump_data: bool = True):
         """
@@ -2062,8 +2137,9 @@ class Fqpr(ZarrBackend):
         """
 
         self._validate_get_beam_pointing_vectors(subset_time, dump_data)
-        self.logger.info('****Building beam specific pointing vectors****\n')
-        starttime = perf_counter()
+        if dump_data:
+            self.logger.info('****Building beam specific pointing vectors****\n')
+            starttime = perf_counter()
 
         skip_dask = False
         if self.client is None:  # small datasets benefit from just running it without dask distributed
@@ -2071,14 +2147,18 @@ class Fqpr(ZarrBackend):
 
         systems = self.multibeam.return_system_time_indexed_array(subset_time=subset_time)
         for s_cnt, system in enumerate(systems):
+            if system is None:  # get here if one of the heads is disabled (set to None)
+                continue
             ra = self.multibeam.raw_ping[s_cnt]
             sys_ident = ra.system_identifier
-            self.logger.info('Operating on system serial number = {}'.format(sys_ident))
+            if dump_data:
+                self.logger.info('Operating on system serial number = {}'.format(sys_ident))
             self.initialize_intermediate_data(sys_ident, 'bpv')
             pings_per_chunk, max_chunks_at_a_time = self.get_cluster_params()
 
             for applicable_index, timestmp, prefixes in system:
-                self.logger.info('using installation params {}'.format(timestmp))
+                if dump_data:
+                    self.logger.info('using installation params {}'.format(timestmp))
                 self.motion_latency = float(self.multibeam.xyzrph['latency'][timestmp])
                 self.generate_starter_orientation_vectors(prefixes, timestmp)
                 idx_by_chunk = self.return_chunk_indices(applicable_index, pings_per_chunk)
@@ -2086,15 +2166,15 @@ class Fqpr(ZarrBackend):
                     self._submit_data_to_cluster(ra, 'bpv', idx_by_chunk, max_chunks_at_a_time,
                                                  timestmp, prefixes, dump_data=dump_data, skip_dask=skip_dask)
                 else:
-                    self.logger.info('No pings found for {}-{}'.format(sys_ident, timestmp))
+                    if dump_data:
+                        self.logger.info('No pings found for {}-{}'.format(sys_ident, timestmp))
             if dump_data:
                 del self.intermediate_dat[sys_ident]['bpv']
-
-        self.multibeam.reload_pingrecords(skip_dask=skip_dask)
-        self.subset.redo_subset()
-
-        endtime = perf_counter()
-        self.logger.info('****Beam Pointing Vector generation complete: {}****\n'.format(seconds_to_formatted_string(int(endtime - starttime))))
+        if dump_data:
+            self.multibeam.reload_pingrecords(skip_dask=skip_dask)
+            self.subset.redo_subset()
+            endtime = perf_counter()
+            self.logger.info('****Beam Pointing Vector generation complete: {}****\n'.format(seconds_to_formatted_string(int(endtime - starttime))))
 
     def sv_correct(self, add_cast_files: Union[str, list] = None, subset_time: list = None, dump_data: bool = True):
         """
@@ -2121,8 +2201,9 @@ class Fqpr(ZarrBackend):
         """
 
         self._validate_sv_correct(subset_time, dump_data)
-        self.logger.info('****Correcting for sound velocity****\n')
-        starttime = perf_counter()
+        if dump_data:
+            self.logger.info('****Correcting for sound velocity****\n')
+            starttime = perf_counter()
 
         skip_dask = False
         if self.client is None:  # small datasets benefit from just running it without dask distributed
@@ -2133,29 +2214,34 @@ class Fqpr(ZarrBackend):
 
         systems = self.multibeam.return_system_time_indexed_array(subset_time=subset_time)
         for s_cnt, system in enumerate(systems):
+            if system is None:  # get here if one of the heads is disabled (set to None)
+                continue
             ra = self.multibeam.raw_ping[s_cnt]
             sys_ident = ra.system_identifier
-            self.logger.info('Operating on system serial number = {}'.format(sys_ident))
+            if dump_data:
+                self.logger.info('Operating on system serial number = {}'.format(sys_ident))
             self.initialize_intermediate_data(sys_ident, 'sv_corr')
             pings_per_chunk, max_chunks_at_a_time = self.get_cluster_params()
 
             for applicable_index, timestmp, prefixes in system:
-                self.logger.info('using installation params {}'.format(timestmp))
+                if dump_data:
+                    self.logger.info('using installation params {}'.format(timestmp))
                 self.motion_latency = float(self.multibeam.xyzrph['latency'][timestmp])
                 idx_by_chunk = self.return_chunk_indices(applicable_index, pings_per_chunk)
                 if len(idx_by_chunk[0]):  # if there are pings in this system that align with this installation parameter record
                     self._submit_data_to_cluster(ra, 'sv_corr', idx_by_chunk, max_chunks_at_a_time,
                                                  timestmp, prefixes, dump_data=dump_data, skip_dask=skip_dask)
                 else:
-                    self.logger.info('No pings found for {}-{}'.format(ra.system_identifier, timestmp))
+                    if dump_data:
+                        self.logger.info('No pings found for {}-{}'.format(ra.system_identifier, timestmp))
             if dump_data:
                 del self.intermediate_dat[sys_ident]['sv_corr']
 
-        self.multibeam.reload_pingrecords(skip_dask=skip_dask)
-        self.subset.redo_subset()
-
-        endtime = perf_counter()
-        self.logger.info('****Sound Velocity complete: {}****\n'.format(seconds_to_formatted_string(int(endtime - starttime))))
+        if dump_data:
+            self.multibeam.reload_pingrecords(skip_dask=skip_dask)
+            self.subset.redo_subset()
+            endtime = perf_counter()
+            self.logger.info('****Sound Velocity complete: {}****\n'.format(seconds_to_formatted_string(int(endtime - starttime))))
 
     def georef_xyz(self, subset_time: list = None, prefer_pp_nav: bool = True, dump_data: bool = True,
                    vdatum_directory: str = None):
@@ -2194,11 +2280,11 @@ class Fqpr(ZarrBackend):
         """
 
         self._validate_georef_xyz(subset_time, dump_data)
-        self.logger.info('****Georeferencing sound velocity corrected beam offsets****\n')
-        starttime = perf_counter()
-        self.write_attribute_to_ping_records({'xyzrph': self.multibeam.xyzrph})
-
-        self.logger.info('Using pyproj CRS: {}'.format(self.horizontal_crs.to_string()))
+        if dump_data:
+            self.logger.info('****Georeferencing sound velocity corrected beam offsets****\n')
+            starttime = perf_counter()
+            self.write_attribute_to_ping_records({'xyzrph': self.multibeam.xyzrph})
+            self.logger.info('Using pyproj CRS: {}'.format(self.horizontal_crs.to_string()))
 
         skip_dask = False
         if self.client is None:  # small datasets benefit from just running it without dask distributed
@@ -2206,14 +2292,18 @@ class Fqpr(ZarrBackend):
 
         systems = self.multibeam.return_system_time_indexed_array(subset_time=subset_time)
         for s_cnt, system in enumerate(systems):
+            if system is None:  # get here if one of the heads is disabled (set to None)
+                continue
             ra = self.multibeam.raw_ping[s_cnt]
             sys_ident = ra.system_identifier
-            self.logger.info('Operating on system serial number = {}'.format(sys_ident))
+            if dump_data:
+                self.logger.info('Operating on system serial number = {}'.format(sys_ident))
             self.initialize_intermediate_data(sys_ident, 'georef')
             pings_per_chunk, max_chunks_at_a_time = self.get_cluster_params()
 
             for applicable_index, timestmp, prefixes in system:
-                self.logger.info('using installation params {}'.format(timestmp))
+                if dump_data:
+                    self.logger.info('using installation params {}'.format(timestmp))
                 self.motion_latency = float(self.multibeam.xyzrph['latency'][timestmp])
                 idx_by_chunk = self.return_chunk_indices(applicable_index, pings_per_chunk)
                 if len(idx_by_chunk[0]):  # if there are pings in this system that align with this installation parameter record
@@ -2221,17 +2311,17 @@ class Fqpr(ZarrBackend):
                                                  timestmp, prefixes, dump_data=dump_data, skip_dask=skip_dask,
                                                  prefer_pp_nav=prefer_pp_nav, vdatum_directory=vdatum_directory)
                 else:
-                    self.logger.info('No pings found for {}-{}'.format(sys_ident, timestmp))
+                    if dump_data:
+                        self.logger.info('No pings found for {}-{}'.format(sys_ident, timestmp))
             if dump_data:
                 del self.intermediate_dat[sys_ident]['georef']
 
-        self.multibeam.reload_pingrecords(skip_dask=skip_dask)
-        self._overwrite_georef_stats()
-
-        self.subset.redo_subset()
-
-        endtime = perf_counter()
-        self.logger.info('****Georeferencing sound velocity corrected beam offsets complete: {}****\n'.format(seconds_to_formatted_string(int(endtime - starttime))))
+        if dump_data:
+            self.multibeam.reload_pingrecords(skip_dask=skip_dask)
+            self._overwrite_georef_stats()
+            self.subset.redo_subset()
+            endtime = perf_counter()
+            self.logger.info('****Georeferencing sound velocity corrected beam offsets complete: {}****\n'.format(seconds_to_formatted_string(int(endtime - starttime))))
 
     def calculate_total_uncertainty(self, subset_time: list = None, dump_data: bool = True):
         """
@@ -2253,9 +2343,10 @@ class Fqpr(ZarrBackend):
         """
 
         self._validate_calculate_total_uncertainty(subset_time, dump_data)
-        self.logger.info('****Calculating total uncertainty****\n')
-        starttime = perf_counter()
-        self.write_attribute_to_ping_records({'xyzrph': self.multibeam.xyzrph})
+        if dump_data:
+            self.logger.info('****Calculating total uncertainty****\n')
+            starttime = perf_counter()
+            self.write_attribute_to_ping_records({'xyzrph': self.multibeam.xyzrph})
 
         skip_dask = False
         if self.client is None:  # small datasets benefit from just running it without dask distributed
@@ -2263,14 +2354,18 @@ class Fqpr(ZarrBackend):
 
         systems = self.multibeam.return_system_time_indexed_array(subset_time=subset_time)
         for s_cnt, system in enumerate(systems):
+            if system is None:  # get here if one of the heads is disabled (set to None)
+                continue
             ra = self.multibeam.raw_ping[s_cnt]
             sys_ident = ra.system_identifier
-            self.logger.info('Operating on system serial number = {}'.format(sys_ident))
+            if dump_data:
+                self.logger.info('Operating on system serial number = {}'.format(sys_ident))
             self.initialize_intermediate_data(sys_ident, 'tpu')
             pings_per_chunk, max_chunks_at_a_time = self.get_cluster_params()
 
             for applicable_index, timestmp, prefixes in system:
-                self.logger.info('using installation params {}'.format(timestmp))
+                if dump_data:
+                    self.logger.info('using installation params {}'.format(timestmp))
                 self.motion_latency = float(self.multibeam.xyzrph['latency'][timestmp])
                 self.generate_starter_orientation_vectors(prefixes, timestmp)  # have to include this to know if rx is reversed to reverse raw beam angles
                 idx_by_chunk = self.return_chunk_indices(applicable_index, pings_per_chunk)
@@ -2279,11 +2374,12 @@ class Fqpr(ZarrBackend):
                                                  timestmp, prefixes, dump_data=dump_data, skip_dask=skip_dask)
                 else:
                     self.logger.info('No pings found for {}-{}'.format(sys_ident, timestmp))
-        self.multibeam.reload_pingrecords(skip_dask=skip_dask)
-        self.subset.redo_subset()
 
-        endtime = perf_counter()
-        self.logger.info('****Calculating total uncertainty complete: {}****\n'.format(seconds_to_formatted_string(int(endtime - starttime))))
+        if dump_data:
+            self.multibeam.reload_pingrecords(skip_dask=skip_dask)
+            self.subset.redo_subset()
+            endtime = perf_counter()
+            self.logger.info('****Calculating total uncertainty complete: {}****\n'.format(seconds_to_formatted_string(int(endtime - starttime))))
 
     def export_pings_to_file(self, output_directory: str = None, file_format: str = 'csv', csv_delimiter=' ',
                              filter_by_detection: bool = True, z_pos_down: bool = True, export_by_identifiers: bool = True):
@@ -2368,10 +2464,12 @@ class Fqpr(ZarrBackend):
         self.intermediate_dat[sys_ident][mode][timestmp] = []
         tot_runs = int(np.ceil(len(idx_by_chunk) / max_chunks_at_a_time))
         for rn in range(tot_runs):
+            silent = (rn != 0) or not dump_data  # only messages for the first chunk, and only when we are writing to disk
             starttime = perf_counter()
             start_r = rn * max_chunks_at_a_time
             end_r = min(start_r + max_chunks_at_a_time, len(idx_by_chunk))  # clamp for last run
             idx_by_chunk_subset = idx_by_chunk[start_r:end_r].copy()
+            start_run_index = rn * max_chunks_at_a_time
 
             if mode == 'orientation':
                 kluster_function = distrib_run_build_orientation_vectors
@@ -2382,31 +2480,31 @@ class Fqpr(ZarrBackend):
                 kluster_function = distrib_run_build_beam_pointing_vector
                 chunk_function = self._generate_chunks_bpv
                 comp_time = 'bpv_time_complete'
-                chunkargs = [rawping, idx_by_chunk_subset, timestmp]
+                chunkargs = [rawping, idx_by_chunk_subset, timestmp, start_run_index]
             elif mode == 'sv_corr':
                 kluster_function = distributed_run_sv_correct
                 chunk_function = self._generate_chunks_svcorr
                 comp_time = 'sv_time_complete'
                 profnames, casts, cast_times, castlocations = self.multibeam.return_all_profiles()
-                cast_chunks = self.return_cast_idx_nearestintime(cast_times, idx_by_chunk_subset, silent=(rn != 0))
+                cast_chunks = self.return_cast_idx_nearestintime(cast_times, idx_by_chunk_subset, silent=silent)
                 addtl_offsets = self.return_additional_xyz_offsets(rawping, prefixes, timestmp, idx_by_chunk_subset)
-                chunkargs = [rawping, cast_chunks, casts, prefixes, timestmp, addtl_offsets]
+                chunkargs = [rawping, cast_chunks, casts, prefixes, timestmp, addtl_offsets, start_run_index]
             elif mode == 'georef':
                 kluster_function = distrib_run_georeference
                 chunk_function = self._generate_chunks_georef
                 comp_time = 'georef_time_complete'
                 z_offset = float(self.multibeam.xyzrph[prefixes[0] + '_z'][timestmp])
-                chunkargs = [rawping, idx_by_chunk_subset, prefixes, timestmp, z_offset, prefer_pp_nav, vdatum_directory]
+                chunkargs = [rawping, idx_by_chunk_subset, prefixes, timestmp, z_offset, prefer_pp_nav, vdatum_directory, start_run_index]
             elif mode == 'tpu':
                 kluster_function = distrib_run_calculate_tpu
                 chunk_function = self._generate_chunks_tpu
                 comp_time = 'tpu_time_complete'
-                chunkargs = [rawping, idx_by_chunk_subset, timestmp]
+                chunkargs = [rawping, idx_by_chunk_subset, timestmp, start_run_index]
             else:
                 self.logger.error('Mode must be one of ["orientation", "bpv", "sv_corr", "georef", "tpu"]')
                 raise ValueError('Mode must be one of ["orientation", "bpv", "sv_corr", "georef", "tpu"]')
 
-            data_for_workers = chunk_function(*chunkargs, silent=(rn != 0))
+            data_for_workers = chunk_function(*chunkargs, silent=silent)
             try:
                 futs = self.client.map(kluster_function, data_for_workers)
                 if self.show_progress:
@@ -2423,9 +2521,9 @@ class Fqpr(ZarrBackend):
             if dump_data:
                 self.__setattr__(comp_time, datetime.utcnow().strftime('%c'))
                 self.write_intermediate_futs_to_zarr(mode, rawping.system_identifier, timestmp, skip_dask=skip_dask)
-            endtime = perf_counter()
-            self.logger.info('Processing chunk {} out of {} complete: {}'.format(rn + 1, tot_runs,
-                                                                                 seconds_to_formatted_string(int(endtime - starttime))))
+                endtime = perf_counter()
+                self.logger.info('Processing chunk {} out of {} complete: {}'.format(rn + 1, tot_runs,
+                                                                                     seconds_to_formatted_string(int(endtime - starttime))))
 
     def write_intermediate_futs_to_zarr(self, mode: str, sys_ident: str, timestmp: str, skip_dask: bool = False):
         """
@@ -2621,6 +2719,13 @@ class Fqpr(ZarrBackend):
 
         self.subset.subset_by_time(mintime, maxtime)
 
+    def subset_by_lines(self, line_names: Union[str, list]):
+        """
+        Use subset module to trim the fqpr instance to the given lines
+        """
+
+        self.subset.subset_by_lines(line_names)
+
     def subset_variables(self, variable_selection: list, ping_times: Union[np.array, float, tuple] = None,
                          skip_subset_by_time: bool = False, filter_by_detection: bool = False):
         """
@@ -2684,7 +2789,7 @@ class Fqpr(ZarrBackend):
                 raise ValueError('return_line_dict: ping_times must be a tuple of (start time utc seconds, end time utc seconds): {}'.format(ping_times))
             corrected_mfiles = {}  # we need to trim the line start/end times by the given ping_times
             for linename in mfiles.keys():
-                starttime, endtime = mfiles[linename]
+                starttime, endtime = mfiles[linename][0], mfiles[linename][1]
                 if starttime > sel_end_time:
                     continue
                 if endtime < sel_start_time:
@@ -2693,7 +2798,9 @@ class Fqpr(ZarrBackend):
                     starttime = sel_start_time
                 if endtime >= sel_end_time:
                     endtime = sel_end_time
-                corrected_mfiles[linename] = [starttime, endtime]
+                corrected_mfiles[linename] = mfiles[linename]
+                corrected_mfiles[linename][0] = starttime
+                corrected_mfiles[linename][1] = endtime
             mfiles = corrected_mfiles
         return mfiles
 
@@ -2872,9 +2979,31 @@ class Fqpr(ZarrBackend):
 
         line_dict = self.return_line_dict(line_name)
         if line_name in line_dict.keys():
-            return line_dict[line_name]
+            return line_dict[line_name][0], line_dict[line_name][1]
         else:
             return None, None
+
+    def return_line_xyzrph(self, line_name: str):
+        """
+        Return only the relevant xyzrph (kluster vessel config data) entries for the given line name.
+
+        Parameters
+        ----------
+        line_name
+            file name of the multibeam line
+
+        Returns
+        -------
+        dict
+            xyzrph trimmed to only the relevant entries for the line
+        """
+
+        start_time, end_time = self.return_line_time(line_name)
+        if start_time and end_time:
+            return trim_xyzrprh_to_times(self.multibeam.xyzrph, start_time, end_time)
+        else:
+            print('return_line_xyzrph: Line {} is not a part of this converted data instance'.format(line_name))
+            return None
 
     def return_soundings_in_polygon(self, polygon: np.ndarray, geographic: bool = True,
                                     variable_selection: tuple = ('head', 'x', 'y', 'z', 'tvu', 'detectioninfo', 'time', 'beam')):
@@ -3106,3 +3235,8 @@ def _return_xarray_time(xarrs: Union[xr.DataArray, xr.Dataset]):
     """
 
     return xarrs['time']
+
+
+def _drop_list_element(data_list: list, drop_this_one: int):
+    data_list.pop(drop_this_one)
+    return data_list

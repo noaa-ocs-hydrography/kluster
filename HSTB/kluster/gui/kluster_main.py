@@ -21,7 +21,7 @@ from HSTB.kluster.gui import dialog_vesselview, kluster_explorer, kluster_projec
     kluster_output_window, kluster_2dview, kluster_actions, kluster_monitor, dialog_daskclient, dialog_surface, \
     dialog_export, kluster_worker, kluster_interactive_console, dialog_basicplot, dialog_advancedplot, dialog_project_settings, \
     dialog_export_grid, dialog_layer_settings, dialog_settings, dialog_importppnav, dialog_overwritenav, dialog_surface_data, \
-    dialog_about, dialog_setcolors
+    dialog_about, dialog_setcolors, dialog_patchtest
 from HSTB.kluster.fqpr_project import FqprProject
 from HSTB.kluster.fqpr_intelligence import FqprIntel
 from HSTB.kluster.fqpr_vessel import convert_from_fqpr_xyzrph, convert_from_vessel_xyzrph, compare_dict_data
@@ -209,6 +209,7 @@ class KlusterMain(QtWidgets.QMainWindow):
 
         self.monitor.monitor_file_event.connect(self.intel._handle_monitor_event)
         self.monitor.monitor_start.connect(self._create_new_project_if_not_exist)
+        self._patch = None  # retain patch test dialog object while running it for updates
 
         self.setup_menu()
         self.setup_widgets()
@@ -338,6 +339,8 @@ class KlusterMain(QtWidgets.QMainWindow):
         overwritenav_action.triggered.connect(self._action_overwrite_nav)
         surface_action = QtWidgets.QAction('New Surface', self)
         surface_action.triggered.connect(self._action_surface_generation)
+        # patch_action = QtWidgets.QAction('Patch Test', self)
+        # patch_action.triggered.connect(self._action_patch_test)
 
         basicplots_action = QtWidgets.QAction('Basic Plots', self)
         basicplots_action.triggered.connect(self._action_basicplots)
@@ -348,8 +351,6 @@ class KlusterMain(QtWidgets.QMainWindow):
         about_action.triggered.connect(self._action_show_about)
         docs_action = QtWidgets.QAction('Documentation', self)
         docs_action.triggered.connect(self._action_show_docs)
-        # odocs_action = QtWidgets.QAction('Online Documentation', self)
-        # odocs_action.triggered.connect(self._action_show_odocs)
         videos_action = QtWidgets.QAction('YouTube Videos', self)
         videos_action.triggered.connect(self.open_youtube_playlist)
 
@@ -383,6 +384,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         process.addAction(overwritenav_action)
         process.addAction(importppnav_action)
         process.addAction(surface_action)
+        # process.addAction(patch_action)
 
         visual = menubar.addMenu('Visualize')
         visual.addAction(basicplots_action)
@@ -391,7 +393,6 @@ class KlusterMain(QtWidgets.QMainWindow):
         klusterhelp = menubar.addMenu('Help')
         klusterhelp.addAction(about_action)
         klusterhelp.addAction(docs_action)
-        # klusterhelp.addAction(odocs_action)
         klusterhelp.addAction(videos_action)
 
     def update_on_file_added(self, fil: Union[str, list] = ''):
@@ -475,6 +476,9 @@ class KlusterMain(QtWidgets.QMainWindow):
                     else:
                         self.two_d.remove_surface(remove_surface, resolution)
         if add_surface is not None and surface_layer_name:
+            if self.surface_update_thread.isRunning():
+                print('Surface is currently updating, please wait until after that process is complete.')
+                return
             surf_object = self.project.surface_instances[add_surface]
             needs_drawing = []
             if surface_layer_name == 'tiles':
@@ -490,9 +494,6 @@ class KlusterMain(QtWidgets.QMainWindow):
                     if not shown:  # show didnt work, must need to add the surface instead, loading from disk...
                         needs_drawing.append(resolution)
             if needs_drawing:
-                if self.surface_update_thread.isRunning():
-                    print('Surface is currently updating, please wait until after that process is complete.')
-                    return
                 print('Drawing {} - {}, resolution {}'.format(add_surface, surface_layer_name, needs_drawing))
                 self.draw_surface_thread.populate(add_surface, surf_object, needs_drawing, surface_layer_name)
                 self.draw_surface_thread.start()
@@ -724,7 +725,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         """
         Right click an fqpr instance and trigger full reprocessing, should only be necessary in case of emergency.
         """
-        fqprs = self.project_tree.return_selected_fqprs()
+        fqprs, linedict = self.project_tree.return_selected_fqprs()
         if fqprs:
             # start over at 1, which is conversion in our state machine
             fq = self.project.fqpr_instances[fqprs[0]]
@@ -744,7 +745,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         """
         Runs the basic plots dialog, for plotting the variables using the xarray/matplotlib functionality
         """
-        fqprspaths, fqprs = self.return_selected_fqprs()
+        fqprspaths, fqprs = self.return_selected_fqprs(subset_by_line=True)
 
         self.basicplots_win = None
         self.basicplots_win = dialog_basicplot.BasicPlotDialog()
@@ -758,7 +759,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         """
         Runs the advanced plots dialog, for plotting the sat tests and other more sophisticated stuff
         """
-        fqprspaths, fqprs = self.return_selected_fqprs()
+        fqprspaths, fqprs = self.return_selected_fqprs(subset_by_line=True)
         first_surf = None
         default_plots = None
         if self.project.surface_instances:
@@ -820,6 +821,8 @@ class KlusterMain(QtWidgets.QMainWindow):
             else:  # new fqpr, or conversion actions always need a full refresh
                 self.refresh_project(fqpr=[fqpr_entry])
         else:
+            print('Error running action {}'.format(self.action_thread.action_type))
+            print(self.action_thread.exceptiontxt)
             print('kluster_action: no data returned from action execution: {}'.format(fqpr))
         self.action_thread.populate(None, None)
         self._stop_action_progress()
@@ -877,7 +880,8 @@ class KlusterMain(QtWidgets.QMainWindow):
                 self.project.add_fqpr(fq)
                 self.refresh_explorer(fq)
         else:
-            print('kluster_import_navigation: Unable to complete process')
+            print('Error overwriting raw navigation')
+            print(self.overwrite_nav_thread.exceptiontxt)
         self.overwrite_nav_thread.populate(None)
         self._stop_action_progress()
 
@@ -934,9 +938,45 @@ class KlusterMain(QtWidgets.QMainWindow):
                 self.project.add_fqpr(fq)
                 self.refresh_explorer(fq)
         else:
-            print('kluster_import_navigation: Unable to complete process')
+            print('Error importing post processed navigation')
+            print(self.import_ppnav_thread.exceptiontxt)
         self.import_ppnav_thread.populate(None)
         self._stop_action_progress()
+
+    def kluster_patch_test(self):
+        if not self.no_threads_running():
+            print('Processing is already occurring.  Please wait for the process to finish')
+            cancelled = True
+        else:
+            cancelled = False
+            self._patch = dialog_patchtest.PatchTestDialog()
+            self._patch.patch_query.connect(self.feed_patch_test_dialog)
+            if self._patch.exec_():
+                cancelled = self._patch.canceled
+                pairs = self._patch.return_pairs
+                if pairs:
+                    self.project.run_patch_test(pairs)
+        if cancelled:
+            print('kluster_patch_test: Processing was cancelled')
+        self._patch = None
+
+    def feed_patch_test_dialog(self, mode: str):
+        if self._patch is None:
+            print('ERROR: Lost handle on patch test dialog')
+            return
+        self._patch.clear()
+        if mode == 'pointsview':
+            # get lineinfo from points view
+            pass
+        else:
+            fqprs, linedict = self.project_tree.return_selected_fqprs(force_line_list=True)
+            total_lines = [x for y in linedict.values() for x in y]
+            pair_list, ldict = self.project.sort_lines_patch_test_pairs(total_lines)
+            cur_cnt = 0
+            for lpair in pair_list:
+                for lline in lpair:
+                    self._patch.add_line([cur_cnt, lline, ldict[lline]['azimuth']])
+                cur_cnt += 1
 
     def kluster_surface_generation(self):
         """
@@ -997,7 +1037,8 @@ class KlusterMain(QtWidgets.QMainWindow):
             self.project.add_surface(fq_surf)
             self.redraw()
         else:
-            print('kluster_surface_generation: Unable to complete process')
+            print('Error building surface')
+            print(self.surface_thread.exceptiontxt)
         self.surface_thread.populate(None, {})
         self._stop_action_progress()
 
@@ -1045,7 +1086,8 @@ class KlusterMain(QtWidgets.QMainWindow):
             self.project.add_surface(fq_surf)
             self.project_tree.refresh_project(proj=self.project)
         else:
-            print('kluster_surface_update: Unable to complete process')
+            print('Error updating surface')
+            print(self.surface_update_thread.exceptiontxt)
         self.surface_update_thread.populate(None, None, None, {})
         self._stop_action_progress()
 
@@ -1100,7 +1142,8 @@ class KlusterMain(QtWidgets.QMainWindow):
         """
 
         if self.export_grid_thread.error:
-            print('Export complete: Unable to export')
+            print('Error exporting grid')
+            print(self.export_grid_thread.exceptiontxt)
         else:
             print('Export complete.')
         self.export_grid_thread.populate(None, '', '', True, {})
@@ -1168,6 +1211,7 @@ class KlusterMain(QtWidgets.QMainWindow):
 
         if self.export_thread.error:
             print('Export complete: Unable to export')
+            print(self.export_thread.exceptiontxt)
         else:
             print('Export complete.')
         self.export_thread.populate(None, None, [], '', False, 'comma', False, False, True, False, False)
@@ -1256,6 +1300,9 @@ class KlusterMain(QtWidgets.QMainWindow):
             for new_surf in self.open_project_thread.new_surfaces:
                 self.project.add_surface(new_surf)
             self.redraw(new_fqprs=[self.project.path_relative_to_project(fq.output_folder) for fq in self.open_project_thread.new_fqprs])
+        else:
+            print('Error on opening data')
+            print(self.open_project_thread.exceptiontxt)
         self.open_project_thread.populate(None)
         self._stop_action_progress()
 
@@ -1268,6 +1315,9 @@ class KlusterMain(QtWidgets.QMainWindow):
             for ln in self.draw_navigation_thread.line_data:
                 self.two_d.add_line(ln, self.draw_navigation_thread.line_data[ln][0], self.draw_navigation_thread.line_data[ln][1])
             self.two_d.set_extents_from_lines()
+        else:
+            print('Error drawing lines from {}'.format(self.draw_navigation_thread.new_fqprs))
+            print(self.draw_navigation_thread.exceptiontxt)
         self.draw_navigation_thread.populate(None, None)
         self._stop_action_progress()
         print('draw_navigation: Drawing navigation complete.')
@@ -1300,6 +1350,9 @@ class KlusterMain(QtWidgets.QMainWindow):
                             drawresolution = surf_resolution
                 if drawresolution:
                     self.two_d.set_extents_from_surfaces(surf_path, drawresolution)
+        else:
+            print('Error drawing surface {}'.format(self.draw_surface_thread.surface_path))
+            print(self.draw_surface_thread.exceptiontxt)
         self.draw_surface_thread.populate(None, None, None, None)
         self._stop_action_progress()
         print('draw_surface: Drawing surface complete.')
@@ -1696,15 +1749,17 @@ class KlusterMain(QtWidgets.QMainWindow):
             list of line names that are found to intersect the drawn box
         """
 
-        self.two_d.reset_line_colors()
-        self.explorer.clear_explorer_data()
         skip_these = []
         for cnt, ln in enumerate(linenames):
             valid = self._line_selected(ln, idx=cnt)
             if not valid:
                 skip_these.append(ln)
         linenames = [ln for ln in linenames if ln not in skip_these]
-        self.two_d.change_line_colors(linenames, 'red')
+        self.project_tree.select_multibeam_lines(linenames, clear_existing_selection=True)
+        if not linenames:
+            self.two_d.reset_line_colors()
+            self.explorer.clear_explorer_data()
+            self.two_d.change_line_colors(linenames, 'red')
 
     def select_line_by_box(self, min_lat, max_lat, min_lon, max_lon):
         """
@@ -1765,6 +1820,9 @@ class KlusterMain(QtWidgets.QMainWindow):
                                             pointdata[6], pointdata[7], fqpr_name, pointdata[8], azimuth=azimuth)
                 pointcount += pointdata[0].size
             self.points_view.display_points()
+        else:
+            print('Error loading points from project')
+            print(self.load_points_thread.exceptiontxt)
         self.two_d.finalize_points_tool()
         print('Selected {} Points for display'.format(pointcount))
         self.load_points_thread.populate()
@@ -1960,6 +2018,12 @@ class KlusterMain(QtWidgets.QMainWindow):
         """
         self.kluster_surface_generation()
 
+    def _action_patch_test(self):
+        """
+        Connect menu action 'Patch Test' with patch test dialog
+        """
+        self.kluster_patch_test()
+
     def _action_new_project(self):
         """
         Connect menu action 'Open Project' with file dialog and open_project
@@ -2074,9 +2138,10 @@ class KlusterMain(QtWidgets.QMainWindow):
         # self.setUpdatesEnabled(True)
         print('Reset interface settings to default')
 
-    def return_selected_fqprs(self):
+    def return_selected_fqprs(self, subset_by_line: bool = False):
         """
-        Return absolute paths to fqprs selected and the loaded fqpr instances
+        Return absolute paths to fqprs selected and the loaded fqpr instances.  In most instances, this is pretty simple,
+        you
 
         Returns
         -------
@@ -2085,20 +2150,11 @@ class KlusterMain(QtWidgets.QMainWindow):
         list
             list of loaded fqpr instances
         """
-        fqprs = self.project_tree.return_selected_fqprs()
-        fqpr_loaded = []
-        fqpr_paths = []
-        for fq in fqprs:
-            try:
-                fqpr_paths.append(self.project.absolute_path_from_relative(fq))
-            except:
-                print('Unable to find {} in project'.format(fq))
-                continue
-            try:
-                fqpr_loaded.append(self.project.fqpr_instances[fq])
-            except:
-                print('Unable to find loaded converted data for {}'.format(fq))
-                fqpr_loaded.append(None)
+        fqprs, linedict = self.project_tree.return_selected_fqprs()
+        if subset_by_line and linedict:
+            fqpr_paths, fqpr_loaded = self.project.get_fqprs_by_paths(fqprs, linedict)
+        else:
+            fqpr_paths, fqpr_loaded = self.project.get_fqprs_by_paths(fqprs)
         return fqpr_paths, fqpr_loaded
 
     def return_selected_surfaces(self):

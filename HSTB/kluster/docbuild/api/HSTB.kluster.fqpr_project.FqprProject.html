@@ -5,7 +5,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>FqprProject &#8212; kluster 0.8.2 documentation</title>
+    <title>FqprProject &#8212; kluster 0.8.3 documentation</title>
     <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
     <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
     <link rel="stylesheet" type="text/css" href="../_static/graphviz.css" />
@@ -97,68 +97,77 @@ lines within a specific area, the FqprProject should be able to do this.</p>
 <tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_project.FqprProject.get_fqpr_by_serial_number" title="HSTB.kluster.fqpr_project.FqprProject.get_fqpr_by_serial_number"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_fqpr_by_serial_number</span></code></a>(…[, same_day_as])</p></td>
 <td><p>Find the fqpr instance that matches the provided serial number.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_project.FqprProject.new_project_from_directory" title="HSTB.kluster.fqpr_project.FqprProject.new_project_from_directory"><code class="xref py py-obj docutils literal notranslate"><span class="pre">new_project_from_directory</span></code></a>(directory_path)</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_project.FqprProject.get_fqprs_by_paths" title="HSTB.kluster.fqpr_project.FqprProject.get_fqprs_by_paths"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_fqprs_by_paths</span></code></a>(fqpr_paths[, line_dict, …])</p></td>
+<td><p>Return a list of the paths and Fqpr instances associated with each provided path.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_project.FqprProject.new_project_from_directory" title="HSTB.kluster.fqpr_project.FqprProject.new_project_from_directory"><code class="xref py py-obj docutils literal notranslate"><span class="pre">new_project_from_directory</span></code></a>(directory_path)</p></td>
 <td><p>Take in a path to a directory where we want to build a new project.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_project.FqprProject.open_project" title="HSTB.kluster.fqpr_project.FqprProject.open_project"><code class="xref py py-obj docutils literal notranslate"><span class="pre">open_project</span></code></a>(projfile[, skip_dask])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_project.FqprProject.open_project" title="HSTB.kluster.fqpr_project.FqprProject.open_project"><code class="xref py py-obj docutils literal notranslate"><span class="pre">open_project</span></code></a>(projfile[, skip_dask])</p></td>
 <td><p>Open a project from file.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_project.FqprProject.path_relative_to_project" title="HSTB.kluster.fqpr_project.FqprProject.path_relative_to_project"><code class="xref py py-obj docutils literal notranslate"><span class="pre">path_relative_to_project</span></code></a>(pth)</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_project.FqprProject.path_relative_to_project" title="HSTB.kluster.fqpr_project.FqprProject.path_relative_to_project"><code class="xref py py-obj docutils literal notranslate"><span class="pre">path_relative_to_project</span></code></a>(pth)</p></td>
 <td><p>Return the relative path for the provided pth from the project file</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_project.FqprProject.refresh_fqpr_attribution" title="HSTB.kluster.fqpr_project.FqprProject.refresh_fqpr_attribution"><code class="xref py py-obj docutils literal notranslate"><span class="pre">refresh_fqpr_attribution</span></code></a>(pth[, relative_path])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_project.FqprProject.refresh_fqpr_attribution" title="HSTB.kluster.fqpr_project.FqprProject.refresh_fqpr_attribution"><code class="xref py py-obj docutils literal notranslate"><span class="pre">refresh_fqpr_attribution</span></code></a>(pth[, relative_path])</p></td>
 <td><p></p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_project.FqprProject.regenerate_fqpr_lines" title="HSTB.kluster.fqpr_project.FqprProject.regenerate_fqpr_lines"><code class="xref py py-obj docutils literal notranslate"><span class="pre">regenerate_fqpr_lines</span></code></a>(pth)</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_project.FqprProject.regenerate_fqpr_lines" title="HSTB.kluster.fqpr_project.FqprProject.regenerate_fqpr_lines"><code class="xref py py-obj docutils literal notranslate"><span class="pre">regenerate_fqpr_lines</span></code></a>(pth)</p></td>
 <td><p>After adding a new Fqpr object, we want to get the line information from the attributes so that we can quickly access how many lines are in a project, and the time boundaries of these lines.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_project.FqprProject.remove_fqpr" title="HSTB.kluster.fqpr_project.FqprProject.remove_fqpr"><code class="xref py py-obj docutils literal notranslate"><span class="pre">remove_fqpr</span></code></a>(pth[, relative_path])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_project.FqprProject.remove_fqpr" title="HSTB.kluster.fqpr_project.FqprProject.remove_fqpr"><code class="xref py py-obj docutils literal notranslate"><span class="pre">remove_fqpr</span></code></a>(pth[, relative_path])</p></td>
 <td><p>Remove an attached Fqpr instance from the project by path to Fqpr converted folder</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_project.FqprProject.remove_surface" title="HSTB.kluster.fqpr_project.FqprProject.remove_surface"><code class="xref py py-obj docutils literal notranslate"><span class="pre">remove_surface</span></code></a>(pth[, relative_path])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_project.FqprProject.remove_surface" title="HSTB.kluster.fqpr_project.FqprProject.remove_surface"><code class="xref py py-obj docutils literal notranslate"><span class="pre">remove_surface</span></code></a>(pth[, relative_path])</p></td>
 <td><p>Remove an attached Bathygrid instance from the project by path to Fqpr converted folder</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_project.FqprProject.return_fqpr_instances" title="HSTB.kluster.fqpr_project.FqprProject.return_fqpr_instances"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_fqpr_instances</span></code></a>()</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_project.FqprProject.return_fqpr_instances" title="HSTB.kluster.fqpr_project.FqprProject.return_fqpr_instances"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_fqpr_instances</span></code></a>()</p></td>
 <td><p>Get all loaded fqpr instances</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_project.FqprProject.return_fqpr_paths" title="HSTB.kluster.fqpr_project.FqprProject.return_fqpr_paths"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_fqpr_paths</span></code></a>()</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_project.FqprProject.return_fqpr_paths" title="HSTB.kluster.fqpr_project.FqprProject.return_fqpr_paths"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_fqpr_paths</span></code></a>()</p></td>
 <td><p>Get the absolute paths to all loaded fqpr instances</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_project.FqprProject.return_line_navigation" title="HSTB.kluster.fqpr_project.FqprProject.return_line_navigation"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_line_navigation</span></code></a>(line)</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_project.FqprProject.return_line_navigation" title="HSTB.kluster.fqpr_project.FqprProject.return_line_navigation"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_line_navigation</span></code></a>(line)</p></td>
 <td><p>For given line name, return the latitude/longitude from the ping record</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_project.FqprProject.return_line_owner" title="HSTB.kluster.fqpr_project.FqprProject.return_line_owner"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_line_owner</span></code></a>(line)</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_project.FqprProject.return_line_owner" title="HSTB.kluster.fqpr_project.FqprProject.return_line_owner"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_line_owner</span></code></a>(line)</p></td>
 <td><p>Return the Fqpr instance that contains the provided multibeam line</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_project.FqprProject.return_lines_in_box" title="HSTB.kluster.fqpr_project.FqprProject.return_lines_in_box"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_lines_in_box</span></code></a>(min_lat, max_lat, …)</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_project.FqprProject.return_lines_in_box" title="HSTB.kluster.fqpr_project.FqprProject.return_lines_in_box"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_lines_in_box</span></code></a>(min_lat, max_lat, …)</p></td>
 <td><p>With the given latitude/longitude boundaries, return the lines that are completely within these boundaries</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_project.FqprProject.return_project_folder" title="HSTB.kluster.fqpr_project.FqprProject.return_project_folder"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_project_folder</span></code></a>()</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_project.FqprProject.return_project_folder" title="HSTB.kluster.fqpr_project.FqprProject.return_project_folder"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_project_folder</span></code></a>()</p></td>
 <td><p>Return the project folder, the folder that contains the project file</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_project.FqprProject.return_project_lines" title="HSTB.kluster.fqpr_project.FqprProject.return_project_lines"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_project_lines</span></code></a>([proj, relative_path])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_project.FqprProject.return_project_lines" title="HSTB.kluster.fqpr_project.FqprProject.return_project_lines"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_project_lines</span></code></a>([proj, relative_path])</p></td>
 <td><p>Return the lines associated with the provided Fqpr path (proj) or all projects/lines</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_project.FqprProject.return_sorted_line_list" title="HSTB.kluster.fqpr_project.FqprProject.return_sorted_line_list"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_sorted_line_list</span></code></a>()</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_project.FqprProject.return_sorted_line_list" title="HSTB.kluster.fqpr_project.FqprProject.return_sorted_line_list"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_sorted_line_list</span></code></a>()</p></td>
 <td><p>Return all lines in the project sorted by name</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_project.FqprProject.return_soundings_in_polygon" title="HSTB.kluster.fqpr_project.FqprProject.return_soundings_in_polygon"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_soundings_in_polygon</span></code></a>(polygon)</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_project.FqprProject.return_soundings_in_polygon" title="HSTB.kluster.fqpr_project.FqprProject.return_soundings_in_polygon"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_soundings_in_polygon</span></code></a>(polygon)</p></td>
 <td><p>With the given latitude/longitude polygon, return the soundings that are within the boundaries.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_project.FqprProject.return_surface_containers" title="HSTB.kluster.fqpr_project.FqprProject.return_surface_containers"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_surface_containers</span></code></a>(surface_name[, …])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_project.FqprProject.return_surface_containers" title="HSTB.kluster.fqpr_project.FqprProject.return_surface_containers"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_surface_containers</span></code></a>(surface_name[, …])</p></td>
 <td><p>Project has loaded surface and fqpr instances.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_project.FqprProject.return_surface_paths" title="HSTB.kluster.fqpr_project.FqprProject.return_surface_paths"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_surface_paths</span></code></a>()</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_project.FqprProject.return_surface_paths" title="HSTB.kluster.fqpr_project.FqprProject.return_surface_paths"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_surface_paths</span></code></a>()</p></td>
 <td><p>Get the absolute paths to all loaded surface instances</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_project.FqprProject.return_vessel_file" title="HSTB.kluster.fqpr_project.FqprProject.return_vessel_file"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_vessel_file</span></code></a>()</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_project.FqprProject.return_vessel_file" title="HSTB.kluster.fqpr_project.FqprProject.return_vessel_file"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_vessel_file</span></code></a>()</p></td>
 <td><p>Return the VesselFile instance for this project’s vessel_file path</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_project.FqprProject.run_patch_test" title="HSTB.kluster.fqpr_project.FqprProject.run_patch_test"><code class="xref py py-obj docutils literal notranslate"><span class="pre">run_patch_test</span></code></a>(line_pairs)</p></td>
+<td><p></p></td>
 </tr>
 <tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_project.FqprProject.save_project" title="HSTB.kluster.fqpr_project.FqprProject.save_project"><code class="xref py py-obj docutils literal notranslate"><span class="pre">save_project</span></code></a>()</p></td>
 <td><p>Save the current FqprProject instance to file.</p></td>
 </tr>
 <tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_project.FqprProject.set_settings" title="HSTB.kluster.fqpr_project.FqprProject.set_settings"><code class="xref py py-obj docutils literal notranslate"><span class="pre">set_settings</span></code></a>(settings)</p></td>
 <td><p>Set the project settings with the provided dictionary.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_project.FqprProject.sort_lines_patch_test_pairs" title="HSTB.kluster.fqpr_project.FqprProject.sort_lines_patch_test_pairs"><code class="xref py py-obj docutils literal notranslate"><span class="pre">sort_lines_patch_test_pairs</span></code></a>(line_list)</p></td>
+<td><p>Take the provided list of linenames and sort them into pairs for the patch test tool.</p></td>
 </tr>
 </tbody>
 </table>
@@ -297,6 +306,36 @@ is the serial number of the starboard head</p></li>
 <dd class="field-even"><p><ul class="simple">
 <li><p><em>str</em> – folder path to the fqpr instance</p></li>
 <li><p><em>Fqpr</em> – fqpr instance that matches the serial numbers provided</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="HSTB.kluster.fqpr_project.FqprProject.get_fqprs_by_paths">
+<code class="sig-name descname"><span class="pre">get_fqprs_by_paths</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">fqpr_paths</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">line_dict</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">relative_path</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">allow_different_offsets</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">raise_exception</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_project.FqprProject.get_fqprs_by_paths" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return a list of the paths and Fqpr instances associated with each provided path.  Path can be relative to the project
+or an absolute path.</p>
+<p>If a line_dict is provided, we will subset each Fqpr object to just the data associated with the lines in the line_dict.
+If you provide multiple fqpr_paths, it will take the data for the lines across all fqpr_paths provided, and merge
+them into one Fqpr object.  So if you provide 2 fqpr_paths, and a line_dict that includes 2 lines from each fqpr
+object, the end result is a single Fqpr object with the data for all four lines across the two original Fqpr instances.</p>
+<p>multibeam_files attribute the in the returned fqpr object is adjusted for the actual lines in the Fqpr returned.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>fqpr_paths</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">list</span></code>) – list of relative/absolute paths to the Fqpr objects we want</p></li>
+<li><p><strong>line_dict</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">dict</span></code>]) – dict of {fqpr_path: [line1, line2, …]} for the desired lines</p></li>
+<li><p><strong>relative_path</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code>) – if True, provided paths are relative to the project, otherwise they are absolute paths</p></li>
+<li><p><strong>allow_different_offsets</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code>) – if True, will merge Fqpr instances that have different offsets/angles.  Otherwise will reject</p></li>
+<li><p><strong>raise_exception</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code>) – if True, will raise an exception instead of handling the error</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p><em>list</em> – absolute paths to the fqprs queried</p></li>
+<li><p><em>list</em> – list of loaded fqpr instances</p></li>
 </ul>
 </p>
 </dd>
@@ -599,6 +638,11 @@ None</p>
 </dd></dl>
 
 <dl class="py method">
+<dt id="HSTB.kluster.fqpr_project.FqprProject.run_patch_test">
+<code class="sig-name descname"><span class="pre">run_patch_test</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">line_pairs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_project.FqprProject.run_patch_test" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
 <dt id="HSTB.kluster.fqpr_project.FqprProject.save_project">
 <code class="sig-name descname"><span class="pre">save_project</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_project.FqprProject.save_project" title="Permalink to this definition">¶</a></dt>
 <dd><p>Save the current FqprProject instance to file.  Use open_project to reload this instance.</p>
@@ -612,6 +656,25 @@ to enable parallel write as well</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><p><strong>settings</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">dict</span></code>) – dictionary from the Qsettings store, see kluster_main._load_previously_used_settings</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="HSTB.kluster.fqpr_project.FqprProject.sort_lines_patch_test_pairs">
+<code class="sig-name descname"><span class="pre">sort_lines_patch_test_pairs</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">line_list</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_project.FqprProject.sort_lines_patch_test_pairs" title="Permalink to this definition">¶</a></dt>
+<dd><p>Take the provided list of linenames and sort them into pairs for the patch test tool.  Each pair consists of two lines
+that are reciprocal and start/end in the same place.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>line_list</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">list</span></code>) – list of line names that we want to sort</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p><em>list</em> – list of lists of line names in pairs</p></li>
+<li><p><em>dict</em> – line dict containing the start position, end position and azimuth of each line</p></li>
+</ul>
+</p>
 </dd>
 </dl>
 </dd></dl>

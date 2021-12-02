@@ -264,6 +264,8 @@ if self.client is None:  # small datasets benefit from just running it without d
 systems = self.multibeam.return_system_time_indexed_array(subset_time=subset_time)
 
 for s_cnt, system in enumerate(systems):
+    if system is None:  # get here if one of the heads is disabled (set to None)
+        continue
     ra = self.multibeam.raw_ping[s_cnt]
     sys_ident = ra.system_identifier
     self.logger.info('Operating on system serial number = {}'.format(sys_ident))
@@ -379,38 +381,29 @@ fq.return_soundings_in_polygon(polygon)
 
 ###################################################
 
-# testing entwine
-fq = reload_data(r"C:\collab\dasktest\data_dir\EM2040_Fairweather_SmallFile\em2040_40111_05_23_2017")
-rp = fq.multibeam.raw_ping[0].stack({'sounding': ('time', 'beam')})
-x, y, z, unc, nan_mask, classification, valid_detections, uncertainty_included = fq.export._generate_export_data(rp)
-newarr = np.empty(x.shape[0], dtype=[('x', 'float32'), ('y', 'float32'), ('z', 'float32'), ('uncertainty', 'float32')])
-newarr['x'] = x
-newarr['y'] = y
-newarr['z'] = z
-newarr['uncertainty'] = unc
-np.save(r'C:\collab\dasktest\data_dir\EM2040_Fairweather_SmallFile\tst.npy', newarr)
+from numpy import exp, sin
 
-import json
-schema = {
-    "schema": [
-        { "name": "x", "type": "float" },
-        { "name": "y", "type": "float" },
-        { "name": "z", "type": "float" },
-        { "name": "uncertainty", "type": "float" }
-    ]
-}
+def residual(variables, x, data, uncertainty):
+    """Model a decaying sine wave and subtract data."""
+    amp = variables[0]
+    phaseshift = variables[1]
+    freq = variables[2]
+    decay = variables[3]
 
-with open(r"C:\collab\dasktest\data_dir\EM2040_Fairweather_SmallFile\tst_schema.json", 'w') as ofil:
-    json.dump(schema, ofil)
+    model = amp * sin(x*freq + phaseshift) * exp(-x*x*decay)
 
-from HSTB.kluster.pydro_helpers import retrieve_activate_batch
-import subprocess
+    return (data-model) / uncertainty
 
-activate_file = retrieve_activate_batch()
+from numpy import linspace, random
+from scipy.optimize import leastsq
 
-args = ["cmd.exe", "/C", "set pythonpath=", "&&", activate_file, "Pydro38_test", "&&",
-        'entwine', 'build', '-i', r"C:\collab\dasktest\data_dir\EM2040_Fairweather_SmallFile\tst.npy",
-        '-o', r'C:\collab\dasktest\data_dir\EM2040_Fairweather_SmallFile\entwine_out',
-        '-c', r"C:\collab\dasktest\data_dir\EM2040_Fairweather_SmallFile\tst_schema.json"]
+# generate synthetic data with noise
+x = linspace(0, 100)
+noise = random.normal(size=x.size, scale=0.2)
+data = 7.5 * sin(x*0.22 + 2.5) * exp(-x*x*0.01) + noise
 
-subprocess.Popen(' '.join(args), creationflags=subprocess.CREATE_NEW_CONSOLE)
+# generate experimental uncertainties
+uncertainty = abs(0.16 + random.normal(size=x.size, scale=0.05))
+
+variables = [10.0, 0.2, 3.0, 0.007]
+out = leastsq(residual, variables, args=(x, data, uncertainty))

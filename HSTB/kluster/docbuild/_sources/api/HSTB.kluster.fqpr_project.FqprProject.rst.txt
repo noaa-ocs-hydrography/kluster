@@ -19,6 +19,7 @@ FqprProject
       ~FqprProject.close
       ~FqprProject.get_dask_client
       ~FqprProject.get_fqpr_by_serial_number
+      ~FqprProject.get_fqprs_by_paths
       ~FqprProject.new_project_from_directory
       ~FqprProject.open_project
       ~FqprProject.path_relative_to_project
@@ -38,8 +39,10 @@ FqprProject
       ~FqprProject.return_surface_containers
       ~FqprProject.return_surface_paths
       ~FqprProject.return_vessel_file
+      ~FqprProject.run_patch_test
       ~FqprProject.save_project
       ~FqprProject.set_settings
+      ~FqprProject.sort_lines_patch_test_pairs
 
    .. rubric:: Methods Documentation
 
@@ -52,6 +55,7 @@ FqprProject
    .. automethod:: close
    .. automethod:: get_dask_client
    .. automethod:: get_fqpr_by_serial_number
+   .. automethod:: get_fqprs_by_paths
    .. automethod:: new_project_from_directory
    .. automethod:: open_project
    .. automethod:: path_relative_to_project
@@ -71,5 +75,7 @@ FqprProject
    .. automethod:: return_surface_containers
    .. automethod:: return_surface_paths
    .. automethod:: return_vessel_file
+   .. automethod:: run_patch_test
    .. automethod:: save_project
    .. automethod:: set_settings
+   .. automethod:: sort_lines_patch_test_pairs

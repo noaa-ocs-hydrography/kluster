@@ -1,6 +1,7 @@
 import os
 import json
 from copy import deepcopy
+import numpy as np
 
 from HSTB.kluster import kluster_variables
 
@@ -267,6 +268,32 @@ def compare_dict_data(dict_one: dict, dict_two: dict):
     return check['identical_offsets'], check['identical_angles'], check['identical_tpu'], check['data_matches'], check['new_waterline']
 
 
+def split_by_timestamp(xyzrph: dict):
+    """
+    Takes a Kluster xyzrph (the dictionary object that stores uncertainty, offsets, angles, etc. settings) and returns
+    a new dictionary for each timestamped entry.
+
+    Parameters
+    ----------
+    xyzrph
+        dict of offsets/angles/tpu parameters from the fqpr instance
+
+    Returns
+    -------
+    list
+        list of dictionaries, one for each timestamp entry in the base xyzrph
+
+    """
+    first_sensor = list(xyzrph.keys())[0]
+    tstmps = list(xyzrph[first_sensor].keys())
+    split_data = [{} for t in tstmps]
+    for ky, dictdata in xyzrph.items():
+        for tstmp, val in dictdata.items():
+            tindex = tstmps.index(tstmp)
+            split_data[tindex][ky] = {tstmp: val}
+    return split_data
+
+
 def carry_over_optional(starting_data: dict, new_data: dict):
     """
     Populate the optional and tpu parameters in the new data with the latest existing entry
@@ -334,6 +361,56 @@ def only_retain_earliest_entry(data: dict):
         for entry in data:
             for tstmp in remove_these:
                 data[entry].pop(tstmp)
+
+
+def trim_xyzrprh_to_times(xyzrph: dict, mintime: float, maxtime: float):
+    """
+    Our vessel information (mounting offsets, angles, uncertainty parameters) are stored in the Kluster xyzrph attribute
+    dictionary.  Expects a format like this:
+
+    {sensor_name1: {utc timestamp1: value, utc timestamp2: value, ...},
+     sensor_name2: {utc timestamp1: value, utc timestamp2: value, ...}, ...}
+
+    This function will trim the provided dictionary to the minimum/maximum time ranges provided.  It will keep the nearest
+    earliest timestamped entry, and all entries that fall within the mintime-maxtime range.
+
+    Parameters
+    ----------
+    xyzrph
+        dict of offsets/angles/tpu parameters from the fqpr instance
+    mintime
+        minimum time of interest
+    maxtime
+        maximum time of interest
+
+    Returns
+    -------
+    dict
+        xyzrph trimmed to only the relevant entries for this min/max time
+    """
+
+    xyzrph = deepcopy(xyzrph)
+    xyzrph_times = list(list(xyzrph.values())[0].keys())
+    diff = np.array([float(mintime) - float(tstmp) for tstmp in xyzrph_times])
+    prior_to_start = diff[diff >= 0]
+    if prior_to_start.size > 0:
+        closest_diff = np.argmin(prior_to_start)
+        nearest_prior = np.argwhere(diff == prior_to_start[closest_diff])
+        nearest_prior = int(nearest_prior[0][0])
+        nearest_prior_tstmp = [xyzrph_times[nearest_prior]]
+        if len(xyzrph_times) > 1:
+            for tstmp in xyzrph_times[nearest_prior + 1:]:
+                if float(tstmp) < float(maxtime):
+                    nearest_prior_tstmp.append(tstmp)
+        drop_these = [tstmp for tstmp in xyzrph_times if tstmp not in nearest_prior_tstmp]
+        for tstmp in drop_these:
+            for ky, data_dict in xyzrph.items():
+                if tstmp in data_dict:
+                    data_dict.pop(tstmp)
+        return xyzrph
+    else:
+        print('trim_xyzrprh_to_times: Unable to find timestamps in this instance that are prior to given start time: {}'.format(mintime))
+        return None
 
 
 def convert_from_fqpr_xyzrph(xyzrph: dict, sonar_model: str, system_identifier: str, source_identifier: str):

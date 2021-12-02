@@ -5,7 +5,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>fqpr_vessel module &#8212; kluster 0.8.2 documentation</title>
+    <title>fqpr_vessel module &#8212; kluster 0.8.3 documentation</title>
     <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
     <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
     <link rel="stylesheet" type="text/css" href="../_static/graphviz.css" />
@@ -65,6 +65,12 @@
 </tr>
 <tr class="row-odd"><td><p><a class="reference internal" href="../api/HSTB.kluster.fqpr_vessel.only_retain_earliest_entry.html#HSTB.kluster.fqpr_vessel.only_retain_earliest_entry" title="HSTB.kluster.fqpr_vessel.only_retain_earliest_entry"><code class="xref py py-obj docutils literal notranslate"><span class="pre">only_retain_earliest_entry</span></code></a>(data)</p></td>
 <td><p>Compare all timestamps in the data, if you find duplicate values associated with two timestamps, only retain the earliest timestamp of the two.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="../api/HSTB.kluster.fqpr_vessel.split_by_timestamp.html#HSTB.kluster.fqpr_vessel.split_by_timestamp" title="HSTB.kluster.fqpr_vessel.split_by_timestamp"><code class="xref py py-obj docutils literal notranslate"><span class="pre">split_by_timestamp</span></code></a>(xyzrph)</p></td>
+<td><p>Takes a Kluster xyzrph (the dictionary object that stores uncertainty, offsets, angles, etc.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="../api/HSTB.kluster.fqpr_vessel.trim_xyzrprh_to_times.html#HSTB.kluster.fqpr_vessel.trim_xyzrprh_to_times" title="HSTB.kluster.fqpr_vessel.trim_xyzrprh_to_times"><code class="xref py py-obj docutils literal notranslate"><span class="pre">trim_xyzrprh_to_times</span></code></a>(xyzrph, mintime, maxtime)</p></td>
+<td><p>Our vessel information (mounting offsets, angles, uncertainty parameters) are stored in the Kluster xyzrph attribute dictionary.</p></td>
 </tr>
 </tbody>
 </table>

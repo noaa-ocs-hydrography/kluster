@@ -12,6 +12,7 @@ from HSTB.drivers.kmall import kmall
 from HSTB.kluster.xarray_conversion import BatchRead
 from HSTB.kluster.fqpr_generation import Fqpr
 from HSTB.kluster.fqpr_helpers import seconds_to_formatted_string, return_files_from_path
+from HSTB.kluster.dask_helpers import dask_find_or_start_client
 from HSTB.kluster.logging_conf import return_log_name
 from bathygrid.convenience import create_grid, load_grid, BathyGrid
 from HSTB.kluster import kluster_variables
@@ -109,11 +110,10 @@ def convert_multibeam(filname: Union[str, list], outfold: str = None, client: Cl
         mbes_read = BatchRead(filchunk, dest=outfold, client=client, skip_dask=skip_dask, show_progress=show_progress,
                               parallel_write=parallel_write)
         fqpr_inst = Fqpr(mbes_read, show_progress=show_progress, parallel_write=parallel_write)
-        fqpr_inst.read_from_source()
+        fqpr_inst.read_from_source(build_offsets=False)
 
-        # dask processes appear to suffer from memory leaks regardless of how carefully we track and wait on futures, reset the client here to clear memory after processing
-        # if fqpr_inst.client is not None:
-        #     fqpr_inst.client.restart()
+    fqpr_inst.multibeam.build_offsets(save_pths=fqpr_inst.multibeam.final_paths['ping'])  # write offsets to ping rootgroup
+    fqpr_inst.multibeam.build_additional_line_metadata(save_pths=fqpr_inst.multibeam.final_paths['ping'])
     return fqpr_inst
 
 
@@ -678,14 +678,22 @@ def update_surface(surface_instance: Union[str, BathyGrid], add_fqpr: Union[Fqpr
             _add_points_to_surface(afqpr, surface_instance, unique_crs[0], unique_vertref[0])
 
     if regrid:
-        if surface_instance.grid_resolution.lower() == 'auto_depth':
-            rez = None
-            automode = 'depth'
-        elif surface_instance.grid_resolution.lower() == 'auto_density':
-            rez = None
-            automode = 'density'
+        if isinstance(surface_instance.grid_resolution, str):
+            if surface_instance.grid_resolution.lower() == 'auto_depth':
+                rez = None
+                automode = 'depth'
+            elif surface_instance.grid_resolution.lower() == 'auto_density':
+                rez = None
+                automode = 'density'
+            else:
+                try:
+                    rez = float(surface_instance.grid_resolution)
+                    automode = 'depth'  # the default value, this will not be used when resolution is specified
+                except:
+                    print('Unrecognized grid resolution: {}'.format(surface_instance.grid_resolution))
+                    return
         else:
-            rez = surface_instance.grid_resolution
+            rez = float(surface_instance.grid_resolution)
             automode = 'depth'  # the default value, this will not be used when resolution is specified
         surface_instance.grid(surface_instance.grid_algorithm, rez, auto_resolution_mode=automode,
                               regrid_option=regrid_option, use_dask=use_dask)
@@ -768,7 +776,7 @@ def return_processed_data_folders(converted_folder: str):
     return final_paths
 
 
-def reprocess_sounding_selection(fqpr_inst: Fqpr, new_xyzrph: dict = None, subset_time: list = None,
+def reprocess_sounding_selection(fqpr_inst: Fqpr, new_xyzrph: dict = None, subset_time: list = None, return_soundings: bool = False,
                                  georeference: bool = False, turn_off_dask: bool = True, turn_dask_back_on: bool = False,
                                  override_datum: str = None, override_vertical_reference: str = None):
     """
@@ -797,6 +805,8 @@ def reprocess_sounding_selection(fqpr_inst: Fqpr, new_xyzrph: dict = None, subse
         ex: subset_time=[1531317999, 1531321000] means only process times that are from 1531317999 to 1531321000\n
         ex: subset_time=[[1531317999, 1531318885], [1531318886, 1531321000]] means only process times that are\n
               from either 1531317999 to 1531318885 or 1531318886 to 1531321000
+    return_soundings
+        if True, will compute and return the soundings as well
     georeference
         if True, will georeference the soundings, else will return the vessel coordinate system aligned sv corrected
         offsets (forward, starboard, down)
@@ -813,7 +823,8 @@ def reprocess_sounding_selection(fqpr_inst: Fqpr, new_xyzrph: dict = None, subse
     Returns
     -------
     Fqpr
-        instance or list of instances of fqpr_generation.Fqpr class that contains generated soundings data
+        instance or list of instances of fqpr_generation.Fqpr class that contains generated soundings data in the
+        intermediate_data attribute, see Fqpr.intermediate_dat
     list
         list of numpy arrays, [x (easting in meters), y (northing in meters), z (depth pos down in meters),
         tstmp (xyzrph timestamp for each sounding)
@@ -826,7 +837,7 @@ def reprocess_sounding_selection(fqpr_inst: Fqpr, new_xyzrph: dict = None, subse
     if turn_off_dask and fqpr_inst.client is not None:
         fqpr_inst.client.close()
         fqpr_inst.client = None
-        fqpr_inst = reload_data(os.path.dirname(fqpr_inst.multibeam.final_paths['ping'][0]), skip_dask=True)
+        fqpr_inst.multibeam.client = None
 
     if new_xyzrph is not None:
         fqpr_inst.multibeam.xyzrph = new_xyzrph
@@ -851,30 +862,34 @@ def reprocess_sounding_selection(fqpr_inst: Fqpr, new_xyzrph: dict = None, subse
 
         fqpr_inst.construct_crs(epsg=epsg, datum=datum)
         fqpr_inst.georef_xyz(subset_time=subset_time, dump_data=False)
-        data_store = 'xyz'
+        data_store = 'georef'
     else:
         data_store = 'sv_corr'
 
-    soundings = [[], [], [], []]
-    for sector in fqpr_inst.intermediate_dat:
-        if data_store in fqpr_inst.intermediate_dat[sector]:
-            for tstmp in fqpr_inst.intermediate_dat[sector][data_store]:
-                dat = fqpr_inst.intermediate_dat[sector][data_store][tstmp]
-                for d in dat:
-                    x_vals = np.ravel(d[0][0])
-                    y_vals = np.ravel(d[0][1])
-                    z_vals = np.ravel(d[0][2])
-                    idx = ~np.isnan(x_vals)
-                    soundings[0].append(x_vals[idx])
-                    soundings[1].append(y_vals[idx])
-                    soundings[2].append(z_vals[idx])
-                    soundings[3].append([tstmp] * len(z_vals[idx]))
-        else:
-            print('No soundings found for {}'.format(sector))
+    if return_soundings:
+        soundings = [[], [], [], []]
+        for sector in fqpr_inst.intermediate_dat:
+            if data_store in fqpr_inst.intermediate_dat[sector]:
+                for tstmp in fqpr_inst.intermediate_dat[sector][data_store]:
+                    dat = fqpr_inst.intermediate_dat[sector][data_store][tstmp]
+                    for d in dat:
+                        x_vals = np.ravel(d[0][0])
+                        y_vals = np.ravel(d[0][1])
+                        z_vals = np.ravel(d[0][2])
+                        idx = ~np.isnan(x_vals)
+                        soundings[0].append(x_vals[idx])
+                        soundings[1].append(y_vals[idx])
+                        soundings[2].append(z_vals[idx])
+                        soundings[3].append([tstmp] * len(z_vals[idx]))
+            else:
+                print('No soundings found for {}'.format(sector))
 
-    soundings = [np.concatenate(s, axis=0) for s in soundings]
+        soundings = [np.concatenate(s, axis=0) for s in soundings]
+    else:
+        soundings = None
     if turn_dask_back_on and fqpr_inst.client is None:
-        fqpr_inst = reload_data(os.path.dirname(fqpr_inst.multibeam.final_paths['ping'][0]))
+        fqpr_inst.client = dask_find_or_start_client(address=fqpr_inst.multibeam.address)
+        fqpr_inst.multibeam.client = fqpr_inst.client
     return fqpr_inst, soundings
 
 

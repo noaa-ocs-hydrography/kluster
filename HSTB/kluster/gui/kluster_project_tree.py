@@ -412,6 +412,27 @@ class KlusterProjectTree(QtWidgets.QTreeView):
                 if proj.vessel_file:
                     self._setup_vessel_file(parent, proj.vessel_file)
 
+    def select_multibeam_lines(self, line_names: list, clear_existing_selection: bool = True):
+        parent = self.tree_data['Converted'][0]
+        num_containers = parent.rowCount()
+        clrfirst = clear_existing_selection
+        if line_names:
+            for cnt in range(num_containers):
+                container_item = parent.child(cnt, 0)
+                numlines = container_item.rowCount()
+                for lcnt in range(numlines):
+                    lineitem = container_item.child(lcnt, 0)
+                    if lineitem.text() in line_names:
+                        sel = lineitem.index()
+                        if clrfirst:  # we programmatically select it with ClearAndSelect
+                            self.selectionModel().select(sel, QtCore.QItemSelectionModel.ClearAndSelect | QtCore.QItemSelectionModel.Rows)
+                            clrfirst = False
+                        else:
+                            self.selectionModel().select(sel, QtCore.QItemSelectionModel.Select | QtCore.QItemSelectionModel.Rows)
+                        self.item_selected(sel)
+        else:
+            self.selectionModel().select(parent.index(), QtCore.QItemSelectionModel.Clear | QtCore.QItemSelectionModel.Rows)
+
     def item_selected(self, index):
         """
         Selecting one of the items in the tree will activate an event depending on the item type.  See comments below.
@@ -451,29 +472,54 @@ class KlusterProjectTree(QtWidgets.QTreeView):
                 # self.all_lines_selected.emit(True)
                 pass
 
-    def return_selected_fqprs(self):
+    def return_selected_fqprs(self, force_line_list: bool = False):
         """
         Return all the selected fqpr instances that are selected.  If the user selects a line (a child of the fqpr),
         return the line owner fqpr.  Only returns unique fqpr instances
 
+        Parameters
+        ----------
+        force_line_list
+            if you want to force the return of all the lines when a parent Fqpr converted instance is selected,
+            use this option.
+
         Returns
         -------
-        fqprs: list, list of all str paths to fqpr instances selected, either directly or through selecting a line
-
+        list
+            list of all str paths to fqpr instances selected, either directly or through selecting a line
+        dict
+            dictionary of all selected lines, with the fqpr as key
         """
         fqprs = []
+        line_list = {}
         idxs = self.selectedIndexes()
         for idx in idxs:
             new_fqpr = ''
             top_lvl_name = idx.parent().parent().data()
             mid_lvl_name = idx.parent().data()
+            low_lvl_name = idx.data()
             if mid_lvl_name == 'Converted':  # user has selected a fqpr instance
-                new_fqpr = self.model.data(idx)
+                new_fqpr = low_lvl_name
+                if force_line_list:
+                    cont_index = idx.row()
+                    parent = self.tree_data['Converted'][0]
+                    container_item = parent.child(cont_index, 0)
+                    numlines = container_item.rowCount()
+                    for lcnt in range(numlines):
+                        linename = container_item.child(lcnt, 0).text()
+                        if new_fqpr in line_list:
+                            line_list[new_fqpr].append(linename)
+                        else:
+                            line_list[new_fqpr] = [linename]
             elif top_lvl_name == 'Converted':  # user selected a line
                 new_fqpr = mid_lvl_name
+                if new_fqpr in line_list:
+                    line_list[new_fqpr].append(low_lvl_name)
+                else:
+                    line_list[new_fqpr] = [low_lvl_name]
             if new_fqpr and (new_fqpr not in fqprs):
                 fqprs.append(new_fqpr)
-        return fqprs
+        return fqprs, line_list
 
     def return_selected_surfaces(self):
         """

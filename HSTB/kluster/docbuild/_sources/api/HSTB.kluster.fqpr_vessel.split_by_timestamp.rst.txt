@@ -1,0 +1,6 @@
+split_by_timestamp
+==================
+
+.. currentmodule:: HSTB.kluster.fqpr_vessel
+
+.. autofunction:: split_by_timestamp

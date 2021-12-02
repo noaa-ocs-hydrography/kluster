@@ -10,3 +10,4 @@ visualizations module
    :skip: stack_nan_array
    :skip: get_current_fig_manager
    :skip: datetime
+   :skip: deepcopy

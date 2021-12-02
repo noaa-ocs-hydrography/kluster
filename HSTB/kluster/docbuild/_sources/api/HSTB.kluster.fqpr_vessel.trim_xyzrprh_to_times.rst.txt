@@ -1,0 +1,6 @@
+trim_xyzrprh_to_times
+=====================
+
+.. currentmodule:: HSTB.kluster.fqpr_vessel
+
+.. autofunction:: trim_xyzrprh_to_times

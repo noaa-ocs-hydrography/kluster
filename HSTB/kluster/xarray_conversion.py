@@ -984,13 +984,19 @@ class BatchRead(ZarrBackend):
         self.sonartype = None
         self.xyzrph = None
 
-    def read(self):
+    def read(self, build_offsets: bool = True):
         """
         Run the batch_read method on all available lines, writes to datastore (netcdf/zarr depending on self.filtype),
         and loads the data back into the class as self.raw_ping, self.raw_att.
 
         If data loads correctly, builds out the self.xyzrph attribute and translates the runtime parameters to a usable
         form.
+
+        Parameters
+        ----------
+        build_offsets
+            if this is set, also build the xyzrph attribute, which is mandatory for processing later in Kluster.  Make
+            it optional so that when processing chunks of files, we can just run it once at the end after read()
         """
 
         if self.filtype not in ['zarr']:  # NETCDF is currently not supported
@@ -1003,21 +1009,19 @@ class BatchRead(ZarrBackend):
             self.final_paths = final_pths
             if self.filtype == 'netcdf':
                 self.read_from_netcdf_fils(final_pths['ping'], final_pths['attitude'])
-                self.build_offsets()
+                if build_offsets:
+                    self.build_offsets()
             elif self.filtype == 'zarr':
-                # kind of dumb, right now I read to get the data, build offsets, save them to the datastore and then
-                #   read again.  It isn't that bad though, read is just opening metadata, so it takes less than a second
                 self.read_from_zarr_fils(final_pths['ping'], final_pths['attitude'][0], self.logfile)
-                self.build_offsets(save_pths=final_pths['ping'])  # write offsets to ping rootgroup
-                self.read_from_zarr_fils(final_pths['ping'], final_pths['attitude'][0], self.logfile)
-                self.xyzrph = self.raw_ping[0].xyzrph  # read offsets back to populate self.xyzrph
+                if build_offsets:
+                    self.build_offsets(save_pths=final_pths['ping'])  # write offsets to ping rootgroup
+                    self.build_additional_line_metadata(save_pths=final_pths['ping'])
         else:
             self.logger.error('Unable to start/connect to the Dask distributed cluster.')
             raise ValueError('Unable to start/connect to the Dask distributed cluster.')
 
         if self.raw_ping is not None:
             self.readsuccess = True
-            self.logger.info('read successful\n')
         else:
             self.logger.warning('read unsuccessful, data paths: {}\n'.format(final_pths))
 
@@ -1677,7 +1681,7 @@ class BatchRead(ZarrBackend):
                 raise NotImplementedError('Found multiple sonars types in data provided: {}'.format(input_datum))
 
             mintime = min(list(settdict.keys()))
-            minactual = np.min([rp.time.min().compute() for rp in self.raw_ping])
+            minactual = np.min([rp.time.values[0] for rp in self.raw_ping])
             if float(mintime) > float(minactual):
                 self.logger.warning('Installation Parameters minimum time: {}'.format(mintime))
                 self.logger.warning('Actual data minimum time: {}'.format(float(minactual)))
@@ -1690,10 +1694,45 @@ class BatchRead(ZarrBackend):
             self.xyzrph = build_xyzrph(settdict, runtimesettdict, self.sonartype)
 
             if save_pths is not None:
-                for svpth in save_pths:
+                for svpth in save_pths:  # write the new attributes to disk
                     my_xarr_add_attribute({'input_datum': input_datum[0], 'xyzrph': self.xyzrph,
                                            'sonartype': self.sonartype}, svpth)
+            for rp in self.raw_ping:  # set the currently loaded dataset attribution as well
+                rp.attrs['input_datum'] = input_datum[0]
+                rp.attrs['xyzrph'] = self.xyzrph
+                rp.attrs['sonartype'] = self.sonartype
             self.logger.info('Constructed offsets successfully')
+
+    def build_additional_line_metadata(self, save_pths: str = None):
+        """
+        After conversion, we run this additional step to build the line specific values to store as metadata.  The end result
+        is a 'multibeam_files' attribute that stores [mintime, maxtime, start_latitude, start_longitude, end_latitude,
+        end_longitude, azimuth]
+
+        Parameters
+        ----------
+        save_pths
+            a list of paths to zarr datastores for writing the multibeam_files attribute to if provided
+        """
+
+        self.logger.info('Building additional line metadata...')
+        rp = self.raw_ping[0]  # first head gets the same values basically
+        line_dict = rp.attrs['multibeam_files']
+        for line_name, line_times in line_dict.items():
+            if len(line_times) == 2:  # this line needs the additional line metadata, otherwise it must have been computed already
+                line_time_start, line_time_end = line_times[0], line_times[1]
+                dstart = rp.interp(time=max(line_time_start, rp.time.values[0]), method='nearest', assume_sorted=True)
+                start_position = [dstart.latitude.values, dstart.longitude.values]
+                dend = rp.interp(time=min(line_time_end, rp.time.values[-1]), method='nearest', assume_sorted=True)
+                end_position = [dend.latitude.values, dend.longitude.values]
+                line_az = self.raw_att.interp(time=line_time_start + (line_time_end - line_time_start) / 2, method='nearest', assume_sorted=True).heading.values
+                line_dict[line_name] += [float(start_position[0]), float(start_position[1]), float(end_position[0]),
+                                         float(end_position[1]), round(float(line_az), 3)]
+        if save_pths is not None:
+            for svpth in save_pths:  # write the new attributes to disk
+                my_xarr_add_attribute({'multibeam_files': line_dict}, svpth)
+        for rp in self.raw_ping:  # set the currently loaded dataset attribution as well
+            rp.attrs['multibeam_files'] = line_dict
 
     def return_tpu_parameters(self, timestamp: str):
         """
@@ -2109,6 +2148,9 @@ class BatchRead(ZarrBackend):
         resulting_systems = []
         prefixes = self.return_xyz_prefixes_for_systems()
         for cnt, ra in enumerate(self.raw_ping):
+            if ra is None:  # get here if we turn one of the heads off but just setting the dataset to None
+                resulting_systems.append(None)
+                continue
             txrx = prefixes[cnt]
             tstmps = self.return_xyzrph_sorted_timestamps(txrx[0] + '_x')
             resulting_tstmps = []

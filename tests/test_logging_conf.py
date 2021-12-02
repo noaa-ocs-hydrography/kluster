@@ -1,13 +1,14 @@
-from HSTB.kluster.logging_conf import *
+import logging
+import unittest
+
+from HSTB.kluster.logging_conf import return_logger
 
 
-def test_return_logger():
-    nme = 'test_log'
-    logfile = None
+class TestLoggingConf(unittest.TestCase):
 
-    logger = return_logger(nme, logfile)
+    def test_return_logger(self):
+        logger = return_logger('test_log', None)
 
-    assert isinstance(logger, logging.Logger)
-    assert logger.level == logging.INFO
-    assert logger.name[0:9] == 'test_log_'
-    logger = None
+        assert isinstance(logger, logging.Logger)
+        assert logger.level == logging.INFO
+        assert logger.name[0:9] == 'test_log_'

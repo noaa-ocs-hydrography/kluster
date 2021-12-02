@@ -22,6 +22,7 @@ FqprSubset
       ~FqprSubset.return_soundings_in_polygon
       ~FqprSubset.set_filter_by_polygon
       ~FqprSubset.set_variable_by_filter
+      ~FqprSubset.subset_by_lines
       ~FqprSubset.subset_by_time
       ~FqprSubset.subset_variables
       ~FqprSubset.subset_variables_by_line
@@ -38,6 +39,7 @@ FqprSubset
    .. automethod:: return_soundings_in_polygon
    .. automethod:: set_filter_by_polygon
    .. automethod:: set_variable_by_filter
+   .. automethod:: subset_by_lines
    .. automethod:: subset_by_time
    .. automethod:: subset_variables
    .. automethod:: subset_variables_by_line

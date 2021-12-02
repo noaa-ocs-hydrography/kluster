@@ -16,3 +16,4 @@ fqpr\_convenience module
    :skip: return_files_from_path
    :skip: seconds_to_formatted_string
    :skip: return_log_name
+   :skip: dask_find_or_start_client

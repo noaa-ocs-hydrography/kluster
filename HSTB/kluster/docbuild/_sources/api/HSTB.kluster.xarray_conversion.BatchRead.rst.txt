@@ -11,6 +11,7 @@ BatchRead
    .. autosummary::
 
       ~BatchRead.batch_read
+      ~BatchRead.build_additional_line_metadata
       ~BatchRead.build_offsets
       ~BatchRead.correct_for_counter_reset
       ~BatchRead.initialize_log
@@ -35,6 +36,7 @@ BatchRead
    .. rubric:: Methods Documentation
 
    .. automethod:: batch_read
+   .. automethod:: build_additional_line_metadata
    .. automethod:: build_offsets
    .. automethod:: correct_for_counter_reset
    .. automethod:: initialize_log
