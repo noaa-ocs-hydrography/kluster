@@ -78,7 +78,7 @@ class PatchTest:
         self._build_initial_points()
         endtime = perf_counter()
         print('Initialization complete: {}'.format(seconds_to_formatted_string(int(endtime - starttime))))
-        for i in range(5):
+        for i in range(3):
             print('****Patch run {} start****'.format(i + 1))
             starttime = perf_counter()
             self._generate_rotated_points()
@@ -195,6 +195,7 @@ class PatchTest:
             horizontal scale factor
         """
 
+        print('adjusting by: roll={}, pitch={}, heading={}, x_translation={}, y_translation={}, horizontal_scale_factor={}'.format(roll, pitch, heading, x_offset, y_offset, hscale_factor))
         self._compute_reliability(roll, pitch, heading, x_offset, y_offset, hscale_factor)
 
         tstmp = list(self.fqpr.multibeam.xyzrph['roll_sensor_error'].keys())[0]
@@ -204,10 +205,13 @@ class PatchTest:
         self.current_parameters['pitch'] += pitch
         self.fqpr.multibeam.xyzrph['rx_' + self.xyzrph_key + 'h'][tstmp] += heading
         self.current_parameters['heading'] += heading
-        self.fqpr.multibeam.xyzrph['rx_' + self.xyzrph_key + 'x'][tstmp] += x_offset
-        self.current_parameters['x_offset'] += x_offset
-        self.fqpr.multibeam.xyzrph['rx_' + self.xyzrph_key + 'y'][tstmp] += y_offset
-        self.current_parameters['y_offset'] += y_offset
+
+        print('WARNING - xoffset yoffset application are disabled for testing')
+        # self.fqpr.multibeam.xyzrph['rx_' + self.xyzrph_key + 'x'][tstmp] += x_offset
+        # self.current_parameters['x_offset'] += x_offset
+        # self.fqpr.multibeam.xyzrph['rx_' + self.xyzrph_key + 'y'][tstmp] += y_offset
+        # self.current_parameters['y_offset'] += y_offset
+
         self.current_parameters['hscale_factor'] += hscale_factor
 
         self.last_adjustment = [roll, pitch, heading, x_offset, y_offset, hscale_factor]
@@ -215,6 +219,11 @@ class PatchTest:
         self.updated_parameters.append([self.current_parameters['roll'], self.current_parameters['pitch'],
                                         self.current_parameters['heading'], self.current_parameters['x_offset'],
                                         self.current_parameters['y_offset'], self.current_parameters['hscale_factor']])
+        print('reprocessing with: roll={}, pitch={}, heading={}, x_translation={}, y_translation={}'.format(self.fqpr.multibeam.xyzrph['rx_' + self.xyzrph_key + 'r'][tstmp],
+                                                                                                            self.fqpr.multibeam.xyzrph['rx_' + self.xyzrph_key + 'p'][tstmp],
+                                                                                                            self.fqpr.multibeam.xyzrph['rx_' + self.xyzrph_key + 'h'][tstmp],
+                                                                                                            self.fqpr.multibeam.xyzrph['rx_' + self.xyzrph_key + 'x'][tstmp],
+                                                                                                            self.fqpr.multibeam.xyzrph['rx_' + self.xyzrph_key + 'y'][tstmp]))
 
     def _build_initial_points(self):
         """
@@ -263,7 +272,6 @@ class PatchTest:
         x_translation = np.round(float(np.mean(self.lstsq_result[3])), 4)
         y_translation = np.round(float(np.mean(self.lstsq_result[4])), 4)
         hscale_factor = np.round(float(np.mean(self.lstsq_result[4])), 5)
-        print('reprocessing with adjustments: roll={}, pitch={}, heading={}, x_translation={}, y_translation={}'.format(roll, pitch, heading, x_translation, y_translation))
         self._adjust_original_xyzrph(roll, pitch, heading, x_translation, y_translation, hscale_factor)
         newfq, _ = reprocess_sounding_selection(self.fqpr, georeference=True, turn_off_dask=False)
 
@@ -337,19 +345,22 @@ class PatchTest:
         if self.points is not None:
             # # normalize the y axis
             # self.points['y'] = self.points['y'] - self.points['y'].min()
+
             # # normalize the x axis
             # self.points['x'] = self.points['x'] - self.points['x'].min()
 
-            # calculate center of rotation
+            # calculate center of rotation, use the origin of the points
             self.min_x = self.points['x'].min()
             self.min_y = self.points['y'].min()
-            centered_x = self.points['x'] - self.min_x
-            centered_y = self.points['y'] - self.min_y
+            origin_x = self.points['x'] - self.min_x
+            origin_y = self.points['y'] - self.min_y
 
             # rotate according to the provided line azimuth
-            self.points['x'] = self.min_x + cos_az * centered_x - sin_az * centered_y
-            self.points['y'] = self.min_y + sin_az * centered_x + cos_az * centered_y
+            self.points['x'] = self.min_x + cos_az * origin_x - sin_az * origin_y
+            self.points['y'] = self.min_y + sin_az * origin_x + cos_az * origin_y
 
+            # flip the y axis to make it +x forward, +y starboard, +z down
+            self.points['y'] = self.points['y'].max() - self.points['y']
         else:
             print('Found no valid points for {}'.format(list(self.multibeam_files.keys())))
 
@@ -407,12 +418,15 @@ class PatchTest:
                 l_one_matrix = np.column_stack([lineone_valid, linetwo_valid])
                 # p_one can contain 1/grid node uncertainty in the future, currently we leave it out
                 # p_one_matrix = np.identity(self.a_matrix.shape[0])
-                # p_two_matrix = np.identity(6) * [1 / np.deg2rad(self.initial_parameters['roll_unc']), 1 / np.deg2rad(self.initial_parameters['pitch_unc']),
-                #                                  1 / np.deg2rad(self.initial_parameters['heading_unc']) ** 2, 1 / self.initial_parameters['x_unc'],
-                #                                  1 / self.initial_parameters['y_unc'] ** 2, 1 / self.initial_parameters['h_scale_unc']]
+                p_two_matrix = np.identity(6) * [1 / self.initial_parameters['roll_unc'] ** 2, 1 / self.initial_parameters['pitch_unc'] ** 2,
+                                               1 / self.initial_parameters['heading_unc'] ** 2, 1 / self.initial_parameters['x_unc'],
+                                               1 / self.initial_parameters['y_unc'] ** 2, 1 / self.initial_parameters['hscale_unc']]
+                print('weighted by {}'.format([1 / self.initial_parameters['roll_unc'] ** 2, 1 / self.initial_parameters['pitch_unc'] ** 2,
+                                               1 / self.initial_parameters['heading_unc'] ** 2, 1 / self.initial_parameters['x_unc'],
+                                               1 / self.initial_parameters['y_unc'] ** 2, 1 / self.initial_parameters['hscale_unc']]))
                 a_t = a_matrix.T
-                # self.a_matrix = np.dot(a_t, a_matrix) + p_two_matrix
-                self.a_matrix = np.dot(a_t, a_matrix)
+                self.a_matrix = np.dot(a_t, a_matrix) + p_two_matrix
+                # self.a_matrix = np.dot(a_t, a_matrix)
                 self.b_matrix = np.dot(a_t, l_one_matrix)
             else:
                 print('No valid overlap found for lines: {}'.format(list(self.multibeam_files.keys())))
