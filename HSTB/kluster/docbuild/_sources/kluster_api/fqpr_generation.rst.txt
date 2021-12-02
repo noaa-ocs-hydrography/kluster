@@ -28,7 +28,7 @@ fqpr\_generation module
    :skip: combine_arrays_to_dataset
    :skip: divide_arrays_by_time_index
    :skip: interp_across_chunks
-   :skip: reload_zarr_records
+   :skip: trim_xyzrprh_to_times
    :skip: slice_xarray_by_dim
    :skip: get_beamwise_interpolation
    :skip: ZarrBackend

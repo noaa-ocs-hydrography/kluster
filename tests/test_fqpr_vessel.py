@@ -3,7 +3,8 @@ import shutil
 import tempfile
 import unittest
 from HSTB.kluster.fqpr_vessel import VesselFile, get_overlapping_timestamps, compare_dict_data, carry_over_optional, \
-    create_new_vessel_file, only_retain_earliest_entry, convert_from_fqpr_xyzrph, convert_from_vessel_xyzrph
+    create_new_vessel_file, only_retain_earliest_entry, convert_from_fqpr_xyzrph, convert_from_vessel_xyzrph, \
+    split_by_timestamp, trim_xyzrprh_to_times
 
 test_xyzrph = {'antenna_x': {'1626354881': '0.000'}, 'antenna_y': {'1626354881': '0.000'},
                'antenna_z': {'1626354881': '0.000'}, 'imu_h': {'1626354881': '0.000'},
@@ -123,6 +124,60 @@ class TestFqprVessel(unittest.TestCase):
         # data that is after the timestamp uses the closest previous timestamp
         new_data = self.vf.return_data('123', 1300, 1400)
         assert new_data == {'beam_opening_angle': {"1234": 1.0}, 'rx_x': {"1234": 0.345}}
+
+    def test_split_by_timestamp(self):
+        data_one = {"latency": {"1584426525": 0.1, "1584438532": 0.1, "1597569340": 0.1},
+                    "roll_patch_error": {"1584426525": 0.1, "1584438532": 0.1, "1597569340": 0.1},
+                    "roll_sensor_error": {"1584426525": 0.0005, "1584438532": 0.0005, "1597569340": 0.0005},
+                    "rx_h": {"1584426525": 359.576, "1584438532": 359.576, "1597569340": 359.576},
+                    "rx_x": {"1584426525": 1.1, "1584438532": 1.2, "1597569340": 1.3},
+                    "waterline": {"1584426525": 1.1, "1584438532": 1.2, "1597569340": 1.3}}
+        new_data = split_by_timestamp(data_one)
+        assert new_data[0] == {'latency': {'1584426525': 0.1},
+                               'roll_patch_error': {'1584426525': 0.1},
+                               'roll_sensor_error': {'1584426525': 0.0005},
+                               'rx_h': {'1584426525': 359.576},
+                               'rx_x': {'1584426525': 1.1},
+                               'waterline': {'1584426525': 1.1}}
+        assert new_data[1] == {'latency': {'1584438532': 0.1},
+                               'roll_patch_error': {'1584438532': 0.1},
+                               'roll_sensor_error': {'1584438532': 0.0005},
+                               'rx_h': {'1584438532': 359.576},
+                               'rx_x': {'1584438532': 1.2},
+                               'waterline': {'1584438532': 1.2}}
+        assert new_data[2] == {'latency': {'1597569340': 0.1},
+                               'roll_patch_error': {'1597569340': 0.1},
+                               'roll_sensor_error': {'1597569340': 0.0005},
+                               'rx_h': {'1597569340': 359.576},
+                               'rx_x': {'1597569340': 1.3},
+                               'waterline': {'1597569340': 1.3}}
+
+    def test_trim_xyzrph_to_times(self):
+        data_one = {"latency": {"1584426525": 0.1, "1584438532": 0.1, "1597569340": 0.1},
+                    "roll_patch_error": {"1584426525": 0.1, "1584438532": 0.1, "1597569340": 0.1},
+                    "roll_sensor_error": {"1584426525": 0.0005, "1584438532": 0.0005, "1597569340": 0.0005},
+                    "rx_h": {"1584426525": 359.576, "1584438532": 359.576, "1597569340": 359.576},
+                    "rx_x": {"1584426525": 1.1, "1584438532": 1.2, "1597569340": 1.3},
+                    "waterline": {"1584426525": 1.1, "1584438532": 1.2, "1597569340": 1.3}}
+        assert trim_xyzrprh_to_times(data_one, 1584426525, 1584426530) == {'latency': {'1584426525': 0.1},
+                                                                           'roll_patch_error': {'1584426525': 0.1},
+                                                                           'roll_sensor_error': {'1584426525': 0.0005},
+                                                                           'rx_h': {'1584426525': 359.576},
+                                                                           'rx_x': {'1584426525': 1.1},
+                                                                           'waterline': {'1584426525': 1.1}}
+        assert trim_xyzrprh_to_times(data_one, 1584438532, 1584438542) == {'latency': {'1584438532': 0.1},
+                                                                           'roll_patch_error': {'1584438532': 0.1},
+                                                                           'roll_sensor_error': {'1584438532': 0.0005},
+                                                                           'rx_h': {'1584438532': 359.576},
+                                                                           'rx_x': {'1584438532': 1.2},
+                                                                           'waterline': {'1584438532': 1.2}}
+        assert trim_xyzrprh_to_times(data_one, 1584426525, 1584438542) == {'latency': {'1584426525': 0.1, '1584438532': 0.1},
+                                                                           'roll_patch_error': {'1584426525': 0.1, '1584438532': 0.1},
+                                                                           'roll_sensor_error': {'1584426525': 0.0005, '1584438532': 0.0005},
+                                                                           'rx_h': {'1584426525': 359.576, '1584438532': 359.576},
+                                                                           'rx_x': {'1584426525': 1.1, '1584438532': 1.2},
+                                                                           'waterline': {'1584426525': 1.1, '1584438532': 1.2}}
+        assert trim_xyzrprh_to_times(data_one, 1584426522, 1584426525) is None
 
     def test_overlapping_timestamps(self):
         timestamps = [1584426525, 1584429900, 1584430000, 1584438532, 1597569340]

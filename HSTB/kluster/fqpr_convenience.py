@@ -823,7 +823,8 @@ def reprocess_sounding_selection(fqpr_inst: Fqpr, new_xyzrph: dict = None, subse
     Returns
     -------
     Fqpr
-        instance or list of instances of fqpr_generation.Fqpr class that contains generated soundings data
+        instance or list of instances of fqpr_generation.Fqpr class that contains generated soundings data in the
+        intermediate_data attribute, see Fqpr.intermediate_dat
     list
         list of numpy arrays, [x (easting in meters), y (northing in meters), z (depth pos down in meters),
         tstmp (xyzrph timestamp for each sounding)
@@ -836,7 +837,7 @@ def reprocess_sounding_selection(fqpr_inst: Fqpr, new_xyzrph: dict = None, subse
     if turn_off_dask and fqpr_inst.client is not None:
         fqpr_inst.client.close()
         fqpr_inst.client = None
-        fqpr_inst = reload_data(os.path.dirname(fqpr_inst.multibeam.final_paths['ping'][0]), skip_dask=True)
+        fqpr_inst.multibeam.client = None
 
     if new_xyzrph is not None:
         fqpr_inst.multibeam.xyzrph = new_xyzrph
@@ -861,7 +862,7 @@ def reprocess_sounding_selection(fqpr_inst: Fqpr, new_xyzrph: dict = None, subse
 
         fqpr_inst.construct_crs(epsg=epsg, datum=datum)
         fqpr_inst.georef_xyz(subset_time=subset_time, dump_data=False)
-        data_store = 'xyz'
+        data_store = 'georef'
     else:
         data_store = 'sv_corr'
 

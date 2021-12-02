@@ -30,6 +30,7 @@ Fqpr
       ~Fqpr.calculate_total_uncertainty
       ~Fqpr.close
       ~Fqpr.construct_crs
+      ~Fqpr.copy
       ~Fqpr.determine_altitude_corr
       ~Fqpr.determine_induced_heave
       ~Fqpr.export_dataset
@@ -50,6 +51,7 @@ Fqpr
       ~Fqpr.initialize_log
       ~Fqpr.interp_to_ping_record
       ~Fqpr.intersects
+      ~Fqpr.line_attributes
       ~Fqpr.line_is_processed
       ~Fqpr.overwrite_raw_navigation
       ~Fqpr.read_from_source
@@ -61,6 +63,7 @@ Fqpr
       ~Fqpr.return_chunk_indices
       ~Fqpr.return_line_dict
       ~Fqpr.return_line_time
+      ~Fqpr.return_line_xyzrph
       ~Fqpr.return_lines_for_times
       ~Fqpr.return_next_action
       ~Fqpr.return_next_unprocessed_line
@@ -73,6 +76,7 @@ Fqpr
       ~Fqpr.set_filter_by_polygon
       ~Fqpr.set_variable_by_filter
       ~Fqpr.set_vertical_reference
+      ~Fqpr.subset_by_lines
       ~Fqpr.subset_by_time
       ~Fqpr.subset_variables
       ~Fqpr.subset_variables_by_line
@@ -100,6 +104,7 @@ Fqpr
    .. automethod:: calculate_total_uncertainty
    .. automethod:: close
    .. automethod:: construct_crs
+   .. automethod:: copy
    .. automethod:: determine_altitude_corr
    .. automethod:: determine_induced_heave
    .. automethod:: export_dataset
@@ -120,6 +125,7 @@ Fqpr
    .. automethod:: initialize_log
    .. automethod:: interp_to_ping_record
    .. automethod:: intersects
+   .. automethod:: line_attributes
    .. automethod:: line_is_processed
    .. automethod:: overwrite_raw_navigation
    .. automethod:: read_from_source
@@ -131,6 +137,7 @@ Fqpr
    .. automethod:: return_chunk_indices
    .. automethod:: return_line_dict
    .. automethod:: return_line_time
+   .. automethod:: return_line_xyzrph
    .. automethod:: return_lines_for_times
    .. automethod:: return_next_action
    .. automethod:: return_next_unprocessed_line
@@ -143,6 +150,7 @@ Fqpr
    .. automethod:: set_filter_by_polygon
    .. automethod:: set_variable_by_filter
    .. automethod:: set_vertical_reference
+   .. automethod:: subset_by_lines
    .. automethod:: subset_by_time
    .. automethod:: subset_variables
    .. automethod:: subset_variables_by_line

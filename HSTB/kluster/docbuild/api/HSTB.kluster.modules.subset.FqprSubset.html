@@ -5,7 +5,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>FqprSubset &#8212; kluster 0.8.2 documentation</title>
+    <title>FqprSubset &#8212; kluster 0.8.3 documentation</title>
     <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
     <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
     <link rel="stylesheet" type="text/css" href="../_static/graphviz.css" />
@@ -79,13 +79,16 @@
 <tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.modules.subset.FqprSubset.set_variable_by_filter" title="HSTB.kluster.modules.subset.FqprSubset.set_variable_by_filter"><code class="xref py py-obj docutils literal notranslate"><span class="pre">set_variable_by_filter</span></code></a>(variable_name, new_data)</p></td>
 <td><p>ping_filter is set upon selecting points in 2d/3d in Kluster.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.modules.subset.FqprSubset.subset_by_time" title="HSTB.kluster.modules.subset.FqprSubset.subset_by_time"><code class="xref py py-obj docutils literal notranslate"><span class="pre">subset_by_time</span></code></a>([mintime, maxtime])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.modules.subset.FqprSubset.subset_by_lines" title="HSTB.kluster.modules.subset.FqprSubset.subset_by_lines"><code class="xref py py-obj docutils literal notranslate"><span class="pre">subset_by_lines</span></code></a>(line_names)</p></td>
+<td><p>Use the logged start time, end time of the multibeam files to exclude data from all other lines.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.modules.subset.FqprSubset.subset_by_time" title="HSTB.kluster.modules.subset.FqprSubset.subset_by_time"><code class="xref py py-obj docutils literal notranslate"><span class="pre">subset_by_time</span></code></a>([mintime, maxtime])</p></td>
 <td><p>We save the line start/end time as an attribute within each raw_ping record.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.modules.subset.FqprSubset.subset_variables" title="HSTB.kluster.modules.subset.FqprSubset.subset_variables"><code class="xref py py-obj docutils literal notranslate"><span class="pre">subset_variables</span></code></a>(variable_selection[, …])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.modules.subset.FqprSubset.subset_variables" title="HSTB.kluster.modules.subset.FqprSubset.subset_variables"><code class="xref py py-obj docutils literal notranslate"><span class="pre">subset_variables</span></code></a>(variable_selection[, …])</p></td>
 <td><p>Take specific variable names and return just those variables in a new xarray dataset.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.modules.subset.FqprSubset.subset_variables_by_line" title="HSTB.kluster.modules.subset.FqprSubset.subset_variables_by_line"><code class="xref py py-obj docutils literal notranslate"><span class="pre">subset_variables_by_line</span></code></a>(variable_selection)</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.modules.subset.FqprSubset.subset_variables_by_line" title="HSTB.kluster.modules.subset.FqprSubset.subset_variables_by_line"><code class="xref py py-obj docutils literal notranslate"><span class="pre">subset_variables_by_line</span></code></a>(variable_selection)</p></td>
 <td><p>Apply subset_variables to get the data split up into lines for the variable_selection provided</p></td>
 </tr>
 </tbody>
@@ -182,6 +185,19 @@ of flattened indices to points in the ping_filter that you want to super-select.
 sounding flag in detectioninfo, where all selected soundings would have new_data = 1 or 2</p></li>
 <li><p><strong>selected_index</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">list</span></code>]) – super_selection of the ping_filter selection, done in points_view currently when selecting with the mouse</p></li>
 </ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="HSTB.kluster.modules.subset.FqprSubset.subset_by_lines">
+<code class="sig-name descname"><span class="pre">subset_by_lines</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">line_names</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.modules.subset.FqprSubset.subset_by_lines" title="Permalink to this definition">¶</a></dt>
+<dd><p>Use the logged start time, end time of the multibeam files to exclude data from all other lines.  The result is
+the data only for the lines provided, concatenated into a single dataset.</p>
+<p>To return to the full original dataset, use restore_subset</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>line_names</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">list</span></code>]) – multibeam file names that you want to include in the subset datasets, all other lines are excluded</p>
 </dd>
 </dl>
 </dd></dl>

@@ -18,4 +18,7 @@ fqpr\_project module
    :skip: convert_from_fqpr_xyzrph
    :skip: BathyGrid
    :skip: client_needs_restart
-   
+   :skip: compare_dict_data
+   :skip: deepcopy
+   :skip: split_by_timestamp
+   :skip: PatchTest

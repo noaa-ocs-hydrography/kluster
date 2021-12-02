@@ -286,6 +286,8 @@ class PatchTest:
             if 'georef' in newfq.intermediate_dat[sector]:
                 for tstmp in newfq.intermediate_dat[sector]['georef']:
                     # there should only be one cached_data in intermediate_dat, no need to break here
+                    if cached_data is not None:
+                        raise ValueError('PatchTest: reprocessing failed, found multiple cached datasets, which should not happen with one sonar and one xyzrph entry')
                     cached_data = newfq.intermediate_dat[sector]['georef'][tstmp]
         if cached_data is None:
             raise ValueError('PatchTest: reprocessing failed, no cached data found')

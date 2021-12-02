@@ -1,6 +1,43 @@
 Changes List
 ============
 
+Kluster v0.8.3
+--------------
+- aligns with vyperdatum 0.1.6
+
+  - issue a warning when unable to read vdatum polygon files
+  - select the correct geoid in the Puerto Rico region
+
+- sync with bathygrid 1.1.6
+
+  - bug fix for permissions error on rebuilding the grid and overwriting grid metadata
+  - bug fix for searchsorted unsupported warning on bin indices with new numpy based tile edges
+  - add ability to calculate slope in xy directions using least squares plane fit
+
+- added new patch test module and dialog, currently not available in GUI as improvements are being made
+- converting lines now logs start/end time, start/end position, and line azimuth as attributes to ping record
+- selecting a line shows these attributes in the Explorer window
+- added in depth data structures article
+- installer now correctly copies over the bag_template file required for bag exports
+- add ability to subset by line names
+- disable adding additional converted data in plots, but allow loading from selected lines instead
+- selecting lines in 2dview will now select line in the project tree correctly
+- add new ability to copy a segregated copy of the Fqpr object
+- test improvements by hannahmunoz with new setup/tear down capabilities
+- new method for splitting xyzrph by timestamp
+
+- if a sonar head is disabled (set to None) fqpr_generation will now correctly skip the disabled head
+- fixed issues with in memory workflow used by reprocess_sounding_selection
+- hide output messaging with in memory workflow
+- do not update attributes on disk with in memory workflow
+- reprocess_sounding_selection now optionally returns soundings for feeding patch test
+- stop all drawing/redrawing events while surface is loading
+- bug fix with using the basic/advanced plots and selecting the converted container
+- add warning to wobbletest for when there isnt enough data
+- fix bug with loading layers with 'depth' in name
+- bug fix for sound velocity map, correctly computes navigation segments
+- bug fix with updating surface, now correctly formats the resolution parameter
+
 Kluster v0.8.2
 --------------
 - bathygrid tile outlines now change color in dark mode

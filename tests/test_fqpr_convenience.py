@@ -5,7 +5,7 @@ import numpy as np
 import tempfile
 
 from HSTB.drivers import par3
-from HSTB.kluster.fqpr_convenience import convert_multibeam, reload_data
+from HSTB.kluster.fqpr_convenience import convert_multibeam, reload_data, process_multibeam, reprocess_sounding_selection
 
 
 class TestFqprConvenience(unittest.TestCase):
@@ -23,6 +23,7 @@ class TestFqprConvenience(unittest.TestCase):
         assert os.path.exists(cls.testfile)
 
         cls.out = convert_multibeam(cls.testfile)
+        cls.out = process_multibeam(cls.out, coord_system='NAD83')
         assert os.path.exists(cls.expected_output)
         cls.datapath = cls.out.multibeam.converted_pth
 
@@ -30,6 +31,9 @@ class TestFqprConvenience(unittest.TestCase):
     def tearDownClass(cls) -> None:
         cls.out.close()
         shutil.rmtree(cls.expected_output)
+        resources_folder = os.path.join(os.path.dirname(__file__), 'resources')
+        data_folders = [os.path.join(resources_folder, fldr) for fldr in os.listdir(resources_folder) if fldr[:9] == 'converted']
+        [shutil.rmtree(fold) for fold in data_folders]
 
     def test_converted_data_content(self):
         out = reload_data(self.datapath)
@@ -118,3 +122,19 @@ class TestFqprConvenience(unittest.TestCase):
         assert pc == 123
         pc = self.out.return_total_pings()
         assert pc == 216
+
+    def test_reprocess_sounding_selection(self):
+        fqpr_copy = self.out.copy()
+        fqpr_copy.multibeam.xyzrph['rx_r']['1495563079'] = 10
+        newout, soundings = reprocess_sounding_selection(fqpr_copy, return_soundings=True, georeference=True)
+        # generate a tilt of 10 degrees on the receiver and see how the resulting soundings are altered
+        x, y, z, heave_correct, alt_correct, vdatum_unc, geohash, proc_status = newout.intermediate_dat['40111']['georef']['1495563079'][0][0]
+        assert newout.multibeam.xyzrph['rx_r']['1495563079'] == 10
+        # original
+        assert float(self.out.multibeam.raw_ping[0].isel(time=0).isel(beam=0).z.values) == 92.74199676513672
+        assert float(self.out.multibeam.raw_ping[0].isel(time=0).isel(beam=399).z.values) == 73.44100189208984
+        # new
+        assert float(z[0][0]) == 53.2859992980957
+        assert float(z[0][399]) == 111.13099670410156
+
+

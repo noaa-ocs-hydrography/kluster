@@ -1,0 +1,612 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Data Structures &#8212; kluster 0.8.3 documentation</title>
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" type="text/css" href="../_static/graphviz.css" />
+    <script id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="API" href="../kluster_api/index.html" />
+    <link rel="prev" title="Geohashes and Spatial Indexing" href="geohash.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="data-structures">
+<h1>Data Structures<a class="headerlink" href="#data-structures" title="Permalink to this headline">¶</a></h1>
+<p>There are two main data structures in the Kluster software: the processed multibeam data (Fqpr) and the gridded dataset (Bathygrid).  Here we will talk about both of these in detail, as well as the lightweight project structure that holds both.  Let’s start with an example:</p>
+<a class="reference external image-reference" href="../_images/datastructures1.png"><img alt="../_images/datastructures1.png" src="../_images/datastructures1.png" /></a>
+<p>Here we see the three main elements as they are generated in Kluster.</p>
+<p>You drag in a new multibeam file, start the conversion process and see a new folder (“EM2040_40111_05_23_2017” in our case) appear next to the multibeam file with a similar entry in the Kluster application under ‘Converted’.  This is the Fully Qualified Ping Record structure that Kluster uses to hold all the converted multibeam/sound velocity/positioning data as well as all the intermediate and fully processed multibeam records.</p>
+<p>At the same time, a ‘kluster_project.json’ file, the project file, is created which holds your project settings and the paths to the different folders.  Unless you want to use the project file to manage large projects, this can basically be ignored, and you can just work with the data folders, dragging in new folders to view in Kluster.</p>
+<p>Finally, after fully processing the data, you can create a new surface, which we show here as the ‘vrtilegrid_mean’ folder, which tells you that this is a VR surface created in Bathygrid using the ‘mean’ algorithm to determine the value in each cell of the grid.</p>
+<p>Let’s discuss each of these in more detail.</p>
+<div class="section" id="fully-qualified-ping-record">
+<h2>Fully Qualified Ping Record<a class="headerlink" href="#fully-qualified-ping-record" title="Permalink to this headline">¶</a></h2>
+<p>The Fully Qualified Ping Record (FQPR) is the data structure that contains all of the converted, intermediate and final multibeam data.  When converting data through the GUI (which uses the Kluster Intelligence module), each converted folder represents one FQPR object, which represents one sonar for one day’s worth of data.</p>
+<p>“EM2040_40111_05_23_2017” = A Kongsberg EM2040 with serial number 40111 with data only during the day of May 23, 2017</p>
+<p>You can actually use Kluster to just convert any lines to a folder, but the Kluster GUI forces you to use this scheme.  This allows you to drag in files from anywhere, knowing nothing about where they come from or which sensor they belong to, and Kluster will automatically organize them into neat little datasets.</p>
+<p>So let’s talk about what is in one of these FQPR objects.  We’ll use the console to reload a processed FQPR dataset and print the summary. Note that ‘reload_data’ is the function used to reload FQPR data when you drag the folder into the GUI as well.  I’m just showing it on the console to illustrate a few things.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="o">&gt;</span> <span class="kn">from</span> <span class="nn">HSTB.kluster.fqpr_convenience</span> <span class="kn">import</span> <span class="n">reload_data</span>
+
+<span class="o">&gt;</span> <span class="n">fq</span> <span class="o">=</span> <span class="n">reload_data</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;C:\collab\dasktest\data_dir\outputtest\tj_patch_test_2040&quot;</span><span class="p">)</span>
+<span class="n">Starting</span> <span class="n">local</span> <span class="n">cluster</span> <span class="n">client</span><span class="o">...</span>
+<span class="o">&lt;</span><span class="n">Client</span><span class="p">:</span> <span class="s1">&#39;tcp://127.0.0.1:58960&#39;</span> <span class="n">processes</span><span class="o">=</span><span class="mi">8</span> <span class="n">threads</span><span class="o">=</span><span class="mi">16</span><span class="p">,</span> <span class="n">memory</span><span class="o">=</span><span class="mf">34.27</span> <span class="n">GB</span><span class="o">&gt;</span>
+<span class="o">****</span><span class="n">Reloading</span> <span class="kn">from</span> <span class="nn">file</span> <span class="n">C</span><span class="p">:</span>\<span class="n">collab</span>\<span class="n">dasktest</span>\<span class="n">data_dir</span>\<span class="n">outputtest</span>\<span class="n">tj_patch_test_2040</span><span class="o">****</span>
+<span class="n">Successfully</span> <span class="n">reloaded</span>
+
+<span class="o">&gt;</span> <span class="n">fq</span>
+<span class="n">Out</span><span class="p">[</span><span class="mi">4</span><span class="p">]:</span>
+<span class="n">FQPR</span><span class="p">:</span> <span class="n">Fully</span> <span class="n">Qualified</span> <span class="n">Ping</span> <span class="n">Record</span> <span class="n">built</span> <span class="n">by</span> <span class="n">Kluster</span> <span class="n">Processing</span>
+<span class="o">-------------------------------------------------------------</span>
+<span class="n">Contains</span><span class="p">:</span>
+<span class="mi">1</span> <span class="n">sonar</span> <span class="n">head</span><span class="p">,</span> <span class="mi">56662</span> <span class="n">pings</span><span class="p">,</span> <span class="n">version</span> <span class="mf">0.7</span><span class="o">.</span><span class="mi">11</span>
+<span class="n">Start</span><span class="p">:</span> <span class="n">Tue</span> <span class="n">Mar</span> <span class="mi">17</span> <span class="mi">06</span><span class="p">:</span><span class="mi">28</span><span class="p">:</span><span class="mi">55</span> <span class="mi">2020</span> <span class="n">UTC</span>
+<span class="n">End</span><span class="p">:</span> <span class="n">Tue</span> <span class="n">Mar</span> <span class="mi">17</span> <span class="mi">09</span><span class="p">:</span><span class="mi">51</span><span class="p">:</span><span class="mi">22</span> <span class="mi">2020</span> <span class="n">UTC</span>
+<span class="n">Minimum</span> <span class="n">Latitude</span><span class="p">:</span> <span class="mf">37.24927016765822</span> <span class="n">Maximum</span> <span class="n">Latitude</span><span class="p">:</span> <span class="mf">37.250005179442404</span>
+<span class="n">Minimum</span> <span class="n">Longitude</span><span class="p">:</span> <span class="o">-</span><span class="mf">76.08749809374879</span> <span class="n">Maximum</span> <span class="n">Longitude</span><span class="p">:</span> <span class="o">-</span><span class="mf">76.08357163911866</span>
+<span class="n">Minimum</span> <span class="n">Northing</span><span class="p">:</span> <span class="mf">4122665.067</span> <span class="n">Maximum</span> <span class="n">Northing</span><span class="p">:</span> <span class="mf">4123756.035</span>
+<span class="n">Minimum</span> <span class="n">Easting</span><span class="p">:</span> <span class="mf">403547.631</span> <span class="n">Maximum</span> <span class="n">Easting</span><span class="p">:</span> <span class="mf">403941.398</span>
+<span class="n">Minimum</span> <span class="n">Depth</span><span class="p">:</span> <span class="mf">12.287</span> <span class="n">Maximum</span> <span class="n">Depth</span><span class="p">:</span> <span class="mf">42.907</span>
+<span class="n">Current</span> <span class="n">Status</span><span class="p">:</span> <span class="n">tpu</span> <span class="n">complete</span>
+<span class="n">Sonar</span> <span class="n">Model</span> <span class="n">Number</span><span class="p">:</span> <span class="n">em2040</span>
+<span class="n">Primary</span><span class="o">/</span><span class="n">Secondary</span> <span class="n">System</span> <span class="n">Serial</span> <span class="n">Number</span><span class="p">:</span> <span class="mi">40072</span><span class="o">/</span><span class="mi">0</span>
+<span class="n">Horizontal</span> <span class="n">Datum</span><span class="p">:</span> <span class="mi">6347</span>
+<span class="n">Vertical</span> <span class="n">Datum</span><span class="p">:</span> <span class="n">NOAA</span> <span class="n">MLLW</span>
+<span class="n">Navigation</span> <span class="n">Source</span><span class="p">:</span> <span class="n">sbet</span>
+<span class="n">Sound</span> <span class="n">Velocity</span> <span class="n">Profiles</span><span class="p">:</span> <span class="mi">1</span>
+</pre></div>
+</div>
+<p>The print out summary for the FQPR record shows some of the useful attributes for the object.  You can access them pretty readily using the properties as well.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="o">&gt;</span> <span class="n">fq</span><span class="o">.</span><span class="n">min_time</span>
+<span class="n">Out</span><span class="p">[</span><span class="mi">5</span><span class="p">]:</span> <span class="s1">&#39;Tue Mar 17 06:28:55 2020 UTC&#39;</span>
+
+<span class="o">&gt;</span> <span class="n">fq</span><span class="o">.</span><span class="n">max_time</span>
+<span class="n">Out</span><span class="p">[</span><span class="mi">6</span><span class="p">]:</span> <span class="s1">&#39;Tue Mar 17 09:51:22 2020 UTC&#39;</span>
+
+<span class="o">&gt;</span> <span class="n">fq</span><span class="o">.</span><span class="n">sonar_model</span>
+<span class="n">Out</span><span class="p">[</span><span class="mi">7</span><span class="p">]:</span> <span class="s1">&#39;em2040&#39;</span>
+
+<span class="o">&gt;</span> <span class="n">fq</span><span class="o">.</span><span class="n">status</span>
+<span class="n">Out</span><span class="p">[</span><span class="mi">8</span><span class="p">]:</span> <span class="s1">&#39;tpu&#39;</span>
+</pre></div>
+</div>
+<p>To get at the data however, you’ll need to access the multibeam object.  The multibeam object contains the Xarray Datasets for the ping records and the attitude records, which are the two datasets contained within the FQPR data structure.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="o">&gt;</span> <span class="n">fq</span><span class="o">.</span><span class="n">multibeam</span><span class="o">.</span><span class="n">raw_ping</span>
+<span class="n">Out</span><span class="p">[</span><span class="mi">9</span><span class="p">]:</span>
+<span class="p">[</span><span class="o">&lt;</span><span class="n">xarray</span><span class="o">.</span><span class="n">Dataset</span><span class="o">&gt;</span>
+ <span class="n">Dimensions</span><span class="p">:</span>                    <span class="p">(</span><span class="n">beam</span><span class="p">:</span> <span class="mi">400</span><span class="p">,</span> <span class="n">time</span><span class="p">:</span> <span class="mi">56662</span><span class="p">,</span> <span class="n">xyz</span><span class="p">:</span> <span class="mi">3</span><span class="p">)</span>
+ <span class="n">Coordinates</span><span class="p">:</span>
+   <span class="o">*</span> <span class="n">beam</span>                       <span class="p">(</span><span class="n">beam</span><span class="p">)</span> <span class="n">int32</span> <span class="mi">0</span> <span class="mi">1</span> <span class="mi">2</span> <span class="mi">3</span> <span class="mi">4</span> <span class="mi">5</span> <span class="o">...</span> <span class="mi">395</span> <span class="mi">396</span> <span class="mi">397</span> <span class="mi">398</span> <span class="mi">399</span>
+   <span class="o">*</span> <span class="n">time</span>                       <span class="p">(</span><span class="n">time</span><span class="p">)</span> <span class="n">float64</span> <span class="mf">1.584e+09</span> <span class="mf">1.584e+09</span> <span class="o">...</span> <span class="mf">1.584e+09</span>
+   <span class="o">*</span> <span class="n">xyz</span>                        <span class="p">(</span><span class="n">xyz</span><span class="p">)</span> <span class="o">&lt;</span><span class="n">U1</span> <span class="s1">&#39;x&#39;</span> <span class="s1">&#39;y&#39;</span> <span class="s1">&#39;z&#39;</span>
+ <span class="n">Data</span> <span class="n">variables</span><span class="p">:</span> <span class="p">(</span><span class="mi">12</span><span class="o">/</span><span class="mi">43</span><span class="p">)</span>
+     <span class="n">acrosstrack</span>                <span class="p">(</span><span class="n">time</span><span class="p">,</span> <span class="n">beam</span><span class="p">)</span> <span class="n">float32</span> <span class="n">dask</span><span class="o">.</span><span class="n">array</span><span class="o">&lt;</span><span class="n">chunksize</span><span class="o">=</span><span class="p">(</span><span class="mi">1000</span><span class="p">,</span> <span class="mi">400</span><span class="p">),</span> <span class="n">meta</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="o">&gt;</span>
+     <span class="n">alongtrack</span>                 <span class="p">(</span><span class="n">time</span><span class="p">,</span> <span class="n">beam</span><span class="p">)</span> <span class="n">float32</span> <span class="n">dask</span><span class="o">.</span><span class="n">array</span><span class="o">&lt;</span><span class="n">chunksize</span><span class="o">=</span><span class="p">(</span><span class="mi">1000</span><span class="p">,</span> <span class="mi">400</span><span class="p">),</span> <span class="n">meta</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="o">&gt;</span>
+     <span class="n">altitude</span>                   <span class="p">(</span><span class="n">time</span><span class="p">)</span> <span class="n">float32</span> <span class="n">dask</span><span class="o">.</span><span class="n">array</span><span class="o">&lt;</span><span class="n">chunksize</span><span class="o">=</span><span class="p">(</span><span class="mi">1000</span><span class="p">,),</span> <span class="n">meta</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="o">&gt;</span>
+     <span class="n">beampointingangle</span>          <span class="p">(</span><span class="n">time</span><span class="p">,</span> <span class="n">beam</span><span class="p">)</span> <span class="n">float32</span> <span class="n">dask</span><span class="o">.</span><span class="n">array</span><span class="o">&lt;</span><span class="n">chunksize</span><span class="o">=</span><span class="p">(</span><span class="mi">1000</span><span class="p">,</span> <span class="mi">400</span><span class="p">),</span> <span class="n">meta</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="o">&gt;</span>
+     <span class="n">corr_altitude</span>              <span class="p">(</span><span class="n">time</span><span class="p">)</span> <span class="n">float64</span> <span class="n">dask</span><span class="o">.</span><span class="n">array</span><span class="o">&lt;</span><span class="n">chunksize</span><span class="o">=</span><span class="p">(</span><span class="mi">1000</span><span class="p">,),</span> <span class="n">meta</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="o">&gt;</span>
+     <span class="n">corr_heave</span>                 <span class="p">(</span><span class="n">time</span><span class="p">)</span> <span class="n">float64</span> <span class="n">dask</span><span class="o">.</span><span class="n">array</span><span class="o">&lt;</span><span class="n">chunksize</span><span class="o">=</span><span class="p">(</span><span class="mi">1000</span><span class="p">,),</span> <span class="n">meta</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="o">&gt;</span>
+     <span class="o">...</span>                         <span class="o">...</span>
+     <span class="n">tx</span>                         <span class="p">(</span><span class="n">time</span><span class="p">,</span> <span class="n">beam</span><span class="p">,</span> <span class="n">xyz</span><span class="p">)</span> <span class="n">float32</span> <span class="n">dask</span><span class="o">.</span><span class="n">array</span><span class="o">&lt;</span><span class="n">chunksize</span><span class="o">=</span><span class="p">(</span><span class="mi">1000</span><span class="p">,</span> <span class="mi">400</span><span class="p">,</span> <span class="mi">3</span><span class="p">),</span> <span class="n">meta</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="o">&gt;</span>
+     <span class="n">txsector_beam</span>              <span class="p">(</span><span class="n">time</span><span class="p">,</span> <span class="n">beam</span><span class="p">)</span> <span class="n">uint8</span> <span class="n">dask</span><span class="o">.</span><span class="n">array</span><span class="o">&lt;</span><span class="n">chunksize</span><span class="o">=</span><span class="p">(</span><span class="mi">1000</span><span class="p">,</span> <span class="mi">400</span><span class="p">),</span> <span class="n">meta</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="o">&gt;</span>
+     <span class="n">x</span>                          <span class="p">(</span><span class="n">time</span><span class="p">,</span> <span class="n">beam</span><span class="p">)</span> <span class="n">float64</span> <span class="n">dask</span><span class="o">.</span><span class="n">array</span><span class="o">&lt;</span><span class="n">chunksize</span><span class="o">=</span><span class="p">(</span><span class="mi">1000</span><span class="p">,</span> <span class="mi">400</span><span class="p">),</span> <span class="n">meta</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="o">&gt;</span>
+     <span class="n">y</span>                          <span class="p">(</span><span class="n">time</span><span class="p">,</span> <span class="n">beam</span><span class="p">)</span> <span class="n">float64</span> <span class="n">dask</span><span class="o">.</span><span class="n">array</span><span class="o">&lt;</span><span class="n">chunksize</span><span class="o">=</span><span class="p">(</span><span class="mi">1000</span><span class="p">,</span> <span class="mi">400</span><span class="p">),</span> <span class="n">meta</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="o">&gt;</span>
+     <span class="n">yawpitchstab</span>               <span class="p">(</span><span class="n">time</span><span class="p">)</span> <span class="o">&lt;</span><span class="n">U2</span> <span class="n">dask</span><span class="o">.</span><span class="n">array</span><span class="o">&lt;</span><span class="n">chunksize</span><span class="o">=</span><span class="p">(</span><span class="mi">1000</span><span class="p">,),</span> <span class="n">meta</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="o">&gt;</span>
+     <span class="n">z</span>                          <span class="p">(</span><span class="n">time</span><span class="p">,</span> <span class="n">beam</span><span class="p">)</span> <span class="n">float32</span> <span class="n">dask</span><span class="o">.</span><span class="n">array</span><span class="o">&lt;</span><span class="n">chunksize</span><span class="o">=</span><span class="p">(</span><span class="mi">1000</span><span class="p">,</span> <span class="mi">400</span><span class="p">),</span> <span class="n">meta</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="o">&gt;</span>
+ <span class="n">Attributes</span><span class="p">:</span> <span class="p">(</span><span class="mi">12</span><span class="o">/</span><span class="mi">53</span><span class="p">)</span>
+     <span class="n">_compute_beam_vectors_complete</span><span class="p">:</span>    <span class="n">Thu</span> <span class="n">Sep</span> <span class="mi">30</span> <span class="mi">15</span><span class="p">:</span><span class="mi">39</span><span class="p">:</span><span class="mi">26</span> <span class="mi">2021</span>
+     <span class="n">_compute_orientation_complete</span><span class="p">:</span>     <span class="n">Thu</span> <span class="n">Sep</span> <span class="mi">30</span> <span class="mi">15</span><span class="p">:</span><span class="mi">38</span><span class="p">:</span><span class="mi">41</span> <span class="mi">2021</span>
+     <span class="n">_conversion_complete</span><span class="p">:</span>              <span class="n">Thu</span> <span class="n">Sep</span> <span class="mi">30</span> <span class="mi">15</span><span class="p">:</span><span class="mi">37</span><span class="p">:</span><span class="mi">47</span> <span class="mi">2021</span>
+     <span class="n">_georeference_soundings_complete</span><span class="p">:</span>  <span class="n">Thu</span> <span class="n">Nov</span>  <span class="mi">4</span> <span class="mi">21</span><span class="p">:</span><span class="mi">22</span><span class="p">:</span><span class="mi">56</span> <span class="mi">2021</span>
+     <span class="n">_sound_velocity_correct_complete</span><span class="p">:</span>  <span class="n">Thu</span> <span class="n">Sep</span> <span class="mi">30</span> <span class="mi">15</span><span class="p">:</span><span class="mi">39</span><span class="p">:</span><span class="mi">46</span> <span class="mi">2021</span>
+     <span class="n">_soundings_last_cleaned</span><span class="p">:</span>           <span class="n">Thu</span> <span class="n">Oct</span> <span class="mi">28</span> <span class="mi">18</span><span class="p">:</span><span class="mi">35</span><span class="p">:</span><span class="mi">49</span> <span class="mi">2021</span>
+         <span class="o">...</span>                                <span class="o">...</span>
+     <span class="n">system_identifier</span><span class="p">:</span>                 <span class="mi">40072</span>
+     <span class="n">system_serial_number</span><span class="p">:</span>              <span class="p">[</span><span class="mi">40072</span><span class="p">]</span>
+     <span class="n">units</span><span class="p">:</span>                             <span class="p">{</span><span class="s1">&#39;acrosstrack&#39;</span><span class="p">:</span> <span class="s1">&#39;meters (+ starboard)&#39;</span><span class="o">...</span>
+     <span class="n">vertical_crs</span><span class="p">:</span>                      <span class="n">COMPOUNDCRS</span><span class="p">[</span><span class="s2">&quot;NAD83(2011) + MLLW depth&quot;</span><span class="o">...</span>
+     <span class="n">vertical_reference</span><span class="p">:</span>                <span class="n">NOAA</span> <span class="n">MLLW</span>
+     <span class="n">xyzrph</span><span class="p">:</span>                            <span class="p">{</span><span class="s1">&#39;beam_opening_angle&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;1584426535&#39;</span><span class="p">:</span> <span class="o">...</span><span class="p">]</span>
+
+<span class="o">&gt;</span> <span class="n">fq</span><span class="o">.</span><span class="n">multibeam</span><span class="o">.</span><span class="n">raw_att</span>
+<span class="n">Out</span><span class="p">[</span><span class="mi">10</span><span class="p">]:</span>
+<span class="o">&lt;</span><span class="n">xarray</span><span class="o">.</span><span class="n">Dataset</span><span class="o">&gt;</span>
+<span class="n">Dimensions</span><span class="p">:</span>  <span class="p">(</span><span class="n">time</span><span class="p">:</span> <span class="mi">192975</span><span class="p">)</span>
+<span class="n">Coordinates</span><span class="p">:</span>
+  <span class="o">*</span> <span class="n">time</span>     <span class="p">(</span><span class="n">time</span><span class="p">)</span> <span class="n">float64</span> <span class="mf">1.584e+09</span> <span class="mf">1.584e+09</span> <span class="o">...</span> <span class="mf">1.584e+09</span> <span class="mf">1.584e+09</span>
+<span class="n">Data</span> <span class="n">variables</span><span class="p">:</span>
+    <span class="n">heading</span>  <span class="p">(</span><span class="n">time</span><span class="p">)</span> <span class="n">float32</span> <span class="n">dask</span><span class="o">.</span><span class="n">array</span><span class="o">&lt;</span><span class="n">chunksize</span><span class="o">=</span><span class="p">(</span><span class="mi">20000</span><span class="p">,),</span> <span class="n">meta</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="o">&gt;</span>
+    <span class="n">heave</span>    <span class="p">(</span><span class="n">time</span><span class="p">)</span> <span class="n">float32</span> <span class="n">dask</span><span class="o">.</span><span class="n">array</span><span class="o">&lt;</span><span class="n">chunksize</span><span class="o">=</span><span class="p">(</span><span class="mi">20000</span><span class="p">,),</span> <span class="n">meta</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="o">&gt;</span>
+    <span class="n">pitch</span>    <span class="p">(</span><span class="n">time</span><span class="p">)</span> <span class="n">float32</span> <span class="n">dask</span><span class="o">.</span><span class="n">array</span><span class="o">&lt;</span><span class="n">chunksize</span><span class="o">=</span><span class="p">(</span><span class="mi">20000</span><span class="p">,),</span> <span class="n">meta</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="o">&gt;</span>
+    <span class="n">roll</span>     <span class="p">(</span><span class="n">time</span><span class="p">)</span> <span class="n">float32</span> <span class="n">dask</span><span class="o">.</span><span class="n">array</span><span class="o">&lt;</span><span class="n">chunksize</span><span class="o">=</span><span class="p">(</span><span class="mi">20000</span><span class="p">,),</span> <span class="n">meta</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="o">&gt;</span>
+<span class="n">Attributes</span><span class="p">:</span>
+    <span class="n">reference</span><span class="p">:</span>  <span class="p">{</span><span class="s1">&#39;heading&#39;</span><span class="p">:</span> <span class="s1">&#39;reference point&#39;</span><span class="p">,</span> <span class="s1">&#39;heave&#39;</span><span class="p">:</span> <span class="s1">&#39;transmitter&#39;</span><span class="p">,</span> <span class="s1">&#39;pitch...</span>
+    <span class="n">units</span><span class="p">:</span>      <span class="p">{</span><span class="s1">&#39;heading&#39;</span><span class="p">:</span> <span class="s1">&#39;degrees&#39;</span><span class="p">,</span> <span class="s1">&#39;heave&#39;</span><span class="p">:</span> <span class="s1">&#39;meters (+ down)&#39;</span><span class="p">,</span> <span class="s1">&#39;pitch&#39;</span><span class="p">:</span> <span class="s1">&#39;...</span>
+</pre></div>
+</div>
+<p>This corresponds to the folders within the “EM2040_40111_05_23_2017” folder.  You’ll see they are saved in the zarr format, which is a compressed chunked data format.  There are matching ‘sync’ folders, which are there for file locking and multiprocessing access.</p>
+<a class="reference external image-reference" href="../_images/datastructures2.png"><img alt="../_images/datastructures2.png" src="../_images/datastructures2.png" /></a>
+<p>You might have noticed that raw_ping is a list.  Each sonar head corresponds to an element in the list, for most sonars that only have one head this will always be a single element list.</p>
+<p>Xarray allows you to do things like quickly interpolate one dataset to the coordinates of another.  A common thing you might want to do is get the attitude records for the nearest ping time.  You might ask why the two datasets are kept separate in the first place.  I use the full attitude record to get the attitude during the ping across the array, which I found to improve the accuracy of the beam vector generation.  Anyway, to get the attitude at ping time, you simply:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span> <span class="o">&gt;</span> <span class="n">fq</span><span class="o">.</span><span class="n">multibeam</span><span class="o">.</span><span class="n">raw_att</span><span class="o">.</span><span class="n">interp_like</span><span class="p">(</span><span class="n">fq</span><span class="o">.</span><span class="n">multibeam</span><span class="o">.</span><span class="n">raw_ping</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+ <span class="n">Out</span><span class="p">[</span><span class="mi">11</span><span class="p">]:</span>
+<span class="o">&lt;</span><span class="n">xarray</span><span class="o">.</span><span class="n">Dataset</span><span class="o">&gt;</span>
+ <span class="n">Dimensions</span><span class="p">:</span>  <span class="p">(</span><span class="n">time</span><span class="p">:</span> <span class="mi">56662</span><span class="p">)</span>
+ <span class="n">Coordinates</span><span class="p">:</span>
+   <span class="o">*</span> <span class="n">time</span>     <span class="p">(</span><span class="n">time</span><span class="p">)</span> <span class="n">float64</span> <span class="mf">1.584e+09</span> <span class="mf">1.584e+09</span> <span class="o">...</span> <span class="mf">1.584e+09</span> <span class="mf">1.584e+09</span>
+ <span class="n">Data</span> <span class="n">variables</span><span class="p">:</span>
+     <span class="n">heading</span>  <span class="p">(</span><span class="n">time</span><span class="p">)</span> <span class="n">float32</span> <span class="n">dask</span><span class="o">.</span><span class="n">array</span><span class="o">&lt;</span><span class="n">chunksize</span><span class="o">=</span><span class="p">(</span><span class="mi">56662</span><span class="p">,),</span> <span class="n">meta</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="o">&gt;</span>
+     <span class="n">heave</span>    <span class="p">(</span><span class="n">time</span><span class="p">)</span> <span class="n">float32</span> <span class="n">dask</span><span class="o">.</span><span class="n">array</span><span class="o">&lt;</span><span class="n">chunksize</span><span class="o">=</span><span class="p">(</span><span class="mi">56662</span><span class="p">,),</span> <span class="n">meta</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="o">&gt;</span>
+     <span class="n">pitch</span>    <span class="p">(</span><span class="n">time</span><span class="p">)</span> <span class="n">float32</span> <span class="n">dask</span><span class="o">.</span><span class="n">array</span><span class="o">&lt;</span><span class="n">chunksize</span><span class="o">=</span><span class="p">(</span><span class="mi">56662</span><span class="p">,),</span> <span class="n">meta</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="o">&gt;</span>
+     <span class="n">roll</span>     <span class="p">(</span><span class="n">time</span><span class="p">)</span> <span class="n">float32</span> <span class="n">dask</span><span class="o">.</span><span class="n">array</span><span class="o">&lt;</span><span class="n">chunksize</span><span class="o">=</span><span class="p">(</span><span class="mi">56662</span><span class="p">,),</span> <span class="n">meta</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="o">&gt;</span>
+ <span class="n">Attributes</span><span class="p">:</span>
+     <span class="n">reference</span><span class="p">:</span>  <span class="p">{</span><span class="s1">&#39;heading&#39;</span><span class="p">:</span> <span class="s1">&#39;reference point&#39;</span><span class="p">,</span> <span class="s1">&#39;heave&#39;</span><span class="p">:</span> <span class="s1">&#39;transmitter&#39;</span><span class="p">,</span> <span class="s1">&#39;pitch...</span>
+     <span class="n">units</span><span class="p">:</span>      <span class="p">{</span><span class="s1">&#39;heading&#39;</span><span class="p">:</span> <span class="s1">&#39;degrees&#39;</span><span class="p">,</span> <span class="s1">&#39;heave&#39;</span><span class="p">:</span> <span class="s1">&#39;meters (+ down)&#39;</span><span class="p">,</span> <span class="s1">&#39;pitch&#39;</span><span class="p">:</span> <span class="s1">&#39;...</span>
+</pre></div>
+</div>
+<p>The dataset is organized into three main containers: coordinates, variables and attributes.</p>
+<div class="section" id="attributes">
+<h3>Attributes<a class="headerlink" href="#attributes" title="Permalink to this headline">¶</a></h3>
+<p>Attributes is the simplest, and powers the attributes window in the Kluster GUI.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="o">&gt;</span> <span class="n">fq</span><span class="o">.</span><span class="n">multibeam</span><span class="o">.</span><span class="n">raw_ping</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">attrs</span>
+<span class="n">Out</span><span class="p">[</span><span class="mi">4</span><span class="p">]:</span>
+<span class="p">{</span><span class="s1">&#39;_compute_beam_vectors_complete&#39;</span><span class="p">:</span> <span class="s1">&#39;Thu Sep 30 15:39:26 2021&#39;</span><span class="p">,</span>
+ <span class="s1">&#39;_compute_orientation_complete&#39;</span><span class="p">:</span> <span class="s1">&#39;Thu Sep 30 15:38:41 2021&#39;</span><span class="p">,</span>
+ <span class="s1">&#39;_conversion_complete&#39;</span><span class="p">:</span> <span class="s1">&#39;Thu Sep 30 15:37:47 2021&#39;</span><span class="p">,</span>
+ <span class="s1">&#39;_georeference_soundings_complete&#39;</span><span class="p">:</span> <span class="s1">&#39;Thu Nov  4 21:22:56 2021&#39;</span><span class="p">,</span>
+ <span class="s1">&#39;_sound_velocity_correct_complete&#39;</span><span class="p">:</span> <span class="s1">&#39;Thu Sep 30 15:39:46 2021&#39;</span><span class="p">,</span>
+ <span class="s1">&#39;_soundings_last_cleaned&#39;</span><span class="p">:</span> <span class="s1">&#39;Thu Oct 28 18:35:49 2021&#39;</span><span class="p">,</span>
+ <span class="s1">&#39;_total_uncertainty_complete&#39;</span><span class="p">:</span> <span class="s1">&#39;Thu Nov  4 21:23:30 2021&#39;</span><span class="p">,</span>
+ <span class="s1">&#39;attributes_1584426535&#39;</span><span class="p">:</span> <span class="s1">&#39;{&quot;location&quot;: [37.247024140413025, -76.08538681698856], &quot;source&quot;: &quot;multibeam&quot;}&#39;</span><span class="p">,</span>
+ <span class="s1">&#39;current_processing_status&#39;</span><span class="p">:</span> <span class="mi">5</span><span class="p">,</span>
+       <span class="o">...</span>
+</pre></div>
+</div>
+<a class="reference external image-reference" href="../_images/datastructures3.png"><img alt="../_images/datastructures3.png" src="../_images/datastructures3.png" /></a>
+<p>The attributes window in Kluster shows the attributes from both datasets for you to view.  Here is a description of the attributes in the datasets.</p>
+<ul class="simple">
+<li><p>_compute_beam_vectors_complete - the time of the last beam correction process, this is the second step in the Kluster processing pipeline</p></li>
+<li><p>_compute_orientation_complete - the time of the last orientation process, this is the first step in the Kluster processing pipeline</p></li>
+<li><p>_conversion_complete - the time of the last conversion process, the step that builds the Kluster datasets</p></li>
+<li><p>_georeference_soundings_complete - the time of the last georeferencing process, the fourth step in the Kluster processing pipeline</p></li>
+<li><p>_sound_velocity_correct_complete - the time of the last sound velocity correction process, the third step in the Kluster processing pipeline</p></li>
+<li><p>_soundings_last_cleaned - the time of the last sounding rejection process, either through filter or manually cleaning soundings in Points View</p></li>
+<li><p>_total_uncertainty_complete - the time of the last TPU process, the fifth step in the Kluster processing pipeline</p></li>
+<li><p>attributes_XXXXXXXXXXX - the attributes corresponding to a sound velocity profile, the XXXXXXXXXXX represents the time of the profile in UTC seconds</p></li>
+<li><p>current_processing_status - the current status of the FQPR record, the last successful process run, see ‘status_lookup’</p></li>
+<li><p>geohashes - the geohash regions that each line goes through, see ‘Learn more about Kluster - Geohashes’</p></li>
+<li><p>horizontal_crs - the epsg for the horizontal coordinate reference system that we used to build the ‘x’ ‘y’ and ‘z’ data</p></li>
+<li><p>input_datum - the datum descriptor for the raw navigation from the multibeam data</p></li>
+<li><p>installsettings_XXXXXXXXXXX - the installation record in its raw form from the multibeam data, the XXXXXXXXXXX represents the time of the record in UTC seconds</p></li>
+<li><p>kluster_version - the version of Kluster used to produce this data</p></li>
+<li><p>max_lat - the maximum latitude from the Latitude variable that we get from the raw multibeam data</p></li>
+<li><p>max_lon- the maximum longitude from the Latitude variable that we get from the raw multibeam data</p></li>
+<li><p>max_x - the maximum easting that we get from the georeference process in Kluster</p></li>
+<li><p>max_y - the maximum northing that we get from the georeference process in Kluster</p></li>
+<li><p>max_z - the maximum depth that we get from the georeference process in Kluster</p></li>
+<li><p>min_lat - the minimum latitude from the Latitude variable that we get from the raw multibeam data</p></li>
+<li><p>min_lon- the minimum longitude from the Latitude variable that we get from the raw multibeam data</p></li>
+<li><p>min_x - the minimum easting that we get from the georeference process in Kluster</p></li>
+<li><p>min_y - the minimum northing that we get from the georeference process in Kluster</p></li>
+<li><p>min_z - the minimum depth that we get from the georeference process in Kluster</p></li>
+<li><p>multibeam_files - the multibeam files in this dataset provided with [start time, end time, start latitude, start longitude, end latitude, end longitude, azimuth]</p></li>
+<li><p>nav_error_files (IF SBET ERROR IS PROVIDED) - the smrmsg files used in this dataset with the start and end times of the file in week seconds</p></li>
+<li><p>nav_files (IF SBET IS PROVIDED) - the sbet files used in this dataset with the start and end times of the file in week seconds</p></li>
+<li><p>navigation_source - either ‘sbet’ if sbet was used during georeferencing or ‘multibeam’ if raw navigation from the multibeam data was used</p></li>
+<li><p>output_path - the current location of the FQPR object</p></li>
+<li><p>profile_XXXXXXXXXXX - the sound velocity profile data (depth vs sound speed), the XXXXXXXXXXX represents the time of the cast in UTC seconds</p></li>
+<li><p>reference - the reference point for each applicable variable</p></li>
+<li><p>runtimesettings_XXXXXXXXXXX - the raw runtime parameters entry from the multibeam data, the XXXXXXXXXXX represents the time of the record in UTC seconds</p></li>
+<li><p>sbet_datum (IF SBET IS PROVIDED) - the coordinate system of the sbet, either ‘NAD83’ or ‘WGS84’</p></li>
+<li><p>sbet_logging rate (hz) (IF SBET IS PROVIDED) - the logging rate of the sbet</p></li>
+<li><p>sbet_mission_date (IF SBET LOG IS PROVIDED) - the date of the POSPac project</p></li>
+<li><p>secondary_system_serial_number - if this is a dual head sonar, this is a list containing the serial number of the second head</p></li>
+<li><p>sonartype - the sonar model number of the sonar</p></li>
+<li><p>status_lookup - the meaning of the value stored in ‘current_processing_status’</p></li>
+<li><p>survey_number - read from the multibeam data, this is not used in Kluster, but is retained in case you need it</p></li>
+<li><p>svmode - the sound velocity cast selection algorithm used</p></li>
+<li><p>system_identifier - the main identifier for the system, this is a duplicate of the system serial number that we use during processing</p></li>
+<li><p>system_serial_number - a list containing the serial number of the first head</p></li>
+<li><p>units - the units for each variable</p></li>
+<li><p>vertical_crs - when using a vyperdatum enabled datum, NOAA_MLLW for example, this attribute stores the WKT string of the vertical datum</p></li>
+<li><p>vertical_reference - the vertical reference you select in the project settings</p></li>
+<li><p>xyzrph - the dictionary of lever arms and angles that we use during processing.  Initially this is a translation of the installsettings_XXXXXXXXXXX records.  This dictionary stores each new entry by the time of it’s appearance in the file in UTC seconds.</p></li>
+</ul>
+</div>
+<div class="section" id="coordinates">
+<h3>Coordinates<a class="headerlink" href="#coordinates" title="Permalink to this headline">¶</a></h3>
+<p>The coordinates are simply the data for the time/beam/xyz dimensions.  Time is the time of ping, beam is the beam number, and xyz is the 3d vector only used for the TX and RX variables.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="o">&gt;</span> <span class="n">fq</span><span class="o">.</span><span class="n">multibeam</span><span class="o">.</span><span class="n">raw_ping</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">time</span>
+<span class="n">Out</span><span class="p">[</span><span class="mi">5</span><span class="p">]:</span>
+<span class="o">&lt;</span><span class="n">xarray</span><span class="o">.</span><span class="n">DataArray</span> <span class="s1">&#39;time&#39;</span> <span class="p">(</span><span class="n">time</span><span class="p">:</span> <span class="mi">56662</span><span class="p">)</span><span class="o">&gt;</span>
+ <span class="n">array</span><span class="p">([</span><span class="mf">1.584427e+09</span><span class="p">,</span> <span class="mf">1.584427e+09</span><span class="p">,</span> <span class="mf">1.584427e+09</span><span class="p">,</span> <span class="o">...</span><span class="p">,</span> <span class="mf">1.584439e+09</span><span class="p">,</span>
+       <span class="mf">1.584439e+09</span><span class="p">,</span> <span class="mf">1.584439e+09</span><span class="p">])</span>
+ <span class="n">Coordinates</span><span class="p">:</span>
+   <span class="o">*</span> <span class="n">time</span>     <span class="p">(</span><span class="n">time</span><span class="p">)</span> <span class="n">float64</span> <span class="mf">1.584e+09</span> <span class="mf">1.584e+09</span> <span class="o">...</span> <span class="mf">1.584e+09</span> <span class="mf">1.584e+09</span>
+ <span class="n">Attributes</span><span class="p">:</span>
+     <span class="n">_FillValue</span><span class="p">:</span>  <span class="n">nan</span>
+
+<span class="o">&gt;</span> <span class="n">fq</span><span class="o">.</span><span class="n">multibeam</span><span class="o">.</span><span class="n">raw_ping</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">beam</span>
+<span class="n">Out</span><span class="p">[</span><span class="mi">7</span><span class="p">]:</span>
+<span class="o">&lt;</span><span class="n">xarray</span><span class="o">.</span><span class="n">DataArray</span> <span class="s1">&#39;beam&#39;</span> <span class="p">(</span><span class="n">beam</span><span class="p">:</span> <span class="mi">400</span><span class="p">)</span><span class="o">&gt;</span>
+ <span class="n">array</span><span class="p">([</span>  <span class="mi">0</span><span class="p">,</span>   <span class="mi">1</span><span class="p">,</span>   <span class="mi">2</span><span class="p">,</span> <span class="o">...</span><span class="p">,</span> <span class="mi">397</span><span class="p">,</span> <span class="mi">398</span><span class="p">,</span> <span class="mi">399</span><span class="p">])</span>
+ <span class="n">Coordinates</span><span class="p">:</span>
+   <span class="o">*</span> <span class="n">beam</span>     <span class="p">(</span><span class="n">beam</span><span class="p">)</span> <span class="n">int32</span> <span class="mi">0</span> <span class="mi">1</span> <span class="mi">2</span> <span class="mi">3</span> <span class="mi">4</span> <span class="mi">5</span> <span class="mi">6</span> <span class="mi">7</span> <span class="mi">8</span> <span class="o">...</span> <span class="mi">392</span> <span class="mi">393</span> <span class="mi">394</span> <span class="mi">395</span> <span class="mi">396</span> <span class="mi">397</span> <span class="mi">398</span> <span class="mi">399</span>
+ <span class="n">Attributes</span><span class="p">:</span>
+     <span class="n">_FillValue</span><span class="p">:</span>  <span class="mi">999</span>
+
+<span class="o">&gt;</span> <span class="n">fq</span><span class="o">.</span><span class="n">multibeam</span><span class="o">.</span><span class="n">raw_ping</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">xyz</span>
+<span class="n">Out</span><span class="p">[</span><span class="mi">8</span><span class="p">]:</span>
+<span class="o">&lt;</span><span class="n">xarray</span><span class="o">.</span><span class="n">DataArray</span> <span class="s1">&#39;xyz&#39;</span> <span class="p">(</span><span class="n">xyz</span><span class="p">:</span> <span class="mi">3</span><span class="p">)</span><span class="o">&gt;</span>
+ <span class="n">array</span><span class="p">([</span><span class="s1">&#39;x&#39;</span><span class="p">,</span> <span class="s1">&#39;y&#39;</span><span class="p">,</span> <span class="s1">&#39;z&#39;</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="s1">&#39;&lt;U1&#39;</span><span class="p">)</span>
+ <span class="n">Coordinates</span><span class="p">:</span>
+   <span class="o">*</span> <span class="n">xyz</span>      <span class="p">(</span><span class="n">xyz</span><span class="p">)</span> <span class="o">&lt;</span><span class="n">U1</span> <span class="s1">&#39;x&#39;</span> <span class="s1">&#39;y&#39;</span> <span class="s1">&#39;z&#39;</span>
+ <span class="n">Attributes</span><span class="p">:</span>
+     <span class="n">_FillValue</span><span class="p">:</span>
+</pre></div>
+</div>
+<p>When you isolate a variable, it will provide the variable data as well as the coordinates of the variable.  For instance, ‘beampointingangle’ is the raw beam angle in degrees for each beam.  It is a two dimensional array, with a value for each ping for each beam.  So the display for beampointingangle shows the two coordinate arrays as well.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="o">&gt;</span> <span class="n">fq</span><span class="o">.</span><span class="n">multibeam</span><span class="o">.</span><span class="n">raw_ping</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">beampointingangle</span>
+<span class="n">Out</span><span class="p">[</span><span class="mi">9</span><span class="p">]:</span>
+<span class="o">&lt;</span><span class="n">xarray</span><span class="o">.</span><span class="n">DataArray</span> <span class="s1">&#39;beampointingangle&#39;</span> <span class="p">(</span><span class="n">time</span><span class="p">:</span> <span class="mi">56662</span><span class="p">,</span> <span class="n">beam</span><span class="p">:</span> <span class="mi">400</span><span class="p">)</span><span class="o">&gt;</span>
+ <span class="n">dask</span><span class="o">.</span><span class="n">array</span><span class="o">&lt;</span><span class="n">xarray</span><span class="o">-</span><span class="n">beampointingangle</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="mi">56662</span><span class="p">,</span> <span class="mi">400</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">float32</span><span class="p">,</span> <span class="n">chunksize</span><span class="o">=</span><span class="p">(</span><span class="mi">1000</span><span class="p">,</span> <span class="mi">400</span><span class="p">),</span> <span class="n">chunktype</span><span class="o">=</span><span class="n">numpy</span><span class="o">.</span><span class="n">ndarray</span><span class="o">&gt;</span>
+ <span class="n">Coordinates</span><span class="p">:</span>
+   <span class="o">*</span> <span class="n">beam</span>     <span class="p">(</span><span class="n">beam</span><span class="p">)</span> <span class="n">int32</span> <span class="mi">0</span> <span class="mi">1</span> <span class="mi">2</span> <span class="mi">3</span> <span class="mi">4</span> <span class="mi">5</span> <span class="mi">6</span> <span class="mi">7</span> <span class="mi">8</span> <span class="o">...</span> <span class="mi">392</span> <span class="mi">393</span> <span class="mi">394</span> <span class="mi">395</span> <span class="mi">396</span> <span class="mi">397</span> <span class="mi">398</span> <span class="mi">399</span>
+   <span class="o">*</span> <span class="n">time</span>     <span class="p">(</span><span class="n">time</span><span class="p">)</span> <span class="n">float64</span> <span class="mf">1.584e+09</span> <span class="mf">1.584e+09</span> <span class="o">...</span> <span class="mf">1.584e+09</span> <span class="mf">1.584e+09</span>
+ <span class="n">Attributes</span><span class="p">:</span>
+     <span class="n">_FillValue</span><span class="p">:</span>  <span class="n">nan</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="variables">
+<h3>Variables<a class="headerlink" href="#variables" title="Permalink to this headline">¶</a></h3>
+<p>The variables contain the actual converted and processed data for the FQPR object.  You can access the Xarray DataArray for the variable:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="o">&gt;</span> <span class="n">fq</span><span class="o">.</span><span class="n">multibeam</span><span class="o">.</span><span class="n">raw_ping</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">beampointingangle</span>
+<span class="n">Out</span><span class="p">[</span><span class="mi">9</span><span class="p">]:</span>
+<span class="o">&lt;</span><span class="n">xarray</span><span class="o">.</span><span class="n">DataArray</span> <span class="s1">&#39;beampointingangle&#39;</span> <span class="p">(</span><span class="n">time</span><span class="p">:</span> <span class="mi">56662</span><span class="p">,</span> <span class="n">beam</span><span class="p">:</span> <span class="mi">400</span><span class="p">)</span><span class="o">&gt;</span>
+ <span class="n">dask</span><span class="o">.</span><span class="n">array</span><span class="o">&lt;</span><span class="n">xarray</span><span class="o">-</span><span class="n">beampointingangle</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="mi">56662</span><span class="p">,</span> <span class="mi">400</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">float32</span><span class="p">,</span> <span class="n">chunksize</span><span class="o">=</span><span class="p">(</span><span class="mi">1000</span><span class="p">,</span> <span class="mi">400</span><span class="p">),</span> <span class="n">chunktype</span><span class="o">=</span><span class="n">numpy</span><span class="o">.</span><span class="n">ndarray</span><span class="o">&gt;</span>
+ <span class="n">Coordinates</span><span class="p">:</span>
+   <span class="o">*</span> <span class="n">beam</span>     <span class="p">(</span><span class="n">beam</span><span class="p">)</span> <span class="n">int32</span> <span class="mi">0</span> <span class="mi">1</span> <span class="mi">2</span> <span class="mi">3</span> <span class="mi">4</span> <span class="mi">5</span> <span class="mi">6</span> <span class="mi">7</span> <span class="mi">8</span> <span class="o">...</span> <span class="mi">392</span> <span class="mi">393</span> <span class="mi">394</span> <span class="mi">395</span> <span class="mi">396</span> <span class="mi">397</span> <span class="mi">398</span> <span class="mi">399</span>
+   <span class="o">*</span> <span class="n">time</span>     <span class="p">(</span><span class="n">time</span><span class="p">)</span> <span class="n">float64</span> <span class="mf">1.584e+09</span> <span class="mf">1.584e+09</span> <span class="o">...</span> <span class="mf">1.584e+09</span> <span class="mf">1.584e+09</span>
+ <span class="n">Attributes</span><span class="p">:</span>
+     <span class="n">_FillValue</span><span class="p">:</span>  <span class="n">nan</span>
+</pre></div>
+</div>
+<p>The underlying Dask array:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="o">&gt;</span> <span class="n">fq</span><span class="o">.</span><span class="n">multibeam</span><span class="o">.</span><span class="n">raw_ping</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">beampointingangle</span><span class="o">.</span><span class="n">data</span>
+<span class="n">Out</span><span class="p">[</span><span class="mi">13</span><span class="p">]:</span> <span class="n">dask</span><span class="o">.</span><span class="n">array</span><span class="o">&lt;</span><span class="n">xarray</span><span class="o">-</span><span class="n">beampointingangle</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="mi">56662</span><span class="p">,</span> <span class="mi">400</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">float32</span><span class="p">,</span> <span class="n">chunksize</span><span class="o">=</span><span class="p">(</span><span class="mi">1000</span><span class="p">,</span> <span class="mi">400</span><span class="p">),</span> <span class="n">chunktype</span><span class="o">=</span><span class="n">numpy</span><span class="o">.</span><span class="n">ndarray</span><span class="o">&gt;</span>
+</pre></div>
+</div>
+<p>The loaded numpy data:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="o">&gt;</span> <span class="n">fq</span><span class="o">.</span><span class="n">multibeam</span><span class="o">.</span><span class="n">raw_ping</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">beampointingangle</span><span class="o">.</span><span class="n">values</span>
+<span class="n">Out</span><span class="p">[</span><span class="mi">14</span><span class="p">]:</span>
+<span class="n">array</span><span class="p">([[</span><span class="o">-</span><span class="mf">61.53</span>    <span class="p">,</span> <span class="o">-</span><span class="mf">61.399998</span><span class="p">,</span> <span class="o">-</span><span class="mf">61.28</span>    <span class="p">,</span> <span class="o">...</span><span class="p">,</span>  <span class="mf">58.219997</span><span class="p">,</span>  <span class="mf">58.35</span>    <span class="p">,</span>
+         <span class="mf">58.469997</span><span class="p">],</span>
+       <span class="p">[</span><span class="o">-</span><span class="mf">61.53</span>    <span class="p">,</span> <span class="o">-</span><span class="mf">61.399998</span><span class="p">,</span> <span class="o">-</span><span class="mf">61.28</span>    <span class="p">,</span> <span class="o">...</span><span class="p">,</span>  <span class="mf">58.219997</span><span class="p">,</span>  <span class="mf">58.35</span>    <span class="p">,</span>
+         <span class="mf">58.469997</span><span class="p">],</span>
+       <span class="p">[</span><span class="o">-</span><span class="mf">61.55</span>    <span class="p">,</span> <span class="o">-</span><span class="mf">61.42</span>    <span class="p">,</span> <span class="o">-</span><span class="mf">61.3</span>     <span class="p">,</span> <span class="o">...</span><span class="p">,</span>  <span class="mf">58.199997</span><span class="p">,</span>  <span class="mf">58.329998</span><span class="p">,</span>
+         <span class="mf">58.449997</span><span class="p">],</span>
+       <span class="o">...</span><span class="p">,</span>
+       <span class="p">[</span><span class="o">-</span><span class="mf">61.19</span>    <span class="p">,</span> <span class="o">-</span><span class="mf">61.059998</span><span class="p">,</span> <span class="o">-</span><span class="mf">60.94</span>    <span class="p">,</span> <span class="o">...</span><span class="p">,</span>  <span class="mf">58.559998</span><span class="p">,</span>  <span class="mf">58.69</span>    <span class="p">,</span>
+         <span class="mf">58.809998</span><span class="p">],</span>
+       <span class="p">[</span><span class="o">-</span><span class="mf">61.19</span>    <span class="p">,</span> <span class="o">-</span><span class="mf">61.059998</span><span class="p">,</span> <span class="o">-</span><span class="mf">60.94</span>    <span class="p">,</span> <span class="o">...</span><span class="p">,</span>  <span class="mf">58.559998</span><span class="p">,</span>  <span class="mf">58.69</span>    <span class="p">,</span>
+         <span class="mf">58.809998</span><span class="p">],</span>
+       <span class="p">[</span><span class="o">-</span><span class="mf">61.19</span>    <span class="p">,</span> <span class="o">-</span><span class="mf">61.059998</span><span class="p">,</span> <span class="o">-</span><span class="mf">60.94</span>    <span class="p">,</span> <span class="o">...</span><span class="p">,</span>  <span class="mf">58.559998</span><span class="p">,</span>  <span class="mf">58.69</span>    <span class="p">,</span>
+         <span class="mf">58.809998</span><span class="p">]],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">float32</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>And information about the backend and how it is saved to disk:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="o">&gt;</span> <span class="n">fq</span><span class="o">.</span><span class="n">multibeam</span><span class="o">.</span><span class="n">raw_ping</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">beampointingangle</span><span class="o">.</span><span class="n">encoding</span>
+<span class="n">Out</span><span class="p">[</span><span class="mi">33</span><span class="p">]:</span>
+<span class="p">{</span><span class="s1">&#39;chunks&#39;</span><span class="p">:</span> <span class="p">(</span><span class="mi">1000</span><span class="p">,</span> <span class="mi">400</span><span class="p">),</span>
+ <span class="s1">&#39;preferred_chunks&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;time&#39;</span><span class="p">:</span> <span class="mi">1000</span><span class="p">,</span> <span class="s1">&#39;beam&#39;</span><span class="p">:</span> <span class="mi">400</span><span class="p">},</span>
+ <span class="s1">&#39;compressor&#39;</span><span class="p">:</span> <span class="n">Blosc</span><span class="p">(</span><span class="n">cname</span><span class="o">=</span><span class="s1">&#39;lz4&#39;</span><span class="p">,</span> <span class="n">clevel</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">shuffle</span><span class="o">=</span><span class="n">SHUFFLE</span><span class="p">,</span> <span class="n">blocksize</span><span class="o">=</span><span class="mi">0</span><span class="p">),</span>
+ <span class="s1">&#39;filters&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+ <span class="s1">&#39;dtype&#39;</span><span class="p">:</span> <span class="n">dtype</span><span class="p">(</span><span class="s1">&#39;float32&#39;</span><span class="p">)}</span>
+</pre></div>
+</div>
+<p>Finally, here is a brief description of each variable, and the information it contains:</p>
+<ul class="simple">
+<li><p>acrosstrack - The result of running Sound Velocity Correct in Kluster.  This is the acrosstrack (perpendicular to vessel movement) distance to the beam footprint on the seafloor from the vessel reference point in meters.</p></li>
+<li><p>alongtrack - The result of running Sound Velocity Correct in Kluster.  This is the alongtrack (vessel direction) distance to the beam footprint on the seafloor from the vessel reference point in meters.</p></li>
+<li><p>altitude - From the raw multibeam data, the logged altitude data from the navigation system in meters.  Relative to the ellipsoid chosen in the navigation system setup.</p></li>
+<li><p>beam - an array of beam numbers for each beam in the ping, starting with 0</p></li>
+<li><p>beampointingangle - The raw beam angle that comes from the multibeam data.  Angle in degrees from the receiver to the beam footprint on the seafloor, does not take attitude or mounting angles into account.</p></li>
+<li><p>corr_altitude - If this dataset is processed to the waterline this will be zero.  Otherwise, the altitude correction is the attitude rotated lever arm between the reference point of the altitude and the transmitter, if non-zero.  This will be the original altitude plus this correction.</p></li>
+<li><p>corr_heave - If this dataset is processed to the ellipse this will be zero.  Otherwise, the heave correction is the attitude rotated lever arm between the reference point of the heave and the transmitter, if non-zero. This will be the original heave plus this correction.</p></li>
+<li><p>corr_pointing_angle - The result of running Compute Beam Vectors in Kluster.  This is the raw beam angles corrected for attitude and mounting angles, relative to nadir (straight down from sonar).</p></li>
+<li><p>counter - The identification number assigned to each ping.  For Kongsberg .all, this is a 16bit number, so you will see it reset at 65536.</p></li>
+<li><p>datum_uncertainty - Included when VDatum is used for vertical transformation to NOAA Chart Datums, is the uncertainty of that transform.  Will be all zeros if NOAA_MLLW/NOAA_MHW is not selected.</p></li>
+<li><p>delay - The time delay applied to each sector, expanded to the beam dimension.  Comes from the multibeam raw data.  Generally fairly small, or zero.</p></li>
+<li><p>depthoffset - The result of running Sound Velocity Correct in Kluster.  This is the down (positive down) distance to the beam footprint on the seafloor from the transmitter in meters.  Not from the vessel reference point to align with Kongsberg svcorrect convention.  We apply the z lever arm in georeferencing.</p></li>
+<li><p>detectioninfo - The accepted/rejected state of each beam.  3 = re-accepted, 2 = rejected, 1 = phase detection, 0 = amplitude detection.  See Kongsberg “detectioninfo”.</p></li>
+<li><p>frequency - The frequency of each beam in Hz.</p></li>
+<li><p>geohash - The computed base32 representation of the geohash, a code that defines the location of each beam in a region. Plotting will show the unique integer identifier instead of the string, for visualization purposes.</p></li>
+<li><p>latitude - From the raw multibeam data, the logged latitude data from the navigation system in degrees.</p></li>
+<li><p>longitude - From the raw multibeam data, the logged longitude data from the navigation system in degrees.</p></li>
+<li><p>mode - The first mode value. (if TX Pulse Form) CW for continuous waveform, FM for frequency modulated, MIX for mix between FM and CW. (if Ping mode) VS for Very Shallow, SH for Shallow, ME for Medium, DE for Deep, VD for Very Deep, ED for Extra Deep.</p></li>
+<li><p>modetwo - The second mode value. (if Pulse Length) vsCW = very short continuous waveform, shCW = short cw, meCW = medium cw, loCW = long cw, vlCW = very long cw, elCW = extra long cw, shFM = short frequency modulated, loFM = long fm. (if Depth Mode) VS = Very Shallow, SH = Shallow, ME = Medium, DE = Deep, DR = Deeper, VD = Very Deep, ED = Extra deep, XD = Extreme Deep, if followed by “m” system is in manual mode.</p></li>
+<li><p>ntx - The number of sectors in each ping</p></li>
+<li><p>processing_status - The Kluster processing status of each beam, the highest state of the beam.  EX: If 3, sounding is only processed up to sound velocity correction. 0 = converted, 1 = orientation, 2 = beamvector, 3 = soundvelocity, 4 = georeference, 5 = tpu.</p></li>
+<li><p>qualityfactor - The raw uncertainty record that comes from the multibeam.  Corresponds to the Kongsberg detectioninfo (.all) detectiontype (.kmall).  See datagram description for more information.</p></li>
+<li><p>rel_azimuth - The result of running Compute Beam Vectors in Kluster.  This is the direction to the beam footprint on the seafloor from the sonar in radians.</p></li>
+<li><p>rx - the computed receive vector representing the orientation of the sonar receiver, generated during the Orientation process</p></li>
+<li><p>sbet_altitude - From the imported post processed navigation, the exported altitude data in meters.  Relative to the ellipsoid chosen in the post processing software.</p></li>
+<li><p>sbet_down_position_error - From the imported post processed navigation, the logged down position error from the navigation system in meters.</p></li>
+<li><p>sbet_east_position_error - From the imported post processed navigation, the logged east position error data from the navigation system in meters.</p></li>
+<li><p>sbet_heading_error - From the imported post processed navigation, the logged heading error data from the navigation system in degrees.</p></li>
+<li><p>sbet_latitude - From the imported post processed navigation, the logged latitude data from the navigation system in degrees.</p></li>
+<li><p>sbet_longitude - From the imported post processed navigation, the logged longitude data from the navigation system in degrees.</p></li>
+<li><p>sbet_north_position_error - From the imported post processed navigation, the logged north position error data from the navigation system in meters.</p></li>
+<li><p>sbet_pitch_error - From the imported post processed navigation, the logged pitch error data from the navigation system in degrees.</p></li>
+<li><p>sbet_roll_error - From the imported post processed navigation, the logged roll error data from the navigation system in degrees.</p></li>
+<li><p>soundspeed - The surface sound velocimeter data, in meters per second.</p></li>
+<li><p>thu - The Hare-Godin-Mayer TPU model - horizontal component.  In meters, 2sigma value.</p></li>
+<li><p>tiltangle - Steering angle of the sector transmit beam, in degrees.</p></li>
+<li><p>time - The time of each ping in UTC seconds</p></li>
+<li><p>traveltime - The two way travel time of each beam in seconds.</p></li>
+<li><p>tvu - The Hare-Godin-Mayer TPU model - vertical component.  In meters, 2sigma value.</p></li>
+<li><p>tx - the computed transmit vector representing the orientation of the sonar transmitter, generated during the Orientation process</p></li>
+<li><p>txsector_beam - The sector number of each beam.</p></li>
+<li><p>x - The result of running Georeference in Kluster.  This is the sound velocity offsets projected into the coordinate reference system you chose.  Easting is in meters.</p></li>
+<li><p>xyz - coordinate array for the tx and rx variables, length 3 array representing the three dimensional nature of these vectors</p></li>
+<li><p>y - The result of running Georeference in Kluster.  This is the sound velocity offsets projected into the coordinate reference system you chose.  Northing is in meters.</p></li>
+<li><p>yawpitchstab - Tells you whether yaw/pitch stabilization was enabled on the sonar.  Y = Only yaw stab, P = Only pitch stab, PY = Pitch and yaw stab, N = Neither.</p></li>
+<li><p>z - The result of running Georeference in Kluster.  This is the sound velocity offsets projected into the coordinate reference system you chose.  Depth is in meters from the vertical reference you chose.</p></li>
+</ul>
+</div>
+</div>
+<div class="section" id="bathygrid">
+<h2>Bathygrid<a class="headerlink" href="#bathygrid" title="Permalink to this headline">¶</a></h2>
+<p>Bathygrid is the Python module I developed to fit this role, of gridding multibeam soundings in such a way as to support billions of soundings over large areas while being memory and computation efficient.  Bathygrid leverages Dask and Zarr as well, so it shares a lot of the same elements as the FQPR object.  The three fundamental elements of the Bathygrid object are the points, the attribution and the grid itself.</p>
+<p>To get access to the Bathygrid grid, you do the same thing we did with the FQPR object.  You either drag in the folder to Kluster, or use the load convenience method to load from disk.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="o">&gt;</span> <span class="kn">from</span> <span class="nn">HSTB.kluster.fqpr_convenience</span> <span class="kn">import</span> <span class="n">reload_data</span>
+
+<span class="o">&gt;</span> <span class="n">bg</span> <span class="o">=</span> <span class="n">reload_surface</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;C:\collab\dasktest\data_dir\outputtest\vrtilegrid_mean&quot;</span><span class="p">)</span>
+
+<span class="o">&gt;</span> <span class="n">bg</span>
+<span class="n">Out</span><span class="p">[</span><span class="mi">4</span><span class="p">]:</span>
+<span class="n">Time</span> <span class="p">(</span><span class="n">UTC</span><span class="p">):</span> <span class="mi">2017</span><span class="o">-</span><span class="mi">05</span><span class="o">-</span><span class="mi">23</span><span class="n">T18</span><span class="p">:</span><span class="mi">11</span><span class="p">:</span><span class="mi">19</span> <span class="n">to</span> <span class="mi">2017</span><span class="o">-</span><span class="mi">05</span><span class="o">-</span><span class="mi">23</span><span class="n">T18</span><span class="p">:</span><span class="mi">12</span><span class="p">:</span><span class="mi">12</span>
+<span class="n">EPSG</span><span class="p">:</span> <span class="mi">6339</span>
+<span class="n">Path</span><span class="p">:</span> <span class="n">C</span><span class="p">:</span>\<span class="n">collab</span>\<span class="n">dasktest</span>\<span class="n">data_dir</span>\<span class="n">EM2040_Fairweather_SmallFile</span>\<span class="n">vrtilegrid_mean</span>
+<span class="n">Bathygrid</span> <span class="n">Version</span><span class="p">:</span> <span class="mf">1.1</span><span class="o">.</span><span class="mi">3</span>
+<span class="n">Resolutions</span> <span class="p">(</span><span class="n">meters</span><span class="p">):</span> <span class="p">[</span><span class="mf">8.0</span><span class="p">]</span>
+<span class="n">Containers</span><span class="p">:</span> <span class="n">em2040_40111_05_23_2017_0</span>
+<span class="n">Mean</span> <span class="n">Depth</span><span class="p">:</span> <span class="mf">88.715</span>
+<span class="n">Minimum</span> <span class="n">Northing</span><span class="p">:</span> <span class="mf">5292544.0</span> <span class="n">Maximum</span> <span class="n">Northing</span><span class="p">:</span> <span class="mf">5293312.0</span>
+<span class="n">Minimum</span> <span class="n">Easting</span><span class="p">:</span> <span class="mf">538880.0</span> <span class="n">Maximum</span> <span class="n">Easting</span><span class="p">:</span> <span class="mf">539392.0</span>
+</pre></div>
+</div>
+<p>You can see that we get a similar representation to the FQPR object, and can access this same data using the attributes of the class:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="o">&gt;</span> <span class="n">surf</span><span class="o">.</span><span class="n">min_x</span>
+<span class="n">Out</span><span class="p">[</span><span class="mi">6</span><span class="p">]:</span> <span class="mf">538880.0</span>
+
+<span class="o">&gt;</span> <span class="n">surf</span><span class="o">.</span><span class="n">min_time</span>
+<span class="n">Out</span><span class="p">[</span><span class="mi">7</span><span class="p">]:</span> <span class="s1">&#39;2017-05-23T18:11:19&#39;</span>
+
+<span class="o">&gt;</span> <span class="n">surf</span><span class="o">.</span><span class="n">container</span>
+<span class="n">Out</span><span class="p">[</span><span class="mi">8</span><span class="p">]:</span> <span class="p">{</span><span class="s1">&#39;em2040_40111_05_23_2017_0&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;0009_20170523_181119_FA2806.all&#39;</span><span class="p">]}</span>
+</pre></div>
+</div>
+<p>You can see a similar display of the attributes in the Attributes winwdow in Kluster, when you click on the surface in the Project Tree.</p>
+<a class="reference external image-reference" href="../_images/datastructures4.png"><img alt="../_images/datastructures4.png" src="../_images/datastructures4.png" /></a>
+<div class="section" id="points-tiles-and-grids">
+<h3>Points, Tiles and Grids<a class="headerlink" href="#points-tiles-and-grids" title="Permalink to this headline">¶</a></h3>
+<p>This section is best explained by a picture.  The image below shows the relationship between points, tiles and grids/cells.</p>
+<a class="reference external image-reference" href="../_images/datastructures5.png"><img alt="../_images/datastructures5.png" src="../_images/datastructures5.png" /></a>
+<p>To define these terms:</p>
+<ul class="simple">
+<li><p>SRGrid/VRGridTile - Single/Variable resolution structures that hold tiles or grids depending. The Root of the grid.</p></li>
+<li><p>Tile - a structure that holds cells and points. A SRGrid only contains Tiles and is of the same resolution throughout</p></li>
+<li><p>Grid - a structure that holds Tiles (SRGrid is a Grid), the VRGridTile basically holds miniature SRGrids within it</p></li>
+<li><p>Cell - a unit of the Tile that has a depth, uncertainty, etc. based on the points within it</p></li>
+<li><p>Point - a multibeam sounding</p></li>
+</ul>
+<p>You can also see those relationships between the Root, Tile and Grid by looking at the folder structure.  Here we have the folder structure for our variable resolution grid.  The Root folder contains the Grids, each Grid folder contains one Tile, and each Tile contains points (data) and cell data (cells)</p>
+<a class="reference external image-reference" href="../_images/datastructures6.png"><img alt="../_images/datastructures6.png" src="../_images/datastructures6.png" /></a>
+<p>Using the console is similar:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="o">&gt;</span> <span class="n">first_grid</span> <span class="o">=</span> <span class="n">surf</span><span class="o">.</span><span class="n">tiles</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+<span class="o">&gt;</span> <span class="n">first_grid</span>
+<span class="n">Out</span><span class="p">[</span><span class="mi">12</span><span class="p">]:</span>
+<span class="n">Bathygrid</span> <span class="n">Version</span><span class="p">:</span> <span class="mf">1.1</span><span class="o">.</span><span class="mi">3</span>
+<span class="n">Resolutions</span> <span class="p">(</span><span class="n">meters</span><span class="p">):</span> <span class="p">[</span><span class="mf">8.0</span><span class="p">]</span>
+<span class="n">Containers</span><span class="p">:</span> <span class="n">em2040_40111_05_23_2017_0</span>
+<span class="n">Mean</span> <span class="n">Depth</span><span class="p">:</span> <span class="mf">91.363</span>
+<span class="n">Minimum</span> <span class="n">Northing</span><span class="p">:</span> <span class="mf">5292544.0</span> <span class="n">Maximum</span> <span class="n">Northing</span><span class="p">:</span> <span class="mf">5292800.0</span>
+<span class="n">Minimum</span> <span class="n">Easting</span><span class="p">:</span> <span class="mf">538880.0</span> <span class="n">Maximum</span> <span class="n">Easting</span><span class="p">:</span> <span class="mf">539136.0</span>
+
+<span class="o">&gt;</span> <span class="n">first_grid_tile</span> <span class="o">=</span> <span class="n">first_grid</span><span class="o">.</span><span class="n">tiles</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+<span class="o">&gt;</span> <span class="n">first_grid_tile</span>
+<span class="n">Out</span><span class="p">[</span><span class="mi">15</span><span class="p">]:</span> <span class="o">&lt;</span><span class="n">bathygrid</span><span class="o">.</span><span class="n">tile</span><span class="o">.</span><span class="n">SRTile</span> <span class="n">at</span> <span class="mh">0x2a43f816c70</span><span class="o">&gt;</span>
+
+<span class="o">&gt;</span> <span class="n">soundings</span> <span class="o">=</span> <span class="n">first_grid_tile</span><span class="o">.</span><span class="n">data</span>
+<span class="o">&gt;</span> <span class="n">soundings</span>
+<span class="n">Out</span><span class="p">[</span><span class="mi">18</span><span class="p">]:</span> <span class="n">dask</span><span class="o">.</span><span class="n">array</span><span class="o">&lt;</span><span class="n">from</span><span class="o">-</span><span class="n">npy</span><span class="o">-</span><span class="n">stack</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="mi">98</span><span class="p">,),</span> <span class="n">dtype</span><span class="o">=</span><span class="p">[(</span><span class="s1">&#39;x&#39;</span><span class="p">,</span> <span class="s1">&#39;&lt;f8&#39;</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;y&#39;</span><span class="p">,</span> <span class="s1">&#39;&lt;f8&#39;</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;z&#39;</span><span class="p">,</span> <span class="s1">&#39;&lt;f8&#39;</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;tvu&#39;</span><span class="p">,</span> <span class="s1">&#39;&lt;f4&#39;</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;thu&#39;</span><span class="p">,</span> <span class="s1">&#39;&lt;f4&#39;</span><span class="p">)],</span> <span class="n">chunksize</span><span class="o">=</span><span class="p">(</span><span class="mi">98</span><span class="p">,),</span> <span class="n">chunktype</span><span class="o">=</span><span class="n">numpy</span><span class="o">.</span><span class="n">ndarray</span><span class="o">&gt;</span>
+
+<span class="n">first_grid_tile</span><span class="o">.</span><span class="n">cells</span>
+<span class="p">{</span><span class="mf">8.0</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;depth&#39;</span><span class="p">:</span> <span class="n">dask</span><span class="o">.</span><span class="n">array</span><span class="o">&lt;</span><span class="n">from</span><span class="o">-</span><span class="n">npy</span><span class="o">-</span><span class="n">stack</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="mi">32</span><span class="p">,</span> <span class="mi">32</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">float32</span><span class="p">,</span> <span class="n">chunksize</span><span class="o">=</span><span class="p">(</span><span class="mi">32</span><span class="p">,</span> <span class="mi">32</span><span class="p">),</span> <span class="n">chunktype</span><span class="o">=</span><span class="n">numpy</span><span class="o">.</span><span class="n">ndarray</span><span class="o">&gt;</span><span class="p">,</span>
+       <span class="s1">&#39;density&#39;</span><span class="p">:</span> <span class="n">dask</span><span class="o">.</span><span class="n">array</span><span class="o">&lt;</span><span class="n">from</span><span class="o">-</span><span class="n">npy</span><span class="o">-</span><span class="n">stack</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="mi">32</span><span class="p">,</span> <span class="mi">32</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">int32</span><span class="p">,</span> <span class="n">chunksize</span><span class="o">=</span><span class="p">(</span><span class="mi">32</span><span class="p">,</span> <span class="mi">32</span><span class="p">),</span> <span class="n">chunktype</span><span class="o">=</span><span class="n">numpy</span><span class="o">.</span><span class="n">ndarray</span><span class="o">&gt;</span><span class="p">,</span>
+       <span class="s1">&#39;vertical_uncertainty&#39;</span><span class="p">:</span> <span class="n">dask</span><span class="o">.</span><span class="n">array</span><span class="o">&lt;</span><span class="n">from</span><span class="o">-</span><span class="n">npy</span><span class="o">-</span><span class="n">stack</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="mi">32</span><span class="p">,</span> <span class="mi">32</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">float32</span><span class="p">,</span> <span class="n">chunksize</span><span class="o">=</span><span class="p">(</span><span class="mi">32</span><span class="p">,</span> <span class="mi">32</span><span class="p">),</span> <span class="n">chunktype</span><span class="o">=</span><span class="n">numpy</span><span class="o">.</span><span class="n">ndarray</span><span class="o">&gt;</span><span class="p">,</span>
+       <span class="s1">&#39;horizontal_uncertainty&#39;</span><span class="p">:</span> <span class="n">dask</span><span class="o">.</span><span class="n">array</span><span class="o">&lt;</span><span class="n">from</span><span class="o">-</span><span class="n">npy</span><span class="o">-</span><span class="n">stack</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="mi">32</span><span class="p">,</span> <span class="mi">32</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">float32</span><span class="p">,</span> <span class="n">chunksize</span><span class="o">=</span><span class="p">(</span><span class="mi">32</span><span class="p">,</span> <span class="mi">32</span><span class="p">),</span> <span class="n">chunktype</span><span class="o">=</span><span class="n">numpy</span><span class="o">.</span><span class="n">ndarray</span><span class="o">&gt;</span><span class="p">}}</span>
+</pre></div>
+</div>
+<p>Grids in the root, a Tile in each grid, and soundings and cells in the Tile.  This is the basic architecture of the Variable Resolution Bathygrid object.  The Single resolution is simpler, with just Tiles and soundings.</p>
+<p>Note that all data is available as a Dask array, as data added is immediately flushed to disk to conserve memory.</p>
+</div>
+<div class="section" id="id1">
+<h3>Attributes<a class="headerlink" href="#id1" title="Permalink to this headline">¶</a></h3>
+<p>Attributes are stored in JSON within the data structure.  The attributes that you see in the Attributes window in Kluster are the result of running return_attribution to gather the attributes from the Bathygrid structure.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="o">&gt;</span> <span class="n">surf</span><span class="o">.</span><span class="n">return_attribution</span><span class="p">()</span>
+<span class="n">Out</span><span class="p">[</span><span class="mi">9</span><span class="p">]:</span>
+<span class="p">{</span><span class="s1">&#39;grid_folder&#39;</span><span class="p">:</span> <span class="s1">&#39;C:</span><span class="se">\\</span><span class="s1">collab</span><span class="se">\\</span><span class="s1">dasktest</span><span class="se">\\</span><span class="s1">data_dir</span><span class="se">\\</span><span class="s1">EM2040_Fairweather_SmallFile</span><span class="se">\\</span><span class="s1">vrtilegrid_mean&#39;</span><span class="p">,</span>
+ <span class="s1">&#39;name&#39;</span><span class="p">:</span> <span class="s1">&#39;VRGridTile_Root&#39;</span><span class="p">,</span>
+ <span class="s1">&#39;type&#39;</span><span class="p">:</span> <span class="n">bathygrid</span><span class="o">.</span><span class="n">maingrid</span><span class="o">.</span><span class="n">VRGridTile</span><span class="p">,</span>
+ <span class="s1">&#39;grid_resolution&#39;</span><span class="p">:</span> <span class="s1">&#39;AUTO_DENSITY&#39;</span><span class="p">,</span>
+ <span class="s1">&#39;grid_algorithm&#39;</span><span class="p">:</span> <span class="s1">&#39;mean&#39;</span><span class="p">,</span>
+ <span class="s1">&#39;epsg&#39;</span><span class="p">:</span> <span class="mi">6339</span><span class="p">,</span>
+ <span class="s1">&#39;vertical_reference&#39;</span><span class="p">:</span> <span class="s1">&#39;COMPOUNDCRS[&quot;NAD83(2011) + MLLW depth&quot;,GEOGCRS[&quot;NAD83(2011)&quot;,DATUM[&quot;NAD83 (National Spatial Reference System 2011)&quot;,ELLIPSOID[&quot;GRS 1980&quot;,6378137,298.257222101,LENGTHUNIT[&quot;metre&quot;,1]]],PRIMEM[&quot;Greenwich&quot;,0,ANGLEUNIT[&quot;degree&quot;,0.0174532925199433]],CS[ellipsoidal,2],AXIS[&quot;geodetic latitude (Lat)&quot;,north,ORDER[1],ANGLEUNIT[&quot;degree&quot;,0.0174532925199433]],AXIS[&quot;geodetic longitude (Lon)&quot;,east,ORDER[2],ANGLEUNIT[&quot;degree&quot;,0.0174532925199433]],USAGE[SCOPE[&quot;Horizontal component of 3D system.&quot;],AREA[&quot;Puerto Rico - onshore and offshore. United States (USA) onshore and offshore - Alabama; Alaska; Arizona; Arkansas; California; Colorado; Connecticut; Delaware; Florida; Georgia; Idaho; Illinois; Indiana; Iowa; Kansas; Kentucky; Louisiana; Maine; Maryland; Massachusetts; Michigan; Minnesota; Mississippi; Missouri; Montana; Nebraska; Nevada; New Hampshire; New Jersey; New Mexico; New York; North Carolina; North Dakota; Ohio; Oklahoma; Oregon; Pennsylvania; Rhode Island; South Carolina; South Dakota; Tennessee; Texas; Utah; Vermont; Virginia; Washington; West Virginia; Wisconsin; Wyoming. US Virgin Islands - onshore and offshore.&quot;],BBOX[14.92,167.65,74.71,-63.88]],ID[&quot;EPSG&quot;,6318]],VERTCRS[&quot;MLLW depth&quot;,VDATUM[&quot;MLLW depth&quot;],CS[vertical,1],AXIS[&quot;depth (D)&quot;,down,LENGTHUNIT[&quot;metre&quot;,1,ID[&quot;EPSG&quot;,9001]]],REMARK[&quot;vdatum=vdatum_4.1.2_20201203,vyperdatum=0.1.4,base_datum=[NAD83(2011)],regions=[WApugets02_8301],pipelines=[+proj=pipeline +step +proj=vgridshift grids=core</span><span class="se">\\</span><span class="s1">geoid12b</span><span class="se">\\</span><span class="s1">g2012bu0.gtx +step +inv +proj=vgridshift grids=WApugets02_8301</span><span class="se">\\</span><span class="s1">tss.gtx +step +proj=vgridshift grids=WApugets02_8301</span><span class="se">\\</span><span class="s1">mllw.gtx]&quot;]]]&#39;</span><span class="p">,</span>
+ <span class="s1">&#39;height&#39;</span><span class="p">:</span> <span class="mf">768.0</span><span class="p">,</span>
+ <span class="s1">&#39;width&#39;</span><span class="p">:</span> <span class="mf">512.0</span><span class="p">,</span>
+ <span class="s1">&#39;minimum_x&#39;</span><span class="p">:</span> <span class="mf">538880.0</span><span class="p">,</span>
+ <span class="s1">&#39;maximum_x&#39;</span><span class="p">:</span> <span class="mf">539392.0</span><span class="p">,</span>
+ <span class="s1">&#39;minimum_y&#39;</span><span class="p">:</span> <span class="mf">5292544.0</span><span class="p">,</span>
+ <span class="s1">&#39;maximum_y&#39;</span><span class="p">:</span> <span class="mf">5293312.0</span><span class="p">,</span>
+ <span class="s1">&#39;minimum_time_utc&#39;</span><span class="p">:</span> <span class="s1">&#39;2017-05-23T18:11:19&#39;</span><span class="p">,</span>
+ <span class="s1">&#39;maximum_time_utc&#39;</span><span class="p">:</span> <span class="s1">&#39;2017-05-23T18:12:12&#39;</span><span class="p">,</span>
+ <span class="s1">&#39;tile_size&#39;</span><span class="p">:</span> <span class="mf">256.0</span><span class="p">,</span>
+ <span class="s1">&#39;subtile_size&#39;</span><span class="p">:</span> <span class="mf">256.0</span><span class="p">,</span>
+ <span class="s1">&#39;tile_count&#39;</span><span class="p">:</span> <span class="mi">5</span><span class="p">,</span>
+ <span class="s1">&#39;resolutions&#39;</span><span class="p">:</span> <span class="p">[</span><span class="mf">8.0</span><span class="p">],</span>
+ <span class="s1">&#39;storage_type&#39;</span><span class="p">:</span> <span class="s1">&#39;numpy&#39;</span><span class="p">,</span>
+ <span class="s1">&#39;source_em2040_40111_05_23_2017&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;time&#39;</span><span class="p">:</span> <span class="s1">&#39;20211108_135603&#39;</span><span class="p">,</span>
+ <span class="s1">&#39;multibeam_lines&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;0009_20170523_181119_FA2806.all&#39;</span><span class="p">]}}</span>
+</pre></div>
+</div>
+<p>The attributes are defined as:</p>
+<ul class="simple">
+<li><p>grid_folder/output_folder - the current path to the root of the grid folder structure</p></li>
+<li><p>name - the grid identifier, corresponds to the name of the root folder</p></li>
+<li><p>type - the grid type</p></li>
+<li><p>grid resolution - the grid method the user selected on making the grid</p></li>
+<li><p>grid_algorithm - the algorithm the user selected on making the grid</p></li>
+<li><p>epsg - the user specified epsg identifier for the grid points</p></li>
+<li><p>vertical reference - the user specified reference for the grid points</p></li>
+<li><p>height - the height of the grid in meters, including all empty areas</p></li>
+<li><p>width - the width of the grid in meters, including all empty areas</p></li>
+<li><p>minimum_x - the minimum easting of the grid</p></li>
+<li><p>minimum_y - the minimum northing of the grid</p></li>
+<li><p>maximum_x - the maximum easting of the grid</p></li>
+<li><p>maximum_y - the maximum northing of the grid</p></li>
+<li><p>minimum_time_utc - the minimum UTC time of the soundings provided to the grid</p></li>
+<li><p>maximum_time_utc - the maximum UTC time of the soundings provided to the grid</p></li>
+<li><p>tile_size - the size of the tile in meters</p></li>
+<li><p>subtile_size - if VR, the size of the subtile in meters</p></li>
+<li><p>tile_count - the number of tiles in the grid</p></li>
+<li><p>resolutions - the total resolutions in the grid</p></li>
+<li><p>storage_type - he specified backend of the grid</p></li>
+<li><p>source_XXXXXXXXXXXXXXXXXXXXX - the time/files added for each add to the grid</p></li>
+</ul>
+</div>
+</div>
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">kluster</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../quickstart/index.html">Quickstart</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../vessel_setup/index.html">Vessel Setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../processing/index.html">Processing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../surface/index.html">Surfacing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../cleaning/index.html">Cleaning</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../products/index.html">Products</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../settings/index.html">Settings</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Learn more about Kluster</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="intel.html">Kluster Intelligence</a></li>
+<li class="toctree-l2"><a class="reference internal" href="geohash.html">Geohashes and Spatial Indexing</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Data Structures</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#fully-qualified-ping-record">Fully Qualified Ping Record</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#attributes">Attributes</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#coordinates">Coordinates</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#variables">Variables</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#bathygrid">Bathygrid</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#points-tiles-and-grids">Points, Tiles and Grids</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id1">Attributes</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../kluster_api/index.html">API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../changes.html">Changes List</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  <li><a href="index.html">Learn more about Kluster</a><ul>
+      <li>Previous: <a href="geohash.html" title="previous chapter">Geohashes and Spatial Indexing</a></li>
+      <li>Next: <a href="../kluster_api/index.html" title="next chapter">API</a></li>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2020, Eric Younkin.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.5.2</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="../_sources/indepth/datastructures.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

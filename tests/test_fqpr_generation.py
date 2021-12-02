@@ -143,6 +143,22 @@ class TestFqprGeneration(unittest.TestCase):
         assert rp.max_y == 5293236.823
         assert rp.max_z == 94.294
 
+    def test_copy(self):
+        self._access_processed_data()
+        fqpr_copy = self.out.copy()
+        # attributes are now distinct
+        fqpr_copy.vert_ref = 'notwaterline'
+        assert self.out.vert_ref == 'waterline'
+        # datasets are distinct
+        fqpr_copy.multibeam.raw_att.heading[0] = 0
+        assert self.out.multibeam.raw_att.heading[0] == 307.17999267578125
+        # dataset attributes as well
+        fqpr_copy.multibeam.raw_ping[0]['vertical_reference'] = 'notwaterline'
+        assert self.out.multibeam.raw_ping[0].vertical_reference == 'waterline'
+        # what about the attributes that are layered dictionaries
+        fqpr_copy.multibeam.raw_ping[0].xyzrph['beam_opening_angle']['1495563079'] = 999
+        assert self.out.multibeam.raw_ping[0].xyzrph['beam_opening_angle']['1495563079'] == 1.3
+
     def test_set_variable_by_filter(self):
         self._access_processed_data()
         polygon = np.array([[-122.47798556, 47.78949665], [-122.47798556, 47.78895117], [-122.47771027, 47.78895117],
@@ -285,11 +301,48 @@ class TestFqprGeneration(unittest.TestCase):
                                                          [56.13, 1481.0], [60.67, 1481.5], [74.2, 1481.9000244140625],
                                                          [12000.0, 1675.800048828125]]}}
 
+    def test_return_line_xyzrph(self):
+        self._access_processed_data()
+        xyzrph = self.out.return_line_xyzrph('0009_20170523_181119_FA2806.all')
+        assert xyzrph == self.out.multibeam.xyzrph  # there is only one entry so the line and the datasets xyzrph record should be the same
+
+    def test_multibeam_files(self):
+        self._access_processed_data()
+        start_time, end_time, start_lat, start_lon, end_lat, end_lon, azimuth = self.out.multibeam.raw_ping[0].multibeam_files['0009_20170523_181119_FA2806.all']
+        assert start_time == 1495563079.364
+        assert end_time == 1495563133.171
+        assert start_lat == 47.78890945494799
+        assert start_lon == -122.47711319986821
+        assert end_lat == 47.78942111430487
+        assert end_lon == -122.47841440033638
+        assert azimuth == 307.92
+        # can also use the function
+        start_time, end_time, start_lat, start_lon, end_lat, end_lon, azimuth = self.out.line_attributes('0009_20170523_181119_FA2806.all')
+        assert start_time == 1495563079.364
+        assert end_time == 1495563133.171
+        assert start_lat == 47.78890945494799
+        assert start_lon == -122.47711319986821
+        assert end_lat == 47.78942111430487
+        assert end_lon == -122.47841440033638
+        assert azimuth == 307.92
+
     def test_subset_by_time(self):
         self._access_processed_data()
         self.out.subset_by_time(mintime=1495563100, maxtime=1495563130)
         assert len(self.out.multibeam.raw_ping[0].time) == 123
         assert len(self.out.multibeam.raw_att.time) == 3001
+        self.out.subset.restore_subset()
+        assert len(self.out.multibeam.raw_ping[0].time) == 216
+        assert len(self.out.multibeam.raw_att.time) == 5302
+
+    def test_subset_by_line(self):
+        self._access_processed_data()
+        self.out.subset_by_lines('0009_20170523_181119_FA2806.all')
+        assert len(self.out.multibeam.raw_ping[0].time) == 216
+        assert len(self.out.multibeam.raw_att.time) == 5295
+        self.out.subset_by_lines(['0009_20170523_181119_FA2806.all'])
+        assert len(self.out.multibeam.raw_ping[0].time) == 216
+        assert len(self.out.multibeam.raw_att.time) == 5295
         self.out.subset.restore_subset()
         assert len(self.out.multibeam.raw_ping[0].time) == 216
         assert len(self.out.multibeam.raw_att.time) == 5302

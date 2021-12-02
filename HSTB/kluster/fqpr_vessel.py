@@ -392,10 +392,10 @@ def trim_xyzrprh_to_times(xyzrph: dict, mintime: float, maxtime: float):
     xyzrph = deepcopy(xyzrph)
     xyzrph_times = list(list(xyzrph.values())[0].keys())
     diff = np.array([float(mintime) - float(tstmp) for tstmp in xyzrph_times])
-    prior_to_start = diff[diff > 0]
-    closest_diff = np.argmin(prior_to_start)
-    nearest_prior = np.argwhere(diff == prior_to_start[closest_diff])
-    if nearest_prior.size > 0:
+    prior_to_start = diff[diff >= 0]
+    if prior_to_start.size > 0:
+        closest_diff = np.argmin(prior_to_start)
+        nearest_prior = np.argwhere(diff == prior_to_start[closest_diff])
         nearest_prior = int(nearest_prior[0][0])
         nearest_prior_tstmp = [xyzrph_times[nearest_prior]]
         if len(xyzrph_times) > 1:
@@ -404,7 +404,7 @@ def trim_xyzrprh_to_times(xyzrph: dict, mintime: float, maxtime: float):
                     nearest_prior_tstmp.append(tstmp)
         drop_these = [tstmp for tstmp in xyzrph_times if tstmp not in nearest_prior_tstmp]
         for tstmp in drop_these:
-            for ky, data_dict in xyzrph:
+            for ky, data_dict in xyzrph.items():
                 if tstmp in data_dict:
                     data_dict.pop(tstmp)
         return xyzrph
