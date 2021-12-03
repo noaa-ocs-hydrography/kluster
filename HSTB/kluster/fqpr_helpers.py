@@ -59,7 +59,7 @@ def epsg_determinator(datum: str, zone: int = None, hemisphere: str = None):
     Parameters
     ----------
     datum
-        datum identifier string, one of nad83(2011), wgs84 supported for now
+        datum identifier string, one of nad83(2011), nad83(pa11), nad83(ma11), wgs84 supported for now
     zone
         integer utm zone number
     hemisphere
@@ -84,7 +84,7 @@ def epsg_determinator(datum: str, zone: int = None, hemisphere: str = None):
         raise ValueError('epsg_determinator: {} not supported'.format(datum))
 
     if zone is None and hemisphere is None:
-        if datum == 'nad83(2011)':  # using the 3d geodetic NAD83(2011)
+        if datum in ['nad83(2011)', 'nad83(pa11)', 'nad83(ma11)']:  # using the 3d geodetic NAD83(2011)
             return kluster_variables.epsg_nad83
         elif datum == 'wgs84':  # using the 3d geodetic WGS84/ITRF2008
             return kluster_variables.epsg_wgs84
@@ -98,6 +98,16 @@ def epsg_determinator(datum: str, zone: int = None, hemisphere: str = None):
                     return 6328
                 elif zone == 60:
                     return 6329
+        elif datum == 'nad83(pa11)':
+            if zone in [4, 5] and hemisphere == 'n':
+                return 6630 + zone
+            elif zone == 2 and hemisphere == 's':
+                return 6636
+        elif datum == 'nad83(ma11)':
+            if zone == 54 and hemisphere == 'n':
+                return 8692
+            elif zone == 55 and hemisphere == 's':
+                return 8693
         elif datum == 'wgs84':
             if hemisphere == 's':
                 return 32700 + zone

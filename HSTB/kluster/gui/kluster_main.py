@@ -339,8 +339,8 @@ class KlusterMain(QtWidgets.QMainWindow):
         overwritenav_action.triggered.connect(self._action_overwrite_nav)
         surface_action = QtWidgets.QAction('New Surface', self)
         surface_action.triggered.connect(self._action_surface_generation)
-        # patch_action = QtWidgets.QAction('Patch Test', self)
-        # patch_action.triggered.connect(self._action_patch_test)
+        patch_action = QtWidgets.QAction('Patch Test', self)
+        patch_action.triggered.connect(self._action_patch_test)
 
         basicplots_action = QtWidgets.QAction('Basic Plots', self)
         basicplots_action.triggered.connect(self._action_basicplots)
@@ -384,7 +384,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         process.addAction(overwritenav_action)
         process.addAction(importppnav_action)
         process.addAction(surface_action)
-        # process.addAction(patch_action)
+        process.addAction(patch_action)
 
         visual = menubar.addMenu('Visualize')
         visual.addAction(basicplots_action)
