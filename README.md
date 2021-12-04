@@ -103,4 +103,4 @@ See [documentation](https://kluster.readthedocs.io/en/latest/quickstart/index.ht
 
 ### Kluster on the console
 
-See examples or notebooks for examples on how to use Kluster in the console. 
+See examples or notebooks for examples on how to use Kluster in the console.
