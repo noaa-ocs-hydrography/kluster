@@ -5,12 +5,12 @@ import json
 from typing import Union
 from datetime import datetime, timezone
 from types import FunctionType
-from copy import deepcopy
 
 from HSTB.kluster.fqpr_generation import Fqpr
 from HSTB.kluster.dask_helpers import dask_find_or_start_client, client_needs_restart
 from HSTB.kluster.fqpr_convenience import reload_data, reload_surface, get_attributes_from_fqpr
 from HSTB.kluster.xarray_helpers import slice_xarray_by_dim
+from HSTB.kluster.fqpr_helpers import haversine
 from HSTB.kluster.fqpr_vessel import VesselFile, create_new_vessel_file, convert_from_fqpr_xyzrph, compare_dict_data, split_by_timestamp
 from HSTB.kluster.modules.patch import PatchTest
 from bathygrid.bgrid import BathyGrid
@@ -1239,32 +1239,3 @@ def return_project_data(project_path: str):
     fqp = FqprProject()
     data = fqp._load_project_file(project_path)
     return data
-
-
-def haversine(lon1, lat1, lon2, lat2):
-    """
-    Calculate the great circle distance in kilometers between two points
-    on the earth (specified in decimal degrees)
-
-    Parameters
-    ----------
-    lon1
-        longitude in degrees of position one
-    lat1
-        latitude in degrees of position one
-    lon2
-        longitude in degrees of position two
-    lat2
-        latitude in degrees of position two
-    """
-
-    # convert decimal degrees to radians
-    lon1, lat1, lon2, lat2 = np.deg2rad(lon1), np.deg2rad(lat1), np.deg2rad(lon2), np.deg2rad(lat2)
-
-    # haversine formula
-    dlon = lon2 - lon1
-    dlat = lat2 - lat1
-    a = np.sin(dlat/2)**2 + np.cos(lat1) * np.cos(lat2) * np.sin(dlon/2)**2
-    c = 2 * np.arcsin(np.sqrt(a))
-    r = 6371 # Radius of earth in kilometers. Use 3956 for miles. Determines return value units.
-    return c * r

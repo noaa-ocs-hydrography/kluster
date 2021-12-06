@@ -127,6 +127,7 @@ def return_zone_from_min_max_long(minlon: float, maxlon: float, minlat: float):
         zone number with N/S identifier
 
     """
+
     maxlon_zone = str(int(np.ceil((maxlon + 180) / 6)))
     minlon_zone = str(int(np.ceil((minlon + 180) / 6)))
 

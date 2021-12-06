@@ -228,3 +228,33 @@ def seconds_to_formatted_string(seconds: Union[float, int]):
         return f'{m} minutes, {int(s)} seconds'
     else:
         return f'{int(s)} seconds'
+
+
+def haversine(lon1: Union[float, int, np.ndarray], lat1: Union[float, int, np.ndarray],
+              lon2: Union[float, int, np.ndarray], lat2: Union[float, int, np.ndarray]):
+    """
+    Calculate the great circle distance in kilometers between two points on the earth (specified in decimal degrees).
+    Can take numpy arrays as inputs, doing a vectorized calculation of multiple points.
+
+    Parameters
+    ----------
+    lon1
+        longitude in degrees of position one
+    lat1
+        latitude in degrees of position one
+    lon2
+        longitude in degrees of position two
+    lat2
+        latitude in degrees of position two
+    """
+
+    # convert decimal degrees to radians
+    lon1, lat1, lon2, lat2 = np.deg2rad(lon1), np.deg2rad(lat1), np.deg2rad(lon2), np.deg2rad(lat2)
+
+    # haversine formula
+    dlon = lon2 - lon1
+    dlat = lat2 - lat1
+    a = np.sin(dlat/2)**2 + np.cos(lat1) * np.cos(lat2) * np.sin(dlon/2)**2
+    c = 2 * np.arcsin(np.sqrt(a))
+    r = 6371  # Radius of earth in kilometers. Use 3956 for miles. Determines return value units.
+    return c * r
