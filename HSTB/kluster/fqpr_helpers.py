@@ -19,6 +19,10 @@ def build_crs(zone_num: str = None, datum: str = None, epsg: str = None, project
         datum = datum.upper()
         if datum == 'NAD83':
             horizontal_crs = CRS.from_epsg(epsg_determinator('nad83(2011)'))
+        elif datum == 'NAD83 PA11':
+            horizontal_crs = CRS.from_epsg(epsg_determinator('nad83(pa11)'))
+        elif datum == 'NAD83 MA11':
+            horizontal_crs = CRS.from_epsg(epsg_determinator('nad83(ma11)'))
         elif datum == 'WGS84':
             horizontal_crs = CRS.from_epsg(epsg_determinator('wgs84'))
         else:
@@ -37,6 +41,20 @@ def build_crs(zone_num: str = None, datum: str = None, epsg: str = None, project
                 myepsg = epsg_determinator('nad83(2011)', zone=zone, hemisphere=hemi)
             except:
                 err = 'ERROR: unable to determine epsg for NAD83(2011), zone={}, hemisphere={}, out of bounds?'.format(zone, hemi)
+                return horizontal_crs, err
+            horizontal_crs = CRS.from_epsg(myepsg)
+        elif datum == 'NAD83 PA11':
+            try:
+                myepsg = epsg_determinator('nad83(pa11)', zone=zone, hemisphere=hemi)
+            except:
+                err = 'ERROR: unable to determine epsg for NAD83 PA11, zone={}, hemisphere={}, out of bounds?'.format(zone, hemi)
+                return horizontal_crs, err
+            horizontal_crs = CRS.from_epsg(myepsg)
+        if datum == 'NAD83 MA11':
+            try:
+                myepsg = epsg_determinator('nad83(ma11)', zone=zone, hemisphere=hemi)
+            except:
+                err = 'ERROR: unable to determine epsg for NAD83 MA11, zone={}, hemisphere={}, out of bounds?'.format(zone, hemi)
                 return horizontal_crs, err
             horizontal_crs = CRS.from_epsg(myepsg)
         elif datum == 'WGS84':

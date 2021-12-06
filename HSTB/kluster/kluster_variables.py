@@ -38,7 +38,7 @@ vertical_references = ['waterline', 'ellipse', 'NOAA MLLW', 'NOAA MHW']  # all v
 vdatum_vertical_references = ['NOAA MLLW', 'NOAA MHW']  # vertical reference options based in vdatum
 ellipse_based_vertical_references = ['ellipse', 'NOAA MLLW', 'NOAA MHW']  # vertical reference options based on the ellipsoid
 waterline_based_vertical_references = ['waterline']  # vertical reference options based on waterline
-coordinate_systems = ['NAD83', 'WGS84']  # horizontal coordinate system options
+coordinate_systems = ['NAD83', 'NAD83 PA11', 'NAD83 MA11', 'WGS84']  # horizontal coordinate system options
 default_coordinate_system = 'WGS84'
 default_vertical_reference = 'waterline'
 
