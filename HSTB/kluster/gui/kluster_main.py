@@ -950,7 +950,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         else:
             cancelled = False
             self._patch = dialog_patchtest.PatchTestDialog()
-            self._patch.patch_query.connect(self.feed_patch_test_dialog)
+            self._patch.patch_query.connect(self._feed_patch_test_dialog)
             if self._patch.exec_():
                 cancelled = self._patch.canceled
                 pairs = self._patch.return_pairs
@@ -960,7 +960,7 @@ class KlusterMain(QtWidgets.QMainWindow):
             print('kluster_patch_test: Processing was cancelled')
         self._patch = None
 
-    def feed_patch_test_dialog(self, mode: str):
+    def _feed_patch_test_dialog(self, mode: str):
         if self._patch is None:
             print('ERROR: Lost handle on patch test dialog')
             return
