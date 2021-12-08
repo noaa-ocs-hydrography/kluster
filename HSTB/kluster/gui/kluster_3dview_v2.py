@@ -874,7 +874,34 @@ class ThreeDView(QtWidgets.QWidget):
         """
         Return all the data in the 3dview
         """
+
         return [self.id, self.head, self.x, self.y, self.z, self.tvu, self.rejected, self.pointtime, self.beam, self.linename]
+
+    def return_lines_and_times(self):
+        """
+        Return the unique line names and the associated time segments for each line in the points view.  This assumes that
+        data is added by line, in other words, that the self.linename array is sorted.  This should always be true the
+        way we add data to points view.
+
+        Returns
+        -------
+        list
+            list of the system name for each line that the line came from
+        list
+            list of the line names in the points view
+        list
+            list of lists for the start time/end time for the line in utc seconds
+        """
+
+        time_segments = []
+        systems = []
+        linenames, linestarts = np.unique(self.linename, return_index=True)
+        for i in range(len(linenames) - 1):
+            time_segments.append([self.pointtime[linestarts[i]], self.pointtime[linestarts[i + 1] - 1]])
+            systems.append(self.id[linestarts[i]])
+        time_segments.append([self.pointtime[linestarts[-1]], self.pointtime[-1]])
+        systems.append(self.id[linestarts[-1]])
+        return systems, linenames, time_segments
 
     def _configure_2d_3d_view(self):
         """
@@ -1282,6 +1309,7 @@ class ThreeDWidget(QtWidgets.QWidget):
 
     points_selected = Signal(object, object, object, object, object, object, object, object, object, object)
     points_cleaned = Signal(object)
+    patch_test_sig = Signal(bool)
 
     def __init__(self, parent=None, settings=None):
         super().__init__(parent)
@@ -1299,13 +1327,13 @@ class ThreeDWidget(QtWidgets.QWidget):
         self.dimension.addItems(['2d view', '3d view'])
         self.dimension.setToolTip('Change the view to either 2 or 3 dimensions.')
         self.opts_layout.addWidget(self.dimension)
-        self.colorby_label = QtWidgets.QLabel('Color By: ')
+        self.colorby_label = QtWidgets.QLabel('Color: ')
         self.opts_layout.addWidget(self.colorby_label)
         self.colorby = QtWidgets.QComboBox()
         self.colorby.addItems(['depth', 'vertical_uncertainty', 'beam', 'rejected', 'system', 'linename'])
         self.colorby.setToolTip('Attribute used to color the soundings, see the colorbar for values')
         self.opts_layout.addWidget(self.colorby)
-        self.viewdirection_label = QtWidgets.QLabel('View Direction: ')
+        self.viewdirection_label = QtWidgets.QLabel('View: ')
         self.opts_layout.addWidget(self.viewdirection_label)
         self.viewdirection2d = QtWidgets.QComboBox()
         self.viewdirection2d.addItems(['north', 'east', 'arrow'])
@@ -1322,7 +1350,7 @@ class ThreeDWidget(QtWidgets.QWidget):
         self.viewdirection3d.hide()
         self.opts_layout.addWidget(self.viewdirection3d)
 
-        self.vertexag_label = QtWidgets.QLabel('Vertical Exaggeration: ')
+        self.vertexag_label = QtWidgets.QLabel('Exaggeration: ')
         self.opts_layout.addWidget(self.vertexag_label)
         self.vertexag = QtWidgets.QDoubleSpinBox()
         self.vertexag.setMaximum(99.0)
@@ -1331,18 +1359,23 @@ class ThreeDWidget(QtWidgets.QWidget):
         self.vertexag.setValue(1.0)
         self.vertexag.setToolTip('Multiplier used for the depth values, displayed z is multiplied by this number')
         self.opts_layout.addWidget(self.vertexag)
-        self.show_axis = QtWidgets.QCheckBox('Show Axis')
+        self.show_axis = QtWidgets.QCheckBox('Axis')
         self.show_axis.setChecked(True)
         self.opts_layout.addWidget(self.show_axis)
-        self.show_colorbar = QtWidgets.QCheckBox('Show Colorbar')
+        self.show_colorbar = QtWidgets.QCheckBox('Colorbar')
         self.show_colorbar.setChecked(True)
         self.show_colorbar.setToolTip('Uncheck to hide the colorbar, check to show the colorbar')
         self.opts_layout.addWidget(self.show_colorbar)
-        self.show_rejected = QtWidgets.QCheckBox('Show Rejected')
+        self.show_rejected = QtWidgets.QCheckBox('Rejected')
         self.show_rejected.setChecked(True)
         self.show_rejected.setToolTip('Check this box to show all soundings that have been rejected.')
         self.opts_layout.addWidget(self.show_rejected)
         self.opts_layout.addStretch()
+
+        self.second_opts_layout = QtWidgets.QHBoxLayout()
+        self.patch_button = QtWidgets.QPushButton('Patch Test')
+        self.second_opts_layout.addWidget(self.patch_button)
+        self.second_opts_layout.addStretch()
 
         self.colorbar = ColorBar()
 
@@ -1353,6 +1386,7 @@ class ThreeDWidget(QtWidgets.QWidget):
         self.viewlayout.setStretchFactor(self.colorbar, 1)
 
         self.mainlayout.addLayout(self.opts_layout)
+        self.mainlayout.addLayout(self.second_opts_layout)
         self.mainlayout.addLayout(self.viewlayout)
 
         instruct = 'You can interact with Points View using the following keyboard/mouse shortcuts:\n\n'
@@ -1361,8 +1395,8 @@ class ThreeDWidget(QtWidgets.QWidget):
         instruct += 'Mouse Wheel: Wheel in/out to zoom the camera\n'
         instruct += '(3D ONLY) Shift + Left Mouse Button: Move/Translate the camera center location\n'
         instruct += 'Ctrl + Left Mouse Button: Query points (see Explorer window)\n'
-        instruct += 'Alt + Left Mouse Button: Clean points (mark as Rejected, see Color By: Rejected)\n'
-        instruct += 'Alt + Right Mouse Button: Accept points (mark as Accepted, see Color By: Rejected)\n'
+        instruct += 'Alt + Left Mouse Button: Clean points (mark as Rejected, see Color: Rejected)\n'
+        instruct += 'Alt + Right Mouse Button: Accept points (mark as Accepted, see Color: Rejected)\n'
         instruct += 'Alt + Middle Mouse Button: Undo last cleaning operation'
 
         self.instructions = QtWidgets.QLabel('Mouse over for Instructions')
@@ -1382,6 +1416,7 @@ class ThreeDWidget(QtWidgets.QWidget):
         self.show_axis.stateChanged.connect(self.refresh_settings)
         self.show_colorbar.stateChanged.connect(self._event_show_colorbar)
         self.show_rejected.stateChanged.connect(self.refresh_settings)
+        self.patch_button.clicked.connect(self._event_patch_test)
 
         self.is_3d = None
         self.last_change_buffer = []
@@ -1471,6 +1506,9 @@ class ThreeDWidget(QtWidgets.QWidget):
             self.colorbar.show()
         else:
             self.colorbar.hide()
+
+    def _event_patch_test(self, e):
+        self.patch_test_sig.emit(True)
 
     def add_points(self, head: np.array, x: np.array, y: np.array, z: np.array, tvu: np.array, rejected: np.array, pointtime: np.array,
                    beam: np.array, newid: str, linename: np.array, azimuth: float = None):
@@ -1628,6 +1666,9 @@ class ThreeDWidget(QtWidgets.QWidget):
                         for i in range(headnum - len(idx[idx_key])):
                             idx[idx_key].append([])
         return idx
+
+    def return_lines_and_times(self):
+        return self.three_d_window.return_lines_and_times()
 
     def return_select_index(self):
         """

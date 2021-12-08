@@ -21,10 +21,11 @@ from HSTB.kluster.gui import dialog_vesselview, kluster_explorer, kluster_projec
     kluster_output_window, kluster_2dview, kluster_actions, kluster_monitor, dialog_daskclient, dialog_surface, \
     dialog_export, kluster_worker, kluster_interactive_console, dialog_basicplot, dialog_advancedplot, dialog_project_settings, \
     dialog_export_grid, dialog_layer_settings, dialog_settings, dialog_importppnav, dialog_overwritenav, dialog_surface_data, \
-    dialog_about, dialog_setcolors, dialog_patchtest
+    dialog_about, dialog_setcolors, dialog_patchtest, dialog_manualpatchtest
 from HSTB.kluster.fqpr_project import FqprProject
 from HSTB.kluster.fqpr_intelligence import FqprIntel
-from HSTB.kluster.fqpr_vessel import convert_from_fqpr_xyzrph, convert_from_vessel_xyzrph, compare_dict_data
+from HSTB.kluster.fqpr_vessel import convert_from_fqpr_xyzrph, convert_from_vessel_xyzrph, compare_dict_data, \
+    trim_xyzrprh_to_times, split_by_timestamp, VesselFile
 from HSTB.kluster import __version__ as kluster_version
 from HSTB.kluster import __file__ as kluster_init_file
 from HSTB.shared import RegistryHelpers, path_to_supplementals
@@ -183,6 +184,7 @@ class KlusterMain(QtWidgets.QMainWindow):
 
         self.points_view.points_selected.connect(self.show_points_in_explorer)
         self.points_view.points_cleaned.connect(self.set_pointsview_points_status)
+        self.points_view.patch_test_sig.connect(self.manual_patch_test)
 
         self.action_thread.started.connect(self._start_action_progress)
         self.action_thread.finished.connect(self._kluster_execute_action_results)
@@ -942,6 +944,48 @@ class KlusterMain(QtWidgets.QMainWindow):
             print(self.import_ppnav_thread.exceptiontxt)
         self.import_ppnav_thread.populate(None)
         self._stop_action_progress()
+
+    def manual_patch_test(self, e):
+        if not self.no_threads_running():
+            print('Processing is already occurring.  Please wait for the process to finish')
+            cancelled = True
+        else:
+            cancelled = False
+            self._feed_manual_patch_test_dialog()
+
+    def _feed_manual_patch_test_dialog(self):
+        """
+
+        """
+
+        systems, linenames, time_segments = self.points_view.return_lines_and_times()
+        systems = np.array(systems)
+        time_segments = np.array(time_segments)
+        unique_systems = np.unique(systems)
+
+        vessel_file = self.project.vessel_file
+        if vessel_file:
+            vessel_file = VesselFile(vessel_file)
+
+        datablock = []
+        for system in unique_systems:
+            sysid, head = system[:-2], int(system[-1])
+            fq = self.project.fqpr_instances[sysid]
+            serialnum = fq.multibeam.raw_ping[0].attrs['system_serial_number'][0]
+            fq_time_segs = time_segments[np.where(systems == system)[0]]
+            if vessel_file:
+                xyzrph = vessel_file.return_data(serialnum, fq_time_segs.min(), fq_time_segs.max())
+            else:
+                xyzrph = fq.multibeam.xyzrph
+            xyzrph = trim_xyzrprh_to_times(xyzrph, fq_time_segs.min(), fq_time_segs.max())
+            xyzrph = split_by_timestamp(xyzrph)
+            for xyzrec in xyzrph:
+                datablock.append([fq, serialnum, fq_time_segs, xyzrec, sysid, head])
+        if datablock:
+            tst = dialog_manualpatchtest.PrePatchDialog()
+            tst.add_data(datablock)
+            if tst.exec_():
+                pass
 
     def kluster_auto_patch_test(self):
         """
