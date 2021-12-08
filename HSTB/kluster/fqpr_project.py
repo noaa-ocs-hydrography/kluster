@@ -12,7 +12,7 @@ from HSTB.kluster.fqpr_convenience import reload_data, reload_surface, get_attri
 from HSTB.kluster.xarray_helpers import slice_xarray_by_dim
 from HSTB.kluster.fqpr_helpers import haversine
 from HSTB.kluster.fqpr_vessel import VesselFile, create_new_vessel_file, convert_from_fqpr_xyzrph, compare_dict_data, split_by_timestamp
-from HSTB.kluster.modules.patch import PatchTest
+from HSTB.kluster.modules.autopatch import PatchTest
 from bathygrid.bgrid import BathyGrid
 
 
@@ -1158,7 +1158,7 @@ class FqprProject:
             xyz = [dsetone[lineone].x.values, dsetone[lineone].y.values, dsetone[lineone].z.values]
         return xyz
 
-    def run_patch_test(self, line_pairs: dict):
+    def run_auto_patch_test(self, line_pairs: dict):
         total_lines = [x for y in line_pairs.values() for x in y[0:2]]
         xyzrph = self._validate_xyzrph_for_lines(total_lines)
         for pair_index, pair_data in line_pairs.items():
@@ -1171,6 +1171,7 @@ class FqprProject:
                 fqprs = [fqone]
                 line_dict = {fqone: [lineone, linetwo]}
             fqpr_paths, fqpr_loaded = self.get_fqprs_by_paths(fqprs, line_dict, raise_exception=True)
+            fqpr_loaded[0].multibeam.xyzrph = xyzrph
             patch = PatchTest(fqpr_loaded[0], azimuth=azimuth)
             patch.run_patch()
             patch.display_results()

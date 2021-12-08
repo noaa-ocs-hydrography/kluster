@@ -11,6 +11,12 @@ from HSTB.kluster.fqpr_helpers import seconds_to_formatted_string
 
 class PatchTest:
     """
+    WARNING: This module is not finished.  I'm not currently getting good results from the model, I believe due to the
+    overly simple nature of the georeferencing equation used in the paper, or just due to me not understanding the
+    theory.  Patch test values do not converge on running the tool, and reprocessing with the new values produced
+    in the least squares run does not smooth out the gridded data, as you would hope that it would.  I am not entirely
+    sure how to proceed.
+
     Patch test utility based on "Computation of Calibration Parameters for Multibeam Echo Sounders Using the
     Least Squares Method", by Jan Terje Bjorke.  Compute new offsets/angles for the data provided using this automated
     least squares adjustment.  Data should be provided only for a pair of lines, lines that are reciprocal and overlap as

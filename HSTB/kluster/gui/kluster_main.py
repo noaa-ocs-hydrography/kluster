@@ -943,24 +943,39 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.import_ppnav_thread.populate(None)
         self._stop_action_progress()
 
-    def kluster_patch_test(self):
+    def kluster_auto_patch_test(self):
+        """
+        IN PROGRESS - run the automated patch test tool on the selected lines.  Still have not addressed the issues
+        in the auto patch test procedure, so the results of this should not be used.
+        """
         if not self.no_threads_running():
             print('Processing is already occurring.  Please wait for the process to finish')
             cancelled = True
         else:
             cancelled = False
             self._patch = dialog_patchtest.PatchTestDialog()
-            self._patch.patch_query.connect(self._feed_patch_test_dialog)
+            self._patch.patch_query.connect(self._feed_auto_patch_test_dialog)
             if self._patch.exec_():
                 cancelled = self._patch.canceled
                 pairs = self._patch.return_pairs
                 if pairs:
-                    self.project.run_patch_test(pairs)
+                    self.project.run_auto_patch_test(pairs)
         if cancelled:
-            print('kluster_patch_test: Processing was cancelled')
+            print('kluster_auto_patch_test: Processing was cancelled')
         self._patch = None
 
-    def _feed_patch_test_dialog(self, mode: str):
+    def _feed_auto_patch_test_dialog(self, mode: str):
+        """
+        Populate the auto patch test dialog with the line pairs selected.  Pair them by recipricol azimuth and the closeness
+        of the start and end positions
+
+        Parameters
+        ----------
+        mode
+            either 'pointsview' to load data from the points view window (not currently supported) or 'lines' to load
+            from the currently selected lines
+        """
+
         if self._patch is None:
             print('ERROR: Lost handle on patch test dialog')
             return
@@ -2022,7 +2037,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         """
         Connect menu action 'Patch Test' with patch test dialog
         """
-        self.kluster_patch_test()
+        self.kluster_auto_patch_test()
 
     def _action_new_project(self):
         """
