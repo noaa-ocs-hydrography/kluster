@@ -2719,6 +2719,13 @@ class Fqpr(ZarrBackend):
 
         self.subset.subset_by_time(mintime, maxtime)
 
+    def subset_by_times(self, time_segments: list):
+        """
+        Use subset module to trim the fqpr instance to the given time ranges
+        """
+
+        self.subset.subset_by_times(time_segments)
+
     def subset_by_lines(self, line_names: Union[str, list]):
         """
         Use subset module to trim the fqpr instance to the given lines

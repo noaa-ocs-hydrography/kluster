@@ -382,29 +382,12 @@ fq.return_soundings_in_polygon(polygon)
 
 ###################################################
 
-from numpy import exp, sin
+from HSTB.kluster.fqpr_convenience import reload_data
 
-def residual(variables, x, data, uncertainty):
-    """Model a decaying sine wave and subtract data."""
-    amp = variables[0]
-    phaseshift = variables[1]
-    freq = variables[2]
-    decay = variables[3]
+fq = reload_data(r"C:\collab\dasktest\data_dir\outputtest\tj_patch_test_2040")
+mfiles = fq.multibeam.raw_ping[0].multibeam_files
+timeseg = [[1584436584.017, 1584436656.967], [1584432646.101, 1584434213.18]]
+lines = [list(mfiles.keys())[0], list(mfiles.keys())[5], list(mfiles.keys())[4]].copy()
 
-    model = amp * sin(x*freq + phaseshift) * exp(-x*x*decay)
-
-    return (data-model) / uncertainty
-
-from numpy import linspace, random
-from scipy.optimize import leastsq
-
-# generate synthetic data with noise
-x = linspace(0, 100)
-noise = random.normal(size=x.size, scale=0.2)
-data = 7.5 * sin(x*0.22 + 2.5) * exp(-x*x*0.01) + noise
-
-# generate experimental uncertainties
-uncertainty = abs(0.16 + random.normal(size=x.size, scale=0.05))
-
-variables = [10.0, 0.2, 3.0, 0.007]
-out = leastsq(residual, variables, args=(x, data, uncertainty))
+fq.subset_by_times(timeseg)
+fq.subset_by_lines(lines)

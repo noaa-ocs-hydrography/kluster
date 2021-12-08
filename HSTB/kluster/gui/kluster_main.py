@@ -2158,6 +2158,11 @@ class KlusterMain(QtWidgets.QMainWindow):
         Return absolute paths to fqprs selected and the loaded fqpr instances.  In most instances, this is pretty simple,
         you
 
+        Parameters
+        ----------
+        subset_by_line
+            if True, will subset each Fqpr object to just the data associated with the lines selected
+
         Returns
         -------
         list

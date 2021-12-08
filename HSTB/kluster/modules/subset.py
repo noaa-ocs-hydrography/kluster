@@ -33,6 +33,7 @@ class FqprSubset:
         self.subset_mintime = 0
         self.subset_maxtime = 0
         self.subset_lines = []
+        self.subset_times = []
 
         self.ping_filter = None
 
@@ -42,6 +43,16 @@ class FqprSubset:
             return False
         else:
             return True
+
+    def _prepare_subset(self):
+        if self.backup_fqpr != {}:
+            self.restore_subset()
+        self.subset_mintime = 0
+        self.subset_maxtime = 0
+        self.subset_lines = []
+        self.subset_times = []
+        self.backup_fqpr['raw_ping'] = [ping.copy() for ping in self.fqpr.multibeam.raw_ping]
+        self.backup_fqpr['raw_att'] = self.fqpr.multibeam.raw_att.copy()
 
     def subset_by_time(self, mintime: float = None, maxtime: float = None):
         """
@@ -66,13 +77,9 @@ class FqprSubset:
         if mintime is None and maxtime is None:
             raise ValueError('subset_by_time: either mintime or maxtime must be provided to subset by time')
 
-        if self.backup_fqpr != {}:
-            self.restore_subset()
+        self._prepare_subset()
         self.subset_mintime = mintime
         self.subset_maxtime = maxtime
-        self.subset_lines = []
-        self.backup_fqpr['raw_ping'] = [ping.copy() for ping in self.fqpr.multibeam.raw_ping]
-        self.backup_fqpr['raw_att'] = self.fqpr.multibeam.raw_att.copy()
 
         slice_raw_ping = []
         for ra in self.fqpr.multibeam.raw_ping:
@@ -94,23 +101,47 @@ class FqprSubset:
             multibeam file names that you want to include in the subset datasets, all other lines are excluded
         """
 
-        if self.backup_fqpr != {}:
-            self.restore_subset()
-        self.subset_mintime = 0
-        self.subset_maxtime = 0
-        self.backup_fqpr['raw_ping'] = [ping.copy() for ping in self.fqpr.multibeam.raw_ping]
-        self.backup_fqpr['raw_att'] = self.fqpr.multibeam.raw_att.copy()
+        self._prepare_subset()
 
         mfiles = self.fqpr.return_line_dict(line_names=line_names)
         # ensure files are sorted by line start time, so the resultant dataset is also sorted when you concatenate
         mfiles = dict(sorted(mfiles.items(), key=lambda tme: tme[1][0]))
+
+        subset_times = [[data[0], data[1]] for data in mfiles.values()]
+        self.subset_by_times(subset_times)
+
+        # we want to ensure this subset is logged as a line subset, so that if we redo it later, it will be done correctly
+        self.subset_times = []
         self.subset_lines = list(mfiles.keys())
-        original_lines = list(self.fqpr.multibeam.raw_ping[0].multibeam_files.keys())
+
+    def subset_by_times(self, time_segments: list):
+        """
+        Only retain the portions of this Fqpr object that are within the time segments given in the list provided.  The
+        resultant datasets will be the portions of the datasets that lie within the list of time segments concatenated
+        together.
+
+        To return to the full original dataset, use restore_subset
+
+        Parameters
+        ----------
+        time_segments
+            list of lists, where each sub list is the [start time of the segment in utc seconds, endtime of the segment
+            in utc seconds]
+        """
+
+        self._prepare_subset()
+
+        if not isinstance(time_segments, (list, tuple)) or not isinstance(time_segments[0], (list, tuple)) or len(time_segments[0]) != 2:
+            raise ValueError('Expected a list of lists where each sub list is 2 elements long and contains start/end times in utc seconds')
+        self._prepare_subset()
+        # ensure the time segments are sorted, so that the resultant concatenated datasets are in time order
+        time_segments = sorted(time_segments, key=lambda x: x[0])
+        self.subset_times = time_segments
+
         slice_raw_ping = []
         for ra in self.fqpr.multibeam.raw_ping:
             final_ra = None
-            for linename in self.subset_lines:
-                starttime, endtime = mfiles[linename][0], mfiles[linename][1]
+            for starttime, endtime in time_segments:
                 slice_ra = slice_xarray_by_dim(ra, dimname='time', start_time=starttime, end_time=endtime)
                 if final_ra:
                     final_ra = xr.concat([final_ra, slice_ra], dim='time')
@@ -118,18 +149,28 @@ class FqprSubset:
                     final_ra = slice_ra
             slice_raw_ping.append(final_ra)
         self.fqpr.multibeam.raw_ping = slice_raw_ping
-        # ensure the multibeam files that we say are in this dataset match the subset of files
-        [self.fqpr.multibeam.raw_ping[0].multibeam_files.pop(mfil) for mfil in original_lines if mfil not in mfiles.keys()]
 
         final_att = None
-        for linename in self.subset_lines:
-            starttime, endtime = mfiles[linename][0], mfiles[linename][1]
+        for starttime, endtime in time_segments:
             slice_nav = slice_xarray_by_dim(self.fqpr.multibeam.raw_att, dimname='time', start_time=starttime, end_time=endtime)
             if final_att:
                 final_att = xr.concat([final_att, slice_nav], dim='time')
             else:
                 final_att = slice_nav
         self.fqpr.multibeam.raw_att = final_att
+
+        # ensure the multibeam files that we say are in this dataset match the subset of files
+        removelines = []
+        mfiles = deepcopy(self.fqpr.multibeam.raw_ping[0].multibeam_files)
+        for mfil in mfiles.keys():
+            # any intersections with the given time segments?
+            intersect = any([t[1] >= mfiles[mfil][0] >= t[0] or t[1] >= mfiles[mfil][1] >= t[0] or
+                             (t[0] >= mfiles[mfil][0] and t[1] <= mfiles[mfil][1]) for t in time_segments])
+            if not intersect:
+                removelines.append(mfil)
+        [mfiles.pop(mfil) for mfil in removelines]
+        for ra in self.fqpr.multibeam.raw_ping:
+            ra.attrs['multibeam_files'] = mfiles
 
     def restore_subset(self):
         """
@@ -143,6 +184,7 @@ class FqprSubset:
             self.subset_maxtime = 0
             self.subset_mintime = 0
             self.subset_lines = []
+            self.subset_times = []
         else:
             self.fqpr.logger.error('restore_subset: no subset found to restore from')
             raise ValueError('restore_subset: no subset found to restore from')
@@ -156,6 +198,8 @@ class FqprSubset:
             self.subset_by_time(self.subset_mintime, self.subset_maxtime)
         elif self.subset_lines:
             self.subset_by_lines(self.subset_lines)
+        elif self.subset_times:
+            self.subset_by_times(self.subset_times)
 
     def subset_variables(self, variable_selection: list, ping_times: Union[np.array, float, tuple] = None,
                          skip_subset_by_time: bool = False, filter_by_detection: bool = False):

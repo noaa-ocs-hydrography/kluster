@@ -26,7 +26,7 @@ def build_crs(zone_num: str = None, datum: str = None, epsg: str = None, project
         elif datum == 'WGS84':
             horizontal_crs = CRS.from_epsg(epsg_determinator('wgs84'))
         else:
-            err = 'ERROR: {} not supported.  Only supports WGS84 and NAD83'.format(datum)
+            err = 'ERROR: {} not supported (geographic).  Only supports WGS84, NAD83, NAD83 PA11, NAD83 MA11'.format(datum)
             return horizontal_crs, err
     elif not epsg and projected:
         datum = datum.upper()
@@ -50,7 +50,7 @@ def build_crs(zone_num: str = None, datum: str = None, epsg: str = None, project
                 err = 'ERROR: unable to determine epsg for NAD83 PA11, zone={}, hemisphere={}, out of bounds?'.format(zone, hemi)
                 return horizontal_crs, err
             horizontal_crs = CRS.from_epsg(myepsg)
-        if datum == 'NAD83 MA11':
+        elif datum == 'NAD83 MA11':
             try:
                 myepsg = epsg_determinator('nad83(ma11)', zone=zone, hemisphere=hemi)
             except:
@@ -65,7 +65,7 @@ def build_crs(zone_num: str = None, datum: str = None, epsg: str = None, project
                 return horizontal_crs, err
             horizontal_crs = CRS.from_epsg(myepsg)
         else:
-            err = 'ERROR: {} not supported.  Only supports WGS84 and NAD83'.format(datum)
+            err = 'ERROR: {} not supported (projected).  Only supports WGS84, NAD83, NAD83 PA11, NAD83 MA11'.format(datum)
             return horizontal_crs, err
     return horizontal_crs, ''
 
