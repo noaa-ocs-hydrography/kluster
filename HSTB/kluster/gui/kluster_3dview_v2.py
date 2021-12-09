@@ -649,6 +649,7 @@ class ThreeDView(QtWidgets.QWidget):
         self.idrange = {}
         self.idlookup = {}
 
+        self.azimuth = None
         self.id = np.array([], dtype=object)
         self.head = np.array([], dtype=np.int8)
         self.x = np.array([], dtype=np.float64)
@@ -836,6 +837,7 @@ class ThreeDView(QtWidgets.QWidget):
             azimuth of the selection polygon in radians
         """
 
+        self.azimuth = azimuth
         if azimuth:
             cos_az = np.cos(azimuth)
             sin_az = np.sin(azimuth)
@@ -895,12 +897,17 @@ class ThreeDView(QtWidgets.QWidget):
 
         time_segments = []
         systems = []
-        linenames, linestarts = np.unique(self.linename, return_index=True)
-        for i in range(len(linenames) - 1):
-            time_segments.append([self.pointtime[linestarts[i]], self.pointtime[linestarts[i + 1] - 1]])
-            systems.append(self.id[linestarts[i]])
-        time_segments.append([self.pointtime[linestarts[-1]], self.pointtime[-1]])
-        systems.append(self.id[linestarts[-1]])
+        if self.linename.size > 0:
+            linenames, linestarts = np.unique(self.linename, return_index=True)
+            lines_in_order = linestarts.argsort()
+            linenames, linestarts = linenames[lines_in_order], linestarts[lines_in_order]
+            for i in range(len(linenames) - 1):
+                time_segments.append([self.pointtime[linestarts[i]], self.pointtime[linestarts[i + 1] - 1]])
+                systems.append(self.id[linestarts[i]])
+            time_segments.append([self.pointtime[linestarts[-1]], self.pointtime[-1]])
+            systems.append(self.id[linestarts[-1]])
+        else:
+            linenames = []
         return systems, linenames, time_segments
 
     def _configure_2d_3d_view(self):
@@ -1381,9 +1388,9 @@ class ThreeDWidget(QtWidgets.QWidget):
 
         self.viewlayout = QtWidgets.QHBoxLayout()
         self.viewlayout.addWidget(self.three_d_window)
-        self.viewlayout.addWidget(self.colorbar)
+        # self.viewlayout.addWidget(self.colorbar)
         self.viewlayout.setStretchFactor(self.three_d_window, 6)
-        self.viewlayout.setStretchFactor(self.colorbar, 1)
+        # self.viewlayout.setStretchFactor(self.colorbar, 1)
 
         self.mainlayout.addLayout(self.opts_layout)
         self.mainlayout.addLayout(self.second_opts_layout)
@@ -1430,6 +1437,10 @@ class ThreeDWidget(QtWidgets.QWidget):
         self.viewdirection2d.currentTextChanged.connect(self.refresh_settings)
         self.viewdirection3d.currentTextChanged.connect(self.refresh_settings)
         self.read_settings()
+
+    @property
+    def azimuth(self):
+        return self.three_d_window.azimuth
 
     @property
     def settings_object(self):

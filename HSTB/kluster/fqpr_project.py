@@ -11,7 +11,8 @@ from HSTB.kluster.dask_helpers import dask_find_or_start_client, client_needs_re
 from HSTB.kluster.fqpr_convenience import reload_data, reload_surface, get_attributes_from_fqpr
 from HSTB.kluster.xarray_helpers import slice_xarray_by_dim
 from HSTB.kluster.fqpr_helpers import haversine
-from HSTB.kluster.fqpr_vessel import VesselFile, create_new_vessel_file, convert_from_fqpr_xyzrph, compare_dict_data, split_by_timestamp
+from HSTB.kluster.fqpr_vessel import VesselFile, create_new_vessel_file, convert_from_fqpr_xyzrph, compare_dict_data, \
+    split_by_timestamp, trim_xyzrprh_to_times
 from HSTB.kluster.modules.autopatch import PatchTest
 from bathygrid.bgrid import BathyGrid
 
@@ -1027,6 +1028,56 @@ class FqprProject:
                     paired_lines.append(min_line)
                 final_grouping.append(line_pair)
         return final_grouping, line_dict
+
+    def retrieve_data_for_time_segments(self, systems: list, time_segments: list):
+        """
+        For the manual patch test, we retrieve the Fqpr object and time segments that are currently displayed in the
+        points view and use that data to populate the patch test widget.  Here we take the returned system name
+        and time segment data from the points view to get the corresponding data from the project.
+
+        Parameters
+        ----------
+        systems
+            list of the system name for each segment
+        time_segments
+            list of lists for the start time/end time for the line in utc seconds
+
+        Returns
+        -------
+        list
+            list of lists for each segment containing the Fqpr object, the serial number, the time segments, the xyzrph
+            dict for that Fqpr, the system identifier, the head index, and the vesselfile name.
+
+        """
+        systems = np.array(systems)
+        time_segments = np.array(time_segments)
+        unique_systems = np.unique(systems)
+
+        vessel_file = self.vessel_file
+        if vessel_file:
+            vessel_file = VesselFile(vessel_file)
+            vfname = os.path.split(vessel_file)[1]
+        else:
+            vfname = 'None'
+
+        datablock = []
+        for system in unique_systems:
+            sysid, head = system[:-2], int(system[-1])
+            fq = self.fqpr_instances[sysid]
+            if head == 0:
+                serialnum = fq.multibeam.raw_ping[0].attrs['system_serial_number'][0]
+            else:
+                serialnum = fq.multibeam.raw_ping[0].attrs['secondary_system_serial_number'][0]
+            fq_time_segs = time_segments[np.where(systems == system)[0]]
+            if vessel_file:
+                xyzrph = vessel_file.return_data(serialnum, fq_time_segs.min(), fq_time_segs.max())
+            else:
+                xyzrph = fq.multibeam.xyzrph
+            xyzrph = trim_xyzrprh_to_times(xyzrph, fq_time_segs.min(), fq_time_segs.max())
+            xyzrph = split_by_timestamp(xyzrph)
+            for xyzrec in xyzrph:
+                datablock.append([fq, serialnum, fq_time_segs, xyzrec, sysid, head, vfname])
+        return datablock
 
     def return_vessel_file(self):
         """

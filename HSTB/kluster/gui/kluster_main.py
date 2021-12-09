@@ -24,6 +24,7 @@ from HSTB.kluster.gui import dialog_vesselview, kluster_explorer, kluster_projec
     dialog_about, dialog_setcolors, dialog_patchtest, dialog_manualpatchtest
 from HSTB.kluster.fqpr_project import FqprProject
 from HSTB.kluster.fqpr_intelligence import FqprIntel
+from HSTB.kluster.fqpr_convenience import reprocess_sounding_selection
 from HSTB.kluster.fqpr_vessel import convert_from_fqpr_xyzrph, convert_from_vessel_xyzrph, compare_dict_data, \
     trim_xyzrprh_to_times, split_by_timestamp, VesselFile
 from HSTB.kluster import __version__ as kluster_version
@@ -127,6 +128,8 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.vessel_win = None
         self.basicplots_win = None
         self.advancedplots_win = None
+        self._manpatchtest = None
+        self._manpatchdata = None
 
         self.iconpath = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'images', 'kluster_img.ico')
         self.setWindowIcon(QtGui.QIcon(self.iconpath))
@@ -948,44 +951,72 @@ class KlusterMain(QtWidgets.QMainWindow):
     def manual_patch_test(self, e):
         if not self.no_threads_running():
             print('Processing is already occurring.  Please wait for the process to finish')
-            cancelled = True
         else:
-            cancelled = False
-            self._feed_manual_patch_test_dialog()
-
-    def _feed_manual_patch_test_dialog(self):
-        """
-
-        """
-
-        systems, linenames, time_segments = self.points_view.return_lines_and_times()
-        systems = np.array(systems)
-        time_segments = np.array(time_segments)
-        unique_systems = np.unique(systems)
-
-        vessel_file = self.project.vessel_file
-        if vessel_file:
-            vessel_file = VesselFile(vessel_file)
-
-        datablock = []
-        for system in unique_systems:
-            sysid, head = system[:-2], int(system[-1])
-            fq = self.project.fqpr_instances[sysid]
-            serialnum = fq.multibeam.raw_ping[0].attrs['system_serial_number'][0]
-            fq_time_segs = time_segments[np.where(systems == system)[0]]
-            if vessel_file:
-                xyzrph = vessel_file.return_data(serialnum, fq_time_segs.min(), fq_time_segs.max())
+            systems, linenames, time_segments = self.points_view.return_lines_and_times()
+            if systems:
+                datablock = self.project.retrieve_data_for_time_segments(systems, time_segments)
+                if datablock:
+                    dlog_patch = dialog_manualpatchtest.PrePatchDialog()
+                    dlog_patch.add_data(datablock)
+                    if dlog_patch.exec_():
+                        if dlog_patch.canceled:
+                            print('Patch Test: test canceled')
+                        else:
+                            final_datablock = dlog_patch.return_final_data()
+                            vessel_file_name = datablock[0][-1]
+                            roll, pitch, heading = final_datablock[8], final_datablock[9], final_datablock[10]
+                            xlever, ylever, zlever = final_datablock[11], final_datablock[12], final_datablock[13]
+                            latency = final_datablock[14]
+                            self._manpatchdata = final_datablock + [dlog_patch.prefixes]
+                            self._manpatchtest = None
+                            self._manpatchtest = dialog_manualpatchtest.ManualPatchTestWidget()
+                            self._manpatchtest.populate(vessel_file_name, ','.join(final_datablock[1]), final_datablock[2],
+                                                        final_datablock[3], ','.join(final_datablock[4]), ','.join(final_datablock[5]),
+                                                        roll, pitch, heading, xlever, ylever, zlever, latency)
+                            self._manpatchtest.show()
+                            self._update_manual_patch_test(first_setup=True)
+                else:
+                    print('Patch Test: no data selected for running in Patch Test utility')
             else:
-                xyzrph = fq.multibeam.xyzrph
-            xyzrph = trim_xyzrprh_to_times(xyzrph, fq_time_segs.min(), fq_time_segs.max())
-            xyzrph = split_by_timestamp(xyzrph)
-            for xyzrec in xyzrph:
-                datablock.append([fq, serialnum, fq_time_segs, xyzrec, sysid, head])
-        if datablock:
-            tst = dialog_manualpatchtest.PrePatchDialog()
-            tst.add_data(datablock)
-            if tst.exec_():
-                pass
+                print('Patch Test: no data found in Points View')
+
+    def _update_manual_patch_test(self, first_setup: bool = False):
+        if self._manpatchdata is not None:
+            roll, pitch, heading = self._manpatchdata[8], self._manpatchdata[9], self._manpatchdata[10]
+            xlever, ylever, zlever = self._manpatchdata[11], self._manpatchdata[12], self._manpatchdata[13]
+            fqprs, tstamps, timesegments, headindex = self._manpatchdata[0], self._manpatchdata[5], self._manpatchdata[6], int(self._manpatchdata[7])
+            latency = self._manpatchdata[14]
+            prefixes = self._manpatchdata[15]
+            xfinal = np.array([])
+            yfinal = np.array([])
+            zfinal = np.array([])
+            if not first_setup:
+                for cnt, fq in enumerate(fqprs):
+                    fq.multibeam.xyzrph[prefixes[0]][tstamps[cnt]] = roll
+                    fq.multibeam.xyzrph[prefixes[1]][tstamps[cnt]] = pitch
+                    fq.multibeam.xyzrph[prefixes[2]][tstamps[cnt]] = heading
+                    fq.multibeam.xyzrph[prefixes[3]][tstamps[cnt]] = xlever
+                    fq.multibeam.xyzrph[prefixes[4]][tstamps[cnt]] = ylever
+                    fq.multibeam.xyzrph[prefixes[5]][tstamps[cnt]] = zlever
+                    fq.multibeam.xyzrph[prefixes[6]][tstamps[cnt]] = latency
+                    fq.subset_by_times(timesegments[cnt])
+                    fq, soundings = reprocess_sounding_selection(fq, georeference=True, isolate_head=headindex)
+                    xfinal = np.concatenate([xfinal, soundings[0]])
+                    yfinal = np.concatenate([yfinal, soundings[1]])
+                    zfinal = np.concatenate([zfinal, soundings[2]])
+            else:
+                cur_azimuth = self.load_points_thread.azimuth
+                self.points_view.clear()
+                for cnt, fq in enumerate(fqprs):
+                    newid = self._manpatchdata[1][cnt]
+                    fq.subset_by_times(timesegments[cnt].tolist())
+                    head, x, y, z, tvu, rejected, pointtime, beam = fq.return_soundings_in_polygon(self.load_points_thread.polygon, geographic=True)
+                    if x is not None:
+                        linenames = fq.return_lines_for_times(pointtime)
+                        self.points_view.add_points(head, x, y, z, tvu, rejected, pointtime, beam, newid, linenames, cur_azimuth)
+                self.points_view.display_points()
+        else:
+            print('error')
 
     def kluster_auto_patch_test(self):
         """
@@ -1884,7 +1915,8 @@ class KlusterMain(QtWidgets.QMainWindow):
             print(self.load_points_thread.exceptiontxt)
         self.two_d.finalize_points_tool()
         print('Selected {} Points for display'.format(pointcount))
-        self.load_points_thread.populate()
+        # we retain the polygon/azimuth in case you are using the patch test tool
+        self.load_points_thread.populate(polygon=self.load_points_thread.polygon, azimuth=self.load_points_thread.azimuth)
         self._stop_action_progress()
 
     def clear_points(self, clrsig: bool):

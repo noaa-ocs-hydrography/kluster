@@ -649,21 +649,22 @@ def filter_subset_by_polygon(ping_dataset: xr.Dataset, polygon: np.array):
             gprecision = int(ping_dataset.geohash.dtype.str[2:])  # ex: dtype='|S7', precision=7
             innerhash, intersecthash = polygon_to_geohashes(polygon, precision=gprecision)
             for mline, mhashes in ping_dataset.attrs['geohashes'].items():
-                linestart, lineend = ping_dataset.attrs['multibeam_files'][mline][0], ping_dataset.attrs['multibeam_files'][mline][1]
-                mhashes = [x.encode() for x in mhashes]
-                inside_geohash = [x for x in innerhash if x in mhashes]
-                intersect_geohash = [x for x in intersecthash if x in mhashes and x not in inside_geohash]
-                if inside_geohash or intersect_geohash:
-                    slice_pd = slice_xarray_by_dim(ping_dataset, dimname='time', start_time=linestart, end_time=lineend)
-                    ghash = np.ravel(slice_pd.geohash)
-                    filt_start = int(np.where(ping_dataset.time == slice_pd.time[0])[0]) * ping_dataset.geohash.shape[1]
-                    filt_end = filt_start + ghash.shape[0]
-                    if inside_geohash:
-                        linemask = np.in1d(ghash, inside_geohash)
-                        inside_mask_lines[mline] = [linemask, filt_start, filt_end, linestart, lineend]
-                    if intersect_geohash:
-                        linemask = np.in1d(ghash, intersect_geohash)
-                        intersect_mask_lines[mline] = [linemask, filt_start, filt_end, linestart, lineend]
+                if mline in ping_dataset.attrs['multibeam_files']:  # this line might not exist in the lookup if this is a subset
+                    linestart, lineend = ping_dataset.attrs['multibeam_files'][mline][0], ping_dataset.attrs['multibeam_files'][mline][1]
+                    mhashes = [x.encode() for x in mhashes]
+                    inside_geohash = [x for x in innerhash if x in mhashes]
+                    intersect_geohash = [x for x in intersecthash if x in mhashes and x not in inside_geohash]
+                    if inside_geohash or intersect_geohash:
+                        slice_pd = slice_xarray_by_dim(ping_dataset, dimname='time', start_time=linestart, end_time=lineend)
+                        ghash = np.ravel(slice_pd.geohash)
+                        filt_start = int(np.where(ping_dataset.time == slice_pd.time[0])[0]) * ping_dataset.geohash.shape[1]
+                        filt_end = filt_start + ghash.shape[0]
+                        if inside_geohash:
+                            linemask = np.in1d(ghash, inside_geohash)
+                            inside_mask_lines[mline] = [linemask, filt_start, filt_end, linestart, lineend]
+                        if intersect_geohash:
+                            linemask = np.in1d(ghash, intersect_geohash)
+                            intersect_mask_lines[mline] = [linemask, filt_start, filt_end, linestart, lineend]
             return inside_mask_lines, intersect_mask_lines
         else:  # treat dataset as if all the data needs to be brute force checked, i.e. all data intersects with polygon
             print('Warning: Unable to filter by polygon, cannot find the "geohashes" attribute in the ping record')

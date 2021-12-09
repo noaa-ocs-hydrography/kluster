@@ -2959,10 +2959,8 @@ class Fqpr(ZarrBackend):
         mbeslines = {k: v for k, v in sorted(self.multibeam.raw_ping[0].multibeam_files.items(),
                                              key=lambda item: item[1][0])}
         for ln, ln_times in mbeslines.items():
-            # first line time bounds sometimes does not cover the first few pings
-            ln_times[0] = ln_times[0] - 2
-            # same with last line, except extend the last time a bit
-            ln_times[1] = ln_times[1] + 2
+            ln_times[0] = ln_times[0]
+            ln_times[1] = ln_times[1]
             applicable_idx = np.logical_and(times >= ln_times[0], times <= ln_times[1])
             lines[applicable_idx] = ln
         return lines
