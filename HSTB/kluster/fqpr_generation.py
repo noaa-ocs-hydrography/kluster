@@ -3011,14 +3011,15 @@ class Fqpr(ZarrBackend):
             return None
 
     def return_soundings_in_polygon(self, polygon: np.ndarray, geographic: bool = True,
-                                    variable_selection: tuple = ('head', 'x', 'y', 'z', 'tvu', 'detectioninfo', 'time', 'beam')):
+                                    variable_selection: tuple = ('head', 'x', 'y', 'z', 'tvu', 'detectioninfo', 'time', 'beam'),
+                                    isolate_head: int = None):
         """
         Using provided coordinates (in either horizontal_crs projected or geographic coordinates), return the soundings
         and sounding attributes for all soundings within the coordinates, see subset module.  Also sets the ping_filter
         attribute which can be used with set_variable_by_filter get_variable_by_filter
         """
 
-        datablock = self.subset.return_soundings_in_polygon(polygon, geographic, variable_selection)
+        datablock = self.subset.return_soundings_in_polygon(polygon, geographic, variable_selection, isolate_head=isolate_head)
         return datablock
 
     def set_filter_by_polygon(self, polygon: np.ndarray, geographic: bool = True):

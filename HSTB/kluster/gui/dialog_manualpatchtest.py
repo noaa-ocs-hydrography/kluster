@@ -167,33 +167,36 @@ class PrePatchDialog(QtWidgets.QDialog):
         return selected_rows, err, msg
 
     def return_final_data(self):
-        total_fqpr = [self.fqprs[self.selected_data[0]]]
-        total_systemids = [self.sysids[self.selected_data[0]]]
-        total_timestamps = [self.timestamps[self.selected_data[0]]]
-        total_dates = [self.timestamps_formatted[self.selected_data[0]]]
-        total_timesegments = [self.time_segments[self.selected_data[0]]]
-        for idx in self.selected_data[1:]:
-            if self.fqprs[idx] not in total_fqpr:
-                total_fqpr += [self.fqprs[idx]]
-                total_timesegments += [self.time_segments[idx]]
-            total_systemids += [self.sysids[idx]]
-            total_timestamps += [self.timestamps[idx]]
-            total_dates += [self.timestamps_formatted[idx]]
+        try:
+            total_fqpr = [self.fqprs[self.selected_data[0]]]
+            total_systemids = [self.sysids[self.selected_data[0]]]
+            total_timestamps = [self.timestamps[self.selected_data[0]]]
+            total_dates = [self.timestamps_formatted[self.selected_data[0]]]
+            total_timesegments = [self.time_segments[self.selected_data[0]]]
+            for idx in self.selected_data[1:]:
+                if self.fqprs[idx] not in total_fqpr:
+                    total_fqpr += [self.fqprs[idx]]
+                    total_timesegments += [self.time_segments[idx]]
+                total_systemids += [self.sysids[idx]]
+                total_timestamps += [self.timestamps[idx]]
+                total_dates += [self.timestamps_formatted[idx]]
 
-        # use copies of the fqpr object to ensure we do not alter the currently loaded data during the patch test
-        total_fqpr = [fq.copy() for fq in total_fqpr]
-        model_number = total_fqpr[0].sonar_model
-        serial_number = self.serial_numbers[self.selected_data[0]]
-        head = self.headindexes[self.selected_data[0]]
-        roll = self.roll[self.selected_data[0]]
-        pitch = self.pitch[self.selected_data[0]]
-        heading = self.heading[self.selected_data[0]]
-        xlever = self.x_lever[self.selected_data[0]]
-        ylever = self.y_lever[self.selected_data[0]]
-        zlever = self.z_lever[self.selected_data[0]]
-        latency = self.latency[self.selected_data[0]]
-        return [total_fqpr, total_systemids, model_number, serial_number, total_dates, total_timestamps, total_timesegments, \
-               head, roll, pitch, heading, xlever, ylever, zlever, latency]
+            # use copies of the fqpr object to ensure we do not alter the currently loaded data during the patch test
+            total_fqpr = [fq.copy() for fq in total_fqpr]
+            model_number = total_fqpr[0].sonar_model
+            serial_number = self.serial_numbers[self.selected_data[0]]
+            head = self.headindexes[self.selected_data[0]]
+            roll = self.roll[self.selected_data[0]]
+            pitch = self.pitch[self.selected_data[0]]
+            heading = self.heading[self.selected_data[0]]
+            xlever = self.x_lever[self.selected_data[0]]
+            ylever = self.y_lever[self.selected_data[0]]
+            zlever = self.z_lever[self.selected_data[0]]
+            latency = self.latency[self.selected_data[0]]
+            return [total_fqpr, total_systemids, model_number, serial_number, total_dates, total_timestamps, total_timesegments, \
+                   head, roll, pitch, heading, xlever, ylever, zlever, latency, self.prefixes]
+        except:
+            return None
 
     def cancel_patch(self):
         self.canceled = True
@@ -261,7 +264,7 @@ class PatchSpinBox(QtWidgets.QDoubleSpinBox):
 
 
 class ManualPatchTestWidget(QtWidgets.QWidget):
-    new_offsets_angles = Signal(float, float, float, float, float, float, float)
+    new_offsets_angles = Signal(bool)
 
     def __init__(self, parent=None):
         QtWidgets.QWidget.__init__(self, parent)
@@ -361,8 +364,37 @@ class ManualPatchTestWidget(QtWidgets.QWidget):
         self.main_layout.addLayout(self.button_layout)
 
         self.setLayout(self.main_layout)
+        self.patchdatablock = None
 
         self.update_button.clicked.connect(self.update_data)
+
+    @property
+    def roll(self):
+        return self.roll_spinbox.value()
+
+    @property
+    def pitch(self):
+        return self.pitch_spinbox.value()
+
+    @property
+    def heading(self):
+        return self.heading_spinbox.value()
+
+    @property
+    def latency(self):
+        return self.latency_spinbox.value()
+
+    @property
+    def x_lever(self):
+        return self.xlever_spinbox.value()
+
+    @property
+    def y_lever(self):
+        return self.ylever_spinbox.value()
+
+    @property
+    def z_lever(self):
+        return self.zlever_spinbox.value()
 
     def populate(self, vesselfile: str, sources: str, model: str, serialnum: str, utcdate: str, utctimestamp: str,
                  roll: float, pitch: float, heading: float, xlever: float, ylever: float, zlever: float, latency: float):
@@ -381,9 +413,7 @@ class ManualPatchTestWidget(QtWidgets.QWidget):
         self.latency_spinbox.setValue(float(latency))
 
     def update_data(self):
-        self.new_offsets_angles.emit(self.roll_spinbox.value(), self.pitch_spinbox.value(), self.heading_spinbox.value(),
-                                     self.xlever_spinbox.value(), self.ylever_spinbox.value(), self.zlever_spinbox.value(),
-                                     self.latency_spinbox.value())
+        self.new_offsets_angles.emit(False)
 
 
 if __name__ == '__main__':

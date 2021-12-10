@@ -313,7 +313,7 @@ class FqprSubset:
             return_data[linename] = dset
         return return_data
 
-    def _soundings_by_poly(self, geo_polygon: np.ndarray, proj_polygon: np.ndarray, variable_selection: tuple):
+    def _soundings_by_poly(self, geo_polygon: np.ndarray, proj_polygon: np.ndarray, variable_selection: tuple, isolate_head: int = None):
         """
         Return soundings and sounding attributes that are within the box formed by the provided coordinates.
 
@@ -325,6 +325,9 @@ class FqprSubset:
             (N, 2) array of points that make up the selection polygon, (longitude, latitude) in Fqpr CRS
         variable_selection
             list of the variables that you want to return for the soundings in the polygon
+        isolate_head
+            only used with return_soundings, if provided will only return soundings corresponding to this head index,
+            0 = port, 1 = starboard
 
         Returns
         -------
@@ -336,7 +339,8 @@ class FqprSubset:
         self.ping_filter = []
         polypath = mpl_path.Path(proj_polygon)
         for rpcnt, rp in enumerate(self.fqpr.multibeam.raw_ping):
-            if 'z' not in rp:
+            if rp is None or 'z' not in rp or (isolate_head is not None and isolate_head != rpcnt):
+                self.ping_filter.append(None)
                 continue
             insidedata, intersectdata = filter_subset_by_polygon(rp, geo_polygon)
             base_filter = np.zeros(rp.x.shape[0] * rp.x.shape[1], dtype=bool)
@@ -405,7 +409,8 @@ class FqprSubset:
         return geo_polygon, proj_polygon
 
     def return_soundings_in_polygon(self, polygon: np.ndarray, geographic: bool = True,
-                                    variable_selection: tuple = ('head', 'x', 'y', 'z', 'tvu', 'detectioninfo', 'time', 'beam')):
+                                    variable_selection: tuple = ('head', 'x', 'y', 'z', 'tvu', 'detectioninfo', 'time', 'beam'),
+                                    isolate_head: int = None):
         """
         Using provided coordinates (in either horizontal_crs projected or geographic coordinates), return the soundings
         and sounding attributes for all soundings within the coordinates.
@@ -421,6 +426,9 @@ class FqprSubset:
             If True, the coordinates provided are geographic (latitude/longitude)
         variable_selection
             list of the variables that you want to return for the soundings in the polygon
+        isolate_head
+            only used with return_soundings, if provided will only return soundings corresponding to this head index,
+            0 = port, 1 = starboard
 
         Returns
         -------
@@ -436,7 +444,7 @@ class FqprSubset:
             raise ValueError('Georeferencing has not been run yet, you must georeference before you can get soundings')
 
         geo_polygon, proj_polygon = self._build_polygons(polygon, geographic)
-        data_vars = self._soundings_by_poly(geo_polygon, proj_polygon, variable_selection)
+        data_vars = self._soundings_by_poly(geo_polygon, proj_polygon, variable_selection, isolate_head=isolate_head)
 
         if len(data_vars[0]) > 1:
             data_vars = [np.concatenate(x) for x in data_vars]
@@ -508,6 +516,8 @@ class FqprSubset:
 
         for cnt, rp in enumerate(self.fqpr.multibeam.raw_ping):
             ping_filter = self.fqpr.subset.ping_filter[cnt]
+            if ping_filter is None:
+                continue
             data_var = rp[variable_name]
             if selected_index:
                 try:
@@ -552,6 +562,8 @@ class FqprSubset:
         raw_att = self.fqpr.multibeam.raw_att
         for cnt, rp in enumerate(self.fqpr.multibeam.raw_ping):
             ping_filter = self.fqpr.subset.ping_filter[cnt]
+            if ping_filter is None:
+                continue
             # must have a 2d variable to determine the correct shape of the index, beampointingangle should always exist in converted kluster data
             data_var_2d = rp['beampointingangle']
             if selected_index:

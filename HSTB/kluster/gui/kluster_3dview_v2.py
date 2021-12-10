@@ -872,6 +872,40 @@ class ThreeDView(QtWidgets.QWidget):
         self.beam = np.concatenate([self.beam, beam])
         self.linename = np.concatenate([self.linename, linename])
 
+    def remove_points(self, system_id: str = None):
+        idrange = self.idrange.pop(system_id)
+        idlkup = self.idlookup.pop(system_id)
+        self.rotx = np.delete(self.rotx, slice(idrange[0], idrange[1]))
+        self.roty = np.delete(self.roty, slice(idrange[0], idrange[1]))
+        self.head = np.delete(self.head, slice(idrange[0], idrange[1]))
+        self.id = np.delete(self.id, slice(idrange[0], idrange[1]))
+        self.x = np.delete(self.x, slice(idrange[0], idrange[1]))
+        self.y = np.delete(self.y, slice(idrange[0], idrange[1]))
+        self.z = np.delete(self.z, slice(idrange[0], idrange[1]))
+        self.tvu = np.delete(self.tvu, slice(idrange[0], idrange[1]))
+        self.rejected = np.delete(self.rejected, slice(idrange[0], idrange[1]))
+        self.pointtime = np.delete(self.pointtime, slice(idrange[0], idrange[1]))
+        self.beam = np.delete(self.beam, slice(idrange[0], idrange[1]))
+        self.linename = np.delete(self.linename, slice(idrange[0], idrange[1]))
+
+    def replace_xyz(self, x: np.array, y: np.array, z: np.array):
+        if x.size != self.x.size or y.size != self.y.size or z.size != self.z.size:
+            raise ValueError('Points View - Given new xyz values that are not the same size as the existing, {} vs {}'.format(x.size, self.x.size))
+        if self.azimuth:
+            cos_az = np.cos(self.azimuth)
+            sin_az = np.sin(self.azimuth)
+
+            rotx = cos_az * x - sin_az * y
+            roty = sin_az * x + cos_az * y
+            self.rotx = rotx
+            self.roty = roty
+        else:
+            self.rotx = x
+            self.roty = y
+        self.x = x
+        self.y = y
+        self.z = z
+
     def return_points(self):
         """
         Return all the data in the 3dview
@@ -898,14 +932,26 @@ class ThreeDView(QtWidgets.QWidget):
         time_segments = []
         systems = []
         if self.linename.size > 0:
-            linenames, linestarts = np.unique(self.linename, return_index=True)
+            lsort = self.linename.argsort()  # necessary for dual head sonar, lines are not in order with multiple heads
+            linesort = self.linename[lsort]
+            timesort = self.pointtime[lsort]
+            idsort = self.id[lsort]
+            linenames, linestarts = np.unique(linesort, return_index=True)
             lines_in_order = linestarts.argsort()
             linenames, linestarts = linenames[lines_in_order], linestarts[lines_in_order]
             for i in range(len(linenames) - 1):
-                time_segments.append([self.pointtime[linestarts[i]], self.pointtime[linestarts[i + 1] - 1]])
-                systems.append(self.id[linestarts[i]])
-            time_segments.append([self.pointtime[linestarts[-1]], self.pointtime[-1]])
-            systems.append(self.id[linestarts[-1]])
+                line_timesort = timesort[linestarts[i]:linestarts[i + 1] - 1]
+                line_id = idsort[linestarts[i]:linestarts[i + 1] - 1]
+                for usystem in np.unique(line_id):
+                    tsegs = line_timesort[line_id == usystem]
+                    time_segments.append([tsegs.min(), tsegs.max()])
+                    systems.append(usystem)
+            line_timesort = timesort[linestarts[-1]:]
+            line_id = idsort[linestarts[-1]:]
+            for usystem in np.unique(line_id):
+                tsegs = line_timesort[line_id == usystem]
+                time_segments.append([tsegs.min(), tsegs.max()])
+                systems.append(usystem)
         else:
             linenames = []
         return systems, linenames, time_segments
@@ -1432,6 +1478,7 @@ class ThreeDWidget(QtWidgets.QWidget):
                               ['viewdirection3d', self.viewdirection3d], ['vertexag', self.vertexag]]
         self.checkbox_controls = [['show_colorbar', self.show_colorbar], ['show_rejected', self.show_rejected]]
         self._select_rect_color = 'black'
+        self._cached_view_settings = None
 
         self._handle_dimension_change()
         self.viewdirection2d.currentTextChanged.connect(self.refresh_settings)
@@ -1531,6 +1578,18 @@ class ThreeDWidget(QtWidgets.QWidget):
         self.three_d_window.selected_points = None
         self.three_d_window.superselected_index = None
         self.three_d_window.add_points(head, x, y, z, tvu, rejected, pointtime, beam, newid, linename, azimuth=azimuth)
+
+    def remove_points(self, system_id: str = None):
+        self.last_change_buffer = []
+        self.three_d_window.selected_points = None
+        self.three_d_window.superselected_index = None
+        self.three_d_window.remove_points(system_id=system_id)
+
+    def replace_xyz(self, x, y, z):
+        self.last_change_buffer = []
+        self.three_d_window.selected_points = None
+        self.three_d_window.superselected_index = None
+        self.three_d_window.replace_xyz(x, y, z)
 
     def return_points(self):
         return self.three_d_window.return_points()
@@ -1809,6 +1868,19 @@ class ThreeDWidget(QtWidgets.QWidget):
         self.clear_display()
         if self.three_d_window.x.any():
             self.display_points()
+
+    def store_view_settings(self):
+        self._cached_view_settings = [self.dimension.currentText(), self.three_d_window.view.camera.get_state()]
+
+    def load_view_settings(self):
+        if self._cached_view_settings is not None:
+            dimname, camstate = self._cached_view_settings
+            if dimname != self.dimension.currentText():
+                print('Points View: Unable to load from cached camera settings, old state {} != new state {}'.format(dimname, self.dimension.currentText()))
+            else:
+                self.three_d_window.view.camera.set_state(camstate)
+        else:
+            print('Points View: Unable to load state, no saved state')
 
     def clear_display(self):
         self.three_d_window.clear_display()

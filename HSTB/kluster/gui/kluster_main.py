@@ -12,6 +12,7 @@ from pyproj import CRS, Transformer
 import qdarkstyle
 from qdarkstyle.dark.palette import DarkPalette
 import matplotlib.pyplot as plt
+import xarray as xr
 
 from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal, qgis_enabled, found_path
 if qgis_enabled:
@@ -129,7 +130,6 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.basicplots_win = None
         self.advancedplots_win = None
         self._manpatchtest = None
-        self._manpatchdata = None
 
         self.iconpath = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'images', 'kluster_img.ico')
         self.setWindowIcon(QtGui.QIcon(self.iconpath))
@@ -963,58 +963,66 @@ class KlusterMain(QtWidgets.QMainWindow):
                             print('Patch Test: test canceled')
                         else:
                             final_datablock = dlog_patch.return_final_data()
-                            vessel_file_name = datablock[0][-1]
-                            roll, pitch, heading = final_datablock[8], final_datablock[9], final_datablock[10]
-                            xlever, ylever, zlever = final_datablock[11], final_datablock[12], final_datablock[13]
-                            latency = final_datablock[14]
-                            self._manpatchdata = final_datablock + [dlog_patch.prefixes]
-                            self._manpatchtest = None
-                            self._manpatchtest = dialog_manualpatchtest.ManualPatchTestWidget()
-                            self._manpatchtest.populate(vessel_file_name, ','.join(final_datablock[1]), final_datablock[2],
-                                                        final_datablock[3], ','.join(final_datablock[4]), ','.join(final_datablock[5]),
-                                                        roll, pitch, heading, xlever, ylever, zlever, latency)
-                            self._manpatchtest.show()
-                            self._update_manual_patch_test(first_setup=True)
+                            if final_datablock:
+                                vessel_file_name = datablock[0][-1]
+                                roll, pitch, heading = final_datablock[8], final_datablock[9], final_datablock[10]
+                                xlever, ylever, zlever = final_datablock[11], final_datablock[12], final_datablock[13]
+                                latency = final_datablock[14]
+                                fqprs, timesegments = final_datablock[0], final_datablock[6]
+                                for cnt, fq in enumerate(fqprs):
+                                    fq.subset_by_times(timesegments[cnt].tolist())
+                                self._manpatchtest = None
+                                self._manpatchtest = dialog_manualpatchtest.ManualPatchTestWidget()
+                                self._manpatchtest.new_offsets_angles.connect(self._update_manual_patch_test)
+                                self._manpatchtest.patchdatablock = final_datablock
+                                self._manpatchtest.populate(vessel_file_name, ','.join(final_datablock[1]), final_datablock[2],
+                                                            final_datablock[3], ','.join(final_datablock[4]), ','.join(final_datablock[5]),
+                                                            roll, pitch, heading, xlever, ylever, zlever, latency)
+                                self._manpatchtest.show()
+                            else:
+                                print('Patch Test: no data selected')
                 else:
                     print('Patch Test: no data selected for running in Patch Test utility')
             else:
                 print('Patch Test: no data found in Points View')
 
-    def _update_manual_patch_test(self, first_setup: bool = False):
-        if self._manpatchdata is not None:
-            roll, pitch, heading = self._manpatchdata[8], self._manpatchdata[9], self._manpatchdata[10]
-            xlever, ylever, zlever = self._manpatchdata[11], self._manpatchdata[12], self._manpatchdata[13]
-            fqprs, tstamps, timesegments, headindex = self._manpatchdata[0], self._manpatchdata[5], self._manpatchdata[6], int(self._manpatchdata[7])
-            latency = self._manpatchdata[14]
-            prefixes = self._manpatchdata[15]
-            xfinal = np.array([])
-            yfinal = np.array([])
-            zfinal = np.array([])
-            if not first_setup:
-                for cnt, fq in enumerate(fqprs):
-                    fq.multibeam.xyzrph[prefixes[0]][tstamps[cnt]] = roll
-                    fq.multibeam.xyzrph[prefixes[1]][tstamps[cnt]] = pitch
-                    fq.multibeam.xyzrph[prefixes[2]][tstamps[cnt]] = heading
-                    fq.multibeam.xyzrph[prefixes[3]][tstamps[cnt]] = xlever
-                    fq.multibeam.xyzrph[prefixes[4]][tstamps[cnt]] = ylever
-                    fq.multibeam.xyzrph[prefixes[5]][tstamps[cnt]] = zlever
-                    fq.multibeam.xyzrph[prefixes[6]][tstamps[cnt]] = latency
-                    fq.subset_by_times(timesegments[cnt])
-                    fq, soundings = reprocess_sounding_selection(fq, georeference=True, isolate_head=headindex)
-                    xfinal = np.concatenate([xfinal, soundings[0]])
-                    yfinal = np.concatenate([yfinal, soundings[1]])
-                    zfinal = np.concatenate([zfinal, soundings[2]])
-            else:
-                cur_azimuth = self.load_points_thread.azimuth
-                self.points_view.clear()
-                for cnt, fq in enumerate(fqprs):
-                    newid = self._manpatchdata[1][cnt]
-                    fq.subset_by_times(timesegments[cnt].tolist())
-                    head, x, y, z, tvu, rejected, pointtime, beam = fq.return_soundings_in_polygon(self.load_points_thread.polygon, geographic=True)
-                    if x is not None:
-                        linenames = fq.return_lines_for_times(pointtime)
-                        self.points_view.add_points(head, x, y, z, tvu, rejected, pointtime, beam, newid, linenames, cur_azimuth)
-                self.points_view.display_points()
+    def _update_manual_patch_test(self):
+        if self._manpatchtest.patchdatablock is not None:
+            roll, pitch, heading = self._manpatchtest.roll, self._manpatchtest.pitch, self._manpatchtest.heading
+            xlever, ylever, zlever = self._manpatchtest.x_lever, self._manpatchtest.y_lever, self._manpatchtest.z_lever
+            fqprs, tstamps, timesegments, headindex = self._manpatchtest.patchdatablock[0], self._manpatchtest.patchdatablock[5], self._manpatchtest.patchdatablock[6], int(self._manpatchtest.patchdatablock[7])
+            latency = self._manpatchtest.latency
+            prefixes = self._manpatchtest.patchdatablock[15]
+            serial_num = str(self._manpatchtest.patchdatablock[3])
+            cur_azimuth = self.load_points_thread.azimuth
+            self.points_view.store_view_settings()
+            self.points_view.clear_display()
+
+            for cnt, fq in enumerate(fqprs):
+                newid = self._manpatchtest.patchdatablock[1][cnt]
+                fq.multibeam.xyzrph[prefixes[0]][tstamps[cnt]] = roll
+                fq.multibeam.xyzrph[prefixes[1]][tstamps[cnt]] = pitch
+                fq.multibeam.xyzrph[prefixes[2]][tstamps[cnt]] = heading
+                fq.multibeam.xyzrph[prefixes[3]][tstamps[cnt]] = xlever
+                fq.multibeam.xyzrph[prefixes[4]][tstamps[cnt]] = ylever
+                fq.multibeam.xyzrph[prefixes[5]][tstamps[cnt]] = zlever
+                fq.multibeam.xyzrph[prefixes[6]][tstamps[cnt]] = latency
+                fq, soundings = reprocess_sounding_selection(fq, georeference=True)
+                newx = np.concatenate([d[0][0].values for d in fq.intermediate_dat[serial_num]['georef'][tstamps[cnt]]], axis=0)
+                newy = np.concatenate([d[0][1].values for d in fq.intermediate_dat[serial_num]['georef'][tstamps[cnt]]], axis=0)
+                newz = np.concatenate([d[0][2].values for d in fq.intermediate_dat[serial_num]['georef'][tstamps[cnt]]], axis=0)
+                fq.multibeam.raw_ping[headindex]['x'] = xr.DataArray(newx, dims=('time', 'beam'))
+                fq.multibeam.raw_ping[headindex]['y'] = xr.DataArray(newy, dims=('time', 'beam'))
+                fq.multibeam.raw_ping[headindex]['z'] = xr.DataArray(newz, dims=('time', 'beam'))
+                fq.intermediate_dat = {}  # clear out the reprocessed cached data
+                head, x, y, z, tvu, rejected, pointtime, beam = fq.return_soundings_in_polygon(self.load_points_thread.polygon,
+                                                                                               geographic=True, isolate_head=headindex)
+                if x is not None:
+                    linenames = fq.return_lines_for_times(pointtime)
+                    self.points_view.remove_points(system_id=newid + '_' + str(headindex))
+                    self.points_view.add_points(head, x, y, z, tvu, rejected, pointtime, beam, newid, linenames, cur_azimuth)
+            self.points_view.display_points()
+            self.points_view.load_view_settings()
         else:
             print('error')
 
