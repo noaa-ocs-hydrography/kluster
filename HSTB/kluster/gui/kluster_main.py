@@ -390,7 +390,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         process.addAction(overwritenav_action)
         process.addAction(importppnav_action)
         process.addAction(surface_action)
-        process.addAction(patch_action)
+        # process.addAction(patch_action)
 
         visual = menubar.addMenu('Visualize')
         visual.addAction(basicplots_action)
