@@ -2020,7 +2020,12 @@ class KlusterMain(QtWidgets.QMainWindow):
         """
 
         dock = QtWidgets.QDockWidget(title, self)
-        dock.setFeatures(QtWidgets.QDockWidget.DockWidgetMovable | QtWidgets.QDockWidget.DockWidgetFloatable)
+        # currently the Points View will crash if you try to undock it, I believe due to the Vispy app
+        if title == 'Points View':
+            dock.setFeatures(QtWidgets.QDockWidget.NoDockWidgetFeatures)
+            dock.setTitleBarWidget(QtWidgets.QWidget(widget))
+        else:
+            dock.setFeatures(QtWidgets.QDockWidget.DockWidgetMovable | QtWidgets.QDockWidget.DockWidgetFloatable)
         dock.setObjectName(objname)
         self.widget_obj_names.append(objname)
         dock.setWidget(widget)

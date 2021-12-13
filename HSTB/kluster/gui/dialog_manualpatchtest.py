@@ -414,6 +414,7 @@ class ManualPatchTestWidget(QtWidgets.QWidget):
         self.pitch_spinbox.valueChanged.connect(self.show_differences)
         self.heading_spinbox.valueChanged.connect(self.show_differences)
         self.latency_spinbox.valueChanged.connect(self.show_differences)
+        self.show_differences(None)
 
     @property
     def roll(self):
@@ -451,14 +452,14 @@ class ManualPatchTestWidget(QtWidgets.QWidget):
             newdif = spbox.value() - orig
             dif.setText('{:.3f}'.format(newdif))
             if round(newdif, 3) == 0:
-                dif.setStyleSheet("QLabel { color : black; }")
+                dif.setStyleSheet("QLabel { background-color : white; color : black; }")
                 dif.setText('0.000')
             elif newdif < 0:
-                dif.setStyleSheet("QLabel { " + kluster_variables.warning_color + "; }")
+                dif.setStyleSheet("QLabel { background-color : white; " + kluster_variables.warning_color + "; }")
             elif newdif > 0:
-                dif.setStyleSheet("QLabel { " + kluster_variables.pass_color + "; }")
+                dif.setStyleSheet("QLabel { background-color : white; " + kluster_variables.pass_color + "; }")
             else:
-                dif.setStyleSheet("QLabel { color : black; }")
+                dif.setStyleSheet("QLabel { background-color : white; color : black; }")
 
     def populate(self, vesselfile: str, sources: str, model: str, serialnum: str, utcdate: str, utctimestamp: str,
                  roll: float, pitch: float, heading: float, xlever: float, ylever: float, zlever: float, latency: float):
