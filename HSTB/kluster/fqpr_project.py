@@ -8,7 +8,7 @@ from types import FunctionType
 
 from HSTB.kluster.fqpr_generation import Fqpr
 from HSTB.kluster.dask_helpers import dask_find_or_start_client, client_needs_restart
-from HSTB.kluster.fqpr_convenience import reload_data, reload_surface, get_attributes_from_fqpr
+from HSTB.kluster.fqpr_convenience import reload_data, reload_surface, get_attributes_from_fqpr, reprocess_sounding_selection
 from HSTB.kluster.xarray_helpers import slice_xarray_by_dim
 from HSTB.kluster.fqpr_helpers import haversine
 from HSTB.kluster.fqpr_vessel import VesselFile, create_new_vessel_file, convert_from_fqpr_xyzrph, compare_dict_data, \
@@ -1291,3 +1291,55 @@ def return_project_data(project_path: str):
     fqp = FqprProject()
     data = fqp._load_project_file(project_path)
     return data
+
+
+def reprocess_fqprs(fqprs: list, newvalues: list, headindex: int, prefixes: list, timestamps: list, serial_number: str,
+                    polygon: np.ndarray):
+    """
+    Convenience function for reprocessing a list of Fqpr objects according to the new arguments given here.  Used in
+    the manual patch test tool in Kluster Points View.
+
+    Parameters
+    ----------
+    fqprs
+        list of each fqpr object to reprocess
+    newvalues
+        list of new values as floats for the reprocessing [roll, pitch, heading, xlever, ylever, zlever, latency]
+    headindex
+        head index as integer, 0 for non-dual-head or port head, 1 for starboard head
+    prefixes
+        list of prefixes for looking up the newvalues in the xyzrph, ex: ['rx_r', 'rx_p', 'rx_h', 'tx_x', 'tx_y', 'tx_z', 'latency']
+    timestamps
+        timestamp for looking up the values in the xyzrph record, one for each fqpr object
+    serial_number
+        serial number of each fqpr instance, used in the lookup
+    polygon
+        polygon in geographic coordinates encompassing the patch test region
+
+    Returns
+    -------
+    list
+        list of lists for each fqpr containing the reprocessed xyz data
+    """
+
+    roll, pitch, heading, xlever, ylever, zlever, latency = newvalues
+    results = []
+    for cnt, fq in enumerate(fqprs):
+        fq.multibeam.xyzrph[prefixes[0]][timestamps[cnt]] = roll
+        fq.multibeam.xyzrph[prefixes[1]][timestamps[cnt]] = pitch
+        fq.multibeam.xyzrph[prefixes[2]][timestamps[cnt]] = heading
+        fq.multibeam.xyzrph[prefixes[3]][timestamps[cnt]] = xlever
+        fq.multibeam.xyzrph[prefixes[4]][timestamps[cnt]] = ylever
+        fq.multibeam.xyzrph[prefixes[5]][timestamps[cnt]] = zlever
+        fq.multibeam.xyzrph[prefixes[6]][timestamps[cnt]] = latency
+        fq, soundings = reprocess_sounding_selection(fq, georeference=True)
+        newx = np.concatenate([d[0][0].values for d in fq.intermediate_dat[serial_number]['georef'][timestamps[cnt]]], axis=0)
+        newy = np.concatenate([d[0][1].values for d in fq.intermediate_dat[serial_number]['georef'][timestamps[cnt]]], axis=0)
+        newz = np.concatenate([d[0][2].values for d in fq.intermediate_dat[serial_number]['georef'][timestamps[cnt]]], axis=0)
+        fq.multibeam.raw_ping[headindex]['x'] = xr.DataArray(newx, dims=('time', 'beam'))
+        fq.multibeam.raw_ping[headindex]['y'] = xr.DataArray(newy, dims=('time', 'beam'))
+        fq.multibeam.raw_ping[headindex]['z'] = xr.DataArray(newz, dims=('time', 'beam'))
+        fq.intermediate_dat = {}  # clear out the reprocessed cached data
+        head, x, y, z, tvu, rejected, pointtime, beam = fq.return_soundings_in_polygon(polygon, geographic=True, isolate_head=headindex)
+        results.append([head, x, y, z, tvu, rejected, pointtime, beam])
+    return results

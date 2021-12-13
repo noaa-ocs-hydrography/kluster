@@ -69,6 +69,7 @@ class PrePatchDialog(QtWidgets.QDialog):
         self.selected_data = None
 
     def add_data(self, datablock):
+        self.prefixes = []
         for fq, serialnum, fq_time_segs, xyzrec, sysid, head, vfname in datablock:
             self.fqprs.append(fq)
             self.serial_numbers.append(serialnum)
@@ -84,19 +85,19 @@ class PrePatchDialog(QtWidgets.QDialog):
                     roll = xyzrec['rx_port_r'][tstmp]
                     pitch = xyzrec['rx_port_p'][tstmp]
                     heading = xyzrec['rx_port_h'][tstmp]
-                    xlever = xyzrec['rx_port_x'][tstmp]
-                    ylever = xyzrec['rx_port_y'][tstmp]
-                    zlever = xyzrec['rx_port_z'][tstmp]
-                    self.prefixes = ['rx_port_r', 'rx_port_p', 'rx_port_h', 'rx_port_x', 'rx_port_y', 'rx_port_z', 'latency']
+                    xlever = xyzrec['tx_port_x'][tstmp]
+                    ylever = xyzrec['tx_port_y'][tstmp]
+                    zlever = xyzrec['tx_port_z'][tstmp]
+                    self.prefixes.append(['rx_port_r', 'rx_port_p', 'rx_port_h', 'tx_port_x', 'tx_port_y', 'tx_port_z', 'latency'])
                 elif int(head) == 1:
                     head_fmt = 'STARBOARD'
                     roll = xyzrec['rx_stbd_r'][tstmp]
                     pitch = xyzrec['rx_stbd_p'][tstmp]
                     heading = xyzrec['rx_stbd_h'][tstmp]
-                    xlever = xyzrec['rx_stbd_x'][tstmp]
-                    ylever = xyzrec['rx_stbd_y'][tstmp]
-                    zlever = xyzrec['rx_stbd_z'][tstmp]
-                    self.prefixes = ['rx_stbd_r', 'rx_stbd_p', 'rx_stbd_h', 'rx_stbd_x', 'rx_stbd_y', 'rx_stbd_z', 'latency']
+                    xlever = xyzrec['tx_stbd_x'][tstmp]
+                    ylever = xyzrec['tx_stbd_y'][tstmp]
+                    zlever = xyzrec['tx_stbd_z'][tstmp]
+                    self.prefixes.append(['rx_stbd_r', 'rx_stbd_p', 'rx_stbd_h', 'tx_stbd_x', 'tx_stbd_y', 'tx_stbd_z', 'latency'])
                 else:
                     raise NotImplementedError(
                         'Only head indices 0 and 1 supported, we expect max 2 heads, got: {}'.format(head))
@@ -104,10 +105,10 @@ class PrePatchDialog(QtWidgets.QDialog):
                 roll = xyzrec['rx_r'][tstmp]
                 pitch = xyzrec['rx_p'][tstmp]
                 heading = xyzrec['rx_h'][tstmp]
-                xlever = xyzrec['rx_x'][tstmp]
-                ylever = xyzrec['rx_y'][tstmp]
-                zlever = xyzrec['rx_z'][tstmp]
-                self.prefixes = ['rx_r', 'rx_p', 'rx_h', 'rx_x', 'rx_y', 'rx_z', 'latency']
+                xlever = xyzrec['tx_x'][tstmp]
+                ylever = xyzrec['tx_y'][tstmp]
+                zlever = xyzrec['tx_z'][tstmp]
+                self.prefixes.append(['rx_r', 'rx_p', 'rx_h', 'tx_x', 'tx_y', 'tx_z', 'latency'])
                 head_fmt = 'N/A'
             latency = xyzrec['latency'][tstmp]
             self.timestamps.append(tstmp)
@@ -193,8 +194,9 @@ class PrePatchDialog(QtWidgets.QDialog):
             ylever = self.y_lever[self.selected_data[0]]
             zlever = self.z_lever[self.selected_data[0]]
             latency = self.latency[self.selected_data[0]]
+            prefixes = self.prefixes[self.selected_data[0]]
             return [total_fqpr, total_systemids, model_number, serial_number, total_dates, total_timestamps, total_timesegments, \
-                   head, roll, pitch, heading, xlever, ylever, zlever, latency, self.prefixes]
+                    head, roll, pitch, heading, xlever, ylever, zlever, latency, prefixes]
         except:
             return None
 
@@ -260,7 +262,7 @@ class PatchSpinBox(QtWidgets.QDoubleSpinBox):
         self.setMaximum(999.999)
         self.setDecimals(3)
         self.setSingleStep(0.01)
-        self.setMaximumWidth(65)
+        self.setMaximumWidth(70)
 
 
 class ManualPatchTestWidget(QtWidgets.QWidget):
@@ -271,7 +273,7 @@ class ManualPatchTestWidget(QtWidgets.QWidget):
 
         self.setWindowTitle('Patch Test')
         self.setMinimumWidth(450)
-        self.setMinimumHeight(330)
+        self.setMinimumHeight(360)
 
         self.main_layout = QtWidgets.QVBoxLayout()
 
@@ -302,47 +304,75 @@ class ManualPatchTestWidget(QtWidgets.QWidget):
         attdevices_layout = QtWidgets.QHBoxLayout()
 
         roll_layout = QtWidgets.QVBoxLayout()
-        self.xlever_label = QtWidgets.QLabel('X Lever Arm (+ Forward)')
+        self.xlever_label = QtWidgets.QLabel(' TX X Lever Arm (+ Forward)')
         roll_layout.addWidget(self.xlever_label)
+        xlspinbox = QtWidgets.QHBoxLayout()
         self.xlever_spinbox = PatchSpinBox()
-        roll_layout.addWidget(self.xlever_spinbox)
-        self.roll_label = QtWidgets.QLabel('Roll (+ Port Up)')
+        xlspinbox.addWidget(self.xlever_spinbox)
+        self.xlever_difference = QtWidgets.QLabel('0.000')
+        xlspinbox.addWidget(self.xlever_difference)
+        roll_layout.addLayout(xlspinbox)
+        self.roll_label = QtWidgets.QLabel('RX Roll (+ Port Up)')
         roll_layout.addWidget(self.roll_label)
+        rspinbox = QtWidgets.QHBoxLayout()
         self.roll_spinbox = PatchSpinBox()
-        roll_layout.addWidget(self.roll_spinbox)
+        rspinbox.addWidget(self.roll_spinbox)
+        self.roll_difference = QtWidgets.QLabel('0.000')
+        rspinbox.addWidget(self.roll_difference)
+        roll_layout.addLayout(rspinbox)
         attdevices_layout.addLayout(roll_layout)
 
         attdevices_layout.addStretch()
         pitch_layout = QtWidgets.QVBoxLayout()
-        self.ylever_label = QtWidgets.QLabel('Y Lever Arm (+ Starboard)')
+        self.ylever_label = QtWidgets.QLabel('TX Y Lever Arm (+ Starboard)')
         pitch_layout.addWidget(self.ylever_label)
+        ylspinbox = QtWidgets.QHBoxLayout()
         self.ylever_spinbox = PatchSpinBox()
-        pitch_layout.addWidget(self.ylever_spinbox)
-        self.pitch_label = QtWidgets.QLabel('Pitch (+ Bow Up)')
+        ylspinbox.addWidget(self.ylever_spinbox)
+        self.ylever_difference = QtWidgets.QLabel('0.000')
+        ylspinbox.addWidget(self.ylever_difference)
+        pitch_layout.addLayout(ylspinbox)
+        self.pitch_label = QtWidgets.QLabel('RX Pitch (+ Bow Up)')
         pitch_layout.addWidget(self.pitch_label)
+        pspinbox = QtWidgets.QHBoxLayout()
         self.pitch_spinbox = PatchSpinBox()
-        pitch_layout.addWidget(self.pitch_spinbox)
+        pspinbox.addWidget(self.pitch_spinbox)
+        self.pitch_difference = QtWidgets.QLabel('0.000')
+        pspinbox.addWidget(self.pitch_difference)
+        pitch_layout.addLayout(pspinbox)
         attdevices_layout.addLayout(pitch_layout)
         attdevices_layout.addStretch()
 
         heading_layout = QtWidgets.QVBoxLayout()
-        self.zlever_label = QtWidgets.QLabel('Z Lever Arm (+ Down)')
+        self.zlever_label = QtWidgets.QLabel('TX Z Lever Arm (+ Down)')
         heading_layout.addWidget(self.zlever_label)
+        zlspinbox = QtWidgets.QHBoxLayout()
         self.zlever_spinbox = PatchSpinBox()
-        heading_layout.addWidget(self.zlever_spinbox)
-        self.heading_label = QtWidgets.QLabel('Heading (+ Clockwise)')
+        zlspinbox.addWidget(self.zlever_spinbox)
+        self.zlever_difference = QtWidgets.QLabel('0.000')
+        zlspinbox.addWidget(self.zlever_difference)
+        heading_layout.addLayout(zlspinbox)
+        self.heading_label = QtWidgets.QLabel('RX Heading (+ Clockwise)')
         heading_layout.addWidget(self.heading_label)
+        hspinbox = QtWidgets.QHBoxLayout()
         self.heading_spinbox = PatchSpinBox()
-        heading_layout.addWidget(self.heading_spinbox)
+        hspinbox.addWidget(self.heading_spinbox)
+        self.heading_difference = QtWidgets.QLabel('0.000')
+        hspinbox.addWidget(self.heading_difference)
+        heading_layout.addLayout(hspinbox)
         attdevices_layout.addLayout(heading_layout)
         attdevices_layout.addStretch()
 
         latencydevices_layout = QtWidgets.QHBoxLayout()
         latency_layout = QtWidgets.QVBoxLayout()
-        self.latency_label = QtWidgets.QLabel('Latency (seconds)')
+        self.latency_label = QtWidgets.QLabel('Motion Latency (seconds)')
         latency_layout.addWidget(self.latency_label)
+        llspinbox = QtWidgets.QHBoxLayout()
         self.latency_spinbox = PatchSpinBox()
-        latency_layout.addWidget(self.latency_spinbox)
+        llspinbox.addWidget(self.latency_spinbox)
+        self.latency_difference = QtWidgets.QLabel('0.000')
+        llspinbox.addWidget(self.latency_difference)
+        latency_layout.addLayout(llspinbox)
         latencydevices_layout.addLayout(latency_layout)
         latencydevices_layout.addStretch()
 
@@ -354,19 +384,36 @@ class ManualPatchTestWidget(QtWidgets.QWidget):
         self.button_layout.addStretch(1)
 
         self.instructions = QtWidgets.QLabel('Update will adjust the data displayed in Points View.  Will not save the changes to disk.')
+        self.explanation = QtWidgets.QLabel('Adjust the sonar transmitter/receiver values below:')
 
         self.main_layout.addLayout(config_layout)
         self.main_layout.addStretch()
+        self.main_layout.addWidget(self.explanation)
         self.main_layout.addLayout(attdevices_layout)
         self.main_layout.addLayout(latencydevices_layout)
         self.main_layout.addStretch()
         self.main_layout.addWidget(self.instructions)
         self.main_layout.addLayout(self.button_layout)
 
+        self.original_roll = 0.0
+        self.original_pitch = 0.0
+        self.original_heading = 0.0
+        self.original_xlever = 0.0
+        self.original_ylever = 0.0
+        self.original_zlever = 0.0
+        self.original_latency = 0.0
+
         self.setLayout(self.main_layout)
         self.patchdatablock = None
 
         self.update_button.clicked.connect(self.update_data)
+        self.xlever_spinbox.valueChanged.connect(self.show_differences)
+        self.ylever_spinbox.valueChanged.connect(self.show_differences)
+        self.zlever_spinbox.valueChanged.connect(self.show_differences)
+        self.roll_spinbox.valueChanged.connect(self.show_differences)
+        self.pitch_spinbox.valueChanged.connect(self.show_differences)
+        self.heading_spinbox.valueChanged.connect(self.show_differences)
+        self.latency_spinbox.valueChanged.connect(self.show_differences)
 
     @property
     def roll(self):
@@ -396,6 +443,23 @@ class ManualPatchTestWidget(QtWidgets.QWidget):
     def z_lever(self):
         return self.zlever_spinbox.value()
 
+    def show_differences(self, diff):
+        diffs = [self.xlever_difference, self.ylever_difference, self.zlever_difference, self.roll_difference, self.pitch_difference, self.heading_difference, self.latency_difference]
+        origs = [self.original_xlever, self.original_ylever, self.original_zlever, self.original_roll, self.original_pitch, self.original_heading, self.original_latency]
+        spboxes = [self.xlever_spinbox, self.ylever_spinbox, self.zlever_spinbox, self.roll_spinbox, self.pitch_spinbox, self.heading_spinbox, self.latency_spinbox]
+        for dif, orig, spbox in zip(diffs, origs, spboxes):
+            newdif = spbox.value() - orig
+            dif.setText('{:.3f}'.format(newdif))
+            if round(newdif, 3) == 0:
+                dif.setStyleSheet("QLabel { color : black; }")
+                dif.setText('0.000')
+            elif newdif < 0:
+                dif.setStyleSheet("QLabel { " + kluster_variables.warning_color + "; }")
+            elif newdif > 0:
+                dif.setStyleSheet("QLabel { " + kluster_variables.pass_color + "; }")
+            else:
+                dif.setStyleSheet("QLabel { color : black; }")
+
     def populate(self, vesselfile: str, sources: str, model: str, serialnum: str, utcdate: str, utctimestamp: str,
                  roll: float, pitch: float, heading: float, xlever: float, ylever: float, zlever: float, latency: float):
         self.config_name.setText(str(vesselfile))
@@ -411,6 +475,15 @@ class ManualPatchTestWidget(QtWidgets.QWidget):
         self.ylever_spinbox.setValue(float(ylever))
         self.zlever_spinbox.setValue(float(zlever))
         self.latency_spinbox.setValue(float(latency))
+
+        self.original_roll = float(roll)
+        self.original_pitch = float(pitch)
+        self.original_heading = float(heading)
+        self.original_xlever = float(xlever)
+        self.original_ylever = float(ylever)
+        self.original_zlever = float(zlever)
+        self.original_latency = float(latency)
+        self.show_differences(None)
 
     def update_data(self):
         self.new_offsets_angles.emit(False)

@@ -25,9 +25,7 @@ from HSTB.kluster.gui import dialog_vesselview, kluster_explorer, kluster_projec
     dialog_about, dialog_setcolors, dialog_patchtest, dialog_manualpatchtest
 from HSTB.kluster.fqpr_project import FqprProject
 from HSTB.kluster.fqpr_intelligence import FqprIntel
-from HSTB.kluster.fqpr_convenience import reprocess_sounding_selection
-from HSTB.kluster.fqpr_vessel import convert_from_fqpr_xyzrph, convert_from_vessel_xyzrph, compare_dict_data, \
-    trim_xyzrprh_to_times, split_by_timestamp, VesselFile
+from HSTB.kluster.fqpr_vessel import convert_from_fqpr_xyzrph, convert_from_vessel_xyzrph, compare_dict_data
 from HSTB.kluster import __version__ as kluster_version
 from HSTB.kluster import __file__ as kluster_init_file
 from HSTB.shared import RegistryHelpers, path_to_supplementals
@@ -150,9 +148,10 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.draw_navigation_thread = kluster_worker.DrawNavigationWorker()
         self.draw_surface_thread = kluster_worker.DrawSurfaceWorker()
         self.load_points_thread = kluster_worker.LoadPointsWorker()
+        self.patch_test_load_thread = kluster_worker.PatchTestUpdateWorker()
         self.allthreads = [self.action_thread, self.import_ppnav_thread, self.overwrite_nav_thread, self.surface_thread,
                            self.surface_update_thread, self.export_thread, self.export_grid_thread, self.open_project_thread,
-                           self.draw_navigation_thread, self.draw_surface_thread, self.load_points_thread]
+                           self.draw_navigation_thread, self.draw_surface_thread, self.load_points_thread, self.patch_test_load_thread]
 
         # connect FqprActionContainer with actions pane, called whenever actions changes
         self.intel.bind_to_action_update(self.actions.update_actions)
@@ -211,6 +210,8 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.draw_surface_thread.finished.connect(self._kluster_draw_surface_results)
         self.load_points_thread.started.connect(self._start_action_progress)
         self.load_points_thread.finished.connect(self._kluster_load_points_results)
+        self.patch_test_load_thread.started.connect(self._start_action_progress)
+        self.patch_test_load_thread.finished.connect(self._kluster_update_manual_patch_test)
 
         self.monitor.monitor_file_event.connect(self.intel._handle_monitor_event)
         self.monitor.monitor_start.connect(self._create_new_project_if_not_exist)
@@ -987,6 +988,12 @@ class KlusterMain(QtWidgets.QMainWindow):
                 print('Patch Test: no data found in Points View')
 
     def _update_manual_patch_test(self):
+        """
+        Triggered on hitting update in the patch test widget.  Will run the patch_test_load_thread to reprocess the data
+        in the patch test subset (see load_points_thread.polygon for the boundary of this subset) and display the
+        new data in points view, replacing the old points.
+        """
+
         if self._manpatchtest.patchdatablock is not None:
             roll, pitch, heading = self._manpatchtest.roll, self._manpatchtest.pitch, self._manpatchtest.heading
             xlever, ylever, zlever = self._manpatchtest.x_lever, self._manpatchtest.y_lever, self._manpatchtest.z_lever
@@ -994,37 +1001,38 @@ class KlusterMain(QtWidgets.QMainWindow):
             latency = self._manpatchtest.latency
             prefixes = self._manpatchtest.patchdatablock[15]
             serial_num = str(self._manpatchtest.patchdatablock[3])
-            cur_azimuth = self.load_points_thread.azimuth
-            self.points_view.store_view_settings()
-            self.points_view.clear_display()
+            self.patch_test_load_thread.populate(fqprs, [roll, pitch, heading, xlever, ylever, zlever, latency],
+                                                 headindex, prefixes, tstamps, serial_num, self.load_points_thread.polygon)
+            self.patch_test_load_thread.start()
+        else:
+            print('Unable to load the data for updating the manual patch test')
 
-            for cnt, fq in enumerate(fqprs):
+    def _kluster_update_manual_patch_test(self):
+        """
+        Method is run when the patch test load thread completes.  We take the reprocessed soundings and replace the old
+        soundings in the points view with these new values
+        """
+
+        results = self.patch_test_load_thread.result
+        cur_azimuth = self.load_points_thread.azimuth
+        headindex = int(self._manpatchtest.patchdatablock[7])
+        self.points_view.store_view_settings()
+        self.points_view.clear_display()
+        if results and not self.patch_test_load_thread.error:
+            for cnt, (fq, rslt) in enumerate(zip(self.patch_test_load_thread.fqprs, results)):
+                head, x, y, z, tvu, rejected, pointtime, beam = rslt
                 newid = self._manpatchtest.patchdatablock[1][cnt]
-                fq.multibeam.xyzrph[prefixes[0]][tstamps[cnt]] = roll
-                fq.multibeam.xyzrph[prefixes[1]][tstamps[cnt]] = pitch
-                fq.multibeam.xyzrph[prefixes[2]][tstamps[cnt]] = heading
-                fq.multibeam.xyzrph[prefixes[3]][tstamps[cnt]] = xlever
-                fq.multibeam.xyzrph[prefixes[4]][tstamps[cnt]] = ylever
-                fq.multibeam.xyzrph[prefixes[5]][tstamps[cnt]] = zlever
-                fq.multibeam.xyzrph[prefixes[6]][tstamps[cnt]] = latency
-                fq, soundings = reprocess_sounding_selection(fq, georeference=True)
-                newx = np.concatenate([d[0][0].values for d in fq.intermediate_dat[serial_num]['georef'][tstamps[cnt]]], axis=0)
-                newy = np.concatenate([d[0][1].values for d in fq.intermediate_dat[serial_num]['georef'][tstamps[cnt]]], axis=0)
-                newz = np.concatenate([d[0][2].values for d in fq.intermediate_dat[serial_num]['georef'][tstamps[cnt]]], axis=0)
-                fq.multibeam.raw_ping[headindex]['x'] = xr.DataArray(newx, dims=('time', 'beam'))
-                fq.multibeam.raw_ping[headindex]['y'] = xr.DataArray(newy, dims=('time', 'beam'))
-                fq.multibeam.raw_ping[headindex]['z'] = xr.DataArray(newz, dims=('time', 'beam'))
-                fq.intermediate_dat = {}  # clear out the reprocessed cached data
-                head, x, y, z, tvu, rejected, pointtime, beam = fq.return_soundings_in_polygon(self.load_points_thread.polygon,
-                                                                                               geographic=True, isolate_head=headindex)
-                if x is not None:
-                    linenames = fq.return_lines_for_times(pointtime)
-                    self.points_view.remove_points(system_id=newid + '_' + str(headindex))
-                    self.points_view.add_points(head, x, y, z, tvu, rejected, pointtime, beam, newid, linenames, cur_azimuth)
+                linenames = fq.return_lines_for_times(pointtime)
+                self.points_view.remove_points(system_id=newid + '_' + str(headindex))
+                self.points_view.add_points(head, x, y, z, tvu, rejected, pointtime, beam, newid, linenames, cur_azimuth)
             self.points_view.display_points()
             self.points_view.load_view_settings()
+            self.points_view.patch_test_running = True
         else:
-            print('error')
+            print('Error reprocessing patch test subset')
+            print(self.patch_test_load_thread.exceptiontxt)
+        self.patch_test_load_thread.populate(None)
+        self._stop_action_progress()
 
     def kluster_auto_patch_test(self):
         """

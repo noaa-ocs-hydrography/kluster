@@ -1076,7 +1076,8 @@ class ThreeDView(QtWidgets.QWidget):
         elif color_by == 'rejected':
             min_val = 0
             max_val = 3
-            cmap = ListedColormap(['white', 'blue', 'red', 'cyan'])
+            cmap = ListedColormap([kluster_variables.amplitude_color, kluster_variables.phase_color,
+                                   kluster_variables.reject_color, kluster_variables.reaccept_color])
             clrs = cmap(self.rejected / 3)
         elif color_by in ['system', 'linename']:
             min_val = 0
@@ -1847,9 +1848,12 @@ class ThreeDWidget(QtWidgets.QWidget):
         """
         After any substantial change to the point data or scale, we clear and redraw the points
         """
+
+        self.store_view_settings()
         self.clear_display()
         if self.three_d_window.x.any():
             self.display_points()
+        self.load_view_settings()
 
     def store_view_settings(self):
         self._cached_view_settings = [self.dimension.currentText(), self.three_d_window.view.camera.get_state()]
@@ -1857,10 +1861,10 @@ class ThreeDWidget(QtWidgets.QWidget):
     def load_view_settings(self):
         if self._cached_view_settings is not None:
             dimname, camstate = self._cached_view_settings
-            if dimname != self.dimension.currentText():
-                print('Points View: Unable to load from cached camera settings, old state {} != new state {}'.format(dimname, self.dimension.currentText()))
-            else:
+            try:
                 self.three_d_window.view.camera.set_state(camstate)
+            except:
+                pass
         else:
             print('Points View: Unable to load state, no saved state')
 
