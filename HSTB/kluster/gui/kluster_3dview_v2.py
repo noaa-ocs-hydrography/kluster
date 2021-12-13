@@ -888,24 +888,6 @@ class ThreeDView(QtWidgets.QWidget):
         self.beam = np.delete(self.beam, slice(idrange[0], idrange[1]))
         self.linename = np.delete(self.linename, slice(idrange[0], idrange[1]))
 
-    def replace_xyz(self, x: np.array, y: np.array, z: np.array):
-        if x.size != self.x.size or y.size != self.y.size or z.size != self.z.size:
-            raise ValueError('Points View - Given new xyz values that are not the same size as the existing, {} vs {}'.format(x.size, self.x.size))
-        if self.azimuth:
-            cos_az = np.cos(self.azimuth)
-            sin_az = np.sin(self.azimuth)
-
-            rotx = cos_az * x - sin_az * y
-            roty = sin_az * x + cos_az * y
-            self.rotx = rotx
-            self.roty = roty
-        else:
-            self.rotx = x
-            self.roty = y
-        self.x = x
-        self.y = y
-        self.z = z
-
     def return_points(self):
         """
         Return all the data in the 3dview
@@ -1434,9 +1416,9 @@ class ThreeDWidget(QtWidgets.QWidget):
 
         self.viewlayout = QtWidgets.QHBoxLayout()
         self.viewlayout.addWidget(self.three_d_window)
-        # self.viewlayout.addWidget(self.colorbar)
+        self.viewlayout.addWidget(self.colorbar)
         self.viewlayout.setStretchFactor(self.three_d_window, 6)
-        # self.viewlayout.setStretchFactor(self.colorbar, 1)
+        self.viewlayout.setStretchFactor(self.colorbar, 1)
 
         self.mainlayout.addLayout(self.opts_layout)
         self.mainlayout.addLayout(self.second_opts_layout)
@@ -1472,6 +1454,7 @@ class ThreeDWidget(QtWidgets.QWidget):
         self.patch_button.clicked.connect(self._event_patch_test)
 
         self.is_3d = None
+        self.patch_test_running = False
         self.last_change_buffer = []
         self.text_controls = [['dimension', self.dimension], ['colorby', self.colorby],
                               ['viewdirection2d', self.viewdirection2d],
@@ -1566,30 +1549,26 @@ class ThreeDWidget(QtWidgets.QWidget):
             self.colorbar.hide()
 
     def _event_patch_test(self, e):
+        self.patch_test_running = True
         self.patch_test_sig.emit(True)
+
+    def _init_pointsview(self):
+        self.patch_test_running = False
+        self.last_change_buffer = []
+        self.three_d_window.selected_points = None
+        self.three_d_window.superselected_index = None
 
     def add_points(self, head: np.array, x: np.array, y: np.array, z: np.array, tvu: np.array, rejected: np.array, pointtime: np.array,
                    beam: np.array, newid: str, linename: np.array, azimuth: float = None):
         """
         Adding new points will update the three d window with the boints and set the controls to show/hide
         """
-
-        self.last_change_buffer = []
-        self.three_d_window.selected_points = None
-        self.three_d_window.superselected_index = None
+        self._init_pointsview()
         self.three_d_window.add_points(head, x, y, z, tvu, rejected, pointtime, beam, newid, linename, azimuth=azimuth)
 
     def remove_points(self, system_id: str = None):
-        self.last_change_buffer = []
-        self.three_d_window.selected_points = None
-        self.three_d_window.superselected_index = None
+        self._init_pointsview()
         self.three_d_window.remove_points(system_id=system_id)
-
-    def replace_xyz(self, x, y, z):
-        self.last_change_buffer = []
-        self.three_d_window.selected_points = None
-        self.three_d_window.superselected_index = None
-        self.three_d_window.replace_xyz(x, y, z)
 
     def return_points(self):
         return self.three_d_window.return_points()
@@ -1662,16 +1641,19 @@ class ThreeDWidget(QtWidgets.QWidget):
         Triggers when the user ALT+Mouse1 selects data in the 3dview.  We set the selected points and let the widget know to reject these points.
         """
 
-        points_in_screen = self._handle_point_selection(startpos, endpos, three_d)
-        self.three_d_window.selected_points = points_in_screen
-        self.last_change_buffer.append([self.three_d_window.selected_points, self.three_d_window.rejected[self.three_d_window.selected_points]])
-        self.three_d_window.rejected[self.three_d_window.selected_points] = kluster_variables.rejected_flag
-        self.points_cleaned.emit(kluster_variables.rejected_flag)
-        self.three_d_window.highlight_selected_scatter(self.colorby.currentText(), False)
+        if not self.patch_test_running:
+            points_in_screen = self._handle_point_selection(startpos, endpos, three_d)
+            self.three_d_window.selected_points = points_in_screen
+            self.last_change_buffer.append([self.three_d_window.selected_points, self.three_d_window.rejected[self.three_d_window.selected_points]])
+            self.three_d_window.rejected[self.three_d_window.selected_points] = kluster_variables.rejected_flag
+            self.points_cleaned.emit(kluster_variables.rejected_flag)
+            self.three_d_window.highlight_selected_scatter(self.colorby.currentText(), False)
 
-        if len(self.last_change_buffer) > kluster_variables.last_change_buffer_size:
-            print('WARNING: Points view will only retain the last {} cleaning actions for undo'.format(kluster_variables.last_change_buffer_size))
-            self.last_change_buffer.pop(0)
+            if len(self.last_change_buffer) > kluster_variables.last_change_buffer_size:
+                print('WARNING: Points view will only retain the last {} cleaning actions for undo'.format(kluster_variables.last_change_buffer_size))
+                self.last_change_buffer.pop(0)
+        else:
+            print('Point cloud cleaning disabled while patch test is running')
 
     def accept_points(self, startpos, endpos, three_d: bool = False):
         """

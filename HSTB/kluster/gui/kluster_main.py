@@ -1976,19 +1976,22 @@ class KlusterMain(QtWidgets.QMainWindow):
             new integer flag for detection info status, 2 = Rejected
         """
 
-        selected_points = self.points_view.return_select_index()
-        if isinstance(new_status, np.ndarray):
-            new_status = self.points_view.split_by_selected(new_status)
-        for fqpr_name in selected_points:
-            fqpr = self.project.fqpr_instances[fqpr_name]
-            sel_points_idx = selected_points[fqpr_name]
-            if isinstance(new_status, dict):
-                fqpr.set_variable_by_filter('detectioninfo', new_status[fqpr_name], sel_points_idx)
-            else:
-                fqpr.set_variable_by_filter('detectioninfo', new_status, sel_points_idx)
-            fqpr.write_attribute_to_ping_records({'_soundings_last_cleaned': datetime.utcnow().strftime('%c')})
-            self.project.refresh_fqpr_attribution(fqpr_name, relative_path=True)
-        self.points_view.clear_selection()
+        if not self.points_view.patch_test_running:
+            selected_points = self.points_view.return_select_index()
+            if isinstance(new_status, np.ndarray):
+                new_status = self.points_view.split_by_selected(new_status)
+            for fqpr_name in selected_points:
+                fqpr = self.project.fqpr_instances[fqpr_name]
+                sel_points_idx = selected_points[fqpr_name]
+                if isinstance(new_status, dict):
+                    fqpr.set_variable_by_filter('detectioninfo', new_status[fqpr_name], sel_points_idx)
+                else:
+                    fqpr.set_variable_by_filter('detectioninfo', new_status, sel_points_idx)
+                fqpr.write_attribute_to_ping_records({'_soundings_last_cleaned': datetime.utcnow().strftime('%c')})
+                self.project.refresh_fqpr_attribution(fqpr_name, relative_path=True)
+            self.points_view.clear_selection()
+        else:
+            print('Cleaning disabled while patch test is running')
 
     def dock_this_widget(self, title, objname, widget):
         """
