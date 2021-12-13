@@ -1911,6 +1911,7 @@ class KlusterMain(QtWidgets.QMainWindow):
 
         pointcount = 0
         if not self.load_points_thread.error:
+            self._manpatchtest = None
             points_data = self.load_points_thread.points_data
             azimuth = self.load_points_thread.azimuth
             for fqpr_name, pointdata in points_data.items():
