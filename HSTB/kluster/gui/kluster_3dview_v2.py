@@ -1413,8 +1413,10 @@ class ThreeDWidget(QtWidgets.QWidget):
 
         self.second_opts_layout = QtWidgets.QHBoxLayout()
         self.hide_lines_btn = QtWidgets.QPushButton('Show Lines')
+        self.hide_lines_btn.setToolTip('Select the lines you want to show in Points View.')
         self.second_opts_layout.addWidget(self.hide_lines_btn)
         self.patch_button = QtWidgets.QPushButton('Patch Test')
+        self.patch_button.setToolTip('Run the Patch Test on the data currently in Points View.')
         self.second_opts_layout.addWidget(self.patch_button)
         self.second_opts_layout.addStretch()
 
