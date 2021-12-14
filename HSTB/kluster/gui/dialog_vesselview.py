@@ -2341,9 +2341,10 @@ class VesselWidget(QtWidgets.QWidget):
         """
 
         if self.opts_window.config_name.text() == 'None':  # this data loaded was not from a config file, so we can update or save a new file
-            save_first = AcceptDialog('Do you want to create a new vessel file or update the multibeam data offsets?\n' +
-                                      '(update only works when this data was loaded from the main Kluster display)\n\n' +
-                                      'Yes = create new vessel file, No = update multibeam data, Cancel = neither')
+            save_first = AcceptDialog('Do you want to create a new vessel file or update the multibeam data offsets?\n\n' +
+                                      '(update only works when this data was loaded from the main Kluster display)')
+            save_first.button(QtWidgets.QMessageBox.Yes).setText('Create')
+            save_first.button(QtWidgets.QMessageBox.No).setText('Update')
             save_state = save_first.run()
             if save_state == 'yes':
                 self.save_to_config_file()
