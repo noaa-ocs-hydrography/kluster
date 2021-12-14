@@ -127,13 +127,13 @@ class PatchTest:
         self.xyzrph_timestamp = list(initial_parameters['roll_sensor_error'].keys())[0]
         self.initial_parameters = {'roll': float(initial_parameters['rx_' + self.xyzrph_key + 'r'][self.xyzrph_timestamp]),
                                    'roll_unc': float(initial_parameters['roll_sensor_error'][self.xyzrph_timestamp]),
-                                   'pitch': float(initial_parameters['rx_' + self.xyzrph_key + 'p'][self.xyzrph_timestamp]),
+                                   'pitch': float(initial_parameters['tx_' + self.xyzrph_key + 'p'][self.xyzrph_timestamp]),
                                    'pitch_unc': float(initial_parameters['pitch_sensor_error'][self.xyzrph_timestamp]),
                                    'heading': float(initial_parameters['rx_' + self.xyzrph_key + 'h'][self.xyzrph_timestamp]),
                                    'heading_unc': float(initial_parameters['heading_sensor_error'][self.xyzrph_timestamp]),
-                                   'x_offset': float(initial_parameters['rx_' + self.xyzrph_key + 'x'][self.xyzrph_timestamp]),
+                                   'x_offset': float(initial_parameters['tx_' + self.xyzrph_key + 'x'][self.xyzrph_timestamp]),
                                    'x_unc': float(initial_parameters['x_offset_error'][self.xyzrph_timestamp]),
-                                   'y_offset': float(initial_parameters['rx_' + self.xyzrph_key + 'y'][self.xyzrph_timestamp]),
+                                   'y_offset': float(initial_parameters['tx_' + self.xyzrph_key + 'y'][self.xyzrph_timestamp]),
                                    'y_unc': float(initial_parameters['y_offset_error'][self.xyzrph_timestamp]),
                                    'hscale_factor': 0.0,
                                    'hscale_unc': 0.01}
@@ -220,16 +220,15 @@ class PatchTest:
         tstmp = list(self.fqpr.multibeam.xyzrph['roll_sensor_error'].keys())[0]
         self.fqpr.multibeam.xyzrph['rx_' + self.xyzrph_key + 'r'][tstmp] += roll
         self.current_parameters['roll'] += roll
-        self.fqpr.multibeam.xyzrph['rx_' + self.xyzrph_key + 'p'][tstmp] += pitch
+        self.fqpr.multibeam.xyzrph['tx_' + self.xyzrph_key + 'p'][tstmp] += pitch
         self.current_parameters['pitch'] += pitch
         self.fqpr.multibeam.xyzrph['rx_' + self.xyzrph_key + 'h'][tstmp] += heading
         self.current_parameters['heading'] += heading
 
-        print('WARNING - xoffset yoffset application are disabled for testing')
-        # self.fqpr.multibeam.xyzrph['rx_' + self.xyzrph_key + 'x'][tstmp] += x_offset
-        # self.current_parameters['x_offset'] += x_offset
-        # self.fqpr.multibeam.xyzrph['rx_' + self.xyzrph_key + 'y'][tstmp] += y_offset
-        # self.current_parameters['y_offset'] += y_offset
+        self.fqpr.multibeam.xyzrph['tx_' + self.xyzrph_key + 'x'][tstmp] += x_offset
+        self.current_parameters['x_offset'] += x_offset
+        self.fqpr.multibeam.xyzrph['tx_' + self.xyzrph_key + 'y'][tstmp] += y_offset
+        self.current_parameters['y_offset'] += y_offset
 
         self.current_parameters['hscale_factor'] += hscale_factor
 
@@ -239,10 +238,10 @@ class PatchTest:
                                         self.current_parameters['heading'], self.current_parameters['x_offset'],
                                         self.current_parameters['y_offset'], self.current_parameters['hscale_factor']])
         print('reprocessing with: roll={}, pitch={}, heading={}, x_translation={}, y_translation={}'.format(self.fqpr.multibeam.xyzrph['rx_' + self.xyzrph_key + 'r'][tstmp],
-                                                                                                            self.fqpr.multibeam.xyzrph['rx_' + self.xyzrph_key + 'p'][tstmp],
+                                                                                                            self.fqpr.multibeam.xyzrph['tx_' + self.xyzrph_key + 'p'][tstmp],
                                                                                                             self.fqpr.multibeam.xyzrph['rx_' + self.xyzrph_key + 'h'][tstmp],
-                                                                                                            self.fqpr.multibeam.xyzrph['rx_' + self.xyzrph_key + 'x'][tstmp],
-                                                                                                            self.fqpr.multibeam.xyzrph['rx_' + self.xyzrph_key + 'y'][tstmp]))
+                                                                                                            self.fqpr.multibeam.xyzrph['tx_' + self.xyzrph_key + 'x'][tstmp],
+                                                                                                            self.fqpr.multibeam.xyzrph['tx_' + self.xyzrph_key + 'y'][tstmp]))
 
     def _build_initial_points(self):
         """
@@ -365,14 +364,14 @@ class PatchTest:
         print('Rotating points by {} degrees...'.format(ang))
         if self.points is not None:
             # normalize the y axis
-            # self.points['y'] = self.points['y'] - self.points['y'].min()
+            self.points['y'] = self.points['y'] - self.points['y'].min()
 
             # normalize the x axis
-            # self.points['x'] = self.points['x'] - self.points['x'].min()
+            self.points['x'] = self.points['x'] - self.points['x'].min()
 
             # calculate center of rotation, use the origin of the points
-            self.min_x = self.points['x'].min()
-            self.min_y = self.points['y'].min()
+            self.min_x = 0
+            self.min_y = 0
             origin_x = self.points['x'] - self.min_x
             origin_y = self.points['y'] - self.min_y
 
@@ -450,10 +449,10 @@ class PatchTest:
                 l_one_matrix = np.column_stack([lineone_valid, linetwo_valid])
                 # p_one can contain 1/grid node uncertainty in the future, currently we leave it out
                 # p_one_matrix = np.identity(self.a_matrix.shape[0])
-                p_two_matrix = np.identity(6) * [1, 1, 1, 100000, 100000, 1]
-                # p_two_matrix = np.identity(6) * [1 / self.initial_parameters['roll_unc'] ** 2, 1 / self.initial_parameters['pitch_unc'] ** 2,
-                #                                1 / self.initial_parameters['heading_unc'] ** 2, 1 / self.initial_parameters['x_unc'],
-                #                                1 / self.initial_parameters['y_unc'] ** 2, 1 / self.initial_parameters['hscale_unc']]
+                # p_two_matrix = np.identity(6) * [1, 1, 1, 100000, 100000, 1]
+                p_two_matrix = np.identity(6) * [1 / self.initial_parameters['roll_unc'] ** 2, 1 / self.initial_parameters['pitch_unc'] ** 2,
+                                                 1 / self.initial_parameters['heading_unc'] ** 2, 1 / self.initial_parameters['x_unc'],
+                                                 1 / self.initial_parameters['y_unc'] ** 2, 1 / self.initial_parameters['hscale_unc']]
                 # print('weighted by {}'.format([1 / self.initial_parameters['roll_unc'] ** 2, 1 / self.initial_parameters['pitch_unc'] ** 2,
                 #                                1 / self.initial_parameters['heading_unc'] ** 2, 1 / self.initial_parameters['x_unc'],
                 #                                1 / self.initial_parameters['y_unc'] ** 2, 1 / self.initial_parameters['hscale_unc']]))
