@@ -1017,6 +1017,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         cur_azimuth = self.load_points_thread.azimuth
         headindex = int(self._manpatchtest.patchdatablock[7])
         self.points_view.store_view_settings()
+        hl = self.points_view.three_d_window.hide_lines
         self.points_view.clear_display()
         if results and not self.patch_test_load_thread.error:
             for cnt, (fq, rslt) in enumerate(zip(self.patch_test_load_thread.fqprs, results)):
@@ -1025,6 +1026,7 @@ class KlusterMain(QtWidgets.QMainWindow):
                 linenames = fq.return_lines_for_times(pointtime)
                 self.points_view.remove_points(system_id=newid + '_' + str(headindex))
                 self.points_view.add_points(head, x, y, z, tvu, rejected, pointtime, beam, newid, linenames, cur_azimuth)
+            self.points_view.three_d_window.hide_lines = hl
             self.points_view.display_points()
             self.points_view.load_view_settings()
             self.points_view.patch_test_running = True

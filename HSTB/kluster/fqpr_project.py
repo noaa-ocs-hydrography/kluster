@@ -1332,6 +1332,7 @@ def reprocess_fqprs(fqprs: list, newvalues: list, headindex: int, prefixes: list
         fq.multibeam.xyzrph[prefixes[4]][timestamps[cnt]] = ylever
         fq.multibeam.xyzrph[prefixes[5]][timestamps[cnt]] = zlever
         fq.multibeam.xyzrph[prefixes[6]][timestamps[cnt]] = latency
+        fq.intermediate_dat = {}  # clear out the reprocessed cached data
         fq, soundings = reprocess_sounding_selection(fq, georeference=True)
         newx = np.concatenate([d[0][0].values for d in fq.intermediate_dat[serial_number]['georef'][timestamps[cnt]]], axis=0)
         newy = np.concatenate([d[0][1].values for d in fq.intermediate_dat[serial_number]['georef'][timestamps[cnt]]], axis=0)

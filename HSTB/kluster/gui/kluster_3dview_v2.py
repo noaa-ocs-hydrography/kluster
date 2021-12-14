@@ -692,6 +692,7 @@ class ThreeDView(QtWidgets.QWidget):
         self.view_direction = 'north'
         self.show_axis = True
         self.show_rejected = True
+        self.hide_lines = []
 
         self.displayed_points = None
         self.selected_points = None
@@ -1105,10 +1106,7 @@ class ThreeDView(QtWidgets.QWidget):
                 msk[self.selected_points[self.superselected_index]] = True
                 clrs[msk, :] = kluster_variables.super_selected_point_color
 
-        if not self.show_rejected:
-            msk = self.rejected != kluster_variables.rejected_flag
-        else:
-            msk = np.ones_like(self.rejected, dtype=bool)
+        msk = self._build_display_mask()
         clrs = clrs[msk]
 
         return clrs, cmap, min_val, max_val
@@ -1125,10 +1123,7 @@ class ThreeDView(QtWidgets.QWidget):
             (N,4) array, where N is the number of points and the values are the RGBA values for each point
         """
 
-        if not self.show_rejected:
-            msk = self.rejected != kluster_variables.rejected_flag
-        else:
-            msk = np.ones_like(self.rejected, dtype=bool)
+        msk = self._build_display_mask()
         if self.is_3d:
             self.scatter.set_data(self.displayed_points[msk], edge_color=clrs, face_color=clrs, symbol='o', size=3)
             if self.view.camera.fresh_camera:
@@ -1190,6 +1185,16 @@ class ThreeDView(QtWidgets.QWidget):
 
         self.unique_systems = np.unique(self.id).tolist()
         self.unique_linenames = np.unique(self.linename).tolist()
+
+    def _build_display_mask(self):
+        if not self.show_rejected:
+            msk = self.rejected != kluster_variables.rejected_flag
+        else:
+            msk = np.ones_like(self.rejected, dtype=bool)
+        if self.hide_lines:
+            linemsk = ~np.isin(self.linename, self.hide_lines)
+            msk = np.logical_and(msk, linemsk)
+        return msk
 
     def display_points(self, color_by: str = 'depth', vertical_exaggeration: float = 1.0, view_direction: str = 'north',
                        show_axis: bool = True, show_rejected: bool = True):
@@ -1277,10 +1282,7 @@ class ThreeDView(QtWidgets.QWidget):
 
         clrs, cmap, minval, maxval = self._build_color_by_soundings(color_by, color_selected)
         if self.scatter is not None:
-            if not self.show_rejected:
-                msk = self.rejected != kluster_variables.rejected_flag
-            else:
-                msk = np.ones_like(self.rejected, dtype=bool)
+            msk = self._build_display_mask()
             if self.is_3d:
                 self.scatter.set_data(self.displayed_points[msk], edge_color=clrs, face_color=clrs, symbol='o', size=3)
             else:
@@ -1322,6 +1324,7 @@ class ThreeDView(QtWidgets.QWidget):
 
         self.idrange = {}
         self.idlookup = {}
+        self.hide_lines = []
 
         if self.axis_x is not None:
             self.axis_x.parent = None
@@ -1409,6 +1412,8 @@ class ThreeDWidget(QtWidgets.QWidget):
         self.opts_layout.addStretch()
 
         self.second_opts_layout = QtWidgets.QHBoxLayout()
+        self.hide_lines_btn = QtWidgets.QPushButton('Show Lines')
+        self.second_opts_layout.addWidget(self.hide_lines_btn)
         self.patch_button = QtWidgets.QPushButton('Patch Test')
         self.second_opts_layout.addWidget(self.patch_button)
         self.second_opts_layout.addStretch()
@@ -1453,6 +1458,7 @@ class ThreeDWidget(QtWidgets.QWidget):
         self.show_colorbar.stateChanged.connect(self._event_show_colorbar)
         self.show_rejected.stateChanged.connect(self.refresh_settings)
         self.patch_button.clicked.connect(self._event_patch_test)
+        self.hide_lines_btn.clicked.connect(self._event_hide_lines)
 
         self.is_3d = None
         self.patch_test_running = False
@@ -1553,9 +1559,22 @@ class ThreeDWidget(QtWidgets.QWidget):
         self.patch_test_running = True
         self.patch_test_sig.emit(True)
 
+    def _event_hide_lines(self):
+        dlog = HideLinesDialog()
+        dlog.initial_hide_lines = self.three_d_window.hide_lines
+        dlog.add_lines(self.three_d_window.unique_linenames)
+        if dlog.exec_():
+            if dlog.canceled:
+                pass
+            else:
+                hidelines = dlog.notselected_rows
+                self.three_d_window.hide_lines = hidelines
+                self.refresh_settings(None)
+
     def _init_pointsview(self):
         self.patch_test_running = False
         self.last_change_buffer = []
+        self.three_d_window.hide_lines = []
         self.three_d_window.selected_points = None
         self.three_d_window.superselected_index = None
 
@@ -1575,6 +1594,9 @@ class ThreeDWidget(QtWidgets.QWidget):
         return self.three_d_window.return_points()
 
     def _handle_point_selection(self, startpos, endpos, three_d: bool = False):
+        linemsk = None
+        if self.three_d_window.hide_lines:
+            linemsk = np.isin(self.three_d_window.linename, self.three_d_window.hide_lines)
         if three_d:
             # color the points by a unique rgba value, render with the new color and pull the id of the point by its color
             #  this is a workaround for the 3d camera transforms not working.  See https://github.com/vispy/vispy/issues/1336
@@ -1599,7 +1621,6 @@ class ThreeDWidget(QtWidgets.QWidget):
                     points_in_screen[idx] = True
             self.three_d_window.scatter.update_gl_state(blend=True)
             self.three_d_window.scatter.antialias = 1
-            points_in_screen = np.argwhere(points_in_screen)[:, 0]
         else:
             vd = self.viewdirection2d.currentText()
             if vd in ['north']:
@@ -1610,7 +1631,10 @@ class ThreeDWidget(QtWidgets.QWidget):
                 m2 = self.three_d_window.displayed_points[:, [1, 2]] <= endpos[0:2]
             else:
                 raise NotImplementedError('View direction not one of north, east, arrow: {}'.format(vd))
-            points_in_screen = np.argwhere(m1[:, 0] & m1[:, 1] & m2[:, 0] & m2[:, 1])[:, 0]
+            points_in_screen = m1[:, 0] & m1[:, 1] & m2[:, 0] & m2[:, 1]
+        if linemsk is not None:
+            points_in_screen[linemsk] = False
+        points_in_screen = np.argwhere(points_in_screen)[:, 0]
         return points_in_screen
 
     def select_points(self, startpos, endpos, three_d: bool = False):
@@ -1875,6 +1899,140 @@ class ThreeDWidget(QtWidgets.QWidget):
         self.three_d_window.clear()
 
 
+class HideLinesDialog(QtWidgets.QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+
+        self.setWindowTitle('Show Lines')
+        self.setMinimumWidth(400)
+        self.setMinimumHeight(400)
+
+        self.main_layout = QtWidgets.QVBoxLayout()
+
+        self.instructions_layout = QtWidgets.QVBoxLayout()
+        self.instructions = QtWidgets.QLabel('Select the Lines you want to show.')
+        self.instructions_layout.addWidget(self.instructions)
+        self.main_layout.addLayout(self.instructions_layout)
+
+        self.helperbutton_layout = QtWidgets.QHBoxLayout()
+        self.checkall_button = QtWidgets.QPushButton('Check All', self)
+        self.helperbutton_layout.addWidget(self.checkall_button)
+        self.uncheckall_button = QtWidgets.QPushButton('Uncheck All', self)
+        self.helperbutton_layout.addWidget(self.uncheckall_button)
+        self.helperbutton_layout.addStretch()
+        self.main_layout.addLayout(self.helperbutton_layout)
+
+        self.line_list = LineList(self)
+        self.main_layout.addWidget(self.line_list)
+
+        self.hlayout_msg = QtWidgets.QHBoxLayout()
+        self.warning_message = QtWidgets.QLabel('', self)
+        self.warning_message.setStyleSheet("{};".format(kluster_variables.error_color))
+        self.hlayout_msg.addWidget(self.warning_message)
+        self.main_layout.addLayout(self.hlayout_msg)
+
+        self.button_layout = QtWidgets.QHBoxLayout()
+        self.button_layout.addStretch(1)
+        self.ok_button = QtWidgets.QPushButton('Load', self)
+        self.button_layout.addWidget(self.ok_button)
+        self.button_layout.addStretch(1)
+        self.cancel_button = QtWidgets.QPushButton('Cancel', self)
+        self.button_layout.addWidget(self.cancel_button)
+        self.button_layout.addStretch(1)
+        self.main_layout.addLayout(self.button_layout)
+
+        self.setLayout(self.main_layout)
+        self.canceled = False
+        self.initial_hide_lines = []
+        self.notselected_rows = []
+
+        self.ok_button.clicked.connect(self.return_hidden)
+        self.cancel_button.clicked.connect(self.cancel_hide)
+        self.checkall_button.clicked.connect(self.checkall)
+        self.uncheckall_button.clicked.connect(self.uncheckall)
+
+    def err_message(self, text: str = ''):
+        if text:
+            self.warning_message.setText('ERROR: ' + text)
+        else:
+            self.warning_message.setText('')
+
+    def add_lines(self, lines: list):
+        self.line_list.add_lines(lines, self.initial_hide_lines)
+
+    def return_hidden(self):
+        self.canceled = False
+        notselected_rows, err, msg = self._get_selected_data()
+        if err:
+            self.err_message(msg)
+            self.notselected_rows = []
+        else:
+            self.notselected_rows = notselected_rows
+            self.accept()
+
+    def _get_selected_data(self):
+        notselected_rows = []
+        for row in range(self.line_list.rowCount()):
+            notchkd = not self.line_list.cellWidget(row, 0).isChecked()
+            if notchkd:
+                notselected_rows.append(self.line_list.item(row, 1).text())
+        err = False
+        msg = ''
+        if len(notselected_rows) == self.line_list.rowCount():
+            msg = 'Must show at least one line!'
+        if msg:
+            err = True
+        return notselected_rows, err, msg
+
+    def checkall(self):
+        for row in range(self.line_list.rowCount()):
+            self.line_list.cellWidget(row, 0).setChecked(True)
+
+    def uncheckall(self):
+        for row in range(self.line_list.rowCount()):
+            self.line_list.cellWidget(row, 0).setChecked(False)
+
+    def cancel_hide(self):
+        self.canceled = True
+        self.accept()
+
+
+class LineList(QtWidgets.QTableWidget):
+    def __init__(self, parent):
+        super().__init__(parent)
+
+        # makes it so no editing is possible with the table
+        self.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)
+
+        self.headr = ['', 'Line']
+        self.setColumnCount(2)
+        self.setHorizontalHeaderLabels(self.headr)
+        self.setColumnWidth(0, 20)
+        self.setColumnWidth(1, 320)
+        self.row_full_attribution = []
+
+    def setup_table(self):
+        self.clearContents()
+        self.setRowCount(0)
+        self.row_full_attribution = []
+
+    def add_lines(self, line_data: list, initial_hide_lines: list):
+        if line_data:
+            for line in line_data:
+                next_row = self.rowCount()
+                self.insertRow(next_row)
+                self.row_full_attribution.append(line)
+                for column_index, _ in enumerate(self.headr):
+                    if column_index == 0:
+                        item = QtWidgets.QCheckBox()
+                        if str(line) not in initial_hide_lines:
+                            item.setChecked(True)
+                        self.setCellWidget(next_row, column_index, item)
+                    else:
+                        item = QtWidgets.QTableWidgetItem(str(line))
+                        self.setItem(next_row, column_index, item)
+
+
 def normalized_arr_to_rgb_v2(z_array_normalized: np.array, reverse: bool = False, colormap: str = 'rainbow',
                              band_count: int = 50):
     """
@@ -1923,6 +2081,8 @@ if __name__ == '__main__':
     pointtime = np.arange(data.shape[0])
     beam = np.random.randint(0, 399, size=data.shape[0])
     linename = np.full(data.shape[0], '')
+    linename[:5000] = 'a'
+    linename[5000:] = 'b'
     head = np.full(data.shape[0], 0)
     newid = 'test'
     win.add_points(head, data[:, 0], data[:, 1], data[:, 2], tvu, rejected, pointtime, beam, newid, linename)

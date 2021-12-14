@@ -9,7 +9,7 @@ class PrePatchDialog(QtWidgets.QDialog):
         super().__init__(parent)
 
         self.setWindowTitle('Patch Test')
-        self.setMinimumWidth(950)
+        self.setMinimumWidth(1040)
         self.setMinimumHeight(200)
 
         self.main_layout = QtWidgets.QVBoxLayout()
@@ -88,7 +88,7 @@ class PrePatchDialog(QtWidgets.QDialog):
                     xlever = xyzrec['tx_port_x'][tstmp]
                     ylever = xyzrec['tx_port_y'][tstmp]
                     zlever = xyzrec['tx_port_z'][tstmp]
-                    self.prefixes.append(['rx_port_r', 'rx_port_p', 'rx_port_h', 'tx_port_x', 'tx_port_y', 'tx_port_z', 'latency'])
+                    self.prefixes.append(['rx_port_r', 'tx_port_p', 'rx_port_h', 'tx_port_x', 'tx_port_y', 'tx_port_z', 'latency'])
                 elif int(head) == 1:
                     head_fmt = 'STARBOARD'
                     roll = xyzrec['rx_stbd_r'][tstmp]
@@ -97,7 +97,7 @@ class PrePatchDialog(QtWidgets.QDialog):
                     xlever = xyzrec['tx_stbd_x'][tstmp]
                     ylever = xyzrec['tx_stbd_y'][tstmp]
                     zlever = xyzrec['tx_stbd_z'][tstmp]
-                    self.prefixes.append(['rx_stbd_r', 'rx_stbd_p', 'rx_stbd_h', 'tx_stbd_x', 'tx_stbd_y', 'tx_stbd_z', 'latency'])
+                    self.prefixes.append(['rx_stbd_r', 'tx_stbd_p', 'rx_stbd_h', 'tx_stbd_x', 'tx_stbd_y', 'tx_stbd_z', 'latency'])
                 else:
                     raise NotImplementedError(
                         'Only head indices 0 and 1 supported, we expect max 2 heads, got: {}'.format(head))
@@ -108,7 +108,7 @@ class PrePatchDialog(QtWidgets.QDialog):
                 xlever = xyzrec['tx_x'][tstmp]
                 ylever = xyzrec['tx_y'][tstmp]
                 zlever = xyzrec['tx_z'][tstmp]
-                self.prefixes.append(['rx_r', 'rx_p', 'rx_h', 'tx_x', 'tx_y', 'tx_z', 'latency'])
+                self.prefixes.append(['rx_r', 'tx_p', 'rx_h', 'tx_x', 'tx_y', 'tx_z', 'latency'])
                 head_fmt = 'N/A'
             latency = xyzrec['latency'][tstmp]
             self.timestamps.append(tstmp)
@@ -218,7 +218,7 @@ class XyzrphList(QtWidgets.QTableWidget):
         # makes it so no editing is possible with the table
         self.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)
 
-        self.headr = ['', 'Container', r'S/N', 'Record Time', 'Record Time UTC', 'Head', 'Roll', 'Pitch', 'Heading', 'X Lever', 'Y Lever', 'Z Lever', 'Latency']
+        self.headr = ['', 'Container', r'S/N', 'Record Time', 'Record Time UTC', 'Head', 'RX Roll', 'TX Pitch', 'RX Heading', 'TX X Lever', 'TX Y Lever', 'TX Z Lever', 'Latency']
         self.setColumnCount(13)
         self.setHorizontalHeaderLabels(self.headr)
         self.setColumnWidth(0, 20)
@@ -227,12 +227,12 @@ class XyzrphList(QtWidgets.QTableWidget):
         self.setColumnWidth(3, 110)
         self.setColumnWidth(4, 110)
         self.setColumnWidth(5, 50)
-        self.setColumnWidth(6, 50)
-        self.setColumnWidth(7, 50)
-        self.setColumnWidth(8, 70)
-        self.setColumnWidth(9, 50)
-        self.setColumnWidth(10, 50)
-        self.setColumnWidth(11, 50)
+        self.setColumnWidth(6, 55)
+        self.setColumnWidth(7, 60)
+        self.setColumnWidth(8, 80)
+        self.setColumnWidth(9, 75)
+        self.setColumnWidth(10, 75)
+        self.setColumnWidth(11, 75)
         self.setColumnWidth(12, 60)
         self.row_full_attribution = []
 
@@ -332,7 +332,7 @@ class ManualPatchTestWidget(QtWidgets.QWidget):
         self.ylever_difference = QtWidgets.QLabel('0.000')
         ylspinbox.addWidget(self.ylever_difference)
         pitch_layout.addLayout(ylspinbox)
-        self.pitch_label = QtWidgets.QLabel('RX Pitch (+ Bow Up)')
+        self.pitch_label = QtWidgets.QLabel('TX Pitch (+ Bow Up)')
         pitch_layout.addWidget(self.pitch_label)
         pspinbox = QtWidgets.QHBoxLayout()
         self.pitch_spinbox = PatchSpinBox()
@@ -380,11 +380,16 @@ class ManualPatchTestWidget(QtWidgets.QWidget):
         self.button_layout.addStretch(1)
         self.update_button = QtWidgets.QPushButton('Update', self)
         self.button_layout.addWidget(self.update_button)
+        self.close_button = QtWidgets.QPushButton('Close', self)
+        self.button_layout.addWidget(self.close_button)
         self.button_layout.addStretch(1)
         self.button_layout.addStretch(1)
 
-        self.instructions = QtWidgets.QLabel('Update will adjust the data displayed in Points View.  Will not save the changes to disk.')
-        self.explanation = QtWidgets.QLabel('Adjust the sonar transmitter/receiver values below:')
+        self.explanation = QtWidgets.QLabel('Adjust the sonar transmitter (TX) / receiver (RX) values below:')
+
+        instruct = 'Update will adjust the data displayed in Points View.  Will not save the changes to disk.\n\n' +\
+                   'Use the Setup - Vessel Offsets tool to update the processed data with the new offsets/angles.'
+        self.instructions = QtWidgets.QLabel(instruct)
 
         self.main_layout.addLayout(config_layout)
         self.main_layout.addStretch()
@@ -407,6 +412,7 @@ class ManualPatchTestWidget(QtWidgets.QWidget):
         self.patchdatablock = None
 
         self.update_button.clicked.connect(self.update_data)
+        self.close_button.clicked.connect(self.close)
         self.xlever_spinbox.valueChanged.connect(self.show_differences)
         self.ylever_spinbox.valueChanged.connect(self.show_differences)
         self.zlever_spinbox.valueChanged.connect(self.show_differences)
