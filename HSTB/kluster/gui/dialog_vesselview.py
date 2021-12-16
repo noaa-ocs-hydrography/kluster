@@ -945,7 +945,7 @@ class OptionsWidget(QtWidgets.QWidget):
         self.xlabel, self.x = self.add_num_ctrl('x (+Forward)')
         self.ylabel, self.y = self.add_num_ctrl('y (+Starboard)')
         self.zlabel, self.z = self.add_num_ctrl('z (+Down)')
-        self.rlabel, self.r = self.add_num_ctrl('roll (+Port)')
+        self.rlabel, self.r = self.add_num_ctrl('roll (+Port Up)')
         self.plabel, self.p = self.add_num_ctrl('pitch (+Bow Up)')
         self.yawlabel, self.yaw = self.add_num_ctrl('yaw (+Clockwise)')
         self.latencylabel, self.latency = self.add_num_ctrl('Motion Latency (Seconds)')
@@ -973,7 +973,7 @@ class OptionsWidget(QtWidgets.QWidget):
         xlabel, self.vcenter_x = self.add_num_ctrl('x (+Forward)')
         ylabel, self.vcenter_y = self.add_num_ctrl('y (+Starboard)')
         zlabel, self.vcenter_z = self.add_num_ctrl('z (+Down)')
-        rlabel, self.vcenter_r = self.add_num_ctrl('roll (+Port)')
+        rlabel, self.vcenter_r = self.add_num_ctrl('roll (+Port Up)')
         plabel, self.vcenter_p = self.add_num_ctrl('pitch (+Bow Up)')
         yawlabel, self.vcenter_yaw = self.add_num_ctrl('yaw (+Clockwise)')
         for widg in [xlabel, ylabel, zlabel, rlabel, plabel, yawlabel]:

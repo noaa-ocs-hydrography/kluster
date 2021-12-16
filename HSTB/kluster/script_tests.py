@@ -382,12 +382,50 @@ fq.return_soundings_in_polygon(polygon)
 
 ###################################################
 
-from HSTB.kluster.fqpr_convenience import reload_data
+from HSTB.drivers import kmall
 
-fq = reload_data(r"C:\collab\dasktest\data_dir\outputtest\tj_patch_test_2040")
-mfiles = fq.multibeam.raw_ping[0].multibeam_files
-timeseg = [[1584436584.017, 1584436656.967], [1584432646.101, 1584434213.18]]
-lines = [list(mfiles.keys())[0], list(mfiles.keys())[5], list(mfiles.keys())[4]].copy()
+km = kmall.kmall(r"C:\collab\dasktest\data_dir\EM2040P_KMALL_fromVal\0006_20200917_015203_LowResPhase_subset.kmall")
+km.OpenFiletoRead()
 
-fq.subset_by_times(timeseg)
-fq.subset_by_lines(lines)
+
+km.fast_read_start_end_time()
+
+
+srchdat = km.FID.read()
+log = 0
+seeking = True
+while seeking:
+    srch = srchdat.find(b'#')
+    if srch > -1:
+        if srchdat[srch+1:srch+2] in [b'C', b'I', b'M', b'S']:
+            print(srchdat[srch:srch + 10], log + srch)
+        srchdat = srchdat[srch + 1:]
+        log += srch + 1
+    else:
+        seeking = False
+
+
+
+import os
+
+data = []
+for root, dirs, files in os.walk(r'C:\collab\dasktest\data_dir'):
+    for fil in files:
+        if os.path.splitext(fil)[1].lower() == '.kmall':
+            data.append(os.path.join(root, fil))
+from HSTB.drivers import kmall
+km = kmall.kmall(data[14])
+km.fast_read_start_end_time()
+
+
+
+for d in data:
+    km = kmall.kmall(d)
+    print(d, km.fast_read_start_end_time())
+
+
+km = kmall.kmall(r"C:\collab\dasktest\data_dir\EM2040P_KMALL_fromVal\0004_20200917_014959_HiResPhase_subset.kmall")
+
+
+from HSTB.kluster.fqpr_convenience import convert_multibeam
+fq = convert_multibeam(r"C:\collab\dasktest\data_dir\val_kmall_patch\Fallback_2040_40_1\0000_20190411_175243_ShipName.kmall")

@@ -2958,11 +2958,19 @@ class Fqpr(ZarrBackend):
         # user appends new data to existing storage.
         mbeslines = {k: v for k, v in sorted(self.multibeam.raw_ping[0].multibeam_files.items(),
                                              key=lambda item: item[1][0])}
-        for ln, ln_times in mbeslines.items():
-            ln_times[0] = ln_times[0]
-            ln_times[1] = ln_times[1]
+        numlines = len(mbeslines)
+        for cnt, (ln, ln_times) in enumerate(mbeslines.items()):
+            ln_times[0] = ln_times[0] - 1  # small buffer for ping times slightly outside
+            ln_times[1] = ln_times[1] + 1
             applicable_idx = np.logical_and(times >= ln_times[0], times <= ln_times[1])
             lines[applicable_idx] = ln
+            if cnt == 0:  # handle times slightly less than the first lines logged starttime
+                applicable_idx = times < ln_times[0]
+                lines[applicable_idx] = ln
+            elif cnt == numlines - 1:  # handle times slightly past the last lines logged endtime
+                applicable_idx = times > ln_times[1]
+                lines[applicable_idx] = ln
+
         return lines
 
     def return_line_time(self, line_name: str):

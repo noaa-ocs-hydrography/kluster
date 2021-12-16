@@ -633,7 +633,7 @@ def _merge_constant_blocks(newblocks: list):
     # can't have duplicate times in xarray dataset, apply tiny offset in time to handle this
     finalarr = finalarr.sortby('time')
     duptimes = np.where(np.diff(finalarr.time) == 0)[0]
-    if duptimes:
+    if duptimes.size > 0:
         newtimes = finalarr.time.values
         for dupt in duptimes:
             newtimes[dupt + 1] += 0.000001
