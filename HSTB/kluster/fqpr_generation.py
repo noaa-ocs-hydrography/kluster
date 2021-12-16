@@ -340,7 +340,7 @@ class Fqpr(ZarrBackend):
         desired_vars = ['sbet_latitude', 'sbet_longitude', 'sbet_altitude', 'sbet_north_position_error',
                         'sbet_east_position_error', 'sbet_down_position_error', 'sbet_roll_error', 'sbet_pitch_error',
                         'sbet_heading_error']
-        keep_these_attributes = ['sbet_mission_date', 'sbet_datum', 'sbet_ellipsoid', 'sbet_logging rate (hz)', 'reference', 'units', 'nav_files', 'nav_error_files']
+        keep_these_attributes = ['sbet_mission_date', 'sbet_datum', 'sbet_ellipsoid', 'sbet_logging_rate_hz', 'reference', 'units', 'nav_files', 'nav_error_files']
         try:
             if self.multibeam.raw_ping[0]:
                 chk = [x for x in desired_vars if x not in self.multibeam.raw_ping[0]]
@@ -2561,7 +2561,7 @@ class Fqpr(ZarrBackend):
             mode_settings = ['sv_corr', ['alongtrack', 'acrosstrack', 'depthoffset', 'processing_status'], 'sv corrected data',
                              {'svmode': 'nearest in time', '_sound_velocity_correct_complete': self.sv_time_complete,
                               'current_processing_status': 3,
-                              'reference': {'alongtrack': 'reference', 'acrosstrack': 'reference',
+                              'reference': {'alongtrack': 'reference point', 'acrosstrack': 'reference point',
                                             'depthoffset': 'transmitter'},
                               'units': {'alongtrack': 'meters (+ forward)', 'acrosstrack': 'meters (+ starboard)',
                                         'depthoffset': 'meters (+ down)'}}]

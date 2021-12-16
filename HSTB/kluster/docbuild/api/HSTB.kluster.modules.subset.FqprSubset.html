@@ -5,7 +5,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>FqprSubset &#8212; kluster 0.8.3 documentation</title>
+    <title>FqprSubset &#8212; kluster 0.8.4 documentation</title>
     <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
     <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
     <link rel="stylesheet" type="text/css" href="../_static/graphviz.css" />
@@ -85,10 +85,13 @@
 <tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.modules.subset.FqprSubset.subset_by_time" title="HSTB.kluster.modules.subset.FqprSubset.subset_by_time"><code class="xref py py-obj docutils literal notranslate"><span class="pre">subset_by_time</span></code></a>([mintime, maxtime])</p></td>
 <td><p>We save the line start/end time as an attribute within each raw_ping record.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.modules.subset.FqprSubset.subset_variables" title="HSTB.kluster.modules.subset.FqprSubset.subset_variables"><code class="xref py py-obj docutils literal notranslate"><span class="pre">subset_variables</span></code></a>(variable_selection[, …])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.modules.subset.FqprSubset.subset_by_times" title="HSTB.kluster.modules.subset.FqprSubset.subset_by_times"><code class="xref py py-obj docutils literal notranslate"><span class="pre">subset_by_times</span></code></a>(time_segments)</p></td>
+<td><p>Only retain the portions of this Fqpr object that are within the time segments given in the list provided.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.modules.subset.FqprSubset.subset_variables" title="HSTB.kluster.modules.subset.FqprSubset.subset_variables"><code class="xref py py-obj docutils literal notranslate"><span class="pre">subset_variables</span></code></a>(variable_selection[, …])</p></td>
 <td><p>Take specific variable names and return just those variables in a new xarray dataset.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.modules.subset.FqprSubset.subset_variables_by_line" title="HSTB.kluster.modules.subset.FqprSubset.subset_variables_by_line"><code class="xref py py-obj docutils literal notranslate"><span class="pre">subset_variables_by_line</span></code></a>(variable_selection)</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.modules.subset.FqprSubset.subset_variables_by_line" title="HSTB.kluster.modules.subset.FqprSubset.subset_variables_by_line"><code class="xref py py-obj docutils literal notranslate"><span class="pre">subset_variables_by_line</span></code></a>(variable_selection)</p></td>
 <td><p>Apply subset_variables to get the data split up into lines for the variable_selection provided</p></td>
 </tr>
 </tbody>
@@ -131,7 +134,7 @@ of flattened indices to points in the ping_filter that you want to super-select.
 
 <dl class="py method">
 <dt id="HSTB.kluster.modules.subset.FqprSubset.return_soundings_in_polygon">
-<code class="sig-name descname"><span class="pre">return_soundings_in_polygon</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">polygon</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">geographic</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">variable_selection</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">('head',</span> <span class="pre">'x',</span> <span class="pre">'y',</span> <span class="pre">'z',</span> <span class="pre">'tvu',</span> <span class="pre">'detectioninfo',</span> <span class="pre">'time',</span> <span class="pre">'beam')</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.modules.subset.FqprSubset.return_soundings_in_polygon" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">return_soundings_in_polygon</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">polygon</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">geographic</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">variable_selection</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">('head',</span> <span class="pre">'x',</span> <span class="pre">'y',</span> <span class="pre">'z',</span> <span class="pre">'tvu',</span> <span class="pre">'detectioninfo',</span> <span class="pre">'time',</span> <span class="pre">'beam')</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">isolate_head</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.modules.subset.FqprSubset.return_soundings_in_polygon" title="Permalink to this definition">¶</a></dt>
 <dd><p>Using provided coordinates (in either horizontal_crs projected or geographic coordinates), return the soundings
 and sounding attributes for all soundings within the coordinates.</p>
 <p>Using this method sets the ping_filter attribute so that you can now use the set_variable_by_filter and
@@ -142,6 +145,8 @@ get_variable_by_filter methods to get other variables or set data within the pol
 <li><p><strong>polygon</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">ndarray</span></code>) – (N, 2) array of points that make up the selection polygon</p></li>
 <li><p><strong>geographic</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code>) – If True, the coordinates provided are geographic (latitude/longitude)</p></li>
 <li><p><strong>variable_selection</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">tuple</span></code>) – list of the variables that you want to return for the soundings in the polygon</p></li>
+<li><p><strong>isolate_head</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code>]) – only used with return_soundings, if provided will only return soundings corresponding to this head index,
+0 = port, 1 = starboard</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns</dt>
@@ -220,6 +225,21 @@ then only have access to data within that time period.</p>
 </dd></dl>
 
 <dl class="py method">
+<dt id="HSTB.kluster.modules.subset.FqprSubset.subset_by_times">
+<code class="sig-name descname"><span class="pre">subset_by_times</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">time_segments</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.modules.subset.FqprSubset.subset_by_times" title="Permalink to this definition">¶</a></dt>
+<dd><p>Only retain the portions of this Fqpr object that are within the time segments given in the list provided.  The
+resultant datasets will be the portions of the datasets that lie within the list of time segments concatenated
+together.</p>
+<p>To return to the full original dataset, use restore_subset</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>time_segments</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">list</span></code>) – list of lists, where each sub list is the [start time of the segment in utc seconds, endtime of the segment
+in utc seconds]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
 <dt id="HSTB.kluster.modules.subset.FqprSubset.subset_variables">
 <code class="sig-name descname"><span class="pre">subset_variables</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">variable_selection</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ping_times</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skip_subset_by_time</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filter_by_detection</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.modules.subset.FqprSubset.subset_variables" title="Permalink to this definition">¶</a></dt>
 <dd><p>Take specific variable names and return just those variables in a new xarray dataset.  If you provide ping_times,
@@ -290,6 +310,7 @@ if you provide line names)</p>
 <h3>Navigation</h3>
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="../quickstart/index.html">Quickstart</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../faq/index.html">FAQ</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../vessel_setup/index.html">Vessel Setup</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../processing/index.html">Processing</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../surface/index.html">Surfacing</a></li>

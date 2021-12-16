@@ -5,7 +5,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>fqpr_helpers module &#8212; kluster 0.8.3 documentation</title>
+    <title>fqpr_helpers module &#8212; kluster 0.8.4 documentation</title>
     <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
     <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
     <link rel="stylesheet" type="text/css" href="../_static/graphviz.css" />
@@ -51,13 +51,16 @@
 <tr class="row-even"><td><p><a class="reference internal" href="../api/HSTB.kluster.fqpr_helpers.epsg_determinator.html#HSTB.kluster.fqpr_helpers.epsg_determinator" title="HSTB.kluster.fqpr_helpers.epsg_determinator"><code class="xref py py-obj docutils literal notranslate"><span class="pre">epsg_determinator</span></code></a>(datum[, zone, hemisphere])</p></td>
 <td><p>Take in a datum identifer and optional zone/hemi for projected and return an epsg code</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="../api/HSTB.kluster.fqpr_helpers.return_directory_from_data.html#HSTB.kluster.fqpr_helpers.return_directory_from_data" title="HSTB.kluster.fqpr_helpers.return_directory_from_data"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_directory_from_data</span></code></a>(data)</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="../api/HSTB.kluster.fqpr_helpers.haversine.html#HSTB.kluster.fqpr_helpers.haversine" title="HSTB.kluster.fqpr_helpers.haversine"><code class="xref py py-obj docutils literal notranslate"><span class="pre">haversine</span></code></a>(lon1, lat1, lon2, lat2)</p></td>
+<td><p>Calculate the great circle distance in kilometers between two points on the earth (specified in decimal degrees).</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="../api/HSTB.kluster.fqpr_helpers.return_directory_from_data.html#HSTB.kluster.fqpr_helpers.return_directory_from_data" title="HSTB.kluster.fqpr_helpers.return_directory_from_data"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_directory_from_data</span></code></a>(data)</p></td>
 <td><p>Given either a path to a zarr store, a path to a directory of multibeam files, a list of paths to multibeam files or a path to a single multibeam file, return the parent directory.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="../api/HSTB.kluster.fqpr_helpers.return_files_from_path.html#HSTB.kluster.fqpr_helpers.return_files_from_path" title="HSTB.kluster.fqpr_helpers.return_files_from_path"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_files_from_path</span></code></a>(pth[, in_chunks])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="../api/HSTB.kluster.fqpr_helpers.return_files_from_path.html#HSTB.kluster.fqpr_helpers.return_files_from_path" title="HSTB.kluster.fqpr_helpers.return_files_from_path"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_files_from_path</span></code></a>(pth[, in_chunks])</p></td>
 <td><p>Input files can be entered into an xarray_conversion.BatchRead instance as either a list, a path to a directory of multibeam files or as a path to a single file.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="../api/HSTB.kluster.fqpr_helpers.seconds_to_formatted_string.html#HSTB.kluster.fqpr_helpers.seconds_to_formatted_string" title="HSTB.kluster.fqpr_helpers.seconds_to_formatted_string"><code class="xref py py-obj docutils literal notranslate"><span class="pre">seconds_to_formatted_string</span></code></a>(seconds)</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="../api/HSTB.kluster.fqpr_helpers.seconds_to_formatted_string.html#HSTB.kluster.fqpr_helpers.seconds_to_formatted_string" title="HSTB.kluster.fqpr_helpers.seconds_to_formatted_string"><code class="xref py py-obj docutils literal notranslate"><span class="pre">seconds_to_formatted_string</span></code></a>(seconds)</p></td>
 <td><p>Get a nicely formatted time elapsed string</p></td>
 </tr>
 </tbody>
@@ -85,6 +88,7 @@
 <h3>Navigation</h3>
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="../quickstart/index.html">Quickstart</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../faq/index.html">FAQ</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../vessel_setup/index.html">Vessel Setup</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../processing/index.html">Processing</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../surface/index.html">Surfacing</a></li>

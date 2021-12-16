@@ -19,6 +19,9 @@ fqpr\_project module
    :skip: BathyGrid
    :skip: client_needs_restart
    :skip: compare_dict_data
-   :skip: deepcopy
    :skip: split_by_timestamp
    :skip: PatchTest
+   :skip: haversine
+   :skip: reprocess_sounding_selection
+   :skip: trim_xyzrprh_to_times
+

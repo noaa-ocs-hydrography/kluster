@@ -78,6 +78,7 @@ Fqpr
       ~Fqpr.set_vertical_reference
       ~Fqpr.subset_by_lines
       ~Fqpr.subset_by_time
+      ~Fqpr.subset_by_times
       ~Fqpr.subset_variables
       ~Fqpr.subset_variables_by_line
       ~Fqpr.sv_correct
@@ -152,6 +153,7 @@ Fqpr
    .. automethod:: set_vertical_reference
    .. automethod:: subset_by_lines
    .. automethod:: subset_by_time
+   .. automethod:: subset_by_times
    .. automethod:: subset_variables
    .. automethod:: subset_variables_by_line
    .. automethod:: sv_correct

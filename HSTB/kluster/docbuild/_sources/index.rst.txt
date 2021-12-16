@@ -131,6 +131,7 @@ Perform these in order:
    :maxdepth: 4
 
    quickstart/index
+   faq/index
    vessel_setup/index
    processing/index
    surface/index

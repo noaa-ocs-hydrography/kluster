@@ -5,7 +5,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>fqpr_project module &#8212; kluster 0.8.3 documentation</title>
+    <title>fqpr_project module &#8212; kluster 0.8.4 documentation</title>
     <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
     <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
     <link rel="stylesheet" type="text/css" href="../_static/graphviz.css" />
@@ -48,11 +48,11 @@
 <tr class="row-odd"><td><p><a class="reference internal" href="../api/HSTB.kluster.fqpr_project.create_new_project.html#HSTB.kluster.fqpr_project.create_new_project" title="HSTB.kluster.fqpr_project.create_new_project"><code class="xref py py-obj docutils literal notranslate"><span class="pre">create_new_project</span></code></a>([output_folder])</p></td>
 <td><p>Create a new FqprProject by taking in multibeam files, converting them, making a new Fqpr instance and loading that Fqpr into a new FqprProject.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="../api/HSTB.kluster.fqpr_project.haversine.html#HSTB.kluster.fqpr_project.haversine" title="HSTB.kluster.fqpr_project.haversine"><code class="xref py py-obj docutils literal notranslate"><span class="pre">haversine</span></code></a>(lon1, lat1, lon2, lat2)</p></td>
-<td><p>Calculate the great circle distance in kilometers between two points on the earth (specified in decimal degrees)</p></td>
-</tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="../api/HSTB.kluster.fqpr_project.open_project.html#HSTB.kluster.fqpr_project.open_project" title="HSTB.kluster.fqpr_project.open_project"><code class="xref py py-obj docutils literal notranslate"><span class="pre">open_project</span></code></a>(project_path)</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="../api/HSTB.kluster.fqpr_project.open_project.html#HSTB.kluster.fqpr_project.open_project" title="HSTB.kluster.fqpr_project.open_project"><code class="xref py py-obj docutils literal notranslate"><span class="pre">open_project</span></code></a>(project_path)</p></td>
 <td><p>Load from a saved fqpr_project file</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="../api/HSTB.kluster.fqpr_project.reprocess_fqprs.html#HSTB.kluster.fqpr_project.reprocess_fqprs" title="HSTB.kluster.fqpr_project.reprocess_fqprs"><code class="xref py py-obj docutils literal notranslate"><span class="pre">reprocess_fqprs</span></code></a>(fqprs, newvalues, headindex, …)</p></td>
+<td><p>Convenience function for reprocessing a list of Fqpr objects according to the new arguments given here.</p></td>
 </tr>
 <tr class="row-even"><td><p><a class="reference internal" href="../api/HSTB.kluster.fqpr_project.return_project_data.html#HSTB.kluster.fqpr_project.return_project_data" title="HSTB.kluster.fqpr_project.return_project_data"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_project_data</span></code></a>(project_path)</p></td>
 <td><p>Return the data contained in the provided project file</p></td>
@@ -96,6 +96,7 @@
 <h3>Navigation</h3>
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="../quickstart/index.html">Quickstart</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../faq/index.html">FAQ</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../vessel_setup/index.html">Vessel Setup</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../processing/index.html">Processing</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../surface/index.html">Surfacing</a></li>
