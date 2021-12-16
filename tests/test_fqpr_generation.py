@@ -408,7 +408,7 @@ class TestFqprGeneration(unittest.TestCase):
     def test_return_lines_for_times(self):
         self._access_processed_data()
         lns = self.out.return_lines_for_times(np.array([1495400000, 1495563100, 1495563132]))
-        assert np.array_equal(lns, ['', '0009_20170523_181119_FA2806.all', '0009_20170523_181119_FA2806.all'])
+        assert np.array_equal(lns, ['0009_20170523_181119_FA2806.all', '0009_20170523_181119_FA2806.all', '0009_20170523_181119_FA2806.all'])
 
     def test_last_operation_date(self):
         self._access_processed_data()
