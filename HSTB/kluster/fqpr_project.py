@@ -5,14 +5,15 @@ import json
 from typing import Union
 from datetime import datetime, timezone
 from types import FunctionType
-from copy import deepcopy
 
 from HSTB.kluster.fqpr_generation import Fqpr
 from HSTB.kluster.dask_helpers import dask_find_or_start_client, client_needs_restart
-from HSTB.kluster.fqpr_convenience import reload_data, reload_surface, get_attributes_from_fqpr
+from HSTB.kluster.fqpr_convenience import reload_data, reload_surface, get_attributes_from_fqpr, reprocess_sounding_selection
 from HSTB.kluster.xarray_helpers import slice_xarray_by_dim
-from HSTB.kluster.fqpr_vessel import VesselFile, create_new_vessel_file, convert_from_fqpr_xyzrph, compare_dict_data, split_by_timestamp
-from HSTB.kluster.modules.patch import PatchTest
+from HSTB.kluster.fqpr_helpers import haversine
+from HSTB.kluster.fqpr_vessel import VesselFile, create_new_vessel_file, convert_from_fqpr_xyzrph, compare_dict_data, \
+    split_by_timestamp, trim_xyzrprh_to_times
+from HSTB.kluster.modules.autopatch import PatchTest
 from bathygrid.bgrid import BathyGrid
 
 
@@ -1028,6 +1029,56 @@ class FqprProject:
                 final_grouping.append(line_pair)
         return final_grouping, line_dict
 
+    def retrieve_data_for_time_segments(self, systems: list, time_segments: list):
+        """
+        For the manual patch test, we retrieve the Fqpr object and time segments that are currently displayed in the
+        points view and use that data to populate the patch test widget.  Here we take the returned system name
+        and time segment data from the points view to get the corresponding data from the project.
+
+        Parameters
+        ----------
+        systems
+            list of the system name for each segment
+        time_segments
+            list of lists for the start time/end time for the line in utc seconds
+
+        Returns
+        -------
+        list
+            list of lists for each segment containing the Fqpr object, the serial number, the time segments, the xyzrph
+            dict for that Fqpr, the system identifier, the head index, and the vesselfile name.
+
+        """
+        systems = np.array(systems)
+        time_segments = np.array(time_segments)
+        unique_systems = np.unique(systems)
+
+        vessel_file = self.vessel_file
+        if vessel_file:
+            vessel_file = VesselFile(vessel_file)
+            vfname = os.path.split(vessel_file)[1]
+        else:
+            vfname = 'None'
+
+        datablock = []
+        for system in unique_systems:
+            sysid, head = system[:-2], int(system[-1])
+            fq = self.fqpr_instances[sysid]
+            if head == 0:
+                serialnum = fq.multibeam.raw_ping[0].attrs['system_serial_number'][0]
+            else:
+                serialnum = fq.multibeam.raw_ping[0].attrs['secondary_system_serial_number'][0]
+            fq_time_segs = time_segments[np.where(systems == system)[0]]
+            if vessel_file:
+                xyzrph = vessel_file.return_data(serialnum, fq_time_segs.min(), fq_time_segs.max())
+            else:
+                xyzrph = fq.multibeam.xyzrph
+            xyzrph = trim_xyzrprh_to_times(xyzrph, fq_time_segs.min(), fq_time_segs.max())
+            xyzrph = split_by_timestamp(xyzrph)
+            for xyzrec in xyzrph:
+                datablock.append([fq, serialnum, fq_time_segs, xyzrec, sysid, head, vfname])
+        return datablock
+
     def return_vessel_file(self):
         """
         Return the VesselFile instance for this project's vessel_file path
@@ -1158,7 +1209,7 @@ class FqprProject:
             xyz = [dsetone[lineone].x.values, dsetone[lineone].y.values, dsetone[lineone].z.values]
         return xyz
 
-    def run_patch_test(self, line_pairs: dict):
+    def run_auto_patch_test(self, line_pairs: dict):
         total_lines = [x for y in line_pairs.values() for x in y[0:2]]
         xyzrph = self._validate_xyzrph_for_lines(total_lines)
         for pair_index, pair_data in line_pairs.items():
@@ -1171,6 +1222,7 @@ class FqprProject:
                 fqprs = [fqone]
                 line_dict = {fqone: [lineone, linetwo]}
             fqpr_paths, fqpr_loaded = self.get_fqprs_by_paths(fqprs, line_dict, raise_exception=True)
+            fqpr_loaded[0].multibeam.xyzrph = xyzrph
             patch = PatchTest(fqpr_loaded[0], azimuth=azimuth)
             patch.run_patch()
             patch.display_results()
@@ -1241,30 +1293,54 @@ def return_project_data(project_path: str):
     return data
 
 
-def haversine(lon1, lat1, lon2, lat2):
+def reprocess_fqprs(fqprs: list, newvalues: list, headindex: int, prefixes: list, timestamps: list, serial_number: str,
+                    polygon: np.ndarray):
     """
-    Calculate the great circle distance in kilometers between two points
-    on the earth (specified in decimal degrees)
+    Convenience function for reprocessing a list of Fqpr objects according to the new arguments given here.  Used in
+    the manual patch test tool in Kluster Points View.
 
     Parameters
     ----------
-    lon1
-        longitude in degrees of position one
-    lat1
-        latitude in degrees of position one
-    lon2
-        longitude in degrees of position two
-    lat2
-        latitude in degrees of position two
+    fqprs
+        list of each fqpr object to reprocess
+    newvalues
+        list of new values as floats for the reprocessing [roll, pitch, heading, xlever, ylever, zlever, latency]
+    headindex
+        head index as integer, 0 for non-dual-head or port head, 1 for starboard head
+    prefixes
+        list of prefixes for looking up the newvalues in the xyzrph, ex: ['rx_r', 'rx_p', 'rx_h', 'tx_x', 'tx_y', 'tx_z', 'latency']
+    timestamps
+        timestamp for looking up the values in the xyzrph record, one for each fqpr object
+    serial_number
+        serial number of each fqpr instance, used in the lookup
+    polygon
+        polygon in geographic coordinates encompassing the patch test region
+
+    Returns
+    -------
+    list
+        list of lists for each fqpr containing the reprocessed xyz data
     """
 
-    # convert decimal degrees to radians
-    lon1, lat1, lon2, lat2 = np.deg2rad(lon1), np.deg2rad(lat1), np.deg2rad(lon2), np.deg2rad(lat2)
-
-    # haversine formula
-    dlon = lon2 - lon1
-    dlat = lat2 - lat1
-    a = np.sin(dlat/2)**2 + np.cos(lat1) * np.cos(lat2) * np.sin(dlon/2)**2
-    c = 2 * np.arcsin(np.sqrt(a))
-    r = 6371 # Radius of earth in kilometers. Use 3956 for miles. Determines return value units.
-    return c * r
+    roll, pitch, heading, xlever, ylever, zlever, latency = newvalues
+    results = []
+    for cnt, fq in enumerate(fqprs):
+        fq.multibeam.xyzrph[prefixes[0]][timestamps[cnt]] = roll
+        fq.multibeam.xyzrph[prefixes[1]][timestamps[cnt]] = pitch
+        fq.multibeam.xyzrph[prefixes[2]][timestamps[cnt]] = heading
+        fq.multibeam.xyzrph[prefixes[3]][timestamps[cnt]] = xlever
+        fq.multibeam.xyzrph[prefixes[4]][timestamps[cnt]] = ylever
+        fq.multibeam.xyzrph[prefixes[5]][timestamps[cnt]] = zlever
+        fq.multibeam.xyzrph[prefixes[6]][timestamps[cnt]] = latency
+        fq.intermediate_dat = {}  # clear out the reprocessed cached data
+        fq, soundings = reprocess_sounding_selection(fq, georeference=True)
+        newx = np.concatenate([d[0][0].values for d in fq.intermediate_dat[serial_number]['georef'][timestamps[cnt]]], axis=0)
+        newy = np.concatenate([d[0][1].values for d in fq.intermediate_dat[serial_number]['georef'][timestamps[cnt]]], axis=0)
+        newz = np.concatenate([d[0][2].values for d in fq.intermediate_dat[serial_number]['georef'][timestamps[cnt]]], axis=0)
+        fq.multibeam.raw_ping[headindex]['x'] = xr.DataArray(newx, dims=('time', 'beam'))
+        fq.multibeam.raw_ping[headindex]['y'] = xr.DataArray(newy, dims=('time', 'beam'))
+        fq.multibeam.raw_ping[headindex]['z'] = xr.DataArray(newz, dims=('time', 'beam'))
+        fq.intermediate_dat = {}  # clear out the reprocessed cached data
+        head, x, y, z, tvu, rejected, pointtime, beam = fq.return_soundings_in_polygon(polygon, geographic=True, isolate_head=headindex)
+        results.append([head, x, y, z, tvu, rejected, pointtime, beam])
+    return results

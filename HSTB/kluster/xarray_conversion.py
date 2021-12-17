@@ -180,14 +180,17 @@ def _assign_reference_points(fileformat: str, finalraw: dict, finalatt: xr.Datas
         if fileformat in ['all', 'kmall']:
             finalatt.attrs['reference'] = {'heading': 'reference point', 'heave': 'transmitter',
                                            'pitch': 'reference point', 'roll': 'reference point'}
-            finalatt.attrs['units'] = {'heading': 'degrees', 'heave': 'meters (+ down)', 'pitch': 'degrees',
-                                       'roll': 'degrees'}
+            finalatt.attrs['units'] = {'heading': 'degrees (+ clockwise)', 'heave': 'meters (+ down)', 'pitch': 'degrees (+ bow up)',
+                                       'roll': 'degrees (+ port up)'}
             for systemid in finalraw:
-                finalraw[systemid].attrs['reference'] = {'beampointingangle': 'receiver', 'tiltangle': 'transmitter',
-                                                         'traveltime': 'None', 'latitude': 'reference point', 'longitude': 'reference point',
-                                                         'altitude': 'reference point'}
-                finalraw[systemid].attrs['units'] = {'beampointingangle': 'degrees', 'tiltangle': 'degrees', 'traveltime': 'seconds',
-                                                     'latitude': 'degrees', 'longitude': 'degrees', 'altitude': 'meters (+ down from ellipsoid)'}
+                finalraw[systemid].attrs['reference'] = {'beampointingangle': 'receiver', 'delay': 'None', 'frequency': 'None',
+                                                         'soundspeed': 'None', 'tiltangle': 'transmitter',
+                                                         'traveltime': 'None', 'latitude': 'reference point',
+                                                         'longitude': 'reference point', 'altitude': 'reference point'}
+                finalraw[systemid].attrs['units'] = {'beampointingangle': 'degrees', 'delay': 'seconds', 'frequency': 'hertz',
+                                                     'soundspeed': 'meters per second', 'tiltangle': 'degrees',
+                                                     'traveltime': 'seconds', 'latitude': 'degrees', 'longitude': 'degrees',
+                                                     'altitude': 'meters (+ down from ellipsoid)'}
             return finalraw, finalatt
         else:
             raise ValueError('Did not recognize format "{}" during xarray conversion'.format(fileformat))
@@ -630,7 +633,7 @@ def _merge_constant_blocks(newblocks: list):
     # can't have duplicate times in xarray dataset, apply tiny offset in time to handle this
     finalarr = finalarr.sortby('time')
     duptimes = np.where(np.diff(finalarr.time) == 0)[0]
-    if duptimes:
+    if duptimes.size > 0:
         newtimes = finalarr.time.values
         for dupt in duptimes:
             newtimes[dupt + 1] += 0.000001

@@ -13,7 +13,8 @@ datasets = [r'C:\collab\dasktest\data_dir\EM122_RonBrown', r'C:\collab\dasktest\
             r"C:\collab\dasktest\data_dir\from_Lund\0034_20171114_104317_Astrolabio.all", r"C:\collab\dasktest\data_dir\from_Lund\0090_20201202_141721_Narwhal.all",
             r"C:\collab\dasktest\data_dir\from_Lund\0154_20190530_060059_Hesperides.all", r"C:\collab\dasktest\data_dir\from_Lund\0389_20170602_094427_Astrolabio.all",
             r"C:\collab\dasktest\data_dir\from_Lund\0681_20201102_191746_TOFINO.all", r"C:\collab\dasktest\data_dir\from_Lund\EM2040-0007-t16-20181206-095359.all",
-            r"C:\collab\dasktest\data_dir\from_Lund\0063_20210612_092103_MAL_EM2040MKII.kmall", r"C:\collab\dasktest\data_dir\from_Lund\0011_20210304_094901_EM2040P.kmall"]
+            r"C:\collab\dasktest\data_dir\from_Lund\0063_20210612_092103_MAL_EM2040MKII.kmall", r"C:\collab\dasktest\data_dir\from_Lund\0011_20210304_094901_EM2040P.kmall",
+            r"C:\collab\dasktest\data_dir\EM2040_HMNZS_wellington_wreck", r"C:\collab\dasktest\data_dir\EM712_kmall_fromkongsberg"]
 
 datasets_w_sbets = [r'C:\collab\dasktest\data_dir\ra_mbes\2801_em2040\mbes\2020-035',
                     r'C:\collab\dasktest\data_dir\tj_patch_test\S222_PatchTest_DN077\Raw\MBES\S222_2020_KongsbergEM710\2020-077',
@@ -36,7 +37,7 @@ outputdir = r'C:\collab\dasktest\data_dir\outputtest'
 fldernames = ['EM122_RonBrown', 'EM710_Rainier', 'EM2040_BHII', 'EM2040_Fairweather_SmallFile', 'EM2040c_NRT2', 'EM2040p_UNH_ASV',
               'hassler_acceptance', 'Hasslerdual', 'tj_sbet_test', 'tjacceptance', 'tjmotionlatency', 'narwhal', 'antares',
               'malaspina', 'shipname', 'astrolabio', 'narwhal2', 'hesperides', 'astrolabio2', 'tofino', 'lund_em2040', 'lund_em2040_kmall',
-              'lund_em2040p']
+              'lund_em2040p', 'EM2040_wellington_wreck', 'EM712_fromkongsberg_kmall']
 for cnt, dset in enumerate(datasets):
     fq = perform_all_processing(dset, outfold=os.path.join(outputdir, fldernames[cnt]), coord_system='WGS84', vert_ref='waterline')
 
@@ -381,29 +382,50 @@ fq.return_soundings_in_polygon(polygon)
 
 ###################################################
 
-from numpy import exp, sin
+from HSTB.drivers import kmall
 
-def residual(variables, x, data, uncertainty):
-    """Model a decaying sine wave and subtract data."""
-    amp = variables[0]
-    phaseshift = variables[1]
-    freq = variables[2]
-    decay = variables[3]
+km = kmall.kmall(r"C:\collab\dasktest\data_dir\EM2040P_KMALL_fromVal\0006_20200917_015203_LowResPhase_subset.kmall")
+km.OpenFiletoRead()
 
-    model = amp * sin(x*freq + phaseshift) * exp(-x*x*decay)
 
-    return (data-model) / uncertainty
+km.fast_read_start_end_time()
 
-from numpy import linspace, random
-from scipy.optimize import leastsq
 
-# generate synthetic data with noise
-x = linspace(0, 100)
-noise = random.normal(size=x.size, scale=0.2)
-data = 7.5 * sin(x*0.22 + 2.5) * exp(-x*x*0.01) + noise
+srchdat = km.FID.read()
+log = 0
+seeking = True
+while seeking:
+    srch = srchdat.find(b'#')
+    if srch > -1:
+        if srchdat[srch+1:srch+2] in [b'C', b'I', b'M', b'S']:
+            print(srchdat[srch:srch + 10], log + srch)
+        srchdat = srchdat[srch + 1:]
+        log += srch + 1
+    else:
+        seeking = False
 
-# generate experimental uncertainties
-uncertainty = abs(0.16 + random.normal(size=x.size, scale=0.05))
 
-variables = [10.0, 0.2, 3.0, 0.007]
-out = leastsq(residual, variables, args=(x, data, uncertainty))
+
+import os
+
+data = []
+for root, dirs, files in os.walk(r'C:\collab\dasktest\data_dir'):
+    for fil in files:
+        if os.path.splitext(fil)[1].lower() == '.kmall':
+            data.append(os.path.join(root, fil))
+from HSTB.drivers import kmall
+km = kmall.kmall(data[14])
+km.fast_read_start_end_time()
+
+
+
+for d in data:
+    km = kmall.kmall(d)
+    print(d, km.fast_read_start_end_time())
+
+
+km = kmall.kmall(r"C:\collab\dasktest\data_dir\EM2040P_KMALL_fromVal\0004_20200917_014959_HiResPhase_subset.kmall")
+
+
+from HSTB.kluster.fqpr_convenience import convert_multibeam
+fq = convert_multibeam(r"C:\collab\dasktest\data_dir\val_kmall_patch\Fallback_2040_40_1\0000_20190411_175243_ShipName.kmall")

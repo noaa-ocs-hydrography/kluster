@@ -340,7 +340,7 @@ class Fqpr(ZarrBackend):
         desired_vars = ['sbet_latitude', 'sbet_longitude', 'sbet_altitude', 'sbet_north_position_error',
                         'sbet_east_position_error', 'sbet_down_position_error', 'sbet_roll_error', 'sbet_pitch_error',
                         'sbet_heading_error']
-        keep_these_attributes = ['sbet_mission_date', 'sbet_datum', 'sbet_ellipsoid', 'sbet_logging rate (hz)', 'reference', 'units', 'nav_files', 'nav_error_files']
+        keep_these_attributes = ['sbet_mission_date', 'sbet_datum', 'sbet_ellipsoid', 'sbet_logging_rate_hz', 'reference', 'units', 'nav_files', 'nav_error_files']
         try:
             if self.multibeam.raw_ping[0]:
                 chk = [x for x in desired_vars if x not in self.multibeam.raw_ping[0]]
@@ -2561,7 +2561,7 @@ class Fqpr(ZarrBackend):
             mode_settings = ['sv_corr', ['alongtrack', 'acrosstrack', 'depthoffset', 'processing_status'], 'sv corrected data',
                              {'svmode': 'nearest in time', '_sound_velocity_correct_complete': self.sv_time_complete,
                               'current_processing_status': 3,
-                              'reference': {'alongtrack': 'reference', 'acrosstrack': 'reference',
+                              'reference': {'alongtrack': 'reference point', 'acrosstrack': 'reference point',
                                             'depthoffset': 'transmitter'},
                               'units': {'alongtrack': 'meters (+ forward)', 'acrosstrack': 'meters (+ starboard)',
                                         'depthoffset': 'meters (+ down)'}}]
@@ -2718,6 +2718,13 @@ class Fqpr(ZarrBackend):
         """
 
         self.subset.subset_by_time(mintime, maxtime)
+
+    def subset_by_times(self, time_segments: list):
+        """
+        Use subset module to trim the fqpr instance to the given time ranges
+        """
+
+        self.subset.subset_by_times(time_segments)
 
     def subset_by_lines(self, line_names: Union[str, list]):
         """
@@ -2951,13 +2958,19 @@ class Fqpr(ZarrBackend):
         # user appends new data to existing storage.
         mbeslines = {k: v for k, v in sorted(self.multibeam.raw_ping[0].multibeam_files.items(),
                                              key=lambda item: item[1][0])}
-        for ln, ln_times in mbeslines.items():
-            # first line time bounds sometimes does not cover the first few pings
-            ln_times[0] = ln_times[0] - 2
-            # same with last line, except extend the last time a bit
-            ln_times[1] = ln_times[1] + 2
+        numlines = len(mbeslines)
+        for cnt, (ln, ln_times) in enumerate(mbeslines.items()):
+            ln_times[0] = ln_times[0] - 1  # small buffer for ping times slightly outside
+            ln_times[1] = ln_times[1] + 1
             applicable_idx = np.logical_and(times >= ln_times[0], times <= ln_times[1])
             lines[applicable_idx] = ln
+            if cnt == 0:  # handle times slightly less than the first lines logged starttime
+                applicable_idx = times < ln_times[0]
+                lines[applicable_idx] = ln
+            elif cnt == numlines - 1:  # handle times slightly past the last lines logged endtime
+                applicable_idx = times > ln_times[1]
+                lines[applicable_idx] = ln
+
         return lines
 
     def return_line_time(self, line_name: str):
@@ -3006,14 +3019,15 @@ class Fqpr(ZarrBackend):
             return None
 
     def return_soundings_in_polygon(self, polygon: np.ndarray, geographic: bool = True,
-                                    variable_selection: tuple = ('head', 'x', 'y', 'z', 'tvu', 'detectioninfo', 'time', 'beam')):
+                                    variable_selection: tuple = ('head', 'x', 'y', 'z', 'tvu', 'detectioninfo', 'time', 'beam'),
+                                    isolate_head: int = None):
         """
         Using provided coordinates (in either horizontal_crs projected or geographic coordinates), return the soundings
         and sounding attributes for all soundings within the coordinates, see subset module.  Also sets the ping_filter
         attribute which can be used with set_variable_by_filter get_variable_by_filter
         """
 
-        datablock = self.subset.return_soundings_in_polygon(polygon, geographic, variable_selection)
+        datablock = self.subset.return_soundings_in_polygon(polygon, geographic, variable_selection, isolate_head=isolate_head)
         return datablock
 
     def set_filter_by_polygon(self, polygon: np.ndarray, geographic: bool = True):

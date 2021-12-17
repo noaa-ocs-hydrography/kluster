@@ -1,0 +1,129 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>What is a project in Kluster? How do I use it? &#8212; kluster 0.8.4 documentation</title>
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" type="text/css" href="../_static/graphviz.css" />
+    <script id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="How do I import POSPac SBETs in Kluster?" href="howdoiusesbets.html" />
+    <link rel="prev" title="How do I reload the processed data?" href="project_file.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="what-is-a-project-in-kluster-how-do-i-use-it">
+<h1>What is a project in Kluster?  How do I use it?<a class="headerlink" href="#what-is-a-project-in-kluster-how-do-i-use-it" title="Permalink to this headline">¶</a></h1>
+<p>You’ll see when you convert data that a kluster_project.json file gets automatically created next to the converted data folders.  This file contains the locations of all the currently loaded data as well as the project settings set in Kluster.  You can ignore this if you like, when you drag in this file into Kluster, it will set the project settings to whatever is in the project file, and also try and load all data listed in the file.</p>
+<p>If you want the converted data to go somewhere other than next to the raw data, you should create a project manually.  This is a simple process where you go to File - New Project, and point to an empty folder that you want to use for the new project.  Kluster will then create a new kluster_project.json file in this directory, and that will be the new output location for all processed data.</p>
+<p>Again, you don’t have to think about the Kluster project file unless you want to put data somewhere specific or save project settings so that reloading data also reloads project settings.  Each converted folder can be accessed independently, so you can just drag folders into Kluster instead of using the project file.</p>
+<p>The current project is always listed in the Project Tree in the top left of Kluster, under ‘Project’.</p>
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">kluster</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../quickstart/index.html">Quickstart</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">FAQ</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="project_file.html">How do I reload the processed data?</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">What is a project in Kluster?  How do I use it?</a></li>
+<li class="toctree-l2"><a class="reference internal" href="howdoiusesbets.html">How do I import POSPac SBETs in Kluster?</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../vessel_setup/index.html">Vessel Setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../processing/index.html">Processing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../surface/index.html">Surfacing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../cleaning/index.html">Cleaning</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../products/index.html">Products</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../settings/index.html">Settings</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../indepth/index.html">Learn more about Kluster</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../kluster_api/index.html">API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../changes.html">Changes List</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  <li><a href="index.html">FAQ</a><ul>
+      <li>Previous: <a href="project_file.html" title="previous chapter">How do I reload the processed data?</a></li>
+      <li>Next: <a href="howdoiusesbets.html" title="next chapter">How do I import POSPac SBETs in Kluster?</a></li>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2020, Eric Younkin.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.5.2</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="../_sources/faq/whatisproject.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

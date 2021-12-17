@@ -1,0 +1,145 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>How do I import POSPac SBETs in Kluster? &#8212; kluster 0.8.4 documentation</title>
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" type="text/css" href="../_static/graphviz.css" />
+    <script id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Vessel Setup" href="../vessel_setup/index.html" />
+    <link rel="prev" title="What is a project in Kluster? How do I use it?" href="whatisproject.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="how-do-i-import-pospac-sbets-in-kluster">
+<h1>How do I import POSPac SBETs in Kluster?<a class="headerlink" href="#how-do-i-import-pospac-sbets-in-kluster" title="Permalink to this headline">¶</a></h1>
+<p>POSPac SBET files contain the post processed navigation / ellipsoid height for the vessel.  If you are using one of the ellipsoidal vertical references (MLLW, MHW, ellipse), having a more accurate navigation data set (in particular ellipsoid height) is crucial.</p>
+<p>Unfortunately, working with SBETs is a challenge.  The SBET itself has no metadata in the file, and only records the time in weekly seconds, which Kluster must convert to UTC seconds.  You can see the information Kluster needs to accomplish this in the Process - Import Post Processed Navigation dialog.</p>
+<p>There are two paths (actually three paths, as you’ll see later) for importing SBETs in Kluster.</p>
+<ol class="arabic simple">
+<li><p>You can provide the .sbet and .smrmsg files and explicitly give me the Date of the SBET and the Coordinate System (so I can correct the weekly seconds and the lack of coordinate system metadata in the SBET)</p></li>
+<li><p>You can provide the .sbet and .smrmsg files AND a POSPac export log.  This log contains the date/coordinate system already, and is automatically generated when the SBET is exported.  Including this log allows you to get away with not telling me the date/coordinate system.</p></li>
+</ol>
+<p>And, the third somewhat hidden way:</p>
+<ol class="arabic simple" start="3">
+<li><p>Drag the .sbet, .smrmsg, and export log straight into Kluster.  Kluster will then match the SBET with the correct converted data folder using the times of the SBET and the file name/file path of the sbet.</p></li>
+</ol>
+<p>Once imported, you will see the following new attributes (click on the converted data folder in Project Tree and look at the Attribute window in the bottom right)</p>
+<ol class="arabic simple">
+<li><p>navigation_source = ‘sbet’</p></li>
+<li><p>nav_error_files = list of the .smrmsg files and the associated start, end times in weekly seconds</p></li>
+<li><p>nav_files = list of the .sbet files and the associated start, end times in weekly seconds</p></li>
+<li><p>sbet_datum = ‘NAD83’ or the datum of the sbet</p></li>
+<li><p>sbet_logging_rate_hz = logging rate in hertz</p></li>
+</ol>
+<p>You will also see new sbet_xxxxxx data variables that you can examine in Visualize - Basic Plots, Source=processed navigation</p>
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">kluster</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../quickstart/index.html">Quickstart</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">FAQ</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="project_file.html">How do I reload the processed data?</a></li>
+<li class="toctree-l2"><a class="reference internal" href="whatisproject.html">What is a project in Kluster?  How do I use it?</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">How do I import POSPac SBETs in Kluster?</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../vessel_setup/index.html">Vessel Setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../processing/index.html">Processing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../surface/index.html">Surfacing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../cleaning/index.html">Cleaning</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../products/index.html">Products</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../settings/index.html">Settings</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../indepth/index.html">Learn more about Kluster</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../kluster_api/index.html">API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../changes.html">Changes List</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  <li><a href="index.html">FAQ</a><ul>
+      <li>Previous: <a href="whatisproject.html" title="previous chapter">What is a project in Kluster?  How do I use it?</a></li>
+      <li>Next: <a href="../vessel_setup/index.html" title="next chapter">Vessel Setup</a></li>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2020, Eric Younkin.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.5.2</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="../_sources/faq/howdoiusesbets.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

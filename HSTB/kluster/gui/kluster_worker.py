@@ -2,7 +2,7 @@ import numpy as np
 import traceback
 
 from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal
-from HSTB.kluster.fqpr_project import return_project_data
+from HSTB.kluster.fqpr_project import return_project_data, reprocess_fqprs
 from HSTB.kluster.fqpr_convenience import generate_new_surface, import_processed_navigation, overwrite_raw_navigation, \
     update_surface, reload_data, reload_surface
 
@@ -465,6 +465,53 @@ class SurfaceUpdateWorker(QtCore.QThread):
         try:
             self.fqpr_surface = update_surface(self.fqpr_surface, self.add_fqpr_instances, self.remove_fqpr_instances,
                                                **self.opts)
+        except Exception as e:
+            self.error = True
+            self.exceptiontxt = traceback.format_exc()
+        self.finished.emit(True)
+
+
+class PatchTestUpdateWorker(QtCore.QThread):
+    """
+    Executes code in a seperate thread.
+    """
+
+    started = Signal(bool)
+    finished = Signal(bool)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.fqprs = None
+        self.newvalues = []
+        self.headindex = None
+        self.prefixes = None
+        self.timestamps = None
+        self.serial_number = None
+        self.polygon = None
+
+        self.result = []
+        self.error = False
+        self.exceptiontxt = None
+
+    def populate(self, fqprs=None, newvalues=None, headindex=None, prefixes=None, timestamps=None, serial_number=None,
+                 polygon=None):
+        self.fqprs = fqprs
+        self.newvalues = newvalues
+        self.headindex = headindex
+        self.prefixes = prefixes
+        self.timestamps = timestamps
+        self.serial_number = serial_number
+        self.polygon = polygon
+
+        self.result = []
+        self.error = False
+        self.exceptiontxt = None
+
+    def run(self):
+        self.started.emit(True)
+        try:
+            self.result = reprocess_fqprs(self.fqprs, self.newvalues, self.headindex, self.prefixes, self.timestamps,
+                                          self.serial_number, self.polygon)
         except Exception as e:
             self.error = True
             self.exceptiontxt = traceback.format_exc()

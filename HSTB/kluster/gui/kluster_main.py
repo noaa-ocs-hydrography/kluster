@@ -12,6 +12,7 @@ from pyproj import CRS, Transformer
 import qdarkstyle
 from qdarkstyle.dark.palette import DarkPalette
 import matplotlib.pyplot as plt
+import xarray as xr
 
 from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal, qgis_enabled, found_path
 if qgis_enabled:
@@ -21,7 +22,7 @@ from HSTB.kluster.gui import dialog_vesselview, kluster_explorer, kluster_projec
     kluster_output_window, kluster_2dview, kluster_actions, kluster_monitor, dialog_daskclient, dialog_surface, \
     dialog_export, kluster_worker, kluster_interactive_console, dialog_basicplot, dialog_advancedplot, dialog_project_settings, \
     dialog_export_grid, dialog_layer_settings, dialog_settings, dialog_importppnav, dialog_overwritenav, dialog_surface_data, \
-    dialog_about, dialog_setcolors, dialog_patchtest
+    dialog_about, dialog_setcolors, dialog_patchtest, dialog_manualpatchtest
 from HSTB.kluster.fqpr_project import FqprProject
 from HSTB.kluster.fqpr_intelligence import FqprIntel
 from HSTB.kluster.fqpr_vessel import convert_from_fqpr_xyzrph, convert_from_vessel_xyzrph, compare_dict_data
@@ -126,6 +127,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.vessel_win = None
         self.basicplots_win = None
         self.advancedplots_win = None
+        self._manpatchtest = None
 
         self.iconpath = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'images', 'kluster_img.ico')
         self.setWindowIcon(QtGui.QIcon(self.iconpath))
@@ -146,9 +148,10 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.draw_navigation_thread = kluster_worker.DrawNavigationWorker()
         self.draw_surface_thread = kluster_worker.DrawSurfaceWorker()
         self.load_points_thread = kluster_worker.LoadPointsWorker()
+        self.patch_test_load_thread = kluster_worker.PatchTestUpdateWorker()
         self.allthreads = [self.action_thread, self.import_ppnav_thread, self.overwrite_nav_thread, self.surface_thread,
                            self.surface_update_thread, self.export_thread, self.export_grid_thread, self.open_project_thread,
-                           self.draw_navigation_thread, self.draw_surface_thread, self.load_points_thread]
+                           self.draw_navigation_thread, self.draw_surface_thread, self.load_points_thread, self.patch_test_load_thread]
 
         # connect FqprActionContainer with actions pane, called whenever actions changes
         self.intel.bind_to_action_update(self.actions.update_actions)
@@ -183,6 +186,7 @@ class KlusterMain(QtWidgets.QMainWindow):
 
         self.points_view.points_selected.connect(self.show_points_in_explorer)
         self.points_view.points_cleaned.connect(self.set_pointsview_points_status)
+        self.points_view.patch_test_sig.connect(self.manual_patch_test)
 
         self.action_thread.started.connect(self._start_action_progress)
         self.action_thread.finished.connect(self._kluster_execute_action_results)
@@ -206,6 +210,8 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.draw_surface_thread.finished.connect(self._kluster_draw_surface_results)
         self.load_points_thread.started.connect(self._start_action_progress)
         self.load_points_thread.finished.connect(self._kluster_load_points_results)
+        self.patch_test_load_thread.started.connect(self._start_action_progress)
+        self.patch_test_load_thread.finished.connect(self._kluster_update_manual_patch_test)
 
         self.monitor.monitor_file_event.connect(self.intel._handle_monitor_event)
         self.monitor.monitor_start.connect(self._create_new_project_if_not_exist)
@@ -339,8 +345,8 @@ class KlusterMain(QtWidgets.QMainWindow):
         overwritenav_action.triggered.connect(self._action_overwrite_nav)
         surface_action = QtWidgets.QAction('New Surface', self)
         surface_action.triggered.connect(self._action_surface_generation)
-        # patch_action = QtWidgets.QAction('Patch Test', self)
-        # patch_action.triggered.connect(self._action_patch_test)
+        patch_action = QtWidgets.QAction('Patch Test', self)
+        patch_action.triggered.connect(self._action_patch_test)
 
         basicplots_action = QtWidgets.QAction('Basic Plots', self)
         basicplots_action.triggered.connect(self._action_basicplots)
@@ -943,24 +949,126 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.import_ppnav_thread.populate(None)
         self._stop_action_progress()
 
-    def kluster_patch_test(self):
+    def manual_patch_test(self, e):
+        if not self.no_threads_running():
+            print('Processing is already occurring.  Please wait for the process to finish')
+        else:
+            systems, linenames, time_segments = self.points_view.return_lines_and_times()
+            if systems:
+                datablock = self.project.retrieve_data_for_time_segments(systems, time_segments)
+                if datablock:
+                    dlog_patch = dialog_manualpatchtest.PrePatchDialog()
+                    dlog_patch.add_data(datablock)
+                    if dlog_patch.exec_():
+                        if dlog_patch.canceled:
+                            print('Patch Test: test canceled')
+                        else:
+                            final_datablock = dlog_patch.return_final_data()
+                            if final_datablock:
+                                vessel_file_name = datablock[0][-1]
+                                roll, pitch, heading = final_datablock[8], final_datablock[9], final_datablock[10]
+                                xlever, ylever, zlever = final_datablock[11], final_datablock[12], final_datablock[13]
+                                latency = final_datablock[14]
+                                fqprs, timesegments = final_datablock[0], final_datablock[6]
+                                for cnt, fq in enumerate(fqprs):
+                                    fq.subset_by_times(timesegments[cnt].tolist())
+                                self._manpatchtest = None
+                                self._manpatchtest = dialog_manualpatchtest.ManualPatchTestWidget()
+                                self._manpatchtest.new_offsets_angles.connect(self._update_manual_patch_test)
+                                self._manpatchtest.patchdatablock = final_datablock
+                                self._manpatchtest.populate(vessel_file_name, ','.join(final_datablock[1]), final_datablock[2],
+                                                            final_datablock[3], ','.join(final_datablock[4]), ','.join(final_datablock[5]),
+                                                            roll, pitch, heading, xlever, ylever, zlever, latency)
+                                self._manpatchtest.show()
+                            else:
+                                print('Patch Test: no data selected')
+                else:
+                    print('Patch Test: no data selected for running in Patch Test utility')
+            else:
+                print('Patch Test: no data found in Points View')
+
+    def _update_manual_patch_test(self):
+        """
+        Triggered on hitting update in the patch test widget.  Will run the patch_test_load_thread to reprocess the data
+        in the patch test subset (see load_points_thread.polygon for the boundary of this subset) and display the
+        new data in points view, replacing the old points.
+        """
+
+        if self._manpatchtest.patchdatablock is not None:
+            roll, pitch, heading = self._manpatchtest.roll, self._manpatchtest.pitch, self._manpatchtest.heading
+            xlever, ylever, zlever = self._manpatchtest.x_lever, self._manpatchtest.y_lever, self._manpatchtest.z_lever
+            fqprs, tstamps, timesegments, headindex = self._manpatchtest.patchdatablock[0], self._manpatchtest.patchdatablock[5], self._manpatchtest.patchdatablock[6], int(self._manpatchtest.patchdatablock[7])
+            latency = self._manpatchtest.latency
+            prefixes = self._manpatchtest.patchdatablock[15]
+            serial_num = str(self._manpatchtest.patchdatablock[3])
+            self.patch_test_load_thread.populate(fqprs, [roll, pitch, heading, xlever, ylever, zlever, latency],
+                                                 headindex, prefixes, tstamps, serial_num, self.load_points_thread.polygon)
+            self.patch_test_load_thread.start()
+        else:
+            print('Unable to load the data for updating the manual patch test')
+
+    def _kluster_update_manual_patch_test(self):
+        """
+        Method is run when the patch test load thread completes.  We take the reprocessed soundings and replace the old
+        soundings in the points view with these new values
+        """
+
+        results = self.patch_test_load_thread.result
+        cur_azimuth = self.load_points_thread.azimuth
+        headindex = int(self._manpatchtest.patchdatablock[7])
+        self.points_view.store_view_settings()
+        hl = self.points_view.three_d_window.hide_lines
+        self.points_view.clear_display()
+        if results and not self.patch_test_load_thread.error:
+            for cnt, (fq, rslt) in enumerate(zip(self.patch_test_load_thread.fqprs, results)):
+                head, x, y, z, tvu, rejected, pointtime, beam = rslt
+                newid = self._manpatchtest.patchdatablock[1][cnt]
+                linenames = fq.return_lines_for_times(pointtime)
+                self.points_view.remove_points(system_id=newid + '_' + str(headindex))
+                self.points_view.add_points(head, x, y, z, tvu, rejected, pointtime, beam, newid, linenames, cur_azimuth)
+            self.points_view.three_d_window.hide_lines = hl
+            self.points_view.display_points()
+            self.points_view.load_view_settings()
+            self.points_view.patch_test_running = True
+        else:
+            print('Error reprocessing patch test subset')
+            print(self.patch_test_load_thread.exceptiontxt)
+        self.patch_test_load_thread.populate(None)
+        self._stop_action_progress()
+
+    def kluster_auto_patch_test(self):
+        """
+        IN PROGRESS - run the automated patch test tool on the selected lines.  Still have not addressed the issues
+        in the auto patch test procedure, so the results of this should not be used.
+        """
         if not self.no_threads_running():
             print('Processing is already occurring.  Please wait for the process to finish')
             cancelled = True
         else:
             cancelled = False
             self._patch = dialog_patchtest.PatchTestDialog()
-            self._patch.patch_query.connect(self.feed_patch_test_dialog)
+            self._patch.patch_query.connect(self._feed_auto_patch_test_dialog)
             if self._patch.exec_():
                 cancelled = self._patch.canceled
                 pairs = self._patch.return_pairs
                 if pairs:
-                    self.project.run_patch_test(pairs)
+                    self.project.run_auto_patch_test(pairs)
         if cancelled:
-            print('kluster_patch_test: Processing was cancelled')
+            print('kluster_auto_patch_test: Processing was cancelled')
         self._patch = None
 
-    def feed_patch_test_dialog(self, mode: str):
+    def _feed_auto_patch_test_dialog(self, mode: str):
+        """
+        Populate the auto patch test dialog with the line pairs selected.  Pair them by recipricol azimuth and the closeness
+        of the start and end positions
+
+        Parameters
+        ----------
+        mode
+            either 'pointsview' to load data from the points view window (not currently supported) or 'lines' to load
+            from the currently selected lines
+        """
+
         if self._patch is None:
             print('ERROR: Lost handle on patch test dialog')
             return
@@ -1813,6 +1921,7 @@ class KlusterMain(QtWidgets.QMainWindow):
 
         pointcount = 0
         if not self.load_points_thread.error:
+            self._manpatchtest = None
             points_data = self.load_points_thread.points_data
             azimuth = self.load_points_thread.azimuth
             for fqpr_name, pointdata in points_data.items():
@@ -1825,7 +1934,8 @@ class KlusterMain(QtWidgets.QMainWindow):
             print(self.load_points_thread.exceptiontxt)
         self.two_d.finalize_points_tool()
         print('Selected {} Points for display'.format(pointcount))
-        self.load_points_thread.populate()
+        # we retain the polygon/azimuth in case you are using the patch test tool
+        self.load_points_thread.populate(polygon=self.load_points_thread.polygon, azimuth=self.load_points_thread.azimuth)
         self._stop_action_progress()
 
     def clear_points(self, clrsig: bool):
@@ -1877,19 +1987,22 @@ class KlusterMain(QtWidgets.QMainWindow):
             new integer flag for detection info status, 2 = Rejected
         """
 
-        selected_points = self.points_view.return_select_index()
-        if isinstance(new_status, np.ndarray):
-            new_status = self.points_view.split_by_selected(new_status)
-        for fqpr_name in selected_points:
-            fqpr = self.project.fqpr_instances[fqpr_name]
-            sel_points_idx = selected_points[fqpr_name]
-            if isinstance(new_status, dict):
-                fqpr.set_variable_by_filter('detectioninfo', new_status[fqpr_name], sel_points_idx)
-            else:
-                fqpr.set_variable_by_filter('detectioninfo', new_status, sel_points_idx)
-            fqpr.write_attribute_to_ping_records({'_soundings_last_cleaned': datetime.utcnow().strftime('%c')})
-            self.project.refresh_fqpr_attribution(fqpr_name, relative_path=True)
-        self.points_view.clear_selection()
+        if not self.points_view.patch_test_running:
+            selected_points = self.points_view.return_select_index()
+            if isinstance(new_status, np.ndarray):
+                new_status = self.points_view.split_by_selected(new_status)
+            for fqpr_name in selected_points:
+                fqpr = self.project.fqpr_instances[fqpr_name]
+                sel_points_idx = selected_points[fqpr_name]
+                if isinstance(new_status, dict):
+                    fqpr.set_variable_by_filter('detectioninfo', new_status[fqpr_name], sel_points_idx)
+                else:
+                    fqpr.set_variable_by_filter('detectioninfo', new_status, sel_points_idx)
+                fqpr.write_attribute_to_ping_records({'_soundings_last_cleaned': datetime.utcnow().strftime('%c')})
+                self.project.refresh_fqpr_attribution(fqpr_name, relative_path=True)
+            self.points_view.clear_selection()
+        else:
+            print('Cleaning disabled while patch test is running')
 
     def dock_this_widget(self, title, objname, widget):
         """
@@ -1909,7 +2022,12 @@ class KlusterMain(QtWidgets.QMainWindow):
         """
 
         dock = QtWidgets.QDockWidget(title, self)
-        dock.setFeatures(QtWidgets.QDockWidget.DockWidgetMovable | QtWidgets.QDockWidget.DockWidgetFloatable)
+        # currently the Points View will crash if you try to undock it, I believe due to the Vispy app
+        if title == 'Points View':
+            dock.setFeatures(QtWidgets.QDockWidget.NoDockWidgetFeatures)
+            dock.setTitleBarWidget(QtWidgets.QWidget(widget))
+        else:
+            dock.setFeatures(QtWidgets.QDockWidget.DockWidgetMovable | QtWidgets.QDockWidget.DockWidgetFloatable)
         dock.setObjectName(objname)
         self.widget_obj_names.append(objname)
         dock.setWidget(widget)
@@ -2022,7 +2140,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         """
         Connect menu action 'Patch Test' with patch test dialog
         """
-        self.kluster_patch_test()
+        self.kluster_auto_patch_test()
 
     def _action_new_project(self):
         """
@@ -2142,6 +2260,11 @@ class KlusterMain(QtWidgets.QMainWindow):
         """
         Return absolute paths to fqprs selected and the loaded fqpr instances.  In most instances, this is pretty simple,
         you
+
+        Parameters
+        ----------
+        subset_by_line
+            if True, will subset each Fqpr object to just the data associated with the lines selected
 
         Returns
         -------

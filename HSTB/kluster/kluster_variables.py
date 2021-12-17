@@ -1,7 +1,14 @@
 # generic gui
-pass_color = 'color : green'  # color of the gui labels and text where a test passes
+#  see available options here: https://www.w3.org/TR/SVG11/types.html#ColorKeywords
+pass_color = 'color : blue'  # color of the gui labels and text where a test passes
 error_color = 'color : red'  # color of the gui labels and text where a test does not pass
-warning_color = 'color : orange'  # color of the gui labels and text where a warning is issued
+warning_color = 'color : peru'  # color of the gui labels and text where a warning is issued
+
+# colors for points view
+amplitude_color = 'white'
+phase_color = 'blue'
+reject_color = 'red'
+reaccept_color = 'cyan'
 
 # dask_helpers
 # when we get the Client to run a task, we expect all tasks to have finished.  If you get the client and the mem
@@ -38,7 +45,7 @@ vertical_references = ['waterline', 'ellipse', 'NOAA MLLW', 'NOAA MHW']  # all v
 vdatum_vertical_references = ['NOAA MLLW', 'NOAA MHW']  # vertical reference options based in vdatum
 ellipse_based_vertical_references = ['ellipse', 'NOAA MLLW', 'NOAA MHW']  # vertical reference options based on the ellipsoid
 waterline_based_vertical_references = ['waterline']  # vertical reference options based on waterline
-coordinate_systems = ['NAD83', 'WGS84']  # horizontal coordinate system options
+coordinate_systems = ['NAD83', 'NAD83 PA11', 'NAD83 MA11', 'WGS84']  # horizontal coordinate system options
 default_coordinate_system = 'WGS84'
 default_vertical_reference = 'waterline'
 

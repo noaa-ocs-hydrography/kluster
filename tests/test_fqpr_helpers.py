@@ -1,8 +1,9 @@
 import os
 import unittest
+import numpy as np
 
 from HSTB.kluster import kluster_variables
-from HSTB.kluster.fqpr_helpers import epsg_determinator, return_files_from_path, seconds_to_formatted_string
+from HSTB.kluster.fqpr_helpers import epsg_determinator, return_files_from_path, seconds_to_formatted_string, haversine
 
 
 class TestFqprHelper(unittest.TestCase):
@@ -40,3 +41,12 @@ class TestFqprHelper(unittest.TestCase):
         assert seconds_to_formatted_string(6666666) == '1851 hours, 51 minutes, 6 seconds'
         assert seconds_to_formatted_string(0) == '0 seconds'
         assert seconds_to_formatted_string(-1) == '0 seconds'
+
+    def test_haversine(self):
+        assert haversine(128.1234, 45.1234, 128.5678, 45.5678) == 60.398765789070794
+        assert haversine(-78.1234, -12.1234, -78.5678, -12.5678) == 69.08002250085612
+
+        vectorized = haversine(np.array([128.1234, -78.1234]), np.array([45.1234, -12.1234]),
+                               np.array([128.5678, -78.5678]), np.array([45.5678, -12.5678]))
+        assert vectorized[0] == 60.398765789070794
+        assert vectorized[1] == 69.08002250085612

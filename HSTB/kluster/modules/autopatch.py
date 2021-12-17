@@ -1,6 +1,7 @@
 import numpy as np
 from copy import deepcopy
 from time import perf_counter
+import matplotlib.pyplot as plt
 
 from bathygrid.convenience import create_grid
 from HSTB.kluster.fqpr_convenience import reprocess_sounding_selection
@@ -10,6 +11,12 @@ from HSTB.kluster.fqpr_helpers import seconds_to_formatted_string
 
 class PatchTest:
     """
+    WARNING: This module is not finished.  I'm not currently getting good results from the model, I believe due to the
+    overly simple nature of the georeferencing equation used in the paper, or just due to me not understanding the
+    theory.  Patch test values do not converge on running the tool, and reprocessing with the new values produced
+    in the least squares run does not smooth out the gridded data, as you would hope that it would.  I am not entirely
+    sure how to proceed.
+
     Patch test utility based on "Computation of Calibration Parameters for Multibeam Echo Sounders Using the
     Least Squares Method", by Jan Terje Bjorke.  Compute new offsets/angles for the data provided using this automated
     least squares adjustment.  Data should be provided only for a pair of lines, lines that are reciprocal and overlap as
@@ -68,6 +75,7 @@ class PatchTest:
 
         self.updated_parameters = []
         self.reliability_factors = []
+        self.variance = []
 
     def run_patch(self):
         """
@@ -101,12 +109,12 @@ class PatchTest:
         print('----------------------------')
         if self.fqpr is not None and self.lstsq_result is not None:
             print('Lines: {}\n'.format(list(self.fqpr.multibeam.raw_ping[0].multibeam_files.keys())))
-            print('roll: {}, reliability: {}'.format(self.current_parameters['roll'], self.reliability_factors[-1][0]))
-            print('pitch: {}, reliability: {}'.format(self.current_parameters['pitch'], self.reliability_factors[-1][1]))
-            print('heading: {}, reliability: {}'.format(self.current_parameters['heading'], self.reliability_factors[-1][2]))
-            print('x offset: {}, reliability: {}'.format(self.current_parameters['x_offset'], self.reliability_factors[-1][3]))
-            print('y offset: {}, reliability: {}'.format(self.current_parameters['y_offset'], self.reliability_factors[-1][4]))
-            print('horizontal scale factor: {}, reliability: {}'.format(self.current_parameters['hscale_factor'], self.reliability_factors[-1][5]))
+            print('roll: {}, reliability: {}, variance: {}'.format(self.current_parameters['roll'], self.reliability_factors[-1][0], self.variance[-1][0]))
+            print('pitch: {}, reliability: {}, variance: {}'.format(self.current_parameters['pitch'], self.reliability_factors[-1][1], self.variance[-1][1]))
+            print('heading: {}, reliability: {}, variance: {}'.format(self.current_parameters['heading'], self.reliability_factors[-1][2], self.variance[-1][2]))
+            print('x offset: {}, reliability: {}, variance: {}'.format(self.current_parameters['x_offset'], self.reliability_factors[-1][3], self.variance[-1][3]))
+            print('y offset: {}, reliability: {}, variance: {}'.format(self.current_parameters['y_offset'], self.reliability_factors[-1][4], self.variance[-1][4]))
+            print('horizontal scale factor: {}, reliability: {}, variance: {}'.format(self.current_parameters['hscale_factor'], self.reliability_factors[-1][5], self.variance[-1][5]))
 
     def _convert_parameters(self):
         """
@@ -119,13 +127,13 @@ class PatchTest:
         self.xyzrph_timestamp = list(initial_parameters['roll_sensor_error'].keys())[0]
         self.initial_parameters = {'roll': float(initial_parameters['rx_' + self.xyzrph_key + 'r'][self.xyzrph_timestamp]),
                                    'roll_unc': float(initial_parameters['roll_sensor_error'][self.xyzrph_timestamp]),
-                                   'pitch': float(initial_parameters['rx_' + self.xyzrph_key + 'p'][self.xyzrph_timestamp]),
+                                   'pitch': float(initial_parameters['tx_' + self.xyzrph_key + 'p'][self.xyzrph_timestamp]),
                                    'pitch_unc': float(initial_parameters['pitch_sensor_error'][self.xyzrph_timestamp]),
                                    'heading': float(initial_parameters['rx_' + self.xyzrph_key + 'h'][self.xyzrph_timestamp]),
                                    'heading_unc': float(initial_parameters['heading_sensor_error'][self.xyzrph_timestamp]),
-                                   'x_offset': float(initial_parameters['rx_' + self.xyzrph_key + 'x'][self.xyzrph_timestamp]),
+                                   'x_offset': float(initial_parameters['tx_' + self.xyzrph_key + 'x'][self.xyzrph_timestamp]),
                                    'x_unc': float(initial_parameters['x_offset_error'][self.xyzrph_timestamp]),
-                                   'y_offset': float(initial_parameters['rx_' + self.xyzrph_key + 'y'][self.xyzrph_timestamp]),
+                                   'y_offset': float(initial_parameters['tx_' + self.xyzrph_key + 'y'][self.xyzrph_timestamp]),
                                    'y_unc': float(initial_parameters['y_offset_error'][self.xyzrph_timestamp]),
                                    'hscale_factor': 0.0,
                                    'hscale_unc': 0.01}
@@ -174,6 +182,17 @@ class PatchTest:
                 rfactors.append(rfactor)
             self.reliability_factors.append(rfactors)
 
+    def _compute_covariance_matrix(self, finalz):
+        try:
+            # unit weight is the sum of the residuals divided by the number of points minus the number of parameters
+            unit_weight = np.sum(np.abs(self.points['z'] - finalz)) / (len(finalz) - 6)
+            var_covar = unit_weight * np.linalg.inv(self.a_matrix)
+            # variances are on the diagonal of the variance_covariance matrix
+            self.variance.append([var_covar[0][0], var_covar[1][1], var_covar[2][2],
+                                  var_covar[3][3], var_covar[4][4], var_covar[5][5]])
+        except:
+            self.variance.append([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+
     def _adjust_original_xyzrph(self, roll, pitch, heading, x_offset, y_offset, hscale_factor):
         """
         Add the provided values to the xyzrph dictionary that the Fqpr uses during reprocessing.  Also cache the new
@@ -201,16 +220,15 @@ class PatchTest:
         tstmp = list(self.fqpr.multibeam.xyzrph['roll_sensor_error'].keys())[0]
         self.fqpr.multibeam.xyzrph['rx_' + self.xyzrph_key + 'r'][tstmp] += roll
         self.current_parameters['roll'] += roll
-        self.fqpr.multibeam.xyzrph['rx_' + self.xyzrph_key + 'p'][tstmp] += pitch
+        self.fqpr.multibeam.xyzrph['tx_' + self.xyzrph_key + 'p'][tstmp] += pitch
         self.current_parameters['pitch'] += pitch
         self.fqpr.multibeam.xyzrph['rx_' + self.xyzrph_key + 'h'][tstmp] += heading
         self.current_parameters['heading'] += heading
 
-        print('WARNING - xoffset yoffset application are disabled for testing')
-        # self.fqpr.multibeam.xyzrph['rx_' + self.xyzrph_key + 'x'][tstmp] += x_offset
-        # self.current_parameters['x_offset'] += x_offset
-        # self.fqpr.multibeam.xyzrph['rx_' + self.xyzrph_key + 'y'][tstmp] += y_offset
-        # self.current_parameters['y_offset'] += y_offset
+        self.fqpr.multibeam.xyzrph['tx_' + self.xyzrph_key + 'x'][tstmp] += x_offset
+        self.current_parameters['x_offset'] += x_offset
+        self.fqpr.multibeam.xyzrph['tx_' + self.xyzrph_key + 'y'][tstmp] += y_offset
+        self.current_parameters['y_offset'] += y_offset
 
         self.current_parameters['hscale_factor'] += hscale_factor
 
@@ -220,10 +238,10 @@ class PatchTest:
                                         self.current_parameters['heading'], self.current_parameters['x_offset'],
                                         self.current_parameters['y_offset'], self.current_parameters['hscale_factor']])
         print('reprocessing with: roll={}, pitch={}, heading={}, x_translation={}, y_translation={}'.format(self.fqpr.multibeam.xyzrph['rx_' + self.xyzrph_key + 'r'][tstmp],
-                                                                                                            self.fqpr.multibeam.xyzrph['rx_' + self.xyzrph_key + 'p'][tstmp],
+                                                                                                            self.fqpr.multibeam.xyzrph['tx_' + self.xyzrph_key + 'p'][tstmp],
                                                                                                             self.fqpr.multibeam.xyzrph['rx_' + self.xyzrph_key + 'h'][tstmp],
-                                                                                                            self.fqpr.multibeam.xyzrph['rx_' + self.xyzrph_key + 'x'][tstmp],
-                                                                                                            self.fqpr.multibeam.xyzrph['rx_' + self.xyzrph_key + 'y'][tstmp]))
+                                                                                                            self.fqpr.multibeam.xyzrph['tx_' + self.xyzrph_key + 'x'][tstmp],
+                                                                                                            self.fqpr.multibeam.xyzrph['tx_' + self.xyzrph_key + 'y'][tstmp]))
 
     def _build_initial_points(self):
         """
@@ -279,7 +297,6 @@ class PatchTest:
         finalx = None
         finaly = None
         finalz = None
-        self.points = None
         cached_data = None
         ra = self.fqpr.multibeam.raw_ping[self.sonar_head_index]
         for sector in newfq.intermediate_dat:
@@ -314,6 +331,7 @@ class PatchTest:
                 finalz = np.concatenate([finalz, z])
         self.fqpr.intermediate_dat = {}
         if finalx.any():
+            self._compute_covariance_matrix(finalz)
             dtyp = [('x', np.float64), ('y', np.float64), ('z', np.float32)]
             self.points = np.empty(len(finalx), dtype=dtyp)
             self.points['x'] = finalx
@@ -345,15 +363,15 @@ class PatchTest:
 
         print('Rotating points by {} degrees...'.format(ang))
         if self.points is not None:
-            # # normalize the y axis
-            # self.points['y'] = self.points['y'] - self.points['y'].min()
+            # normalize the y axis
+            self.points['y'] = self.points['y'] - self.points['y'].min()
 
-            # # normalize the x axis
-            # self.points['x'] = self.points['x'] - self.points['x'].min()
+            # normalize the x axis
+            self.points['x'] = self.points['x'] - self.points['x'].min()
 
             # calculate center of rotation, use the origin of the points
-            self.min_x = self.points['x'].min()
-            self.min_y = self.points['y'].min()
+            self.min_x = 0
+            self.min_y = 0
             origin_x = self.points['x'] - self.min_x
             origin_y = self.points['y'] - self.min_y
 
@@ -362,7 +380,8 @@ class PatchTest:
             self.points['y'] = self.min_y + sin_az * origin_x + cos_az * origin_y
 
             # flip the y axis to make it +x forward, +y starboard, +z down
-            self.points['y'] = self.points['y'].max() - self.points['y']
+            # self.points['y'] = self.points['y'].max() - self.points['y']
+
         else:
             print('Found no valid points for {}'.format(list(self.multibeam_files.keys())))
 
@@ -382,6 +401,14 @@ class PatchTest:
             grid_class.grid(progress_bar=False)
             self.grid = grid_class
 
+    def _plot_grid_layer_slope(self, lyr: np.ndarray, lyrname: str):
+        plt.figure()
+        plt.title(lyrname)
+        nn = ~np.isnan(lyr)
+        xbounds = np.where(nn.any(axis=1))[0]
+        ybounds = np.where(nn.any(axis=0))[0]
+        plt.imshow(lyr[xbounds[0]:xbounds[-1], ybounds[0]:ybounds[-1]], vmin=-1, vmax=1)
+
     def _build_patch_test_values(self):
         """
         Build the a and b matrices for the least squares calculation.  The equation used is:
@@ -395,6 +422,8 @@ class PatchTest:
             print('Building patch test matrices...')
             line_layers = list(self.multibeam_indexes.keys())
             dpth, xslope, yslope, lineone, linetwo = self.grid.get_layers_by_name(['depth', 'x_slope', 'y_slope', line_layers[0], line_layers[1]])
+            self._plot_grid_layer_slope(xslope, 'xslope {}'.format(len(self.reliability_factors)))
+            self._plot_grid_layer_slope(yslope, 'yslope {}'.format(len(self.reliability_factors)))
             valid_index = np.logical_and(~np.isnan(lineone), ~np.isnan(linetwo))
             if valid_index.any():
                 xval = np.arange(self.grid.min_x, self.grid.max_x, self.grid.resolutions[0])
@@ -412,7 +441,7 @@ class PatchTest:
 
                 # A-matrix is in order of roll, pitch, heading, x_translation, y_translation, horizontal scale factor
                 a_matrix = np.column_stack([yslope_valid * dpth_valid - y_node_valid,
-                                            xslope_valid * dpth_valid,
+                                            -xslope_valid * dpth_valid,
                                             xslope_valid * y_node_valid,
                                             xslope_valid,
                                             yslope_valid,
@@ -420,12 +449,13 @@ class PatchTest:
                 l_one_matrix = np.column_stack([lineone_valid, linetwo_valid])
                 # p_one can contain 1/grid node uncertainty in the future, currently we leave it out
                 # p_one_matrix = np.identity(self.a_matrix.shape[0])
+                # p_two_matrix = np.identity(6) * [1, 1, 1, 100000, 100000, 1]
                 p_two_matrix = np.identity(6) * [1 / self.initial_parameters['roll_unc'] ** 2, 1 / self.initial_parameters['pitch_unc'] ** 2,
-                                               1 / self.initial_parameters['heading_unc'] ** 2, 1 / self.initial_parameters['x_unc'],
-                                               1 / self.initial_parameters['y_unc'] ** 2, 1 / self.initial_parameters['hscale_unc']]
-                print('weighted by {}'.format([1 / self.initial_parameters['roll_unc'] ** 2, 1 / self.initial_parameters['pitch_unc'] ** 2,
-                                               1 / self.initial_parameters['heading_unc'] ** 2, 1 / self.initial_parameters['x_unc'],
-                                               1 / self.initial_parameters['y_unc'] ** 2, 1 / self.initial_parameters['hscale_unc']]))
+                                                 1 / self.initial_parameters['heading_unc'] ** 2, 1 / self.initial_parameters['x_unc'],
+                                                 1 / self.initial_parameters['y_unc'] ** 2, 1 / self.initial_parameters['hscale_unc']]
+                # print('weighted by {}'.format([1 / self.initial_parameters['roll_unc'] ** 2, 1 / self.initial_parameters['pitch_unc'] ** 2,
+                #                                1 / self.initial_parameters['heading_unc'] ** 2, 1 / self.initial_parameters['x_unc'],
+                #                                1 / self.initial_parameters['y_unc'] ** 2, 1 / self.initial_parameters['hscale_unc']]))
                 a_t = a_matrix.T
                 self.a_matrix = np.dot(a_t, a_matrix) + p_two_matrix
                 # self.a_matrix = np.dot(a_t, a_matrix)

@@ -5,7 +5,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>haversine &#8212; kluster 0.8.3 documentation</title>
+    <title>haversine &#8212; kluster 0.8.4 documentation</title>
     <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
     <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
     <link rel="stylesheet" type="text/css" href="../_static/graphviz.css" />
@@ -15,8 +15,8 @@
     <script src="../_static/doctools.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="open_project" href="HSTB.kluster.fqpr_project.open_project.html" />
-    <link rel="prev" title="create_new_project" href="HSTB.kluster.fqpr_project.create_new_project.html" />
+    <link rel="next" title="return_directory_from_data" href="HSTB.kluster.fqpr_helpers.return_directory_from_data.html" />
+    <link rel="prev" title="epsg_determinator" href="HSTB.kluster.fqpr_helpers.epsg_determinator.html" />
    
   <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
   
@@ -36,17 +36,17 @@
   <div class="section" id="haversine">
 <h1>haversine<a class="headerlink" href="#haversine" title="Permalink to this headline">¶</a></h1>
 <dl class="py function">
-<dt id="HSTB.kluster.fqpr_project.haversine">
-<code class="sig-prename descclassname"><span class="pre">HSTB.kluster.fqpr_project.</span></code><code class="sig-name descname"><span class="pre">haversine</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">lon1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lat1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lon2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lat2</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_project.haversine" title="Permalink to this definition">¶</a></dt>
-<dd><p>Calculate the great circle distance in kilometers between two points
-on the earth (specified in decimal degrees)</p>
+<dt id="HSTB.kluster.fqpr_helpers.haversine">
+<code class="sig-prename descclassname"><span class="pre">HSTB.kluster.fqpr_helpers.</span></code><code class="sig-name descname"><span class="pre">haversine</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">lon1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lat1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lon2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lat2</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_helpers.haversine" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculate the great circle distance in kilometers between two points on the earth (specified in decimal degrees).
+Can take numpy arrays as inputs, doing a vectorized calculation of multiple points.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>lon1</strong> – longitude in degrees of position one</p></li>
-<li><p><strong>lat1</strong> – latitude in degrees of position one</p></li>
-<li><p><strong>lon2</strong> – longitude in degrees of position two</p></li>
-<li><p><strong>lat2</strong> – latitude in degrees of position two</p></li>
+<li><p><strong>lon1</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">ndarray</span></code>]) – longitude in degrees of position one</p></li>
+<li><p><strong>lat1</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">ndarray</span></code>]) – latitude in degrees of position one</p></li>
+<li><p><strong>lon2</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">ndarray</span></code>]) – longitude in degrees of position two</p></li>
+<li><p><strong>lat2</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">ndarray</span></code>]) – latitude in degrees of position two</p></li>
 </ul>
 </dd>
 </dl>
@@ -73,6 +73,7 @@ on the earth (specified in decimal degrees)</p>
 <h3>Navigation</h3>
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="../quickstart/index.html">Quickstart</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../faq/index.html">FAQ</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../vessel_setup/index.html">Vessel Setup</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../processing/index.html">Processing</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../surface/index.html">Surfacing</a></li>
@@ -83,14 +84,7 @@ on the earth (specified in decimal degrees)</p>
 <li class="toctree-l1 current"><a class="reference internal" href="../kluster_api/index.html">API</a><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="../kluster_api/fqpr_convenience.html">fqpr_convenience module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../kluster_api/fqpr_generation.html">fqpr_generation module</a></li>
-<li class="toctree-l2 current"><a class="reference internal" href="../kluster_api/fqpr_project.html">fqpr_project module</a><ul class="current">
-<li class="toctree-l3 current"><a class="reference internal" href="../kluster_api/fqpr_project.html#module-HSTB.kluster.fqpr_project">HSTB.kluster.fqpr_project Module</a><ul class="current">
-<li class="toctree-l4 current"><a class="reference internal" href="../kluster_api/fqpr_project.html#functions">Functions</a></li>
-<li class="toctree-l4"><a class="reference internal" href="../kluster_api/fqpr_project.html#classes">Classes</a></li>
-</ul>
-</li>
-</ul>
-</li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/fqpr_project.html">fqpr_project module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../kluster_api/fqpr_intelligence.html">fqpr_intelligence module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../kluster_api/fqpr_actions.html">fqpr_actions module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../kluster_api/fqpr_vessel.html">fqpr_vessel module</a></li>
@@ -109,7 +103,13 @@ on the earth (specified in decimal degrees)</p>
 <li class="toctree-l2"><a class="reference internal" href="../kluster_api/rotations.html">rotations module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../kluster_api/pdal_entwine.html">pdal_entwine module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../kluster_api/dask_helpers.html">dask_helpers module</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../kluster_api/fqpr_helpers.html">fqpr_helpers module</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="../kluster_api/fqpr_helpers.html">fqpr_helpers module</a><ul class="current">
+<li class="toctree-l3 current"><a class="reference internal" href="../kluster_api/fqpr_helpers.html#module-HSTB.kluster.fqpr_helpers">HSTB.kluster.fqpr_helpers Module</a><ul class="current">
+<li class="toctree-l4 current"><a class="reference internal" href="../kluster_api/fqpr_helpers.html#functions">Functions</a></li>
+</ul>
+</li>
+</ul>
+</li>
 <li class="toctree-l2"><a class="reference internal" href="../kluster_api/gdal_helpers.html">gdal_helpers module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../kluster_api/numba_helpers.html">numba_helpers module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../kluster_api/pydro_helpers.html">pydro_helpers module</a></li>
@@ -126,9 +126,9 @@ on the earth (specified in decimal degrees)</p>
 <ul>
   <li><a href="../index.html">Documentation overview</a><ul>
   <li><a href="../kluster_api/index.html">API</a><ul>
-  <li><a href="../kluster_api/fqpr_project.html">fqpr_project module</a><ul>
-      <li>Previous: <a href="HSTB.kluster.fqpr_project.create_new_project.html" title="previous chapter">create_new_project</a></li>
-      <li>Next: <a href="HSTB.kluster.fqpr_project.open_project.html" title="next chapter">open_project</a></li>
+  <li><a href="../kluster_api/fqpr_helpers.html">fqpr_helpers module</a><ul>
+      <li>Previous: <a href="HSTB.kluster.fqpr_helpers.epsg_determinator.html" title="previous chapter">epsg_determinator</a></li>
+      <li>Next: <a href="HSTB.kluster.fqpr_helpers.return_directory_from_data.html" title="next chapter">return_directory_from_data</a></li>
   </ul></li>
   </ul></li>
   </ul></li>
@@ -164,7 +164,7 @@ on the earth (specified in decimal degrees)</p>
       &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
       
       |
-      <a href="../_sources/api/HSTB.kluster.fqpr_project.haversine.rst.txt"
+      <a href="../_sources/api/HSTB.kluster.fqpr_helpers.haversine.rst.txt"
           rel="nofollow">Page source</a>
     </div>
 

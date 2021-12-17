@@ -5,7 +5,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Fqpr &#8212; kluster 0.8.3 documentation</title>
+    <title>Fqpr &#8212; kluster 0.8.4 documentation</title>
     <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
     <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
     <link rel="stylesheet" type="text/css" href="../_static/graphviz.css" />
@@ -271,19 +271,22 @@ Post-processing for Multi-Sector Multibeam Echosounders” by J.D. Beaudoin and 
 <tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.subset_by_time" title="HSTB.kluster.fqpr_generation.Fqpr.subset_by_time"><code class="xref py py-obj docutils literal notranslate"><span class="pre">subset_by_time</span></code></a>([mintime, maxtime])</p></td>
 <td><p>Use subset module to trim the fqpr instance to the given time range</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.subset_variables" title="HSTB.kluster.fqpr_generation.Fqpr.subset_variables"><code class="xref py py-obj docutils literal notranslate"><span class="pre">subset_variables</span></code></a>(variable_selection[, …])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.subset_by_times" title="HSTB.kluster.fqpr_generation.Fqpr.subset_by_times"><code class="xref py py-obj docutils literal notranslate"><span class="pre">subset_by_times</span></code></a>(time_segments)</p></td>
+<td><p>Use subset module to trim the fqpr instance to the given time ranges</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.subset_variables" title="HSTB.kluster.fqpr_generation.Fqpr.subset_variables"><code class="xref py py-obj docutils literal notranslate"><span class="pre">subset_variables</span></code></a>(variable_selection[, …])</p></td>
 <td><p>Take specific variable names and return just those variables in a new xarray dataset, see subset module.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.subset_variables_by_line" title="HSTB.kluster.fqpr_generation.Fqpr.subset_variables_by_line"><code class="xref py py-obj docutils literal notranslate"><span class="pre">subset_variables_by_line</span></code></a>(variable_selection)</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.subset_variables_by_line" title="HSTB.kluster.fqpr_generation.Fqpr.subset_variables_by_line"><code class="xref py py-obj docutils literal notranslate"><span class="pre">subset_variables_by_line</span></code></a>(variable_selection)</p></td>
 <td><p>Apply subset_variables to get the data split up into lines for the variable_selection provided, see subset module</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.sv_correct" title="HSTB.kluster.fqpr_generation.Fqpr.sv_correct"><code class="xref py py-obj docutils literal notranslate"><span class="pre">sv_correct</span></code></a>([add_cast_files, subset_time, …])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.sv_correct" title="HSTB.kluster.fqpr_generation.Fqpr.sv_correct"><code class="xref py py-obj docutils literal notranslate"><span class="pre">sv_correct</span></code></a>([add_cast_files, subset_time, …])</p></td>
 <td><p>Apply sv cast/surface sound speed to raytrace.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.write_attribute_to_ping_records" title="HSTB.kluster.fqpr_generation.Fqpr.write_attribute_to_ping_records"><code class="xref py py-obj docutils literal notranslate"><span class="pre">write_attribute_to_ping_records</span></code></a>(attr_dict)</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.write_attribute_to_ping_records" title="HSTB.kluster.fqpr_generation.Fqpr.write_attribute_to_ping_records"><code class="xref py py-obj docutils literal notranslate"><span class="pre">write_attribute_to_ping_records</span></code></a>(attr_dict)</p></td>
 <td><p>Convenience method that allows you to write the provided attribute dictionary to each ping dataset and change the currently loaded instance as well</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.write_intermediate_futs_to_zarr" title="HSTB.kluster.fqpr_generation.Fqpr.write_intermediate_futs_to_zarr"><code class="xref py py-obj docutils literal notranslate"><span class="pre">write_intermediate_futs_to_zarr</span></code></a>(mode, …[, …])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.write_intermediate_futs_to_zarr" title="HSTB.kluster.fqpr_generation.Fqpr.write_intermediate_futs_to_zarr"><code class="xref py py-obj docutils literal notranslate"><span class="pre">write_intermediate_futs_to_zarr</span></code></a>(mode, …[, …])</p></td>
 <td><p>Flush some of the intermediate data that was mapped to the cluster (and lives in futures objects) to disk, puts it in the multibeam, as the time dimension should be the same.</p></td>
 </tr>
 </tbody>
@@ -1223,7 +1226,7 @@ it returns [70000].</p>
 
 <dl class="py method">
 <dt id="HSTB.kluster.fqpr_generation.Fqpr.return_soundings_in_polygon">
-<code class="sig-name descname"><span class="pre">return_soundings_in_polygon</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">polygon</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">geographic</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">variable_selection</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">('head',</span> <span class="pre">'x',</span> <span class="pre">'y',</span> <span class="pre">'z',</span> <span class="pre">'tvu',</span> <span class="pre">'detectioninfo',</span> <span class="pre">'time',</span> <span class="pre">'beam')</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_generation.Fqpr.return_soundings_in_polygon" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">return_soundings_in_polygon</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">polygon</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">geographic</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">variable_selection</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">('head',</span> <span class="pre">'x',</span> <span class="pre">'y',</span> <span class="pre">'z',</span> <span class="pre">'tvu',</span> <span class="pre">'detectioninfo',</span> <span class="pre">'time',</span> <span class="pre">'beam')</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">isolate_head</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_generation.Fqpr.return_soundings_in_polygon" title="Permalink to this definition">¶</a></dt>
 <dd><p>Using provided coordinates (in either horizontal_crs projected or geographic coordinates), return the soundings
 and sounding attributes for all soundings within the coordinates, see subset module.  Also sets the ping_filter
 attribute which can be used with set_variable_by_filter get_variable_by_filter</p>
@@ -1324,6 +1327,12 @@ of flattened indices to points in the ping_filter that you want to super-select,
 </dd></dl>
 
 <dl class="py method">
+<dt id="HSTB.kluster.fqpr_generation.Fqpr.subset_by_times">
+<code class="sig-name descname"><span class="pre">subset_by_times</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">time_segments</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_generation.Fqpr.subset_by_times" title="Permalink to this definition">¶</a></dt>
+<dd><p>Use subset module to trim the fqpr instance to the given time ranges</p>
+</dd></dl>
+
+<dl class="py method">
 <dt id="HSTB.kluster.fqpr_generation.Fqpr.subset_variables">
 <code class="sig-name descname"><span class="pre">subset_variables</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">variable_selection</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ping_times</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skip_subset_by_time</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filter_by_detection</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_generation.Fqpr.subset_variables" title="Permalink to this definition">¶</a></dt>
 <dd><p>Take specific variable names and return just those variables in a new xarray dataset, see subset module.</p>
@@ -1414,6 +1423,7 @@ of the main processes for writing.</p>
 <h3>Navigation</h3>
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="../quickstart/index.html">Quickstart</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../faq/index.html">FAQ</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../vessel_setup/index.html">Vessel Setup</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../processing/index.html">Processing</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../surface/index.html">Surfacing</a></li>

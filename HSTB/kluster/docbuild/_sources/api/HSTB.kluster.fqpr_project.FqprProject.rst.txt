@@ -27,6 +27,7 @@ FqprProject
       ~FqprProject.regenerate_fqpr_lines
       ~FqprProject.remove_fqpr
       ~FqprProject.remove_surface
+      ~FqprProject.retrieve_data_for_time_segments
       ~FqprProject.return_fqpr_instances
       ~FqprProject.return_fqpr_paths
       ~FqprProject.return_line_navigation
@@ -39,7 +40,7 @@ FqprProject
       ~FqprProject.return_surface_containers
       ~FqprProject.return_surface_paths
       ~FqprProject.return_vessel_file
-      ~FqprProject.run_patch_test
+      ~FqprProject.run_auto_patch_test
       ~FqprProject.save_project
       ~FqprProject.set_settings
       ~FqprProject.sort_lines_patch_test_pairs
@@ -63,6 +64,7 @@ FqprProject
    .. automethod:: regenerate_fqpr_lines
    .. automethod:: remove_fqpr
    .. automethod:: remove_surface
+   .. automethod:: retrieve_data_for_time_segments
    .. automethod:: return_fqpr_instances
    .. automethod:: return_fqpr_paths
    .. automethod:: return_line_navigation
@@ -75,7 +77,7 @@ FqprProject
    .. automethod:: return_surface_containers
    .. automethod:: return_surface_paths
    .. automethod:: return_vessel_file
-   .. automethod:: run_patch_test
+   .. automethod:: run_auto_patch_test
    .. automethod:: save_project
    .. automethod:: set_settings
    .. automethod:: sort_lines_patch_test_pairs

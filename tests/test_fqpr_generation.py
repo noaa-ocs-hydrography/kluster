@@ -335,6 +335,15 @@ class TestFqprGeneration(unittest.TestCase):
         assert len(self.out.multibeam.raw_ping[0].time) == 216
         assert len(self.out.multibeam.raw_att.time) == 5302
 
+    def test_subset_by_times(self):
+        self._access_processed_data()
+        self.out.subset_by_times([[1495563080, 1495563090], [1495563100, 1495563130]])
+        assert len(self.out.multibeam.raw_ping[0].time) == 165
+        assert len(self.out.multibeam.raw_att.time) == 4002
+        self.out.subset.restore_subset()
+        assert len(self.out.multibeam.raw_ping[0].time) == 216
+        assert len(self.out.multibeam.raw_att.time) == 5302
+
     def test_subset_by_line(self):
         self._access_processed_data()
         self.out.subset_by_lines('0009_20170523_181119_FA2806.all')
@@ -399,7 +408,7 @@ class TestFqprGeneration(unittest.TestCase):
     def test_return_lines_for_times(self):
         self._access_processed_data()
         lns = self.out.return_lines_for_times(np.array([1495400000, 1495563100, 1495563132]))
-        assert np.array_equal(lns, ['', '0009_20170523_181119_FA2806.all', '0009_20170523_181119_FA2806.all'])
+        assert np.array_equal(lns, ['0009_20170523_181119_FA2806.all', '0009_20170523_181119_FA2806.all', '0009_20170523_181119_FA2806.all'])
 
     def test_last_operation_date(self):
         self._access_processed_data()
