@@ -1,6 +1,29 @@
 Changes List
 ============
 
+Kluster v0.8.4 (12/17/2021)
+---------------------------
+- aligns with drivers 0.1.19
+
+  - bugfix support installation parameters in older .all files
+  - bugfix catch .all EM124 start byte issue
+  - bugfix KMALL move to MRZ for navigation, as I find some lines do not have navigation in the raw sample datagram
+  - bugfix KMALL will correctly isolate last record for reading line end time
+
+- add new manual patch test button to points view, will run on data currently displayed in points view
+- add new show lines button to points view, will only show the lines you have checked in this dialog in points view
+- add NAD83 ma11 pa11 as a new coordinate system option
+- add more explicit roll/pitch/heading sign convention descriptions to GUI
+- add ability to create subset of Fqpr by multiple time ranges
+- added reprocessing by sonar head when desired
+- added ability to get data by system/time from the project
+
+- bugfix for building CRS from datum/projected
+- bugfix solve reprocessing subset while keeping other data in Points View display
+- bugfix with returning points in polygon for specific head
+- bugfix turn off the points view title bar to prevent users from trying to undock (Vispy crashes when you try)
+- bugfix will now not clean/select points in points view if they are not visible (see show rejected/hide lines)
+
 Kluster v0.8.3
 --------------
 - aligns with vyperdatum 0.1.6
