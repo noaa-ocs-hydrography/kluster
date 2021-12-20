@@ -12,8 +12,7 @@ from typing import Union
 
 from HSTB.kluster import __version__ as klustervers
 from HSTB.kluster.dms import return_zone_from_min_max_long
-from HSTB.drivers import par3, kmall
-from HSTB.drivers import PCSio
+from HSTB.kluster.fqpr_drivers import sequential_read_multibeam, fast_read_multibeam_metadata, return_offsets_from_posfile
 from HSTB.kluster.dask_helpers import dask_find_or_start_client
 from HSTB.kluster.xarray_helpers import resize_zarr, xarr_to_netcdf, combine_xr_attributes, reload_zarr_records, slice_xarray_by_dim
 from HSTB.kluster.fqpr_helpers import seconds_to_formatted_string
@@ -107,20 +106,8 @@ def _run_sequential_read(fildata: list):
     """
 
     fil, offset, endpt = fildata
-    if os.path.splitext(fil)[1] == '.all':
-        ar = par3.AllRead(fil, start_ptr=offset, end_ptr=endpt)
-        recs = ar.sequential_read_records()
-        ar.close()
-        return recs
-    elif os.path.splitext(fil)[1] == '.kmall':
-        km = kmall.kmall(fil)
-        # kmall doesnt have ping-wise serial number in header, we have to provide it from install params
-        serial_translator = km.fast_read_serial_number_translator()
-        recs = km.sequential_read_records(start_ptr=offset, end_ptr=endpt, serial_translator=serial_translator)
-        km.closeFile()
-        return recs
-    else:
-        raise ValueError('{} not a supported multibeam file, must be one of {}'.format(fil, kluster_variables.supported_multibeam))
+    recs = sequential_read_multibeam(fil, offset, endpt)
+    return recs
 
 
 def _build_serial_mask(rec: dict):
@@ -177,7 +164,7 @@ def _assign_reference_points(fileformat: str, finalraw: dict, finalatt: xr.Datas
     """
 
     try:
-        if fileformat in ['all', 'kmall']:
+        if '.' + fileformat in kluster_variables.supported_multibeam:
             finalatt.attrs['reference'] = {'heading': 'reference point', 'heave': 'transmitter',
                                            'pitch': 'reference point', 'roll': 'reference point'}
             finalatt.attrs['units'] = {'heading': 'degrees (+ clockwise)', 'heave': 'meters (+ down)', 'pitch': 'degrees (+ bow up)',
@@ -844,7 +831,7 @@ class BatchRead(ZarrBackend):
     BatchRead - multibeam data converter using dask infrastructure and xarray data types
     Pass in multibeam files, call read(), and gain access to xarray Datasets for each data type
 
-    NOTE: CURRENTLY ONLY ZARR BASED PROCESSING OF KONGSBERG .ALL AND .KMALL FILES IS SUPPORTED
+    NOTE: CURRENTLY ONLY ZARR BASED PROCESSING OF kluster_variables.supported_multibeam FILES IS SUPPORTED
 
     | BatchRead is stored internally using the following conventions:
     | X = + Forward, Y = + Starboard, Z = + Down
@@ -1171,20 +1158,24 @@ class BatchRead(ZarrBackend):
         """
         if type(self.filfolder) == list and len(self.filfolder) == 1:
             self.filfolder = self.filfolder[0]
+
         if type(self.filfolder) == list:
             fils = self.filfolder
             self.filfolder = os.path.dirname(fils[0])
         elif os.path.isdir(self.filfolder):
-            fils = glob(os.path.join(self.filfolder, '*.all'))
-            if not fils:
-                fils = glob(os.path.join(self.filfolder, '*.kmall'))
+            fils = []
+            for mext in kluster_variables.supported_multibeam:
+                fils = glob(os.path.join(self.filfolder, '*' + mext))
+                if fils:
+                    break
         elif os.path.isfile(self.filfolder):
             fils = [self.filfolder]
             self.filfolder = os.path.dirname(self.filfolder)
         else:
             raise ValueError('Only directory or file path is supported: {}'.format(self.filfolder))
+
         if not fils:
-            raise ValueError('Directory provided, but no .all or .kmall files found: {}'.format(self.filfolder))
+            raise ValueError('Directory provided, but no {} files found: {}'.format(kluster_variables.supported_multibeam, self.filfolder))
 
         if self.dest is not None:  # path was provided, lets make sure it is an empty folder
             if not os.path.exists(self.dest):
@@ -1249,17 +1240,8 @@ class BatchRead(ZarrBackend):
         dat = {}
         for f in fils:
             filname = os.path.split(f)[1]
-            if os.path.splitext(f)[1] == '.all':
-                ad = par3.AllRead(f)
-                dat[filname] = ad.fast_read_start_end_time()
-                ad.close()
-            elif os.path.splitext(f)[1] == '.kmall':
-                km = kmall.kmall(f)
-                dat[filname] = km.fast_read_start_end_time()
-                km.closeFile()
-            else:
-                raise ValueError('{} not a supported multibeam file, must be one of {}'.format(f,
-                                                                                               kluster_variables.supported_multibeam))
+            mtype, start_end_times, _ = fast_read_multibeam_metadata(f, gather_times=True, gather_serialnumber=False)
+            dat[filname] = start_end_times
         return dat
 
     def _batch_read_merge_blocks(self, input_xarrs: list, datatype: str, chunksize: int):
@@ -2549,19 +2531,7 @@ def return_xyzrph_from_mbes(mbesfil: str):
         primary system serial number
     """
 
-    if os.path.splitext(mbesfil)[1] == '.all':
-        mbes_object = par3.AllRead(mbesfil)
-        recs = mbes_object.sequential_read_records(first_installation_rec=True)
-        mbes_object.close()
-    elif os.path.splitext(mbesfil)[1] == '.kmall':
-        km = kmall.kmall(mbesfil)
-        # kmall doesnt have ping-wise serial number in header, we have to provide it from install params
-        serial_translator = km.fast_read_serial_number_translator()
-        recs = km.sequential_read_records(first_installation_rec=True, serial_translator=serial_translator)
-        km.closeFile()
-    else:
-        raise ValueError('{} not a supported multibeam file, must be one of {}'.format(mbesfil,
-                                                                                       kluster_variables.supported_multibeam))
+    recs = sequential_read_multibeam(mbesfil, start_pointer=0, end_pointer=0, first_installation_rec=True)
     try:
         settings_dict = {str(int(recs['installation_params']['time'][0])): recs['installation_params']['installation_settings'][0]}
         runtime_dict = {}
@@ -2602,18 +2572,4 @@ def return_xyzrph_from_posmv(posfile: str):
         dictionary of offset/angle names to values found in the MSG20 message
     """
 
-    pcs = PCSio.PCSFile(posfile, nCache=0)
-    try:
-        pcs.CacheHeaders(read_first_msg=(20, '$MSG'))
-        msg20 = pcs.GetArray("$MSG", 20)
-        data = {'tx_to_antenna_x': round(msg20[0][10], 3), 'tx_to_antenna_y': round(msg20[0][11], 3), 'tx_to_antenna_z': round(msg20[0][12], 3),
-                'imu_h': round(msg20[0][21], 3), 'imu_p': round(msg20[0][20], 3), 'imu_r': round(msg20[0][19], 3),
-                'imu_x': round(msg20[0][7], 3), 'imu_y': round(msg20[0][8], 3), 'imu_z': round(msg20[0][9], 3)}
-        return data
-    except KeyError:
-        try:
-            print('Unable to read from {}: message 20 not found'.format(posfile))
-            print('Found {}'.format(list(pcs.sensorHeaders.keys())))
-        except:
-            print('Unable to read from file: {}'.format(posfile))
-    return None
+    return return_offsets_from_posfile(posfile)

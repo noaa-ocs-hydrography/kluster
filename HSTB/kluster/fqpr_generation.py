@@ -28,8 +28,7 @@ from HSTB.kluster.dask_helpers import dask_find_or_start_client, get_number_of_w
 from HSTB.kluster.fqpr_helpers import build_crs, seconds_to_formatted_string
 from HSTB.kluster.rotations import return_attitude_rotation_matrix
 from HSTB.kluster.logging_conf import return_logger
-from HSTB.drivers.sbet import sbets_to_xarray, sbet_fast_read_start_end_time
-from HSTB.drivers.PCSio import posfiles_to_xarray
+from HSTB.kluster.fqpr_drivers import return_xarray_from_sbet, fast_read_sbet_metadata, return_xarray_from_posfiles
 from HSTB.kluster import kluster_variables
 
 
@@ -1783,7 +1782,7 @@ class Fqpr(ZarrBackend):
             for new_file in navfiles:
                 root, filename = os.path.split(new_file)
                 if 'nav_files' in rp and filename in rp.nav_files:
-                    new_file_times = sbet_fast_read_start_end_time(new_file)
+                    new_file_times = fast_read_sbet_metadata(new_file)
                     if rp.nav_files[filename] == new_file_times:
                         duplicate_navfiles.append(new_file)
             for fil in duplicate_navfiles:
@@ -1882,9 +1881,9 @@ class Fqpr(ZarrBackend):
             return
 
         try:
-            navdata = sbets_to_xarray(navfiles, smrmsgfiles=errorfiles, logfiles=logfiles, weekstart_year=weekstart_year,
-                                      weekstart_week=weekstart_week, override_datum=override_datum, override_grid=override_grid,
-                                      override_zone=override_zone, override_ellipsoid=override_ellipsoid)
+            navdata = return_xarray_from_sbet(navfiles, smrmsgfiles=errorfiles, logfiles=logfiles, weekstart_year=weekstart_year,
+                                              weekstart_week=weekstart_week, override_datum=override_datum, override_grid=override_grid,
+                                              override_zone=override_zone, override_ellipsoid=override_ellipsoid)
         except:
             navdata = None
         if not navdata:
@@ -1946,7 +1945,7 @@ class Fqpr(ZarrBackend):
         navfiles = self._validate_raw_navigation(navfiles, overwrite)
 
         try:
-            navdata = posfiles_to_xarray(navfiles, weekstart_year=weekstart_year, weekstart_week=weekstart_week)
+            navdata = return_xarray_from_posfiles(navfiles, weekstart_year=weekstart_year, weekstart_week=weekstart_week)
         except:
             navdata = None
         if not navdata:
