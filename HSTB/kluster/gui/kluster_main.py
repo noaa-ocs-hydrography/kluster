@@ -22,7 +22,7 @@ from HSTB.kluster.gui import dialog_vesselview, kluster_explorer, kluster_projec
     kluster_output_window, kluster_2dview, kluster_actions, kluster_monitor, dialog_daskclient, dialog_surface, \
     dialog_export, kluster_worker, kluster_interactive_console, dialog_basicplot, dialog_advancedplot, dialog_project_settings, \
     dialog_export_grid, dialog_layer_settings, dialog_settings, dialog_importppnav, dialog_overwritenav, dialog_surface_data, \
-    dialog_about, dialog_setcolors, dialog_patchtest, dialog_manualpatchtest
+    dialog_about, dialog_setcolors, dialog_patchtest, dialog_manualpatchtest, dialog_managedata
 from HSTB.kluster.fqpr_project import FqprProject
 from HSTB.kluster.fqpr_intelligence import FqprIntel
 from HSTB.kluster.fqpr_vessel import convert_from_fqpr_xyzrph, convert_from_vessel_xyzrph, compare_dict_data
@@ -165,6 +165,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.project_tree.all_lines_selected.connect(self.tree_all_lines_selected)
         self.project_tree.close_fqpr.connect(self.close_fqpr)
         self.project_tree.close_surface.connect(self.close_surface)
+        self.project_tree.manage_fqpr.connect(self.manage_fqpr)
         self.project_tree.load_console_fqpr.connect(self.load_console_fqpr)
         self.project_tree.load_console_surface.connect(self.load_console_surface)
         self.project_tree.zoom_extents_fqpr.connect(self.zoom_extents_fqpr)
@@ -507,6 +508,13 @@ class KlusterMain(QtWidgets.QMainWindow):
         if new_fqprs is not None and new_fqprs:
             self.draw_navigation_thread.populate(self.project, new_fqprs)
             self.draw_navigation_thread.start()
+
+    def manage_fqpr(self, pth):
+        fq = self.project.fqpr_instances[pth]
+        dlog = dialog_managedata.ManageDataDialog()
+        dlog.populate(fq)
+        if dlog.exec_():
+            pass
 
     def close_fqpr(self, pth):
         """

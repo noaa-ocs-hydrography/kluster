@@ -20,6 +20,7 @@ class KlusterProjectTree(QtWidgets.QTreeView):
     surface_layer_selected = Signal(str, str, bool)
     close_fqpr = Signal(str)
     close_surface = Signal(str)
+    manage_fqpr = Signal(str)
     load_console_fqpr = Signal(str)
     load_console_surface = Signal(str)
     zoom_extents_fqpr = Signal(str)
@@ -80,11 +81,14 @@ class KlusterProjectTree(QtWidgets.QTreeView):
         update_surface.triggered.connect(self.update_surface_event)
         set_global_surface = QtWidgets.QAction('Set Color Ranges', self)
         set_global_surface.triggered.connect(self.set_color_ranges_event)
+        manage_fqpr = QtWidgets.QAction('Manage', self)
+        manage_fqpr.triggered.connect(self.manage_data_event)
 
         self.right_click_menu_converted.addAction(close_dat)
         self.right_click_menu_converted.addAction(load_in_console)
         self.right_click_menu_converted.addAction(zoom_extents)
         self.right_click_menu_converted.addSeparator()
+        self.right_click_menu_converted.addAction(manage_fqpr)
         self.right_click_menu_converted.addAction(reprocess)
 
         self.right_click_menu_surfaces.addAction(close_dat)
@@ -196,6 +200,21 @@ class KlusterProjectTree(QtWidgets.QTreeView):
 
         if sel_data == 'Surfaces':
             self.set_color_ranges.emit(True)
+
+    def manage_data_event(self, e):
+        """
+        If a user right clicks on the converted data instance and selects manage, triggers this event
+
+        Parameters
+        ----------
+        e: QEvent on menu button click
+        """
+        index = self.currentIndex()
+        mid_lvl_name = index.parent().data()
+        sel_data = index.data()
+
+        if mid_lvl_name == 'Converted':
+            self.manage_fqpr.emit(sel_data)
 
     def close_item_event(self, e):
         """
