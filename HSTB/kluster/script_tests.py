@@ -381,51 +381,27 @@ polygon = np.array([[-76.18624503, 38.21339807], [-76.18624503, 38.20954898], [-
 fq.return_soundings_in_polygon(polygon)
 
 ###################################################
+"""
+message 1003 has 1592 packets and 0.205% of file
+message 1012 has 4774 packets and 0.472% of file
+message 1013 has 4774 packets and 0.425% of file
+message 7000 has 1018 packets and 0.282% of file
+message 7001 has 1 packets and 0.007% of file
+message 7004 has 1018 packets and 6.541% of file
+message 7006 has 1018 packets and 6.958% of file
+message 7008 has 1007 packets and 83.734% of file
+message 7022 has 1 packets and 0.0% of file
+message 7200 has 1 packets and 0.0% of file
+message 7300 has 1 packets and 0.962% of file
+message 7503 has 1018 packets and 0.413% of file
+message 7777 has 2 packets and 0.001% of file
+"""
 
-from HSTB.drivers import kmall
+from HSTB.drivers.prr3 import X7kRead
 
-km = kmall.kmall(r"C:\collab\dasktest\data_dir\EM2040P_KMALL_fromVal\0006_20200917_015203_LowResPhase_subset.kmall")
-km.OpenFiletoRead()
+fil = r"C:\collab\dasktest\data_dir\s7kdata\20140416_060218.s7k"
+tst = X7kRead(fil)
+tst.mapfile()
 
-
-km.fast_read_start_end_time()
-
-
-srchdat = km.FID.read()
-log = 0
-seeking = True
-while seeking:
-    srch = srchdat.find(b'#')
-    if srch > -1:
-        if srchdat[srch+1:srch+2] in [b'C', b'I', b'M', b'S']:
-            print(srchdat[srch:srch + 10], log + srch)
-        srchdat = srchdat[srch + 1:]
-        log += srch + 1
-    else:
-        seeking = False
-
-
-
-import os
-
-data = []
-for root, dirs, files in os.walk(r'C:\collab\dasktest\data_dir'):
-    for fil in files:
-        if os.path.splitext(fil)[1].lower() == '.kmall':
-            data.append(os.path.join(root, fil))
-from HSTB.drivers import kmall
-km = kmall.kmall(data[14])
-km.fast_read_start_end_time()
-
-
-
-for d in data:
-    km = kmall.kmall(d)
-    print(d, km.fast_read_start_end_time())
-
-
-km = kmall.kmall(r"C:\collab\dasktest\data_dir\EM2040P_KMALL_fromVal\0004_20200917_014959_HiResPhase_subset.kmall")
-
-
-from HSTB.kluster.fqpr_convenience import convert_multibeam
-fq = convert_multibeam(r"C:\collab\dasktest\data_dir\val_kmall_patch\Fallback_2040_40_1\0000_20190411_175243_ShipName.kmall")
+dat = tst.getrecord(7503, 0)
+data = dat.full_settings

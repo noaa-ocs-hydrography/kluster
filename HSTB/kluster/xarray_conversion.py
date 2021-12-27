@@ -170,6 +170,10 @@ def _assign_reference_points(fileformat: str, finalraw: dict, finalatt: xr.Datas
             finalatt.attrs['units'] = {'heading': 'degrees (+ clockwise)', 'heave': 'meters (+ down)', 'pitch': 'degrees (+ bow up)',
                                        'roll': 'degrees (+ port up)'}
             for systemid in finalraw:
+                finalraw[systemid].attrs['kluster_convention'] = {'x': '+ Forward', 'y': '+ Starboard', 'z': '+ Down',
+                                                                  'roll': '+ Port Up', 'pitch': '+ Bow Up', 'gyro': '+ Clockwise'}
+                if '.' + fileformat in ['.all', '.kmall']:
+                    finalraw[systemid].attrs['sonar_reference_point'] = ['tx_x', 'tx_y', 'tx_z']
                 finalraw[systemid].attrs['reference'] = {'beampointingangle': 'receiver', 'delay': 'None', 'frequency': 'None',
                                                          'soundspeed': 'None', 'tiltangle': 'transmitter',
                                                          'traveltime': 'None', 'latitude': 'reference point',
@@ -2203,6 +2207,20 @@ class BatchRead(ZarrBackend):
             else:
                 lever_prefix.append(leverarms[0])
         return lever_prefix
+
+    def return_prefix_for_rp(self):
+        """
+        Determine the correct prefix index based on the sonar reference point of this converted data.  For instance,
+        if the sonar reference point is ['tx_x', 'tx_y', 'rx_z'], the returned prefix indices would be [0,0,1], which
+        will allow you to pull the correct lever arms from the xyzrph indices. See return_system_time_indexed_array.
+        """
+        try:
+            refpt = self.raw_ping[0].attrs['sonar_reference_point']
+            refpt = [0 if lvarm[:2] == 'tx' else 1 for lvarm in refpt]
+        except:  # we assume kongsberg (where the tx is the refpoint) for older data that did not have this attribute
+            print('WARNING: Unable to find the sonar_reference_point attribute that was added in Kluster 0.8.5, defaulting to Kongsberg convention')
+            refpt = [0, 0, 0]
+        return refpt
 
     def return_utm_zone_number(self):
         """

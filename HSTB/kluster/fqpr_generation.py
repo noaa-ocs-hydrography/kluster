@@ -838,18 +838,18 @@ class Fqpr(ZarrBackend):
                 # self.logger.info('Building induced heave for secondary system in dual head arrangement')
 
                 # lever arms for secondary head to ref pt
-                secondary_x_lever = float(self.multibeam.xyzrph[prefixes[0] + '_x'][timestmp])
-                secondary_y_lever = float(self.multibeam.xyzrph[prefixes[0] + '_y'][timestmp])
-                secondary_z_lever = float(self.multibeam.xyzrph[prefixes[0] + '_z'][timestmp])
+                refpt = self.multibeam.return_prefix_for_rp()
+                secondary_x_lever = float(self.multibeam.xyzrph[prefixes[refpt[0]] + '_x'][timestmp])
+                secondary_y_lever = float(self.multibeam.xyzrph[prefixes[refpt[1]] + '_y'][timestmp])
+                secondary_z_lever = float(self.multibeam.xyzrph[prefixes[refpt[2]] + '_z'][timestmp])
 
                 # lever arms for primary head to ref pt
-                if prefixes[0] == 'tx_port':
-                    prim_prefix = 'tx_stbd'
-                else:
-                    prim_prefix = 'tx_port'
-                primary_x_lever = float(self.multibeam.xyzrph[prim_prefix + '_x'][timestmp])
-                primary_y_lever = float(self.multibeam.xyzrph[prim_prefix + '_y'][timestmp])
-                primary_z_lever = float(self.multibeam.xyzrph[prim_prefix + '_z'][timestmp])
+                if prefixes[0].find('port') != -1:
+                    prefixes = [pfix.replace('port', 'stbd') for pfix in prefixes]
+
+                primary_x_lever = float(self.multibeam.xyzrph[prefixes[refpt[0]] + '_x'][timestmp])
+                primary_y_lever = float(self.multibeam.xyzrph[prefixes[refpt[1]] + '_y'][timestmp])
+                primary_z_lever = float(self.multibeam.xyzrph[prefixes[refpt[2]] + '_z'][timestmp])
 
                 final_lever = np.array([primary_x_lever - secondary_x_lever, primary_y_lever - secondary_y_lever,
                                         primary_z_lever - secondary_z_lever])
@@ -905,9 +905,10 @@ class Fqpr(ZarrBackend):
             navigation at ping time (latitude, longitude, altitude) with altitude correction
         """
 
-        x_lever = float(self.multibeam.xyzrph[prefixes[0] + '_x'][timestmp])
-        y_lever = float(self.multibeam.xyzrph[prefixes[0] + '_y'][timestmp])
-        z_lever = float(self.multibeam.xyzrph[prefixes[0] + '_z'][timestmp])
+        refpt = self.multibeam.return_prefix_for_rp()
+        x_lever = float(self.multibeam.xyzrph[prefixes[refpt[0]] + '_x'][timestmp])
+        y_lever = float(self.multibeam.xyzrph[prefixes[refpt[1]] + '_y'][timestmp])
+        z_lever = float(self.multibeam.xyzrph[prefixes[refpt[2]] + '_z'][timestmp])
         if x_lever or y_lever or z_lever:
             # There exists a lever arm between tx and rp, and the altitude is at the rp
             #  - svcorrected offsets are at tx/rx so there will be a correction necessary to use altitude
@@ -957,11 +958,12 @@ class Fqpr(ZarrBackend):
             [float, additional x offset, float, additional y offset, float, additional z offset]
         """
 
-        x_base_offset = prefixes[0] + '_x'
-        y_base_offset = prefixes[0] + '_y'
+        refpt = self.multibeam.return_prefix_for_rp()
+        x_base_offset = prefixes[refpt[0]] + '_x'
+        y_base_offset = prefixes[refpt[1]] + '_y'
 
         # z included at cast creation, we will apply this in georeference bathy
-        # z_base_offset = prefixes[0] + '_z'
+        # z_base_offset = prefixes[refpt[2]] + '_z'
         addtl_offsets = []
         for cnt, chnk in enumerate(idx_by_chunk):
             sector_by_beam = ra.txsector_beam[chnk].values
@@ -971,9 +973,9 @@ class Fqpr(ZarrBackend):
 
             sector_possibilities = np.unique(sector_by_beam)
             for sector in sector_possibilities:
-                x_off_ky = prefixes[0] + '_x_' + str(sector)
-                y_off_ky = prefixes[0] + '_y_' + str(sector)
-                z_off_ky = prefixes[0] + '_z_' + str(sector)
+                x_off_ky = prefixes[refpt[0]] + '_x_' + str(sector)
+                y_off_ky = prefixes[refpt[1]] + '_y_' + str(sector)
+                z_off_ky = prefixes[refpt[2]] + '_z_' + str(sector)
 
                 if x_off_ky in self.multibeam.xyzrph:
                     addtl_x = float(self.multibeam.xyzrph[x_base_offset][timestmp]) + float(self.multibeam.xyzrph[x_off_ky][timestmp])
@@ -1192,7 +1194,8 @@ class Fqpr(ZarrBackend):
         data_for_workers = []
 
         # this should be the transducer to waterline, positive down
-        z_pos = -float(self.multibeam.xyzrph[prefixes[0] + '_z'][timestmp]) + float(self.multibeam.xyzrph['waterline'][timestmp])
+        refpt = self.multibeam.return_prefix_for_rp()
+        z_pos = -float(self.multibeam.xyzrph[prefixes[refpt[2]] + '_z'][timestmp]) + float(self.multibeam.xyzrph['waterline'][timestmp])
 
         try:
             twtt_data = self.client.scatter([ra.traveltime[d[0]] for d in cast_chunks])
@@ -2489,10 +2492,11 @@ class Fqpr(ZarrBackend):
                 addtl_offsets = self.return_additional_xyz_offsets(rawping, prefixes, timestmp, idx_by_chunk_subset)
                 chunkargs = [rawping, cast_chunks, casts, prefixes, timestmp, addtl_offsets, start_run_index]
             elif mode == 'georef':
+                refpt = self.multibeam.return_prefix_for_rp()
                 kluster_function = distrib_run_georeference
                 chunk_function = self._generate_chunks_georef
                 comp_time = 'georef_time_complete'
-                z_offset = float(self.multibeam.xyzrph[prefixes[0] + '_z'][timestmp])
+                z_offset = float(self.multibeam.xyzrph[prefixes[refpt[2]] + '_z'][timestmp])
                 chunkargs = [rawping, idx_by_chunk_subset, prefixes, timestmp, z_offset, prefer_pp_nav, vdatum_directory, start_run_index]
             elif mode == 'tpu':
                 kluster_function = distrib_run_calculate_tpu
