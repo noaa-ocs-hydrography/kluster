@@ -403,5 +403,5 @@ fil = r"C:\collab\dasktest\data_dir\s7kdata\20140416_060218.s7k"
 tst = X7kRead(fil)
 tst.mapfile()
 
-dat = tst.getrecord(7503, 0)
+dat = tst.getrecord(7004, 0)
 data = dat.full_settings

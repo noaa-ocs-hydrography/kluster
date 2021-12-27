@@ -12,7 +12,8 @@ from typing import Union
 
 from HSTB.kluster import __version__ as klustervers
 from HSTB.kluster.dms import return_zone_from_min_max_long
-from HSTB.kluster.fqpr_drivers import sequential_read_multibeam, fast_read_multibeam_metadata, return_offsets_from_posfile
+from HSTB.kluster.fqpr_drivers import sequential_read_multibeam, fast_read_multibeam_metadata, return_offsets_from_posfile, \
+    sonar_reference_point
 from HSTB.kluster.dask_helpers import dask_find_or_start_client
 from HSTB.kluster.xarray_helpers import resize_zarr, xarr_to_netcdf, combine_xr_attributes, reload_zarr_records, slice_xarray_by_dim
 from HSTB.kluster.fqpr_helpers import seconds_to_formatted_string
@@ -172,8 +173,7 @@ def _assign_reference_points(fileformat: str, finalraw: dict, finalatt: xr.Datas
             for systemid in finalraw:
                 finalraw[systemid].attrs['kluster_convention'] = {'x': '+ Forward', 'y': '+ Starboard', 'z': '+ Down',
                                                                   'roll': '+ Port Up', 'pitch': '+ Bow Up', 'gyro': '+ Clockwise'}
-                if '.' + fileformat in ['.all', '.kmall']:
-                    finalraw[systemid].attrs['sonar_reference_point'] = ['tx_x', 'tx_y', 'tx_z']
+                finalraw[systemid].attrs['sonar_reference_point'] = sonar_reference_point['.' + fileformat]
                 finalraw[systemid].attrs['reference'] = {'beampointingangle': 'receiver', 'delay': 'None', 'frequency': 'None',
                                                          'soundspeed': 'None', 'tiltangle': 'transmitter',
                                                          'traveltime': 'None', 'latitude': 'reference point',

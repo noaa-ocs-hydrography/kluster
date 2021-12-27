@@ -12,6 +12,10 @@ from HSTB.kluster.kluster_variables import supported_multibeam, supported_ppnav,
 from HSTB.drivers import kmall, par3, sbet, svp, PCSio
 
 
+sonar_reference_point = {'.all': ['tx_x', 'tx_y', 'tx_z'],
+                         '.kmall': ['tx_x', 'tx_y', 'tx_z']}
+
+
 def _check_multibeam_file(multibeam_file: str):
     fileext = os.path.splitext(multibeam_file)[1]
     if fileext not in supported_multibeam:
