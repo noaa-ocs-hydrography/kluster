@@ -21,7 +21,7 @@ from HSTB.kluster.fqpr_vessel import trim_xyzrprh_to_times
 from HSTB.kluster.modules.visualizations import FqprVisualizations
 from HSTB.kluster.modules.export import FqprExport
 from HSTB.kluster.modules.subset import FqprSubset
-from HSTB.kluster.xarray_helpers import combine_arrays_to_dataset, divide_arrays_by_time_index, \
+from HSTB.kluster.xarray_helpers import combine_arrays_to_dataset, compare_and_find_gaps, \
     interp_across_chunks, slice_xarray_by_dim, get_beamwise_interpolation
 from HSTB.kluster.backends._zarr import ZarrBackend
 from HSTB.kluster.dask_helpers import dask_find_or_start_client, get_number_of_workers
@@ -1899,9 +1899,22 @@ class Fqpr(ZarrBackend):
                 print('Raw navigation: UTC seconds from {} to {}.  SBET data: UTC seconds from {} to {}'.format(rp.time.values[0], rp.time.values[-1],
                                                                                                                 navdata.time.values[0], navdata.time.values[-1]))
                 continue
+
             # find the nearest new record to each existing navigation record
             nav_wise_data = interp_across_chunks(navdata, rp.time, 'time')
             print('{}: Writing {} new SBET navigation records'.format(rp.system_identifier, nav_wise_data.time.shape[0]))
+
+            # find gaps that don't line up with existing nav gaps (like time between multibeam files)
+            gaps = compare_and_find_gaps(self.multibeam.raw_ping[0], navdata, max_gap_length=max_gap_length, dimname='time')
+            if gaps.any():
+                self.logger.info('Found gaps > {} in comparison between post processed navigation and realtime.  Will not process soundings found in these gaps.'.format(max_gap_length))
+                nav_wise_data = nav_wise_data.load()
+                for gp in gaps:
+                    self.logger.info('mintime: {}, maxtime: {}, gap length {}'.format(gp[0], gp[1], gp[1] - gp[0]))
+                    gap_mask = np.logical_and(nav_wise_data.time < gp[1], nav_wise_data.time > gp[0])
+                    for ky in nav_wise_data.variables.keys():
+                        if ky != 'time':
+                            nav_wise_data[ky][gap_mask] = np.nan
 
             navdata_attrs = nav_wise_data.attrs
             navdata_times = [nav_wise_data.time]
@@ -1919,8 +1932,7 @@ class Fqpr(ZarrBackend):
         endtime = perf_counter()
         self.logger.info('****Importing post processed navigation complete: {}****\n'.format(seconds_to_formatted_string(int(endtime - starttime))))
 
-    def overwrite_raw_navigation(self, navfiles: list, weekstart_year: int, weekstart_week: int,
-                                 max_gap_length: float = 1.0, overwrite: bool = False):
+    def overwrite_raw_navigation(self, navfiles: list, weekstart_year: int, weekstart_week: int, overwrite: bool = False):
         """
         Load from raw navigation files (currently just POS MV .000) to get lat/lon/altitude.  Will overwrite the original
         raw navigation zarr rootgroup, so you can compare pos mv to sbet.
@@ -1936,8 +1948,6 @@ class Fqpr(ZarrBackend):
             must provide the year of the pos mv file here
         weekstart_week
             must provide the week of the pos mv file here
-        max_gap_length
-            maximum allowable gap in the pos file in seconds, excluding gaps found in raw navigation
         overwrite
             if True, will include files that are already in the navigation dataset as valid
         """

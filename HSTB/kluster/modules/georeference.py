@@ -291,6 +291,8 @@ def _new_geohash(latitude: float, longitude: float, precision: int):
         geohash string encoded as bytes
     """
 
+    if np.isnan(latitude) or np.isnan(longitude):
+        return ''
     return geohash.encode(latitude, longitude, precision=precision).encode()
 
 
