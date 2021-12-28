@@ -152,21 +152,22 @@ class Tpu:
         self.roll_sensor_error = 0.0005  # 1 sigma standard deviation in the roll sensor (degrees)
         self.pitch_sensor_error = 0.0005  # 1 sigma standard deviation in the pitch sensor (degrees)
         self.heading_sensor_error = 0.02  # 1 sigma standard deviation in the pitch sensor (degrees)
+        self.surface_sv_error = 0.5  # 1 sigma standard deviation in surface sv sensor (meters/second)
+        self.roll_patch_error = 0.1  # 1 sigma standard deviation in your roll angle patch test procedure (degrees)
+        self.separation_model_error = 0.0  # 1 sigma standard deivation in the sep model (tidal, ellipsoidal, etc) (meters)
+        self.waterline_error = 0.02  # 1 sigma standard deviation of the waterline (meters)
+        self.horizontal_positioning_error = 1.5  # 1 sigma standard deviation of the horizontal positioning (meters)
+        self.vertical_positioning_error = 1.0  # 1 sigma standard deviation of the vertical positioning (meters)
+
         self.x_offset_error = 0.2  # 1 sigma standard deviation in your measurement of x lever arm (meters) CURRENTLY UNUSED
         self.y_offset_error = 0.2  # 1 sigma standard deviation in your measurement of y lever arm (meters) CURRENTLY UNUSED
         self.z_offset_error = 0.2  # 1 sigma standard deviation in your measurement of z lever arm (meters) CURRENTLY UNUSED
-        self.surface_sv_error = 0.5  # 1 sigma standard deviation in surface sv sensor (meters/second)
-        self.roll_patch_error = 0.1  # 1 sigma standard deviation in your roll angle patch test procedure (degrees)
         self.pitch_patch_error = 0.1  # 1 sigma standard deviation in your pitch angle patch test procedure (degrees) CURRENTLY UNUSED
         self.heading_patch_error = 0.5  # 1 sigma standard deviation in your heading angle patch test procedure (degrees) CURRENTLY UNUSED
         self.latency_patch_error = 0.0  # 1 sigma standard deviation in your latency calculation (seconds) CURRENTLY UNUSED
         self.timing_latency_error = 0.001  # 1 sigma standard deviation of the timing accuracy of the system (seconds) CURRENTLY UNUSED
         self.dynamic_draft_error = 0.0  # 1 sigma standard deviation of the dynamic draft measurement (meters) CURRENTLY UNUSED
-        self.separation_model_error = 0.0  # 1 sigma standard deivation in the sep model (tidal, ellipsoidal, etc) (meters)
-        self.waterline_error = 0.02  # 1 sigma standard deviation of the waterline (meters)
         self.vessel_speed_error = 0.1  # 1 sigma standard deviation of the vessel speed (meters/second) CURRENTLY UNUSED
-        self.horizontal_positioning_error = 1.5  # 1 sigma standard deviation of the horizontal positioning (meters)
-        self.vertical_positioning_error = 1.0  # 1 sigma standard deviation of the vertical positioning (meters)
 
         # vectors from sensors necessary for computation
         self.kongsberg_quality_factor = None

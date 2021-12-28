@@ -1003,7 +1003,7 @@ class OptionsWidget(QtWidgets.QWidget):
         fourth_option.addLayout(misc_layout)
         self.basic_config.setLayout(fourth_option)
 
-        self.basic_tpu = QtWidgets.QGroupBox('Uncertainty Parameters')
+        self.basic_tpu = QtWidgets.QGroupBox('Uncertainty Parameters (1 sigma)')
         self.basic_tpu.setCheckable(False)
         toplevellayout = QtWidgets.QVBoxLayout()
         tpulayout = QtWidgets.QHBoxLayout()
