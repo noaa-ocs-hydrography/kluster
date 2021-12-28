@@ -175,6 +175,10 @@ class Fqpr(ZarrBackend):
                 output += 'Navigation Source: {}\n'.format(self.multibeam.raw_ping[0].attrs['navigation_source'])
             except:
                 output += 'Navigation Source: Unknown\n'
+            try:
+                output += 'Contains SBETs: {}\n'.format(self.has_sbet)
+            except:
+                output += 'Contains SBETs: Unknown\n'
             output += 'Sound Velocity Profiles: {}\n'.format(len([ky for ky in self.multibeam.raw_ping[0].attrs.keys() if ky[:7] == 'profile']))
         except:
             output = 'Unable to build string representation: {}'.format(traceback.format_exc())
@@ -1931,6 +1935,51 @@ class Fqpr(ZarrBackend):
 
         endtime = perf_counter()
         self.logger.info('****Importing post processed navigation complete: {}****\n'.format(seconds_to_formatted_string(int(endtime - starttime))))
+
+    def remove_post_processed_navigation(self):
+        """
+        import_post_processed_navigation will write navigation and navigation related attributes to the Fqpr instance.
+        This method will remove all variables and attributes related to post processed navigation.  If the current processing
+        status of this Fqpr is greater than or equal to georeference, this method will also write a new current processing status
+        informing the user/intelligence module to restart processing at georeferencing.
+        """
+
+        self.logger.info('****Removing post processed navigation****\n')
+        starttime = perf_counter()
+
+        if self.has_sbet:
+            expected_records = kluster_variables.variables_by_key['processed navigation']
+            expected_attributes = ['nav_error_files', 'nav_files', 'sbet_datum', 'sbet_ellipsoid', 'sbet_logging_rate_hz',
+                                   'sbet_mission_date']
+            for rpindex in range(len(self.multibeam.raw_ping)):  # for each sonar head (raw_ping)...
+                for rec in expected_records:
+                    try:  # remove the currently loaded xarray dataset variable
+                        self.multibeam.raw_ping[rpindex] = self.multibeam.raw_ping[rpindex].drop(rec)
+                    except:
+                        print('WARNING: Unable to find loaded data matching record "{}"'.format(rec))
+                    try:  # then remove the matching zarr data on disk
+                        self.delete('ping', rec, self.multibeam.raw_ping[rpindex].system_identifier)
+                    except:
+                        print('WARNING: Unable to find data on disk matching record "{}" for sonar {}'.format(rec,
+                                                                                                              self.multibeam.raw_ping[rpindex].system_identifier))
+                for recattr in expected_attributes:
+                    try:
+                        self.multibeam.raw_ping[rpindex].attrs.pop(recattr)
+                    except:
+                        print('WARNING: Unable to find loaded attribute data matching attribute "{}"'.format(recattr))
+                    try:
+                        self.remove_attribute('ping', recattr, self.multibeam.raw_ping[0].system_identifier)
+                    except:
+                        print('WARNING: Unable to find data on disk matching attribute "{}" for sonar {}'.format(recattr,
+                                                                                                                 self.multibeam.raw_ping[rpindex].system_identifier))
+            if self.multibeam.raw_ping[0].current_processing_status >= 4:
+                # have to start over at georeference now, if you removed sbet data
+                self.write_attribute_to_ping_records({'current_processing_status': 3})
+        else:
+            print('No post processed navigation found to remove')
+
+        endtime = perf_counter()
+        self.logger.info('****Removing post processed navigation complete: {}****\n'.format(seconds_to_formatted_string(int(endtime - starttime))))
 
     def overwrite_raw_navigation(self, navfiles: list, weekstart_year: int, weekstart_week: int, overwrite: bool = False):
         """

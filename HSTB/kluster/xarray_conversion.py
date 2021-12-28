@@ -1516,8 +1516,7 @@ class BatchRead(ZarrBackend):
         combattrs['current_processing_status'] = 0
         combattrs['kluster_version'] = klustervers
         combattrs['_conversion_complete'] = datetime.utcnow().strftime('%c')
-        combattrs['status_lookup'] = {0: 'converted', 1: 'orientation', 2: 'beamvector', 3: 'soundvelocity',
-                                      4: 'georeference', 5: 'tpu'}
+        combattrs['status_lookup'] = kluster_variables.status_lookup
         return combattrs
 
     def batch_read(self, output_mode: str = 'zarr'):

@@ -33,6 +33,8 @@ default_number_of_chunks = 4
 converted_files_at_once = 5
 geohash_precision = 7
 max_processing_status = 5
+status_lookup = {0: 'converted', 1: 'orientation', 2: 'beamvector', 3: 'soundvelocity', 4: 'georeference', 5: 'tpu'}
+status_reverse_lookup = {'converted': 0, 'orientation': 1, 'beamvector': 2, 'soundvelocity': 3, 'georeference': 4, 'tpu': 5}
 
 supported_multibeam = ['.all', '.kmall']
 multibeam_uses_quality_factor = ['.all']

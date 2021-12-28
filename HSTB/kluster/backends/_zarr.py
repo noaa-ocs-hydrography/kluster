@@ -6,6 +6,7 @@ import time
 from dask.distributed import wait, Client, progress, Future
 from typing import Union, Callable, Tuple, Any
 from itertools import groupby, count
+import shutil
 
 from HSTB.kluster import kluster_variables
 from HSTB.kluster.backends._base import BaseBackend
@@ -71,6 +72,18 @@ class ZarrBackend(BaseBackend):
         else:
             return [d[append_dim] for d in data]
 
+    def delete(self, dataset_name: str, variable_name: str, sys_id: str = None):
+        """
+        Delete the provided variable name from the datastore on disk.  var_path will be a directory of chunked files, so
+        we use rmtree to remove all files in the var_path directory.
+        """
+        zarr_path = self._get_zarr_path(dataset_name, sys_id)
+        var_path = os.path.join(zarr_path, variable_name)
+        if not os.path.exists(var_path):
+            print('Unable to remove variable {}, path does not exist: {}'.format(variable_name, var_path))
+        else:
+            shutil.rmtree(var_path)
+
     def write(self, dataset_name: str, data: Union[list, xr.Dataset, Future], time_array: list = None, attributes: dict = None,
               sys_id: str = None, append_dim: str = 'time', skip_dask: bool = False):
         """
@@ -102,6 +115,13 @@ class ZarrBackend(BaseBackend):
             zarr_write_attributes(zarr_path, attributes)
         else:
             print('Writing attributes is disabled for in-memory processing')
+
+    def remove_attribute(self, dataset_name: str, attribute: str, sys_id: str = None):
+        zarr_path = self._get_zarr_path(dataset_name, sys_id)
+        if zarr_path is not None:
+            zarr_remove_attribute(zarr_path, attribute)
+        else:
+            print('Removing attributes is disabled for in-memory processing')
 
 
 def _get_indices_dataset_notexist(input_time_arrays):
@@ -534,6 +554,10 @@ class ZarrWrite:
             attrs = self._attributes_only_unique_runtime(attrs)
             attrs = self._attributes_only_unique_xyzrph(attrs)
             _my_xarr_to_zarr_writeattributes(self.rootgroup, attrs)
+
+    def remove_attribute(self, attr: str):
+        if attr in self.rootgroup.attrs:
+            self.rootgroup.attrs.pop(attr)
 
     def _check_fix_rootgroup_expand_dim(self, xarr: xr.Dataset):
         """
@@ -1110,6 +1134,11 @@ def zarr_write_attributes(zarr_path: str, attrs: dict):
     """
     zw = ZarrWrite(zarr_path)
     zw.write_attributes(attrs)
+
+
+def zarr_remove_attribute(zarr_path: str, attr: str):
+    zw = ZarrWrite(zarr_path)
+    zw.remove_attribute(attr)
 
 
 def _my_xarr_to_zarr_writeattributes(rootgroup: zarr.hierarchy.Group, attrs: dict):

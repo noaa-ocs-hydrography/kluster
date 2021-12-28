@@ -512,9 +512,14 @@ class KlusterMain(QtWidgets.QMainWindow):
     def manage_fqpr(self, pth):
         fq = self.project.fqpr_instances[pth]
         dlog = dialog_managedata.ManageDataDialog()
+        dlog.refresh_fqpr.connect(self._refresh_manage_fqpr)
         dlog.populate(fq)
-        if dlog.exec_():
-            pass
+        dlog.exec_()
+
+    def _refresh_manage_fqpr(self, fq, dlog):
+        self.project.add_fqpr(fq)
+        self.refresh_explorer(fq)
+        dlog.populate(fq)
 
     def close_fqpr(self, pth):
         """
