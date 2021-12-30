@@ -117,6 +117,9 @@ class ZarrBackend(BaseBackend):
             print('Writing attributes is disabled for in-memory processing')
 
     def remove_attribute(self, dataset_name: str, attribute: str, sys_id: str = None):
+        """
+        Remove the attribute matching name provided in the dataset_name_sys_id folder
+        """
         zarr_path = self._get_zarr_path(dataset_name, sys_id)
         if zarr_path is not None:
             zarr_remove_attribute(zarr_path, attribute)
@@ -1137,6 +1140,16 @@ def zarr_write_attributes(zarr_path: str, attrs: dict):
 
 
 def zarr_remove_attribute(zarr_path: str, attr: str):
+    """
+    Remove the attribute matching the provided key from the datastore on disk
+    
+    Parameters
+    ----------
+    zarr_path
+        path to zarr data store
+    attr
+        attribute key that you want to remove
+    """
     zw = ZarrWrite(zarr_path)
     zw.remove_attribute(attr)
 

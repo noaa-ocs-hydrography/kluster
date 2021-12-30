@@ -1,6 +1,6 @@
 import os
 import shutil
-
+import json
 import numpy as np
 import xarray as xr
 import zarr
@@ -17,7 +17,11 @@ class TestZarr(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         cls.clsFolder = os.path.join(tempfile.tempdir, 'TestZarr')
-        os.mkdir(cls.clsFolder)
+        try:
+            os.mkdir(cls.clsFolder)
+        except FileExistsError:
+            shutil.rmtree(cls.clsFolder)
+            os.mkdir(cls.clsFolder)
 
     def setUp(self) -> None:
         self.zarr_folder = tempfile.mkdtemp(dir=self.clsFolder)
@@ -684,3 +688,34 @@ class TestZarr(unittest.TestCase):
                                         thirddatasets[1].beampointingangle, fourthdatasets[1].beampointingangle])
         assert np.array_equal(xdataset.beampointingangle.values, expectedangle)
         assert xdataset.attrs['test_attribute'] == 'abc'
+
+    def test_zarr_backend_delete(self):
+        # write new data to disk
+        dataset_name, firstdatasets, dataset_time_arrays, attributes, sysid = self._return_basic_datasets(0, 2)
+        zarr_path, _ = self.zb.write(dataset_name, firstdatasets, dataset_time_arrays, attributes, skip_dask=True, sys_id=sysid)
+        # writing will create a folder for each variable
+        assert os.path.exists(os.path.join(zarr_path, 'beampointingangle'))
+        # deleting the variable will delete the folder
+        self.zb.delete(dataset_name, 'beampointingangle', sysid)
+        assert not os.path.exists(os.path.join(zarr_path, 'beampointingangle'))
+
+    def test_zarr_read_write_attributes(self):
+        dataset_name, firstdatasets, dataset_time_arrays, attributes, sysid = self._return_basic_datasets(0, 2)
+        zarr_path, _ = self.zb.write(dataset_name, firstdatasets, dataset_time_arrays, attributes, skip_dask=True, sys_id=sysid)
+        attrs = os.path.join(zarr_path, '.zattrs')
+        with open(attrs, 'r') as attrsfile:
+            data_on_disk = json.loads(attrsfile.read())
+        assert data_on_disk == attributes
+        # now we write a new attribute
+        self.zb.write_attributes(dataset_name, {'test1': 1}, sysid)
+        with open(attrs, 'r') as attrsfile:
+            data_on_disk = json.loads(attrsfile.read())
+        assert data_on_disk['test1'] == 1
+        # now delete the attribute, you should be back to the original attribution
+        self.zb.remove_attribute(dataset_name, 'test1', sysid)
+        with open(attrs, 'r') as attrsfile:
+            data_on_disk = json.loads(attrsfile.read())
+        assert data_on_disk == attributes
+
+
+
