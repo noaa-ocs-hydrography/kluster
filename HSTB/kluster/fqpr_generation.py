@@ -690,11 +690,52 @@ class Fqpr(ZarrBackend):
             if new_applicable_casts:
                 if self.multibeam.raw_ping[0].current_processing_status >= 3:  # have to start over at sound velocity now
                     self.write_attribute_to_ping_records({'current_processing_status': 2})
-
+                    self.logger.info('Setting processing status to 2, starting over at sound velocity correction')
             self.multibeam.reload_pingrecords(skip_dask=self.client is None)
             self.logger.info('Successfully imported {} new casts'.format(len(cast_dict)))
         else:
             self.logger.warning('Unable to import casts from {}'.format(src))
+
+    def return_all_profiles(self):
+        """
+        convenience for xarray_conversion.BatchRead.return_all_profiles
+        """
+        return self.multibeam.return_all_profiles()
+
+    def remove_profile(self, profile_name: str):
+        """
+        Sound velocity profiles are stored in the Fqpr datastore as attributes with the 'profile_timestamp' format, ex:
+        'profile_1503411780'.  Here we take a profile name that is of that format, and remove the matching profile from the
+        Fqpr attribution, both the loaded data and the data written to disk.
+
+        Parameters
+        ----------
+        profile_name
+            name of the profile with the 'profile_timestamp' format, ex: 'profile_1503411780'
+        """
+
+        if profile_name in self.multibeam.raw_ping[0].attrs:
+            profile_removed = True
+            for rpindex in range(len(self.multibeam.raw_ping)):  # for each sonar head (raw_ping)...
+                try:
+                    self.multibeam.raw_ping[rpindex].attrs.pop(profile_name)
+                except:
+                    self.logger.warning('WARNING: Unable to find loaded profile data matching attribute "{}"'.format(profile_name))
+                    profile_removed = False
+                try:
+                    self.remove_attribute('ping', profile_name, self.multibeam.raw_ping[0].system_identifier)
+                except:
+                    self.logger.warning('WARNING: Unable to find data on disk matching attribute "{}" for sonar {}'.format(profile_name, self.multibeam.raw_ping[rpindex].system_identifier))
+                    profile_removed = False
+            if self.multibeam.raw_ping[0].current_processing_status >= 3:
+                if profile_removed:
+                    # have to start over at sound velocity now, if you removed sbet data
+                    self.write_attribute_to_ping_records({'current_processing_status': 2})
+                    self.logger.info('Setting processing status to 2, starting over at sound velocity correction')
+                else:
+                    self.logger.warning('WARNING: Profile "{}" unsuccessfully removed')
+        else:
+            print('Unable to find sound velocity profile "{}" in converted data'.format(profile_name))
 
     def return_chunk_indices(self, idx_mask: xr.DataArray, pings_per_chunk: int):
         """
@@ -788,7 +829,7 @@ class Fqpr(ZarrBackend):
 
         final_idxs = []
         systems = self.multibeam.return_system_time_indexed_array()
-        profnames, casts, cast_times, castlocations = self.multibeam.return_all_profiles()
+        profnames, casts, cast_times, castlocations = self.return_all_profiles()
         for s_cnt, system in enumerate(systems):
             if system is None:  # get here if one of the heads is disabled (set to None)
                 continue
@@ -1931,6 +1972,7 @@ class Fqpr(ZarrBackend):
         if self.multibeam.raw_ping[0].current_processing_status >= 4:
             # have to start over at georeference now, if there isn't any postprocessed navigation
             self.write_attribute_to_ping_records({'current_processing_status': 3})
+            self.logger.info('Setting processing status to 3, starting over at georeferencing')
         self.multibeam.reload_pingrecords(skip_dask=self.client is None)
 
         endtime = perf_counter()
@@ -1975,6 +2017,7 @@ class Fqpr(ZarrBackend):
             if self.multibeam.raw_ping[0].current_processing_status >= 4:
                 # have to start over at georeference now, if you removed sbet data
                 self.write_attribute_to_ping_records({'current_processing_status': 3})
+                self.logger.info('Setting processing status to 3, starting over at georeferencing')
         else:
             print('No post processed navigation found to remove')
 
@@ -2038,6 +2081,7 @@ class Fqpr(ZarrBackend):
         if self.multibeam.raw_ping[0].current_processing_status >= 4 and not self.has_sbet:
             # have to start over at georeference now, if there isn't any postprocessed navigation
             self.write_attribute_to_ping_records({'current_processing_status': 3})
+            self.logger.info('Setting processing status to 3, starting over at georeferencing')
         self.multibeam.reload_pingrecords(skip_dask=self.client is None)
 
         endtime = perf_counter()
@@ -2546,7 +2590,7 @@ class Fqpr(ZarrBackend):
                 kluster_function = distributed_run_sv_correct
                 chunk_function = self._generate_chunks_svcorr
                 comp_time = 'sv_time_complete'
-                profnames, casts, cast_times, castlocations = self.multibeam.return_all_profiles()
+                profnames, casts, cast_times, castlocations = self.return_all_profiles()
                 cast_chunks = self.return_cast_idx_nearestintime(cast_times, idx_by_chunk_subset, silent=silent)
                 addtl_offsets = self.return_additional_xyz_offsets(rawping, prefixes, timestmp, idx_by_chunk_subset)
                 chunkargs = [rawping, cast_chunks, casts, prefixes, timestmp, addtl_offsets, start_run_index]

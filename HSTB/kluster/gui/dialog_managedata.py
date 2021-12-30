@@ -1,9 +1,12 @@
 import os
+from datetime import datetime, timezone
 
 from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal
+from matplotlib.backends.backend_qt5agg import (FigureCanvasQTAgg, NavigationToolbar2QT as NavigationToolbar)
+import matplotlib.pyplot as plt
 
 
-class ManageDataDialog(QtWidgets.QDialog):
+class ManageDataDialog(QtWidgets.QWidget):
     """
     Dialog contains a summary of the Fqpr data and some options for altering the data contained within.
 
@@ -28,18 +31,28 @@ class ManageDataDialog(QtWidgets.QDialog):
         self.managelabel = QtWidgets.QLabel('Manage: ')
         layout.addWidget(self.managelabel)
 
-        buttontwo = QtWidgets.QHBoxLayout()
+        buttonone = QtWidgets.QHBoxLayout()
         self.sbetbutton = QtWidgets.QPushButton(' Remove SBET ')
-        buttontwo.addWidget(self.sbetbutton)
+        buttonone.addWidget(self.sbetbutton)
+        buttonone.addStretch()
+
+        buttontwo = QtWidgets.QHBoxLayout()
         self.svpbutton = QtWidgets.QPushButton(' Manage SVP ')
         buttontwo.addWidget(self.svpbutton)
+        self.svpmapbutton = QtWidgets.QPushButton(' SVP Map ')
+        buttontwo.addWidget(self.svpmapbutton)
         buttontwo.addStretch()
+
+        layout.addLayout(buttonone)
         layout.addLayout(buttontwo)
 
         self.sbetbutton.clicked.connect(self.remove_sbet)
+        self.svpbutton.clicked.connect(self.manage_svp)
+        self.svpmapbutton.clicked.connect(self.svp_map_display)
 
         self.setLayout(layout)
         self.fqpr = None
+        self.svpdialog = None
 
     def populate(self, fqpr):
         self.fqpr = fqpr
@@ -57,6 +70,22 @@ class ManageDataDialog(QtWidgets.QDialog):
                 print('No SBET files found')
         else:
             print('No data found')
+
+    def remove_svp(self, profilename):
+        print('Removing profiles is currently not supported: {}'.format(profilename))
+
+    def manage_svp(self, e):
+        if self.fqpr is not None:
+            profnames, casts, cast_times, castlocations = self.fqpr.return_all_profiles()
+            if profnames is not None:
+                self.svpdialog = None
+                self.svpdialog = ManageSVPDialog(profnames, casts, cast_times, castlocations)
+                self.svpdialog.remove_cast_sig.connect(self.remove_svp)
+                self.svpdialog.exec_()
+
+    def svp_map_display(self, e):
+        if self.fqpr is not None:
+            self.fqpr.plot.plot_sound_velocity_map()
 
 
 class RemoveSBETDialog(QtWidgets.QMessageBox):
@@ -76,12 +105,144 @@ class RemoveSBETDialog(QtWidgets.QMessageBox):
             return True
 
 
+class MplCanvas(FigureCanvasQTAgg):
+
+    def __init__(self, parent=None, width=5, height=4, dpi=100):
+        self.fig = plt.Figure(figsize=(width, height), dpi=dpi)
+        self.axes = self.fig.add_subplot(111)
+        super(MplCanvas, self).__init__(self.fig)
+        self.setParent(parent)
+        self.parent = parent
+
+    def plot(self, svvalues, depthvalues, profname, title):
+        self.axes.clear()
+        self.axes.plot(svvalues, depthvalues, label=profname)
+        self.axes.set_title('Sound Velocity Profile, ' + title)
+        self.axes.set_xlabel('Sound Velocity (meters/second)')
+        self.axes.set_ylabel('Depth (meters)')
+        self.axes.invert_yaxis()
+        self.axes.legend()
+        self.draw()
+
+
+class ManageSVPDialog(QtWidgets.QDialog):
+    """
+    Dialog for managing the sound velocity profiles currently within this kluster converted data instance
+    """
+    remove_cast_sig = Signal(str)
+
+    def __init__(self, profnames, casts, cast_times, castlocations, parent=None):
+        super().__init__(parent)
+        self.profnames = profnames  # list of profile names
+        self.casts = casts  # list of [depth values, sv values] for each profile
+        self.cast_times = cast_times  # list of times in utc seconds for each profile
+        self.cast_locations = castlocations  # list of [latitude, longitude] for each profile
+
+        self.setWindowTitle('Manage Sound Velocity Profiles')
+        layout = QtWidgets.QVBoxLayout()
+
+        self.sc = MplCanvas(self, width=7, height=5, dpi=100)
+        toolbar = NavigationToolbar(self.sc, self)
+
+        utclayout = QtWidgets.QHBoxLayout()
+        utctimelbl = QtWidgets.QLabel('UTC Timestamp: ')
+        utclayout.addWidget(utctimelbl)
+        self.utc_time = QtWidgets.QLineEdit()
+        self.utc_time.setReadOnly(True)
+        utclayout.addWidget(self.utc_time)
+        utclayout.addStretch()
+
+        utcdatelayout = QtWidgets.QHBoxLayout()
+        utcdatelbl = QtWidgets.QLabel('UTC Date: ')
+        utcdatelayout.addWidget(utcdatelbl)
+        self.utc_date = QtWidgets.QLineEdit()
+        self.utc_date.setReadOnly(True)
+        utcdatelayout.addWidget(self.utc_date)
+        utcdatelayout.addStretch()
+
+        localdatelayout = QtWidgets.QHBoxLayout()
+        localdatelbl = QtWidgets.QLabel('Local Date: ')
+        localdatelayout.addWidget(localdatelbl)
+        self.local_date = QtWidgets.QLineEdit()
+        self.local_date.setReadOnly(True)
+        localdatelayout.addWidget(self.local_date)
+        localdatelayout.addStretch()
+
+        castlocationlayout = QtWidgets.QHBoxLayout()
+        castloclabel = QtWidgets.QLabel('Cast Location (latitude, longitude): ')
+        castlocationlayout.addWidget(castloclabel)
+        self.cast_location_lat = QtWidgets.QLineEdit()
+        self.cast_location_lat.setReadOnly(True)
+        castlocationlayout.addWidget(self.cast_location_lat)
+        self.cast_location_lon = QtWidgets.QLineEdit()
+        self.cast_location_lon.setReadOnly(True)
+        castlocationlayout.addWidget(self.cast_location_lon)
+        castlocationlayout.addStretch()
+
+        buttonlayout = QtWidgets.QHBoxLayout()
+        buttonlayout.addStretch()
+        self.previousbutton = QtWidgets.QPushButton('Previous')
+        buttonlayout.addWidget(self.previousbutton)
+        buttonlayout.addStretch()
+        self.removebutton = QtWidgets.QPushButton('Delete')
+        buttonlayout.addWidget(self.removebutton)
+        buttonlayout.addStretch()
+        self.nextbutton = QtWidgets.QPushButton('Next')
+        buttonlayout.addWidget(self.nextbutton)
+        buttonlayout.addStretch()
+
+        layout.addWidget(toolbar)
+        layout.addWidget(self.sc)
+        layout.addLayout(utclayout)
+        layout.addLayout(utcdatelayout)
+        layout.addLayout(localdatelayout)
+        layout.addLayout(castlocationlayout)
+        layout.addLayout(buttonlayout)
+        self.setLayout(layout)
+
+        self.previousbutton.clicked.connect(self.previous_cast)
+        self.nextbutton.clicked.connect(self.advance_cast)
+        self.removebutton.clicked.connect(self.remove_cast)
+
+        self.cur_index = 0
+        self.plot_cast()
+
+    def advance_cast(self):
+        newindex = self.cur_index + 1
+        if newindex >= len(self.profnames):
+            self.cur_index = 0
+        else:
+            self.cur_index = newindex
+        self.plot_cast()
+
+    def remove_cast(self):
+        self.remove_cast_sig.emit(str(self.profnames[self.cur_index]))
+
+    def previous_cast(self):
+        newindex = self.cur_index - 1
+        if newindex == -1:
+            self.cur_index = len(self.profnames) - 1
+        else:
+            self.cur_index = newindex
+        self.plot_cast()
+
+    def plot_cast(self):
+        index = self.cur_index
+        self.utc_time.setText(str(self.cast_times[index]))
+        self.utc_date.setText(datetime.fromtimestamp(float(self.cast_times[index]), tz=timezone.utc).strftime('%c'))
+        self.local_date.setText(datetime.fromtimestamp(float(self.cast_times[index]), tz=timezone.utc).astimezone(datetime.now().astimezone().tzinfo).strftime('%c'))
+        self.cast_location_lat.setText(str(self.cast_locations[index][0]))
+        self.cast_location_lon.setText(str(self.cast_locations[index][1]))
+        self.sc.plot(self.casts[index][1], self.casts[index][0], self.profnames[index], 'Cast #{}'.format(index + 1))
+
+
 if __name__ == '__main__':
     try:  # pyside2
         app = QtWidgets.QApplication()
     except TypeError:  # pyqt5
         app = QtWidgets.QApplication([])
     dlog = ManageDataDialog()
+    # from HSTB.kluster.fqpr_convenience import reload_data
+    # dlog.populate(reload_data(r"C:\collab\dasktest\data_dir\outputtest\tj_patch_test_2040", skip_dask=True))
     dlog.show()
-    if dlog.exec_():
-        pass
+    app.exec_()

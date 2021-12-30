@@ -125,6 +125,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.vessel_win = None
         self.basicplots_win = None
         self.advancedplots_win = None
+        self.managedata_win = None
         self._manpatchtest = None
 
         self.iconpath = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'images', 'kluster_img.ico')
@@ -513,10 +514,11 @@ class KlusterMain(QtWidgets.QMainWindow):
 
     def manage_fqpr(self, pth):
         fq = self.project.fqpr_instances[pth]
-        dlog = dialog_managedata.ManageDataDialog()
-        dlog.refresh_fqpr.connect(self._refresh_manage_fqpr)
-        dlog.populate(fq)
-        dlog.exec_()
+        self.managedata_win = None
+        self.managedata_win = dialog_managedata.ManageDataDialog()
+        self.managedata_win.refresh_fqpr.connect(self._refresh_manage_fqpr)
+        self.managedata_win.populate(fq)
+        self.managedata_win.show()
 
     def _refresh_manage_fqpr(self, fq, dlog):
         self.project.add_fqpr(fq)
@@ -734,11 +736,17 @@ class KlusterMain(QtWidgets.QMainWindow):
                     fq.write_attribute_to_ping_records({'xyzrph': xyzrph[cnt]})
                     fq.multibeam.xyzrph.update(xyzrph[cnt])
                     if not identical_angles:  # if the angles changed then we have to start over at converted status
-                        fq.write_attribute_to_ping_records({'current_processing_status': 0})
+                        if fq.multibeam.raw_ping[0].current_processing_status > 0:
+                            fq.write_attribute_to_ping_records({'current_processing_status': 0})
+                            fq.logger.info('Setting processing status to 0, starting over at computing orientation')
                     elif not identical_offsets or new_waterline is not None:  # have to re-soundvelocitycorrect
-                        fq.write_attribute_to_ping_records({'current_processing_status': 2})
+                        if fq.multibeam.raw_ping[0].current_processing_status >= 3:
+                            fq.write_attribute_to_ping_records({'current_processing_status': 2})
+                            fq.logger.info('Setting processing status to 2, starting over at sound velocity correction')
                     elif not identical_tpu:  # have to re-tpu
-                        fq.write_attribute_to_ping_records({'current_processing_status': 4})
+                        if fq.multibeam.raw_ping[0].current_processing_status >= 5:
+                            fq.write_attribute_to_ping_records({'current_processing_status': 4})
+                            fq.logger.info('Setting processing status to 4, starting over at uncertainty calculation')
                     self.project.refresh_fqpr_attribution(fqname, relative_path=True)
         self.intel.regenerate_actions()
 
@@ -750,7 +758,9 @@ class KlusterMain(QtWidgets.QMainWindow):
         if fqprs:
             # start over at 1, which is conversion in our state machine
             fq = self.project.fqpr_instances[fqprs[0]]
-            fq.write_attribute_to_ping_records({'current_processing_status': 1})
+            if fq.multibeam.raw_ping[0].current_processing_status > 0:
+                fq.write_attribute_to_ping_records({'current_processing_status': 0})
+                fq.logger.info('Setting processing status to 0, starting over at computing orientation')
             self.project.refresh_fqpr_attribution(fqprs[0], relative_path=True)
             fq.multibeam.reload_pingrecords(skip_dask=fq.client is None)
             self.intel.regenerate_actions()
@@ -2165,7 +2175,7 @@ class KlusterMain(QtWidgets.QMainWindow):
                                                          AppName='klusterproj', bMulti=True, bSave=False, fFilter='all files (*.*)')
         if msg:
             self.update_on_file_added(fil)
-    
+
     def _action_new_project(self):
         """
         Connect menu action 'Open Project' with file dialog and open_project
