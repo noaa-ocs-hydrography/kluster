@@ -72,7 +72,17 @@ class ManageDataDialog(QtWidgets.QWidget):
             print('No data found')
 
     def remove_svp(self, profilename):
-        print('Removing profiles is currently not supported: {}'.format(profilename))
+        if self.svpdialog is not None:
+            if self.svpdialog.number_of_profiles > 1:
+                newstate = RemoveSVPDialog(profilename).run()
+                if newstate:
+                    self.fqpr.remove_profile(profilename)
+                    self.svpdialog.remove_data_at_index(profilename)
+                    self.refresh_fqpr.emit(self.fqpr, self)
+            else:
+                print('Unable to remove the last profile of a dataset')
+        else:
+            print('WARNING: Unable to find svp data dialog')
 
     def manage_svp(self, e):
         if self.fqpr is not None:
@@ -94,6 +104,23 @@ class RemoveSBETDialog(QtWidgets.QMessageBox):
         self.setWindowTitle('Remove SBET')
         self.setText('Remove all SBETs and associated error data from this converted instance?\n\nCurrently includes:\n{}'.format('\n'.join(navfiles)) +
                      '\n\nWARNING: Removing SBETs will generate a new georeferencing action to reprocess with multibeam navigation.')
+        self.setStandardButtons(QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No)
+        self.setDefaultButton(QtWidgets.QMessageBox.Yes)
+
+    def run(self):
+        result = self.exec_()
+        if result == QtWidgets.QMessageBox.No:
+            return False
+        else:
+            return True
+
+
+class RemoveSVPDialog(QtWidgets.QMessageBox):
+    def __init__(self, profile_name: str, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle('Remove Sound Velocity Profile')
+        self.setText('Remove the following sound velocity profile?\n\n{}'.format(profile_name) +
+                     '\n\nWARNING: Removing profiles will generate a new sound velocity action to reprocess with the remaining casts.')
         self.setStandardButtons(QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No)
         self.setDefaultButton(QtWidgets.QMessageBox.Yes)
 
@@ -206,6 +233,19 @@ class ManageSVPDialog(QtWidgets.QDialog):
 
         self.cur_index = 0
         self.plot_cast()
+
+    @property
+    def number_of_profiles(self):
+        return len(self.profnames)
+
+    def remove_data_at_index(self, profile_name):
+        index = self.profnames.index(profile_name)
+        self.profnames.pop(index)
+        self.casts.pop(index)
+        self.cast_times.pop(index)
+        self.cast_locations.pop(index)
+        if index == self.cur_index:
+            self.advance_cast()
 
     def advance_cast(self):
         newindex = self.cur_index + 1
