@@ -10,9 +10,7 @@ from typing import Union
 from datetime import datetime
 from pyproj import CRS, Transformer
 import qdarkstyle
-from qdarkstyle.dark.palette import DarkPalette
 import matplotlib.pyplot as plt
-import xarray as xr
 
 from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal, qgis_enabled, found_path
 if qgis_enabled:
@@ -304,6 +302,8 @@ class KlusterMain(QtWidgets.QMainWindow):
         Build the menu bar for the application
         """
 
+        add_files_action = QtWidgets.QAction('Add Files', self)
+        add_files_action.triggered.connect(self._action_filemenu_add_files)
         new_proj_action = QtWidgets.QAction('New Project', self)
         new_proj_action.triggered.connect(self._action_new_project)
         open_proj_action = QtWidgets.QAction('Open Project', self)
@@ -363,6 +363,8 @@ class KlusterMain(QtWidgets.QMainWindow):
 
         menubar = self.menuBar()
         file = menubar.addMenu("File")
+        file.addAction(add_files_action)
+        file.addSeparator()
         file.addAction(new_proj_action)
         file.addAction(open_proj_action)
         file.addAction(save_proj_action)
@@ -2155,6 +2157,15 @@ class KlusterMain(QtWidgets.QMainWindow):
         """
         self.kluster_auto_patch_test()
 
+    def _action_filemenu_add_files(self):
+        """
+        Connect menu action 'Add Files' with file dialog and update_on_file_added
+        """
+        msg, fil = RegistryHelpers.GetFilenameFromUserQT(self, RegistryKey='kluster', Title='Add any data file (multibeam, sbet, svp, etc.)',
+                                                         AppName='klusterproj', bMulti=True, bSave=False, fFilter='all files (*.*)')
+        if msg:
+            self.update_on_file_added(fil)
+    
     def _action_new_project(self):
         """
         Connect menu action 'Open Project' with file dialog and open_project
