@@ -194,7 +194,7 @@ def _get_indices_dataset_exists(input_time_arrays: list, zarr_time: zarr.Array):
     write_indices = []
     # time arrays must be in order in case you have to do the 'partly in datastore' workaround
     input_time_arrays.sort(key=lambda x: x[0])
-    min_zarr_time =  zarr_time[0]
+    min_zarr_time = zarr_time[0]
     max_zarr_time = zarr_time[-1]
     zarr_time_len = len(zarr_time)
     for input_time in input_time_arrays:  # for each chunk of data that we are wanting to write, look at the times to see where it fits
@@ -213,7 +213,7 @@ def _get_indices_dataset_exists(input_time_arrays: list, zarr_time: zarr.Array):
                     # now add in a range starting with the last index for all values outside the zarr time range
                     starter_indices[~input_is_in_zarr] = np.arange(max_inside_index + 1, max_inside_index + count_outside + 1)
                     if input_time[-1] < max_zarr_time:  # data partially overlaps and is after existing data, but not at the end of the existing dataset
-                        push_forward.append(max_inside_index + 1 + total_push, count_outside)
+                        push_forward.append([max_inside_index + 1 + total_push, count_outside])
                     else:
                         running_total += count_outside
                     write_indices.append(starter_indices + total_push)
