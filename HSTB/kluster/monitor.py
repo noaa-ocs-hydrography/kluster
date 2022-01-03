@@ -104,7 +104,8 @@ class DirectoryMonitor:
             self.newfile = filepath
         elif filepath not in self.seen_files:
             self.seen_files.append(filepath)
-            self.file_buffer[filepath] = file_event
+            # we add the new file to the lookup, where the values are the file size and the current file size
+            self.file_buffer[filepath] = [file_event, 0]
 
     def push_to_kluster_intelligence(self):
         """
@@ -114,14 +115,17 @@ class DirectoryMonitor:
 
         for fil in list(self.file_buffer.keys()):
             try:
-                tst = open(fil)
-                tst.close()
-            except:
-                print('File not ready...')
+                filesize = get_file_size(fil)
+            except:  # file still being written by file system
                 continue
-            self.file_event = self.file_buffer[fil]
-            self.newfile = fil
-            self.file_buffer.pop(fil)
+
+            file_event, previous_file_size = self.file_buffer[fil]
+            if filesize != previous_file_size or filesize == 0:  # update the buffer if file size changed since we last checked
+                self.file_buffer[fil] = [file_event, filesize]
+            else:  # this is a file that finished writing
+                self.file_event = file_event
+                self.newfile = fil
+                self.file_buffer.pop(fil)
 
     def start(self):
         """
@@ -260,3 +264,32 @@ class WatchBuffer(Thread):
         """
         while not self.stopped.wait(self.runtime):
             self.timed_func()
+
+
+def get_file_size(filepath: str):
+    """
+    Not exactly sure how os.stat or os.path.getsize work, but they seem to get the total allocated size of the file and
+    return that while the file is still copying.  What we want, is the actual file size written to disk during copying.
+
+    With standard Windows file copying, we can just try open/close the file, and if that succeeds, the file is finished.
+    With Kongsberg systems writing to disk, we can actually open and read the .all file as it copies, so the try/except is
+    not good enough.  This function will find the length of the actual readable data on disk.
+
+    Parameters
+    ----------
+    filepath
+        file path to a file being written
+
+    Returns
+    -------
+    int
+        file size in bytes
+    """
+
+    with open(filepath, "r") as file:
+        # move pointer to the end of the file
+        file.seek(0, 2)
+        # retrieve the current position of the pointer
+        # this will be the file's size in bytes
+        size = file.tell()
+        return size
