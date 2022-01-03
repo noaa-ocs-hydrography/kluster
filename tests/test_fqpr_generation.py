@@ -129,7 +129,7 @@ class TestFqprGeneration(unittest.TestCase):
         assert first_status == 5
         assert firstrel_azimuth == approx(np.float32(4.703383), 0.00001)
         assert firstrx == approx(np.array([0.7870753, 0.60869384, -0.100021675], dtype=np.float32), 0.00001)
-        assert firstthu == approx(np.float32(8.680531), 0.0001)
+        assert firstthu == approx(np.float32(7.7450113), 0.0001)
         assert firsttvu == approx(np.float32(2.444148), 0.0001)
         assert firsttx == approx(np.array([0.6074468, -0.79435784, 0.0020107413], dtype=np.float32), 0.00001)
         assert firstx == approx(539028.450, 0.001)

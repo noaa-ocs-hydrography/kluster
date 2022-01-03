@@ -846,6 +846,9 @@ def _convert_cast(cast: list, z_waterline_offset: float):
     """
 
     cast_depth, cast_soundvelocity = np.array(cast[0]), np.array(cast[1])
+    if cast_depth[-1] < 10000:  # we extend the cast to ensure that casts that are too short still work, we use the kongsberg extended cast value
+        cast_depth = np.concatenate([cast_depth, [12000.0]])
+        cast_soundvelocity = np.concatenate([cast_soundvelocity, [1669.0]])
     cast_depth_rel_tx = cast_depth + z_waterline_offset
     below_trans = cast_depth_rel_tx >= 0
     cast_depth_rel_tx = cast_depth_rel_tx[below_trans]
