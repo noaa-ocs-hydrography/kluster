@@ -305,6 +305,8 @@ class KlusterMain(QtWidgets.QMainWindow):
 
         add_files_action = QtWidgets.QAction('Add Files', self)
         add_files_action.triggered.connect(self._action_filemenu_add_files)
+        add_converted_action = QtWidgets.QAction('Add Converted', self)
+        add_converted_action.triggered.connect(self._action_filemenu_add_converted)
         new_proj_action = QtWidgets.QAction('New Project', self)
         new_proj_action.triggered.connect(self._action_new_project)
         open_proj_action = QtWidgets.QAction('Open Project', self)
@@ -365,6 +367,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         menubar = self.menuBar()
         file = menubar.addMenu("File")
         file.addAction(add_files_action)
+        file.addAction(add_converted_action)
         file.addSeparator()
         file.addAction(new_proj_action)
         file.addAction(open_proj_action)
@@ -2175,6 +2178,15 @@ class KlusterMain(QtWidgets.QMainWindow):
                                                          AppName='klusterproj', bMulti=True, bSave=False, fFilter='all files (*.*)')
         if msg:
             self.update_on_file_added(fil)
+
+    def _action_filemenu_add_converted(self):
+        """
+        Connect menu action 'Add Converted' with folder dialog and update_on_file_added
+        """
+        msg, folder = RegistryHelpers.GetDirFromUserQT(self, RegistryKey='kluster', Title='Add any Kluster generated converted data folder',
+                                                       AppName='klusterproj')
+        if msg:
+            self.update_on_file_added(folder)
 
     def _action_new_project(self):
         """
