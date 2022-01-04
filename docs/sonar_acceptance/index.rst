@@ -20,7 +20,7 @@ These three categories of tests can overlap, for example, a patch test would be 
 4. Extinction Test - performed in the Sonar Acceptance test
 5. Attitude Latency Assessment - performed in the Sonar Acceptance test and HSRR
 
-Move on to one of the next sections to learn more.  I will be going through a Sonar Acceptance test that I was a part of, and discussing what I did to plan for it.  This is all up for debate I am sure, and only represents my opinion on a way to perform these tests:
+Move on to one of the next sections to learn more.  I will be going through a Sonar Acceptance test that I was a part of, and discussing what I did to plan for it.  This is all up for debate I am sure, and only represents my opinion on a way to perform these tests.
 
 Note that there are many Sonar Acceptance test reports available online, at the UNOLS MAC website.
 
