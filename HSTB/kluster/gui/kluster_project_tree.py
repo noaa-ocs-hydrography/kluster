@@ -21,6 +21,7 @@ class KlusterProjectTree(QtWidgets.QTreeView):
     close_fqpr = Signal(str)
     close_surface = Signal(str)
     manage_fqpr = Signal(str)
+    manage_surface = Signal(str)
     load_console_fqpr = Signal(str)
     load_console_surface = Signal(str)
     zoom_extents_fqpr = Signal(str)
@@ -95,6 +96,7 @@ class KlusterProjectTree(QtWidgets.QTreeView):
         self.right_click_menu_surfaces.addAction(load_in_console)
         self.right_click_menu_surfaces.addAction(zoom_extents)
         self.right_click_menu_surfaces.addSeparator()
+        self.right_click_menu_surfaces.addAction(manage_fqpr)
         self.right_click_menu_surfaces.addAction(update_surface)
 
         self.right_click_menu_surfaces_global.addAction(set_global_surface)
@@ -215,6 +217,8 @@ class KlusterProjectTree(QtWidgets.QTreeView):
 
         if mid_lvl_name == 'Converted':
             self.manage_fqpr.emit(sel_data)
+        elif mid_lvl_name == 'Surfaces':
+            self.manage_surface.emit(sel_data)
 
     def close_item_event(self, e):
         """

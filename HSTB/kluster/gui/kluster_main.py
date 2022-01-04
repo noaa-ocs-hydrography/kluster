@@ -20,7 +20,7 @@ from HSTB.kluster.gui import dialog_vesselview, kluster_explorer, kluster_projec
     kluster_output_window, kluster_2dview, kluster_actions, kluster_monitor, dialog_daskclient, dialog_surface, \
     dialog_export, kluster_worker, kluster_interactive_console, dialog_basicplot, dialog_advancedplot, dialog_project_settings, \
     dialog_export_grid, dialog_layer_settings, dialog_settings, dialog_importppnav, dialog_overwritenav, dialog_surface_data, \
-    dialog_about, dialog_setcolors, dialog_patchtest, dialog_manualpatchtest, dialog_managedata
+    dialog_about, dialog_setcolors, dialog_patchtest, dialog_manualpatchtest, dialog_managedata, dialog_managesurface
 from HSTB.kluster.fqpr_project import FqprProject
 from HSTB.kluster.fqpr_intelligence import FqprIntel
 from HSTB.kluster.fqpr_vessel import convert_from_fqpr_xyzrph, convert_from_vessel_xyzrph, compare_dict_data
@@ -126,6 +126,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.basicplots_win = None
         self.advancedplots_win = None
         self.managedata_win = None
+        self.managedata_surf = None
         self._manpatchtest = None
 
         self.iconpath = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'images', 'kluster_img.ico')
@@ -165,6 +166,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.project_tree.close_fqpr.connect(self.close_fqpr)
         self.project_tree.close_surface.connect(self.close_surface)
         self.project_tree.manage_fqpr.connect(self.manage_fqpr)
+        self.project_tree.manage_surface.connect(self.manage_surface)
         self.project_tree.load_console_fqpr.connect(self.load_console_fqpr)
         self.project_tree.load_console_surface.connect(self.load_console_surface)
         self.project_tree.zoom_extents_fqpr.connect(self.zoom_extents_fqpr)
@@ -525,6 +527,13 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.managedata_win.refresh_fqpr.connect(self._refresh_manage_fqpr)
         self.managedata_win.populate(fq)
         self.managedata_win.show()
+
+    def manage_surface(self, pth):
+        surf = self.project.surface_instances[pth]
+        self.managedata_surf = None
+        self.managedata_surf = dialog_managesurface.ManageSurfaceDialog()
+        self.managedata_surf.populate(surf)
+        self.managedata_surf.show()
 
     def _refresh_manage_fqpr(self, fq, dlog):
         self.project.add_fqpr(fq)
