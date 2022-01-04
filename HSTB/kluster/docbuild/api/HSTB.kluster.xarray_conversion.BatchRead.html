@@ -5,7 +5,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>BatchRead &#8212; kluster 0.8.4 documentation</title>
+    <title>BatchRead &#8212; kluster 0.8.5 documentation</title>
     <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
     <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
     <link rel="stylesheet" type="text/css" href="../_static/graphviz.css" />
@@ -41,7 +41,7 @@
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">HSTB.kluster.backends._zarr.ZarrBackend</span></code></p>
 <p>BatchRead - multibeam data converter using dask infrastructure and xarray data types
 Pass in multibeam files, call read(), and gain access to xarray Datasets for each data type</p>
-<p>NOTE: CURRENTLY ONLY ZARR BASED PROCESSING OF KONGSBERG .ALL AND .KMALL FILES IS SUPPORTED</p>
+<p>NOTE: CURRENTLY ONLY ZARR BASED PROCESSING OF kluster_variables.supported_multibeam FILES IS SUPPORTED</p>
 <div class="line-block">
 <div class="line">BatchRead is stored internally using the following conventions:</div>
 <div class="line">X = + Forward, Y = + Starboard, Z = + Down</div>
@@ -181,31 +181,34 @@ Pass in multibeam files, call read(), and gain access to xarray Datasets for eac
 <tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.xarray_conversion.BatchRead.return_ping_counters_at_time" title="HSTB.kluster.xarray_conversion.BatchRead.return_ping_counters_at_time"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_ping_counters_at_time</span></code></a>(tme)</p></td>
 <td><p>Accepts times as float or a numpy array of times</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.xarray_conversion.BatchRead.return_raw_navigation" title="HSTB.kluster.xarray_conversion.BatchRead.return_raw_navigation"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_raw_navigation</span></code></a>([start_time, end_time])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.xarray_conversion.BatchRead.return_prefix_for_rp" title="HSTB.kluster.xarray_conversion.BatchRead.return_prefix_for_rp"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_prefix_for_rp</span></code></a>()</p></td>
+<td><p>Determine the correct prefix index based on the sonar reference point of this converted data.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.xarray_conversion.BatchRead.return_raw_navigation" title="HSTB.kluster.xarray_conversion.BatchRead.return_raw_navigation"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_raw_navigation</span></code></a>([start_time, end_time])</p></td>
 <td><p>Return just the navigation side of the first ping record.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.xarray_conversion.BatchRead.return_rx_xyzrph" title="HSTB.kluster.xarray_conversion.BatchRead.return_rx_xyzrph"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_rx_xyzrph</span></code></a>(time_idx)</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.xarray_conversion.BatchRead.return_rx_xyzrph" title="HSTB.kluster.xarray_conversion.BatchRead.return_rx_xyzrph"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_rx_xyzrph</span></code></a>(time_idx)</p></td>
 <td><p>Using the constructed xyzrph attribute (see build_offsets) and a given timestamp, return the receiver offsets and angles nearest in time to the timestamp</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.xarray_conversion.BatchRead.return_system_time_indexed_array" title="HSTB.kluster.xarray_conversion.BatchRead.return_system_time_indexed_array"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_system_time_indexed_array</span></code></a>([subset_time])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.xarray_conversion.BatchRead.return_system_time_indexed_array" title="HSTB.kluster.xarray_conversion.BatchRead.return_system_time_indexed_array"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_system_time_indexed_array</span></code></a>([subset_time])</p></td>
 <td><p>Most of the processing involves matching static, timestamped offsets or angles to time series data.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.xarray_conversion.BatchRead.return_tpu_parameters" title="HSTB.kluster.xarray_conversion.BatchRead.return_tpu_parameters"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_tpu_parameters</span></code></a>(timestamp)</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.xarray_conversion.BatchRead.return_tpu_parameters" title="HSTB.kluster.xarray_conversion.BatchRead.return_tpu_parameters"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_tpu_parameters</span></code></a>(timestamp)</p></td>
 <td><p>Pull out the tpu parameters from the xyzrph installation parameters.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.xarray_conversion.BatchRead.return_tx_xyzrph" title="HSTB.kluster.xarray_conversion.BatchRead.return_tx_xyzrph"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_tx_xyzrph</span></code></a>(time_idx)</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.xarray_conversion.BatchRead.return_tx_xyzrph" title="HSTB.kluster.xarray_conversion.BatchRead.return_tx_xyzrph"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_tx_xyzrph</span></code></a>(time_idx)</p></td>
 <td><p>Using the constructed xyzrph attribute (see build_offsets) and a given timestamp, return the transmitter offsets and angles nearest in time to the timestamp</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.xarray_conversion.BatchRead.return_utm_zone_number" title="HSTB.kluster.xarray_conversion.BatchRead.return_utm_zone_number"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_utm_zone_number</span></code></a>()</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.xarray_conversion.BatchRead.return_utm_zone_number" title="HSTB.kluster.xarray_conversion.BatchRead.return_utm_zone_number"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_utm_zone_number</span></code></a>()</p></td>
 <td><p>Get the minimum/maximum longitude values and return the utm zone number</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.xarray_conversion.BatchRead.return_waterline" title="HSTB.kluster.xarray_conversion.BatchRead.return_waterline"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_waterline</span></code></a>(time_idx)</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.xarray_conversion.BatchRead.return_waterline" title="HSTB.kluster.xarray_conversion.BatchRead.return_waterline"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_waterline</span></code></a>(time_idx)</p></td>
 <td><p>Using the settings_xxxxx attribute in the xarray dataset and a given timestamp, return the waterline offset (relative to the tx) nearest in time to the timestamp.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.xarray_conversion.BatchRead.return_xyz_prefixes_for_systems" title="HSTB.kluster.xarray_conversion.BatchRead.return_xyz_prefixes_for_systems"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_xyz_prefixes_for_systems</span></code></a>()</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.xarray_conversion.BatchRead.return_xyz_prefixes_for_systems" title="HSTB.kluster.xarray_conversion.BatchRead.return_xyz_prefixes_for_systems"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_xyz_prefixes_for_systems</span></code></a>()</p></td>
 <td><p>self.raw_ping contains Datasets broken up by system.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.xarray_conversion.BatchRead.return_xyzrph_sorted_timestamps" title="HSTB.kluster.xarray_conversion.BatchRead.return_xyzrph_sorted_timestamps"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_xyzrph_sorted_timestamps</span></code></a>(ky)</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.xarray_conversion.BatchRead.return_xyzrph_sorted_timestamps" title="HSTB.kluster.xarray_conversion.BatchRead.return_xyzrph_sorted_timestamps"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_xyzrph_sorted_timestamps</span></code></a>(ky)</p></td>
 <td><p>Takes in key name and outputs a list of sorted timestamps that are valid for that key.</p></td>
 </tr>
 </tbody>
@@ -407,6 +410,14 @@ element long.</p>
 </dd></dl>
 
 <dl class="py method">
+<dt id="HSTB.kluster.xarray_conversion.BatchRead.return_prefix_for_rp">
+<code class="sig-name descname"><span class="pre">return_prefix_for_rp</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.xarray_conversion.BatchRead.return_prefix_for_rp" title="Permalink to this definition">¶</a></dt>
+<dd><p>Determine the correct prefix index based on the sonar reference point of this converted data.  For instance,
+if the sonar reference point is [‘tx_x’, ‘tx_y’, ‘rx_z’], the returned prefix indices would be [0,0,1], which
+will allow you to pull the correct lever arms from the xyzrph indices. See return_system_time_indexed_array.</p>
+</dd></dl>
+
+<dl class="py method">
 <dt id="HSTB.kluster.xarray_conversion.BatchRead.return_raw_navigation">
 <code class="sig-name descname"><span class="pre">return_raw_navigation</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">start_time</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">end_time</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.xarray_conversion.BatchRead.return_raw_navigation" title="Permalink to this definition">¶</a></dt>
 <dd><p>Return just the navigation side of the first ping record.  If a start time and end time are provided, will
@@ -595,6 +606,7 @@ the offsets/angles from self.xyzrph depending on dual-head</p>
 <li class="toctree-l1"><a class="reference internal" href="../vessel_setup/index.html">Vessel Setup</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../processing/index.html">Processing</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../surface/index.html">Surfacing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../sonar_acceptance/index.html">Sonar Acceptance</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../cleaning/index.html">Cleaning</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../products/index.html">Products</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../settings/index.html">Settings</a></li>

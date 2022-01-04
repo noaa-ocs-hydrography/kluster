@@ -197,6 +197,7 @@ The attributes window in Kluster shows the attributes from both datasets for you
 - input_datum - the datum descriptor for the raw navigation from the multibeam data
 - installsettings_XXXXXXXXXXX - the installation record in its raw form from the multibeam data, the XXXXXXXXXXX represents the time of the record in UTC seconds
 - kluster_version - the version of Kluster used to produce this data
+- kluster_convention - The sign convention for the 6 axes used in Kluster
 - max_lat - the maximum latitude from the Latitude variable that we get from the raw multibeam data
 - max_lon- the maximum longitude from the Latitude variable that we get from the raw multibeam data
 - max_x - the maximum easting that we get from the georeference process in Kluster
@@ -220,6 +221,7 @@ The attributes window in Kluster shows the attributes from both datasets for you
 - sbet_mission_date (IF SBET LOG IS PROVIDED) - the date of the POSPac project
 - secondary_system_serial_number - if this is a dual head sonar, this is a list containing the serial number of the second head
 - sonartype - the sonar model number of the sonar
+- sonar_reference_point - The sonar reference point used by this particular manufacturer, for Kongsberg, this is the center of the Transmitter, i.e. ['tx_x', 'tx_y', 'tx_z']
 - status_lookup - the meaning of the value stored in 'current_processing_status'
 - survey_number - read from the multibeam data, this is not used in Kluster, but is retained in case you need it
 - svmode - the sound velocity cast selection algorithm used

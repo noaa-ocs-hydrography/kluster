@@ -5,7 +5,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>xyz_from_allfile &#8212; kluster 0.8.4 documentation</title>
+    <title>get_file_size &#8212; kluster 0.8.5 documentation</title>
     <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
     <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
     <link rel="stylesheet" type="text/css" href="../_static/graphviz.css" />
@@ -15,8 +15,8 @@
     <script src="../_static/doctools.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="xyz_from_kmallfile" href="HSTB.kluster.fqpr_convenience.xyz_from_kmallfile.html" />
-    <link rel="prev" title="validation_against_xyz88" href="HSTB.kluster.fqpr_convenience.validation_against_xyz88.html" />
+    <link rel="next" title="DirectoryMonitor" href="HSTB.kluster.monitor.DirectoryMonitor.html" />
+    <link rel="prev" title="monitor module" href="../kluster_api/monitor.html" />
    
   <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
   
@@ -33,26 +33,25 @@
 
           <div class="body" role="main">
             
-  <div class="section" id="xyz-from-allfile">
-<h1>xyz_from_allfile<a class="headerlink" href="#xyz-from-allfile" title="Permalink to this headline">¶</a></h1>
+  <div class="section" id="get-file-size">
+<h1>get_file_size<a class="headerlink" href="#get-file-size" title="Permalink to this headline">¶</a></h1>
 <dl class="py function">
-<dt id="HSTB.kluster.fqpr_convenience.xyz_from_allfile">
-<code class="sig-prename descclassname"><span class="pre">HSTB.kluster.fqpr_convenience.</span></code><code class="sig-name descname"><span class="pre">xyz_from_allfile</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">filname</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_convenience.xyz_from_allfile" title="Permalink to this definition">¶</a></dt>
-<dd><p>function using par to pull out the xyz88 datagram and return the xyz for each ping.  Times returned are a sum of
-ping time and delay time (to match Kluster, I do this so that times are unique across sector identifiers).</p>
+<dt id="HSTB.kluster.monitor.get_file_size">
+<code class="sig-prename descclassname"><span class="pre">HSTB.kluster.monitor.</span></code><code class="sig-name descname"><span class="pre">get_file_size</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">filepath</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.monitor.get_file_size" title="Permalink to this definition">¶</a></dt>
+<dd><p>Not exactly sure how os.stat or os.path.getsize work, but they seem to get the total allocated size of the file and
+return that while the file is still copying.  What we want, is the actual file size written to disk during copying.</p>
+<p>With standard Windows file copying, we can just try open/close the file, and if that succeeds, the file is finished.
+With Kongsberg systems writing to disk, we can actually open and read the .all file as it copies, so the try/except is
+not good enough.  This function will find the length of the actual readable data on disk.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><p><strong>filname</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>) – str, path to .all file</p>
+<dd class="field-odd"><p><strong>filepath</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>) – file path to a file being written</p>
 </dd>
 <dt class="field-even">Returns</dt>
-<dd class="field-even"><p><ul class="simple">
-<li><p><em>np.array</em> – 2d numpy array (time, beam) of the alongtrack offsets from the xyz88 record</p></li>
-<li><p><em>np.array</em> – 2d numpy array (time, beam) of the acrosstrack offsets from the xyz88 record</p></li>
-<li><p><em>np.array</em> – 2d numpy array (time, beam) of the depth offsets from the xyz88 record</p></li>
-<li><p><em>np.array</em> – numpy array of the times from the xyz88 record</p></li>
-<li><p><em>np.array</em> – numpy array of the ping counter index from the xyz88 record</p></li>
-</ul>
-</p>
+<dd class="field-even"><p>file size in bytes</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>int</p>
 </dd>
 </dl>
 </dd></dl>
@@ -82,24 +81,26 @@ ping time and delay time (to match Kluster, I do this so that times are unique a
 <li class="toctree-l1"><a class="reference internal" href="../vessel_setup/index.html">Vessel Setup</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../processing/index.html">Processing</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../surface/index.html">Surfacing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../sonar_acceptance/index.html">Sonar Acceptance</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../cleaning/index.html">Cleaning</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../products/index.html">Products</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../settings/index.html">Settings</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../indepth/index.html">Learn more about Kluster</a></li>
 <li class="toctree-l1 current"><a class="reference internal" href="../kluster_api/index.html">API</a><ul class="current">
-<li class="toctree-l2 current"><a class="reference internal" href="../kluster_api/fqpr_convenience.html">fqpr_convenience module</a><ul class="current">
-<li class="toctree-l3 current"><a class="reference internal" href="../kluster_api/fqpr_convenience.html#module-HSTB.kluster.fqpr_convenience">HSTB.kluster.fqpr_convenience Module</a><ul class="current">
-<li class="toctree-l4 current"><a class="reference internal" href="../kluster_api/fqpr_convenience.html#functions">Functions</a></li>
-</ul>
-</li>
-</ul>
-</li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/fqpr_convenience.html">fqpr_convenience module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../kluster_api/fqpr_generation.html">fqpr_generation module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../kluster_api/fqpr_project.html">fqpr_project module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../kluster_api/fqpr_intelligence.html">fqpr_intelligence module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../kluster_api/fqpr_actions.html">fqpr_actions module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../kluster_api/fqpr_vessel.html">fqpr_vessel module</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../kluster_api/monitor.html">monitor module</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="../kluster_api/monitor.html">monitor module</a><ul class="current">
+<li class="toctree-l3 current"><a class="reference internal" href="../kluster_api/monitor.html#module-HSTB.kluster.monitor">HSTB.kluster.monitor Module</a><ul class="current">
+<li class="toctree-l4 current"><a class="reference internal" href="../kluster_api/monitor.html#functions">Functions</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../kluster_api/monitor.html#classes">Classes</a></li>
+</ul>
+</li>
+</ul>
+</li>
 <li class="toctree-l2"><a class="reference internal" href="../kluster_api/xarray_conversion.html">xarray_conversion module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../kluster_api/orientation.html">orientation module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../kluster_api/beampointingvector.html">beampointingvector module</a></li>
@@ -131,9 +132,9 @@ ping time and delay time (to match Kluster, I do this so that times are unique a
 <ul>
   <li><a href="../index.html">Documentation overview</a><ul>
   <li><a href="../kluster_api/index.html">API</a><ul>
-  <li><a href="../kluster_api/fqpr_convenience.html">fqpr_convenience module</a><ul>
-      <li>Previous: <a href="HSTB.kluster.fqpr_convenience.validation_against_xyz88.html" title="previous chapter">validation_against_xyz88</a></li>
-      <li>Next: <a href="HSTB.kluster.fqpr_convenience.xyz_from_kmallfile.html" title="next chapter">xyz_from_kmallfile</a></li>
+  <li><a href="../kluster_api/monitor.html">monitor module</a><ul>
+      <li>Previous: <a href="../kluster_api/monitor.html" title="previous chapter">monitor module</a></li>
+      <li>Next: <a href="HSTB.kluster.monitor.DirectoryMonitor.html" title="next chapter">DirectoryMonitor</a></li>
   </ul></li>
   </ul></li>
   </ul></li>
@@ -169,7 +170,7 @@ ping time and delay time (to match Kluster, I do this so that times are unique a
       &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
       
       |
-      <a href="../_sources/api/HSTB.kluster.fqpr_convenience.xyz_from_allfile.rst.txt"
+      <a href="../_sources/api/HSTB.kluster.monitor.get_file_size.rst.txt"
           rel="nofollow">Page source</a>
     </div>
 

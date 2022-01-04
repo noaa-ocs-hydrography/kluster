@@ -26,7 +26,6 @@ fqpr\_generation module
    :skip: FqprExport
    :skip: FqprSubset
    :skip: combine_arrays_to_dataset
-   :skip: divide_arrays_by_time_index
    :skip: interp_across_chunks
    :skip: trim_xyzrprh_to_times
    :skip: slice_xarray_by_dim
@@ -37,7 +36,8 @@ fqpr\_generation module
    :skip: build_crs
    :skip: return_attitude_rotation_matrix
    :skip: return_logger
-   :skip: sbet_fast_read_start_end_time
-   :skip: sbets_to_xarray
-   :skip: posfiles_to_xarray
    :skip: seconds_to_formatted_string
+   :skip: compare_and_find_gaps
+   :skip: fast_read_sbet_metadata
+   :skip: return_xarray_from_posfiles
+   :skip: return_xarray_from_sbet

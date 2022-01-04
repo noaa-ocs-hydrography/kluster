@@ -1,6 +1,0 @@
-xyz_from_allfile
-================
-
-.. currentmodule:: HSTB.kluster.fqpr_convenience
-
-.. autofunction:: xyz_from_allfile

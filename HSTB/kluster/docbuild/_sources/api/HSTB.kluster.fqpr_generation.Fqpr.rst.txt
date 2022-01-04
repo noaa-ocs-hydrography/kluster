@@ -55,8 +55,11 @@ Fqpr
       ~Fqpr.line_is_processed
       ~Fqpr.overwrite_raw_navigation
       ~Fqpr.read_from_source
+      ~Fqpr.remove_post_processed_navigation
+      ~Fqpr.remove_profile
       ~Fqpr.restore_subset
       ~Fqpr.return_additional_xyz_offsets
+      ~Fqpr.return_all_profiles
       ~Fqpr.return_applicable_casts
       ~Fqpr.return_cast_dict
       ~Fqpr.return_cast_idx_nearestintime
@@ -130,8 +133,11 @@ Fqpr
    .. automethod:: line_is_processed
    .. automethod:: overwrite_raw_navigation
    .. automethod:: read_from_source
+   .. automethod:: remove_post_processed_navigation
+   .. automethod:: remove_profile
    .. automethod:: restore_subset
    .. automethod:: return_additional_xyz_offsets
+   .. automethod:: return_all_profiles
    .. automethod:: return_applicable_casts
    .. automethod:: return_cast_dict
    .. automethod:: return_cast_idx_nearestintime

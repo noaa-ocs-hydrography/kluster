@@ -1,0 +1,143 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Extinction Test &#8212; kluster 0.8.5 documentation</title>
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" type="text/css" href="../_static/graphviz.css" />
+    <script id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Attitude Latency Assessment" href="salatency.html" />
+    <link rel="prev" title="Accuracy Test" href="saaccuracy.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="extinction-test">
+<h1>Extinction Test<a class="headerlink" href="#extinction-test" title="Permalink to this headline">¶</a></h1>
+<p>The Extinction Test will take the data you provide and plot the outermost beam returns, giving you an idea of the maximum swath size versus depth.  This information is useful in planning surveys, as you can predict the swath width in different areas.</p>
+<p>The Extinction Test involves a line that is ideally run in both directions at multiple frequencies, that starts shallow and runs until you no longer get a return from the sonar, i.e. past the expected maximum depth of the system.</p>
+<p>The image below shows an example plan for our extinction line:</p>
+<a class="reference external image-reference" href="../_images/saextinction1.png"><img alt="../_images/saextinction1.png" src="../_images/saextinction1.png" /></a>
+<p>To run this process in Kluster, you need to:</p>
+<ol class="arabic simple">
+<li><p>Process the extinction lines.</p></li>
+<li><p>Select the Converted entry for the Extinction lines in the Project Tree or if you only want to include specific lines, select those lines in the Project Tree or using the Select tool in 2d View.</p></li>
+<li><p>Go to Visualize - Advanced Plots - Extinction Test</p></li>
+<li><p>Select one of the three modes, the screenshot below shows the output for each mode for my dataset</p></li>
+</ol>
+<a class="reference external image-reference" href="../_images/saextinction2.png"><img alt="../_images/saextinction2.png" src="../_images/saextinction2.png" /></a>
+<p>The Extinction Test provides a lot of useful information, let’s examine the image above for a moment.  We can see that with the 200/300khz modes, we maintain about 6x water depth down to about 70 meters (this is a dual head system).  The maximum swath size dips at 70 and 130 meters, probably because the sonar switched to another mode.  What is interesting, is that the sonar appears to be in Long FM mode throughout the test, which is a mode you would expect to see in deeper water.  This system might have been set to this mode during acquisition for some reason.</p>
+<p>The maximum depth for all frequencies appears to be around 250 to 300 meters.  You lose a great deal of swath width at 400 khz, as you can see the swath stays around 2x water depth throughout the depth ranges.  At 200 meters, you appear to start losing the outer beams, as you can see the extinction line start trending inwards.</p>
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">kluster</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../quickstart/index.html">Quickstart</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../faq/index.html">FAQ</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../vessel_setup/index.html">Vessel Setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../processing/index.html">Processing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../surface/index.html">Surfacing</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Sonar Acceptance</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="saplanning.html">Planning</a></li>
+<li class="toctree-l2"><a class="reference internal" href="sapatch.html">Patch Test</a></li>
+<li class="toctree-l2"><a class="reference internal" href="sareference.html">Reference Test</a></li>
+<li class="toctree-l2"><a class="reference internal" href="saaccuracy.html">Accuracy Test</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Extinction Test</a></li>
+<li class="toctree-l2"><a class="reference internal" href="salatency.html">Attitude Latency Assessment</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../cleaning/index.html">Cleaning</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../products/index.html">Products</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../settings/index.html">Settings</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../indepth/index.html">Learn more about Kluster</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../kluster_api/index.html">API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../changes.html">Changes List</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  <li><a href="index.html">Sonar Acceptance</a><ul>
+      <li>Previous: <a href="saaccuracy.html" title="previous chapter">Accuracy Test</a></li>
+      <li>Next: <a href="salatency.html" title="next chapter">Attitude Latency Assessment</a></li>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2020, Eric Younkin.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.5.2</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="../_sources/sonar_acceptance/saextinction.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

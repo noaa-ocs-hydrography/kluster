@@ -7,8 +7,6 @@ fqpr\_convenience module
    :skip: Client
    :skip: Union
    :skip: GridSpec
-   :skip: AllRead
-   :skip: kmall
    :skip: BatchRead
    :skip: Fqpr
    :skip: create_grid
@@ -17,3 +15,4 @@ fqpr\_convenience module
    :skip: seconds_to_formatted_string
    :skip: return_log_name
    :skip: dask_find_or_start_client
+   :skip: return_xyz_from_multibeam
