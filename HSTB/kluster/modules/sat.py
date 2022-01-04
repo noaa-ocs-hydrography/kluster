@@ -153,14 +153,14 @@ class BaseTest:
             maximum depth of all points
         """
 
-        plt.plot([totalmindepth, totalmaxdepth], [totalmindepth, totalmaxdepth], '--', c='black', label='2X Water Depth')
-        plt.plot([-totalmindepth, -totalmaxdepth], [totalmindepth, totalmaxdepth], '--', c='black')
-        plt.plot([totalmindepth * 1.5, totalmaxdepth * 1.5], [totalmindepth, totalmaxdepth], '--', c='dimgray', label='3X Water Depth')
-        plt.plot([-totalmindepth * 1.5, -totalmaxdepth * 1.5], [totalmindepth, totalmaxdepth], '--', c='dimgray')
-        plt.plot([totalmindepth * 2, totalmaxdepth * 2], [totalmindepth, totalmaxdepth], '--', c='gray', label='4X Water Depth')
-        plt.plot([-totalmindepth * 2, -totalmaxdepth * 2], [totalmindepth, totalmaxdepth], '--', c='gray')
-        plt.plot([totalmindepth * 2.5, totalmaxdepth * 2.5], [totalmindepth, totalmaxdepth], '--', c='darkgray', label='5X Water Depth')
-        plt.plot([-totalmindepth * 2.5, -totalmaxdepth * 2.5], [totalmindepth, totalmaxdepth], '--', c='darkgray')
+        plt.plot([totalmindepth, totalmaxdepth], [totalmindepth, totalmaxdepth], '--', c='dimgray', label='2X Water Depth')
+        plt.plot([-totalmindepth, -totalmaxdepth], [totalmindepth, totalmaxdepth], '--', c='dimgray')
+        plt.plot([totalmindepth * 1.5, totalmaxdepth * 1.5], [totalmindepth, totalmaxdepth], '--', c='gray', label='3X Water Depth')
+        plt.plot([-totalmindepth * 1.5, -totalmaxdepth * 1.5], [totalmindepth, totalmaxdepth], '--', c='gray')
+        plt.plot([totalmindepth * 2, totalmaxdepth * 2], [totalmindepth, totalmaxdepth], '--', c='darkgray', label='4X Water Depth')
+        plt.plot([-totalmindepth * 2, -totalmaxdepth * 2], [totalmindepth, totalmaxdepth], '--', c='darkgray')
+        plt.plot([totalmindepth * 2.5, totalmaxdepth * 2.5], [totalmindepth, totalmaxdepth], '--', c='silver', label='5X Water Depth')
+        plt.plot([-totalmindepth * 2.5, -totalmaxdepth * 2.5], [totalmindepth, totalmaxdepth], '--', c='silver')
         plt.plot([totalmindepth * 3, totalmaxdepth * 3], [totalmindepth, totalmaxdepth], '--', c='lightgray', label='6X Water Depth')
         plt.plot([-totalmindepth * 3, -totalmaxdepth * 3], [totalmindepth, totalmaxdepth], '--', c='lightgray')
 

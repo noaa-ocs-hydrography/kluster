@@ -11,9 +11,10 @@ Here is our diagonal line plan showing the reference lines in the background.
 To run this process in Kluster, you need to:
 
 1. Generate a surface for the reference lines
-2. Select the Converted entry for the Accuracy lines in the Project Tree and go to Visualize - Advanced Plots.
-3. You will see the path to the converted data auto populate at the top of Advanced Plots, as well as the surface under Path to Kluster Surface.
-4. Click Plot and the tool will run, plots will be saved to the directory shown at the bottom, and will also be automatically opened if you check 'Show Plots'
+2. Select the Converted entry for the Accuracy lines in the Project Tree or if you only want to include specific lines, select those lines in the Project Tree or using the Select tool in 2d View.
+3. Go to Visualize - Advanced Plots - Accuracy Test
+4. You will see the path to the converted data auto populate at the top of Advanced Plots, as well as the surface under Path to Kluster Surface.
+5. Click Plot and the tool will run, plots will be saved to the directory shown at the bottom, and will also be automatically opened if you check 'Show Plots'
 
 Here is an example run for my datasets:
 
