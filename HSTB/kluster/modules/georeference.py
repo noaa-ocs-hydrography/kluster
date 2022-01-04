@@ -152,7 +152,8 @@ def georef_by_worker(sv_corr: list, alt: xr.DataArray, lon: xr.DataArray, lat: x
         newpos = georef_transformer.transform(pos[0], pos[1], errcheck=True)  # longitude / latitude order (x/y)
     else:
         newpos = pos
-
+    newpos[0][np.isinf(newpos[0])] = np.nan
+    newpos[1][np.isinf(newpos[1])] = np.nan
     x = reform_nan_array(np.around(newpos[0], 3), at_idx, alongtrack.shape, alongtrack.coords, alongtrack.dims)
     y = reform_nan_array(np.around(newpos[1], 3), ac_idx, acrosstrack.shape, acrosstrack.coords, acrosstrack.dims)
     ghash = reform_nan_array(ghash, ac_idx, acrosstrack.shape, acrosstrack.coords, acrosstrack.dims)
@@ -291,6 +292,8 @@ def _new_geohash(latitude: float, longitude: float, precision: int):
         geohash string encoded as bytes
     """
 
+    if np.isnan(latitude) or np.isnan(longitude):
+        return ''
     return geohash.encode(latitude, longitude, precision=precision).encode()
 
 

@@ -1,6 +1,6 @@
 import os
 import shutil
-
+import json
 import numpy as np
 import xarray as xr
 import zarr
@@ -17,7 +17,11 @@ class TestZarr(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         cls.clsFolder = os.path.join(tempfile.tempdir, 'TestZarr')
-        os.mkdir(cls.clsFolder)
+        try:
+            os.mkdir(cls.clsFolder)
+        except FileExistsError:
+            shutil.rmtree(cls.clsFolder)
+            os.mkdir(cls.clsFolder)
 
     def setUp(self) -> None:
         self.zarr_folder = tempfile.mkdtemp(dir=self.clsFolder)
@@ -82,6 +86,20 @@ class TestZarr(unittest.TestCase):
         assert np.array_equal(indices[0], np.array([7, 8, 9, 10, 11]))
         # pushforward is 0 here as we did not need to move the original data up at all
         assert push_forward == []
+        assert total_push == 0
+
+    def test_get_write_indices_zarr_partlycoveredafter_middle(self):
+        # let zarr_time represent the time dimension of the data that is on disk for our test
+        zarr_time = zarr.array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 15, 16, 17])
+        # now we make sure that when data is partly in the array, we get the correct indices to overwrite and append
+        data_time = np.array([7, 8, 9, 10, 11])
+        input_time_arrays = [xr.DataArray(data_time, coords={'time': data_time}, dims=['time'])]
+        indices, push_forward, total_push = _get_indices_dataset_exists(input_time_arrays, zarr_time)
+        assert len(indices) == 1
+        assert np.array_equal(indices[0], np.array([7, 8, 9, 10, 11]))
+        # pushforward is 2 here as we need to push the original data up two to make room
+        assert push_forward == [[10, 2]]
+        # no room needed at beginning though
         assert total_push == 0
 
     def test_get_write_indices_zarr_partlycoveredprior(self):
@@ -684,3 +702,34 @@ class TestZarr(unittest.TestCase):
                                         thirddatasets[1].beampointingangle, fourthdatasets[1].beampointingangle])
         assert np.array_equal(xdataset.beampointingangle.values, expectedangle)
         assert xdataset.attrs['test_attribute'] == 'abc'
+
+    def test_zarr_backend_delete(self):
+        # write new data to disk
+        dataset_name, firstdatasets, dataset_time_arrays, attributes, sysid = self._return_basic_datasets(0, 2)
+        zarr_path, _ = self.zb.write(dataset_name, firstdatasets, dataset_time_arrays, attributes, skip_dask=True, sys_id=sysid)
+        # writing will create a folder for each variable
+        assert os.path.exists(os.path.join(zarr_path, 'beampointingangle'))
+        # deleting the variable will delete the folder
+        self.zb.delete(dataset_name, 'beampointingangle', sysid)
+        assert not os.path.exists(os.path.join(zarr_path, 'beampointingangle'))
+
+    def test_zarr_read_write_attributes(self):
+        dataset_name, firstdatasets, dataset_time_arrays, attributes, sysid = self._return_basic_datasets(0, 2)
+        zarr_path, _ = self.zb.write(dataset_name, firstdatasets, dataset_time_arrays, attributes, skip_dask=True, sys_id=sysid)
+        attrs = os.path.join(zarr_path, '.zattrs')
+        with open(attrs, 'r') as attrsfile:
+            data_on_disk = json.loads(attrsfile.read())
+        assert data_on_disk == attributes
+        # now we write a new attribute
+        self.zb.write_attributes(dataset_name, {'test1': 1}, sysid)
+        with open(attrs, 'r') as attrsfile:
+            data_on_disk = json.loads(attrsfile.read())
+        assert data_on_disk['test1'] == 1
+        # now delete the attribute, you should be back to the original attribution
+        self.zb.remove_attribute(dataset_name, 'test1', sysid)
+        with open(attrs, 'r') as attrsfile:
+            data_on_disk = json.loads(attrsfile.read())
+        assert data_on_disk == attributes
+
+
+

@@ -6,6 +6,7 @@ import time
 from dask.distributed import wait, Client, progress, Future
 from typing import Union, Callable, Tuple, Any
 from itertools import groupby, count
+import shutil
 
 from HSTB.kluster import kluster_variables
 from HSTB.kluster.backends._base import BaseBackend
@@ -71,6 +72,18 @@ class ZarrBackend(BaseBackend):
         else:
             return [d[append_dim] for d in data]
 
+    def delete(self, dataset_name: str, variable_name: str, sys_id: str = None):
+        """
+        Delete the provided variable name from the datastore on disk.  var_path will be a directory of chunked files, so
+        we use rmtree to remove all files in the var_path directory.
+        """
+        zarr_path = self._get_zarr_path(dataset_name, sys_id)
+        var_path = os.path.join(zarr_path, variable_name)
+        if not os.path.exists(var_path):
+            print('Unable to remove variable {}, path does not exist: {}'.format(variable_name, var_path))
+        else:
+            shutil.rmtree(var_path)
+
     def write(self, dataset_name: str, data: Union[list, xr.Dataset, Future], time_array: list = None, attributes: dict = None,
               sys_id: str = None, append_dim: str = 'time', skip_dask: bool = False):
         """
@@ -102,6 +115,16 @@ class ZarrBackend(BaseBackend):
             zarr_write_attributes(zarr_path, attributes)
         else:
             print('Writing attributes is disabled for in-memory processing')
+
+    def remove_attribute(self, dataset_name: str, attribute: str, sys_id: str = None):
+        """
+        Remove the attribute matching name provided in the dataset_name_sys_id folder
+        """
+        zarr_path = self._get_zarr_path(dataset_name, sys_id)
+        if zarr_path is not None:
+            zarr_remove_attribute(zarr_path, attribute)
+        else:
+            print('Removing attributes is disabled for in-memory processing')
 
 
 def _get_indices_dataset_notexist(input_time_arrays):
@@ -171,7 +194,7 @@ def _get_indices_dataset_exists(input_time_arrays: list, zarr_time: zarr.Array):
     write_indices = []
     # time arrays must be in order in case you have to do the 'partly in datastore' workaround
     input_time_arrays.sort(key=lambda x: x[0])
-    min_zarr_time =  zarr_time[0]
+    min_zarr_time = zarr_time[0]
     max_zarr_time = zarr_time[-1]
     zarr_time_len = len(zarr_time)
     for input_time in input_time_arrays:  # for each chunk of data that we are wanting to write, look at the times to see where it fits
@@ -190,7 +213,7 @@ def _get_indices_dataset_exists(input_time_arrays: list, zarr_time: zarr.Array):
                     # now add in a range starting with the last index for all values outside the zarr time range
                     starter_indices[~input_is_in_zarr] = np.arange(max_inside_index + 1, max_inside_index + count_outside + 1)
                     if input_time[-1] < max_zarr_time:  # data partially overlaps and is after existing data, but not at the end of the existing dataset
-                        push_forward.append(max_inside_index + 1 + total_push, count_outside)
+                        push_forward.append([max_inside_index + 1 + total_push, count_outside])
                     else:
                         running_total += count_outside
                     write_indices.append(starter_indices + total_push)
@@ -534,6 +557,10 @@ class ZarrWrite:
             attrs = self._attributes_only_unique_runtime(attrs)
             attrs = self._attributes_only_unique_xyzrph(attrs)
             _my_xarr_to_zarr_writeattributes(self.rootgroup, attrs)
+
+    def remove_attribute(self, attr: str):
+        if attr in self.rootgroup.attrs:
+            self.rootgroup.attrs.pop(attr)
 
     def _check_fix_rootgroup_expand_dim(self, xarr: xr.Dataset):
         """
@@ -1110,6 +1137,21 @@ def zarr_write_attributes(zarr_path: str, attrs: dict):
     """
     zw = ZarrWrite(zarr_path)
     zw.write_attributes(attrs)
+
+
+def zarr_remove_attribute(zarr_path: str, attr: str):
+    """
+    Remove the attribute matching the provided key from the datastore on disk
+    
+    Parameters
+    ----------
+    zarr_path
+        path to zarr data store
+    attr
+        attribute key that you want to remove
+    """
+    zw = ZarrWrite(zarr_path)
+    zw.remove_attribute(attr)
 
 
 def _my_xarr_to_zarr_writeattributes(rootgroup: zarr.hierarchy.Group, attrs: dict):

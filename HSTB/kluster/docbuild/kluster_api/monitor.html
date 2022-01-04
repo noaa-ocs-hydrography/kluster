@@ -5,7 +5,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>monitor module &#8212; kluster 0.8.4 documentation</title>
+    <title>monitor module &#8212; kluster 0.8.5 documentation</title>
     <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
     <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
     <link rel="stylesheet" type="text/css" href="../_static/graphviz.css" />
@@ -15,7 +15,7 @@
     <script src="../_static/doctools.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="DirectoryMonitor" href="../api/HSTB.kluster.monitor.DirectoryMonitor.html" />
+    <link rel="next" title="get_file_size" href="../api/HSTB.kluster.monitor.get_file_size.html" />
     <link rel="prev" title="VesselFile" href="../api/HSTB.kluster.fqpr_vessel.VesselFile.html" />
    
   <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
@@ -37,6 +37,20 @@
 <h1>monitor module<a class="headerlink" href="#monitor-module" title="Permalink to this headline">¶</a></h1>
 <div class="section" id="module-HSTB.kluster.monitor">
 <span id="hstb-kluster-monitor-module"></span><h2>HSTB.kluster.monitor Module<a class="headerlink" href="#module-HSTB.kluster.monitor" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="functions">
+<h3>Functions<a class="headerlink" href="#functions" title="Permalink to this headline">¶</a></h3>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="../api/HSTB.kluster.monitor.get_file_size.html#HSTB.kluster.monitor.get_file_size" title="HSTB.kluster.monitor.get_file_size"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_file_size</span></code></a>(filepath)</p></td>
+<td><p>Not exactly sure how os.stat or os.path.getsize work, but they seem to get the total allocated size of the file and return that while the file is still copying.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
 <div class="section" id="classes">
 <h3>Classes<a class="headerlink" href="#classes" title="Permalink to this headline">¶</a></h3>
 <table class="longtable docutils align-default">
@@ -83,6 +97,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../vessel_setup/index.html">Vessel Setup</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../processing/index.html">Processing</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../surface/index.html">Surfacing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../sonar_acceptance/index.html">Sonar Acceptance</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../cleaning/index.html">Cleaning</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../products/index.html">Products</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../settings/index.html">Settings</a></li>
@@ -96,6 +111,7 @@
 <li class="toctree-l2"><a class="reference internal" href="fqpr_vessel.html">fqpr_vessel module</a></li>
 <li class="toctree-l2 current"><a class="current reference internal" href="#">monitor module</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#module-HSTB.kluster.monitor">HSTB.kluster.monitor Module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#functions">Functions</a></li>
 <li class="toctree-l4"><a class="reference internal" href="#classes">Classes</a></li>
 </ul>
 </li>
@@ -133,7 +149,7 @@
   <li><a href="../index.html">Documentation overview</a><ul>
   <li><a href="index.html">API</a><ul>
       <li>Previous: <a href="../api/HSTB.kluster.fqpr_vessel.VesselFile.html" title="previous chapter">VesselFile</a></li>
-      <li>Next: <a href="../api/HSTB.kluster.monitor.DirectoryMonitor.html" title="next chapter">DirectoryMonitor</a></li>
+      <li>Next: <a href="../api/HSTB.kluster.monitor.get_file_size.html" title="next chapter">get_file_size</a></li>
   </ul></li>
   </ul></li>
 </ul>

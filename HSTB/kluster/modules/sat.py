@@ -153,14 +153,14 @@ class BaseTest:
             maximum depth of all points
         """
 
-        plt.plot([totalmindepth, totalmaxdepth], [totalmindepth, totalmaxdepth], '--', c='black', label='2X Water Depth')
-        plt.plot([-totalmindepth, -totalmaxdepth], [totalmindepth, totalmaxdepth], '--', c='black')
-        plt.plot([totalmindepth * 1.5, totalmaxdepth * 1.5], [totalmindepth, totalmaxdepth], '--', c='dimgray', label='3X Water Depth')
-        plt.plot([-totalmindepth * 1.5, -totalmaxdepth * 1.5], [totalmindepth, totalmaxdepth], '--', c='dimgray')
-        plt.plot([totalmindepth * 2, totalmaxdepth * 2], [totalmindepth, totalmaxdepth], '--', c='gray', label='4X Water Depth')
-        plt.plot([-totalmindepth * 2, -totalmaxdepth * 2], [totalmindepth, totalmaxdepth], '--', c='gray')
-        plt.plot([totalmindepth * 2.5, totalmaxdepth * 2.5], [totalmindepth, totalmaxdepth], '--', c='darkgray', label='5X Water Depth')
-        plt.plot([-totalmindepth * 2.5, -totalmaxdepth * 2.5], [totalmindepth, totalmaxdepth], '--', c='darkgray')
+        plt.plot([totalmindepth, totalmaxdepth], [totalmindepth, totalmaxdepth], '--', c='dimgray', label='2X Water Depth')
+        plt.plot([-totalmindepth, -totalmaxdepth], [totalmindepth, totalmaxdepth], '--', c='dimgray')
+        plt.plot([totalmindepth * 1.5, totalmaxdepth * 1.5], [totalmindepth, totalmaxdepth], '--', c='gray', label='3X Water Depth')
+        plt.plot([-totalmindepth * 1.5, -totalmaxdepth * 1.5], [totalmindepth, totalmaxdepth], '--', c='gray')
+        plt.plot([totalmindepth * 2, totalmaxdepth * 2], [totalmindepth, totalmaxdepth], '--', c='darkgray', label='4X Water Depth')
+        plt.plot([-totalmindepth * 2, -totalmaxdepth * 2], [totalmindepth, totalmaxdepth], '--', c='darkgray')
+        plt.plot([totalmindepth * 2.5, totalmaxdepth * 2.5], [totalmindepth, totalmaxdepth], '--', c='silver', label='5X Water Depth')
+        plt.plot([-totalmindepth * 2.5, -totalmaxdepth * 2.5], [totalmindepth, totalmaxdepth], '--', c='silver')
         plt.plot([totalmindepth * 3, totalmaxdepth * 3], [totalmindepth, totalmaxdepth], '--', c='lightgray', label='6X Water Depth')
         plt.plot([-totalmindepth * 3, -totalmaxdepth * 3], [totalmindepth, totalmaxdepth], '--', c='lightgray')
 
@@ -640,20 +640,39 @@ def _acctest_plots(arr_mean: np.array, arr_std: np.array, xdim: np.array, xdim_b
     a.set_title('Depth Bias vs {}\nremoved {}m offset from grid to sounding'.format(mode, round(depth_offset, 3)))
 
     # Order 1 line
-    a.hlines(o1_max, xdim_bins.min(), xdim_bins.max(), colors='k', linestyles='dashed', linewidth=3, alpha=0.5,
+    a.hlines(o1_max, xdim_bins.min(), xdim_bins.max(), colors='grey', linestyles='dashed', linewidth=3, alpha=0.5,
              label='Order 1')
-    a.hlines(-o1_max, xdim_bins.min(), xdim_bins.max(), colors='k', linestyles='dashed', linewidth=3, alpha=0.5)
+    a.hlines(-o1_max, xdim_bins.min(), xdim_bins.max(), colors='grey', linestyles='dashed', linewidth=3, alpha=0.5)
 
     # Special Order Line
     a.hlines(so_max, xdim_bins.min(), xdim_bins.max(), colors='g', linestyles='dashed', linewidth=3, alpha=0.5,
              label='Special Order')
     a.hlines(-so_max, xdim_bins.min(), xdim_bins.max(), colors='g', linestyles='dashed', linewidth=3, alpha=0.5)
     a.legend(loc='upper left')
+    if mode == 'Angle':
+        a.invert_xaxis()
 
     f.savefig(output_pth)
     if not show:
         plt.close(f)
     return f, a
+
+
+def _validate_accuracy_test(ref_surf: BathyGrid, fq: Fqpr, line_names: Union[str, list] = None):
+    err = False
+    converted_crs = fq.multibeam.raw_ping[0].vertical_crs
+    if ref_surf.vertical_reference not in [fq.vert_ref, converted_crs]:
+        if len(converted_crs) > 20:
+            converted_crs = converted_crs[:20] + '...'
+        print('The surface vertical reference ({}) does not match the Converted data vertical reference ({},{})'.format(ref_surf.vertical_reference,
+                                                                                                                        fq.vert_ref, converted_crs))
+        err = True
+        return err
+    if ref_surf.epsg != fq.horizontal_crs.to_epsg():
+        print('The surface horizontal reference ({}) does not match the Converted data horizontal reference ({})'.format(ref_surf.epsg,
+                                                                                                                         fq.horizontal_crs.to_epsg()))
+        err = True
+        return err
 
 
 def accuracy_test(ref_surf: Union[str, BathyGrid], fq: Union[str, Fqpr], output_directory: str, line_names: Union[str, list] = None,
@@ -684,6 +703,7 @@ def accuracy_test(ref_surf: Union[str, BathyGrid], fq: Union[str, Fqpr], output_
         fq = reload_data(fq)
     if isinstance(ref_surf, str):
         ref_surf = reload_surface(ref_surf)
+    _validate_accuracy_test(ref_surf, fq, line_names)
     os.makedirs(output_directory, exist_ok=True)
 
     grouped_datasets = {}
@@ -720,7 +740,7 @@ def accuracy_test(ref_surf: Union[str, BathyGrid], fq: Union[str, Fqpr], output_
         depth_diff, surf_depth, soundings_beam, soundings_angle = difference_grid_and_soundings(ref_surf, dset)
 
         # for plots, we limit to max 30000 soundings, the plot chokes with more than that
-        soundings_filter = int(np.ceil(len(soundings_beam) / 100000))
+        soundings_filter = int(np.ceil(len(soundings_beam) / 30000))
         filter_beam = soundings_beam[::soundings_filter]
         filter_angle = soundings_angle[::soundings_filter]
         filter_diff = depth_diff[::soundings_filter]

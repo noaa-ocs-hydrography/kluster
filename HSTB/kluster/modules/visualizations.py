@@ -465,7 +465,7 @@ class FqprVisualizations:
         """
 
         sv = None
-        profnames, casts, cast_times, castlocations = self.fqpr.multibeam.return_all_profiles()
+        profnames, casts, cast_times, castlocations = self.fqpr.return_all_profiles()
 
         if filter_by_time:
             min_search_time = float(self.fqpr.multibeam.raw_ping[0].time[0].values - 5)
@@ -543,7 +543,7 @@ class FqprVisualizations:
         lonrange = maxlon - minlon
         latrange = maxlat - minlat
         datarange = max(lonrange, latrange)
-        profnames, casts, cast_times, castlocations = self.fqpr.multibeam.return_all_profiles()
+        profnames, casts, cast_times, castlocations = self.fqpr.return_all_profiles()
         all_lats = []
         all_longs = []
         for profname, cast, casttime, castloc in zip(profnames, casts, cast_times, castlocations):
@@ -577,6 +577,7 @@ class FqprVisualizations:
             plt.ylim(minlat - 0.5 * datarange, maxlat + 0.5 * datarange)
             plt.xlim(minlon - 0.5 * datarange, maxlon + 0.5 * datarange)
             print('No sound velocity profiles found within the given time range')
+        return fig
 
     def _generate_orientation_vector(self, system_index: int = 0, tme: float = None):
         """

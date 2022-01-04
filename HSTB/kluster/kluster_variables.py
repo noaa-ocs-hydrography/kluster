@@ -33,6 +33,8 @@ default_number_of_chunks = 4
 converted_files_at_once = 5
 geohash_precision = 7
 max_processing_status = 5
+status_lookup = {0: 'converted', 1: 'orientation', 2: 'beamvector', 3: 'soundvelocity', 4: 'georeference', 5: 'tpu'}
+status_reverse_lookup = {'converted': 0, 'orientation': 1, 'beamvector': 2, 'soundvelocity': 3, 'georeference': 4, 'tpu': 5}
 
 supported_multibeam = ['.all', '.kmall']
 multibeam_uses_quality_factor = ['.all']
@@ -86,28 +88,30 @@ processing_log_names = ['_conversion_complete', '_compute_orientation_complete',
                         '_sound_velocity_correct_complete', '_georeference_soundings_complete',
                         '_total_uncertainty_complete', '_soundings_last_cleaned']
 
+# 1 sigma default tpu parameter values
 default_heave_error = 0.050  # default tpu parameter for heave
 default_roll_error = 0.001  # default tpu parameter for roll
 default_pitch_error = 0.001  # default tpu parameter for pitch
 default_heading_error = 0.020  # default tpu parameter for heading
-default_x_offset_error = 0.200  # default tpu parameter for x offset measurement
-default_y_offset_error = 0.200  # default tpu parameter for y offset measurement
-default_z_offset_error = 0.200  # default tpu parameter for z offset measurement
 default_x_antenna_offset = 0.000  # default tpu parameter for x antenna offset
 default_y_antenna_offset = 0.000  # default tpu parameter for y antenna offset
 default_z_antenna_offset = 0.000  # default tpu parameter for z antenna offset
 default_surface_sv_error = 0.500  # default tpu parameter for surface sv
 default_roll_patch_error = 0.100  # default tpu parameter for roll patch
+default_separation_model_error = 0.000  # default tpu parameter for separation model
+default_waterline_error = 0.020  # default tpu parameter for waterline
+default_horizontal_positioning_error = 0.500  # default tpu parameter for horizontal positioning
+default_vertical_positioning_error = 0.300  # default tpu parameter for vertical positioning
+default_beam_opening_angle = 1.0  # default parameter for beam opening angle in degrees
+# currently unused values
+default_x_offset_error = 0.200  # default tpu parameter for x offset measurement
+default_y_offset_error = 0.200  # default tpu parameter for y offset measurement
+default_z_offset_error = 0.200  # default tpu parameter for z offset measurement
 default_pitch_patch_error = 0.100  # default tpu parameter for pitch patch
 default_heading_patch_error = 0.500  # default tpu parameter for heading patch
 default_latency_patch_error = 0.000  # default tpu parameter for latency patch
 default_latency_error = 0.001  # default tpu parameter for latency
-default_separation_model_error = 0.000  # default tpu parameter for separation model
-default_waterline_error = 0.020  # default tpu parameter for waterline
 default_vessel_speed_error = 0.100  # default tpu parameter for vessel speed
-default_horizontal_positioning_error = 1.500  # default tpu parameter for horizontal positioning
-default_vertical_positioning_error = 1.000  # default tpu parameter for vertical positioning
-default_beam_opening_angle = 1.0  # default parameter for beam opening angle in degrees
 
 # zarr backend, chunksizes for writing to disk
 ping_chunks = {'time': (ping_chunk_size,), 'beam': (max_beams,), 'xyz': (3,),

@@ -1,0 +1,191 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Patch Test &#8212; kluster 0.8.5 documentation</title>
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" type="text/css" href="../_static/graphviz.css" />
+    <script id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Reference Test" href="sareference.html" />
+    <link rel="prev" title="Planning" href="saplanning.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="patch-test">
+<h1>Patch Test<a class="headerlink" href="#patch-test" title="Permalink to this headline">¶</a></h1>
+<p>This section will occasionally refer to the following documents:</p>
+<p>NOAA Field Procedures Manual (FPM) - <a class="reference external" href="https://nauticalcharts.noaa.gov/publications/standards-and-requirements.html">See “Field Procedures Manual” section</a></p>
+<p>The Patch Test or Multibeam Calibration Test is our way of attempting to correct for the inaccuracies of the vessel survey in data processing.  The vessel survey (at least modern vessel surveys that I have been involved in) will generally offer an assessment of the mounting angles of the sonar head(s) relative to the reference point that you use.  The mounting angles are given as roll, pitch and yaw, and are the relative difference in the orientation of the sonar head(s) relative to the reference point.  This is usually determined in a survey by surveying in the four corners of the sonar head and determining the slope in the three different directions of the resulting plane.</p>
+<p>The way to refine these mounting angle values involves collecting multibeam data in different ways to emphasize the error and allow the user to pick different mounting angle values to reduce the error.  Below is an image from the FPM guidance on Patch Tests (Section 1.6.5.2)</p>
+<a class="reference external image-reference" href="../_images/sapatch1.png"><img alt="../_images/sapatch1.png" src="../_images/sapatch1.png" /></a>
+<p>And here is our planned lines for the Patch Test:</p>
+<a class="reference external image-reference" href="../_images/sapatch2.png"><img alt="../_images/sapatch2.png" src="../_images/sapatch2.png" /></a>
+<p>You will notice that we do not have a planned timing (latency) line.  We’ve found that trying to pick a latency value during the patch test doesn’t work that well, or at least not as well as the purpose built latency test that I will be covering in that section.</p>
+<p>You will want to acquire each of these three lines in both directions, at survey speed.  You’ll also want to ensure that you collect a sound velocity profile cast before and after this acquisition period.</p>
+<p>In the following sections, I will be using data that does not match my planning images.  I no longer have this data.  However, the procedure is pretty straightforward, so it shouldn’t matter.  I’ve already processed the data in Kluster (see quick start section to learn more on how to do that) and I have a surface loaded as well.  I like to add some surface transparency (View - Layer Settings) and select my lines (2d View - Select) to see the attribution in the Explorer tab to get the heading info.  I also really like Dark Mode (view - Dark Mode)</p>
+<p>Generally, you will run this test (the processing, not the acquisition) multiple times to get an average value for pitch, roll, yaw values.</p>
+<p>For each test, you will want to select the points in a specific way, and then do basically the same steps:</p>
+<ol class="arabic simple">
+<li><p>Select the lines you want in the Points View, see the Show Lines button.  Only check your two lines.</p></li>
+<li><p>Zoom in on an area to examine and Color by Linename in Points View.  Ensure that View = Arrow to see the area in the direction of the arrow on the Points tool.</p></li>
+<li><p>Click the Patch Test button.  You will get a screen asking which entry you want to use.  Check the row that matches your patch test data.  There should only be one row ideally, if your patch test was over several days, you would have to check multiple entries here.</p></li>
+<li><p>Click load.  You should now have the Patch Test screen.</p></li>
+<li><p>Alter the correct value by an amount you think appropriate, and then press Update.  The points in the Points View will be reprocessed with this new angle and be re-displayed automatically.</p></li>
+<li><p>Record the new value for this angle, and then move on to the next test</p></li>
+</ol>
+<p>For each test, you will likely want to enter in the new values you have so far before proceeding.  For example, if you have done Pitch and are about to do Roll, you would enter in your new Pitch value in the Patch Test screen as well as the new Roll value that you are trying out.</p>
+<p>Hold your mouse over the Points button to learn how to use it.</p>
+<div class="section" id="pitch">
+<h2>Pitch<a class="headerlink" href="#pitch" title="Permalink to this headline">¶</a></h2>
+<p>Pitch is the same line run twice in opposite directions over a slope.  For our dataset, we will use lines 9 and 10, which satisfy this criteria.  We want to compare the nadir (center) beam of each line, so we can just generate a narrow box using the Points tool (2d View - Points) and center it on top of the lines.</p>
+<p>Follow steps 1 through 6 above.  You should now have this display:</p>
+<a class="reference external image-reference" href="../_images/sapatch3.png"><img alt="../_images/sapatch3.png" src="../_images/sapatch3.png" /></a>
+<p>In this example, the slope isn’t that substantial, so it is a little difficult to tell.</p>
+<p>Determine your new Pitch value to make the slopes align.</p>
+</div>
+<div class="section" id="roll">
+<h2>Roll<a class="headerlink" href="#roll" title="Permalink to this headline">¶</a></h2>
+<p>Roll is the same line run twice in opposite directions across a slope or flat area.  We want to just compare a slice of the data in the across track direction.</p>
+<p>Follow steps 1 through 6 above.  You should now have this display:</p>
+<a class="reference external image-reference" href="../_images/sapatch4.png"><img alt="../_images/sapatch4.png" src="../_images/sapatch4.png" /></a>
+<p>In this example, we aren’t exactly going across a slope or in a flat area, so this is less than ideal.</p>
+<p>Determine your new Roll value to make the slopes align.</p>
+</div>
+<div class="section" id="yaw">
+<h2>Yaw<a class="headerlink" href="#yaw" title="Permalink to this headline">¶</a></h2>
+<p>Yaw is two lines run in the same direction down a slope offset from each other.  You want to just get the overlap in the outer beams to exacerbate the error.  Compare a slice of data from both lines as shown in the image.</p>
+<p>Follow steps 1 through 6 above.  You should now have this display:</p>
+<a class="reference external image-reference" href="../_images/sapatch5.png"><img alt="../_images/sapatch5.png" src="../_images/sapatch5.png" /></a>
+<p>In this example, we don’t have a feature, and the slope is again less than ideal.</p>
+<p>Determine your new Yaw value to make the slopes align.</p>
+</div>
+<div class="section" id="using-the-results">
+<h2>Using the Results<a class="headerlink" href="#using-the-results" title="Permalink to this headline">¶</a></h2>
+<p>After you have new Pitch, Roll and Yaw values, you can now update the existing values and reprocess.  This is done using the Vessel Offsets tool.  With your converted data selected in the Project Tree, go to Setup - Vessel Offsets, and you’ll see the display showing you the vessel, waterline plane, and the sensor data.</p>
+<p>You want to use the following sections:</p>
+<p>Pitch = Sonar Transmitter Pitch
+Roll = Sonar Receiver Roll
+Yaw = Sonar Receiver Yaw</p>
+<p>Update the values you see here with your new values, click the Update button and close the Vessel Setup window.  It will ask you if you want to save your changes.  Select Yes.  It will then ask if you want to use a vessel file or update the multibeam data offsets.  If you update the multibeam data, the angles that are in the converted data are updated and used during multibeam processing.  If you choose vessel, it will not update the converted multibeam data angles and instead build a vessel file that overrides the multibeam data offsets and angles.  You probably want to choose update, unless you are doing something else with vessel files.</p>
+<p>Kluster will then generate a new processing action to reflect the fact that you are using different mounting angles and need to restart processing at Orientation.  Hit Start Process, and the data will be reprocessed with the new angles!</p>
+</div>
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">kluster</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../quickstart/index.html">Quickstart</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../faq/index.html">FAQ</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../vessel_setup/index.html">Vessel Setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../processing/index.html">Processing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../surface/index.html">Surfacing</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Sonar Acceptance</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="saplanning.html">Planning</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Patch Test</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#pitch">Pitch</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#roll">Roll</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#yaw">Yaw</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#using-the-results">Using the Results</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="sareference.html">Reference Test</a></li>
+<li class="toctree-l2"><a class="reference internal" href="saaccuracy.html">Accuracy Test</a></li>
+<li class="toctree-l2"><a class="reference internal" href="saextinction.html">Extinction Test</a></li>
+<li class="toctree-l2"><a class="reference internal" href="salatency.html">Attitude Latency Assessment</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../cleaning/index.html">Cleaning</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../products/index.html">Products</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../settings/index.html">Settings</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../indepth/index.html">Learn more about Kluster</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../kluster_api/index.html">API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../changes.html">Changes List</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  <li><a href="index.html">Sonar Acceptance</a><ul>
+      <li>Previous: <a href="saplanning.html" title="previous chapter">Planning</a></li>
+      <li>Next: <a href="sareference.html" title="next chapter">Reference Test</a></li>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2020, Eric Younkin.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.5.2</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="../_sources/sonar_acceptance/sapatch.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

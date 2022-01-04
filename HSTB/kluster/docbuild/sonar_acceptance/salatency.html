@@ -1,0 +1,155 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Attitude Latency Assessment &#8212; kluster 0.8.5 documentation</title>
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" type="text/css" href="../_static/graphviz.css" />
+    <script id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Cleaning" href="../cleaning/index.html" />
+    <link rel="prev" title="Extinction Test" href="saextinction.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="attitude-latency-assessment">
+<h1>Attitude Latency Assessment<a class="headerlink" href="#attitude-latency-assessment" title="Permalink to this headline">¶</a></h1>
+<p>The traditional Latency test involves running lines at different speeds and comparing the depths.  In general, this is a difficult test to perform and to assess, so we do not include it in this discussion.</p>
+<p>There is another test that we have found to be more reliable, which is to calculate the slope of the ping and compare it to the roll rate.  The best fit line of this plot essentially represents the latency, and roll is an easy data source to assess in this way, as it is the most sensitive to latency changes.</p>
+<p>You can use either a new set of lines, the patch test or the reference surface lines for this plot.  You will not need a surface.  Ideally the lines you use should represent a flat seafloor, and should be during a period of time where you were experiencing some roll.</p>
+<p>This plot is a part of the Wobble Test in Kluster, which is an implementation of the <a class="reference external" href="http://www.omg.unb.ca/omg/papers/Lect_26_paper_ihr03.pdf">John Hughes Clark paper</a> on “dynamic motion residuals”.  You can experiment with the rest of the Wobble Test (see Plot Type = Wobble Test, Mode = Dashboard) but for now we are going to focus on the ‘Attitude Latency’ plot.</p>
+<p>To run this process in Kluster, you need to:</p>
+<ol class="arabic simple">
+<li><p>Process the latency lines or reload the existing patch test/extinction test lines.</p></li>
+<li><p>Select the Converted entry for the Latency lines in the Project Tree or if you only want to include specific lines, select those lines in the Project Tree or using the Select tool in 2d View.</p></li>
+<li><p>Go to Visualize - Advanced Plots - Wobble Test</p></li>
+<li><p>Select the time range (limiting to less than 3000 pings ideally) and click Plot.</p></li>
+</ol>
+<p>Limit the time range to just a single line using the ‘Trim by line’ or just drag the blue sliders around until you get the right ‘Ping Count’, see the ping count box above the sliders.</p>
+<a class="reference external image-reference" href="../_images/salatency1.png"><img alt="../_images/salatency1.png" src="../_images/salatency1.png" /></a>
+<div class="section" id="using-the-results">
+<h2>Using the Results<a class="headerlink" href="#using-the-results" title="Permalink to this headline">¶</a></h2>
+<p>As with the patch test results, if you get a large value or a value that disagrees with what you current have, you should first examine the dataset and processing to ensure you did everything correctly.  For latency, if you have a large feature or the seafloor is not very flat or if there isn’t much roll, you can get anomalous results.</p>
+<p>In our experience with Kongsberg systems, you often times see a latency value from 7 to 14 milliseconds.</p>
+<p>After you have a new latency value that is satisfactory, with your converted data selected in the Project Tree, go to Setup - Vessel Offsets, and you’ll see the display showing you the vessel, waterline plane, and the sensor data.</p>
+<p>You want to use the following section:</p>
+<p>Latency, Sensor = Latency</p>
+<p>Update the values you see here with your new values, click the Update button and close the Vessel Setup window.  It will ask you if you want to save your changes.  Select Yes.  It will then ask if you want to use a vessel file or update the multibeam data offsets.  If you update the multibeam data, the angles that are in the converted data are updated and used during multibeam processing.  If you choose vessel, it will not update the converted multibeam data angles and instead build a vessel file that overrides the multibeam data offsets and angles.  You probably want to choose update, unless you are doing something else with vessel files.</p>
+<p>Kluster will then generate a new processing action to reflect the fact that you are using different mounting angles and need to restart processing at Orientation.  Hit Start Process, and the data will be reprocessed with the new angles!</p>
+</div>
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">kluster</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../quickstart/index.html">Quickstart</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../faq/index.html">FAQ</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../vessel_setup/index.html">Vessel Setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../processing/index.html">Processing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../surface/index.html">Surfacing</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Sonar Acceptance</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="saplanning.html">Planning</a></li>
+<li class="toctree-l2"><a class="reference internal" href="sapatch.html">Patch Test</a></li>
+<li class="toctree-l2"><a class="reference internal" href="sareference.html">Reference Test</a></li>
+<li class="toctree-l2"><a class="reference internal" href="saaccuracy.html">Accuracy Test</a></li>
+<li class="toctree-l2"><a class="reference internal" href="saextinction.html">Extinction Test</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Attitude Latency Assessment</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#using-the-results">Using the Results</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../cleaning/index.html">Cleaning</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../products/index.html">Products</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../settings/index.html">Settings</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../indepth/index.html">Learn more about Kluster</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../kluster_api/index.html">API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../changes.html">Changes List</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  <li><a href="index.html">Sonar Acceptance</a><ul>
+      <li>Previous: <a href="saextinction.html" title="previous chapter">Extinction Test</a></li>
+      <li>Next: <a href="../cleaning/index.html" title="next chapter">Cleaning</a></li>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2020, Eric Younkin.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.5.2</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="../_sources/sonar_acceptance/salatency.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

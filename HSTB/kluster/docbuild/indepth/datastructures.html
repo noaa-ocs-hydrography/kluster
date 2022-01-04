@@ -5,7 +5,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Data Structures &#8212; kluster 0.8.4 documentation</title>
+    <title>Data Structures &#8212; kluster 0.8.5 documentation</title>
     <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
     <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
     <link rel="stylesheet" type="text/css" href="../_static/graphviz.css" />
@@ -201,6 +201,7 @@
 <li><p>input_datum - the datum descriptor for the raw navigation from the multibeam data</p></li>
 <li><p>installsettings_XXXXXXXXXXX - the installation record in its raw form from the multibeam data, the XXXXXXXXXXX represents the time of the record in UTC seconds</p></li>
 <li><p>kluster_version - the version of Kluster used to produce this data</p></li>
+<li><p>kluster_convention - The sign convention for the 6 axes used in Kluster</p></li>
 <li><p>max_lat - the maximum latitude from the Latitude variable that we get from the raw multibeam data</p></li>
 <li><p>max_lon- the maximum longitude from the Latitude variable that we get from the raw multibeam data</p></li>
 <li><p>max_x - the maximum easting that we get from the georeference process in Kluster</p></li>
@@ -224,6 +225,7 @@
 <li><p>sbet_mission_date (IF SBET LOG IS PROVIDED) - the date of the POSPac project</p></li>
 <li><p>secondary_system_serial_number - if this is a dual head sonar, this is a list containing the serial number of the second head</p></li>
 <li><p>sonartype - the sonar model number of the sonar</p></li>
+<li><p>sonar_reference_point - The sonar reference point used by this particular manufacturer, for Kongsberg, this is the center of the Transmitter, i.e. [‘tx_x’, ‘tx_y’, ‘tx_z’]</p></li>
 <li><p>status_lookup - the meaning of the value stored in ‘current_processing_status’</p></li>
 <li><p>survey_number - read from the multibeam data, this is not used in Kluster, but is retained in case you need it</p></li>
 <li><p>svmode - the sound velocity cast selection algorithm used</p></li>
@@ -535,6 +537,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../vessel_setup/index.html">Vessel Setup</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../processing/index.html">Processing</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../surface/index.html">Surfacing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../sonar_acceptance/index.html">Sonar Acceptance</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../cleaning/index.html">Cleaning</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../products/index.html">Products</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../settings/index.html">Settings</a></li>

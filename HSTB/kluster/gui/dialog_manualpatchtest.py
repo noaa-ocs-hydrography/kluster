@@ -71,6 +71,8 @@ class PrePatchDialog(QtWidgets.QDialog):
     def add_data(self, datablock):
         self.prefixes = []
         for fq, serialnum, fq_time_segs, xyzrec, sysid, head, vfname in datablock:
+            refpt = fq.multibeam.return_prefix_for_rp()
+            refpt = ['tx' if rp == 0 else 'rx' for rp in refpt]
             self.fqprs.append(fq)
             self.serial_numbers.append(serialnum)
             self.time_segments.append(fq_time_segs)
@@ -85,19 +87,19 @@ class PrePatchDialog(QtWidgets.QDialog):
                     roll = xyzrec['rx_port_r'][tstmp]
                     pitch = xyzrec['rx_port_p'][tstmp]
                     heading = xyzrec['rx_port_h'][tstmp]
-                    xlever = xyzrec['tx_port_x'][tstmp]
-                    ylever = xyzrec['tx_port_y'][tstmp]
-                    zlever = xyzrec['tx_port_z'][tstmp]
-                    self.prefixes.append(['rx_port_r', 'tx_port_p', 'rx_port_h', 'tx_port_x', 'tx_port_y', 'tx_port_z', 'latency'])
+                    xlever = xyzrec[refpt[0] + '_port_x'][tstmp]
+                    ylever = xyzrec[refpt[1] + '_port_y'][tstmp]
+                    zlever = xyzrec[refpt[2] + '_port_z'][tstmp]
+                    self.prefixes.append(['rx_port_r', 'tx_port_p', 'rx_port_h', refpt[0] + '_port_x', refpt[1] + '_port_y', refpt[2] + '_port_z', 'latency'])
                 elif int(head) == 1:
                     head_fmt = 'STARBOARD'
                     roll = xyzrec['rx_stbd_r'][tstmp]
                     pitch = xyzrec['rx_stbd_p'][tstmp]
                     heading = xyzrec['rx_stbd_h'][tstmp]
-                    xlever = xyzrec['tx_stbd_x'][tstmp]
-                    ylever = xyzrec['tx_stbd_y'][tstmp]
-                    zlever = xyzrec['tx_stbd_z'][tstmp]
-                    self.prefixes.append(['rx_stbd_r', 'tx_stbd_p', 'rx_stbd_h', 'tx_stbd_x', 'tx_stbd_y', 'tx_stbd_z', 'latency'])
+                    xlever = xyzrec[refpt[0] + '_stbd_x'][tstmp]
+                    ylever = xyzrec[refpt[1] + '_stbd_y'][tstmp]
+                    zlever = xyzrec[refpt[2] + '_stbd_z'][tstmp]
+                    self.prefixes.append(['rx_stbd_r', 'tx_stbd_p', 'rx_stbd_h', refpt[0] + '_stbd_x', refpt[1] + '_stbd_y', refpt[2] + '_stbd_z', 'latency'])
                 else:
                     raise NotImplementedError(
                         'Only head indices 0 and 1 supported, we expect max 2 heads, got: {}'.format(head))
@@ -105,10 +107,10 @@ class PrePatchDialog(QtWidgets.QDialog):
                 roll = xyzrec['rx_r'][tstmp]
                 pitch = xyzrec['rx_p'][tstmp]
                 heading = xyzrec['rx_h'][tstmp]
-                xlever = xyzrec['tx_x'][tstmp]
-                ylever = xyzrec['tx_y'][tstmp]
-                zlever = xyzrec['tx_z'][tstmp]
-                self.prefixes.append(['rx_r', 'tx_p', 'rx_h', 'tx_x', 'tx_y', 'tx_z', 'latency'])
+                xlever = xyzrec[refpt[0] + '_x'][tstmp]
+                ylever = xyzrec[refpt[1] + '_y'][tstmp]
+                zlever = xyzrec[refpt[2] + '_z'][tstmp]
+                self.prefixes.append(['rx_r', 'tx_p', 'rx_h', refpt[0] + '_x', refpt[1] + '_y', refpt[2] + '_z', 'latency'])
                 head_fmt = 'N/A'
             latency = xyzrec['latency'][tstmp]
             self.timestamps.append(tstmp)

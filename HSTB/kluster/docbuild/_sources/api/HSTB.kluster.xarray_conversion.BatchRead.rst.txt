@@ -23,6 +23,7 @@ BatchRead
       ~BatchRead.return_all_profiles
       ~BatchRead.return_nearest_soundspeed_profile
       ~BatchRead.return_ping_counters_at_time
+      ~BatchRead.return_prefix_for_rp
       ~BatchRead.return_raw_navigation
       ~BatchRead.return_rx_xyzrph
       ~BatchRead.return_system_time_indexed_array
@@ -48,6 +49,7 @@ BatchRead
    .. automethod:: return_all_profiles
    .. automethod:: return_nearest_soundspeed_profile
    .. automethod:: return_ping_counters_at_time
+   .. automethod:: return_prefix_for_rp
    .. automethod:: return_raw_navigation
    .. automethod:: return_rx_xyzrph
    .. automethod:: return_system_time_indexed_array

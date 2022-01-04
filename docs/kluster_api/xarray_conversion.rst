@@ -22,4 +22,7 @@ xarray\_conversion module
    :skip: seconds_to_formatted_string
    :skip: slice_xarray_by_dim
    :skip: return_log_name
+   :skip: fast_read_multibeam_metadata
+   :skip: return_offsets_from_posfile
+   :skip: sequential_read_multibeam
    

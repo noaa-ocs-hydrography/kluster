@@ -1,0 +1,155 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Accuracy Test &#8212; kluster 0.8.5 documentation</title>
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" type="text/css" href="../_static/graphviz.css" />
+    <script id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Extinction Test" href="saextinction.html" />
+    <link rel="prev" title="Reference Test" href="sareference.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="accuracy-test">
+<h1>Accuracy Test<a class="headerlink" href="#accuracy-test" title="Permalink to this headline">¶</a></h1>
+<p>The Accuracy Test will take your reference surface and show you some plots of the depth difference between the surface and some additional lines that you run.  These additional lines (Accuracy Test lines from here on) are run in both directions across the same line track, using all the different frequencies and modes of the system.  The final plots will give you an idea of the ‘accuracy’ of the system and can illustrate the quality of data you can expect at different frequencies and modes.</p>
+<p>Here is our diagonal line plan showing the reference lines in the background.</p>
+<a class="reference external image-reference" href="../_images/saaccuracy1.png"><img alt="../_images/saaccuracy1.png" src="../_images/saaccuracy1.png" /></a>
+<p>To run this process in Kluster, you need to:</p>
+<ol class="arabic simple">
+<li><p>Generate a surface for the reference lines</p></li>
+<li><p>Select the Converted entry for the Accuracy lines in the Project Tree or if you only want to include specific lines, select those lines in the Project Tree or using the Select tool in 2d View.</p></li>
+<li><p>Go to Visualize - Advanced Plots - Accuracy Test</p></li>
+<li><p>You will see the path to the converted data auto populate at the top of Advanced Plots, as well as the surface under Path to Kluster Surface.</p></li>
+<li><p>Click Plot and the tool will run, plots will be saved to the directory shown at the bottom, and will also be automatically opened if you check ‘Show Plots’</p></li>
+</ol>
+<p>Here is an example run for my datasets:</p>
+<a class="reference external image-reference" href="../_images/saaccuracy2.png"><img alt="../_images/saaccuracy2.png" src="../_images/saaccuracy2.png" /></a>
+<p>I have an explanation in the Advanced Plots tool for how to interpret these plots, but I’ll go through a quick explanation here as well.</p>
+<ol class="arabic simple">
+<li><p>The file name of each plot shows the mode and frequency for that portion of the dataset used in the plot (“CW-shCW-300000hz” means the plot is for the 300khz data run at continuous waveform/short CW modes)</p></li>
+<li><p>The title of the plot indicates the average difference between accuracy data and surface depth.  I remove that difference from the plot so that we can focus on change across beams/angle.</p></li>
+<li><p>The blue line is the mean depth for that beam/angle</p></li>
+<li><p>The Order 1 line (grey) represents the 1.3% max allowable uncertainty wrt the depth range.</p></li>
+<li><p>The Special Order line (green) represents the 0.75% max allowable uncertainty wrt the depth range.</p></li>
+<li><p>The pink region represents two standard deviations from the mean.</p></li>
+<li><p>The soundings are shown as white dots in he background (I limit it to 30,000 soundings to reduce the time it takes to display the plots)</p></li>
+</ol>
+<p>In the example shown above, there is an approximately 0.3 meter offset between the accuracy lines and the reference surface depths, which isn’t great.  These datasets I am working with
+are using the ellipse as the vertical reference and are without SBETs, so we can expect there to be issues.  Our depth differences are within Order 1 (barely, remember to include our 0.3 meter depth offset) and the mean depth in our area is about 35 meters (which I know from processing the data, that information is not in the plot).</p>
+<p>The port side of the sonar tends to be shoaler (negative depth bias, from grid to sounding) and the starboard tends to be deeper, which is interesting.  This is a dual head sonar, so it might have something to do with the mounting angles or offsets.</p>
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">kluster</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../quickstart/index.html">Quickstart</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../faq/index.html">FAQ</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../vessel_setup/index.html">Vessel Setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../processing/index.html">Processing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../surface/index.html">Surfacing</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Sonar Acceptance</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="saplanning.html">Planning</a></li>
+<li class="toctree-l2"><a class="reference internal" href="sapatch.html">Patch Test</a></li>
+<li class="toctree-l2"><a class="reference internal" href="sareference.html">Reference Test</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Accuracy Test</a></li>
+<li class="toctree-l2"><a class="reference internal" href="saextinction.html">Extinction Test</a></li>
+<li class="toctree-l2"><a class="reference internal" href="salatency.html">Attitude Latency Assessment</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../cleaning/index.html">Cleaning</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../products/index.html">Products</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../settings/index.html">Settings</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../indepth/index.html">Learn more about Kluster</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../kluster_api/index.html">API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../changes.html">Changes List</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  <li><a href="index.html">Sonar Acceptance</a><ul>
+      <li>Previous: <a href="sareference.html" title="previous chapter">Reference Test</a></li>
+      <li>Next: <a href="saextinction.html" title="next chapter">Extinction Test</a></li>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2020, Eric Younkin.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.5.2</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="../_sources/sonar_acceptance/saaccuracy.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

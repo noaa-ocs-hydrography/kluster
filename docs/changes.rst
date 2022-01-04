@@ -1,6 +1,32 @@
 Changes List
 ============
 
+Kluster v0.8.5 (1/4/2022)
+---------------------------
+- aligns with vyperdatum 0.1.8
+
+  - allow including additional custom regions outside of the vdatum structure
+
+- File - Open Converted to add existing converted data
+- File - Open Surface to add existing surface
+- add new Fqpr manage dialog (right click Converted data in project tree and select 'Manage')
+- Fqpr manage dialog can remove sbets and sv profiles from Converted data
+- add new Surface manage dialog (right click Surface data in project tree and select 'Manage')
+- new Sonar Acceptance documentation
+- refactor to move all driver related code to fqpr_drivers for upcoming s7k test
+- add new sonar reference point attribute to track the sonar manufacturers chosen reference point
+- lower the default vertical/horizontal uncertainty to 0.3/0.5 m 1sigma respectively
+- Setting a new processing status will now issue a message
+
+- bugfix with nan and geohash resolved
+- bugfix with load sbet, set all sbet gaps to nan using max_gap_length
+- bugfix with svcorrect, automatically extend profiles on sound velocity correction
+- bugfix with monitor, check for file size change to ensure file has finished copying (should now work with kongsberg logging)
+- bugfix accuracy test order 1 line to be grey
+- bugfix accuracy test reverse angle x axis so that port side is on the left
+- bugfix add accuracy test validation for horizontal and vertical crs between surface and data
+- bugfix the Extinction test water depth line colors to work with dark mode
+
 Kluster v0.8.4 (12/17/2021)
 ---------------------------
 - aligns with drivers 0.1.19

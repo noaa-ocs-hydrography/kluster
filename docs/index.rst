@@ -135,6 +135,7 @@ Perform these in order:
    vessel_setup/index
    processing/index
    surface/index
+   sonar_acceptance/index
    cleaning/index
    products/index
    settings/index

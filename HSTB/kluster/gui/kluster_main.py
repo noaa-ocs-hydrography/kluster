@@ -10,9 +10,7 @@ from typing import Union
 from datetime import datetime
 from pyproj import CRS, Transformer
 import qdarkstyle
-from qdarkstyle.dark.palette import DarkPalette
 import matplotlib.pyplot as plt
-import xarray as xr
 
 from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal, qgis_enabled, found_path
 if qgis_enabled:
@@ -22,7 +20,7 @@ from HSTB.kluster.gui import dialog_vesselview, kluster_explorer, kluster_projec
     kluster_output_window, kluster_2dview, kluster_actions, kluster_monitor, dialog_daskclient, dialog_surface, \
     dialog_export, kluster_worker, kluster_interactive_console, dialog_basicplot, dialog_advancedplot, dialog_project_settings, \
     dialog_export_grid, dialog_layer_settings, dialog_settings, dialog_importppnav, dialog_overwritenav, dialog_surface_data, \
-    dialog_about, dialog_setcolors, dialog_patchtest, dialog_manualpatchtest
+    dialog_about, dialog_setcolors, dialog_patchtest, dialog_manualpatchtest, dialog_managedata, dialog_managesurface
 from HSTB.kluster.fqpr_project import FqprProject
 from HSTB.kluster.fqpr_intelligence import FqprIntel
 from HSTB.kluster.fqpr_vessel import convert_from_fqpr_xyzrph, convert_from_vessel_xyzrph, compare_dict_data
@@ -127,6 +125,8 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.vessel_win = None
         self.basicplots_win = None
         self.advancedplots_win = None
+        self.managedata_win = None
+        self.managedata_surf = None
         self._manpatchtest = None
 
         self.iconpath = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'images', 'kluster_img.ico')
@@ -165,6 +165,8 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.project_tree.all_lines_selected.connect(self.tree_all_lines_selected)
         self.project_tree.close_fqpr.connect(self.close_fqpr)
         self.project_tree.close_surface.connect(self.close_surface)
+        self.project_tree.manage_fqpr.connect(self.manage_fqpr)
+        self.project_tree.manage_surface.connect(self.manage_surface)
         self.project_tree.load_console_fqpr.connect(self.load_console_fqpr)
         self.project_tree.load_console_surface.connect(self.load_console_surface)
         self.project_tree.zoom_extents_fqpr.connect(self.zoom_extents_fqpr)
@@ -303,6 +305,12 @@ class KlusterMain(QtWidgets.QMainWindow):
         Build the menu bar for the application
         """
 
+        add_files_action = QtWidgets.QAction('Add Files', self)
+        add_files_action.triggered.connect(self._action_filemenu_add_files)
+        add_converted_action = QtWidgets.QAction('Open Converted', self)
+        add_converted_action.triggered.connect(self._action_filemenu_add_converted)
+        add_surface_action = QtWidgets.QAction('Open Surface', self)
+        add_surface_action.triggered.connect(self._action_filemenu_add_surface)
         new_proj_action = QtWidgets.QAction('New Project', self)
         new_proj_action.triggered.connect(self._action_new_project)
         open_proj_action = QtWidgets.QAction('Open Project', self)
@@ -362,6 +370,10 @@ class KlusterMain(QtWidgets.QMainWindow):
 
         menubar = self.menuBar()
         file = menubar.addMenu("File")
+        file.addAction(add_files_action)
+        file.addAction(add_converted_action)
+        file.addAction(add_surface_action)
+        file.addSeparator()
         file.addAction(new_proj_action)
         file.addAction(open_proj_action)
         file.addAction(save_proj_action)
@@ -507,6 +519,26 @@ class KlusterMain(QtWidgets.QMainWindow):
         if new_fqprs is not None and new_fqprs:
             self.draw_navigation_thread.populate(self.project, new_fqprs)
             self.draw_navigation_thread.start()
+
+    def manage_fqpr(self, pth):
+        fq = self.project.fqpr_instances[pth]
+        self.managedata_win = None
+        self.managedata_win = dialog_managedata.ManageDataDialog()
+        self.managedata_win.refresh_fqpr.connect(self._refresh_manage_fqpr)
+        self.managedata_win.populate(fq)
+        self.managedata_win.show()
+
+    def manage_surface(self, pth):
+        surf = self.project.surface_instances[pth]
+        self.managedata_surf = None
+        self.managedata_surf = dialog_managesurface.ManageSurfaceDialog()
+        self.managedata_surf.populate(surf)
+        self.managedata_surf.show()
+
+    def _refresh_manage_fqpr(self, fq, dlog):
+        self.project.add_fqpr(fq)
+        self.refresh_explorer(fq)
+        dlog.populate(fq)
 
     def close_fqpr(self, pth):
         """
@@ -719,11 +751,17 @@ class KlusterMain(QtWidgets.QMainWindow):
                     fq.write_attribute_to_ping_records({'xyzrph': xyzrph[cnt]})
                     fq.multibeam.xyzrph.update(xyzrph[cnt])
                     if not identical_angles:  # if the angles changed then we have to start over at converted status
-                        fq.write_attribute_to_ping_records({'current_processing_status': 0})
+                        if fq.multibeam.raw_ping[0].current_processing_status > 0:
+                            fq.write_attribute_to_ping_records({'current_processing_status': 0})
+                            fq.logger.info('Setting processing status to 0, starting over at computing orientation')
                     elif not identical_offsets or new_waterline is not None:  # have to re-soundvelocitycorrect
-                        fq.write_attribute_to_ping_records({'current_processing_status': 2})
+                        if fq.multibeam.raw_ping[0].current_processing_status >= 3:
+                            fq.write_attribute_to_ping_records({'current_processing_status': 2})
+                            fq.logger.info('Setting processing status to 2, starting over at sound velocity correction')
                     elif not identical_tpu:  # have to re-tpu
-                        fq.write_attribute_to_ping_records({'current_processing_status': 4})
+                        if fq.multibeam.raw_ping[0].current_processing_status >= 5:
+                            fq.write_attribute_to_ping_records({'current_processing_status': 4})
+                            fq.logger.info('Setting processing status to 4, starting over at uncertainty calculation')
                     self.project.refresh_fqpr_attribution(fqname, relative_path=True)
         self.intel.regenerate_actions()
 
@@ -735,7 +773,9 @@ class KlusterMain(QtWidgets.QMainWindow):
         if fqprs:
             # start over at 1, which is conversion in our state machine
             fq = self.project.fqpr_instances[fqprs[0]]
-            fq.write_attribute_to_ping_records({'current_processing_status': 1})
+            if fq.multibeam.raw_ping[0].current_processing_status > 0:
+                fq.write_attribute_to_ping_records({'current_processing_status': 0})
+                fq.logger.info('Setting processing status to 0, starting over at computing orientation')
             self.project.refresh_fqpr_attribution(fqprs[0], relative_path=True)
             fq.multibeam.reload_pingrecords(skip_dask=fq.client is None)
             self.intel.regenerate_actions()
@@ -2141,6 +2181,33 @@ class KlusterMain(QtWidgets.QMainWindow):
         Connect menu action 'Patch Test' with patch test dialog
         """
         self.kluster_auto_patch_test()
+
+    def _action_filemenu_add_files(self):
+        """
+        Connect menu action 'Add Files' with file dialog and update_on_file_added
+        """
+        msg, fil = RegistryHelpers.GetFilenameFromUserQT(self, RegistryKey='kluster', Title='Add any data file (multibeam, sbet, svp, etc.)',
+                                                         AppName='klusterproj', bMulti=True, bSave=False, fFilter='all files (*.*)')
+        if msg:
+            self.update_on_file_added(fil)
+
+    def _action_filemenu_add_converted(self):
+        """
+        Connect menu action 'Open Converted' with folder dialog and update_on_file_added
+        """
+        msg, folder = RegistryHelpers.GetDirFromUserQT(self, RegistryKey='kluster', Title='Add any Kluster generated converted data folder',
+                                                       AppName='klusterproj')
+        if msg:
+            self.update_on_file_added(folder)
+
+    def _action_filemenu_add_surface(self):
+        """
+        Connect menu action 'Open Surface' with folder dialog and update_on_file_added
+        """
+        msg, folder = RegistryHelpers.GetDirFromUserQT(self, RegistryKey='kluster', Title='Add any Kluster generated surface data folder',
+                                                       AppName='klusterproj')
+        if msg:
+            self.update_on_file_added(folder)
 
     def _action_new_project(self):
         """

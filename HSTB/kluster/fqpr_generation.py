@@ -21,15 +21,14 @@ from HSTB.kluster.fqpr_vessel import trim_xyzrprh_to_times
 from HSTB.kluster.modules.visualizations import FqprVisualizations
 from HSTB.kluster.modules.export import FqprExport
 from HSTB.kluster.modules.subset import FqprSubset
-from HSTB.kluster.xarray_helpers import combine_arrays_to_dataset, divide_arrays_by_time_index, \
+from HSTB.kluster.xarray_helpers import combine_arrays_to_dataset, compare_and_find_gaps, \
     interp_across_chunks, slice_xarray_by_dim, get_beamwise_interpolation
 from HSTB.kluster.backends._zarr import ZarrBackend
 from HSTB.kluster.dask_helpers import dask_find_or_start_client, get_number_of_workers
 from HSTB.kluster.fqpr_helpers import build_crs, seconds_to_formatted_string
 from HSTB.kluster.rotations import return_attitude_rotation_matrix
 from HSTB.kluster.logging_conf import return_logger
-from HSTB.drivers.sbet import sbets_to_xarray, sbet_fast_read_start_end_time
-from HSTB.drivers.PCSio import posfiles_to_xarray
+from HSTB.kluster.fqpr_drivers import return_xarray_from_sbet, fast_read_sbet_metadata, return_xarray_from_posfiles
 from HSTB.kluster import kluster_variables
 
 
@@ -176,6 +175,10 @@ class Fqpr(ZarrBackend):
                 output += 'Navigation Source: {}\n'.format(self.multibeam.raw_ping[0].attrs['navigation_source'])
             except:
                 output += 'Navigation Source: Unknown\n'
+            try:
+                output += 'Contains SBETs: {}\n'.format(self.has_sbet)
+            except:
+                output += 'Contains SBETs: Unknown\n'
             output += 'Sound Velocity Profiles: {}\n'.format(len([ky for ky in self.multibeam.raw_ping[0].attrs.keys() if ky[:7] == 'profile']))
         except:
             output = 'Unable to build string representation: {}'.format(traceback.format_exc())
@@ -687,11 +690,52 @@ class Fqpr(ZarrBackend):
             if new_applicable_casts:
                 if self.multibeam.raw_ping[0].current_processing_status >= 3:  # have to start over at sound velocity now
                     self.write_attribute_to_ping_records({'current_processing_status': 2})
-
+                    self.logger.info('Setting processing status to 2, starting over at sound velocity correction')
             self.multibeam.reload_pingrecords(skip_dask=self.client is None)
             self.logger.info('Successfully imported {} new casts'.format(len(cast_dict)))
         else:
             self.logger.warning('Unable to import casts from {}'.format(src))
+
+    def return_all_profiles(self):
+        """
+        convenience for xarray_conversion.BatchRead.return_all_profiles
+        """
+        return self.multibeam.return_all_profiles()
+
+    def remove_profile(self, profile_name: str):
+        """
+        Sound velocity profiles are stored in the Fqpr datastore as attributes with the 'profile_timestamp' format, ex:
+        'profile_1503411780'.  Here we take a profile name that is of that format, and remove the matching profile from the
+        Fqpr attribution, both the loaded data and the data written to disk.
+
+        Parameters
+        ----------
+        profile_name
+            name of the profile with the 'profile_timestamp' format, ex: 'profile_1503411780'
+        """
+
+        if profile_name in self.multibeam.raw_ping[0].attrs:
+            profile_removed = True
+            for rpindex in range(len(self.multibeam.raw_ping)):  # for each sonar head (raw_ping)...
+                try:
+                    self.multibeam.raw_ping[rpindex].attrs.pop(profile_name)
+                except:
+                    self.logger.warning('WARNING: Unable to find loaded profile data matching attribute "{}"'.format(profile_name))
+                    profile_removed = False
+                try:
+                    self.remove_attribute('ping', profile_name, self.multibeam.raw_ping[0].system_identifier)
+                except:
+                    self.logger.warning('WARNING: Unable to find data on disk matching attribute "{}" for sonar {}'.format(profile_name, self.multibeam.raw_ping[rpindex].system_identifier))
+                    profile_removed = False
+            if self.multibeam.raw_ping[0].current_processing_status >= 3:
+                if profile_removed:
+                    # have to start over at sound velocity now, if you removed sbet data
+                    self.write_attribute_to_ping_records({'current_processing_status': 2})
+                    self.logger.info('Setting processing status to 2, starting over at sound velocity correction')
+                else:
+                    self.logger.warning('WARNING: Profile "{}" unsuccessfully removed')
+        else:
+            print('Unable to find sound velocity profile "{}" in converted data'.format(profile_name))
 
     def return_chunk_indices(self, idx_mask: xr.DataArray, pings_per_chunk: int):
         """
@@ -785,7 +829,7 @@ class Fqpr(ZarrBackend):
 
         final_idxs = []
         systems = self.multibeam.return_system_time_indexed_array()
-        profnames, casts, cast_times, castlocations = self.multibeam.return_all_profiles()
+        profnames, casts, cast_times, castlocations = self.return_all_profiles()
         for s_cnt, system in enumerate(systems):
             if system is None:  # get here if one of the heads is disabled (set to None)
                 continue
@@ -839,18 +883,18 @@ class Fqpr(ZarrBackend):
                 # self.logger.info('Building induced heave for secondary system in dual head arrangement')
 
                 # lever arms for secondary head to ref pt
-                secondary_x_lever = float(self.multibeam.xyzrph[prefixes[0] + '_x'][timestmp])
-                secondary_y_lever = float(self.multibeam.xyzrph[prefixes[0] + '_y'][timestmp])
-                secondary_z_lever = float(self.multibeam.xyzrph[prefixes[0] + '_z'][timestmp])
+                refpt = self.multibeam.return_prefix_for_rp()
+                secondary_x_lever = float(self.multibeam.xyzrph[prefixes[refpt[0]] + '_x'][timestmp])
+                secondary_y_lever = float(self.multibeam.xyzrph[prefixes[refpt[1]] + '_y'][timestmp])
+                secondary_z_lever = float(self.multibeam.xyzrph[prefixes[refpt[2]] + '_z'][timestmp])
 
                 # lever arms for primary head to ref pt
-                if prefixes[0] == 'tx_port':
-                    prim_prefix = 'tx_stbd'
-                else:
-                    prim_prefix = 'tx_port'
-                primary_x_lever = float(self.multibeam.xyzrph[prim_prefix + '_x'][timestmp])
-                primary_y_lever = float(self.multibeam.xyzrph[prim_prefix + '_y'][timestmp])
-                primary_z_lever = float(self.multibeam.xyzrph[prim_prefix + '_z'][timestmp])
+                if prefixes[0].find('port') != -1:
+                    prefixes = [pfix.replace('port', 'stbd') for pfix in prefixes]
+
+                primary_x_lever = float(self.multibeam.xyzrph[prefixes[refpt[0]] + '_x'][timestmp])
+                primary_y_lever = float(self.multibeam.xyzrph[prefixes[refpt[1]] + '_y'][timestmp])
+                primary_z_lever = float(self.multibeam.xyzrph[prefixes[refpt[2]] + '_z'][timestmp])
 
                 final_lever = np.array([primary_x_lever - secondary_x_lever, primary_y_lever - secondary_y_lever,
                                         primary_z_lever - secondary_z_lever])
@@ -906,9 +950,10 @@ class Fqpr(ZarrBackend):
             navigation at ping time (latitude, longitude, altitude) with altitude correction
         """
 
-        x_lever = float(self.multibeam.xyzrph[prefixes[0] + '_x'][timestmp])
-        y_lever = float(self.multibeam.xyzrph[prefixes[0] + '_y'][timestmp])
-        z_lever = float(self.multibeam.xyzrph[prefixes[0] + '_z'][timestmp])
+        refpt = self.multibeam.return_prefix_for_rp()
+        x_lever = float(self.multibeam.xyzrph[prefixes[refpt[0]] + '_x'][timestmp])
+        y_lever = float(self.multibeam.xyzrph[prefixes[refpt[1]] + '_y'][timestmp])
+        z_lever = float(self.multibeam.xyzrph[prefixes[refpt[2]] + '_z'][timestmp])
         if x_lever or y_lever or z_lever:
             # There exists a lever arm between tx and rp, and the altitude is at the rp
             #  - svcorrected offsets are at tx/rx so there will be a correction necessary to use altitude
@@ -958,11 +1003,12 @@ class Fqpr(ZarrBackend):
             [float, additional x offset, float, additional y offset, float, additional z offset]
         """
 
-        x_base_offset = prefixes[0] + '_x'
-        y_base_offset = prefixes[0] + '_y'
+        refpt = self.multibeam.return_prefix_for_rp()
+        x_base_offset = prefixes[refpt[0]] + '_x'
+        y_base_offset = prefixes[refpt[1]] + '_y'
 
         # z included at cast creation, we will apply this in georeference bathy
-        # z_base_offset = prefixes[0] + '_z'
+        # z_base_offset = prefixes[refpt[2]] + '_z'
         addtl_offsets = []
         for cnt, chnk in enumerate(idx_by_chunk):
             sector_by_beam = ra.txsector_beam[chnk].values
@@ -972,9 +1018,9 @@ class Fqpr(ZarrBackend):
 
             sector_possibilities = np.unique(sector_by_beam)
             for sector in sector_possibilities:
-                x_off_ky = prefixes[0] + '_x_' + str(sector)
-                y_off_ky = prefixes[0] + '_y_' + str(sector)
-                z_off_ky = prefixes[0] + '_z_' + str(sector)
+                x_off_ky = prefixes[refpt[0]] + '_x_' + str(sector)
+                y_off_ky = prefixes[refpt[1]] + '_y_' + str(sector)
+                z_off_ky = prefixes[refpt[2]] + '_z_' + str(sector)
 
                 if x_off_ky in self.multibeam.xyzrph:
                     addtl_x = float(self.multibeam.xyzrph[x_base_offset][timestmp]) + float(self.multibeam.xyzrph[x_off_ky][timestmp])
@@ -1193,7 +1239,8 @@ class Fqpr(ZarrBackend):
         data_for_workers = []
 
         # this should be the transducer to waterline, positive down
-        z_pos = -float(self.multibeam.xyzrph[prefixes[0] + '_z'][timestmp]) + float(self.multibeam.xyzrph['waterline'][timestmp])
+        refpt = self.multibeam.return_prefix_for_rp()
+        z_pos = -float(self.multibeam.xyzrph[prefixes[refpt[2]] + '_z'][timestmp]) + float(self.multibeam.xyzrph['waterline'][timestmp])
 
         try:
             twtt_data = self.client.scatter([ra.traveltime[d[0]] for d in cast_chunks])
@@ -1783,7 +1830,7 @@ class Fqpr(ZarrBackend):
             for new_file in navfiles:
                 root, filename = os.path.split(new_file)
                 if 'nav_files' in rp and filename in rp.nav_files:
-                    new_file_times = sbet_fast_read_start_end_time(new_file)
+                    new_file_times = fast_read_sbet_metadata(new_file)
                     if rp.nav_files[filename] == new_file_times:
                         duplicate_navfiles.append(new_file)
             for fil in duplicate_navfiles:
@@ -1882,9 +1929,9 @@ class Fqpr(ZarrBackend):
             return
 
         try:
-            navdata = sbets_to_xarray(navfiles, smrmsgfiles=errorfiles, logfiles=logfiles, weekstart_year=weekstart_year,
-                                      weekstart_week=weekstart_week, override_datum=override_datum, override_grid=override_grid,
-                                      override_zone=override_zone, override_ellipsoid=override_ellipsoid)
+            navdata = return_xarray_from_sbet(navfiles, smrmsgfiles=errorfiles, logfiles=logfiles, weekstart_year=weekstart_year,
+                                              weekstart_week=weekstart_week, override_datum=override_datum, override_grid=override_grid,
+                                              override_zone=override_zone, override_ellipsoid=override_ellipsoid)
         except:
             navdata = None
         if not navdata:
@@ -1897,9 +1944,22 @@ class Fqpr(ZarrBackend):
                 print('Raw navigation: UTC seconds from {} to {}.  SBET data: UTC seconds from {} to {}'.format(rp.time.values[0], rp.time.values[-1],
                                                                                                                 navdata.time.values[0], navdata.time.values[-1]))
                 continue
+
             # find the nearest new record to each existing navigation record
             nav_wise_data = interp_across_chunks(navdata, rp.time, 'time')
             print('{}: Writing {} new SBET navigation records'.format(rp.system_identifier, nav_wise_data.time.shape[0]))
+
+            # find gaps that don't line up with existing nav gaps (like time between multibeam files)
+            gaps = compare_and_find_gaps(self.multibeam.raw_ping[0], navdata, max_gap_length=max_gap_length, dimname='time')
+            if gaps.any():
+                self.logger.info('Found gaps > {} in comparison between post processed navigation and realtime.  Will not process soundings found in these gaps.'.format(max_gap_length))
+                nav_wise_data = nav_wise_data.load()
+                for gp in gaps:
+                    self.logger.info('mintime: {}, maxtime: {}, gap length {}'.format(gp[0], gp[1], gp[1] - gp[0]))
+                    gap_mask = np.logical_and(nav_wise_data.time < gp[1], nav_wise_data.time > gp[0])
+                    for ky in nav_wise_data.variables.keys():
+                        if ky != 'time':
+                            nav_wise_data[ky][gap_mask] = np.nan
 
             navdata_attrs = nav_wise_data.attrs
             navdata_times = [nav_wise_data.time]
@@ -1912,13 +1972,59 @@ class Fqpr(ZarrBackend):
         if self.multibeam.raw_ping[0].current_processing_status >= 4:
             # have to start over at georeference now, if there isn't any postprocessed navigation
             self.write_attribute_to_ping_records({'current_processing_status': 3})
+            self.logger.info('Setting processing status to 3, starting over at georeferencing')
         self.multibeam.reload_pingrecords(skip_dask=self.client is None)
 
         endtime = perf_counter()
         self.logger.info('****Importing post processed navigation complete: {}****\n'.format(seconds_to_formatted_string(int(endtime - starttime))))
 
-    def overwrite_raw_navigation(self, navfiles: list, weekstart_year: int, weekstart_week: int,
-                                 max_gap_length: float = 1.0, overwrite: bool = False):
+    def remove_post_processed_navigation(self):
+        """
+        import_post_processed_navigation will write navigation and navigation related attributes to the Fqpr instance.
+        This method will remove all variables and attributes related to post processed navigation.  If the current processing
+        status of this Fqpr is greater than or equal to georeference, this method will also write a new current processing status
+        informing the user/intelligence module to restart processing at georeferencing.
+        """
+
+        self.logger.info('****Removing post processed navigation****\n')
+        starttime = perf_counter()
+
+        if self.has_sbet:
+            expected_records = kluster_variables.variables_by_key['processed navigation']
+            expected_attributes = ['nav_error_files', 'nav_files', 'sbet_datum', 'sbet_ellipsoid', 'sbet_logging_rate_hz',
+                                   'sbet_mission_date']
+            for rpindex in range(len(self.multibeam.raw_ping)):  # for each sonar head (raw_ping)...
+                for rec in expected_records:
+                    try:  # remove the currently loaded xarray dataset variable
+                        self.multibeam.raw_ping[rpindex] = self.multibeam.raw_ping[rpindex].drop(rec)
+                    except:
+                        print('WARNING: Unable to find loaded data matching record "{}"'.format(rec))
+                    try:  # then remove the matching zarr data on disk
+                        self.delete('ping', rec, self.multibeam.raw_ping[rpindex].system_identifier)
+                    except:
+                        print('WARNING: Unable to find data on disk matching record "{}" for sonar {}'.format(rec,
+                                                                                                              self.multibeam.raw_ping[rpindex].system_identifier))
+                for recattr in expected_attributes:
+                    try:
+                        self.multibeam.raw_ping[rpindex].attrs.pop(recattr)
+                    except:
+                        print('WARNING: Unable to find loaded attribute data matching attribute "{}"'.format(recattr))
+                    try:
+                        self.remove_attribute('ping', recattr, self.multibeam.raw_ping[0].system_identifier)
+                    except:
+                        print('WARNING: Unable to find data on disk matching attribute "{}" for sonar {}'.format(recattr,
+                                                                                                                 self.multibeam.raw_ping[rpindex].system_identifier))
+            if self.multibeam.raw_ping[0].current_processing_status >= 4:
+                # have to start over at georeference now, if you removed sbet data
+                self.write_attribute_to_ping_records({'current_processing_status': 3})
+                self.logger.info('Setting processing status to 3, starting over at georeferencing')
+        else:
+            print('No post processed navigation found to remove')
+
+        endtime = perf_counter()
+        self.logger.info('****Removing post processed navigation complete: {}****\n'.format(seconds_to_formatted_string(int(endtime - starttime))))
+
+    def overwrite_raw_navigation(self, navfiles: list, weekstart_year: int, weekstart_week: int, overwrite: bool = False):
         """
         Load from raw navigation files (currently just POS MV .000) to get lat/lon/altitude.  Will overwrite the original
         raw navigation zarr rootgroup, so you can compare pos mv to sbet.
@@ -1934,8 +2040,6 @@ class Fqpr(ZarrBackend):
             must provide the year of the pos mv file here
         weekstart_week
             must provide the week of the pos mv file here
-        max_gap_length
-            maximum allowable gap in the pos file in seconds, excluding gaps found in raw navigation
         overwrite
             if True, will include files that are already in the navigation dataset as valid
         """
@@ -1946,7 +2050,7 @@ class Fqpr(ZarrBackend):
         navfiles = self._validate_raw_navigation(navfiles, overwrite)
 
         try:
-            navdata = posfiles_to_xarray(navfiles, weekstart_year=weekstart_year, weekstart_week=weekstart_week)
+            navdata = return_xarray_from_posfiles(navfiles, weekstart_year=weekstart_year, weekstart_week=weekstart_week)
         except:
             navdata = None
         if not navdata:
@@ -1977,6 +2081,7 @@ class Fqpr(ZarrBackend):
         if self.multibeam.raw_ping[0].current_processing_status >= 4 and not self.has_sbet:
             # have to start over at georeference now, if there isn't any postprocessed navigation
             self.write_attribute_to_ping_records({'current_processing_status': 3})
+            self.logger.info('Setting processing status to 3, starting over at georeferencing')
         self.multibeam.reload_pingrecords(skip_dask=self.client is None)
 
         endtime = perf_counter()
@@ -2485,15 +2590,16 @@ class Fqpr(ZarrBackend):
                 kluster_function = distributed_run_sv_correct
                 chunk_function = self._generate_chunks_svcorr
                 comp_time = 'sv_time_complete'
-                profnames, casts, cast_times, castlocations = self.multibeam.return_all_profiles()
+                profnames, casts, cast_times, castlocations = self.return_all_profiles()
                 cast_chunks = self.return_cast_idx_nearestintime(cast_times, idx_by_chunk_subset, silent=silent)
                 addtl_offsets = self.return_additional_xyz_offsets(rawping, prefixes, timestmp, idx_by_chunk_subset)
                 chunkargs = [rawping, cast_chunks, casts, prefixes, timestmp, addtl_offsets, start_run_index]
             elif mode == 'georef':
+                refpt = self.multibeam.return_prefix_for_rp()
                 kluster_function = distrib_run_georeference
                 chunk_function = self._generate_chunks_georef
                 comp_time = 'georef_time_complete'
-                z_offset = float(self.multibeam.xyzrph[prefixes[0] + '_z'][timestmp])
+                z_offset = float(self.multibeam.xyzrph[prefixes[refpt[2]] + '_z'][timestmp])
                 chunkargs = [rawping, idx_by_chunk_subset, prefixes, timestmp, z_offset, prefer_pp_nav, vdatum_directory, start_run_index]
             elif mode == 'tpu':
                 kluster_function = distrib_run_calculate_tpu

@@ -87,8 +87,8 @@ class TestFqprConvenience(unittest.TestCase):
                           'roll_patch_error': 0.1, 'pitch_patch_error': 0.1,
                           'heading_patch_error': 0.5, 'latency_patch_error': 0.0, 'timing_latency_error': 0.001,
                           'separation_model_error': 0.0,
-                          'waterline_error': 0.02, 'vessel_speed_error': 0.1, 'horizontal_positioning_error': 1.5,
-                          'vertical_positioning_error': 1.0,
+                          'waterline_error': 0.02, 'vessel_speed_error': 0.1, 'horizontal_positioning_error': 0.5,
+                          'vertical_positioning_error': 0.3,
                           'beam_opening_angle': 1.3}
 
     def test_return_system_time_indexed_array(self):

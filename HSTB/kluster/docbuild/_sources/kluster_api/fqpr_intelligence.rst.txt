@@ -15,3 +15,10 @@ fqpr\_intelligence module
    :skip: build_crs
    :skip: compare_dict_data
    :skip: convert_from_fqpr_xyzrph
+   :skip: fast_read_errorfile_metadata
+   :skip: fast_read_multibeam_metadata
+   :skip: fast_read_sbet_metadata
+   :skip: is_sbet
+   :skip: is_smrmsg
+   :skip: read_pospac_export_log
+   :skip: read_soundvelocity_file

@@ -1,0 +1,6 @@
+get_file_size
+=============
+
+.. currentmodule:: HSTB.kluster.monitor
+
+.. autofunction:: get_file_size

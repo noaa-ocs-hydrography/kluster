@@ -5,7 +5,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Changes List &#8212; kluster 0.8.4 documentation</title>
+    <title>Changes List &#8212; kluster 0.8.5 documentation</title>
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
     <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
     <link rel="stylesheet" type="text/css" href="_static/graphviz.css" />
@@ -34,6 +34,34 @@
             
   <div class="section" id="changes-list">
 <h1>Changes List<a class="headerlink" href="#changes-list" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="kluster-v0-8-5-1-4-2022">
+<h2>Kluster v0.8.5 (1/4/2022)<a class="headerlink" href="#kluster-v0-8-5-1-4-2022" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li><p>aligns with vyperdatum 0.1.8</p>
+<ul>
+<li><p>allow including additional custom regions outside of the vdatum structure</p></li>
+</ul>
+</li>
+<li><p>File - Open Converted to add existing converted data</p></li>
+<li><p>File - Open Surface to add existing surface</p></li>
+<li><p>add new Fqpr manage dialog (right click Converted data in project tree and select ‘Manage’)</p></li>
+<li><p>Fqpr manage dialog can remove sbets and sv profiles from Converted data</p></li>
+<li><p>add new Surface manage dialog (right click Surface data in project tree and select ‘Manage’)</p></li>
+<li><p>new Sonar Acceptance documentation</p></li>
+<li><p>refactor to move all driver related code to fqpr_drivers for upcoming s7k test</p></li>
+<li><p>add new sonar reference point attribute to track the sonar manufacturers chosen reference point</p></li>
+<li><p>lower the default vertical/horizontal uncertainty to 0.3/0.5 m 1sigma respectively</p></li>
+<li><p>Setting a new processing status will now issue a message</p></li>
+<li><p>bugfix with nan and geohash resolved</p></li>
+<li><p>bugfix with load sbet, set all sbet gaps to nan using max_gap_length</p></li>
+<li><p>bugfix with svcorrect, automatically extend profiles on sound velocity correction</p></li>
+<li><p>bugfix with monitor, check for file size change to ensure file has finished copying (should now work with kongsberg logging)</p></li>
+<li><p>bugfix accuracy test order 1 line to be grey</p></li>
+<li><p>bugfix accuracy test reverse angle x axis so that port side is on the left</p></li>
+<li><p>bugfix add accuracy test validation for horizontal and vertical crs between surface and data</p></li>
+<li><p>bugfix the Extinction test water depth line colors to work with dark mode</p></li>
+</ul>
+</div>
 <div class="section" id="kluster-v0-8-4-12-17-2021">
 <h2>Kluster v0.8.4 (12/17/2021)<a class="headerlink" href="#kluster-v0-8-4-12-17-2021" title="Permalink to this headline">¶</a></h2>
 <ul class="simple">
@@ -532,12 +560,14 @@
 <li class="toctree-l1"><a class="reference internal" href="vessel_setup/index.html">Vessel Setup</a></li>
 <li class="toctree-l1"><a class="reference internal" href="processing/index.html">Processing</a></li>
 <li class="toctree-l1"><a class="reference internal" href="surface/index.html">Surfacing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="sonar_acceptance/index.html">Sonar Acceptance</a></li>
 <li class="toctree-l1"><a class="reference internal" href="cleaning/index.html">Cleaning</a></li>
 <li class="toctree-l1"><a class="reference internal" href="products/index.html">Products</a></li>
 <li class="toctree-l1"><a class="reference internal" href="settings/index.html">Settings</a></li>
 <li class="toctree-l1"><a class="reference internal" href="indepth/index.html">Learn more about Kluster</a></li>
 <li class="toctree-l1"><a class="reference internal" href="kluster_api/index.html">API</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Changes List</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#kluster-v0-8-5-1-4-2022">Kluster v0.8.5 (1/4/2022)</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#kluster-v0-8-4-12-17-2021">Kluster v0.8.4 (12/17/2021)</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#kluster-v0-8-3">Kluster v0.8.3</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#kluster-v0-8-2">Kluster v0.8.2</a></li>

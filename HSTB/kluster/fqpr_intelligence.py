@@ -9,7 +9,8 @@ from copy import deepcopy
 from collections import OrderedDict
 from dask.distributed import Client
 
-from HSTB.drivers import kmall, par3, sbet, svp
+from HSTB.kluster.fqpr_drivers import fast_read_multibeam_metadata, fast_read_sbet_metadata, fast_read_errorfile_metadata, \
+    read_pospac_export_log, is_sbet, is_smrmsg, read_soundvelocity_file
 from HSTB.kluster import monitor, fqpr_actions
 from HSTB.kluster.fqpr_project import FqprProject
 from HSTB.kluster.fqpr_helpers import build_crs
@@ -335,9 +336,9 @@ class FqprIntel(LoggerClass):
         elif fileext in supported_svp:
             new_data, updated_type, rerun_svp_file_match = self._add_to_intel(gather_svp_info(infile), self.svp_intel, 'svp')
         elif fileext in supported_sbet:  # sbet and smrmsg have the same file extension sometimes ('.out') depending on what the user has done
-            if sbet.is_sbet(infile):
+            if is_sbet(infile):
                 new_data, updated_type, rerun_nav_file_match = self._add_to_intel(gather_navfile_info(infile), self.nav_intel, 'navigation')
-            elif sbet.is_smrmsg(infile):
+            elif is_smrmsg(infile):
                 new_data, updated_type, rerun_nav_file_match = self._add_to_intel(gather_naverrorfile_info(infile), self.naverror_intel, 'naverror')
         elif fileext in supported_export_log:
             new_data, updated_type, rerun_nav_file_match = self._add_to_intel(gather_exportlogfile_info(infile), self.navlog_intel, 'navlog')
@@ -1582,21 +1583,7 @@ def gather_multibeam_info(multibeam_file: str):
     """
 
     basic = gather_basic_file_info(multibeam_file)
-    fileext = os.path.splitext(multibeam_file)[1]
-    if fileext == '.all':
-        mtype = 'kongsberg_all'
-        aread = par3.AllRead(multibeam_file)
-        start_end = aread.fast_read_start_end_time()
-        serialnums = aread.fast_read_serial_number()
-        aread.close()
-    elif fileext == '.kmall':
-        mtype = 'kongsberg_kmall'
-        km = kmall.kmall(multibeam_file)
-        start_end = km.fast_read_start_end_time()
-        serialnums = km.fast_read_serial_number()
-        km.closeFile()
-    else:
-        raise IOError('File ({}) is not a valid multibeam file'.format(multibeam_file))
+    mtype, start_end, serialnums = fast_read_multibeam_metadata(multibeam_file)
     info_data = OrderedDict({'file_path': basic['file_path'], 'type': mtype,
                              'data_start_time_utc': datetime.fromtimestamp(start_end[0], tz=timezone.utc),
                              'data_end_time_utc': datetime.fromtimestamp(start_end[1], tz=timezone.utc),
@@ -1626,7 +1613,7 @@ def gather_navfile_info(ppnav_file: str):
     """
 
     basic = gather_basic_file_info(ppnav_file)
-    tms = sbet.sbet_fast_read_start_end_time(ppnav_file)
+    tms = fast_read_sbet_metadata(ppnav_file)
     if tms is None:
         raise IOError('File ({}) is not a valid postprocessed navigation file'.format(ppnav_file))
     mtype = 'POSPac sbet'
@@ -1656,7 +1643,7 @@ def gather_naverrorfile_info(pperror_file: str):
     """
 
     basic = gather_basic_file_info(pperror_file)
-    tms = sbet.smrmsg_fast_read_start_end_time(pperror_file)
+    tms = fast_read_errorfile_metadata(pperror_file)
     if tms is None:
         raise IOError('File ({}) is not a valid postprocessed error file'.format(pperror_file))
     mtype = 'POSPac smrmsg'
@@ -1686,7 +1673,7 @@ def gather_exportlogfile_info(exportlog_file: str):
     """
 
     basic = gather_basic_file_info(exportlog_file)
-    loginfo = sbet.get_export_info_from_log(exportlog_file)
+    loginfo = read_pospac_export_log(exportlog_file)
     if loginfo is not None:
         info_data = OrderedDict({'file_path': basic['file_path'], 'type': 'sbet_export_log',
                                  'exported_sbet_file': loginfo['exported_sbet_file'],
@@ -1715,8 +1702,7 @@ def gather_svp_info(svp_file: str):
     """
 
     basic = gather_basic_file_info(svp_file)
-    svp_object = svp.CarisSvp(svp_file)
-    svp_dict = svp_object.return_dict()
+    svp_dict = read_soundvelocity_file(svp_file)
     formatted_time_utc = [datetime.fromtimestamp(tm, tz=timezone.utc) for tm in svp_dict['svp_time_utc']]
     info_data = OrderedDict({'file_path': basic['file_path'], 'type': 'caris_svp', 'profiles': svp_dict['profiles'],
                              'number_of_profiles': svp_dict['number_of_profiles'],
