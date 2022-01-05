@@ -1,3 +1,4 @@
+import os
 import numpy as np
 import xarray as xr
 from copy import deepcopy
@@ -441,7 +442,8 @@ class FqprSubset:
             raise NotImplementedError('These variables are not currently implemented within return_soundings_in_polygon, see '
                                       'set_filter_by_polygon and get_variable_by_filter to use these variables: {}'.format(not_valid_variable))
         if 'horizontal_crs' not in self.fqpr.multibeam.raw_ping[0].attrs or 'z' not in self.fqpr.multibeam.raw_ping[0].variables.keys():
-            raise ValueError('Georeferencing has not been run yet, you must georeference before you can get soundings')
+            print('WARNING {}: Georeferencing has not been run yet, you must georeference before you can get soundings'.format(os.path.split(self.fqpr.output_folder)[1]))
+            return [None for vr in variable_selection]
 
         geo_polygon, proj_polygon = self._build_polygons(polygon, geographic)
         data_vars = self._soundings_by_poly(geo_polygon, proj_polygon, variable_selection, isolate_head=isolate_head)
