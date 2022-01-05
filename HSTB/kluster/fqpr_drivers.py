@@ -143,7 +143,7 @@ def return_xyz_from_multibeam(multibeam_file: str):
     return x, y, z, times, counters
 
 
-def sequential_read_multibeam(multibeam_file: str, start_pointer: int = None, end_pointer: int = None, first_installation_rec: bool = False):
+def sequential_read_multibeam(multibeam_file: str, start_pointer: int = 0, end_pointer: int = 0, first_installation_rec: bool = False):
     """
     Run the sequential read function built in to all multibeam drivers in Kluster.  Sequential read takes a multibeam file
     (with an optional start/end pointer in bytes) and reads all the datagrams of interest sequentially, skipping any that
