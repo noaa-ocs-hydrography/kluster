@@ -558,7 +558,7 @@ class FqprVisualizations:
                 elif casttime >= nav.time.max():
                     castloc = [float(nav.latitude[-1].values), float(nav.longitude[-1].values)]
                 else:
-                    interpnav = nav.interp(time=casttime, method='nearest')
+                    interpnav = nav.interp(time=np.array([casttime]), method='nearest')
                     castloc = [float(interpnav.latitude.values), float(interpnav.longitude.values)]
             print('Plotting cast at position {}'.format(castloc))
             plt.scatter(castloc[1], castloc[0], label=profname)

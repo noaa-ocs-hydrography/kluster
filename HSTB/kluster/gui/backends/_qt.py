@@ -18,7 +18,10 @@ except (ImportError, ModuleNotFoundError):
         sitepackages, envname = os.path.split(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(klusterfolder_path)))))
         envs = os.path.join(os.path.dirname(os.path.dirname(sitepackages)), 'envs')
         if os.path.exists(envs):  # must be a pydro env
-            if envname.lower() == 'python38':
+            if os.path.exists(os.path.join(envs, 'kluster_test')):  # hack added to test a new environment
+                envfolder = 'kluster_test'
+                qgis_path_pydro = os.path.join(envs, envfolder, 'Library', 'python')
+            elif envname.lower() == 'python38':
                 envfolder = 'Pydro38'
                 qgis_path_pydro = os.path.join(envs, envfolder, 'Library', 'python')
             else:
