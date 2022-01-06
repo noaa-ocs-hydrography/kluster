@@ -199,8 +199,8 @@ def transform_vyperdatum(x: np.array, y: np.array, z: np.array, source_datum: Un
     else:
         vp = VyperPoints(silent=True)
 
-    if not os.path.exists(vp.vdatum.vdatum_path):
-        raise EnvironmentError('Unable to find path to VDatum folder: {}'.format(vp.vdatum.vdatum_path))
+    if not os.path.exists(vp.datum_data.vdatum_path):
+        raise EnvironmentError('Unable to find path to VDatum folder: {}'.format(vp.datum_data.vdatum_path))
     if source_datum == 'nad83':
         source_datum = kluster_variables.epsg_nad83
     elif source_datum == 'wgs84':
@@ -264,9 +264,9 @@ def set_vyperdatum_vdatum_path(vdatum_path: str):
     try:
         # first time setting vdatum path sets the settings file with the correct path
         vc = VyperCore(vdatum_directory=vdatum_path)
-        if not vc.vdatum.vdatum_version:
+        if not vc.datum_data.vdatum_version:
             assert False
-        status = 'Found {} at {}'.format(vc.vdatum.vdatum_version, vc.vdatum.vdatum_path)
+        status = 'Found {} at {}'.format(vc.datum_data.vdatum_version, vc.datum_data.vdatum_path)
     except:
         err = True
         status = 'No valid vdatum found at {}'.format(vdatum_path)

@@ -1,6 +1,21 @@
 Changes List
 ============
 
+Kluster v0.8.6 (1/6/2022)
+-------------------------
+- move to new Python 3.8.12 environment, notable changes:
+
+   - QGIS = 3.18.3
+   - GDAL = 3.3.1
+   - Dask = 2021.12.0
+   - Xarray = 0.20.2
+   - Zarr = 2.10.3
+
+- ensure array passed as input to xarray interp
+- bugfix for vyperdatum in georeferencing
+- bugfix issue warning instead of exception on getting soundings without georeferencing
+- bugfix correct the default arguments in fqpr_drivers.sequential_read_multibeam
+
 Kluster v0.8.5 (1/4/2022)
 ---------------------------
 - aligns with vyperdatum 0.1.8

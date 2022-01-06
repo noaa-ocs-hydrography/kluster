@@ -13,36 +13,36 @@ DESCRIPTION = 'Distributed hydrographic multibeam processing system'
 URL = 'https://github.com/noaa-ocs-hydrography/kluster'
 EMAIL = 'eric.g.younkin@noaa.gov'
 AUTHOR = 'Eric Younkin'
-REQUIRES_PYTHON = '>=3.8.2'
+REQUIRES_PYTHON = '>=3.8.12'
 VERSION = ''
 
 # What packages are required for this module to be executed?
 REQUIRED = [
-            'bokeh==2.3.0',
-            'dask==2021.3.0',
-            'distributed==2021.3.0',
-            'fasteners==0.14.1',
-            'laspy>=1.7.0',
-            'matplotlib==3.3.4',  # >=3.3.3 required, FuncAnimation and Pyside2/matplotlib do not play well in 3.2.1
-            'numba>=0.52.0',
-            'openpyxl>==3.0.6',
-            'psutil>=5.8.0',
-            'numpy==1.20.1',  # cannot be 1.19.4, see https://tinyurl.com/y3dm3h86
-            'pandas==1.2.3',
+            'bokeh==2.4.2',
+            'dask==2021.12.0',
+            'distributed==2021.12.0',
+            'fasteners==0.16',
+            'laspy==2.0.3',
+            'matplotlib==3.5.1',  # >=3.3.3 required, FuncAnimation and Pyside2/matplotlib do not play well in 3.2.1
+            'numba==0.53.0',
+            'openpyxl==3.0.9',
+            'psutil==5.8.0',
+            'numpy==1.21.5',  # cannot be 1.19.4, see https://tinyurl.com/y3dm3h86
+            'pandas==1.3.5',
             'pyshp==2.1.3',
             'pyepsg==0.4.0',  # cartopy requirement not installed with conda install, duplicates pyproj functionality...
             'pyopengl==3.1.5',
-            'pyproj==3.0.1',
-            'pyqtgraph>=0.11.1',
+            'pyproj==3.3.0',
+            'pyqtgraph==0.12.3',
             'python-geohash==0.8.5',
-            'qdarkstyle>=2.8.0',
-            's3fs>=0.5.2',
-            'scipy==1.6.0',
-            'shapely==1.7.1',
-            'sortedcontainers==2.3.0',
-            'watchdog>=1.0.2',
-            'xarray==0.17.0',
-            'zarr==2.6.1',
+            'qdarkstyle==3.0.2',
+            's3fs==0.4.2',
+            'scipy==1.7.3',
+            'shapely==1.8.0',
+            'sortedcontainers==2.4.0',
+            'watchdog>=2.1.6',
+            'xarray==0.20.2',
+            'zarr==2.10.3',
             'hstb.drivers @ git+https://github.com/noaa-ocs-hydrography/drivers.git#egg=hstb.drivers',
             'hstb.shared @ git+https://github.com/noaa-ocs-hydrography/shared.git#egg=hstb.shared',
             'vyperdatum @ git+https://github.com/noaa-ocs-hydrography/vyperdatum.git#egg=vyperdatum',

@@ -962,11 +962,11 @@ class FqprProject:
             except:
                 print('Warning: unable to pull line attributes added in Kluster 0.8.3, is this an older version of Kluster?')
                 line_start, line_end = fq.multibeam.raw_ping[0].multibeam_files[multibeam_line][0], fq.multibeam.raw_ping[0].multibeam_files[multibeam_line][1]
-                dstart = fq.multibeam.raw_ping[0].interp(time=max(line_start, fq.multibeam.raw_ping[0].time.values[0]), method='nearest', assume_sorted=True)
+                dstart = fq.multibeam.raw_ping[0].interp(time=np.array([max(line_start, fq.multibeam.raw_ping[0].time.values[0])]), method='nearest', assume_sorted=True)
                 start_position = [dstart.latitude.values, dstart.longitude.values]
-                dend = fq.multibeam.raw_ping[0].interp(time=min(line_end, fq.multibeam.raw_ping[0].time.values[-1]), method='nearest', assume_sorted=True)
+                dend = fq.multibeam.raw_ping[0].interp(time=np.array([min(line_end, fq.multibeam.raw_ping[0].time.values[-1])]), method='nearest', assume_sorted=True)
                 end_position = [dend.latitude.values, dend.longitude.values]
-                line_az = fq.multibeam.raw_att.interp(time=line_start + (line_end - line_start) / 2, method='nearest', assume_sorted=True).heading.values
+                line_az = fq.multibeam.raw_att.interp(time=np.array([line_start + (line_end - line_start) / 2]), method='nearest', assume_sorted=True).heading.values
             line_dict[multibeam_line] = {'start_position': start_position, 'end_position': end_position, 'azimuth': line_az, 'fqpath': fqpr_rel_pth}
             if fqpr_rel_pth not in fqpaths:
                 fqpaths.append(fqpr_rel_pth)

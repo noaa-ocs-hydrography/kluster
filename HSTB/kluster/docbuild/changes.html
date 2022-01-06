@@ -5,7 +5,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Changes List &#8212; kluster 0.8.5 documentation</title>
+    <title>Changes List &#8212; kluster 0.8.6 documentation</title>
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
     <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
     <link rel="stylesheet" type="text/css" href="_static/graphviz.css" />
@@ -34,6 +34,26 @@
             
   <div class="section" id="changes-list">
 <h1>Changes List<a class="headerlink" href="#changes-list" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="kluster-v0-8-6-1-6-2022">
+<h2>Kluster v0.8.6 (1/6/2022)<a class="headerlink" href="#kluster-v0-8-6-1-6-2022" title="Permalink to this headline">¶</a></h2>
+<ul>
+<li><p>move to new Python 3.8.12 environment, notable changes:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p>QGIS = 3.18.3</p></li>
+<li><p>GDAL = 3.3.1</p></li>
+<li><p>Dask = 2021.12.0</p></li>
+<li><p>Xarray = 0.20.2</p></li>
+<li><p>Zarr = 2.10.3</p></li>
+</ul>
+</div></blockquote>
+</li>
+<li><p>ensure array passed as input to xarray interp</p></li>
+<li><p>bugfix for vyperdatum in georeferencing</p></li>
+<li><p>bugfix issue warning instead of exception on getting soundings without georeferencing</p></li>
+<li><p>bugfix correct the default arguments in fqpr_drivers.sequential_read_multibeam</p></li>
+</ul>
+</div>
 <div class="section" id="kluster-v0-8-5-1-4-2022">
 <h2>Kluster v0.8.5 (1/4/2022)<a class="headerlink" href="#kluster-v0-8-5-1-4-2022" title="Permalink to this headline">¶</a></h2>
 <ul class="simple">
@@ -567,6 +587,7 @@
 <li class="toctree-l1"><a class="reference internal" href="indepth/index.html">Learn more about Kluster</a></li>
 <li class="toctree-l1"><a class="reference internal" href="kluster_api/index.html">API</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Changes List</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#kluster-v0-8-6-1-6-2022">Kluster v0.8.6 (1/6/2022)</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#kluster-v0-8-5-1-4-2022">Kluster v0.8.5 (1/4/2022)</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#kluster-v0-8-4-12-17-2021">Kluster v0.8.4 (12/17/2021)</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#kluster-v0-8-3">Kluster v0.8.3</a></li>
