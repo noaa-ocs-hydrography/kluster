@@ -1,8 +1,13 @@
 import os
 import psutil
 import numpy as np
+
+import typing
+typing.TYPE_CHECKING = True  # set flag to allow sphinx autodoc to work with dask functions
+
 import dask
-from dask.distributed import get_client, Client, Lock
+from dask.distributed import Client
+from dask.distributed import get_client, Lock
 from xarray import DataArray
 from fasteners import InterProcessLock
 from HSTB.kluster.kluster_variables import mem_restart_threshold
