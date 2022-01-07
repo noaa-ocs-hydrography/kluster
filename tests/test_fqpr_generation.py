@@ -335,6 +335,20 @@ class TestFqprGeneration(unittest.TestCase):
         assert len(self.out.multibeam.raw_ping[0].time) == 216
         assert len(self.out.multibeam.raw_att.time) == 5302
 
+    def test_subset_by_time_outofbounds_after(self):
+        self._access_processed_data()
+        err = self.out.subset_by_time(mintime=1495563134, maxtime=1495563150)
+        assert err
+        assert len(self.out.multibeam.raw_ping[0].time) == 216
+        assert len(self.out.multibeam.raw_att.time) == 5302
+
+    def test_subset_by_time_outofbounds_before(self):
+        self._access_processed_data()
+        err = self.out.subset_by_time(mintime=1495563000, maxtime=1495563070)
+        assert err
+        assert len(self.out.multibeam.raw_ping[0].time) == 216
+        assert len(self.out.multibeam.raw_att.time) == 5302
+
     def test_subset_by_times(self):
         self._access_processed_data()
         self.out.subset_by_times([[1495563080, 1495563090], [1495563100, 1495563130]])
@@ -382,6 +396,14 @@ class TestFqprGeneration(unittest.TestCase):
         assert self.out.multibeam.raw_ping[0].z.shape[0] == 216
         assert len(self.out.multibeam.raw_att.time) == 5302
 
+    def test_subset_variables_outofbounds_after(self):
+        self._access_processed_data()
+        dset = self.out.subset_variables(['z'], ping_times=(1495563134, 1495563150), filter_by_detection=True)
+        assert dset is None
+        assert len(self.out.multibeam.raw_ping[0].time) == 216
+        assert self.out.multibeam.raw_ping[0].z.shape[0] == 216
+        assert len(self.out.multibeam.raw_att.time) == 5302
+
     def test_subset_variables_by_line(self):
         self._access_processed_data()
         dset = self.out.subset_variables_by_line(['z'])
@@ -389,6 +411,18 @@ class TestFqprGeneration(unittest.TestCase):
         assert list(dset.keys()) == ['0009_20170523_181119_FA2806.all']
         assert len(dset['0009_20170523_181119_FA2806.all'].time) == 216
         assert dset['0009_20170523_181119_FA2806.all'].z.shape[0] == 216
+
+    def test_subset_variables_by_line_outofbounds(self):
+        self._access_processed_data()
+        # set fake start and end times to after the dataset time to test outofbounds
+        self.out.multibeam.raw_ping[0].multibeam_files['0009_20170523_181119_FA2806.all'][0] = 1495563134
+        self.out.multibeam.raw_ping[0].multibeam_files['0009_20170523_181119_FA2806.all'][1] = 1495563150
+        dset = self.out.subset_variables_by_line(['z'])
+
+        assert list(dset.keys()) == ['0009_20170523_181119_FA2806.all']
+        assert dset['0009_20170523_181119_FA2806.all'] is None
+        assert len(self.out.multibeam.raw_ping[0].time) == 216
+        assert len(self.out.multibeam.raw_att.time) == 5302
 
     def test_intersects(self):
         self._access_processed_data()

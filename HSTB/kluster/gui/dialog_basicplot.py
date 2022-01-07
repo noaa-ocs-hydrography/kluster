@@ -476,7 +476,10 @@ class BasicPlotDialog(QtWidgets.QDialog):
         if self.datasets:
             min_max = self.data_widget.return_trim_times()
             if min_max:
-                self.fqpr.subset_by_time(min_max[0], min_max[1])
+                err = self.fqpr.subset_by_time(min_max[0], min_max[1])
+                if err:
+                    self.data_widget.warning_message.setText('ERROR: no data in times {}-{}'.format(min_max[0], min_max[1]))
+                    return
             self.reload_datasets()
             ky = self.dataset_dropdown.currentText()
             plottype = self.plottype_dropdown.currentText()
@@ -547,7 +550,10 @@ class BasicPlotDialog(QtWidgets.QDialog):
             if output_pth:
                 min_max = self.data_widget.return_trim_times()
                 if min_max:
-                    self.fqpr.subset_by_time(min_max[0], min_max[1])
+                    err = self.fqpr.subset_by_time(min_max[0], min_max[1])
+                    if err:
+                        self.data_widget.warning_message.setText('ERROR: no data in times {}-{}'.format(min_max[0], min_max[1]))
+                        return
                 self.reload_datasets()
                 self.fqpr.export_variable(ky, dvar, output_pth, reduce_method=reduce_method, zero_centered=zero_centered)
                 if min_max:
@@ -569,7 +575,10 @@ class BasicPlotDialog(QtWidgets.QDialog):
             if output_pth:
                 min_max = self.data_widget.return_trim_times()
                 if min_max:
-                    self.fqpr.subset_by_time(min_max[0], min_max[1])
+                    err = self.fqpr.subset_by_time(min_max[0], min_max[1])
+                    if err:
+                        self.data_widget.warning_message.setText('ERROR: no data in times {}-{}'.format(min_max[0], min_max[1]))
+                        return
                 self.reload_datasets()
                 self.fqpr.export_dataset(ky, output_pth)
                 if min_max:

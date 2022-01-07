@@ -69,6 +69,11 @@ class FqprSubset:
             minimum time of the subset, if not provided and maxtime is, use the minimum time of the datasets
         maxtime
             maximum time of the subset, if not provided and mintime is, use the maximum time of the datasets
+
+        Returns
+        -------
+        bool
+            Error if True
         """
 
         if mintime is None and maxtime is not None:
@@ -78,16 +83,20 @@ class FqprSubset:
         if mintime is None and maxtime is None:
             raise ValueError('subset_by_time: either mintime or maxtime must be provided to subset by time')
 
-        self._prepare_subset()
-        self.subset_mintime = mintime
-        self.subset_maxtime = maxtime
-
         slice_raw_ping = []
         for ra in self.fqpr.multibeam.raw_ping:
             slice_ra = slice_xarray_by_dim(ra, dimname='time', start_time=mintime, end_time=maxtime)
             slice_raw_ping.append(slice_ra)
+        if any([slce is None for slce in slice_raw_ping]):
+            print('Warning: Subset by time found empty slice at {}-{}, skipping subset'.format(mintime, maxtime))
+            return True
+
+        self._prepare_subset()
+        self.subset_mintime = mintime
+        self.subset_maxtime = maxtime
         self.fqpr.multibeam.raw_ping = slice_raw_ping
         self.fqpr.multibeam.raw_att = slice_xarray_by_dim(self.fqpr.multibeam.raw_att, dimname='time', start_time=mintime, end_time=maxtime)
+        return False
 
     def subset_by_lines(self, line_names: Union[str, list]):
         """
@@ -130,14 +139,11 @@ class FqprSubset:
             in utc seconds]
         """
 
-        self._prepare_subset()
-
         if not isinstance(time_segments, (list, tuple)) or not isinstance(time_segments[0], (list, tuple)) or len(time_segments[0]) != 2:
             raise ValueError('Expected a list of lists where each sub list is 2 elements long and contains start/end times in utc seconds')
-        self._prepare_subset()
+
         # ensure the time segments are sorted, so that the resultant concatenated datasets are in time order
         time_segments = sorted(time_segments, key=lambda x: x[0])
-        self.subset_times = time_segments
 
         slice_raw_ping = []
         for ra in self.fqpr.multibeam.raw_ping:
@@ -149,6 +155,13 @@ class FqprSubset:
                 else:
                     final_ra = slice_ra
             slice_raw_ping.append(final_ra)
+
+        if any([slce is None for slce in slice_raw_ping]):
+            print('Warning: Subset by time found empty slice, skipping subset')
+            return
+
+        self._prepare_subset()
+        self.subset_times = time_segments
         self.fqpr.multibeam.raw_ping = slice_raw_ping
 
         final_att = None
@@ -223,7 +236,7 @@ class FqprSubset:
         Returns
         -------
         xr.Dataset
-            Dataset with the
+            Dataset with just the variable_selection variables, optionally trimmed to times provided
         """
 
         if filter_by_detection and 'detectioninfo' not in variable_selection:
@@ -240,7 +253,9 @@ class FqprSubset:
             else:
                 min_time, max_time = float(np.min(ping_times)), float(np.max(ping_times))
 
-            self.subset_by_time(min_time, max_time)
+            err = self.subset_by_time(min_time, max_time)
+            if err:
+                return None
 
         dataset_variables = {}
         maxbeams = 0

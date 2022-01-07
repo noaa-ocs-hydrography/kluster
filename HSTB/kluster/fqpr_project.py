@@ -695,9 +695,13 @@ class FqprProject:
             if fq_inst is not None:
                 line_start_time, line_end_time = fq_inst.multibeam.raw_ping[0].multibeam_files[line][0], fq_inst.multibeam.raw_ping[0].multibeam_files[line][1]
                 nav = fq_inst.multibeam.return_raw_navigation(line_start_time, line_end_time)
-                lat, lon = nav.latitude.values, nav.longitude.values
-                # save nav so we don't have to redo this routine if asked for the same line
-                self.buffered_fqpr_navigation[line] = [lat, lon]
+                if nav is not None:
+                    lat, lon = nav.latitude.values, nav.longitude.values
+                    # save nav so we don't have to redo this routine if asked for the same line
+                    self.buffered_fqpr_navigation[line] = [lat, lon]
+                else:
+                    print('No navigation found for line {}'.format(line))
+                    return None, None
             else:
                 print('{} not found in project'.format(line))
                 return None, None

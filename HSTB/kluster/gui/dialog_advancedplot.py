@@ -435,7 +435,10 @@ class AdvancedPlotDialog(QtWidgets.QDialog):
         if self.datasets:
             min_max = self.data_widget.return_trim_times()
             if min_max:
-                self.fqpr.subset_by_time(min_max[0], min_max[1])
+                err = self.fqpr.subset_by_time(min_max[0], min_max[1])
+                if err:
+                    self.data_widget.warning_message.setText('ERROR: no data in times {}-{}'.format(min_max[0], min_max[1]))
+                    return
             self.reload_datasets()
             plottype = self.plot_type_dropdown.currentText()
             mode = self.mode_dropdown.currentText()
