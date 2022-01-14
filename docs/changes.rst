@@ -1,5 +1,18 @@
 Changes List
 ============
+Kluster v0.8.7 (1/14/2022)
+----------------------------
+- Resolve patch test issue, will no correctly use the TX Pitch value during Patch Test, was previously incorrectly using RX Pitch
+- update github/setup.py for new environment, resolve environment yml file issues
+- resolve issues with converting and processing files without pings (that only have attitude/navigation) including drawing line navigation, plots, and geohash computation
+- automatically exclude all 9999.all files
+
+- bug fix skip attempting to reload data when path is not a directory
+- bug fix skip color generation for soundings when Points View is empty
+- bug fix resolve dask type checking issue that breaks sphinx
+- bug fix exclude all 9999.all files from intelligence module
+- bug fix skip color generation for soundings when Points View is empty
+- bug fix skip reload converted data attempts for new path if it is not a directory
 
 Kluster v0.8.6 (1/6/2022)
 -------------------------
