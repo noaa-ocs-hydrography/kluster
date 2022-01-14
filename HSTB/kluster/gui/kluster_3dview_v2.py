@@ -722,6 +722,12 @@ class ThreeDView(QtWidgets.QWidget):
         self._select_rect_color = clr
         self.line._color = clr
 
+    @property
+    def is_empty(self):
+        if not self.z.any():
+            return True
+        return False
+
     def _on_mouse_press(self, event):
         """
         Capture the mouse event before the camera gets it for point selection/cleaning to set the origin of the drawn
@@ -1050,7 +1056,12 @@ class ThreeDView(QtWidgets.QWidget):
         """
 
         # normalize the arrays and build the colors for each sounding
-        if color_by == 'id':
+        if self.is_empty:
+            cmap = None
+            clrs = np.array([], dtype=object)
+            min_val = 0
+            max_val = 0
+        elif color_by == 'id':
             if len(self.z) + 1 > 2**32:
                 raise NotImplementedError('Got more than 2^32 points, cant encode an ID as RGBA...')
             # color each sounding by a unique id encoded as RGBA
@@ -1226,7 +1237,7 @@ class ThreeDView(QtWidgets.QWidget):
             maximum value to use for the color bar
         """
 
-        if not self.z.any():
+        if self.is_empty:
             return None, None, None
 
         self._configure_2d_3d_view()

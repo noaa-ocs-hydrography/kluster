@@ -1738,7 +1738,10 @@ class Fqpr(ZarrBackend):
                 geohash_by_line = self.subset_variables_by_line(['geohash'])
                 geohash_dict = {}
                 for mline, linedataset in geohash_by_line.items():
-                    geohash_dict[mline] = [x.decode() for x in np.unique(linedataset.geohash).tolist()]
+                    if linedataset is None:
+                        geohash_dict[mline] = []
+                    else:
+                        geohash_dict[mline] = [x.decode() for x in np.unique(linedataset.geohash).tolist()]
                 newattr = {'min_x': minx, 'min_y': miny, 'min_z': minz, 'max_x': maxx, 'max_y': maxy, 'max_z': maxz, 'geohashes': geohash_dict}
                 self.write_attribute_to_ping_records(newattr)
 
@@ -2823,7 +2826,7 @@ class Fqpr(ZarrBackend):
         Use subset module to trim the fqpr instance to the given time range
         """
 
-        self.subset.subset_by_time(mintime, maxtime)
+        return self.subset.subset_by_time(mintime, maxtime)
 
     def subset_by_times(self, time_segments: list):
         """

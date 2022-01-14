@@ -455,7 +455,7 @@ class KlusterMain(QtWidgets.QMainWindow):
             if new_data is None:
                 if os.path.exists(os.path.join(f, 'SRGrid_Root')) or os.path.exists(os.path.join(f, 'VRGridTile_Root')):
                     potential_surface_paths.append(f)
-                else:
+                elif os.path.isdir(f):
                     potential_fqpr_paths.append(f)
         self.refresh_project(new_fqprs)
         self.open_project_thread.populate(force_add_fqprs=potential_fqpr_paths, force_add_surfaces=potential_surface_paths)
@@ -990,6 +990,11 @@ class KlusterMain(QtWidgets.QMainWindow):
         self._stop_action_progress()
 
     def manual_patch_test(self, e):
+        """
+        Triggered by patch test button in Points View.  Will retrieve the relevant installation parameter records for
+        the lines in the Points View subset, and display them (PrePatchDialog) for the user to then select the record they want to use in
+        the patch test tool (ManualPatchTestWidget).  After that selection, we run the Patch Test tool.
+        """
         if not self.no_threads_running():
             print('Processing is already occurring.  Please wait for the process to finish')
         else:
@@ -1029,7 +1034,7 @@ class KlusterMain(QtWidgets.QMainWindow):
 
     def _update_manual_patch_test(self):
         """
-        Triggered on hitting update in the patch test widget.  Will run the patch_test_load_thread to reprocess the data
+        Triggered on hitting update in the patch test tool.  Will run the patch_test_load_thread to reprocess the data
         in the patch test subset (see load_points_thread.polygon for the boundary of this subset) and display the
         new data in points view, replacing the old points.
         """

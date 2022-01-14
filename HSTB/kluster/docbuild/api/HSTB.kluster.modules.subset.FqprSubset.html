@@ -5,7 +5,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>FqprSubset &#8212; kluster 0.8.6 documentation</title>
+    <title>FqprSubset &#8212; kluster 0.8.7 documentation</title>
     <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
     <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
     <link rel="stylesheet" type="text/css" href="../_static/graphviz.css" />
@@ -221,6 +221,12 @@ then only have access to data within that time period.</p>
 <li><p><strong>maxtime</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code>]) – maximum time of the subset, if not provided and mintime is, use the maximum time of the datasets</p></li>
 </ul>
 </dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>Error if True</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>bool</p>
+</dd>
 </dl>
 </dd></dl>
 
@@ -255,7 +261,7 @@ a float for a single time, or a tuple of (min time, max time).  If None, will us
 </ul>
 </dd>
 <dt class="field-even">Returns</dt>
-<dd class="field-even"><p>Dataset with the</p>
+<dd class="field-even"><p>Dataset with just the variable_selection variables, optionally trimmed to times provided</p>
 </dd>
 <dt class="field-odd">Return type</dt>
 <dd class="field-odd"><p>xr.Dataset</p>
