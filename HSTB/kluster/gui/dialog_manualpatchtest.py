@@ -85,7 +85,7 @@ class PrePatchDialog(QtWidgets.QDialog):
                 if int(head) == 0:
                     head_fmt = 'PORT'
                     roll = xyzrec['rx_port_r'][tstmp]
-                    pitch = xyzrec['rx_port_p'][tstmp]
+                    pitch = xyzrec['tx_port_p'][tstmp]
                     heading = xyzrec['rx_port_h'][tstmp]
                     xlever = xyzrec[refpt[0] + '_port_x'][tstmp]
                     ylever = xyzrec[refpt[1] + '_port_y'][tstmp]
@@ -94,7 +94,7 @@ class PrePatchDialog(QtWidgets.QDialog):
                 elif int(head) == 1:
                     head_fmt = 'STARBOARD'
                     roll = xyzrec['rx_stbd_r'][tstmp]
-                    pitch = xyzrec['rx_stbd_p'][tstmp]
+                    pitch = xyzrec['tx_stbd_p'][tstmp]
                     heading = xyzrec['rx_stbd_h'][tstmp]
                     xlever = xyzrec[refpt[0] + '_stbd_x'][tstmp]
                     ylever = xyzrec[refpt[1] + '_stbd_y'][tstmp]
@@ -105,7 +105,7 @@ class PrePatchDialog(QtWidgets.QDialog):
                         'Only head indices 0 and 1 supported, we expect max 2 heads, got: {}'.format(head))
             else:
                 roll = xyzrec['rx_r'][tstmp]
-                pitch = xyzrec['rx_p'][tstmp]
+                pitch = xyzrec['tx_p'][tstmp]
                 heading = xyzrec['rx_h'][tstmp]
                 xlever = xyzrec[refpt[0] + '_x'][tstmp]
                 ylever = xyzrec[refpt[1] + '_y'][tstmp]
