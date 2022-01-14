@@ -18,6 +18,7 @@ from HSTB.kluster.fqpr_vessel import compare_dict_data, convert_from_fqpr_xyzrph
 from HSTB.kluster import kluster_variables
 
 
+excluded_files = kluster_variables.excluded_files
 supported_mbes = kluster_variables.supported_multibeam
 supported_sbet = kluster_variables.supported_ppnav  # people keep mixing up these extensions, so just check for the nav/smrmsg in both
 supported_export_log = kluster_variables.supported_ppnav_log
@@ -323,6 +324,7 @@ class FqprIntel(LoggerClass):
 
         infile = os.path.normpath(infile)
         fileext = os.path.splitext(infile)[1]
+        filename = os.path.split(infile)[1]
         updated_type = ''
         new_data = None
         new_project = False
@@ -331,7 +333,10 @@ class FqprIntel(LoggerClass):
         rerun_nav_file_match = False
         rerun_svp_file_match = False
 
-        if fileext in supported_mbes:
+        if filename in excluded_files:
+            if not silent:
+                self.print_msg('File is listed as an exluded file: {}'.format(infile), logging.ERROR)
+        elif fileext in supported_mbes:
             new_data, updated_type, rerun_mbes_file_match = self._add_to_intel(gather_multibeam_info(infile), self.multibeam_intel, 'multibeam')
         elif fileext in supported_svp:
             new_data, updated_type, rerun_svp_file_match = self._add_to_intel(gather_svp_info(infile), self.svp_intel, 'svp')
