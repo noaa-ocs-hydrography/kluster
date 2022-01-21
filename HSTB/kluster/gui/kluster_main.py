@@ -1,3 +1,8 @@
+# Import qt first, to resolve the backend issues youll get in matplotlib if you dont import this first, as it prefers PySide2
+from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal, qgis_enabled, found_path
+if qgis_enabled:
+    from HSTB.kluster.gui.backends._qt import qgis_core, qgis_gui
+
 import matplotlib
 matplotlib.use('qt5agg')
 
@@ -11,10 +16,6 @@ from datetime import datetime
 from pyproj import CRS, Transformer
 import qdarkstyle
 import matplotlib.pyplot as plt
-
-from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal, qgis_enabled, found_path
-if qgis_enabled:
-    from HSTB.kluster.gui.backends._qt import qgis_core, qgis_gui
 
 from HSTB.kluster.gui import dialog_vesselview, kluster_explorer, kluster_project_tree, kluster_3dview_v2, \
     kluster_output_window, kluster_2dview, kluster_actions, kluster_monitor, dialog_daskclient, dialog_surface, \
