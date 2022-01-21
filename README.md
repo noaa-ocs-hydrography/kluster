@@ -12,6 +12,8 @@ Documentation: [readthedocs](https://kluster.readthedocs.io/en/latest/)
 
 Youtube Series: [Kluster Playlist](https://www.youtube.com/playlist?list=PLrjCvP_J9AA_memBs2ZyKXGHG1AMx0GWx)
 
+Development Items: [Trello Board](https://trello.com/b/nNZq8S9W)
+
 A distributed multibeam processing system built on the [Pangeo ecosystem](https://pangeo.io/). Supports Kongsberg .all/.kmall multibeam formats, POS MV post-processed SBET/RMS navigation files and Caris svp sound velocity profile files.
 
 Kluster provides a fully open source hydrographic processing package to produce accessible bathymetry products in support of ocean mapping.
