@@ -2,8 +2,9 @@ import os
 import psutil
 import numpy as np
 
-import typing
-typing.TYPE_CHECKING = True  # set flag to allow sphinx autodoc to work with dask functions
+# tried the below, but it creates this circular import issue with dask, you'll see it on running this in debug mode
+# import typing
+# typing.TYPE_CHECKING = True  # set flag to allow sphinx autodoc to work with dask functions
 
 import dask
 from dask.distributed import Client
@@ -273,3 +274,7 @@ def split_array_by_number_of_workers(client: Client, dataarray: DataArray, max_l
         cnt += datalen
 
     return data_out, data_idx
+
+
+if __name__ == '__main__':
+    dask_find_or_start_client()
