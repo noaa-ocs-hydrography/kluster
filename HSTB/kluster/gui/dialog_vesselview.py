@@ -603,7 +603,7 @@ class Vessel(MovingObject):
                                        parent=self.parent)
         self.mesh.transform = transforms.MatrixTransform()
         self.mesh.set_data(vertices=self.vertices, faces=self.faces)
-        self.mesh.light_dir = (10, 10, 10)
+        # self.mesh.light_dir = (10, 10, 10)
 
         if position is not None:
             self.finalize_position(position)
@@ -1106,7 +1106,6 @@ class OptionsWidget(QtWidgets.QWidget):
         validator = QtGui.QDoubleValidator(-999, 999, 3)
         lineedit.setValidator(validator)
         lineedit.setText('0.000')
-        lineedit.setMaximumWidth(70)
         lineedit.editingFinished.connect(self.validate_numctrl)
         if tooltip:
             gui_label.setToolTip(tooltip)
