@@ -23,16 +23,13 @@ class LayerSettingsDialog(SaveStateDialog):
                                       'Satellite (internet required)', 'NOAA RNC (internet required)',
                                       'NOAA ENC (internet required)', 'GEBCO Grid (internet required)',
                                       'EMODnet Bathymetry (internet required)'])
-        self.layer_dropdown.setMaximumWidth(300)
         self.hlayout_one.addWidget(self.layer_dropdown)
         self.hlayout_one.addStretch(1)
 
         self.hlayout_two = QtWidgets.QHBoxLayout()
         self.transparency_label = QtWidgets.QLabel('Background Transparency: ')
-        self.transparency_label.setMaximumWidth(130)
         self.hlayout_two.addWidget(self.transparency_label)
         self.transparency = QtWidgets.QLineEdit('0')
-        self.transparency.setMaximumWidth(30)
         self.hlayout_two.addWidget(self.transparency)
         self.transparency_sign_label = QtWidgets.QLabel('%')
         self.hlayout_two.addWidget(self.transparency_sign_label)
@@ -40,10 +37,8 @@ class LayerSettingsDialog(SaveStateDialog):
 
         self.hlayout_three = QtWidgets.QHBoxLayout()
         self.surf_transparency_label = QtWidgets.QLabel('Surface Transparency: ')
-        self.surf_transparency_label.setMaximumWidth(130)
         self.hlayout_three.addWidget(self.surf_transparency_label)
         self.surf_transparency = QtWidgets.QLineEdit('0')
-        self.surf_transparency.setMaximumWidth(30)
         self.hlayout_three.addWidget(self.surf_transparency)
         self.surf_transparency_sign_label = QtWidgets.QLabel('%')
         self.hlayout_three.addWidget(self.surf_transparency_sign_label)
@@ -72,7 +67,7 @@ class LayerSettingsDialog(SaveStateDialog):
         self.cancel_button.clicked.connect(self.cancel)
 
         self.read_settings()
-        self.resize(600, 200)
+        # self.resize(600, 200)
 
     def return_layer_options(self):
         """
@@ -139,9 +134,9 @@ class LayerSettingsDialog(SaveStateDialog):
         try:
             self.layer_dropdown.setCurrentText(settings.value('Kluster/layer_settings_background'))
             if settings.value('Kluster/layer_settings_transparency'):
-                self.transparency.setText(str(int(float(settings.value('Kluster/layer_settings_transparency')) * 100)))
+                self.transparency.setText(str(min(100, int(float(settings.value('Kluster/layer_settings_transparency')) * 100))))
             if settings.value('Kluster/layer_settings_surfacetransparency'):
-                self.surf_transparency.setText(str(int(float(settings.value('Kluster/layer_settings_surfacetransparency')) * 100)))
+                self.surf_transparency.setText(str(min(100, int(float(settings.value('Kluster/layer_settings_surfacetransparency')) * 100))))
         except AttributeError:
             # no settings exist yet for this app, .lower failed
             pass

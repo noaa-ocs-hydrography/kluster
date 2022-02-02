@@ -178,7 +178,6 @@ class PlotDataHandler(QtWidgets.QWidget):
         self.trim_lines_lbl = QtWidgets.QLabel('Line Name')
         self.hlayout_three.addWidget(self.trim_lines_lbl)
         self.trim_lines = QtWidgets.QComboBox(self)
-        self.trim_lines.setMinimumWidth(350)
         self.hlayout_three.addWidget(self.trim_lines)
         self.trim_line_check.setLayout(self.hlayout_three)
 
@@ -186,7 +185,6 @@ class PlotDataHandler(QtWidgets.QWidget):
         self.ping_count_label = QtWidgets.QLabel('Ping count')
         self.hlayout_four.addWidget(self.ping_count_label)
         self.ping_count = QtWidgets.QLineEdit('', self)
-        self.ping_count.setMinimumWidth(80)
         self.ping_count.setReadOnly(True)
         self.hlayout_four.addWidget(self.ping_count)
         self.time_as_label = QtWidgets.QLabel('Time as')

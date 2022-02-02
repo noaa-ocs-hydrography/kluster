@@ -36,7 +36,6 @@ class ExportGridDialog(SaveStateDialog):
         self.hlayout_one.addWidget(self.start_msg)
         self.export_opts = QtWidgets.QComboBox()
         self.export_opts.addItems(['Geotiff', 'BAG', 'csv'])
-        self.export_opts.setMaximumWidth(100)
         self.hlayout_one.addWidget(self.export_opts)
         self.zdirect_check = QtWidgets.QCheckBox('Z as Elevation (+ UP)')
         self.zdirect_check.setChecked(True)

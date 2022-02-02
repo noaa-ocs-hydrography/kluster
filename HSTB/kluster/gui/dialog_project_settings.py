@@ -25,7 +25,6 @@ class ProjectSettingsDialog(SaveStateDialog):
         self.epsg_radio = QtWidgets.QRadioButton('From EPSG')
         self.hlayout_one.addWidget(self.epsg_radio)
         self.epsg_val = QtWidgets.QLineEdit('', self)
-        self.epsg_val.setMaximumWidth(80)
         self.hlayout_one.addWidget(self.epsg_val)
         self.hlayout_one.addStretch(1)
 
@@ -36,7 +35,6 @@ class ProjectSettingsDialog(SaveStateDialog):
         self.auto_utm_val = QtWidgets.QComboBox()
         self.auto_utm_val.addItems(kluster_variables.coordinate_systems)
         self.auto_utm_val.setCurrentIndex(kluster_variables.coordinate_systems.index(kluster_variables.default_coordinate_system))
-        self.auto_utm_val.setMaximumWidth(100)
         self.hlayout_two.addWidget(self.auto_utm_val)
         self.hlayout_two.addStretch(1)
 
@@ -45,7 +43,6 @@ class ProjectSettingsDialog(SaveStateDialog):
         self.hlayout_three = QtWidgets.QHBoxLayout()
         self.georef_vertref = QtWidgets.QComboBox()
         self.georef_vertref.addItems(kluster_variables.vertical_references)
-        self.georef_vertref.setMaximumWidth(100)
         self.hlayout_three.addWidget(self.georef_vertref)
         self.hlayout_three.addStretch(1)
 
@@ -84,7 +81,7 @@ class ProjectSettingsDialog(SaveStateDialog):
         self.checkbox_controls = [['epsgradio', self.epsg_radio], ['utmradio', self.auto_utm_radio]]
 
         self.read_settings()
-        self.resize(600, 200)
+        # self.resize(600, 200)
 
     def find_vdatum(self):
         """

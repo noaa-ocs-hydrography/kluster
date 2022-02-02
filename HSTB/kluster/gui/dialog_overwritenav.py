@@ -44,7 +44,6 @@ class OverwriteNavigationDialog(QtWidgets.QDialog):
         self.caltext = QtWidgets.QLabel('Date of POS MV File')
         self.hlayout_four_one.addWidget(self.caltext)
         self.calendar_widget = QtWidgets.QDateEdit()
-        self.calendar_widget.setMaximumWidth(100)
         self.calendar_widget.setCalendarPopup(True)
         currdate = datetime.now()
         self.calendar_widget.setDate(QtCore.QDate(currdate.year, currdate.month, currdate.day))

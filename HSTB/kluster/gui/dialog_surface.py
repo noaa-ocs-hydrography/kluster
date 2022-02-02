@@ -45,7 +45,6 @@ class SurfaceDialog(SaveStateDialog):
         self.hlayout_one_one.addWidget(self.surf_method_lbl)
         self.surf_method = QtWidgets.QComboBox()
         self.surf_method.addItems(['Mean', 'Shoalest'])
-        self.surf_method.setMaximumWidth(100)
         self.surf_method.setToolTip('The algorithm used when gridding, will use this to determine the depth/uncertainty value of the cell')
         self.hlayout_one_one.addWidget(self.surf_method)
         self.hlayout_one_one.addStretch()
@@ -85,7 +84,6 @@ class SurfaceDialog(SaveStateDialog):
                                               '{}\n'.format(depth_lookup_formatted) +
                                               'AUTO_density will base the resolution on the density/area of each tile using the following formula:\n\n' +
                                               'resolution_estimate=squareroot(2 * minimum_points_per_cell * 1.75 / cell_point_density)')
-        self.single_rez_resolution.setMinimumWidth(100)
         self.hlayout_singlerez_one.addWidget(self.single_rez_resolution)
         self.surf_layout.addLayout(self.hlayout_singlerez_one)
 

@@ -9,8 +9,6 @@ class PrePatchDialog(QtWidgets.QDialog):
         super().__init__(parent)
 
         self.setWindowTitle('Patch Test')
-        self.setMinimumWidth(1040)
-        self.setMinimumHeight(200)
 
         self.main_layout = QtWidgets.QVBoxLayout()
 
@@ -264,7 +262,6 @@ class PatchSpinBox(QtWidgets.QDoubleSpinBox):
         self.setMaximum(999.999)
         self.setDecimals(3)
         self.setSingleStep(0.01)
-        self.setMaximumWidth(70)
 
 
 class ManualPatchTestWidget(QtWidgets.QWidget):
@@ -274,8 +271,6 @@ class ManualPatchTestWidget(QtWidgets.QWidget):
         QtWidgets.QWidget.__init__(self, parent)
 
         self.setWindowTitle('Patch Test')
-        self.setMinimumWidth(450)
-        self.setMinimumHeight(360)
 
         self.main_layout = QtWidgets.QVBoxLayout()
 
