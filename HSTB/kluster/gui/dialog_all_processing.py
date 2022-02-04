@@ -101,7 +101,7 @@ class AllProcessingDialog(QtWidgets.QDialog):
         self.hlayout_four.addWidget(self.georef_check)
 
         self.status_msg = QtWidgets.QLabel('')
-        self.status_msg.setStyleSheet("QLabel { " + kluster_variables.error_color + "; }")
+        self.status_msg.setStyleSheet("QLabel { color : " + kluster_variables.error_color + "; }")
 
         self.hlayout_five = QtWidgets.QHBoxLayout()
         self.hlayout_five.addStretch(1)

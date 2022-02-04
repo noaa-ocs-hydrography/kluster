@@ -640,7 +640,7 @@ class TimestampDialog(QtWidgets.QDialog):
         self.hlayout_three.addWidget(self.new_text)
 
         self.status_msg = QtWidgets.QLabel('')
-        self.status_msg.setStyleSheet("QLabel { " + kluster_variables.error_color + "; }")
+        self.status_msg.setStyleSheet("QLabel { color : " + kluster_variables.error_color + "; }")
 
         self.remove_this_checkbox = QtWidgets.QCheckBox('Remove this entry')
 
@@ -703,11 +703,11 @@ class TimestampDialog(QtWidgets.QDialog):
             checkpass = False
 
         if checkpass:
-            self.status_msg.setStyleSheet("QLabel { " + kluster_variables.pass_color + "; }")
+            self.status_msg.setStyleSheet("QLabel { color : " + kluster_variables.pass_color + "; }")
             self.status_msg.setText('Pass')
             self.ok_button.setEnabled(True)
         else:
-            self.status_msg.setStyleSheet("QLabel { " + kluster_variables.error_color + "; }")
+            self.status_msg.setStyleSheet("QLabel { color : " + kluster_variables.error_color + "; }")
             self.status_msg.setText('Error: Timestamp Format Invalid')
             self.ok_button.setEnabled(False)
 
@@ -772,7 +772,7 @@ class AddEntryDialog(QtWidgets.QDialog):
         self.hlayout_two.addWidget(self.new_text)
 
         self.status_msg = QtWidgets.QLabel('')
-        self.status_msg.setStyleSheet("QLabel { " + kluster_variables.error_color + "; }")
+        self.status_msg.setStyleSheet("QLabel { color : " + kluster_variables.error_color + "; }")
 
         self.hlayout_five = QtWidgets.QHBoxLayout()
         self.hlayout_five.addStretch(1)
@@ -829,11 +829,11 @@ class AddEntryDialog(QtWidgets.QDialog):
             timepass = False
 
         if timepass:
-            self.status_msg.setStyleSheet("QLabel { " + kluster_variables.pass_color + "; }")
+            self.status_msg.setStyleSheet("QLabel { color : " + kluster_variables.pass_color + "; }")
             self.status_msg.setText('Pass')
             self.ok_button.setEnabled(True)
         else:
-            self.status_msg.setStyleSheet("QLabel { " + kluster_variables.error_color + "; }")
+            self.status_msg.setStyleSheet("QLabel { color : " + kluster_variables.error_color + "; }")
             self.status_msg.setText('Error: Timestamp Format Invalid')
             self.ok_button.setEnabled(False)
 
@@ -1019,7 +1019,7 @@ class OptionsWidget(QtWidgets.QWidget):
                                                                     tooltip='1 sigma standard deviation in the pitch sensor, generally found in manufacturer specifications.')
         headsenslabel, self.heading_sensor_error = self.add_num_ctrl('Yaw Sensor Error (degrees)',
                                                                      tooltip='1 sigma standard deviation in the heading sensor, generally found in manufacturer specifications.')
-        surfsvlabel, self.surface_sv_error = self.add_num_ctrl('Surface SV Error (meters/second',
+        surfsvlabel, self.surface_sv_error = self.add_num_ctrl('Surface SV Error (meters/second)',
                                                                tooltip='1 sigma standard deviation in surface sv sensor, generally found in manufacturer specifications.')
         rollpatchlabel, self.roll_patch_error = self.add_num_ctrl('Roll Patch Error (degrees)',
                                                                   tooltip='1 sigma standard deviation in your roll angle patch test procedure.')

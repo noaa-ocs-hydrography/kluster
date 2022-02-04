@@ -1940,7 +1940,7 @@ class HideLinesDialog(QtWidgets.QDialog):
 
         self.hlayout_msg = QtWidgets.QHBoxLayout()
         self.warning_message = QtWidgets.QLabel('', self)
-        self.warning_message.setStyleSheet("{};".format(kluster_variables.error_color))
+        self.warning_message.setStyleSheet("color : {};".format(kluster_variables.error_color))
         self.hlayout_msg.addWidget(self.warning_message)
         self.main_layout.addLayout(self.hlayout_msg)
 

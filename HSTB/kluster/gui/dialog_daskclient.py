@@ -100,7 +100,7 @@ class DaskClientStart(SaveStateDialog):
         self.client_vbox.addWidget(self.remote_box)
 
         self.status_msg = QtWidgets.QLabel('')
-        self.status_msg.setStyleSheet("QLabel { " + kluster_variables.error_color + "; }")
+        self.status_msg.setStyleSheet("QLabel { color : " + kluster_variables.error_color + "; }")
         self.client_vbox.addWidget(self.status_msg)
 
         self.button_layout = QtWidgets.QHBoxLayout()

@@ -54,7 +54,7 @@ class OverwriteNavigationDialog(QtWidgets.QDialog):
         self.override_check.setLayout(self.overrideopts)
 
         self.status_msg = QtWidgets.QLabel('')
-        self.status_msg.setStyleSheet("QLabel { " + kluster_variables.error_color + "; }")
+        self.status_msg.setStyleSheet("QLabel { color : " + kluster_variables.error_color + "; }")
 
         self.hlayout_five = QtWidgets.QHBoxLayout()
         self.hlayout_five.addStretch(1)
