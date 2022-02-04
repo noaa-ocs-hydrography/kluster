@@ -213,7 +213,7 @@ class PlotDataHandler(QtWidgets.QWidget):
 
         self.hlayout_six = QtWidgets.QHBoxLayout()
         self.warning_message = QtWidgets.QLabel('', self)
-        self.warning_message.setStyleSheet("{};".format(kluster_variables.error_color))
+        self.warning_message.setStyleSheet("color : {};".format(kluster_variables.error_color))
         self.hlayout_six.addWidget(self.warning_message)
 
         layout.addWidget(self.start_msg)

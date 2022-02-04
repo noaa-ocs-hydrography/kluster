@@ -122,7 +122,7 @@ class ExportGridDialog(SaveStateDialog):
         self.hlayout_one_one.addWidget(self.output_button)
 
         self.status_msg = QtWidgets.QLabel('')
-        self.status_msg.setStyleSheet("QLabel { " + kluster_variables.error_color + "; }")
+        self.status_msg.setStyleSheet("QLabel { color : " + kluster_variables.error_color + "; }")
 
         self.hlayout_two = QtWidgets.QHBoxLayout()
         self.hlayout_two.addStretch(1)
@@ -247,11 +247,11 @@ class ExportGridDialog(SaveStateDialog):
             majr, minr, hfix = vers.split('.')
             self.zdirect_check.hide()
             if (int(majr) == 3 and int(minr) >= 2) or (int(majr) > 3):  # If this is the pydro environment, we know it has Entwine
-                self.status_msg.setStyleSheet("QLabel { " + kluster_variables.pass_color + "; }")
+                self.status_msg.setStyleSheet("QLabel { color : " + kluster_variables.pass_color + "; }")
                 self.status_msg.setText('Gdal > 3.2 found, BAG export allowed')
                 self.ok_button.setEnabled(True)
             else:
-                self.status_msg.setStyleSheet("QLabel { " + kluster_variables.error_color + "; }")
+                self.status_msg.setStyleSheet("QLabel { color : " + kluster_variables.error_color + "; }")
                 self.status_msg.setText('Gdal > 3.2 not found, BAG export not allowed')
                 self.ok_button.setEnabled(False)
         else:
@@ -298,10 +298,10 @@ class ExportGridDialog(SaveStateDialog):
         Dialog completes if the specified widgets are populated
         """
         if not self.input_pth:
-            self.status_msg.setStyleSheet("QLabel { " + kluster_variables.error_color + "; }")
+            self.status_msg.setStyleSheet("QLabel { color : " + kluster_variables.error_color + "; }")
             self.status_msg.setText('Error: No data provided')
         elif not self.output_pth:
-            self.status_msg.setStyleSheet("QLabel { " + kluster_variables.error_color + "; }")
+            self.status_msg.setStyleSheet("QLabel { color : " + kluster_variables.error_color + "; }")
             self.status_msg.setText('Error: No output path provided')
         else:
             self.canceled = False

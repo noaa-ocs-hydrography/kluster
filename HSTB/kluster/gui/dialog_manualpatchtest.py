@@ -26,7 +26,7 @@ class PrePatchDialog(QtWidgets.QDialog):
 
         self.hlayout_msg = QtWidgets.QHBoxLayout()
         self.warning_message = QtWidgets.QLabel('', self)
-        self.warning_message.setStyleSheet("{};".format(kluster_variables.error_color))
+        self.warning_message.setStyleSheet("color : {};".format(kluster_variables.error_color))
         self.hlayout_msg.addWidget(self.warning_message)
         self.main_layout.addLayout(self.hlayout_msg)
 
@@ -458,9 +458,9 @@ class ManualPatchTestWidget(QtWidgets.QWidget):
                 dif.setStyleSheet("QLabel { background-color : white; color : black; }")
                 dif.setText('0.000')
             elif newdif < 0:
-                dif.setStyleSheet("QLabel { background-color : white; " + kluster_variables.warning_color + "; }")
+                dif.setStyleSheet("QLabel { background-color : white; color : " + kluster_variables.warning_color + "; }")
             elif newdif > 0:
-                dif.setStyleSheet("QLabel { background-color : white; " + kluster_variables.pass_color + "; }")
+                dif.setStyleSheet("QLabel { background-color : white; color : " + kluster_variables.pass_color + "; }")
             else:
                 dif.setStyleSheet("QLabel { background-color : white; color : black; }")
 

@@ -1622,6 +1622,12 @@ class KlusterMain(QtWidgets.QMainWindow):
                 self.project.set_settings(settings)
             self.intel.set_settings(settings)
 
+            # now overwrite the default kluster variables and save them to the ini file as well
+            newkvars = dlog.return_kvars()
+            for kvarkey, kvarval in newkvars.items():
+                kluster_variables.alter_variable(kvarkey, kvarval)
+                settings_obj.setValue(f'Kluster/kvariables_{kvarkey}', kvarval)
+
     def set_dark_mode(self, check_state: bool):
         """
         Using the excellent qdarkstyle module, set the qt app style to darkmode if the user selects it under view - dark mode

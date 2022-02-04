@@ -56,7 +56,7 @@ class ProjectSettingsDialog(SaveStateDialog):
         self.hlayout_five.addStretch(1)
 
         self.status_msg = QtWidgets.QLabel('')
-        self.status_msg.setStyleSheet("QLabel { " + kluster_variables.error_color + "; }")
+        self.status_msg.setStyleSheet("QLabel { color : " + kluster_variables.error_color + "; }")
         self.status_msg.setAlignment(QtCore.Qt.AlignCenter)
         self.statusbox = QtWidgets.QHBoxLayout()
         self.statusbox.addWidget(self.status_msg)
@@ -88,14 +88,14 @@ class ProjectSettingsDialog(SaveStateDialog):
         Adds a status message telling you if NOAA MLLW/MHW is a valid option based on whether or not we can
         find vdatum successfully
         """
-        self.status_msg.setStyleSheet("QLabel { " + kluster_variables.error_color + "; }")
+        self.status_msg.setStyleSheet("QLabel { color : " + kluster_variables.error_color + "; }")
         curr_vert = self.georef_vertref.currentText()
         if curr_vert in kluster_variables.vdatum_vertical_references:
             vdatum = self.settings_object.value('Kluster/settings_vdatum_directory')
             if vdatum:
                 if os.path.exists(vdatum):
                     if os.path.exists(os.path.join(vdatum, 'vdatum.jar')):
-                        self.status_msg.setStyleSheet("QLabel { " + kluster_variables.pass_color + "; }")
+                        self.status_msg.setStyleSheet("QLabel { color : " + kluster_variables.pass_color + "; }")
                         self.status_msg.setText('Found VDatum at {}'.format(vdatum))
                     else:
                         self.status_msg.setText('Unable to find vdatum.jar at {}'.format(vdatum))
