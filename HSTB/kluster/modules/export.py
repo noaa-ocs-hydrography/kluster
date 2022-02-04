@@ -9,7 +9,7 @@ from HSTB.kluster.pydro_helpers import is_pydro
 from HSTB.kluster.pdal_entwine import build_entwine_points
 from HSTB.kluster.fqpr_helpers import seconds_to_formatted_string
 from HSTB.kluster.xarray_helpers import slice_xarray_by_dim
-from HSTB.kluster.kluster_variables import variable_format_str, pings_per_csv, pings_per_las
+from HSTB.kluster import kluster_variables
 
 
 class FqprExport:
@@ -150,13 +150,13 @@ class FqprExport:
 
         entwine_fldr_path = ''
         if file_format == 'csv':
-            chunksize = pings_per_csv
+            chunksize = kluster_variables.pings_per_csv
             fldr_path, suffix = _create_folder(output_directory, 'csv_export')
         elif file_format == 'las':
-            chunksize = pings_per_las
+            chunksize = kluster_variables.pings_per_las
             fldr_path, suffix = _create_folder(output_directory, 'las_export')
         elif file_format == 'entwine':
-            chunksize = pings_per_las
+            chunksize = kluster_variables.pings_per_las
             fldr_path, suffix = _create_folder(output_directory, 'las_export')
             entwine_fldr_path, _ = _create_folder(output_directory, 'entwine_export')
         else:
@@ -724,14 +724,14 @@ class FqprExport:
             if vbeam is None:
                 try:
                     np.savetxt(vpath, np.c_[vtime, varray], delimiter=',', header='{},{}'.format('time', var_name),
-                               fmt=[variable_format_str['time'], variable_format_str[var_name]], comments='')
+                               fmt=[kluster_variables.variable_format_str['time'], kluster_variables.variable_format_str[var_name]], comments='')
                 except:
                     np.savetxt(vpath, np.c_[vtime, varray], delimiter=',', header='{},{}'.format('time', var_name),
                                fmt='%s', comments='')  # stacked array is a string type when you mix dtypes, %s is the only thing that works
             else:
                 try:
                     np.savetxt(vpath, np.c_[vtime, vbeam, varray], delimiter=',', header='time,beam,{}'.format(var_name),
-                               fmt=[variable_format_str['time'], variable_format_str['beam'], variable_format_str[var_name]], comments='')
+                               fmt=[kluster_variables.variable_format_str['time'], kluster_variables.variable_format_str['beam'], kluster_variables.variable_format_str[var_name]], comments='')
                 except:
                     np.savetxt(vpath, np.c_[vtime, vbeam, varray], delimiter=',', header='time,beam,{}'.format(var_name),
                                fmt='%s', comments='')  # stacked array is a string type when you mix dtypes, %s is the only thing that works
