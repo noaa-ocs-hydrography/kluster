@@ -2320,8 +2320,8 @@ class KlusterMain(QtWidgets.QMainWindow):
         """
         # setUpdatesEnabled should be the freeze/thaw wx equivalent i think, but does not appear to do anything here
         # self.setUpdatesEnabled(False)
-        settings = self.settings_object
-        settings.clear()
+        # settings = self.settings_object
+        # settings.clear()
         # set all docked widgets to 'docked' so that they reset properly
         for widg in self.findChildren(QtWidgets.QDockWidget):
             widg.setFloating(False)
