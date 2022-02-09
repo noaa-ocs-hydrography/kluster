@@ -1,3 +1,7 @@
+###################### Install from a specific branch #########################
+
+# pip install git+https://github.com/noaa-ocs-hydrography/bathygrid.git@bathygrid_1_2_0
+
 ################## TEST RUN THROUGH ##################################
 
 from HSTB.kluster.fqpr_convenience import *
