@@ -21,7 +21,8 @@ from HSTB.kluster.gui import dialog_vesselview, kluster_explorer, kluster_projec
     kluster_output_window, kluster_2dview, kluster_actions, kluster_monitor, dialog_daskclient, dialog_surface, \
     dialog_export, kluster_worker, kluster_interactive_console, dialog_basicplot, dialog_advancedplot, dialog_project_settings, \
     dialog_export_grid, dialog_layer_settings, dialog_settings, dialog_importppnav, dialog_overwritenav, dialog_surface_data, \
-    dialog_about, dialog_setcolors, dialog_patchtest, dialog_manualpatchtest, dialog_managedata, dialog_managesurface
+    dialog_about, dialog_setcolors, dialog_patchtest, dialog_manualpatchtest, dialog_managedata, dialog_managesurface, \
+    dialog_reprocess
 from HSTB.kluster.fqpr_project import FqprProject
 from HSTB.kluster.fqpr_intelligence import FqprIntel
 from HSTB.kluster.fqpr_vessel import convert_from_fqpr_xyzrph, convert_from_vessel_xyzrph, compare_dict_data
@@ -170,6 +171,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.project_tree.manage_surface.connect(self.manage_surface)
         self.project_tree.load_console_fqpr.connect(self.load_console_fqpr)
         self.project_tree.load_console_surface.connect(self.load_console_surface)
+        self.project_tree.show_explorer.connect(self.show_in_explorer)
         self.project_tree.zoom_extents_fqpr.connect(self.zoom_extents_fqpr)
         self.project_tree.zoom_extents_surface.connect(self.zoom_extents_surface)
         self.project_tree.reprocess_instance.connect(self.reprocess_fqpr)
@@ -599,6 +601,19 @@ class KlusterMain(QtWidgets.QMainWindow):
         absolute_fqpath = self.project.absolute_path_from_relative(pth)
         self.console.runCmd('surf = reload_surface(r"{}")'.format(absolute_fqpath))
 
+    def show_in_explorer(self, pth: str):
+        """
+        Right click in the project tree and show in explorer to run this code block.  Will open the folder location
+        in windows explorer.
+
+        Parameters
+        ----------
+        pth
+            path to the grid folder
+        """
+        absolute_path = self.project.absolute_path_from_relative(pth)
+        os.startfile(absolute_path)
+
     def zoom_extents_fqpr(self, pth: str):
         """
         Right click on converted data instance and zoom to the extents of that layer
@@ -770,16 +785,30 @@ class KlusterMain(QtWidgets.QMainWindow):
         """
         Right click an fqpr instance and trigger full reprocessing, should only be necessary in case of emergency.
         """
+
         fqprs, linedict = self.project_tree.return_selected_fqprs()
         if fqprs:
-            # start over at 1, which is conversion in our state machine
+            # start over at 0, which is conversion in our state machine
             fq = self.project.fqpr_instances[fqprs[0]]
-            if fq.multibeam.raw_ping[0].current_processing_status > 0:
-                fq.write_attribute_to_ping_records({'current_processing_status': 0})
-                fq.logger.info('Setting processing status to 0, starting over at computing orientation')
-            self.project.refresh_fqpr_attribution(fqprs[0], relative_path=True)
-            fq.multibeam.reload_pingrecords(skip_dask=fq.client is None)
-            self.intel.regenerate_actions()
+            current_status = fq.multibeam.raw_ping[0].current_processing_status
+            if current_status == 0:
+                print('reprocess_fqpr: Unable to reprocess converted data, current process is already at the beginning (conversion)')
+                return
+            dlog = dialog_reprocess.ReprocessDialog(current_status, fq.output_folder)
+            cancelled = False
+            if dlog.exec_():
+                if not dlog.canceled:
+                    newstatus = dlog.newstatus
+                    if newstatus is not None:
+                        fq.write_attribute_to_ping_records({'current_processing_status': newstatus})
+                        fq.logger.info(f'Setting processing status to {newstatus}, starting over at computing {kluster_variables.status_lookup[newstatus + 1]}')
+                        self.project.refresh_fqpr_attribution(fqprs[0], relative_path=True)
+                        fq.multibeam.reload_pingrecords(skip_dask=fq.client is None)
+                        self.intel.regenerate_actions()
+                    else:
+                        print('reprocess_fqpr: new status is None, unable to set status')
+                else:
+                    print('reprocess_fqpr: cancelled')
 
     def update_surface_selected(self):
         """
