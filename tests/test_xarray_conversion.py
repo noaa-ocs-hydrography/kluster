@@ -26,7 +26,7 @@ class TestXArrayConversion(unittest.TestCase):
         assert xyzrph['heading_patch_error']['1495563079'] == 0.5
         assert xyzrph['heading_sensor_error']['1495563079'] == 0.02
         assert xyzrph['heave_error']['1495563079'] == 0.05
-        assert xyzrph['horizontal_positioning_error']['1495563079'] == 0.5
+        assert xyzrph['horizontal_positioning_error']['1495563079'] == 1.0
         assert xyzrph['imu_h']['1495563079'] == 0.400
         assert xyzrph['latency']['1495563079'] == 0.000
         assert xyzrph['imu_p']['1495563079'] == -0.180
@@ -75,7 +75,7 @@ class TestXArrayConversion(unittest.TestCase):
         assert xyzrph['tx_z_0']['1495563079'] == -0.012
         assert xyzrph['tx_z_1']['1495563079'] == -0.006
         assert xyzrph['tx_z_2']['1495563079'] == -0.012
-        assert xyzrph['vertical_positioning_error']['1495563079'] == 0.3
+        assert xyzrph['vertical_positioning_error']['1495563079'] == 0.5
         assert xyzrph['vessel_speed_error']['1495563079'] == 0.1
         assert xyzrph['waterline']['1495563079'] == -0.640
         assert xyzrph['waterline_error']['1495563079'] == 0.02

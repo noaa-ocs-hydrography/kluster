@@ -1,5 +1,26 @@
 Changes List
 ============
+
+Kluster v0.8.8 (2/10/2022)
+----------------------------
+ - sync with Bathygrid 1.2.0
+    - add compressed zarr backend as new default backend, roughly 50% space savings on new grids
+    - add sounding density, layer plots
+
+ - connect settings dialog and kluster_variables, can now customize default variables in Kluster
+ - add plots and calculations to manage surface dialog (right click a surface in project tree)
+ - reprocess dialog now allows customizable status setting in a new dialog
+ - new right click show in explorer in project tree
+ - project epsg setting is now validated for projected/units in meters
+ - can now grid only selected lines
+ - altered default horizontal/vertical positioning uncertainty to 1.0/0.5 meters respectively
+
+ - reset layout no longer affects saved settings
+ - bug resolved with export grid and loading selected data
+ - bug resolved with qt/matplotlib backend resolved, reordered imports
+ - removed old code that caused issues with graphics and smaller screens
+ - resolved dask dashboard issue related to import typing
+
 Kluster v0.8.7 (1/14/2022)
 ----------------------------
 - Resolve patch test issue, will no correctly use the TX Pitch value during Patch Test, was previously incorrectly using RX Pitch
