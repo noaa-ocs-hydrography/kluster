@@ -30,6 +30,7 @@ from HSTB.kluster import __version__ as kluster_version
 from HSTB.kluster import __file__ as kluster_init_file
 from HSTB.shared import RegistryHelpers, path_to_supplementals
 from HSTB.kluster import kluster_variables
+from bathygrid.grid_variables import allowable_grid_root_names
 
 # list of icons
 # https://joekuan.wordpress.com/2015/09/23/list-of-qt-icons/
@@ -456,7 +457,7 @@ class KlusterMain(QtWidgets.QMainWindow):
             if new_project:  # user added a data file when there was no project, so we loaded or created a new one
                 new_fqprs.extend([fqpr for fqpr in self.project.fqpr_instances.keys() if fqpr not in new_fqprs])
             if new_data is None:
-                if os.path.exists(os.path.join(f, 'SRGrid_Root')) or os.path.exists(os.path.join(f, 'VRGridTile_Root')):
+                if any([os.path.exists(os.path.join(f, gname)) for gname in allowable_grid_root_names]):
                     potential_surface_paths.append(f)
                 elif os.path.isdir(f):
                     potential_fqpr_paths.append(f)
@@ -1176,9 +1177,9 @@ class KlusterMain(QtWidgets.QMainWindow):
             cancelled = True
         else:
             cancelled = False
-            fqprs, _ = self.return_selected_fqprs()
+            fqprspaths, fqprs = self.return_selected_fqprs()
             dlog = dialog_surface.SurfaceDialog()
-            dlog.update_fqpr_instances(addtl_files=fqprs)
+            dlog.update_fqpr_instances(addtl_files=fqprspaths)
             if dlog.exec_():
                 cancelled = dlog.canceled
                 opts = dlog.return_processing_options()
@@ -1186,20 +1187,10 @@ class KlusterMain(QtWidgets.QMainWindow):
                     surface_opts = opts
                     fqprs = surface_opts.pop('fqpr_inst')
                     fq_chunks = []
+                    if dlog.line_surface_checkbox.isChecked():  # we now subset the fqpr instances by lines selected
+                        fqprspaths, fqprs = self.return_selected_fqprs(subset_by_line=True)
                     for fq in fqprs:
-                        try:
-                            relfq = self.project.path_relative_to_project(fq)
-                        except:
-                            print('No project loaded, you must load some data before generating a surface')
-                            return
-                        if relfq not in self.project.fqpr_instances:
-                            print('Unable to find {} in currently loaded project'.format(relfq))
-                            return
-                        if relfq in self.project.fqpr_instances:
-                            fq_inst = self.project.fqpr_instances[relfq]
-                            # use the project client, or start a new LocalCluster if client is None
-                            # fq_inst.client = self.project.get_dask_client()
-                            fq_chunks.extend([fq_inst])
+                        fq_chunks.extend([fq])
 
                     if not dlog.canceled:
                         # if the project has a client, use it here.  If None, BatchRead starts a new LocalCluster
