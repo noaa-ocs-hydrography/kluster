@@ -4,12 +4,13 @@
 <html>
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>FqprAction &#8212; kluster 0.8.7 documentation</title>
-    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
-    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+    <title>FqprAction &#8212; kluster 0.8.8 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/alabaster.css" />
     <link rel="stylesheet" type="text/css" href="../_static/graphviz.css" />
-    <script id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
     <script src="../_static/jquery.js"></script>
     <script src="../_static/underscore.js"></script>
     <script src="../_static/doctools.js"></script>
@@ -33,11 +34,11 @@
 
           <div class="body" role="main">
             
-  <div class="section" id="fqpraction">
+  <section id="fqpraction">
 <h1>FqprAction<a class="headerlink" href="#fqpraction" title="Permalink to this headline">¶</a></h1>
 <dl class="py class">
-<dt id="HSTB.kluster.fqpr_actions.FqprAction">
-<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">HSTB.kluster.fqpr_actions.</span></code><code class="sig-name descname"><span class="pre">FqprAction</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">priority</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">action_type</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">text</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tooltip_text</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">input_files</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_destination</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">function</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">args</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kwargs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_actions.FqprAction" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="HSTB.kluster.fqpr_actions.FqprAction">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">HSTB.kluster.fqpr_actions.</span></span><span class="sig-name descname"><span class="pre">FqprAction</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">priority</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">action_type</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">text</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tooltip_text</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">input_files</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_destination</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">function</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">args</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kwargs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_actions.FqprAction" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
 <p>Action class holds the function you are going to run and the arguments, as well as some helpful attributes to describe
 the action.  fqpr_intelligence builds the actions depending on the available files.  Functions within the action
@@ -66,25 +67,25 @@ by fqpr_intelligence.FqprIntel and the files are converted.</p>
 </table>
 <p class="rubric">Methods Documentation</p>
 <dl class="py method">
-<dt id="HSTB.kluster.fqpr_actions.FqprAction.execute">
-<code class="sig-name descname"><span class="pre">execute</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_actions.FqprAction.execute" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="HSTB.kluster.fqpr_actions.FqprAction.execute">
+<span class="sig-name descname"><span class="pre">execute</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_actions.FqprAction.execute" title="Permalink to this definition">¶</a></dt>
 <dd><p>Run the action.  See gui.kluster_worker.ActionWorker if you are running in gui, will use the worker to run
 in a thread.  Otherwise executed directly by FqprIntel.execute_action (which uses the actioncontainer execute method)</p>
 </dd></dl>
 
 <dl class="py method">
-<dt id="HSTB.kluster.fqpr_actions.FqprAction.print_summary">
-<code class="sig-name descname"><span class="pre">print_summary</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_actions.FqprAction.print_summary" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="HSTB.kluster.fqpr_actions.FqprAction.print_summary">
+<span class="sig-name descname"><span class="pre">print_summary</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_actions.FqprAction.print_summary" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="py method">
-<dt id="HSTB.kluster.fqpr_actions.FqprAction.set">
-<code class="sig-name descname"><span class="pre">set</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">key</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">value</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_actions.FqprAction.set" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="HSTB.kluster.fqpr_actions.FqprAction.set">
+<span class="sig-name descname"><span class="pre">set</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">key</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">value</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_actions.FqprAction.set" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 </dd></dl>
 
-</div>
+</section>
 
 
           </div>
@@ -172,7 +173,7 @@ in a thread.  Otherwise executed directly by FqprIntel.execute_action (which use
   <h3 id="searchlabel">Quick search</h3>
     <div class="searchformwrapper">
     <form class="search" action="../search.html" method="get">
-      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
       <input type="submit" value="Go" />
     </form>
     </div>
@@ -194,7 +195,7 @@ in a thread.  Otherwise executed directly by FqprIntel.execute_action (which use
       &copy;2020, Eric Younkin.
       
       |
-      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.5.2</a>
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 4.3.2</a>
       &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
       
       |

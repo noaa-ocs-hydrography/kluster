@@ -4,12 +4,13 @@
 <html>
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>determine_optimal_chunks &#8212; kluster 0.8.7 documentation</title>
-    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
-    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+    <title>determine_optimal_chunks &#8212; kluster 0.8.8 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/alabaster.css" />
     <link rel="stylesheet" type="text/css" href="../_static/graphviz.css" />
-    <script id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
     <script src="../_static/jquery.js"></script>
     <script src="../_static/underscore.js"></script>
     <script src="../_static/doctools.js"></script>
@@ -33,11 +34,11 @@
 
           <div class="body" role="main">
             
-  <div class="section" id="determine-optimal-chunks">
+  <section id="determine-optimal-chunks">
 <h1>determine_optimal_chunks<a class="headerlink" href="#determine-optimal-chunks" title="Permalink to this headline">¶</a></h1>
 <dl class="py function">
-<dt id="HSTB.kluster.dask_helpers.determine_optimal_chunks">
-<code class="sig-prename descclassname"><span class="pre">HSTB.kluster.dask_helpers.</span></code><code class="sig-name descname"><span class="pre">determine_optimal_chunks</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">client</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">beams_per_ping</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">safety_margin</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.75</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chunks_per_worker</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mem_per_beam</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1.5e-05</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.dask_helpers.determine_optimal_chunks" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="HSTB.kluster.dask_helpers.determine_optimal_chunks">
+<span class="sig-prename descclassname"><span class="pre">HSTB.kluster.dask_helpers.</span></span><span class="sig-name descname"><span class="pre">determine_optimal_chunks</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">client</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">beams_per_ping</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">safety_margin</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.75</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chunks_per_worker</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mem_per_beam</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1.5e-05</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.dask_helpers.determine_optimal_chunks" title="Permalink to this definition">¶</a></dt>
 <dd><p>A very rudimentary placeholder-esque way to determine the chunk size and number of chunks for an array to process
 in memory.  Too many chunks/Too big chunks and you run out of memory.  Too few and you aren’t utilizing the resources
 adequately.  Here we scale mainly based off of the number of workers and the amount of memory available in the cluster.</p>
@@ -61,7 +62,7 @@ adequately.  Here we scale mainly based off of the number of workers and the amo
 </dl>
 </dd></dl>
 
-</div>
+</section>
 
 
           </div>
@@ -149,7 +150,7 @@ adequately.  Here we scale mainly based off of the number of workers and the amo
   <h3 id="searchlabel">Quick search</h3>
     <div class="searchformwrapper">
     <form class="search" action="../search.html" method="get">
-      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
       <input type="submit" value="Go" />
     </form>
     </div>
@@ -171,7 +172,7 @@ adequately.  Here we scale mainly based off of the number of workers and the amo
       &copy;2020, Eric Younkin.
       
       |
-      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.5.2</a>
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 4.3.2</a>
       &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
       
       |

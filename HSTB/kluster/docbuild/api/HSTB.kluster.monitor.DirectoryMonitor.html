@@ -4,12 +4,13 @@
 <html>
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>DirectoryMonitor &#8212; kluster 0.8.7 documentation</title>
-    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
-    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+    <title>DirectoryMonitor &#8212; kluster 0.8.8 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/alabaster.css" />
     <link rel="stylesheet" type="text/css" href="../_static/graphviz.css" />
-    <script id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
     <script src="../_static/jquery.js"></script>
     <script src="../_static/underscore.js"></script>
     <script src="../_static/doctools.js"></script>
@@ -33,11 +34,11 @@
 
           <div class="body" role="main">
             
-  <div class="section" id="directorymonitor">
+  <section id="directorymonitor">
 <h1>DirectoryMonitor<a class="headerlink" href="#directorymonitor" title="Permalink to this headline">¶</a></h1>
 <dl class="py class">
-<dt id="HSTB.kluster.monitor.DirectoryMonitor">
-<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">HSTB.kluster.monitor.</span></code><code class="sig-name descname"><span class="pre">DirectoryMonitor</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">directory_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">is_recursive</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.monitor.DirectoryMonitor" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="HSTB.kluster.monitor.DirectoryMonitor">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">HSTB.kluster.monitor.</span></span><span class="sig-name descname"><span class="pre">DirectoryMonitor</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">directory_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">is_recursive</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.monitor.DirectoryMonitor" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
 <p>Use watchdog to monitor the provided directory and kick off events based on the type of file system event</p>
 <p>Watchdog will issue a FileCreatedEvent as soon as the file appears in a directory, NOT when it is finished copying
@@ -90,15 +91,15 @@ see self.bind_to</p>
 </table>
 <p class="rubric">Attributes Documentation</p>
 <dl class="py attribute">
-<dt id="HSTB.kluster.monitor.DirectoryMonitor.newfile">
-<code class="sig-name descname"><span class="pre">newfile</span></code><a class="headerlink" href="#HSTB.kluster.monitor.DirectoryMonitor.newfile" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="HSTB.kluster.monitor.DirectoryMonitor.newfile">
+<span class="sig-name descname"><span class="pre">newfile</span></span><a class="headerlink" href="#HSTB.kluster.monitor.DirectoryMonitor.newfile" title="Permalink to this definition">¶</a></dt>
 <dd><p>newly found file by the monitor object, is the full file path</p>
 </dd></dl>
 
 <p class="rubric">Methods Documentation</p>
 <dl class="py method">
-<dt id="HSTB.kluster.monitor.DirectoryMonitor.add_to_buffer">
-<code class="sig-name descname"><span class="pre">add_to_buffer</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">filepath</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">file_event</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.monitor.DirectoryMonitor.add_to_buffer" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="HSTB.kluster.monitor.DirectoryMonitor.add_to_buffer">
+<span class="sig-name descname"><span class="pre">add_to_buffer</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">filepath</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">file_event</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.monitor.DirectoryMonitor.add_to_buffer" title="Permalink to this definition">¶</a></dt>
 <dd><p>self.my_event_handler will use this method to update the file buffer.  We push to a buffer before pushing to
 the intelligence module, as we only want the intelligence buffer to see the file once it has finished copying,
 i.e. is readable.</p>
@@ -113,8 +114,8 @@ i.e. is readable.</p>
 </dd></dl>
 
 <dl class="py method">
-<dt id="HSTB.kluster.monitor.DirectoryMonitor.bind_to">
-<code class="sig-name descname"><span class="pre">bind_to</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">callback</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.monitor.DirectoryMonitor.bind_to" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="HSTB.kluster.monitor.DirectoryMonitor.bind_to">
+<span class="sig-name descname"><span class="pre">bind_to</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">callback</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.monitor.DirectoryMonitor.bind_to" title="Permalink to this definition">¶</a></dt>
 <dd><p>Pass in a method as callback, method will be triggered on setting newfile</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -124,34 +125,34 @@ i.e. is readable.</p>
 </dd></dl>
 
 <dl class="py method">
-<dt id="HSTB.kluster.monitor.DirectoryMonitor.build_initial_file_state">
-<code class="sig-name descname"><span class="pre">build_initial_file_state</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.monitor.DirectoryMonitor.build_initial_file_state" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="HSTB.kluster.monitor.DirectoryMonitor.build_initial_file_state">
+<span class="sig-name descname"><span class="pre">build_initial_file_state</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.monitor.DirectoryMonitor.build_initial_file_state" title="Permalink to this definition">¶</a></dt>
 <dd><p>Kicking off the watchdog observer will track all file system changes from this point forward, but it will
 not get you the current state.  Apply this method in addition to starting the observer to get the initial state.</p>
 </dd></dl>
 
 <dl class="py method">
-<dt id="HSTB.kluster.monitor.DirectoryMonitor.push_to_kluster_intelligence">
-<code class="sig-name descname"><span class="pre">push_to_kluster_intelligence</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.monitor.DirectoryMonitor.push_to_kluster_intelligence" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="HSTB.kluster.monitor.DirectoryMonitor.push_to_kluster_intelligence">
+<span class="sig-name descname"><span class="pre">push_to_kluster_intelligence</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.monitor.DirectoryMonitor.push_to_kluster_intelligence" title="Permalink to this definition">¶</a></dt>
 <dd><p>Method triggered on timer event.  Every second we check to see if a file is readable (has finished copying).
 If so, we use newfile to trigger any observers which then get the newly written (or deleted) file</p>
 </dd></dl>
 
 <dl class="py method">
-<dt id="HSTB.kluster.monitor.DirectoryMonitor.start">
-<code class="sig-name descname"><span class="pre">start</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.monitor.DirectoryMonitor.start" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="HSTB.kluster.monitor.DirectoryMonitor.start">
+<span class="sig-name descname"><span class="pre">start</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.monitor.DirectoryMonitor.start" title="Permalink to this definition">¶</a></dt>
 <dd><p>Start the watchdog_observer</p>
 </dd></dl>
 
 <dl class="py method">
-<dt id="HSTB.kluster.monitor.DirectoryMonitor.stop">
-<code class="sig-name descname"><span class="pre">stop</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.monitor.DirectoryMonitor.stop" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="HSTB.kluster.monitor.DirectoryMonitor.stop">
+<span class="sig-name descname"><span class="pre">stop</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.monitor.DirectoryMonitor.stop" title="Permalink to this definition">¶</a></dt>
 <dd><p>Stop the watchdog_observer</p>
 </dd></dl>
 
 </dd></dl>
 
-</div>
+</section>
 
 
           </div>
@@ -239,7 +240,7 @@ If so, we use newfile to trigger any observers which then get the newly written 
   <h3 id="searchlabel">Quick search</h3>
     <div class="searchformwrapper">
     <form class="search" action="../search.html" method="get">
-      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
       <input type="submit" value="Go" />
     </form>
     </div>
@@ -261,7 +262,7 @@ If so, we use newfile to trigger any observers which then get the newly written 
       &copy;2020, Eric Younkin.
       
       |
-      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.5.2</a>
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 4.3.2</a>
       &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
       
       |

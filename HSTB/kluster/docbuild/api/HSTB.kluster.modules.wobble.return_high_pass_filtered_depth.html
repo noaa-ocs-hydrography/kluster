@@ -4,12 +4,13 @@
 <html>
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>return_high_pass_filtered_depth &#8212; kluster 0.8.7 documentation</title>
-    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
-    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+    <title>return_high_pass_filtered_depth &#8212; kluster 0.8.8 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/alabaster.css" />
     <link rel="stylesheet" type="text/css" href="../_static/graphviz.css" />
-    <script id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
     <script src="../_static/jquery.js"></script>
     <script src="../_static/underscore.js"></script>
     <script src="../_static/doctools.js"></script>
@@ -33,11 +34,11 @@
 
           <div class="body" role="main">
             
-  <div class="section" id="return-high-pass-filtered-depth">
+  <section id="return-high-pass-filtered-depth">
 <h1>return_high_pass_filtered_depth<a class="headerlink" href="#return-high-pass-filtered-depth" title="Permalink to this headline">¶</a></h1>
 <dl class="py function">
-<dt id="HSTB.kluster.modules.wobble.return_high_pass_filtered_depth">
-<code class="sig-prename descclassname"><span class="pre">HSTB.kluster.modules.wobble.</span></code><code class="sig-name descname"><span class="pre">return_high_pass_filtered_depth</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">z</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_period</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">numtaps</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">101</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.modules.wobble.return_high_pass_filtered_depth" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="HSTB.kluster.modules.wobble.return_high_pass_filtered_depth">
+<span class="sig-prename descclassname"><span class="pre">HSTB.kluster.modules.wobble.</span></span><span class="sig-name descname"><span class="pre">return_high_pass_filtered_depth</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">z</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_period</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">numtaps</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">101</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.modules.wobble.return_high_pass_filtered_depth" title="Permalink to this definition">¶</a></dt>
 <dd><p>Take in two dim array of depth (pings, beams) and return a high pass filtered mean depth for each ping.  Following
 the JHC ‘Dynamic Motion Residuals…’ paper which suggests using a 4 * max period cutoff.  I’ve found a 6 * max
 period seems to retain more of the signal that we want, but I don’t really know what I’m doing here yet.</p>
@@ -58,7 +59,7 @@ period seems to retain more of the signal that we want, but I don’t really kno
 </dl>
 </dd></dl>
 
-</div>
+</section>
 
 
           </div>
@@ -146,7 +147,7 @@ period seems to retain more of the signal that we want, but I don’t really kno
   <h3 id="searchlabel">Quick search</h3>
     <div class="searchformwrapper">
     <form class="search" action="../search.html" method="get">
-      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
       <input type="submit" value="Go" />
     </form>
     </div>
@@ -168,7 +169,7 @@ period seems to retain more of the signal that we want, but I don’t really kno
       &copy;2020, Eric Younkin.
       
       |
-      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.5.2</a>
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 4.3.2</a>
       &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
       
       |

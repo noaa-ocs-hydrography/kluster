@@ -4,12 +4,13 @@
 <html>
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Cleaning &#8212; kluster 0.8.7 documentation</title>
-    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
-    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+    <title>Cleaning &#8212; kluster 0.8.8 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/alabaster.css" />
     <link rel="stylesheet" type="text/css" href="../_static/graphviz.css" />
-    <script id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
     <script src="../_static/jquery.js"></script>
     <script src="../_static/underscore.js"></script>
     <script src="../_static/doctools.js"></script>
@@ -33,7 +34,7 @@
 
           <div class="body" role="main">
             
-  <div class="section" id="cleaning">
+  <section id="cleaning">
 <h1>Cleaning<a class="headerlink" href="#cleaning" title="Permalink to this headline">¶</a></h1>
 <p>Now we can talk about visualizing points and doing some cleaning.  Cleaning is the process of removing outliers or noise
 from the multibeam sonar point cloud.  In Kluster, we have a detectioninfo attribute that is associated with each point.
@@ -47,7 +48,7 @@ This detectioninfo attribute has one of the following values:</p>
 <p>So if I were to reject a point that is currently a ‘phase detection’ level accepted value, it would mark that point as a ‘2’ instead of a ‘1’.  Then, when I go to make a surface
 from the data, it will only use the non-rejected data (detectioninfo that is not 2), effectively ‘cleaning’ the rejected data from the final product.</p>
 <p>Cleaning is <strong>not</strong> deleting data.  Kluster retains all converted data throughout all the workflows.</p>
-<div class="section" id="loading-points">
+<section id="loading-points">
 <h2>Loading points<a class="headerlink" href="#loading-points" title="Permalink to this headline">¶</a></h2>
 <p>The first step is to load the points in the Points View. The Points View is just that, the window that gives you a view of the multibeam point cloud.  Let’s first go over the controls:</p>
 <p>Hold the mouse over any of these controls to get more information</p>
@@ -70,8 +71,8 @@ If it works, you should get a display that looks something like this.</p>
 <p>But what if the line is going north-west, or is otherwise not a north-south or east-west line?  Well, then we need to rotate the selection box to align with the line azimuth to get the correct view.  To do that, we click on ‘Points’ again and follow a process similar to what we did before: click once to set the first corner, click again to set the last corner, <strong>hold CTRL and move the mouse to rotate the selection box</strong>, click a third time to load the points.  Let’s try this out to see if we can get a north-west south-east aligned selection box.</p>
 <a class="reference external image-reference" href="../_images/cleaning_3.png"><img alt="../_images/cleaning_3.png" src="../_images/cleaning_3.png" /></a>
 <p>For the 3d display, it generally doesn’t matter how we rotate the selection box, as you’ll see in the later sections.</p>
-</div>
-<div class="section" id="interacting-in-2d">
+</section>
+<section id="interacting-in-2d">
 <h2>Interacting in 2d<a class="headerlink" href="#interacting-in-2d" title="Permalink to this headline">¶</a></h2>
 <p>First, try to mouse over the ‘Mouse over for instructions’ part of the Points View to get the tooltip that explains how to interact with the points.</p>
 <p>Basically, you can move the points around with left mouse button, zoom in/out with mouse wheel and zoom in/out in a user controlled way with right mouse button.</p>
@@ -82,20 +83,20 @@ If it works, you should get a display that looks something like this.</p>
 <p>To re-accept points, simply use ALT and right mouse button.  You’ll see the points turn cyan.  Cyan means ‘re-accepted’ and indicates that the points are accepted manually.  Note that re-accepted points will not have a phase/amplitude detect description.  Try both these modes out for a bit.</p>
 <a class="reference external image-reference" href="../_images/cleaning_5.png"><img alt="../_images/cleaning_5.png" src="../_images/cleaning_5.png" /></a>
 <p>There is one last thing we can try, which is to undo the changes we have made!  Note that this only works while the points are loaded, if you go to a different area and come back here, you will not be able to undo the cleaning/accepting.  Undo is pretty simple, just hold ALT and middle mouse click to watch each change revert back to what it was.  You’ll see that the cyan/red go away and the original detectioninfo is now back!</p>
-</div>
-<div class="section" id="interacting-in-3d">
+</section>
+<section id="interacting-in-3d">
 <h2>Interacting in 3d<a class="headerlink" href="#interacting-in-3d" title="Permalink to this headline">¶</a></h2>
 <p>Much of what we discussed with the 2d interaction works here as well.  First, let’s switch to the 3d mode by changing ‘2d view’ to ‘3d view’ at the top of the Points View.</p>
 <a class="reference external image-reference" href="../_images/cleaning_6.png"><img alt="../_images/cleaning_6.png" src="../_images/cleaning_6.png" /></a>
 <p>Basically all of the mouse controls are the same.  The one difference is that you need to use SHIFT + Left mouse button to move the camera in 3d view, where left mouse button effectively rotates the camera.</p>
 <p>One of the big differences is the way the z scaling works.  You’ll need to manually enter in a Vertical Exaggeration at the top to scale in that axis.  Try it now, you’ll see that altering the Vertical Exaggeration is a way to effectively zoom in on the points in 3d view.</p>
 <p>Cleaning is much the same as well.  You drag boxes to select, clean and accept the points.</p>
-</div>
-<div class="section" id="regridding">
+</section>
+<section id="regridding">
 <h2>Regridding<a class="headerlink" href="#regridding" title="Permalink to this headline">¶</a></h2>
 <p>After cleaning, you will want to update the surface to reflect the new changes in the point cloud.  Each time you clean, it sets a new date for the last cleaning action for each day of data.  This allows the grid to check this date to see if the grid is older than the last cleaned date.  If it is, the grid will be marked with an asterisk to identify it as out of date in the surface data dialog.  See Surfacing - Updating a Surface.</p>
-</div>
-</div>
+</section>
+</section>
 
 
           </div>
@@ -148,7 +149,7 @@ If it works, you should get a display that looks something like this.</p>
   <h3 id="searchlabel">Quick search</h3>
     <div class="searchformwrapper">
     <form class="search" action="../search.html" method="get">
-      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
       <input type="submit" value="Go" />
     </form>
     </div>
@@ -170,7 +171,7 @@ If it works, you should get a display that looks something like this.</p>
       &copy;2020, Eric Younkin.
       
       |
-      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.5.2</a>
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 4.3.2</a>
       &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
       
       |

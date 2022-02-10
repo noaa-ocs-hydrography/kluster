@@ -4,12 +4,13 @@
 <html>
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Data Structures &#8212; kluster 0.8.7 documentation</title>
-    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
-    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+    <title>Data Structures &#8212; kluster 0.8.8 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/alabaster.css" />
     <link rel="stylesheet" type="text/css" href="../_static/graphviz.css" />
-    <script id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
     <script src="../_static/jquery.js"></script>
     <script src="../_static/underscore.js"></script>
     <script src="../_static/doctools.js"></script>
@@ -33,7 +34,7 @@
 
           <div class="body" role="main">
             
-  <div class="section" id="data-structures">
+  <section id="data-structures">
 <h1>Data Structures<a class="headerlink" href="#data-structures" title="Permalink to this headline">¶</a></h1>
 <p>There are two main data structures in the Kluster software: the processed multibeam data (Fqpr) and the gridded dataset (Bathygrid).  Here we will talk about both of these in detail, as well as the lightweight project structure that holds both.  Let’s start with an example:</p>
 <a class="reference external image-reference" href="../_images/datastructures1.png"><img alt="../_images/datastructures1.png" src="../_images/datastructures1.png" /></a>
@@ -42,7 +43,7 @@
 <p>At the same time, a ‘kluster_project.json’ file, the project file, is created which holds your project settings and the paths to the different folders.  Unless you want to use the project file to manage large projects, this can basically be ignored, and you can just work with the data folders, dragging in new folders to view in Kluster.</p>
 <p>Finally, after fully processing the data, you can create a new surface, which we show here as the ‘vrtilegrid_mean’ folder, which tells you that this is a VR surface created in Bathygrid using the ‘mean’ algorithm to determine the value in each cell of the grid.</p>
 <p>Let’s discuss each of these in more detail.</p>
-<div class="section" id="fully-qualified-ping-record">
+<section id="fully-qualified-ping-record">
 <h2>Fully Qualified Ping Record<a class="headerlink" href="#fully-qualified-ping-record" title="Permalink to this headline">¶</a></h2>
 <p>The Fully Qualified Ping Record (FQPR) is the data structure that contains all of the converted, intermediate and final multibeam data.  When converting data through the GUI (which uses the Kluster Intelligence module), each converted folder represents one FQPR object, which represents one sonar for one day’s worth of data.</p>
 <p>“EM2040_40111_05_23_2017” = A Kongsberg EM2040 with serial number 40111 with data only during the day of May 23, 2017</p>
@@ -61,7 +62,7 @@
 <span class="n">FQPR</span><span class="p">:</span> <span class="n">Fully</span> <span class="n">Qualified</span> <span class="n">Ping</span> <span class="n">Record</span> <span class="n">built</span> <span class="n">by</span> <span class="n">Kluster</span> <span class="n">Processing</span>
 <span class="o">-------------------------------------------------------------</span>
 <span class="n">Contains</span><span class="p">:</span>
-<span class="mi">1</span> <span class="n">sonar</span> <span class="n">head</span><span class="p">,</span> <span class="mi">56662</span> <span class="n">pings</span><span class="p">,</span> <span class="n">version</span> <span class="mf">0.7</span><span class="o">.</span><span class="mi">11</span>
+<span class="mi">1</span> <span class="n">sonar</span> <span class="n">head</span><span class="p">,</span> <span class="mi">56662</span> <span class="n">pings</span><span class="p">,</span> <span class="n">version</span> <span class="mf">0.7.11</span>
 <span class="n">Start</span><span class="p">:</span> <span class="n">Tue</span> <span class="n">Mar</span> <span class="mi">17</span> <span class="mi">06</span><span class="p">:</span><span class="mi">28</span><span class="p">:</span><span class="mi">55</span> <span class="mi">2020</span> <span class="n">UTC</span>
 <span class="n">End</span><span class="p">:</span> <span class="n">Tue</span> <span class="n">Mar</span> <span class="mi">17</span> <span class="mi">09</span><span class="p">:</span><span class="mi">51</span><span class="p">:</span><span class="mi">22</span> <span class="mi">2020</span> <span class="n">UTC</span>
 <span class="n">Minimum</span> <span class="n">Latitude</span><span class="p">:</span> <span class="mf">37.24927016765822</span> <span class="n">Maximum</span> <span class="n">Latitude</span><span class="p">:</span> <span class="mf">37.250005179442404</span>
@@ -167,7 +168,7 @@
 </pre></div>
 </div>
 <p>The dataset is organized into three main containers: coordinates, variables and attributes.</p>
-<div class="section" id="attributes">
+<section id="attributes">
 <h3>Attributes<a class="headerlink" href="#attributes" title="Permalink to this headline">¶</a></h3>
 <p>Attributes is the simplest, and powers the attributes window in the Kluster GUI.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="o">&gt;</span> <span class="n">fq</span><span class="o">.</span><span class="n">multibeam</span><span class="o">.</span><span class="n">raw_ping</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">attrs</span>
@@ -236,8 +237,8 @@
 <li><p>vertical_reference - the vertical reference you select in the project settings</p></li>
 <li><p>xyzrph - the dictionary of lever arms and angles that we use during processing.  Initially this is a translation of the installsettings_XXXXXXXXXXX records.  This dictionary stores each new entry by the time of it’s appearance in the file in UTC seconds.</p></li>
 </ul>
-</div>
-<div class="section" id="coordinates">
+</section>
+<section id="coordinates">
 <h3>Coordinates<a class="headerlink" href="#coordinates" title="Permalink to this headline">¶</a></h3>
 <p>The coordinates are simply the data for the time/beam/xyz dimensions.  Time is the time of ping, beam is the beam number, and xyz is the 3d vector only used for the TX and RX variables.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="o">&gt;</span> <span class="n">fq</span><span class="o">.</span><span class="n">multibeam</span><span class="o">.</span><span class="n">raw_ping</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">time</span>
@@ -281,8 +282,8 @@
      <span class="n">_FillValue</span><span class="p">:</span>  <span class="n">nan</span>
 </pre></div>
 </div>
-</div>
-<div class="section" id="variables">
+</section>
+<section id="variables">
 <h3>Variables<a class="headerlink" href="#variables" title="Permalink to this headline">¶</a></h3>
 <p>The variables contain the actual converted and processed data for the FQPR object.  You can access the Xarray DataArray for the variable:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="o">&gt;</span> <span class="n">fq</span><span class="o">.</span><span class="n">multibeam</span><span class="o">.</span><span class="n">raw_ping</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">beampointingangle</span>
@@ -378,9 +379,9 @@
 <li><p>yawpitchstab - Tells you whether yaw/pitch stabilization was enabled on the sonar.  Y = Only yaw stab, P = Only pitch stab, PY = Pitch and yaw stab, N = Neither.</p></li>
 <li><p>z - The result of running Georeference in Kluster.  This is the sound velocity offsets projected into the coordinate reference system you chose.  Depth is in meters from the vertical reference you chose.</p></li>
 </ul>
-</div>
-</div>
-<div class="section" id="bathygrid">
+</section>
+</section>
+<section id="bathygrid">
 <h2>Bathygrid<a class="headerlink" href="#bathygrid" title="Permalink to this headline">¶</a></h2>
 <p>Bathygrid is the Python module I developed to fit this role, of gridding multibeam soundings in such a way as to support billions of soundings over large areas while being memory and computation efficient.  Bathygrid leverages Dask and Zarr as well, so it shares a lot of the same elements as the FQPR object.  The three fundamental elements of the Bathygrid object are the points, the attribution and the grid itself.</p>
 <p>To get access to the Bathygrid grid, you do the same thing we did with the FQPR object.  You either drag in the folder to Kluster, or use the load convenience method to load from disk.</p>
@@ -393,7 +394,7 @@
 <span class="n">Time</span> <span class="p">(</span><span class="n">UTC</span><span class="p">):</span> <span class="mi">2017</span><span class="o">-</span><span class="mi">05</span><span class="o">-</span><span class="mi">23</span><span class="n">T18</span><span class="p">:</span><span class="mi">11</span><span class="p">:</span><span class="mi">19</span> <span class="n">to</span> <span class="mi">2017</span><span class="o">-</span><span class="mi">05</span><span class="o">-</span><span class="mi">23</span><span class="n">T18</span><span class="p">:</span><span class="mi">12</span><span class="p">:</span><span class="mi">12</span>
 <span class="n">EPSG</span><span class="p">:</span> <span class="mi">6339</span>
 <span class="n">Path</span><span class="p">:</span> <span class="n">C</span><span class="p">:</span>\<span class="n">collab</span>\<span class="n">dasktest</span>\<span class="n">data_dir</span>\<span class="n">EM2040_Fairweather_SmallFile</span>\<span class="n">vrtilegrid_mean</span>
-<span class="n">Bathygrid</span> <span class="n">Version</span><span class="p">:</span> <span class="mf">1.1</span><span class="o">.</span><span class="mi">3</span>
+<span class="n">Bathygrid</span> <span class="n">Version</span><span class="p">:</span> <span class="mf">1.1.3</span>
 <span class="n">Resolutions</span> <span class="p">(</span><span class="n">meters</span><span class="p">):</span> <span class="p">[</span><span class="mf">8.0</span><span class="p">]</span>
 <span class="n">Containers</span><span class="p">:</span> <span class="n">em2040_40111_05_23_2017_0</span>
 <span class="n">Mean</span> <span class="n">Depth</span><span class="p">:</span> <span class="mf">88.715</span>
@@ -414,7 +415,7 @@
 </div>
 <p>You can see a similar display of the attributes in the Attributes winwdow in Kluster, when you click on the surface in the Project Tree.</p>
 <a class="reference external image-reference" href="../_images/datastructures4.png"><img alt="../_images/datastructures4.png" src="../_images/datastructures4.png" /></a>
-<div class="section" id="points-tiles-and-grids">
+<section id="points-tiles-and-grids">
 <h3>Points, Tiles and Grids<a class="headerlink" href="#points-tiles-and-grids" title="Permalink to this headline">¶</a></h3>
 <p>This section is best explained by a picture.  The image below shows the relationship between points, tiles and grids/cells.</p>
 <a class="reference external image-reference" href="../_images/datastructures5.png"><img alt="../_images/datastructures5.png" src="../_images/datastructures5.png" /></a>
@@ -432,7 +433,7 @@
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="o">&gt;</span> <span class="n">first_grid</span> <span class="o">=</span> <span class="n">surf</span><span class="o">.</span><span class="n">tiles</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
 <span class="o">&gt;</span> <span class="n">first_grid</span>
 <span class="n">Out</span><span class="p">[</span><span class="mi">12</span><span class="p">]:</span>
-<span class="n">Bathygrid</span> <span class="n">Version</span><span class="p">:</span> <span class="mf">1.1</span><span class="o">.</span><span class="mi">3</span>
+<span class="n">Bathygrid</span> <span class="n">Version</span><span class="p">:</span> <span class="mf">1.1.3</span>
 <span class="n">Resolutions</span> <span class="p">(</span><span class="n">meters</span><span class="p">):</span> <span class="p">[</span><span class="mf">8.0</span><span class="p">]</span>
 <span class="n">Containers</span><span class="p">:</span> <span class="n">em2040_40111_05_23_2017_0</span>
 <span class="n">Mean</span> <span class="n">Depth</span><span class="p">:</span> <span class="mf">91.363</span>
@@ -456,8 +457,8 @@
 </div>
 <p>Grids in the root, a Tile in each grid, and soundings and cells in the Tile.  This is the basic architecture of the Variable Resolution Bathygrid object.  The Single resolution is simpler, with just Tiles and soundings.</p>
 <p>Note that all data is available as a Dask array, as data added is immediately flushed to disk to conserve memory.</p>
-</div>
-<div class="section" id="id1">
+</section>
+<section id="id1">
 <h3>Attributes<a class="headerlink" href="#id1" title="Permalink to this headline">¶</a></h3>
 <p>Attributes are stored in JSON within the data structure.  The attributes that you see in the Attributes window in Kluster are the result of running return_attribution to gather the attributes from the Bathygrid structure.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="o">&gt;</span> <span class="n">surf</span><span class="o">.</span><span class="n">return_attribution</span><span class="p">()</span>
@@ -510,9 +511,9 @@
 <li><p>storage_type - he specified backend of the grid</p></li>
 <li><p>source_XXXXXXXXXXXXXXXXXXXXX - the time/files added for each add to the grid</p></li>
 </ul>
-</div>
-</div>
-</div>
+</section>
+</section>
+</section>
 
 
           </div>
@@ -579,7 +580,7 @@
   <h3 id="searchlabel">Quick search</h3>
     <div class="searchformwrapper">
     <form class="search" action="../search.html" method="get">
-      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
       <input type="submit" value="Go" />
     </form>
     </div>
@@ -601,7 +602,7 @@
       &copy;2020, Eric Younkin.
       
       |
-      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.5.2</a>
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 4.3.2</a>
       &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
       
       |

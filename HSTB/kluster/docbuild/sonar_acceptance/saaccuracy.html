@@ -4,12 +4,13 @@
 <html>
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Accuracy Test &#8212; kluster 0.8.7 documentation</title>
-    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
-    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+    <title>Accuracy Test &#8212; kluster 0.8.8 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/alabaster.css" />
     <link rel="stylesheet" type="text/css" href="../_static/graphviz.css" />
-    <script id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
     <script src="../_static/jquery.js"></script>
     <script src="../_static/underscore.js"></script>
     <script src="../_static/doctools.js"></script>
@@ -33,7 +34,7 @@
 
           <div class="body" role="main">
             
-  <div class="section" id="accuracy-test">
+  <section id="accuracy-test">
 <h1>Accuracy Test<a class="headerlink" href="#accuracy-test" title="Permalink to this headline">¶</a></h1>
 <p>The Accuracy Test will take your reference surface and show you some plots of the depth difference between the surface and some additional lines that you run.  These additional lines (Accuracy Test lines from here on) are run in both directions across the same line track, using all the different frequencies and modes of the system.  The final plots will give you an idea of the ‘accuracy’ of the system and can illustrate the quality of data you can expect at different frequencies and modes.</p>
 <p>Here is our diagonal line plan showing the reference lines in the background.</p>
@@ -61,7 +62,7 @@
 <p>In the example shown above, there is an approximately 0.3 meter offset between the accuracy lines and the reference surface depths, which isn’t great.  These datasets I am working with
 are using the ellipse as the vertical reference and are without SBETs, so we can expect there to be issues.  Our depth differences are within Order 1 (barely, remember to include our 0.3 meter depth offset) and the mean depth in our area is about 35 meters (which I know from processing the data, that information is not in the plot).</p>
 <p>The port side of the sonar tends to be shoaler (negative depth bias, from grid to sounding) and the starboard tends to be deeper, which is interesting.  This is a dual head sonar, so it might have something to do with the mounting angles or offsets.</p>
-</div>
+</section>
 
 
           </div>
@@ -118,7 +119,7 @@ are using the ellipse as the vertical reference and are without SBETs, so we can
   <h3 id="searchlabel">Quick search</h3>
     <div class="searchformwrapper">
     <form class="search" action="../search.html" method="get">
-      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
       <input type="submit" value="Go" />
     </form>
     </div>
@@ -140,7 +141,7 @@ are using the ellipse as the vertical reference and are without SBETs, so we can
       &copy;2020, Eric Younkin.
       
       |
-      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.5.2</a>
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 4.3.2</a>
       &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
       
       |

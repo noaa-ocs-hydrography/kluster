@@ -4,12 +4,13 @@
 <html>
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>svcorrect module &#8212; kluster 0.8.7 documentation</title>
-    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
-    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+    <title>svcorrect module &#8212; kluster 0.8.8 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/alabaster.css" />
     <link rel="stylesheet" type="text/css" href="../_static/graphviz.css" />
-    <script id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
     <script src="../_static/jquery.js"></script>
     <script src="../_static/underscore.js"></script>
     <script src="../_static/doctools.js"></script>
@@ -33,11 +34,11 @@
 
           <div class="body" role="main">
             
-  <div class="section" id="svcorrect-module">
+  <section id="svcorrect-module">
 <h1>svcorrect module<a class="headerlink" href="#svcorrect-module" title="Permalink to this headline">¶</a></h1>
-<div class="section" id="module-HSTB.kluster.modules.svcorrect">
+<section id="module-HSTB.kluster.modules.svcorrect">
 <span id="hstb-kluster-modules-svcorrect-module"></span><h2>HSTB.kluster.modules.svcorrect Module<a class="headerlink" href="#module-HSTB.kluster.modules.svcorrect" title="Permalink to this headline">¶</a></h2>
-<div class="section" id="functions">
+<section id="functions">
 <h3>Functions<a class="headerlink" href="#functions" title="Permalink to this headline">¶</a></h3>
 <table class="longtable docutils align-default">
 <colgroup>
@@ -51,19 +52,19 @@
 <tr class="row-even"><td><p><a class="reference internal" href="../api/HSTB.kluster.modules.svcorrect.distributed_run_sv_correct.html#HSTB.kluster.modules.svcorrect.distributed_run_sv_correct" title="HSTB.kluster.modules.svcorrect.distributed_run_sv_correct"><code class="xref py py-obj docutils literal notranslate"><span class="pre">distributed_run_sv_correct</span></code></a>(worker_dat)</p></td>
 <td><p>Convenience function for mapping run_ray_trace_v2 across cluster.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="../api/HSTB.kluster.modules.svcorrect.get_sv_files_from_directory.html#HSTB.kluster.modules.svcorrect.get_sv_files_from_directory" title="HSTB.kluster.modules.svcorrect.get_sv_files_from_directory"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_sv_files_from_directory</span></code></a>(dir_path[, …])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="../api/HSTB.kluster.modules.svcorrect.get_sv_files_from_directory.html#HSTB.kluster.modules.svcorrect.get_sv_files_from_directory" title="HSTB.kluster.modules.svcorrect.get_sv_files_from_directory"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_sv_files_from_directory</span></code></a>(dir_path[, ...])</p></td>
 <td><p>Returns a list of all files that have an extension in the global variable supported_file_formats</p></td>
 </tr>
 <tr class="row-even"><td><p><a class="reference internal" href="../api/HSTB.kluster.modules.svcorrect.return_supported_casts_from_list.html#HSTB.kluster.modules.svcorrect.return_supported_casts_from_list" title="HSTB.kluster.modules.svcorrect.return_supported_casts_from_list"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_supported_casts_from_list</span></code></a>(list_files)</p></td>
 <td><p>Take in a list of files, return all the valid cast files</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="../api/HSTB.kluster.modules.svcorrect.run_ray_trace_v2.html#HSTB.kluster.modules.svcorrect.run_ray_trace_v2" title="HSTB.kluster.modules.svcorrect.run_ray_trace_v2"><code class="xref py py-obj docutils literal notranslate"><span class="pre">run_ray_trace_v2</span></code></a>(cast, beam_azimuth, …)</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="../api/HSTB.kluster.modules.svcorrect.run_ray_trace_v2.html#HSTB.kluster.modules.svcorrect.run_ray_trace_v2" title="HSTB.kluster.modules.svcorrect.run_ray_trace_v2"><code class="xref py py-obj docutils literal notranslate"><span class="pre">run_ray_trace_v2</span></code></a>(cast, beam_azimuth, ...)</p></td>
 <td><p>Apply the provided sound velocity cast and surface sound speed value to ray trace the angles/traveltime through each layer.</p></td>
 </tr>
 </tbody>
 </table>
-</div>
-<div class="section" id="classes">
+</section>
+<section id="classes">
 <h3>Classes<a class="headerlink" href="#classes" title="Permalink to this headline">¶</a></h3>
 <table class="longtable docutils align-default">
 <colgroup>
@@ -71,14 +72,14 @@
 <col style="width: 90%" />
 </colgroup>
 <tbody>
-<tr class="row-odd"><td><p><a class="reference internal" href="../api/HSTB.kluster.modules.svcorrect.SoundSpeedProfile.html#HSTB.kluster.modules.svcorrect.SoundSpeedProfile" title="HSTB.kluster.modules.svcorrect.SoundSpeedProfile"><code class="xref py py-obj docutils literal notranslate"><span class="pre">SoundSpeedProfile</span></code></a>(raw_profile, z_val, …[, …])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="../api/HSTB.kluster.modules.svcorrect.SoundSpeedProfile.html#HSTB.kluster.modules.svcorrect.SoundSpeedProfile" title="HSTB.kluster.modules.svcorrect.SoundSpeedProfile"><code class="xref py py-obj docutils literal notranslate"><span class="pre">SoundSpeedProfile</span></code></a>(raw_profile, z_val, ...[, ...])</p></td>
 <td><p>DEPRECATED - See run_ray_trace_v2.</p></td>
 </tr>
 </tbody>
 </table>
-</div>
-</div>
-</div>
+</section>
+</section>
+</section>
 
 
           </div>
@@ -164,7 +165,7 @@
   <h3 id="searchlabel">Quick search</h3>
     <div class="searchformwrapper">
     <form class="search" action="../search.html" method="get">
-      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
       <input type="submit" value="Go" />
     </form>
     </div>
@@ -186,7 +187,7 @@
       &copy;2020, Eric Younkin.
       
       |
-      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.5.2</a>
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 4.3.2</a>
       &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
       
       |

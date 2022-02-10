@@ -4,12 +4,13 @@
 <html>
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>calculate_tpu &#8212; kluster 0.8.7 documentation</title>
-    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
-    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+    <title>calculate_tpu &#8212; kluster 0.8.8 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/alabaster.css" />
     <link rel="stylesheet" type="text/css" href="../_static/graphviz.css" />
-    <script id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
     <script src="../_static/jquery.js"></script>
     <script src="../_static/underscore.js"></script>
     <script src="../_static/doctools.js"></script>
@@ -33,11 +34,11 @@
 
           <div class="body" role="main">
             
-  <div class="section" id="calculate-tpu">
+  <section id="calculate-tpu">
 <h1>calculate_tpu<a class="headerlink" href="#calculate-tpu" title="Permalink to this headline">¶</a></h1>
 <dl class="py function">
-<dt id="HSTB.kluster.modules.tpu.calculate_tpu">
-<code class="sig-prename descclassname"><span class="pre">HSTB.kluster.modules.tpu.</span></code><code class="sig-name descname"><span class="pre">calculate_tpu</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">roll</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">raw_beam_angles</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">beam_angles</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">acrosstrack_offset</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">depth_offset</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">surf_sound_speed</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">datum_uncertainty</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tpu_dict</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">quality_factor</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">north_position_error</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">east_position_error</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">down_position_error</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">roll_error</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pitch_error</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">heading_error</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">roll_in_degrees</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">raw_beam_angles_in_degrees</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">beam_angles_in_degrees</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">qf_type</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'ifremer'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">vert_ref</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'ellipse'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tpu_image</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.modules.tpu.calculate_tpu" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="HSTB.kluster.modules.tpu.calculate_tpu">
+<span class="sig-prename descclassname"><span class="pre">HSTB.kluster.modules.tpu.</span></span><span class="sig-name descname"><span class="pre">calculate_tpu</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">roll</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">raw_beam_angles</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">beam_angles</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">acrosstrack_offset</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">depth_offset</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">surf_sound_speed</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">datum_uncertainty</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tpu_dict</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">quality_factor</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">north_position_error</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">east_position_error</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">down_position_error</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">roll_error</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pitch_error</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">heading_error</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">roll_in_degrees</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">raw_beam_angles_in_degrees</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">beam_angles_in_degrees</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">qf_type</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'ifremer'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">vert_ref</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'ellipse'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tpu_image</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.modules.tpu.calculate_tpu" title="Permalink to this definition">¶</a></dt>
 <dd><p>Use the Tpu class to calculate total propagated uncertainty (horizontal and vertical) for the provided sounder
 data.  Designed to be used with Kluster.</p>
 <dl class="field-list simple">
@@ -79,7 +80,7 @@ total horizontal uncertainty in meters for each sounding (time, beam)]</p>
 </dl>
 </dd></dl>
 
-</div>
+</section>
 
 
           </div>
@@ -167,7 +168,7 @@ total horizontal uncertainty in meters for each sounding (time, beam)]</p>
   <h3 id="searchlabel">Quick search</h3>
     <div class="searchformwrapper">
     <form class="search" action="../search.html" method="get">
-      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
       <input type="submit" value="Go" />
     </form>
     </div>
@@ -189,7 +190,7 @@ total horizontal uncertainty in meters for each sounding (time, beam)]</p>
       &copy;2020, Eric Younkin.
       
       |
-      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.5.2</a>
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 4.3.2</a>
       &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
       
       |

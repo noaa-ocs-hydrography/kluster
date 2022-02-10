@@ -4,12 +4,13 @@
 <html>
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>gdal_helpers module &#8212; kluster 0.8.7 documentation</title>
-    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
-    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+    <title>gdal_helpers module &#8212; kluster 0.8.8 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/alabaster.css" />
     <link rel="stylesheet" type="text/css" href="../_static/graphviz.css" />
-    <script id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
     <script src="../_static/jquery.js"></script>
     <script src="../_static/underscore.js"></script>
     <script src="../_static/doctools.js"></script>
@@ -33,11 +34,11 @@
 
           <div class="body" role="main">
             
-  <div class="section" id="gdal-helpers-module">
+  <section id="gdal-helpers-module">
 <h1>gdal_helpers module<a class="headerlink" href="#gdal-helpers-module" title="Permalink to this headline">¶</a></h1>
-<div class="section" id="module-HSTB.kluster.gdal_helpers">
+<section id="module-HSTB.kluster.gdal_helpers">
 <span id="hstb-kluster-gdal-helpers-module"></span><h2>HSTB.kluster.gdal_helpers Module<a class="headerlink" href="#module-HSTB.kluster.gdal_helpers" title="Permalink to this headline">¶</a></h2>
-<div class="section" id="functions">
+<section id="functions">
 <h3>Functions<a class="headerlink" href="#functions" title="Permalink to this headline">¶</a></h3>
 <table class="longtable docutils align-default">
 <colgroup>
@@ -51,7 +52,7 @@
 <tr class="row-even"><td><p><a class="reference internal" href="../api/HSTB.kluster.gdal_helpers.gdal_output_file_exists.html#HSTB.kluster.gdal_helpers.gdal_output_file_exists" title="HSTB.kluster.gdal_helpers.gdal_output_file_exists"><code class="xref py py-obj docutils literal notranslate"><span class="pre">gdal_output_file_exists</span></code></a>(pth)</p></td>
 <td><p>here we could just do os.path.exists, but we also support vsimem virtual file systems for gdal <a class="reference external" href="https://gdal.org/user/virtual_file_systems.html">https://gdal.org/user/virtual_file_systems.html</a> therefore we should just try a gdal open to see if the file path exists</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="../api/HSTB.kluster.gdal_helpers.gdal_raster_create.html#HSTB.kluster.gdal_helpers.gdal_raster_create" title="HSTB.kluster.gdal_helpers.gdal_raster_create"><code class="xref py py-obj docutils literal notranslate"><span class="pre">gdal_raster_create</span></code></a>(output_raster, data, …)</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="../api/HSTB.kluster.gdal_helpers.gdal_raster_create.html#HSTB.kluster.gdal_helpers.gdal_raster_create" title="HSTB.kluster.gdal_helpers.gdal_raster_create"><code class="xref py py-obj docutils literal notranslate"><span class="pre">gdal_raster_create</span></code></a>(output_raster, data, ...)</p></td>
 <td><p>Build a gdal product from the provided data using the provided driver.</p></td>
 </tr>
 <tr class="row-even"><td><p><a class="reference internal" href="../api/HSTB.kluster.gdal_helpers.ogr_output_file_exists.html#HSTB.kluster.gdal_helpers.ogr_output_file_exists" title="HSTB.kluster.gdal_helpers.ogr_output_file_exists"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ogr_output_file_exists</span></code></a>(pth)</p></td>
@@ -65,8 +66,8 @@
 </tr>
 </tbody>
 </table>
-</div>
-<div class="section" id="classes">
+</section>
+<section id="classes">
 <h3>Classes<a class="headerlink" href="#classes" title="Permalink to this headline">¶</a></h3>
 <table class="longtable docutils align-default">
 <colgroup>
@@ -74,14 +75,14 @@
 <col style="width: 90%" />
 </colgroup>
 <tbody>
-<tr class="row-odd"><td><p><a class="reference internal" href="../api/HSTB.kluster.gdal_helpers.VectorLayer.html#HSTB.kluster.gdal_helpers.VectorLayer" title="HSTB.kluster.gdal_helpers.VectorLayer"><code class="xref py py-obj docutils literal notranslate"><span class="pre">VectorLayer</span></code></a>(output_file, driver_name, …[, …])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="../api/HSTB.kluster.gdal_helpers.VectorLayer.html#HSTB.kluster.gdal_helpers.VectorLayer" title="HSTB.kluster.gdal_helpers.VectorLayer"><code class="xref py py-obj docutils literal notranslate"><span class="pre">VectorLayer</span></code></a>(output_file, driver_name, ...[, ...])</p></td>
 <td><p>Convert numpy arrays and metadata to OGR geometry to then generate OGR files.</p></td>
 </tr>
 </tbody>
 </table>
-</div>
-</div>
-</div>
+</section>
+</section>
+</section>
 
 
           </div>
@@ -167,7 +168,7 @@
   <h3 id="searchlabel">Quick search</h3>
     <div class="searchformwrapper">
     <form class="search" action="../search.html" method="get">
-      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
       <input type="submit" value="Go" />
     </form>
     </div>
@@ -189,7 +190,7 @@
       &copy;2020, Eric Younkin.
       
       |
-      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.5.2</a>
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 4.3.2</a>
       &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
       
       |

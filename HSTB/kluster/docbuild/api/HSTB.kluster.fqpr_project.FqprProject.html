@@ -4,12 +4,13 @@
 <html>
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>FqprProject &#8212; kluster 0.8.7 documentation</title>
-    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
-    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+    <title>FqprProject &#8212; kluster 0.8.8 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/alabaster.css" />
     <link rel="stylesheet" type="text/css" href="../_static/graphviz.css" />
-    <script id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
     <script src="../_static/jquery.js"></script>
     <script src="../_static/underscore.js"></script>
     <script src="../_static/doctools.js"></script>
@@ -33,11 +34,11 @@
 
           <div class="body" role="main">
             
-  <div class="section" id="fqprproject">
+  <section id="fqprproject">
 <h1>FqprProject<a class="headerlink" href="#fqprproject" title="Permalink to this headline">¶</a></h1>
 <dl class="py class">
-<dt id="HSTB.kluster.fqpr_project.FqprProject">
-<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">HSTB.kluster.fqpr_project.</span></code><code class="sig-name descname"><span class="pre">FqprProject</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">is_gui</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_project.FqprProject" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="HSTB.kluster.fqpr_project.FqprProject">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">HSTB.kluster.fqpr_project.</span></span><span class="sig-name descname"><span class="pre">FqprProject</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">is_gui</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_project.FqprProject" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
 <p>The FqprProject class contains all the fqpr_generated.Fqpr objects and has methods for interacting with multiple
 of these objects as one big project.</p>
@@ -79,7 +80,7 @@ lines within a specific area, the FqprProject should be able to do this.</p>
 <tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_project.FqprProject.add_surface" title="HSTB.kluster.fqpr_project.FqprProject.add_surface"><code class="xref py py-obj docutils literal notranslate"><span class="pre">add_surface</span></code></a>(pth)</p></td>
 <td><p>Add a new Bathygrid object to the project, either by loading from file or by directly adding a Bathygrid object provided</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_project.FqprProject.add_vessel_file" title="HSTB.kluster.fqpr_project.FqprProject.add_vessel_file"><code class="xref py py-obj docutils literal notranslate"><span class="pre">add_vessel_file</span></code></a>([vessel_file_path, …])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_project.FqprProject.add_vessel_file" title="HSTB.kluster.fqpr_project.FqprProject.add_vessel_file"><code class="xref py py-obj docutils literal notranslate"><span class="pre">add_vessel_file</span></code></a>([vessel_file_path, ...])</p></td>
 <td><p>Attach a new or existing vessel file to this project.</p></td>
 </tr>
 <tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_project.FqprProject.build_raw_attitude_for_line" title="HSTB.kluster.fqpr_project.FqprProject.build_raw_attitude_for_line"><code class="xref py py-obj docutils literal notranslate"><span class="pre">build_raw_attitude_for_line</span></code></a>(line[, subset])</p></td>
@@ -94,10 +95,10 @@ lines within a specific area, the FqprProject should be able to do this.</p>
 <tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_project.FqprProject.get_dask_client" title="HSTB.kluster.fqpr_project.FqprProject.get_dask_client"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_dask_client</span></code></a>()</p></td>
 <td><p>Project is the holder of the Dask client object.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_project.FqprProject.get_fqpr_by_serial_number" title="HSTB.kluster.fqpr_project.FqprProject.get_fqpr_by_serial_number"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_fqpr_by_serial_number</span></code></a>(…[, same_day_as])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_project.FqprProject.get_fqpr_by_serial_number" title="HSTB.kluster.fqpr_project.FqprProject.get_fqpr_by_serial_number"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_fqpr_by_serial_number</span></code></a>(...[, same_day_as])</p></td>
 <td><p>Find the fqpr instance that matches the provided serial number.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_project.FqprProject.get_fqprs_by_paths" title="HSTB.kluster.fqpr_project.FqprProject.get_fqprs_by_paths"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_fqprs_by_paths</span></code></a>(fqpr_paths[, line_dict, …])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_project.FqprProject.get_fqprs_by_paths" title="HSTB.kluster.fqpr_project.FqprProject.get_fqprs_by_paths"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_fqprs_by_paths</span></code></a>(fqpr_paths[, line_dict, ...])</p></td>
 <td><p>Return a list of the paths and Fqpr instances associated with each provided path.</p></td>
 </tr>
 <tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_project.FqprProject.new_project_from_directory" title="HSTB.kluster.fqpr_project.FqprProject.new_project_from_directory"><code class="xref py py-obj docutils literal notranslate"><span class="pre">new_project_from_directory</span></code></a>(directory_path)</p></td>
@@ -121,7 +122,7 @@ lines within a specific area, the FqprProject should be able to do this.</p>
 <tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_project.FqprProject.remove_surface" title="HSTB.kluster.fqpr_project.FqprProject.remove_surface"><code class="xref py py-obj docutils literal notranslate"><span class="pre">remove_surface</span></code></a>(pth[, relative_path])</p></td>
 <td><p>Remove an attached Bathygrid instance from the project by path to Fqpr converted folder</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_project.FqprProject.retrieve_data_for_time_segments" title="HSTB.kluster.fqpr_project.FqprProject.retrieve_data_for_time_segments"><code class="xref py py-obj docutils literal notranslate"><span class="pre">retrieve_data_for_time_segments</span></code></a>(systems, …)</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_project.FqprProject.retrieve_data_for_time_segments" title="HSTB.kluster.fqpr_project.FqprProject.retrieve_data_for_time_segments"><code class="xref py py-obj docutils literal notranslate"><span class="pre">retrieve_data_for_time_segments</span></code></a>(systems, ...)</p></td>
 <td><p>For the manual patch test, we retrieve the Fqpr object and time segments that are currently displayed in the points view and use that data to populate the patch test widget.</p></td>
 </tr>
 <tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_project.FqprProject.return_fqpr_instances" title="HSTB.kluster.fqpr_project.FqprProject.return_fqpr_instances"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_fqpr_instances</span></code></a>()</p></td>
@@ -136,7 +137,7 @@ lines within a specific area, the FqprProject should be able to do this.</p>
 <tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_project.FqprProject.return_line_owner" title="HSTB.kluster.fqpr_project.FqprProject.return_line_owner"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_line_owner</span></code></a>(line)</p></td>
 <td><p>Return the Fqpr instance that contains the provided multibeam line</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_project.FqprProject.return_lines_in_box" title="HSTB.kluster.fqpr_project.FqprProject.return_lines_in_box"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_lines_in_box</span></code></a>(min_lat, max_lat, …)</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_project.FqprProject.return_lines_in_box" title="HSTB.kluster.fqpr_project.FqprProject.return_lines_in_box"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_lines_in_box</span></code></a>(min_lat, max_lat, ...)</p></td>
 <td><p>With the given latitude/longitude boundaries, return the lines that are completely within these boundaries</p></td>
 </tr>
 <tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_project.FqprProject.return_project_folder" title="HSTB.kluster.fqpr_project.FqprProject.return_project_folder"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_project_folder</span></code></a>()</p></td>
@@ -151,14 +152,14 @@ lines within a specific area, the FqprProject should be able to do this.</p>
 <tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_project.FqprProject.return_soundings_in_polygon" title="HSTB.kluster.fqpr_project.FqprProject.return_soundings_in_polygon"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_soundings_in_polygon</span></code></a>(polygon)</p></td>
 <td><p>With the given latitude/longitude polygon, return the soundings that are within the boundaries.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_project.FqprProject.return_surface_containers" title="HSTB.kluster.fqpr_project.FqprProject.return_surface_containers"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_surface_containers</span></code></a>(surface_name[, …])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_project.FqprProject.return_surface_containers" title="HSTB.kluster.fqpr_project.FqprProject.return_surface_containers"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_surface_containers</span></code></a>(surface_name[, ...])</p></td>
 <td><p>Project has loaded surface and fqpr instances.</p></td>
 </tr>
 <tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_project.FqprProject.return_surface_paths" title="HSTB.kluster.fqpr_project.FqprProject.return_surface_paths"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_surface_paths</span></code></a>()</p></td>
 <td><p>Get the absolute paths to all loaded surface instances</p></td>
 </tr>
 <tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_project.FqprProject.return_vessel_file" title="HSTB.kluster.fqpr_project.FqprProject.return_vessel_file"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_vessel_file</span></code></a>()</p></td>
-<td><p>Return the VesselFile instance for this project’s vessel_file path</p></td>
+<td><p>Return the VesselFile instance for this project's vessel_file path</p></td>
 </tr>
 <tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_project.FqprProject.run_auto_patch_test" title="HSTB.kluster.fqpr_project.FqprProject.run_auto_patch_test"><code class="xref py py-obj docutils literal notranslate"><span class="pre">run_auto_patch_test</span></code></a>(line_pairs)</p></td>
 <td><p></p></td>
@@ -176,8 +177,8 @@ lines within a specific area, the FqprProject should be able to do this.</p>
 </table>
 <p class="rubric">Methods Documentation</p>
 <dl class="py method">
-<dt id="HSTB.kluster.fqpr_project.FqprProject.absolute_path_from_relative">
-<code class="sig-name descname"><span class="pre">absolute_path_from_relative</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pth</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_project.FqprProject.absolute_path_from_relative" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="HSTB.kluster.fqpr_project.FqprProject.absolute_path_from_relative">
+<span class="sig-name descname"><span class="pre">absolute_path_from_relative</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pth</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_project.FqprProject.absolute_path_from_relative" title="Permalink to this definition">¶</a></dt>
 <dd><p>see path_relative_to_project, will convert the returned relative path from that method to an absolute file
 path</p>
 <dl class="field-list simple">
@@ -194,8 +195,8 @@ path</p>
 </dd></dl>
 
 <dl class="py method">
-<dt id="HSTB.kluster.fqpr_project.FqprProject.add_fqpr">
-<code class="sig-name descname"><span class="pre">add_fqpr</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pth</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skip_dask</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_project.FqprProject.add_fqpr" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="HSTB.kluster.fqpr_project.FqprProject.add_fqpr">
+<span class="sig-name descname"><span class="pre">add_fqpr</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pth</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skip_dask</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_project.FqprProject.add_fqpr" title="Permalink to this definition">¶</a></dt>
 <dd><p>Add a new Fqpr object to this project.  If skip_dask is True, will auto start a new dask LocalCluster</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -215,8 +216,8 @@ path</p>
 </dd></dl>
 
 <dl class="py method">
-<dt id="HSTB.kluster.fqpr_project.FqprProject.add_surface">
-<code class="sig-name descname"><span class="pre">add_surface</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pth</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_project.FqprProject.add_surface" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="HSTB.kluster.fqpr_project.FqprProject.add_surface">
+<span class="sig-name descname"><span class="pre">add_surface</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pth</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_project.FqprProject.add_surface" title="Permalink to this definition">¶</a></dt>
 <dd><p>Add a new Bathygrid object to the project, either by loading from file or by directly adding a Bathygrid
 object provided</p>
 <dl class="field-list simple">
@@ -227,8 +228,8 @@ object provided</p>
 </dd></dl>
 
 <dl class="py method">
-<dt id="HSTB.kluster.fqpr_project.FqprProject.add_vessel_file">
-<code class="sig-name descname"><span class="pre">add_vessel_file</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">vessel_file_path</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">update_with_project</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_project.FqprProject.add_vessel_file" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="HSTB.kluster.fqpr_project.FqprProject.add_vessel_file">
+<span class="sig-name descname"><span class="pre">add_vessel_file</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">vessel_file_path</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">update_with_project</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_project.FqprProject.add_vessel_file" title="Permalink to this definition">¶</a></dt>
 <dd><p>Attach a new or existing vessel file to this project.  Optionally populate it with the found offsets and angles
 in the existing fqpr instances in the project</p>
 <dl class="field-list simple">
@@ -242,8 +243,8 @@ in the existing fqpr instances in the project</p>
 </dd></dl>
 
 <dl class="py method">
-<dt id="HSTB.kluster.fqpr_project.FqprProject.build_raw_attitude_for_line">
-<code class="sig-name descname"><span class="pre">build_raw_attitude_for_line</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">line</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">subset</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_project.FqprProject.build_raw_attitude_for_line" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="HSTB.kluster.fqpr_project.FqprProject.build_raw_attitude_for_line">
+<span class="sig-name descname"><span class="pre">build_raw_attitude_for_line</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">line</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">subset</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_project.FqprProject.build_raw_attitude_for_line" title="Permalink to this definition">¶</a></dt>
 <dd><p>With the given linename, return the raw_attitude dataset from the fqpr_generation.FQPR instance that contains
 the line.  If subset is true, the returned attitude will only be the raw attitude that covers the line.</p>
 <dl class="field-list simple">
@@ -263,8 +264,8 @@ the line.  If subset is true, the returned attitude will only be the raw attitud
 </dd></dl>
 
 <dl class="py method">
-<dt id="HSTB.kluster.fqpr_project.FqprProject.build_visualizations">
-<code class="sig-name descname"><span class="pre">build_visualizations</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pth</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">visualization_type</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_project.FqprProject.build_visualizations" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="HSTB.kluster.fqpr_project.FqprProject.build_visualizations">
+<span class="sig-name descname"><span class="pre">build_visualizations</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pth</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">visualization_type</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_project.FqprProject.build_visualizations" title="Permalink to this definition">¶</a></dt>
 <dd><p>Take the provided project path and create visualizations of that project</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -277,22 +278,22 @@ the line.  If subset is true, the returned attitude will only be the raw attitud
 </dd></dl>
 
 <dl class="py method">
-<dt id="HSTB.kluster.fqpr_project.FqprProject.close">
-<code class="sig-name descname"><span class="pre">close</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_project.FqprProject.close" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="HSTB.kluster.fqpr_project.FqprProject.close">
+<span class="sig-name descname"><span class="pre">close</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_project.FqprProject.close" title="Permalink to this definition">¶</a></dt>
 <dd><p>close project and clear all data.  have to close the fqpr instances with the fqpr close method.</p>
 </dd></dl>
 
 <dl class="py method">
-<dt id="HSTB.kluster.fqpr_project.FqprProject.get_dask_client">
-<code class="sig-name descname"><span class="pre">get_dask_client</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_project.FqprProject.get_dask_client" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="HSTB.kluster.fqpr_project.FqprProject.get_dask_client">
+<span class="sig-name descname"><span class="pre">get_dask_client</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_project.FqprProject.get_dask_client" title="Permalink to this definition">¶</a></dt>
 <dd><p>Project is the holder of the Dask client object.  Use this method to return the current Client.  Client is
 currently setup with kluster_main.start_dask_client or kluster_main.open_dask_dashboard</p>
 <p>If the client does not exist, we set it here and then set the client to the Fqpr and BatchRead instance</p>
 </dd></dl>
 
 <dl class="py method">
-<dt id="HSTB.kluster.fqpr_project.FqprProject.get_fqpr_by_serial_number">
-<code class="sig-name descname"><span class="pre">get_fqpr_by_serial_number</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">primary_serial_number</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">secondary_serial_number</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">same_day_as</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_project.FqprProject.get_fqpr_by_serial_number" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="HSTB.kluster.fqpr_project.FqprProject.get_fqpr_by_serial_number">
+<span class="sig-name descname"><span class="pre">get_fqpr_by_serial_number</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">primary_serial_number</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">secondary_serial_number</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">same_day_as</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_project.FqprProject.get_fqpr_by_serial_number" title="Permalink to this definition">¶</a></dt>
 <dd><p>Find the fqpr instance that matches the provided serial number.  Should just be one instance in a project with
 the same serial number, if there are more, that is going to be a problem.</p>
 <dl class="field-list simple">
@@ -316,8 +317,8 @@ is the serial number of the starboard head</p></li>
 </dd></dl>
 
 <dl class="py method">
-<dt id="HSTB.kluster.fqpr_project.FqprProject.get_fqprs_by_paths">
-<code class="sig-name descname"><span class="pre">get_fqprs_by_paths</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">fqpr_paths</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">line_dict</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">relative_path</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">allow_different_offsets</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">raise_exception</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_project.FqprProject.get_fqprs_by_paths" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="HSTB.kluster.fqpr_project.FqprProject.get_fqprs_by_paths">
+<span class="sig-name descname"><span class="pre">get_fqprs_by_paths</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">fqpr_paths</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">line_dict</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">relative_path</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">allow_different_offsets</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">raise_exception</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_project.FqprProject.get_fqprs_by_paths" title="Permalink to this definition">¶</a></dt>
 <dd><p>Return a list of the paths and Fqpr instances associated with each provided path.  Path can be relative to the project
 or an absolute path.</p>
 <p>If a line_dict is provided, we will subset each Fqpr object to just the data associated with the lines in the line_dict.
@@ -346,8 +347,8 @@ object, the end result is a single Fqpr object with the data for all four lines 
 </dd></dl>
 
 <dl class="py method">
-<dt id="HSTB.kluster.fqpr_project.FqprProject.new_project_from_directory">
-<code class="sig-name descname"><span class="pre">new_project_from_directory</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">directory_path</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_project.FqprProject.new_project_from_directory" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="HSTB.kluster.fqpr_project.FqprProject.new_project_from_directory">
+<span class="sig-name descname"><span class="pre">new_project_from_directory</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">directory_path</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_project.FqprProject.new_project_from_directory" title="Permalink to this definition">¶</a></dt>
 <dd><p>Take in a path to a directory where we want to build a new project.  This can be an empty project (if the
 directory provided is empty) or a populated project with the converted data in the provided directory.</p>
 <dl class="field-list simple">
@@ -358,8 +359,8 @@ directory provided is empty) or a populated project with the converted data in t
 </dd></dl>
 
 <dl class="py method">
-<dt id="HSTB.kluster.fqpr_project.FqprProject.open_project">
-<code class="sig-name descname"><span class="pre">open_project</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">projfile</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skip_dask</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_project.FqprProject.open_project" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="HSTB.kluster.fqpr_project.FqprProject.open_project">
+<span class="sig-name descname"><span class="pre">open_project</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">projfile</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skip_dask</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_project.FqprProject.open_project" title="Permalink to this definition">¶</a></dt>
 <dd><p>Open a project from file.  See save_project for how to generate this file.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -372,8 +373,8 @@ directory provided is empty) or a populated project with the converted data in t
 </dd></dl>
 
 <dl class="py method">
-<dt id="HSTB.kluster.fqpr_project.FqprProject.path_relative_to_project">
-<code class="sig-name descname"><span class="pre">path_relative_to_project</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pth</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_project.FqprProject.path_relative_to_project" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="HSTB.kluster.fqpr_project.FqprProject.path_relative_to_project">
+<span class="sig-name descname"><span class="pre">path_relative_to_project</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pth</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_project.FqprProject.path_relative_to_project" title="Permalink to this definition">¶</a></dt>
 <dd><p>Return the relative path for the provided pth from the project file</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -389,13 +390,13 @@ directory provided is empty) or a populated project with the converted data in t
 </dd></dl>
 
 <dl class="py method">
-<dt id="HSTB.kluster.fqpr_project.FqprProject.refresh_fqpr_attribution">
-<code class="sig-name descname"><span class="pre">refresh_fqpr_attribution</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pth</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">relative_path</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_project.FqprProject.refresh_fqpr_attribution" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="HSTB.kluster.fqpr_project.FqprProject.refresh_fqpr_attribution">
+<span class="sig-name descname"><span class="pre">refresh_fqpr_attribution</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pth</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">relative_path</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_project.FqprProject.refresh_fqpr_attribution" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="py method">
-<dt id="HSTB.kluster.fqpr_project.FqprProject.regenerate_fqpr_lines">
-<code class="sig-name descname"><span class="pre">regenerate_fqpr_lines</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pth</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_project.FqprProject.regenerate_fqpr_lines" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="HSTB.kluster.fqpr_project.FqprProject.regenerate_fqpr_lines">
+<span class="sig-name descname"><span class="pre">regenerate_fqpr_lines</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pth</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_project.FqprProject.regenerate_fqpr_lines" title="Permalink to this definition">¶</a></dt>
 <dd><p>After adding a new Fqpr object, we want to get the line information from the attributes so that we can quickly
 access how many lines are in a project, and the time boundaries of these lines.</p>
 <dl class="field-list simple">
@@ -406,8 +407,8 @@ access how many lines are in a project, and the time boundaries of these lines.<
 </dd></dl>
 
 <dl class="py method">
-<dt id="HSTB.kluster.fqpr_project.FqprProject.remove_fqpr">
-<code class="sig-name descname"><span class="pre">remove_fqpr</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pth</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">relative_path</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_project.FqprProject.remove_fqpr" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="HSTB.kluster.fqpr_project.FqprProject.remove_fqpr">
+<span class="sig-name descname"><span class="pre">remove_fqpr</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pth</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">relative_path</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_project.FqprProject.remove_fqpr" title="Permalink to this definition">¶</a></dt>
 <dd><p>Remove an attached Fqpr instance from the project by path to Fqpr converted folder</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -420,8 +421,8 @@ access how many lines are in a project, and the time boundaries of these lines.<
 </dd></dl>
 
 <dl class="py method">
-<dt id="HSTB.kluster.fqpr_project.FqprProject.remove_surface">
-<code class="sig-name descname"><span class="pre">remove_surface</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pth</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">relative_path</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_project.FqprProject.remove_surface" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="HSTB.kluster.fqpr_project.FqprProject.remove_surface">
+<span class="sig-name descname"><span class="pre">remove_surface</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pth</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">relative_path</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_project.FqprProject.remove_surface" title="Permalink to this definition">¶</a></dt>
 <dd><p>Remove an attached Bathygrid instance from the project by path to Fqpr converted folder</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -434,8 +435,8 @@ access how many lines are in a project, and the time boundaries of these lines.<
 </dd></dl>
 
 <dl class="py method">
-<dt id="HSTB.kluster.fqpr_project.FqprProject.retrieve_data_for_time_segments">
-<code class="sig-name descname"><span class="pre">retrieve_data_for_time_segments</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">systems</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">time_segments</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_project.FqprProject.retrieve_data_for_time_segments" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="HSTB.kluster.fqpr_project.FqprProject.retrieve_data_for_time_segments">
+<span class="sig-name descname"><span class="pre">retrieve_data_for_time_segments</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">systems</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">time_segments</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_project.FqprProject.retrieve_data_for_time_segments" title="Permalink to this definition">¶</a></dt>
 <dd><p>For the manual patch test, we retrieve the Fqpr object and time segments that are currently displayed in the
 points view and use that data to populate the patch test widget.  Here we take the returned system name
 and time segment data from the points view to get the corresponding data from the project.</p>
@@ -457,8 +458,8 @@ dict for that Fqpr, the system identifier, the head index, and the vesselfile na
 </dd></dl>
 
 <dl class="py method">
-<dt id="HSTB.kluster.fqpr_project.FqprProject.return_fqpr_instances">
-<code class="sig-name descname"><span class="pre">return_fqpr_instances</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_project.FqprProject.return_fqpr_instances" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="HSTB.kluster.fqpr_project.FqprProject.return_fqpr_instances">
+<span class="sig-name descname"><span class="pre">return_fqpr_instances</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_project.FqprProject.return_fqpr_instances" title="Permalink to this definition">¶</a></dt>
 <dd><p>Get all loaded fqpr instances</p>
 <dl class="field-list simple">
 <dt class="field-odd">Returns</dt>
@@ -471,8 +472,8 @@ dict for that Fqpr, the system identifier, the head index, and the vesselfile na
 </dd></dl>
 
 <dl class="py method">
-<dt id="HSTB.kluster.fqpr_project.FqprProject.return_fqpr_paths">
-<code class="sig-name descname"><span class="pre">return_fqpr_paths</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_project.FqprProject.return_fqpr_paths" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="HSTB.kluster.fqpr_project.FqprProject.return_fqpr_paths">
+<span class="sig-name descname"><span class="pre">return_fqpr_paths</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_project.FqprProject.return_fqpr_paths" title="Permalink to this definition">¶</a></dt>
 <dd><p>Get the absolute paths to all loaded fqpr instances</p>
 <dl class="field-list simple">
 <dt class="field-odd">Returns</dt>
@@ -485,8 +486,8 @@ dict for that Fqpr, the system identifier, the head index, and the vesselfile na
 </dd></dl>
 
 <dl class="py method">
-<dt id="HSTB.kluster.fqpr_project.FqprProject.return_line_navigation">
-<code class="sig-name descname"><span class="pre">return_line_navigation</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">line</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_project.FqprProject.return_line_navigation" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="HSTB.kluster.fqpr_project.FqprProject.return_line_navigation">
+<span class="sig-name descname"><span class="pre">return_line_navigation</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">line</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_project.FqprProject.return_line_navigation" title="Permalink to this definition">¶</a></dt>
 <dd><p>For given line name, return the latitude/longitude from the ping record</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -503,8 +504,8 @@ dict for that Fqpr, the system identifier, the head index, and the vesselfile na
 </dd></dl>
 
 <dl class="py method">
-<dt id="HSTB.kluster.fqpr_project.FqprProject.return_line_owner">
-<code class="sig-name descname"><span class="pre">return_line_owner</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">line</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_project.FqprProject.return_line_owner" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="HSTB.kluster.fqpr_project.FqprProject.return_line_owner">
+<span class="sig-name descname"><span class="pre">return_line_owner</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">line</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_project.FqprProject.return_line_owner" title="Permalink to this definition">¶</a></dt>
 <dd><p>Return the Fqpr instance that contains the provided multibeam line</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -520,8 +521,8 @@ dict for that Fqpr, the system identifier, the head index, and the vesselfile na
 </dd></dl>
 
 <dl class="py method">
-<dt id="HSTB.kluster.fqpr_project.FqprProject.return_lines_in_box">
-<code class="sig-name descname"><span class="pre">return_lines_in_box</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">min_lat</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_lat</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_lon</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_lon</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_project.FqprProject.return_lines_in_box" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="HSTB.kluster.fqpr_project.FqprProject.return_lines_in_box">
+<span class="sig-name descname"><span class="pre">return_lines_in_box</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">min_lat</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_lat</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_lon</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_lon</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_project.FqprProject.return_lines_in_box" title="Permalink to this definition">¶</a></dt>
 <dd><p>With the given latitude/longitude boundaries, return the lines that are completely within these boundaries</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -542,8 +543,8 @@ dict for that Fqpr, the system identifier, the head index, and the vesselfile na
 </dd></dl>
 
 <dl class="py method">
-<dt id="HSTB.kluster.fqpr_project.FqprProject.return_project_folder">
-<code class="sig-name descname"><span class="pre">return_project_folder</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_project.FqprProject.return_project_folder" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="HSTB.kluster.fqpr_project.FqprProject.return_project_folder">
+<span class="sig-name descname"><span class="pre">return_project_folder</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_project.FqprProject.return_project_folder" title="Permalink to this definition">¶</a></dt>
 <dd><p>Return the project folder, the folder that contains the project file</p>
 <dl class="field-list simple">
 <dt class="field-odd">Returns</dt>
@@ -556,8 +557,8 @@ dict for that Fqpr, the system identifier, the head index, and the vesselfile na
 </dd></dl>
 
 <dl class="py method">
-<dt id="HSTB.kluster.fqpr_project.FqprProject.return_project_lines">
-<code class="sig-name descname"><span class="pre">return_project_lines</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">proj</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">relative_path</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_project.FqprProject.return_project_lines" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="HSTB.kluster.fqpr_project.FqprProject.return_project_lines">
+<span class="sig-name descname"><span class="pre">return_project_lines</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">proj</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">relative_path</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_project.FqprProject.return_project_lines" title="Permalink to this definition">¶</a></dt>
 <dd><p>Return the lines associated with the provided Fqpr path (proj) or all projects/lines</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -576,8 +577,8 @@ dict for that Fqpr, the system identifier, the head index, and the vesselfile na
 </dd></dl>
 
 <dl class="py method">
-<dt id="HSTB.kluster.fqpr_project.FqprProject.return_sorted_line_list">
-<code class="sig-name descname"><span class="pre">return_sorted_line_list</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_project.FqprProject.return_sorted_line_list" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="HSTB.kluster.fqpr_project.FqprProject.return_sorted_line_list">
+<span class="sig-name descname"><span class="pre">return_sorted_line_list</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_project.FqprProject.return_sorted_line_list" title="Permalink to this definition">¶</a></dt>
 <dd><p>Return all lines in the project sorted by name</p>
 <dl class="field-list simple">
 <dt class="field-odd">Returns</dt>
@@ -590,8 +591,8 @@ dict for that Fqpr, the system identifier, the head index, and the vesselfile na
 </dd></dl>
 
 <dl class="py method">
-<dt id="HSTB.kluster.fqpr_project.FqprProject.return_soundings_in_polygon">
-<code class="sig-name descname"><span class="pre">return_soundings_in_polygon</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">polygon</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_project.FqprProject.return_soundings_in_polygon" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="HSTB.kluster.fqpr_project.FqprProject.return_soundings_in_polygon">
+<span class="sig-name descname"><span class="pre">return_soundings_in_polygon</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">polygon</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_project.FqprProject.return_soundings_in_polygon" title="Permalink to this definition">¶</a></dt>
 <dd><p>With the given latitude/longitude polygon, return the soundings that are within the boundaries.  Use the
 Fqpr horizontal_crs recorded EPSG to do the transformation to northing/easting, and then query all the x, y to get
 the soundings.</p>
@@ -610,8 +611,8 @@ the soundings.</p>
 </dd></dl>
 
 <dl class="py method">
-<dt id="HSTB.kluster.fqpr_project.FqprProject.return_surface_containers">
-<code class="sig-name descname"><span class="pre">return_surface_containers</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">surface_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">relative_path</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_project.FqprProject.return_surface_containers" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="HSTB.kluster.fqpr_project.FqprProject.return_surface_containers">
+<span class="sig-name descname"><span class="pre">return_surface_containers</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">surface_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">relative_path</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_project.FqprProject.return_surface_containers" title="Permalink to this definition">¶</a></dt>
 <dd><p>Project has loaded surface and fqpr instances.  This method will return the names of the existing fqpr instances
 in the surface and a list of the fqpr instances in the project that are not in the surface yet.</p>
 <p>Fqpr instances marked with an asterisk are those that need to be updated in the surface.  The surface soundings
@@ -635,8 +636,8 @@ of the fqpr instance soundings is out of date</p></li>
 </dd></dl>
 
 <dl class="py method">
-<dt id="HSTB.kluster.fqpr_project.FqprProject.return_surface_paths">
-<code class="sig-name descname"><span class="pre">return_surface_paths</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_project.FqprProject.return_surface_paths" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="HSTB.kluster.fqpr_project.FqprProject.return_surface_paths">
+<span class="sig-name descname"><span class="pre">return_surface_paths</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_project.FqprProject.return_surface_paths" title="Permalink to this definition">¶</a></dt>
 <dd><p>Get the absolute paths to all loaded surface instances</p>
 <dl class="field-list simple">
 <dt class="field-odd">Returns</dt>
@@ -649,8 +650,8 @@ of the fqpr instance soundings is out of date</p></li>
 </dd></dl>
 
 <dl class="py method">
-<dt id="HSTB.kluster.fqpr_project.FqprProject.return_vessel_file">
-<code class="sig-name descname"><span class="pre">return_vessel_file</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_project.FqprProject.return_vessel_file" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="HSTB.kluster.fqpr_project.FqprProject.return_vessel_file">
+<span class="sig-name descname"><span class="pre">return_vessel_file</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_project.FqprProject.return_vessel_file" title="Permalink to this definition">¶</a></dt>
 <dd><p>Return the VesselFile instance for this project’s vessel_file path</p>
 <dl class="field-list simple">
 <dt class="field-odd">Returns</dt>
@@ -664,19 +665,19 @@ None</p>
 </dd></dl>
 
 <dl class="py method">
-<dt id="HSTB.kluster.fqpr_project.FqprProject.run_auto_patch_test">
-<code class="sig-name descname"><span class="pre">run_auto_patch_test</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">line_pairs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_project.FqprProject.run_auto_patch_test" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="HSTB.kluster.fqpr_project.FqprProject.run_auto_patch_test">
+<span class="sig-name descname"><span class="pre">run_auto_patch_test</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">line_pairs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_project.FqprProject.run_auto_patch_test" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="py method">
-<dt id="HSTB.kluster.fqpr_project.FqprProject.save_project">
-<code class="sig-name descname"><span class="pre">save_project</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_project.FqprProject.save_project" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="HSTB.kluster.fqpr_project.FqprProject.save_project">
+<span class="sig-name descname"><span class="pre">save_project</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_project.FqprProject.save_project" title="Permalink to this definition">¶</a></dt>
 <dd><p>Save the current FqprProject instance to file.  Use open_project to reload this instance.</p>
 </dd></dl>
 
 <dl class="py method">
-<dt id="HSTB.kluster.fqpr_project.FqprProject.set_settings">
-<code class="sig-name descname"><span class="pre">set_settings</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">settings</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_project.FqprProject.set_settings" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="HSTB.kluster.fqpr_project.FqprProject.set_settings">
+<span class="sig-name descname"><span class="pre">set_settings</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">settings</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_project.FqprProject.set_settings" title="Permalink to this definition">¶</a></dt>
 <dd><p>Set the project settings with the provided dictionary.  Pull out fqpr specific settings like whether or not
 to enable parallel write as well</p>
 <dl class="field-list simple">
@@ -687,8 +688,8 @@ to enable parallel write as well</p>
 </dd></dl>
 
 <dl class="py method">
-<dt id="HSTB.kluster.fqpr_project.FqprProject.sort_lines_patch_test_pairs">
-<code class="sig-name descname"><span class="pre">sort_lines_patch_test_pairs</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">line_list</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_project.FqprProject.sort_lines_patch_test_pairs" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="HSTB.kluster.fqpr_project.FqprProject.sort_lines_patch_test_pairs">
+<span class="sig-name descname"><span class="pre">sort_lines_patch_test_pairs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">line_list</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_project.FqprProject.sort_lines_patch_test_pairs" title="Permalink to this definition">¶</a></dt>
 <dd><p>Take the provided list of linenames and sort them into pairs for the patch test tool.  Each pair consists of two lines
 that are reciprocal and start/end in the same place.</p>
 <dl class="field-list simple">
@@ -707,7 +708,7 @@ that are reciprocal and start/end in the same place.</p>
 
 </dd></dl>
 
-</div>
+</section>
 
 
           </div>
@@ -795,7 +796,7 @@ that are reciprocal and start/end in the same place.</p>
   <h3 id="searchlabel">Quick search</h3>
     <div class="searchformwrapper">
     <form class="search" action="../search.html" method="get">
-      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
       <input type="submit" value="Go" />
     </form>
     </div>
@@ -817,7 +818,7 @@ that are reciprocal and start/end in the same place.</p>
       &copy;2020, Eric Younkin.
       
       |
-      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.5.2</a>
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 4.3.2</a>
       &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
       
       |

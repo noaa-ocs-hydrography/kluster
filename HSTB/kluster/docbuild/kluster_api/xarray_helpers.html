@@ -4,12 +4,13 @@
 <html>
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>xarray_helpers module &#8212; kluster 0.8.7 documentation</title>
-    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
-    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+    <title>xarray_helpers module &#8212; kluster 0.8.8 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/alabaster.css" />
     <link rel="stylesheet" type="text/css" href="../_static/graphviz.css" />
-    <script id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
     <script src="../_static/jquery.js"></script>
     <script src="../_static/underscore.js"></script>
     <script src="../_static/doctools.js"></script>
@@ -33,11 +34,11 @@
 
           <div class="body" role="main">
             
-  <div class="section" id="xarray-helpers-module">
+  <section id="xarray-helpers-module">
 <h1>xarray_helpers module<a class="headerlink" href="#xarray-helpers-module" title="Permalink to this headline">¶</a></h1>
-<div class="section" id="module-HSTB.kluster.xarray_helpers">
+<section id="module-HSTB.kluster.xarray_helpers">
 <span id="hstb-kluster-xarray-helpers-module"></span><h2>HSTB.kluster.xarray_helpers Module<a class="headerlink" href="#module-HSTB.kluster.xarray_helpers" title="Permalink to this headline">¶</a></h2>
-<div class="section" id="functions">
+<section id="functions">
 <h3>Functions<a class="headerlink" href="#functions" title="Permalink to this headline">¶</a></h3>
 <table class="longtable docutils align-default">
 <colgroup>
@@ -54,22 +55,22 @@
 <tr class="row-odd"><td><p><a class="reference internal" href="../api/HSTB.kluster.xarray_helpers.combine_xr_attributes.html#HSTB.kluster.xarray_helpers.combine_xr_attributes" title="HSTB.kluster.xarray_helpers.combine_xr_attributes"><code class="xref py py-obj docutils literal notranslate"><span class="pre">combine_xr_attributes</span></code></a>(datasets)</p></td>
 <td><p>xarray open_mfdataset only retains the attributes of the first dataset.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="../api/HSTB.kluster.xarray_helpers.compare_and_find_gaps.html#HSTB.kluster.xarray_helpers.compare_and_find_gaps" title="HSTB.kluster.xarray_helpers.compare_and_find_gaps"><code class="xref py py-obj docutils literal notranslate"><span class="pre">compare_and_find_gaps</span></code></a>(source_dat, new_dat[, …])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="../api/HSTB.kluster.xarray_helpers.compare_and_find_gaps.html#HSTB.kluster.xarray_helpers.compare_and_find_gaps" title="HSTB.kluster.xarray_helpers.compare_and_find_gaps"><code class="xref py py-obj docutils literal notranslate"><span class="pre">compare_and_find_gaps</span></code></a>(source_dat, new_dat[, ...])</p></td>
 <td><p>So far, mostly used with Applanix POSPac SBETs.</p></td>
 </tr>
 <tr class="row-odd"><td><p><a class="reference internal" href="../api/HSTB.kluster.xarray_helpers.divide_arrays_by_time_index.html#HSTB.kluster.xarray_helpers.divide_arrays_by_time_index" title="HSTB.kluster.xarray_helpers.divide_arrays_by_time_index"><code class="xref py py-obj docutils literal notranslate"><span class="pre">divide_arrays_by_time_index</span></code></a>(arrs, idx)</p></td>
 <td><p>Simple method for indexing a list of arrays</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="../api/HSTB.kluster.xarray_helpers.get_beamwise_interpolation.html#HSTB.kluster.xarray_helpers.get_beamwise_interpolation" title="HSTB.kluster.xarray_helpers.get_beamwise_interpolation"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_beamwise_interpolation</span></code></a>(pingtime, …)</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="../api/HSTB.kluster.xarray_helpers.get_beamwise_interpolation.html#HSTB.kluster.xarray_helpers.get_beamwise_interpolation" title="HSTB.kluster.xarray_helpers.get_beamwise_interpolation"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_beamwise_interpolation</span></code></a>(pingtime, ...)</p></td>
 <td><p>Given ping time and beamwise time addition (delay), return a 2d interpolated version of the provided 1d Dataarray.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="../api/HSTB.kluster.xarray_helpers.interp_across_chunks.html#HSTB.kluster.xarray_helpers.interp_across_chunks" title="HSTB.kluster.xarray_helpers.interp_across_chunks"><code class="xref py py-obj docutils literal notranslate"><span class="pre">interp_across_chunks</span></code></a>(xarr, new_times[, …])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="../api/HSTB.kluster.xarray_helpers.interp_across_chunks.html#HSTB.kluster.xarray_helpers.interp_across_chunks" title="HSTB.kluster.xarray_helpers.interp_across_chunks"><code class="xref py py-obj docutils literal notranslate"><span class="pre">interp_across_chunks</span></code></a>(xarr, new_times[, ...])</p></td>
 <td><p>Takes in xarr and interpolates to new_times.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="../api/HSTB.kluster.xarray_helpers.my_open_mfdataset.html#HSTB.kluster.xarray_helpers.my_open_mfdataset" title="HSTB.kluster.xarray_helpers.my_open_mfdataset"><code class="xref py py-obj docutils literal notranslate"><span class="pre">my_open_mfdataset</span></code></a>(paths[, chnks, …])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="../api/HSTB.kluster.xarray_helpers.my_open_mfdataset.html#HSTB.kluster.xarray_helpers.my_open_mfdataset" title="HSTB.kluster.xarray_helpers.my_open_mfdataset"><code class="xref py py-obj docutils literal notranslate"><span class="pre">my_open_mfdataset</span></code></a>(paths[, chnks, ...])</p></td>
 <td><p>Trying to address the limitations of the existing xr.open_mfdataset function.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="../api/HSTB.kluster.xarray_helpers.reform_nan_array.html#HSTB.kluster.xarray_helpers.reform_nan_array" title="HSTB.kluster.xarray_helpers.reform_nan_array"><code class="xref py py-obj docutils literal notranslate"><span class="pre">reform_nan_array</span></code></a>(dataarray_stack, orig_idx, …)</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="../api/HSTB.kluster.xarray_helpers.reform_nan_array.html#HSTB.kluster.xarray_helpers.reform_nan_array" title="HSTB.kluster.xarray_helpers.reform_nan_array"><code class="xref py py-obj docutils literal notranslate"><span class="pre">reform_nan_array</span></code></a>(dataarray_stack, orig_idx, ...)</p></td>
 <td><p>To handle NaN values in our input arrays, we flatten and index only the valid values.</p></td>
 </tr>
 <tr class="row-even"><td><p><a class="reference internal" href="../api/HSTB.kluster.xarray_helpers.reload_zarr_records.html#HSTB.kluster.xarray_helpers.reload_zarr_records" title="HSTB.kluster.xarray_helpers.reload_zarr_records"><code class="xref py py-obj docutils literal notranslate"><span class="pre">reload_zarr_records</span></code></a>(pth[, skip_dask, sort_by])</p></td>
@@ -81,7 +82,7 @@
 <tr class="row-even"><td><p><a class="reference internal" href="../api/HSTB.kluster.xarray_helpers.return_chunk_slices.html#HSTB.kluster.xarray_helpers.return_chunk_slices" title="HSTB.kluster.xarray_helpers.return_chunk_slices"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_chunk_slices</span></code></a>(xarr)</p></td>
 <td><p>Xarray objects are chunked for easy parallelism.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="../api/HSTB.kluster.xarray_helpers.slice_xarray_by_dim.html#HSTB.kluster.xarray_helpers.slice_xarray_by_dim" title="HSTB.kluster.xarray_helpers.slice_xarray_by_dim"><code class="xref py py-obj docutils literal notranslate"><span class="pre">slice_xarray_by_dim</span></code></a>(arr[, dimname, …])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="../api/HSTB.kluster.xarray_helpers.slice_xarray_by_dim.html#HSTB.kluster.xarray_helpers.slice_xarray_by_dim" title="HSTB.kluster.xarray_helpers.slice_xarray_by_dim"><code class="xref py py-obj docutils literal notranslate"><span class="pre">slice_xarray_by_dim</span></code></a>(arr[, dimname, ...])</p></td>
 <td><p>Slice the input xarray dataset/dataarray by provided start_time and end_time.</p></td>
 </tr>
 <tr class="row-even"><td><p><a class="reference internal" href="../api/HSTB.kluster.xarray_helpers.stack_nan_array.html#HSTB.kluster.xarray_helpers.stack_nan_array" title="HSTB.kluster.xarray_helpers.stack_nan_array"><code class="xref py py-obj docutils literal notranslate"><span class="pre">stack_nan_array</span></code></a>(dataarray[, stack_dims])</p></td>
@@ -95,9 +96,9 @@
 </tr>
 </tbody>
 </table>
-</div>
-</div>
-</div>
+</section>
+</section>
+</section>
 
 
           </div>
@@ -182,7 +183,7 @@
   <h3 id="searchlabel">Quick search</h3>
     <div class="searchformwrapper">
     <form class="search" action="../search.html" method="get">
-      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
       <input type="submit" value="Go" />
     </form>
     </div>
@@ -204,7 +205,7 @@
       &copy;2020, Eric Younkin.
       
       |
-      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.5.2</a>
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 4.3.2</a>
       &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
       
       |
