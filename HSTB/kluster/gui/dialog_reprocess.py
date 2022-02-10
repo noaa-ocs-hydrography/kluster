@@ -28,7 +28,7 @@ class ReprocessDialog(QtWidgets.QDialog):
         layout.addWidget(self.curstatus_lbl)
 
         newstatus_layout = QtWidgets.QHBoxLayout()
-        self.newstatus_lbl = QtWidgets.QLabel('Start over at: ')
+        self.newstatus_lbl = QtWidgets.QLabel('New Status: ')
         newstatus_layout.addWidget(self.newstatus_lbl)
         statkeys = []
         for ky, val in kluster_variables.status_reverse_lookup.items():
@@ -56,7 +56,7 @@ class ReprocessDialog(QtWidgets.QDialog):
 
     def set_status(self):
         self.newstatus = self.newstatus_dropdown.currentText()
-        self.newstatus = kluster_variables.status_reverse_lookup[self.newstatus] - 1
+        self.newstatus = kluster_variables.status_reverse_lookup[self.newstatus]
         self.canceled = False
         self.accept()
 

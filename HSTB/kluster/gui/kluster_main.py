@@ -783,7 +783,7 @@ class KlusterMain(QtWidgets.QMainWindow):
 
     def reprocess_fqpr(self):
         """
-        Right click an fqpr instance and trigger full reprocessing, should only be necessary in case of emergency.
+        Right click an fqpr instance and trigger reprocessing, should only be necessary in case of emergency.
         """
 
         fqprs, linedict = self.project_tree.return_selected_fqprs()
