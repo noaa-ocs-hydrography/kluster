@@ -4,12 +4,13 @@
 <html>
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Vessel Setup &#8212; kluster 0.8.7 documentation</title>
-    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
-    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+    <title>Vessel Setup &#8212; kluster 0.8.8 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/alabaster.css" />
     <link rel="stylesheet" type="text/css" href="../_static/graphviz.css" />
-    <script id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
     <script src="../_static/jquery.js"></script>
     <script src="../_static/underscore.js"></script>
     <script src="../_static/doctools.js"></script>
@@ -33,12 +34,12 @@
 
           <div class="body" role="main">
             
-  <div class="section" id="vessel-setup">
+  <section id="vessel-setup">
 <h1>Vessel Setup<a class="headerlink" href="#vessel-setup" title="Permalink to this headline">¶</a></h1>
 <p>The multibeam file contains a record of the sonar installation offsets and angles as they are entered in the multibeam acquisition software (SIS in the case of Kongsberg sonar).  Kluster will take that record and use it as a starting point, allowing you to further alter these records using the Vessel Setup screen.</p>
 <p>The Vessel Setup tool has the directions displayed at the bottom of the window for how to move and rotate the display.</p>
 <p>The basic idea here is that when you process in Kluster (the second step after conversion) you need to know offsets/angles and uncertainty parameters to do the calculations in the correct way.  You can’t use the positioning you get from the positioning system without knowing where it is in relation to the multibeam, now can you?  The data you see in the Vessel Setup allows you to do these calculations, so it is very important you get it right.  If your data looks ok in the sonar screens (SIS for Kongsberg), you are probably at least on the right track, as Kluster will use those values in the processing.  If there are multiple entries, it uses the nearest one in time that is prior to the time of acquisition, which is why all the entries in the Vessel Setup have an associated time.</p>
-<div class="section" id="using-the-multibeam-xyzrph">
+<section id="using-the-multibeam-xyzrph">
 <h2>Using the multibeam xyzrph<a class="headerlink" href="#using-the-multibeam-xyzrph" title="Permalink to this headline">¶</a></h2>
 <p>The simplest way to do this is to highlight one of your converted datasets, and select Setup - Vessel Offsets.  The tool will take the entries in this converted data instance and show them on the screen.  These entries can also be viewed in the attribute window, see the xyzrph attribute.  You’ll see the xyzrph attribute has the entries with the corresponding UTC seconds, where the Vessel Setup tool shows the translated UTC date.  In the below example, we can see that 1495563079 in UTC seconds is equivalent to 05/23/2017 1411 UTC.</p>
 <a class="reference external image-reference" href="../_images/vessel_setup_1.png"><img alt="../_images/vessel_setup_1.png" src="../_images/vessel_setup_1.png" /></a>
@@ -50,16 +51,16 @@
 <p>It’s not an exact process, but I think it is useful to just have a rough idea of a boat to picture where sensors are.  Again, you can always just ignore this part of the Vessel Setup if you like.</p>
 <p>Let’s save these changes we’ve made back to the original xyzrph record.  Simply go to close the Vessel Setup tool by clicking the X in the top right of the window.  It will ask you to save the changes.  Select Yes.  It then asks you if you want to update the multibeam data, build a new vessel file, or cancel.  Hit No here to update multibeam data.  Now when you reopen the Vessel Setup tool, it will show the changes we have made.  You can also see the changes in the xyzrph attribute.</p>
 <a class="reference external image-reference" href="../_images/vessel_setup_3.png"><img alt="../_images/vessel_setup_3.png" src="../_images/vessel_setup_3.png" /></a>
-</div>
-<div class="section" id="using-the-vessel-file">
+</section>
+<section id="using-the-vessel-file">
 <h2>Using the Vessel File<a class="headerlink" href="#using-the-vessel-file" title="Permalink to this headline">¶</a></h2>
 <p>Now let’s talk about the vessel file.  Let’s say you want a single place to hold the offsets/angles for multiple vessels across multiple days.  You want to store those in a single place so that you can look at them later.  You also want the ability to override the offsets and angles in new multibeam data with values you have calculated yourself.  The vessel file can do this.  It’s a pretty simple process too!</p>
 <p>With our converted data loaded in Kluster, simply go to File - New Vessel File and add a new file.  Save it wherever you like.  I’m going to just put it next to my multibeam data.  You’ll notice that the vessel file shows up in the Project Tree.</p>
 <a class="reference external image-reference" href="../_images/vessel_setup_4.png"><img alt="../_images/vessel_setup_4.png" src="../_images/vessel_setup_4.png" /></a>
 <p>This new vessel file will contain all the xyzrph data of all currently loaded converted datasets.  We only have this one converted dataset, so that’s what will be in the file.  We can examine the file by going to Setup - Vessel Offsets.  You’ll see that this time, there is a file in the Vessel File section.  We can make changes to this file in the same way as before, except this time, we save a new file instead of updating the multibeam data.  You’ll notice that you no longer have that option, just to make sure we don’t mess up our multibeam data!</p>
 <p>If you want to go back to just working with the multibeam data xyzrph, you have to close the vessel file.</p>
-</div>
-<div class="section" id="vessel-setup-and-actions">
+</section>
+<section id="vessel-setup-and-actions">
 <h2>Vessel Setup and Actions<a class="headerlink" href="#vessel-setup-and-actions" title="Permalink to this headline">¶</a></h2>
 <p>Let’s get rid of the vessel file for this next section (if you have one loaded) by going to File - Close Project.  Then we drag in our converted data (the ‘em2040_40111_05_23_2017’ if you are using the data I have on the GitHub repo) to get back to where we were prior to the Using the Vessel File section.</p>
 <a class="reference external image-reference" href="../_images/vessel_setup_5.png"><img alt="../_images/vessel_setup_5.png" src="../_images/vessel_setup_5.png" /></a>
@@ -81,8 +82,8 @@
 <p>Go ahead and run this action to clear it.  It will only do the TPU processing, so it should be pretty quick.  Now let’s go back to the vessel file for a bit.  Go to File - Open Vessel File to load it back in.  On loading it back in, you’ll notice there is a new TPU action.  Its the action to reprocess to get us back to a Beam Opening Angle of 1.3 degrees, or whatever your original value was!  The original value is contained in the vessel file, since we added the vessel file to the project before we made the change to the Beam Opening Angle.</p>
 <p>And here is a nice feature of the vessel file.  Without the vessel file, we are locked in to any change we make when updating the multibeam xyzrph data.  But with the vessel file, we have a separate xyzrph dataset, so we can back out changes without running the actions!</p>
 <p>Let’s try this out.  We currently have an action to process only computing TPU, to get back to our original processed TPU before we made that Beam Opening Angle change.  If we go into Vessel Setup, change the Beam Opening Angle to 1.5 degrees and hit update, close the vessel setup saving our changes, and overwrite our existing vessel file, the action should go away!  This is because the vessel file now matches the multibeam xyzrph so there is no action anymore.  So we can make and undo changes with the vessel file, which is a pretty nice feature.</p>
-</div>
-<div class="section" id="importing-data">
+</section>
+<section id="importing-data">
 <h2>Importing Data<a class="headerlink" href="#importing-data" title="Permalink to this headline">¶</a></h2>
 <p>In addition to viewing and editing offsets and angles from converted multibeam data, we can also import directly from these files.  Let’s try it out here.  If you have data loaded in Kluster already, go ahead and go to File - Close Project.  You don’t have to do this, but it will make the import process and how it works a little bit clearer.  With no data loaded in Kluster, go to Setup - Vessel Offsets.  You’ll see it come up blank, just like this:</p>
 <a class="reference external image-reference" href="../_images/vessel_setup_7.png"><img alt="../_images/vessel_setup_7.png" src="../_images/vessel_setup_7.png" /></a>
@@ -96,16 +97,16 @@
 <li><p>Go into Vessel Setup and import the POS MV file to get the antenna location.</p></li>
 <li><p>Save to multibeam xyzrph, and hit start process again to complete the processing.</p></li>
 </ul>
-</div>
-<div class="section" id="adding-and-editing-entries">
+</section>
+<section id="adding-and-editing-entries">
 <h2>Adding and Editing Entries<a class="headerlink" href="#adding-and-editing-entries" title="Permalink to this headline">¶</a></h2>
 <p>You might want to add a new timestamped entry manually to the Vessel Setup, or edit the time of an existing entry.  Kluster allows you to do both of these, using the Edit tools.</p>
 <p>To edit the timestamp of an existing entry, simply have that entry loaded (in the UTC Date dropdown) and go to Edit - Alter Timestamp.  Then put in a new timestamp.  Remember in Kluster, we will be using the Vessel Setup entry that is nearest in time to each ping but prior to the time of ping.</p>
 <p>To add a new timestamp to an existing entry, go to Edit - New Entry.  Enter in the timestamp for the new data and watch as the existing entry is duplicated under the new timestamp.  You can now edit this entry to have the values you want.</p>
 <div class="toctree-wrapper compound">
 </div>
-</div>
-</div>
+</section>
+</section>
 
 
           </div>
@@ -161,7 +162,7 @@
   <h3 id="searchlabel">Quick search</h3>
     <div class="searchformwrapper">
     <form class="search" action="../search.html" method="get">
-      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
       <input type="submit" value="Go" />
     </form>
     </div>
@@ -183,7 +184,7 @@
       &copy;2020, Eric Younkin.
       
       |
-      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.5.2</a>
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 4.3.2</a>
       &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
       
       |

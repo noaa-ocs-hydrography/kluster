@@ -4,12 +4,13 @@
 <html>
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>VesselFile &#8212; kluster 0.8.7 documentation</title>
-    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
-    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+    <title>VesselFile &#8212; kluster 0.8.8 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/alabaster.css" />
     <link rel="stylesheet" type="text/css" href="../_static/graphviz.css" />
-    <script id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
     <script src="../_static/jquery.js"></script>
     <script src="../_static/underscore.js"></script>
     <script src="../_static/doctools.js"></script>
@@ -33,11 +34,11 @@
 
           <div class="body" role="main">
             
-  <div class="section" id="vesselfile">
+  <section id="vesselfile">
 <h1>VesselFile<a class="headerlink" href="#vesselfile" title="Permalink to this headline">¶</a></h1>
 <dl class="py class">
-<dt id="HSTB.kluster.fqpr_vessel.VesselFile">
-<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">HSTB.kluster.fqpr_vessel.</span></code><code class="sig-name descname"><span class="pre">VesselFile</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">filepath</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_vessel.VesselFile" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="HSTB.kluster.fqpr_vessel.VesselFile">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">HSTB.kluster.fqpr_vessel.</span></span><span class="sig-name descname"><span class="pre">VesselFile</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">filepath</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_vessel.VesselFile" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
 <p>Class to manage the vessel configuration file (.kfc) for Kluster.  Holds the tpu parameters and lever arm information
 for each system in the project.  Stored in a nested dictionary that looks like this:
@@ -65,8 +66,8 @@ serial number1: {sensor_name1: {utc timestamp1: value, utc timestamp2: value, �
 </table>
 <p class="rubric">Methods Documentation</p>
 <dl class="py method">
-<dt id="HSTB.kluster.fqpr_vessel.VesselFile.open">
-<code class="sig-name descname"><span class="pre">open</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">filepath</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_vessel.VesselFile.open" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="HSTB.kluster.fqpr_vessel.VesselFile.open">
+<span class="sig-name descname"><span class="pre">open</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">filepath</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_vessel.VesselFile.open" title="Permalink to this definition">¶</a></dt>
 <dd><p>Open from a Vessel File json instance (vessel configuration file (.kfc))</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -76,8 +77,8 @@ serial number1: {sensor_name1: {utc timestamp1: value, utc timestamp2: value, �
 </dd></dl>
 
 <dl class="py method">
-<dt id="HSTB.kluster.fqpr_vessel.VesselFile.return_data">
-<code class="sig-name descname"><span class="pre">return_data</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">serial_number</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">starttime</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">endtime</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_vessel.VesselFile.return_data" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="HSTB.kluster.fqpr_vessel.VesselFile.return_data">
+<span class="sig-name descname"><span class="pre">return_data</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">serial_number</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">starttime</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">endtime</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_vessel.VesselFile.return_data" title="Permalink to this definition">¶</a></dt>
 <dd><p>Get the vessel file timstamped entries that fall within the provided starttime/endtime.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -97,8 +98,8 @@ serial number1: {sensor_name1: {utc timestamp1: value, utc timestamp2: value, �
 </dd></dl>
 
 <dl class="py method">
-<dt id="HSTB.kluster.fqpr_vessel.VesselFile.save">
-<code class="sig-name descname"><span class="pre">save</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">filepath</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_vessel.VesselFile.save" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="HSTB.kluster.fqpr_vessel.VesselFile.save">
+<span class="sig-name descname"><span class="pre">save</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">filepath</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_vessel.VesselFile.save" title="Permalink to this definition">¶</a></dt>
 <dd><p>Save the internal vessel file data to a json file</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -108,8 +109,8 @@ serial number1: {sensor_name1: {utc timestamp1: value, utc timestamp2: value, �
 </dd></dl>
 
 <dl class="py method">
-<dt id="HSTB.kluster.fqpr_vessel.VesselFile.update">
-<code class="sig-name descname"><span class="pre">update</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">serial_number</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">carry_over_tpu</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_vessel.VesselFile.update" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="HSTB.kluster.fqpr_vessel.VesselFile.update">
+<span class="sig-name descname"><span class="pre">update</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">serial_number</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">carry_over_tpu</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_vessel.VesselFile.update" title="Permalink to this definition">¶</a></dt>
 <dd><p>Call to update the internal vessel settings data (still must call save to write to disk).  If the data provided
 does not match the internal data, will overwrite the internal data.  Will do the following additional tasks:
 compare the provided data and the internal data and determine if:</p>
@@ -132,7 +133,7 @@ compare all entries and only retain the earliest entry if you find two entries t
 
 </dd></dl>
 
-</div>
+</section>
 
 
           </div>
@@ -220,7 +221,7 @@ compare all entries and only retain the earliest entry if you find two entries t
   <h3 id="searchlabel">Quick search</h3>
     <div class="searchformwrapper">
     <form class="search" action="../search.html" method="get">
-      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
       <input type="submit" value="Go" />
     </form>
     </div>
@@ -242,7 +243,7 @@ compare all entries and only retain the earliest entry if you find two entries t
       &copy;2020, Eric Younkin.
       
       |
-      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.5.2</a>
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 4.3.2</a>
       &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
       
       |

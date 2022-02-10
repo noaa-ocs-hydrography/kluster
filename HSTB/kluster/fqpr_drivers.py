@@ -8,7 +8,7 @@ functions here, (and you add the format to kluster_variables supported_XXXXXX li
 import os
 import numpy as np
 
-from HSTB.kluster.kluster_variables import supported_multibeam, supported_ppnav, supported_ppnav_log, supported_sv
+from HSTB.kluster import kluster_variables
 from HSTB.drivers import kmall, par3, sbet, svp, PCSio
 
 
@@ -18,14 +18,14 @@ sonar_reference_point = {'.all': ['tx_x', 'tx_y', 'tx_z'],
 
 def _check_multibeam_file(multibeam_file: str):
     fileext = os.path.splitext(multibeam_file)[1]
-    if fileext not in supported_multibeam:
-        raise NotImplementedError('fqpr_drivers: File ({}) is not a Kluster supported multibeam file ({})'.format(multibeam_file, supported_multibeam))
+    if fileext not in kluster_variables.supported_multibeam:
+        raise NotImplementedError('fqpr_drivers: File ({}) is not a Kluster supported multibeam file ({})'.format(multibeam_file, kluster_variables.supported_multibeam))
 
 
 def _check_sbet_file(sbet_file: str):
     fileext = os.path.splitext(sbet_file)[1]
-    if fileext not in supported_ppnav:
-        raise NotImplementedError('fqpr_drivers: File ({}) is not a Kluster supported post processed navigation (SBET) file ({})'.format(sbet_file, supported_ppnav))
+    if fileext not in kluster_variables.supported_ppnav:
+        raise NotImplementedError('fqpr_drivers: File ({}) is not a Kluster supported post processed navigation (SBET) file ({})'.format(sbet_file, kluster_variables.supported_ppnav))
 
 
 def _check_pos_file(pos_file: str):
@@ -38,14 +38,14 @@ def _check_pos_file(pos_file: str):
 
 def _check_export_log_file(log_file: str):
     fileext = os.path.splitext(log_file)[1]
-    if fileext not in supported_ppnav_log:
-        raise NotImplementedError('fqpr_drivers: File ({}) is not a Kluster supported export log file ({})'.format(log_file, supported_ppnav_log))
+    if fileext not in kluster_variables.supported_ppnav_log:
+        raise NotImplementedError('fqpr_drivers: File ({}) is not a Kluster supported export log file ({})'.format(log_file, kluster_variables.supported_ppnav_log))
 
 
 def _check_svp_file(svp_file: str):
     fileext = os.path.splitext(svp_file)[1]
-    if fileext not in supported_sv:
-        raise NotImplementedError('fqpr_drivers: File ({}) is not a Kluster supported sound velocity file ({})'.format(svp_file, supported_sv))
+    if fileext not in kluster_variables.supported_sv:
+        raise NotImplementedError('fqpr_drivers: File ({}) is not a Kluster supported sound velocity file ({})'.format(svp_file, kluster_variables.supported_sv))
 
 
 def fast_read_multibeam_metadata(multibeam_file: str, gather_times: bool = True, gather_serialnumber: bool = True):

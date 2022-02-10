@@ -4,12 +4,13 @@
 <html>
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>BatchRead &#8212; kluster 0.8.7 documentation</title>
-    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
-    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+    <title>BatchRead &#8212; kluster 0.8.8 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/alabaster.css" />
     <link rel="stylesheet" type="text/css" href="../_static/graphviz.css" />
-    <script id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
     <script src="../_static/jquery.js"></script>
     <script src="../_static/underscore.js"></script>
     <script src="../_static/doctools.js"></script>
@@ -33,11 +34,11 @@
 
           <div class="body" role="main">
             
-  <div class="section" id="batchread">
+  <section id="batchread">
 <h1>BatchRead<a class="headerlink" href="#batchread" title="Permalink to this headline">¶</a></h1>
 <dl class="py class">
-<dt id="HSTB.kluster.xarray_conversion.BatchRead">
-<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">HSTB.kluster.xarray_conversion.</span></code><code class="sig-name descname"><span class="pre">BatchRead</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">filfolder</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dest</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">address</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">client</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">minchunksize</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">40000000</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_chunks</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">20</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filtype</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'zarr'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skip_dask</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dashboard</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">show_progress</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">parallel_write</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.xarray_conversion.BatchRead" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="HSTB.kluster.xarray_conversion.BatchRead">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">HSTB.kluster.xarray_conversion.</span></span><span class="sig-name descname"><span class="pre">BatchRead</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">filfolder</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dest</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">address</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">client</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">minchunksize</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">40000000</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_chunks</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">20</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filtype</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'zarr'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skip_dask</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dashboard</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">show_progress</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">parallel_write</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.xarray_conversion.BatchRead" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">HSTB.kluster.backends._zarr.ZarrBackend</span></code></p>
 <p>BatchRead - multibeam data converter using dask infrastructure and xarray data types
 Pass in multibeam files, call read(), and gain access to xarray Datasets for each data type</p>
@@ -166,7 +167,7 @@ Pass in multibeam files, call read(), and gain access to xarray Datasets for eac
 <tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.xarray_conversion.BatchRead.read_from_netcdf_fils" title="HSTB.kluster.xarray_conversion.BatchRead.read_from_netcdf_fils"><code class="xref py py-obj docutils literal notranslate"><span class="pre">read_from_netcdf_fils</span></code></a>(ping_pths, attitude_pths)</p></td>
 <td><p>Read from the generated netCDF files constructed with read()</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.xarray_conversion.BatchRead.read_from_zarr_fils" title="HSTB.kluster.xarray_conversion.BatchRead.read_from_zarr_fils"><code class="xref py py-obj docutils literal notranslate"><span class="pre">read_from_zarr_fils</span></code></a>(ping_pth, attitude_pth, …)</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.xarray_conversion.BatchRead.read_from_zarr_fils" title="HSTB.kluster.xarray_conversion.BatchRead.read_from_zarr_fils"><code class="xref py py-obj docutils literal notranslate"><span class="pre">read_from_zarr_fils</span></code></a>(ping_pth, attitude_pth, ...)</p></td>
 <td><p>Read from the generated zarr datastores constructed with read()</p></td>
 </tr>
 <tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.xarray_conversion.BatchRead.reload_pingrecords" title="HSTB.kluster.xarray_conversion.BatchRead.reload_pingrecords"><code class="xref py py-obj docutils literal notranslate"><span class="pre">reload_pingrecords</span></code></a>([skip_dask])</p></td>
@@ -215,8 +216,8 @@ Pass in multibeam files, call read(), and gain access to xarray Datasets for eac
 </table>
 <p class="rubric">Methods Documentation</p>
 <dl class="py method">
-<dt id="HSTB.kluster.xarray_conversion.BatchRead.batch_read">
-<code class="sig-name descname"><span class="pre">batch_read</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">output_mode</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'zarr'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.xarray_conversion.BatchRead.batch_read" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="HSTB.kluster.xarray_conversion.BatchRead.batch_read">
+<span class="sig-name descname"><span class="pre">batch_read</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">output_mode</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'zarr'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.xarray_conversion.BatchRead.batch_read" title="Permalink to this definition">¶</a></dt>
 <dd><p>General converter for .all files leveraging xarray and dask.distributed
 See batch_read, same process but working on memory efficiency</p>
 <dl class="field-list simple">
@@ -233,8 +234,8 @@ See batch_read, same process but working on memory efficiency</p>
 </dd></dl>
 
 <dl class="py method">
-<dt id="HSTB.kluster.xarray_conversion.BatchRead.build_additional_line_metadata">
-<code class="sig-name descname"><span class="pre">build_additional_line_metadata</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">save_pths</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.xarray_conversion.BatchRead.build_additional_line_metadata" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="HSTB.kluster.xarray_conversion.BatchRead.build_additional_line_metadata">
+<span class="sig-name descname"><span class="pre">build_additional_line_metadata</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">save_pths</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.xarray_conversion.BatchRead.build_additional_line_metadata" title="Permalink to this definition">¶</a></dt>
 <dd><p>After conversion, we run this additional step to build the line specific values to store as metadata.  The end result
 is a ‘multibeam_files’ attribute that stores [mintime, maxtime, start_latitude, start_longitude, end_latitude,
 end_longitude, azimuth]</p>
@@ -246,8 +247,8 @@ end_longitude, azimuth]</p>
 </dd></dl>
 
 <dl class="py method">
-<dt id="HSTB.kluster.xarray_conversion.BatchRead.build_offsets">
-<code class="sig-name descname"><span class="pre">build_offsets</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">save_pths</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.xarray_conversion.BatchRead.build_offsets" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="HSTB.kluster.xarray_conversion.BatchRead.build_offsets">
+<span class="sig-name descname"><span class="pre">build_offsets</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">save_pths</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.xarray_conversion.BatchRead.build_offsets" title="Permalink to this definition">¶</a></dt>
 <dd><p>Form sorteddict for unique entries in installation parameters across all lines, retaining the xyzrph for each
 transducer/receiver.  key values depend on type of sonar, see sonar_translator</p>
 <p>Modifies the xyzrph attribute with timestamp dictionary of entries</p>
@@ -259,8 +260,8 @@ transducer/receiver.  key values depend on type of sonar, see sonar_translator</
 </dd></dl>
 
 <dl class="py method">
-<dt id="HSTB.kluster.xarray_conversion.BatchRead.correct_for_counter_reset">
-<code class="sig-name descname"><span class="pre">correct_for_counter_reset</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.xarray_conversion.BatchRead.correct_for_counter_reset" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="HSTB.kluster.xarray_conversion.BatchRead.correct_for_counter_reset">
+<span class="sig-name descname"><span class="pre">correct_for_counter_reset</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.xarray_conversion.BatchRead.correct_for_counter_reset" title="Permalink to this definition">¶</a></dt>
 <dd><p>Ping counter (at least with the Kongsberg systems) is a 16 bit unsigned integer that will just reset once it
 reaches 65536.  This zero crossing can happen multiple times in a kluster dataset, as it comprises multiple
 survey lines.  We need to handle this by reading it as a larger datatype (int64) and add the int16 limit
@@ -272,14 +273,14 @@ these sector based datasets.</p>
 </dd></dl>
 
 <dl class="py method">
-<dt id="HSTB.kluster.xarray_conversion.BatchRead.initialize_log">
-<code class="sig-name descname"><span class="pre">initialize_log</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.xarray_conversion.BatchRead.initialize_log" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="HSTB.kluster.xarray_conversion.BatchRead.initialize_log">
+<span class="sig-name descname"><span class="pre">initialize_log</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.xarray_conversion.BatchRead.initialize_log" title="Permalink to this definition">¶</a></dt>
 <dd><p>Initialize the logger, which writes to logfile, that is made at the root folder housing the converted data</p>
 </dd></dl>
 
 <dl class="py method">
-<dt id="HSTB.kluster.xarray_conversion.BatchRead.is_dual_head">
-<code class="sig-name descname"><span class="pre">is_dual_head</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.xarray_conversion.BatchRead.is_dual_head" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="HSTB.kluster.xarray_conversion.BatchRead.is_dual_head">
+<span class="sig-name descname"><span class="pre">is_dual_head</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.xarray_conversion.BatchRead.is_dual_head" title="Permalink to this definition">¶</a></dt>
 <dd><p>Use the xyzrph keys to determine if sonar is dual head.  Port/Starboard identifiers will exist if dual.
 Kongsberg writes both heads to one file, only identifiable by serial number (each head will have a different
 serial number)</p>
@@ -294,8 +295,8 @@ serial number)</p>
 </dd></dl>
 
 <dl class="py method">
-<dt id="HSTB.kluster.xarray_conversion.BatchRead.read">
-<code class="sig-name descname"><span class="pre">read</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">build_offsets</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.xarray_conversion.BatchRead.read" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="HSTB.kluster.xarray_conversion.BatchRead.read">
+<span class="sig-name descname"><span class="pre">read</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">build_offsets</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.xarray_conversion.BatchRead.read" title="Permalink to this definition">¶</a></dt>
 <dd><p>Run the batch_read method on all available lines, writes to datastore (netcdf/zarr depending on self.filtype),
 and loads the data back into the class as self.raw_ping, self.raw_att.</p>
 <p>If data loads correctly, builds out the self.xyzrph attribute and translates the runtime parameters to a usable
@@ -309,8 +310,8 @@ it optional so that when processing chunks of files, we can just run it once at 
 </dd></dl>
 
 <dl class="py method">
-<dt id="HSTB.kluster.xarray_conversion.BatchRead.read_from_netcdf_fils">
-<code class="sig-name descname"><span class="pre">read_from_netcdf_fils</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ping_pths</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">attitude_pths</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.xarray_conversion.BatchRead.read_from_netcdf_fils" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="HSTB.kluster.xarray_conversion.BatchRead.read_from_netcdf_fils">
+<span class="sig-name descname"><span class="pre">read_from_netcdf_fils</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ping_pths</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">attitude_pths</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.xarray_conversion.BatchRead.read_from_netcdf_fils" title="Permalink to this definition">¶</a></dt>
 <dd><p>Read from the generated netCDF files constructed with read()</p>
 <p><strong>Currently some issues with open_mfdataset that I’ve not resolved.  Using it with the dask distributed
 cluster active results in worker errors/hdf errors.  Using it without the distributed cluster works fine.  So
@@ -327,8 +328,8 @@ I built my own writer.</strong></p>
 </dd></dl>
 
 <dl class="py method">
-<dt id="HSTB.kluster.xarray_conversion.BatchRead.read_from_zarr_fils">
-<code class="sig-name descname"><span class="pre">read_from_zarr_fils</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ping_pth</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">attitude_pth</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logfile_pth</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.xarray_conversion.BatchRead.read_from_zarr_fils" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="HSTB.kluster.xarray_conversion.BatchRead.read_from_zarr_fils">
+<span class="sig-name descname"><span class="pre">read_from_zarr_fils</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ping_pth</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">attitude_pth</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logfile_pth</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.xarray_conversion.BatchRead.read_from_zarr_fils" title="Permalink to this definition">¶</a></dt>
 <dd><p>Read from the generated zarr datastores constructed with read()</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -342,8 +343,8 @@ I built my own writer.</strong></p>
 </dd></dl>
 
 <dl class="py method">
-<dt id="HSTB.kluster.xarray_conversion.BatchRead.reload_pingrecords">
-<code class="sig-name descname"><span class="pre">reload_pingrecords</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">skip_dask</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.xarray_conversion.BatchRead.reload_pingrecords" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="HSTB.kluster.xarray_conversion.BatchRead.reload_pingrecords">
+<span class="sig-name descname"><span class="pre">reload_pingrecords</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">skip_dask</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.xarray_conversion.BatchRead.reload_pingrecords" title="Permalink to this definition">¶</a></dt>
 <dd><p>After writing new data to the zarr data store, you need to refresh the xarray Dataset object so that it
 sees the changes.  We do that here by just re-running open_zarr.</p>
 <dl class="field-list simple">
@@ -354,8 +355,8 @@ sees the changes.  We do that here by just re-running open_zarr.</p>
 </dd></dl>
 
 <dl class="py method">
-<dt id="HSTB.kluster.xarray_conversion.BatchRead.return_all_profiles">
-<code class="sig-name descname"><span class="pre">return_all_profiles</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.xarray_conversion.BatchRead.return_all_profiles" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="HSTB.kluster.xarray_conversion.BatchRead.return_all_profiles">
+<span class="sig-name descname"><span class="pre">return_all_profiles</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.xarray_conversion.BatchRead.return_all_profiles" title="Permalink to this definition">¶</a></dt>
 <dd><p>Return dict of attribute_name/data for each sv profile in the ping dataset</p>
 <p>attribute name is always ‘profile_timestamp’ format, ex: ‘profile_1503411780’</p>
 <dl class="field-list simple">
@@ -372,8 +373,8 @@ sees the changes.  We do that here by just re-running open_zarr.</p>
 </dd></dl>
 
 <dl class="py method">
-<dt id="HSTB.kluster.xarray_conversion.BatchRead.return_nearest_soundspeed_profile">
-<code class="sig-name descname"><span class="pre">return_nearest_soundspeed_profile</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">time_idx</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.xarray_conversion.BatchRead.return_nearest_soundspeed_profile" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="HSTB.kluster.xarray_conversion.BatchRead.return_nearest_soundspeed_profile">
+<span class="sig-name descname"><span class="pre">return_nearest_soundspeed_profile</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">time_idx</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.xarray_conversion.BatchRead.return_nearest_soundspeed_profile" title="Permalink to this definition">¶</a></dt>
 <dd><p>Using the settings_xxxxx attribute in the xarray dataset and a given timestamp, return the waterline
 offset (relative to the tx) nearest in time to the timestamp.</p>
 <dl class="field-list simple">
@@ -390,8 +391,8 @@ offset (relative to the tx) nearest in time to the timestamp.</p>
 </dd></dl>
 
 <dl class="py method">
-<dt id="HSTB.kluster.xarray_conversion.BatchRead.return_ping_counters_at_time">
-<code class="sig-name descname"><span class="pre">return_ping_counters_at_time</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">tme</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.xarray_conversion.BatchRead.return_ping_counters_at_time" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="HSTB.kluster.xarray_conversion.BatchRead.return_ping_counters_at_time">
+<span class="sig-name descname"><span class="pre">return_ping_counters_at_time</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">tme</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.xarray_conversion.BatchRead.return_ping_counters_at_time" title="Permalink to this definition">¶</a></dt>
 <dd><p>Accepts times as float or a numpy array of times</p>
 <p>To rebuild the full ping at a specific time, you need to get the ping counter(s) at that time.  EM2040c
 have multiple pings at a specific time, so this will return a list of counters that is usually only one
@@ -410,16 +411,16 @@ element long.</p>
 </dd></dl>
 
 <dl class="py method">
-<dt id="HSTB.kluster.xarray_conversion.BatchRead.return_prefix_for_rp">
-<code class="sig-name descname"><span class="pre">return_prefix_for_rp</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.xarray_conversion.BatchRead.return_prefix_for_rp" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="HSTB.kluster.xarray_conversion.BatchRead.return_prefix_for_rp">
+<span class="sig-name descname"><span class="pre">return_prefix_for_rp</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.xarray_conversion.BatchRead.return_prefix_for_rp" title="Permalink to this definition">¶</a></dt>
 <dd><p>Determine the correct prefix index based on the sonar reference point of this converted data.  For instance,
 if the sonar reference point is [‘tx_x’, ‘tx_y’, ‘rx_z’], the returned prefix indices would be [0,0,1], which
 will allow you to pull the correct lever arms from the xyzrph indices. See return_system_time_indexed_array.</p>
 </dd></dl>
 
 <dl class="py method">
-<dt id="HSTB.kluster.xarray_conversion.BatchRead.return_raw_navigation">
-<code class="sig-name descname"><span class="pre">return_raw_navigation</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">start_time</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">end_time</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.xarray_conversion.BatchRead.return_raw_navigation" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="HSTB.kluster.xarray_conversion.BatchRead.return_raw_navigation">
+<span class="sig-name descname"><span class="pre">return_raw_navigation</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">start_time</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">end_time</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.xarray_conversion.BatchRead.return_raw_navigation" title="Permalink to this definition">¶</a></dt>
 <dd><p>Return just the navigation side of the first ping record.  If a start time and end time are provided, will
 subset to just those times.</p>
 <p>If this is a dual head sonar, it only returns the nav for the first head!</p>
@@ -442,8 +443,8 @@ the one provided.</p></li>
 </dd></dl>
 
 <dl class="py method">
-<dt id="HSTB.kluster.xarray_conversion.BatchRead.return_rx_xyzrph">
-<code class="sig-name descname"><span class="pre">return_rx_xyzrph</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">time_idx</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.xarray_conversion.BatchRead.return_rx_xyzrph" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="HSTB.kluster.xarray_conversion.BatchRead.return_rx_xyzrph">
+<span class="sig-name descname"><span class="pre">return_rx_xyzrph</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">time_idx</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.xarray_conversion.BatchRead.return_rx_xyzrph" title="Permalink to this definition">¶</a></dt>
 <dd><p>Using the constructed xyzrph attribute (see build_offsets) and a given timestamp, return the
 receiver offsets and angles nearest in time to the timestamp</p>
 <dl class="field-list simple">
@@ -460,8 +461,8 @@ receiver offsets and angles nearest in time to the timestamp</p>
 </dd></dl>
 
 <dl class="py method">
-<dt id="HSTB.kluster.xarray_conversion.BatchRead.return_system_time_indexed_array">
-<code class="sig-name descname"><span class="pre">return_system_time_indexed_array</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">subset_time</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.xarray_conversion.BatchRead.return_system_time_indexed_array" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="HSTB.kluster.xarray_conversion.BatchRead.return_system_time_indexed_array">
+<span class="sig-name descname"><span class="pre">return_system_time_indexed_array</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">subset_time</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.xarray_conversion.BatchRead.return_system_time_indexed_array" title="Permalink to this definition">¶</a></dt>
 <dd><p>Most of the processing involves matching static, timestamped offsets or angles to time series data.  Given that
 we might have a list of systems for dual head sonar and a list of timestamped offsets, need to iterate through
 all of this in each processing loop.  Systems/timestamps length should be minimal, so we just loop in python.</p>
@@ -480,8 +481,8 @@ is the number of heads for this sonar.</p>
 </dd></dl>
 
 <dl class="py method">
-<dt id="HSTB.kluster.xarray_conversion.BatchRead.return_tpu_parameters">
-<code class="sig-name descname"><span class="pre">return_tpu_parameters</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">timestamp</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.xarray_conversion.BatchRead.return_tpu_parameters" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="HSTB.kluster.xarray_conversion.BatchRead.return_tpu_parameters">
+<span class="sig-name descname"><span class="pre">return_tpu_parameters</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">timestamp</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.xarray_conversion.BatchRead.return_tpu_parameters" title="Permalink to this definition">¶</a></dt>
 <dd><p>Pull out the tpu parameters from the xyzrph installation parameters.  We need these parameters to compute tpu.
 Only pulls the values for a single timestamped entry, using the provided timestamp.</p>
 <dl class="field-list simple">
@@ -498,8 +499,8 @@ Only pulls the values for a single timestamped entry, using the provided timesta
 </dd></dl>
 
 <dl class="py method">
-<dt id="HSTB.kluster.xarray_conversion.BatchRead.return_tx_xyzrph">
-<code class="sig-name descname"><span class="pre">return_tx_xyzrph</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">time_idx</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.xarray_conversion.BatchRead.return_tx_xyzrph" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="HSTB.kluster.xarray_conversion.BatchRead.return_tx_xyzrph">
+<span class="sig-name descname"><span class="pre">return_tx_xyzrph</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">time_idx</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.xarray_conversion.BatchRead.return_tx_xyzrph" title="Permalink to this definition">¶</a></dt>
 <dd><p>Using the constructed xyzrph attribute (see build_offsets) and a given timestamp, return the
 transmitter offsets and angles nearest in time to the timestamp</p>
 <dl class="field-list simple">
@@ -516,8 +517,8 @@ transmitter offsets and angles nearest in time to the timestamp</p>
 </dd></dl>
 
 <dl class="py method">
-<dt id="HSTB.kluster.xarray_conversion.BatchRead.return_utm_zone_number">
-<code class="sig-name descname"><span class="pre">return_utm_zone_number</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.xarray_conversion.BatchRead.return_utm_zone_number" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="HSTB.kluster.xarray_conversion.BatchRead.return_utm_zone_number">
+<span class="sig-name descname"><span class="pre">return_utm_zone_number</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.xarray_conversion.BatchRead.return_utm_zone_number" title="Permalink to this definition">¶</a></dt>
 <dd><p>Get the minimum/maximum longitude values and return the utm zone number</p>
 <dl class="field-list simple">
 <dt class="field-odd">Returns</dt>
@@ -530,8 +531,8 @@ transmitter offsets and angles nearest in time to the timestamp</p>
 </dd></dl>
 
 <dl class="py method">
-<dt id="HSTB.kluster.xarray_conversion.BatchRead.return_waterline">
-<code class="sig-name descname"><span class="pre">return_waterline</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">time_idx</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.xarray_conversion.BatchRead.return_waterline" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="HSTB.kluster.xarray_conversion.BatchRead.return_waterline">
+<span class="sig-name descname"><span class="pre">return_waterline</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">time_idx</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.xarray_conversion.BatchRead.return_waterline" title="Permalink to this definition">¶</a></dt>
 <dd><p>Using the settings_xxxxx attribute in the xarray dataset and a given timestamp, return the waterline
 offset (relative to the tx) nearest in time to the timestamp.</p>
 <dl class="field-list simple">
@@ -548,8 +549,8 @@ offset (relative to the tx) nearest in time to the timestamp.</p>
 </dd></dl>
 
 <dl class="py method">
-<dt id="HSTB.kluster.xarray_conversion.BatchRead.return_xyz_prefixes_for_systems">
-<code class="sig-name descname"><span class="pre">return_xyz_prefixes_for_systems</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.xarray_conversion.BatchRead.return_xyz_prefixes_for_systems" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="HSTB.kluster.xarray_conversion.BatchRead.return_xyz_prefixes_for_systems">
+<span class="sig-name descname"><span class="pre">return_xyz_prefixes_for_systems</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.xarray_conversion.BatchRead.return_xyz_prefixes_for_systems" title="Permalink to this definition">¶</a></dt>
 <dd><p>self.raw_ping contains Datasets broken up by system.  This method will return the prefixes you need to get
 the offsets/angles from self.xyzrph depending on dual-head</p>
 <dl class="field-list simple">
@@ -563,8 +564,8 @@ the offsets/angles from self.xyzrph depending on dual-head</p>
 </dd></dl>
 
 <dl class="py method">
-<dt id="HSTB.kluster.xarray_conversion.BatchRead.return_xyzrph_sorted_timestamps">
-<code class="sig-name descname"><span class="pre">return_xyzrph_sorted_timestamps</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ky</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.xarray_conversion.BatchRead.return_xyzrph_sorted_timestamps" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object py" id="HSTB.kluster.xarray_conversion.BatchRead.return_xyzrph_sorted_timestamps">
+<span class="sig-name descname"><span class="pre">return_xyzrph_sorted_timestamps</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ky</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.xarray_conversion.BatchRead.return_xyzrph_sorted_timestamps" title="Permalink to this definition">¶</a></dt>
 <dd><p>Takes in key name and outputs a list of sorted timestamps that are valid for that key.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -581,7 +582,7 @@ the offsets/angles from self.xyzrph depending on dual-head</p>
 
 </dd></dl>
 
-</div>
+</section>
 
 
           </div>
@@ -670,7 +671,7 @@ the offsets/angles from self.xyzrph depending on dual-head</p>
   <h3 id="searchlabel">Quick search</h3>
     <div class="searchformwrapper">
     <form class="search" action="../search.html" method="get">
-      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
       <input type="submit" value="Go" />
     </form>
     </div>
@@ -692,7 +693,7 @@ the offsets/angles from self.xyzrph depending on dual-head</p>
       &copy;2020, Eric Younkin.
       
       |
-      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.5.2</a>
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 4.3.2</a>
       &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
       
       |

@@ -4,12 +4,13 @@
 <html>
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Surfacing &#8212; kluster 0.8.7 documentation</title>
-    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
-    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+    <title>Surfacing &#8212; kluster 0.8.8 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/alabaster.css" />
     <link rel="stylesheet" type="text/css" href="../_static/graphviz.css" />
-    <script id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
     <script src="../_static/jquery.js"></script>
     <script src="../_static/underscore.js"></script>
     <script src="../_static/doctools.js"></script>
@@ -33,10 +34,10 @@
 
           <div class="body" role="main">
             
-  <div class="section" id="surfacing">
+  <section id="surfacing">
 <h1>Surfacing<a class="headerlink" href="#surfacing" title="Permalink to this headline">¶</a></h1>
 <p>So far, we have discussed working with point clouds, or the soundings visualized in 3d space.  But what about viewing the depth and uncertainty in 2d?  As a picture?  This is where the gridding tools come into play.  Kluster uses the <a class="reference external" href="https://github.com/noaa-ocs-hydrography/bathygrid">Bathygrid</a> module which I designed specifically for gridding multibeam data in an efficient and flexible way.</p>
-<div class="section" id="overview">
+<section id="overview">
 <h2>Overview<a class="headerlink" href="#overview" title="Permalink to this headline">¶</a></h2>
 <p>Let’s look at how to use this module in Kluster.  With a converted data instance selected, let’s go to Process - New Surface.</p>
 <a class="reference external image-reference" href="../_images/surface_1.png"><img alt="../_images/surface_1.png" src="../_images/surface_1.png" /></a>
@@ -67,8 +68,8 @@ OK, enough about folders and tiles.  Let’s look at something already!  Let’s
 <p>Turning on a Depth layer (or any layer) should make the display zoom to the area and show you the grid.  I just have a little multibeam file here, so the grid is fairly small.  I have the Query tool turned on in 2dview which lets me view the Depth layer value where my cursor is.  You can also left click to print the value in the Output window.  We can also turn on multiple layers to get the values across all layers.  Let’s do this now.</p>
 <a class="reference external image-reference" href="../_images/surface_5.png"><img alt="../_images/surface_5.png" src="../_images/surface_5.png" /></a>
 <p>We can see that our single resolution grids with the different tile sizes and the variable resolution grid all produce the same answer for the same location.  That’s a relief!  If they didn’t, we’d have a real problem on our hands.  We can also see that the tile shown in all three is an 8 meter resolution tile.  Which makes sense since we used AUTO resolution and the depth is the same across all surfaces in this location.</p>
-</div>
-<div class="section" id="updating-a-surface">
+</section>
+<section id="updating-a-surface">
 <h2>Updating a Surface<a class="headerlink" href="#updating-a-surface" title="Permalink to this headline">¶</a></h2>
 <p>The surface contains the soundings from your processed multibeam data.  But what if we change those soundings?  What if we use a different vertical reference, or we want to exclude some lines from the surface altogether?  That is where we need to use the Update Surface Data tool.  Here you can see that I have two multibeam datasets loaded, one for 9-20-2012 and one for 9-21-2012, and a variable resolution surface containing those two lines.  If you go to right click the surface name, you get this Update Surface Data box.</p>
 <a class="reference external image-reference" href="../_images/surface_6.png"><img alt="../_images/surface_6.png" src="../_images/surface_6.png" /></a>
@@ -78,8 +79,8 @@ OK, enough about folders and tiles.  Let’s look at something already!  Let’s
 <a class="reference external image-reference" href="../_images/surface_8.png"><img alt="../_images/surface_8.png" src="../_images/surface_8.png" /></a>
 <p>You’ll see in the output window that we removed those points and then added them back in.  After removing/adding, we then regridded the VR surface, getting our 4 meter / 8 meter resolution layers back.</p>
 <p>Gridding is a powerful tool for visualizing bathymetry in 2d, but how do we get this grid into a file that we can use in other software?  How do we get from this weird Bathygrid folder structure into a common file format?  Head to the products section to learn how to export!</p>
-</div>
-</div>
+</section>
+</section>
 
 
           </div>
@@ -130,7 +131,7 @@ OK, enough about folders and tiles.  Let’s look at something already!  Let’s
   <h3 id="searchlabel">Quick search</h3>
     <div class="searchformwrapper">
     <form class="search" action="../search.html" method="get">
-      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
       <input type="submit" value="Go" />
     </form>
     </div>
@@ -152,7 +153,7 @@ OK, enough about folders and tiles.  Let’s look at something already!  Let’s
       &copy;2020, Eric Younkin.
       
       |
-      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.5.2</a>
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 4.3.2</a>
       &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
       
       |

@@ -9,8 +9,6 @@ class PrePatchDialog(QtWidgets.QDialog):
         super().__init__(parent)
 
         self.setWindowTitle('Patch Test')
-        self.setMinimumWidth(1040)
-        self.setMinimumHeight(200)
 
         self.main_layout = QtWidgets.QVBoxLayout()
 
@@ -28,7 +26,7 @@ class PrePatchDialog(QtWidgets.QDialog):
 
         self.hlayout_msg = QtWidgets.QHBoxLayout()
         self.warning_message = QtWidgets.QLabel('', self)
-        self.warning_message.setStyleSheet("{};".format(kluster_variables.error_color))
+        self.warning_message.setStyleSheet("color : {};".format(kluster_variables.error_color))
         self.hlayout_msg.addWidget(self.warning_message)
         self.main_layout.addLayout(self.hlayout_msg)
 
@@ -264,7 +262,6 @@ class PatchSpinBox(QtWidgets.QDoubleSpinBox):
         self.setMaximum(999.999)
         self.setDecimals(3)
         self.setSingleStep(0.01)
-        self.setMaximumWidth(70)
 
 
 class ManualPatchTestWidget(QtWidgets.QWidget):
@@ -274,8 +271,6 @@ class ManualPatchTestWidget(QtWidgets.QWidget):
         QtWidgets.QWidget.__init__(self, parent)
 
         self.setWindowTitle('Patch Test')
-        self.setMinimumWidth(450)
-        self.setMinimumHeight(360)
 
         self.main_layout = QtWidgets.QVBoxLayout()
 
@@ -463,9 +458,9 @@ class ManualPatchTestWidget(QtWidgets.QWidget):
                 dif.setStyleSheet("QLabel { background-color : white; color : black; }")
                 dif.setText('0.000')
             elif newdif < 0:
-                dif.setStyleSheet("QLabel { background-color : white; " + kluster_variables.warning_color + "; }")
+                dif.setStyleSheet("QLabel { background-color : white; color : " + kluster_variables.warning_color + "; }")
             elif newdif > 0:
-                dif.setStyleSheet("QLabel { background-color : white; " + kluster_variables.pass_color + "; }")
+                dif.setStyleSheet("QLabel { background-color : white; color : " + kluster_variables.pass_color + "; }")
             else:
                 dif.setStyleSheet("QLabel { background-color : white; color : black; }")
 

@@ -88,3 +88,4 @@ else:
         incompatible_modules = [ky for ky in sys.modules if ky.find('PySide') > -1]
         for ky in incompatible_modules:
             del sys.modules[ky]
+

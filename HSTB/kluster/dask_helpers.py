@@ -2,15 +2,16 @@ import os
 import psutil
 import numpy as np
 
-import typing
-typing.TYPE_CHECKING = True  # set flag to allow sphinx autodoc to work with dask functions
+# tried the below, but it creates this circular import issue with dask, you'll see it on running this in debug mode
+# import typing
+# typing.TYPE_CHECKING = True  # set flag to allow sphinx autodoc to work with dask functions
 
 import dask
 from dask.distributed import Client
 from dask.distributed import get_client, Lock
 from xarray import DataArray
 from fasteners import InterProcessLock
-from HSTB.kluster.kluster_variables import mem_restart_threshold
+from HSTB.kluster import kluster_variables
 
 
 # we manually set the worker space (where spillover data goes during operations) here because I found some
@@ -180,7 +181,7 @@ def client_needs_restart(client: Client):
     worker_ids = list(client.scheduler_info()['workers'].keys())
     total_mem_limit = round(sum([worker_data[wrk]['memory_limit'] for wrk in worker_ids]) / 1073741824, 3)  # get it in GB
     total_mem_used = round(sum([worker_data[wrk]['metrics']['memory'] for wrk in worker_ids]) / 1073741824, 3)
-    if total_mem_used >= total_mem_limit * mem_restart_threshold:
+    if total_mem_used >= total_mem_limit * kluster_variables.mem_restart_threshold:
         return True
     return False
 
@@ -273,3 +274,7 @@ def split_array_by_number_of_workers(client: Client, dataarray: DataArray, max_l
         cnt += datalen
 
     return data_out, data_idx
+
+
+if __name__ == '__main__':
+    dask_find_or_start_client()

@@ -1,8 +1,13 @@
+import os
+import configparser
+from HSTB.kluster import __file__ as kluster_init_file
+
+
 # generic gui
 #  see available options here: https://www.w3.org/TR/SVG11/types.html#ColorKeywords
-pass_color = 'color : blue'  # color of the gui labels and text where a test passes
-error_color = 'color : red'  # color of the gui labels and text where a test does not pass
-warning_color = 'color : peru'  # color of the gui labels and text where a warning is issued
+pass_color = 'blue'  # color of the gui labels and text where a test passes
+error_color = 'red'  # color of the gui labels and text where a test does not pass
+warning_color = 'peru'  # color of the gui labels and text where a warning is issued
 
 # colors for points view
 amplitude_color = 'white'
@@ -101,8 +106,8 @@ default_surface_sv_error = 0.500  # default tpu parameter for surface sv
 default_roll_patch_error = 0.100  # default tpu parameter for roll patch
 default_separation_model_error = 0.000  # default tpu parameter for separation model
 default_waterline_error = 0.020  # default tpu parameter for waterline
-default_horizontal_positioning_error = 0.500  # default tpu parameter for horizontal positioning
-default_vertical_positioning_error = 0.300  # default tpu parameter for vertical positioning
+default_horizontal_positioning_error = 1.000  # default tpu parameter for horizontal positioning
+default_vertical_positioning_error = 0.500  # default tpu parameter for vertical positioning
 default_beam_opening_angle = 1.0  # default parameter for beam opening angle in degrees
 # currently unused values
 default_x_offset_error = 0.200  # default tpu parameter for x offset measurement
@@ -308,3 +313,52 @@ variable_descriptions = {'acrosstrack': 'The result of running Sound Velocity Co
                          'z': 'The result of running Georeference in Kluster.  This is the sound velocity offsets projected into the coordinate reference system you chose.  Depth is in meters from the vertical reference you chose.'
                          }
 
+int_parameters = ['converted_files_at_once', 'pings_per_las', 'pings_per_csv', 'max_profile_length']
+float_parameters = ['default_heave_error', 'default_roll_error', 'default_pitch_error', 'default_heading_error',
+                    'default_surface_sv_error', 'default_roll_patch_error', 'default_separation_model_error',
+                    'default_waterline_error', 'default_horizontal_positioning_error', 'default_vertical_positioning_error',
+                    'default_beam_opening_angle', 'mem_restart_threshold']
+str_parameters = ['pass_color', 'error_color', 'warning_color', 'amplitude_color', 'phase_color',
+                  'reject_color', 'reaccept_color']
+
+# retain the default values before overwriting with values written to the kluster initialization file
+kvar_initial_state = globals().copy()
+kvar_altered_keys = []
+
+
+def restore_all_variables():
+    for varname in str_parameters:
+        globals()[varname] = str(kvar_initial_state[varname])
+    for varname in float_parameters:
+        globals()[varname] = float(kvar_initial_state[varname])
+    for varname in int_parameters:
+        globals()[varname] = int(kvar_initial_state[varname])
+
+
+def alter_variable(varname, varvalue):
+    if varname in str_parameters:
+        globals()[varname] = str(varvalue)
+    elif varname in float_parameters:
+        globals()[varname] = float(varvalue)
+    elif varname in int_parameters:
+        globals()[varname] = int(varvalue)
+    else:
+        raise NotImplementedError(f'Unable to find matching parameter entry for {varname}, see kluster_variables')
+
+
+# load custom values saved to the kluster initialization file, kluster ini created in Kluster_main on startup
+_kluster_dir = os.path.dirname(kluster_init_file)
+_kluster_ini = os.path.join(_kluster_dir, 'misc', 'kluster.ini')
+if os.path.exists(_kluster_ini):
+    _config = configparser.ConfigParser()
+    _config.read(_kluster_ini)
+    _sections = _config.sections()
+    if _sections != ['Kluster']:
+        print(f'WARNING: Unable to find "Kluster" section in {_kluster_ini}, skipping overwriting default variables')
+    else:
+        # overwrite all variables in this file with the version in the ini if it exists
+        for _kvar in dir():
+            if f'kvariables_{_kvar}' in _config['Kluster'].keys():
+                alter_variable(_kvar, _config['Kluster'][f'kvariables_{_kvar}'])
+                if _kvar not in kvar_altered_keys:
+                    kvar_altered_keys.append(_kvar)

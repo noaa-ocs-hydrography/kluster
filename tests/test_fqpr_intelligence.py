@@ -192,7 +192,7 @@ class TestFqprIntelligence(unittest.TestCase):
         # after conversion, the offsets from this converted data will be stored in the vessel file
         expected_offsets = {'beam_opening_angle': {'1495563079': 1.3}, 'heading_patch_error': {'1495563079': 0.5},
                             'heading_sensor_error': {'1495563079': 0.02}, 'heave_error': {'1495563079': 0.05},
-                            'horizontal_positioning_error': {'1495563079': 0.5}, 'imu_h': {'1495563079': 0.4},
+                            'horizontal_positioning_error': {'1495563079': 1.0}, 'imu_h': {'1495563079': 0.4},
                             'latency': {'1495563079': 0.0}, 'imu_p': {'1495563079': -0.18},
                             'imu_r': {'1495563079': -0.16}, 'imu_x': {'1495563079': 0.0},
                             'imu_y': {'1495563079': 0.0}, 'imu_z': {'1495563079': 0.0},
@@ -218,7 +218,7 @@ class TestFqprIntelligence(unittest.TestCase):
                             'tx_y_1': {'1495563079': 0.0131}, 'tx_y_2': {'1495563079': 0.0554},
                             'tx_z': {'1495563079': 0.0},
                             'tx_z_0': {'1495563079': -0.012}, 'tx_z_1': {'1495563079': -0.006},
-                            'tx_z_2': {'1495563079': -0.012}, 'vertical_positioning_error': {'1495563079': 0.3},
+                            'tx_z_2': {'1495563079': -0.012}, 'vertical_positioning_error': {'1495563079': 0.5},
                             'vessel_speed_error': {'1495563079': 0.1}, 'waterline': {'1495563079': -0.64},
                             'waterline_error': {'1495563079': 0.02}, 'x_offset_error': {'1495563079': 0.2},
                             'y_offset_error': {'1495563079': 0.2}, 'z_offset_error': {'1495563079': 0.2}}

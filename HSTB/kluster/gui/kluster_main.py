@@ -1,3 +1,8 @@
+# Import qt first, to resolve the backend issues youll get in matplotlib if you dont import this first, as it prefers PySide2
+from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal, qgis_enabled, found_path
+if qgis_enabled:
+    from HSTB.kluster.gui.backends._qt import qgis_core, qgis_gui
+
 import matplotlib
 matplotlib.use('qt5agg')
 
@@ -12,15 +17,12 @@ from pyproj import CRS, Transformer
 import qdarkstyle
 import matplotlib.pyplot as plt
 
-from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal, qgis_enabled, found_path
-if qgis_enabled:
-    from HSTB.kluster.gui.backends._qt import qgis_core, qgis_gui
-
 from HSTB.kluster.gui import dialog_vesselview, kluster_explorer, kluster_project_tree, kluster_3dview_v2, \
     kluster_output_window, kluster_2dview, kluster_actions, kluster_monitor, dialog_daskclient, dialog_surface, \
     dialog_export, kluster_worker, kluster_interactive_console, dialog_basicplot, dialog_advancedplot, dialog_project_settings, \
     dialog_export_grid, dialog_layer_settings, dialog_settings, dialog_importppnav, dialog_overwritenav, dialog_surface_data, \
-    dialog_about, dialog_setcolors, dialog_patchtest, dialog_manualpatchtest, dialog_managedata, dialog_managesurface
+    dialog_about, dialog_setcolors, dialog_patchtest, dialog_manualpatchtest, dialog_managedata, dialog_managesurface, \
+    dialog_reprocess
 from HSTB.kluster.fqpr_project import FqprProject
 from HSTB.kluster.fqpr_intelligence import FqprIntel
 from HSTB.kluster.fqpr_vessel import convert_from_fqpr_xyzrph, convert_from_vessel_xyzrph, compare_dict_data
@@ -28,6 +30,7 @@ from HSTB.kluster import __version__ as kluster_version
 from HSTB.kluster import __file__ as kluster_init_file
 from HSTB.shared import RegistryHelpers, path_to_supplementals
 from HSTB.kluster import kluster_variables
+from bathygrid.grid_variables import allowable_grid_root_names
 
 # list of icons
 # https://joekuan.wordpress.com/2015/09/23/list-of-qt-icons/
@@ -169,6 +172,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.project_tree.manage_surface.connect(self.manage_surface)
         self.project_tree.load_console_fqpr.connect(self.load_console_fqpr)
         self.project_tree.load_console_surface.connect(self.load_console_surface)
+        self.project_tree.show_explorer.connect(self.show_in_explorer)
         self.project_tree.zoom_extents_fqpr.connect(self.zoom_extents_fqpr)
         self.project_tree.zoom_extents_surface.connect(self.zoom_extents_surface)
         self.project_tree.reprocess_instance.connect(self.reprocess_fqpr)
@@ -453,7 +457,7 @@ class KlusterMain(QtWidgets.QMainWindow):
             if new_project:  # user added a data file when there was no project, so we loaded or created a new one
                 new_fqprs.extend([fqpr for fqpr in self.project.fqpr_instances.keys() if fqpr not in new_fqprs])
             if new_data is None:
-                if os.path.exists(os.path.join(f, 'SRGrid_Root')) or os.path.exists(os.path.join(f, 'VRGridTile_Root')):
+                if any([os.path.exists(os.path.join(f, gname)) for gname in allowable_grid_root_names]):
                     potential_surface_paths.append(f)
                 elif os.path.isdir(f):
                     potential_fqpr_paths.append(f)
@@ -597,6 +601,19 @@ class KlusterMain(QtWidgets.QMainWindow):
         """
         absolute_fqpath = self.project.absolute_path_from_relative(pth)
         self.console.runCmd('surf = reload_surface(r"{}")'.format(absolute_fqpath))
+
+    def show_in_explorer(self, pth: str):
+        """
+        Right click in the project tree and show in explorer to run this code block.  Will open the folder location
+        in windows explorer.
+
+        Parameters
+        ----------
+        pth
+            path to the grid folder
+        """
+        absolute_path = self.project.absolute_path_from_relative(pth)
+        os.startfile(absolute_path)
 
     def zoom_extents_fqpr(self, pth: str):
         """
@@ -767,18 +784,32 @@ class KlusterMain(QtWidgets.QMainWindow):
 
     def reprocess_fqpr(self):
         """
-        Right click an fqpr instance and trigger full reprocessing, should only be necessary in case of emergency.
+        Right click an fqpr instance and trigger reprocessing, should only be necessary in case of emergency.
         """
+
         fqprs, linedict = self.project_tree.return_selected_fqprs()
         if fqprs:
-            # start over at 1, which is conversion in our state machine
+            # start over at 0, which is conversion in our state machine
             fq = self.project.fqpr_instances[fqprs[0]]
-            if fq.multibeam.raw_ping[0].current_processing_status > 0:
-                fq.write_attribute_to_ping_records({'current_processing_status': 0})
-                fq.logger.info('Setting processing status to 0, starting over at computing orientation')
-            self.project.refresh_fqpr_attribution(fqprs[0], relative_path=True)
-            fq.multibeam.reload_pingrecords(skip_dask=fq.client is None)
-            self.intel.regenerate_actions()
+            current_status = fq.multibeam.raw_ping[0].current_processing_status
+            if current_status == 0:
+                print('reprocess_fqpr: Unable to reprocess converted data, current process is already at the beginning (conversion)')
+                return
+            dlog = dialog_reprocess.ReprocessDialog(current_status, fq.output_folder)
+            cancelled = False
+            if dlog.exec_():
+                if not dlog.canceled:
+                    newstatus = dlog.newstatus
+                    if newstatus is not None:
+                        fq.write_attribute_to_ping_records({'current_processing_status': newstatus})
+                        fq.logger.info(f'Setting processing status to {newstatus}, starting over at computing {kluster_variables.status_lookup[newstatus + 1]}')
+                        self.project.refresh_fqpr_attribution(fqprs[0], relative_path=True)
+                        fq.multibeam.reload_pingrecords(skip_dask=fq.client is None)
+                        self.intel.regenerate_actions()
+                    else:
+                        print('reprocess_fqpr: new status is None, unable to set status')
+                else:
+                    print('reprocess_fqpr: cancelled')
 
     def update_surface_selected(self):
         """
@@ -1146,9 +1177,9 @@ class KlusterMain(QtWidgets.QMainWindow):
             cancelled = True
         else:
             cancelled = False
-            fqprs, _ = self.return_selected_fqprs()
+            fqprspaths, fqprs = self.return_selected_fqprs()
             dlog = dialog_surface.SurfaceDialog()
-            dlog.update_fqpr_instances(addtl_files=fqprs)
+            dlog.update_fqpr_instances(addtl_files=fqprspaths)
             if dlog.exec_():
                 cancelled = dlog.canceled
                 opts = dlog.return_processing_options()
@@ -1156,20 +1187,10 @@ class KlusterMain(QtWidgets.QMainWindow):
                     surface_opts = opts
                     fqprs = surface_opts.pop('fqpr_inst')
                     fq_chunks = []
+                    if dlog.line_surface_checkbox.isChecked():  # we now subset the fqpr instances by lines selected
+                        fqprspaths, fqprs = self.return_selected_fqprs(subset_by_line=True)
                     for fq in fqprs:
-                        try:
-                            relfq = self.project.path_relative_to_project(fq)
-                        except:
-                            print('No project loaded, you must load some data before generating a surface')
-                            return
-                        if relfq not in self.project.fqpr_instances:
-                            print('Unable to find {} in currently loaded project'.format(relfq))
-                            return
-                        if relfq in self.project.fqpr_instances:
-                            fq_inst = self.project.fqpr_instances[relfq]
-                            # use the project client, or start a new LocalCluster if client is None
-                            # fq_inst.client = self.project.get_dask_client()
-                            fq_chunks.extend([fq_inst])
+                        fq_chunks.extend([fq])
 
                     if not dlog.canceled:
                         # if the project has a client, use it here.  If None, BatchRead starts a new LocalCluster
@@ -1620,6 +1641,12 @@ class KlusterMain(QtWidgets.QMainWindow):
             if self.project.path is not None:
                 self.project.set_settings(settings)
             self.intel.set_settings(settings)
+
+            # now overwrite the default kluster variables and save them to the ini file as well
+            newkvars = dlog.return_kvars()
+            for kvarkey, kvarval in newkvars.items():
+                kluster_variables.alter_variable(kvarkey, kvarval)
+                settings_obj.setValue(f'Kluster/kvariables_{kvarkey}', kvarval)
 
     def set_dark_mode(self, check_state: bool):
         """
@@ -2319,8 +2346,8 @@ class KlusterMain(QtWidgets.QMainWindow):
         """
         # setUpdatesEnabled should be the freeze/thaw wx equivalent i think, but does not appear to do anything here
         # self.setUpdatesEnabled(False)
-        settings = self.settings_object
-        settings.clear()
+        # settings = self.settings_object
+        # settings.clear()
         # set all docked widgets to 'docked' so that they reset properly
         for widg in self.findChildren(QtWidgets.QDockWidget):
             widg.setFloating(False)

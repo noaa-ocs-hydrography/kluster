@@ -1,4 +1,5 @@
 import os
+from pyproj import CRS
 
 from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal
 from HSTB.kluster.gui.common_widgets import SaveStateDialog
@@ -25,7 +26,6 @@ class ProjectSettingsDialog(SaveStateDialog):
         self.epsg_radio = QtWidgets.QRadioButton('From EPSG')
         self.hlayout_one.addWidget(self.epsg_radio)
         self.epsg_val = QtWidgets.QLineEdit('', self)
-        self.epsg_val.setMaximumWidth(80)
         self.hlayout_one.addWidget(self.epsg_val)
         self.hlayout_one.addStretch(1)
 
@@ -36,7 +36,6 @@ class ProjectSettingsDialog(SaveStateDialog):
         self.auto_utm_val = QtWidgets.QComboBox()
         self.auto_utm_val.addItems(kluster_variables.coordinate_systems)
         self.auto_utm_val.setCurrentIndex(kluster_variables.coordinate_systems.index(kluster_variables.default_coordinate_system))
-        self.auto_utm_val.setMaximumWidth(100)
         self.hlayout_two.addWidget(self.auto_utm_val)
         self.hlayout_two.addStretch(1)
 
@@ -45,7 +44,6 @@ class ProjectSettingsDialog(SaveStateDialog):
         self.hlayout_three = QtWidgets.QHBoxLayout()
         self.georef_vertref = QtWidgets.QComboBox()
         self.georef_vertref.addItems(kluster_variables.vertical_references)
-        self.georef_vertref.setMaximumWidth(100)
         self.hlayout_three.addWidget(self.georef_vertref)
         self.hlayout_three.addStretch(1)
 
@@ -59,7 +57,7 @@ class ProjectSettingsDialog(SaveStateDialog):
         self.hlayout_five.addStretch(1)
 
         self.status_msg = QtWidgets.QLabel('')
-        self.status_msg.setStyleSheet("QLabel { " + kluster_variables.error_color + "; }")
+        self.status_msg.setStyleSheet("QLabel { color : " + kluster_variables.error_color + "; }")
         self.status_msg.setAlignment(QtCore.Qt.AlignCenter)
         self.statusbox = QtWidgets.QHBoxLayout()
         self.statusbox.addWidget(self.status_msg)
@@ -79,27 +77,46 @@ class ProjectSettingsDialog(SaveStateDialog):
         self.ok_button.clicked.connect(self.start)
         self.cancel_button.clicked.connect(self.cancel)
         self.georef_vertref.currentTextChanged.connect(self.find_vdatum)
+        self.epsg_val.textChanged.connect(self.validate_epsg)
 
         self.text_controls = [['epsgval', self.epsg_val], ['utmval', self.auto_utm_val], ['vertref', self.georef_vertref]]
         self.checkbox_controls = [['epsgradio', self.epsg_radio], ['utmradio', self.auto_utm_radio]]
 
         self.read_settings()
-        self.resize(600, 200)
+        self.validate_epsg()
+        self.find_vdatum()
+        # self.resize(600, 200)
+
+    def validate_epsg(self):
+        if self.epsg_radio.isChecked():
+            epsg = ''
+            try:
+                epsg = int(self.epsg_val.text())
+                ecrs = CRS.from_epsg(epsg)
+                if not ecrs.is_projected:
+                    self.status_msg.setText(f'ERROR: must be a projected CRS, EPSG:{epsg}')
+                elif ecrs.coordinate_system.axis_list[0].unit_name not in ['meters', 'metre', 'metres']:
+                    self.status_msg.setText(f'ERROR: CRS must be in units of meters, found {ecrs.coordinate_system.axis_list[0].unit_name}, EPSG:{epsg}')
+                else:
+                    self.status_msg.setText('')
+            except:
+                self.status_msg.setText(f'Unknown Error: Unable to generate new CRS from EPSG:{epsg}')
+        else:
+            self.status_msg.setText('')
 
     def find_vdatum(self):
         """
         Adds a status message telling you if NOAA MLLW/MHW is a valid option based on whether or not we can
         find vdatum successfully
         """
-        self.status_msg.setStyleSheet("QLabel { " + kluster_variables.error_color + "; }")
+        self.status_msg.setStyleSheet("QLabel { color : " + kluster_variables.error_color + "; }")
         curr_vert = self.georef_vertref.currentText()
         if curr_vert in kluster_variables.vdatum_vertical_references:
             vdatum = self.settings_object.value('Kluster/settings_vdatum_directory')
             if vdatum:
                 if os.path.exists(vdatum):
                     if os.path.exists(os.path.join(vdatum, 'vdatum.jar')):
-                        self.status_msg.setStyleSheet("QLabel { " + kluster_variables.pass_color + "; }")
-                        self.status_msg.setText('Found VDatum at {}'.format(vdatum))
+                        self.status_msg.setText('')
                     else:
                         self.status_msg.setText('Unable to find vdatum.jar at {}'.format(vdatum))
                 else:
@@ -115,10 +132,7 @@ class ProjectSettingsDialog(SaveStateDialog):
         """
         if not self.canceled:
             if self.epsg_val.text():
-                try:
-                    epsg = int(self.epsg_val.text())
-                except:
-                    print('dialog_project_settings: EPSG must be an integer, received: {}'.format(self.epsg_val.text()))
+                epsg = int(self.epsg_val.text())
             else:
                 epsg = ''
             opts = {'use_epsg': self.epsg_radio.isChecked(), 'epsg': epsg,
@@ -133,6 +147,13 @@ class ProjectSettingsDialog(SaveStateDialog):
         Dialog completes if the specified widgets are populated, use return_processing_options to get access to the
         settings the user entered into the dialog.
         """
+
+        self.validate_epsg()
+        if self.status_msg.text():
+            return
+        self.find_vdatum()
+        if self.status_msg.text():
+            return
         print('Project settings saved')
         self.canceled = False
         self.save_settings()

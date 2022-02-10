@@ -4,12 +4,13 @@
 <html>
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Processing &#8212; kluster 0.8.7 documentation</title>
-    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
-    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+    <title>Processing &#8212; kluster 0.8.8 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/alabaster.css" />
     <link rel="stylesheet" type="text/css" href="../_static/graphviz.css" />
-    <script id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
     <script src="../_static/jquery.js"></script>
     <script src="../_static/underscore.js"></script>
     <script src="../_static/doctools.js"></script>
@@ -33,7 +34,7 @@
 
           <div class="body" role="main">
             
-  <div class="section" id="processing">
+  <section id="processing">
 <h1>Processing<a class="headerlink" href="#processing" title="Permalink to this headline">¶</a></h1>
 <p>Here we will talk about the conversion and processing steps, what they mean, how they work and what the resulting data looks like.  Kluster automates all of this for you, so you can process multibeam data without really understanding any of this.  Where this becomes useful, is when you process data and then wonder ‘why are these two lines not at roughly the same depth?’ or ‘why did only part of this line process?’.  So hopefully what I’m sharing here will help understand the behind the scenes elements of Kluster to help answer any questions you might have!</p>
 <p>Note that each beam keeps a status (processing status) telling which step it is on.  You can view this in basic plots as a histogram or image to get a sense of the state of the dataset.</p>
@@ -43,7 +44,7 @@ processing status = 2 (beam vector complete)
 processing status = 3 (sound velocity complete)
 processing status = 4 (georeference complete)
 processing status = 5 (tpu complete)</p>
-<div class="section" id="conversion">
+<section id="conversion">
 <h2>Conversion<a class="headerlink" href="#conversion" title="Permalink to this headline">¶</a></h2>
 <p>The first step in Kluster is to convert the data from the raw multibeam format to the Kluster data format.  This is the first action that appears on dragging in a new multibeam file.</p>
 <a class="reference external image-reference" href="../_images/processing_1.png"><img alt="../_images/processing_1.png" src="../_images/processing_1.png" /></a>
@@ -109,7 +110,7 @@ processing status = 5 (tpu complete)</p>
 <a class="reference external image-reference" href="../_images/processing_4.png"><img alt="../_images/processing_4.png" src="../_images/processing_4.png" /></a>
 <p>Let’s look a little closer.  I see 216 pings (see Ping Count in the middle left), and times from 1495563079 to 1495563133.  I am examining the Multibeam dataset and the Uncorrected_Beam_Angle variable which is the nice looking name version of beampointingangle.  So hitting the plot button here is basically doing the same thing as running plot in Python earlier.  Hit the export buttons and you get the data in csv to look at in a text editor or load in another program.</p>
 <p>The take home here is the Kluster provides a few easy ways to look at your converted data.  Hopefully this helps with troubleshooting and understanding your multibeam data.</p>
-<div class="section" id="in-the-console">
+<section id="in-the-console">
 <h3>In the Console<a class="headerlink" href="#in-the-console" title="Permalink to this headline">¶</a></h3>
 <p>You can easily convert data in the console as well</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">HSTB.kluster.fqpr_convenience</span> <span class="kn">import</span> <span class="n">convert_multibeam</span>
@@ -117,9 +118,9 @@ processing status = 5 (tpu complete)</p>
 <span class="n">first_system</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">multibeam</span><span class="o">.</span><span class="n">raw_ping</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
 </pre></div>
 </div>
-</div>
-</div>
-<div class="section" id="id1">
+</section>
+</section>
+<section id="id1">
 <h2>Processing<a class="headerlink" href="#id1" title="Permalink to this headline">¶</a></h2>
 <p>Remember that Kluster is a two step process: conversion and processing.  So when I say the processing pipeline, I mean the second step in Kluster. This second step is composed of five sub-processes:</p>
 <ol class="arabic simple">
@@ -130,7 +131,7 @@ processing status = 5 (tpu complete)</p>
 <li><p>TPU</p></li>
 </ol>
 <p>In the next sections we will be discussing these processes in detail.  Note that they have to be sequential.  Each step builds on the next.</p>
-<div class="section" id="orientation">
+<section id="orientation">
 <h3>Orientation<a class="headerlink" href="#orientation" title="Permalink to this headline">¶</a></h3>
 <p>Orientation is the first step in the processing pipeline.  It’s where we take the attitude values and the sonar mounting angles to build the vectors that represent the orientation of the transmitter/receiver at the time of ping.  So any new information we have regarding attitude (such as latency) or the sonar installation angles (vessel setup) will require redoing this step.  Kluster will generate the appropriate actions to enforce that.</p>
 <p>These vectors are necessary for the next step, where we go from beams in the transducer frame to the vessel frame, accounting for angular offsets and attitude.</p>
@@ -147,7 +148,7 @@ processing status = 5 (tpu complete)</p>
 </ul>
 <p>This isn’t a simple one to visualize, as it has many dimensions.  What I came up with is this custom visualization in the Basic Plots screen.  You can find it under Custom, animations, Vessel Orientation.  The Blue vector is the Transmitter and the Red vector is the Receiver.  You’ll see the values change as the boat turns or experiences roll/pitch etc.</p>
 <a class="reference external image-reference" href="../_images/processing_5.png"><img alt="../_images/processing_5.png" src="../_images/processing_5.png" /></a>
-<div class="section" id="id2">
+<section id="id2">
 <h4>In the Console<a class="headerlink" href="#id2" title="Permalink to this headline">¶</a></h4>
 <p>You can easily compute the orientation in the console as well</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># starting with conversion</span>
@@ -161,9 +162,9 @@ processing status = 5 (tpu complete)</p>
 <span class="n">fq</span><span class="o">.</span><span class="n">get_orientation_vectors</span><span class="p">()</span>
 </pre></div>
 </div>
-</div>
-</div>
-<div class="section" id="correct-beam-vectors">
+</section>
+</section>
+<section id="correct-beam-vectors">
 <h3>Correct Beam Vectors<a class="headerlink" href="#correct-beam-vectors" title="Permalink to this headline">¶</a></h3>
 <p>Correcting the beam vectors is the second step in the processing stack.  The beam vector is the vector arising from the intersection of the transmit ping and the receiver cone of sensitivity.  The raw beam angle is in the transducer frame and doesn’t account for the orientation of the sonar or the attitude of the vessel.  Since we know those things from the previous step (Orientation), we can now calculate the corrected beam vector datasets, which include:</p>
 <ul class="simple">
@@ -184,7 +185,7 @@ processing status = 5 (tpu complete)</p>
 </ul>
 <p>You are able to plot both of these in Basic Plots and there is an additional animation you can view under Custom, animations, Corrected Beam Vectors.  Here I am showing plots from both as well as the Corrected (right) and Uncorrected (left) Beam Vectors animations.</p>
 <a class="reference external image-reference" href="../_images/processing_6.png"><img alt="../_images/processing_6.png" src="../_images/processing_6.png" /></a>
-<div class="section" id="id3">
+<section id="id3">
 <h4>In the Console<a class="headerlink" href="#id3" title="Permalink to this headline">¶</a></h4>
 <p>You can easily compute the beam vector correction the console as well</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># starting with conversion</span>
@@ -199,9 +200,9 @@ processing status = 5 (tpu complete)</p>
 <span class="n">fq</span><span class="o">.</span><span class="n">get_beam_pointing_vectors</span><span class="p">()</span>
 </pre></div>
 </div>
-</div>
-</div>
-<div class="section" id="sound-velocity">
+</section>
+</section>
+<section id="sound-velocity">
 <h3>Sound Velocity<a class="headerlink" href="#sound-velocity" title="Permalink to this headline">¶</a></h3>
 <p>Correcting for sound velocity is the third step in the processing stack.  Here we apply a sound velocity cast (which contains sound velocity measurements at different depths) and the surface sound speed reading to ray trace each beam.  Ray tracing is simply the calculation of the bending the beam experiences as it moves through each sound velocity change on it’s way to the sea floor.  To do this we apply Snell’s law and the beam azimuth/angles we got from the previous step to calculate the distance each beam traveled in all three dimensions.  The end result is the following three variables:</p>
 <ul class="simple">
@@ -231,7 +232,7 @@ processing status = 5 (tpu complete)</p>
 </ul>
 <p>You can plot this data by either looking at the sound velocity profiles for each cast or by looking at the map view for the lines and where the casts are in relation.</p>
 <a class="reference external image-reference" href="../_images/processing_8.png"><img alt="../_images/processing_8.png" src="../_images/processing_8.png" /></a>
-<div class="section" id="id4">
+<section id="id4">
 <h4>In the Console<a class="headerlink" href="#id4" title="Permalink to this headline">¶</a></h4>
 <p>You can easily compute the sound velocity in the console as well</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># starting with conversion</span>
@@ -248,9 +249,9 @@ processing status = 5 (tpu complete)</p>
 <span class="n">fq</span><span class="o">.</span><span class="n">sv_correct</span><span class="p">(</span><span class="n">add_cast_files</span><span class="o">=</span><span class="s1">&#39;path to sv file&#39;</span><span class="p">)</span>
 </pre></div>
 </div>
-</div>
-</div>
-<div class="section" id="georeference">
+</section>
+</section>
+<section id="georeference">
 <h3>Georeference<a class="headerlink" href="#georeference" title="Permalink to this headline">¶</a></h3>
 <p>Georeferencing is where it all starts to come together.  We use the vessel navigation and the heading to transform the sound velocity corrected offsets to georeferenced soundings.  If you remember, our sound velocity offsets were simply distances alongtrack/acrosstrack/down from the vessel reference point to where the beam intersects with the sea floor.  Georeferencing produces (Kluster always uses projected coordinate systems) northings/eastings in a provided coordinate system (WGS84 UTM 19 North for example) that we can now use and share with others.  It is at this point that we finally have real soundings, that we can, for example, export to LAS and view in other software.</p>
 <p>The end result is the following three variables:</p>
@@ -286,7 +287,7 @@ processing status = 5 (tpu complete)</p>
 </ul>
 <p>You are able to plot these in Basic Plots with all the plot types available for two dimensional variables.</p>
 <a class="reference external image-reference" href="../_images/processing_9.png"><img alt="../_images/processing_9.png" src="../_images/processing_9.png" /></a>
-<div class="section" id="id5">
+<section id="id5">
 <h4>In the Console<a class="headerlink" href="#id5" title="Permalink to this headline">¶</a></h4>
 <p>You can easily georeference in the console as well</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># starting with conversion</span>
@@ -305,9 +306,9 @@ processing status = 5 (tpu complete)</p>
 <span class="n">fq</span><span class="o">.</span><span class="n">georef_xyz</span><span class="p">()</span>
 </pre></div>
 </div>
-</div>
-</div>
-<div class="section" id="tpu">
+</section>
+</section>
+<section id="tpu">
 <h3>TPU<a class="headerlink" href="#tpu" title="Permalink to this headline">¶</a></h3>
 <p>TPU, or Total Propagated Uncertainty, is the total vertical and horizontal uncertainty associated with the sounding.  It uses the uncertainty values stored in the vessel setup, the sonar uncertainty record (qualityfactor), SBET uncertainty if provided and many of the processed data variables, including the sound velocity offsets and the corrected beam angle.</p>
 <p>Total Propagated Uncertainty in Kluster includes:</p>
@@ -347,7 +348,7 @@ processing status = 5 (tpu complete)</p>
 </ul>
 <p>You are able to plot these in Basic Plots with all the plot types available for two dimensional variables.</p>
 <a class="reference external image-reference" href="../_images/processing_10.png"><img alt="../_images/processing_10.png" src="../_images/processing_10.png" /></a>
-<div class="section" id="id6">
+<section id="id6">
 <h4>In the Console<a class="headerlink" href="#id6" title="Permalink to this headline">¶</a></h4>
 <p>You can easily calculate tpu in the console as well</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># starting with conversion</span>
@@ -364,10 +365,10 @@ processing status = 5 (tpu complete)</p>
 </div>
 <div class="toctree-wrapper compound">
 </div>
-</div>
-</div>
-</div>
-</div>
+</section>
+</section>
+</section>
+</section>
 
 
           </div>
@@ -443,7 +444,7 @@ processing status = 5 (tpu complete)</p>
   <h3 id="searchlabel">Quick search</h3>
     <div class="searchformwrapper">
     <form class="search" action="../search.html" method="get">
-      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
       <input type="submit" value="Go" />
     </form>
     </div>
@@ -465,7 +466,7 @@ processing status = 5 (tpu complete)</p>
       &copy;2020, Eric Younkin.
       
       |
-      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.5.2</a>
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 4.3.2</a>
       &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
       
       |

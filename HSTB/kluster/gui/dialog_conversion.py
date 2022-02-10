@@ -45,7 +45,7 @@ class ConversionDialog(QtWidgets.QDialog):
         self.hlayout_three.addWidget(self.mbesfiles)
 
         self.status_msg = QtWidgets.QLabel('')
-        self.status_msg.setStyleSheet("QLabel { " + kluster_variables.error_color + "; }")
+        self.status_msg.setStyleSheet("QLabel { color : " + kluster_variables.error_color + "; }")
 
         self.hlayout_four = QtWidgets.QHBoxLayout()
         self.hlayout_four.addStretch(1)

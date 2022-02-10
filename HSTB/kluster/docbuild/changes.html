@@ -4,12 +4,13 @@
 <html>
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Changes List &#8212; kluster 0.8.7 documentation</title>
-    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
-    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+    <title>Changes List &#8212; kluster 0.8.8 documentation</title>
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="_static/alabaster.css" />
     <link rel="stylesheet" type="text/css" href="_static/graphviz.css" />
-    <script id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+    <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
     <script src="_static/jquery.js"></script>
     <script src="_static/underscore.js"></script>
     <script src="_static/doctools.js"></script>
@@ -32,9 +33,36 @@
 
           <div class="body" role="main">
             
-  <div class="section" id="changes-list">
+  <section id="changes-list">
 <h1>Changes List<a class="headerlink" href="#changes-list" title="Permalink to this headline">¶</a></h1>
-<div class="section" id="kluster-v0-8-7-1-14-2022">
+<section id="kluster-v0-8-8-2-10-2022">
+<h2>Kluster v0.8.8 (2/10/2022)<a class="headerlink" href="#kluster-v0-8-8-2-10-2022" title="Permalink to this headline">¶</a></h2>
+<blockquote>
+<div><ul class="simple">
+<li><dl class="simple">
+<dt>sync with Bathygrid 1.2.0</dt><dd><ul>
+<li><p>add compressed zarr backend as new default backend, roughly 50% space savings on new grids</p></li>
+<li><p>add sounding density, layer plots</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+<li><p>connect settings dialog and kluster_variables, can now customize default variables in Kluster</p></li>
+<li><p>add plots and calculations to manage surface dialog (right click a surface in project tree)</p></li>
+<li><p>reprocess dialog now allows customizable status setting in a new dialog</p></li>
+<li><p>new right click show in explorer in project tree</p></li>
+<li><p>project epsg setting is now validated for projected/units in meters</p></li>
+<li><p>can now grid only selected lines</p></li>
+<li><p>altered default horizontal/vertical positioning uncertainty to 1.0/0.5 meters respectively</p></li>
+<li><p>reset layout no longer affects saved settings</p></li>
+<li><p>bug resolved with export grid and loading selected data</p></li>
+<li><p>bug resolved with qt/matplotlib backend resolved, reordered imports</p></li>
+<li><p>removed old code that caused issues with graphics and smaller screens</p></li>
+<li><p>resolved dask dashboard issue related to import typing</p></li>
+</ul>
+</div></blockquote>
+</section>
+<section id="kluster-v0-8-7-1-14-2022">
 <h2>Kluster v0.8.7 (1/14/2022)<a class="headerlink" href="#kluster-v0-8-7-1-14-2022" title="Permalink to this headline">¶</a></h2>
 <ul class="simple">
 <li><p>Resolve patch test issue, will no correctly use the TX Pitch value during Patch Test, was previously incorrectly using RX Pitch</p></li>
@@ -48,8 +76,8 @@
 <li><p>bug fix skip color generation for soundings when Points View is empty</p></li>
 <li><p>bug fix skip reload converted data attempts for new path if it is not a directory</p></li>
 </ul>
-</div>
-<div class="section" id="kluster-v0-8-6-1-6-2022">
+</section>
+<section id="kluster-v0-8-6-1-6-2022">
 <h2>Kluster v0.8.6 (1/6/2022)<a class="headerlink" href="#kluster-v0-8-6-1-6-2022" title="Permalink to this headline">¶</a></h2>
 <ul>
 <li><p>move to new Python 3.8.12 environment, notable changes:</p>
@@ -68,8 +96,8 @@
 <li><p>bugfix issue warning instead of exception on getting soundings without georeferencing</p></li>
 <li><p>bugfix correct the default arguments in fqpr_drivers.sequential_read_multibeam</p></li>
 </ul>
-</div>
-<div class="section" id="kluster-v0-8-5-1-4-2022">
+</section>
+<section id="kluster-v0-8-5-1-4-2022">
 <h2>Kluster v0.8.5 (1/4/2022)<a class="headerlink" href="#kluster-v0-8-5-1-4-2022" title="Permalink to this headline">¶</a></h2>
 <ul class="simple">
 <li><p>aligns with vyperdatum 0.1.8</p>
@@ -96,8 +124,8 @@
 <li><p>bugfix add accuracy test validation for horizontal and vertical crs between surface and data</p></li>
 <li><p>bugfix the Extinction test water depth line colors to work with dark mode</p></li>
 </ul>
-</div>
-<div class="section" id="kluster-v0-8-4-12-17-2021">
+</section>
+<section id="kluster-v0-8-4-12-17-2021">
 <h2>Kluster v0.8.4 (12/17/2021)<a class="headerlink" href="#kluster-v0-8-4-12-17-2021" title="Permalink to this headline">¶</a></h2>
 <ul class="simple">
 <li><p>aligns with drivers 0.1.19</p>
@@ -121,8 +149,8 @@
 <li><p>bugfix turn off the points view title bar to prevent users from trying to undock (Vispy crashes when you try)</p></li>
 <li><p>bugfix will now not clean/select points in points view if they are not visible (see show rejected/hide lines)</p></li>
 </ul>
-</div>
-<div class="section" id="kluster-v0-8-3">
+</section>
+<section id="kluster-v0-8-3">
 <h2>Kluster v0.8.3<a class="headerlink" href="#kluster-v0-8-3" title="Permalink to this headline">¶</a></h2>
 <ul class="simple">
 <li><p>aligns with vyperdatum 0.1.6</p>
@@ -161,8 +189,8 @@
 <li><p>bug fix for sound velocity map, correctly computes navigation segments</p></li>
 <li><p>bug fix with updating surface, now correctly formats the resolution parameter</p></li>
 </ul>
-</div>
-<div class="section" id="kluster-v0-8-2">
+</section>
+<section id="kluster-v0-8-2">
 <h2>Kluster v0.8.2<a class="headerlink" href="#kluster-v0-8-2" title="Permalink to this headline">¶</a></h2>
 <ul class="simple">
 <li><p>bathygrid tile outlines now change color in dark mode</p></li>
@@ -171,8 +199,8 @@
 <li><p>new jupyter notebooks matching examples additions</p></li>
 <li><p>bug fix for intel processing when input is directory</p></li>
 </ul>
-</div>
-<div class="section" id="kluster-v0-8-1">
+</section>
+<section id="kluster-v0-8-1">
 <h2>Kluster v0.8.1<a class="headerlink" href="#kluster-v0-8-1" title="Permalink to this headline">¶</a></h2>
 <ul class="simple">
 <li><p>aligns with bathygrid 1.1.3</p>
@@ -200,8 +228,8 @@
 <li><p>update surface correctly clears the loaded surface layers after reloading</p></li>
 <li><p>select skips tiles for loading line attribution</p></li>
 </ul>
-</div>
-<div class="section" id="kluster-v0-8-0">
+</section>
+<section id="kluster-v0-8-0">
 <h2>Kluster v0.8.0<a class="headerlink" href="#kluster-v0-8-0" title="Permalink to this headline">¶</a></h2>
 <ul class="simple">
 <li><p>greatly improve performance with NOAA_MLLW NOAA_MHW datum selections by sampling points passed to vyperdatum</p></li>
@@ -224,8 +252,8 @@
 <li><p>bug with filter_subset_by_polygon, intersect hashes cannot include inside hashes, was loading double the points in some instances</p></li>
 <li><p>bug with Points view - correctly maintain head index when adding points from dual head sonar</p></li>
 </ul>
-</div>
-<div class="section" id="kluster-v0-7-11">
+</section>
+<section id="kluster-v0-7-11">
 <h2>Kluster v0.7.11<a class="headerlink" href="#kluster-v0-7-11" title="Permalink to this headline">¶</a></h2>
 <ul class="simple">
 <li><p>Remove duplicate installation parameters on conversion. Duplicates are determined only based on changes to important fields (i.e. offsets, angles, waterline)</p></li>
@@ -234,8 +262,8 @@
 <li><p>Correctly sort multibeam datasets post conversion when pings are found to be out of order.</p></li>
 <li><p>Bug fix - when reloading previous used string settings for a dialog, will now set value to ‘’ instead of ‘None’ when value is not set</p></li>
 </ul>
-</div>
-<div class="section" id="kluster-v0-7-10">
+</section>
+<section id="kluster-v0-7-10">
 <h2>Kluster v0.7.10<a class="headerlink" href="#kluster-v0-7-10" title="Permalink to this headline">¶</a></h2>
 <ul class="simple">
 <li><p>SBET import now imports to ping record instead of separate dataset</p></li>
@@ -253,8 +281,8 @@
 <li><p>Bug - with using the SBET datum instead of the default input datum on georeference</p></li>
 <li><p>Bug - sbet validation now works when no sbet has been imported yet</p></li>
 </ul>
-</div>
-<div class="section" id="kluster-v0-7-9">
+</section>
+<section id="kluster-v0-7-9">
 <h2>Kluster v0.7.9<a class="headerlink" href="#kluster-v0-7-9" title="Permalink to this headline">¶</a></h2>
 <ul class="simple">
 <li><p>surfacing efficiency improvements during gridding</p></li>
@@ -266,8 +294,8 @@
 <li><p>bugfix kmall driver and maintaining unique times across ping record</p></li>
 <li><p>bugfix resolve icon issue with pyinstaller</p></li>
 </ul>
-</div>
-<div class="section" id="kluster-v0-7-8">
+</section>
+<section id="kluster-v0-7-8">
 <h2>Kluster v0.7.8<a class="headerlink" href="#kluster-v0-7-8" title="Permalink to this headline">¶</a></h2>
 <ul class="simple">
 <li><p>sync with bathygrid 1.0.14 - improvements to the gridding process to avoid looping in python</p></li>
@@ -280,8 +308,8 @@
 <li><p>bug fix - disable adding to project through dialogs</p></li>
 <li><p>bug fix - fix for loading project from kluster project json file</p></li>
 </ul>
-</div>
-<div class="section" id="kluster-v0-7-7">
+</section>
+<section id="kluster-v0-7-7">
 <h2>Kluster v0.7.7<a class="headerlink" href="#kluster-v0-7-7" title="Permalink to this headline">¶</a></h2>
 <ul class="simple">
 <li><p>points view allows viewing points in the direction of the arrow displayed on the 2dview box</p></li>
@@ -301,8 +329,8 @@
 <li><p>bug fix with savestatedialog, casts text values to string</p></li>
 <li><p>bug fix to ensure vessel setup only updates the selected fqpr container</p></li>
 </ul>
-</div>
-<div class="section" id="kluster-v0-7-6">
+</section>
+<section id="kluster-v0-7-6">
 <h2>Kluster v0.7.6<a class="headerlink" href="#kluster-v0-7-6" title="Permalink to this headline">¶</a></h2>
 <ul class="simple">
 <li><p>allow drag and drop events on any part of the main window</p></li>
@@ -312,8 +340,8 @@
 <li><p>new parameters for setting up Dask Client - LocalCluster mode</p></li>
 <li><p>docs and tests</p></li>
 </ul>
-</div>
-<div class="section" id="kluster-v0-7-5">
+</section>
+<section id="kluster-v0-7-5">
 <h2>Kluster v0.7.5<a class="headerlink" href="#kluster-v0-7-5" title="Permalink to this headline">¶</a></h2>
 <ul class="simple">
 <li><p>Exporting LAS now includes the Kluster horizontal system in the header</p></li>
@@ -329,8 +357,8 @@
 <li><p>Fix bug with gridding not honoring rejected soundings</p></li>
 <li><p>Fix bug with progress bar halting while running multiple threads</p></li>
 </ul>
-</div>
-<div class="section" id="kluster-v0-7-4">
+</section>
+<section id="kluster-v0-7-4">
 <h2>Kluster v0.7.4<a class="headerlink" href="#kluster-v0-7-4" title="Permalink to this headline">¶</a></h2>
 <ul class="simple">
 <li><p>New documentation system, help menu item for viewing online/offline</p></li>
@@ -339,8 +367,8 @@
 <li><p>saving changes to multibeam from vessel setup retains changes in vessel model setup (basic config)</p></li>
 <li><p>resolve bug with navigation in custom sound velocity map plot</p></li>
 </ul>
-</div>
-<div class="section" id="kluster-v0-7-3">
+</section>
+<section id="kluster-v0-7-3">
 <h2>Kluster v0.7.3<a class="headerlink" href="#kluster-v0-7-3" title="Permalink to this headline">¶</a></h2>
 <ul class="simple">
 <li><p>Add the ability to handle two dataset instances in the plot data handlers</p></li>
@@ -351,8 +379,8 @@
 <li><p>show action tooltip on next action as well</p></li>
 <li><p>bug fixed with altering box after third click</p></li>
 </ul>
-</div>
-<div class="section" id="kluster-v0-7-2">
+</section>
+<section id="kluster-v0-7-2">
 <h2>Kluster v0.7.2<a class="headerlink" href="#kluster-v0-7-2" title="Permalink to this headline">¶</a></h2>
 <ul class="simple">
 <li><p>Export variable/dataset now exports time as a float, add more precise rounding to the exported variables</p></li>
@@ -367,8 +395,8 @@
 <li><p>Fix bug with VR Surfaces - will now load all resolutions on selecting layer checkbox</p></li>
 <li><p>Add message on drawing surface to indicate something is happening</p></li>
 </ul>
-</div>
-<div class="section" id="kluster-v0-7-1">
+</section>
+<section id="kluster-v0-7-1">
 <h2>Kluster v0.7.1<a class="headerlink" href="#kluster-v0-7-1" title="Permalink to this headline">¶</a></h2>
 <ul class="simple">
 <li><p>added new advanced plot type ‘Accuracy Test’</p></li>
@@ -381,8 +409,8 @@
 <li><p>update tests and docs</p></li>
 <li><p>update command line options</p></li>
 </ul>
-</div>
-<div class="section" id="kluster-v0-7-0">
+</section>
+<section id="kluster-v0-7-0">
 <h2>Kluster v0.7.0<a class="headerlink" href="#kluster-v0-7-0" title="Permalink to this headline">¶</a></h2>
 <ul class="simple">
 <li><p>move navigation from external dataset to the ping record datasets. Should improve load times, decrease memory consumption and improve processing times.</p></li>
@@ -406,16 +434,16 @@
 <li><p>bug fixed where data chunk without attitude records will now be dropped</p></li>
 <li><p>bug fixed where georeference actions were generating based on the wrong CRS attribute</p></li>
 </ul>
-</div>
-<div class="section" id="kluster-v0-6-6">
+</section>
+<section id="kluster-v0-6-6">
 <h2>Kluster v0.6.6<a class="headerlink" href="#kluster-v0-6-6" title="Permalink to this headline">¶</a></h2>
 <ul class="simple">
 <li><p>forgot the format string for surface generation</p></li>
 <li><p>hide gdal errors on checking if layers are loaded</p></li>
 <li><p>bug for zooming to surface extents</p></li>
 </ul>
-</div>
-<div class="section" id="kluster-v0-6-5">
+</section>
+<section id="kluster-v0-6-5">
 <h2>Kluster v0.6.5<a class="headerlink" href="#kluster-v0-6-5" title="Permalink to this headline">¶</a></h2>
 <ul class="simple">
 <li><p>improvements to reload speed (thanks to work ensuring data is written in correct time order without duplicate times)</p></li>
@@ -432,8 +460,8 @@
 <li><p>export grid dialog is now populated with the vertical CRS WKT string</p></li>
 <li><p>clean up time elapsed strings so it isn’t just 235980235 seconds elapsed.</p></li>
 </ul>
-</div>
-<div class="section" id="kluster-v0-6-4">
+</section>
+<section id="kluster-v0-6-4">
 <h2>Kluster v0.6.4<a class="headerlink" href="#kluster-v0-6-4" title="Permalink to this headline">¶</a></h2>
 <ul class="simple">
 <li><p>kmall - fix for incorrectly translated detection info flag</p></li>
@@ -449,8 +477,8 @@
 <li><p>fix for intel process, will load an existing project now</p></li>
 <li><p>fix for pyinstaller routine - will carry over the correct qgis files for loading WMS layers</p></li>
 </ul>
-</div>
-<div class="section" id="kluster-v0-6-3">
+</section>
+<section id="kluster-v0-6-3">
 <h2>Kluster v0.6.3<a class="headerlink" href="#kluster-v0-6-3" title="Permalink to this headline">¶</a></h2>
 <ul class="simple">
 <li><p>update setup to include later versions of modules</p></li>
@@ -462,8 +490,8 @@
 <li><p>bathygrid supports updating surface (right click the surface) for new data</p></li>
 <li><p>bathygrid shows attribution in attribute window on left click</p></li>
 </ul>
-</div>
-<div class="section" id="kluster-v0-6-2">
+</section>
+<section id="kluster-v0-6-2">
 <h2>Kluster v0.6.2<a class="headerlink" href="#kluster-v0-6-2" title="Permalink to this headline">¶</a></h2>
 <ul class="simple">
 <li><p>add ability to rotate 2d/3d point selection in map view</p></li>
@@ -473,12 +501,12 @@
 <li><p>fixes to KMALL driver to support new sonar data/formats</p></li>
 <li><p>bug resolved when duplicate times are found after converting multibeam data</p></li>
 </ul>
-</div>
-<div class="section" id="kluster-v0-6-1">
+</section>
+<section id="kluster-v0-6-1">
 <h2>Kluster v0.6.1<a class="headerlink" href="#kluster-v0-6-1" title="Permalink to this headline">¶</a></h2>
 <p>Skipped to v0.6.2 due to issues with the release</p>
-</div>
-<div class="section" id="kluster-v0-6-0">
+</section>
+<section id="kluster-v0-6-0">
 <h2>Kluster v0.6.0<a class="headerlink" href="#kluster-v0-6-0" title="Permalink to this headline">¶</a></h2>
 <ul class="simple">
 <li><p>Move TPU parameters into the xyzrph record</p></li>
@@ -501,8 +529,8 @@
 <li><p>bug fixed with writing attributes, always generates deep copy first</p></li>
 <li><p>bug fixed with loading xyzrph entries that lacked imu/antenna entries in vesselview</p></li>
 </ul>
-</div>
-<div class="section" id="kluster-v0-5-2">
+</section>
+<section id="kluster-v0-5-2">
 <h2>Kluster v0.5.2<a class="headerlink" href="#kluster-v0-5-2" title="Permalink to this headline">¶</a></h2>
 <ul class="simple">
 <li><p>added new backends for data storage, zarr backend the only one for now</p></li>
@@ -512,8 +540,8 @@
 <li><p>stick with default two threads per worker, seen good results in tests</p></li>
 <li><p>set default number of chunks to a kluster_variable</p></li>
 </ul>
-</div>
-<div class="section" id="kluster-v0-5-1">
+</section>
+<section id="kluster-v0-5-1">
 <h2>Kluster v0.5.1<a class="headerlink" href="#kluster-v0-5-1" title="Permalink to this headline">¶</a></h2>
 <ul class="simple">
 <li><p>added a 2d swath view</p></li>
@@ -524,8 +552,8 @@
 <li><p>add colorbar to 2d and 3d</p></li>
 <li><p>controls for showing/hiding colorbar/axis</p></li>
 </ul>
-</div>
-<div class="section" id="kluster-v0-5-0">
+</section>
+<section id="kluster-v0-5-0">
 <h2>Kluster v0.5.0<a class="headerlink" href="#kluster-v0-5-0" title="Permalink to this headline">¶</a></h2>
 <ul class="simple">
 <li><p>new 3dview using vispy Scatter data</p></li>
@@ -545,8 +573,8 @@
 <li><p>resolve bugs with settings dialogs not reading ini file properly, not writing new settings correctly</p></li>
 <li><p>correct docstrings</p></li>
 </ul>
-</div>
-<div class="section" id="kluster-v0-4-10">
+</section>
+<section id="kluster-v0-4-10">
 <h2>Kluster v0.4.10<a class="headerlink" href="#kluster-v0-4-10" title="Permalink to this headline">¶</a></h2>
 <ul class="simple">
 <li><p>bug with _closest_key_value, need an abs there</p></li>
@@ -559,8 +587,8 @@
 <li><p>add svp, tif, shp test files</p></li>
 <li><p>add tests for most of the remaining modules</p></li>
 </ul>
-</div>
-<div class="section" id="kluster-v0-4-9">
+</section>
+<section id="kluster-v0-4-9">
 <h2>Kluster v0.4.9<a class="headerlink" href="#kluster-v0-4-9" title="Permalink to this headline">¶</a></h2>
 <ul class="simple">
 <li><p>added import ppnav dialog back in to manually import sbet</p></li>
@@ -569,8 +597,8 @@
 <li><p>trigger action progress bar on import/overwrite nav</p></li>
 <li><p>up the default number of retries on PermissionError</p></li>
 </ul>
-</div>
-</div>
+</section>
+</section>
 
 
           </div>
@@ -602,6 +630,7 @@
 <li class="toctree-l1"><a class="reference internal" href="indepth/index.html">Learn more about Kluster</a></li>
 <li class="toctree-l1"><a class="reference internal" href="kluster_api/index.html">API</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Changes List</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#kluster-v0-8-8-2-10-2022">Kluster v0.8.8 (2/10/2022)</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#kluster-v0-8-7-1-14-2022">Kluster v0.8.7 (1/14/2022)</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#kluster-v0-8-6-1-6-2022">Kluster v0.8.6 (1/6/2022)</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#kluster-v0-8-5-1-4-2022">Kluster v0.8.5 (1/4/2022)</a></li>
@@ -650,7 +679,7 @@
   <h3 id="searchlabel">Quick search</h3>
     <div class="searchformwrapper">
     <form class="search" action="search.html" method="get">
-      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
       <input type="submit" value="Go" />
     </form>
     </div>
@@ -672,7 +701,7 @@
       &copy;2020, Eric Younkin.
       
       |
-      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.5.2</a>
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 4.3.2</a>
       &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
       
       |

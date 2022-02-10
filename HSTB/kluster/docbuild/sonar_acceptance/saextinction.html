@@ -4,12 +4,13 @@
 <html>
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Extinction Test &#8212; kluster 0.8.7 documentation</title>
-    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
-    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+    <title>Extinction Test &#8212; kluster 0.8.8 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/alabaster.css" />
     <link rel="stylesheet" type="text/css" href="../_static/graphviz.css" />
-    <script id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
     <script src="../_static/jquery.js"></script>
     <script src="../_static/underscore.js"></script>
     <script src="../_static/doctools.js"></script>
@@ -33,7 +34,7 @@
 
           <div class="body" role="main">
             
-  <div class="section" id="extinction-test">
+  <section id="extinction-test">
 <h1>Extinction Test<a class="headerlink" href="#extinction-test" title="Permalink to this headline">¶</a></h1>
 <p>The Extinction Test will take the data you provide and plot the outermost beam returns, giving you an idea of the maximum swath size versus depth.  This information is useful in planning surveys, as you can predict the swath width in different areas.</p>
 <p>The Extinction Test involves a line that is ideally run in both directions at multiple frequencies, that starts shallow and runs until you no longer get a return from the sonar, i.e. past the expected maximum depth of the system.</p>
@@ -49,7 +50,7 @@
 <a class="reference external image-reference" href="../_images/saextinction2.png"><img alt="../_images/saextinction2.png" src="../_images/saextinction2.png" /></a>
 <p>The Extinction Test provides a lot of useful information, let’s examine the image above for a moment.  We can see that with the 200/300khz modes, we maintain about 6x water depth down to about 70 meters (this is a dual head system).  The maximum swath size dips at 70 and 130 meters, probably because the sonar switched to another mode.  What is interesting, is that the sonar appears to be in Long FM mode throughout the test, which is a mode you would expect to see in deeper water.  This system might have been set to this mode during acquisition for some reason.</p>
 <p>The maximum depth for all frequencies appears to be around 250 to 300 meters.  You lose a great deal of swath width at 400 khz, as you can see the swath stays around 2x water depth throughout the depth ranges.  At 200 meters, you appear to start losing the outer beams, as you can see the extinction line start trending inwards.</p>
-</div>
+</section>
 
 
           </div>
@@ -106,7 +107,7 @@
   <h3 id="searchlabel">Quick search</h3>
     <div class="searchformwrapper">
     <form class="search" action="../search.html" method="get">
-      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
       <input type="submit" value="Go" />
     </form>
     </div>
@@ -128,7 +129,7 @@
       &copy;2020, Eric Younkin.
       
       |
-      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.5.2</a>
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 4.3.2</a>
       &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
       
       |

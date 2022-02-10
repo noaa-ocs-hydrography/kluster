@@ -75,7 +75,7 @@ class ColorRanges(QtWidgets.QDialog):
         self.ranges_layout.addWidget(self.hunc_box)
 
         self.status_msg = QtWidgets.QLabel('')
-        self.status_msg.setStyleSheet("QLabel { " + kluster_variables.error_color + "; }")
+        self.status_msg.setStyleSheet("QLabel { color : " + kluster_variables.error_color + "; }")
         self.ranges_layout.addWidget(self.status_msg)
 
         self.button_layout = QtWidgets.QHBoxLayout()

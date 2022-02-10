@@ -55,7 +55,7 @@ class SurfaceDataDialog(SaveStateDialog):
         # self.toplayout.addWidget(self.use_dask_checkbox)
 
         self.status_msg = QtWidgets.QLabel('')
-        self.status_msg.setStyleSheet("QLabel { " + kluster_variables.error_color + "; }")
+        self.status_msg.setStyleSheet("QLabel { color : " + kluster_variables.error_color + "; }")
         self.toplayout.addWidget(self.status_msg)
 
         self.hlayout_button = QtWidgets.QHBoxLayout()

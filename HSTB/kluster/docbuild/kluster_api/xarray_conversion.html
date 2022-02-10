@@ -4,12 +4,13 @@
 <html>
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>xarray_conversion module &#8212; kluster 0.8.7 documentation</title>
-    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
-    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+    <title>xarray_conversion module &#8212; kluster 0.8.8 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/alabaster.css" />
     <link rel="stylesheet" type="text/css" href="../_static/graphviz.css" />
-    <script id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
     <script src="../_static/jquery.js"></script>
     <script src="../_static/underscore.js"></script>
     <script src="../_static/doctools.js"></script>
@@ -33,11 +34,11 @@
 
           <div class="body" role="main">
             
-  <div class="section" id="xarray-conversion-module">
+  <section id="xarray-conversion-module">
 <h1>xarray_conversion module<a class="headerlink" href="#xarray-conversion-module" title="Permalink to this headline">¶</a></h1>
-<div class="section" id="module-HSTB.kluster.xarray_conversion">
+<section id="module-HSTB.kluster.xarray_conversion">
 <span id="hstb-kluster-xarray-conversion-module"></span><h2>HSTB.kluster.xarray_conversion Module<a class="headerlink" href="#module-HSTB.kluster.xarray_conversion" title="Permalink to this headline">¶</a></h2>
-<div class="section" id="functions">
+<section id="functions">
 <h3>Functions<a class="headerlink" href="#functions" title="Permalink to this headline">¶</a></h3>
 <table class="longtable docutils align-default">
 <colgroup>
@@ -48,10 +49,10 @@
 <tr class="row-odd"><td><p><a class="reference internal" href="../api/HSTB.kluster.xarray_conversion.batch_read_configure_options.html#HSTB.kluster.xarray_conversion.batch_read_configure_options" title="HSTB.kluster.xarray_conversion.batch_read_configure_options"><code class="xref py py-obj docutils literal notranslate"><span class="pre">batch_read_configure_options</span></code></a>()</p></td>
 <td><p>Generate the parameters that drive the data conversion.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="../api/HSTB.kluster.xarray_conversion.build_xyzrph.html#HSTB.kluster.xarray_conversion.build_xyzrph" title="HSTB.kluster.xarray_conversion.build_xyzrph"><code class="xref py py-obj docutils literal notranslate"><span class="pre">build_xyzrph</span></code></a>(settdict, runtime_settdict, …)</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="../api/HSTB.kluster.xarray_conversion.build_xyzrph.html#HSTB.kluster.xarray_conversion.build_xyzrph" title="HSTB.kluster.xarray_conversion.build_xyzrph"><code class="xref py py-obj docutils literal notranslate"><span class="pre">build_xyzrph</span></code></a>(settdict, runtime_settdict, ...)</p></td>
 <td><p>Translate the raw settings dictionary from the multibeam file (see sequential_read_records) into a dictionary of timestamped entries for each sensor offset/angle.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="../api/HSTB.kluster.xarray_conversion.determine_good_chunksize.html#HSTB.kluster.xarray_conversion.determine_good_chunksize" title="HSTB.kluster.xarray_conversion.determine_good_chunksize"><code class="xref py py-obj docutils literal notranslate"><span class="pre">determine_good_chunksize</span></code></a>(fil[, …])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="../api/HSTB.kluster.xarray_conversion.determine_good_chunksize.html#HSTB.kluster.xarray_conversion.determine_good_chunksize" title="HSTB.kluster.xarray_conversion.determine_good_chunksize"><code class="xref py py-obj docutils literal notranslate"><span class="pre">determine_good_chunksize</span></code></a>(fil[, ...])</p></td>
 <td><p>With given file, determine the best size of the chunk to read from it, given a minimum chunksize and a max number of chunks.</p></td>
 </tr>
 <tr class="row-even"><td><p><a class="reference internal" href="../api/HSTB.kluster.xarray_conversion.gather_dataset_attributes.html#HSTB.kluster.xarray_conversion.gather_dataset_attributes" title="HSTB.kluster.xarray_conversion.gather_dataset_attributes"><code class="xref py py-obj docutils literal notranslate"><span class="pre">gather_dataset_attributes</span></code></a>(dataset)</p></td>
@@ -77,8 +78,8 @@
 </tr>
 </tbody>
 </table>
-</div>
-<div class="section" id="classes">
+</section>
+<section id="classes">
 <h3>Classes<a class="headerlink" href="#classes" title="Permalink to this headline">¶</a></h3>
 <table class="longtable docutils align-default">
 <colgroup>
@@ -86,20 +87,20 @@
 <col style="width: 90%" />
 </colgroup>
 <tbody>
-<tr class="row-odd"><td><p><a class="reference internal" href="../api/HSTB.kluster.xarray_conversion.BatchRead.html#HSTB.kluster.xarray_conversion.BatchRead" title="HSTB.kluster.xarray_conversion.BatchRead"><code class="xref py py-obj docutils literal notranslate"><span class="pre">BatchRead</span></code></a>([filfolder, dest, address, …])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="../api/HSTB.kluster.xarray_conversion.BatchRead.html#HSTB.kluster.xarray_conversion.BatchRead" title="HSTB.kluster.xarray_conversion.BatchRead"><code class="xref py py-obj docutils literal notranslate"><span class="pre">BatchRead</span></code></a>([filfolder, dest, address, ...])</p></td>
 <td><p>BatchRead - multibeam data converter using dask infrastructure and xarray data types Pass in multibeam files, call read(), and gain access to xarray Datasets for each data type</p></td>
 </tr>
 </tbody>
 </table>
-</div>
-<div class="section" id="class-inheritance-diagram">
+</section>
+<section id="class-inheritance-diagram">
 <h3>Class Inheritance Diagram<a class="headerlink" href="#class-inheritance-diagram" title="Permalink to this headline">¶</a></h3>
 <div class="graphviz"><img src="../_images/inheritance-b7117975be4061179ea97fd31b9735e44139ff9a.png" alt="Inheritance diagram of HSTB.kluster.xarray_conversion.BatchRead" usemap="#inheritance8575240f2d" class="inheritance graphviz" /></div>
 <map id="inheritance8575240f2d" name="inheritance8575240f2d">
-<area shape="rect" id="node2" href="../api/HSTB.kluster.xarray_conversion.BatchRead.html#HSTB.kluster.xarray_conversion.BatchRead" target="_top" title="BatchRead &#45; multibeam data converter using dask infrastructure and xarray data types" alt="" coords="316,5,407,31"/>
-</map></div>
-</div>
-</div>
+<area shape="rect" id="node2" href="../api/HSTB.kluster.xarray_conversion.BatchRead.html#HSTB.kluster.xarray_conversion.BatchRead" target="_top" title="BatchRead &#45; multibeam data converter using dask infrastructure and xarray data types" alt="" coords="320,5,413,31"/>
+</map></section>
+</section>
+</section>
 
 
           </div>
@@ -186,7 +187,7 @@
   <h3 id="searchlabel">Quick search</h3>
     <div class="searchformwrapper">
     <form class="search" action="../search.html" method="get">
-      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
       <input type="submit" value="Go" />
     </form>
     </div>
@@ -208,7 +209,7 @@
       &copy;2020, Eric Younkin.
       
       |
-      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.5.2</a>
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 4.3.2</a>
       &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
       
       |

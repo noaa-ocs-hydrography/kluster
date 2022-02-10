@@ -43,7 +43,6 @@ class ExportDialog(SaveStateDialog):
         self.export_opts = QtWidgets.QComboBox()
         # self.export_opts.addItems(['csv', 'las', 'entwine'])  need to add entwine to the env
         self.export_opts.addItems(['csv', 'las'])
-        self.export_opts.setMaximumWidth(100)
         self.hlayout_one.addWidget(self.export_opts)
         self.csvdelimiter_lbl = QtWidgets.QLabel('Delimiter')
         self.hlayout_one.addWidget(self.csvdelimiter_lbl)
@@ -68,7 +67,7 @@ class ExportDialog(SaveStateDialog):
         self.hlayout_one_three.addStretch()
 
         self.status_msg = QtWidgets.QLabel('')
-        self.status_msg.setStyleSheet("QLabel { " + kluster_variables.error_color + "; }")
+        self.status_msg.setStyleSheet("QLabel { color : " + kluster_variables.error_color + "; }")
 
         self.hlayout_two = QtWidgets.QHBoxLayout()
         self.hlayout_two.addStretch(1)
@@ -116,7 +115,7 @@ class ExportDialog(SaveStateDialog):
         if evt:
             self.line_export.setChecked(False)
             self.points_view_export.setChecked(False)
-            self.status_msg.setStyleSheet("QLabel { " + kluster_variables.pass_color + "; }")
+            self.status_msg.setStyleSheet("QLabel { color: " + kluster_variables.pass_color + "; }")
             self.status_msg.setText('')
 
     def _handle_line_checked(self, evt):
@@ -127,7 +126,7 @@ class ExportDialog(SaveStateDialog):
         if evt:
             self.basic_export_group.setChecked(False)
             self.points_view_export.setChecked(False)
-            self.status_msg.setStyleSheet("QLabel { " + kluster_variables.pass_color + "; }")
+            self.status_msg.setStyleSheet("QLabel { color : " + kluster_variables.pass_color + "; }")
             self.status_msg.setText('')
 
     def _handle_points_checked(self, evt):
@@ -139,10 +138,10 @@ class ExportDialog(SaveStateDialog):
             self.line_export.setChecked(False)
             self.basic_export_group.setChecked(False)
             if not self.fqpr_inst:
-                self.status_msg.setStyleSheet("QLabel { " + kluster_variables.error_color + "; }")
+                self.status_msg.setStyleSheet("QLabel { color : " + kluster_variables.error_color + "; }")
                 self.status_msg.setText('Error: Ensure you have one of the datasets that contain these points listed in "Export from the following datasets"')
             else:
-                self.status_msg.setStyleSheet("QLabel { " + kluster_variables.pass_color + "; }")
+                self.status_msg.setStyleSheet("QLabel { color : " + kluster_variables.pass_color + "; }")
                 self.status_msg.setText('')
 
     def _event_update_fqpr_instances(self):
@@ -167,11 +166,11 @@ class ExportDialog(SaveStateDialog):
         if combobox_text == 'entwine':
             ispydro = is_pydro()
             if ispydro:  # If this is the pydro environment, we know it has Entwine
-                self.status_msg.setStyleSheet("QLabel { " + kluster_variables.pass_color + "; }")
+                self.status_msg.setStyleSheet("QLabel { color : " + kluster_variables.pass_color + "; }")
                 self.status_msg.setText('Pydro found, entwine export allowed')
                 self.ok_button.setEnabled(True)
             else:
-                self.status_msg.setStyleSheet("QLabel { " + kluster_variables.error_color + "; }")
+                self.status_msg.setStyleSheet("QLabel { color : " + kluster_variables.error_color + "; }")
                 self.status_msg.setText('Error: Pydro not found, entwine export is not allowed')
                 self.ok_button.setEnabled(False)
         else:
@@ -210,13 +209,13 @@ class ExportDialog(SaveStateDialog):
         Dialog completes if the specified widgets are populated
         """
         if self.basic_export_group.isChecked() and not self.fqpr_inst:
-            self.status_msg.setStyleSheet("QLabel { " + kluster_variables.error_color + "; }")
+            self.status_msg.setStyleSheet("QLabel { color : " + kluster_variables.error_color + "; }")
             self.status_msg.setText('Error: No data provided')
         elif self.points_view_export.isChecked() and not self.fqpr_inst:
-            self.status_msg.setStyleSheet("QLabel { " + kluster_variables.error_color + "; }")
+            self.status_msg.setStyleSheet("QLabel { color : " + kluster_variables.error_color + "; }")
             self.status_msg.setText('Error: You must provide at least one dataset that the points come from before exporting')
         elif not self.basic_export_group.isChecked() and not self.line_export.isChecked() and not self.points_view_export.isChecked():
-            self.status_msg.setStyleSheet("QLabel { " + kluster_variables.error_color + "; }")
+            self.status_msg.setStyleSheet("QLabel { color : " + kluster_variables.error_color + "; }")
             self.status_msg.setText('Error: You must select one of the three export modes (export datasets, export lines, export points)')
         else:
             self.canceled = False

@@ -4,12 +4,13 @@
 <html>
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Patch Test &#8212; kluster 0.8.7 documentation</title>
-    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
-    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+    <title>Patch Test &#8212; kluster 0.8.8 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/alabaster.css" />
     <link rel="stylesheet" type="text/css" href="../_static/graphviz.css" />
-    <script id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
     <script src="../_static/jquery.js"></script>
     <script src="../_static/underscore.js"></script>
     <script src="../_static/doctools.js"></script>
@@ -33,7 +34,7 @@
 
           <div class="body" role="main">
             
-  <div class="section" id="patch-test">
+  <section id="patch-test">
 <h1>Patch Test<a class="headerlink" href="#patch-test" title="Permalink to this headline">¶</a></h1>
 <p>This section will occasionally refer to the following documents:</p>
 <p>NOAA Field Procedures Manual (FPM) - <a class="reference external" href="https://nauticalcharts.noaa.gov/publications/standards-and-requirements.html">See “Field Procedures Manual” section</a></p>
@@ -57,31 +58,31 @@
 </ol>
 <p>For each test, you will likely want to enter in the new values you have so far before proceeding.  For example, if you have done Pitch and are about to do Roll, you would enter in your new Pitch value in the Patch Test screen as well as the new Roll value that you are trying out.</p>
 <p>Hold your mouse over the Points button to learn how to use it.</p>
-<div class="section" id="pitch">
+<section id="pitch">
 <h2>Pitch<a class="headerlink" href="#pitch" title="Permalink to this headline">¶</a></h2>
 <p>Pitch is the same line run twice in opposite directions over a slope.  For our dataset, we will use lines 9 and 10, which satisfy this criteria.  We want to compare the nadir (center) beam of each line, so we can just generate a narrow box using the Points tool (2d View - Points) and center it on top of the lines.</p>
 <p>Follow steps 1 through 6 above.  You should now have this display:</p>
 <a class="reference external image-reference" href="../_images/sapatch3.png"><img alt="../_images/sapatch3.png" src="../_images/sapatch3.png" /></a>
 <p>In this example, the slope isn’t that substantial, so it is a little difficult to tell.</p>
 <p>Determine your new Pitch value to make the slopes align.</p>
-</div>
-<div class="section" id="roll">
+</section>
+<section id="roll">
 <h2>Roll<a class="headerlink" href="#roll" title="Permalink to this headline">¶</a></h2>
 <p>Roll is the same line run twice in opposite directions across a slope or flat area.  We want to just compare a slice of the data in the across track direction.</p>
 <p>Follow steps 1 through 6 above.  You should now have this display:</p>
 <a class="reference external image-reference" href="../_images/sapatch4.png"><img alt="../_images/sapatch4.png" src="../_images/sapatch4.png" /></a>
 <p>In this example, we aren’t exactly going across a slope or in a flat area, so this is less than ideal.</p>
 <p>Determine your new Roll value to make the slopes align.</p>
-</div>
-<div class="section" id="yaw">
+</section>
+<section id="yaw">
 <h2>Yaw<a class="headerlink" href="#yaw" title="Permalink to this headline">¶</a></h2>
 <p>Yaw is two lines run in the same direction down a slope offset from each other.  You want to just get the overlap in the outer beams to exacerbate the error.  Compare a slice of data from both lines as shown in the image.</p>
 <p>Follow steps 1 through 6 above.  You should now have this display:</p>
 <a class="reference external image-reference" href="../_images/sapatch5.png"><img alt="../_images/sapatch5.png" src="../_images/sapatch5.png" /></a>
 <p>In this example, we don’t have a feature, and the slope is again less than ideal.</p>
 <p>Determine your new Yaw value to make the slopes align.</p>
-</div>
-<div class="section" id="using-the-results">
+</section>
+<section id="using-the-results">
 <h2>Using the Results<a class="headerlink" href="#using-the-results" title="Permalink to this headline">¶</a></h2>
 <p>After you have new Pitch, Roll and Yaw values, you can now update the existing values and reprocess.  This is done using the Vessel Offsets tool.  With your converted data selected in the Project Tree, go to Setup - Vessel Offsets, and you’ll see the display showing you the vessel, waterline plane, and the sensor data.</p>
 <p>You want to use the following sections:</p>
@@ -90,8 +91,8 @@ Roll = Sonar Receiver Roll
 Yaw = Sonar Receiver Yaw</p>
 <p>Update the values you see here with your new values, click the Update button and close the Vessel Setup window.  It will ask you if you want to save your changes.  Select Yes.  It will then ask if you want to use a vessel file or update the multibeam data offsets.  If you update the multibeam data, the angles that are in the converted data are updated and used during multibeam processing.  If you choose vessel, it will not update the converted multibeam data angles and instead build a vessel file that overrides the multibeam data offsets and angles.  You probably want to choose update, unless you are doing something else with vessel files.</p>
 <p>Kluster will then generate a new processing action to reflect the fact that you are using different mounting angles and need to restart processing at Orientation.  Hit Start Process, and the data will be reprocessed with the new angles!</p>
-</div>
-</div>
+</section>
+</section>
 
 
           </div>
@@ -154,7 +155,7 @@ Yaw = Sonar Receiver Yaw</p>
   <h3 id="searchlabel">Quick search</h3>
     <div class="searchformwrapper">
     <form class="search" action="../search.html" method="get">
-      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
       <input type="submit" value="Go" />
     </form>
     </div>
@@ -176,7 +177,7 @@ Yaw = Sonar Receiver Yaw</p>
       &copy;2020, Eric Younkin.
       
       |
-      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.5.2</a>
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 4.3.2</a>
       &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
       
       |

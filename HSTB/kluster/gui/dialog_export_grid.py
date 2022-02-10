@@ -1,5 +1,7 @@
 import os
 from datetime import datetime
+
+from bathygrid.grid_variables import allowable_grid_root_names
 from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal
 from HSTB.kluster.gui.common_widgets import SaveStateDialog
 from HSTB.kluster.gdal_helpers import return_gdal_version
@@ -36,7 +38,6 @@ class ExportGridDialog(SaveStateDialog):
         self.hlayout_one.addWidget(self.start_msg)
         self.export_opts = QtWidgets.QComboBox()
         self.export_opts.addItems(['Geotiff', 'BAG', 'csv'])
-        self.export_opts.setMaximumWidth(100)
         self.hlayout_one.addWidget(self.export_opts)
         self.zdirect_check = QtWidgets.QCheckBox('Z as Elevation (+ UP)')
         self.zdirect_check.setChecked(True)
@@ -123,7 +124,7 @@ class ExportGridDialog(SaveStateDialog):
         self.hlayout_one_one.addWidget(self.output_button)
 
         self.status_msg = QtWidgets.QLabel('')
-        self.status_msg.setStyleSheet("QLabel { " + kluster_variables.error_color + "; }")
+        self.status_msg.setStyleSheet("QLabel { color : " + kluster_variables.error_color + "; }")
 
         self.hlayout_two = QtWidgets.QHBoxLayout()
         self.hlayout_two.addStretch(1)
@@ -143,7 +144,6 @@ class ExportGridDialog(SaveStateDialog):
         layout.addLayout(self.hlayout_one_one)
         layout.addWidget(self.status_msg)
         layout.addLayout(self.hlayout_two)
-        layout.setSizeConstraint(QtWidgets.QLayout.SetFixedSize)
         self.setLayout(layout)
 
         self.input_pth = ''
@@ -185,15 +185,15 @@ class ExportGridDialog(SaveStateDialog):
             self.update_input_path(self.input_pth)
 
     def update_input_path(self, foldername: str):
-        if os.path.split(foldername)[1] in ['VRGridTile_Root', 'SRGrid_Root']:
-            foldername = os.path.dirname(foldername)
+        if not any([os.path.exists(os.path.join(foldername, allw)) for allw in allowable_grid_root_names]):
+            foldername = ''
 
         self.input_pth = foldername
         # rerun update status to clear the status if this grid_folder_browse attempt raises no warning
         curr_opts = self.export_opts.currentText().lower()
         self._event_update_status(curr_opts)
         self.fil_text.setText(self.input_pth)
-        if os.path.exists(os.path.join(self.input_pth, 'VRGridTile_Root')) or os.path.exists(os.path.join(self.input_pth, 'SRGrid_Root')):
+        if self.input_pth:
             if not self.output_pth:
                 if curr_opts != 'geotiff':
                     ext = curr_opts
@@ -248,11 +248,11 @@ class ExportGridDialog(SaveStateDialog):
             majr, minr, hfix = vers.split('.')
             self.zdirect_check.hide()
             if (int(majr) == 3 and int(minr) >= 2) or (int(majr) > 3):  # If this is the pydro environment, we know it has Entwine
-                self.status_msg.setStyleSheet("QLabel { " + kluster_variables.pass_color + "; }")
+                self.status_msg.setStyleSheet("QLabel { color : " + kluster_variables.pass_color + "; }")
                 self.status_msg.setText('Gdal > 3.2 found, BAG export allowed')
                 self.ok_button.setEnabled(True)
             else:
-                self.status_msg.setStyleSheet("QLabel { " + kluster_variables.error_color + "; }")
+                self.status_msg.setStyleSheet("QLabel { color : " + kluster_variables.error_color + "; }")
                 self.status_msg.setText('Gdal > 3.2 not found, BAG export not allowed')
                 self.ok_button.setEnabled(False)
         else:
@@ -299,10 +299,10 @@ class ExportGridDialog(SaveStateDialog):
         Dialog completes if the specified widgets are populated
         """
         if not self.input_pth:
-            self.status_msg.setStyleSheet("QLabel { " + kluster_variables.error_color + "; }")
+            self.status_msg.setStyleSheet("QLabel { color : " + kluster_variables.error_color + "; }")
             self.status_msg.setText('Error: No data provided')
         elif not self.output_pth:
-            self.status_msg.setStyleSheet("QLabel { " + kluster_variables.error_color + "; }")
+            self.status_msg.setStyleSheet("QLabel { color : " + kluster_variables.error_color + "; }")
             self.status_msg.setText('Error: No output path provided')
         else:
             self.canceled = False

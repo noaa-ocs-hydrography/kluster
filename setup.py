@@ -51,7 +51,6 @@ REQUIRED = [
             # note to self about gdal.  I want gdal >= 3.2.3 to get the bag template fix, but qgis appears to only
             #  support gdal=3.2.2 in it's latest version.  So I need to wait on qgis to get the gdal fix.n
 
-
             # Pyside stuff
             #  first had to downgrade to PySide2 5.14.1 to avoid shiboken import errors https://bugreports.qt.io/browse/PYSIDE-1257
             #   supposed to be fixed in 5.15.2 but apparently people still see it not working    

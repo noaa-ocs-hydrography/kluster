@@ -60,17 +60,11 @@ class KlusterActions(QtWidgets.QTreeView):
         self.exclude_buffer = []
 
         self.start_button = QtWidgets.QPushButton('Start Process')
-        self.start_button.setMinimumWidth(100)
-        self.start_button.setMaximumWidth(100)
-        self.start_button.setMinimumHeight(22)
         self.start_button.clicked.connect(self.start_process)
         self.start_button.setDisabled(True)
 
         self.auto_checkbox = QtWidgets.QCheckBox('Auto')
         self.auto_checkbox.setCheckable(True)
-        self.auto_checkbox.setMinimumWidth(50)
-        self.auto_checkbox.setMaximumWidth(50)
-        self.auto_checkbox.setMinimumHeight(22)
         self.auto_checkbox.clicked.connect(self.auto_process)
 
         self.button_widget = QtWidgets.QWidget()

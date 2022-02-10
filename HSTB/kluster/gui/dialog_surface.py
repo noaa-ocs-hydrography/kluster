@@ -23,8 +23,9 @@ class SurfaceDialog(SaveStateDialog):
         self.setWindowTitle('Generate New Surface')
         layout = QtWidgets.QVBoxLayout()
 
-        self.input_msg = QtWidgets.QLabel('Run surface generation on the following:')
-
+        self.basic_surface_group = QtWidgets.QGroupBox('Run surface generation on the following datasets:')
+        self.basic_surface_group.setCheckable(True)
+        self.basic_surface_group.setChecked(True)
         self.hlayout_zero = QtWidgets.QHBoxLayout()
 
         # fqpr = fully qualified ping record, the term for the datastore in kluster
@@ -34,6 +35,10 @@ class SurfaceDialog(SaveStateDialog):
                               filebrowse_title='Select input processed folder')
         self.input_fqpr.setMinimumWidth(500)
         self.hlayout_zero.addWidget(self.input_fqpr)
+        self.basic_surface_group.setLayout(self.hlayout_zero)
+
+        self.line_surface_checkbox = QtWidgets.QCheckBox('Only selected lines')
+        self.line_surface_checkbox.setChecked(False)
 
         self.hlayout_one = QtWidgets.QHBoxLayout()
         self.surf_layout = QtWidgets.QVBoxLayout()
@@ -45,7 +50,6 @@ class SurfaceDialog(SaveStateDialog):
         self.hlayout_one_one.addWidget(self.surf_method_lbl)
         self.surf_method = QtWidgets.QComboBox()
         self.surf_method.addItems(['Mean', 'Shoalest'])
-        self.surf_method.setMaximumWidth(100)
         self.surf_method.setToolTip('The algorithm used when gridding, will use this to determine the depth/uncertainty value of the cell')
         self.hlayout_one_one.addWidget(self.surf_method)
         self.hlayout_one_one.addStretch()
@@ -85,7 +89,6 @@ class SurfaceDialog(SaveStateDialog):
                                               '{}\n'.format(depth_lookup_formatted) +
                                               'AUTO_density will base the resolution on the density/area of each tile using the following formula:\n\n' +
                                               'resolution_estimate=squareroot(2 * minimum_points_per_cell * 1.75 / cell_point_density)')
-        self.single_rez_resolution.setMinimumWidth(100)
         self.hlayout_singlerez_one.addWidget(self.single_rez_resolution)
         self.surf_layout.addLayout(self.hlayout_singlerez_one)
 
@@ -147,7 +150,7 @@ class SurfaceDialog(SaveStateDialog):
         # self.surf_layout.addLayout(self.hlayout_one_two)
 
         self.status_msg = QtWidgets.QLabel('')
-        self.status_msg.setStyleSheet("QLabel { " + kluster_variables.error_color + "; }")
+        self.status_msg.setStyleSheet("QLabel { color : " + kluster_variables.error_color + "; }")
 
         self.hlayout_two = QtWidgets.QHBoxLayout()
         self.hlayout_two.addStretch(1)
@@ -158,7 +161,9 @@ class SurfaceDialog(SaveStateDialog):
         self.hlayout_two.addWidget(self.cancel_button)
         self.hlayout_two.addStretch(1)
 
-        layout.addWidget(self.input_msg)
+        layout.addWidget(self.basic_surface_group)
+        layout.addWidget(self.line_surface_checkbox)
+        layout.addWidget(QtWidgets.QLabel(' '))
         layout.addLayout(self.hlayout_zero)
         layout.addLayout(self.surf_layout)
         layout.addWidget(self.status_msg)
@@ -169,6 +174,8 @@ class SurfaceDialog(SaveStateDialog):
         self.canceled = False
         self.output_pth = None
 
+        self.basic_surface_group.toggled.connect(self._handle_basic_checked)
+        self.line_surface_checkbox.toggled.connect(self._handle_line_checked)
         self.grid_type.currentTextChanged.connect(self._event_update_status)
         self.input_fqpr.files_updated.connect(self._event_update_fqpr_instances)
         # self.browse_button.clicked.connect(self.file_browse)
@@ -183,6 +190,22 @@ class SurfaceDialog(SaveStateDialog):
 
         self.read_settings()
         self._event_update_status(None)
+
+    def _handle_basic_checked(self, evt):
+        """
+        Ensure only one group at a time is selected
+        """
+
+        if evt:
+            self.line_surface_checkbox.setChecked(False)
+
+    def _handle_line_checked(self, evt):
+        """
+        Ensure only one group at a time is selected
+        """
+
+        if evt:
+            self.basic_surface_group.setChecked(False)
 
     def _event_update_status(self, e):
         curr_opts = self.grid_type.currentText()
@@ -219,13 +242,13 @@ class SurfaceDialog(SaveStateDialog):
         if self.fqpr_inst:
             self.output_pth = os.path.dirname(self.fqpr_inst[0])
 
-    def file_browse(self):
-        msg, self.output_pth = RegistryHelpers.GetFilenameFromUserQT(self, RegistryKey='Kluster',
-                                                                     Title='Select output surface path',
-                                                                     AppName='kluster', bMulti=False,
-                                                                     bSave=True, fFilter='numpy npz (*.npz)')
-        if self.output_pth is not None:
-            self.fil_text.setText(self.output_pth)
+    # def file_browse(self):
+    #     msg, self.output_pth = RegistryHelpers.GetFilenameFromUserQT(self, RegistryKey='Kluster',
+    #                                                                  Title='Select output surface path',
+    #                                                                  AppName='kluster', bMulti=False,
+    #                                                                  bSave=True, fFilter='numpy npz (*.npz)')
+    #     if self.output_pth is not None:
+    #         self.fil_text.setText(self.output_pth)
 
     def return_processing_options(self):
         if not self.canceled:
