@@ -1,4 +1,5 @@
 import os
+from pyproj import CRS
 
 from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal
 from HSTB.kluster.gui.common_widgets import SaveStateDialog
@@ -76,12 +77,32 @@ class ProjectSettingsDialog(SaveStateDialog):
         self.ok_button.clicked.connect(self.start)
         self.cancel_button.clicked.connect(self.cancel)
         self.georef_vertref.currentTextChanged.connect(self.find_vdatum)
+        self.epsg_val.textChanged.connect(self.validate_epsg)
 
         self.text_controls = [['epsgval', self.epsg_val], ['utmval', self.auto_utm_val], ['vertref', self.georef_vertref]]
         self.checkbox_controls = [['epsgradio', self.epsg_radio], ['utmradio', self.auto_utm_radio]]
 
         self.read_settings()
+        self.validate_epsg()
+        self.find_vdatum()
         # self.resize(600, 200)
+
+    def validate_epsg(self):
+        if self.epsg_radio.isChecked():
+            epsg = ''
+            try:
+                epsg = int(self.epsg_val.text())
+                ecrs = CRS.from_epsg(epsg)
+                if not ecrs.is_projected:
+                    self.status_msg.setText(f'ERROR: must be a projected CRS, EPSG:{epsg}')
+                elif ecrs.coordinate_system.axis_list[0].unit_name not in ['meters', 'metre', 'metres']:
+                    self.status_msg.setText(f'ERROR: CRS must be in units of meters, found {ecrs.coordinate_system.axis_list[0].unit_name}, EPSG:{epsg}')
+                else:
+                    self.status_msg.setText('')
+            except:
+                self.status_msg.setText(f'Unknown Error: Unable to generate new CRS from EPSG:{epsg}')
+        else:
+            self.status_msg.setText('')
 
     def find_vdatum(self):
         """
@@ -95,8 +116,7 @@ class ProjectSettingsDialog(SaveStateDialog):
             if vdatum:
                 if os.path.exists(vdatum):
                     if os.path.exists(os.path.join(vdatum, 'vdatum.jar')):
-                        self.status_msg.setStyleSheet("QLabel { color : " + kluster_variables.pass_color + "; }")
-                        self.status_msg.setText('Found VDatum at {}'.format(vdatum))
+                        self.status_msg.setText('')
                     else:
                         self.status_msg.setText('Unable to find vdatum.jar at {}'.format(vdatum))
                 else:
@@ -112,10 +132,7 @@ class ProjectSettingsDialog(SaveStateDialog):
         """
         if not self.canceled:
             if self.epsg_val.text():
-                try:
-                    epsg = int(self.epsg_val.text())
-                except:
-                    print('dialog_project_settings: EPSG must be an integer, received: {}'.format(self.epsg_val.text()))
+                epsg = int(self.epsg_val.text())
             else:
                 epsg = ''
             opts = {'use_epsg': self.epsg_radio.isChecked(), 'epsg': epsg,
@@ -130,6 +147,13 @@ class ProjectSettingsDialog(SaveStateDialog):
         Dialog completes if the specified widgets are populated, use return_processing_options to get access to the
         settings the user entered into the dialog.
         """
+
+        self.validate_epsg()
+        if self.status_msg.text():
+            return
+        self.find_vdatum()
+        if self.status_msg.text():
+            return
         print('Project settings saved')
         self.canceled = False
         self.save_settings()
