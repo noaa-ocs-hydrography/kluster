@@ -39,12 +39,14 @@ data_files = [
 	(os.path.join(klusterfolder_path, 'docbuild'), os.path.join("HSTB", "kluster", "docbuild")),
 	(os.path.join(env_base_path, 'Lib', 'site-packages', 'vispy', 'util', 'fonts'), os.path.join("vispy", "util", "fonts")),
 	(os.path.join(env_base_path, 'Library', 'bin', 'libiomp5md.dll'), "."),
-	(os.path.join(env_base_path, 'Library', 'bin', 'mkl_intel_thread.dll'), "."),
+	(os.path.join(env_base_path, 'Library', 'bin', 'mkl_intel_thread.1.dll'), "."),
     (os.path.dirname(vispy.glsl.__file__), os.path.join("vispy", "glsl")),
     (os.path.join(os.path.dirname(vispy.io.__file__), "_data"), os.path.join("vispy", "io", "_data")),
     (os.path.join(os.path.dirname(distributed.__file__)), "distributed"),
     (os.path.join(env_base_path, 'Lib', 'site-packages', 'numcodecs', 'blosc.cp38-win_amd64.pyd'), "numcodecs"),
-	(os.path.join(env_base_path, 'Lib', 'site-packages', 'numcodecs', 'compat_ext.cp38-win_amd64.pyd'), "numcodecs")
+	(os.path.join(env_base_path, 'Lib', 'site-packages', 'numcodecs', 'compat_ext.cp38-win_amd64.pyd'), "numcodecs"),
+	(os.path.join(env_base_path, 'Lib', 'site-packages', 'osgeo', '_gdal.cp38-win_amd64.pyd'), "osgeo"),
+	(os.path.join(env_base_path, 'Lib', 'site-packages', 'pyqtgraph', 'console'), os.path.join('pyqtgraph', 'console'))
 ]
 
 qgis_dlls = glob.glob(os.path.join(env_base_path, 'Library', 'plugins', '*.dll'))
@@ -61,8 +63,11 @@ qgis_data_files += [(os.path.join(env_base_path, 'Library', 'resources', 'symbol
 
 data_files += qgis_data_files
 for fil in data_files:
-    assert os.path.exists(fil[0])
-
+    try:
+        assert os.path.exists(fil[0])
+    except:
+        print('Unable to find file: {}'.format(fil[0]))
+        sys.exit()
 
 hidden_imports = [
 	"PyQt5.QtPrintSupport", 

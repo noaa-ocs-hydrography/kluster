@@ -1,3 +1,9 @@
+import os
+# added this in kluster 0.8.8, 2/11/2022
+# setting env variable SETUPTOOLS_USE_DISTUTILS to resolve setuptools/xarray issue with setuptools/distutils conflict, see xarray pull request #6096 and setuptools issue #2353
+# can probably remove this once distutils is removed from dependencies (currently can be found in xarray at least)
+os.environ['SETUPTOOLS_USE_DISTUTILS'] = 'stdlib'
+
 # Import qt first, to resolve the backend issues youll get in matplotlib if you dont import this first, as it prefers PySide2
 from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal, qgis_enabled, found_path
 if qgis_enabled:
@@ -6,7 +12,6 @@ if qgis_enabled:
 import matplotlib
 matplotlib.use('qt5agg')
 
-import os
 import sys
 import webbrowser
 import numpy as np
@@ -1185,13 +1190,28 @@ class KlusterMain(QtWidgets.QMainWindow):
                 opts = dlog.return_processing_options()
                 if opts is not None and not cancelled:
                     surface_opts = opts
-                    fqprs = surface_opts.pop('fqpr_inst')
                     fq_chunks = []
+                    fqprs = surface_opts.pop('fqpr_inst')
+
                     if dlog.line_surface_checkbox.isChecked():  # we now subset the fqpr instances by lines selected
                         fqprspaths, fqprs = self.return_selected_fqprs(subset_by_line=True)
-                    for fq in fqprs:
-                        fq_chunks.extend([fq])
-
+                        for fq in fqprs:
+                            fq_chunks.extend([fq])
+                    else:
+                        for fq in fqprs:
+                            try:
+                                relfq = self.project.path_relative_to_project(fq)
+                            except:
+                                print('No project loaded, you must load some data before generating a surface')
+                                return
+                            if relfq not in self.project.fqpr_instances:
+                                print('Unable to find {} in currently loaded project'.format(relfq))
+                                return
+                            if relfq in self.project.fqpr_instances:
+                                fq_inst = self.project.fqpr_instances[relfq]
+                                # use the project client, or start a new LocalCluster if client is None
+                                # fq_inst.client = self.project.get_dask_client()
+                                fq_chunks.extend([fq_inst])
                     if not dlog.canceled:
                         # if the project has a client, use it here.  If None, BatchRead starts a new LocalCluster
                         self.output_window.clear()
@@ -2421,7 +2441,6 @@ def main():
         setattr(sys, 'frozen', True)
     # add support in windows for when you build this as a frozen executable (pyinstaller)
     multiprocessing.freeze_support()
-
     kluster_dir = os.path.dirname(kluster_init_file)
     kluster_icon = os.path.join(kluster_dir, 'images', 'kluster_img.ico')
 

@@ -164,7 +164,6 @@ class SurfaceDialog(SaveStateDialog):
         layout.addWidget(self.basic_surface_group)
         layout.addWidget(self.line_surface_checkbox)
         layout.addWidget(QtWidgets.QLabel(' '))
-        layout.addLayout(self.hlayout_zero)
         layout.addLayout(self.surf_layout)
         layout.addWidget(self.status_msg)
         layout.addLayout(self.hlayout_two)
