@@ -1253,9 +1253,14 @@ class MapView(QtWidgets.QMainWindow):
             for kmlf, lname in zip(kmlfiles, lnames):
                 lyr = self.add_layer(kmlf, lname, 'ogr')
                 if lyr:  # change default symbol to line from fill, that way we just get the outline
-                    symb = qgis_core.QgsSimpleLineSymbolLayer.create({'color': 'blue'})
+                    symb = qgis_core.QgsSimpleLineSymbolLayer.create({'color': 'blue', 'width': 1})
                     lyr.renderer().symbol().changeSymbolLayer(0, symb)
                     lyr.setOpacity(1 - self.layer_transparency)
+                    # now hide all features that represent the extents of the kml file, so that we don't have a bunch
+                    #  of rectangles obscuring the actual coverage features.
+                    # also hide the masked out areas
+                    strsel = "NOT (description = 'GTX Coverage') AND NOT (description = 'masked out areas, code 2')"
+                    lyr.setSubsetString(strsel)
                 else:
                     print('QGIS Initialize: Unable to find background layer: {}'.format(kmlf))
             print('Loaded {} VDatum kml files'.format(len(kmlfiles)))

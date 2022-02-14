@@ -2,7 +2,7 @@
 # https://stackoverflow.com/questions/4338358/github-can-i-see-the-number-of-downloads-for-a-repo/57993109#57993109
 
 from github import Github
-g = Github("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")
+g = Github("myaccesstoken")
 
 for repo in g.get_user().get_repos():
     if repo.name == "kluster":
