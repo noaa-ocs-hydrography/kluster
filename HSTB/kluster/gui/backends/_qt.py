@@ -21,6 +21,7 @@ except (ImportError, ModuleNotFoundError):
             if os.path.exists(os.path.join(envs, 'kluster_test')):  # hack added to test a new environment
                 envfolder = 'kluster_test'
                 qgis_path_pydro = os.path.join(envs, envfolder, 'Library', 'python')
+                print(f'WARNING: Found a kluster_test environment, adding {qgis_path_pydro} to path')
             elif envname.lower() == 'python38':
                 envfolder = 'Pydro38'
                 qgis_path_pydro = os.path.join(envs, envfolder, 'Library', 'python')
