@@ -1,3 +1,16 @@
+#################### Get download count ##############################
+# https://stackoverflow.com/questions/4338358/github-can-i-see-the-number-of-downloads-for-a-repo/57993109#57993109
+
+from github import Github
+g = Github("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")
+
+for repo in g.get_user().get_repos():
+    if repo.name == "kluster":
+        releases = repo.get_releases()
+        for i in releases:
+            for j in i.get_assets():
+                print("{} date: {} download count: {}".format(j.name, j.created_at, j.download_count))
+
 ###################### Install from a specific branch #########################
 
 # pip install git+https://github.com/noaa-ocs-hydrography/bathygrid.git@bathygrid_1_2_0
