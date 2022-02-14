@@ -99,6 +99,10 @@ Perform these in order:
 
 `pip install git+https://github.com/noaa-ocs-hydrography/kluster.git#egg=hstb.kluster `
 
+Start the GUI by activating the new environment and run Kluster as a module
+
+`(kluster_test) C:>python -m HSTB.kluster`
+
 ### Quickstart
 
 See [documentation](https://kluster.readthedocs.io/en/latest/quickstart/index.html)  for the new quick start guide
