@@ -79,6 +79,8 @@ Much of the existing open source software related to multibeam processing has be
 
 **We recommend that users try to run Kluster using the release attached to this GitHub repository, see [releases](https://github.com/noaa-ocs-hydrography/kluster/releases)**
 
+Kluster has been tested on Windows 10 and Ubuntu 20.04.
+
 Kluster is not on PyPi, but can be installed using pip alongside the HSTB-drivers and HSTB-shared modules that are required.
 
 (For Windows Users) Download and install Visual Studio Build Tools 2019 (If you have not already): [MSVC Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/)
@@ -95,7 +97,7 @@ Perform these in order:
 
 `conda activate kluster_test `
 
-`conda install -c conda-forge qgis=3.18.3 vispy=0.9.4 pyside2=5.13.2 gdal=3.3.1 h5py `
+`conda install -c conda-forge qgis=3.18.3 vispy=0.9.4 pyside2=5.13.2 gdal=3.3.1 h5py python-geohash `
 
 `pip install git+https://github.com/noaa-ocs-hydrography/kluster.git#egg=hstb.kluster `
 

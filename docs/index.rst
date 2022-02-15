@@ -100,6 +100,8 @@ Installation
 
 ** We recommend that users try to run Kluster using the release attached to this GitHub repository, see `releases <https://kluster.readthedocs.io/en/latest/>`_ **
 
+Kluster has been tested on Windows 10 and Ubuntu 20.04.
+
 Kluster is not on PyPi, but can be installed using pip alongside the HSTB-drivers and HSTB-shared modules that are required.
 
 (For Windows Users) Download and install Visual Studio Build Tools 2019 (If you have not already): MSVC Build Tools (https://visualstudio.microsoft.com/visual-cpp-build-tools/)
