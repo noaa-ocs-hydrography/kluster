@@ -41,6 +41,7 @@ Kluster has been tested on:
 - EM3002
 - EM302
 - EM122
+- ME70 Bathy Module
 
 Kluster is built from the ground up in Python, and was developed using
 Python 3.8. Kluster includes modules developed by the hydrographic
