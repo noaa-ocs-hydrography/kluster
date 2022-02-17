@@ -184,6 +184,26 @@ def sequential_read_multibeam(multibeam_file: str, start_pointer: int = 0, end_p
     return recs
 
 
+def read_first_fifty_records(file_object):
+    if isinstance(file_object, par3.AllRead):
+        par3.print_some_records(file_object, recordnum=50)
+    elif isinstance(file_object, kmall.kmall):
+        kmall.print_some_records(file_object, recordnum=50)
+    elif isinstance(file_object, PCSio.PCSBaseFile):
+        PCSio.print_some_records(file_object, recordnum=50)
+    elif isinstance(file_object, np.ndarray):
+        sbet.print_some_records(file_object, recordnum=50)
+    else:
+        print(f'read_first_fifty_records: Unsupported file object: {file_object}')
+
+
+def kluster_read_test(file_object):
+    if isinstance(file_object, par3.AllRead):
+        par3.kluster_read_test(file_object, byte_count=-1)
+    else:
+        print(f'read_first_fifty_records: Unsupported file object: {file_object}')
+
+
 def return_xarray_from_sbet(sbetfiles: list, smrmsgfiles: list = None, logfiles: list = None, weekstart_year: int = None,
                             weekstart_week: int = None, override_datum: str = None, override_grid: str = None,
                             override_zone: str = None, override_ellipsoid: str = None):
