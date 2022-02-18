@@ -1253,7 +1253,7 @@ class MapView(QtWidgets.QMainWindow):
             for kmlf, lname in zip(kmlfiles, lnames):
                 lyr = self.add_layer(kmlf, lname, 'ogr')
                 if lyr:  # change default symbol to line from fill, that way we just get the outline
-                    symb = qgis_core.QgsSimpleLineSymbolLayer.create({'color': 'blue', 'width': 1})
+                    symb = qgis_core.QgsSimpleFillSymbolLayer.create({'color': QtGui.QColor(0, 0, 255, 120)})
                     lyr.renderer().symbol().changeSymbolLayer(0, symb)
                     lyr.setOpacity(1 - self.layer_transparency)
                     # now hide all features that represent the extents of the kml file, so that we don't have a bunch
