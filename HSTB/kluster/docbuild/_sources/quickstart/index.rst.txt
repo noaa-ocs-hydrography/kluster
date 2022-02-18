@@ -11,6 +11,8 @@ Kluster is an open-source multibeam processing system designed around ease of us
 
 Head to the `Kluster releases section <https://github.com/noaa-ocs-hydrography/kluster/releases>`_ to get the Kluster zip file for the version you want.  Use the latest unless you are after a specific version.  Unzip the file and run the kluster_main.exe to start Kluster.
 
+If you want to start Kluster from source, run "python -m HSTB.kluster" from the shell after activating your conda environment.
+
 Let's Process!
 --------------
 

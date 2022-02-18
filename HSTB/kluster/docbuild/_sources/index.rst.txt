@@ -41,6 +41,7 @@ Kluster has been tested on:
 - EM3002
 - EM302
 - EM122
+- ME70 Bathy Module
 
 Kluster is built from the ground up in Python, and was developed using
 Python 3.8. Kluster includes modules developed by the hydrographic
@@ -100,6 +101,8 @@ Installation
 
 ** We recommend that users try to run Kluster using the release attached to this GitHub repository, see `releases <https://kluster.readthedocs.io/en/latest/>`_ **
 
+Kluster has been tested on Windows 10 and Ubuntu 20.04.
+
 Kluster is not on PyPi, but can be installed using pip alongside the HSTB-drivers and HSTB-shared modules that are required.
 
 (For Windows Users) Download and install Visual Studio Build Tools 2019 (If you have not already): MSVC Build Tools (https://visualstudio.microsoft.com/visual-cpp-build-tools/)
@@ -119,6 +122,25 @@ Perform these in order:
 ``conda install -c conda-forge qgis=3.18.0 vispy=0.6.6 pyside2=5.13.2 gdal=3.2.1 h5py``
 
 ``pip install git+https://github.com/noaa-ocs-hydrography/kluster.git#egg=hstb.kluster``
+
+Start the GUI by activating the new environment and run Kluster as a module
+
+``(kluster_test) C:>python -m HSTB.kluster``
+
+Docker
+""""""
+
+Build docker image using the provided dockerfile
+
+``C:\Pydro21_Dev\NOAA\site-packages\Python38\git_repos\hstb_kluster>docker build -t kluster/ubuntu .``
+
+``C:\Pydro21_Dev\NOAA\site-packages\Python38\git_repos\hstb_kluster>docker run -it kluster/ubuntu``
+
+``(base) eyou102@faaec62a4c1c:~/kluster$ conda deactivate``
+
+``eyou102@faaec62a4c1c:~/kluster$ conda activate kluster_test``
+
+``(kluster_test) eyou102@faaec62a4c1c:~/kluster$ python``
 
 .. _readthedocs: https://kluster.readthedocs.io/en/latest/
 .. _Pangeo ecosystem: https://pangeo.io/

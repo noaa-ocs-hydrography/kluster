@@ -1,6 +1,19 @@
 Changes List
 ============
 
+Kluster v0.8.9 (2/18/2022)
+----------------------------
+ - sync with hstb.drivers 0.2.2
+    - support for me70 bathymodule
+    - convenience methods for file analyzer
+
+ - fixes for running on Ubuntu, tested gui and it works
+ - add Tools - File Analyzer for running driver utilities on raw files
+ - fix path issues with export grid dialog
+ - vdatum layer now masks invalid regions and the coverage bounding box
+ - add guidance for running Kluster from source
+ - add dockerfile and docker guidance
+
 Kluster v0.8.8 (2/10/2022)
 ----------------------------
  - sync with Bathygrid 1.2.0

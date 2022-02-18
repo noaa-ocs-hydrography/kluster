@@ -42,6 +42,61 @@ WARNING: This mode will need to be changed back to normal mode if you want to us
 
 Only used when you are using the 'NOAA MLLW' or 'NOAA MHW' options under vertical reference in Project Settings.  These two options require VDatum to perform the vertical transformation from ellipse to MLLW/MHW.  With VDatum provided, you are able to process using these two vertical references natively in Kluster, without the need for a separate gridded transformation file.
 
+.. image:: settings_1_2.png
+   :target: ../_images/settings_1_2.png
+
+- Pass Color
+
+Color of the text in the display when a test passes
+
+- Error Color
+
+Color of the text in the display when a test fails
+
+- Warning Color
+
+Color of the text in the display when a warning is issued
+
+- Amplitude Color
+
+Color of the soundings in Points View when colored by rejected and a sounding has an amplitude detect status
+
+- Phase Color
+
+Color of the soundings in Points View when colored by rejected and a sounding has a phase detect status
+
+- Reject Color
+
+Color of the soundings in Points View when colored by rejected and a sounding has a rejected status
+
+- Reaccept Color
+
+Color of the soundings in Points View when colored by rejected and a sounding has a reaccept status
+
+.. image:: settings_1_3.png
+   :target: ../_images/settings_1_3.png
+
+- Files converted at once
+
+The number of files that are converted at once, you can raise this if you have the memory to support it.  Can cause errors if you run out of memory.
+
+- Pings per LAS file
+
+When exporting soundings to LAS, this is the number of pings that are stored in each exported file.  Raise this number if you want larger chunked file exports.
+
+- Pings per CSV file
+
+When exporting soundings to CSV, this is the number of pings that are stored in each exported file.  Raise this number if you want larger chunked file exports.
+
+.. image:: settings_1_4.png
+   :target: ../_images/settings_1_4.png
+
+This screen allows you to control the default uncertainty values used when converting and processing data.
+
+Changes to these values will be reflected in the Setup - Vessel Offsets - Uncertainty screen for newly converted multibeam data.
+
+NOTE: Default Beam Opening Angle will only be used when a multibeam file does not have a receiver beam opening angle value in the installation settings (which should not happen with Kongsberg systems)
+
 Layer Settings
 ----------------
 
