@@ -67,7 +67,7 @@ navigation_chunk_size = 50000  # chunk size (in time) of each written chunk of d
 attitude_chunk_size = 20000  # chunk size (in time) of each written chunk of data in the attitude records
 max_profile_length = 80  # maximum layers in a sound velocity profile, will interpolate if greater than this length
 
-single_head_sonar = ['em122', 'em302', 'em710', 'em2045', 'em2040', 'em2040p', 'em3002', 'em2040p', 'em3020', 'me70bo']  # all single head sonar models
+single_head_sonar = ['em122', 'em302', 'em710', 'em2045', 'em2040', 'em2040p', 'em3002', 'em3020', 'me70']  # all single head sonar models
 dual_head_sonar = ['em2040_dual_rx', 'em2040_dual_tx', 'em2045_dual']  # all dual head sonar models
 # tpu parameter names controls what gets passed to the tpu calculator
 tpu_parameter_names = ['tx_to_antenna_x', 'tx_to_antenna_y', 'tx_to_antenna_z', 'heave_error', 'roll_sensor_error',

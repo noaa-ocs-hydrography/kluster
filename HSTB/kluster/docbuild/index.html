@@ -6,7 +6,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
-    <title>kluster &#8212; kluster 0.8.8 documentation</title>
+    <title>kluster &#8212; kluster 0.8.9 documentation</title>
     <link rel="stylesheet" type="text/css" href="_static/pygments.css" />
     <link rel="stylesheet" type="text/css" href="_static/alabaster.css" />
     <link rel="stylesheet" type="text/css" href="_static/graphviz.css" />
@@ -66,6 +66,7 @@ exchanged as needed.</p></li>
 <li><p>EM3002</p></li>
 <li><p>EM302</p></li>
 <li><p>EM122</p></li>
+<li><p>ME70 Bathy Module</p></li>
 </ul>
 <p>Kluster is built from the ground up in Python, and was developed using
 Python 3.8. Kluster includes modules developed by the hydrographic
@@ -122,6 +123,7 @@ sophisticated and modern software package.</p>
 <section id="installation">
 <h2>Installation<a class="headerlink" href="#installation" title="Permalink to this headline">¶</a></h2>
 <p>** We recommend that users try to run Kluster using the release attached to this GitHub repository, see <a class="reference external" href="https://kluster.readthedocs.io/en/latest/">releases</a> **</p>
+<p>Kluster has been tested on Windows 10 and Ubuntu 20.04.</p>
 <p>Kluster is not on PyPi, but can be installed using pip alongside the HSTB-drivers and HSTB-shared modules that are required.</p>
 <p>(For Windows Users) Download and install Visual Studio Build Tools 2019 (If you have not already): MSVC Build Tools (<a class="reference external" href="https://visualstudio.microsoft.com/visual-cpp-build-tools/">https://visualstudio.microsoft.com/visual-cpp-build-tools/</a>)</p>
 <p>Download and install conda (If you have not already): conda installation (<a class="reference external" href="https://docs.conda.io/projects/conda/en/latest/user-guide/install/">https://docs.conda.io/projects/conda/en/latest/user-guide/install/</a>)</p>
@@ -132,6 +134,16 @@ sophisticated and modern software package.</p>
 <p><code class="docutils literal notranslate"><span class="pre">conda</span> <span class="pre">activate</span> <span class="pre">kluster_test</span></code></p>
 <p><code class="docutils literal notranslate"><span class="pre">conda</span> <span class="pre">install</span> <span class="pre">-c</span> <span class="pre">conda-forge</span> <span class="pre">qgis=3.18.0</span> <span class="pre">vispy=0.6.6</span> <span class="pre">pyside2=5.13.2</span> <span class="pre">gdal=3.2.1</span> <span class="pre">h5py</span></code></p>
 <p><code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">install</span> <span class="pre">git+https://github.com/noaa-ocs-hydrography/kluster.git#egg=hstb.kluster</span></code></p>
+<p>Start the GUI by activating the new environment and run Kluster as a module</p>
+<p><code class="docutils literal notranslate"><span class="pre">(kluster_test)</span> <span class="pre">C:&gt;python</span> <span class="pre">-m</span> <span class="pre">HSTB.kluster</span></code></p>
+<section id="docker">
+<h3>Docker<a class="headerlink" href="#docker" title="Permalink to this headline">¶</a></h3>
+<p>Build docker image using the provided dockerfile</p>
+<p><code class="docutils literal notranslate"><span class="pre">C:\Pydro21_Dev\NOAA\site-packages\Python38\git_repos\hstb_kluster&gt;docker</span> <span class="pre">build</span> <span class="pre">-t</span> <span class="pre">kluster/ubuntu</span> <span class="pre">.</span></code></p>
+<p><code class="docutils literal notranslate"><span class="pre">C:\Pydro21_Dev\NOAA\site-packages\Python38\git_repos\hstb_kluster&gt;docker</span> <span class="pre">run</span> <span class="pre">-it</span> <span class="pre">kluster/ubuntu</span></code></p>
+<p><code class="docutils literal notranslate"><span class="pre">(base)</span> <span class="pre">eyou102&#64;faaec62a4c1c:~/kluster$</span> <span class="pre">conda</span> <span class="pre">deactivate</span></code></p>
+<p><code class="docutils literal notranslate"><span class="pre">eyou102&#64;faaec62a4c1c:~/kluster$</span> <span class="pre">conda</span> <span class="pre">activate</span> <span class="pre">kluster_test</span></code></p>
+<p><code class="docutils literal notranslate"><span class="pre">(kluster_test)</span> <span class="pre">eyou102&#64;faaec62a4c1c:~/kluster$</span> <span class="pre">python</span></code></p>
 <div class="toctree-wrapper compound">
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="quickstart/index.html">Quickstart</a><ul>
@@ -471,6 +483,7 @@ sophisticated and modern software package.</p>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="changes.html">Changes List</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="changes.html#kluster-v0-8-9-2-18-2022">Kluster v0.8.9 (2/18/2022)</a></li>
 <li class="toctree-l2"><a class="reference internal" href="changes.html#kluster-v0-8-8-2-10-2022">Kluster v0.8.8 (2/10/2022)</a></li>
 <li class="toctree-l2"><a class="reference internal" href="changes.html#kluster-v0-8-7-1-14-2022">Kluster v0.8.7 (1/14/2022)</a></li>
 <li class="toctree-l2"><a class="reference internal" href="changes.html#kluster-v0-8-6-1-6-2022">Kluster v0.8.6 (1/6/2022)</a></li>
@@ -508,6 +521,7 @@ sophisticated and modern software package.</p>
 </li>
 </ul>
 </div>
+</section>
 </section>
 </section>
 <section id="index">

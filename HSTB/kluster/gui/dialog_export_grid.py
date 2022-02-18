@@ -226,9 +226,10 @@ class ExportGridDialog(SaveStateDialog):
             raise ValueError('dialog_export_grid: unrecognized method: {}'.format(curr_opts))
 
         # dirpath will be None or a string
-        msg, self.output_pth = RegistryHelpers.GetFilenameFromUserQT(self, RegistryKey='Kluster',
-                                                                     Title=titl, fFilter=ffilter, AppName='\\reghelp')
-        if self.output_pth is not None:
+        msg, outpth = RegistryHelpers.GetFilenameFromUserQT(self, RegistryKey='Kluster', DefaultFile=self.output_pth,
+                                                            Title=titl, fFilter=ffilter, AppName='\\reghelp')
+        if outpth:
+            self.output_pth = outpth
             self.output_text.setText(self.output_pth)
 
     def _event_update_status(self, combobox_text: str):

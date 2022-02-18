@@ -27,7 +27,7 @@ from HSTB.kluster.gui import dialog_vesselview, kluster_explorer, kluster_projec
     dialog_export, kluster_worker, kluster_interactive_console, dialog_basicplot, dialog_advancedplot, dialog_project_settings, \
     dialog_export_grid, dialog_layer_settings, dialog_settings, dialog_importppnav, dialog_overwritenav, dialog_surface_data, \
     dialog_about, dialog_setcolors, dialog_patchtest, dialog_manualpatchtest, dialog_managedata, dialog_managesurface, \
-    dialog_reprocess
+    dialog_reprocess, dialog_fileanalyzer
 from HSTB.kluster.fqpr_project import FqprProject
 from HSTB.kluster.fqpr_intelligence import FqprIntel
 from HSTB.kluster.fqpr_vessel import convert_from_fqpr_xyzrph, convert_from_vessel_xyzrph, compare_dict_data
@@ -136,6 +136,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.managedata_win = None
         self.managedata_surf = None
         self._manpatchtest = None
+        self._fileanalyzer = None
 
         self.iconpath = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'images', 'kluster_img.ico')
         self.setWindowIcon(QtGui.QIcon(self.iconpath))
@@ -356,6 +357,9 @@ class KlusterMain(QtWidgets.QMainWindow):
         vessel_view_action = QtWidgets.QAction('Vessel Offsets', self)
         vessel_view_action.triggered.connect(self._action_vessel_view)
 
+        file_analyzer = QtWidgets.QAction('File Analyzer', self)
+        file_analyzer.triggered.connect(self._action_file_analyzer)
+
         importppnav_action = QtWidgets.QAction('Import Processed Navigation', self)
         importppnav_action.triggered.connect(self._action_import_ppnav)
         overwritenav_action = QtWidgets.QAction('Overwrite Raw Navigation', self)
@@ -406,6 +410,9 @@ class KlusterMain(QtWidgets.QMainWindow):
         setup.addAction(set_project_settings)
         setup.addAction(vessel_view_action)
         setup.addAction(setup_client_action)
+
+        tools = menubar.addMenu('Tools')
+        tools.addAction(file_analyzer)
 
         process = menubar.addMenu('Process')
         process.addAction(overwritenav_action)
@@ -535,6 +542,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.managedata_win = dialog_managedata.ManageDataDialog()
         self.managedata_win.refresh_fqpr.connect(self._refresh_manage_fqpr)
         self.managedata_win.populate(fq)
+        self.managedata_win.setWindowFlags(self.managedata_win.windowFlags() | QtCore.Qt.WindowStaysOnTopHint)
         self.managedata_win.show()
 
     def manage_surface(self, pth):
@@ -542,6 +550,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.managedata_surf = None
         self.managedata_surf = dialog_managesurface.ManageSurfaceDialog()
         self.managedata_surf.populate(surf)
+        self.managedata_surf.setWindowFlags(self.managedata_surf.windowFlags() | QtCore.Qt.WindowStaysOnTopHint)
         self.managedata_surf.show()
 
     def _refresh_manage_fqpr(self, fq, dlog):
@@ -728,6 +737,7 @@ class KlusterMain(QtWidgets.QMainWindow):
                                                    os.path.split(fqpr.output_folder)[1])
             self.vessel_win.xyzrph = vess_xyzrph
             self.vessel_win.load_from_existing_xyzrph()
+        self.vessel_win.setWindowFlags(self.vessel_win.windowFlags() | QtCore.Qt.WindowStaysOnTopHint)
         self.vessel_win.show()
 
     def regenerate_offsets_actions(self, is_modified: bool):
@@ -835,6 +845,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         if fqprs:
             self.basicplots_win.data_widget.new_fqpr_path(fqprspaths[0], fqprs[0])
             self.basicplots_win.data_widget.initialize_controls()
+        self.basicplots_win.setWindowFlags(self.basicplots_win.windowFlags() | QtCore.Qt.WindowStaysOnTopHint)
         self.basicplots_win.show()
 
     def kluster_advanced_plots(self):
@@ -860,6 +871,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         if first_surf:
             self.advancedplots_win.surf_text.setText(first_surf)
             self.advancedplots_win.out_text.setText(default_plots)
+        self.advancedplots_win.setWindowFlags(self.advancedplots_win.windowFlags() | QtCore.Qt.WindowStaysOnTopHint)
         self.advancedplots_win.show()
 
     def kluster_execute_action(self, action_container: list, action_index: int = 0):
@@ -1060,6 +1072,7 @@ class KlusterMain(QtWidgets.QMainWindow):
                                 self._manpatchtest.populate(vessel_file_name, ','.join(final_datablock[1]), final_datablock[2],
                                                             final_datablock[3], ','.join(final_datablock[4]), ','.join(final_datablock[5]),
                                                             roll, pitch, heading, xlever, ylever, zlever, latency)
+                                self._manpatchtest.setWindowFlags(self._manpatchtest.windowFlags() | QtCore.Qt.WindowStaysOnTopHint)
                                 self._manpatchtest.show()
                             else:
                                 print('Patch Test: no data selected')
@@ -2191,6 +2204,11 @@ class KlusterMain(QtWidgets.QMainWindow):
         else:
             widget.setWindowFlags(self.windowFlags() & ~QtCore.Qt.WindowStaysOnTopHint)
         widget.show()
+
+    def _action_file_analyzer(self):
+        self._fileanalyzer = dialog_fileanalyzer.FileAnalyzerDialog()
+        self._fileanalyzer.setWindowFlags(self._fileanalyzer.windowFlags() | QtCore.Qt.WindowStaysOnTopHint)
+        self._fileanalyzer.show()
 
     def _action_vessel_view(self):
         """
