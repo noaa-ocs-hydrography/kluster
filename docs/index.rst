@@ -123,6 +123,25 @@ Perform these in order:
 
 ``pip install git+https://github.com/noaa-ocs-hydrography/kluster.git#egg=hstb.kluster``
 
+Start the GUI by activating the new environment and run Kluster as a module
+
+``(kluster_test) C:>python -m HSTB.kluster``
+
+Docker
+""""""
+
+Build docker image using the provided dockerfile
+
+``C:\Pydro21_Dev\NOAA\site-packages\Python38\git_repos\hstb_kluster>docker build -t kluster/ubuntu .``
+
+``C:\Pydro21_Dev\NOAA\site-packages\Python38\git_repos\hstb_kluster>docker run -it kluster/ubuntu``
+
+``(base) eyou102@faaec62a4c1c:~/kluster$ conda deactivate``
+
+``eyou102@faaec62a4c1c:~/kluster$ conda activate kluster_test``
+
+``(kluster_test) eyou102@faaec62a4c1c:~/kluster$ python``
+
 .. _readthedocs: https://kluster.readthedocs.io/en/latest/
 .. _Pangeo ecosystem: https://pangeo.io/
 .. _drivers: https://github.com/noaa-ocs-hydrography/drivers

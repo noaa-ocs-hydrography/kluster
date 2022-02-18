@@ -106,6 +106,20 @@ Start the GUI by activating the new environment and run Kluster as a module
 
 `(kluster_test) C:>python -m HSTB.kluster`
 
+####Docker
+
+Build docker image using the provided dockerfile
+
+`C:\Pydro21_Dev\NOAA\site-packages\Python38\git_repos\hstb_kluster>docker build -t kluster/ubuntu .`
+
+`C:\Pydro21_Dev\NOAA\site-packages\Python38\git_repos\hstb_kluster>docker run -it kluster/ubuntu`
+
+`(base) eyou102@faaec62a4c1c:~/kluster$ conda deactivate`
+
+`eyou102@faaec62a4c1c:~/kluster$ conda activate kluster_test`
+
+`(kluster_test) eyou102@faaec62a4c1c:~/kluster$ python`
+
 ### Quickstart
 
 See [documentation](https://kluster.readthedocs.io/en/latest/quickstart/index.html)  for the new quick start guide
