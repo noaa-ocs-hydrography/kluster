@@ -11,7 +11,8 @@ import numpy as np
 from HSTB.kluster import kluster_variables
 from HSTB.drivers import kmall, par3, sbet, svp, PCSio
 
-
+par_sonar_translator = par3.sonar_translator
+kmall_sonar_translator = kmall.sonar_translator
 sonar_reference_point = {'.all': ['tx_x', 'tx_y', 'tx_z'],
                          '.kmall': ['tx_x', 'tx_y', 'tx_z']}
 

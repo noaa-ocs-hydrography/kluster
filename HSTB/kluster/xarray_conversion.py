@@ -13,7 +13,7 @@ from typing import Union
 from HSTB.kluster import __version__ as klustervers
 from HSTB.kluster.dms import return_zone_from_min_max_long
 from HSTB.kluster.fqpr_drivers import sequential_read_multibeam, fast_read_multibeam_metadata, return_offsets_from_posfile, \
-    sonar_reference_point
+    sonar_reference_point, par_sonar_translator, kmall_sonar_translator
 from HSTB.kluster.dask_helpers import dask_find_or_start_client
 from HSTB.kluster.xarray_helpers import resize_zarr, xarr_to_netcdf, combine_xr_attributes, reload_zarr_records, slice_xarray_by_dim
 from HSTB.kluster.fqpr_helpers import seconds_to_formatted_string
@@ -33,18 +33,32 @@ sonar_translator = {'em122': [None, 'tx', 'rx', None], 'em302': [None, 'tx', 'rx
                     'em3020': [None, 'tx', 'rx', None], 'em3020_dual': [None, 'txrx_port', 'txrx_stbd', None],
                     'me70': [None, 'txrx', None, None]}
 
-install_parameter_modifier = {'em2040_dual_tx': {'rx_port': {'0': {'x': 0.011, 'y': 0.0, 'z': -0.006},
+# ensure that Kluster sonar translator supports all sonar_translators in multibeam drivers
+assert all([snr in sonar_translator for snr in par_sonar_translator.keys()])
+assert all([snr in sonar_translator for snr in kmall_sonar_translator.keys()])
+
+
+install_parameter_modifier = {'em2040_dual_tx_rx': {'rx_port': {'0': {'x': 0.011, 'y': 0.0, 'z': -0.006},
+                                                                '1': {'x': 0.011, 'y': 0.0, 'z': -0.006},
+                                                                '2': {'x': 0.011, 'y': 0.0, 'z': -0.006}},
+                                                    'tx_port': {'0': {'x': 0.0, 'y': -0.0554, 'z': -0.012},
+                                                                '1': {'x': 0.0, 'y': 0.0131, 'z': -0.006},
+                                                                '2': {'x': 0.0, 'y': 0.0554, 'z': -0.012}},
+                                                    'rx_stbd': {'0': {'x': 0.011, 'y': 0.0, 'z': -0.006},
+                                                                '1': {'x': 0.011, 'y': 0.0, 'z': -0.006},
+                                                                '2': {'x': 0.011, 'y': 0.0, 'z': -0.006}},
+                                                    'tx_stbd': {'0': {'x': 0.0, 'y': -0.0554, 'z': -0.012},
+                                                                '1': {'x': 0.0, 'y': 0.0131, 'z': -0.006},
+                                                                '2': {'x': 0.0, 'y': 0.0554, 'z': -0.012}}},
+                              'em2040_dual_rx': {'tx': {'0': {'x': 0.0, 'y': -0.0554, 'z': -0.012},
+                                                        '1': {'x': 0.0, 'y': 0.0131, 'z': -0.006},
+                                                        '2': {'x': 0.0, 'y': 0.0554, 'z': -0.012}},
+                                                 'rx_port': {'0': {'x': 0.011, 'y': 0.0, 'z': -0.006},
                                                              '1': {'x': 0.011, 'y': 0.0, 'z': -0.006},
                                                              '2': {'x': 0.011, 'y': 0.0, 'z': -0.006}},
-                                                 'tx_port': {'0': {'x': 0.0, 'y': -0.0554, 'z': -0.012},
-                                                             '1': {'x': 0.0, 'y': 0.0131, 'z': -0.006},
-                                                             '2': {'x': 0.0, 'y': 0.0554, 'z': -0.012}},
                                                  'rx_stbd': {'0': {'x': 0.011, 'y': 0.0, 'z': -0.006},
                                                              '1': {'x': 0.011, 'y': 0.0, 'z': -0.006},
-                                                             '2': {'x': 0.011, 'y': 0.0, 'z': -0.006}},
-                                                 'tx_stbd': {'0': {'x': 0.0, 'y': -0.0554, 'z': -0.012},
-                                                             '1': {'x': 0.0, 'y': 0.0131, 'z': -0.006},
-                                                             '2': {'x': 0.0, 'y': 0.0554, 'z': -0.012}}},
+                                                             '2': {'x': 0.011, 'y': 0.0, 'z': -0.006}}},
                               'em2040': {'rx': {'0': {'x': 0.011, 'y': 0.0, 'z': -0.006},
                                                 '1': {'x': 0.011, 'y': 0.0, 'z': -0.006},
                                                 '2': {'x': 0.011, 'y': 0.0, 'z': -0.006}},
