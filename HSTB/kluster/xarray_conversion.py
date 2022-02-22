@@ -1924,7 +1924,7 @@ class BatchRead(ZarrBackend):
 
         if self.xyzrph is None:
             self.build_offsets()
-        if self.sonartype in kluster_variables.single_head_sonar:
+        if 'tx_r' in self.xyzrph:
             corr_timestmp = str(int(_closest_prior_key_value(list(self.xyzrph['tx_r'].keys()), time_idx)))
             return {corr_timestmp: {'tx_roll': float(self.xyzrph['tx_r'][corr_timestmp]),
                                     'tx_pitch': float(self.xyzrph['tx_p'][corr_timestmp]),
@@ -1932,8 +1932,7 @@ class BatchRead(ZarrBackend):
                                     'tx_x': float(self.xyzrph['tx_x'][corr_timestmp]),
                                     'tx_y': float(self.xyzrph['tx_y'][corr_timestmp]),
                                     'tx_z': float(self.xyzrph['tx_z'][corr_timestmp])}}
-
-        elif self.sonartype in kluster_variables.dual_head_sonar:
+        elif 'tx_port_r' in self.xyzrph:
             corr_timestmp = str(int(_closest_prior_key_value(list(self.xyzrph['tx_port_r'].keys()), time_idx)))
             return {corr_timestmp: {'tx_port_roll': float(self.xyzrph['tx_port_r'][corr_timestmp]),
                                     'tx_port_pitch': float(self.xyzrph['tx_port_p'][corr_timestmp]),
@@ -1970,7 +1969,7 @@ class BatchRead(ZarrBackend):
 
         if self.xyzrph is None:
             self.build_offsets()
-        if self.sonartype in kluster_variables.single_head_sonar:
+        if 'rx_r' in self.xyzrph:
             corr_timestmp = str(int(_closest_prior_key_value(list(self.xyzrph['rx_r'].keys()), time_idx)))
             return {corr_timestmp: {'rx_roll': float(self.xyzrph['rx_r'][corr_timestmp]),
                                     'rx_pitch': float(self.xyzrph['rx_p'][corr_timestmp]),
@@ -1978,8 +1977,7 @@ class BatchRead(ZarrBackend):
                                     'rx_x': float(self.xyzrph['rx_x'][corr_timestmp]),
                                     'rx_y': float(self.xyzrph['rx_y'][corr_timestmp]),
                                     'rx_z': float(self.xyzrph['rx_z'][corr_timestmp])}}
-
-        elif self.sonartype in kluster_variables.dual_head_sonar:
+        elif 'rx_port_r' in self.xyzrph:
             corr_timestmp = str(int(_closest_prior_key_value(list(self.xyzrph['rx_port_r'].keys()), time_idx)))
             return {corr_timestmp: {'rx_port_roll': float(self.xyzrph['rx_port_r'][corr_timestmp]),
                                     'rx_port_pitch': float(self.xyzrph['rx_port_p'][corr_timestmp]),
