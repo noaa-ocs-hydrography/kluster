@@ -364,6 +364,57 @@ class ExportWorker(QtCore.QThread):
         self.finished.emit(True)
 
 
+class ExportTracklinesWorker(QtCore.QThread):
+    """
+    Executes code in a seperate thread.
+    """
+
+    started = Signal(bool)
+    finished = Signal(bool)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.fq_chunks = None
+        self.line_names = None
+        self.fqpr_instances = []
+        self.export_type = ''
+        self.mode = ''
+        self.output_path = ''
+        self.error = False
+        self.exceptiontxt = None
+
+    def populate(self, fq_chunks, line_names, export_type, basic_mode, line_mode, output_path):
+        if basic_mode:
+            self.mode = 'basic'
+        elif line_mode:
+            self.mode = 'line'
+
+        self.fqpr_instances = []
+        self.line_names = line_names
+        self.fq_chunks = fq_chunks
+        self.export_type = export_type
+        self.output_path = output_path
+        self.error = False
+        self.exceptiontxt = None
+
+    def export_process(self, fq):
+        if self.mode == 'basic':
+            fq.export_tracklines_to_file(linenames=None, output_file=self.output_path, file_format=self.export_type)
+        elif self.mode == 'line':
+            fq.export_tracklines_to_file(linenames=self.line_names, output_file=self.output_path, file_format=self.export_type)
+        return fq
+
+    def run(self):
+        self.started.emit(True)
+        try:
+            for chnk in self.fq_chunks:
+                self.fqpr_instances.append(self.export_process(chnk[0]))
+        except Exception as e:
+            self.error = True
+            self.exceptiontxt = traceback.format_exc()
+        self.finished.emit(True)
+
+
 class ExportGridWorker(QtCore.QThread):
     """
     Executes code in a seperate thread.

@@ -226,11 +226,14 @@ class FqprExport:
         return totalfiles
 
     def _export_tracklines_to_geopackage(self, linenames: list, output_file: str):
+        """
+        Build a new geopackage file and create a new feature for each line, where each feature has a name of linename,
+        and data according to the latitude/longitude of that line.
+        """
+
         self.fqpr.logger.info('****Exporting tracklines to geopackage****')
         starttime = perf_counter()
-        if os.path.exists(output_file):
-            output_file = os.path.splitext(output_file)[0] + '_{}.gpkg'.format(datetime.now().strftime('%Y%m%d_%H%M%S'))
-        vl = VectorLayer(output_file, 'GPKG', kluster_variables.qgis_epsg, True)
+        vl = VectorLayer(output_file, 'GPKG', kluster_variables.qgis_epsg, update=True)
         for line in linenames:
             if line in self.fqpr.multibeam.raw_ping[0].multibeam_files:
                 line_start_time, line_end_time = self.fqpr.multibeam.raw_ping[0].multibeam_files[line][0],\
@@ -240,8 +243,6 @@ class FqprExport:
                     vl.write_to_layer(line, np.column_stack([nav.longitude.values, nav.latitude.values]), 2)  # ogr.wkbLineString
                 else:
                     print(f'export_lines_to_geopackage: unable to access raw navigation for line {line}')
-            else:
-                print(f'export_lines_to_geopackage: line {line} not in kluster processed data {self.fqpr.output_folder}')
         vl.close()
         endtime = perf_counter()
         self.fqpr.logger.info('****Exporting tracklines to geopackage complete: {}****\n'.format(seconds_to_formatted_string(int(endtime - starttime))))
