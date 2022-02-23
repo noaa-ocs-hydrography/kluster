@@ -13,6 +13,7 @@ from HSTB.kluster import kluster_variables
 try:
     from vyperdatum.points import VyperPoints
     from vyperdatum.core import VyperCore
+    from vyperdatum.vypercrs import VyperPipelineCRS, CompoundCRS
     vyperdatum_found = True
 except ModuleNotFoundError:
     vyperdatum_found = False
@@ -211,7 +212,7 @@ def transform_vyperdatum(x: np.array, y: np.array, z: np.array, source_datum: Un
     return np.around(vp.z, 3), np.around(vp.unc, 3)
 
 
-def datum_to_wkt(datum_identifier: str, min_lon: float, min_lat: float, max_lon: float, max_lat: float):
+def datum_to_wkt(datum_identifier: str, projcrs: int, min_lon: float, min_lat: float, max_lon: float, max_lat: float):
     """
     Translate the provided datum to vypercrs wkt string
 
@@ -219,6 +220,8 @@ def datum_to_wkt(datum_identifier: str, min_lon: float, min_lat: float, max_lon:
     ----------
     datum_identifier
         one of 'mllw', 'mhw', etc
+    projcrs
+        projected crs epsg
     min_lon
         minimum longitude of the survey
     min_lat
@@ -233,13 +236,22 @@ def datum_to_wkt(datum_identifier: str, min_lon: float, min_lat: float, max_lon:
     str
         vypercrs wkt string
     """
-    if datum_identifier == 'mllw':  # we need to let vyperdatum know this is positive down, do that by giving it the mllw epsg
-        datum_identifier = 5866
 
-    vc = VyperCore()
-    vc.set_input_datum((6318, datum_identifier))
-    vc.set_region_by_bounds(min_lon, min_lat, max_lon, max_lat)
-    return vc.in_crs.to_wkt()
+    if datum_identifier != 'ellipse':
+        if datum_identifier == 'mllw':  # we need to let vyperdatum know this is positive down, do that by giving it the mllw epsg
+            datum_identifier = 5866
+
+        vc = VyperCore()
+        vc.set_input_datum((projcrs, datum_identifier))
+        vc.set_region_by_bounds(min_lon, min_lat, max_lon, max_lat)
+        return vc.in_crs.to_wkt()
+    else:
+        vc = VyperCore()
+        cs = VyperPipelineCRS(vc.datum_data)
+        cs.set_crs('ellipse')
+        cs.set_crs(projcrs)
+        ccrs = CompoundCRS(f'{cs._hori.name} + {cs._vert.name}', [cs._hori, cs._vert])
+        return ccrs.to_wkt()
 
 
 def set_vyperdatum_vdatum_path(vdatum_path: str):

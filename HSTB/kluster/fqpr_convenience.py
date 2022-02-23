@@ -506,7 +506,7 @@ def _get_unique_crs_vertref(fqpr_instances: list):
 
     # if the vertical reference is a vdatum one, return the first WKT string.  We can't just get the unique WKT strings,
     #  as there might be differences in region (which we should probably concatenate or something)
-    if unique_vertref[0] in ['NOAA MLLW', 'NOAA MHW']:
+    if unique_vertref[0] in ['NOAA MLLW', 'NOAA MHW', 'ellipse']:
         unique_vertref = [fqpr_instances[0].multibeam.raw_ping[0].vertical_crs]
 
     return unique_crs, unique_vertref

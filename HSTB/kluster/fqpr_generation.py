@@ -2683,13 +2683,14 @@ class Fqpr(ZarrBackend):
                                         'depthoffset': 'meters (+ down)'}}]
         elif mode == 'georef':
             crs = self.horizontal_crs.to_epsg()
-            if crs is None:  # gets here if there is no valid EPSG for this transformation
-                crs = self.horizontal_crs.to_string()
             if self.vert_ref == 'NOAA MLLW':
-                vertcrs = datum_to_wkt('mllw', self.multibeam.raw_ping[0].min_lon, self.multibeam.raw_ping[0].min_lat,
+                vertcrs = datum_to_wkt('mllw', crs, self.multibeam.raw_ping[0].min_lon, self.multibeam.raw_ping[0].min_lat,
                                        self.multibeam.raw_ping[0].max_lon, self.multibeam.raw_ping[0].max_lat)
             elif self.vert_ref == 'NOAA MHW':
-                vertcrs = datum_to_wkt('mhw', self.multibeam.raw_ping[0].min_lon, self.multibeam.raw_ping[0].min_lat,
+                vertcrs = datum_to_wkt('mhw', crs, self.multibeam.raw_ping[0].min_lon, self.multibeam.raw_ping[0].min_lat,
+                                       self.multibeam.raw_ping[0].max_lon, self.multibeam.raw_ping[0].max_lat)
+            elif self.vert_ref == 'ellipse':
+                vertcrs = datum_to_wkt('ellipse', crs, self.multibeam.raw_ping[0].min_lon, self.multibeam.raw_ping[0].min_lat,
                                        self.multibeam.raw_ping[0].max_lon, self.multibeam.raw_ping[0].max_lat)
             else:
                 vertcrs = 'Unknown'
