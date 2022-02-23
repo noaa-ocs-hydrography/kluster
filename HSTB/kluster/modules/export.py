@@ -6,6 +6,7 @@ from time import perf_counter
 from datetime import datetime
 
 from HSTB.kluster.pydro_helpers import is_pydro
+from HSTB.kluster.gdal_helpers import VectorLayer
 from HSTB.kluster.pdal_entwine import build_entwine_points
 from HSTB.kluster.fqpr_helpers import seconds_to_formatted_string
 from HSTB.kluster.xarray_helpers import slice_xarray_by_dim
@@ -164,7 +165,7 @@ class FqprExport:
             return None, None, None, None
         return chunksize, fldr_path, entwine_fldr_path, suffix
 
-    def export_lines_to_file(self, linenames: list, output_directory: str = None, file_format: str = 'csv', csv_delimiter=' ',
+    def export_lines_to_file(self, linenames: list = None, output_directory: str = None, file_format: str = 'csv', csv_delimiter=' ',
                              filter_by_detection: bool = True, z_pos_down: bool = True, export_by_identifiers: bool = True):
         """
         Take each provided line name and export it to the file_format provided
@@ -172,7 +173,7 @@ class FqprExport:
         Parameters
         ----------
         linenames
-            list of line names to export
+            list of linenames that we want to export, if None this will export all lines
         output_directory
             optional, destination directory for the xyz exports, otherwise will auto export next to converted data
         file_format
@@ -198,6 +199,8 @@ class FqprExport:
         chunksize, fldr_path, entwine_fldr_path, suffix = self._validate_export(output_directory, file_format)
         if not chunksize:
             return []
+        if linenames is None:
+            linenames = list(self.fqpr.multibeam.raw_ping[0].multibeam_files.keys())
 
         totalfiles = []
         for linename in linenames:
@@ -221,6 +224,55 @@ class FqprExport:
         endtime = perf_counter()
         self.fqpr.logger.info('****Exporting xyz data to {} complete: {}****\n'.format(file_format, seconds_to_formatted_string(int(endtime - starttime))))
         return totalfiles
+
+    def _export_tracklines_to_geopackage(self, linenames: list, output_file: str):
+        self.fqpr.logger.info('****Exporting tracklines to geopackage****')
+        starttime = perf_counter()
+        if os.path.exists(output_file):
+            output_file = os.path.splitext(output_file)[0] + '_{}.gpkg'.format(datetime.now().strftime('%Y%m%d_%H%M%S'))
+        vl = VectorLayer(output_file, 'GPKG', kluster_variables.qgis_epsg, True)
+        for line in linenames:
+            if line in self.fqpr.multibeam.raw_ping[0].multibeam_files:
+                line_start_time, line_end_time = self.fqpr.multibeam.raw_ping[0].multibeam_files[line][0],\
+                                                 self.fqpr.multibeam.raw_ping[0].multibeam_files[line][1]
+                nav = self.fqpr.multibeam.return_raw_navigation(line_start_time, line_end_time)
+                if nav is not None:
+                    vl.write_to_layer(line, np.column_stack([nav.longitude.values, nav.latitude.values]), 2)  # ogr.wkbLineString
+                else:
+                    print(f'export_lines_to_geopackage: unable to access raw navigation for line {line}')
+            else:
+                print(f'export_lines_to_geopackage: line {line} not in kluster processed data {self.fqpr.output_folder}')
+        vl.close()
+        endtime = perf_counter()
+        self.fqpr.logger.info('****Exporting tracklines to geopackage complete: {}****\n'.format(seconds_to_formatted_string(int(endtime - starttime))))
+
+    def export_tracklines_to_file(self, linenames: list = None, output_file: str = None, file_format: str = 'GPKG'):
+        """
+        Export the navigation to vector file, where each trackline is a new feature.
+
+        Parameters
+        ----------
+        linenames
+            list of linenames that we want to export, if None this will export all lines
+        output_file
+            new file created to hold the vector data, if None will be inside the Fqpr parent folder
+        file_format
+            OGR format for the written file, currently only supports GPKG
+        """
+
+        if 'latitude' not in self.fqpr.multibeam.raw_ping[0] or 'longitude' not in self.fqpr.multibeam.raw_ping[0]:
+            self.fqpr.logger.error('export_tracklines_to_file: No latitude/longitude data found.')
+            return
+        if output_file is None:
+            output_directory = self.fqpr.multibeam.converted_pth
+            output_file = os.path.join(output_directory, 'tracklines.gpkg')
+        if linenames is None:
+            linenames = list(self.fqpr.multibeam.raw_ping[0].multibeam_files.keys())
+
+        if file_format == 'GPKG':
+            self._export_tracklines_to_geopackage(linenames, output_file)
+        else:
+            self.fqpr.logger.error('export_tracklines_to_file: file format {} is not supported, currently we only support GPKG')
 
     def export_pings_to_file(self, output_directory: str = None, file_format: str = 'csv', csv_delimiter=' ',
                              filter_by_detection: bool = True, z_pos_down: bool = True, export_by_identifiers: bool = True):

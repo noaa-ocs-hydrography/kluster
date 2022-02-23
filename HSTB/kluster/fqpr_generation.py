@@ -2499,7 +2499,7 @@ class Fqpr(ZarrBackend):
                                                          z_pos_down=z_pos_down, export_by_identifiers=export_by_identifiers)
         return written_files
 
-    def export_lines_to_file(self, linenames: list, output_directory: str = None, file_format: str = 'csv', csv_delimiter=' ',
+    def export_lines_to_file(self, linenames: list = None, output_directory: str = None, file_format: str = 'csv', csv_delimiter=' ',
                              filter_by_detection: bool = True, z_pos_down: bool = True, export_by_identifiers: bool = True):
         """
         Run the export module to export only the data belonging to the given lines to file, see export.export_lines_to_file
@@ -2517,6 +2517,13 @@ class Fqpr(ZarrBackend):
         """
 
         self.export.export_soundings_to_file(datablock, output_directory, file_format, csv_delimiter, filter_by_detection, z_pos_down)
+
+    def export_tracklines_to_file(self, linenames: list = None, output_file: str = None, file_format: str = 'GPKG'):
+        """
+        Run the export module to export the navigation to vector file, see export.export_tracklines_to_file
+        """
+
+        self.export.export_tracklines_to_file(linenames, output_file, file_format)
 
     def export_variable(self, dataset_name: str, var_name: str, dest_path: str, reduce_method: str = None,
                         zero_centered: bool = False):
