@@ -31,6 +31,7 @@ from HSTB.kluster.gui import dialog_vesselview, kluster_explorer, kluster_projec
 from HSTB.kluster.fqpr_project import FqprProject
 from HSTB.kluster.fqpr_intelligence import FqprIntel
 from HSTB.kluster.fqpr_vessel import convert_from_fqpr_xyzrph, convert_from_vessel_xyzrph, compare_dict_data
+from HSTB.kluster.dask_helpers import dask_close_localcluster
 from HSTB.kluster import __version__ as kluster_version
 from HSTB.kluster import __file__ as kluster_init_file
 from HSTB.shared import RegistryHelpers, path_to_supplementals
@@ -2522,6 +2523,7 @@ class KlusterMain(QtWidgets.QMainWindow):
 
         if qgis_enabled:
             self.app.exitQgis()
+        dask_close_localcluster()
 
         super(KlusterMain, self).closeEvent(event)
 
