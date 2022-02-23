@@ -500,7 +500,7 @@ class FqprVisualizations:
         """
 
         print('Building Sound Velocity Profile map...')
-        nav = self.fqpr.multibeam.return_raw_navigation()
+        nav = self.fqpr.return_navigation()
         if nav is None:
             print('no navigation found!')
             return
@@ -525,7 +525,7 @@ class FqprVisualizations:
                 times[0] = max(times[0], start_navigation_time)
                 times[1] = min(times[1], last_navigation_time)
                 try:
-                    nav = self.fqpr.multibeam.return_raw_navigation(times[0], times[1])
+                    nav = self.fqpr.return_navigation(times[0], times[1])
                     lats, lons = nav.latitude.values, nav.longitude.values
                     plt.plot(lons, lats, c='blue', alpha=0.5)
 

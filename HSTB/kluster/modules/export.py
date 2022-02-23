@@ -238,7 +238,7 @@ class FqprExport:
             if line in self.fqpr.multibeam.raw_ping[0].multibeam_files:
                 line_start_time, line_end_time = self.fqpr.multibeam.raw_ping[0].multibeam_files[line][0],\
                                                  self.fqpr.multibeam.raw_ping[0].multibeam_files[line][1]
-                nav = self.fqpr.multibeam.return_raw_navigation(line_start_time, line_end_time)
+                nav = self.fqpr.return_navigation(line_start_time, line_end_time)
                 if nav is not None:
                     vl.write_to_layer(line, np.column_stack([nav.longitude.values, nav.latitude.values]), 2)  # ogr.wkbLineString
                 else:

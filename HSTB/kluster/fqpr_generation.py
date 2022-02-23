@@ -343,7 +343,8 @@ class Fqpr(ZarrBackend):
         desired_vars = ['sbet_latitude', 'sbet_longitude', 'sbet_altitude', 'sbet_north_position_error',
                         'sbet_east_position_error', 'sbet_down_position_error', 'sbet_roll_error', 'sbet_pitch_error',
                         'sbet_heading_error']
-        keep_these_attributes = ['sbet_mission_date', 'sbet_datum', 'sbet_ellipsoid', 'sbet_logging_rate_hz', 'reference', 'units', 'nav_files', 'nav_error_files']
+        keep_these_attributes = ['sbet_mission_date', 'sbet_datum', 'sbet_ellipsoid', 'sbet_logging_rate_hz', 'reference',
+                                 'units', 'nav_files', 'nav_error_files']
         try:
             if self.multibeam.raw_ping[0]:
                 chk = [x for x in desired_vars if x not in self.multibeam.raw_ping[0]]
@@ -358,13 +359,35 @@ class Fqpr(ZarrBackend):
         except:
             return None
 
-    @property
-    def navigation(self):
+    def return_navigation(self, start_time: float = None, end_time: float = None):
         """
-        Return the raw navigation from the multibeam data for the first sonar head. Can assume that all sonar heads have
-        basically the same navigation
+        Return the navigation from the multibeam data for the first sonar head. Can assume that all sonar heads have
+        basically the same navigation.  If sbet navigation exists, return that instead, renaming the sbet variables
+        so that existing methods work.
+
+        Parameters
+        ----------
+        start_time
+            if provided will allow you to only return navigation after this time.  Selects the nearest time value to
+            the one provided.
+        end_time
+            if provided will allow you to only return navigation before this time.  Selects the nearest time value to
+            the one provided.
+
+        Returns
+        -------
+        xr.Dataset
+            latitude/longitude/altitude pulled from the navigation part of the ping record
         """
-        return self.multibeam.return_raw_navigation()
+
+        nav = self.sbet_navigation
+        if nav is None:
+            return self.multibeam.return_raw_navigation(start_time=start_time, end_time=end_time)
+        else:
+            nav = nav.rename({'sbet_latitude': 'latitude', 'sbet_longitude': 'longitude', 'sbet_altitude': 'altitude'})
+            if start_time or end_time:
+                nav = slice_xarray_by_dim(nav, 'time', start_time=start_time, end_time=end_time)
+            return nav
 
     def copy(self):
         """
