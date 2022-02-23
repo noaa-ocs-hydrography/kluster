@@ -23,6 +23,8 @@ mem_restart_threshold = 0.40
 # kluster_3dview
 selected_point_color = (1, 0.476, 0.953, 1)  # color of points selected in 3dview
 super_selected_point_color = (1, 1, 1, 1)  # color of points in super selection in 3dview
+amplitude_detect_flag = 0
+phase_detect_flag = 1
 rejected_flag = 2
 accepted_flag = 3
 last_change_buffer_size = 50
