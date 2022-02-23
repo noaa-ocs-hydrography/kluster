@@ -285,7 +285,7 @@ def set_vyperdatum_vdatum_path(vdatum_path: str):
     return err, status
 
 
-def _new_geohash(latitude: float, longitude: float, precision: int):
+def new_geohash(latitude: float, longitude: float, precision: int):
     """
     compute new geohash for given latitude longitude
 
@@ -331,7 +331,7 @@ def compute_geohash(latitude: np.array, longitude: np.array, precision: int):
         array of bytestrings dtype='SX' where X is the precision you have given
     """
 
-    vectorhash = np.vectorize(_new_geohash)
+    vectorhash = np.vectorize(new_geohash)
     return vectorhash(latitude, longitude, precision)
 
 
@@ -416,7 +416,7 @@ def polygon_to_geohashes(polygon: Union[np.array, geometry.Polygon], precision):
     centroid = polygon.centroid
 
     testing_geohashes = queue.Queue()
-    testing_geohashes.put(_new_geohash(centroid.y, centroid.x, precision))
+    testing_geohashes.put(new_geohash(centroid.y, centroid.x, precision))
 
     while not testing_geohashes.empty():
         current_geohash = testing_geohashes.get()
