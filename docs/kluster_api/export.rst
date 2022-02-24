@@ -7,3 +7,4 @@ export module
    :skip: datetime
    :skip: is_pydro
    :skip: build_entwine_points
+   :skip: VectorLayer

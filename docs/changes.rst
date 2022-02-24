@@ -16,6 +16,7 @@ Kluster v0.8.10 (2/24/2022)
  - fix the vertical_reference wkt strings, to reflect projected crs, and to include ellipse as a valid vert ref
  - default to sbet when exists for drawing/exporting tracklines
  - fixes for processing/plotting tools when sbets are included without error files
+ - add articles to documentation for developers and requirements
 
 Kluster v0.8.9 (2/18/2022)
 ----------------------------

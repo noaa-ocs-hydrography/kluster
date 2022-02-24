@@ -26,6 +26,8 @@ def perform_all_processing(filname: Union[str, list], navfiles: list = None, out
     Use fqpr_generation to process multibeam data on the local cluster and generate a sound velocity corrected,
     georeferenced xyz with uncertainty in csv files in the provided output folder.
 
+    This is convert_multibeam, process_multibeam, and the import processes all combined into one function.
+
     fqpr = fully qualified ping record, the term for the datastore in kluster
 
     Parameters

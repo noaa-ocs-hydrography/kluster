@@ -152,6 +152,7 @@ Build docker image using the provided dockerfile
 .. toctree::
    :maxdepth: 4
 
+   requirements/index
    quickstart/index
    faq/index
    vessel_setup/index
@@ -162,6 +163,7 @@ Build docker image using the provided dockerfile
    products/index
    settings/index
    indepth/index
+   for_developers/index
    kluster_api/index
    changes
 
