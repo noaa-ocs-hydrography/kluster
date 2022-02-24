@@ -343,11 +343,12 @@ class Fqpr(ZarrBackend):
         desired_vars = ['sbet_latitude', 'sbet_longitude', 'sbet_altitude', 'sbet_north_position_error',
                         'sbet_east_position_error', 'sbet_down_position_error', 'sbet_roll_error', 'sbet_pitch_error',
                         'sbet_heading_error']
+        mandatory_vars = ['sbet_latitude', 'sbet_longitude', 'sbet_altitude']
         keep_these_attributes = ['sbet_mission_date', 'sbet_datum', 'sbet_ellipsoid', 'sbet_logging_rate_hz', 'reference',
                                  'units', 'nav_files', 'nav_error_files']
         try:
             if self.multibeam.raw_ping[0]:
-                chk = [x for x in desired_vars if x not in self.multibeam.raw_ping[0]]
+                chk = [x for x in mandatory_vars if x not in self.multibeam.raw_ping[0]]
                 if chk:
                     return None
 
