@@ -14,6 +14,7 @@ FqprExport
       ~FqprExport.export_lines_to_file
       ~FqprExport.export_pings_to_file
       ~FqprExport.export_soundings_to_file
+      ~FqprExport.export_tracklines_to_file
       ~FqprExport.export_variable_to_csv
 
    .. rubric:: Methods Documentation
@@ -22,4 +23,5 @@ FqprExport
    .. automethod:: export_lines_to_file
    .. automethod:: export_pings_to_file
    .. automethod:: export_soundings_to_file
+   .. automethod:: export_tracklines_to_file
    .. automethod:: export_variable_to_csv

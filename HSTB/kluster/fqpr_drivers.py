@@ -11,7 +11,8 @@ import numpy as np
 from HSTB.kluster import kluster_variables
 from HSTB.drivers import kmall, par3, sbet, svp, PCSio
 
-
+par_sonar_translator = par3.sonar_translator
+kmall_sonar_translator = kmall.sonar_translator
 sonar_reference_point = {'.all': ['tx_x', 'tx_y', 'tx_z'],
                          '.kmall': ['tx_x', 'tx_y', 'tx_z']}
 
@@ -237,6 +238,10 @@ def return_xarray_from_sbet(sbetfiles: list, smrmsgfiles: list = None, logfiles:
         data and attribution from the sbets relevant to our survey processing
     """
 
+    if smrmsgfiles == [None] or smrmsgfiles == []:
+        smrmsgfiles = None
+    if logfiles == [None] or logfiles == []:
+        logfiles = None
     [_check_sbet_file(fil) for fil in sbetfiles]
     if smrmsgfiles is not None:
         [_check_sbet_file(fil) for fil in smrmsgfiles]

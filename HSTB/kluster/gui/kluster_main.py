@@ -27,10 +27,11 @@ from HSTB.kluster.gui import dialog_vesselview, kluster_explorer, kluster_projec
     dialog_export, kluster_worker, kluster_interactive_console, dialog_basicplot, dialog_advancedplot, dialog_project_settings, \
     dialog_export_grid, dialog_layer_settings, dialog_settings, dialog_importppnav, dialog_overwritenav, dialog_surface_data, \
     dialog_about, dialog_setcolors, dialog_patchtest, dialog_manualpatchtest, dialog_managedata, dialog_managesurface, \
-    dialog_reprocess, dialog_fileanalyzer
+    dialog_reprocess, dialog_fileanalyzer, dialog_export_tracklines
 from HSTB.kluster.fqpr_project import FqprProject
 from HSTB.kluster.fqpr_intelligence import FqprIntel
 from HSTB.kluster.fqpr_vessel import convert_from_fqpr_xyzrph, convert_from_vessel_xyzrph, compare_dict_data
+from HSTB.kluster.dask_helpers import dask_close_localcluster
 from HSTB.kluster import __version__ as kluster_version
 from HSTB.kluster import __file__ as kluster_init_file
 from HSTB.shared import RegistryHelpers, path_to_supplementals
@@ -152,6 +153,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.surface_thread = kluster_worker.SurfaceWorker()
         self.surface_update_thread = kluster_worker.SurfaceUpdateWorker()
         self.export_thread = kluster_worker.ExportWorker()
+        self.export_tracklines_thread = kluster_worker.ExportTracklinesWorker()
         self.export_grid_thread = kluster_worker.ExportGridWorker()
         self.open_project_thread = kluster_worker.OpenProjectWorker()
         self.draw_navigation_thread = kluster_worker.DrawNavigationWorker()
@@ -160,7 +162,8 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.patch_test_load_thread = kluster_worker.PatchTestUpdateWorker()
         self.allthreads = [self.action_thread, self.import_ppnav_thread, self.overwrite_nav_thread, self.surface_thread,
                            self.surface_update_thread, self.export_thread, self.export_grid_thread, self.open_project_thread,
-                           self.draw_navigation_thread, self.draw_surface_thread, self.load_points_thread, self.patch_test_load_thread]
+                           self.draw_navigation_thread, self.draw_surface_thread, self.load_points_thread, self.patch_test_load_thread,
+                           self.export_tracklines_thread]
 
         # connect FqprActionContainer with actions pane, called whenever actions changes
         self.intel.bind_to_action_update(self.actions.update_actions)
@@ -212,6 +215,8 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.surface_update_thread.finished.connect(self._kluster_surface_update_results)
         self.export_thread.started.connect(self._start_action_progress)
         self.export_thread.finished.connect(self._kluster_export_results)
+        self.export_tracklines_thread.started.connect(self._start_action_progress)
+        self.export_tracklines_thread.finished.connect(self._kluster_export_tracklines_results)
         self.export_grid_thread.started.connect(self._start_action_progress)
         self.export_grid_thread.finished.connect(self._kluster_export_grid_results)
         self.open_project_thread.started.connect(self._start_action_progress)
@@ -335,9 +340,11 @@ class KlusterMain(QtWidgets.QMainWindow):
         open_vessel_action.triggered.connect(self._action_open_vessel_file)
         settings_action = QtWidgets.QAction('Settings', self)
         settings_action.triggered.connect(self.set_settings)
-        export_action = QtWidgets.QAction('Export Soundings', self)
+        export_action = QtWidgets.QAction('Soundings', self)
         export_action.triggered.connect(self._action_export)
-        export_grid_action = QtWidgets.QAction('Export Surface', self)
+        export_tracklines_action = QtWidgets.QAction('Tracklines', self)
+        export_tracklines_action.triggered.connect(self._action_export_tracklines)
+        export_grid_action = QtWidgets.QAction('Surface', self)
         export_grid_action.triggered.connect(self._action_export_grid)
 
         view_darkstyle = QtWidgets.QAction('Dark Mode', self)
@@ -397,8 +404,10 @@ class KlusterMain(QtWidgets.QMainWindow):
         file.addSeparator()
         file.addAction(settings_action)
         file.addSeparator()
-        file.addAction(export_action)
-        file.addAction(export_grid_action)
+        exportmenu = file.addMenu('Export')
+        exportmenu.addAction(export_action)
+        exportmenu.addAction(export_tracklines_action)
+        exportmenu.addAction(export_grid_action)
 
         view = menubar.addMenu('View')
         view.addAction(view_darkstyle)
@@ -1412,8 +1421,7 @@ class KlusterMain(QtWidgets.QMainWindow):
 
     def _kluster_export_results(self):
         """
-        Method is run when the surface_update_thread signals completion.  All we need to do here is add the surface to the project
-        and display.
+        Method is run when the export_thread signals completion.  All we need to do here is check for errors
         """
 
         if self.export_thread.error:
@@ -1422,6 +1430,67 @@ class KlusterMain(QtWidgets.QMainWindow):
         else:
             print('Export complete.')
         self.export_thread.populate(None, None, [], '', False, 'comma', False, False, True, False, False)
+        self._stop_action_progress()
+
+    def kluster_export_tracklines(self):
+        """
+        Trigger export on all the fqprs provided.  Currently only supports export of xyz to csv file(s), las file(s)
+        and entwine point store.
+        """
+
+        if not self.no_threads_running():
+            print('Processing is already occurring.  Please wait for the process to finish')
+            cancelled = True
+        else:
+            fqprs, _ = self.return_selected_fqprs()
+            dlog = dialog_export_tracklines.ExportTracklinesDialog()
+            dlog.update_fqpr_instances(addtl_files=fqprs)
+            cancelled = False
+            if dlog.exec_():
+                basic_export_mode = dlog.basic_export_group.isChecked()
+                line_export_mode = dlog.line_export.isChecked()
+                if line_export_mode:
+                    linenames = self.project_tree.return_selected_lines()
+                else:
+                    linenames = []
+
+                export_type = dlog.export_format
+                output_pth = dlog.output_text.text()
+                basic_export_mode = dlog.basic_export_group.isChecked()
+                line_export_mode = dlog.line_export.isChecked()
+                if not dlog.canceled:
+                    fq_chunks = []
+                    for fq in fqprs:
+                        relfq = self.project.path_relative_to_project(fq)
+                        if relfq not in self.project.fqpr_instances:
+                            print('Unable to find {} in currently loaded project'.format(relfq))
+                            return
+                        if relfq in self.project.fqpr_instances:
+                            fq_inst = self.project.fqpr_instances[relfq]
+                            # use the project client, or start a new LocalCluster if client is None
+                            fq_inst.client = self.project.get_dask_client()
+                            fq_chunks.append([fq_inst])
+                    if fq_chunks:
+                        self.output_window.clear()
+                        self.export_tracklines_thread.populate(fq_chunks, linenames, export_type, basic_export_mode,
+                                                               line_export_mode, output_pth)
+                        self.export_tracklines_thread.start()
+                else:
+                    cancelled = True
+        if cancelled:
+            print('kluster_export_tracklines: Export was cancelled')
+
+    def _kluster_export_tracklines_results(self):
+        """
+        Method is run when the export_tracklines_thread signals completion.  All we need to do here is check for errors
+        """
+
+        if self.export_tracklines_thread.error:
+            print('Export complete: Unable to export')
+            print(self.export_tracklines_thread.exceptiontxt)
+        else:
+            print('Export complete.')
+        self.export_tracklines_thread.populate(None, None, '', False, True, '')
         self._stop_action_progress()
 
     def _start_action_progress(self):
@@ -2335,6 +2404,12 @@ class KlusterMain(QtWidgets.QMainWindow):
         """
         self.kluster_export()
 
+    def _action_export_tracklines(self):
+        """
+        Connect menu action 'Export Tracklines' with kluster_export_tracklines
+        """
+        self.kluster_export_tracklines()
+
     def _action_export_grid(self):
         """
         Connect menu action 'Export Surface' with kluster_export_grid
@@ -2448,6 +2523,7 @@ class KlusterMain(QtWidgets.QMainWindow):
 
         if qgis_enabled:
             self.app.exitQgis()
+        dask_close_localcluster()
 
         super(KlusterMain, self).closeEvent(event)
 

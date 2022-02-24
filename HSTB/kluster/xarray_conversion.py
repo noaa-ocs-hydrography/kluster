@@ -13,7 +13,7 @@ from typing import Union
 from HSTB.kluster import __version__ as klustervers
 from HSTB.kluster.dms import return_zone_from_min_max_long
 from HSTB.kluster.fqpr_drivers import sequential_read_multibeam, fast_read_multibeam_metadata, return_offsets_from_posfile, \
-    sonar_reference_point
+    sonar_reference_point, par_sonar_translator, kmall_sonar_translator
 from HSTB.kluster.dask_helpers import dask_find_or_start_client
 from HSTB.kluster.xarray_helpers import resize_zarr, xarr_to_netcdf, combine_xr_attributes, reload_zarr_records, slice_xarray_by_dim
 from HSTB.kluster.fqpr_helpers import seconds_to_formatted_string
@@ -33,18 +33,32 @@ sonar_translator = {'em122': [None, 'tx', 'rx', None], 'em302': [None, 'tx', 'rx
                     'em3020': [None, 'tx', 'rx', None], 'em3020_dual': [None, 'txrx_port', 'txrx_stbd', None],
                     'me70': [None, 'txrx', None, None]}
 
-install_parameter_modifier = {'em2040_dual_tx': {'rx_port': {'0': {'x': 0.011, 'y': 0.0, 'z': -0.006},
+# ensure that Kluster sonar translator supports all sonar_translators in multibeam drivers
+assert all([snr in sonar_translator for snr in par_sonar_translator.keys()])
+assert all([snr in sonar_translator for snr in kmall_sonar_translator.keys()])
+
+
+install_parameter_modifier = {'em2040_dual_tx_rx': {'rx_port': {'0': {'x': 0.011, 'y': 0.0, 'z': -0.006},
+                                                                '1': {'x': 0.011, 'y': 0.0, 'z': -0.006},
+                                                                '2': {'x': 0.011, 'y': 0.0, 'z': -0.006}},
+                                                    'tx_port': {'0': {'x': 0.0, 'y': -0.0554, 'z': -0.012},
+                                                                '1': {'x': 0.0, 'y': 0.0131, 'z': -0.006},
+                                                                '2': {'x': 0.0, 'y': 0.0554, 'z': -0.012}},
+                                                    'rx_stbd': {'0': {'x': 0.011, 'y': 0.0, 'z': -0.006},
+                                                                '1': {'x': 0.011, 'y': 0.0, 'z': -0.006},
+                                                                '2': {'x': 0.011, 'y': 0.0, 'z': -0.006}},
+                                                    'tx_stbd': {'0': {'x': 0.0, 'y': -0.0554, 'z': -0.012},
+                                                                '1': {'x': 0.0, 'y': 0.0131, 'z': -0.006},
+                                                                '2': {'x': 0.0, 'y': 0.0554, 'z': -0.012}}},
+                              'em2040_dual_rx': {'tx': {'0': {'x': 0.0, 'y': -0.0554, 'z': -0.012},
+                                                        '1': {'x': 0.0, 'y': 0.0131, 'z': -0.006},
+                                                        '2': {'x': 0.0, 'y': 0.0554, 'z': -0.012}},
+                                                 'rx_port': {'0': {'x': 0.011, 'y': 0.0, 'z': -0.006},
                                                              '1': {'x': 0.011, 'y': 0.0, 'z': -0.006},
                                                              '2': {'x': 0.011, 'y': 0.0, 'z': -0.006}},
-                                                 'tx_port': {'0': {'x': 0.0, 'y': -0.0554, 'z': -0.012},
-                                                             '1': {'x': 0.0, 'y': 0.0131, 'z': -0.006},
-                                                             '2': {'x': 0.0, 'y': 0.0554, 'z': -0.012}},
                                                  'rx_stbd': {'0': {'x': 0.011, 'y': 0.0, 'z': -0.006},
                                                              '1': {'x': 0.011, 'y': 0.0, 'z': -0.006},
-                                                             '2': {'x': 0.011, 'y': 0.0, 'z': -0.006}},
-                                                 'tx_stbd': {'0': {'x': 0.0, 'y': -0.0554, 'z': -0.012},
-                                                             '1': {'x': 0.0, 'y': 0.0131, 'z': -0.006},
-                                                             '2': {'x': 0.0, 'y': 0.0554, 'z': -0.012}}},
+                                                             '2': {'x': 0.011, 'y': 0.0, 'z': -0.006}}},
                               'em2040': {'rx': {'0': {'x': 0.011, 'y': 0.0, 'z': -0.006},
                                                 '1': {'x': 0.011, 'y': 0.0, 'z': -0.006},
                                                 '2': {'x': 0.011, 'y': 0.0, 'z': -0.006}},
@@ -1924,7 +1938,7 @@ class BatchRead(ZarrBackend):
 
         if self.xyzrph is None:
             self.build_offsets()
-        if self.sonartype in kluster_variables.single_head_sonar:
+        if 'tx_r' in self.xyzrph:
             corr_timestmp = str(int(_closest_prior_key_value(list(self.xyzrph['tx_r'].keys()), time_idx)))
             return {corr_timestmp: {'tx_roll': float(self.xyzrph['tx_r'][corr_timestmp]),
                                     'tx_pitch': float(self.xyzrph['tx_p'][corr_timestmp]),
@@ -1932,8 +1946,7 @@ class BatchRead(ZarrBackend):
                                     'tx_x': float(self.xyzrph['tx_x'][corr_timestmp]),
                                     'tx_y': float(self.xyzrph['tx_y'][corr_timestmp]),
                                     'tx_z': float(self.xyzrph['tx_z'][corr_timestmp])}}
-
-        elif self.sonartype in kluster_variables.dual_head_sonar:
+        elif 'tx_port_r' in self.xyzrph:
             corr_timestmp = str(int(_closest_prior_key_value(list(self.xyzrph['tx_port_r'].keys()), time_idx)))
             return {corr_timestmp: {'tx_port_roll': float(self.xyzrph['tx_port_r'][corr_timestmp]),
                                     'tx_port_pitch': float(self.xyzrph['tx_port_p'][corr_timestmp]),
@@ -1970,7 +1983,7 @@ class BatchRead(ZarrBackend):
 
         if self.xyzrph is None:
             self.build_offsets()
-        if self.sonartype in kluster_variables.single_head_sonar:
+        if 'rx_r' in self.xyzrph:
             corr_timestmp = str(int(_closest_prior_key_value(list(self.xyzrph['rx_r'].keys()), time_idx)))
             return {corr_timestmp: {'rx_roll': float(self.xyzrph['rx_r'][corr_timestmp]),
                                     'rx_pitch': float(self.xyzrph['rx_p'][corr_timestmp]),
@@ -1978,8 +1991,7 @@ class BatchRead(ZarrBackend):
                                     'rx_x': float(self.xyzrph['rx_x'][corr_timestmp]),
                                     'rx_y': float(self.xyzrph['rx_y'][corr_timestmp]),
                                     'rx_z': float(self.xyzrph['rx_z'][corr_timestmp])}}
-
-        elif self.sonartype in kluster_variables.dual_head_sonar:
+        elif 'rx_port_r' in self.xyzrph:
             corr_timestmp = str(int(_closest_prior_key_value(list(self.xyzrph['rx_port_r'].keys()), time_idx)))
             return {corr_timestmp: {'rx_port_roll': float(self.xyzrph['rx_port_r'][corr_timestmp]),
                                     'rx_port_pitch': float(self.xyzrph['rx_port_p'][corr_timestmp]),
@@ -2183,10 +2195,15 @@ class BatchRead(ZarrBackend):
             list of two element lists containing the prefixes needed for tx/rx offsets and angles
         """
 
-        if 'tx_r' in self.xyzrph:
+        if 'tx_r' in self.xyzrph and 'rx_r' in self.xyzrph:
             leverarms = [['tx', 'rx']]
-        elif 'tx_port_r' in self.xyzrph:
+        elif 'tx_port_r' in self.xyzrph and 'rx_port_r' in self.xyzrph:
             leverarms = [['tx_port', 'rx_port'], ['tx_stbd', 'rx_stbd']]
+        elif 'tx_r' in self.xyzrph and 'rx_port_r' in self.xyzrph:
+            leverarms = [['tx', 'rx_port'], ['tx', 'rx_stbd']]
+        elif 'tx_port_r' in self.xyzrph and 'rx_r' in self.xyzrph:
+            leverarms = [['tx_port', 'rx'], ['tx_stbd', 'rx']]
+            print("Warning: The dual tx / single rx configuration is not tested and could create issues with the Kluster datasets.")
         else:
             self.logger.error('Not supporting this sonartype yet.')
             raise NotImplementedError('Not supporting this sonartype yet.')

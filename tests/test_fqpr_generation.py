@@ -477,6 +477,14 @@ class TestFqprGeneration(unittest.TestCase):
         self.remove_export_file('csv_export')
         self.remove_export_file('las_export')
 
+    def test_export_tracklines(self):
+        self._access_processed_data()
+        outfile = os.path.join(self.datapath, 'tracklines.gpkg')
+        self.out.export_tracklines_to_file(linenames=None, output_file=outfile, file_format='GPKG')
+        assert os.path.exists(outfile)
+        os.remove(outfile)
+        assert not os.path.exists(outfile)
+
     def test_export_variable(self):
         self._access_processed_data()
         self.out.export_variable('multibeam', 'beampointingangle', self.multicheck)

@@ -694,7 +694,7 @@ class FqprProject:
             fq_inst = self.return_line_owner(line)
             if fq_inst is not None:
                 line_start_time, line_end_time = fq_inst.multibeam.raw_ping[0].multibeam_files[line][0], fq_inst.multibeam.raw_ping[0].multibeam_files[line][1]
-                nav = fq_inst.multibeam.return_raw_navigation(line_start_time, line_end_time)
+                nav = fq_inst.return_navigation(line_start_time, line_end_time)
                 if nav is not None:
                     lat, lon = nav.latitude.values, nav.longitude.values
                     # save nav so we don't have to redo this routine if asked for the same line

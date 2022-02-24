@@ -207,7 +207,7 @@ class ExportGridDialog(SaveStateDialog):
 
     def update_vert_ref(self, vertical_reference: str):
         if vertical_reference in ['ellipse', 'waterline', 'NOAA MLLW', 'NOAA MHW']:
-            pass  # leave as unknown
+            self.bag_vert_crs.setText('VERT_CS["unknown", VERT_DATUM["unknown", 2000]]')
         else:
             self.bag_vert_crs.setText(vertical_reference)
 

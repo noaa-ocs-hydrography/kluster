@@ -23,6 +23,8 @@ mem_restart_threshold = 0.40
 # kluster_3dview
 selected_point_color = (1, 0.476, 0.953, 1)  # color of points selected in 3dview
 super_selected_point_color = (1, 1, 1, 1)  # color of points in super selection in 3dview
+amplitude_detect_flag = 0
+phase_detect_flag = 1
 rejected_flag = 2
 accepted_flag = 3
 last_change_buffer_size = 50
@@ -68,7 +70,7 @@ attitude_chunk_size = 20000  # chunk size (in time) of each written chunk of dat
 max_profile_length = 80  # maximum layers in a sound velocity profile, will interpolate if greater than this length
 
 single_head_sonar = ['em122', 'em302', 'em710', 'em2045', 'em2040', 'em2040p', 'em3002', 'em3020', 'me70']  # all single head sonar models
-dual_head_sonar = ['em2040_dual_rx', 'em2040_dual_tx', 'em2045_dual']  # all dual head sonar models
+dual_head_sonar = ['em2040_dual_rx', 'em2040_dual_tx', 'em2045_dual', 'em2040_dual_tx_rx', 'em3020_dual']  # all dual head sonar models
 # tpu parameter names controls what gets passed to the tpu calculator
 tpu_parameter_names = ['tx_to_antenna_x', 'tx_to_antenna_y', 'tx_to_antenna_z', 'heave_error', 'roll_sensor_error',
                        'pitch_sensor_error', 'heading_sensor_error', 'x_offset_error',

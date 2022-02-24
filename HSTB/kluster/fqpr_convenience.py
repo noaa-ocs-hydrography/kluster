@@ -26,6 +26,8 @@ def perform_all_processing(filname: Union[str, list], navfiles: list = None, out
     Use fqpr_generation to process multibeam data on the local cluster and generate a sound velocity corrected,
     georeferenced xyz with uncertainty in csv files in the provided output folder.
 
+    This is convert_multibeam, process_multibeam, and the import processes all combined into one function.
+
     fqpr = fully qualified ping record, the term for the datastore in kluster
 
     Parameters
@@ -506,7 +508,7 @@ def _get_unique_crs_vertref(fqpr_instances: list):
 
     # if the vertical reference is a vdatum one, return the first WKT string.  We can't just get the unique WKT strings,
     #  as there might be differences in region (which we should probably concatenate or something)
-    if unique_vertref[0] in ['NOAA MLLW', 'NOAA MHW']:
+    if unique_vertref[0] in ['NOAA MLLW', 'NOAA MHW', 'ellipse']:
         unique_vertref = [fqpr_instances[0].multibeam.raw_ping[0].vertical_crs]
 
     return unique_crs, unique_vertref

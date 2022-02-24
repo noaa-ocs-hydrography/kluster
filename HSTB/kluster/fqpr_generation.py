@@ -343,10 +343,12 @@ class Fqpr(ZarrBackend):
         desired_vars = ['sbet_latitude', 'sbet_longitude', 'sbet_altitude', 'sbet_north_position_error',
                         'sbet_east_position_error', 'sbet_down_position_error', 'sbet_roll_error', 'sbet_pitch_error',
                         'sbet_heading_error']
-        keep_these_attributes = ['sbet_mission_date', 'sbet_datum', 'sbet_ellipsoid', 'sbet_logging_rate_hz', 'reference', 'units', 'nav_files', 'nav_error_files']
+        mandatory_vars = ['sbet_latitude', 'sbet_longitude', 'sbet_altitude']
+        keep_these_attributes = ['sbet_mission_date', 'sbet_datum', 'sbet_ellipsoid', 'sbet_logging_rate_hz', 'reference',
+                                 'units', 'nav_files', 'nav_error_files']
         try:
             if self.multibeam.raw_ping[0]:
-                chk = [x for x in desired_vars if x not in self.multibeam.raw_ping[0]]
+                chk = [x for x in mandatory_vars if x not in self.multibeam.raw_ping[0]]
                 if chk:
                     return None
 
@@ -358,13 +360,35 @@ class Fqpr(ZarrBackend):
         except:
             return None
 
-    @property
-    def navigation(self):
+    def return_navigation(self, start_time: float = None, end_time: float = None):
         """
-        Return the raw navigation from the multibeam data for the first sonar head. Can assume that all sonar heads have
-        basically the same navigation
+        Return the navigation from the multibeam data for the first sonar head. Can assume that all sonar heads have
+        basically the same navigation.  If sbet navigation exists, return that instead, renaming the sbet variables
+        so that existing methods work.
+
+        Parameters
+        ----------
+        start_time
+            if provided will allow you to only return navigation after this time.  Selects the nearest time value to
+            the one provided.
+        end_time
+            if provided will allow you to only return navigation before this time.  Selects the nearest time value to
+            the one provided.
+
+        Returns
+        -------
+        xr.Dataset
+            latitude/longitude/altitude pulled from the navigation part of the ping record
         """
-        return self.multibeam.return_raw_navigation()
+
+        nav = self.sbet_navigation
+        if nav is None:
+            return self.multibeam.return_raw_navigation(start_time=start_time, end_time=end_time)
+        else:
+            nav = nav.rename({'sbet_latitude': 'latitude', 'sbet_longitude': 'longitude', 'sbet_altitude': 'altitude'})
+            if start_time or end_time:
+                nav = slice_xarray_by_dim(nav, 'time', start_time=start_time, end_time=end_time)
+            return nav
 
     def copy(self):
         """
@@ -2499,7 +2523,7 @@ class Fqpr(ZarrBackend):
                                                          z_pos_down=z_pos_down, export_by_identifiers=export_by_identifiers)
         return written_files
 
-    def export_lines_to_file(self, linenames: list, output_directory: str = None, file_format: str = 'csv', csv_delimiter=' ',
+    def export_lines_to_file(self, linenames: list = None, output_directory: str = None, file_format: str = 'csv', csv_delimiter=' ',
                              filter_by_detection: bool = True, z_pos_down: bool = True, export_by_identifiers: bool = True):
         """
         Run the export module to export only the data belonging to the given lines to file, see export.export_lines_to_file
@@ -2517,6 +2541,13 @@ class Fqpr(ZarrBackend):
         """
 
         self.export.export_soundings_to_file(datablock, output_directory, file_format, csv_delimiter, filter_by_detection, z_pos_down)
+
+    def export_tracklines_to_file(self, linenames: list = None, output_file: str = None, file_format: str = 'GPKG'):
+        """
+        Run the export module to export the navigation to vector file, see export.export_tracklines_to_file
+        """
+
+        self.export.export_tracklines_to_file(linenames, output_file, file_format)
 
     def export_variable(self, dataset_name: str, var_name: str, dest_path: str, reduce_method: str = None,
                         zero_centered: bool = False):
@@ -2676,13 +2707,14 @@ class Fqpr(ZarrBackend):
                                         'depthoffset': 'meters (+ down)'}}]
         elif mode == 'georef':
             crs = self.horizontal_crs.to_epsg()
-            if crs is None:  # gets here if there is no valid EPSG for this transformation
-                crs = self.horizontal_crs.to_string()
             if self.vert_ref == 'NOAA MLLW':
-                vertcrs = datum_to_wkt('mllw', self.multibeam.raw_ping[0].min_lon, self.multibeam.raw_ping[0].min_lat,
+                vertcrs = datum_to_wkt('mllw', crs, self.multibeam.raw_ping[0].min_lon, self.multibeam.raw_ping[0].min_lat,
                                        self.multibeam.raw_ping[0].max_lon, self.multibeam.raw_ping[0].max_lat)
             elif self.vert_ref == 'NOAA MHW':
-                vertcrs = datum_to_wkt('mhw', self.multibeam.raw_ping[0].min_lon, self.multibeam.raw_ping[0].min_lat,
+                vertcrs = datum_to_wkt('mhw', crs, self.multibeam.raw_ping[0].min_lon, self.multibeam.raw_ping[0].min_lat,
+                                       self.multibeam.raw_ping[0].max_lon, self.multibeam.raw_ping[0].max_lat)
+            elif self.vert_ref == 'ellipse':
+                vertcrs = datum_to_wkt('ellipse', crs, self.multibeam.raw_ping[0].min_lon, self.multibeam.raw_ping[0].min_lat,
                                        self.multibeam.raw_ping[0].max_lon, self.multibeam.raw_ping[0].max_lat)
             else:
                 vertcrs = 'Unknown'

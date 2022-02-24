@@ -1,0 +1,6 @@
+dask_close_localcluster
+=======================
+
+.. currentmodule:: HSTB.kluster.dask_helpers
+
+.. autofunction:: dask_close_localcluster

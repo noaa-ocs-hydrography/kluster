@@ -121,6 +121,18 @@ def dask_find_or_start_client(address: str = None, number_of_workers: int = None
     return client
 
 
+def dask_close_localcluster():
+    """
+    Retrieve and close the LocalCluster if it exists, otherwise pass
+    """
+
+    try:
+        client = get_client()
+        client.close()
+    except ValueError:  # no global client found
+        return
+
+
 def get_max_cluster_allocated_memory(client: Client):
     """
     Retrieve the max memory across all workers in the cluster added together
