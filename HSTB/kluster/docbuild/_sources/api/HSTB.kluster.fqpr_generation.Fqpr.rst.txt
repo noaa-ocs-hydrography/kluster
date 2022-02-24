@@ -14,7 +14,6 @@ Fqpr
       ~Fqpr.last_operation_date
       ~Fqpr.max_time
       ~Fqpr.min_time
-      ~Fqpr.navigation
       ~Fqpr.number_of_heads
       ~Fqpr.number_of_pings
       ~Fqpr.sbet_navigation
@@ -37,6 +36,7 @@ Fqpr
       ~Fqpr.export_lines_to_file
       ~Fqpr.export_pings_to_file
       ~Fqpr.export_soundings_to_file
+      ~Fqpr.export_tracklines_to_file
       ~Fqpr.export_variable
       ~Fqpr.generate_starter_orientation_vectors
       ~Fqpr.georef_xyz
@@ -68,6 +68,7 @@ Fqpr
       ~Fqpr.return_line_time
       ~Fqpr.return_line_xyzrph
       ~Fqpr.return_lines_for_times
+      ~Fqpr.return_navigation
       ~Fqpr.return_next_action
       ~Fqpr.return_next_unprocessed_line
       ~Fqpr.return_processing_dashboard
@@ -94,7 +95,6 @@ Fqpr
    .. autoattribute:: last_operation_date
    .. autoattribute:: max_time
    .. autoattribute:: min_time
-   .. autoattribute:: navigation
    .. autoattribute:: number_of_heads
    .. autoattribute:: number_of_pings
    .. autoattribute:: sbet_navigation
@@ -115,6 +115,7 @@ Fqpr
    .. automethod:: export_lines_to_file
    .. automethod:: export_pings_to_file
    .. automethod:: export_soundings_to_file
+   .. automethod:: export_tracklines_to_file
    .. automethod:: export_variable
    .. automethod:: generate_starter_orientation_vectors
    .. automethod:: georef_xyz
@@ -146,6 +147,7 @@ Fqpr
    .. automethod:: return_line_time
    .. automethod:: return_line_xyzrph
    .. automethod:: return_lines_for_times
+   .. automethod:: return_navigation
    .. automethod:: return_next_action
    .. automethod:: return_next_unprocessed_line
    .. automethod:: return_processing_dashboard

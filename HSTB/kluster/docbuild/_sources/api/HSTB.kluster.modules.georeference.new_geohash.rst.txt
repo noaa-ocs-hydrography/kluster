@@ -1,0 +1,6 @@
+new_geohash
+===========
+
+.. currentmodule:: HSTB.kluster.modules.georeference
+
+.. autofunction:: new_geohash

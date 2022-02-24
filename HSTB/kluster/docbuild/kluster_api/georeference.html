@@ -6,7 +6,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
-    <title>georeference module &#8212; kluster 0.8.9 documentation</title>
+    <title>georeference module &#8212; kluster 0.8.10 documentation</title>
     <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
     <link rel="stylesheet" type="text/css" href="../_static/alabaster.css" />
     <link rel="stylesheet" type="text/css" href="../_static/graphviz.css" />
@@ -49,7 +49,7 @@
 <tr class="row-odd"><td><p><a class="reference internal" href="../api/HSTB.kluster.modules.georeference.compute_geohash.html#HSTB.kluster.modules.georeference.compute_geohash" title="HSTB.kluster.modules.georeference.compute_geohash"><code class="xref py py-obj docutils literal notranslate"><span class="pre">compute_geohash</span></code></a>(latitude, longitude, precision)</p></td>
 <td><p>Geohash is a geocoding method to encode a specific latitude/longitude into a string representing an area of a given precision.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="../api/HSTB.kluster.modules.georeference.datum_to_wkt.html#HSTB.kluster.modules.georeference.datum_to_wkt" title="HSTB.kluster.modules.georeference.datum_to_wkt"><code class="xref py py-obj docutils literal notranslate"><span class="pre">datum_to_wkt</span></code></a>(datum_identifier, min_lon, ...)</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="../api/HSTB.kluster.modules.georeference.datum_to_wkt.html#HSTB.kluster.modules.georeference.datum_to_wkt" title="HSTB.kluster.modules.georeference.datum_to_wkt"><code class="xref py py-obj docutils literal notranslate"><span class="pre">datum_to_wkt</span></code></a>(datum_identifier, projcrs, ...)</p></td>
 <td><p>Translate the provided datum to vypercrs wkt string</p></td>
 </tr>
 <tr class="row-odd"><td><p><a class="reference internal" href="../api/HSTB.kluster.modules.georeference.decode_geohash.html#HSTB.kluster.modules.georeference.decode_geohash" title="HSTB.kluster.modules.georeference.decode_geohash"><code class="xref py py-obj docutils literal notranslate"><span class="pre">decode_geohash</span></code></a>(ghash)</p></td>
@@ -64,13 +64,16 @@
 <tr class="row-even"><td><p><a class="reference internal" href="../api/HSTB.kluster.modules.georeference.georef_by_worker.html#HSTB.kluster.modules.georeference.georef_by_worker" title="HSTB.kluster.modules.georeference.georef_by_worker"><code class="xref py py-obj docutils literal notranslate"><span class="pre">georef_by_worker</span></code></a>(sv_corr, alt, lon, lat, ...)</p></td>
 <td><p>Use the raw attitude/navigation to transform the vessel relative along/across/down offsets to georeferenced soundings.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="../api/HSTB.kluster.modules.georeference.polygon_to_geohashes.html#HSTB.kluster.modules.georeference.polygon_to_geohashes" title="HSTB.kluster.modules.georeference.polygon_to_geohashes"><code class="xref py py-obj docutils literal notranslate"><span class="pre">polygon_to_geohashes</span></code></a>(polygon, precision)</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="../api/HSTB.kluster.modules.georeference.new_geohash.html#HSTB.kluster.modules.georeference.new_geohash" title="HSTB.kluster.modules.georeference.new_geohash"><code class="xref py py-obj docutils literal notranslate"><span class="pre">new_geohash</span></code></a>(latitude, longitude, precision)</p></td>
+<td><p>compute new geohash for given latitude longitude</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="../api/HSTB.kluster.modules.georeference.polygon_to_geohashes.html#HSTB.kluster.modules.georeference.polygon_to_geohashes" title="HSTB.kluster.modules.georeference.polygon_to_geohashes"><code class="xref py py-obj docutils literal notranslate"><span class="pre">polygon_to_geohashes</span></code></a>(polygon, precision)</p></td>
 <td><p>Take a polygon and return a list of all of the geohash codes/cells that are completely inside and those that are intersecting</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="../api/HSTB.kluster.modules.georeference.set_vyperdatum_vdatum_path.html#HSTB.kluster.modules.georeference.set_vyperdatum_vdatum_path" title="HSTB.kluster.modules.georeference.set_vyperdatum_vdatum_path"><code class="xref py py-obj docutils literal notranslate"><span class="pre">set_vyperdatum_vdatum_path</span></code></a>(vdatum_path)</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="../api/HSTB.kluster.modules.georeference.set_vyperdatum_vdatum_path.html#HSTB.kluster.modules.georeference.set_vyperdatum_vdatum_path" title="HSTB.kluster.modules.georeference.set_vyperdatum_vdatum_path"><code class="xref py py-obj docutils literal notranslate"><span class="pre">set_vyperdatum_vdatum_path</span></code></a>(vdatum_path)</p></td>
 <td><p>Set the vyperdatum VDatum path, required to use the VDatum grids to do the vertical transformations</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="../api/HSTB.kluster.modules.georeference.transform_vyperdatum.html#HSTB.kluster.modules.georeference.transform_vyperdatum" title="HSTB.kluster.modules.georeference.transform_vyperdatum"><code class="xref py py-obj docutils literal notranslate"><span class="pre">transform_vyperdatum</span></code></a>(x, y, z[, ...])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="../api/HSTB.kluster.modules.georeference.transform_vyperdatum.html#HSTB.kluster.modules.georeference.transform_vyperdatum" title="HSTB.kluster.modules.georeference.transform_vyperdatum"><code class="xref py py-obj docutils literal notranslate"><span class="pre">transform_vyperdatum</span></code></a>(x, y, z[, ...])</p></td>
 <td><p>When we specify a NOAA vertical datum (NOAA Mean Lower Low Water, NOAA Mean High Water) in Kluster, we use vyperdatum/VDatum to transform the points to the appropriate vertical datum.</p></td>
 </tr>
 </tbody>
@@ -97,6 +100,7 @@
 
 <h3>Navigation</h3>
 <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../requirements/index.html">Requirements</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../quickstart/index.html">Quickstart</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../faq/index.html">FAQ</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../vessel_setup/index.html">Vessel Setup</a></li>
@@ -107,6 +111,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../products/index.html">Products</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../settings/index.html">Settings</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../indepth/index.html">Learn more about Kluster</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../for_developers/index.html">For Developers</a></li>
 <li class="toctree-l1 current"><a class="reference internal" href="index.html">API</a><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="fqpr_convenience.html">fqpr_convenience module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="fqpr_generation.html">fqpr_generation module</a></li>

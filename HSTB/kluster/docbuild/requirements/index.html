@@ -1,0 +1,384 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+    <title>Requirements &#8212; kluster 0.8.10 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/alabaster.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/graphviz.css" />
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Quickstart" href="../quickstart/index.html" />
+    <link rel="prev" title="kluster" href="../index.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <section id="requirements">
+<h1>Requirements<a class="headerlink" href="#requirements" title="Permalink to this headline">¶</a></h1>
+<p>As mentioned in the readme, Kluster is built from the ground up in Python, and was developed using Python 3.8.
+Kluster has been tested on Windows 10 and Ubuntu 20.04.  See the readme for installation instructions.</p>
+<p>Kluster utilizes the following readers.</p>
+<ul class="simple">
+<li><p>kmall - Kongsberg kmall file reader</p></li>
+<li><p>par3 - Kongsberg .all file reader</p></li>
+<li><p>sbet - POSPac sbet/rms file reader</p></li>
+</ul>
+<p>Here I will layout the records/setup required for these systems to produce data that is compatible with Kluster.</p>
+<p>First though, I’ll lay out the basic requirements for any sonar that Kluster can/will handle in the future:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p>Sound Speed Profile - Kluster requires a sound speed profile to be delivered in the raw multibeam data.  This allows Kluster to ray-trace any multibeam file regardless of the inclusion of an external profile file.</p></li>
+<li><p>System Serial Number - Kluster requires that each file have a serial number that uniquely identifies a sonar.  This allows Kluster to catalogue and organize files according to system.</p></li>
+<li><p>Installation Parameters - Kluster requires that the offsets and mounting angles are provided in the file from the sonar reference point.</p></li>
+<li><p>Time Standard - Times must be reported in UTC time within the multibeam file, or provide a way to get to UTC using only the information in the file.</p></li>
+</ul>
+</div></blockquote>
+<p>Optionally, the multibeam should provide a ray-traced processed answer, using the included sound speed profile.  I believe this is a great way to ensure that the user is also able to process the multibeam file without any additional files needed.</p>
+<section id="kongsberg-all">
+<h2>Kongsberg .all<a class="headerlink" href="#kongsberg-all" title="Permalink to this headline">¶</a></h2>
+<p>Kluster supports three separate processing paths for Kongsberg .all files.  These are as follows (in order of oldest first, to newest last):</p>
+<p>Each datagram listed will also list the components of that datagram used by Kluster.</p>
+<section id="path-1-for-older-sonars">
+<h3>Path 1 (for older sonars)<a class="headerlink" href="#path-1-for-older-sonars" title="Permalink to this headline">¶</a></h3>
+<dl class="simple">
+<dt>Data102 (Raw range and beam angle (f))</dt><dd><ul class="simple">
+<li><p>Time</p></li>
+<li><p>PingCounter</p></li>
+<li><p>SoundSpeed</p></li>
+<li><p>Ntx</p></li>
+<li><p>SystemSerialNumber</p></li>
+<li><p>TiltAngle</p></li>
+<li><p>Delay</p></li>
+<li><p>CenterFrequency</p></li>
+<li><p>BeamPointingAngle</p></li>
+<li><p>TransmitSectorID</p></li>
+<li><p>DetectionWindowLength</p></li>
+<li><p>QualityFactor</p></li>
+<li><p>TravelTime</p></li>
+</ul>
+</dd>
+<dt>Data73 (Installation Parameters)</dt><dd><ul class="simple">
+<li><p>Time</p></li>
+<li><p>InstallationParameterText</p></li>
+</ul>
+</dd>
+<dt>Data65 (Attitude)</dt><dd><ul class="simple">
+<li><p>Time</p></li>
+<li><p>Roll</p></li>
+<li><p>Pitch</p></li>
+<li><p>Heave</p></li>
+<li><p>Heading</p></li>
+</ul>
+</dd>
+<dt>Data82 (Runtime Parameters)</dt><dd><ul class="simple">
+<li><p>Time</p></li>
+<li><p>Mode</p></li>
+<li><p>ModeTwo</p></li>
+<li><p>YawPitchStabilization</p></li>
+<li><p>RuntimeParameterText</p></li>
+</ul>
+</dd>
+<dt>Data85 (Sound Speed Profile)</dt><dd><ul class="simple">
+<li><p>Time</p></li>
+<li><p>DepthProfile</p></li>
+<li><p>SoundspeedProfile</p></li>
+</ul>
+</dd>
+<dt>Data80 (Position)</dt><dd><ul class="simple">
+<li><p>Time</p></li>
+<li><p>Latitude</p></li>
+<li><p>Longitude</p></li>
+<li><p>Altitude (decoded from Position Input Datagram)</p></li>
+</ul>
+</dd>
+</dl>
+</section>
+<section id="path-2-newer-systems-without-network-attitude">
+<h3>Path 2 (newer systems without Network Attitude)<a class="headerlink" href="#path-2-newer-systems-without-network-attitude" title="Permalink to this headline">¶</a></h3>
+<dl class="simple">
+<dt>Data78 (Raw range and angle)</dt><dd><ul class="simple">
+<li><p>Time</p></li>
+<li><p>PingCounter</p></li>
+<li><p>SoundSpeed</p></li>
+<li><p>Ntx</p></li>
+<li><p>SystemSerialNumber</p></li>
+<li><p>TiltAngle</p></li>
+<li><p>Delay</p></li>
+<li><p>Frequency</p></li>
+<li><p>BeamPointingAngle</p></li>
+<li><p>TransmitSectorID</p></li>
+<li><p>DetectionInfo</p></li>
+<li><p>QualityFactor</p></li>
+<li><p>TravelTime</p></li>
+</ul>
+</dd>
+<dt>Data73 (Installation Parameters)</dt><dd><ul class="simple">
+<li><p>Time</p></li>
+<li><p>InstallationParameterText</p></li>
+</ul>
+</dd>
+<dt>Data65 (Attitude)</dt><dd><ul class="simple">
+<li><p>Time</p></li>
+<li><p>Roll</p></li>
+<li><p>Pitch</p></li>
+<li><p>Heave</p></li>
+<li><p>Heading</p></li>
+</ul>
+</dd>
+<dt>Data82 (Runtime Parameters)</dt><dd><ul class="simple">
+<li><p>Time</p></li>
+<li><p>Mode</p></li>
+<li><p>ModeTwo</p></li>
+<li><p>YawPitchStabilization</p></li>
+<li><p>RuntimeParameterText</p></li>
+</ul>
+</dd>
+<dt>Data85 (Sound Speed Profile)</dt><dd><ul class="simple">
+<li><p>Time</p></li>
+<li><p>DepthProfile</p></li>
+<li><p>SoundspeedProfile</p></li>
+</ul>
+</dd>
+<dt>Data80 (Position)</dt><dd><ul class="simple">
+<li><p>Time</p></li>
+<li><p>Latitude</p></li>
+<li><p>Longitude</p></li>
+<li><p>Altitude (decoded from Position Input Datagram)</p></li>
+</ul>
+</dd>
+</dl>
+</section>
+<section id="path-3-newer-systems-with-network-attitude">
+<h3>Path 3 (newer systems with Network Attitude)<a class="headerlink" href="#path-3-newer-systems-with-network-attitude" title="Permalink to this headline">¶</a></h3>
+<dl class="simple">
+<dt>Data78 (Raw range and angle)</dt><dd><ul class="simple">
+<li><p>Time</p></li>
+<li><p>PingCounter</p></li>
+<li><p>SoundSpeed</p></li>
+<li><p>Ntx</p></li>
+<li><p>SystemSerialNumber</p></li>
+<li><p>TiltAngle</p></li>
+<li><p>Delay</p></li>
+<li><p>Frequency</p></li>
+<li><p>BeamPointingAngle</p></li>
+<li><p>TransmitSectorID</p></li>
+<li><p>DetectionInfo</p></li>
+<li><p>QualityFactor</p></li>
+<li><p>TravelTime</p></li>
+</ul>
+</dd>
+<dt>Data73 (Installation Parameters)</dt><dd><ul class="simple">
+<li><p>Time</p></li>
+<li><p>InstallationParameterText</p></li>
+</ul>
+</dd>
+<dt>Data65 (Attitude)</dt><dd><ul class="simple">
+<li><p>Time</p></li>
+<li><p>Roll</p></li>
+<li><p>Pitch</p></li>
+<li><p>Heave</p></li>
+<li><p>Heading</p></li>
+</ul>
+</dd>
+<dt>Data82 (Runtime Parameters)</dt><dd><ul class="simple">
+<li><p>Time</p></li>
+<li><p>Mode</p></li>
+<li><p>ModeTwo</p></li>
+<li><p>YawPitchStabilization</p></li>
+<li><p>RuntimeParameterText</p></li>
+</ul>
+</dd>
+<dt>Data85 (Sound Speed Profile)</dt><dd><ul class="simple">
+<li><p>Time</p></li>
+<li><p>DepthProfile</p></li>
+<li><p>SoundspeedProfile</p></li>
+</ul>
+</dd>
+<dt>Data110 (Network Attitude)</dt><dd><ul class="simple">
+<li><p>Time</p></li>
+<li><p>Latitude</p></li>
+<li><p>Longitude</p></li>
+<li><p>Altitude</p></li>
+</ul>
+</dd>
+</dl>
+</section>
+</section>
+<section id="kongsberg-kmall">
+<h2>Kongsberg .kmall<a class="headerlink" href="#kongsberg-kmall" title="Permalink to this headline">¶</a></h2>
+<p>There is a single processing path using KMALL files that is supported by Kluster.</p>
+<p>Each datagram listed will also list the components of that datagram used by Kluster.</p>
+<section id="path-1">
+<h3>Path 1<a class="headerlink" href="#path-1" title="Permalink to this headline">¶</a></h3>
+<dl class="simple">
+<dt>SKM (Attitude and Attitude Velocity Sensors)</dt><dd><ul class="simple">
+<li><p>Time</p></li>
+<li><p>Roll</p></li>
+<li><p>Pitch</p></li>
+<li><p>Heave</p></li>
+<li><p>Heading</p></li>
+</ul>
+</dd>
+<dt>MRZ (Multibeam Raw Range and Depth)</dt><dd><ul class="simple">
+<li><p>Time</p></li>
+<li><p>PingCounter</p></li>
+<li><p>PingInfo_SoundSpeedatTxDepth</p></li>
+<li><p>PingInfo_NumberTxSectors</p></li>
+<li><p>PingInfo_ModeAndStabilization</p></li>
+<li><p>PingInfo_PulseForm</p></li>
+<li><p>PingInfo_DepthMode</p></li>
+<li><p>PingInfo_Latitude</p></li>
+<li><p>PingInfo_Longitude</p></li>
+<li><p>PingInfo_EllipsoidHeightRefPoint</p></li>
+<li><p>TxSectorInfo_ArrayNumber</p></li>
+<li><p>TxSectorInfo_TiltAngleReTx</p></li>
+<li><p>TxSectorInfo_SectorTransmitDelay</p></li>
+<li><p>TxSectorInfo_CenterFrequency</p></li>
+<li><p>Sounding_BeamAngleReRx</p></li>
+<li><p>Sounding_TxSectorNumber</p></li>
+<li><p>Sounding_DetectionType</p></li>
+<li><p>Sounding_DetectionMethod</p></li>
+<li><p>Sounding_QualityFactor</p></li>
+<li><p>Sounding_TwoWayTravelTime</p></li>
+</ul>
+</dd>
+<dt>IIP (Installation Parameters)</dt><dd><ul class="simple">
+<li><p>Time</p></li>
+<li><p>InstallationSettings</p></li>
+</ul>
+</dd>
+<dt>IOP (Runtime Parameters)</dt><dd><ul class="simple">
+<li><p>Time</p></li>
+<li><p>RuntimeSettings</p></li>
+</ul>
+</dd>
+<dt>SVP (Sound Velocity Profile)</dt><dd><ul class="simple">
+<li><p>Time</p></li>
+<li><p>DepthProfile</p></li>
+<li><p>SoundSpeedProfile</p></li>
+</ul>
+</dd>
+</dl>
+<div class="toctree-wrapper compound">
+</div>
+</section>
+</section>
+</section>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">kluster</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Requirements</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#kongsberg-all">Kongsberg .all</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#path-1-for-older-sonars">Path 1 (for older sonars)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#path-2-newer-systems-without-network-attitude">Path 2 (newer systems without Network Attitude)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#path-3-newer-systems-with-network-attitude">Path 3 (newer systems with Network Attitude)</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#kongsberg-kmall">Kongsberg .kmall</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#path-1">Path 1</a><ul class="simple">
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../quickstart/index.html">Quickstart</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../faq/index.html">FAQ</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../vessel_setup/index.html">Vessel Setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../processing/index.html">Processing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../surface/index.html">Surfacing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../sonar_acceptance/index.html">Sonar Acceptance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../cleaning/index.html">Cleaning</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../products/index.html">Products</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../settings/index.html">Settings</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../indepth/index.html">Learn more about Kluster</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../for_developers/index.html">For Developers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../kluster_api/index.html">API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../changes.html">Changes List</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="../index.html" title="previous chapter">kluster</a></li>
+      <li>Next: <a href="../quickstart/index.html" title="next chapter">Quickstart</a></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2020, Eric Younkin.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 4.3.2</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="../_sources/requirements/index.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

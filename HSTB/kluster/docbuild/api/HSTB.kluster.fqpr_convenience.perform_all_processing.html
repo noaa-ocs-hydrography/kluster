@@ -6,7 +6,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
-    <title>perform_all_processing &#8212; kluster 0.8.9 documentation</title>
+    <title>perform_all_processing &#8212; kluster 0.8.10 documentation</title>
     <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
     <link rel="stylesheet" type="text/css" href="../_static/alabaster.css" />
     <link rel="stylesheet" type="text/css" href="../_static/graphviz.css" />
@@ -41,6 +41,7 @@
 <span class="sig-prename descclassname"><span class="pre">HSTB.kluster.fqpr_convenience.</span></span><span class="sig-name descname"><span class="pre">perform_all_processing</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">filname</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">navfiles</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outfold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">coord_system</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'WGS84'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">vert_ref</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'waterline'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">orientation_initial_interpolation</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">add_cast_files</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skip_dask</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">show_progress</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">parallel_write</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">vdatum_directory</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_convenience.perform_all_processing" title="Permalink to this definition">¶</a></dt>
 <dd><p>Use fqpr_generation to process multibeam data on the local cluster and generate a sound velocity corrected,
 georeferenced xyz with uncertainty in csv files in the provided output folder.</p>
+<p>This is convert_multibeam, process_multibeam, and the import processes all combined into one function.</p>
 <p>fqpr = fully qualified ping record, the term for the datastore in kluster</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -90,6 +91,7 @@ makes the process slower</p></li>
 
 <h3>Navigation</h3>
 <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../requirements/index.html">Requirements</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../quickstart/index.html">Quickstart</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../faq/index.html">FAQ</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../vessel_setup/index.html">Vessel Setup</a></li>
@@ -100,6 +102,7 @@ makes the process slower</p></li>
 <li class="toctree-l1"><a class="reference internal" href="../products/index.html">Products</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../settings/index.html">Settings</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../indepth/index.html">Learn more about Kluster</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../for_developers/index.html">For Developers</a></li>
 <li class="toctree-l1 current"><a class="reference internal" href="../kluster_api/index.html">API</a><ul class="current">
 <li class="toctree-l2 current"><a class="reference internal" href="../kluster_api/fqpr_convenience.html">fqpr_convenience module</a><ul class="current">
 <li class="toctree-l3 current"><a class="reference internal" href="../kluster_api/fqpr_convenience.html#module-HSTB.kluster.fqpr_convenience">HSTB.kluster.fqpr_convenience Module</a><ul class="current">
