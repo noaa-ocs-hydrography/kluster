@@ -1,6 +1,22 @@
 Changes List
 ============
 
+Kluster v0.8.10 (2/24/2022)
+----------------------------
+ - sync with hstb.drivers 0.2.5
+    - check for sonars supported across drivers/kluster
+    - debug messaging in par module for failure to read required record in sequential_read_records
+    - handle missing gg_data on sequential_read_records
+
+ - bug fixes for different configurations of dual head sonar
+ - update the sonar additional offsets for dual head sonar
+ - add examples for data exploration and subsets
+ - add exporting tracklines to geopackage
+ - add routine to cleanly close dask client on closing main window to avoid dask worker cleanup warnings
+ - fix the vertical_reference wkt strings, to reflect projected crs, and to include ellipse as a valid vert ref
+ - default to sbet when exists for drawing/exporting tracklines
+ - fixes for processing/plotting tools when sbets are included without error files
+
 Kluster v0.8.9 (2/18/2022)
 ----------------------------
  - sync with hstb.drivers 0.2.2
