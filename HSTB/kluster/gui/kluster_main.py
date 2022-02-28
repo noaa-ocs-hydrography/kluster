@@ -746,7 +746,7 @@ class KlusterMain(QtWidgets.QMainWindow):
                                                    os.path.split(fqpr.output_folder)[1])
             self.vessel_win.xyzrph = vess_xyzrph
             self.vessel_win.load_from_existing_xyzrph()
-        self.vessel_win.setWindowFlags(self.vessel_win.windowFlags() | QtCore.Qt.WindowStaysOnTopHint)
+        # self.vessel_win.setWindowFlags(self.vessel_win.windowFlags() | QtCore.Qt.WindowStaysOnTopHint)
         self.vessel_win.show()
 
     def regenerate_offsets_actions(self, is_modified: bool):

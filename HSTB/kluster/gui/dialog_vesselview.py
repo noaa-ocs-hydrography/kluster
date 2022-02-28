@@ -2484,12 +2484,15 @@ class VesselWidget(QtWidgets.QWidget):
             save_state = save_first.run()
             if save_state == 'yes':
                 self.save_configuration(event)
+                return True
             elif save_state == 'no':
-                pass
+                return True
             elif save_state == 'cancel':
                 if event:
                     event.ignore()
-                return
+                return False
+        else:
+            return True
 
     def closeEvent(self, event):
         """

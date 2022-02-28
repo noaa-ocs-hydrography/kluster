@@ -12,7 +12,7 @@ from HSTB.kluster import kluster_variables
 
 try:
     from vyperdatum.points import VyperPoints
-    from vyperdatum.core import VyperCore
+    from vyperdatum.core import VyperCore, vertical_datum_to_wkt
     from vyperdatum.vypercrs import VyperPipelineCRS, CompoundCRS
     vyperdatum_found = True
 except ModuleNotFoundError:
@@ -109,7 +109,7 @@ def georef_by_worker(sv_corr: list, alt: xr.DataArray, lon: xr.DataArray, lat: x
     if vert_ref in kluster_variables.ellipse_based_vertical_references:
         corr_altitude = alt
         corr_heave = xr.zeros_like(corr_altitude)
-        corr_dpth = (depthoffset - corr_altitude.values[:, None]).astype(np.float32)
+        corr_dpth = (depthoffset - corr_altitude.values[:, None]).astype(np.float32) * -1
     elif vert_ref == 'vessel':
         corr_heave = heave
         corr_altitude = xr.zeros_like(corr_heave)
@@ -127,15 +127,14 @@ def georef_by_worker(sv_corr: list, alt: xr.DataArray, lon: xr.DataArray, lat: x
     bm_azimuth = np.rad2deg(np.arctan2(acrosstrack_stck, alongtrack_stck)) + np.float32(hdng[at_idx[0]].values)
     bm_radius = np.sqrt(acrosstrack_stck ** 2 + alongtrack_stck ** 2)
     pos = g.fwd(lon[at_idx[0]].values, lat[at_idx[0]].values, bm_azimuth.values, bm_radius.values)
-
     z = np.around(corr_dpth, 3)
+
     if vert_ref in ['NOAA MLLW', 'NOAA MHW']:
         z_stck = z.values[ac_idx]  # get the depth values where there are valid acrosstrack results (i.e. svcorrect worked)
         if vert_ref == 'NOAA MLLW':
-            sep, vdatum_unc = transform_vyperdatum(pos[0], pos[1], None, input_crs.to_epsg(), 'mllw', vdatum_directory=vdatum_directory)
+            z_stck, vdatum_unc = transform_vyperdatum(pos[0], pos[1], z_stck, input_crs.to_epsg(), 'mllw', vdatum_directory=vdatum_directory)
         else:
-            sep, vdatum_unc = transform_vyperdatum(pos[0], pos[1], None, input_crs.to_epsg(), 'mhw', vdatum_directory=vdatum_directory)
-        z_stck = z_stck + sep
+            z_stck, vdatum_unc = transform_vyperdatum(pos[0], pos[1], z_stck, input_crs.to_epsg(), 'mhw', vdatum_directory=vdatum_directory)
         vdatum_unc = reform_nan_array(vdatum_unc, ac_idx, z.shape, z.coords, z.dims)
         z = reform_nan_array(z_stck, ac_idx, z.shape, z.coords, z.dims)
     else:
@@ -206,52 +205,9 @@ def transform_vyperdatum(x: np.array, y: np.array, z: np.array, source_datum: Un
         source_datum = kluster_variables.epsg_nad83
     elif source_datum == 'wgs84':
         source_datum = kluster_variables.epsg_wgs84
-    # expects positive up, so we need to flip the z
-    vp.transform_points((source_datum, 'ellipse'), final_datum, x, y, z=None, sample_distance=0.0001)  # sample distance in degrees
+    vp.transform_points((source_datum, 'ellipse'), final_datum, x, y, z=z, sample_distance=0.0001)  # sample distance in degrees
 
     return np.around(vp.z, 3), np.around(vp.unc, 3)
-
-
-def datum_to_wkt(datum_identifier: str, projcrs: int, min_lon: float, min_lat: float, max_lon: float, max_lat: float):
-    """
-    Translate the provided datum to vypercrs wkt string
-
-    Parameters
-    ----------
-    datum_identifier
-        one of 'mllw', 'mhw', etc
-    projcrs
-        projected crs epsg
-    min_lon
-        minimum longitude of the survey
-    min_lat
-        minimum latitude of the survey
-    max_lon
-        maximum longitude of the survey
-    max_lat
-        maximum latitude of the survey
-
-    Returns
-    -------
-    str
-        vypercrs wkt string
-    """
-
-    if datum_identifier != 'ellipse':
-        if datum_identifier == 'mllw':  # we need to let vyperdatum know this is positive down, do that by giving it the mllw epsg
-            datum_identifier = 5866
-
-        vc = VyperCore()
-        vc.set_input_datum((projcrs, datum_identifier))
-        vc.set_region_by_bounds(min_lon, min_lat, max_lon, max_lat)
-        return vc.in_crs.to_wkt()
-    else:
-        vc = VyperCore()
-        cs = VyperPipelineCRS(vc.datum_data)
-        cs.set_crs('ellipse')
-        cs.set_crs(projcrs)
-        ccrs = CompoundCRS(f'{cs._hori.name} + {cs._vert.name}', [cs._hori, cs._vert])
-        return ccrs.to_wkt()
 
 
 def set_vyperdatum_vdatum_path(vdatum_path: str):
