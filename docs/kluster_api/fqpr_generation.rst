@@ -18,7 +18,7 @@ fqpr\_generation module
    :skip: distributed_run_sv_correct
    :skip: cast_data_from_file
    :skip: distrib_run_georeference
-   :skip: datum_to_wkt
+   :skip: vertical_datum_to_wkt
    :skip: vyperdatum_found
    :skip: distrib_run_calculate_tpu
    :skip: BatchRead
