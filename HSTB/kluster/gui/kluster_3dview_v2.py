@@ -1,3 +1,8 @@
+# Import qt first, to resolve the backend issues youll get in matplotlib if you dont import this first, as it prefers PySide2
+from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal, qgis_enabled, backend
+if qgis_enabled:
+    from HSTB.kluster.gui.backends._qt import qgis_core, qgis_gui
+
 import matplotlib
 matplotlib.use('qt5agg')
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
@@ -7,9 +12,6 @@ from matplotlib.colors import ListedColormap
 
 import numpy as np
 
-from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal, qgis_enabled, backend
-if qgis_enabled:
-    from HSTB.kluster.gui.backends._qt import qgis_core, qgis_gui
 from HSTB.kluster import kluster_variables
 
 from vispy import use, visuals, scene

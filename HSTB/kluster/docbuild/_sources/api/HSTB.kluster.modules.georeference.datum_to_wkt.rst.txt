@@ -1,6 +1,0 @@
-datum_to_wkt
-============
-
-.. currentmodule:: HSTB.kluster.modules.georeference
-
-.. autofunction:: datum_to_wkt

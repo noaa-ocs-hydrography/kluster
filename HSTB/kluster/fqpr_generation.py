@@ -14,7 +14,7 @@ from HSTB.kluster.modules.orientation import distrib_run_build_orientation_vecto
 from HSTB.kluster.modules.beampointingvector import distrib_run_build_beam_pointing_vector
 from HSTB.kluster.modules.svcorrect import get_sv_files_from_directory, return_supported_casts_from_list, \
     distributed_run_sv_correct, cast_data_from_file
-from HSTB.kluster.modules.georeference import distrib_run_georeference, datum_to_wkt, vyperdatum_found
+from HSTB.kluster.modules.georeference import distrib_run_georeference, vertical_datum_to_wkt, vyperdatum_found
 from HSTB.kluster.modules.tpu import distrib_run_calculate_tpu
 from HSTB.kluster.xarray_conversion import BatchRead
 from HSTB.kluster.fqpr_vessel import trim_xyzrprh_to_times
@@ -2708,14 +2708,14 @@ class Fqpr(ZarrBackend):
         elif mode == 'georef':
             crs = self.horizontal_crs.to_epsg()
             if self.vert_ref == 'NOAA MLLW':
-                vertcrs = datum_to_wkt('mllw', crs, self.multibeam.raw_ping[0].min_lon, self.multibeam.raw_ping[0].min_lat,
-                                       self.multibeam.raw_ping[0].max_lon, self.multibeam.raw_ping[0].max_lat)
+                vertcrs = vertical_datum_to_wkt('mllw', crs, self.multibeam.raw_ping[0].min_lon, self.multibeam.raw_ping[0].min_lat,
+                                                self.multibeam.raw_ping[0].max_lon, self.multibeam.raw_ping[0].max_lat)
             elif self.vert_ref == 'NOAA MHW':
-                vertcrs = datum_to_wkt('mhw', crs, self.multibeam.raw_ping[0].min_lon, self.multibeam.raw_ping[0].min_lat,
-                                       self.multibeam.raw_ping[0].max_lon, self.multibeam.raw_ping[0].max_lat)
+                vertcrs = vertical_datum_to_wkt('mhw', crs, self.multibeam.raw_ping[0].min_lon, self.multibeam.raw_ping[0].min_lat,
+                                                self.multibeam.raw_ping[0].max_lon, self.multibeam.raw_ping[0].max_lat)
             elif self.vert_ref == 'ellipse':
-                vertcrs = datum_to_wkt('ellipse', crs, self.multibeam.raw_ping[0].min_lon, self.multibeam.raw_ping[0].min_lat,
-                                       self.multibeam.raw_ping[0].max_lon, self.multibeam.raw_ping[0].max_lat)
+                vertcrs = vertical_datum_to_wkt('ellipse', crs, self.multibeam.raw_ping[0].min_lon, self.multibeam.raw_ping[0].min_lat,
+                                                self.multibeam.raw_ping[0].max_lon, self.multibeam.raw_ping[0].max_lat)
             else:
                 vertcrs = 'Unknown'
             if self._using_sbet:

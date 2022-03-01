@@ -16,8 +16,9 @@ First though, I'll lay out the basic requirements for any sonar that Kluster can
 
  - Sound Speed Profile - Kluster requires a sound speed profile to be delivered in the raw multibeam data.  This allows Kluster to ray-trace any multibeam file regardless of the inclusion of an external profile file.
  - System Serial Number - Kluster requires that each file have a serial number that uniquely identifies a sonar.  This allows Kluster to catalogue and organize files according to system.
- - Installation Parameters - Kluster requires that the offsets and mounting angles are provided in the file from the sonar reference point.
+ - Installation Parameters - Kluster requires that the offsets and mounting angles are provided in the file from the sonar reference point, including waterline vertical position.
  - Time Standard - Times must be reported in UTC time within the multibeam file, or provide a way to get to UTC using only the information in the file.
+ - Input Position Datum - This is useful for Kluster to understand the source datum of the data, for future vertical and horizontal transformations.
 
 Optionally, the multibeam should provide a ray-traced processed answer, using the included sound speed profile.  I believe this is a great way to ensure that the user is also able to process the multibeam file without any additional files needed.
 
