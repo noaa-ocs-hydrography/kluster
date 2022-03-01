@@ -1680,7 +1680,7 @@ class BatchRead(ZarrBackend):
             input_datum = np.unique([settdict[x]['position_1_datum'] for x in settdict])
             if len(input_datum) > 1:
                 self.logger.error('Found the input position datum changed across files, found: {}'.format(input_datum))
-                raise NotImplementedError('Found multiple sonars types in data provided: {}'.format(input_datum))
+                raise NotImplementedError('Found the input position datum changed across files, found: {}'.format(input_datum))
 
             mintime = min(list(settdict.keys()))
             minactual = np.min([rp.time.values[0] for rp in self.raw_ping])
