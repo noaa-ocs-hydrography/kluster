@@ -1,6 +1,16 @@
 Changes List
 ============
 
+Kluster v0.8.11 (3/1/2022)
+---------------------------
+ - sync with vyperdatum 0.1.9
+    - refine vert datum wkt as seen in Kluster exported bags
+    - previously we were setting all datums as heights (i.e. direction=up), ellipsoid vert ref will now be a height (+ up)
+    - vert datum wkt axis is now correctly either depth/height with sign convention matching data
+ - bug resolved, vessel offsets dialog no longer hides close dialog
+ - resolve error messaging bugs
+ - update requirements doc
+
 Kluster v0.8.10 (2/24/2022)
 ----------------------------
  - sync with hstb.drivers 0.2.5
