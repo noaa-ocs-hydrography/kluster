@@ -16,6 +16,7 @@ from HSTB.kluster.modules.svcorrect import get_sv_files_from_directory, return_s
     distributed_run_sv_correct, cast_data_from_file
 from HSTB.kluster.modules.georeference import distrib_run_georeference, vertical_datum_to_wkt, vyperdatum_found
 from HSTB.kluster.modules.tpu import distrib_run_calculate_tpu
+from HSTB.kluster.modules.filter import FilterManager
 from HSTB.kluster.xarray_conversion import BatchRead
 from HSTB.kluster.fqpr_vessel import trim_xyzrprh_to_times
 from HSTB.kluster.modules.visualizations import FqprVisualizations
@@ -104,6 +105,8 @@ class Fqpr(ZarrBackend):
         self.export = FqprExport(self)
         # subset module
         self.subset = FqprSubset(self)
+        # filter module
+        self.filter = FilterManager(self)
 
         self.logfile = None
         self.logger = None
