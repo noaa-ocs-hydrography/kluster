@@ -5,10 +5,10 @@ from HSTB.kluster import kluster_variables
 
 
 class Filter(BaseFilter):
-    def __init__(self, fqpr):
-        super().__init__(fqpr)
+    def __init__(self, fqpr, selected_index = None):
+        super().__init__(fqpr, selected_index)
 
-    def run(self, min_angle: float = None, max_angle: float = None):
+    def _run_algorithm(self, min_angle: float = None, max_angle: float = None):
         if min_angle is None and max_angle is None:
             raise ValueError('filter_by_angle: Filter must have either min or max angle set')
         print(f'Running filter_by_angle ({min_angle},{max_angle}) on {self.fqpr.output_folder}')

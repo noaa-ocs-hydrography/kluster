@@ -364,6 +364,84 @@ class ExportWorker(QtCore.QThread):
         self.finished.emit(True)
 
 
+class FilterWorker(QtCore.QThread):
+    """
+    Executes code in a seperate thread.
+    """
+
+    started = Signal(bool)
+    finished = Signal(bool)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.fq_chunks = None
+        self.line_names = None
+        self.fqpr_instances = []
+        self.new_status = []
+        self.mode = ''
+        self.selected_index = None
+        self.filter_name = ''
+
+        self.args = None
+        self.kwargs = None
+
+        self.error = False
+        self.exceptiontxt = None
+
+    def populate(self, fq_chunks, line_names, filter_name, basic_mode, line_mode, points_mode, *args, **kwargs):
+        if basic_mode:
+            self.mode = 'basic'
+        elif line_mode:
+            self.mode = 'line'
+        elif points_mode:
+            self.mode = 'points'
+
+        self.fqpr_instances = []
+        self.new_status = []
+        self.line_names = line_names
+        self.fq_chunks = fq_chunks
+        self.filter_name = filter_name
+
+        self.args = args
+        self.kwargs = kwargs
+
+        self.error = False
+        self.exceptiontxt = None
+
+    def filter_process(self, fq, subset_time=None, subset_beam=None):
+        if self.mode == 'basic':
+            new_status = fq.run_filter(self.filter_name, None, *self.args, **self.kwargs)
+        elif self.mode == 'line':
+            fq.subset_by_lines(self.line_names)
+            new_status = fq.run_filter(self.filter_name, None, *self.args, **self.kwargs)
+            fq.restore_subset()
+        else:
+            # take the provided Points View time and subset the provided fqpr to just those times,beams
+            selected_index = fq.subset_by_time_and_beam(subset_time, subset_beam)
+            new_status = fq.run_filter(self.filter_name, selected_index, *self.args, **self.kwargs)
+            fq.restore_subset()
+        return fq, new_status
+
+    def run(self):
+        self.started.emit(True)
+        try:
+            if self.mode in ['basic', 'line']:
+                for chnk in self.fq_chunks:
+                    fq, new_status = self.filter_process(chnk[0])
+                    self.fqpr_instances.append(fq)
+                    self.new_status.append(new_status)
+            else:
+                for chnk in self.fq_chunks:
+                    fq, subset_time, subset_beam = chnk
+                    fq, new_status = self.filter_process(fq, subset_time, subset_beam)
+                    self.fqpr_instances.append(fq)
+                    self.new_status.append(new_status)
+        except Exception as e:
+            self.error = True
+            self.exceptiontxt = traceback.format_exc()
+        self.finished.emit(True)
+
+
 class ExportTracklinesWorker(QtCore.QThread):
     """
     Executes code in a seperate thread.

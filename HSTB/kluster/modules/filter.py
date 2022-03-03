@@ -11,9 +11,11 @@ class FilterManager:
     """
     def __init__(self, fqpr=None, external_filter_directory: str = None):
         """
-
         Parameters
         ----------
+        fqpr
+            fully qualified ping record, the term for the datastore in kluster, the main object returned
+            by processing and reload methods, see fqpr_convenience
         external_filter_directory
             path to a folder where you have your user designed filter python files, if you have any
         """
@@ -25,7 +27,7 @@ class FilterManager:
         self.filter_names = []  # ex: ['filter_by_beam']
         self.filter_lookup = {}  # ex: {'filter_by_beam': <filter_by_beam.Filter at 0x28e1b6afa00>}
         self.reverse_filter_lookup = {}  # ex: {<filter_by_beam.Filter at 0x28e1b6afa00>: 'filter_by_beam'}
-        self.module_lookup = {}  # ex: {'filter_by_beam': <module 'filter_by_beam' from 'C:\\Pydro21_Dev\\noaa\\site-packages\\python38\\git_repos\\hstb_kluster\\HSTB\\kluster\\plugins\\filters\\filter_by_beam.py'>}
+        self.filter_file = {}  # ex: {'filter_by_beam': "C:\\Pydro21_Dev\\noaa\\site-packages\\python38\\git_repos\\hstb_kluster\\HSTB\\kluster\\plugins\\filters\\filter_by_beam.py"}
         self.initialize_filters()  # ex:
 
     def clear_filters(self):
@@ -36,7 +38,7 @@ class FilterManager:
         self.filter_names = []
         self.filter_lookup = {}
         self.reverse_filter_lookup = {}
-        self.module_lookup = {}
+        self.filter_file = {}
 
     def list_filters(self):
         """
@@ -79,7 +81,7 @@ class FilterManager:
                         self.filter_names.append(filterbase)
                         self.filter_lookup[filterbase] = filterclass
                         self.reverse_filter_lookup[filterclass] = filterbase
-                        self.module_lookup[filterbase] = filtermodule
+                        self.filter_file[filterbase] = filterpath
                     else:
                         print(f'initialize_filters: skipping {filterpath}, Unable to load Filter class')
 
@@ -137,7 +139,7 @@ class FilterManager:
             print(f'return_filter_class: no loaded filter for filter name {filtername}')
             return None
 
-    def run_filter(self, filtername: str, *args, **kwargs):
+    def run_filter(self, filtername: str, selected_index: list, *args, **kwargs):
         """
         Run the Filter class from the given filter name.  filtername should be the name of the file
         that contains the Filter class you want.
@@ -149,19 +151,26 @@ class FilterManager:
         """
 
         filterclass = self.return_filter_class(filtername)
+        filterclass._selected_index = selected_index
         if filterclass is not None:
             filterclass.run(*args, **kwargs)
             filterclass.save()
 
 
 class BaseFilter:
-    def __init__(self, fqpr):
+    def __init__(self, fqpr, selected_index = None):
         self.fqpr = fqpr
-        self._selected_index = None
+        self._selected_index = selected_index
         self.new_status = None
 
-    def run(self, *args, **kwargs):
+    def _run_algorithm(self, *args, **kwargs):
         raise NotImplementedError('BaseFilter: you must create a Filter class and implement this method')
+
+    def run(self, *args, save: bool = True, **kwargs):
+        self._run_algorithm(*args, **kwargs)
+        if save:
+            self.save()
+        return self.new_status
 
     def save(self):
         if self.new_status is None or not isinstance(self.new_status, list):

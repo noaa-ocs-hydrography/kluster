@@ -2567,6 +2567,20 @@ class Fqpr(ZarrBackend):
 
         self.export.export_dataset_to_csv(dataset_name, dest_path)
 
+    def run_filter(self, filtername: str, selected_index: list, *args, **kwargs):
+        """
+        Run the filter module with the provided filtername
+
+        Parameters
+        ----------
+        filtername
+            name of the file that you want to load
+        selected_index
+
+        """
+
+        self.filter.run_filter(filtername, selected_index, *args, **kwargs)
+
     def _submit_data_to_cluster(self, rawping: xr.Dataset, mode: str, idx_by_chunk: list, max_chunks_at_a_time: int,
                                 timestmp: str, prefixes: str, dump_data: bool = True, skip_dask: bool = False,
                                 prefer_pp_nav: bool = True, vdatum_directory: str = None):
@@ -2869,6 +2883,13 @@ class Fqpr(ZarrBackend):
         """
 
         self.subset.subset_by_times(time_segments)
+
+    def subset_by_time_and_beam(self, subset_time: np.ndarray, subset_beam: np.ndarray):
+        """
+        Use subset module to subset by time,beam provided, returns a 1d boolean mask for each sonar head
+        """
+
+        return self.subset.subset_by_time_and_beam(subset_time, subset_beam)
 
     def subset_by_lines(self, line_names: Union[str, list]):
         """

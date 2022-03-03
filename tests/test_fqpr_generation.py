@@ -358,6 +358,24 @@ class TestFqprGeneration(unittest.TestCase):
         assert len(self.out.multibeam.raw_ping[0].time) == 216
         assert len(self.out.multibeam.raw_att.time) == 5302
 
+    def test_subset_by_time_and_beam(self):
+        self._access_processed_data()
+        stacked_dset = self.out.multibeam.raw_ping[0].stack({'sounding': ('time', 'beam')})
+        subset_time = stacked_dset.time.values[100:500]
+        subset_beam = stacked_dset.beam.values[100:500]
+        filter = self.out.subset_by_time_and_beam(subset_time, subset_beam)
+
+        stacked_dset = self.out.multibeam.raw_ping[0].stack({'sounding': ('time', 'beam')})
+        assert len(self.out.multibeam.raw_ping[0].time) == 2
+        assert len(filter) == len(self.out.multibeam.raw_ping)
+        assert np.count_nonzero(filter) == subset_time.shape[0]
+        assert np.count_nonzero(filter) == subset_beam.shape[0]
+        assert (stacked_dset.time[filter[0]] == subset_time).all()
+        assert (stacked_dset.beam[filter[0]] == subset_beam).all()
+        self.out.subset.restore_subset()
+        assert len(self.out.multibeam.raw_ping[0].time) == 216
+        assert len(self.out.multibeam.raw_att.time) == 5302
+
     def test_subset_by_line(self):
         self._access_processed_data()
         self.out.subset_by_lines('0009_20170523_181119_FA2806.all')
