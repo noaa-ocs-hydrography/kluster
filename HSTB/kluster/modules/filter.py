@@ -139,6 +139,24 @@ class FilterManager:
             print(f'return_filter_class: no loaded filter for filter name {filtername}')
             return None
 
+    def return_optional_filter_controls(self, filtername: str):
+        """
+        Get the requested gui control parameters for the given filter.
+
+        Parameters
+        ----------
+        filtername
+            name of the file that you want to load
+
+        Returns
+        -------
+        list
+            list of gui control parameter lists
+        """
+
+        filterclass = self.return_filter_class(filtername)
+        return filterclass.controls
+
     def run_filter(self, filtername: str, selected_index: list, *args, **kwargs):
         """
         Run the Filter class from the given filter name.  filtername should be the name of the file
@@ -158,10 +176,11 @@ class FilterManager:
 
 
 class BaseFilter:
-    def __init__(self, fqpr, selected_index = None):
+    def __init__(self, fqpr, selected_index=None):
         self.fqpr = fqpr
         self._selected_index = selected_index
         self.new_status = None
+        self.controls = []
 
     def _run_algorithm(self, *args, **kwargs):
         raise NotImplementedError('BaseFilter: you must create a Filter class and implement this method')
@@ -188,6 +207,9 @@ class BaseFilter:
                 rp_detect = rp['detectioninfo'].load()
                 rp_detect[:] = self.new_status[cnt]
                 self.fqpr.write('ping', [rp_detect.to_dataset()], time_array=[rp_detect.time], sys_id=rp.system_identifier, skip_dask=True)
+
+    def return_controls(self):
+        return self.controls
 
 
 if __name__ == '__main__':

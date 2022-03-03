@@ -388,7 +388,7 @@ class FilterWorker(QtCore.QThread):
         self.error = False
         self.exceptiontxt = None
 
-    def populate(self, fq_chunks, line_names, filter_name, basic_mode, line_mode, points_mode, *args, **kwargs):
+    def populate(self, fq_chunks, line_names, filter_name, basic_mode, line_mode, points_mode, args, kwargs):
         if basic_mode:
             self.mode = 'basic'
         elif line_mode:

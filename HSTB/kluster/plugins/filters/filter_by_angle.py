@@ -7,6 +7,8 @@ from HSTB.kluster import kluster_variables
 class Filter(BaseFilter):
     def __init__(self, fqpr, selected_index = None):
         super().__init__(fqpr, selected_index)
+        self.controls = [['float', 'min_angle', -45.0, {'minimum': -180, 'maximum': 180, 'singleStep': 0.1}],
+                         ['float', 'max_angle', 45.0, {'minimum': -180, 'maximum': 180, 'singleStep': 0.1}]]
 
     def _run_algorithm(self, min_angle: float = None, max_angle: float = None):
         if min_angle is None and max_angle is None:

@@ -115,7 +115,7 @@ class FilterDialog(SaveStateDialog):
             self.basic_filter_group.setChecked(False)
             if not self.fqpr_inst:
                 self.status_msg.setStyleSheet("QLabel { color : " + kluster_variables.error_color + "; }")
-                self.status_msg.setText('Error: Ensure you have one of the datasets that contain these points listed in "filter from the following datasets"')
+                self.status_msg.setText('Error: Ensure you have one of the datasets that contain these points listed in "load from the following datasets"')
             else:
                 self.status_msg.setStyleSheet("QLabel { color : " + kluster_variables.pass_color + "; }")
                 self.status_msg.setText('')
@@ -178,6 +178,95 @@ class FilterDialog(SaveStateDialog):
         """
         Dialog completes, use self.canceled to get the fact that it cancelled
         """
+        self.canceled = True
+        self.accept()
+
+
+class AdditionalFilterOptionsDialog(QtWidgets.QDialog):
+    def __init__(self, parent=None, title='', controls=None):
+        super().__init__(parent)
+        self.setWindowTitle(title)
+        layout = QtWidgets.QVBoxLayout()
+        self.controls = []
+        self.labels = []
+
+        for cntrl in controls:
+            cntrl_type, cntrl_name, cntrl_val, cntrl_properties = cntrl
+            hbox = QtWidgets.QHBoxLayout()
+            hbox.addWidget(QtWidgets.QLabel(cntrl_name))
+            self.labels.append(cntrl_name)
+            if cntrl_type == 'float':
+                newcntrl = QtWidgets.QDoubleSpinBox()
+            elif cntrl_type == 'int':
+                newcntrl = QtWidgets.QSpinBox()
+            elif cntrl_type == 'text':
+                newcntrl = QtWidgets.QLineEdit()
+            elif cntrl_type == 'checkbox':
+                newcntrl = QtWidgets.QCheckBox()
+            elif cntrl_type == 'combobox':
+                newcntrl = QtWidgets.QComboBox()
+            else:
+                raise NotImplementedError(f'AdditionalFilterOptionsDialog: type {cntrl_type} not currently supported')
+            # set properties before value, as some properties affect the validation and formatting of the value set
+            for propkey, propvalue in cntrl_properties.items():
+                try:
+                    newcntrl.setProperty(propkey, propvalue)
+                except:
+                    print(f'AdditionalFilterOptionsDialog: Error: unable to set property {propkey}:{propvalue} on {newcntrl}')
+            if cntrl_type == 'float':
+                newcntrl.setValue(cntrl_val)
+            elif cntrl_type == 'int':
+                newcntrl.setValue(cntrl_val)
+            elif cntrl_type == 'text':
+                newcntrl.setText(cntrl_val)
+            elif cntrl_type == 'checkbox':
+                newcntrl.setChecked(cntrl_val)
+            elif cntrl_type == 'combobox':
+                newcntrl.addItems(cntrl_val)
+
+            hbox.addWidget(newcntrl)
+            self.controls.append(newcntrl)
+            layout.addLayout(hbox)
+
+        self.hlayout_two = QtWidgets.QHBoxLayout()
+        self.hlayout_two.addStretch(1)
+        self.ok_button = QtWidgets.QPushButton('OK', self)
+        self.hlayout_two.addWidget(self.ok_button)
+        self.hlayout_two.addStretch(1)
+        self.cancel_button = QtWidgets.QPushButton('Cancel', self)
+        self.hlayout_two.addWidget(self.cancel_button)
+        self.hlayout_two.addStretch(1)
+        layout.addLayout(self.hlayout_two)
+
+        self.setLayout(layout)
+        self.canceled = False
+
+        self.ok_button.clicked.connect(self.ok_pressed)
+        self.cancel_button.clicked.connect(self.cancel)
+
+    def return_kwargs(self):
+        kwargs = {}
+        for lbl, cntrl in zip(self.labels, self.controls):
+            try:
+                kwargs[lbl] = cntrl.value()
+            except:
+                try:
+                    kwargs[lbl] = cntrl.text()
+                except:
+                    try:
+                        kwargs[lbl] = cntrl.currentText()
+                    except:
+                        try:
+                            kwargs[lbl] = cntrl.isChecked()
+                        except:
+                            raise ValueError(f'AdditionalFilterOptionsDialog: Unable to return value from {lbl}:{cntrl}')
+        return kwargs
+
+    def ok_pressed(self):
+        self.canceled = False
+        self.accept()
+
+    def cancel(self):
         self.canceled = True
         self.accept()
 

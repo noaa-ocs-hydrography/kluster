@@ -1721,6 +1721,33 @@ class ThreeDWidget(QtWidgets.QWidget):
         else:
             print('Points View: No changes to undo')
 
+    def return_array(self, arr_name: str):
+        idx = {}
+        select_id = self.three_d_window.id
+        selarray = self.three_d_window.__getattribute__(arr_name)
+        uniq_ids = np.unique(select_id)
+        source_ids = [self.three_d_window.idlookup[uqid] for uqid in uniq_ids]
+        for uid, sid in zip(uniq_ids, source_ids):
+            headnum = int(uid[-1])
+            uid_filter = np.where(select_id == uid)[0]
+            selarray_filtered = selarray[uid_filter]
+            idx_key = self.three_d_window.idlookup[uid]
+            if idx_key not in idx:
+                if headnum == 0:
+                    idx[idx_key] = [selarray_filtered]
+                else:
+                    idx[idx_key] = []
+                    for i in range(headnum):
+                        idx[idx_key].append([])
+                    idx[idx_key].append(selarray_filtered)
+            else:
+                if len(idx[idx_key]) == headnum:
+                    idx[idx_key].append(selarray_filtered)
+                else:
+                    for i in range(headnum - len(idx[idx_key])):
+                        idx[idx_key].append([])
+        return idx
+
     def split_by_selected(self, selarray: np.array):
         """
         Takes an array of the same size as the selected index and returns that array split by system/head indexes
