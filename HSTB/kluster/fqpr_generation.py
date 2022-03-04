@@ -2579,7 +2579,7 @@ class Fqpr(ZarrBackend):
 
         """
 
-        self.filter.run_filter(filtername, selected_index, *args, **kwargs)
+        return self.filter.run_filter(filtername, selected_index, *args, **kwargs)
 
     def _submit_data_to_cluster(self, rawping: xr.Dataset, mode: str, idx_by_chunk: list, max_chunks_at_a_time: int,
                                 timestmp: str, prefixes: str, dump_data: bool = True, skip_dask: bool = False,
@@ -3212,7 +3212,7 @@ class Fqpr(ZarrBackend):
 
         self.subset.set_variable_by_filter(var_name, newval, selected_index)
 
-    def get_variable_by_filter(self, var_name: str, selected_index: list = None):
+    def get_variable_by_filter(self, var_name: str, selected_index: list = None, by_sonar_head: bool = False):
         """
         ping_filter is set upon selecting points in 2d/3d in Kluster.  See return_soundings_in_polygon.  Here we can take
         those points and get one of the variables individually.  This is going to be faster than running return_soundings_in_polygon
@@ -3222,7 +3222,7 @@ class Fqpr(ZarrBackend):
         that you want to super-select, see subset module.
         """
 
-        return self.subset.get_variable_by_filter(var_name, selected_index)
+        return self.subset.get_variable_by_filter(var_name, selected_index, by_sonar_head)
 
     def return_processing_dashboard(self):
         """

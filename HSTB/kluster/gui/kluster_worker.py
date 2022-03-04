@@ -384,6 +384,8 @@ class FilterWorker(QtCore.QThread):
 
         self.args = None
         self.kwargs = None
+        self.subset_time = None
+        self.subset_beam = None
 
         self.error = False
         self.exceptiontxt = None
@@ -403,7 +405,13 @@ class FilterWorker(QtCore.QThread):
         self.filter_name = filter_name
 
         self.args = args
+        if self.args is None:
+            self.args = []
         self.kwargs = kwargs
+        if self.kwargs is None:
+            self.kwargs = {}
+        self.subset_time = None
+        self.subset_beam = None
 
         self.error = False
         self.exceptiontxt = None
@@ -431,10 +439,14 @@ class FilterWorker(QtCore.QThread):
                     self.fqpr_instances.append(fq)
                     self.new_status.append(new_status)
             else:
+                self.subset_time = []
+                self.subset_beam = []
                 for chnk in self.fq_chunks:
-                    fq, subset_time, subset_beam = chnk
+                    fq, subset_time, subset_beam = chnk[0], chnk[1], chnk[2]
                     fq, new_status = self.filter_process(fq, subset_time, subset_beam)
                     self.fqpr_instances.append(fq)
+                    self.subset_time.append(subset_time)
+                    self.subset_beam.append(subset_beam)
                     self.new_status.append(new_status)
         except Exception as e:
             self.error = True

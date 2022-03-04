@@ -1733,19 +1733,9 @@ class ThreeDWidget(QtWidgets.QWidget):
             selarray_filtered = selarray[uid_filter]
             idx_key = self.three_d_window.idlookup[uid]
             if idx_key not in idx:
-                if headnum == 0:
-                    idx[idx_key] = [selarray_filtered]
-                else:
-                    idx[idx_key] = []
-                    for i in range(headnum):
-                        idx[idx_key].append([])
-                    idx[idx_key].append(selarray_filtered)
+                idx[idx_key] = selarray_filtered
             else:
-                if len(idx[idx_key]) == headnum:
-                    idx[idx_key].append(selarray_filtered)
-                else:
-                    for i in range(headnum - len(idx[idx_key])):
-                        idx[idx_key].append([])
+                idx[idx_key] = np.concatenate([idx[idx_key], selarray_filtered])
         return idx
 
     def split_by_selected(self, selarray: np.array):

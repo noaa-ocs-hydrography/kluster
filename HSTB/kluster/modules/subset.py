@@ -245,9 +245,6 @@ class FqprSubset:
             self.subset_mintime = 0
             self.subset_lines = []
             self.subset_times = []
-        else:
-            self.fqpr.logger.error('restore_subset: no subset found to restore from')
-            raise ValueError('restore_subset: no subset found to restore from')
 
     def redo_subset(self):
         """
@@ -260,6 +257,9 @@ class FqprSubset:
             self.subset_by_lines(self.subset_lines)
         elif self.subset_times:
             self.subset_by_times(self.subset_times)
+        else:
+            self.fqpr.logger.error('redo_subset: no subset found to redo, expected subset_by_**** to have been run already')
+            raise ValueError('redo_subset: no subset found to redo, expected subset_by_**** to have been run already')
 
     def subset_variables(self, variable_selection: list, ping_times: Union[np.array, float, tuple] = None,
                          skip_subset_by_time: bool = False, filter_by_detection: bool = False):
@@ -605,7 +605,7 @@ class FqprSubset:
             self.fqpr.write('ping', [rp_detect.to_dataset()], time_array=[rp_detect.time], sys_id=rp.system_identifier,
                             skip_dask=True)
 
-    def get_variable_by_filter(self, variable_name: str, selected_index: list = None):
+    def get_variable_by_filter(self, variable_name: str, selected_index: list = None, by_sonar_head: bool = False):
         """
         ping_filter is set upon selecting points in 2d/3d in Kluster.  See return_soundings_in_polygon.  Here we can take
         those points and set one of the variables with new data.  Optionally, you can include a selected_index that is a list
@@ -619,6 +619,8 @@ class FqprSubset:
             name of the variable to set, i.e. 'detectioninfo'
         selected_index
             super_selection of the ping_filter selection, done in points_view currently when selecting with the mouse
+        by_sonar_head
+            if True, will return a list of arrays, one array for each sonar head.
         """
 
         datablock = []
@@ -649,8 +651,8 @@ class FqprSubset:
                 subsetdata = data_var.sel(time=unique_times, method='nearest')
                 subsetdata_vals = subsetdata.values
                 datablock.append(subsetdata_vals[utime_index])
-
-        datablock = np.concatenate(datablock)
+        if not by_sonar_head:
+            datablock = np.concatenate(datablock)
         return datablock
 
 

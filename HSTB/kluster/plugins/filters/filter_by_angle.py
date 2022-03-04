@@ -18,7 +18,7 @@ class Filter(BaseFilter):
         for cnt, rp in enumerate(self.fqpr.multibeam.raw_ping):
             rp_detect = rp['detectioninfo'].stack({'sounding': ('time', 'beam')})
             rp_angle = rp['corr_pointing_angle'].stack({'sounding': ('time', 'beam')}).values * (180 / np.pi)
-            angle_mask = np.zeros_like(rp_detect)
+            angle_mask = np.zeros_like(rp_detect, dtype=bool)
             if min_angle:
                 angle_mask = np.logical_or(angle_mask, rp_angle < min_angle)
             if max_angle:

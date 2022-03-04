@@ -1206,6 +1206,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         pointtime = None
         pointbeam = None
         filter_controls = None
+        filter_name = ''
         if dlog.exec_():
             if not dlog.canceled:
                 basic_filter_mode = dlog.basic_filter_group.isChecked()
@@ -1216,8 +1217,7 @@ class KlusterMain(QtWidgets.QMainWindow):
                 else:
                     linenames = []
                 if points_filter_mode:
-                    pointtime, pointbeam = self.points_view.return_array('pointtime'), self.points_view.return_array(
-                        'beam')
+                    pointtime, pointbeam = self.points_view.return_array('pointtime'), self.points_view.return_array('beam')
                 else:
                     pointtime, pointbeam = None, None
 
@@ -1237,7 +1237,11 @@ class KlusterMain(QtWidgets.QMainWindow):
         if filter_controls:
             add_dlog = dialog_filter.AdditionalFilterOptionsDialog(title=filter_name, controls=filter_controls)
             if add_dlog.exec_():
-                kwargs = add_dlog.return_kwargs()
+                if not add_dlog.canceled:
+                    kwargs = add_dlog.return_kwargs()
+                else:
+                    kwargs = None
+                    cancelled = True
             else:
                 kwargs = None
                 cancelled = True
@@ -1278,9 +1282,9 @@ class KlusterMain(QtWidgets.QMainWindow):
                         # use the project client, or start a new LocalCluster if client is None
                         fq_inst.client = self.project.get_dask_client()
                         if points_filter_mode:
-                            fq_chunks.append([fq_inst, pointtime, pointbeam])
+                            fq_chunks.append([fq_inst, pointtime[relfq], pointbeam[relfq], relfq])
                         else:
-                            fq_chunks.append([fq_inst])
+                            fq_chunks.append([fq_inst, relfq])
                         self.filter_thread.populate(fq_chunks, linenames, filter_name, basic_filter_mode, line_filter_mode,
                                                     points_filter_mode, None, kwargs)
                         self.filter_thread.start()
@@ -1292,9 +1296,16 @@ class KlusterMain(QtWidgets.QMainWindow):
     def _kluster_filter_results(self):
         if self.filter_thread.error:
             print('Filter complete: Unable to filter')
-            print(self.export_thread.exceptiontxt)
+            print(self.filter_thread.exceptiontxt)
         else:
             print('Export complete.')
+        if self.filter_thread.mode == 'points':
+            for fq, _, _, fqname in self.filter_thread.fq_chunks:
+                newinfo = fq.get_variable_by_filter('detectioninfo', by_sonar_head=True)
+                for cnt, ninfo in enumerate(newinfo):
+                    sonarid = f'{fqname}_{cnt}'
+                    self.points_view.three_d_window.rejected[self.points_view.three_d_window.id == sonarid] = ninfo
+            self.points_view.refresh_settings(None)
         self.filter_thread.populate(None, None, '', True, False, False, None, None)
         self._stop_action_progress()
 

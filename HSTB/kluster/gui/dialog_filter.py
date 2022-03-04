@@ -19,7 +19,7 @@ class FilterDialog(SaveStateDialog):
         self.setWindowTitle('Filter Soundings')
         layout = QtWidgets.QVBoxLayout()
 
-        self.basic_filter_group = QtWidgets.QGroupBox('Load from the following datasets:')
+        self.basic_filter_group = QtWidgets.QGroupBox('Use the following datasets:')
         self.basic_filter_group.setCheckable(True)
         self.basic_filter_group.setChecked(True)
         self.hlayout_zero = QtWidgets.QHBoxLayout()
@@ -31,10 +31,10 @@ class FilterDialog(SaveStateDialog):
         self.hlayout_zero.addWidget(self.input_fqpr)
         self.basic_filter_group.setLayout(self.hlayout_zero)
 
-        self.line_filter = QtWidgets.QCheckBox('Load from selected lines')
+        self.line_filter = QtWidgets.QCheckBox('Use the selected lines')
         self.line_filter.setChecked(False)
 
-        self.points_view_filter = QtWidgets.QCheckBox('Load points in Points View')
+        self.points_view_filter = QtWidgets.QCheckBox('Use the points in Points View')
         self.points_view_filter.setChecked(False)
 
         self.hlayout_one = QtWidgets.QHBoxLayout()
@@ -115,7 +115,7 @@ class FilterDialog(SaveStateDialog):
             self.basic_filter_group.setChecked(False)
             if not self.fqpr_inst:
                 self.status_msg.setStyleSheet("QLabel { color : " + kluster_variables.error_color + "; }")
-                self.status_msg.setText('Error: Ensure you have one of the datasets that contain these points listed in "load from the following datasets"')
+                self.status_msg.setText('Error: Ensure you have one of the datasets that contain these points listed in "Use the following datasets"')
             else:
                 self.status_msg.setStyleSheet("QLabel { color : " + kluster_variables.pass_color + "; }")
                 self.status_msg.setText('')

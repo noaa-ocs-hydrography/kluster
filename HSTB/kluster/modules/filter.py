@@ -157,7 +157,7 @@ class FilterManager:
         filterclass = self.return_filter_class(filtername)
         return filterclass.controls
 
-    def run_filter(self, filtername: str, selected_index: list, *args, **kwargs):
+    def run_filter(self, filtername: str, selected_index: list, *args, save: bool = True, **kwargs):
         """
         Run the Filter class from the given filter name.  filtername should be the name of the file
         that contains the Filter class you want.
@@ -169,10 +169,13 @@ class FilterManager:
         """
 
         filterclass = self.return_filter_class(filtername)
-        filterclass._selected_index = selected_index
         if filterclass is not None:
-            filterclass.run(*args, **kwargs)
-            filterclass.save()
+            filterclass._selected_index = selected_index
+            new_status = filterclass.run(*args, **kwargs)
+            if save:
+                filterclass.save()
+            return new_status
+        return None
 
 
 class BaseFilter:
@@ -187,8 +190,10 @@ class BaseFilter:
 
     def run(self, *args, save: bool = True, **kwargs):
         self._run_algorithm(*args, **kwargs)
-        if save:
-            self.save()
+        try:
+            assert [ns.ndim == 2 for ns in self.new_status]
+        except AssertionError:
+            print(f'BaseFilter: expect new_status returned from filter to be 2 dimensional, got {[ns.shape for ns in self.new_status]}')
         return self.new_status
 
     def save(self):
@@ -200,8 +205,15 @@ class BaseFilter:
             print('BaseFilter: unable to save new sounding flags, the optional selected_index should be a list of arrays, one array for '
                   'each sonar head (len(self.selected_index) must equal len(self.fqpr.multibeam.raw_ping)')
             return
-        if self.fqpr.subset.ping_filter:  # save when you have a subset selected, such as when you are filtering Points View points
-            self.fqpr.set_variable_by_filter('detectioninfo', self.new_status, self._selected_index)
+        if self._selected_index:  # save when you have a subset selected, such as when you are filtering Points View points
+            # self.fqpr.set_variable_by_filter('detectioninfo', self.new_status, self._selected_index)
+            for cnt, rp in enumerate(self.fqpr.multibeam.raw_ping):
+                rp_detect = rp['detectioninfo'].load()
+                rp_detect_values = rp_detect.values
+                sel_index = self._selected_index[cnt].reshape(rp_detect.shape)
+                rp_detect_values[sel_index] = self.new_status[cnt][sel_index]
+                rp_detect[:] = rp_detect_values
+                self.fqpr.write('ping', [rp_detect.to_dataset()], time_array=[rp_detect.time], sys_id=rp.system_identifier, skip_dask=True)
         else:  # expect that the new_status is the same size as the existing status, no subset
             for cnt, rp in enumerate(self.fqpr.multibeam.raw_ping):
                 rp_detect = rp['detectioninfo'].load()
