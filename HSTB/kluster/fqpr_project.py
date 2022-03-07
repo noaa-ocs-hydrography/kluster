@@ -358,16 +358,22 @@ class FqprProject:
         ----------
         settings
             dictionary from the Qsettings store, see kluster_main._load_previously_used_settings
-
-        Returns
-        -------
-
         """
+
         self.settings.update(settings)
-        if 'parallel_write' in settings:
-            for relpath, fqpr_instance in self.fqpr_instances.items():
-                fqpr_instance.parallel_write = settings['parallel_write']
+        for relpath, fqpr_instance in self.fqpr_instances.items():
+            self._update_fqpr_settings(fqpr_instance)
         self.save_project()
+
+    def _update_fqpr_settings(self, fq: Fqpr):
+        """
+        Update an FQPR instance with the latest settings
+        """
+
+        if 'parallel_write' in self.settings:
+            fq.parallel_write = self.settings['parallel_write']
+        if 'filter_directory' in self.settings:
+            fq.filter.external_filter_directory = self.settings['filter_directory']
 
     def add_fqpr(self, pth: Union[str, Fqpr], skip_dask: bool = False):
         """
@@ -402,6 +408,7 @@ class FqprProject:
                 already_in = True
             else:
                 already_in = False
+            self._update_fqpr_settings(fq)
             self.fqpr_instances[relpath] = fq
             self.fqpr_attrs[relpath] = get_attributes_from_fqpr(fq, include_mode=False)
             self.regenerate_fqpr_lines(relpath)

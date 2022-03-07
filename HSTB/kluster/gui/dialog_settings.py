@@ -67,11 +67,19 @@ class SettingsDialog(SaveStateDialog):
         self.vdatum_label = QtWidgets.QLabel('VDatum Directory')
         self.gen_hlayout_one.addWidget(self.vdatum_label)
         self.vdatum_text = QtWidgets.QLineEdit('', self)
-        self.vdatum_text.setReadOnly(True)
         self.vdatum_text.setToolTip('Optional, this is required if you are using the "NOAA MLLW" or "NOAA MHW" vertical reference options.')
         self.gen_hlayout_one.addWidget(self.vdatum_text)
         self.browse_button = QtWidgets.QPushButton("Browse", self)
         self.gen_hlayout_one.addWidget(self.browse_button)
+
+        self.gen_hlayout_two = QtWidgets.QHBoxLayout()
+        self.filter_label = QtWidgets.QLabel('External Filter Directory')
+        self.gen_hlayout_two.addWidget(self.filter_label)
+        self.filter_text = QtWidgets.QLineEdit('', self)
+        self.filter_text.setToolTip('Optional, set if you have a directory of custom Kluster filter .py files that you would like to include.')
+        self.gen_hlayout_two.addWidget(self.filter_text)
+        self.browse_filter_button = QtWidgets.QPushButton("Browse", self)
+        self.gen_hlayout_two.addWidget(self.browse_filter_button)
 
         self.status_msg = QtWidgets.QLabel('')
         self.status_msg.setStyleSheet("QLabel { color : " + kluster_variables.error_color + "; }")
@@ -93,6 +101,7 @@ class SettingsDialog(SaveStateDialog):
         self.general_layout.addWidget(self.force_coordinate_match)
         self.general_layout.addLayout(self.gen_hlayout_one_one)
         self.general_layout.addLayout(self.gen_hlayout_one)
+        self.general_layout.addLayout(self.gen_hlayout_two)
         self.general_layout.addWidget(self.status_msg)
         self.general_layout.addStretch()
 
@@ -319,15 +328,18 @@ class SettingsDialog(SaveStateDialog):
         self.setLayout(layout)
 
         self.vdatum_pth = None
+        self.filter_pth = None
 
         self.canceled = False
 
         self.browse_button.clicked.connect(self.vdatum_browse)
+        self.browse_filter_button.clicked.connect(self.filter_browse)
         self.ok_button.clicked.connect(self.start)
         self.cancel_button.clicked.connect(self.cancel)
         self.default_button.clicked.connect(self.set_to_default)
 
-        self.text_controls = [['vdatum_directory', self.vdatum_text], ['auto_processing_mode', self.auto_processing_mode]]
+        self.text_controls = [['vdatum_directory', self.vdatum_text], ['auto_processing_mode', self.auto_processing_mode],
+                              ['filter_text', self.filter_text]]
         self.checkbox_controls = [['enable_parallel_writes', self.parallel_write], ['keep_waterline_changes', self.keep_waterline_changes],
                                   ['force_coordinate_match', self.force_coordinate_match]]
 
@@ -363,6 +375,7 @@ class SettingsDialog(SaveStateDialog):
                     'keep_waterline_changes': self.keep_waterline_changes.isChecked(),
                     'force_coordinate_match': self.force_coordinate_match.isChecked(),
                     'vdatum_directory': self.vdatum_pth,
+                    'filter_directory': self.filter_pth,
                     'autoprocessing_mode': self.auto_processing_mode.currentText()}
             self.set_vyperdatum_path()
         else:
@@ -393,6 +406,14 @@ class SettingsDialog(SaveStateDialog):
             self.vdatum_pth = vdatum_pth
             self.vdatum_text.setText(self.vdatum_pth)
         self.set_vyperdatum_path()
+
+    def filter_browse(self):
+        # dirpath will be None or a string
+        msg, filter_pth = RegistryHelpers.GetDirFromUserQT(self, RegistryKey='Kluster',
+                                                           Title='Select filter directory', AppName='\\reghelp')
+        if filter_pth:
+            self.filter_pth = filter_pth
+            self.filter_text.setText(self.filter_pth)
 
     def start(self):
         """
@@ -449,6 +470,7 @@ class SettingsDialog(SaveStateDialog):
     def read_settings(self):
         super().read_settings()
         self.vdatum_pth = self.vdatum_text.text()
+        self.filter_pth = self.filter_text.text()
         self.set_vyperdatum_path()
 
 

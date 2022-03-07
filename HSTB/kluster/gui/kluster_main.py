@@ -54,6 +54,7 @@ settings_translator = {'Kluster/dark_mode': {'newname': 'dark_mode', 'defaultval
                        'Kluster/settings_keep_waterline_changes': {'newname': 'keep_waterline_changes', 'defaultvalue': True},
                        'Kluster/settings_enable_parallel_writes': {'newname': 'write_parallel', 'defaultvalue': True},
                        'Kluster/settings_vdatum_directory': {'newname': 'vdatum_directory', 'defaultvalue': ''},
+                       'Kluster/settings_filter_directory': {'newname': 'filter_directory', 'defaultvalue': ''},
                        'Kluster/settings_auto_processing_mode': {'newname': 'autoprocessing_mode', 'defaultvalue': 'normal'},
                        'Kluster/settings_force_coordinate_match': {'newname': 'force_coordinate_match', 'defaultvalue': False},
                        }

@@ -21,7 +21,7 @@ class FilterManager:
         """
 
         self.fqpr = fqpr
-        self.external_filter_directory = external_filter_directory
+        self._external_filter_directory = external_filter_directory
         self.base_filter_directory = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'plugins', 'filters')
 
         self.filter_names = []  # ex: ['filter_by_angle']
@@ -30,6 +30,15 @@ class FilterManager:
         self.reverse_filter_lookup = {}  # ex: {<filter_by_angle.Filter at 0x28e1b6afa00>: 'filter_by_angle'}
         self.filter_file = {}  # ex: {'filter_by_angle': "C:\\Pydro21_Dev\\noaa\\site-packages\\python38\\git_repos\\hstb_kluster\\HSTB\\kluster\\plugins\\filters\\filter_by_angle.py"}
         self.initialize_filters()  # ex:
+
+    @property
+    def external_filter_directory(self):
+        return self._external_filter_directory
+
+    @external_filter_directory.setter
+    def external_filter_directory(self, extdir: str):
+        self._external_filter_directory = extdir
+        self.initialize_filters()
 
     def clear_filters(self):
         """
