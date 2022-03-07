@@ -2567,19 +2567,23 @@ class Fqpr(ZarrBackend):
 
         self.export.export_dataset_to_csv(dataset_name, dest_path)
 
-    def run_filter(self, filtername: str, selected_index: list, *args, **kwargs):
+    def run_filter(self, filtername: str, *args, selected_index: list = None, save_to_disk: bool = True, **kwargs):
         """
-        Run the filter module with the provided filtername
+        Run the filter module with the provided filtername, will match the filename of the filter python file.
 
         Parameters
         ----------
         filtername
             name of the file that you want to load
         selected_index
-
+            optional list of 1d boolean arrays representing the flattened index of those values to retain.  Used mainly
+            in Points View filtering, where you have a (time,beam) space but only want to retain the beams shown in
+            Points View.
+        save_to_disk
+            if True, will save the new sounding status to disk
         """
 
-        return self.filter.run_filter(filtername, selected_index, *args, **kwargs)
+        return self.filter.run_filter(filtername, selected_index, save_to_disk=save_to_disk, **kwargs)
 
     def _submit_data_to_cluster(self, rawping: xr.Dataset, mode: str, idx_by_chunk: list, max_chunks_at_a_time: int,
                                 timestmp: str, prefixes: str, dump_data: bool = True, skip_dask: bool = False,

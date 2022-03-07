@@ -381,8 +381,8 @@ class FilterWorker(QtCore.QThread):
         self.mode = ''
         self.selected_index = None
         self.filter_name = ''
+        self.save_to_disk = True
 
-        self.args = None
         self.kwargs = None
         self.subset_time = None
         self.subset_beam = None
@@ -390,7 +390,7 @@ class FilterWorker(QtCore.QThread):
         self.error = False
         self.exceptiontxt = None
 
-    def populate(self, fq_chunks, line_names, filter_name, basic_mode, line_mode, points_mode, args, kwargs):
+    def populate(self, fq_chunks, line_names, filter_name, basic_mode, line_mode, points_mode, save_to_disk, kwargs):
         if basic_mode:
             self.mode = 'basic'
         elif line_mode:
@@ -403,10 +403,8 @@ class FilterWorker(QtCore.QThread):
         self.line_names = line_names
         self.fq_chunks = fq_chunks
         self.filter_name = filter_name
+        self.save_to_disk = save_to_disk
 
-        self.args = args
-        if self.args is None:
-            self.args = []
         self.kwargs = kwargs
         if self.kwargs is None:
             self.kwargs = {}
@@ -418,15 +416,15 @@ class FilterWorker(QtCore.QThread):
 
     def filter_process(self, fq, subset_time=None, subset_beam=None):
         if self.mode == 'basic':
-            new_status = fq.run_filter(self.filter_name, None, *self.args, **self.kwargs)
+            new_status = fq.run_filter(self.filter_name, **self.kwargs)
         elif self.mode == 'line':
             fq.subset_by_lines(self.line_names)
-            new_status = fq.run_filter(self.filter_name, None, *self.args, **self.kwargs)
+            new_status = fq.run_filter(self.filter_name, **self.kwargs)
             fq.restore_subset()
         else:
             # take the provided Points View time and subset the provided fqpr to just those times,beams
             selected_index = fq.subset_by_time_and_beam(subset_time, subset_beam)
-            new_status = fq.run_filter(self.filter_name, selected_index, *self.args, **self.kwargs)
+            new_status = fq.run_filter(self.filter_name, selected_index=selected_index, save_to_disk=self.save_to_disk, **self.kwargs)
             fq.restore_subset()
         return fq, new_status
 

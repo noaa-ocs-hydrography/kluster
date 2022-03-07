@@ -157,39 +157,63 @@ class FilterManager:
         filterclass = self.return_filter_class(filtername)
         return filterclass.controls
 
-    def run_filter(self, filtername: str, selected_index: list, *args, save: bool = True, **kwargs):
+    def run_filter(self, filtername: str, selected_index: list = None, save_to_disk: bool = True, **kwargs):
         """
-        Run the Filter class from the given filter name.  filtername should be the name of the file
-        that contains the Filter class you want.
+        Run the Filter class from the given filter name.  filtername should be the name of the file that contains the
+        Filter class you want.
 
         Parameters
         ----------
         filtername
             name of the file that you want to load
+        selected_index
+            optional list of 1d boolean arrays representing the flattened index of those values to retain.  Used mainly
+            in Points View filtering, where you have a (time,beam) space but only want to retain the beams shown in
+            Points View.
+        save_to_disk
+            if True, will save the new sounding status to disk
         """
 
         filterclass = self.return_filter_class(filtername)
         if filterclass is not None:
             filterclass._selected_index = selected_index
-            new_status = filterclass.run(*args, **kwargs)
-            if save:
+            new_status = filterclass.run(**kwargs)
+            if save_to_disk:
                 filterclass.save()
             return new_status
         return None
 
 
 class BaseFilter:
+    """
+    All custom filters will inherit this class.  Contains the base run/save methods and attributes that all filters
+    need to run.  When you write a custom filter (see plugins/filters), your algorithm will be contained within the
+    _run_algorithm method.  If you need to prompt the user for a value, set the controls attribute (see
+    plugins/filters/filter_by_angle for an example of that) and a custom GUI window will pop up ASSUMING YOU ARE RUNNING
+    FROM KLUSTER GUI.  Otherwise, you'll need to pass those arguments when you call run_filter.
+    """
     def __init__(self, fqpr, selected_index=None):
-        self.fqpr = fqpr
-        self._selected_index = selected_index
-        self.new_status = None
+        self.fqpr = fqpr  # the kluster Fully Qualified Ping Record (FQPR), this is the datasets containing the raw and processed data
+        self._selected_index = selected_index  # an optional index if you only want to save a subset of the fqpr
+        self.new_status = None  # this is the new detectioninfo that should be the result of the algorithm
+        # each sublist in controls will populate a new GUI control to ask for values when running from Kluster GUI
+        #  (see dialog_filter.AdditionalFilterOptionsDialog to get a better idea of how it is implemented)
+        #  self.controls = [[datatype, name, start_value, qt_properties]
+        #  where:
+        #  datatype = one of [float, int, text, checkbox, combobox], this controls what kind of GUI control you get
+        #  name = sets the label of the control, MUST MATCH THE _run_algorithm KEY WORD ARGUMENT
+        #  start_value = the starting value of the control
+        #  qt_properties = dict of properties that QT can apply with setProperty
         self.controls = []
 
-    def _run_algorithm(self, *args, **kwargs):
+    def _run_algorithm(self, **kwargs):
+        """
+        This will contain your custom algorithm
+        """
         raise NotImplementedError('BaseFilter: you must create a Filter class and implement this method')
 
-    def run(self, *args, save: bool = True, **kwargs):
-        self._run_algorithm(*args, **kwargs)
+    def run(self, **kwargs):
+        self._run_algorithm(**kwargs)
         try:
             assert [ns.ndim == 2 for ns in self.new_status]
         except AssertionError:
@@ -206,18 +230,19 @@ class BaseFilter:
                   'each sonar head (len(self.selected_index) must equal len(self.fqpr.multibeam.raw_ping)')
             return
         if self._selected_index:  # save when you have a subset selected, such as when you are filtering Points View points
-            # self.fqpr.set_variable_by_filter('detectioninfo', self.new_status, self._selected_index)
             for cnt, rp in enumerate(self.fqpr.multibeam.raw_ping):
-                rp_detect = rp['detectioninfo'].load()
+                rp_detect = rp['detectioninfo'].load()  # convert to numpy and load in memory
                 rp_detect_values = rp_detect.values
-                sel_index = self._selected_index[cnt].reshape(rp_detect.shape)
-                rp_detect_values[sel_index] = self.new_status[cnt][sel_index]
-                rp_detect[:] = rp_detect_values
+                sel_index = self._selected_index[cnt].reshape(rp_detect.shape)  # reshape selected index to the 2d array
+                rp_detect_values[sel_index] = self.new_status[cnt][sel_index]  # overwrite all values matching selected index with new status
+                rp_detect[:] = rp_detect_values  # write the change back to the xarray dataarray
+                # save to disk
                 self.fqpr.write('ping', [rp_detect.to_dataset()], time_array=[rp_detect.time], sys_id=rp.system_identifier, skip_dask=True)
         else:  # expect that the new_status is the same size as the existing status, no subset
             for cnt, rp in enumerate(self.fqpr.multibeam.raw_ping):
-                rp_detect = rp['detectioninfo'].load()
-                rp_detect[:] = self.new_status[cnt]
+                rp_detect = rp['detectioninfo'].load()  # convert to numpy and load in memory
+                rp_detect[:] = self.new_status[cnt]  # overwrite with new status
+                # save to disk
                 self.fqpr.write('ping', [rp_detect.to_dataset()], time_array=[rp_detect.time], sys_id=rp.system_identifier, skip_dask=True)
 
     def return_controls(self):

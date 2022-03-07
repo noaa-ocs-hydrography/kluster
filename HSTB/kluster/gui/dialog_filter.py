@@ -42,8 +42,18 @@ class FilterDialog(SaveStateDialog):
         self.hlayout_one.addWidget(self.start_msg)
         self.filter_opts = QtWidgets.QComboBox()
         self.filter_opts.addItems(filters)
+        self.filter_opts.setToolTip('Select one of the filter files found in the plugins/filters directory or the external filter directory')
         self.hlayout_one.addWidget(self.filter_opts)
         self.hlayout_one.addStretch()
+
+        self.hlayout_one_two = QtWidgets.QHBoxLayout()
+        self.save_to_disk_checkbox = QtWidgets.QCheckBox('Save to disk')
+        self.save_to_disk_checkbox.setChecked(True)
+        self.save_to_disk_checkbox.setVisible(False)
+        self.save_to_disk_checkbox.setToolTip('Points View filter allows you to run the filter and only change the points in the Points '
+                                              'View.  Uncheck this box if you want to skip saving changes to disk and only affect the Points View.')
+        self.hlayout_one_two.addWidget(self.save_to_disk_checkbox)
+        self.hlayout_one_two.addStretch()
 
         self.status_msg = QtWidgets.QLabel('')
         self.status_msg.setStyleSheet("QLabel { color : " + kluster_variables.error_color + "; }")
@@ -62,6 +72,7 @@ class FilterDialog(SaveStateDialog):
         layout.addWidget(self.points_view_filter)
         layout.addWidget(QtWidgets.QLabel(' '))
         layout.addLayout(self.hlayout_one)
+        layout.addLayout(self.hlayout_one_two)
         layout.addWidget(self.status_msg)
         layout.addLayout(self.hlayout_two)
         self.setLayout(layout)
@@ -79,7 +90,7 @@ class FilterDialog(SaveStateDialog):
 
         self.text_controls = [['filter_ops', self.filter_opts]]
         self.checkbox_controls = [['basic_filter_group', self.basic_filter_group], ['line_filter', self.line_filter],
-                                  ['points_view_filter', self.points_view_filter]]
+                                  ['points_view_filter', self.points_view_filter], ['save_to_disk_checkbox', self.save_to_disk_checkbox]]
         self.read_settings()
         self._event_update_status(self.filter_opts.currentText())
 
@@ -91,6 +102,7 @@ class FilterDialog(SaveStateDialog):
         if evt:
             self.line_filter.setChecked(False)
             self.points_view_filter.setChecked(False)
+            self.save_to_disk_checkbox.setVisible(False)
             self.status_msg.setStyleSheet("QLabel { color: " + kluster_variables.pass_color + "; }")
             self.status_msg.setText('')
 
@@ -102,6 +114,7 @@ class FilterDialog(SaveStateDialog):
         if evt:
             self.basic_filter_group.setChecked(False)
             self.points_view_filter.setChecked(False)
+            self.save_to_disk_checkbox.setVisible(False)
             self.status_msg.setStyleSheet("QLabel { color : " + kluster_variables.pass_color + "; }")
             self.status_msg.setText('')
 
@@ -113,6 +126,7 @@ class FilterDialog(SaveStateDialog):
         if evt:
             self.line_filter.setChecked(False)
             self.basic_filter_group.setChecked(False)
+            self.save_to_disk_checkbox.setVisible(True)
             if not self.fqpr_inst:
                 self.status_msg.setStyleSheet("QLabel { color : " + kluster_variables.error_color + "; }")
                 self.status_msg.setText('Error: Ensure you have one of the datasets that contain these points listed in "Use the following datasets"')

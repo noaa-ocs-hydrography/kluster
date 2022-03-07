@@ -1207,22 +1207,27 @@ class KlusterMain(QtWidgets.QMainWindow):
         pointbeam = None
         filter_controls = None
         filter_name = ''
+        savetodisk = True
+
         if dlog.exec_():
             if not dlog.canceled:
                 basic_filter_mode = dlog.basic_filter_group.isChecked()
                 line_filter_mode = dlog.line_filter.isChecked()
                 points_filter_mode = dlog.points_view_filter.isChecked()
-                if line_filter_mode:
+                if line_filter_mode:  # we only operate on the selected lines
                     linenames = self.project_tree.return_selected_lines()
                 else:
                     linenames = []
-                if points_filter_mode:
+                if points_filter_mode:  # we need to get the time/beam of all points in Points View to subset the Fqpr
+                    savetodisk = dlog.save_to_disk_checkbox.isChecked()  # can skip saving to disk for Poinst View filter
                     pointtime, pointbeam = self.points_view.return_array('pointtime'), self.points_view.return_array('beam')
                 else:
+                    savetodisk = True
                     pointtime, pointbeam = None, None
 
                 filter_name = dlog.filter_opts.currentText()
                 if filter_name and not dlog.canceled:
+                    # these controls are specified in the custom filter (see controls attribute of the Filter class)
                     filter_controls = filter_module.return_optional_filter_controls(filter_name)
                 else:
                     cancelled = True
@@ -1230,7 +1235,7 @@ class KlusterMain(QtWidgets.QMainWindow):
                 cancelled = True
         else:
             cancelled = True
-        return basic_filter_mode, line_filter_mode, points_filter_mode, linenames, pointtime, pointbeam, filter_name, filter_controls, cancelled
+        return basic_filter_mode, line_filter_mode, points_filter_mode, savetodisk, linenames, pointtime, pointbeam, filter_name, filter_controls, cancelled
 
     def _kluster_additional_filter_dialog(self, filter_controls, filter_name):
         cancelled = False
@@ -1268,7 +1273,7 @@ class KlusterMain(QtWidgets.QMainWindow):
                 return
 
             result = self._kluster_filter_dialog(filter_list, filter_module, fqprs)
-            basic_filter_mode, line_filter_mode, points_filter_mode, linenames, pointtime, pointbeam, filter_name, filter_controls, cancelled = result
+            basic_filter_mode, line_filter_mode, points_filter_mode, savetodisk, linenames, pointtime, pointbeam, filter_name, filter_controls, cancelled = result
             if not cancelled:
                 kwargs, cancelled = self._kluster_additional_filter_dialog(filter_controls, filter_name)
                 if not cancelled:
@@ -1286,7 +1291,7 @@ class KlusterMain(QtWidgets.QMainWindow):
                         else:
                             fq_chunks.append([fq_inst, relfq])
                         self.filter_thread.populate(fq_chunks, linenames, filter_name, basic_filter_mode, line_filter_mode,
-                                                    points_filter_mode, None, kwargs)
+                                                    points_filter_mode, savetodisk, kwargs)
                         self.filter_thread.start()
                 else:
                     print('kluster_filter: Filter was cancelled')
@@ -1300,13 +1305,15 @@ class KlusterMain(QtWidgets.QMainWindow):
         else:
             print('Export complete.')
         if self.filter_thread.mode == 'points':
-            for fq, _, _, fqname in self.filter_thread.fq_chunks:
-                newinfo = fq.get_variable_by_filter('detectioninfo', by_sonar_head=True)
-                for cnt, ninfo in enumerate(newinfo):
+            newinfo = self.filter_thread.new_status
+            for cnt, (fq, _, _, fqname) in enumerate(self.filter_thread.fq_chunks):
+                # newinfo = fq.get_variable_by_filter('detectioninfo', by_sonar_head=True)
+                fqinfo = newinfo[cnt]
+                for cnt, ninfo in enumerate(fqinfo):
                     sonarid = f'{fqname}_{cnt}'
-                    self.points_view.three_d_window.rejected[self.points_view.three_d_window.id == sonarid] = ninfo
+                    self.points_view.three_d_window.rejected[self.points_view.three_d_window.id == sonarid] = ninfo.flatten()
             self.points_view.refresh_settings(None)
-        self.filter_thread.populate(None, None, '', True, False, False, None, None)
+        self.filter_thread.populate(None, None, '', True, False, False, True, None)
         self._stop_action_progress()
 
     def kluster_surface_generation(self):
