@@ -52,6 +52,17 @@ class KlusterOutput(QtWidgets.QTextEdit):
         self.stderr_obj = OutputWrapper(self, False)
         self.stderr_obj.outputWritten.connect(self.append_text)
 
+    def contextMenuEvent(self, e: QtGui.QContextMenuEvent) -> None:
+        # add a clear action
+        menu = self.createStandardContextMenu(e.pos())
+        newaction = QtWidgets.QAction('Clear', self)
+        newaction.triggered.connect(self._clr_window)
+        menu.addAction(newaction)
+        menu.exec(e.globalPos())
+
+    def _clr_window(self, e):
+        self.clear()
+
     def append_text(self, text, stdout):
         """
         add text as it shows up in the buffer, ordinarily this means moving the cursor to the end of the line and inserting
