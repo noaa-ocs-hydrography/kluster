@@ -1195,8 +1195,8 @@ class KlusterMain(QtWidgets.QMainWindow):
                     self._patch.add_line([cur_cnt, lline, ldict[lline]['azimuth']])
                 cur_cnt += 1
 
-    def _kluster_filter_dialog(self, filter_list, filter_module, fqprs):
-        dlog = dialog_filter.FilterDialog(filter_list)
+    def _kluster_filter_dialog(self, filter_list, filter_module, fqprs, filter_descrip):
+        dlog = dialog_filter.FilterDialog(filter_list, filter_descrip)
         dlog.update_fqpr_instances(addtl_files=fqprs)
         cancelled = False
         basic_filter_mode = False
@@ -1268,11 +1268,12 @@ class KlusterMain(QtWidgets.QMainWindow):
             try:
                 filter_module = list(self.project.fqpr_instances.values())[0].filter
                 filter_list = filter_module.list_filters()
+                filter_descrip = filter_module.list_descriptions()
             except:
                 print('Error: kluster_filter no loaded converted data found to filter, unable to initialize filter list.')
                 return
 
-            result = self._kluster_filter_dialog(filter_list, filter_module, fqprs)
+            result = self._kluster_filter_dialog(filter_list, filter_module, fqprs, filter_descrip)
             basic_filter_mode, line_filter_mode, points_filter_mode, savetodisk, linenames, pointtime, pointbeam, filter_name, filter_controls, cancelled = result
             if not cancelled:
                 kwargs, cancelled = self._kluster_additional_filter_dialog(filter_controls, filter_name)
@@ -1281,12 +1282,15 @@ class KlusterMain(QtWidgets.QMainWindow):
                     for fq in fqprs:
                         relfq = self.project.path_relative_to_project(fq)
                         if relfq not in self.project.fqpr_instances:
-                            print('Unable to find {} in currently loaded project'.format(relfq))
+                            print('kluster_filter: Unable to find {} in currently loaded project'.format(relfq))
                             return
                         fq_inst = self.project.fqpr_instances[relfq]
                         # use the project client, or start a new LocalCluster if client is None
                         fq_inst.client = self.project.get_dask_client()
                         if points_filter_mode:
+                            if relfq not in pointtime or relfq not in pointbeam:
+                                print(f'kluster_filter: {relfq} is not currently being used in Points View, skipping filter')
+                                continue
                             fq_chunks.append([fq_inst, pointtime[relfq], pointbeam[relfq], relfq])
                         else:
                             fq_chunks.append([fq_inst, relfq])
@@ -1303,16 +1307,19 @@ class KlusterMain(QtWidgets.QMainWindow):
             print('Filter complete: Unable to filter')
             print(self.filter_thread.exceptiontxt)
         else:
-            print('Export complete.')
+            print('Filter complete.')
         if self.filter_thread.mode == 'points':
             newinfo = self.filter_thread.new_status
+            selindex = self.filter_thread.selected_index
+            base_points_view_status = self.points_view.three_d_window.rejected.copy()
             for cnt, (fq, _, _, fqname) in enumerate(self.filter_thread.fq_chunks):
                 # newinfo = fq.get_variable_by_filter('detectioninfo', by_sonar_head=True)
-                fqinfo = newinfo[cnt]
-                for cnt, ninfo in enumerate(fqinfo):
-                    sonarid = f'{fqname}_{cnt}'
-                    self.points_view.three_d_window.rejected[self.points_view.three_d_window.id == sonarid] = ninfo.flatten()
-            self.points_view.refresh_settings(None)
+                fqinfo, fqsel = newinfo[cnt], selindex[cnt]
+                for fcnt, ninfo in enumerate(fqinfo):
+                    sonarid = f'{fqname}_{fcnt}'
+                    fqheadsel = fqsel[fcnt].reshape(ninfo.shape)
+                    base_points_view_status[self.points_view.three_d_window.id == sonarid] = ninfo[fqheadsel]
+            self.points_view.override_sounding_status(base_points_view_status)
         self.filter_thread.populate(None, None, '', True, False, False, True, None)
         self._stop_action_progress()
 

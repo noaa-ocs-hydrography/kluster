@@ -384,8 +384,7 @@ class FilterWorker(QtCore.QThread):
         self.save_to_disk = True
 
         self.kwargs = None
-        self.subset_time = None
-        self.subset_beam = None
+        self.selected_index = []
 
         self.error = False
         self.exceptiontxt = None
@@ -408,8 +407,7 @@ class FilterWorker(QtCore.QThread):
         self.kwargs = kwargs
         if self.kwargs is None:
             self.kwargs = {}
-        self.subset_time = None
-        self.subset_beam = None
+        self.selected_index = []
 
         self.error = False
         self.exceptiontxt = None
@@ -426,6 +424,7 @@ class FilterWorker(QtCore.QThread):
             selected_index = fq.subset_by_time_and_beam(subset_time, subset_beam)
             new_status = fq.run_filter(self.filter_name, selected_index=selected_index, save_to_disk=self.save_to_disk, **self.kwargs)
             fq.restore_subset()
+            self.selected_index.append(selected_index)
         return fq, new_status
 
     def run(self):
@@ -437,14 +436,10 @@ class FilterWorker(QtCore.QThread):
                     self.fqpr_instances.append(fq)
                     self.new_status.append(new_status)
             else:
-                self.subset_time = []
-                self.subset_beam = []
                 for chnk in self.fq_chunks:
                     fq, subset_time, subset_beam = chnk[0], chnk[1], chnk[2]
                     fq, new_status = self.filter_process(fq, subset_time, subset_beam)
                     self.fqpr_instances.append(fq)
-                    self.subset_time.append(subset_time)
-                    self.subset_beam.append(subset_beam)
                     self.new_status.append(new_status)
         except Exception as e:
             self.error = True

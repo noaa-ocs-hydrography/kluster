@@ -24,10 +24,11 @@ class FilterManager:
         self.external_filter_directory = external_filter_directory
         self.base_filter_directory = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'plugins', 'filters')
 
-        self.filter_names = []  # ex: ['filter_by_beam']
-        self.filter_lookup = {}  # ex: {'filter_by_beam': <filter_by_beam.Filter at 0x28e1b6afa00>}
-        self.reverse_filter_lookup = {}  # ex: {<filter_by_beam.Filter at 0x28e1b6afa00>: 'filter_by_beam'}
-        self.filter_file = {}  # ex: {'filter_by_beam': "C:\\Pydro21_Dev\\noaa\\site-packages\\python38\\git_repos\\hstb_kluster\\HSTB\\kluster\\plugins\\filters\\filter_by_beam.py"}
+        self.filter_names = []  # ex: ['filter_by_angle']
+        self.filter_descriptions = {}  # ex: {'filter_by_angle': 'Reject all soundings that are greater than maximum beam angle and less than minimum beam angle.  Only retain soundings within the given minimum/maximum beam angle envelope.'}
+        self.filter_lookup = {}  # ex: {'filter_by_angle': <filter_by_angle.Filter at 0x28e1b6afa00>}
+        self.reverse_filter_lookup = {}  # ex: {<filter_by_angle.Filter at 0x28e1b6afa00>: 'filter_by_angle'}
+        self.filter_file = {}  # ex: {'filter_by_angle': "C:\\Pydro21_Dev\\noaa\\site-packages\\python38\\git_repos\\hstb_kluster\\HSTB\\kluster\\plugins\\filters\\filter_by_angle.py"}
         self.initialize_filters()  # ex:
 
     def clear_filters(self):
@@ -36,6 +37,7 @@ class FilterManager:
         """
 
         self.filter_names = []
+        self.filter_descriptions = {}
         self.filter_lookup = {}
         self.reverse_filter_lookup = {}
         self.filter_file = {}
@@ -51,6 +53,17 @@ class FilterManager:
         """
 
         return self.filter_names
+
+    def list_descriptions(self):
+        """
+        Return the descriptions on file for all loaded filters
+
+        Returns
+        -------
+        dict
+            dict of filter name to filter description
+        """
+        return self.filter_descriptions
 
     def initialize_filters(self):
         """
@@ -79,6 +92,7 @@ class FilterManager:
                     filtermodule, filterclass = self._get_filter_class(filterpath)
                     if filtermodule is not None and filterclass is not None:
                         self.filter_names.append(filterbase)
+                        self.filter_descriptions[filterbase] = filterclass.description
                         self.filter_lookup[filterbase] = filterclass
                         self.reverse_filter_lookup[filterclass] = filterbase
                         self.filter_file[filterbase] = filterpath
@@ -205,6 +219,8 @@ class BaseFilter:
         #  start_value = the starting value of the control
         #  qt_properties = dict of properties that QT can apply with setProperty
         self.controls = []
+        # text description of the filter, will show up in the GUI tooltip for the filter
+        self.description = ''
 
     def _run_algorithm(self, **kwargs):
         """

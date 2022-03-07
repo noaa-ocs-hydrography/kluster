@@ -13,7 +13,7 @@ class FilterDialog(SaveStateDialog):
     fqpr = fully qualified ping record, the term for the datastore in kluster
     """
 
-    def __init__(self, filters: list, parent=None, settings=None):
+    def __init__(self, filters: list, filter_descrip: dict, parent=None, settings=None):
         super().__init__(parent, settings, widgetname='filter')
 
         self.setWindowTitle('Filter Soundings')
@@ -42,7 +42,7 @@ class FilterDialog(SaveStateDialog):
         self.hlayout_one.addWidget(self.start_msg)
         self.filter_opts = QtWidgets.QComboBox()
         self.filter_opts.addItems(filters)
-        self.filter_opts.setToolTip('Select one of the filter files found in the plugins/filters directory or the external filter directory')
+        # self.filter_opts.setToolTip('Select one of the filter files found in the plugins/filters directory or the external filter directory')
         self.hlayout_one.addWidget(self.filter_opts)
         self.hlayout_one.addStretch()
 
@@ -79,6 +79,7 @@ class FilterDialog(SaveStateDialog):
 
         self.fqpr_inst = []
         self.canceled = False
+        self.filter_descrip = filter_descrip
 
         self.basic_filter_group.toggled.connect(self._handle_basic_checked)
         self.line_filter.toggled.connect(self._handle_line_checked)
@@ -152,6 +153,13 @@ class FilterDialog(SaveStateDialog):
             value of the combobox as text
         """
 
+        try:
+            curdescrip = self.filter_descrip[combobox_text]
+            descrip = 'Select one of the filter files found in the plugins/filters directory or the external filter directory\n\n'
+            descrip += f'{combobox_text}: {curdescrip}'
+            self.filter_opts.setToolTip(descrip)
+        except:
+            print(f'WARNING: Unable to load description for filter {combobox_text}')
         self.status_msg.setText('')
         self.ok_button.setEnabled(True)
 

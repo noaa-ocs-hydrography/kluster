@@ -1695,6 +1695,24 @@ class ThreeDWidget(QtWidgets.QWidget):
         else:
             print('Point cloud cleaning disabled while patch test is running')
 
+    def override_sounding_status(self, new_status: np.ndarray):
+        if not self.patch_test_running:
+            try:
+                assert new_status.size == self.three_d_window.rejected.size
+            except AssertionError:
+                print(f'override_sounding_status: unable to override Points View rejected with new array, size does not match (new size {new_status.size} != {self.three_d_window.rejected.size}')
+            self.three_d_window.selected_points = np.ones(self.three_d_window.rejected.shape[0], dtype=bool)
+            self.last_change_buffer.append([self.three_d_window.selected_points, self.three_d_window.rejected.copy()])
+            self.three_d_window.rejected[self.three_d_window.selected_points] = new_status
+            self.three_d_window.selected_points = None
+            self.three_d_window.highlight_selected_scatter(self.colorby.currentText(), False)
+            if len(self.last_change_buffer) > kluster_variables.last_change_buffer_size:
+                print('WARNING: Points view will only retain the last {} cleaning actions for undo'.format(
+                    kluster_variables.last_change_buffer_size))
+                self.last_change_buffer.pop(0)
+        else:
+            print('Point cloud cleaning disabled while patch test is running')
+
     def accept_points(self, startpos, endpos, three_d: bool = False):
         """
         Triggers when the user ALT+Mouse2 selects data in the 3dview.  We set the selected points and let the widget know to accept these points.

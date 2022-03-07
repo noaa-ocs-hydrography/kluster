@@ -8,6 +8,7 @@ class Filter(BaseFilter):
     def __init__(self, fqpr, selected_index=None):
         super().__init__(fqpr, selected_index)
         self.controls = []
+        self.description = 'Re-accept all soundings that are currently rejected.'
 
     def _run_algorithm(self):
         print(f'Running reaccept_rejected on {self.fqpr.output_folder}')
