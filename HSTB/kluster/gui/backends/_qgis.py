@@ -13,9 +13,91 @@ from HSTB.kluster import __file__ as klusterdir
 from HSTB.kluster.gdal_helpers import gdal_raster_create, VectorLayer, gdal_output_file_exists, ogr_output_file_exists
 from HSTB.kluster import kluster_variables
 
+from HSTB.shared import RegistryHelpers
+
 
 acceptedlayernames = ['hillshade', 'depth', 'density', 'vertical_uncertainty', 'horizontal_uncertainty']
 invert_colormap_layernames = ['vertical_uncertainty', 'horizontal_uncertainty']
+
+
+class CompassRoseItem(qgis_gui.QgsMapCanvasItem):
+    def __init__(self, canvas):
+        super().__init__(canvas)
+        self.canvas = canvas
+        self.center = qgis_core.QgsPoint(0, 0)
+        self.size = 100
+
+    def setCenter(self, center):
+        self.center = center
+
+    def center(self):
+        return self.center
+
+    def setSize(self, size):
+        self.size = size
+
+    def size(self):
+        return self.size
+
+    def boundingRect(self):
+        return QtCore.QRectF(self.center.x() - self.size / 2,
+                             self.center.y() - self.size / 2,
+                             self.center.x() + self.size / 2,
+                             self.center.y() + self.size / 2)
+
+    def paint(self, painter, option, widget):
+        curwidth, curheight = self.canvas.width(), self.canvas.height()
+        newcenter = QtCore.QPointF(int(curwidth - (curwidth / 11)), int(curheight / 10))
+        self.setCenter(newcenter)
+        self.setSize(int(curwidth / 20))
+
+        fontSize = int(18 * self.size / 120)
+        painter.setFont(QtGui.QFont("Times", pointSize=fontSize, weight=75))
+        metrics = painter.fontMetrics()
+        labelSize = metrics.height()
+        margin = 5
+
+        x = self.center.x()
+        y = self.center.y()
+        size = self.size - labelSize - margin
+
+        path = QtGui.QPainterPath()
+        path.moveTo(x, y - size * 0.23)
+        path.lineTo(x - size * 0.45, y - size * 0.45)
+        path.lineTo(x - size * 0.23, y)
+        path.lineTo(x - size * 0.45, y + size * 0.45)
+        path.lineTo(x, y + size * 0.23)
+        path.lineTo(x + size * 0.45, y + size * 0.45)
+        path.lineTo(x + size * 0.23, y)
+        path.lineTo(x + size * 0.45, y - size * 0.45)
+        path.closeSubpath()
+        painter.fillPath(path, QtGui.QColor("light gray"))
+
+        path = QtGui.QPainterPath()
+        path.moveTo(x, y - size)
+        path.lineTo(x - size * 0.18, y - size * 0.18)
+        path.lineTo(x - size, y)
+        path.lineTo(x - size * 0.18, y + size * 0.18)
+        path.lineTo(x, y + size)
+        path.lineTo(x + size * 0.18, y + size * 0.18)
+        path.lineTo(x + size, y)
+        path.lineTo(x + size * 0.18, y - size * 0.18)
+        path.closeSubpath()
+        painter.fillPath(path, QtGui.QColor("black"))
+
+        labelX = x - metrics.width("N") / 2
+        labelY = y - self.size + labelSize - metrics.descent()
+        painter.drawText(QtCore.QPoint(labelX, labelY), "N")
+        labelX = x - metrics.width("S") / 2
+        labelY = y + self.size - labelSize + metrics.ascent()
+        painter.drawText(QtCore.QPoint(labelX, labelY), "S")
+
+        labelX = x - self.size + labelSize / 2 - metrics.width("E") / 2
+        labelY = y - metrics.height() / 2 + metrics.ascent()
+        painter.drawText(QtCore.QPoint(labelX, labelY), "E")
+        labelX = x + self.size - labelSize / 2 - metrics.width("W") / 2
+        labelY = y - metrics.height() / 2 + metrics.ascent()
+        painter.drawText(QtCore.QPoint(labelX, labelY), "W")
 
 
 class DistanceTool(qgis_gui.QgsMapTool):
@@ -945,6 +1027,7 @@ class MapView(QtWidgets.QMainWindow):
         self.canvas.setCanvasColor(QtCore.Qt.white)
         self.canvas.setDestinationCrs(self.crs)
         self.canvas.enableAntiAliasing(True)
+
         self.settings = self.canvas.mapSettings()
         self.project = qgis_core.QgsProject.instance()
 
@@ -985,6 +1068,8 @@ class MapView(QtWidgets.QMainWindow):
         rectangle_instructions += 'Third left click - load the data in Points View (if georeferenced soundings exist)'
         self.actionPoints = QtWidgets.QAction("Points")
         self.actionPoints.setToolTip('Select georeferenced points within an area to view in Points View tab.\n\n' + rectangle_instructions)
+        self.actionScreenshot = QtWidgets.QAction("Screenshot")
+        self.actionScreenshot.setToolTip('Take a screenshot of the current map view')
 
         self.actionZoomIn.setCheckable(True)
         self.actionZoomOut.setCheckable(True)
@@ -1001,6 +1086,7 @@ class MapView(QtWidgets.QMainWindow):
         self.actionQuery.triggered.connect(self.query)
         self.actionDistance.triggered.connect(self.distance)
         self.actionPoints.triggered.connect(self.selectPoints)
+        self.actionScreenshot.triggered.connect(self.take_screenshot)
 
         self.toolbar = self.addToolBar("Canvas actions")
         self.toolbar.addAction(self.actionZoomIn)
@@ -1010,6 +1096,7 @@ class MapView(QtWidgets.QMainWindow):
         self.toolbar.addAction(self.actionQuery)
         self.toolbar.addAction(self.actionDistance)
         self.toolbar.addAction(self.actionPoints)
+        self.toolbar.addAction(self.actionScreenshot)
 
         # create the map tools
         self.toolPan = qgis_gui.QgsMapToolPan(self.canvas)
@@ -2205,6 +2292,98 @@ class MapView(QtWidgets.QMainWindow):
         switching off the 2d/3d points view tool or clearing the box with the tool will clear the already loaded data in the 3d view
         """
         self.turn_off_pointsview.emit(True)
+
+    def take_screenshot(self):
+        """
+        Take a screenshot of the current map view, based off of
+        https://www.geodose.com/2022/02/pyqgis-tutorial-automating-map-layout.html
+        and
+        https://github.com/MarcoDuiker/QGIS_QuickPrint/blob/d1c946a7b6187553c92ffad7a0cc23d39a1bc593/quick_print3.py
+        """
+
+        msg, fil = RegistryHelpers.GetFilenameFromUserQT(self, RegistryKey='kluster', Title='Save a new screenshot (supports png, pdf, jpeg)',
+                                                         AppName='klusterproj', bMulti=False, bSave=True, DefaultFile="screenshot.png",
+                                                         fFilter='png (*.png);;pdf (*.pdf);;jpeg (*.jpeg);;jpg (*.jpg)')
+        if msg:
+            supported_extensions = ['.pdf', '.png', '.jpeg', '.jpg']
+            fil_ext = os.path.splitext(fil)[1]
+            if fil_ext not in supported_extensions:
+                print(f'take_screenshot - {fil} file type not supported, must be one of {supported_extensions}')
+                return
+            if os.path.exists(fil):
+                os.remove(fil)
+
+            # papersize = (210, 297)  # match papersize with A4 paper
+            papersize = (210, 210)  # make image size square, width equal to A4 width
+
+            lm = 0  # left margin
+            tm = 0  # upper margin
+            bm = 0  # lower margin
+            x, y = lm, tm
+            w, h = papersize[0] - 2 * lm, papersize[1] - bm
+
+            project = self.project
+            layout = qgis_core.QgsPrintLayout(project)
+            layout.initializeDefaults()
+            layout.setUnits(qgis_core.QgsUnitTypes.LayoutMillimeters)
+            page = layout.pageCollection().pages()[0]
+            page.setPageSize(qgis_core.QgsLayoutSize(papersize[0], papersize[1]))
+
+            map = qgis_core.QgsLayoutItemMap(layout)
+            map.updateBoundingRect()
+            map.setRect(x, y, w, h)
+            map.setPos(x, y)
+            mylayers = self.project.mapThemeCollection().masterVisibleLayers()
+            map.setLayers(mylayers)
+            map.setExtent(self.canvas.extent())
+            map.attemptSetSceneRect(QtCore.QRectF(x, y, w, h))
+            layout.addLayoutItem(map)
+
+            scale = qgis_core.QgsLayoutItemScaleBar(layout)
+            scale.setStyle('Single Box')
+            scale.setFont(QtGui.QFont("Arial", 10))
+            scale.setFontColor(QtGui.QColor("Black"))
+            scale.setFillColor(QtGui.QColor("Blue"))
+            scale.applyDefaultSize()
+            scale.setNumberOfSegments(3)
+            scale.setNumberOfSegmentsLeft(0)
+
+            myextent = map.extent()
+            distance = qgis_core.QgsDistanceArea()
+            distance.setEllipsoid('WGS84')
+            degree_width_meters = distance.measureLine(qgis_core.QgsPointXY(myextent.xMinimum(), myextent.yMinimum()), qgis_core.QgsPointXY(myextent.xMinimum() + 1, myextent.yMinimum()))
+            screenshot_width_meters = distance.measureLine(qgis_core.QgsPointXY(myextent.xMinimum(), myextent.yMinimum()), qgis_core.QgsPointXY(myextent.xMaximum(), myextent.yMaximum()))
+            meters_in_nm = 1852
+            screenshot_width_in_nm = screenshot_width_meters / meters_in_nm
+            scale_sizes = [1000, 750, 500, 250, 100, 75, 50, 25, 10, 7.5, 5, 2.5, 1, 0.75, 0.5, 0.25, 0.1, 0.075, 0.05, 0.025, 0.01, 0.0075, 0.005, 0.0025, 0.001]
+            found = False
+            for scalesize in scale_sizes:
+                if screenshot_width_in_nm > scalesize:
+                    scale.setMapUnitsPerScaleBarUnit((scalesize / 10) * meters_in_nm * (1 / degree_width_meters) / (scalesize / 10))
+                    scale.setUnitsPerSegment((scalesize / 10) * meters_in_nm * (1 / degree_width_meters))
+                    scale.setUnitLabel("NM")
+                    found = True
+                    break
+            if not found:
+                print(f'Warning: Unable to generate scale bar for screen width of {screenshot_width_in_nm} NM')
+            else:
+                scale.setPos(lm + 10, tm + (papersize[1] - bm) - 20)
+                scale.setLinkedMap(map)
+                layout.addLayoutItem(scale)
+
+            north = qgis_core.QgsLayoutItemPicture(layout)
+            north.setMode(qgis_core.QgsLayoutItemPicture.FormatSVG)
+            north.setPicturePath(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'images', 'NorthArrow.svg'))
+            north.attemptMove(qgis_core.QgsLayoutPoint(lm + w - 35, tm + 5, qgis_core.QgsUnitTypes.LayoutMillimeters))
+            north.attemptResize(qgis_core.QgsLayoutSize(*[30, 30], qgis_core.QgsUnitTypes.LayoutMillimeters))
+            layout.addLayoutItem(north)
+
+            exporter = qgis_core.QgsLayoutExporter(layout)
+            if fil_ext == '.pdf':
+                exporter.exportToPdf(fil, qgis_core.QgsLayoutExporter.PdfExportSettings())
+            else:
+                exporter.exportToImage(fil, qgis_core.QgsLayoutExporter.ImageExportSettings())
+            os.startfile(fil)
 
 
 if __name__ == '__main__':
