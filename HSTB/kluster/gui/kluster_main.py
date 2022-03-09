@@ -2681,20 +2681,44 @@ def main():
 
     if qgis_enabled:
         app_library = 'pyqt5'
-        app = qgis_core.QgsApplication([], True)
+        app = qgis_core.QgsApplication([], False)
         if ispyinstaller:
             kluster_main_exe = sys.argv[0]
             curdir = os.path.dirname(kluster_main_exe)
             plugin_dir = os.path.join(curdir, 'qgis_plugins')
             prefix_dir = curdir
+            processing_dir = os.path.join(curdir, 'qgis_plugins', 'processing')
         else:
             plugin_dir = os.path.join(os.path.dirname(found_path), 'plugins')
-            prefix_dir = os.path.join(found_path, 'qgis')
+            prefix_dir = os.path.join(os.path.dirname(found_path))
+            processing_dir = os.path.join(os.path.dirname(found_path), 'python', 'plugins', 'processing')
+
+        try:
+            assert os.path.exists(plugin_dir)
+        except:
+            raise EnvironmentError(f"Can't find plugin directory at {plugin_dir}, pyinstaller={ispyinstaller}")
+        try:
+            assert os.path.exists(prefix_dir)
+        except:
+            raise EnvironmentError(f"Can't find prefix directory at {prefix_dir}, pyinstaller={ispyinstaller}")
+        try:
+            assert os.path.exists(processing_dir)
+        except:
+            raise EnvironmentError(f"Can't find processing directory at {processing_dir}, pyinstaller={ispyinstaller}")
 
         app.setPrefixPath(prefix_dir, True)
         app.setPluginPath(plugin_dir)
 
         app.initQgis()
+
+        # setup the processing algorithms in no gui mode, this is pretty hacky but the only documented way to get it
+        #   to work that I have found.
+
+        # disabling this for now as it causes some other weird possibly namespace related issues
+        # sys.path.append(os.path.dirname(processing_dir))
+        # from processing.core.Processing import Processing
+        # Processing.initialize()
+
         # print(app.showSettings())
     else:
         try:  # pyside2

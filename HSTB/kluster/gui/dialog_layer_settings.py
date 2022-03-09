@@ -21,7 +21,9 @@ class LayerSettingsDialog(SaveStateDialog):
         self.layer_dropdown = QtWidgets.QComboBox()
         self.layer_dropdown.addItems(['None', 'Default', 'VDatum Coverage (VDatum required)', 'OpenStreetMap (internet required)',
                                       'Satellite (internet required)', 'NOAA RNC (internet required)',
-                                      'NOAA ENC (internet required)', 'GEBCO Grid (internet required)',
+                                      'NOAA ENC (internet required)', 'NOAA ECDIS (internet required)',
+                                      'NOAA Chart Display Service (internet required)',
+                                      'GEBCO Grid (internet required)',
                                       'EMODnet Bathymetry (internet required)'])
         self.hlayout_one.addWidget(self.layer_dropdown)
         self.hlayout_one.addStretch(1)

@@ -51,6 +51,7 @@ data_files = [
 
 qgis_dlls = glob.glob(os.path.join(env_base_path, 'Library', 'plugins', '*.dll'))
 qgis_data_files = [(fil, "qgis_plugins") for fil in qgis_dlls]
+qgis_data_files += [(os.path.join(env_base_path, 'Library', 'python', 'plugins', 'processing'), os.path.join("qgis_plugins", "processing"))]
 qgis_data_files += [(os.path.join(env_base_path, 'Library', 'bin', 'exiv2.dll'), ".")]
 qgis_data_files += [(os.path.join(env_base_path, 'Library', 'bin', 'expat.dll'), ".")]
 

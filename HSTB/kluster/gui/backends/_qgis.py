@@ -4,7 +4,7 @@ from typing import Union
 from pyproj import CRS
 from osgeo import gdal
 
-from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal, qgis_enabled, found_path
+from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, QtXml, Signal, qgis_enabled, found_path
 if not qgis_enabled:
     raise EnvironmentError('Unable to find qgis directory in {}'.format(found_path))
 from HSTB.kluster.gui.backends._qt import qgis_core, qgis_gui
@@ -696,6 +696,8 @@ def raster_shader(lyrmin: float, lyrmax: float):
     fcn.setColorRampItemList(lst)
     shader = qgis_core.QgsRasterShader()
     shader.setRasterShaderFunction(fcn)
+    shader.setMinimumValue(lyrmin)
+    shader.setMaximumValue(lyrmax)
     return shader
 
 
@@ -729,6 +731,8 @@ def inv_raster_shader(lyrmin: float, lyrmax: float):
     fcn.setColorRampItemList(lst)
     shader = qgis_core.QgsRasterShader()
     shader.setRasterShaderFunction(fcn)
+    shader.setMinimumValue(lyrmin)
+    shader.setMaximumValue(lyrmax)
     return shader
 
 
@@ -1185,6 +1189,28 @@ class MapView(QtWidgets.QMainWindow):
             urls.append('crs={}&dpiMode={}&format={}&layers={}&styles&url={}'.format(crs, dpi, fmat, lyr, url))
         return urls
 
+    def wms_noaa_ecdis(self):
+        urls = []
+        lyrs = [11, 10, 9, 7, 6, 5, 4, 3, 2, 1, 0]  # leave out 12, the overscale warning, 8 for raw s57 data
+        for lyr in lyrs:
+            url = 'https://gis.charttools.noaa.gov/arcgis/rest/services/MCS/ENCOnline/MapServer/exts/MaritimeChartService/WMSServer'
+            fmat = 'image/png'
+            dpi = 7
+            crs = 'EPSG:{}'.format(self.epsg)
+            urls.append('crs={}&dpiMode={}&format={}&layers={}&styles&url={}'.format(crs, dpi, fmat, lyr, url))
+        return urls
+
+    def wms_noaa_chartdisplay(self):
+        urls = []
+        lyrs = [11, 10, 9, 7, 6, 5, 4, 3, 2, 1, 0]  # leave out 12, the overscale warning, 8 for raw s57 data
+        for lyr in lyrs:
+            url = 'https://gis.charttools.noaa.gov/arcgis/rest/services/MCS/NOAAChartDisplay/MapServer/exts/MaritimeChartService/WMSServer'
+            fmat = 'image/png'
+            dpi = 7
+            crs = 'EPSG:{}'.format(self.epsg)
+            urls.append('crs={}&dpiMode={}&format={}&layers={}&styles&url={}'.format(crs, dpi, fmat, lyr, url))
+        return urls
+
     def wms_gebco(self):
         """
         Build the URL for the Gebco latest grid shaded relief wms
@@ -1408,6 +1434,34 @@ class MapView(QtWidgets.QMainWindow):
             else:
                 print('QGIS Initialize: Unable to find background layer: {}'.format(url_with_params))
 
+    def _init_noaa_ecdis(self):
+        """
+        Set the background to the NOAA ECDIS service
+        """
+        for lname in self.layer_manager.background_layer_names:
+            self.remove_layer(lname)
+        urls = self.wms_noaa_ecdis()
+        for cnt, url_with_params in enumerate(urls):
+            lyr = self.add_layer(url_with_params, 'NOAA_ECDIS_{}'.format(cnt), 'wms')
+            if lyr:
+                lyr.renderer().setOpacity(1 - self.layer_transparency)
+            else:
+                print('QGIS Initialize: Unable to find background layer: {}'.format(url_with_params))
+
+    def _init_noaa_chartdisplay(self):
+        """
+        Set the background to the NOAA ECDIS service
+        """
+        for lname in self.layer_manager.background_layer_names:
+            self.remove_layer(lname)
+        urls = self.wms_noaa_chartdisplay()
+        for cnt, url_with_params in enumerate(urls):
+            lyr = self.add_layer(url_with_params, 'NOAA_CHARTDISPLAY_{}'.format(cnt), 'wms')
+            if lyr:
+                lyr.renderer().setOpacity(1 - self.layer_transparency)
+            else:
+                print('QGIS Initialize: Unable to find background layer: {}'.format(url_with_params))
+
     def _init_gebco(self):
         """
         Set the background to the Gebco latest Grid Shaded Relief WMS
@@ -1578,6 +1632,10 @@ class MapView(QtWidgets.QMainWindow):
             self._init_noaa_rnc()
         elif self.layer_background == 'NOAA ENC (internet required)':
             self._init_noaa_enc()
+        elif self.layer_background == 'NOAA ECDIS (internet required)':
+            self._init_noaa_ecdis()
+        elif self.layer_background == 'NOAA Chart Display Service (internet required)':
+            self._init_noaa_chartdisplay()
         elif self.layer_background == 'GEBCO Grid (internet required)':
             self._init_gebco()
         elif self.layer_background == 'EMODnet Bathymetry (internet required)':
@@ -2310,45 +2368,79 @@ class MapView(QtWidgets.QMainWindow):
             if fil_ext not in supported_extensions:
                 print(f'take_screenshot - {fil} file type not supported, must be one of {supported_extensions}')
                 return
-            if os.path.exists(fil):
-                os.remove(fil)
-
-            # papersize = (210, 297)  # match papersize with A4 paper
-            papersize = (210, 210)  # make image size square, width equal to A4 width
-
-            lm = 0  # left margin
-            tm = 0  # upper margin
-            bm = 0  # lower margin
-            x, y = lm, tm
-            w, h = papersize[0] - 2 * lm, papersize[1] - bm
 
             project = self.project
             layout = qgis_core.QgsPrintLayout(project)
             layout.initializeDefaults()
-            layout.setUnits(qgis_core.QgsUnitTypes.LayoutMillimeters)
-            page = layout.pageCollection().pages()[0]
-            page.setPageSize(qgis_core.QgsLayoutSize(papersize[0], papersize[1]))
 
-            map = qgis_core.QgsLayoutItemMap(layout)
-            map.updateBoundingRect()
-            map.setRect(x, y, w, h)
-            map.setPos(x, y)
-            mylayers = self.project.mapThemeCollection().masterVisibleLayers()
-            map.setLayers(mylayers)
-            map.setExtent(self.canvas.extent())
-            map.attemptSetSceneRect(QtCore.QRectF(x, y, w, h))
-            layout.addLayoutItem(map)
+            templatefile = os.path.join(os.path.dirname(__file__), 'kluster_qgis_print_template.qpt')
+            with open(templatefile) as f:
+                template_content = f.read()
+            doc = QtXml.QDomDocument()
+            doc.setContent(template_content)
+            items, chk = layout.loadFromTemplate(doc, qgis_core.QgsReadWriteContext(), False)
+            if not chk:
+                print(f'Error loading from template file {templatefile}')
+                return
 
-            scale = qgis_core.QgsLayoutItemScaleBar(layout)
-            scale.setStyle('Single Box')
-            scale.setFont(QtGui.QFont("Arial", 10))
-            scale.setFontColor(QtGui.QColor("Black"))
-            scale.setFillColor(QtGui.QColor("Blue"))
-            scale.applyDefaultSize()
-            scale.setNumberOfSegments(3)
-            scale.setNumberOfSegmentsLeft(0)
+            mymap = [itm for itm in items if isinstance(itm, qgis_core.QgsLayoutItemMap)]
+            if not mymap or len(mymap) > 1:
+                print(f'Unexpected item map found {mymap}')
+                return
+            mymap = mymap[0]
+            drop_layers = []
+            orig_layers = self.project.mapThemeCollection().masterVisibleLayers()
+            for cnt, lyr in enumerate(orig_layers):  # get all the grid layers, warp to 4326
+                if lyr.name().find('vsimem') != -1 and lyr.crs() != qgis_core.QgsCoordinateReferenceSystem(4326) and lyr in self.layer_manager.shown_layers:
+                    newsrc = f'/vsimem/newsrc_{cnt}'
+                    ds = gdal.Warp(newsrc, lyr.source(), format='GTiff', dstSRS="EPSG:4326")
+                    newlyr = qgis_core.QgsRasterLayer(newsrc, '', 'gdal')
+                    # no way to copy the renderer (tried copyCommonProperties) have to rebuild
+                    formatted_layername = [aln for aln in acceptedlayernames if lyr.name().find(aln) > -1][0]
+                    if formatted_layername in invert_colormap_layernames:
+                        shader = inv_raster_shader
+                    else:
+                        shader = raster_shader
+                    if formatted_layername == 'hillshade':
+                        renderer = qgis_core.QgsHillshadeRenderer(newlyr.dataProvider(), 1, 315, 45)
+                    else:
+                        renderer = qgis_core.QgsSingleBandPseudoColorRenderer(newlyr.dataProvider(), 1, shader(self.band_minmax[formatted_layername][0],
+                                                                                                               self.band_minmax[formatted_layername][1]))
+                    newlyr.setRenderer(renderer)
+                    newlyr.renderer().setOpacity(1 - self.surface_transparency)
+                    ds = None
+                    self.project.addMapLayer(newlyr, True)
+                    drop_layers.append([newlyr, formatted_layername])
+            mymap.setLayers(self.project.mapThemeCollection().masterVisibleLayers())
+            mymap.setExtent(self.canvas.extent())
 
-            myextent = map.extent()
+            if drop_layers:
+                mylegend = [itm for itm in items if isinstance(itm, qgis_core.QgsLayoutItemLegend)]
+                if not mylegend or len(mylegend) > 1:
+                    print(f'Unexpected item legend found {mylegend}')
+                    return
+                mylegend = mylegend[0]
+                root = qgis_core.QgsLayerTree()  # override legend items with only the reprojected rasters
+                root.addLayer(drop_layers[0][0])
+                root.children()[0].setCustomProperty("legend/label-0", drop_layers[0][1])
+                mylegend.model().setRootGroup(root)
+                mylegend.setSymbolHeight(150.0)
+                mylegend.updateLegend()
+
+            myarrow = [itm for itm in items if isinstance(itm, qgis_core.QgsLayoutItemPicture)]
+            if not myarrow or len(myarrow) > 1:
+                print(f'Unexpected item northarrow found {myarrow}')
+                return
+            myarrow = myarrow[0]
+            myarrow.setMode(qgis_core.QgsLayoutItemPicture.FormatSVG)
+            myarrow.setPicturePath(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'images', 'NorthArrow.svg'))
+
+            myscale = [itm for itm in items if isinstance(itm, qgis_core.QgsLayoutItemScaleBar)]
+            if not myscale or len(myscale) > 1:
+                print(f'Unexpected item scalebar found {myscale}')
+                return
+            myscale = myscale[0]
+            myextent = mymap.extent()
             distance = qgis_core.QgsDistanceArea()
             distance.setEllipsoid('WGS84')
             degree_width_meters = distance.measureLine(qgis_core.QgsPointXY(myextent.xMinimum(), myextent.yMinimum()), qgis_core.QgsPointXY(myextent.xMinimum() + 1, myextent.yMinimum()))
@@ -2359,31 +2451,29 @@ class MapView(QtWidgets.QMainWindow):
             found = False
             for scalesize in scale_sizes:
                 if screenshot_width_in_nm > scalesize:
-                    scale.setMapUnitsPerScaleBarUnit((scalesize / 10) * meters_in_nm * (1 / degree_width_meters) / (scalesize / 10))
-                    scale.setUnitsPerSegment((scalesize / 10) * meters_in_nm * (1 / degree_width_meters))
-                    scale.setUnitLabel("NM")
+                    myscale.setMapUnitsPerScaleBarUnit((scalesize / 10) * meters_in_nm * (1 / degree_width_meters) / (scalesize / 10))
+                    myscale.setUnitsPerSegment((scalesize / 10) * meters_in_nm * (1 / degree_width_meters))
+                    myscale.setUnitLabel("NM")
                     found = True
                     break
             if not found:
                 print(f'Warning: Unable to generate scale bar for screen width of {screenshot_width_in_nm} NM')
-            else:
-                scale.setPos(lm + 10, tm + (papersize[1] - bm) - 20)
-                scale.setLinkedMap(map)
-                layout.addLayoutItem(scale)
 
-            north = qgis_core.QgsLayoutItemPicture(layout)
-            north.setMode(qgis_core.QgsLayoutItemPicture.FormatSVG)
-            north.setPicturePath(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'images', 'NorthArrow.svg'))
-            north.attemptMove(qgis_core.QgsLayoutPoint(lm + w - 35, tm + 5, qgis_core.QgsUnitTypes.LayoutMillimeters))
-            north.attemptResize(qgis_core.QgsLayoutSize(*[30, 30], qgis_core.QgsUnitTypes.LayoutMillimeters))
-            layout.addLayoutItem(north)
-
+            if os.path.exists(fil):
+                os.remove(fil)
             exporter = qgis_core.QgsLayoutExporter(layout)
             if fil_ext == '.pdf':
                 exporter.exportToPdf(fil, qgis_core.QgsLayoutExporter.PdfExportSettings())
             else:
                 exporter.exportToImage(fil, qgis_core.QgsLayoutExporter.ImageExportSettings())
-            os.startfile(fil)
+
+            exporter = None
+            mymap.setLayers([])
+            mymap = None
+            layout = None
+            for dlyr, dname in drop_layers:
+                gdal.Unlink(dlyr.source())
+                self.project.removeMapLayer(dlyr)
 
 
 if __name__ == '__main__':

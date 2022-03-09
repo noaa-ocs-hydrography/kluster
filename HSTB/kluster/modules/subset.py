@@ -257,9 +257,6 @@ class FqprSubset:
             self.subset_by_lines(self.subset_lines)
         elif self.subset_times:
             self.subset_by_times(self.subset_times)
-        else:
-            self.fqpr.logger.error('redo_subset: no subset found to redo, expected subset_by_**** to have been run already')
-            raise ValueError('redo_subset: no subset found to redo, expected subset_by_**** to have been run already')
 
     def subset_variables(self, variable_selection: list, ping_times: Union[np.array, float, tuple] = None,
                          skip_subset_by_time: bool = False, filter_by_detection: bool = False):
