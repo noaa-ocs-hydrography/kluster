@@ -358,6 +358,13 @@ class TestFqprGeneration(unittest.TestCase):
         assert len(self.out.multibeam.raw_ping[0].time) == 216
         assert len(self.out.multibeam.raw_att.time) == 5302
 
+        assert self.out.subset.subset_mintime == 0
+        assert self.out.subset.subset_maxtime == 0
+        assert self.out.subset.subset_lines == []
+        assert self.out.subset.subset_times == []
+        # subset will not be redone, but redo_subset passes (does not raise exception), which is what we want
+        self.out.subset.redo_subset()
+
     def test_subset_by_time_and_beam(self):
         self._access_processed_data()
         stacked_dset = self.out.multibeam.raw_ping[0].stack({'sounding': ('time', 'beam')})
