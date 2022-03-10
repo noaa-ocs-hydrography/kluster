@@ -2363,6 +2363,7 @@ class MapView(QtWidgets.QMainWindow):
                                                          AppName='klusterproj', bMulti=False, bSave=True, DefaultFile="screenshot.png",
                                                          fFilter='png (*.png);;pdf (*.pdf);;jpeg (*.jpeg);;jpg (*.jpg)')
         if msg:
+            print(f'Generating screenshot {fil}')
             supported_extensions = ['.pdf', '.png', '.jpeg', '.jpg']
             fil_ext = os.path.splitext(fil)[1]
             if fil_ext not in supported_extensions:
@@ -2373,7 +2374,9 @@ class MapView(QtWidgets.QMainWindow):
             layout = qgis_core.QgsPrintLayout(project)
             layout.initializeDefaults()
 
-            templatefile = os.path.join(os.path.dirname(__file__), 'kluster_qgis_print_template.qpt')
+            # start with the kluster template.  This allows us to layout the rough chart elements, in the proper position
+            #  easily, so that we can then customize them
+            templatefile = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'misc', 'kluster_qgis_print_template.qpt')
             with open(templatefile) as f:
                 template_content = f.read()
             doc = QtXml.QDomDocument()
@@ -2383,6 +2386,10 @@ class MapView(QtWidgets.QMainWindow):
                 print(f'Error loading from template file {templatefile}')
                 return
 
+            # get the layout map from the template load.  we need to setLayers, so that our loaded lines/grids show up.
+            #  we also need to find the grids, which are in projected crs, and reproject to geographic so that they line
+            #  up with the geographic lines/background.  Have to do this manually, we could use the qgis processing algorithms,
+            #  but they are a pain in the ass to setup, and seem to cause issues on import.
             mymap = [itm for itm in items if isinstance(itm, qgis_core.QgsLayoutItemMap)]
             if not mymap or len(mymap) > 1:
                 print(f'Unexpected item map found {mymap}')
@@ -2404,37 +2411,67 @@ class MapView(QtWidgets.QMainWindow):
                     if formatted_layername == 'hillshade':
                         renderer = qgis_core.QgsHillshadeRenderer(newlyr.dataProvider(), 1, 315, 45)
                     else:
-                        renderer = qgis_core.QgsSingleBandPseudoColorRenderer(newlyr.dataProvider(), 1, shader(self.band_minmax[formatted_layername][0],
-                                                                                                               self.band_minmax[formatted_layername][1]))
+                        renderer = qgis_core.QgsSingleBandPseudoColorRenderer(newlyr.dataProvider(), 1, shader(round(self.band_minmax[formatted_layername][0], 3),
+                                                                                                               round(self.band_minmax[formatted_layername][1], 3)))
                     newlyr.setRenderer(renderer)
                     newlyr.renderer().setOpacity(1 - self.surface_transparency)
                     ds = None
                     self.project.addMapLayer(newlyr, True)
                     drop_layers.append([newlyr, formatted_layername])
             mymap.setLayers(self.project.mapThemeCollection().masterVisibleLayers())
-            mymap.setExtent(self.canvas.extent())
 
+            # screen might not have the same proportions as the paper, need to ensure that the trimming/growing of the screen
+            #   to fit paper results in the image centered on the same spot, so we do it manually
+            paper_proportion = layout.width() / layout.height()
+            canvrec = self.canvas.extent()
+            cancenter = canvrec.center()
+            if canvrec.width() > canvrec.height():
+                desired_canvas_height = canvrec.width() / paper_proportion
+                desired_canvas_rec = qgis_core.QgsRectangle(qgis_core.QgsPointXY(canvrec.xMinimum(), cancenter.y() - desired_canvas_height / 2),
+                                                            qgis_core.QgsPointXY(canvrec.xMaximum(), cancenter.y() + desired_canvas_height / 2))
+            else:
+                desired_canvas_width = canvrec.height() * paper_proportion
+                desired_canvas_rec = qgis_core.QgsRectangle(qgis_core.QgsPointXY(cancenter.x() - desired_canvas_width / 2, canvrec.yMinimum()),
+                                                            qgis_core.QgsPointXY(cancenter.x() + desired_canvas_width / 2, canvrec.yMaximum()))
+            mymap.setExtent(desired_canvas_rec)
+
+            # if we have grids, we need to use the legend
+            mylegend = [itm for itm in items if isinstance(itm, qgis_core.QgsLayoutItemLegend)]
+            if not mylegend or len(mylegend) > 1:
+                print(f'Unexpected item legend found {mylegend}')
+                return
+            mylegend = mylegend[0]
             if drop_layers:
-                mylegend = [itm for itm in items if isinstance(itm, qgis_core.QgsLayoutItemLegend)]
-                if not mylegend or len(mylegend) > 1:
-                    print(f'Unexpected item legend found {mylegend}')
-                    return
-                mylegend = mylegend[0]
                 root = qgis_core.QgsLayerTree()  # override legend items with only the reprojected rasters
                 root.addLayer(drop_layers[0][0])
+                # this is the only way I could figure out how to rename the band name
                 root.children()[0].setCustomProperty("legend/label-0", drop_layers[0][1])
                 mylegend.model().setRootGroup(root)
-                mylegend.setSymbolHeight(150.0)
+                # set the height of the color bar
+                mylegend.setSymbolHeight(130.0)
                 mylegend.updateLegend()
+            else:
+                layout.removeLayoutItem(mylegend)
 
-            myarrow = [itm for itm in items if isinstance(itm, qgis_core.QgsLayoutItemPicture)]
+            pics = [itm for itm in items if isinstance(itm, qgis_core.QgsLayoutItemPicture)]
+            # I like this arrow more than any of the prebuilt ones in qgis
+            myarrow = [itm for itm in pics if itm.mode() == qgis_core.QgsLayoutItemPicture.FormatSVG]
             if not myarrow or len(myarrow) > 1:
                 print(f'Unexpected item northarrow found {myarrow}')
                 return
             myarrow = myarrow[0]
-            myarrow.setMode(qgis_core.QgsLayoutItemPicture.FormatSVG)
             myarrow.setPicturePath(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'images', 'NorthArrow.svg'))
 
+            # fix logo path, since it depends on environment
+            mylogo = [itm for itm in pics if itm.mode() == qgis_core.QgsLayoutItemPicture.FormatRaster]
+            if not mylogo or len(mylogo) > 1:
+                print(f'Unexpected item northarrow found {mylogo}')
+                return
+            mylogo = mylogo[0]
+            mylogo.setPicturePath(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'images', 'kluster_img.png'))
+
+            # scale bar is a pain.  If we were to show it in degrees, it would be no issue.  To show in nautical miles, we need
+            #  to calculate the screenshot width, convert units, and then build scale bar units accordingly
             myscale = [itm for itm in items if isinstance(itm, qgis_core.QgsLayoutItemScaleBar)]
             if not myscale or len(myscale) > 1:
                 print(f'Unexpected item scalebar found {myscale}')
@@ -2447,6 +2484,7 @@ class MapView(QtWidgets.QMainWindow):
             screenshot_width_meters = distance.measureLine(qgis_core.QgsPointXY(myextent.xMinimum(), myextent.yMinimum()), qgis_core.QgsPointXY(myextent.xMaximum(), myextent.yMaximum()))
             meters_in_nm = 1852
             screenshot_width_in_nm = screenshot_width_meters / meters_in_nm
+            # pick some nautical mile numbers, nearest one is used in deriving units/length of scale bar
             scale_sizes = [1000, 750, 500, 250, 100, 75, 50, 25, 10, 7.5, 5, 2.5, 1, 0.75, 0.5, 0.25, 0.1, 0.075, 0.05, 0.025, 0.01, 0.0075, 0.005, 0.0025, 0.001]
             found = False
             for scalesize in scale_sizes:
@@ -2466,11 +2504,12 @@ class MapView(QtWidgets.QMainWindow):
                 exporter.exportToPdf(fil, qgis_core.QgsLayoutExporter.PdfExportSettings())
             else:
                 exporter.exportToImage(fil, qgis_core.QgsLayoutExporter.ImageExportSettings())
-
+            print(f'Screenshot saved to {fil}')
             exporter = None
             mymap.setLayers([])
             mymap = None
             layout = None
+            # make sure we get rid of our temporary warped surface layer
             for dlyr, dname in drop_layers:
                 gdal.Unlink(dlyr.source())
                 self.project.removeMapLayer(dlyr)
