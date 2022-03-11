@@ -325,7 +325,7 @@ class TestFqprIntelligence(unittest.TestCase):
         assert action.kwargs == {'run_orientation': True, 'orientation_initial_interpolation': False,
                                  'run_beam_vec': True,
                                  'run_svcorr': True, 'add_cast_files': [], 'run_georef': True, 'run_tpu': True,
-                                 'use_epsg': False,
+                                 'use_epsg': False, 'input_datum': None,
                                  'use_coord': True, 'epsg': None, 'coord_system': 'NAD83', 'vert_ref': 'waterline'}
         assert self.proj.fqpr_instances['em2040_40111_05_23_2017'] == self.proj.return_line_owner(
             '0009_20170523_181119_FA2806.all')
