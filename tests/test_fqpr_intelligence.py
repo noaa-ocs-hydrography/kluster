@@ -310,10 +310,10 @@ class TestFqprIntelligence(unittest.TestCase):
         assert action.text[0:25] == 'Convert 1 multibeam lines'
         assert action.action_type == 'multibeam'
         assert action.priority == 1
-        assert action.is_running == False
+        assert action.is_running is False
         assert len(action.input_files) == 1
         assert action.kwargs == {}
-        assert action.args[2:] == [None, False, True]
+        assert action.args[3:] == [None, False, True]
 
         self.fintel.execute_action()
         action = self.fintel.action_container.actions[0]

@@ -20,24 +20,57 @@ class ProjectSettingsDialog(SaveStateDialog):
         self.setWindowTitle('Project Settings')
         layout = QtWidgets.QVBoxLayout()
 
-        self.coord_msg = QtWidgets.QLabel('Coordinate System:')
+        self.incoord_group = QtWidgets.QGroupBox('Input Coordinate System:')
+        self.incoord_layout = QtWidgets.QVBoxLayout()
+
+        self.infromdata_radio = QtWidgets.QRadioButton('From multibeam data')
+        self.infromdata_radio.setChecked(True)
+        self.infromdata_radio.setToolTip('Uses the input coordinate system determined automatically from the raw multibeam data.')
+        self.incoord_layout.addWidget(self.infromdata_radio)
+
+        self.hlayout_zero_one = QtWidgets.QHBoxLayout()
+        self.inepsg_radio = QtWidgets.QRadioButton('From EPSG')
+        self.inepsg_radio.setToolTip('Generates a new input coordinate system from EPSG code, ignored if SBET datum exists.')
+        self.hlayout_zero_one.addWidget(self.inepsg_radio)
+        self.inepsg_val = QtWidgets.QLineEdit('', self)
+        self.hlayout_zero_one.addWidget(self.inepsg_val)
+        self.incoord_layout.addLayout(self.hlayout_zero_one)
+
+        self.hlayout_zero_two = QtWidgets.QHBoxLayout()
+        self.indropdown_radio = QtWidgets.QRadioButton('From dropdown')
+        self.indropdown_radio.setToolTip('Generates a new input coordinate system from coordinate system description, ignored if SBET datum exists.')
+        self.hlayout_zero_two.addWidget(self.indropdown_radio)
+        self.indropdown_val = QtWidgets.QComboBox()
+        self.indropdown_val.addItems(kluster_variables.coordinate_systems)
+        self.indropdown_val.setCurrentIndex(kluster_variables.coordinate_systems.index(kluster_variables.default_coordinate_system))
+        self.hlayout_zero_two.addWidget(self.indropdown_val)
+        self.incoord_layout.addLayout(self.hlayout_zero_two)
+
+        self.incoord_group.setLayout(self.incoord_layout)
+
+        self.outcoord_group = QtWidgets.QGroupBox('Output Coordinate System:')
+        self.outcoord_layout = QtWidgets.QVBoxLayout()
 
         self.hlayout_one = QtWidgets.QHBoxLayout()
         self.epsg_radio = QtWidgets.QRadioButton('From EPSG')
+        self.epsg_radio.setToolTip('Generates a new output coordinate system from EPSG code.')
         self.hlayout_one.addWidget(self.epsg_radio)
         self.epsg_val = QtWidgets.QLineEdit('', self)
         self.hlayout_one.addWidget(self.epsg_val)
-        self.hlayout_one.addStretch(1)
+        self.outcoord_layout.addLayout(self.hlayout_one)
 
         self.hlayout_two = QtWidgets.QHBoxLayout()
         self.auto_utm_radio = QtWidgets.QRadioButton('Auto UTM')
         self.auto_utm_radio.setChecked(True)
+        self.auto_utm_radio.setToolTip('Generates a new output coordinate system from EPSG code')
         self.hlayout_two.addWidget(self.auto_utm_radio)
         self.auto_utm_val = QtWidgets.QComboBox()
         self.auto_utm_val.addItems(kluster_variables.coordinate_systems)
         self.auto_utm_val.setCurrentIndex(kluster_variables.coordinate_systems.index(kluster_variables.default_coordinate_system))
         self.hlayout_two.addWidget(self.auto_utm_val)
-        self.hlayout_two.addStretch(1)
+        self.outcoord_layout.addLayout(self.hlayout_two)
+
+        self.outcoord_group.setLayout(self.outcoord_layout)
 
         self.vertref_msg = QtWidgets.QLabel('Vertical Reference:')
 
@@ -62,9 +95,10 @@ class ProjectSettingsDialog(SaveStateDialog):
         self.statusbox = QtWidgets.QHBoxLayout()
         self.statusbox.addWidget(self.status_msg)
 
-        layout.addWidget(self.coord_msg)
-        layout.addLayout(self.hlayout_one)
-        layout.addLayout(self.hlayout_two)
+        layout.addWidget(self.incoord_group)
+        layout.addStretch()
+        layout.addWidget(self.outcoord_group)
+        layout.addStretch()
         layout.addWidget(self.vertref_msg)
         layout.addLayout(self.hlayout_three)
         layout.addStretch()
@@ -78,31 +112,50 @@ class ProjectSettingsDialog(SaveStateDialog):
         self.cancel_button.clicked.connect(self.cancel)
         self.georef_vertref.currentTextChanged.connect(self.find_vdatum)
         self.epsg_val.textChanged.connect(self.validate_epsg)
+        self.inepsg_val.textChanged.connect(self.validate_epsg)
 
-        self.text_controls = [['epsgval', self.epsg_val], ['utmval', self.auto_utm_val], ['vertref', self.georef_vertref]]
-        self.checkbox_controls = [['epsgradio', self.epsg_radio], ['utmradio', self.auto_utm_radio]]
+        self.text_controls = [['epsgval', self.epsg_val], ['utmval', self.auto_utm_val], ['vertref', self.georef_vertref],
+                              ['inepsg_val', self.inepsg_val], ['indropdown_val', self.indropdown_val]]
+        self.checkbox_controls = [['infromdata_radio', self.infromdata_radio], ['inepsg_radio', self.inepsg_radio],
+                                  ['indropdown_radio', self.indropdown_radio], ['epsg_radio', self.epsg_radio],
+                                  ['auto_utm_radio', self.auto_utm_radio]]
 
         self.read_settings()
         self.validate_epsg()
         self.find_vdatum()
-        # self.resize(600, 200)
 
     def validate_epsg(self):
+        self.status_msg.setText('')
         if self.epsg_radio.isChecked():
             epsg = ''
             try:
                 epsg = int(self.epsg_val.text())
                 ecrs = CRS.from_epsg(epsg)
                 if not ecrs.is_projected:
-                    self.status_msg.setText(f'ERROR: must be a projected CRS, EPSG:{epsg}')
+                    self.status_msg.setText(f'ERROR: must be a projected CRS, Output EPSG:{epsg}')
                 elif ecrs.coordinate_system.axis_list[0].unit_name not in ['meters', 'metre', 'metres']:
-                    self.status_msg.setText(f'ERROR: CRS must be in units of meters, found {ecrs.coordinate_system.axis_list[0].unit_name}, EPSG:{epsg}')
+                    self.status_msg.setText(f'ERROR: CRS must be in units of meters, found {ecrs.coordinate_system.axis_list[0].unit_name}, Output EPSG:{epsg}')
                 else:
                     self.status_msg.setText('')
             except:
-                self.status_msg.setText(f'Unknown Error: Unable to generate new CRS from EPSG:{epsg}')
+                self.status_msg.setText(f'Unknown Error: Unable to generate new CRS from Output EPSG:{epsg}')
         else:
             self.status_msg.setText('')
+        if self.status_msg.text():
+            return
+        if self.inepsg_radio.isChecked():
+            epsg = ''
+            try:
+                epsg = int(self.inepsg_val.text())
+                ecrs = CRS.from_epsg(epsg)
+                if ecrs.is_projected:
+                    self.status_msg.setText(f'ERROR: must be a Geographic CRS, Input EPSG:{epsg}')
+                elif ecrs.coordinate_system.axis_list[0].unit_name not in ['degree', 'degrees']:
+                    self.status_msg.setText(f'ERROR: CRS must be in units of degrees, found {ecrs.coordinate_system.axis_list[0].unit_name}, Input EPSG:{epsg}')
+                else:
+                    self.status_msg.setText('')
+            except:
+                self.status_msg.setText(f'Unknown Error: Unable to generate new CRS from Input EPSG:{epsg}')
 
     def find_vdatum(self):
         """
@@ -135,9 +188,15 @@ class ProjectSettingsDialog(SaveStateDialog):
                 epsg = int(self.epsg_val.text())
             else:
                 epsg = ''
+            if self.infromdata_radio.isChecked():
+                inepsg = None
+            elif self.inepsg_radio.isChecked():
+                inepsg = str(self.inepsg_val.text())
+            else:
+                inepsg = str(self.indropdown_val.currentText())
             opts = {'use_epsg': self.epsg_radio.isChecked(), 'epsg': epsg,
                     'use_coord': self.auto_utm_radio.isChecked(), 'coord_system': self.auto_utm_val.currentText(),
-                    'vert_ref': self.georef_vertref.currentText()}
+                    'vert_ref': self.georef_vertref.currentText(), 'input_datum': inepsg}
         else:
             opts = None
         return opts
@@ -175,4 +234,4 @@ if __name__ == '__main__':
     dlog = ProjectSettingsDialog()
     dlog.show()
     if dlog.exec_():
-        pass
+        print(dlog.return_processing_options())

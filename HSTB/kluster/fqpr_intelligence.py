@@ -149,7 +149,7 @@ class FqprIntel(LoggerClass):
             dictionary of processing settings
         """
 
-        desired_keys = ['use_epsg', 'epsg', 'use_coord', 'coord_system', 'vert_ref', 'vdatum_directory']
+        desired_keys = ['use_epsg', 'epsg', 'use_coord', 'coord_system', 'vert_ref', 'vdatum_directory', 'input_datum']
         self.processing_settings.update({ky: settings[ky] for ky in desired_keys if ky in settings})
         existing_kwargs = list(settings.keys())
         [settings.pop(ky) for ky in existing_kwargs if ky in desired_keys]
@@ -691,6 +691,10 @@ class FqprIntel(LoggerClass):
                     new_vert_ref = self.processing_settings['vert_ref']
                 else:
                     new_vert_ref = None
+                if 'input_datum' in self.processing_settings:  # someone setup the project to override the input datum
+                    new_input_datum = self.processing_settings['input_datum']
+                else:
+                    new_input_datum = None
                 abs_path = self.project.absolute_path_from_relative(relative_path)
                 action = [a for a in existing_actions if a.output_destination == abs_path]
                 full_reprocess = reprocess_fqpr == relative_path
@@ -705,6 +709,7 @@ class FqprIntel(LoggerClass):
                                                                 new_angles=not identical_angles,
                                                                 new_waterline=new_waterline is not None,
                                                                 new_tpu=not identical_tpu,
+                                                                new_input_datum=new_input_datum,
                                                                 process_mode=process_mode)
                 if len(action) == 1 and not action[0].is_running:  # modify the existing processing action
                     if kwargs == {}:

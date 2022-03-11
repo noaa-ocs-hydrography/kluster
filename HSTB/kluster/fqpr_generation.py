@@ -3285,7 +3285,8 @@ class Fqpr(ZarrBackend):
         return dashboard
 
     def return_next_action(self, new_vertical_reference: str = None, new_coordinate_system: CRS = None, new_offsets: bool = False,
-                           new_angles: bool = False, new_tpu: bool = False, new_waterline: bool = False, process_mode: str = 'normal'):
+                           new_angles: bool = False, new_tpu: bool = False, new_input_datum: str = None,
+                           new_waterline: bool = False, process_mode: str = 'normal'):
         """
         Determine the next action to take, building the arguments for the fqpr_convenience.process_multibeam function.
         Uses the processing status, which is updated as a process is completed at a sounding level.
@@ -3316,6 +3317,9 @@ class Fqpr(ZarrBackend):
             True if new mounting angles have been set, requires the full processing stack to be run
         new_tpu
             True if new tpu values have been set, requires compute TPU to run
+        new_input_datum
+            None, if there is no change to the input datum requested, otherwise this is the new input datum we need to set,
+            should trigger a new processing action starting at georeferencing
         new_waterline
             True if a new waterline value has been set, requires processing starting at sound velocity correction
         process_mode
@@ -3343,11 +3347,21 @@ class Fqpr(ZarrBackend):
 
         new_diff_vertref = False
         new_diff_coordinate = False
+        new_diff_inputdatum = False
         default_use_epsg = False
         default_use_coord = True
         default_epsg = None
+        input_datum = None
         default_coord_system = kluster_variables.default_coordinate_system
         default_vert_ref = kluster_variables.default_vertical_reference
+        if new_input_datum:
+            if self.has_sbet:  # doesn't matter, because sbet datum is going to trump new input datum
+                new_diff_inputdatum = False
+            elif self.input_datum == new_input_datum:  # they match, no action necessary
+                new_diff_inputdatum = False
+            else:
+                new_diff_inputdatum = True
+                input_datum = new_input_datum
         if new_coordinate_system:
             try:
                 new_epsg = new_coordinate_system.to_epsg()
@@ -3371,17 +3385,18 @@ class Fqpr(ZarrBackend):
                 new_diff_vertref = True
                 default_vert_ref = new_vertical_reference
 
-        if min_status < 5 or new_diff_coordinate or new_diff_vertref or new_offsets or new_angles or new_waterline or new_tpu:
+        if min_status < 5 or new_diff_coordinate or new_diff_inputdatum or new_diff_vertref or new_offsets or new_angles or new_waterline or new_tpu:
             kwargs['run_orientation'] = False
             kwargs['run_beam_vec'] = False
             kwargs['run_svcorr'] = False
             kwargs['run_georef'] = False
             kwargs['run_tpu'] = True
-        if min_status < 4 or new_diff_coordinate or new_diff_vertref or new_offsets or new_angles or new_waterline:
+        if min_status < 4 or new_diff_coordinate or new_diff_inputdatum or new_diff_vertref or new_offsets or new_angles or new_waterline:
             kwargs['run_georef'] = True
             kwargs['use_epsg'] = default_use_epsg
             kwargs['use_coord'] = default_use_coord
             kwargs['epsg'] = default_epsg
+            kwargs['input_datum'] = input_datum
             kwargs['coord_system'] = default_coord_system
             kwargs['vert_ref'] = default_vert_ref
         if min_status < 3 or new_offsets or new_angles or new_waterline:

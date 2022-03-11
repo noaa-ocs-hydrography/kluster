@@ -301,7 +301,7 @@ if __name__ == '__main__':
         app = QtWidgets.QApplication()
     except TypeError:  # pyqt5
         app = QtWidgets.QApplication([])
-    dlog = FilterDialog(['test'])
+    dlog = FilterDialog(['test'], {'test': 'test'})
     dlog.show()
     if dlog.exec_():
         pass
