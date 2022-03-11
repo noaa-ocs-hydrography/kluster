@@ -1364,13 +1364,17 @@ class Fqpr(ZarrBackend):
                 input_datum = 'WGS84'
             self._using_sbet = False
 
+        input_datum = str(input_datum)
         if input_datum.lower() == 'nad83':
             input_datum = CRS.from_epsg(kluster_variables.epsg_nad83)
         elif input_datum.lower() == 'wgs84':
             input_datum = CRS.from_epsg(kluster_variables.epsg_wgs84)
         else:
-            self.logger.error('{} not supported.  Only supports WGS84 and NAD83'.format(ra.input_datum))
-            raise ValueError('{} not supported.  Only supports WGS84 and NAD83'.format(ra.input_datum))
+            try:
+                input_datum = CRS.from_epsg(int(input_datum))
+            except:
+                self.logger.error('{} not supported.  Only supports WGS84, NAD83 or custom epsg integer code'.format(ra.input_datum))
+                raise ValueError('{} not supported.  Only supports WGS84, NAD83 or custom epsg integer code'.format(ra.input_datum))
 
         if ('heading' in ra) and ('heave' in ra) and not self.motion_latency:
             hdng = ra.heading
