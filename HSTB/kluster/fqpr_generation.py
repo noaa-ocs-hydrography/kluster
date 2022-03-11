@@ -363,6 +363,23 @@ class Fqpr(ZarrBackend):
         except:
             return None
 
+    @property
+    def input_datum(self):
+        """
+        The basic input datum of the converted multibeam data.  Will be ignored in processing if an sbet_datum exists,
+        as sbet navigation and altitude are used by default if they exist unless you explicitly request non-sbet processing.
+        """
+        return self.multibeam.raw_ping[0].input_datum
+
+    @input_datum.setter
+    def input_datum(self, new_datum: Union[str, int]):
+        isvalid, newcrs = validate_kluster_input_datum(new_datum)
+        if isvalid:
+            self.write_attribute_to_ping_records({'input_datum': str(new_datum)})
+        else:
+            self.logger.error(f'input_datum: Unable to set input datum with new datum {new_datum}')
+            raise ValueError(f'input_datum: Unable to set input datum with new datum {new_datum}')
+
     def return_navigation(self, start_time: float = None, end_time: float = None):
         """
         Return the navigation from the multibeam data for the first sonar head. Can assume that all sonar heads have
@@ -1364,17 +1381,11 @@ class Fqpr(ZarrBackend):
                 input_datum = 'WGS84'
             self._using_sbet = False
 
-        input_datum = str(input_datum)
-        if input_datum.lower() == 'nad83':
-            input_datum = CRS.from_epsg(kluster_variables.epsg_nad83)
-        elif input_datum.lower() == 'wgs84':
-            input_datum = CRS.from_epsg(kluster_variables.epsg_wgs84)
-        else:
-            try:
-                input_datum = CRS.from_epsg(int(input_datum))
-            except:
-                self.logger.error('{} not supported.  Only supports WGS84, NAD83 or custom epsg integer code'.format(ra.input_datum))
-                raise ValueError('{} not supported.  Only supports WGS84, NAD83 or custom epsg integer code'.format(ra.input_datum))
+        isvalid, newcrs = validate_kluster_input_datum(input_datum)
+        if not isvalid:
+            self.logger.error('_generate_chunks_georef: {} not supported.  Only supports WGS84, NAD83 or custom epsg integer code'.format(input_datum))
+            raise ValueError('_generate_chunks_georef: {} not supported.  Only supports WGS84, NAD83 or custom epsg integer code'.format(input_datum))
+        input_datum = newcrs
 
         if ('heading' in ra) and ('heave' in ra) and not self.motion_latency:
             hdng = ra.heading
@@ -3427,3 +3438,36 @@ def _return_xarray_time(xarrs: Union[xr.DataArray, xr.Dataset]):
 def _drop_list_element(data_list: list, drop_this_one: int):
     data_list.pop(drop_this_one)
     return data_list
+
+
+def validate_kluster_input_datum(new_datum: Union[str, int]):
+    """
+    Check the given datum string identifier or epsg code for a valid kluster datum.
+
+    Parameters
+    ----------
+    new_datum
+
+    Returns
+    -------
+
+    """
+    new_datum = str(new_datum)
+    is_valid = True
+    if new_datum.lower() == 'nad83':
+        new_datum = CRS.from_epsg(kluster_variables.epsg_nad83)
+    elif new_datum.lower() == 'wgs84':
+        new_datum = CRS.from_epsg(kluster_variables.epsg_wgs84)
+    else:
+        try:
+            new_datum = CRS.from_epsg(int(new_datum))
+            if new_datum.is_projected:
+                print(f'validate_kluster_input_datum: was given a projected crs, but input crs must be geographic: {new_datum}')
+                is_valid = False
+            elif new_datum.coordinate_system.axis_list[0].unit_name not in ['degree', 'degrees']:
+                print(f'validate_kluster_input_datum: expected a crs to be provided with units of degrees: {new_datum}')
+                is_valid = False
+        except:
+            print('validate_kluster_datum: {} not supported.  Only supports WGS84, NAD83 or custom epsg integer code'.format(new_datum))
+            is_valid = False
+    return is_valid, new_datum

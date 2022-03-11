@@ -456,6 +456,19 @@ class TestFqprGeneration(unittest.TestCase):
         assert self.out.intersects(47.78895, 47.790, -122.478, -122.479, geographic=True)
         assert not self.out.intersects(47.8899, 47.890, -122.478, -122.479, geographic=True)
 
+    def test_set_input_datum(self):
+        self._access_processed_data()
+        origdatum = self.out.input_datum
+        self.out.input_datum = 'WGS84'
+        assert self.out.input_datum == 'WGS84'
+        self.out.input_datum = 'NAD83'
+        assert self.out.input_datum == 'NAD83'
+        self.out.input_datum = 8999
+        assert self.out.input_datum == '8999'
+        self.out.input_datum = '6319'
+        assert self.out.input_datum == '6319'
+        self.out.input_datum = origdatum
+
     def test_return_unique_mode(self):
         self._access_processed_data()
         assert self.out.return_unique_mode() == ['FM']

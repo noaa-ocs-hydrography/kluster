@@ -42,6 +42,8 @@ if __name__ == "__main__":  # run from command line
                          help='Either a single supported multibeam file, multiple supported multibeam files, or a path to a directory of multibeam files')
     allproc.add_argument('-n', '--navigation', nargs='+', required=False,
                          help='list of postprocessed navigation (POSPac) file paths.  If provided, expects either a log file or weekstart_year/weekstart_week/override_datum arguments')
+    allproc.add_argument('-indatum', '--input_datum', required=False,
+                         help='the basic input datum of the converted multibeam data, defaults to what is encoded in the multibeam data')
     allproc.add_argument('-err', '--error_files', nargs='+', required=False,
                          help='optional, for use with --navigation, list of postprocessed error (POSPac) file paths.  If provided, must be same number as nav files')
     allproc.add_argument('-log', '--export_log', nargs='+', required=False,
@@ -120,6 +122,8 @@ if __name__ == "__main__":  # run from command line
     convertproc = subparsers.add_parser('convert', help=converthelp)
     convertproc.add_argument('-f', '--files', nargs='+', required=True,
                              help='Either a single supported multibeam file, multiple supported multibeam files, or a path to a directory of multibeam files')
+    convertproc.add_argument('-indatum', '--input_datum', required=False,
+                             help='the basic input datum of the converted multibeam data, defaults to what is encoded in the multibeam data')
     convertproc.add_argument('-o', '--output_folder', required=False,
                              help='full file path to a directory you want to contain all the data folders.  Will create this folder if it does not exist.')
     convertproc.add_argument('-prog', '--show_progress', type=str2bool, required=False, nargs='?', const=True, default=True,
@@ -220,7 +224,7 @@ if __name__ == "__main__":  # run from command line
                 sys.exit()
 
         if funcname == 'all_processing':
-            perform_all_processing(args.files, navfiles=args.navigation, outfold=args.output_folder, coord_system=args.coordinate_system,
+            perform_all_processing(args.files, navfiles=args.navigation, input_datum=args.input_datum, outfold=args.output_folder, coord_system=args.coordinate_system,
                                    vert_ref=args.vertical_reference, add_cast_files=args.cast_profiles, show_progress=args.show_progress,
                                    parallel_write=args.parallel_write, error_files=args.error_files, logfiles=args.export_log,
                                    weekstart_year=args.weekstart_year, weekstart_week=args.weekstart_week, override_datum=args.coordinate_system,
@@ -232,7 +236,7 @@ if __name__ == "__main__":  # run from command line
             intel_process_service(args.folder, outfold=args.output_folder, coord_system=args.coordinate_system, vert_ref=args.vertical_reference,
                                   parallel_write=args.parallel_write, force_coordinate_system=args.force_coordinate_system, process_mode=args.process_mode)
         elif funcname == 'convert':
-            convert_multibeam(args.files, outfold=args.output_folder, show_progress=args.show_progress,
+            convert_multibeam(args.files, input_datum=args.input_datum, outfold=args.output_folder, show_progress=args.show_progress,
                               parallel_write=args.parallel_write)
         elif funcname == 'import_processed_nav':
             import_processed_navigation(reloaded_data, navfiles=args.navfiles, errorfiles=args.errorfiles, logfiles=args.logfiles,
