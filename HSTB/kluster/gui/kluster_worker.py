@@ -415,15 +415,19 @@ class FilterWorker(QtCore.QThread):
     def filter_process(self, fq, subset_time=None, subset_beam=None):
         if self.mode == 'basic':
             new_status = fq.run_filter(self.filter_name, **self.kwargs)
+            fq.multibeam.reload_pingrecords()
         elif self.mode == 'line':
             fq.subset_by_lines(self.line_names)
             new_status = fq.run_filter(self.filter_name, **self.kwargs)
             fq.restore_subset()
+            fq.multibeam.reload_pingrecords()
         else:
             # take the provided Points View time and subset the provided fqpr to just those times,beams
             selected_index = fq.subset_by_time_and_beam(subset_time, subset_beam)
             new_status = fq.run_filter(self.filter_name, selected_index=selected_index, save_to_disk=self.save_to_disk, **self.kwargs)
             fq.restore_subset()
+            if self.save_to_disk:
+                fq.multibeam.reload_pingrecords()
             self.selected_index.append(selected_index)
         return fq, new_status
 

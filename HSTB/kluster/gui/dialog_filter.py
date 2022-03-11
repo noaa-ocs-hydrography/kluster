@@ -22,6 +22,7 @@ class FilterDialog(SaveStateDialog):
         self.basic_filter_group = QtWidgets.QGroupBox('Use the following datasets:')
         self.basic_filter_group.setCheckable(True)
         self.basic_filter_group.setChecked(True)
+        self.basic_filter_group.setToolTip('Will run the filter on all datasets in the list.')
         self.hlayout_zero = QtWidgets.QHBoxLayout()
         self.input_fqpr = BrowseListWidget(self)
         self.input_fqpr.sizeHint()
@@ -33,9 +34,11 @@ class FilterDialog(SaveStateDialog):
 
         self.line_filter = QtWidgets.QCheckBox('Use the selected lines')
         self.line_filter.setChecked(False)
+        self.line_filter.setToolTip('Will only run the filter on the selected lines.')
 
         self.points_view_filter = QtWidgets.QCheckBox('Use the points in Points View')
         self.points_view_filter.setChecked(False)
+        self.points_view_filter.setToolTip('Will only run on the points shown in Points View.  Note that you must have the datasets selected (they must be shown in the "Use the following datasets" box)')
 
         self.hlayout_one = QtWidgets.QHBoxLayout()
         self.start_msg = QtWidgets.QLabel('Run filter: ')
