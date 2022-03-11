@@ -248,8 +248,8 @@ def import_sound_velocity(fqpr_inst: Fqpr, sv_files: Union[str, list]):
 
 def process_multibeam(fqpr_inst: Fqpr, run_orientation: bool = True, orientation_initial_interpolation: bool = False,
                       run_beam_vec: bool = True, run_svcorr: bool = True, run_georef: bool = True, run_tpu: bool = True,
-                      add_cast_files: Union[str, list] = None, use_epsg: bool = False,
-                      use_coord: bool = True, epsg: int = None, coord_system: str = 'WGS84',
+                      add_cast_files: Union[str, list] = None, input_datum: Union[str, int] = None,
+                      use_epsg: bool = False, use_coord: bool = True, epsg: int = None, coord_system: str = 'WGS84',
                       vert_ref: str = 'waterline', vdatum_directory: str = None, only_this_line: str = None,
                       only_these_times: tuple = None):
     """
@@ -279,6 +279,10 @@ def process_multibeam(fqpr_inst: Fqpr, run_orientation: bool = True, orientation
     add_cast_files
         either a list of files to include or the path to a directory containing files.  These are in addition to
         the casts in the ping dataset.
+    input_datum
+        Optional, the basic input datum of the converted multibeam data, should either be nad83, wgs84 or a epsg integer code
+        for a geographic coordinate reference system.  If None, will use the encoded string in the multibeam data.  If sbet_datum
+        exists, input_datum will not be used, as sbet navigation and altitude are used by default.
     use_epsg
         if True, will use the epsg code to build the CRS to use
     use_coord
@@ -307,6 +311,8 @@ def process_multibeam(fqpr_inst: Fqpr, run_orientation: bool = True, orientation
     if not use_coord and not use_epsg and run_georef:
         print('process_multibeam: please select either use_coord or use_epsg to process')
         return
+    if input_datum:
+        fqpr_inst.input_datum = input_datum
     subset_time = None
     if only_this_line or only_these_times:
         if only_this_line:
