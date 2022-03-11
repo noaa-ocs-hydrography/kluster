@@ -8,9 +8,12 @@
 
 # to get the branches.
 
-# HSTB imports not recognized in interpreter, but running kluster works fine?  try File - invalidate caches
+# HSTB imports not recognized in Pycharm interpreter, but running kluster works fine?  try File - invalidate caches
 
-# make sure and adjust pyinstaller script
+# make sure and adjust pyinstaller script for new location
+
+# adjust the QT_QPA_PLATFORM_PLUGIN_PATH env var to C:\Pydro22_Dev\envs\Pydro38\Lib\site-packages\PySide6\plugins\platforms
+#   - unless you remove the PySide6 directory
 
 #################### Get download count ###################################
 # https://stackoverflow.com/questions/4338358/github-can-i-see-the-number-of-downloads-for-a-repo/57993109#57993109

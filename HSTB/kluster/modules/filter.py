@@ -246,7 +246,7 @@ class BaseFilter:
         return self.new_status
 
     def save(self):
-        if self.new_status is None or not isinstance(self.new_status, list):
+        if not isinstance(self.new_status, list) or not self.new_status:
             print('BaseFilter: unable to save new sounding flags, new_status should be a list of arrays, one array for '
                   'each sonar head (len(self.new_status) must equal len(self.fqpr.multibeam.raw_ping)')
             return
