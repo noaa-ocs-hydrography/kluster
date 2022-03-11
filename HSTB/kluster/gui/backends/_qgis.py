@@ -2458,10 +2458,11 @@ class MapView(QtWidgets.QMainWindow):
                 # set the height of the color bar
                 mylegend.setSymbolHeight(130.0)
                 mylegend.updateLegend()
-                if dropname == 'depth':  # this doesnt seem to have an effect just yet
+                # want the colorbar to go from shallow on top, to deep on the bottom.  Feel like this should do it, but it doesnt, strangely.
+                if dropname == 'depth':
                     layer_node = root.findLayer(droplayer)
                     newsetts = qgis_core.QgsColorRampLegendNodeSettings()
-                    newsetts.setDirection(qgis_core.QgsColorRampLegendNodeSettings.Direction.MinimumToMaximum)
+                    newsetts.setDirection(qgis_core.QgsColorRampLegendNodeSettings.Direction.MaximumToMinimum)
                     qgis_core.QgsMapLayerLegendUtils.setLegendNodeColorRampSettings(layer_node, 0, newsetts)
                     mylegend.updateLegend()
             else:
