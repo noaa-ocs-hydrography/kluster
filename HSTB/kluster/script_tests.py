@@ -1,8 +1,23 @@
-#################### Get download count ##############################
+#################### New Pydro Setup Guidance #############################
+
+# Detached head - can just switch to master in github desktop
+# If you need a remote branch, have to
+
+# git config remote.origin.fetch "+refs/heads/*:refs/remotes/origin/*"
+# git fetch origin
+
+# to get the branches.
+
+# HSTB imports not recognized in interpreter, but running kluster works fine?  try File - invalidate caches
+
+# make sure and adjust pyinstaller script
+
+#################### Get download count ###################################
 # https://stackoverflow.com/questions/4338358/github-can-i-see-the-number-of-downloads-for-a-repo/57993109#57993109
+# pip install PyGithub
 
 from github import Github
-g = Github("myaccesstoken")
+g = Github("personaltoken")
 
 for repo in g.get_user().get_repos():
     if repo.name == "kluster":

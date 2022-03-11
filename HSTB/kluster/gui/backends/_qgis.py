@@ -1191,7 +1191,7 @@ class MapView(QtWidgets.QMainWindow):
 
     def wms_noaa_ecdis(self):
         urls = []
-        lyrs = [11, 10, 9, 7, 6, 5, 4, 3, 2, 1, 0]  # leave out 12, the overscale warning, 8 for raw s57 data
+        lyrs = [4, 5, 7, 3, 1, 9, 0, 6, 2, 0]  # leave out 12, the overscale warning, 8 data quality
         for lyr in lyrs:
             url = 'https://gis.charttools.noaa.gov/arcgis/rest/services/MCS/ENCOnline/MapServer/exts/MaritimeChartService/WMSServer'
             fmat = 'image/png'
@@ -1202,7 +1202,7 @@ class MapView(QtWidgets.QMainWindow):
 
     def wms_noaa_chartdisplay(self):
         urls = []
-        lyrs = [11, 10, 9, 7, 6, 5, 4, 3, 2, 1, 0]  # leave out 12, the overscale warning, 8 for raw s57 data
+        lyrs = [4, 5, 7, 3, 1, 9, 0, 6, 2, 0]  # leave out 12, the overscale warning, 8 data quality
         for lyr in lyrs:
             url = 'https://gis.charttools.noaa.gov/arcgis/rest/services/MCS/NOAAChartDisplay/MapServer/exts/MaritimeChartService/WMSServer'
             fmat = 'image/png'
@@ -2418,7 +2418,14 @@ class MapView(QtWidgets.QMainWindow):
                     ds = None
                     self.project.addMapLayer(newlyr, True)
                     drop_layers.append([newlyr, formatted_layername])
-            mymap.setLayers(self.project.mapThemeCollection().masterVisibleLayers())
+
+            # now we build the layers to use in the screenshot.  First sort them in shown_layers order, keeping only visible layers
+            final_layers = [x for x in self.layer_manager.shown_layers if x in self.project.mapThemeCollection().masterVisibleLayers()]
+            # now take out the old surface layers (the non unprojected ones)
+            final_layers = [lyr for lyr in final_layers if lyr not in self.layer_manager.surface_layers]
+            # add in the new geographic versions, put them on top of course
+            final_layers = [dlyr[0] for dlyr in drop_layers] + final_layers
+            mymap.setLayers(final_layers)
 
             # screen might not have the same proportions as the paper, need to ensure that the trimming/growing of the screen
             #   to fit paper results in the image centered on the same spot, so we do it manually
@@ -2441,15 +2448,22 @@ class MapView(QtWidgets.QMainWindow):
                 print(f'Unexpected item legend found {mylegend}')
                 return
             mylegend = mylegend[0]
-            if drop_layers:
+            if drop_layers:  # ideally all layers have the same legend (min max being the same)
+                droplayer, dropname = drop_layers[0]
                 root = qgis_core.QgsLayerTree()  # override legend items with only the reprojected rasters
-                root.addLayer(drop_layers[0][0])
+                root.addLayer(droplayer)
                 # this is the only way I could figure out how to rename the band name
-                root.children()[0].setCustomProperty("legend/label-0", drop_layers[0][1])
+                root.children()[0].setCustomProperty("legend/label-0", dropname)
                 mylegend.model().setRootGroup(root)
                 # set the height of the color bar
                 mylegend.setSymbolHeight(130.0)
                 mylegend.updateLegend()
+                if dropname == 'depth':  # this doesnt seem to have an effect just yet
+                    layer_node = root.findLayer(droplayer)
+                    newsetts = qgis_core.QgsColorRampLegendNodeSettings()
+                    newsetts.setDirection(qgis_core.QgsColorRampLegendNodeSettings.Direction.MinimumToMaximum)
+                    qgis_core.QgsMapLayerLegendUtils.setLegendNodeColorRampSettings(layer_node, 0, newsetts)
+                    mylegend.updateLegend()
             else:
                 layout.removeLayoutItem(mylegend)
 

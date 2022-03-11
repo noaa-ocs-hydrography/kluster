@@ -10,7 +10,7 @@ except (ImportError, ModuleNotFoundError):
     # qgis conda installs to the library\python directory not to site_packages
     # this is where qgis should be if you pip install kluster and kluster is in the site_packages directory
     klusterfolder_path = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-    env_base_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(klusterfolder_path))))
+    env_base_path = os.path.dirname(sys.executable)
     qgis_path = os.path.join(env_base_path, 'Library', 'python')
     qgis_path_pydro = ''
     if not os.path.exists(os.path.join(qgis_path, 'qgis')):
