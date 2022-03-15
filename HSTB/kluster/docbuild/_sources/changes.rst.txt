@@ -1,6 +1,21 @@
 Changes List
 ============
 
+Kluster v0.9.0 (3/15/2022)
+--------------------------
+ - sync with bathygrid 1.2.1
+    - fix for vr + auto_density
+
+ - new filter feature (process - filter) https://kluster.readthedocs.io/en/latest/cleaning/index.html
+ - filter operation on points view, line or dataset
+ - plugin system for writing custom filters
+ - add custom input datum, to overwrite the datum description retrieved from multibeam data
+ - add processing action to changing input datum (ignored when sbet datum exists)
+ - update project settings dialog for new input datum
+ - add NOAA ECDIS and Chart Display Service WMS layers
+ - add screenshot button to print qgs mapview
+ - add right click clear to output window
+
 Kluster v0.8.11 (3/1/2022)
 ---------------------------
  - sync with vyperdatum 0.1.9
