@@ -56,6 +56,7 @@ vdatum_vertical_references = ['NOAA MLLW', 'NOAA MHW']  # vertical reference opt
 ellipse_based_vertical_references = ['ellipse', 'NOAA MLLW', 'NOAA MHW']  # vertical reference options based on the ellipsoid
 waterline_based_vertical_references = ['waterline']  # vertical reference options based on waterline
 coordinate_systems = ['NAD83', 'NAD83 PA11', 'NAD83 MA11', 'WGS84']  # horizontal coordinate system options
+geographic_coordinate_systems = ['NAD83', 'WGS84']  # horizontal coordinate system options
 default_coordinate_system = 'WGS84'
 default_vertical_reference = 'waterline'
 
@@ -98,12 +99,12 @@ processing_log_names = ['_conversion_complete', '_compute_orientation_complete',
 
 # 1 sigma default tpu parameter values
 default_heave_error = 0.050  # default tpu parameter for heave
-default_roll_error = 0.001  # default tpu parameter for roll
-default_pitch_error = 0.001  # default tpu parameter for pitch
-default_heading_error = 0.020  # default tpu parameter for heading
-default_x_antenna_offset = 0.000  # default tpu parameter for x antenna offset
-default_y_antenna_offset = 0.000  # default tpu parameter for y antenna offset
-default_z_antenna_offset = 0.000  # default tpu parameter for z antenna offset
+default_roll_sensor_error = 0.001  # default tpu parameter for roll
+default_pitch_sensor_error = 0.001  # default tpu parameter for pitch
+default_heading_sensor_error = 0.020  # default tpu parameter for heading
+default_tx_to_antenna_x = 0.000  # default tpu parameter for x antenna offset
+default_tx_to_antenna_y = 0.000  # default tpu parameter for y antenna offset
+default_tx_to_antenna_z = 0.000  # default tpu parameter for z antenna offset
 default_surface_sv_error = 0.500  # default tpu parameter for surface sv
 default_roll_patch_error = 0.100  # default tpu parameter for roll patch
 default_separation_model_error = 0.000  # default tpu parameter for separation model
@@ -118,8 +119,15 @@ default_z_offset_error = 0.200  # default tpu parameter for z offset measurement
 default_pitch_patch_error = 0.100  # default tpu parameter for pitch patch
 default_heading_patch_error = 0.500  # default tpu parameter for heading patch
 default_latency_patch_error = 0.000  # default tpu parameter for latency patch
-default_latency_error = 0.001  # default tpu parameter for latency
+default_timing_latency_error = 0.001  # default tpu parameter for latency
 default_vessel_speed_error = 0.100  # default tpu parameter for vessel speed
+
+# all tpu parameters must have matching default values
+for tname in tpu_parameter_names:
+    try:
+        assert 'default_' + tname in globals()
+    except AssertionError:
+        raise ValueError(f"Unable to find {'default_' + tname}")
 
 # zarr backend, chunksizes for writing to disk
 ping_chunks = {'time': (ping_chunk_size,), 'beam': (max_beams,), 'xyz': (3,),
@@ -316,7 +324,7 @@ variable_descriptions = {'acrosstrack': 'The result of running Sound Velocity Co
                          }
 
 int_parameters = ['converted_files_at_once', 'pings_per_las', 'pings_per_csv', 'max_profile_length']
-float_parameters = ['default_heave_error', 'default_roll_error', 'default_pitch_error', 'default_heading_error',
+float_parameters = ['default_heave_error', 'default_roll_sensor_error', 'default_pitch_sensor_error', 'default_heading_sensor_error',
                     'default_surface_sv_error', 'default_roll_patch_error', 'default_separation_model_error',
                     'default_waterline_error', 'default_horizontal_positioning_error', 'default_vertical_positioning_error',
                     'default_beam_opening_angle', 'mem_restart_threshold']

@@ -1274,15 +1274,15 @@ class OptionsWidget(QtWidgets.QWidget):
                                                            float(xyzrph[serial_num]['vertical_positioning_error'][tstmp])]
                 except KeyError:
                     self.data[serial_num][tstmp]['Uncertainty'] = [kluster_variables.default_beam_opening_angle,
-                                                           kluster_variables.default_heave_error,
-                                                           kluster_variables.default_roll_error,
-                                                           kluster_variables.default_pitch_error,
-                                                           kluster_variables.default_heading_error,
-                                                           kluster_variables.default_surface_sv_error,
-                                                           kluster_variables.default_roll_patch_error,
-                                                           kluster_variables.default_waterline_error,
-                                                           kluster_variables.default_horizontal_positioning_error,
-                                                           kluster_variables.default_vertical_positioning_error]
+                                                                   kluster_variables.default_heave_error,
+                                                                   kluster_variables.default_roll_sensor_error,
+                                                                   kluster_variables.default_pitch_sensor_error,
+                                                                   kluster_variables.default_heading_sensor_error,
+                                                                   kluster_variables.default_surface_sv_error,
+                                                                   kluster_variables.default_roll_patch_error,
+                                                                   kluster_variables.default_waterline_error,
+                                                                   kluster_variables.default_horizontal_positioning_error,
+                                                                   kluster_variables.default_vertical_positioning_error]
 
     def determine_reference_point(self, tstmp):
         """

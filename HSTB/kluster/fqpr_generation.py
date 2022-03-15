@@ -3328,6 +3328,13 @@ class Fqpr(ZarrBackend):
             - reprocess = perform a full reprocess of the dataset ignoring the current_processing_status
             - convert_only = only convert incoming data, return no processing actions
             - concatenate = process line by line if there is no processed data for that line
+
+        Returns
+        -------
+        list
+            list of processing arguments to feed fqpr_convenience.process_multibeam
+        dict
+            dict of processing keyword arguments to feed fqpr_convenience.process_multibeam
         """
 
         min_status = self.multibeam.raw_ping[0].current_processing_status

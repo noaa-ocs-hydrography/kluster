@@ -2398,9 +2398,9 @@ class MapView(QtWidgets.QMainWindow):
             drop_layers = []
             orig_layers = self.project.mapThemeCollection().masterVisibleLayers()
             for cnt, lyr in enumerate(orig_layers):  # get all the grid layers, warp to 4326
-                if lyr.name().find('vsimem') != -1 and lyr.crs() != qgis_core.QgsCoordinateReferenceSystem(4326) and lyr in self.layer_manager.shown_layers:
+                if lyr.name().find('vsimem') != -1 and lyr.crs() != qgis_core.QgsCoordinateReferenceSystem(kluster_variables.qgis_epsg) and lyr in self.layer_manager.shown_layers:
                     newsrc = f'/vsimem/newsrc_{cnt}'
-                    ds = gdal.Warp(newsrc, lyr.source(), format='GTiff', dstSRS="EPSG:4326")
+                    ds = gdal.Warp(newsrc, lyr.source(), format='GTiff', dstSRS=f"EPSG:{kluster_variables.qgis_epsg}")
                     newlyr = qgis_core.QgsRasterLayer(newsrc, '', 'gdal')
                     # no way to copy the renderer (tried copyCommonProperties) have to rebuild
                     formatted_layername = [aln for aln in acceptedlayernames if lyr.name().find(aln) > -1][0]

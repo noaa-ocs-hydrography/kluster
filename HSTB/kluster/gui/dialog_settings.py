@@ -233,7 +233,7 @@ class SettingsDialog(SaveStateDialog):
         self.kvar_rollerror_label = QtWidgets.QLabel('Default Roll Sensor Error (meters)')
         self.kvar_rollerror = QtWidgets.QLineEdit('')
         self.kvar_rollerror.setValidator(validator)
-        self.kvar_rollerror.setText(str(kluster_variables.default_roll_error))
+        self.kvar_rollerror.setText(str(kluster_variables.default_roll_sensor_error))
         self.kvar_rollerror.editingFinished.connect(self.validate_numctrl)
         self.kvar_rollerror.setToolTip('Default 1 sigma standard deviation in the roll sensor, generally found in manufacturer specifications.')
         uncertaintyone.addWidget(self.kvar_heaveerror_label)
@@ -245,13 +245,13 @@ class SettingsDialog(SaveStateDialog):
         self.kvar_pitcherror_label = QtWidgets.QLabel('Default Pitch Sensor Error (meters)')
         self.kvar_pitcherror = QtWidgets.QLineEdit('')
         self.kvar_pitcherror.setValidator(validator)
-        self.kvar_pitcherror.setText(str(kluster_variables.default_pitch_error))
+        self.kvar_pitcherror.setText(str(kluster_variables.default_pitch_sensor_error))
         self.kvar_pitcherror.editingFinished.connect(self.validate_numctrl)
         self.kvar_pitcherror.setToolTip('Default 1 sigma standard deviation in the pitch sensor, generally found in manufacturer specifications')
         self.kvar_yawerror_label = QtWidgets.QLabel('Default Yaw Sensor Error (meters)')
         self.kvar_yawerror = QtWidgets.QLineEdit('')
         self.kvar_yawerror.setValidator(validator)
-        self.kvar_yawerror.setText(str(kluster_variables.default_heading_error))
+        self.kvar_yawerror.setText(str(kluster_variables.default_heading_sensor_error))
         self.kvar_yawerror.editingFinished.connect(self.validate_numctrl)
         self.kvar_yawerror.setToolTip('Default 1 sigma standard deviation in the heading sensor, generally found in manufacturer specifications')
         uncertaintytwo.addWidget(self.kvar_pitcherror_label)
@@ -391,8 +391,8 @@ class SettingsDialog(SaveStateDialog):
                 'phase_color': self.kvar_phase_color.currentText(), 'reject_color': self.kvar_reject_color.currentText(),
                 'reaccept_color': self.kvar_reaccept_color.currentText(), 'converted_files_at_once': self.kvar_convfiles.text(),
                 'pings_per_las': self.kvar_pingslas.text(), 'pings_per_csv': self.kvar_pingscsv.text(),
-                'default_heave_error': self.kvar_heaveerror.text(), 'default_roll_error': self.kvar_rollerror.text(),
-                'default_pitch_error': self.kvar_pitcherror.text(), 'default_heading_error': self.kvar_yawerror.text(),
+                'default_heave_error': self.kvar_heaveerror.text(), 'default_roll_sensor_error': self.kvar_rollerror.text(),
+                'default_pitch_sensor_error': self.kvar_pitcherror.text(), 'default_heading_sensor_error': self.kvar_yawerror.text(),
                 'default_beam_opening_angle': self.kvar_beamangle.text(), 'default_surface_sv_error': self.kvar_sverror.text(),
                 'default_roll_patch_error': self.kvar_rollpatch.text(), 'default_waterline_error': self.kvar_waterline.text(),
                 'default_horizontal_positioning_error': self.kvar_horizontalerror.text(),
@@ -456,9 +456,9 @@ class SettingsDialog(SaveStateDialog):
         elif curidx == 3:
             self.kvar_beamangle.setText(str(kluster_variables.kvar_initial_state['default_beam_opening_angle']))
             self.kvar_heaveerror.setText(str(kluster_variables.kvar_initial_state['default_heave_error']))
-            self.kvar_rollerror.setText(str(kluster_variables.kvar_initial_state['default_roll_error']))
-            self.kvar_pitcherror.setText(str(kluster_variables.kvar_initial_state['default_pitch_error']))
-            self.kvar_yawerror.setText(str(kluster_variables.kvar_initial_state['default_heading_error']))
+            self.kvar_rollerror.setText(str(kluster_variables.kvar_initial_state['default_roll_sensor_error']))
+            self.kvar_pitcherror.setText(str(kluster_variables.kvar_initial_state['default_pitch_sensor_error']))
+            self.kvar_yawerror.setText(str(kluster_variables.kvar_initial_state['default_heading_sensor_error']))
             self.kvar_sverror.setText(str(kluster_variables.kvar_initial_state['default_surface_sv_error']))
             self.kvar_rollpatch.setText(str(kluster_variables.kvar_initial_state['default_roll_patch_error']))
             self.kvar_waterline.setText(str(kluster_variables.kvar_initial_state['default_waterline_error']))

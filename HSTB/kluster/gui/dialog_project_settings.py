@@ -4,6 +4,16 @@ from pyproj import CRS
 from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal
 from HSTB.kluster.gui.common_widgets import SaveStateDialog
 from HSTB.kluster import kluster_variables
+from HSTB.kluster.fqpr_helpers import epsg_determinator
+
+geo_datum_descrip = [f'{k} = EPSG:{epsg_determinator(k)}' for k in kluster_variables.geographic_coordinate_systems]
+proj_datum_descrip = []
+for projcoord in kluster_variables.coordinate_systems:
+    try:
+        coordescrip = f'{projcoord} = EPSG:{str(epsg_determinator(projcoord, zone=4, hemisphere="n"))[:-2] + "xx"}'
+    except ValueError:
+        coordescrip = f'{projcoord} = EPSG:{str(epsg_determinator(projcoord, zone=54, hemisphere="n"))[:-2] + "xx"}'
+    proj_datum_descrip.append(coordescrip)
 
 
 class ProjectSettingsDialog(SaveStateDialog):
@@ -25,24 +35,29 @@ class ProjectSettingsDialog(SaveStateDialog):
 
         self.infromdata_radio = QtWidgets.QRadioButton('From multibeam data')
         self.infromdata_radio.setChecked(True)
-        self.infromdata_radio.setToolTip('Uses the input coordinate system determined automatically from the raw multibeam data.')
+        self.infromdata_radio.setToolTip('Uses the input coordinate system determined automatically from the raw multibeam data.  This is the default option, you should only change this '
+                                         'if you know that the multibeam is not writing the correct datum to file.  Ignored if SBET datum exists.')
         self.incoord_layout.addWidget(self.infromdata_radio)
 
+        inepsg_tooltip = 'Generates a new input coordinate system from EPSG code, ignored if SBET datum exists.  Only use if you have to overwrite the multibeam data datum description.'
         self.hlayout_zero_one = QtWidgets.QHBoxLayout()
         self.inepsg_radio = QtWidgets.QRadioButton('From EPSG')
-        self.inepsg_radio.setToolTip('Generates a new input coordinate system from EPSG code, ignored if SBET datum exists.')
+        self.inepsg_radio.setToolTip(inepsg_tooltip)
         self.hlayout_zero_one.addWidget(self.inepsg_radio)
         self.inepsg_val = QtWidgets.QLineEdit('', self)
+        self.inepsg_val.setToolTip(inepsg_tooltip)
         self.hlayout_zero_one.addWidget(self.inepsg_val)
         self.incoord_layout.addLayout(self.hlayout_zero_one)
 
+        indropdown_tooltip = f'Generates a new input coordinate system from coordinate system description, ignored if SBET datum exists.\n\n{geo_datum_descrip}'
         self.hlayout_zero_two = QtWidgets.QHBoxLayout()
-        self.indropdown_radio = QtWidgets.QRadioButton('From dropdown')
-        self.indropdown_radio.setToolTip('Generates a new input coordinate system from coordinate system description, ignored if SBET datum exists.')
+        self.indropdown_radio = QtWidgets.QRadioButton('From identifier')
+        self.indropdown_radio.setToolTip(indropdown_tooltip)
         self.hlayout_zero_two.addWidget(self.indropdown_radio)
         self.indropdown_val = QtWidgets.QComboBox()
-        self.indropdown_val.addItems(kluster_variables.coordinate_systems)
-        self.indropdown_val.setCurrentIndex(kluster_variables.coordinate_systems.index(kluster_variables.default_coordinate_system))
+        self.indropdown_val.addItems(kluster_variables.geographic_coordinate_systems)
+        self.indropdown_val.setCurrentIndex(kluster_variables.geographic_coordinate_systems.index(kluster_variables.default_coordinate_system))
+        self.indropdown_val.setToolTip(indropdown_tooltip)
         self.hlayout_zero_two.addWidget(self.indropdown_val)
         self.incoord_layout.addLayout(self.hlayout_zero_two)
 
@@ -51,20 +66,24 @@ class ProjectSettingsDialog(SaveStateDialog):
         self.outcoord_group = QtWidgets.QGroupBox('Output Coordinate System:')
         self.outcoord_layout = QtWidgets.QVBoxLayout()
 
+        outepsg_tooltip = 'Generates a new output coordinate system from EPSG code.'
         self.hlayout_one = QtWidgets.QHBoxLayout()
         self.epsg_radio = QtWidgets.QRadioButton('From EPSG')
-        self.epsg_radio.setToolTip('Generates a new output coordinate system from EPSG code.')
+        self.epsg_radio.setToolTip(outepsg_tooltip)
         self.hlayout_one.addWidget(self.epsg_radio)
         self.epsg_val = QtWidgets.QLineEdit('', self)
+        self.epsg_val.setToolTip(outepsg_tooltip)
         self.hlayout_one.addWidget(self.epsg_val)
         self.outcoord_layout.addLayout(self.hlayout_one)
 
+        autoutm_tooltip = f'Build the correct EPSG code for the output coordinate system from datum description and known hemisphere/zone number.\n\n{proj_datum_descrip}'
         self.hlayout_two = QtWidgets.QHBoxLayout()
         self.auto_utm_radio = QtWidgets.QRadioButton('Auto UTM')
         self.auto_utm_radio.setChecked(True)
-        self.auto_utm_radio.setToolTip('Generates a new output coordinate system from EPSG code')
+        self.auto_utm_radio.setToolTip(autoutm_tooltip)
         self.hlayout_two.addWidget(self.auto_utm_radio)
         self.auto_utm_val = QtWidgets.QComboBox()
+        self.auto_utm_val.setToolTip(autoutm_tooltip)
         self.auto_utm_val.addItems(kluster_variables.coordinate_systems)
         self.auto_utm_val.setCurrentIndex(kluster_variables.coordinate_systems.index(kluster_variables.default_coordinate_system))
         self.hlayout_two.addWidget(self.auto_utm_val)
@@ -77,6 +96,7 @@ class ProjectSettingsDialog(SaveStateDialog):
         self.hlayout_three = QtWidgets.QHBoxLayout()
         self.georef_vertref = QtWidgets.QComboBox()
         self.georef_vertref.addItems(kluster_variables.vertical_references)
+        self.georef_vertref.setToolTip('Set the vertical reference used in georeferencing, this determines the zero point for all depths generated in Kluster.')
         self.hlayout_three.addWidget(self.georef_vertref)
         self.hlayout_three.addStretch(1)
 
