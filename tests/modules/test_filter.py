@@ -3,8 +3,11 @@ from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal, qgis
 if qgis_enabled:
     from HSTB.kluster.gui.backends._qt import qgis_core, qgis_gui
 
-import matplotlib
-matplotlib.use('qt5agg')
+try:
+    import matplotlib
+    matplotlib.use('qt5agg')
+except ImportError:  # headless mode during github actions tests
+    pass
 
 import os
 import shutil
