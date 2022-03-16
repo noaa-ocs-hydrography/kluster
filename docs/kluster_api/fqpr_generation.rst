@@ -41,3 +41,4 @@ fqpr\_generation module
    :skip: fast_read_sbet_metadata
    :skip: return_xarray_from_posfiles
    :skip: return_xarray_from_sbet
+   :skip: FilterManager

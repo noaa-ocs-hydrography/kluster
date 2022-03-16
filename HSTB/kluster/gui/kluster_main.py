@@ -27,7 +27,7 @@ from HSTB.kluster.gui import dialog_vesselview, kluster_explorer, kluster_projec
     dialog_export, kluster_worker, kluster_interactive_console, dialog_basicplot, dialog_advancedplot, dialog_project_settings, \
     dialog_export_grid, dialog_layer_settings, dialog_settings, dialog_importppnav, dialog_overwritenav, dialog_surface_data, \
     dialog_about, dialog_setcolors, dialog_patchtest, dialog_manualpatchtest, dialog_managedata, dialog_managesurface, \
-    dialog_reprocess, dialog_fileanalyzer, dialog_export_tracklines
+    dialog_reprocess, dialog_fileanalyzer, dialog_export_tracklines, dialog_filter
 from HSTB.kluster.fqpr_project import FqprProject
 from HSTB.kluster.fqpr_intelligence import FqprIntel
 from HSTB.kluster.fqpr_vessel import convert_from_fqpr_xyzrph, convert_from_vessel_xyzrph, compare_dict_data
@@ -54,6 +54,7 @@ settings_translator = {'Kluster/dark_mode': {'newname': 'dark_mode', 'defaultval
                        'Kluster/settings_keep_waterline_changes': {'newname': 'keep_waterline_changes', 'defaultvalue': True},
                        'Kluster/settings_enable_parallel_writes': {'newname': 'write_parallel', 'defaultvalue': True},
                        'Kluster/settings_vdatum_directory': {'newname': 'vdatum_directory', 'defaultvalue': ''},
+                       'Kluster/settings_filter_directory': {'newname': 'filter_directory', 'defaultvalue': ''},
                        'Kluster/settings_auto_processing_mode': {'newname': 'autoprocessing_mode', 'defaultvalue': 'normal'},
                        'Kluster/settings_force_coordinate_match': {'newname': 'force_coordinate_match', 'defaultvalue': False},
                        }
@@ -155,6 +156,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.export_thread = kluster_worker.ExportWorker()
         self.export_tracklines_thread = kluster_worker.ExportTracklinesWorker()
         self.export_grid_thread = kluster_worker.ExportGridWorker()
+        self.filter_thread = kluster_worker.FilterWorker()
         self.open_project_thread = kluster_worker.OpenProjectWorker()
         self.draw_navigation_thread = kluster_worker.DrawNavigationWorker()
         self.draw_surface_thread = kluster_worker.DrawSurfaceWorker()
@@ -163,7 +165,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.allthreads = [self.action_thread, self.import_ppnav_thread, self.overwrite_nav_thread, self.surface_thread,
                            self.surface_update_thread, self.export_thread, self.export_grid_thread, self.open_project_thread,
                            self.draw_navigation_thread, self.draw_surface_thread, self.load_points_thread, self.patch_test_load_thread,
-                           self.export_tracklines_thread]
+                           self.export_tracklines_thread, self.filter_thread]
 
         # connect FqprActionContainer with actions pane, called whenever actions changes
         self.intel.bind_to_action_update(self.actions.update_actions)
@@ -219,6 +221,8 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.export_tracklines_thread.finished.connect(self._kluster_export_tracklines_results)
         self.export_grid_thread.started.connect(self._start_action_progress)
         self.export_grid_thread.finished.connect(self._kluster_export_grid_results)
+        self.filter_thread.started.connect(self._start_action_progress)
+        self.filter_thread.finished.connect(self._kluster_filter_results)
         self.open_project_thread.started.connect(self._start_action_progress)
         self.open_project_thread.finished.connect(self._kluster_open_project_results)
         self.draw_navigation_thread.started.connect(self._start_action_progress)
@@ -373,8 +377,10 @@ class KlusterMain(QtWidgets.QMainWindow):
         overwritenav_action.triggered.connect(self._action_overwrite_nav)
         surface_action = QtWidgets.QAction('New Surface', self)
         surface_action.triggered.connect(self._action_surface_generation)
-        patch_action = QtWidgets.QAction('Patch Test', self)
-        patch_action.triggered.connect(self._action_patch_test)
+        # patch_action = QtWidgets.QAction('Patch Test', self)
+        # patch_action.triggered.connect(self._action_patch_test)
+        filter_action = QtWidgets.QAction('Filter', self)
+        filter_action.triggered.connect(self._action_filter)
 
         basicplots_action = QtWidgets.QAction('Basic Plots', self)
         basicplots_action.triggered.connect(self._action_basicplots)
@@ -427,6 +433,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         process.addAction(overwritenav_action)
         process.addAction(importppnav_action)
         process.addAction(surface_action)
+        process.addAction(filter_action)
         # process.addAction(patch_action)
 
         visual = menubar.addMenu('Visualize')
@@ -1188,6 +1195,134 @@ class KlusterMain(QtWidgets.QMainWindow):
                 for lline in lpair:
                     self._patch.add_line([cur_cnt, lline, ldict[lline]['azimuth']])
                 cur_cnt += 1
+
+    def _kluster_filter_dialog(self, filter_list, filter_module, fqprs, filter_descrip):
+        dlog = dialog_filter.FilterDialog(filter_list, filter_descrip)
+        dlog.update_fqpr_instances(addtl_files=fqprs)
+        cancelled = False
+        basic_filter_mode = False
+        line_filter_mode = False
+        points_filter_mode = False
+        linenames = None
+        pointtime = None
+        pointbeam = None
+        filter_controls = None
+        filter_name = ''
+        savetodisk = True
+
+        if dlog.exec_():
+            if not dlog.canceled:
+                basic_filter_mode = dlog.basic_filter_group.isChecked()
+                line_filter_mode = dlog.line_filter.isChecked()
+                points_filter_mode = dlog.points_view_filter.isChecked()
+                if line_filter_mode:  # we only operate on the selected lines
+                    linenames = self.project_tree.return_selected_lines()
+                else:
+                    linenames = []
+                if points_filter_mode:  # we need to get the time/beam of all points in Points View to subset the Fqpr
+                    savetodisk = dlog.save_to_disk_checkbox.isChecked()  # can skip saving to disk for Poinst View filter
+                    pointtime, pointbeam = self.points_view.return_array('pointtime'), self.points_view.return_array('beam')
+                else:
+                    savetodisk = True
+                    pointtime, pointbeam = None, None
+
+                filter_name = dlog.filter_opts.currentText()
+                if filter_name and not dlog.canceled:
+                    # these controls are specified in the custom filter (see controls attribute of the Filter class)
+                    filter_controls = filter_module.return_optional_filter_controls(filter_name)
+                else:
+                    cancelled = True
+            else:
+                cancelled = True
+        else:
+            cancelled = True
+        return basic_filter_mode, line_filter_mode, points_filter_mode, savetodisk, linenames, pointtime, pointbeam, filter_name, filter_controls, cancelled
+
+    def _kluster_additional_filter_dialog(self, filter_controls, filter_name):
+        cancelled = False
+        if filter_controls:
+            add_dlog = dialog_filter.AdditionalFilterOptionsDialog(title=filter_name, controls=filter_controls)
+            if add_dlog.exec_():
+                if not add_dlog.canceled:
+                    kwargs = add_dlog.return_kwargs()
+                else:
+                    kwargs = None
+                    cancelled = True
+            else:
+                kwargs = None
+                cancelled = True
+        else:
+            kwargs = None
+        return kwargs, cancelled
+
+    def kluster_filter(self):
+        """
+        Trigger filter on all the fqprs provided.  Can be selected fqpr, line, or points view selection.
+        """
+
+        if not self.no_threads_running():
+            print('Processing is already occurring.  Please wait for the process to finish')
+            cancelled = True
+        else:
+            fqprs, _ = self.return_selected_fqprs()
+            # list of filters that we can pull from any fqpr, just use the first one loaded in the project
+            try:
+                filter_module = list(self.project.fqpr_instances.values())[0].filter
+                filter_list = filter_module.list_filters()
+                filter_descrip = filter_module.list_descriptions()
+            except:
+                print('Error: kluster_filter no loaded converted data found to filter, unable to initialize filter list.')
+                return
+
+            result = self._kluster_filter_dialog(filter_list, filter_module, fqprs, filter_descrip)
+            basic_filter_mode, line_filter_mode, points_filter_mode, savetodisk, linenames, pointtime, pointbeam, filter_name, filter_controls, cancelled = result
+            if not cancelled:
+                kwargs, cancelled = self._kluster_additional_filter_dialog(filter_controls, filter_name)
+                if not cancelled:
+                    fq_chunks = []
+                    for fq in fqprs:
+                        relfq = self.project.path_relative_to_project(fq)
+                        if relfq not in self.project.fqpr_instances:
+                            print('kluster_filter: Unable to find {} in currently loaded project'.format(relfq))
+                            return
+                        fq_inst = self.project.fqpr_instances[relfq]
+                        # use the project client, or start a new LocalCluster if client is None
+                        fq_inst.client = self.project.get_dask_client()
+                        if points_filter_mode:
+                            if relfq not in pointtime or relfq not in pointbeam:
+                                print(f'kluster_filter: {relfq} is not currently being used in Points View, skipping filter')
+                                continue
+                            fq_chunks.append([fq_inst, pointtime[relfq], pointbeam[relfq], relfq])
+                        else:
+                            fq_chunks.append([fq_inst, relfq])
+                        self.filter_thread.populate(fq_chunks, linenames, filter_name, basic_filter_mode, line_filter_mode,
+                                                    points_filter_mode, savetodisk, kwargs)
+                        self.filter_thread.start()
+                else:
+                    print('kluster_filter: Filter was cancelled')
+            else:
+                print('kluster_filter: Filter was cancelled')
+
+    def _kluster_filter_results(self):
+        if self.filter_thread.error:
+            print('Filter complete: Unable to filter')
+            print(self.filter_thread.exceptiontxt)
+        else:
+            print('Filter complete.')
+        if self.filter_thread.mode == 'points':
+            newinfo = self.filter_thread.new_status
+            selindex = self.filter_thread.selected_index
+            base_points_view_status = self.points_view.three_d_window.rejected.copy()
+            for cnt, (fq, _, _, fqname) in enumerate(self.filter_thread.fq_chunks):
+                # newinfo = fq.get_variable_by_filter('detectioninfo', by_sonar_head=True)
+                fqinfo, fqsel = newinfo[cnt], selindex[cnt]
+                for fcnt, ninfo in enumerate(fqinfo):
+                    sonarid = f'{fqname}_{fcnt}'
+                    fqheadsel = fqsel[fcnt].reshape(ninfo.shape)
+                    base_points_view_status[self.points_view.three_d_window.id == sonarid] = ninfo[fqheadsel]
+            self.points_view.override_sounding_status(base_points_view_status)
+        self.filter_thread.populate(None, None, '', True, False, False, True, None)
+        self._stop_action_progress()
 
     def kluster_surface_generation(self):
         """
@@ -2315,6 +2450,12 @@ class KlusterMain(QtWidgets.QMainWindow):
         """
         self.kluster_surface_generation()
 
+    def _action_filter(self):
+        """
+        Connect menu action 'New Surface' with surface dialog
+        """
+        self.kluster_filter()
+
     def _action_patch_test(self):
         """
         Connect menu action 'Patch Test' with patch test dialog
@@ -2540,20 +2681,44 @@ def main():
 
     if qgis_enabled:
         app_library = 'pyqt5'
-        app = qgis_core.QgsApplication([], True)
+        app = qgis_core.QgsApplication([], False)
         if ispyinstaller:
             kluster_main_exe = sys.argv[0]
             curdir = os.path.dirname(kluster_main_exe)
             plugin_dir = os.path.join(curdir, 'qgis_plugins')
             prefix_dir = curdir
+            processing_dir = os.path.join(curdir, 'qgis_plugins', 'processing')
         else:
             plugin_dir = os.path.join(os.path.dirname(found_path), 'plugins')
-            prefix_dir = os.path.join(found_path, 'qgis')
+            prefix_dir = os.path.join(os.path.dirname(found_path))
+            processing_dir = os.path.join(os.path.dirname(found_path), 'python', 'plugins', 'processing')
+
+        try:
+            assert os.path.exists(plugin_dir)
+        except:
+            raise EnvironmentError(f"Can't find plugin directory at {plugin_dir}, pyinstaller={ispyinstaller}")
+        try:
+            assert os.path.exists(prefix_dir)
+        except:
+            raise EnvironmentError(f"Can't find prefix directory at {prefix_dir}, pyinstaller={ispyinstaller}")
+        try:
+            assert os.path.exists(processing_dir)
+        except:
+            raise EnvironmentError(f"Can't find processing directory at {processing_dir}, pyinstaller={ispyinstaller}")
 
         app.setPrefixPath(prefix_dir, True)
         app.setPluginPath(plugin_dir)
 
         app.initQgis()
+
+        # setup the processing algorithms in no gui mode, this is pretty hacky but the only documented way to get it
+        #   to work that I have found.
+
+        # disabling this for now as it causes some other weird possibly namespace related issues
+        # sys.path.append(os.path.dirname(processing_dir))
+        # from processing.core.Processing import Processing
+        # Processing.initialize()
+
         # print(app.showSettings())
     else:
         try:  # pyside2

@@ -4,7 +4,7 @@ from typing import Union
 from pyproj import CRS
 from osgeo import gdal
 
-from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal, qgis_enabled, found_path
+from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, QtXml, Signal, qgis_enabled, found_path
 if not qgis_enabled:
     raise EnvironmentError('Unable to find qgis directory in {}'.format(found_path))
 from HSTB.kluster.gui.backends._qt import qgis_core, qgis_gui
@@ -13,9 +13,91 @@ from HSTB.kluster import __file__ as klusterdir
 from HSTB.kluster.gdal_helpers import gdal_raster_create, VectorLayer, gdal_output_file_exists, ogr_output_file_exists
 from HSTB.kluster import kluster_variables
 
+from HSTB.shared import RegistryHelpers
+
 
 acceptedlayernames = ['hillshade', 'depth', 'density', 'vertical_uncertainty', 'horizontal_uncertainty']
 invert_colormap_layernames = ['vertical_uncertainty', 'horizontal_uncertainty']
+
+
+class CompassRoseItem(qgis_gui.QgsMapCanvasItem):
+    def __init__(self, canvas):
+        super().__init__(canvas)
+        self.canvas = canvas
+        self.center = qgis_core.QgsPoint(0, 0)
+        self.size = 100
+
+    def setCenter(self, center):
+        self.center = center
+
+    def center(self):
+        return self.center
+
+    def setSize(self, size):
+        self.size = size
+
+    def size(self):
+        return self.size
+
+    def boundingRect(self):
+        return QtCore.QRectF(self.center.x() - self.size / 2,
+                             self.center.y() - self.size / 2,
+                             self.center.x() + self.size / 2,
+                             self.center.y() + self.size / 2)
+
+    def paint(self, painter, option, widget):
+        curwidth, curheight = self.canvas.width(), self.canvas.height()
+        newcenter = QtCore.QPointF(int(curwidth - (curwidth / 11)), int(curheight / 10))
+        self.setCenter(newcenter)
+        self.setSize(int(curwidth / 20))
+
+        fontSize = int(18 * self.size / 120)
+        painter.setFont(QtGui.QFont("Times", pointSize=fontSize, weight=75))
+        metrics = painter.fontMetrics()
+        labelSize = metrics.height()
+        margin = 5
+
+        x = self.center.x()
+        y = self.center.y()
+        size = self.size - labelSize - margin
+
+        path = QtGui.QPainterPath()
+        path.moveTo(x, y - size * 0.23)
+        path.lineTo(x - size * 0.45, y - size * 0.45)
+        path.lineTo(x - size * 0.23, y)
+        path.lineTo(x - size * 0.45, y + size * 0.45)
+        path.lineTo(x, y + size * 0.23)
+        path.lineTo(x + size * 0.45, y + size * 0.45)
+        path.lineTo(x + size * 0.23, y)
+        path.lineTo(x + size * 0.45, y - size * 0.45)
+        path.closeSubpath()
+        painter.fillPath(path, QtGui.QColor("light gray"))
+
+        path = QtGui.QPainterPath()
+        path.moveTo(x, y - size)
+        path.lineTo(x - size * 0.18, y - size * 0.18)
+        path.lineTo(x - size, y)
+        path.lineTo(x - size * 0.18, y + size * 0.18)
+        path.lineTo(x, y + size)
+        path.lineTo(x + size * 0.18, y + size * 0.18)
+        path.lineTo(x + size, y)
+        path.lineTo(x + size * 0.18, y - size * 0.18)
+        path.closeSubpath()
+        painter.fillPath(path, QtGui.QColor("black"))
+
+        labelX = x - metrics.width("N") / 2
+        labelY = y - self.size + labelSize - metrics.descent()
+        painter.drawText(QtCore.QPoint(labelX, labelY), "N")
+        labelX = x - metrics.width("S") / 2
+        labelY = y + self.size - labelSize + metrics.ascent()
+        painter.drawText(QtCore.QPoint(labelX, labelY), "S")
+
+        labelX = x - self.size + labelSize / 2 - metrics.width("E") / 2
+        labelY = y - metrics.height() / 2 + metrics.ascent()
+        painter.drawText(QtCore.QPoint(labelX, labelY), "E")
+        labelX = x + self.size - labelSize / 2 - metrics.width("W") / 2
+        labelY = y - metrics.height() / 2 + metrics.ascent()
+        painter.drawText(QtCore.QPoint(labelX, labelY), "W")
 
 
 class DistanceTool(qgis_gui.QgsMapTool):
@@ -614,6 +696,8 @@ def raster_shader(lyrmin: float, lyrmax: float):
     fcn.setColorRampItemList(lst)
     shader = qgis_core.QgsRasterShader()
     shader.setRasterShaderFunction(fcn)
+    shader.setMinimumValue(lyrmin)
+    shader.setMaximumValue(lyrmax)
     return shader
 
 
@@ -647,6 +731,8 @@ def inv_raster_shader(lyrmin: float, lyrmax: float):
     fcn.setColorRampItemList(lst)
     shader = qgis_core.QgsRasterShader()
     shader.setRasterShaderFunction(fcn)
+    shader.setMinimumValue(lyrmin)
+    shader.setMaximumValue(lyrmax)
     return shader
 
 
@@ -945,6 +1031,7 @@ class MapView(QtWidgets.QMainWindow):
         self.canvas.setCanvasColor(QtCore.Qt.white)
         self.canvas.setDestinationCrs(self.crs)
         self.canvas.enableAntiAliasing(True)
+
         self.settings = self.canvas.mapSettings()
         self.project = qgis_core.QgsProject.instance()
 
@@ -985,6 +1072,8 @@ class MapView(QtWidgets.QMainWindow):
         rectangle_instructions += 'Third left click - load the data in Points View (if georeferenced soundings exist)'
         self.actionPoints = QtWidgets.QAction("Points")
         self.actionPoints.setToolTip('Select georeferenced points within an area to view in Points View tab.\n\n' + rectangle_instructions)
+        self.actionScreenshot = QtWidgets.QAction("Screenshot")
+        self.actionScreenshot.setToolTip('Take a screenshot of the current map view')
 
         self.actionZoomIn.setCheckable(True)
         self.actionZoomOut.setCheckable(True)
@@ -1001,6 +1090,7 @@ class MapView(QtWidgets.QMainWindow):
         self.actionQuery.triggered.connect(self.query)
         self.actionDistance.triggered.connect(self.distance)
         self.actionPoints.triggered.connect(self.selectPoints)
+        self.actionScreenshot.triggered.connect(self.take_screenshot)
 
         self.toolbar = self.addToolBar("Canvas actions")
         self.toolbar.addAction(self.actionZoomIn)
@@ -1010,6 +1100,7 @@ class MapView(QtWidgets.QMainWindow):
         self.toolbar.addAction(self.actionQuery)
         self.toolbar.addAction(self.actionDistance)
         self.toolbar.addAction(self.actionPoints)
+        self.toolbar.addAction(self.actionScreenshot)
 
         # create the map tools
         self.toolPan = qgis_gui.QgsMapToolPan(self.canvas)
@@ -1092,6 +1183,28 @@ class MapView(QtWidgets.QMainWindow):
         lyrs = [0, 3, 4, 5, 6, 7, 8, 9, 10, 1, 2]  # leave out 11, the overscale warning
         for lyr in lyrs:
             url = 'https://gis.charttools.noaa.gov/arcgis/rest/services/MCS/ENCOnline/MapServer/exts/MaritimeChartService/WMSServer'
+            fmat = 'image/png'
+            dpi = 7
+            crs = 'EPSG:{}'.format(self.epsg)
+            urls.append('crs={}&dpiMode={}&format={}&layers={}&styles&url={}'.format(crs, dpi, fmat, lyr, url))
+        return urls
+
+    def wms_noaa_ecdis(self):
+        urls = []
+        lyrs = [4, 5, 7, 3, 1, 9, 0, 6, 2, 0]  # leave out 12, the overscale warning, 8 data quality
+        for lyr in lyrs:
+            url = 'https://gis.charttools.noaa.gov/arcgis/rest/services/MCS/ENCOnline/MapServer/exts/MaritimeChartService/WMSServer'
+            fmat = 'image/png'
+            dpi = 7
+            crs = 'EPSG:{}'.format(self.epsg)
+            urls.append('crs={}&dpiMode={}&format={}&layers={}&styles&url={}'.format(crs, dpi, fmat, lyr, url))
+        return urls
+
+    def wms_noaa_chartdisplay(self):
+        urls = []
+        lyrs = [4, 5, 7, 3, 1, 9, 0, 6, 2, 0]  # leave out 12, the overscale warning, 8 data quality
+        for lyr in lyrs:
+            url = 'https://gis.charttools.noaa.gov/arcgis/rest/services/MCS/NOAAChartDisplay/MapServer/exts/MaritimeChartService/WMSServer'
             fmat = 'image/png'
             dpi = 7
             crs = 'EPSG:{}'.format(self.epsg)
@@ -1321,6 +1434,34 @@ class MapView(QtWidgets.QMainWindow):
             else:
                 print('QGIS Initialize: Unable to find background layer: {}'.format(url_with_params))
 
+    def _init_noaa_ecdis(self):
+        """
+        Set the background to the NOAA ECDIS service
+        """
+        for lname in self.layer_manager.background_layer_names:
+            self.remove_layer(lname)
+        urls = self.wms_noaa_ecdis()
+        for cnt, url_with_params in enumerate(urls):
+            lyr = self.add_layer(url_with_params, 'NOAA_ECDIS_{}'.format(cnt), 'wms')
+            if lyr:
+                lyr.renderer().setOpacity(1 - self.layer_transparency)
+            else:
+                print('QGIS Initialize: Unable to find background layer: {}'.format(url_with_params))
+
+    def _init_noaa_chartdisplay(self):
+        """
+        Set the background to the NOAA ECDIS service
+        """
+        for lname in self.layer_manager.background_layer_names:
+            self.remove_layer(lname)
+        urls = self.wms_noaa_chartdisplay()
+        for cnt, url_with_params in enumerate(urls):
+            lyr = self.add_layer(url_with_params, 'NOAA_CHARTDISPLAY_{}'.format(cnt), 'wms')
+            if lyr:
+                lyr.renderer().setOpacity(1 - self.layer_transparency)
+            else:
+                print('QGIS Initialize: Unable to find background layer: {}'.format(url_with_params))
+
     def _init_gebco(self):
         """
         Set the background to the Gebco latest Grid Shaded Relief WMS
@@ -1491,6 +1632,10 @@ class MapView(QtWidgets.QMainWindow):
             self._init_noaa_rnc()
         elif self.layer_background == 'NOAA ENC (internet required)':
             self._init_noaa_enc()
+        elif self.layer_background == 'NOAA ECDIS (internet required)':
+            self._init_noaa_ecdis()
+        elif self.layer_background == 'NOAA Chart Display Service (internet required)':
+            self._init_noaa_chartdisplay()
         elif self.layer_background == 'GEBCO Grid (internet required)':
             self._init_gebco()
         elif self.layer_background == 'EMODnet Bathymetry (internet required)':
@@ -2205,6 +2350,184 @@ class MapView(QtWidgets.QMainWindow):
         switching off the 2d/3d points view tool or clearing the box with the tool will clear the already loaded data in the 3d view
         """
         self.turn_off_pointsview.emit(True)
+
+    def take_screenshot(self):
+        """
+        Take a screenshot of the current map view, based off of
+        https://www.geodose.com/2022/02/pyqgis-tutorial-automating-map-layout.html
+        and
+        https://github.com/MarcoDuiker/QGIS_QuickPrint/blob/d1c946a7b6187553c92ffad7a0cc23d39a1bc593/quick_print3.py
+        """
+
+        msg, fil = RegistryHelpers.GetFilenameFromUserQT(self, RegistryKey='kluster', Title='Save a new screenshot (supports png, pdf, jpeg)',
+                                                         AppName='klusterproj', bMulti=False, bSave=True, DefaultFile="screenshot.png",
+                                                         fFilter='png (*.png);;pdf (*.pdf);;jpeg (*.jpeg);;jpg (*.jpg)')
+        if msg:
+            print(f'Generating screenshot {fil}')
+            supported_extensions = ['.pdf', '.png', '.jpeg', '.jpg']
+            fil_ext = os.path.splitext(fil)[1]
+            if fil_ext not in supported_extensions:
+                print(f'take_screenshot - {fil} file type not supported, must be one of {supported_extensions}')
+                return
+
+            project = self.project
+            layout = qgis_core.QgsPrintLayout(project)
+            layout.initializeDefaults()
+
+            # start with the kluster template.  This allows us to layout the rough chart elements, in the proper position
+            #  easily, so that we can then customize them
+            templatefile = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'misc', 'kluster_qgis_print_template.qpt')
+            with open(templatefile) as f:
+                template_content = f.read()
+            doc = QtXml.QDomDocument()
+            doc.setContent(template_content)
+            items, chk = layout.loadFromTemplate(doc, qgis_core.QgsReadWriteContext(), False)
+            if not chk:
+                print(f'Error loading from template file {templatefile}')
+                return
+
+            # get the layout map from the template load.  we need to setLayers, so that our loaded lines/grids show up.
+            #  we also need to find the grids, which are in projected crs, and reproject to geographic so that they line
+            #  up with the geographic lines/background.  Have to do this manually, we could use the qgis processing algorithms,
+            #  but they are a pain in the ass to setup, and seem to cause issues on import.
+            mymap = [itm for itm in items if isinstance(itm, qgis_core.QgsLayoutItemMap)]
+            if not mymap or len(mymap) > 1:
+                print(f'Unexpected item map found {mymap}')
+                return
+            mymap = mymap[0]
+            drop_layers = []
+            orig_layers = self.project.mapThemeCollection().masterVisibleLayers()
+            for cnt, lyr in enumerate(orig_layers):  # get all the grid layers, warp to 4326
+                if lyr.name().find('vsimem') != -1 and lyr.crs() != qgis_core.QgsCoordinateReferenceSystem(kluster_variables.qgis_epsg) and lyr in self.layer_manager.shown_layers:
+                    newsrc = f'/vsimem/newsrc_{cnt}'
+                    ds = gdal.Warp(newsrc, lyr.source(), format='GTiff', dstSRS=f"EPSG:{kluster_variables.qgis_epsg}")
+                    newlyr = qgis_core.QgsRasterLayer(newsrc, '', 'gdal')
+                    # no way to copy the renderer (tried copyCommonProperties) have to rebuild
+                    formatted_layername = [aln for aln in acceptedlayernames if lyr.name().find(aln) > -1][0]
+                    if formatted_layername in invert_colormap_layernames:
+                        shader = inv_raster_shader
+                    else:
+                        shader = raster_shader
+                    if formatted_layername == 'hillshade':
+                        renderer = qgis_core.QgsHillshadeRenderer(newlyr.dataProvider(), 1, 315, 45)
+                    else:
+                        renderer = qgis_core.QgsSingleBandPseudoColorRenderer(newlyr.dataProvider(), 1, shader(float(np.floor(self.band_minmax[formatted_layername][0])),
+                                                                                                               float(np.ceil(self.band_minmax[formatted_layername][1]))))
+                    newlyr.setRenderer(renderer)
+                    newlyr.renderer().setOpacity(1 - self.surface_transparency)
+                    ds = None
+                    self.project.addMapLayer(newlyr, True)
+                    drop_layers.append([newlyr, formatted_layername])
+
+            # now we build the layers to use in the screenshot.  First sort them in shown_layers order, keeping only visible layers
+            final_layers = [x for x in self.layer_manager.shown_layers if x in self.project.mapThemeCollection().masterVisibleLayers()]
+            # now take out the old surface layers (the non unprojected ones)
+            final_layers = [lyr for lyr in final_layers if lyr not in self.layer_manager.surface_layers]
+            # add in the new geographic versions, put them on top of course
+            final_layers = [dlyr[0] for dlyr in drop_layers] + final_layers
+            mymap.setLayers(final_layers)
+
+            # screen might not have the same proportions as the paper, need to ensure that the trimming/growing of the screen
+            #   to fit paper results in the image centered on the same spot, so we do it manually
+            paper_proportion = layout.width() / layout.height()
+            canvrec = self.canvas.extent()
+            cancenter = canvrec.center()
+            if canvrec.width() > canvrec.height():
+                desired_canvas_height = canvrec.width() / paper_proportion
+                desired_canvas_rec = qgis_core.QgsRectangle(qgis_core.QgsPointXY(canvrec.xMinimum(), cancenter.y() - desired_canvas_height / 2),
+                                                            qgis_core.QgsPointXY(canvrec.xMaximum(), cancenter.y() + desired_canvas_height / 2))
+            else:
+                desired_canvas_width = canvrec.height() * paper_proportion
+                desired_canvas_rec = qgis_core.QgsRectangle(qgis_core.QgsPointXY(cancenter.x() - desired_canvas_width / 2, canvrec.yMinimum()),
+                                                            qgis_core.QgsPointXY(cancenter.x() + desired_canvas_width / 2, canvrec.yMaximum()))
+            mymap.setExtent(desired_canvas_rec)
+
+            # if we have grids, we need to use the legend
+            mylegend = [itm for itm in items if isinstance(itm, qgis_core.QgsLayoutItemLegend)]
+            if not mylegend or len(mylegend) > 1:
+                print(f'Unexpected item legend found {mylegend}')
+                return
+            mylegend = mylegend[0]
+            if drop_layers:  # ideally all layers have the same legend (min max being the same)
+                droplayer, dropname = drop_layers[0]
+                root = qgis_core.QgsLayerTree()  # override legend items with only the reprojected rasters
+                root.addLayer(droplayer)
+                # this is the only way I could figure out how to rename the band name
+                root.children()[0].setCustomProperty("legend/label-0", dropname)
+                mylegend.model().setRootGroup(root)
+                # set the height of the color bar
+                mylegend.setSymbolHeight(130.0)
+                mylegend.updateLegend()
+                # want the colorbar to go from shallow on top, to deep on the bottom.  Feel like this should do it, but it doesnt, strangely.
+                if dropname == 'depth':
+                    layer_node = root.findLayer(droplayer)
+                    newsetts = qgis_core.QgsColorRampLegendNodeSettings()
+                    newsetts.setDirection(qgis_core.QgsColorRampLegendNodeSettings.Direction.MaximumToMinimum)
+                    qgis_core.QgsMapLayerLegendUtils.setLegendNodeColorRampSettings(layer_node, 0, newsetts)
+                    mylegend.updateLegend()
+            else:
+                layout.removeLayoutItem(mylegend)
+
+            pics = [itm for itm in items if isinstance(itm, qgis_core.QgsLayoutItemPicture)]
+            # I like this arrow more than any of the prebuilt ones in qgis
+            myarrow = [itm for itm in pics if itm.mode() == qgis_core.QgsLayoutItemPicture.FormatRaster]
+            if not myarrow or len(myarrow) > 1:
+                print(f'Unexpected item northarrow found {myarrow}')
+                return
+            myarrow = myarrow[0]
+            myarrow.setPicturePath(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'images', 'NorthArrow.png'))
+
+            # fix logo path, since it depends on environment
+            # mylogo = [itm for itm in pics if itm.mode() == qgis_core.QgsLayoutItemPicture.FormatRaster]
+            # if not mylogo or len(mylogo) > 1:
+            #     print(f'Unexpected item northarrow found {mylogo}')
+            #     return
+            # mylogo = mylogo[0]
+            # mylogo.setPicturePath(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'images', 'kluster_img.png'))
+
+            # scale bar is a pain.  If we were to show it in degrees, it would be no issue.  To show in nautical miles, we need
+            #  to calculate the screenshot width, convert units, and then build scale bar units accordingly
+            myscale = [itm for itm in items if isinstance(itm, qgis_core.QgsLayoutItemScaleBar)]
+            if not myscale or len(myscale) > 1:
+                print(f'Unexpected item scalebar found {myscale}')
+                return
+            myscale = myscale[0]
+            myextent = mymap.extent()
+            distance = qgis_core.QgsDistanceArea()
+            distance.setEllipsoid('WGS84')
+            degree_width_meters = distance.measureLine(qgis_core.QgsPointXY(myextent.xMinimum(), myextent.yMinimum()), qgis_core.QgsPointXY(myextent.xMinimum() + 1, myextent.yMinimum()))
+            screenshot_width_meters = distance.measureLine(qgis_core.QgsPointXY(myextent.xMinimum(), myextent.yMinimum()), qgis_core.QgsPointXY(myextent.xMaximum(), myextent.yMaximum()))
+            meters_in_nm = 1852
+            screenshot_width_in_nm = screenshot_width_meters / meters_in_nm
+            # pick some nautical mile numbers, nearest one is used in deriving units/length of scale bar
+            scale_sizes = [1000, 750, 500, 250, 100, 75, 50, 25, 10, 7.5, 5, 2.5, 1, 0.75, 0.5, 0.25, 0.1, 0.075, 0.05, 0.025, 0.01, 0.0075, 0.005, 0.0025, 0.001]
+            found = False
+            for scalesize in scale_sizes:
+                if screenshot_width_in_nm > scalesize:
+                    myscale.setMapUnitsPerScaleBarUnit((scalesize / 10) * meters_in_nm * (1 / degree_width_meters) / (scalesize / 10))
+                    myscale.setUnitsPerSegment((scalesize / 10) * meters_in_nm * (1 / degree_width_meters))
+                    myscale.setUnitLabel("NM")
+                    found = True
+                    break
+            if not found:
+                print(f'Warning: Unable to generate scale bar for screen width of {screenshot_width_in_nm} NM')
+
+            if os.path.exists(fil):
+                os.remove(fil)
+            exporter = qgis_core.QgsLayoutExporter(layout)
+            if fil_ext == '.pdf':
+                exporter.exportToPdf(fil, qgis_core.QgsLayoutExporter.PdfExportSettings())
+            else:
+                exporter.exportToImage(fil, qgis_core.QgsLayoutExporter.ImageExportSettings())
+            print(f'Screenshot saved to {fil}')
+            exporter = None
+            mymap.setLayers([])
+            mymap = None
+            layout = None
+            # make sure we get rid of our temporary warped surface layer
+            for dlyr, dname in drop_layers:
+                gdal.Unlink(dlyr.source())
+                self.project.removeMapLayer(dlyr)
 
 
 if __name__ == '__main__':

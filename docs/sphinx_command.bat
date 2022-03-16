@@ -1,1 +1,1 @@
-cd C:\Pydro21_Dev\NOAA\site-packages\Python38\git_repos\hstb_kluster\docs && C:\Pydro21_Dev\Scripts\activate Pydro38 && sphinx-build -b html "C:\Pydro21_Dev\NOAA\site-packages\Python38\git_repos\hstb_kluster\docs" "C:\Pydro21_Dev\NOAA\site-packages\Python38\git_repos\hstb_kluster\docbuild"
+cd C:\Pydro22_Dev\NOAA\site-packages\Python38\git_repos\hstb_kluster\docs && C:\Pydro22_Dev\Scripts\activate Pydro38 && sphinx-build -b html "C:\Pydro22_Dev\NOAA\site-packages\Python38\git_repos\hstb_kluster\docs" "C:\Pydro22_Dev\NOAA\site-packages\Python38\git_repos\hstb_kluster\docbuild"

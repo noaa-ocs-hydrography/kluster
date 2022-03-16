@@ -67,11 +67,19 @@ class SettingsDialog(SaveStateDialog):
         self.vdatum_label = QtWidgets.QLabel('VDatum Directory')
         self.gen_hlayout_one.addWidget(self.vdatum_label)
         self.vdatum_text = QtWidgets.QLineEdit('', self)
-        self.vdatum_text.setReadOnly(True)
         self.vdatum_text.setToolTip('Optional, this is required if you are using the "NOAA MLLW" or "NOAA MHW" vertical reference options.')
         self.gen_hlayout_one.addWidget(self.vdatum_text)
         self.browse_button = QtWidgets.QPushButton("Browse", self)
         self.gen_hlayout_one.addWidget(self.browse_button)
+
+        self.gen_hlayout_two = QtWidgets.QHBoxLayout()
+        self.filter_label = QtWidgets.QLabel('External Filter Directory')
+        self.gen_hlayout_two.addWidget(self.filter_label)
+        self.filter_text = QtWidgets.QLineEdit('', self)
+        self.filter_text.setToolTip('Optional, set if you have a directory of custom Kluster filter .py files that you would like to include.')
+        self.gen_hlayout_two.addWidget(self.filter_text)
+        self.browse_filter_button = QtWidgets.QPushButton("Browse", self)
+        self.gen_hlayout_two.addWidget(self.browse_filter_button)
 
         self.status_msg = QtWidgets.QLabel('')
         self.status_msg.setStyleSheet("QLabel { color : " + kluster_variables.error_color + "; }")
@@ -93,6 +101,7 @@ class SettingsDialog(SaveStateDialog):
         self.general_layout.addWidget(self.force_coordinate_match)
         self.general_layout.addLayout(self.gen_hlayout_one_one)
         self.general_layout.addLayout(self.gen_hlayout_one)
+        self.general_layout.addLayout(self.gen_hlayout_two)
         self.general_layout.addWidget(self.status_msg)
         self.general_layout.addStretch()
 
@@ -224,7 +233,7 @@ class SettingsDialog(SaveStateDialog):
         self.kvar_rollerror_label = QtWidgets.QLabel('Default Roll Sensor Error (meters)')
         self.kvar_rollerror = QtWidgets.QLineEdit('')
         self.kvar_rollerror.setValidator(validator)
-        self.kvar_rollerror.setText(str(kluster_variables.default_roll_error))
+        self.kvar_rollerror.setText(str(kluster_variables.default_roll_sensor_error))
         self.kvar_rollerror.editingFinished.connect(self.validate_numctrl)
         self.kvar_rollerror.setToolTip('Default 1 sigma standard deviation in the roll sensor, generally found in manufacturer specifications.')
         uncertaintyone.addWidget(self.kvar_heaveerror_label)
@@ -236,13 +245,13 @@ class SettingsDialog(SaveStateDialog):
         self.kvar_pitcherror_label = QtWidgets.QLabel('Default Pitch Sensor Error (meters)')
         self.kvar_pitcherror = QtWidgets.QLineEdit('')
         self.kvar_pitcherror.setValidator(validator)
-        self.kvar_pitcherror.setText(str(kluster_variables.default_pitch_error))
+        self.kvar_pitcherror.setText(str(kluster_variables.default_pitch_sensor_error))
         self.kvar_pitcherror.editingFinished.connect(self.validate_numctrl)
         self.kvar_pitcherror.setToolTip('Default 1 sigma standard deviation in the pitch sensor, generally found in manufacturer specifications')
         self.kvar_yawerror_label = QtWidgets.QLabel('Default Yaw Sensor Error (meters)')
         self.kvar_yawerror = QtWidgets.QLineEdit('')
         self.kvar_yawerror.setValidator(validator)
-        self.kvar_yawerror.setText(str(kluster_variables.default_heading_error))
+        self.kvar_yawerror.setText(str(kluster_variables.default_heading_sensor_error))
         self.kvar_yawerror.editingFinished.connect(self.validate_numctrl)
         self.kvar_yawerror.setToolTip('Default 1 sigma standard deviation in the heading sensor, generally found in manufacturer specifications')
         uncertaintytwo.addWidget(self.kvar_pitcherror_label)
@@ -319,15 +328,18 @@ class SettingsDialog(SaveStateDialog):
         self.setLayout(layout)
 
         self.vdatum_pth = None
+        self.filter_pth = None
 
         self.canceled = False
 
         self.browse_button.clicked.connect(self.vdatum_browse)
+        self.browse_filter_button.clicked.connect(self.filter_browse)
         self.ok_button.clicked.connect(self.start)
         self.cancel_button.clicked.connect(self.cancel)
         self.default_button.clicked.connect(self.set_to_default)
 
-        self.text_controls = [['vdatum_directory', self.vdatum_text], ['auto_processing_mode', self.auto_processing_mode]]
+        self.text_controls = [['vdatum_directory', self.vdatum_text], ['auto_processing_mode', self.auto_processing_mode],
+                              ['filter_text', self.filter_text]]
         self.checkbox_controls = [['enable_parallel_writes', self.parallel_write], ['keep_waterline_changes', self.keep_waterline_changes],
                                   ['force_coordinate_match', self.force_coordinate_match]]
 
@@ -363,6 +375,7 @@ class SettingsDialog(SaveStateDialog):
                     'keep_waterline_changes': self.keep_waterline_changes.isChecked(),
                     'force_coordinate_match': self.force_coordinate_match.isChecked(),
                     'vdatum_directory': self.vdatum_pth,
+                    'filter_directory': self.filter_pth,
                     'autoprocessing_mode': self.auto_processing_mode.currentText()}
             self.set_vyperdatum_path()
         else:
@@ -378,8 +391,8 @@ class SettingsDialog(SaveStateDialog):
                 'phase_color': self.kvar_phase_color.currentText(), 'reject_color': self.kvar_reject_color.currentText(),
                 'reaccept_color': self.kvar_reaccept_color.currentText(), 'converted_files_at_once': self.kvar_convfiles.text(),
                 'pings_per_las': self.kvar_pingslas.text(), 'pings_per_csv': self.kvar_pingscsv.text(),
-                'default_heave_error': self.kvar_heaveerror.text(), 'default_roll_error': self.kvar_rollerror.text(),
-                'default_pitch_error': self.kvar_pitcherror.text(), 'default_heading_error': self.kvar_yawerror.text(),
+                'default_heave_error': self.kvar_heaveerror.text(), 'default_roll_sensor_error': self.kvar_rollerror.text(),
+                'default_pitch_sensor_error': self.kvar_pitcherror.text(), 'default_heading_sensor_error': self.kvar_yawerror.text(),
                 'default_beam_opening_angle': self.kvar_beamangle.text(), 'default_surface_sv_error': self.kvar_sverror.text(),
                 'default_roll_patch_error': self.kvar_rollpatch.text(), 'default_waterline_error': self.kvar_waterline.text(),
                 'default_horizontal_positioning_error': self.kvar_horizontalerror.text(),
@@ -393,6 +406,14 @@ class SettingsDialog(SaveStateDialog):
             self.vdatum_pth = vdatum_pth
             self.vdatum_text.setText(self.vdatum_pth)
         self.set_vyperdatum_path()
+
+    def filter_browse(self):
+        # dirpath will be None or a string
+        msg, filter_pth = RegistryHelpers.GetDirFromUserQT(self, RegistryKey='Kluster',
+                                                           Title='Select filter directory', AppName='\\reghelp')
+        if filter_pth:
+            self.filter_pth = filter_pth
+            self.filter_text.setText(self.filter_pth)
 
     def start(self):
         """
@@ -435,9 +456,9 @@ class SettingsDialog(SaveStateDialog):
         elif curidx == 3:
             self.kvar_beamangle.setText(str(kluster_variables.kvar_initial_state['default_beam_opening_angle']))
             self.kvar_heaveerror.setText(str(kluster_variables.kvar_initial_state['default_heave_error']))
-            self.kvar_rollerror.setText(str(kluster_variables.kvar_initial_state['default_roll_error']))
-            self.kvar_pitcherror.setText(str(kluster_variables.kvar_initial_state['default_pitch_error']))
-            self.kvar_yawerror.setText(str(kluster_variables.kvar_initial_state['default_heading_error']))
+            self.kvar_rollerror.setText(str(kluster_variables.kvar_initial_state['default_roll_sensor_error']))
+            self.kvar_pitcherror.setText(str(kluster_variables.kvar_initial_state['default_pitch_sensor_error']))
+            self.kvar_yawerror.setText(str(kluster_variables.kvar_initial_state['default_heading_sensor_error']))
             self.kvar_sverror.setText(str(kluster_variables.kvar_initial_state['default_surface_sv_error']))
             self.kvar_rollpatch.setText(str(kluster_variables.kvar_initial_state['default_roll_patch_error']))
             self.kvar_waterline.setText(str(kluster_variables.kvar_initial_state['default_waterline_error']))
@@ -449,6 +470,7 @@ class SettingsDialog(SaveStateDialog):
     def read_settings(self):
         super().read_settings()
         self.vdatum_pth = self.vdatum_text.text()
+        self.filter_pth = self.filter_text.text()
         self.set_vyperdatum_path()
 
 

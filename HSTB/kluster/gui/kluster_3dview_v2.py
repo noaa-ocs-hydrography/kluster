@@ -1695,6 +1695,24 @@ class ThreeDWidget(QtWidgets.QWidget):
         else:
             print('Point cloud cleaning disabled while patch test is running')
 
+    def override_sounding_status(self, new_status: np.ndarray):
+        if not self.patch_test_running:
+            try:
+                assert new_status.size == self.three_d_window.rejected.size
+            except AssertionError:
+                print(f'override_sounding_status: unable to override Points View rejected with new array, size does not match (new size {new_status.size} != {self.three_d_window.rejected.size}')
+            self.three_d_window.selected_points = np.ones(self.three_d_window.rejected.shape[0], dtype=bool)
+            self.last_change_buffer.append([self.three_d_window.selected_points, self.three_d_window.rejected.copy()])
+            self.three_d_window.rejected[self.three_d_window.selected_points] = new_status
+            self.three_d_window.selected_points = None
+            self.three_d_window.highlight_selected_scatter(self.colorby.currentText(), False)
+            if len(self.last_change_buffer) > kluster_variables.last_change_buffer_size:
+                print('WARNING: Points view will only retain the last {} cleaning actions for undo'.format(
+                    kluster_variables.last_change_buffer_size))
+                self.last_change_buffer.pop(0)
+        else:
+            print('Point cloud cleaning disabled while patch test is running')
+
     def accept_points(self, startpos, endpos, three_d: bool = False):
         """
         Triggers when the user ALT+Mouse2 selects data in the 3dview.  We set the selected points and let the widget know to accept these points.
@@ -1720,6 +1738,23 @@ class ThreeDWidget(QtWidgets.QWidget):
             self.three_d_window.highlight_selected_scatter(self.colorby.currentText())
         else:
             print('Points View: No changes to undo')
+
+    def return_array(self, arr_name: str):
+        idx = {}
+        select_id = self.three_d_window.id
+        selarray = self.three_d_window.__getattribute__(arr_name)
+        uniq_ids = np.unique(select_id)
+        source_ids = [self.three_d_window.idlookup[uqid] for uqid in uniq_ids]
+        for uid, sid in zip(uniq_ids, source_ids):
+            headnum = int(uid[-1])
+            uid_filter = np.where(select_id == uid)[0]
+            selarray_filtered = selarray[uid_filter]
+            idx_key = self.three_d_window.idlookup[uid]
+            if idx_key not in idx:
+                idx[idx_key] = selarray_filtered
+            else:
+                idx[idx_key] = np.concatenate([idx[idx_key], selarray_filtered])
+        return idx
 
     def split_by_selected(self, selarray: np.array):
         """

@@ -86,6 +86,80 @@ One of the big differences is the way the z scaling works.  You'll need to manua
 
 Cleaning is much the same as well.  You drag boxes to select, clean and accept the points.
 
+Filter
+======
+All of what we have discussed so far has been centered on manual data cleaning.  In Kluster v0.9, I added the ability to run custom filters as well (Process - Filter).
+
+A filter in Kluster is just a way to automatically reject/accept soundings based on a set algorithm for a certain part of the dataset.  See the example below:
+
+.. image:: cleaning_7.png
+   :target: ../_images/cleaning_7.png
+
+Here, I am about to run the 'filter_by_angle' algorithm on the points currently shown in Points View, optionally saving the changes to disk.  You'll see that after hitting OK, a second screen pops up with the settings for the filter (min and max angle in our case).  These settings are then used to configure the filter, the filter runs, and you get the result.  Note that you have to have the converted entry selected for it to be used in the filtering (note that the patch test dataset shows as greyed out in the box, which is what you want).
+
+You can also just run the filter on a line or a full dataset if you like.  The recommended approach is to test the algorithm out on the Points View selection, without saving to disk, and then if you like the results, run on the full dataset.
+
+Writing a Custom Filter
+-----------------------
+
+I mentioned earlier that these are 'custom filters'.  Filters in Kluster are designed as plugins, where the user could write a new filter and run it in Kluster by simply including it in the right place.
+
+All of the default included filters are in the kluster/plugins/filters folder.  All python files that have a Filter class will be recognized and runnable from the Kluster filter dialog.  In addition, in Kluster Settings, you'll see that there is an external filter directory, which if you set, Kluster will also look in this directory for potential filter files.
+
+The simplest filter is probably the 'reject_all' filter.  This filter will simply reject all soundings by setting sounding flag to rejected.  The actual filter code is short enough to share here::
+
+    import numpy as np
+
+    from HSTB.kluster.modules.filter import BaseFilter
+    from HSTB.kluster import kluster_variables
+
+    class Filter(BaseFilter):
+        def __init__(self, fqpr, selected_index=None):
+            super().__init__(fqpr, selected_index)
+            self.controls = []
+            self.description = 'Reject all soundings.'
+
+        def _run_algorithm(self):
+            print(f'Running reject_all on {self.fqpr.output_folder}')
+            self.new_status = []  # new_status will be a list where each element is a 2d array of new detectioninfo (sounding flag) values
+            for cnt, rp in enumerate(self.fqpr.multibeam.raw_ping):  # for each sonar head...
+                # build a new array of all rejected flags, same size as existing detectioninfo
+                rp_detect = np.full(rp['detectioninfo'].shape, kluster_variables.rejected_flag, dtype=rp['detectioninfo'].dtype)
+                # new status will be a list of arrays, one for each sonar head.
+                self.new_status.append(rp_detect)
+            print(f'reject_all complete')
+
+You can see that the first thing we did was import the BaseFilter class and create a new Filter class.  You must have a Filter class in your custom filter.  You'll also want the kluster_variables data, if only to get the sounding flag values.
+
+See the BaseFilter class for more info.
+
+From here, you define your filter.  All filters need a controls and a description attribute.
+
+The controls will be used to build the second filter screen that we saw when running the 'filter_by_angle', that had the min_angle and max_angle options.  See the 'filter_by_angle' for an example on how to use this.
+
+Each list in controls will populate a new GUI control to ask for values when running from Kluster GUI, [datatype, name, start_value, qt_properties] where
+
+- datatype = one of [float, int, text, checkbox, combobox], this controls what kind of GUI control you get
+- name = sets the label of the control, MUST MATCH THE _run_algorithm KEY WORD ARGUMENT
+- start_value = the starting value of the control
+- qt_properties = dict of properties that QT can apply with setProperty
+
+The description attribute will set the tool tip in the Filter GUI.
+
+To build your algorithm, you simply define the '_run_algorithm' function and include your algorithm there.  The comments in the code block above explain the operation we've done here to reject soundings.  Basically, we built a new detectioninfo array and set it all equal to rejected and appended it to the new_status attribute.  Kluster will overwrite (assuming you save changes) the existing sounding status with the new one you add to new_status.
+
+Detectioninfo is the name of the array that holds the sounding flag.  If you ever need a description of a variable, to help figure out what it is, you can use the variable_descriptions look up::
+
+    from HSTB.kluster import kluster_variables
+
+    kluster_variables.variable_descriptions['detectioninfo']
+    Out[3]: 'The accepted/rejected state of each beam.  3 = re-accepted, 2 = rejected, 1 = phase detection, 0 = amplitude detection.  See Kongsberg "detectioninfo".'
+    kluster_variables.variable_descriptions['z']
+    Out[4]: 'The result of running Georeference in Kluster.  This is the sound velocity offsets projected into the coordinate reference system you chose.  Depth is in meters from the vertical reference you chose.'
+    kluster_variables.variable_descriptions['corr_pointing_angle']
+    Out[5]: 'The result of running Compute Beam Vectors in Kluster.  This is the raw beam angles corrected for attitude and mounting angles, relative to nadir (straight down from sonar).'
+
+
 Regridding
 ==========
 

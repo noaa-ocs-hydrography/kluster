@@ -16,6 +16,7 @@ from HSTB.kluster.modules.svcorrect import get_sv_files_from_directory, return_s
     distributed_run_sv_correct, cast_data_from_file
 from HSTB.kluster.modules.georeference import distrib_run_georeference, vertical_datum_to_wkt, vyperdatum_found
 from HSTB.kluster.modules.tpu import distrib_run_calculate_tpu
+from HSTB.kluster.modules.filter import FilterManager
 from HSTB.kluster.xarray_conversion import BatchRead
 from HSTB.kluster.fqpr_vessel import trim_xyzrprh_to_times
 from HSTB.kluster.modules.visualizations import FqprVisualizations
@@ -104,6 +105,8 @@ class Fqpr(ZarrBackend):
         self.export = FqprExport(self)
         # subset module
         self.subset = FqprSubset(self)
+        # filter module
+        self.filter = FilterManager(self)
 
         self.logfile = None
         self.logger = None
@@ -359,6 +362,23 @@ class Fqpr(ZarrBackend):
                 return subset_nav
         except:
             return None
+
+    @property
+    def input_datum(self):
+        """
+        The basic input datum of the converted multibeam data.  Will be ignored in processing if an sbet_datum exists,
+        as sbet navigation and altitude are used by default if they exist unless you explicitly request non-sbet processing.
+        """
+        return self.multibeam.raw_ping[0].input_datum
+
+    @input_datum.setter
+    def input_datum(self, new_datum: Union[str, int]):
+        isvalid, newcrs = validate_kluster_input_datum(new_datum)
+        if isvalid:
+            self.write_attribute_to_ping_records({'input_datum': str(new_datum)})
+        else:
+            self.logger.error(f'input_datum: Unable to set input datum with new datum {new_datum}')
+            raise ValueError(f'input_datum: Unable to set input datum with new datum {new_datum}')
 
     def return_navigation(self, start_time: float = None, end_time: float = None):
         """
@@ -1361,13 +1381,11 @@ class Fqpr(ZarrBackend):
                 input_datum = 'WGS84'
             self._using_sbet = False
 
-        if input_datum.lower() == 'nad83':
-            input_datum = CRS.from_epsg(kluster_variables.epsg_nad83)
-        elif input_datum.lower() == 'wgs84':
-            input_datum = CRS.from_epsg(kluster_variables.epsg_wgs84)
-        else:
-            self.logger.error('{} not supported.  Only supports WGS84 and NAD83'.format(ra.input_datum))
-            raise ValueError('{} not supported.  Only supports WGS84 and NAD83'.format(ra.input_datum))
+        isvalid, newcrs = validate_kluster_input_datum(input_datum)
+        if not isvalid:
+            self.logger.error('_generate_chunks_georef: {} not supported.  Only supports WGS84, NAD83 or custom epsg integer code'.format(input_datum))
+            raise ValueError('_generate_chunks_georef: {} not supported.  Only supports WGS84, NAD83 or custom epsg integer code'.format(input_datum))
+        input_datum = newcrs
 
         if ('heading' in ra) and ('heave' in ra) and not self.motion_latency:
             hdng = ra.heading
@@ -2564,6 +2582,24 @@ class Fqpr(ZarrBackend):
 
         self.export.export_dataset_to_csv(dataset_name, dest_path)
 
+    def run_filter(self, filtername: str, *args, selected_index: list = None, save_to_disk: bool = True, **kwargs):
+        """
+        Run the filter module with the provided filtername, will match the filename of the filter python file.
+
+        Parameters
+        ----------
+        filtername
+            name of the file that you want to load
+        selected_index
+            optional list of 1d boolean arrays representing the flattened index of those values to retain.  Used mainly
+            in Points View filtering, where you have a (time,beam) space but only want to retain the beams shown in
+            Points View.
+        save_to_disk
+            if True, will save the new sounding status to disk
+        """
+
+        return self.filter.run_filter(filtername, selected_index, save_to_disk=save_to_disk, **kwargs)
+
     def _submit_data_to_cluster(self, rawping: xr.Dataset, mode: str, idx_by_chunk: list, max_chunks_at_a_time: int,
                                 timestmp: str, prefixes: str, dump_data: bool = True, skip_dask: bool = False,
                                 prefer_pp_nav: bool = True, vdatum_directory: str = None):
@@ -2866,6 +2902,13 @@ class Fqpr(ZarrBackend):
         """
 
         self.subset.subset_by_times(time_segments)
+
+    def subset_by_time_and_beam(self, subset_time: np.ndarray, subset_beam: np.ndarray):
+        """
+        Use subset module to subset by time,beam provided, returns a 1d boolean mask for each sonar head
+        """
+
+        return self.subset.subset_by_time_and_beam(subset_time, subset_beam)
 
     def subset_by_lines(self, line_names: Union[str, list]):
         """
@@ -3188,7 +3231,7 @@ class Fqpr(ZarrBackend):
 
         self.subset.set_variable_by_filter(var_name, newval, selected_index)
 
-    def get_variable_by_filter(self, var_name: str, selected_index: list = None):
+    def get_variable_by_filter(self, var_name: str, selected_index: list = None, by_sonar_head: bool = False):
         """
         ping_filter is set upon selecting points in 2d/3d in Kluster.  See return_soundings_in_polygon.  Here we can take
         those points and get one of the variables individually.  This is going to be faster than running return_soundings_in_polygon
@@ -3198,7 +3241,7 @@ class Fqpr(ZarrBackend):
         that you want to super-select, see subset module.
         """
 
-        return self.subset.get_variable_by_filter(var_name, selected_index)
+        return self.subset.get_variable_by_filter(var_name, selected_index, by_sonar_head)
 
     def return_processing_dashboard(self):
         """
@@ -3242,7 +3285,8 @@ class Fqpr(ZarrBackend):
         return dashboard
 
     def return_next_action(self, new_vertical_reference: str = None, new_coordinate_system: CRS = None, new_offsets: bool = False,
-                           new_angles: bool = False, new_tpu: bool = False, new_waterline: bool = False, process_mode: str = 'normal'):
+                           new_angles: bool = False, new_tpu: bool = False, new_input_datum: str = None,
+                           new_waterline: bool = False, process_mode: str = 'normal'):
         """
         Determine the next action to take, building the arguments for the fqpr_convenience.process_multibeam function.
         Uses the processing status, which is updated as a process is completed at a sounding level.
@@ -3273,6 +3317,9 @@ class Fqpr(ZarrBackend):
             True if new mounting angles have been set, requires the full processing stack to be run
         new_tpu
             True if new tpu values have been set, requires compute TPU to run
+        new_input_datum
+            None, if there is no change to the input datum requested, otherwise this is the new input datum we need to set,
+            should trigger a new processing action starting at georeferencing
         new_waterline
             True if a new waterline value has been set, requires processing starting at sound velocity correction
         process_mode
@@ -3281,6 +3328,13 @@ class Fqpr(ZarrBackend):
             - reprocess = perform a full reprocess of the dataset ignoring the current_processing_status
             - convert_only = only convert incoming data, return no processing actions
             - concatenate = process line by line if there is no processed data for that line
+
+        Returns
+        -------
+        list
+            list of processing arguments to feed fqpr_convenience.process_multibeam
+        dict
+            dict of processing keyword arguments to feed fqpr_convenience.process_multibeam
         """
 
         min_status = self.multibeam.raw_ping[0].current_processing_status
@@ -3300,11 +3354,21 @@ class Fqpr(ZarrBackend):
 
         new_diff_vertref = False
         new_diff_coordinate = False
+        new_diff_inputdatum = False
         default_use_epsg = False
         default_use_coord = True
         default_epsg = None
+        input_datum = None
         default_coord_system = kluster_variables.default_coordinate_system
         default_vert_ref = kluster_variables.default_vertical_reference
+        if new_input_datum:
+            if self.has_sbet:  # doesn't matter, because sbet datum is going to trump new input datum
+                new_diff_inputdatum = False
+            elif self.input_datum == new_input_datum:  # they match, no action necessary
+                new_diff_inputdatum = False
+            else:
+                new_diff_inputdatum = True
+                input_datum = new_input_datum
         if new_coordinate_system:
             try:
                 new_epsg = new_coordinate_system.to_epsg()
@@ -3328,17 +3392,18 @@ class Fqpr(ZarrBackend):
                 new_diff_vertref = True
                 default_vert_ref = new_vertical_reference
 
-        if min_status < 5 or new_diff_coordinate or new_diff_vertref or new_offsets or new_angles or new_waterline or new_tpu:
+        if min_status < 5 or new_diff_coordinate or new_diff_inputdatum or new_diff_vertref or new_offsets or new_angles or new_waterline or new_tpu:
             kwargs['run_orientation'] = False
             kwargs['run_beam_vec'] = False
             kwargs['run_svcorr'] = False
             kwargs['run_georef'] = False
             kwargs['run_tpu'] = True
-        if min_status < 4 or new_diff_coordinate or new_diff_vertref or new_offsets or new_angles or new_waterline:
+        if min_status < 4 or new_diff_coordinate or new_diff_inputdatum or new_diff_vertref or new_offsets or new_angles or new_waterline:
             kwargs['run_georef'] = True
             kwargs['use_epsg'] = default_use_epsg
             kwargs['use_coord'] = default_use_coord
             kwargs['epsg'] = default_epsg
+            kwargs['input_datum'] = input_datum
             kwargs['coord_system'] = default_coord_system
             kwargs['vert_ref'] = default_vert_ref
         if min_status < 3 or new_offsets or new_angles or new_waterline:
@@ -3395,3 +3460,36 @@ def _return_xarray_time(xarrs: Union[xr.DataArray, xr.Dataset]):
 def _drop_list_element(data_list: list, drop_this_one: int):
     data_list.pop(drop_this_one)
     return data_list
+
+
+def validate_kluster_input_datum(new_datum: Union[str, int]):
+    """
+    Check the given datum string identifier or epsg code for a valid kluster datum.
+
+    Parameters
+    ----------
+    new_datum
+
+    Returns
+    -------
+
+    """
+    new_datum = str(new_datum)
+    is_valid = True
+    if new_datum.lower() == 'nad83':
+        new_datum = CRS.from_epsg(kluster_variables.epsg_nad83)
+    elif new_datum.lower() == 'wgs84':
+        new_datum = CRS.from_epsg(kluster_variables.epsg_wgs84)
+    else:
+        try:
+            new_datum = CRS.from_epsg(int(new_datum))
+            if new_datum.is_projected:
+                print(f'validate_kluster_input_datum: was given a projected crs, but input crs must be geographic: {new_datum}')
+                is_valid = False
+            elif new_datum.coordinate_system.axis_list[0].unit_name not in ['degree', 'degrees']:
+                print(f'validate_kluster_input_datum: expected a crs to be provided with units of degrees: {new_datum}')
+                is_valid = False
+        except:
+            print('validate_kluster_datum: {} not supported.  Only supports WGS84, NAD83 or custom epsg integer code'.format(new_datum))
+            is_valid = False
+    return is_valid, new_datum

@@ -186,6 +186,52 @@ class FqprSubset:
         for ra in self.fqpr.multibeam.raw_ping:
             ra.attrs['multibeam_files'] = mfiles
 
+    def subset_by_time_and_beam(self, subset_time: np.ndarray, subset_beam: np.ndarray):
+        """
+        Subset an Fqpr instance according to the provided pairs of time,beam.  In order to keep the fqpr in 2d space,
+        we subset the datasets to the unique times and then provide a boolean mask of those values that match
+        the provided time,beam combinations.
+
+        Note that the provided time,beam arrays must be the same shape, as they are treated as pairs of values
+
+        Parameters
+        ----------
+        subset_time
+            1d array of utc timestamps, used to match the xarray dataset time coordinate
+        subset_beam
+            1d array of beam number, used to match the xarray dataset beam coordinate
+
+        Returns
+        -------
+        list
+            list of 1d boolean mask arrays, that can be used to get the exact values of those points that match in time,beam.
+            length of this list is equal to the number of sonar heads, i.e. len(fqpr.multibeam.raw_ping)
+        """
+
+        try:
+            assert subset_beam.shape == subset_time.shape
+        except AssertionError:
+            raise ValueError(f'subset_by_time_and_beam: times and beams provided are pairs of time,beam for each sounding, '
+                             f'and should be the same shape ({subset_beam.shape} vs {subset_time.shape})')
+        # first build a minimal intersection such that the fqpr only contains possible points matching the provided pairs
+        uniq_tms = np.unique(subset_time)
+        uniq_tms_segments = np.split(uniq_tms, np.where(np.diff(uniq_tms) > 5)[0])
+        uniq_tms_list = [[min(seg), max(seg)] for seg in uniq_tms_segments]
+        self.fqpr.subset_by_times(uniq_tms_list)
+        selected_index = []
+        for rp in self.fqpr.multibeam.raw_ping:
+            stack_rp = rp.stack({'sounding': ('time', 'beam')})
+            # now build a mask for where in the subset the points actually are.
+            source_timebeam = np.column_stack([stack_rp.time, stack_rp.beam])
+            query_timebeam = np.column_stack([subset_time, subset_beam])
+            chk = np.intersect1d(source_timebeam.view(dtype=np.complex128), query_timebeam.view(dtype=np.complex128),
+                                 return_indices=True, assume_unique=True)
+            source_indices = chk[1]
+            mask = np.zeros(len(source_timebeam), dtype=bool)
+            mask[source_indices] = True
+            selected_index.append(mask)
+        return selected_index
+
     def restore_subset(self):
         """
         Restores the original data if subset_by_time has been run.
@@ -199,9 +245,6 @@ class FqprSubset:
             self.subset_mintime = 0
             self.subset_lines = []
             self.subset_times = []
-        else:
-            self.fqpr.logger.error('restore_subset: no subset found to restore from')
-            raise ValueError('restore_subset: no subset found to restore from')
 
     def redo_subset(self):
         """
@@ -559,7 +602,7 @@ class FqprSubset:
             self.fqpr.write('ping', [rp_detect.to_dataset()], time_array=[rp_detect.time], sys_id=rp.system_identifier,
                             skip_dask=True)
 
-    def get_variable_by_filter(self, variable_name: str, selected_index: list = None):
+    def get_variable_by_filter(self, variable_name: str, selected_index: list = None, by_sonar_head: bool = False):
         """
         ping_filter is set upon selecting points in 2d/3d in Kluster.  See return_soundings_in_polygon.  Here we can take
         those points and set one of the variables with new data.  Optionally, you can include a selected_index that is a list
@@ -573,6 +616,8 @@ class FqprSubset:
             name of the variable to set, i.e. 'detectioninfo'
         selected_index
             super_selection of the ping_filter selection, done in points_view currently when selecting with the mouse
+        by_sonar_head
+            if True, will return a list of arrays, one array for each sonar head.
         """
 
         datablock = []
@@ -603,8 +648,8 @@ class FqprSubset:
                 subsetdata = data_var.sel(time=unique_times, method='nearest')
                 subsetdata_vals = subsetdata.values
                 datablock.append(subsetdata_vals[utime_index])
-
-        datablock = np.concatenate(datablock)
+        if not by_sonar_head:
+            datablock = np.concatenate(datablock)
         return datablock
 
 

@@ -23,7 +23,7 @@ class TestFqprActions(unittest.TestCase):
 
     def test_build_multibeam_action(self):
         act = build_multibeam_action(self.expected_output, [self.testfile], settings={'parallel_write': False})
-        assert act.args == [[self.testfile], self.expected_output, None, False, True]
+        assert act.args == [[self.testfile], None, self.expected_output, None, False, True]
         assert act.kwargs == {'parallel_write': False}
         assert act.input_files == [self.testfile]
         assert act.action_type == 'multibeam'
@@ -33,7 +33,7 @@ class TestFqprActions(unittest.TestCase):
     def test_update_kwargs_for_multibeam(self):
         sets = update_kwargs_for_multibeam(self.expected_output, [self.testfile], settings={'parallel_write': False})
 
-        assert sets['args'] == [[self.testfile], self.expected_output, None, False, True]
+        assert sets['args'] == [[self.testfile], None, self.expected_output, None, False, True]
         assert sets['kwargs'] == {'parallel_write': False}
         assert sets['tooltip_text'] == self.testfile
         assert sets['input_files'] == [self.testfile]

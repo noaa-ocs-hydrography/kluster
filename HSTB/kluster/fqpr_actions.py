@@ -296,7 +296,7 @@ def build_multibeam_action(destination: str, line_list: list, client: Client = N
         newly generated multibeam conversion action
     """
 
-    args = [line_list, destination, client, False, True]
+    args = [line_list, None, destination, client, False, True]
     if settings:
         allowed_kwargs = ['parallel_write', 'vdatum_directory']
         existing_kwargs = list(settings.keys())
@@ -330,7 +330,7 @@ def update_kwargs_for_multibeam(destination: str, line_list: list, client: Clien
         updated args and kwargs for the multibeam action
     """
 
-    args = [line_list, destination, client, False, True]
+    args = [line_list, None, destination, client, False, True]
     if settings:
         allowed_kwargs = ['parallel_write', 'vdatum_directory']
         existing_kwargs = list(settings.keys())

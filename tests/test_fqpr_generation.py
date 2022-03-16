@@ -358,6 +358,31 @@ class TestFqprGeneration(unittest.TestCase):
         assert len(self.out.multibeam.raw_ping[0].time) == 216
         assert len(self.out.multibeam.raw_att.time) == 5302
 
+        assert self.out.subset.subset_mintime == 0
+        assert self.out.subset.subset_maxtime == 0
+        assert self.out.subset.subset_lines == []
+        assert self.out.subset.subset_times == []
+        # subset will not be redone, but redo_subset passes (does not raise exception), which is what we want
+        self.out.subset.redo_subset()
+
+    def test_subset_by_time_and_beam(self):
+        self._access_processed_data()
+        stacked_dset = self.out.multibeam.raw_ping[0].stack({'sounding': ('time', 'beam')})
+        subset_time = stacked_dset.time.values[100:500]
+        subset_beam = stacked_dset.beam.values[100:500]
+        filter = self.out.subset_by_time_and_beam(subset_time, subset_beam)
+
+        stacked_dset = self.out.multibeam.raw_ping[0].stack({'sounding': ('time', 'beam')})
+        assert len(self.out.multibeam.raw_ping[0].time) == 2
+        assert len(filter) == len(self.out.multibeam.raw_ping)
+        assert np.count_nonzero(filter) == subset_time.shape[0]
+        assert np.count_nonzero(filter) == subset_beam.shape[0]
+        assert (stacked_dset.time[filter[0]] == subset_time).all()
+        assert (stacked_dset.beam[filter[0]] == subset_beam).all()
+        self.out.subset.restore_subset()
+        assert len(self.out.multibeam.raw_ping[0].time) == 216
+        assert len(self.out.multibeam.raw_att.time) == 5302
+
     def test_subset_by_line(self):
         self._access_processed_data()
         self.out.subset_by_lines('0009_20170523_181119_FA2806.all')
@@ -430,6 +455,19 @@ class TestFqprGeneration(unittest.TestCase):
         assert not self.out.intersects(5320000, 5330000, 538950, 539300, geographic=False)
         assert self.out.intersects(47.78895, 47.790, -122.478, -122.479, geographic=True)
         assert not self.out.intersects(47.8899, 47.890, -122.478, -122.479, geographic=True)
+
+    def test_set_input_datum(self):
+        self._access_processed_data()
+        origdatum = self.out.input_datum
+        self.out.input_datum = 'WGS84'
+        assert self.out.input_datum == 'WGS84'
+        self.out.input_datum = 'NAD83'
+        assert self.out.input_datum == 'NAD83'
+        self.out.input_datum = 8999
+        assert self.out.input_datum == '8999'
+        self.out.input_datum = '6319'
+        assert self.out.input_datum == '6319'
+        self.out.input_datum = origdatum
 
     def test_return_unique_mode(self):
         self._access_processed_data()

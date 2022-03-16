@@ -17,7 +17,8 @@ from bathygrid.convenience import create_grid, load_grid, BathyGrid
 from HSTB.kluster import kluster_variables
 
 
-def perform_all_processing(filname: Union[str, list], navfiles: list = None, outfold: str = None, coord_system: str = 'WGS84',
+def perform_all_processing(filname: Union[str, list], navfiles: list = None, input_datum: Union[str, int] = None,
+                           outfold: str = None, coord_system: str = 'WGS84',
                            vert_ref: str = 'waterline', orientation_initial_interpolation: bool = False,
                            add_cast_files: Union[str, list] = None,
                            skip_dask: bool = False, show_progress: bool = True, parallel_write: bool = True,
@@ -37,6 +38,10 @@ def perform_all_processing(filname: Union[str, list], navfiles: list = None, out
     navfiles
         list of postprocessed navigation file paths.  If provided, expects either a log file or
         weekstart_year/weekstart_week/override_datum arguments, see import_navigation
+    input_datum
+        Optional, the basic input datum of the converted multibeam data, should either be nad83, wgs84 or a epsg integer code
+        for a geographic coordinate reference system.  This will be used in georeferencing with ellipsoidally based
+        vertical reference systems.  If None, will use the encoded string in the multibeam data.
     outfold
         full file path to a directory you want to contain all the zarr folders.  Will create this folder
         if it does not exist.
@@ -64,7 +69,8 @@ def perform_all_processing(filname: Union[str, list], navfiles: list = None, out
         Fqpr object containing processed data
     """
 
-    fqpr_inst = convert_multibeam(filname, outfold, skip_dask=skip_dask, show_progress=show_progress, parallel_write=parallel_write)
+    fqpr_inst = convert_multibeam(filname, input_datum=input_datum, outfold=outfold, skip_dask=skip_dask,
+                                  show_progress=show_progress, parallel_write=parallel_write)
     if fqpr_inst is not None:
         if navfiles is not None:
             fqpr_inst = import_processed_navigation(fqpr_inst, navfiles, **kwargs)
@@ -74,8 +80,8 @@ def perform_all_processing(filname: Union[str, list], navfiles: list = None, out
     return fqpr_inst
 
 
-def convert_multibeam(filname: Union[str, list], outfold: str = None, client: Client = None, skip_dask: bool = False,
-                      show_progress: bool = True, parallel_write: bool = True):
+def convert_multibeam(filname: Union[str, list], input_datum: Union[str, int] = None, outfold: str = None,
+                      client: Client = None, skip_dask: bool = False, show_progress: bool = True, parallel_write: bool = True):
     """
     Use fqpr_generation to process multibeam data on the local cluster and generate a new Fqpr instance saved to the
     provided output folder.
@@ -86,6 +92,10 @@ def convert_multibeam(filname: Union[str, list], outfold: str = None, client: Cl
     ----------
     filname
         either a list of .all file paths, a single .all file path or a path to a directory with .all files
+    input_datum
+        Optional, the basic input datum of the converted multibeam data, should either be nad83, wgs84 or a epsg integer code
+        for a geographic coordinate reference system.  This will be used in georeferencing with ellipsoidally based
+        vertical reference systems.  If None, will use the encoded string in the multibeam data.
     outfold
         full file path to a directory you want to contain all the zarr folders.  Will create this folder if it does
         not exist.  If not provided will automatically create folder next to lines.
@@ -115,6 +125,8 @@ def convert_multibeam(filname: Union[str, list], outfold: str = None, client: Cl
 
     fqpr_inst.multibeam.build_offsets(save_pths=fqpr_inst.multibeam.final_paths['ping'])  # write offsets to ping rootgroup
     fqpr_inst.multibeam.build_additional_line_metadata(save_pths=fqpr_inst.multibeam.final_paths['ping'])
+    if input_datum:
+        fqpr_inst.input_datum = input_datum
     return fqpr_inst
 
 
@@ -236,8 +248,8 @@ def import_sound_velocity(fqpr_inst: Fqpr, sv_files: Union[str, list]):
 
 def process_multibeam(fqpr_inst: Fqpr, run_orientation: bool = True, orientation_initial_interpolation: bool = False,
                       run_beam_vec: bool = True, run_svcorr: bool = True, run_georef: bool = True, run_tpu: bool = True,
-                      add_cast_files: Union[str, list] = None, use_epsg: bool = False,
-                      use_coord: bool = True, epsg: int = None, coord_system: str = 'WGS84',
+                      add_cast_files: Union[str, list] = None, input_datum: Union[str, int] = None,
+                      use_epsg: bool = False, use_coord: bool = True, epsg: int = None, coord_system: str = 'WGS84',
                       vert_ref: str = 'waterline', vdatum_directory: str = None, only_this_line: str = None,
                       only_these_times: tuple = None):
     """
@@ -267,6 +279,10 @@ def process_multibeam(fqpr_inst: Fqpr, run_orientation: bool = True, orientation
     add_cast_files
         either a list of files to include or the path to a directory containing files.  These are in addition to
         the casts in the ping dataset.
+    input_datum
+        Optional, the basic input datum of the converted multibeam data, should either be nad83, wgs84 or a epsg integer code
+        for a geographic coordinate reference system.  If None, will use the encoded string in the multibeam data.  If sbet_datum
+        exists, input_datum will not be used, as sbet navigation and altitude are used by default.
     use_epsg
         if True, will use the epsg code to build the CRS to use
     use_coord
@@ -295,6 +311,8 @@ def process_multibeam(fqpr_inst: Fqpr, run_orientation: bool = True, orientation
     if not use_coord and not use_epsg and run_georef:
         print('process_multibeam: please select either use_coord or use_epsg to process')
         return
+    if input_datum:
+        fqpr_inst.input_datum = input_datum
     subset_time = None
     if only_this_line or only_these_times:
         if only_this_line:

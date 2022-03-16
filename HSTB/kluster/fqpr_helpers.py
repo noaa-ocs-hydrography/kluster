@@ -98,17 +98,17 @@ def epsg_determinator(datum: str, zone: int = None, hemisphere: str = None):
         raise ValueError('epsg_determinator: zone is required for projected epsg determination')
     if zone is not None and hemisphere is None:
         raise ValueError('epsg_determinator: hemisphere is required for projected epsg determination')
-    if datum not in ['nad83(2011)', 'wgs84']:
+    if datum not in ['nad83', 'nad83(2011)', 'nad83 pa11', 'nad83(pa11)', 'nad83 ma11', 'nad83(ma11)', 'wgs84']:
         raise ValueError('epsg_determinator: {} not supported'.format(datum))
 
     if zone is None and hemisphere is None:
-        if datum in ['nad83(2011)', 'nad83(pa11)', 'nad83(ma11)']:  # using the 3d geodetic NAD83(2011)
+        if datum in ['nad83', 'nad83(2011)', 'nad83 pa11', 'nad83(pa11)', 'nad83 ma11', 'nad83(ma11)']:  # using the 3d geodetic NAD83(2011)
             return kluster_variables.epsg_nad83
         elif datum == 'wgs84':  # using the 3d geodetic WGS84/ITRF2008
             return kluster_variables.epsg_wgs84
     else:
         hemisphere = hemisphere.lower()
-        if datum == 'nad83(2011)':
+        if datum in ['nad83(2011)', 'nad83']:
             if hemisphere == 'n':
                 if zone <= 19:
                     return 6329 + zone
@@ -116,12 +116,12 @@ def epsg_determinator(datum: str, zone: int = None, hemisphere: str = None):
                     return 6328
                 elif zone == 60:
                     return 6329
-        elif datum == 'nad83(pa11)':
+        elif datum in ['nad83(pa11)', 'nad83 pa11']:
             if zone in [4, 5] and hemisphere == 'n':
                 return 6630 + zone
             elif zone == 2 and hemisphere == 's':
                 return 6636
-        elif datum == 'nad83(ma11)':
+        elif datum in ['nad83(ma11)', 'nad83 ma11']:
             if zone == 54 and hemisphere == 'n':
                 return 8692
             elif zone == 55 and hemisphere == 's':

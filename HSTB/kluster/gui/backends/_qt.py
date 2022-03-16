@@ -10,7 +10,7 @@ except (ImportError, ModuleNotFoundError):
     # qgis conda installs to the library\python directory not to site_packages
     # this is where qgis should be if you pip install kluster and kluster is in the site_packages directory
     klusterfolder_path = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-    env_base_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(klusterfolder_path))))
+    env_base_path = os.path.dirname(sys.executable)
     qgis_path = os.path.join(env_base_path, 'Library', 'python')
     qgis_path_pydro = ''
     if not os.path.exists(os.path.join(qgis_path, 'qgis')):
@@ -47,10 +47,11 @@ except (ImportError, ModuleNotFoundError):
 if qgis_enabled:
     try:
         # only allow qgis.pyqt (pyqt5) for now to support qgis in 2dview
-        from qgis.PyQt import QtGui, QtWidgets, QtCore
+        from qgis.PyQt import QtGui, QtWidgets, QtCore, QtXml
         from qgis.PyQt.QtCore import pyqtSignal as Signal, pyqtSlot as Slot
         from qgis import core as qgis_core
         from qgis import gui as qgis_gui
+        # from qgis import processing as qgis_processing  # need to figure out why this causes an 'application path not initialized issue'
     except ImportError:
         try:
             from qgis.core import Qgis as _tempqgis
@@ -69,9 +70,10 @@ if qgis_enabled:
 else:
     qgis_core = None
     qgis_gui = None
+    qgis_processing = None
     if 'PySide2' in sys.modules:
         # PySide2
-        from PySide2 import QtGui, QtWidgets, QtCore
+        from PySide2 import QtGui, QtWidgets, QtCore, QtXml
         from PySide2.QtCore import Signal, Slot
 
         backend = 'PySide2'
@@ -81,7 +83,7 @@ else:
             del sys.modules[ky]
     else:
         # PyQt5
-        from PyQt5 import QtGui, QtWidgets, QtCore
+        from PyQt5 import QtGui, QtWidgets, QtCore, QtXml
         from PyQt5.QtCore import pyqtSignal as Signal, pyqtSlot as Slot
 
         backend = 'PyQt5'
