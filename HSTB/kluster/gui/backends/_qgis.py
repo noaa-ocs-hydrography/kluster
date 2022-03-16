@@ -2411,8 +2411,8 @@ class MapView(QtWidgets.QMainWindow):
                     if formatted_layername == 'hillshade':
                         renderer = qgis_core.QgsHillshadeRenderer(newlyr.dataProvider(), 1, 315, 45)
                     else:
-                        renderer = qgis_core.QgsSingleBandPseudoColorRenderer(newlyr.dataProvider(), 1, shader(round(self.band_minmax[formatted_layername][0], 3),
-                                                                                                               round(self.band_minmax[formatted_layername][1], 3)))
+                        renderer = qgis_core.QgsSingleBandPseudoColorRenderer(newlyr.dataProvider(), 1, shader(float(np.floor(self.band_minmax[formatted_layername][0])),
+                                                                                                               float(np.ceil(self.band_minmax[formatted_layername][1]))))
                     newlyr.setRenderer(renderer)
                     newlyr.renderer().setOpacity(1 - self.surface_transparency)
                     ds = None
@@ -2470,20 +2470,20 @@ class MapView(QtWidgets.QMainWindow):
 
             pics = [itm for itm in items if isinstance(itm, qgis_core.QgsLayoutItemPicture)]
             # I like this arrow more than any of the prebuilt ones in qgis
-            myarrow = [itm for itm in pics if itm.mode() == qgis_core.QgsLayoutItemPicture.FormatSVG]
+            myarrow = [itm for itm in pics if itm.mode() == qgis_core.QgsLayoutItemPicture.FormatRaster]
             if not myarrow or len(myarrow) > 1:
                 print(f'Unexpected item northarrow found {myarrow}')
                 return
             myarrow = myarrow[0]
-            myarrow.setPicturePath(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'images', 'NorthArrow.svg'))
+            myarrow.setPicturePath(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'images', 'NorthArrow.png'))
 
             # fix logo path, since it depends on environment
-            mylogo = [itm for itm in pics if itm.mode() == qgis_core.QgsLayoutItemPicture.FormatRaster]
-            if not mylogo or len(mylogo) > 1:
-                print(f'Unexpected item northarrow found {mylogo}')
-                return
-            mylogo = mylogo[0]
-            mylogo.setPicturePath(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'images', 'kluster_img.png'))
+            # mylogo = [itm for itm in pics if itm.mode() == qgis_core.QgsLayoutItemPicture.FormatRaster]
+            # if not mylogo or len(mylogo) > 1:
+            #     print(f'Unexpected item northarrow found {mylogo}')
+            #     return
+            # mylogo = mylogo[0]
+            # mylogo.setPicturePath(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'images', 'kluster_img.png'))
 
             # scale bar is a pain.  If we were to show it in degrees, it would be no issue.  To show in nautical miles, we need
             #  to calculate the screenshot width, convert units, and then build scale bar units accordingly
