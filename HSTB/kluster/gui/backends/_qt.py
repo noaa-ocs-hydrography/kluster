@@ -51,7 +51,7 @@ if qgis_enabled:
         from qgis.PyQt.QtCore import pyqtSignal as Signal, pyqtSlot as Slot
         from qgis import core as qgis_core
         from qgis import gui as qgis_gui
-        from qgis import processing as qgis_processing
+        # from qgis import processing as qgis_processing  # need to figure out why this causes an 'application path not initialized issue'
     except ImportError:
         try:
             from qgis.core import Qgis as _tempqgis

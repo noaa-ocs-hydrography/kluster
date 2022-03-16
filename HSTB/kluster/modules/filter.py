@@ -89,24 +89,25 @@ class FilterManager:
             else:
                 print(f'initialize_filters: skipping {self.external_filter_directory}, as {self.external_filter_directory} is a path to a folder that does not exist.')
         for dirpath in potential_dirs:
-            for filtername in os.listdir(dirpath):
-                if filtername == '__init__.py':
-                    continue
-                filterbase, filter_extension = os.path.splitext(filtername)
-                filterpath = os.path.join(dirpath, filtername)
-                if filterbase in self.filter_names:
-                    print(f'initialize_filters: skipping {filterpath}, as {filterbase} is already in the list of loaded filters')
-                    continue
-                if os.path.splitext(filtername)[1] == '.py':
-                    filtermodule, filterclass = self._get_filter_class(filterpath)
-                    if filtermodule is not None and filterclass is not None:
-                        self.filter_names.append(filterbase)
-                        self.filter_descriptions[filterbase] = filterclass.description
-                        self.filter_lookup[filterbase] = filterclass
-                        self.reverse_filter_lookup[filterclass] = filterbase
-                        self.filter_file[filterbase] = filterpath
-                    else:
-                        print(f'initialize_filters: skipping {filterpath}, Unable to load Filter class')
+            if os.path.exists(dirpath):
+                for filtername in os.listdir(dirpath):
+                    if filtername == '__init__.py':
+                        continue
+                    filterbase, filter_extension = os.path.splitext(filtername)
+                    filterpath = os.path.join(dirpath, filtername)
+                    if filterbase in self.filter_names:
+                        print(f'initialize_filters: skipping {filterpath}, as {filterbase} is already in the list of loaded filters')
+                        continue
+                    if os.path.splitext(filtername)[1] == '.py':
+                        filtermodule, filterclass = self._get_filter_class(filterpath)
+                        if filtermodule is not None and filterclass is not None:
+                            self.filter_names.append(filterbase)
+                            self.filter_descriptions[filterbase] = filterclass.description
+                            self.filter_lookup[filterbase] = filterclass
+                            self.reverse_filter_lookup[filterclass] = filterbase
+                            self.filter_file[filterbase] = filterpath
+                        else:
+                            print(f'initialize_filters: skipping {filterpath}, Unable to load Filter class')
 
     def _get_filter_class(self, filepath: str):
         """

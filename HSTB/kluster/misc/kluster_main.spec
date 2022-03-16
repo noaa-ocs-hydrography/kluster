@@ -34,6 +34,8 @@ assert os.path.exists(env_folder)
 data_files = [
 	(os.path.join(env_base_path, 'Library', 'bin', 'designer.exe'), os.path.join("Library", "bin")),  # random file just to make the bin directory
 	(os.path.join(klusterfolder_path, 'gui', 'vessel_stl_files'), os.path.join("HSTB", "kluster", "gui", "vessel_stl_files")),
+    (os.path.join(klusterfolder_path, 'plugins', 'filters'), os.path.join("HSTB", "kluster", "plugins", "Filters")),
+    (os.path.join(klusterfolder_path, 'misc', 'kluster_qgis_print_template.qpt'), os.path.join("HSTB", "kluster", "misc")),
 	(os.path.join(klusterfolder_path, 'images'), os.path.join("HSTB", "kluster", "images")),
 	(os.path.join(klusterfolder_path, 'background'), os.path.join("HSTB", "kluster", "background")),
 	(os.path.join(klusterfolder_path, 'docbuild'), os.path.join("HSTB", "kluster", "docbuild")),
