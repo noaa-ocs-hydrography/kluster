@@ -5,7 +5,7 @@ qgis_enabled = True
 found_path = ''
 try:
     import qgis  # this appears to work with 3.18, so the rest is not necessary
-    found_path = os.path.dirname(qgis.__file__)
+    found_path = os.path.dirname(os.path.dirname(qgis.__file__))
 except (ImportError, ModuleNotFoundError):
     # qgis conda installs to the library\python directory not to site_packages
     # this is where qgis should be if you pip install kluster and kluster is in the site_packages directory
