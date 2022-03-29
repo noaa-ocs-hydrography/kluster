@@ -1171,25 +1171,6 @@ class MapView(QtWidgets.QMainWindow):
         return url_with_params
 
     def wms_noaa_enc(self):
-        """
-        Build the urls for the layers of the NOAA electronic chart
-
-        Returns
-        -------
-        list
-            list of urls for each layer of the noaa enc
-        """
-        urls = []
-        lyrs = [0, 3, 4, 5, 6, 7, 8, 9, 10, 1, 2]  # leave out 11, the overscale warning
-        for lyr in lyrs:
-            url = 'https://gis.charttools.noaa.gov/arcgis/rest/services/MCS/ENCOnline/MapServer/exts/MaritimeChartService/WMSServer'
-            fmat = 'image/png'
-            dpi = 7
-            crs = 'EPSG:{}'.format(self.epsg)
-            urls.append('crs={}&dpiMode={}&format={}&layers={}&styles&url={}'.format(crs, dpi, fmat, lyr, url))
-        return urls
-
-    def wms_noaa_ecdis(self):
         urls = []
         lyrs = [4, 5, 7, 3, 1, 9, 0, 6, 2, 0]  # leave out 12, the overscale warning, 8 data quality
         for lyr in lyrs:
@@ -1434,23 +1415,9 @@ class MapView(QtWidgets.QMainWindow):
             else:
                 print('QGIS Initialize: Unable to find background layer: {}'.format(url_with_params))
 
-    def _init_noaa_ecdis(self):
-        """
-        Set the background to the NOAA ECDIS service
-        """
-        for lname in self.layer_manager.background_layer_names:
-            self.remove_layer(lname)
-        urls = self.wms_noaa_ecdis()
-        for cnt, url_with_params in enumerate(urls):
-            lyr = self.add_layer(url_with_params, 'NOAA_ECDIS_{}'.format(cnt), 'wms')
-            if lyr:
-                lyr.renderer().setOpacity(1 - self.layer_transparency)
-            else:
-                print('QGIS Initialize: Unable to find background layer: {}'.format(url_with_params))
-
     def _init_noaa_chartdisplay(self):
         """
-        Set the background to the NOAA ECDIS service
+        Set the background to the NOAA Chart Display service
         """
         for lname in self.layer_manager.background_layer_names:
             self.remove_layer(lname)
@@ -1632,14 +1599,14 @@ class MapView(QtWidgets.QMainWindow):
             self._init_noaa_rnc()
         elif self.layer_background == 'NOAA ENC (internet required)':
             self._init_noaa_enc()
-        elif self.layer_background == 'NOAA ECDIS (internet required)':
-            self._init_noaa_ecdis()
         elif self.layer_background == 'NOAA Chart Display Service (internet required)':
             self._init_noaa_chartdisplay()
         elif self.layer_background == 'GEBCO Grid (internet required)':
             self._init_gebco()
         elif self.layer_background == 'EMODnet Bathymetry (internet required)':
             self._init_emodnet()
+        else:
+            print(f'Unable to enable layer "{self.layer_background}"')
 
         for lyr in self.layer_manager.surface_layers:
             lyr.renderer().setOpacity(1 - self.surface_transparency)
