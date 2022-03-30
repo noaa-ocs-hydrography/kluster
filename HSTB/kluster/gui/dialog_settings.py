@@ -7,7 +7,7 @@ if qgis_enabled:
 from HSTB.kluster.gui.common_widgets import SaveStateDialog
 from HSTB.shared import RegistryHelpers
 from HSTB.kluster import kluster_variables
-from HSTB.kluster.modules.georeference import set_vyperdatum_vdatum_path
+from HSTB.kluster.modules.georeference import set_vyperdatum_vdatum_path, clear_vdatum_path
 
 
 class SettingsDialog(SaveStateDialog):
@@ -333,7 +333,9 @@ class SettingsDialog(SaveStateDialog):
         self.canceled = False
 
         self.browse_button.clicked.connect(self.vdatum_browse)
+        self.vdatum_text.textChanged.connect(self.vdatum_changed)
         self.browse_filter_button.clicked.connect(self.filter_browse)
+        self.filter_text.textChanged.connect(self.filter_changed)
         self.ok_button.clicked.connect(self.start)
         self.cancel_button.clicked.connect(self.cancel)
         self.default_button.clicked.connect(self.set_to_default)
@@ -362,6 +364,9 @@ class SettingsDialog(SaveStateDialog):
             else:
                 self.status_msg.setStyleSheet("QLabel { color : " + kluster_variables.pass_color + "; }")
             self.status_msg.setText(status)
+        elif self.vdatum_pth == '':  # special case where the user is wanting to clear the vdatum directory path
+            clear_vdatum_path()
+            self.status_msg.setText('')
         else:
             self.status_msg.setText('')
 
@@ -386,25 +391,31 @@ class SettingsDialog(SaveStateDialog):
         """
         Return the values that will be used to overwrite the kluster_variables values and be saved to the kluster ini file
         """
-        return {'pass_color': self.kvar_pass_color.currentText(), 'error_color': self.kvar_error_color.currentText(),
-                'warning_color': self.kvar_warning_color.currentText(), 'amplitude_color': self.kvar_amplitude_color.currentText(),
-                'phase_color': self.kvar_phase_color.currentText(), 'reject_color': self.kvar_reject_color.currentText(),
-                'reaccept_color': self.kvar_reaccept_color.currentText(), 'converted_files_at_once': self.kvar_convfiles.text(),
-                'pings_per_las': self.kvar_pingslas.text(), 'pings_per_csv': self.kvar_pingscsv.text(),
-                'default_heave_error': self.kvar_heaveerror.text(), 'default_roll_sensor_error': self.kvar_rollerror.text(),
-                'default_pitch_sensor_error': self.kvar_pitcherror.text(), 'default_heading_sensor_error': self.kvar_yawerror.text(),
-                'default_beam_opening_angle': self.kvar_beamangle.text(), 'default_surface_sv_error': self.kvar_sverror.text(),
-                'default_roll_patch_error': self.kvar_rollpatch.text(), 'default_waterline_error': self.kvar_waterline.text(),
-                'default_horizontal_positioning_error': self.kvar_horizontalerror.text(),
-                'default_vertical_positioning_error': self.kvar_verticalerror.text()}
+        if not self.canceled:
+            opts = {'pass_color': self.kvar_pass_color.currentText(), 'error_color': self.kvar_error_color.currentText(),
+                    'warning_color': self.kvar_warning_color.currentText(), 'amplitude_color': self.kvar_amplitude_color.currentText(),
+                    'phase_color': self.kvar_phase_color.currentText(), 'reject_color': self.kvar_reject_color.currentText(),
+                    'reaccept_color': self.kvar_reaccept_color.currentText(), 'converted_files_at_once': self.kvar_convfiles.text(),
+                    'pings_per_las': self.kvar_pingslas.text(), 'pings_per_csv': self.kvar_pingscsv.text(),
+                    'default_heave_error': self.kvar_heaveerror.text(), 'default_roll_sensor_error': self.kvar_rollerror.text(),
+                    'default_pitch_sensor_error': self.kvar_pitcherror.text(), 'default_heading_sensor_error': self.kvar_yawerror.text(),
+                    'default_beam_opening_angle': self.kvar_beamangle.text(), 'default_surface_sv_error': self.kvar_sverror.text(),
+                    'default_roll_patch_error': self.kvar_rollpatch.text(), 'default_waterline_error': self.kvar_waterline.text(),
+                    'default_horizontal_positioning_error': self.kvar_horizontalerror.text(),
+                    'default_vertical_positioning_error': self.kvar_verticalerror.text()}
+        else:
+            opts = None
+        return opts
 
     def vdatum_browse(self):
         # dirpath will be None or a string
         msg, vdatum_pth = RegistryHelpers.GetDirFromUserQT(self, RegistryKey='Kluster',
                                                            Title='Select Vdatum directory', AppName='\\reghelp')
         if vdatum_pth:
-            self.vdatum_pth = vdatum_pth
-            self.vdatum_text.setText(self.vdatum_pth)
+            self.vdatum_text.setText(vdatum_pth)
+
+    def vdatum_changed(self):
+        self.vdatum_pth = self.vdatum_text.text()
         self.set_vyperdatum_path()
 
     def filter_browse(self):
@@ -412,8 +423,10 @@ class SettingsDialog(SaveStateDialog):
         msg, filter_pth = RegistryHelpers.GetDirFromUserQT(self, RegistryKey='Kluster',
                                                            Title='Select filter directory', AppName='\\reghelp')
         if filter_pth:
-            self.filter_pth = filter_pth
-            self.filter_text.setText(self.filter_pth)
+            self.filter_text.setText(filter_pth)
+
+    def filter_changed(self):
+        self.filter_pth = self.filter_text.text()
 
     def start(self):
         """
@@ -482,4 +495,5 @@ if __name__ == '__main__':
     dlog = SettingsDialog()
     dlog.show()
     if dlog.exec_():
-        pass
+        print(dlog.return_options())
+        print(dlog.return_kvars())
