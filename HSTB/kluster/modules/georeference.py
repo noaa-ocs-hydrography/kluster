@@ -242,6 +242,9 @@ def set_vyperdatum_vdatum_path(vdatum_path: str):
 
 
 def clear_vdatum_path():
+    """
+    clear the set vdatum path in the vyperdatum configuration
+    """
     try:
         # first try the workflow for when VyperCore has been set up with a vdatum path
         #  this initialization below works, because it has a saved vdatum_path already in settings
