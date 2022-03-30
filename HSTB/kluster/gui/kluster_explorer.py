@@ -5,10 +5,11 @@ import pprint
 from collections import OrderedDict
 from datetime import datetime, timezone
 
+from HSTB.kluster.gui.common_widgets import TableWithCopy
 from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal
 
 
-class KlusterExplorer(QtWidgets.QTableWidget):
+class KlusterExplorer(TableWithCopy):
     """
     Instance of QTableWidget designed to display the converted Kluster attribution on a line by line basis.  Allows for
     some drag and drop sorting and other features.  Selecting a row will feed the attribution for that converted
@@ -436,7 +437,7 @@ class KlusterExplorer(QtWidgets.QTableWidget):
         self.setRowCount(0)
 
 
-class KlusterAttribution(QtWidgets.QTableWidget):
+class KlusterAttribution(TableWithCopy):
     """
     Instance of QTableWidget designed to display the full attribution in a scrollable sheet
 

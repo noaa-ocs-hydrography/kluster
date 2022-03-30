@@ -19,6 +19,32 @@ from HSTB.kluster import kluster_variables
 #   SaveStateDialog - General purpose widget that saves settings
 
 
+class TableWithCopy(QtWidgets.QTableWidget):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._tablewithcopy_pos = None
+
+    def contextMenuEvent(self, event):
+        mymenu = QtWidgets.QMenu(self)
+        copy_action = QtWidgets.QAction('Copy', self)
+        copy_action.triggered.connect(self.copy_data)
+        mymenu.addAction(copy_action)
+        mymenu.popup(QtGui.QCursor.pos())
+        self._tablewithcopy_pos = event.pos()
+
+    def copy_data(self):
+        if self._tablewithcopy_pos is not None:
+            item = self.itemAt(self._tablewithcopy_pos)
+            if item:
+                app = QtWidgets.QApplication.instance()
+                if app is None:
+                    print('TableWithCopy: Unable to find QT Application!')
+                else:
+                    cb = app.clipboard()
+                    cb.clear(mode=cb.Clipboard)
+                    cb.setText(item.text(), mode=cb.Clipboard)
+
+
 class SaveStateDialog(QtWidgets.QDialog):
     def __init__(self, parent=None, settings=None, widgetname='', appname='Kluster'):
         super().__init__(parent)
