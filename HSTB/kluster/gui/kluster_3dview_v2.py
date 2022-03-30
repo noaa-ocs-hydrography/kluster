@@ -1794,6 +1794,10 @@ class ThreeDWidget(QtWidgets.QWidget):
                             idx[idx_key].append([])
         return idx
 
+    def return_fqpr_paths(self):
+        fqprs = [pth[:-2] for pth in self.three_d_window.idlookup.keys()]
+        return fqprs
+
     def return_lines_and_times(self):
         return self.three_d_window.return_lines_and_times()
 

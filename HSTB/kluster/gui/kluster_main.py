@@ -1280,6 +1280,8 @@ class KlusterMain(QtWidgets.QMainWindow):
                 kwargs, cancelled = self._kluster_additional_filter_dialog(filter_controls, filter_name)
                 if not cancelled:
                     fq_chunks = []
+                    if points_filter_mode:  # still need these even if you are filtering the points view only, we can just grab them.
+                        fqprs = [self.project.absolute_path_from_relative(pth) for pth in self.points_view.return_fqpr_paths()]
                     for fq in fqprs:
                         relfq = self.project.path_relative_to_project(fq)
                         if relfq not in self.project.fqpr_instances:
