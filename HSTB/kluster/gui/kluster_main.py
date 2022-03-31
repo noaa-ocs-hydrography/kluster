@@ -1315,13 +1315,21 @@ class KlusterMain(QtWidgets.QMainWindow):
             newinfo = self.filter_thread.new_status
             selindex = self.filter_thread.selected_index
             base_points_view_status = self.points_view.three_d_window.rejected.copy()
-            for cnt, (fq, _, _, fqname) in enumerate(self.filter_thread.fq_chunks):
-                # newinfo = fq.get_variable_by_filter('detectioninfo', by_sonar_head=True)
+            base_points_time = self.points_view.three_d_window.pointtime
+            base_points_beam = self.points_view.three_d_window.beam
+            for cnt, (fq, subset_time, subset_beam, fqname) in enumerate(self.filter_thread.fq_chunks):
                 fqinfo, fqsel = newinfo[cnt], selindex[cnt]
                 for fcnt, ninfo in enumerate(fqinfo):
                     sonarid = f'{fqname}_{fcnt}'
                     fqheadsel = fqsel[fcnt].reshape(ninfo.shape)
-                    base_points_view_status[self.points_view.three_d_window.id == sonarid] = ninfo[fqheadsel]
+                    matches_sonar = self.points_view.three_d_window.id == sonarid
+                    # align the new sounding status values with the values in points view by querying by system/time/beam
+                    pointsview_timebeam = np.column_stack([base_points_time[matches_sonar], base_points_beam[matches_sonar]])
+                    results_timebeam = np.column_stack([subset_time, subset_beam])
+                    chk = np.intersect1d(pointsview_timebeam.view(dtype=np.complex128), results_timebeam.view(dtype=np.complex128), return_indices=True, assume_unique=True)
+                    results_indices = chk[2]
+                    # now replace with the new values in the correct order
+                    base_points_view_status[matches_sonar] = ninfo[fqheadsel][results_indices]
             self.points_view.override_sounding_status(base_points_view_status)
         self.filter_thread.populate(None, None, '', True, False, False, True, None)
         self._stop_action_progress()
