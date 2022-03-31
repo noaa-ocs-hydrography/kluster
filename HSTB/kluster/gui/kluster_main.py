@@ -1328,6 +1328,10 @@ class KlusterMain(QtWidgets.QMainWindow):
                     results_timebeam = np.column_stack([subset_time, subset_beam])
                     chk = np.intersect1d(pointsview_timebeam.view(dtype=np.complex128), results_timebeam.view(dtype=np.complex128), return_indices=True, assume_unique=True)
                     results_indices = chk[2]
+                    # account for possibility of the (time, beam) in the source not being sorted, the intersect1d method
+                    #  shown above works if results_timebeam is not sorted, but not if pointsview_timebeam is not sorted
+                    time_sort = np.argsort(np.argsort(pointsview_timebeam.view(dtype=np.complex128).ravel()))
+                    results_indices = results_indices[time_sort]
                     # now replace with the new values in the correct order
                     base_points_view_status[matches_sonar] = ninfo[fqheadsel][results_indices]
             self.points_view.override_sounding_status(base_points_view_status)

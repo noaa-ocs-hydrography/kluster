@@ -152,3 +152,70 @@ class TestFilter(unittest.TestCase):
         # if we save, you'll see that only the first ping that was selected is saved to disk
         new_status = self.fm.run_filter('filter_by_angle', selected_index=[selindex], save_to_disk=True, min_angle=-45, max_angle=45)
         assert np.count_nonzero(self.fm.fqpr.multibeam.raw_ping[0].detectioninfo == kluster_variables.rejected_flag) == expected_firstping_rejected_count
+
+    def test_filter_results_update_pointsview(self):
+        # see kluster_main.KlusterMain._kluster_filter_results
+        # had issues with overwriting the pointsview status with the new filter status, order was wrong
+        # test the sort here to make sure it works.
+
+        base_points_view_status = np.array([1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0])
+        base_points_time = np.array([2.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0])
+        base_points_beam = np.array([10, 11, 12, 13, 14, 15, 0, 1, 2, 3, 4, 5])
+
+        newstatus = np.array([0, 1, 3, 2, 4, 5, 6, 7, 9, 8, 10, 11])
+        subset_time = np.array([2.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0])
+        subset_beam = np.array([10, 11, 13, 12, 14, 15, 0, 1, 3, 2, 4, 5])
+
+        matches_sonar = np.ones_like(newstatus, dtype=bool)
+
+        pointsview_timebeam = np.column_stack([base_points_time[matches_sonar], base_points_beam[matches_sonar]])
+        results_timebeam = np.column_stack([subset_time, subset_beam])
+        chk = np.intersect1d(pointsview_timebeam.view(dtype=np.complex128), results_timebeam.view(dtype=np.complex128), return_indices=True, assume_unique=True)
+        results_indices = chk[2]
+
+        time_sort = np.argsort(np.argsort(pointsview_timebeam.view(dtype=np.complex128).ravel()))
+        results_indices = results_indices[time_sort]
+
+        assert np.array_equal(newstatus[results_indices], np.array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]))
+        base_points_view_status[matches_sonar] = newstatus[results_indices]
+        assert np.array_equal(base_points_view_status, np.array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]))
+
+        base_points_time = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0])
+        base_points_beam = np.array([10, 11, 12, 13, 14, 15, 0, 1, 2, 3, 4, 5])
+
+        newstatus = np.array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11])
+        subset_time = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0])
+        subset_beam = np.array([10, 11, 12, 13, 14, 15, 0, 1, 2, 3, 4, 5])
+
+        pointsview_timebeam = np.column_stack([base_points_time[matches_sonar], base_points_beam[matches_sonar]])
+        results_timebeam = np.column_stack([subset_time, subset_beam])
+        chk = np.intersect1d(pointsview_timebeam.view(dtype=np.complex128), results_timebeam.view(dtype=np.complex128),
+                             return_indices=True, assume_unique=True)
+        results_indices = chk[2]
+
+        time_sort = np.argsort(np.argsort(pointsview_timebeam.view(dtype=np.complex128).ravel()))
+        results_indices = results_indices[time_sort]
+
+        assert np.array_equal(newstatus[results_indices], np.array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]))
+        base_points_view_status[matches_sonar] = newstatus[results_indices]
+        assert np.array_equal(base_points_view_status, np.array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]))
+
+        base_points_time = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0])
+        base_points_beam = np.array([10, 11, 12, 13, 14, 15, 0, 1, 2, 3, 4, 5])
+
+        newstatus = np.array([8, 9, 10, 0, 1, 2, 11, 3, 4, 5, 6, 7])
+        subset_time = np.array([1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 1.0])
+        subset_beam = np.array([2, 3, 4, 10, 11, 12, 5, 13, 14, 15, 0, 1])
+
+        pointsview_timebeam = np.column_stack([base_points_time[matches_sonar], base_points_beam[matches_sonar]])
+        results_timebeam = np.column_stack([subset_time, subset_beam])
+        chk = np.intersect1d(pointsview_timebeam.view(dtype=np.complex128), results_timebeam.view(dtype=np.complex128),
+                             return_indices=True, assume_unique=True)
+        results_indices = chk[2]
+
+        time_sort = np.argsort(np.argsort(pointsview_timebeam.view(dtype=np.complex128).ravel()))
+        results_indices = results_indices[time_sort]
+
+        assert np.array_equal(newstatus[results_indices], np.array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]))
+        base_points_view_status[matches_sonar] = newstatus[results_indices]
+        assert np.array_equal(base_points_view_status, np.array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]))
