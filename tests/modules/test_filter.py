@@ -158,6 +158,7 @@ class TestFilter(unittest.TestCase):
         # had issues with overwriting the pointsview status with the new filter status, order was wrong
         # test the sort here to make sure it works.
 
+        # test for sorting time out of order in both
         base_points_view_status = np.array([1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0])
         base_points_time = np.array([2.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0])
         base_points_beam = np.array([10, 11, 12, 13, 14, 15, 0, 1, 2, 3, 4, 5])
@@ -180,6 +181,7 @@ class TestFilter(unittest.TestCase):
         base_points_view_status[matches_sonar] = newstatus[results_indices]
         assert np.array_equal(base_points_view_status, np.array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]))
 
+        # test where no sorting is necessary
         base_points_time = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0])
         base_points_beam = np.array([10, 11, 12, 13, 14, 15, 0, 1, 2, 3, 4, 5])
 
@@ -200,6 +202,7 @@ class TestFilter(unittest.TestCase):
         base_points_view_status[matches_sonar] = newstatus[results_indices]
         assert np.array_equal(base_points_view_status, np.array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]))
 
+        # test sort time, beam out of order in the subset
         base_points_time = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0])
         base_points_beam = np.array([10, 11, 12, 13, 14, 15, 0, 1, 2, 3, 4, 5])
 
