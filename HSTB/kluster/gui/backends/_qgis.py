@@ -16,8 +16,10 @@ from HSTB.kluster import kluster_variables
 from HSTB.shared import RegistryHelpers
 
 
-acceptedlayernames = ['hillshade', 'depth', 'density', 'vertical_uncertainty', 'horizontal_uncertainty']
-invert_colormap_layernames = ['vertical_uncertainty', 'horizontal_uncertainty']
+acceptedlayernames = ['hillshade', 'depth', 'density', 'vertical_uncertainty', 'horizontal_uncertainty', 'total_uncertainty',
+                      'hypothesis_count', 'hypothesis_ratio']
+invert_colormap_layernames = ['vertical_uncertainty', 'horizontal_uncertainty', 'total_uncertainty', 'hypothesis_count',
+                              'hypothesis_ratio']
 
 
 class CompassRoseItem(qgis_gui.QgsMapCanvasItem):
@@ -1587,9 +1589,9 @@ class MapView(QtWidgets.QMainWindow):
         self.surface_transparency = surf_transparency
         if self.layer_background == 'None':
             self._init_none()
-        if self.layer_background == 'Default':
+        elif self.layer_background == 'Default':
             self._init_default_layers()
-        if self.layer_background == 'VDatum Coverage (VDatum required)':
+        elif self.layer_background == 'VDatum Coverage (VDatum required)':
             self._init_vdatum_extents()
         elif self.layer_background == 'OpenStreetMap (internet required)':
             self._init_openstreetmap()
@@ -1801,7 +1803,7 @@ class MapView(QtWidgets.QMainWindow):
         showlyr = gdal_output_file_exists(source)
 
         if not showlyr:
-            if lyrname[0:7] != 'density':
+            if all([lyrname.find(lyr) == -1 for lyr in ['density', 'hypothesis_count']]):
                 gdal_raster_create(source, data, geo_transform, crs, np.nan, (lyrname,))
             else:
                 gdal_raster_create(source, data, geo_transform, crs, 0, (lyrname,))

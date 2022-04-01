@@ -249,3 +249,15 @@ fqpr_inst = Fqpr(mbes_read)
 fqpr_inst.read_from_source(build_offsets=False)
 
 #######################################################################
+
+
+from HSTB.kluster.fqpr_convenience import generate_new_surface, reload_data, reload_surface
+fq = reload_data(r"C:\collab\dasktest\data_dir\outputtest\EM2040_Fairweather_SmallFile")
+bs = generate_new_surface(fq, gridding_algorithm='cube', resolution=4.0)
+
+
+
+bs = generate_new_surface(fq, gridding_algorithm='cube', resolution=4.0, output_path=r'C:\collab\dasktest\data_dir\outputtest\herewego')
+
+bs = reload_surface(r'C:\collab\dasktest\data_dir\outputtest\herewego')
+bs.tiles[0][0].cells[4.0]['hypothesis_count'][185, 98]
