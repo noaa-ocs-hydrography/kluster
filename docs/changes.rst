@@ -3,6 +3,28 @@ Changes List
 
 Kluster v0.9.0 (3/15/2022)
 --------------------------
+ - sync with bathygrid 1.3.0
+    - new dependency - bathycube module
+    - Added support for CUBE algorithm
+
+ - sync with vyperdatum 0.1.10
+    - support for vdatum 4.4.1
+    - resolve bug with Ellipse vertical reference and no VDatum found (will work without VDatum)
+
+ - sync with drivers 0.2.6
+    - resolve bscorr script for Python3, will now run
+
+ - new CUBE algorithm option in generate new surface
+ - can now right click - copy cell in attributes / explorer window
+ - add CUBE functionality to the surface update as well
+ - add .all BSCORR generation to File Analyzer
+
+ - fix the setting vdatum directory box, will now trigger a vdatum check appropriately, and can be cleared
+ - resolve bug with NOAA ENC layers, accidentally left the old one in the dropdown
+ - resolve bug with setting new status in the Points View after running a filter
+
+Kluster v0.9.0 (3/15/2022)
+--------------------------
  - sync with bathygrid 1.2.1
     - fix for vr + auto_density
 
