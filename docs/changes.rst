@@ -1,8 +1,8 @@
 Changes List
 ============
 
-Kluster v0.9.0 (3/15/2022)
---------------------------
+Kluster v0.9.1 (4/5/2022)
+-------------------------
  - sync with bathygrid 1.3.0
     - new dependency - bathycube module
     - Added support for CUBE algorithm
