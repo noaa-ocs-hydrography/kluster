@@ -249,9 +249,9 @@ fqpr_inst = Fqpr(mbes_read)
 fqpr_inst.read_from_source(build_offsets=False)
 
 #######################################################################
-from HSTB.drivers.par3 import *
-fname1 = r"C:\collab\dasktest\data_dir\EM710_Rainier\0001_20160921_175337_Rainier.all"
-fname2 = r"C:\collab\dasktest\data_dir\EM710_Rainier\0002_20160921_181338_Rainier.all"
+from HSTB.drivers.kmall import *
+fname1 = r"C:\collab\dasktest\data_dir\EM712_kmall_fromkongsberg\0000_20200428_091453_ShipName.kmall"
+fname2 = r"C:\collab\dasktest\data_dir\EM712_kmall_fromkongsberg\0002_20200428_092437_ShipName.kmall"
 
 build_BSCorr(fname1, fname2, show_fig=False, save_fig=True)
 
