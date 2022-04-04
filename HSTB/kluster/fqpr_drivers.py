@@ -205,6 +205,13 @@ def kluster_read_test(file_object):
         print(f'read_first_fifty_records: Unsupported file object: {file_object}')
 
 
+def bscorr_generation(file_object, second_file_object):
+    if isinstance(file_object, par3.AllRead):
+        par3.build_BSCorr(file_object.infilename, second_file_object.infilename, show_fig=True, save_fig=True)
+    else:
+        print(f'bscorr_generation: Unsupported file object: {file_object}')
+
+
 def return_xarray_from_sbet(sbetfiles: list, smrmsgfiles: list = None, logfiles: list = None, weekstart_year: int = None,
                             weekstart_week: int = None, override_datum: str = None, override_grid: str = None,
                             override_zone: str = None, override_ellipsoid: str = None):

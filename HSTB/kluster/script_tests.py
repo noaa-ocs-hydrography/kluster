@@ -249,15 +249,10 @@ fqpr_inst = Fqpr(mbes_read)
 fqpr_inst.read_from_source(build_offsets=False)
 
 #######################################################################
+from HSTB.drivers.par3 import *
+fname1 = r"C:\collab\dasktest\data_dir\EM710_Rainier\0001_20160921_175337_Rainier.all"
+fname2 = r"C:\collab\dasktest\data_dir\EM710_Rainier\0002_20160921_181338_Rainier.all"
+
+build_BSCorr(fname1, fname2, show_fig=False, save_fig=True)
 
 
-from HSTB.kluster.fqpr_convenience import generate_new_surface, reload_data, reload_surface
-fq = reload_data(r"C:\collab\dasktest\data_dir\outputtest\EM2040_Fairweather_SmallFile")
-bs = generate_new_surface(fq, gridding_algorithm='cube', resolution=4.0)
-
-
-
-bs = generate_new_surface(fq, gridding_algorithm='cube', resolution=4.0, output_path=r'C:\collab\dasktest\data_dir\outputtest\herewego')
-
-bs = reload_surface(r'C:\collab\dasktest\data_dir\outputtest\herewego')
-bs.tiles[0][0].cells[4.0]['hypothesis_count'][185, 98]

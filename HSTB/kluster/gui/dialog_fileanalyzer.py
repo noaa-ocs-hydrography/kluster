@@ -3,7 +3,7 @@ import os
 from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal
 from HSTB.shared import RegistryHelpers
 from HSTB.drivers import par3, kmall, PCSio, sbet
-from HSTB.kluster.fqpr_drivers import read_first_fifty_records, kluster_read_test
+from HSTB.kluster.fqpr_drivers import read_first_fifty_records, kluster_read_test, bscorr_generation
 
 
 class FileAnalyzerDialog(QtWidgets.QDialog):
@@ -27,6 +27,14 @@ class FileAnalyzerDialog(QtWidgets.QDialog):
         self.browse_button = QtWidgets.QPushButton("Browse")
         self.hlayout_one.addWidget(self.browse_button)
 
+        self.hlayout_one_one = QtWidgets.QHBoxLayout()
+        self.fil_two_text = QtWidgets.QLineEdit('', self)
+        self.fil_two_text.setMinimumWidth(300)
+        self.fil_two_text.setReadOnly(True)
+        self.hlayout_one_one.addWidget(self.fil_two_text)
+        self.browse_two_button = QtWidgets.QPushButton("Browse")
+        self.hlayout_one_one.addWidget(self.browse_two_button)
+
         self.hlayout_two = QtWidgets.QHBoxLayout()
         self.functioncombobox = QtWidgets.QComboBox()
         self.functioncombobox.setMinimumWidth(250)
@@ -46,6 +54,7 @@ class FileAnalyzerDialog(QtWidgets.QDialog):
         self.mainlayout.addWidget(self.start_msg)
         self.mainlayout.addWidget(self.ftypelabel)
         self.mainlayout.addLayout(self.hlayout_one)
+        self.mainlayout.addLayout(self.hlayout_one_one)
         self.mainlayout.addLayout(self.hlayout_two)
         self.mainlayout.addStretch()
         self.mainlayout.addLayout(self.button_layout)
@@ -53,12 +62,67 @@ class FileAnalyzerDialog(QtWidgets.QDialog):
         self.setLayout(self.mainlayout)
 
         self.filename = ''
+        self.filenametwo = ''
         self.filetype = ''
         self.fileobject = None
+        self.fileobjecttwo = None
 
+        self.functioncombobox.currentTextChanged.connect(self.mode_switch)
         self.browse_button.clicked.connect(self.file_browse)
+        self.browse_two_button.clicked.connect(self.file_browse_two)
         self.functionrun.clicked.connect(self.run_function)
         self.close_button.clicked.connect(self.close_button_clicked)
+
+        self.mode_switch(None)
+
+    def mode_switch(self, e):
+        funcname = self.functioncombobox.currentText()
+        if funcname:
+            if funcname == 'bscorr_generation':
+                self.fil_two_text.show()
+                self.browse_two_button.show()
+            else:
+                self.fil_two_text.hide()
+                self.browse_two_button.hide()
+        else:
+            self.fil_two_text.hide()
+            self.browse_two_button.hide()
+
+    def file_browse_two(self, e):
+        msg, file_path = RegistryHelpers.GetFilenameFromUserQT(self, RegistryKey='Kluster',
+                                                               Title='Select a raw file to read',
+                                                               AppName='\\analyzer', bMulti=False, bSave=False,
+                                                               fFilter='all files (*.*)')
+        if file_path:
+            fext = os.path.splitext(file_path)[1]
+            if self.filetype == 'kongsberg_all' and fext != '.all':
+                print('Expected .all file, got {}'.format(file_path))
+            elif self.filetype == 'kongsberg_kmall' and fext != '.kmall':
+                print('Expected .kmall file, got {}'.format(file_path))
+            elif self.filetype in ['applanix_sbet', 'applanix_smrmsg'] and fext not in ['.out', '.sbet', 'smrmsg']:
+                print('Expected .kmall file, got {}'.format(file_path))
+            else:
+                self.fil_two_text.setText(file_path)
+                self.filenametwo = file_path
+                if fext == '.all':
+                    self.fileobjecttwo = par3.AllRead(file_path)
+                elif fext == '.kmall':
+                    self.fileobjecttwo = kmall.kmall(file_path)
+                elif fext in ['.out', '.sbet', 'smrmsg']:
+                    if sbet.is_sbet(file_path):
+                        self.fileobjecttwo = sbet.read(file_path, numcolumns=17)
+                    elif sbet.is_smrmsg(file_path):
+                        self.fileobjecttwo = sbet.read(file_path, numcolumns=10)
+                    else:
+                        print(f'Not a recognized file type, tried sbet and smrmsg: {file_path}')
+                        self.fileobjecttwo = None
+                else:
+                    try:
+                        poscheck = int(fext[1:])
+                        self.fileobjecttwo = PCSio.PCSFile(self.filename)
+                    except:
+                        print(f'Not a recognized file type: {self.filename}')
+                        self.fileobjecttwo = None
 
     def file_browse(self, e):
         msg, file_path = RegistryHelpers.GetFilenameFromUserQT(self, RegistryKey='Kluster',
@@ -73,7 +137,7 @@ class FileAnalyzerDialog(QtWidgets.QDialog):
             if fext == '.all':
                 self.filetype = 'kongsberg_all'
                 self.fileobject = par3.AllRead(self.filename)
-                self.functioncombobox.addItems(['read_first_fifty_records', 'kluster_read_test'])
+                self.functioncombobox.addItems(['read_first_fifty_records', 'kluster_read_test', 'bscorr_generation'])
             elif fext == '.kmall':
                 self.filetype = 'kongsberg_kmall'
                 self.fileobject = kmall.kmall(self.filename)
@@ -110,6 +174,8 @@ class FileAnalyzerDialog(QtWidgets.QDialog):
                 read_first_fifty_records(self.fileobject)
             elif funcname == 'kluster_read_test':
                 kluster_read_test(self.fileobject)
+            elif funcname == 'bscorr_generation':
+                bscorr_generation(self.fileobject, self.fileobjecttwo)
 
     def close_button_clicked(self, e):
         self.close()
