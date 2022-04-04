@@ -728,7 +728,7 @@ def update_surface(surface_instance: Union[str, BathyGrid], add_fqpr: Union[Fqpr
             rez = float(surface_instance.grid_resolution)
             automode = 'depth'  # the default value, this will not be used when resolution is specified
         surface_instance.grid(surface_instance.grid_algorithm, rez, auto_resolution_mode=automode,
-                              regrid_option=regrid_option, use_dask=use_dask)
+                              regrid_option=regrid_option, use_dask=use_dask, grid_parameters=surface_instance.grid_parameters)
     return surface_instance
 
 
