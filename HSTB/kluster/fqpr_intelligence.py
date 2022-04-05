@@ -628,30 +628,33 @@ class FqprIntel(LoggerClass):
 
         new_coord_system = None
         forced_coordinate_match = False
-        forced_container = ''
         err = ''
         if 'use_epsg' in self.processing_settings:  # if someone setup the project with a default coord system
             # use_epsg trumps all other checks, if they enter in an EPSG code, we use that.
             if self.processing_settings['use_epsg']:
                 new_coord_system, err = build_crs(epsg=self.processing_settings['epsg'])
-            # force coordinate match takes effect if they don't specify EPSG, we use the first EPSG of the loaded days of data for all days
+            # force coordinate match takes effect if they don't specify EPSG, we use the most common EPSG of the loaded days of data for all days
             elif self.force_coordinate_match and len(self.project.fqpr_instances) > 1:
+                epsgs = []
                 for relative_path, fqpr_instance in self.project.fqpr_instances.items():
                     if 'horizontal_crs' in fqpr_instance.multibeam.raw_ping[0].attrs:
                         try:
                             existing_epsg = int(fqpr_instance.multibeam.raw_ping[0].horizontal_crs)
-                            new_coord_system, err = build_crs(epsg=str(existing_epsg))
-                            forced_coordinate_match = True
-                            forced_container = os.path.split(fqpr_instance.output_folder)[1]
-                            break
+                            epsgs.append(existing_epsg)
                         except:
                             self.print_msg('Unable to generate EPSG from {}'.format(fqpr_instance.multibeam.raw_ping[0].horizontal_crs), logging.WARNING)
+                if epsgs:
+                    most_common_epsg = max(set(epsgs), key=epsgs.count)
+                    new_coord_system, err = build_crs(epsg=str(most_common_epsg))
+                    forced_coordinate_match = True
+                else:
+                    self.print_msg('Unable to generate EPSG for any currently loaded fqpr instances in this project', logging.WARNING)
                 if new_coord_system is None:  # no valid coord systems in the project, have to auto pick this one
                     self.print_msg('Force coordinate system match was used, but no existing coordinate systems found, defaulting to auto utm.', logging.WARNING)
                     new_coord_system, err = build_crs(zone_num=fqpr_instance.multibeam.return_utm_zone_number(),
                                                       datum=self.processing_settings['coord_system'])
                 else:
-                    self.print_msg('Forcing all Converted data to use EPSG:{} from {}, uncheck "Force all days to have the same Coordinate System" to disable this.'.format(new_coord_system.to_epsg(), forced_container), logging.WARNING)
+                    self.print_msg('Forcing all Converted data to use EPSG:{}, uncheck "Force all days to have the same Coordinate System" to disable this.'.format(new_coord_system.to_epsg()), logging.WARNING)
             # otherwise just do the auto utm calc to get the new coordinate system
             else:
                 new_coord_system, err = build_crs(zone_num=fqpr_instance.multibeam.return_utm_zone_number(),

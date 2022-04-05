@@ -20,6 +20,7 @@ Kluster v0.9.1 (4/5/2022)
  - add .all BSCORR generation to File Analyzer
 
  - fix path issues with Linux environment
+ - 'force all days to have the same coordinate system' will now use the most common epsg code across all loaded data instances instead of just the first one
  - fix the setting vdatum directory box, will now trigger a vdatum check appropriately, and can be cleared
  - resolve bug with NOAA ENC layers, accidentally left the old one in the dropdown
  - resolve bug with setting new status in the Points View after running a filter

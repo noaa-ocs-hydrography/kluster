@@ -2690,8 +2690,13 @@ def main():
         setattr(sys, 'frozen', True)
     # add support in windows for when you build this as a frozen executable (pyinstaller)
     multiprocessing.freeze_support()
-    kluster_dir = os.path.dirname(kluster_init_file)
-    kluster_icon = os.path.join(kluster_dir, 'images', 'kluster_img.ico')
+    if ispyinstaller:
+        kluster_main_exe = sys.argv[0]
+        curdir = os.path.dirname(kluster_main_exe)
+        kluster_icon = os.path.join(curdir, 'HSTB', 'kluster', 'images', 'kluster_img.ico')
+    else:
+        kluster_dir = os.path.dirname(kluster_init_file)
+        kluster_icon = os.path.join(kluster_dir, 'images', 'kluster_img.ico')
 
     if qgis_enabled:
         app_library = 'pyqt5'
