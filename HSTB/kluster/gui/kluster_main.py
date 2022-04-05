@@ -2703,10 +2703,15 @@ def main():
             prefix_dir = curdir
             processing_dir = os.path.join(curdir, 'qgis_plugins', 'processing')
         else:
-            plugin_dir = os.path.join(os.path.dirname(found_path), 'plugins')
-            prefix_dir = os.path.join(os.path.dirname(found_path))
-            processing_dir = os.path.join(os.path.dirname(found_path), 'python', 'plugins', 'processing')
-
+            if sys.platform == 'linux':
+                env_dir = os.path.dirname(os.path.dirname(os.path.dirname(found_path)))
+                plugin_dir = os.path.join(env_dir, 'lib', 'qgis', 'plugins')
+                prefix_dir = os.path.join(os.path.dirname(found_path))
+                processing_dir = os.path.join(os.path.dirname(found_path), 'python', 'plugins', 'processing')
+            else:
+                plugin_dir = os.path.join(os.path.dirname(found_path), 'plugins')
+                prefix_dir = os.path.join(os.path.dirname(found_path))
+                processing_dir = os.path.join(os.path.dirname(found_path), 'python', 'plugins', 'processing')
         try:
             assert os.path.exists(plugin_dir)
         except:
