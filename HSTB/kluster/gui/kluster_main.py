@@ -126,8 +126,9 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.actions_dock = self.dock_this_widget('Actions', 'actions_dock', self.actions)
         self.actions.update_actions(process_mode=self.intel.autoprocessing_mode)
 
-        self.monitor = kluster_monitor.KlusterMonitor(self)
-        self.monitor_dock = self.dock_this_widget('Monitor', 'monitor_dock', self.monitor)
+        self._monitor = kluster_monitor.KlusterMonitor(self)
+        self.monitor_dock = self.dock_this_widget('Monitor', 'monitor_dock', self._monitor)
+        self.monitor = self._monitor.widget
 
         self.console = kluster_interactive_console.KlusterConsole(self)
         self.console_dock = self.dock_this_widget('Console', 'console_dock', self.console)

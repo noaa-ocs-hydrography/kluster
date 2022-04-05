@@ -159,7 +159,7 @@ class MonitorPath(QtWidgets.QWidget):
         self.monitor_file_event.emit(newfile, file_event)
 
 
-class KlusterMonitor(QtWidgets.QWidget):
+class KlusterMonitorWidget(QtWidgets.QWidget):
     """
     Widget for holding the folder path entered, the start stop buttons, etc. for the monitor tool.  Hook up to the
     two events to get the data from the controls.
@@ -293,6 +293,20 @@ class KlusterMonitor(QtWidgets.QWidget):
         except AttributeError:
             # no settings exist yet for this app, .lower failed
             pass
+
+
+class KlusterMonitor(QtWidgets.QScrollArea):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+
+        self.parent = parent
+        self.widget = KlusterMonitorWidget(parent)
+
+        # Scroll Area Properties
+        self.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOn)
+        self.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOn)
+        self.setWidgetResizable(True)
+        self.setWidget(self.widget)
 
 
 class OutWindow(QtWidgets.QMainWindow):
