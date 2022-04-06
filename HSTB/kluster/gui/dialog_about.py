@@ -59,6 +59,13 @@ try:
 except:
     qgisvers = 'not found'
 
+try:
+    from bathycube import __version__ as bathycubevers
+    if not isinstance(bathycubevers, str):
+        bathycubevers = bathycubevers.__version__
+except:
+    bathycubevers = 'not found'
+
 
 class AboutDialog(QtWidgets.QDialog):
     """
@@ -96,6 +103,11 @@ class AboutDialog(QtWidgets.QDialog):
         self.leftlayout.addWidget(self.bgrid_label)
         self.bgrid_data = QtWidgets.QLabel('{}'.format(bathyvers))
         self.rightlayout.addWidget(self.bgrid_data)
+
+        self.bcube_label = QtWidgets.QLabel('Bathycube Version:')
+        self.leftlayout.addWidget(self.bcube_label)
+        self.bcube_data = QtWidgets.QLabel('{}'.format(bathycubevers))
+        self.rightlayout.addWidget(self.bcube_data)
 
         self.vyper_label = QtWidgets.QLabel('Vyperdatum Version:')
         self.leftlayout.addWidget(self.vyper_label)
