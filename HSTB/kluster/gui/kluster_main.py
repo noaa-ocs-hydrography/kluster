@@ -2686,7 +2686,7 @@ class KlusterMain(QtWidgets.QMainWindow):
 
 def main():
     ispyinstaller = False
-    if sys.argv[0][-4:] == '.exe':
+    if sys.argv[0][-4:] == '.exe' or sys.argv[0][-3:] == '.so':
         ispyinstaller = True
         setattr(sys, 'frozen', True)
     # add support in windows for when you build this as a frozen executable (pyinstaller)
