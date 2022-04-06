@@ -24,7 +24,7 @@ across days of data that you want to keep.  If you want to retain the waterline 
 
 - Force all days to have the same Coordinate System
 
-This one is useful if you are using the Auto UTM option in project settings.  Sometimes you will have multibeam files in a project that span across multiple UTM zones.  If this is the case and this option is unchecked, each day of data will determine the best UTM zone to use in processing.  Check this option to force all added multibeam data to use the same UTM zone or EPSG code as the first processed day of data in the project.
+This one is useful if you are using the Auto UTM option in project settings.  Sometimes you will have multibeam files in a project that span across multiple UTM zones.  If this is the case and this option is unchecked, each day of data will determine the best UTM zone to use in processing.  Check this option to force all added multibeam data to use the same UTM zone or EPSG code as the most prevalent epsg code currently used in the project.
 
 - Process Mode
 

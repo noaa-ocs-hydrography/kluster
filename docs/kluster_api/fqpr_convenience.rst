@@ -16,3 +16,4 @@ fqpr\_convenience module
    :skip: return_log_name
    :skip: dask_find_or_start_client
    :skip: return_xyz_from_multibeam
+   :skip: compile_now

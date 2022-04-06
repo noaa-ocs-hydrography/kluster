@@ -131,12 +131,8 @@ class FilterDialog(SaveStateDialog):
             self.line_filter.setChecked(False)
             self.basic_filter_group.setChecked(False)
             self.save_to_disk_checkbox.setVisible(True)
-            if not self.fqpr_inst:
-                self.status_msg.setStyleSheet("QLabel { color : " + kluster_variables.error_color + "; }")
-                self.status_msg.setText('Error: Ensure you have one of the datasets that contain these points listed in "Use the following datasets"')
-            else:
-                self.status_msg.setStyleSheet("QLabel { color : " + kluster_variables.pass_color + "; }")
-                self.status_msg.setText('')
+            self.status_msg.setStyleSheet("QLabel { color : " + kluster_variables.pass_color + "; }")
+            self.status_msg.setText('')
 
     def _event_update_fqpr_instances(self):
         """
@@ -188,9 +184,6 @@ class FilterDialog(SaveStateDialog):
         if self.basic_filter_group.isChecked() and not self.fqpr_inst:
             self.status_msg.setStyleSheet("QLabel { color : " + kluster_variables.error_color + "; }")
             self.status_msg.setText('Error: No data provided')
-        elif self.points_view_filter.isChecked() and not self.fqpr_inst:
-            self.status_msg.setStyleSheet("QLabel { color : " + kluster_variables.error_color + "; }")
-            self.status_msg.setText('Error: You must provide at least one dataset that the points come from before filtering')
         elif not self.basic_filter_group.isChecked() and not self.line_filter.isChecked() and not self.points_view_filter.isChecked():
             self.status_msg.setStyleSheet("QLabel { color : " + kluster_variables.error_color + "; }")
             self.status_msg.setText('Error: You must select one of the three filter modes (filter datasets, filter lines, filter points)')

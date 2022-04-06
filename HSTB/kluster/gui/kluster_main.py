@@ -126,8 +126,9 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.actions_dock = self.dock_this_widget('Actions', 'actions_dock', self.actions)
         self.actions.update_actions(process_mode=self.intel.autoprocessing_mode)
 
-        self.monitor = kluster_monitor.KlusterMonitor(self)
-        self.monitor_dock = self.dock_this_widget('Monitor', 'monitor_dock', self.monitor)
+        self._monitor = kluster_monitor.KlusterMonitor(self)
+        self.monitor_dock = self.dock_this_widget('Monitor', 'monitor_dock', self._monitor)
+        self.monitor = self._monitor.widget
 
         self.console = kluster_interactive_console.KlusterConsole(self)
         self.console_dock = self.dock_this_widget('Console', 'console_dock', self.console)
@@ -1280,6 +1281,8 @@ class KlusterMain(QtWidgets.QMainWindow):
                 kwargs, cancelled = self._kluster_additional_filter_dialog(filter_controls, filter_name)
                 if not cancelled:
                     fq_chunks = []
+                    if points_filter_mode:  # still need these even if you are filtering the points view only, we can just grab them.
+                        fqprs = [self.project.absolute_path_from_relative(pth) for pth in self.points_view.return_fqpr_paths()]
                     for fq in fqprs:
                         relfq = self.project.path_relative_to_project(fq)
                         if relfq not in self.project.fqpr_instances:
@@ -1313,13 +1316,25 @@ class KlusterMain(QtWidgets.QMainWindow):
             newinfo = self.filter_thread.new_status
             selindex = self.filter_thread.selected_index
             base_points_view_status = self.points_view.three_d_window.rejected.copy()
-            for cnt, (fq, _, _, fqname) in enumerate(self.filter_thread.fq_chunks):
-                # newinfo = fq.get_variable_by_filter('detectioninfo', by_sonar_head=True)
+            base_points_time = self.points_view.three_d_window.pointtime
+            base_points_beam = self.points_view.three_d_window.beam
+            for cnt, (fq, subset_time, subset_beam, fqname) in enumerate(self.filter_thread.fq_chunks):
                 fqinfo, fqsel = newinfo[cnt], selindex[cnt]
                 for fcnt, ninfo in enumerate(fqinfo):
                     sonarid = f'{fqname}_{fcnt}'
                     fqheadsel = fqsel[fcnt].reshape(ninfo.shape)
-                    base_points_view_status[self.points_view.three_d_window.id == sonarid] = ninfo[fqheadsel]
+                    matches_sonar = self.points_view.three_d_window.id == sonarid
+                    # align the new sounding status values with the values in points view by querying by system/time/beam
+                    pointsview_timebeam = np.column_stack([base_points_time[matches_sonar], base_points_beam[matches_sonar]])
+                    results_timebeam = np.column_stack([subset_time, subset_beam])
+                    chk = np.intersect1d(pointsview_timebeam.view(dtype=np.complex128), results_timebeam.view(dtype=np.complex128), return_indices=True, assume_unique=True)
+                    results_indices = chk[2]
+                    # account for possibility of the (time, beam) in the source not being sorted, the intersect1d method
+                    #  shown above works if results_timebeam is not sorted, but not if pointsview_timebeam is not sorted
+                    time_sort = np.argsort(np.argsort(pointsview_timebeam.view(dtype=np.complex128).ravel()))
+                    results_indices = results_indices[time_sort]
+                    # now replace with the new values in the correct order
+                    base_points_view_status[matches_sonar] = ninfo[fqheadsel][results_indices]
             self.points_view.override_sounding_status(base_points_view_status)
         self.filter_thread.populate(None, None, '', True, False, False, True, None)
         self._stop_action_progress()
@@ -2671,13 +2686,18 @@ class KlusterMain(QtWidgets.QMainWindow):
 
 def main():
     ispyinstaller = False
-    if sys.argv[0][-4:] == '.exe':
+    if sys.argv[0][-4:] == '.exe' or sys.argv[0][-3:] == '.so':
         ispyinstaller = True
         setattr(sys, 'frozen', True)
     # add support in windows for when you build this as a frozen executable (pyinstaller)
     multiprocessing.freeze_support()
-    kluster_dir = os.path.dirname(kluster_init_file)
-    kluster_icon = os.path.join(kluster_dir, 'images', 'kluster_img.ico')
+    if ispyinstaller:
+        kluster_main_exe = sys.argv[0]
+        curdir = os.path.dirname(kluster_main_exe)
+        kluster_icon = os.path.join(curdir, 'HSTB', 'kluster', 'images', 'kluster_img.ico')
+    else:
+        kluster_dir = os.path.dirname(kluster_init_file)
+        kluster_icon = os.path.join(kluster_dir, 'images', 'kluster_img.ico')
 
     if qgis_enabled:
         app_library = 'pyqt5'
@@ -2689,10 +2709,15 @@ def main():
             prefix_dir = curdir
             processing_dir = os.path.join(curdir, 'qgis_plugins', 'processing')
         else:
-            plugin_dir = os.path.join(os.path.dirname(found_path), 'plugins')
-            prefix_dir = os.path.join(os.path.dirname(found_path))
-            processing_dir = os.path.join(os.path.dirname(found_path), 'python', 'plugins', 'processing')
-
+            if sys.platform == 'linux':
+                env_dir = os.path.dirname(os.path.dirname(os.path.dirname(found_path)))
+                plugin_dir = os.path.join(env_dir, 'lib', 'qgis', 'plugins')
+                prefix_dir = os.path.join(os.path.dirname(found_path))
+                processing_dir = os.path.join(os.path.dirname(found_path), 'python', 'plugins', 'processing')
+            else:
+                plugin_dir = os.path.join(os.path.dirname(found_path), 'plugins')
+                prefix_dir = os.path.join(os.path.dirname(found_path))
+                processing_dir = os.path.join(os.path.dirname(found_path), 'python', 'plugins', 'processing')
         try:
             assert os.path.exists(plugin_dir)
         except:

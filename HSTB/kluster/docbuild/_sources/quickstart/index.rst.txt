@@ -43,6 +43,8 @@ If you get an error talking about the coordinate system, you might have converte
 
 Otherwise pick a more basic reference such as ‘waterline’ (data referenced to the waterline of the vessel) or ‘ellipse’ (data referenced to the ellipsoid, either NAD83(GRS80)/WGS84 ellipsoid).
 
+You can almost always leave the input coordinate system alone, unless you think the sonar was setup with the wrong coordinate system.
+
 .. image:: quickstart_5.png
    :target: ../_images/quickstart_5.png
 

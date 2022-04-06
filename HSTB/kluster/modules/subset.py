@@ -215,7 +215,10 @@ class FqprSubset:
                              f'and should be the same shape ({subset_beam.shape} vs {subset_time.shape})')
         # first build a minimal intersection such that the fqpr only contains possible points matching the provided pairs
         uniq_tms = np.unique(subset_time)
-        uniq_tms_segments = np.split(uniq_tms, np.where(np.diff(uniq_tms) > 5)[0])
+        split_idx = np.where(np.diff(uniq_tms) > 5)[0]
+        if split_idx.any():
+            split_idx += 1
+        uniq_tms_segments = np.split(uniq_tms, split_idx)
         uniq_tms_list = [[min(seg), max(seg)] for seg in uniq_tms_segments]
         self.fqpr.subset_by_times(uniq_tms_list)
         selected_index = []

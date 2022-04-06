@@ -186,6 +186,8 @@ def sequential_read_multibeam(multibeam_file: str, start_pointer: int = 0, end_p
 
 
 def read_first_fifty_records(file_object):
+    print('***********************************************************')
+    print('Read First Fifty Records:')
     if isinstance(file_object, par3.AllRead):
         par3.print_some_records(file_object, recordnum=50)
     elif isinstance(file_object, kmall.kmall):
@@ -199,10 +201,21 @@ def read_first_fifty_records(file_object):
 
 
 def kluster_read_test(file_object):
+    print('***********************************************************')
+    print('Kluster Read Test:')
     if isinstance(file_object, par3.AllRead):
         par3.kluster_read_test(file_object, byte_count=-1)
     else:
         print(f'read_first_fifty_records: Unsupported file object: {file_object}')
+
+
+def bscorr_generation(file_object, second_file_object):
+    print('***********************************************************')
+    print('BSCORR Generation:')
+    if isinstance(file_object, par3.AllRead):
+        par3.build_BSCorr(file_object.infilename, second_file_object.infilename, show_fig=True, save_fig=True)
+    else:
+        print(f'bscorr_generation: Unsupported file object: {file_object}')
 
 
 def return_xarray_from_sbet(sbetfiles: list, smrmsgfiles: list = None, logfiles: list = None, weekstart_year: int = None,

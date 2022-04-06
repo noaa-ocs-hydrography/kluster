@@ -12,7 +12,7 @@ from HSTB.kluster import kluster_variables
 
 try:
     from vyperdatum.points import VyperPoints
-    from vyperdatum.core import VyperCore, vertical_datum_to_wkt
+    from vyperdatum.core import VyperCore, vertical_datum_to_wkt, DatumData
     from vyperdatum.vypercrs import VyperPipelineCRS, CompoundCRS
     vyperdatum_found = True
 except ModuleNotFoundError:
@@ -239,6 +239,24 @@ def set_vyperdatum_vdatum_path(vdatum_path: str):
         err = True
         status = 'No valid vdatum found at {}'.format(vdatum_path)
     return err, status
+
+
+def clear_vdatum_path():
+    """
+    clear the set vdatum path in the vyperdatum configuration
+    """
+    try:
+        # first try the workflow for when VyperCore has been set up with a vdatum path
+        #  this initialization below works, because it has a saved vdatum_path already in settings
+        vc = VyperCore()
+        # remove the saved vdatum_path
+        vc.datum_data.remove_from_config('vdatum_path')
+    except:
+        # special case for where VyperCore is either initialized with a broken path, or no path at all
+        # initialize the datumdata object with a fake directory
+        datum_data = DatumData(vdatum_directory=r'c:\\')
+        # and then remove that directory to clear the vdatum path
+        datum_data.remove_from_config('vdatum_path')
 
 
 def new_geohash(latitude: float, longitude: float, precision: int):

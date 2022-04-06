@@ -1,0 +1,6 @@
+clear_vdatum_path
+=================
+
+.. currentmodule:: HSTB.kluster.modules.georeference
+
+.. autofunction:: clear_vdatum_path

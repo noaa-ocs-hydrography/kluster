@@ -49,7 +49,7 @@ class SurfaceDialog(SaveStateDialog):
         self.surf_method_lbl = QtWidgets.QLabel('Method: ')
         self.hlayout_one_one.addWidget(self.surf_method_lbl)
         self.surf_method = QtWidgets.QComboBox()
-        self.surf_method.addItems(['Mean', 'Shoalest'])
+        self.surf_method.addItems(['Mean', 'Shoalest', 'CUBE'])
         self.surf_method.setToolTip('The algorithm used when gridding, will use this to determine the depth/uncertainty value of the cell')
         self.hlayout_one_one.addWidget(self.surf_method)
         self.hlayout_one_one.addStretch()
@@ -114,22 +114,45 @@ class SurfaceDialog(SaveStateDialog):
                                                 'AUTO_density will base the resolution on the density/area of each tile using the following formula:\n\n' +
                                                 'resolution_estimate=squareroot(2 * minimum_points_per_cell * 1.75 / cell_point_density)')
         self.hlayout_variabletile_one.addWidget(self.variabletile_resolution)
-
         self.surf_layout.addLayout(self.hlayout_variabletile_one)
 
-        # self.hlayout_variabletile_two = QtWidgets.QHBoxLayout()
-        # self.variabletile_subtile_size_lbl = QtWidgets.QLabel('Subtile Size (meters): ')
-        # self.hlayout_variabletile_two.addWidget(self.variabletile_subtile_size_lbl)
-        # self.variabletile_subtile_size = QtWidgets.QComboBox()
-        # self.variabletile_subtile_size.addItems(['512', '256', '128', '64'])
-        # self.variabletile_subtile_size.setCurrentText('128')
-        # self.variabletile_subtile_size.setToolTip('The size of the subtile in the variable resolution grid in meters.  The subtile is all the same resolution, so this is the\n' +
-        #                                           'smallest unit of resolution change.  With a value of 128 meters, each 128x128 tile can be a different resolution.  Make this\n' +
-        #                                           'larger if you want less change in resolution.  Careful making this too small for deep areas, this size cannot be greater than\n' +
-        #                                           'your resolution.')
-        # self.hlayout_variabletile_two.addWidget(self.variabletile_subtile_size)
-        # self.hlayout_variabletile_two.addStretch()
-        # self.surf_layout.addLayout(self.hlayout_variabletile_two)
+        self.hlayout_cube_one = QtWidgets.QHBoxLayout()
+        self.cube_method_label = QtWidgets.QLabel('Method: ')
+        self.hlayout_cube_one.addWidget(self.cube_method_label)
+        self.cube_method_dropdown = QtWidgets.QComboBox()
+        self.cube_method_dropdown.addItems(['local', 'posterior', 'prior'])
+        self.cube_method_dropdown.setCurrentText('local')
+        self.cube_method_dropdown.setToolTip("Method to use in determining the appropriate hypothesis value.\n"
+                                             "'local' to use the local spatial context to find the closest node with a single hypothesis and use\n"
+                                             "    that hypothesis depth to find the nearest hypothesis in terms of depth in the current node.\n"
+                                             "'prior' to use the hypothesis with the most points associated with it.\n"
+                                             "'posterior' to combine both prior and local methods to form an approximate Bayesian posterior distribution.")
+        self.hlayout_cube_one.addWidget(self.cube_method_dropdown)
+        self.hlayout_cube_one.addStretch()
+
+        self.cube_ihoorder_label = QtWidgets.QLabel('IHO Order: ')
+        self.hlayout_cube_one.addWidget(self.cube_ihoorder_label)
+        self.cube_ihoorder_dropdown = QtWidgets.QComboBox()
+        self.cube_ihoorder_dropdown.addItems(['exclusive', 'special', 'order1a', 'order1b', 'order2'])
+        self.cube_ihoorder_dropdown.setCurrentText('order1a')
+        self.cube_ihoorder_dropdown.setToolTip("Sets the fixed and variable Total Vertical Uncertainty components using the different IHO order categories.\n"
+                                               "See S-44 Table 1 to learn more about the Minimum Bathymetry Standards for Safety of Navigation")
+        self.hlayout_cube_one.addWidget(self.cube_ihoorder_dropdown)
+        self.surf_layout.addLayout(self.hlayout_cube_one)
+
+        self.hlayout_cube_two = QtWidgets.QHBoxLayout()
+        self.cube_variance_label = QtWidgets.QLabel('Uncertainty: ')
+        self.hlayout_cube_two.addWidget(self.cube_variance_label)
+        self.cube_variance_dropdown = QtWidgets.QComboBox()
+        self.cube_variance_dropdown.addItems(['CUBE', 'input', 'max'])
+        self.cube_variance_dropdown.setCurrentText('CUBE')
+        self.cube_variance_dropdown.setToolTip("Controls the reported uncertainty.\n"
+                                               "'CUBE' to use CUBE's posterior uncertainty estimate\n"
+                                               "'input' to track and use input uncertainty\n"
+                                               "'max' to report the greater of the two.")
+        self.hlayout_cube_two.addWidget(self.cube_variance_dropdown)
+        self.hlayout_cube_two.addStretch()
+        self.surf_layout.addLayout(self.hlayout_cube_two)
 
         # self.use_dask_checkbox = QtWidgets.QCheckBox('Process in Parallel')
         # self.use_dask_checkbox.setToolTip('With this checked, gridding will be done in parallel using the Dask Client.  Assuming you have multiple\n' +
@@ -177,18 +200,20 @@ class SurfaceDialog(SaveStateDialog):
         self.line_surface_checkbox.toggled.connect(self._handle_line_checked)
         self.grid_type.currentTextChanged.connect(self._event_update_status)
         self.input_fqpr.files_updated.connect(self._event_update_fqpr_instances)
+        self.surf_method.currentTextChanged.connect(self._handle_method_changed)
         # self.browse_button.clicked.connect(self.file_browse)
         self.ok_button.clicked.connect(self.start_processing)
         self.cancel_button.clicked.connect(self.cancel_processing)
 
-        self.text_controls = [['method', self.surf_method], ['gridtype', self.grid_type],
+        self.text_controls = [['method', self.surf_method], ['gridtype', self.grid_type], ['cube_method_dropdown', self.cube_method_dropdown],
+                              ['cube_variance_dropdown', self.cube_variance_dropdown], ['cube_ihoorder_dropdown', self.cube_ihoorder_dropdown],
                               ['singlerez_tilesize', self.single_rez_tile_size], ['single_rez_resolution', self.single_rez_resolution],
                               ['variabletile_tile_size', self.variabletile_tile_size], ['variabletile_resolution', self.variabletile_resolution]]
-                              # ['variabletile_subtile_size', self.variabletile_subtile_size]]
         # self.checkbox_controls = [['use_dask_checkbox', self.use_dask_checkbox]]
 
         self.read_settings()
         self._event_update_status(None)
+        self._handle_method_changed(None)
 
     def _handle_basic_checked(self, evt):
         """
@@ -231,6 +256,23 @@ class SurfaceDialog(SaveStateDialog):
             self.variabletile_tile_size.show()
             self.variabletile_tile_size_lbl.show()
 
+    def _handle_method_changed(self, e):
+        surf_method = self.surf_method.currentText()
+        if surf_method == 'CUBE':
+            self.cube_method_dropdown.show()
+            self.cube_variance_dropdown.show()
+            self.cube_ihoorder_dropdown.show()
+            self.cube_method_label.show()
+            self.cube_ihoorder_label.show()
+            self.cube_variance_label.show()
+        else:
+            self.cube_method_dropdown.hide()
+            self.cube_variance_dropdown.hide()
+            self.cube_ihoorder_dropdown.hide()
+            self.cube_method_label.hide()
+            self.cube_ihoorder_label.hide()
+            self.cube_variance_label.hide()
+
     def _event_update_fqpr_instances(self):
         self.update_fqpr_instances()
 
@@ -252,6 +294,9 @@ class SurfaceDialog(SaveStateDialog):
     def return_processing_options(self):
         if not self.canceled:
             curr_opts = self.grid_type.currentText()
+            grid_parameters = {'variance_selection': self.cube_variance_dropdown.currentText().lower(),
+                               'iho_order': self.cube_ihoorder_dropdown.currentText().lower(),
+                               'method': self.cube_method_dropdown.currentText().lower()}
             if curr_opts == 'Single Resolution':
                 outpth = os.path.join(self.output_pth, 'srgrid_{}_{}'.format(self.surf_method.currentText(),
                                                                              self.single_rez_resolution.currentText()).lower())
@@ -267,7 +312,7 @@ class SurfaceDialog(SaveStateDialog):
                 opts = {'fqpr_inst': self.fqpr_inst, 'grid_type': 'single_resolution',
                         'tile_size': float(self.single_rez_tile_size.currentText()),
                         'gridding_algorithm': self.surf_method.currentText().lower(),
-                        'auto_resolution_mode': automode,
+                        'auto_resolution_mode': automode, 'grid_parameters': grid_parameters,
                         'resolution': rez, 'output_path': outpth, 'use_dask': False}
             elif curr_opts == 'Variable Resolution Tile':
                 outpth = os.path.join(self.output_pth, 'vrtilegrid_{}'.format(self.surf_method.currentText()).lower())
@@ -285,7 +330,7 @@ class SurfaceDialog(SaveStateDialog):
                         # 'subtile_size': float(self.variabletile_subtile_size.currentText()),
                         'subtile_size': float(self.variabletile_tile_size.currentText()),
                         'gridding_algorithm': self.surf_method.currentText().lower(),
-                        'auto_resolution_mode': automode,
+                        'auto_resolution_mode': automode, 'grid_parameters': grid_parameters,
                         'resolution': rez, 'output_path': outpth, 'use_dask': False}
             else:
                 raise ValueError('dialog_surface: unexpected grid type {}'.format(curr_opts))

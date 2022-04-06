@@ -13,8 +13,10 @@ from HSTB.kluster.fqpr_generation import Fqpr
 from HSTB.kluster.fqpr_helpers import seconds_to_formatted_string, return_files_from_path
 from HSTB.kluster.dask_helpers import dask_find_or_start_client
 from HSTB.kluster.logging_conf import return_log_name
-from bathygrid.convenience import create_grid, load_grid, BathyGrid
 from HSTB.kluster import kluster_variables
+
+from bathygrid.convenience import create_grid, load_grid, BathyGrid
+from bathycube.numba_cube import compile_now
 
 
 def perform_all_processing(filname: Union[str, list], navfiles: list = None, input_datum: Union[str, int] = None,
@@ -554,7 +556,7 @@ def generate_new_surface(fqpr_inst: Union[Fqpr, list], grid_type: str = 'single_
                          auto_resolution_mode: str = 'depth',
                          use_dask: bool = False, output_path: str = None, export_path: str = None,
                          export_format: str = 'geotiff', export_z_positive_up: bool = True,
-                         export_resolution: float = None, client: Client = None):
+                         export_resolution: float = None, client: Client = None, grid_parameters: dict = None):
     """
     Using the bathygrid create_grid convenience function, generate a new variable/single resolution surface for the
     provided Kluster fqpr instance(s).
@@ -579,7 +581,7 @@ def generate_new_surface(fqpr_inst: Union[Fqpr, list], grid_type: str = 'single_
         sub tile size, only used for variable resolution, the size of the subtiles within the tiles, subtiles are the
         smallest unit within the grid that is single resolution
     gridding_algorithm
-        algorithm to grid by, one of 'mean', 'shoalest
+        algorithm to grid by, one of 'mean', 'shoalest', 'cube'
     resolution
         resolution of the gridded data in the Tiles
     auto_resolution_mode
@@ -599,6 +601,8 @@ def generate_new_surface(fqpr_inst: Union[Fqpr, list], grid_type: str = 'single_
     client
         dask.distributed.Client instance, if you don't include this, it will automatically start a LocalCluster with the
         default options, if you set use_dask to True
+    grid_parameters
+        optional dict of settings to pass to the grid algorithm
 
     Returns
     -------
@@ -619,6 +623,10 @@ def generate_new_surface(fqpr_inst: Union[Fqpr, list], grid_type: str = 'single_
     if unique_vertref is None or unique_crs is None:
         return None
 
+    if gridding_algorithm == 'cube':
+        print('compiling cube algorithm...')
+        compile_now()
+
     print('Preparing data...')
     # set some arbitrary number of pings to hold in memory at once, probably need a smarter way to do this eventually
     #  just make sure it is a multiple of 1000, the chunksize of the raw_ping dataset
@@ -629,7 +637,8 @@ def generate_new_surface(fqpr_inst: Union[Fqpr, list], grid_type: str = 'single_
         _add_points_to_surface(f, bg, unique_crs[0], unique_vertref[0])
 
     # now after all points are added, run grid with the options presented
-    bg.grid(algorithm=gridding_algorithm, resolution=resolution, auto_resolution_mode=auto_resolution_mode, use_dask=use_dask)
+    bg.grid(algorithm=gridding_algorithm, resolution=resolution, auto_resolution_mode=auto_resolution_mode,
+            use_dask=use_dask, grid_parameters=grid_parameters)
     if export_path:
         bg.export(output_path=export_path, export_format=export_format, z_positive_up=export_z_positive_up,
                   resolution=export_resolution)
@@ -676,6 +685,10 @@ def update_surface(surface_instance: Union[str, BathyGrid], add_fqpr: Union[Fqpr
         if surface_instance is None:
             return None
 
+    if surface_instance.grid_algorithm == 'cube':
+        print('compiling cube algorithm...')
+        compile_now()
+
     if remove_fqpr:
         if not isinstance(remove_fqpr, list):
             remove_fqpr = [remove_fqpr]
@@ -715,7 +728,7 @@ def update_surface(surface_instance: Union[str, BathyGrid], add_fqpr: Union[Fqpr
             rez = float(surface_instance.grid_resolution)
             automode = 'depth'  # the default value, this will not be used when resolution is specified
         surface_instance.grid(surface_instance.grid_algorithm, rez, auto_resolution_mode=automode,
-                              regrid_option=regrid_option, use_dask=use_dask)
+                              regrid_option=regrid_option, use_dask=use_dask, grid_parameters=surface_instance.grid_parameters)
     return surface_instance
 
 
