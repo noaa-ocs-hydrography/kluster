@@ -26,7 +26,7 @@ from HSTB.kluster.gui import dialog_vesselview, kluster_explorer, kluster_projec
     kluster_output_window, kluster_2dview, kluster_actions, kluster_monitor, dialog_daskclient, dialog_surface, \
     dialog_export, kluster_worker, kluster_interactive_console, dialog_basicplot, dialog_advancedplot, dialog_project_settings, \
     dialog_export_grid, dialog_layer_settings, dialog_settings, dialog_importppnav, dialog_overwritenav, dialog_surface_data, \
-    dialog_about, dialog_setcolors, dialog_patchtest, dialog_manualpatchtest, dialog_managedata, dialog_managesurface, \
+    dialog_about, dialog_patchtest, dialog_manualpatchtest, dialog_managedata, dialog_managesurface, \
     dialog_reprocess, dialog_fileanalyzer, dialog_export_tracklines, dialog_filter
 from HSTB.kluster.fqpr_project import FqprProject
 from HSTB.kluster.fqpr_intelligence import FqprIntel
