@@ -138,14 +138,20 @@ class LayerSettingsDialog(SaveStateDialog):
             self.color_range_max_value.setDisabled(True)
 
     def _update_min_val(self, e):
-        cur_band = self.color_range_select.currentText()
-        minval = self.color_range_min_value.text()
-        self.color_ranges[cur_band][1] = float(minval)
+        try:
+            cur_band = self.color_range_select.currentText()
+            minval = self.color_range_min_value.text()
+            self.color_ranges[cur_band][1] = float(minval)
+        except:
+            pass
 
     def _update_max_val(self, e):
-        cur_band = self.color_range_select.currentText()
-        maxval = self.color_range_max_value.text()
-        self.color_ranges[cur_band][2] = float(maxval)
+        try:
+            cur_band = self.color_range_select.currentText()
+            maxval = self.color_range_max_value.text()
+            self.color_ranges[cur_band][2] = float(maxval)
+        except:
+            pass
 
     def return_layer_options(self):
         """

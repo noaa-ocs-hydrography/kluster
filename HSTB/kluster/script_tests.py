@@ -235,18 +235,11 @@ dat = tst.getrecord(7004, 0)
 data = dat.full_settings
 
 ########################################################################
-from HSTB.kluster.xarray_conversion import BatchRead
-from HSTB.kluster.fqpr_generation import Fqpr
+from HSTB.kluster.fqpr_convenience import reload_data, generate_new_surface
 
-fil = r"C:\Pydro21_Dev\NOAA\site-packages\Python38\git_repos\hstb_kluster\tests\resources\0009_20170523_181119_FA2806.all"
+fq = reload_data(r"C:\collab\dasktest\data_dir\outputtest\EM2040_Fairweather_SmallFile")
+generate_new_surface(fq, gridding_algorithm='cube', resolution=2.0, tile_size=2048)
 
-fq = perform_all_processing(fil)
-
-
-
-mbes_read = BatchRead(fil)
-fqpr_inst = Fqpr(mbes_read)
-fqpr_inst.read_from_source(build_offsets=False)
 
 #######################################################################
 from HSTB.drivers.kmall import *
