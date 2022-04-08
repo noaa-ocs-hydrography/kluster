@@ -238,7 +238,7 @@ data = dat.full_settings
 from HSTB.kluster.fqpr_convenience import reload_data, generate_new_surface
 
 fq = reload_data(r"C:\collab\dasktest\data_dir\outputtest\EM2040_Fairweather_SmallFile")
-generate_new_surface(fq, gridding_algorithm='cube', resolution=2.0, tile_size=2048)
+generate_new_surface(fq, gridding_algorithm='cube', resolution=2.0, tile_size=128)
 
 
 #######################################################################

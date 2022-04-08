@@ -154,23 +154,21 @@ class SurfaceDialog(SaveStateDialog):
         self.hlayout_cube_two.addStretch()
         self.surf_layout.addLayout(self.hlayout_cube_two)
 
+        self.output_msg = QtWidgets.QLabel('Save to:')
+
+        self.hlayout_output = QtWidgets.QHBoxLayout()
+        self.output_text = QtWidgets.QLineEdit('', self)
+        self.output_text.setMinimumWidth(400)
+        self.output_text.setReadOnly(False)
+        self.hlayout_output.addWidget(self.output_text)
+        self.output_button = QtWidgets.QPushButton("Browse", self)
+        self.hlayout_output.addWidget(self.output_button)
+
         # self.use_dask_checkbox = QtWidgets.QCheckBox('Process in Parallel')
         # self.use_dask_checkbox.setToolTip('With this checked, gridding will be done in parallel using the Dask Client.  Assuming you have multiple\n' +
         #                                   'tiles, this should improve performance significantly.  You may experience some instability, although this\n' +
         #                                   'current implementation has not shown any during testing.')
         # self.surf_layout.addWidget(self.use_dask_checkbox)
-
-        # self.output_msg = QtWidgets.QLabel('Select the output path for the surface')
-        # self.surf_layout.addWidget(self.output_msg)
-
-        # self.hlayout_one_two = QtWidgets.QHBoxLayout()
-        # self.fil_text = QtWidgets.QLineEdit('', self)
-        # self.fil_text.setMinimumWidth(400)
-        # self.fil_text.setReadOnly(True)
-        # self.hlayout_one_two.addWidget(self.fil_text)
-        # self.browse_button = QtWidgets.QPushButton("Browse", self)
-        # self.hlayout_one_two.addWidget(self.browse_button)
-        # self.surf_layout.addLayout(self.hlayout_one_two)
 
         self.status_msg = QtWidgets.QLabel('')
         self.status_msg.setStyleSheet("QLabel { color : " + kluster_variables.error_color + "; }")
@@ -188,6 +186,9 @@ class SurfaceDialog(SaveStateDialog):
         layout.addWidget(self.line_surface_checkbox)
         layout.addWidget(QtWidgets.QLabel(' '))
         layout.addLayout(self.surf_layout)
+        layout.addStretch()
+        layout.addWidget(self.output_msg)
+        layout.addLayout(self.hlayout_output)
         layout.addWidget(self.status_msg)
         layout.addLayout(self.hlayout_two)
         self.setLayout(layout)
@@ -201,7 +202,8 @@ class SurfaceDialog(SaveStateDialog):
         self.grid_type.currentTextChanged.connect(self._event_update_status)
         self.input_fqpr.files_updated.connect(self._event_update_fqpr_instances)
         self.surf_method.currentTextChanged.connect(self._handle_method_changed)
-        # self.browse_button.clicked.connect(self.file_browse)
+        self.output_button.clicked.connect(self.file_browse)
+        self.output_text.textChanged.connect(self._update_output_pth)
         self.ok_button.clicked.connect(self.start_processing)
         self.cancel_button.clicked.connect(self.cancel_processing)
 
@@ -281,15 +283,30 @@ class SurfaceDialog(SaveStateDialog):
             self.input_fqpr.add_new_files(addtl_files)
         self.fqpr_inst = [self.input_fqpr.list_widget.item(i).text() for i in range(self.input_fqpr.list_widget.count())]
         if self.fqpr_inst:
-            self.output_pth = os.path.dirname(self.fqpr_inst[0])
+            if not self.output_text.text():
+                self.output_pth = os.path.dirname(self.fqpr_inst[0])
+                curr_opts = self.grid_type.currentText()
+                if curr_opts == 'Single Resolution':
+                    outpth = os.path.join(self.output_pth, 'srgrid_{}_{}'.format(self.surf_method.currentText(),
+                                                                                 self.single_rez_resolution.currentText()).lower())
+                elif curr_opts == 'Variable Resolution Tile':
+                    outpth = os.path.join(self.output_pth, 'vrtilegrid_{}'.format(self.surf_method.currentText()).lower())
+                else:
+                    raise NotImplementedError(f'dialog_surface: Unable to autobuild output path from grid type {curr_opts}')
+                self.output_pth = outpth
+                self.output_text.setText(outpth)
 
-    # def file_browse(self):
-    #     msg, self.output_pth = RegistryHelpers.GetFilenameFromUserQT(self, RegistryKey='Kluster',
-    #                                                                  Title='Select output surface path',
-    #                                                                  AppName='kluster', bMulti=False,
-    #                                                                  bSave=True, fFilter='numpy npz (*.npz)')
-    #     if self.output_pth is not None:
-    #         self.fil_text.setText(self.output_pth)
+    def file_browse(self):
+        msg, output_pth = RegistryHelpers.GetFilenameFromUserQT(self, RegistryKey='Kluster',
+                                                                Title='Select output surface path',
+                                                                AppName='kluster', bMulti=False,
+                                                                bSave=True, fFilter='numpy npz (*.npz)')
+        if output_pth is not None:
+            self.output_text.setText(self.output_pth)
+            self.output_pth = output_pth
+
+    def _update_output_pth(self):
+        self.output_pth = self.output_text.text()
 
     def return_processing_options(self):
         if not self.canceled:
@@ -298,8 +315,6 @@ class SurfaceDialog(SaveStateDialog):
                                'iho_order': self.cube_ihoorder_dropdown.currentText().lower(),
                                'method': self.cube_method_dropdown.currentText().lower()}
             if curr_opts == 'Single Resolution':
-                outpth = os.path.join(self.output_pth, 'srgrid_{}_{}'.format(self.surf_method.currentText(),
-                                                                             self.single_rez_resolution.currentText()).lower())
                 if self.single_rez_resolution.currentText() == 'AUTO_depth':
                     rez = None
                     automode = 'depth'
@@ -313,9 +328,8 @@ class SurfaceDialog(SaveStateDialog):
                         'tile_size': float(self.single_rez_tile_size.currentText()),
                         'gridding_algorithm': self.surf_method.currentText().lower(),
                         'auto_resolution_mode': automode, 'grid_parameters': grid_parameters,
-                        'resolution': rez, 'output_path': outpth, 'use_dask': False}
+                        'resolution': rez, 'output_path': self.output_pth, 'use_dask': False}
             elif curr_opts == 'Variable Resolution Tile':
-                outpth = os.path.join(self.output_pth, 'vrtilegrid_{}'.format(self.surf_method.currentText()).lower())
                 if self.variabletile_resolution.currentText() == 'AUTO_depth':
                     rez = None
                     automode = 'depth'
@@ -331,7 +345,7 @@ class SurfaceDialog(SaveStateDialog):
                         'subtile_size': float(self.variabletile_tile_size.currentText()),
                         'gridding_algorithm': self.surf_method.currentText().lower(),
                         'auto_resolution_mode': automode, 'grid_parameters': grid_parameters,
-                        'resolution': rez, 'output_path': outpth, 'use_dask': False}
+                        'resolution': rez, 'output_path': self.output_pth, 'use_dask': False}
             else:
                 raise ValueError('dialog_surface: unexpected grid type {}'.format(curr_opts))
         else:
