@@ -167,7 +167,11 @@ class Fqpr(ZarrBackend):
             except:
                 output += 'Primary/Secondary System Serial Number: Unknown\n'
             if self.horizontal_crs:
-                output += 'Horizontal Datum: {}\n'.format(self.horizontal_crs.to_epsg())
+                try:
+                    epsg_name = CRS.from_epsg(int(self.horizontal_crs.to_epsg())).name
+                except:
+                    epsg_name = 'Unknown'
+                output += 'Horizontal Datum: {} ({})\n'.format(self.horizontal_crs.to_epsg(), epsg_name)
             else:
                 output += 'Horizontal Datum: Unknown\n'
             try:

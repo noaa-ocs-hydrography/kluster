@@ -2365,7 +2365,7 @@ class MapView(QtWidgets.QMainWindow):
                 return
             mymap = mymap[0]
             drop_layers = []
-            orig_layers = self.project.mapThemeCollection().masterVisibleLayers()
+            orig_layers = self.project.mapThemeCollection().masterVisibleLayers()  # should only include layers that are actually visible in the current zoom/extents
             for cnt, lyr in enumerate(orig_layers):  # get all the grid layers, warp to 4326
                 if lyr.name().find('vsimem') != -1 and lyr.crs() != qgis_core.QgsCoordinateReferenceSystem(kluster_variables.qgis_epsg) and lyr in self.layer_manager.shown_layers:
                     newsrc = f'/vsimem/newsrc_{cnt}'

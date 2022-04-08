@@ -622,7 +622,7 @@ def generate_new_surface(fqpr_inst: Union[Fqpr, list], grid_type: str = 'single_
     unique_crs, unique_vertref = _get_unique_crs_vertref(fqpr_inst)
     if unique_vertref is None or unique_crs is None:
         return None
-
+    gridding_algorithm = gridding_algorithm.lower()
     if gridding_algorithm == 'cube':
         print('compiling cube algorithm...')
         compile_now()
