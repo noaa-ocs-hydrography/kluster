@@ -1,0 +1,191 @@
+from HSTB.kluster.gui.dialog_surface import *
+
+
+class SurfaceFromPointsDialog(SurfaceDialog):
+    """
+    Dialog for selecting surfacing options that we want to use to generate a new surface.
+    """
+
+    def __init__(self, parent=None, title='', settings=None):
+        super().__init__(parent=parent, title=title, settings=settings)
+
+        self.setWindowTitle('Generate New Surface From Points')
+        self.input_fqpr.setup(mode='file', registry_key='kluster', app_name='pointfilebrowse',
+                              supported_file_extension=['.txt', '.csv', '.las', '.laz'], multiselect=True,
+                              filebrowse_title='Select points files to import',
+                              filebrowse_filter='LAS files,CSV files (*.las;*.laz;*.csv;*.txt)')
+        self.basic_surface_group.setTitle('Run surface generation on the following files:')
+        self.line_surface_checkbox.hide()
+
+        self.export_options = QtWidgets.QGroupBox('File Options:')
+        self.export_options.setCheckable(False)
+        self.export_options_top = QtWidgets.QVBoxLayout()
+
+        self.basic_export_layout = QtWidgets.QHBoxLayout()
+        self.epsg_label = QtWidgets.QLabel('EPSG: ')
+        self.basic_export_layout.addWidget(self.epsg_label)
+        self.inepsg_val = QtWidgets.QLineEdit('', self)
+        self.inepsg_val.setToolTip('The integer EPSG code for these files, expects a UTM projected 2d coordinate system.')
+        self.basic_export_layout.addWidget(self.inepsg_val)
+        self.vertref_label = QtWidgets.QLabel('Vertical Reference: ')
+        self.basic_export_layout.addWidget(self.vertref_label)
+        self.invertref_val = QtWidgets.QLineEdit('', self)
+        self.inepsg_val.setToolTip('The vertical reference for the files, ex: "Ellipse" or "MLLW"')
+        self.basic_export_layout.addWidget(self.invertref_val)
+        self.basic_export_layout.addStretch()
+        self.export_options_top.addLayout(self.basic_export_layout)
+
+        self.csv_label = QtWidgets.QLabel('Set the Column Numbers for the CSV File (Starting with "1", XYZ is mandatory)')
+        self.export_options_top.addWidget(self.csv_label)
+
+        self.csv_column_layout = QtWidgets.QGridLayout()
+        self.x_include = QtWidgets.QCheckBox('X (Eastings)')
+        self.x_include.setChecked(True)
+        self.x_include.setDisabled(True)
+        self.csv_column_layout.addWidget(self.x_include, 0, 0)
+        self.x_lbl = QtWidgets.QLabel(' Column Number ')
+        self.csv_column_layout.addWidget(self.x_lbl, 0, 1)
+        self.x_entry = QtWidgets.QSpinBox()
+        self.x_entry.setRange(1, 99)
+        self.x_entry.setValue(1)
+        self.csv_column_layout.addWidget(self.x_entry, 0, 2)
+        self.xspacer = QtWidgets.QLabel('')
+        self.csv_column_layout.addWidget(self.xspacer, 0, 3)
+
+        self.y_include = QtWidgets.QCheckBox('Y (Northings)')
+        self.y_include.setChecked(True)
+        self.y_include.setDisabled(True)
+        self.csv_column_layout.addWidget(self.y_include, 1, 0)
+        self.y_lbl = QtWidgets.QLabel(' Column Number ')
+        self.csv_column_layout.addWidget(self.y_lbl, 1, 1)
+        self.y_entry = QtWidgets.QSpinBox()
+        self.y_entry.setRange(1, 99)
+        self.y_entry.setValue(2)
+        self.csv_column_layout.addWidget(self.y_entry, 1, 2)
+        self.yspacer = QtWidgets.QLabel('')
+        self.csv_column_layout.addWidget(self.yspacer, 1, 3)
+
+        self.z_include = QtWidgets.QCheckBox('Z (Depth)')
+        self.z_include.setChecked(True)
+        self.z_include.setDisabled(True)
+        self.csv_column_layout.addWidget(self.z_include, 2, 0)
+        self.z_lbl = QtWidgets.QLabel(' Column Number ')
+        self.csv_column_layout.addWidget(self.z_lbl, 2, 1)
+        self.z_entry = QtWidgets.QSpinBox()
+        self.z_entry.setRange(1, 99)
+        self.z_entry.setValue(3)
+        self.csv_column_layout.addWidget(self.z_entry, 2, 2)
+        self.zspacer = QtWidgets.QLabel('')
+        self.csv_column_layout.addWidget(self.zspacer, 2, 3)
+
+        self.thu_include = QtWidgets.QCheckBox('THU (Horizontal Uncertainty)')
+        self.thu_include.setChecked(False)
+        self.thu_include.setDisabled(False)
+        self.csv_column_layout.addWidget(self.thu_include, 3, 0)
+        self.thu_lbl = QtWidgets.QLabel(' Column Number ')
+        self.csv_column_layout.addWidget(self.thu_lbl, 3, 1)
+        self.thu_entry = QtWidgets.QSpinBox()
+        self.thu_entry.setRange(1, 99)
+        self.thu_entry.setValue(4)
+        self.csv_column_layout.addWidget(self.thu_entry, 3, 2)
+        self.thuspacer = QtWidgets.QLabel('')
+        self.csv_column_layout.addWidget(self.thuspacer, 3, 3)
+
+        self.tvu_include = QtWidgets.QCheckBox('TVU (Vertical Uncertainty)')
+        self.tvu_include.setChecked(False)
+        self.tvu_include.setDisabled(False)
+        self.csv_column_layout.addWidget(self.tvu_include, 4, 0)
+        self.tvu_lbl = QtWidgets.QLabel(' Column Number ')
+        self.csv_column_layout.addWidget(self.tvu_lbl, 4, 1)
+        self.tvu_entry = QtWidgets.QSpinBox()
+        self.tvu_entry.setRange(1, 99)
+        self.tvu_entry.setValue(5)
+        self.csv_column_layout.addWidget(self.tvu_entry, 4, 2)
+        self.tvuspacer = QtWidgets.QLabel('')
+        self.csv_column_layout.addWidget(self.tvuspacer, 4, 3)
+
+        self.export_options_top.addLayout(self.csv_column_layout)
+
+        self.export_options.setLayout(self.export_options_top)
+
+        self.toplayout.insertWidget(1, self.export_options)
+
+        self._filetype = ''
+
+    @property
+    def filetype(self):
+        return self._filetype
+
+    @filetype.setter
+    def filetype(self, newtype: str):
+        self._filetype = newtype
+        if newtype in ['.csv', '.txt']:
+            self.csv_label.show()
+            self.x_include.show()
+            self.x_lbl.show()
+            self.x_entry.show()
+            self.xspacer.show()
+            self.y_include.show()
+            self.y_lbl.show()
+            self.y_entry.show()
+            self.yspacer.show()
+            self.z_include.show()
+            self.z_lbl.show()
+            self.z_entry.show()
+            self.zspacer.show()
+            self.thu_include.show()
+            self.thu_lbl.show()
+            self.thu_entry.show()
+            self.thuspacer.show()
+            self.tvu_include.show()
+            self.tvu_lbl.show()
+            self.tvu_entry.show()
+            self.tvuspacer.show()
+        else:
+            self.csv_label.hide()
+            self.x_include.hide()
+            self.x_lbl.hide()
+            self.x_entry.hide()
+            self.xspacer.hide()
+            self.y_include.hide()
+            self.y_lbl.hide()
+            self.y_entry.hide()
+            self.yspacer.hide()
+            self.z_include.hide()
+            self.z_lbl.hide()
+            self.z_entry.hide()
+            self.zspacer.hide()
+            self.thu_include.hide()
+            self.thu_lbl.hide()
+            self.thu_entry.hide()
+            self.thuspacer.hide()
+            self.tvu_include.hide()
+            self.tvu_lbl.hide()
+            self.tvu_entry.hide()
+            self.tvuspacer.hide()
+
+    def _event_update_fqpr_instances(self):
+        self.update_fqpr_instances()
+        if self.fqpr_inst:
+            self.filetype = os.path.splitext(self.fqpr_inst[0])[1]
+
+    def start_processing(self):
+        if self.output_pth is None:
+            self.status_msg.setText('Error: You must insert a Save To path to continue')
+        elif not self.fqpr_inst:
+            self.status_msg.setText('Error: You must provide at least one file in the box above')
+        else:
+            self.canceled = False
+            self.save_settings()
+            self.accept()
+
+
+if __name__ == '__main__':
+    try:  # pyside2
+        app = QtWidgets.QApplication()
+    except TypeError:  # pyqt5
+        app = QtWidgets.QApplication([])
+    dlog = SurfaceFromPointsDialog()
+    dlog.show()
+    if dlog.exec_():
+        print(dlog.return_processing_options())

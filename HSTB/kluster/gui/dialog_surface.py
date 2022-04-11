@@ -21,7 +21,7 @@ class SurfaceDialog(SaveStateDialog):
         super().__init__(parent, settings, widgetname='surface')
 
         self.setWindowTitle('Generate New Surface')
-        layout = QtWidgets.QVBoxLayout()
+        self.toplayout = QtWidgets.QVBoxLayout()
 
         self.basic_surface_group = QtWidgets.QGroupBox('Run surface generation on the following datasets:')
         self.basic_surface_group.setCheckable(True)
@@ -182,16 +182,16 @@ class SurfaceDialog(SaveStateDialog):
         self.hlayout_two.addWidget(self.cancel_button)
         self.hlayout_two.addStretch(1)
 
-        layout.addWidget(self.basic_surface_group)
-        layout.addWidget(self.line_surface_checkbox)
-        layout.addWidget(QtWidgets.QLabel(' '))
-        layout.addLayout(self.surf_layout)
-        layout.addStretch()
-        layout.addWidget(self.output_msg)
-        layout.addLayout(self.hlayout_output)
-        layout.addWidget(self.status_msg)
-        layout.addLayout(self.hlayout_two)
-        self.setLayout(layout)
+        self.toplayout.addWidget(self.basic_surface_group)
+        self.toplayout.addWidget(self.line_surface_checkbox)
+        self.toplayout.addWidget(QtWidgets.QLabel(' '))
+        self.toplayout.addLayout(self.surf_layout)
+        self.toplayout.addStretch()
+        self.toplayout.addWidget(self.output_msg)
+        self.toplayout.addLayout(self.hlayout_output)
+        self.toplayout.addWidget(self.status_msg)
+        self.toplayout.addLayout(self.hlayout_two)
+        self.setLayout(self.toplayout)
 
         self.fqpr_inst = []
         self.canceled = False
@@ -293,14 +293,14 @@ class SurfaceDialog(SaveStateDialog):
                     outpth = os.path.join(self.output_pth, 'vrtilegrid_{}'.format(self.surf_method.currentText()).lower())
                 else:
                     raise NotImplementedError(f'dialog_surface: Unable to autobuild output path from grid type {curr_opts}')
-                self.output_pth = outpth
-                self.output_text.setText(outpth)
+                self.output_pth = os.path.normpath(outpth)
+                self.output_text.setText(self.output_pth)
 
     def file_browse(self):
         msg, output_pth = RegistryHelpers.GetFilenameFromUserQT(self, RegistryKey='Kluster',
                                                                 Title='Select output surface path',
                                                                 AppName='kluster', bMulti=False,
-                                                                bSave=True, fFilter='numpy npz (*.npz)')
+                                                                bSave=True)
         if output_pth is not None:
             self.output_text.setText(self.output_pth)
             self.output_pth = output_pth
