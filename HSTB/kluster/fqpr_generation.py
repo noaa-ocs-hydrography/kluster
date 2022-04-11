@@ -2536,33 +2536,36 @@ class Fqpr(ZarrBackend):
             self.logger.info('****Calculating total uncertainty complete: {}****\n'.format(seconds_to_formatted_string(int(endtime - starttime))))
 
     def export_pings_to_file(self, output_directory: str = None, file_format: str = 'csv', csv_delimiter=' ',
-                             filter_by_detection: bool = True, z_pos_down: bool = True, export_by_identifiers: bool = True):
+                             filter_by_detection: bool = True, format_type: str = 'xyz', z_pos_down: bool = True, export_by_identifiers: bool = True):
         """
         Run the export module to export point cloud relevant data to file, see export.export_pings_to_file
         """
         written_files = self.export.export_pings_to_file(output_directory=output_directory, file_format=file_format,
                                                          csv_delimiter=csv_delimiter, filter_by_detection=filter_by_detection,
-                                                         z_pos_down=z_pos_down, export_by_identifiers=export_by_identifiers)
+                                                         format_type=format_type, z_pos_down=z_pos_down,
+                                                         export_by_identifiers=export_by_identifiers)
         return written_files
 
     def export_lines_to_file(self, linenames: list = None, output_directory: str = None, file_format: str = 'csv', csv_delimiter=' ',
-                             filter_by_detection: bool = True, z_pos_down: bool = True, export_by_identifiers: bool = True):
+                             filter_by_detection: bool = True, format_type: str = 'xyz', z_pos_down: bool = True, export_by_identifiers: bool = True):
         """
         Run the export module to export only the data belonging to the given lines to file, see export.export_lines_to_file
         """
         written_files = self.export.export_lines_to_file(linenames=linenames, output_directory=output_directory,
                                                          file_format=file_format, csv_delimiter=csv_delimiter,
-                                                         filter_by_detection=filter_by_detection, z_pos_down=z_pos_down,
-                                                         export_by_identifiers=export_by_identifiers)
+                                                         filter_by_detection=filter_by_detection, format_type=format_type,
+                                                         z_pos_down=z_pos_down, export_by_identifiers=export_by_identifiers)
         return written_files
 
     def export_soundings_to_file(self, datablock: list, output_directory: str = None, file_format: str = 'csv',
-                                 csv_delimiter=' ', filter_by_detection: bool = True, z_pos_down: bool = True):
+                                 csv_delimiter=' ', filter_by_detection: bool = True, format_type: str = 'xyz',
+                                 z_pos_down: bool = True):
         """
         Run the export module to export given soundings to file, see export.export_soundings_to_file
         """
 
-        self.export.export_soundings_to_file(datablock, output_directory, file_format, csv_delimiter, filter_by_detection, z_pos_down)
+        self.export.export_soundings_to_file(datablock, output_directory, file_format, csv_delimiter, filter_by_detection,
+                                             format_type, z_pos_down)
 
     def export_tracklines_to_file(self, linenames: list = None, output_file: str = None, file_format: str = 'GPKG'):
         """

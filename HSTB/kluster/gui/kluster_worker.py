@@ -307,12 +307,14 @@ class ExportWorker(QtCore.QThread):
         self.mode = ''
         self.z_pos_down = False
         self.delimiter = ' '
+        self.formattype = 'xyz'
         self.filterset = False
         self.separateset = False
         self.error = False
         self.exceptiontxt = None
 
-    def populate(self, fq_chunks, line_names, datablock, export_type, z_pos_down, delimiter, filterset, separateset, basic_mode, line_mode, points_mode):
+    def populate(self, fq_chunks, line_names, datablock, export_type, z_pos_down, delimiter, formattype, filterset,
+                 separateset, basic_mode, line_mode, points_mode):
         if basic_mode:
             self.mode = 'basic'
         elif line_mode:
@@ -332,6 +334,7 @@ class ExportWorker(QtCore.QThread):
             self.delimiter = ' '
         else:
             raise ValueError('ExportWorker: Expected either "comma" or "space", received {}'.format(delimiter))
+        self.formattype = formattype
         self.filterset = filterset
         self.separateset = separateset
         self.error = False
@@ -340,13 +343,13 @@ class ExportWorker(QtCore.QThread):
     def export_process(self, fq, datablock=None):
         if self.mode == 'basic':
             fq.export_pings_to_file(file_format=self.export_type, csv_delimiter=self.delimiter, filter_by_detection=self.filterset,
-                                    z_pos_down=self.z_pos_down, export_by_identifiers=self.separateset)
+                                    format_type=self.formattype, z_pos_down=self.z_pos_down, export_by_identifiers=self.separateset)
         elif self.mode == 'line':
             fq.export_lines_to_file(linenames=self.line_names, file_format=self.export_type, csv_delimiter=self.delimiter,
-                                    filter_by_detection=self.filterset, z_pos_down=self.z_pos_down, export_by_identifiers=self.separateset)
+                                    filter_by_detection=self.filterset, format_type=self.formattype, z_pos_down=self.z_pos_down, export_by_identifiers=self.separateset)
         else:
             fq.export_soundings_to_file(datablock=datablock, file_format=self.export_type, csv_delimiter=self.delimiter,
-                                        filter_by_detection=self.filterset, z_pos_down=self.z_pos_down)
+                                        filter_by_detection=self.filterset, format_type=self.formattype, z_pos_down=self.z_pos_down)
         return fq
 
     def run(self):

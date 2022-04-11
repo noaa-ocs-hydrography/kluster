@@ -1543,6 +1543,7 @@ class KlusterMain(QtWidgets.QMainWindow):
 
                 export_type = dlog.export_opts.currentText()
                 delimiter = dlog.csvdelimiter_dropdown.currentText()
+                formattype = dlog.format_dropdown.currentText()
                 filterset = dlog.filter_chk.isChecked()
                 separateset = dlog.byidentifier_chk.isChecked()
                 z_pos_down = dlog.zdirect_check.isChecked()
@@ -1560,8 +1561,9 @@ class KlusterMain(QtWidgets.QMainWindow):
                             fq_chunks.append([fq_inst])
                     if fq_chunks:
                         self.output_window.clear()
-                        self.export_thread.populate(fq_chunks, linenames, datablock, export_type, z_pos_down, delimiter, filterset,
-                                                    separateset, basic_export_mode, line_export_mode, points_export_mode)
+                        self.export_thread.populate(fq_chunks, linenames, datablock, export_type, z_pos_down, delimiter,
+                                                    formattype, filterset, separateset, basic_export_mode,
+                                                    line_export_mode, points_export_mode)
                         self.export_thread.start()
                 else:
                     cancelled = True
@@ -1578,7 +1580,7 @@ class KlusterMain(QtWidgets.QMainWindow):
             print(self.export_thread.exceptiontxt)
         else:
             print('Export complete.')
-        self.export_thread.populate(None, None, [], '', False, 'comma', False, False, True, False, False)
+        self.export_thread.populate(None, None, [], '', False, 'comma', 'xyz', False, False, True, False, False)
         self._stop_action_progress()
 
     def kluster_export_tracklines(self):
