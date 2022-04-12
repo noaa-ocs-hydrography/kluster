@@ -8,13 +8,15 @@ from matplotlib.gridspec import GridSpec
 import matplotlib.pyplot as plt
 from datetime import datetime
 import laspy
+from pyproj import CRS, Transformer
 
 from HSTB.kluster.fqpr_drivers import return_xyz_from_multibeam
 from HSTB.kluster.xarray_conversion import BatchRead
 from HSTB.kluster.fqpr_generation import Fqpr
-from HSTB.kluster.fqpr_helpers import seconds_to_formatted_string, return_files_from_path
+from HSTB.kluster.fqpr_helpers import seconds_to_formatted_string, return_files_from_path, epsg_determinator
 from HSTB.kluster.dask_helpers import dask_find_or_start_client
 from HSTB.kluster.logging_conf import return_log_name
+from HSTB.kluster.dms import return_zone_from_min_max_long
 from HSTB.kluster import kluster_variables
 
 from bathygrid.convenience import create_grid, load_grid, BathyGrid
@@ -836,6 +838,23 @@ def _csv_get_delimiter(datafile: str, skiprows: int):
     return str(dialect.delimiter)
 
 
+def _get_pointstosurface_transformer(datablock, input_epsg):
+    zne = return_zone_from_min_max_long(datablock['x'][0], datablock['x'][0], datablock['y'][0])
+    zone, hemi = int(zne[:-1]), str(zne[-1:])
+    inname = CRS.from_epsg(input_epsg).name.lower()
+    if inname.find('wgs') != -1 or inname.find('itrf') != -1:
+        myepsg = epsg_determinator('wgs84', zone=zone, hemisphere=hemi)
+    elif input_epsg in [6324]:
+        myepsg = epsg_determinator('nad83(ma11)', zone=zone, hemisphere=hemi)
+    elif input_epsg in [6322]:
+        myepsg = epsg_determinator('nad83(pa11)', zone=zone, hemisphere=hemi)
+    else:
+        myepsg = epsg_determinator('nad83(2011)', zone=zone, hemisphere=hemi)
+
+    new_transformer = Transformer.from_crs(CRS.from_epsg(input_epsg), CRS.from_epsg(myepsg), always_xy=True)
+    return new_transformer
+
+
 def points_to_surface(data_files: list, horizontal_epsg: int, vertical_reference: str, grid_type: str = 'single_resolution',
                       tile_size: float = 1024.0, subtile_size: float = 128, gridding_algorithm: str = 'mean', resolution: float = None,
                       auto_resolution_mode: str = 'depth', use_dask: bool = False, output_path: str = None, export_path: str = None,
@@ -909,6 +928,9 @@ def points_to_surface(data_files: list, horizontal_epsg: int, vertical_reference
         print('compiling cube algorithm...')
         compile_now()
 
+    is_geographic = CRS.from_epsg(horizontal_epsg).is_geographic
+    new_transformer = None
+
     print('Preparing data...')
     # set some arbitrary number of pings to hold in memory at once, probably need a smarter way to do this eventually
     #  just make sure it is a multiple of 1000, the chunksize of the raw_ping dataset
@@ -933,7 +955,14 @@ def points_to_surface(data_files: list, horizontal_epsg: int, vertical_reference
             las = laspy.read(f)
             datablock = {'x': las.x, 'y': las.y, 'z': las.z, 'crs': horizontal_epsg, 'vert_ref': vertical_reference,
                          'tag': ftag, 'files': ffiles}
-        _add_points_to_surface(datablock, bg, horizontal_epsg, vertical_reference)
+        if is_geographic:
+            if new_transformer is None:
+                new_transformer = _get_pointstosurface_transformer(datablock, horizontal_epsg)
+            newpos = new_transformer.transform(datablock['x'], datablock['y'], errcheck=False)  # longitude / latitude order (x/y)
+            datablock['x'] = newpos[0]
+            datablock['y'] = newpos[1]
+            datablock['crs'] = new_transformer.target_crs.to_epsg()
+        _add_points_to_surface(datablock, bg, datablock['crs'], vertical_reference)
     # now after all points are added, run grid with the options presented
     bg.grid(algorithm=gridding_algorithm, resolution=resolution, auto_resolution_mode=auto_resolution_mode,
             use_dask=use_dask, grid_parameters=grid_parameters)

@@ -1003,11 +1003,14 @@ class BrowseListWidget(QtWidgets.QWidget):
                                                               AppName=self.opts['app_name'],
                                                               bMulti=self.opts['multiselect'], bSave=False,
                                                               fFilter=self.opts['filebrowse_filter'])
+
         elif self.opts['mode'] == 'directory':
             msg, fils = RegistryHelpers.GetDirFromUserQT(self, RegistryKey=self.opts['registry_key'],
                                                          Title=self.opts['filebrowse_title'],
                                                          AppName=self.opts['app_name'])
             fils = [fils]
+        if fils == ['']:
+            fils = []
         if fils:
             self.add_new_files(fils)
         self.files_changed()

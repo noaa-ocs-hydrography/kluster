@@ -24,10 +24,10 @@ class SurfaceFromPointsDialog(SurfaceDialog):
         self.export_options_top = QtWidgets.QVBoxLayout()
 
         self.basic_export_layout = QtWidgets.QHBoxLayout()
-        self.epsg_label = QtWidgets.QLabel('EPSG: ')
+        self.epsg_label = QtWidgets.QLabel('Input EPSG: ')
         self.basic_export_layout.addWidget(self.epsg_label)
         self.inepsg_val = QtWidgets.QLineEdit('', self)
-        self.inepsg_val.setToolTip('The integer EPSG code for these files, expects a UTM projected 2d coordinate system.')
+        self.inepsg_val.setToolTip('The integer EPSG code for these files, expects a UTM projected 2d or 2d Geographic coordinate system.')
         self.basic_export_layout.addWidget(self.inepsg_val)
         self.vertref_label = QtWidgets.QLabel('Vertical Reference: ')
         self.basic_export_layout.addWidget(self.vertref_label)
@@ -41,7 +41,7 @@ class SurfaceFromPointsDialog(SurfaceDialog):
         self.export_options_top.addWidget(self.csv_label)
 
         self.csv_column_layout = QtWidgets.QGridLayout()
-        self.x_include = QtWidgets.QCheckBox('X (Eastings)')
+        self.x_include = QtWidgets.QCheckBox('X (Eastings/Longitude)')
         self.x_include.setChecked(True)
         self.x_include.setDisabled(True)
         self.csv_column_layout.addWidget(self.x_include, 0, 0)
@@ -54,7 +54,7 @@ class SurfaceFromPointsDialog(SurfaceDialog):
         self.xspacer = QtWidgets.QLabel('')
         self.csv_column_layout.addWidget(self.xspacer, 0, 3)
 
-        self.y_include = QtWidgets.QCheckBox('Y (Northings)')
+        self.y_include = QtWidgets.QCheckBox('Y (Northings/Latitude)')
         self.y_include.setChecked(True)
         self.y_include.setDisabled(True)
         self.csv_column_layout.addWidget(self.y_include, 1, 0)
@@ -202,15 +202,7 @@ class SurfaceFromPointsDialog(SurfaceDialog):
         try:
             epsg = int(self.inepsg_val.text())
             ecrs = CRS.from_epsg(epsg)
-            if not ecrs.is_projected:
-                self.status_msg.setText(f'ERROR: must be a Projected CRS, Input EPSG:{epsg}')
-                return False
-            elif ecrs.coordinate_system.axis_list[0].unit_name not in ['meters', 'metres', 'meter', 'metre']:
-                self.status_msg.setText(f'ERROR: CRS must be in units of meters, found {ecrs.coordinate_system.axis_list[0].unit_name}, Input EPSG:{epsg}')
-                return False
-            else:
-                self.status_msg.setText('')
-                return True
+            return True
         except:
             self.status_msg.setText(f'Unknown Error: Unable to generate new CRS from Input EPSG:{epsg}')
             return False

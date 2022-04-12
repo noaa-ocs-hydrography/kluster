@@ -281,8 +281,8 @@ class SurfaceDialog(SaveStateDialog):
     def update_fqpr_instances(self, addtl_files=None):
         if addtl_files is not None:
             self.input_fqpr.add_new_files(addtl_files)
-        self.fqpr_inst = [self.input_fqpr.list_widget.item(i).text() for i in range(self.input_fqpr.list_widget.count())]
-        if self.fqpr_inst:
+        if self.input_fqpr.list_widget.count():
+            self.fqpr_inst = [self.input_fqpr.list_widget.item(i).text() for i in range(self.input_fqpr.list_widget.count())]
             if not self.output_text.text():
                 self.output_pth = os.path.dirname(self.fqpr_inst[0])
                 curr_opts = self.grid_type.currentText()
@@ -297,13 +297,11 @@ class SurfaceDialog(SaveStateDialog):
                 self.output_text.setText(self.output_pth)
 
     def file_browse(self):
-        msg, output_pth = RegistryHelpers.GetFilenameFromUserQT(self, RegistryKey='Kluster',
-                                                                Title='Select output surface path',
-                                                                AppName='kluster', bMulti=False,
-                                                                bSave=True)
+        msg, output_pth = RegistryHelpers.GetDirFromUserQT(self, RegistryKey='Kluster', Title='Select output surface path',
+                                                           AppName='kluster')
         if output_pth is not None:
-            self.output_text.setText(self.output_pth)
             self.output_pth = output_pth
+            self.output_text.setText(self.output_pth)
 
     def _update_output_pth(self):
         self.output_pth = self.output_text.text()
