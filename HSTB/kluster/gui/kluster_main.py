@@ -350,6 +350,8 @@ class KlusterMain(QtWidgets.QMainWindow):
         export_tracklines_action.triggered.connect(self._action_export_tracklines)
         export_grid_action = QtWidgets.QAction('Surface', self)
         export_grid_action.triggered.connect(self._action_export_grid)
+        import_action = QtWidgets.QAction('Soundings', self)
+        import_action.triggered.connect(self._action_surfacefrompoints_generation)
 
         view_darkstyle = QtWidgets.QAction('Dark Mode', self)
         view_darkstyle.setCheckable(True)
@@ -414,6 +416,8 @@ class KlusterMain(QtWidgets.QMainWindow):
         exportmenu.addAction(export_action)
         exportmenu.addAction(export_tracklines_action)
         exportmenu.addAction(export_grid_action)
+        importmenu = file.addMenu('Import')
+        importmenu.addAction(import_action)
 
         view = menubar.addMenu('View')
         view.addAction(view_darkstyle)
@@ -1407,70 +1411,33 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.surface_thread.populate(None, {})
         self._stop_action_progress()
 
-    # def kluster_surfacefrompoints_generation(self):
-    #     """
-    #     Ask for input files to grid, supporting las and csv.  Dialog allows for adding/removing instances.
-    #
-    #     If a dask client hasn't been setup in this Kluster run, we auto setup a dask LocalCluster for processing
-    #
-    #     Refreshes the project at the end to load in the new surface.
-    #     """
-    #
-    #     if not self.no_threads_running():
-    #         print('Processing is already occurring.  Please wait for the process to finish')
-    #         cancelled = True
-    #     else:
-    #         cancelled = False
-    #         dlog = dialog_surfacefrompoints.SurfaceFromPointsDialog()
-    #         if dlog.exec_():
-    #             cancelled = dlog.canceled
-    #             opts = dlog.return_processing_options()
-    #             if opts is not None and not cancelled:
-    #                 surface_opts = opts
-    #                 infiles = surface_opts.pop('fqpr_inst')
-    #
-    #                 if dlog.line_surface_checkbox.isChecked():  # we now subset the fqpr instances by lines selected
-    #                     fqprspaths, fqprs = self.return_selected_fqprs(subset_by_line=True)
-    #                     for fq in fqprs:
-    #                         fq_chunks.extend([fq])
-    #                 else:
-    #                     for fq in fqprs:
-    #                         try:
-    #                             relfq = self.project.path_relative_to_project(fq)
-    #                         except:
-    #                             print('No project loaded, you must load some data before generating a surface')
-    #                             return
-    #                         if relfq not in self.project.fqpr_instances:
-    #                             print('Unable to find {} in currently loaded project'.format(relfq))
-    #                             return
-    #                         if relfq in self.project.fqpr_instances:
-    #                             fq_inst = self.project.fqpr_instances[relfq]
-    #                             # use the project client, or start a new LocalCluster if client is None
-    #                             # fq_inst.client = self.project.get_dask_client()
-    #                             fq_chunks.extend([fq_inst])
-    #                 if not dlog.canceled:
-    #                     # if the project has a client, use it here.  If None, BatchRead starts a new LocalCluster
-    #                     self.output_window.clear()
-    #                     self.surface_thread.populate(fq_chunks, opts)
-    #                     self.surface_thread.start()
-    #     if cancelled:
-    #         print('kluster_surface_generation: Processing was cancelled')
-    #
-    # def _kluster_surface_generation_results(self):
-    #     """
-    #     Method is run when the surface_thread signals completion.  All we need to do here is add the surface to the project
-    #     and display.
-    #     """
-    #
-    #     fq_surf = self.surface_thread.fqpr_surface
-    #     if fq_surf is not None and not self.surface_thread.error:
-    #         self.project.add_surface(fq_surf)
-    #         self.redraw()
-    #     else:
-    #         print('Error building surface')
-    #         print(self.surface_thread.exceptiontxt)
-    #     self.surface_thread.populate(None, {})
-    #     self._stop_action_progress()
+    def kluster_surfacefrompoints_generation(self):
+        """
+        Ask for input files to grid, supporting las and csv.  Dialog allows for adding/removing instances.
+
+        If a dask client hasn't been setup in this Kluster run, we auto setup a dask LocalCluster for processing
+
+        Refreshes the project at the end to load in the new surface.
+        """
+
+        if not self.no_threads_running():
+            print('Processing is already occurring.  Please wait for the process to finish')
+            cancelled = True
+        else:
+            cancelled = False
+            dlog = dialog_surfacefrompoints.SurfaceFromPointsDialog()
+            if dlog.exec_():
+                cancelled = dlog.canceled
+                opts = dlog.return_processing_options()
+                if opts is not None and not cancelled:
+                    surface_opts = opts
+                    infiles = surface_opts.pop('fqpr_inst')
+                    self.output_window.clear()
+                    self.surface_thread.populate(infiles, opts)
+                    self.surface_thread.mode = 'from_points'
+                    self.surface_thread.start()
+        if cancelled:
+            print('kluster_surface_generation: Processing was cancelled')
 
     def kluster_surface_update(self):
         if not self.no_threads_running():
@@ -2456,6 +2423,9 @@ class KlusterMain(QtWidgets.QMainWindow):
         Connect menu action 'New Surface' with surface dialog
         """
         self.kluster_surface_generation()
+
+    def _action_surfacefrompoints_generation(self):
+        self.kluster_surfacefrompoints_generation()
 
     def _action_filter(self):
         """

@@ -1,3 +1,5 @@
+from pyproj import CRS
+
 from HSTB.kluster.gui.dialog_surface import *
 
 
@@ -30,7 +32,7 @@ class SurfaceFromPointsDialog(SurfaceDialog):
         self.vertref_label = QtWidgets.QLabel('Vertical Reference: ')
         self.basic_export_layout.addWidget(self.vertref_label)
         self.invertref_val = QtWidgets.QLineEdit('', self)
-        self.inepsg_val.setToolTip('The vertical reference for the files, ex: "Ellipse" or "MLLW"')
+        self.invertref_val.setToolTip('The vertical reference for the files, ex: "Ellipse" or "MLLW"')
         self.basic_export_layout.addWidget(self.invertref_val)
         self.basic_export_layout.addStretch()
         self.export_options_top.addLayout(self.basic_export_layout)
@@ -111,6 +113,11 @@ class SurfaceFromPointsDialog(SurfaceDialog):
         self.toplayout.insertWidget(1, self.export_options)
 
         self._filetype = ''
+        self.text_controls += [['inepsg_val', self.inepsg_val], ['invertref_val', self.invertref_val],
+                               ['x_entry', self.x_entry], ['y_entry', self.y_entry], ['z_entry', self.z_entry],
+                               ['thu_entry', self.thu_entry], ['tvu_entry', self.tvu_entry]]
+        self.checkbox_controls += [['thu_include', self.thu_include], ['tvu_include', self.tvu_include]]
+        self.read_settings()
 
     @property
     def filetype(self):
@@ -169,11 +176,54 @@ class SurfaceFromPointsDialog(SurfaceDialog):
         if self.fqpr_inst:
             self.filetype = os.path.splitext(self.fqpr_inst[0])[1]
 
+    def return_processing_options(self):
+        opts = super().return_processing_options()
+        opts['horizontal_epsg'] = int(self.inepsg_val.text())
+        opts['vertical_reference'] = str(self.invertref_val.text())
+
+        csv_columns = []
+        cvals = [self.x_entry.value(), self.y_entry.value(), self.z_entry.value(), self.thu_entry.value(), self.tvu_entry.value()]
+        clbls = ['x', 'y', 'z', 'thu', 'tvu']
+        cenabled = [self.x_include.isChecked(), self.y_include.isChecked(), self.z_include.isChecked(), self.thu_include.isChecked(),
+                    self.tvu_include.isChecked()]
+        cvals = [cv for cnt, cv in enumerate(cvals) if cenabled[cnt]]
+        clbls = [cv for cnt, cv in enumerate(clbls) if cenabled[cnt]]
+        for i in range(max(cvals)):
+            try:
+                varindex = cvals.index(i + 1)
+                csv_columns.append(clbls[varindex])
+            except ValueError:
+                csv_columns.append('')
+        opts['csv_columns'] = tuple(csv_columns)
+        return opts
+
+    def validate_epsg(self):
+        epsg = ''
+        try:
+            epsg = int(self.inepsg_val.text())
+            ecrs = CRS.from_epsg(epsg)
+            if not ecrs.is_projected:
+                self.status_msg.setText(f'ERROR: must be a Projected CRS, Input EPSG:{epsg}')
+                return False
+            elif ecrs.coordinate_system.axis_list[0].unit_name not in ['meters', 'metres', 'meter', 'metre']:
+                self.status_msg.setText(f'ERROR: CRS must be in units of meters, found {ecrs.coordinate_system.axis_list[0].unit_name}, Input EPSG:{epsg}')
+                return False
+            else:
+                self.status_msg.setText('')
+                return True
+        except:
+            self.status_msg.setText(f'Unknown Error: Unable to generate new CRS from Input EPSG:{epsg}')
+            return False
+
     def start_processing(self):
         if self.output_pth is None:
             self.status_msg.setText('Error: You must insert a Save To path to continue')
         elif not self.fqpr_inst:
             self.status_msg.setText('Error: You must provide at least one file in the box above')
+        elif not self.validate_epsg():
+            pass
+        elif not self.invertref_val.text():
+            self.status_msg.setText('Error: You must provide a vertical reference string for these files')
         else:
             self.canceled = False
             self.save_settings()
@@ -187,5 +237,5 @@ if __name__ == '__main__':
         app = QtWidgets.QApplication([])
     dlog = SurfaceFromPointsDialog()
     dlog.show()
-    if dlog.exec_():
+    if dlog.exec_() and not dlog.canceled:
         print(dlog.return_processing_options())

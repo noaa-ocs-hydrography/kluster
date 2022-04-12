@@ -93,7 +93,14 @@ class SaveStateDialog(QtWidgets.QDialog):
                         try:
                             tcntrl.setCurrentText(text_value)
                         except:
-                            tcntrl.setText(text_value)
+                            try:
+                                tcntrl.setText(text_value)
+                            except:
+                                if isinstance(tcntrl, QtWidgets.QSpinBox):
+                                    tcntrl.setValue(int(text_value))
+                                else:
+                                    tcntrl.setValue(float(text_value))
+
             if self.checkbox_controls:
                 for cname, ccntrl in self.checkbox_controls:
                     check_value = settings.value('{}/{}_{}'.format(self.appname, self.widgetname, cname))

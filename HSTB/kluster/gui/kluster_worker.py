@@ -4,7 +4,7 @@ import traceback
 from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal
 from HSTB.kluster.fqpr_project import return_project_data, reprocess_fqprs
 from HSTB.kluster.fqpr_convenience import generate_new_surface, import_processed_navigation, overwrite_raw_navigation, \
-    update_surface, reload_data, reload_surface
+    update_surface, reload_data, reload_surface, points_to_surface
 
 
 class ActionWorker(QtCore.QThread):
@@ -558,6 +558,7 @@ class SurfaceWorker(QtCore.QThread):
         self.opts = {}
         self.error = False
         self.exceptiontxt = None
+        self.mode = 'from_fqpr'
 
     def populate(self, fqpr_instances, opts):
         self.fqpr_instances = fqpr_instances
@@ -565,11 +566,15 @@ class SurfaceWorker(QtCore.QThread):
         self.opts = opts
         self.error = False
         self.exceptiontxt = None
+        self.mode = 'from_fqpr'
 
     def run(self):
         self.started.emit(True)
         try:
-            self.fqpr_surface = generate_new_surface(self.fqpr_instances, **self.opts)
+            if self.mode == 'from_fqpr':
+                self.fqpr_surface = generate_new_surface(self.fqpr_instances, **self.opts)
+            elif self.mode == 'from_points':
+                self.fqpr_surface = points_to_surface(self.fqpr_instances, **self.opts)
         except Exception as e:
             self.error = True
             self.exceptiontxt = traceback.format_exc()

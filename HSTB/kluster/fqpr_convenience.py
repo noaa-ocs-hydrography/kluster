@@ -899,10 +899,10 @@ def points_to_surface(data_files: list, horizontal_epsg: int, vertical_reference
     strttime = perf_counter()
 
     try:
-        assert all([os.path.splitext(f) in ['.csv', '.txt', '.las', '.laz'] for f in data_files])
+        assert all([os.path.splitext(f)[1] in ['.csv', '.txt', '.las', '.laz'] for f in data_files])
     except:
         raise NotImplementedError("points_to_surface: only accepting files with the following extensions ['.csv', '.txt', '.las', '.laz']")
-    iscsv = os.path.splitext(data_files[0]) in ['.csv', '.txt']
+    iscsv = os.path.splitext(data_files[0])[1] in ['.csv', '.txt']
 
     gridding_algorithm = gridding_algorithm.lower()
     if gridding_algorithm == 'cube':
