@@ -229,14 +229,14 @@ class KlusterProjectTree(QtWidgets.QTreeView):
         e: QEvent on menu button click
 
         """
-        index = self.currentIndex()
-        mid_lvl_name = index.parent().data()
-        sel_data = index.data()
 
-        if mid_lvl_name == 'Converted':
-            self.close_fqpr.emit(sel_data)
-        elif mid_lvl_name == 'Surfaces':
-            self.close_surface.emit(sel_data)
+        fqprs, _ = self.return_selected_fqprs()
+        for fq in fqprs:
+            self.close_fqpr.emit(fq)
+
+        surfs = self.return_selected_surfaces()
+        for surf in surfs:
+            self.close_surface.emit(surf)
 
     def configure(self):
         """
