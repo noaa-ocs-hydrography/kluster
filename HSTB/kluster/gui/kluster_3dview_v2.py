@@ -1720,14 +1720,15 @@ class ThreeDWidget(QtWidgets.QWidget):
 
         points_in_screen = self._handle_point_selection(startpos, endpos, three_d)
         self.three_d_window.selected_points = points_in_screen
-        self.last_change_buffer.append([self.three_d_window.selected_points, self.three_d_window.rejected[self.three_d_window.selected_points]])
-        self.three_d_window.rejected[self.three_d_window.selected_points] = kluster_variables.accepted_flag
-        self.points_cleaned.emit(kluster_variables.accepted_flag)
+        is_rejected = self.three_d_window.rejected[self.three_d_window.selected_points] == kluster_variables.rejected_flag
+        if is_rejected.any():
+            self.last_change_buffer.append([self.three_d_window.selected_points, self.three_d_window.rejected[self.three_d_window.selected_points]])
+            self.three_d_window.rejected[self.three_d_window.selected_points[is_rejected]] = kluster_variables.accepted_flag
+            self.points_cleaned.emit(kluster_variables.accepted_flag)
+            if len(self.last_change_buffer) > kluster_variables.last_change_buffer_size:
+                print('WARNING: Points view will only retain the last {} cleaning actions for undo'.format(kluster_variables.last_change_buffer_size))
+                self.last_change_buffer.pop(0)
         self.three_d_window.highlight_selected_scatter(self.colorby.currentText(), False)
-
-        if len(self.last_change_buffer) > kluster_variables.last_change_buffer_size:
-            print('WARNING: Points view will only retain the last {} cleaning actions for undo'.format(kluster_variables.last_change_buffer_size))
-            self.last_change_buffer.pop(0)
 
     def undo_clean(self):
         if self.last_change_buffer:
