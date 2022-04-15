@@ -1509,8 +1509,9 @@ class Fqpr(ZarrBackend):
             image_generation[0] = os.path.join(self.multibeam.converted_pth, 'ping_' + ra.system_identifier + '.zarr')
 
         tpu_params = self.multibeam.return_tpu_parameters(timestmp)
+
         # tx/rx opening angles added in kluster 0.9.3, before it was just 'beam_opening_angle' and used as the rx angle
-        if 'beam_opening_angle' not in tpu_params:  # this is data processed after kluster 0.9.3
+        if prefixes[1] + '_opening_angle' in tpu_params:  # this is data processed after kluster 0.9.3
             tpu_params.pop(prefixes[0] + '_opening_angle')
             tpu_params['beam_opening_angle'] = tpu_params.pop(prefixes[1] + '_opening_angle')
 

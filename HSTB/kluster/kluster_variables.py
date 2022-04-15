@@ -79,7 +79,7 @@ tpu_parameter_names = ['tx_to_antenna_x', 'tx_to_antenna_y', 'tx_to_antenna_z', 
                        'heading_patch_error', 'latency_patch_error', 'timing_latency_error',
                        'separation_model_error', 'waterline_error', 'vessel_speed_error', 'horizontal_positioning_error',
                        'vertical_positioning_error', 'tx_port_opening_angle', 'tx_stbd_opening_angle', 'rx_port_opening_angle',
-                       'rx_stbd_opening_angle', 'tx_opening_angle', 'rx_opening_angle']
+                       'rx_stbd_opening_angle', 'tx_opening_angle', 'rx_opening_angle', 'beam_opening_angle']
 offset_parameter_names = ['tx_port_x', 'tx_stbd_x', 'rx_port_x', 'rx_stbd_x', 'tx_x', 'rx_x', 'tx_port_y', 'tx_stbd_y',
                           'rx_port_y', 'rx_stbd_y', 'tx_y', 'rx_y', 'tx_port_z', 'tx_stbd_z', 'rx_port_z', 'rx_stbd_z',
                           'tx_z', 'rx_z']

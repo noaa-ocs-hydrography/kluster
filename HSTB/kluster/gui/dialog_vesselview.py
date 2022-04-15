@@ -954,11 +954,12 @@ class OptionsWidget(QtWidgets.QWidget):
         self.rlabel, self.r = self.add_num_ctrl('roll (+Port Up)')
         self.plabel, self.p = self.add_num_ctrl('pitch (+Bow Up)')
         self.yawlabel, self.yaw = self.add_num_ctrl('yaw (+Clockwise)')
+        self.opening_angle_label, self.opening_angle = self.add_num_ctrl('Opening Angle (degrees)', tooltip='beam opening angle, should auto populate from the multibeam data.')
         self.latencylabel, self.latency = self.add_num_ctrl('Motion Latency (Seconds)')
         for widg in [self.show_waterline, self.refpt_label, self.xlabel, self.ylabel, self.zlabel, self.rlabel,
-                     self.plabel, self.yawlabel, self.latencylabel]:
+                     self.plabel, self.yawlabel, self.opening_angle_label, self.latencylabel]:
             third_option_sub_labels.addWidget(widg)
-        for widg in [self.waterline_spacer, self.refpt_select, self.x, self.y, self.z, self.r, self.p, self.yaw,
+        for widg in [self.waterline_spacer, self.refpt_select, self.x, self.y, self.z, self.r, self.p, self.yaw, self.opening_angle,
                      self.latency]:
             third_option_sub_ctrls.addWidget(widg)
         third_option_sub.addLayout(third_option_sub_labels)
@@ -1015,10 +1016,6 @@ class OptionsWidget(QtWidgets.QWidget):
         tpulayout = QtWidgets.QHBoxLayout()
         vessel_center_sub_labels = QtWidgets.QVBoxLayout()
         vessel_center_sub_ctrls = QtWidgets.QVBoxLayout()
-        txbeamlabel, self.tx_opening_angle = self.add_num_ctrl('Transmitter Opening Angle (degrees)',
-                                                               tooltip='Transmitter beam opening angle, should auto populate from the multibeam data.')
-        rxbeamlabel, self.rx_opening_angle = self.add_num_ctrl('Receiver Opening Angle (degrees)',
-                                                               tooltip='Receiver beam opening angle, should auto populate from the multibeam data.')
         hevelabel, self.heave_error = self.add_num_ctrl('Heave Error (meters)',
                                                         tooltip='1 sigma standard deviation in the heave sensor, generally found in manufacturer specifications.')
         rollsenslabel, self.roll_sensor_error = self.add_num_ctrl('Roll Sensor Error (degrees)',
@@ -1038,10 +1035,10 @@ class OptionsWidget(QtWidgets.QWidget):
         vertlabel, self.vertical_positioning_error = self.add_num_ctrl('Vertical Positioning Error (meters)',
                                                                        tooltip='1 sigma standard deviation of the vertical positioning system, only used if SBET is not provided.')
 
-        for widg in [txbeamlabel, rxbeamlabel, hevelabel, rollsenslabel, pitchsenslabel, headsenslabel, surfsvlabel, rollpatchlabel,
+        for widg in [hevelabel, rollsenslabel, pitchsenslabel, headsenslabel, surfsvlabel, rollpatchlabel,
                      waterlinelabel, horizlabel, vertlabel]:
             vessel_center_sub_labels.addWidget(widg)
-        for widg in [self.tx_opening_angle, self.rx_opening_angle, self.heave_error, self.roll_sensor_error, self.pitch_sensor_error,
+        for widg in [self.heave_error, self.roll_sensor_error, self.pitch_sensor_error,
                      self.heading_sensor_error, self.surface_sv_error, self.roll_patch_error, self.waterline_error,
                      self.horizontal_positioning_error, self.vertical_positioning_error]:
             vessel_center_sub_ctrls.addWidget(widg)
@@ -1176,7 +1173,7 @@ class OptionsWidget(QtWidgets.QWidget):
             self.update_sensor_data(sens, *pos)
         else:
             pos = [float(self.x.text()), float(self.y.text()), float(self.z.text()), float(self.r.text()),
-                   float(self.p.text()), float(self.yaw.text())]
+                   float(self.p.text()), float(self.yaw.text()), float(self.opening_angle.text())]
             self.data[serial_num][tstmp][sens] = pos
             self.update_sensor_data(sens, *pos)
 
@@ -1197,6 +1194,13 @@ class OptionsWidget(QtWidgets.QWidget):
             self.data[serial_num] = {}
             if 'tx_port_x' in xyzrph[serial_num]:
                 tstmps = list(xyzrph[serial_num]['tx_port_x'].keys())
+                # tx/rx opening angles added in kluster 0.9.3, before it was just 'beam_opening_angle' and used as both
+                # populate with the corrected beam angle keys, correcting this older dataset
+                if 'tx_port_opening_angle' not in xyzrph[serial_num]:
+                    xyzrph[serial_num]['tx_port_opening_angle'] = deepcopy(xyzrph[serial_num]['beam_opening_angle'])
+                    xyzrph[serial_num]['tx_stbd_opening_angle'] = deepcopy(xyzrph[serial_num]['beam_opening_angle'])
+                    xyzrph[serial_num]['rx_port_opening_angle'] = deepcopy(xyzrph[serial_num]['beam_opening_angle'])
+                    xyzrph[serial_num]['rx_stbd_opening_angle'] = deepcopy(xyzrph[serial_num]['beam_opening_angle'])
                 for tstmp in tstmps:
                     self.data[serial_num][tstmp] = {}
                     self.data[serial_num][tstmp]['Dual Head'] = True
@@ -1205,36 +1209,53 @@ class OptionsWidget(QtWidgets.QWidget):
                                                                               float(xyzrph[serial_num]['tx_port_z'][tstmp]),
                                                                               float(xyzrph[serial_num]['tx_port_r'][tstmp]),
                                                                               float(xyzrph[serial_num]['tx_port_p'][tstmp]),
-                                                                              float(xyzrph[serial_num]['tx_port_h'][tstmp])]
+                                                                              float(xyzrph[serial_num]['tx_port_h'][tstmp]),
+                                                                              float(xyzrph[serial_num]['tx_port_opening_angle'][tstmp])]
                     self.data[serial_num][tstmp]['Port Sonar Receiver'] = [float(xyzrph[serial_num]['rx_port_x'][tstmp]),
                                                                            float(xyzrph[serial_num]['rx_port_y'][tstmp]),
                                                                            float(xyzrph[serial_num]['rx_port_z'][tstmp]),
                                                                            float(xyzrph[serial_num]['rx_port_r'][tstmp]),
                                                                            float(xyzrph[serial_num]['rx_port_p'][tstmp]),
-                                                                           float(xyzrph[serial_num]['rx_port_h'][tstmp])]
+                                                                           float(xyzrph[serial_num]['rx_port_h'][tstmp]),
+                                                                           float(xyzrph[serial_num]['rx_port_opening_angle'][tstmp])]
                     self.data[serial_num][tstmp]['Stbd Sonar Transmitter'] = [float(xyzrph[serial_num]['tx_stbd_x'][tstmp]),
                                                                               float(xyzrph[serial_num]['tx_stbd_y'][tstmp]),
                                                                               float(xyzrph[serial_num]['tx_stbd_z'][tstmp]),
                                                                               float(xyzrph[serial_num]['tx_stbd_r'][tstmp]),
                                                                               float(xyzrph[serial_num]['tx_stbd_p'][tstmp]),
-                                                                              float(xyzrph[serial_num]['tx_stbd_h'][tstmp])]
+                                                                              float(xyzrph[serial_num]['tx_stbd_h'][tstmp]),
+                                                                              float(xyzrph[serial_num]['tx_stbd_opening_angle'][tstmp])]
                     self.data[serial_num][tstmp]['Stbd Sonar Receiver'] = [float(xyzrph[serial_num]['rx_stbd_x'][tstmp]),
                                                                            float(xyzrph[serial_num]['rx_stbd_y'][tstmp]),
                                                                            float(xyzrph[serial_num]['rx_stbd_z'][tstmp]),
                                                                            float(xyzrph[serial_num]['rx_stbd_r'][tstmp]),
                                                                            float(xyzrph[serial_num]['rx_stbd_p'][tstmp]),
-                                                                           float(xyzrph[serial_num]['rx_stbd_h'][tstmp])]
+                                                                           float(xyzrph[serial_num]['rx_stbd_h'][tstmp]),
+                                                                           float(xyzrph[serial_num]['rx_stbd_opening_angle'][tstmp])]
             else:
                 tstmps = list(xyzrph[serial_num]['tx_x'].keys())
+                # tx/rx opening angles added in kluster 0.9.3, before it was just 'beam_opening_angle' and used as both
+                # populate with the corrected beam angle keys, correcting this older dataset
+                if 'tx_opening_angle' not in xyzrph[serial_num]:
+                    xyzrph[serial_num]['tx_opening_angle'] = deepcopy(xyzrph[serial_num]['beam_opening_angle'])
+                    xyzrph[serial_num]['rx_opening_angle'] = deepcopy(xyzrph[serial_num]['beam_opening_angle'])
                 for tstmp in tstmps:
                     self.data[serial_num][tstmp] = {}
                     self.data[serial_num][tstmp]['Dual Head'] = False
-                    self.data[serial_num][tstmp]['Sonar Transmitter'] = [float(xyzrph[serial_num]['tx_x'][tstmp]), float(xyzrph[serial_num]['tx_y'][tstmp]),
-                                                                         float(xyzrph[serial_num]['tx_z'][tstmp]), float(xyzrph[serial_num]['tx_r'][tstmp]),
-                                                                         float(xyzrph[serial_num]['tx_p'][tstmp]), float(xyzrph[serial_num]['tx_h'][tstmp])]
-                    self.data[serial_num][tstmp]['Sonar Receiver'] = [float(xyzrph[serial_num]['rx_x'][tstmp]), float(xyzrph[serial_num]['rx_y'][tstmp]),
-                                                                      float(xyzrph[serial_num]['rx_z'][tstmp]), float(xyzrph[serial_num]['rx_r'][tstmp]),
-                                                                      float(xyzrph[serial_num]['rx_p'][tstmp]), float(xyzrph[serial_num]['rx_h'][tstmp])]
+                    self.data[serial_num][tstmp]['Sonar Transmitter'] = [float(xyzrph[serial_num]['tx_x'][tstmp]),
+                                                                         float(xyzrph[serial_num]['tx_y'][tstmp]),
+                                                                         float(xyzrph[serial_num]['tx_z'][tstmp]),
+                                                                         float(xyzrph[serial_num]['tx_r'][tstmp]),
+                                                                         float(xyzrph[serial_num]['tx_p'][tstmp]),
+                                                                         float(xyzrph[serial_num]['tx_h'][tstmp]),
+                                                                         float(xyzrph[serial_num]['tx_opening_angle'][tstmp])]
+                    self.data[serial_num][tstmp]['Sonar Receiver'] = [float(xyzrph[serial_num]['rx_x'][tstmp]),
+                                                                      float(xyzrph[serial_num]['rx_y'][tstmp]),
+                                                                      float(xyzrph[serial_num]['rx_z'][tstmp]),
+                                                                      float(xyzrph[serial_num]['rx_r'][tstmp]),
+                                                                      float(xyzrph[serial_num]['rx_p'][tstmp]),
+                                                                      float(xyzrph[serial_num]['rx_h'][tstmp]),
+                                                                      float(xyzrph[serial_num]['rx_opening_angle'][tstmp])]
 
             for tstmp in tstmps:
                 self.data[serial_num][tstmp]['Vessel Reference Point'] = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
@@ -1271,28 +1292,7 @@ class OptionsWidget(QtWidgets.QWidget):
                     self.data[serial_num][tstmp]['Vesselcenter'] = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, launch_sensor_size]
 
                 try:
-                    # tx/rx opening angles added in kluster 0.9.3, before it was just 'beam_opening_angle' and used as both
-                    if 'tx_opening_angle' in xyzrph[serial_num]:
-                        txangle = float(xyzrph[serial_num]['tx_opening_angle'][tstmp])
-                        rxangle = float(xyzrph[serial_num]['rx_opening_angle'][tstmp])
-                    elif 'tx_port_opening_angle' in xyzrph[serial_num]:
-                        txangle = float(xyzrph[serial_num]['tx_port_opening_angle'][tstmp])
-                        rxangle = float(xyzrph[serial_num]['rx_port_opening_angle'][tstmp])
-                    else:
-                        txangle = float(xyzrph[serial_num]['beam_opening_angle'][tstmp])
-                        rxangle = float(xyzrph[serial_num]['beam_opening_angle'][tstmp])
-                        # populate with the corrected beam angle keys, correcting this older dataset
-                        if self.data[serial_num][tstmp]['Dual Head']:
-                            xyzrph[serial_num]['tx_port_opening_angle'] = deepcopy(xyzrph[serial_num]['beam_opening_angle'])
-                            xyzrph[serial_num]['tx_stbd_opening_angle'] = deepcopy(xyzrph[serial_num]['beam_opening_angle'])
-                            xyzrph[serial_num]['rx_port_opening_angle'] = deepcopy(xyzrph[serial_num]['beam_opening_angle'])
-                            xyzrph[serial_num]['rx_stbd_opening_angle'] = deepcopy(xyzrph[serial_num]['beam_opening_angle'])
-                        else:
-                            xyzrph[serial_num]['tx_opening_angle'] = deepcopy(xyzrph[serial_num]['beam_opening_angle'])
-                            xyzrph[serial_num]['rx_opening_angle'] = deepcopy(xyzrph[serial_num]['beam_opening_angle'])
-                    self.data[serial_num][tstmp]['Uncertainty'] = [txangle,
-                                                                   rxangle,
-                                                                   float(xyzrph[serial_num]['heave_error'][tstmp]),
+                    self.data[serial_num][tstmp]['Uncertainty'] = [float(xyzrph[serial_num]['heave_error'][tstmp]),
                                                                    float(xyzrph[serial_num]['roll_sensor_error'][tstmp]),
                                                                    float(xyzrph[serial_num]['pitch_sensor_error'][tstmp]),
                                                                    float(xyzrph[serial_num]['heading_sensor_error'][tstmp]),
@@ -1302,9 +1302,7 @@ class OptionsWidget(QtWidgets.QWidget):
                                                                    float(xyzrph[serial_num]['horizontal_positioning_error'][tstmp]),
                                                                    float(xyzrph[serial_num]['vertical_positioning_error'][tstmp])]
                 except KeyError:
-                    self.data[serial_num][tstmp]['Uncertainty'] = [kluster_variables.default_beam_opening_angle,
-                                                                   kluster_variables.default_beam_opening_angle,
-                                                                   kluster_variables.default_heave_error,
+                    self.data[serial_num][tstmp]['Uncertainty'] = [kluster_variables.default_heave_error,
                                                                    kluster_variables.default_roll_sensor_error,
                                                                    kluster_variables.default_pitch_sensor_error,
                                                                    kluster_variables.default_heading_sensor_error,
@@ -1512,6 +1510,8 @@ class OptionsWidget(QtWidgets.QWidget):
             self.p.hide()
             self.yawlabel.hide()
             self.yaw.hide()
+            self.opening_angle_label.hide()
+            self.opening_angle.hide()
             self.latencylabel.show()
             self.latency.show()
         elif sens == 'Waterline':
@@ -1534,6 +1534,8 @@ class OptionsWidget(QtWidgets.QWidget):
             self.p.hide()
             self.yawlabel.hide()
             self.yaw.hide()
+            self.opening_angle_label.hide()
+            self.opening_angle.hide()
             self.latencylabel.hide()
             self.latency.hide()
         elif sens == 'Primary Antenna':
@@ -1556,6 +1558,8 @@ class OptionsWidget(QtWidgets.QWidget):
             self.p.hide()
             self.yawlabel.hide()
             self.yaw.hide()
+            self.opening_angle_label.hide()
+            self.opening_angle.hide()
             self.latencylabel.hide()
             self.latency.hide()
         elif sens == 'Uncertainty':
@@ -1586,6 +1590,12 @@ class OptionsWidget(QtWidgets.QWidget):
             self.p.show()
             self.yawlabel.show()
             self.yaw.show()
+            if sens not in ['Vessel Reference Point', 'Display Config', 'Vessel Reference Point', 'IMU']:
+                self.opening_angle_label.show()
+                self.opening_angle.show()
+            else:
+                self.opening_angle_label.hide()
+                self.opening_angle.hide()
             self.latencylabel.hide()
             self.latency.hide()
         if sens:
@@ -1597,6 +1607,7 @@ class OptionsWidget(QtWidgets.QWidget):
             self.r.setText('0.000')
             self.p.setText('0.000')
             self.yaw.setText('0.000')
+            self.opening_angle.setText('0.000')
 
     def populate_sensor(self, sensor_label):
         """
@@ -1648,17 +1659,15 @@ class OptionsWidget(QtWidgets.QWidget):
                         self.update_button.hide()
                     elif sensor_label == 'Uncertainty':
                         data = self.data[serial_num][tstmp]['Uncertainty']
-                        self.tx_opening_angle.setText(format(float(data[0]), '.3f'))
-                        self.rx_opening_angle.setText(format(float(data[1]), '.3f'))
-                        self.heave_error.setText(format(float(data[2]), '.3f'))
-                        self.roll_sensor_error.setText(format(float(data[3]), '.3f'))
-                        self.pitch_sensor_error.setText(format(float(data[4]), '.3f'))
-                        self.heading_sensor_error.setText(format(float(data[5]), '.3f'))
-                        self.surface_sv_error.setText(format(float(data[6]), '.3f'))
-                        self.roll_patch_error.setText(format(float(data[7]), '.3f'))
-                        self.waterline_error.setText(format(float(data[8]), '.3f'))
-                        self.horizontal_positioning_error.setText(format(float(data[9]), '.3f'))
-                        self.vertical_positioning_error.setText(format(float(data[10]), '.3f'))
+                        self.heave_error.setText(format(float(data[0]), '.3f'))
+                        self.roll_sensor_error.setText(format(float(data[1]), '.3f'))
+                        self.pitch_sensor_error.setText(format(float(data[2]), '.3f'))
+                        self.heading_sensor_error.setText(format(float(data[3]), '.3f'))
+                        self.surface_sv_error.setText(format(float(data[4]), '.3f'))
+                        self.roll_patch_error.setText(format(float(data[5]), '.3f'))
+                        self.waterline_error.setText(format(float(data[6]), '.3f'))
+                        self.horizontal_positioning_error.setText(format(float(data[7]), '.3f'))
+                        self.vertical_positioning_error.setText(format(float(data[8]), '.3f'))
                     else:
                         data = self.data[serial_num][tstmp][sensor_label]
                         if sensor_label == 'IMU':
@@ -1671,6 +1680,7 @@ class OptionsWidget(QtWidgets.QWidget):
                             self.r.setEnabled(False)
                             self.p.setEnabled(False)
                             self.yaw.setEnabled(False)
+                            self.opening_angle.setEnabled(False)
                             self.update_button.hide()
                         else:
                             self.x.setEnabled(True)
@@ -1679,6 +1689,7 @@ class OptionsWidget(QtWidgets.QWidget):
                             self.r.setEnabled(True)
                             self.p.setEnabled(True)
                             self.yaw.setEnabled(True)
+                            self.opening_angle.setEnabled(True)
                             self.update_button.show()
 
                         self.x.setText(format(float(data[0]), '.3f'))
@@ -1689,6 +1700,9 @@ class OptionsWidget(QtWidgets.QWidget):
                         self.yaw.setText(format(float(data[5]), '.3f'))
                         if sensor_label == 'Latency':
                             self.latency.setText(format(float(data[6]), '.3f'))
+                        elif sensor_label in ['Sonar Transmitter', 'Sonar Receiver', 'Port Sonar Transmitter',
+                                              'Port Sonar Receiver', 'Stbd Sonar Transmitter', 'Stbd Sonar Receiver']:
+                            self.opening_angle.setText(format(float(data[6]), '.3f'))
 
 
 class VesselView(QtWidgets.QWidget):
@@ -2200,7 +2214,7 @@ class VesselWidget(QtWidgets.QWidget):
             if orig_tstmp is not None:
                 self.xyzrph[serial_num]['vessel_file'][orig_tstmp] = os.path.normpath(pth_to_vessel)
 
-    def update_xyzrph_sensorposition(self, sensor_lbl, x, y, z, r, p, h, extra=0.0, extra2=0.0, extra3=0.0, extra4=0.0, extra5=0.0):
+    def update_xyzrph_sensorposition(self, sensor_lbl, x, y, z, r, p, h, extra=0.0, extra2=0.0, extra3=0.0):
         """
         Whenever the OptionsWidget update_sensor_sig triggers (whenever a sensor position changes) this method runs
         and updates the xyzrph with that new information
@@ -2214,36 +2228,35 @@ class VesselWidget(QtWidgets.QWidget):
         r: float, roll (+port) coordinate in degrees
         p: float, pitch (+bow) coordinate in degrees
         h: float, yaw (+clockwise) coordinate in degrees
-        extra: float, optional parameter, only used for Vesselcenter and TPU sensor
+        extra: float, optional parameter, only used for Vesselcenter, TPU sensor, opening angle
         extra2: float, optional parameter, only used for TPU sensor
         extra3: float, optional parameter, only used for TPU sensor
-        extra4: float, optional parameter, only used for TPU sensor
-        extra5: float, optional parameter, only used for TPU sensor
 
         """
         serial_num = self.opts_window.serial_select.currentText()
         orig_tstmp = self.opts_window.get_currently_selected_time()
         if orig_tstmp:  # on loading new xyzrph, vesselcenter is updated before timestamps are loaded.  But it gets updated later so skip here
             sensors_to_write = {'Vesselcenter': ['vess_center_x', 'vess_center_y', 'vess_center_z', 'vess_center_r', 'vess_center_p', 'vess_center_yaw', 'sensor_size'],
-                                'Sonar Transmitter': ['tx_x', 'tx_y', 'tx_z', 'tx_r', 'tx_p', 'tx_h'],
-                                'Sonar Receiver': ['rx_x', 'rx_y', 'rx_z', 'rx_r', 'rx_p', 'rx_h'],
-                                'Port Sonar Transmitter': ['tx_port_x', 'tx_port_y', 'tx_port_z', 'tx_port_r', 'tx_port_p', 'tx_port_h'],
-                                'Port Sonar Receiver': ['rx_port_x', 'rx_port_y', 'rx_port_z', 'rx_port_r', 'rx_port_p', 'rx_port_h'],
-                                'Stbd Sonar Transmitter': ['tx_stbd_x', 'tx_stbd_y', 'tx_stbd_z', 'tx_stbd_r', 'tx_stbd_p', 'tx_stbd_h'],
-                                'Stbd Sonar Receiver': ['rx_stbd_x', 'rx_stbd_y', 'rx_stbd_z', 'rx_stbd_r', 'rx_stbd_p', 'rx_stbd_h'],
+                                'Sonar Transmitter': ['tx_x', 'tx_y', 'tx_z', 'tx_r', 'tx_p', 'tx_h', 'tx_opening_angle'],
+                                'Sonar Receiver': ['rx_x', 'rx_y', 'rx_z', 'rx_r', 'rx_p', 'rx_h', 'rx_opening_angle'],
+                                'Port Sonar Transmitter': ['tx_port_x', 'tx_port_y', 'tx_port_z', 'tx_port_r', 'tx_port_p', 'tx_port_h', 'tx_port_opening_angle'],
+                                'Port Sonar Receiver': ['rx_port_x', 'rx_port_y', 'rx_port_z', 'rx_port_r', 'rx_port_p', 'rx_port_h', 'rx_port_opening_angle'],
+                                'Stbd Sonar Transmitter': ['tx_stbd_x', 'tx_stbd_y', 'tx_stbd_z', 'tx_stbd_r', 'tx_stbd_p', 'tx_stbd_h', 'tx_stbd_opening_angle'],
+                                'Stbd Sonar Receiver': ['rx_stbd_x', 'rx_stbd_y', 'rx_stbd_z', 'rx_stbd_r', 'rx_stbd_p', 'rx_stbd_h', 'rx_stbd_opening_angle'],
                                 'IMU': ['imu_x', 'imu_y', 'imu_z', 'imu_r', 'imu_p', 'imu_h'],
                                 'Primary Antenna': ['tx_to_antenna_x', 'tx_to_antenna_y', 'tx_to_antenna_z', None, None, None],
                                 'Waterline': [None, None, 'waterline', None, None, None],
                                 'Latency': [None, None, None, None, None, None, 'latency'],
-                                'Uncertainty': ['tx_opening_angle', 'rx_opening_angle', 'heave_error', 'roll_sensor_error', 'pitch_sensor_error',
+                                'Uncertainty': ['heave_error', 'roll_sensor_error', 'pitch_sensor_error',
                                                 'heading_sensor_error', 'surface_sv_error', 'roll_patch_error', 'waterline_error',
                                                 'horizontal_positioning_error', 'vertical_positioning_error']}
             if sensor_lbl in sensors_to_write:
                 xyzrph_entries = sensors_to_write[sensor_lbl]
-                if sensor_lbl in ['Vesselcenter', 'Latency']:
+                if sensor_lbl in ['Vesselcenter', 'Latency', 'Sonar Transmitter', 'Sonar Receiver', 'Port Sonar Transmitter',
+                                  'Port Sonar Receiver', 'Stbd Sonar Transmitter', 'Stbd Sonar Receiver']:
                     data = np.array([x, y, z, r, p, h, extra])
                 elif sensor_lbl == 'Uncertainty':
-                    data = np.array([x, y, z, r, p, h, extra, extra2, extra3, extra4, extra5])
+                    data = np.array([x, y, z, r, p, h, extra, extra2, extra3])
                 else:
                     data = np.array([x, y, z, r, p, h])
                 if not np.array_equal(data[0:3], hide_location):
