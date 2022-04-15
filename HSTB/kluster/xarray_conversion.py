@@ -1755,7 +1755,10 @@ class BatchRead(ZarrBackend):
         if self.xyzrph is None:
             raise ValueError('You must run build_offsets first, no installation parameters found.')
         kys = kluster_variables.tpu_parameter_names
-        tpu_params = {ky: self.xyzrph[ky][timestamp] for ky in kys}
+        tpu_params = {}
+        for ky in kys:
+            if ky in self.xyzrph.keys():
+                tpu_params[ky] = self.xyzrph[ky][timestamp]
         return tpu_params
 
     def _get_nth_chunk_indices(self, chunks: tuple, idx: int):
@@ -2420,6 +2423,17 @@ def build_xyzrph(settdict: dict, runtime_settdict: dict, sonartype: str):
                     xyzrph[tme][rx_ident + '_x'] = float(settdict[tme]['transducer_{}_along_location'.format(ky)])
                     xyzrph[tme][rx_ident + '_y'] = float(settdict[tme]['transducer_{}_athwart_location'.format(ky)])
                     xyzrph[tme][rx_ident + '_z'] = float(settdict[tme]['transducer_{}_vertical_location'.format(ky)])
+                try:  # kmall
+                    xyzrph[tme][tx_ident + '_opening_angle'] = float(settdict[tme]['transducer_{}_sounding_size_deg'.format(ky)])
+                    xyzrph[tme][rx_ident + '_opening_angle'] = float(settdict[tme]['transducer_{}_sounding_size_deg'.format(ky)])
+                except KeyError:
+                    try:  # .all workflow reading from runtime parameters
+                        xyzrph[tme][tx_ident + '_opening_angle'] = float(runtime_params['TransmitBeamWidth'])
+                        xyzrph[tme][rx_ident + '_opening_angle'] = float(runtime_params['ReceiveBeamWidth'])
+                    except:
+                        print('xarray_conversion: Warning, unable to decode transducer beam width, using default value of {}'.format(kluster_variables.default_beam_opening_angle))
+                        xyzrph[tme][tx_ident + '_opening_angle'] = kluster_variables.default_beam_opening_angle
+                        xyzrph[tme][rx_ident + '_opening_angle'] = kluster_variables.default_beam_opening_angle
             else:
                 xyzrph[tme][val + '_x'] = float(settdict[tme]['transducer_{}_along_location'.format(ky)])
                 xyzrph[tme][val + '_y'] = float(settdict[tme]['transducer_{}_athwart_location'.format(ky)])
@@ -2427,9 +2441,18 @@ def build_xyzrph(settdict: dict, runtime_settdict: dict, sonartype: str):
                 xyzrph[tme][val + '_r'] = float(settdict[tme]['transducer_{}_roll_angle'.format(ky)])
                 xyzrph[tme][val + '_p'] = float(settdict[tme]['transducer_{}_pitch_angle'.format(ky)])
                 xyzrph[tme][val + '_h'] = float(settdict[tme]['transducer_{}_heading_angle'.format(ky)])
-            opening_angle_key = 'transducer_{}_sounding_size_deg'.format(ky)
-            if opening_angle_key in settdict[tme]:
-                opening_angle = float(settdict[tme][opening_angle_key])
+                try:  # kmall
+                    xyzrph[tme][val + '_opening_angle'] = float(settdict[tme]['transducer_{}_sounding_size_deg'.format(ky)])
+                except KeyError:
+                    if val.find('tx') != -1:
+                        runtimekey = 'TransmitBeamWidth'
+                    else:
+                        runtimekey = 'ReceiveBeamWidth'
+                    try:  # .all workflow reading from runtime parameters
+                        xyzrph[tme][val + '_opening_angle'] = float(runtime_params[runtimekey])
+                    except:
+                        print('xarray_conversion: Warning, unable to decode transducer beam width, using default value of {}'.format(kluster_variables.default_beam_opening_angle))
+                        xyzrph[tme][val + '_opening_angle'] = kluster_variables.default_beam_opening_angle
 
         # additional offsets based on sector
         if sonartype in install_parameter_modifier:
@@ -2491,13 +2514,6 @@ def build_xyzrph(settdict: dict, runtime_settdict: dict, sonartype: str):
         xyzrph[tme]['vessel_speed_error'] = kluster_variables.default_vessel_speed_error  # 1 sigma standard deviation of the vessel speed (meters/second)
         xyzrph[tme]['horizontal_positioning_error'] = kluster_variables.default_horizontal_positioning_error  # 1 sigma standard deviation of the horizontal positioning (meters)
         xyzrph[tme]['vertical_positioning_error'] = kluster_variables.default_vertical_positioning_error  # 1 sigma standard deviation of the vertical positioning (meters)
-
-        if opening_angle is None:
-            if 'ReceiveBeamWidth' in runtime_params:
-                opening_angle = float(runtime_params['ReceiveBeamWidth'])
-            else:
-                opening_angle = kluster_variables.default_beam_opening_angle
-        xyzrph[tme]['beam_opening_angle'] = opening_angle  # opening angle in degrees, used for tpu
 
     # generate dict of ordereddicts for fast searching
     newdict = {}

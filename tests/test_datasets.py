@@ -987,7 +987,10 @@ class RealDualheadFqpr:
         self.secondary_serialnum = secondary_serialnum
         self.profile = profile
 
-        self.xyzrph = {'beam_opening_angle': {str(synth_xyztime): 1.0},
+        self.xyzrph = {'tx_port_opening_angle': {str(synth_xyztime): 1.0},
+                       'rx_port_opening_angle': {str(synth_xyztime): 1.0},
+                       'tx_stbd_opening_angle': {str(synth_xyztime): 1.0},
+                       'rx_stbd_opening_angle': {str(synth_xyztime): 1.0},
                        'heading_patch_error': {str(synth_xyztime): 0.5},
                        'heading_sensor_error': {str(synth_xyztime): 0.02},
                        'heave_error': {str(synth_xyztime): 0.05},
@@ -3255,7 +3258,8 @@ class RealFqpr:
         self.secondary_serialnum = secondary_serialnum
         self.profile = profile
 
-        self.xyzrph = {'beam_opening_angle': {str(synth_xyztime): 1.0},
+        self.xyzrph = {'tx_opening_angle': {str(synth_xyztime): 1.0},
+                       'rx_opening_angle': {str(synth_xyztime): 1.0},
                        'heading_patch_error': {str(synth_xyztime): 0.5},
                        'heading_sensor_error': {str(synth_xyztime): 0.02},
                        'heave_error': {str(synth_xyztime): 0.05},

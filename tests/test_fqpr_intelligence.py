@@ -190,7 +190,8 @@ class TestFqprIntelligence(unittest.TestCase):
         vf = self.fintel.project.return_vessel_file()
         converted_fqpr = list(self.fintel.project.fqpr_instances.values())[0]
         # after conversion, the offsets from this converted data will be stored in the vessel file
-        expected_offsets = {'beam_opening_angle': {'1495563079': 1.3}, 'heading_patch_error': {'1495563079': 0.5},
+        expected_offsets = {'tx_opening_angle': {'1495563079': 1.0},
+                            'rx_opening_angle': {'1495563079': 1.3}, 'heading_patch_error': {'1495563079': 0.5},
                             'heading_sensor_error': {'1495563079': 0.02}, 'heave_error': {'1495563079': 0.05},
                             'horizontal_positioning_error': {'1495563079': 1.0}, 'imu_h': {'1495563079': 0.4},
                             'latency': {'1495563079': 0.0}, 'imu_p': {'1495563079': -0.18},
@@ -230,7 +231,7 @@ class TestFqprIntelligence(unittest.TestCase):
 
         tpu_action_text = 'Process em2040_40111_05_23_2017 only computing TPU'
 
-        vf.update('40111', {'beam_opening_angle': {'1495563079': 999}}, carry_over_tpu=False)
+        vf.update('40111', {'rx_opening_angle': {'1495563079': 999}}, carry_over_tpu=False)
         vf.save()
         self.fintel.regenerate_actions()
         # after regenerating actions, we have a new compute tpu action since we changed this tpu value
@@ -284,7 +285,7 @@ class TestFqprIntelligence(unittest.TestCase):
         self.assert_actions(tpu_action_text, -0.64)
 
         # reverting the tpu action
-        vf.update('40111', {'beam_opening_angle': {'1495563079': 1.3}}, carry_over_tpu=False)
+        vf.update('40111', {'rx_opening_angle': {'1495563079': 1.3}}, carry_over_tpu=False)
         vf.save()
         self.fintel.regenerate_actions()
         assert not self.fintel.has_actions

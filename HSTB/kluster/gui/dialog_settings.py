@@ -265,7 +265,7 @@ class SettingsDialog(SaveStateDialog):
         self.kvar_beamangle.setValidator(validator)
         self.kvar_beamangle.setText(str(kluster_variables.default_beam_opening_angle))
         self.kvar_beamangle.editingFinished.connect(self.validate_numctrl)
-        self.kvar_beamangle.setToolTip('Default Receiver beam opening angle, should auto populate from the multibeam data, this value is used otherwise')
+        self.kvar_beamangle.setToolTip('Default Transmitter/Receiver beam opening angle, should auto populate from the multibeam data, this value is used otherwise')
         self.kvar_sverror_label = QtWidgets.QLabel('Default Surface SV Error (meters/second)')
         self.kvar_sverror = QtWidgets.QLineEdit('')
         self.kvar_sverror.setValidator(validator)

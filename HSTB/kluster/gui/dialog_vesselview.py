@@ -26,7 +26,6 @@ hide_location = np.array([0, 0, 1000.0])
 
 test_xyzrph = {'123': {'sonar_type': {'1503413148': 'em2040', '1503423148': 'em2040', '1503443148': 'em2040'},
                        'source': {'1503413148': 'sonarfile1.all', '1503423148': 'sonarfile2.all', '1503443148': 'sonarfile3.all'},
-                       'beam_opening_angle': {'1503413148': 1.0, '1503423148': 1.0, '1503443148': 1.0},
                        'heading_patch_error': {'1503413148': 0.5, '1503423148': 0.5, '1503443148': 0.5},
                        'heading_sensor_error': {'1503413148': 0.02, '1503423148': 0.02, '1503443148': 0.02},
                        'heave_error': {'1503413148': 0.05, '1503423148': 0.05, '1503443148': 0.05},
@@ -58,9 +57,11 @@ test_xyzrph = {'123': {'sonar_type': {'1503413148': 'em2040', '1503423148': 'em2
                        'rx_h': {'1503413148': '180.000', '1503423148': '180.000', '1503443148': '180.000'},
                        'rx_p': {'1503413148': '0.000', '1503423148': '0.000', '1503443148': '0.000'},
                        'rx_r': {'1503413148': '0.000', '1503423148': '0.000', '1503443148': '0.000'},
+                       'rx_opening_angle': {'1503413148': 1.0, '1503423148': 1.0, '1503443148': 1.0},
                        'rx_stbd_h': {'1503413148': '0.000', '1503423148': '0.000', '1503443148': '0.000'},
                        'rx_stbd_p': {'1503413148': '0.000', '1503423148': '0.000', '1503443148': '0.000'},
                        'rx_stbd_r': {'1503413148': '0.000', '1503423148': '0.000', '1503443148': '0.000'},
+                       'rx_stbd_opening_angle': {'1503413148': 1.0, '1503423148': 1.0, '1503443148': 1.0},
                        'rx_stbd_x': {'1503413148': '0.000', '1503423148': '0.000', '1503443148': '0.000'},
                        'rx_stbd_y': {'1503413148': '-0.000', '1503423148': '-0.000', '1503443148': '-0.000'},
                        'rx_stbd_z': {'1503413148': '-1000.000', '1503423148': '-1000.000', '1503443148': '-1000.000'},
@@ -79,9 +80,11 @@ test_xyzrph = {'123': {'sonar_type': {'1503413148': 'em2040', '1503423148': 'em2
                        'tx_h': {'1503413148': '0.000', '1503423148': '0.000',  '1503443148': '0.000'},
                        'tx_p': {'1503413148': '0.000', '1503423148': '0.000', '1503443148': '0.000'},
                        'tx_r': {'1503413148': '0.000', '1503423148': '0.000', '1503443148': '0.000'},
+                       'tx_opening_angle': {'1503413148': 1.0, '1503423148': 1.0, '1503443148': 1.0},
                        'tx_stbd_h': {'1503413148': '0.000', '1503423148': '0.000', '1503443148': '0.000'},
                        'tx_stbd_p': {'1503413148': '0.000', '1503423148': '0.000', '1503443148': '0.000'},
                        'tx_stbd_r': {'1503413148': '0.000', '1503423148': '0.000', '1503443148': '0.000'},
+                       'tx_stbd_opening_angle': {'1503413148': 1.0, '1503423148': 1.0, '1503443148': 1.0},
                        'tx_stbd_x': {'1503413148': '0.000', '1503423148': '0.000', '1503443148': '0.000'},
                        'tx_stbd_y': {'1503413148': '-0.000', '1503423148': '-0.000',  '1503443148': '-0.000'},
                        'tx_stbd_z': {'1503413148': '-1000.000', '1503423148': '-1000.000', '1503443148': '-1000.000'},
@@ -110,7 +113,6 @@ test_xyzrph = {'123': {'sonar_type': {'1503413148': 'em2040', '1503423148': 'em2
 
 test_xyzrph_dual = {'541': {'sonar_type': {'1583305645': 'em2040_dual_rx', '1583315645': 'em2040_dual_rx', '1583335645': 'em2040_dual_rx'},
                             'source': {'1583305645': 'sonarfile4.all', '1583315645': 'sonarfile5.all', '1583335645': 'sonarfile6.all'},
-                            'beam_opening_angle': {'1583305645': 1.0, '1583315645': 1.0, '1583335645': 1.0},
                             'heading_patch_error': {'1583305645': 0.5, '1583315645': 0.5, '1583335645': 0.5},
                             'heading_sensor_error': {'1583305645': 0.02, '1583315645': 0.02, '1583335645': 0.02},
                             'heave_error': {'1583305645': 0.05, '1583315645': 0.05, '1583335645': 0.05},
@@ -142,6 +144,7 @@ test_xyzrph_dual = {'541': {'sonar_type': {'1583305645': 'em2040_dual_rx', '1583
                             'rx_port_h': {'1583305645': '0.899', '1583315645': '0.899', '1583335645': '0.899'},
                             'rx_port_p': {'1583305645': '0.363', '1583315645': '0.363', '1583335645': '0.363'},
                             'rx_port_r': {'1583305645': '4.274', '1583315645': '4.274', '1583335645': '4.274'},
+                            'rx_port_opening_angle': {'1583305645': 1.0, '1583315645': 1.0, '1583335645': 1.0},
                             'rx_port_x': {'1583305645': '0.495', '1583315645': '0.495', '1583335645': '0.495'},
                             'rx_port_x_0': {'1583305645': '0.011', '1583315645': '0.011', '1583335645': '0.011'},
                             'rx_port_x_1': {'1583305645': '0.011', '1583315645': '0.011', '1583335645': '0.011'},
@@ -157,6 +160,7 @@ test_xyzrph_dual = {'541': {'sonar_type': {'1583305645': 'em2040_dual_rx', '1583
                             'rx_stbd_h': {'1583305645': '1.035', '1583315645': '1.035', '1583335645': '1.035'},
                             'rx_stbd_p': {'1583305645': '-0.166', '1583315645': '-0.166', '1583335645': '-0.166'},
                             'rx_stbd_r': {'1583305645': '-3.448', '1583315645': '-3.448', '1583335645': '-3.448'},
+                            'rx_stbd_opening_angle': {'1583305645': 1.0, '1583315645': 1.0, '1583335645': 1.0},
                             'rx_stbd_x': {'1583305645': '0.331', '1583315645': '0.331', '1583335645': '0.331'},
                             'rx_stbd_x_0': {'1583305645': '0.011', '1583315645': '0.011', '1583335645': '0.011'},
                             'rx_stbd_x_1': {'1583305645': '0.011', '1583315645': '0.011', '1583335645': '0.011'},
@@ -172,6 +176,7 @@ test_xyzrph_dual = {'541': {'sonar_type': {'1583305645': 'em2040_dual_rx', '1583
                             'tx_port_h': {'1583305645': '1.045', '1583315645': '1.045', '1583335645': '1.045'},
                             'tx_port_p': {'1583305645': '0.363', '1583315645': '0.363', '1583335645': '0.363'},
                             'tx_port_r': {'1583305645': '4.374', '1583315645': '4.374', '1583335645': '4.374'},
+                            'tx_port_opening_angle': {'1583305645': 1.0, '1583315645': 1.0, '1583335645': 1.0},
                             'tx_port_x': {'1583305645': '0.595', '1583315645': '0.595', '1583335645': '0.595'},
                             'tx_port_x_0': {'1583305645': '0.0', '1583315645': '0.0', '1583335645': '0.0'},
                             'tx_port_x_1': {'1583305645': '0.0', '1583315645': '0.0', '1583335645': '0.0'},
@@ -187,6 +192,7 @@ test_xyzrph_dual = {'541': {'sonar_type': {'1583305645': 'em2040_dual_rx', '1583
                             'tx_stbd_h': {'1583305645': '1.142', '1583315645': '1.142', '1583335645': '1.142'},
                             'tx_stbd_p': {'1583305645': '-0.068', '1583315645': '-0.068', '1583335645': '-0.068'},
                             'tx_stbd_r': {'1583305645': '-0.085', '1583315645': '-0.085', '1583335645': '-0.085'},
+                            'tx_stbd_opening_angle': {'1583305645': 1.0, '1583315645': 1.0, '1583335645': 1.0},
                             'tx_stbd_x': {'1583305645': '0.427', '1583315645': '0.427', '1583335645': '0.427'},
                             'tx_stbd_x_0': {'1583305645': '0.0', '1583315645': '0.0', '1583335645': '0.0'},
                             'tx_stbd_x_1': {'1583305645': '0.0', '1583315645': '0.0', '1583335645': '0.0'},
@@ -874,7 +880,7 @@ class OptionsWidget(QtWidgets.QWidget):
     """
     vess_selected_sig = Signal(str)  # user changed vessel
     sensor_selected_sig = Signal(str)  # user selected a new sensor
-    update_sensor_sig = Signal(str, float, float, float, float, float, float, float, float, float, float)  # user submitted a sensor update
+    update_sensor_sig = Signal(str, float, float, float, float, float, float, float, float, float, float, float)  # user submitted a sensor update
     hide_waterline_sig = Signal(bool)
 
     def __init__(self, parent=None):
@@ -1009,7 +1015,9 @@ class OptionsWidget(QtWidgets.QWidget):
         tpulayout = QtWidgets.QHBoxLayout()
         vessel_center_sub_labels = QtWidgets.QVBoxLayout()
         vessel_center_sub_ctrls = QtWidgets.QVBoxLayout()
-        beamlabel, self.beam_opening_angle = self.add_num_ctrl('Beam Opening Angle (degrees)',
+        txbeamlabel, self.tx_opening_angle = self.add_num_ctrl('Transmitter Opening Angle (degrees)',
+                                                               tooltip='Transmitter beam opening angle, should auto populate from the multibeam data.')
+        rxbeamlabel, self.rx_opening_angle = self.add_num_ctrl('Receiver Opening Angle (degrees)',
                                                                tooltip='Receiver beam opening angle, should auto populate from the multibeam data.')
         hevelabel, self.heave_error = self.add_num_ctrl('Heave Error (meters)',
                                                         tooltip='1 sigma standard deviation in the heave sensor, generally found in manufacturer specifications.')
@@ -1030,10 +1038,10 @@ class OptionsWidget(QtWidgets.QWidget):
         vertlabel, self.vertical_positioning_error = self.add_num_ctrl('Vertical Positioning Error (meters)',
                                                                        tooltip='1 sigma standard deviation of the vertical positioning system, only used if SBET is not provided.')
 
-        for widg in [beamlabel, hevelabel, rollsenslabel, pitchsenslabel, headsenslabel, surfsvlabel, rollpatchlabel,
+        for widg in [txbeamlabel, rxbeamlabel, hevelabel, rollsenslabel, pitchsenslabel, headsenslabel, surfsvlabel, rollpatchlabel,
                      waterlinelabel, horizlabel, vertlabel]:
             vessel_center_sub_labels.addWidget(widg)
-        for widg in [self.beam_opening_angle, self.heave_error, self.roll_sensor_error, self.pitch_sensor_error,
+        for widg in [self.tx_opening_angle, self.rx_opening_angle, self.heave_error, self.roll_sensor_error, self.pitch_sensor_error,
                      self.heading_sensor_error, self.surface_sv_error, self.roll_patch_error, self.waterline_error,
                      self.horizontal_positioning_error, self.vertical_positioning_error]:
             vessel_center_sub_ctrls.addWidget(widg)
@@ -1136,8 +1144,8 @@ class OptionsWidget(QtWidgets.QWidget):
             orig_tstmp = self.timestamps[self.timestamps_converted.index(tstmp)]
         return orig_tstmp
 
-    def update_sensor_data(self, sensorname, x, y, z, r, p, h, extra=0.0, extra2=0.0, extra3=0.0, extra4=0.0):
-        self.update_sensor_sig.emit(sensorname, x, y, z, r, p, h, extra, extra2, extra3, extra4)
+    def update_sensor_data(self, sensorname, x, y, z, r, p, h, extra=0.0, extra2=0.0, extra3=0.0, extra4=0.0, extra5=0.0):
+        self.update_sensor_sig.emit(sensorname, x, y, z, r, p, h, extra, extra2, extra3, extra4, extra5)
 
     def update_button_pressed(self):
         """
@@ -1160,7 +1168,7 @@ class OptionsWidget(QtWidgets.QWidget):
             self.data[serial_num][tstmp][sens] = pos
             self.update_sensor_data(sens, *pos)
         elif sens == 'Uncertainty':
-            pos = [float(self.beam_opening_angle.text()), float(self.heave_error.text()), float(self.roll_sensor_error.text()),
+            pos = [float(self.tx_opening_angle.text()), float(self.rx_opening_angle.text()), float(self.heave_error.text()), float(self.roll_sensor_error.text()),
                    float(self.pitch_sensor_error.text()), float(self.heading_sensor_error.text()), float(self.surface_sv_error.text()),
                    float(self.roll_patch_error.text()), float(self.waterline_error.text()), float(self.horizontal_positioning_error.text()),
                    float(self.vertical_positioning_error.text())]
@@ -1261,19 +1269,41 @@ class OptionsWidget(QtWidgets.QWidget):
                                                                     float(xyzrph[serial_num]['sensor_size'][tstmp])]
                 except KeyError:
                     self.data[serial_num][tstmp]['Vesselcenter'] = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, launch_sensor_size]
+
                 try:
-                    self.data[serial_num][tstmp]['Uncertainty'] = [float(xyzrph[serial_num]['beam_opening_angle'][tstmp]),
-                                                           float(xyzrph[serial_num]['heave_error'][tstmp]),
-                                                           float(xyzrph[serial_num]['roll_sensor_error'][tstmp]),
-                                                           float(xyzrph[serial_num]['pitch_sensor_error'][tstmp]),
-                                                           float(xyzrph[serial_num]['heading_sensor_error'][tstmp]),
-                                                           float(xyzrph[serial_num]['surface_sv_error'][tstmp]),
-                                                           float(xyzrph[serial_num]['roll_patch_error'][tstmp]),
-                                                           float(xyzrph[serial_num]['waterline_error'][tstmp]),
-                                                           float(xyzrph[serial_num]['horizontal_positioning_error'][tstmp]),
-                                                           float(xyzrph[serial_num]['vertical_positioning_error'][tstmp])]
+                    # tx/rx opening angles added in kluster 0.9.3, before it was just 'beam_opening_angle' and used as both
+                    if 'tx_opening_angle' in xyzrph[serial_num]:
+                        txangle = float(xyzrph[serial_num]['tx_opening_angle'][tstmp])
+                        rxangle = float(xyzrph[serial_num]['rx_opening_angle'][tstmp])
+                    elif 'tx_port_opening_angle' in xyzrph[serial_num]:
+                        txangle = float(xyzrph[serial_num]['tx_port_opening_angle'][tstmp])
+                        rxangle = float(xyzrph[serial_num]['rx_port_opening_angle'][tstmp])
+                    else:
+                        txangle = float(xyzrph[serial_num]['beam_opening_angle'][tstmp])
+                        rxangle = float(xyzrph[serial_num]['beam_opening_angle'][tstmp])
+                        # populate with the corrected beam angle keys, correcting this older dataset
+                        if self.data[serial_num][tstmp]['Dual Head']:
+                            xyzrph[serial_num]['tx_port_opening_angle'] = deepcopy(xyzrph[serial_num]['beam_opening_angle'])
+                            xyzrph[serial_num]['tx_stbd_opening_angle'] = deepcopy(xyzrph[serial_num]['beam_opening_angle'])
+                            xyzrph[serial_num]['rx_port_opening_angle'] = deepcopy(xyzrph[serial_num]['beam_opening_angle'])
+                            xyzrph[serial_num]['rx_stbd_opening_angle'] = deepcopy(xyzrph[serial_num]['beam_opening_angle'])
+                        else:
+                            xyzrph[serial_num]['tx_opening_angle'] = deepcopy(xyzrph[serial_num]['beam_opening_angle'])
+                            xyzrph[serial_num]['rx_opening_angle'] = deepcopy(xyzrph[serial_num]['beam_opening_angle'])
+                    self.data[serial_num][tstmp]['Uncertainty'] = [txangle,
+                                                                   rxangle,
+                                                                   float(xyzrph[serial_num]['heave_error'][tstmp]),
+                                                                   float(xyzrph[serial_num]['roll_sensor_error'][tstmp]),
+                                                                   float(xyzrph[serial_num]['pitch_sensor_error'][tstmp]),
+                                                                   float(xyzrph[serial_num]['heading_sensor_error'][tstmp]),
+                                                                   float(xyzrph[serial_num]['surface_sv_error'][tstmp]),
+                                                                   float(xyzrph[serial_num]['roll_patch_error'][tstmp]),
+                                                                   float(xyzrph[serial_num]['waterline_error'][tstmp]),
+                                                                   float(xyzrph[serial_num]['horizontal_positioning_error'][tstmp]),
+                                                                   float(xyzrph[serial_num]['vertical_positioning_error'][tstmp])]
                 except KeyError:
                     self.data[serial_num][tstmp]['Uncertainty'] = [kluster_variables.default_beam_opening_angle,
+                                                                   kluster_variables.default_beam_opening_angle,
                                                                    kluster_variables.default_heave_error,
                                                                    kluster_variables.default_roll_sensor_error,
                                                                    kluster_variables.default_pitch_sensor_error,
@@ -1535,6 +1565,7 @@ class OptionsWidget(QtWidgets.QWidget):
         else:
             self.basic_config.hide()
             self.basic_lever.show()
+            self.basic_tpu.hide()
             self.show_waterline.hide()
             self.waterline_spacer.hide()
             if sens == 'Vessel Reference Point':
@@ -1617,16 +1648,17 @@ class OptionsWidget(QtWidgets.QWidget):
                         self.update_button.hide()
                     elif sensor_label == 'Uncertainty':
                         data = self.data[serial_num][tstmp]['Uncertainty']
-                        self.beam_opening_angle.setText(format(float(data[0]), '.3f'))
-                        self.heave_error.setText(format(float(data[1]), '.3f'))
-                        self.roll_sensor_error.setText(format(float(data[2]), '.3f'))
-                        self.pitch_sensor_error.setText(format(float(data[3]), '.3f'))
-                        self.heading_sensor_error.setText(format(float(data[4]), '.3f'))
-                        self.surface_sv_error.setText(format(float(data[5]), '.3f'))
-                        self.roll_patch_error.setText(format(float(data[6]), '.3f'))
-                        self.waterline_error.setText(format(float(data[7]), '.3f'))
-                        self.horizontal_positioning_error.setText(format(float(data[8]), '.3f'))
-                        self.vertical_positioning_error.setText(format(float(data[9]), '.3f'))
+                        self.tx_opening_angle.setText(format(float(data[0]), '.3f'))
+                        self.rx_opening_angle.setText(format(float(data[1]), '.3f'))
+                        self.heave_error.setText(format(float(data[2]), '.3f'))
+                        self.roll_sensor_error.setText(format(float(data[3]), '.3f'))
+                        self.pitch_sensor_error.setText(format(float(data[4]), '.3f'))
+                        self.heading_sensor_error.setText(format(float(data[5]), '.3f'))
+                        self.surface_sv_error.setText(format(float(data[6]), '.3f'))
+                        self.roll_patch_error.setText(format(float(data[7]), '.3f'))
+                        self.waterline_error.setText(format(float(data[8]), '.3f'))
+                        self.horizontal_positioning_error.setText(format(float(data[9]), '.3f'))
+                        self.vertical_positioning_error.setText(format(float(data[10]), '.3f'))
                     else:
                         data = self.data[serial_num][tstmp][sensor_label]
                         if sensor_label == 'IMU':
@@ -1900,7 +1932,7 @@ class VesselView(QtWidgets.QWidget):
                         sensor.toggle_sensor(2)  # bright
                     self.currselected = sensor_name
 
-    def position_sensor(self, sensor_lbl, x, y, z, r, p, h, extra=0.0, extra2=0.0, extra3=0.0, extra4=0.0):
+    def position_sensor(self, sensor_lbl, x, y, z, r, p, h, extra=0.0, extra2=0.0, extra3=0.0, extra4=0.0, extra5=0.0):
         """
         See OptionsWidget populate_from_xyzrph/update_sensor_sig.  Driven from that signal, will position the object in
         the scene based on the input xyzrph.
@@ -2168,7 +2200,7 @@ class VesselWidget(QtWidgets.QWidget):
             if orig_tstmp is not None:
                 self.xyzrph[serial_num]['vessel_file'][orig_tstmp] = os.path.normpath(pth_to_vessel)
 
-    def update_xyzrph_sensorposition(self, sensor_lbl, x, y, z, r, p, h, extra=0.0, extra2=0.0, extra3=0.0, extra4=0.0):
+    def update_xyzrph_sensorposition(self, sensor_lbl, x, y, z, r, p, h, extra=0.0, extra2=0.0, extra3=0.0, extra4=0.0, extra5=0.0):
         """
         Whenever the OptionsWidget update_sensor_sig triggers (whenever a sensor position changes) this method runs
         and updates the xyzrph with that new information
@@ -2186,7 +2218,7 @@ class VesselWidget(QtWidgets.QWidget):
         extra2: float, optional parameter, only used for TPU sensor
         extra3: float, optional parameter, only used for TPU sensor
         extra4: float, optional parameter, only used for TPU sensor
-
+        extra5: float, optional parameter, only used for TPU sensor
 
         """
         serial_num = self.opts_window.serial_select.currentText()
@@ -2203,15 +2235,15 @@ class VesselWidget(QtWidgets.QWidget):
                                 'Primary Antenna': ['tx_to_antenna_x', 'tx_to_antenna_y', 'tx_to_antenna_z', None, None, None],
                                 'Waterline': [None, None, 'waterline', None, None, None],
                                 'Latency': [None, None, None, None, None, None, 'latency'],
-                                'Uncertainty': ['beam_opening_angle', 'heave_error', 'roll_sensor_error', 'pitch_sensor_error',
-                                        'heading_sensor_error', 'surface_sv_error', 'roll_patch_error', 'waterline_error',
-                                        'horizontal_positioning_error', 'vertical_positioning_error']}
+                                'Uncertainty': ['tx_opening_angle', 'rx_opening_angle', 'heave_error', 'roll_sensor_error', 'pitch_sensor_error',
+                                                'heading_sensor_error', 'surface_sv_error', 'roll_patch_error', 'waterline_error',
+                                                'horizontal_positioning_error', 'vertical_positioning_error']}
             if sensor_lbl in sensors_to_write:
                 xyzrph_entries = sensors_to_write[sensor_lbl]
                 if sensor_lbl in ['Vesselcenter', 'Latency']:
                     data = np.array([x, y, z, r, p, h, extra])
                 elif sensor_lbl == 'Uncertainty':
-                    data = np.array([x, y, z, r, p, h, extra, extra2, extra3, extra4])
+                    data = np.array([x, y, z, r, p, h, extra, extra2, extra3, extra4, extra5])
                 else:
                     data = np.array([x, y, z, r, p, h])
                 if not np.array_equal(data[0:3], hide_location):
@@ -2221,6 +2253,12 @@ class VesselWidget(QtWidgets.QWidget):
                                 if entry in self.xyzrph[serial_num]:
                                     if float(self.xyzrph[serial_num][entry][orig_tstmp]) != float(data[cnt]):
                                         self.xyzrph[serial_num][entry][orig_tstmp] = format(data[cnt], '.3f')
+                                elif entry in ['tx_opening_angle', 'tx_port_opening_angle', 'tx_starboard_opening_angle',
+                                               'rx_opening_angle', 'rx_port_opening_angle', 'rx_starboard_opening_angle']:
+                                    # tx/rx opening angles added in kluster 0.9.3, before it was just 'beam_opening_angle' and used as the rx angle
+                                    # get here if this is data processed prior to this version, add a new xyzrph entry
+                                    self.xyzrph[serial_num][entry] = deepcopy(self.xyzrph[serial_num]['beam_opening_angle'])
+                                    self.xyzrph[serial_num][entry][orig_tstmp] = format(data[cnt], '.3f')
                                 else:
                                     # vesselcenter might not be in xyzrph, as it is created in the vessel view widget
                                     self.xyzrph[serial_num][entry] = {orig_tstmp: format(data[cnt], '.3f')}

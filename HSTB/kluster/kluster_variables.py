@@ -78,7 +78,8 @@ tpu_parameter_names = ['tx_to_antenna_x', 'tx_to_antenna_y', 'tx_to_antenna_z', 
                        'y_offset_error', 'z_offset_error', 'surface_sv_error', 'roll_patch_error', 'pitch_patch_error',
                        'heading_patch_error', 'latency_patch_error', 'timing_latency_error',
                        'separation_model_error', 'waterline_error', 'vessel_speed_error', 'horizontal_positioning_error',
-                       'vertical_positioning_error', 'beam_opening_angle']
+                       'vertical_positioning_error', 'tx_port_opening_angle', 'tx_stbd_opening_angle', 'rx_port_opening_angle',
+                       'rx_stbd_opening_angle', 'tx_opening_angle', 'rx_opening_angle']
 offset_parameter_names = ['tx_port_x', 'tx_stbd_x', 'rx_port_x', 'rx_stbd_x', 'tx_x', 'rx_x', 'tx_port_y', 'tx_stbd_y',
                           'rx_port_y', 'rx_stbd_y', 'tx_y', 'rx_y', 'tx_port_z', 'tx_stbd_z', 'rx_port_z', 'rx_stbd_z',
                           'tx_z', 'rx_z']
@@ -112,6 +113,7 @@ default_waterline_error = 0.020  # default tpu parameter for waterline
 default_horizontal_positioning_error = 1.000  # default tpu parameter for horizontal positioning
 default_vertical_positioning_error = 0.500  # default tpu parameter for vertical positioning
 default_beam_opening_angle = 1.0  # default parameter for beam opening angle in degrees
+
 # currently unused values
 default_x_offset_error = 0.200  # default tpu parameter for x offset measurement
 default_y_offset_error = 0.200  # default tpu parameter for y offset measurement
@@ -121,6 +123,38 @@ default_heading_patch_error = 0.500  # default tpu parameter for heading patch
 default_latency_patch_error = 0.000  # default tpu parameter for latency patch
 default_timing_latency_error = 0.001  # default tpu parameter for latency
 default_vessel_speed_error = 0.100  # default tpu parameter for vessel speed
+
+
+# default beam opening angle has built in transducer identifier, but we keep the same constant across
+@property
+def default_tx_opening_angle():
+    return default_beam_opening_angle
+
+
+@property
+def default_tx_port_opening_angle():
+    return default_beam_opening_angle
+
+
+@property
+def default_tx_stbd_opening_angle():
+    return default_beam_opening_angle
+
+
+@property
+def default_rx_opening_angle():
+    return default_beam_opening_angle
+
+
+@property
+def default_rx_port_opening_angle():
+    return default_beam_opening_angle
+
+
+@property
+def default_rx_stbd_opening_angle():
+    return default_beam_opening_angle
+
 
 # all tpu parameters must have matching default values
 for tname in tpu_parameter_names:
