@@ -2445,7 +2445,13 @@ def build_xyzrph(settdict: dict, runtime_settdict: dict, sonartype: str):
                     try:
                         xyzrph[tme][val + '_opening_angle'] = float(settdict[tme]['transducer_{}_sounding_size_deg'.format(ky)])
                     except:  # some files only include opening angle for the first two transducers out of four (dual head)
-                        xyzrph[tme][val + '_opening_angle'] = float(settdict[tme]['transducer_{}_sounding_size_deg'.format(ky - 2)])
+                        try:
+                            xyzrph[tme][val + '_opening_angle'] = float(settdict[tme]['transducer_{}_sounding_size_deg'.format(ky - 2)])
+                        except:  # just use the last good ky, seen this with a 2 transducer system (2040) where only the first entry has sounding_size_deg
+                            for chkval in [v for v in sonar_translator[sonartype] if v is not None]:  # tx, rx, etc.
+                                chkky = sonar_translator[sonartype].index(chkval)
+                                if 'transducer_{}_sounding_size_deg'.format(chkky) in settdict[tme]:
+                                    xyzrph[tme][val + '_opening_angle'] = float(settdict[tme]['transducer_{}_sounding_size_deg'.format(chkky)])
                 except KeyError:
                     if val.find('tx') != -1:
                         runtimekey = 'TransmitBeamWidth'
