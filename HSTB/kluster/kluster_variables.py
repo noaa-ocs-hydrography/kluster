@@ -63,6 +63,8 @@ default_vertical_reference = 'waterline'
 # export
 pings_per_las = 50000  # LAS export will put this many pings in one file before starting a new file
 pings_per_csv = 15000  # csv export will put this many pings in one file before starting a new file
+chunk_size_display = 5000  # width/height of the loaded grid chunks, lowering this creates more grid files but should lower the memory needed
+chunk_size_export = 20000  # width/height of the exported grid chunks, lowering this creates more grid files but should lower the memory needed
 
 # xarray conversion
 ping_chunk_size = 1000  # chunk size (in pings) of each written chunk of data in the ping records
@@ -357,7 +359,8 @@ variable_descriptions = {'acrosstrack': 'The result of running Sound Velocity Co
                          'z': 'The result of running Georeference in Kluster.  This is the sound velocity offsets projected into the coordinate reference system you chose.  Depth is in meters from the vertical reference you chose.'
                          }
 
-int_parameters = ['converted_files_at_once', 'pings_per_las', 'pings_per_csv', 'max_profile_length']
+int_parameters = ['converted_files_at_once', 'pings_per_las', 'pings_per_csv', 'max_profile_length', 'chunk_size_display',
+                  'chunk_size_export']
 float_parameters = ['default_heave_error', 'default_roll_sensor_error', 'default_pitch_sensor_error', 'default_heading_sensor_error',
                     'default_surface_sv_error', 'default_roll_patch_error', 'default_separation_model_error',
                     'default_waterline_error', 'default_horizontal_positioning_error', 'default_vertical_positioning_error',
