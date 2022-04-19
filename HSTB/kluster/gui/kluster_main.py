@@ -822,7 +822,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         Right click an fqpr instance and trigger reprocessing, should only be necessary in case of emergency.
         """
 
-        fqprs, linedict = self.project_tree.return_selected_fqprs()
+        fqprs, _ = self.project_tree.return_selected_fqprs()
         if fqprs:
             # start over at 0, which is conversion in our state machine
             fq = self.project.fqpr_instances[fqprs[0]]
@@ -1369,7 +1369,7 @@ class KlusterMain(QtWidgets.QMainWindow):
                     fqprs = surface_opts.pop('fqpr_inst')
 
                     if dlog.line_surface_checkbox.isChecked():  # we now subset the fqpr instances by lines selected
-                        fqprspaths, fqprs = self.return_selected_fqprs(subset_by_line=True)
+                        fqprspaths, fqprs = self.return_selected_fqprs(subset_by_line=True, concatenate=False)
                         for fq in fqprs:
                             fq_chunks.extend([fq])
                     else:
@@ -2077,7 +2077,9 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.two_d.reset_line_colors()
         self.explorer.clear_explorer_data()
         linenames = self.project.return_project_lines(proj=os.path.normpath(converted_pth))
-        self.attribute.display_file_attribution(self.project.fqpr_attrs[converted_pth])
+        attrs = self.project.fqpr_attrs[converted_pth]
+        filtered_attrs = {a: attrs[a] for a in attrs.keys() if a not in kluster_variables.hidden_fqpr_attributes}
+        self.attribute.display_file_attribution(filtered_attrs)
         for cnt, ln in enumerate(linenames):
             self._line_selected(ln, idx=cnt)
         self.two_d.change_line_colors(linenames, 'red')
@@ -2092,7 +2094,9 @@ class KlusterMain(QtWidgets.QMainWindow):
 
         """
 
-        self.attribute.display_file_attribution(self.project.surface_instances[converted_pth].return_attribution())
+        attrs = self.project.surface_instances[converted_pth].return_attribution()
+        filtered_attrs = {a: attrs[a] for a in attrs.keys() if a not in kluster_variables.hidden_grid_attributes}
+        self.attribute.display_file_attribution(filtered_attrs)
 
     def tree_surface_layer_selected(self, surfpath, layername, checked):
         """
@@ -2586,15 +2590,17 @@ class KlusterMain(QtWidgets.QMainWindow):
         # self.setUpdatesEnabled(True)
         print('Reset interface settings to default')
 
-    def return_selected_fqprs(self, subset_by_line: bool = False):
+    def return_selected_fqprs(self, subset_by_line: bool = False, concatenate: bool = True):
         """
-        Return absolute paths to fqprs selected and the loaded fqpr instances.  In most instances, this is pretty simple,
-        you
+        Return absolute paths to fqprs selected and the loaded fqpr instances.  Subset by line if you want to only
+        return the data for the lines selected.
 
         Parameters
         ----------
         subset_by_line
             if True, will subset each Fqpr object to just the data associated with the lines selected
+        concatenate
+            if True, will concatenate the fqprs into one object, only possible if the sonar serial numbers match
 
         Returns
         -------
@@ -2605,7 +2611,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         """
         fqprs, linedict = self.project_tree.return_selected_fqprs()
         if subset_by_line and linedict:
-            fqpr_paths, fqpr_loaded = self.project.get_fqprs_by_paths(fqprs, linedict)
+            fqpr_paths, fqpr_loaded = self.project.get_fqprs_by_paths(fqprs, linedict, concatenate=concatenate)
         else:
             fqpr_paths, fqpr_loaded = self.project.get_fqprs_by_paths(fqprs)
         return fqpr_paths, fqpr_loaded

@@ -15,6 +15,10 @@ phase_color = 'blue'
 reject_color = 'red'
 reaccept_color = 'cyan'
 
+# hide some attributes from the attributes window if they are not significant
+hidden_fqpr_attributes = ['geohashes', 'multibeam_files']
+hidden_grid_attributes = []
+
 # dask_helpers
 # when we get the Client to run a task, we expect all tasks to have finished.  If you get the client and the mem
 # utilization is greater than this percentage, we restart it automatically to clear the memory.
