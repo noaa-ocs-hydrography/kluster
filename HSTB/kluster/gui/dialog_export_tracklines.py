@@ -117,7 +117,7 @@ class ExportTracklinesDialog(SaveStateDialog):
         curr_opts = self.export_opts.currentText().lower()
         if curr_opts == 'geopackage':
             titl = 'Select output geopackage file'
-            ffilter = "gpkg file|*.gpkg"
+            ffilter = "gpkg file | *.gpkg"
         else:
             raise ValueError('dialog_export_tracklines: unrecognized method: {}'.format(curr_opts))
 

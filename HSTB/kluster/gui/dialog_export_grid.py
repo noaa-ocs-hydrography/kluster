@@ -219,13 +219,13 @@ class ExportGridDialog(SaveStateDialog):
         curr_opts = self.export_opts.currentText().lower()
         if curr_opts == 'csv':
             titl = 'Select output csv file'
-            ffilter = "csv file|*.csv"
+            ffilter = "csv file | *.csv"
         elif curr_opts == 'bag':
             titl = 'Select output bag file'
-            ffilter = "bag file|*.bag"
+            ffilter = "bag file | *.bag"
         elif curr_opts == 'geotiff':
             titl = 'Select output geotiff file'
-            ffilter = "geotiff file|*.tif"
+            ffilter = "geotiff file | *.tif"
         else:
             raise ValueError('dialog_export_grid: unrecognized method: {}'.format(curr_opts))
 

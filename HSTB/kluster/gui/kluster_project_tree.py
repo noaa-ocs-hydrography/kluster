@@ -560,7 +560,7 @@ class KlusterProjectTree(QtWidgets.QTreeView):
             mid_lvl_name = idx.parent().data()
             if mid_lvl_name == 'Surfaces':  # user has selected a surface
                 new_surf = self.model.data(idx)
-            if new_surf not in surfs:
+            if new_surf and new_surf not in surfs:
                 surfs.append(new_surf)
         return surfs
 
