@@ -71,7 +71,7 @@ class SurfaceDialog(SaveStateDialog):
         self.hlayout_singlerez_one.addWidget(self.single_rez_tile_size_lbl)
         self.single_rez_tile_size = QtWidgets.QComboBox()
         self.single_rez_tile_size.addItems(['2048', '1024', '512', '256', '128'])
-        self.single_rez_tile_size.setCurrentText('128')
+        self.single_rez_tile_size.setCurrentText('512')
         self.single_rez_tile_size.setToolTip('The size of the single resolution tile in meters.  The default size of 1024 meters is a\n' +
                                              'good size for maximizing performance and minimizing memory usage.  Changing this value\n' +
                                              'could result in a much slower computation.  For larger grids, a larger tile size may\n' +
@@ -96,11 +96,11 @@ class SurfaceDialog(SaveStateDialog):
         self.variabletile_tile_size_lbl = QtWidgets.QLabel('Tile Size (meters): ')
         self.hlayout_variabletile_one.addWidget(self.variabletile_tile_size_lbl)
         self.variabletile_tile_size = QtWidgets.QComboBox()
-        self.variabletile_tile_size.addItems(['2048', '1024', '512', '256', '128', '64', '32'])
-        self.variabletile_tile_size.setCurrentText('1024')
+        self.variabletile_tile_size.addItems(['2048', '1024', '512', '256', '128'])
+        self.variabletile_tile_size.setCurrentText('512')
         self.variabletile_tile_size.setToolTip('The size of the tile in the variable resolution grid in meters.  The tile is all the same resolution, so this is the\n' +
                                                'smallest unit of resolution change.  With a value of 128 meters, each 128x128 tile can be a different resolution.  Make this\n' +
-                                               'larger if you want better performance.  The minimum resolution is the tile size.')
+                                               'larger if you want better performance.  Resolution can not be greater than tile size.')
         self.hlayout_variabletile_one.addWidget(self.variabletile_tile_size)
         self.variabletile_resolution_lbl = QtWidgets.QLabel('Resolution (meters): ')
         self.hlayout_variabletile_one.addStretch()
@@ -211,7 +211,7 @@ class SurfaceDialog(SaveStateDialog):
                               ['cube_variance_dropdown', self.cube_variance_dropdown], ['cube_ihoorder_dropdown', self.cube_ihoorder_dropdown],
                               ['singlerez_tilesize', self.single_rez_tile_size], ['single_rez_resolution', self.single_rez_resolution],
                               ['variabletile_tile_size', self.variabletile_tile_size], ['variabletile_resolution', self.variabletile_resolution]]
-        # self.checkbox_controls = [['use_dask_checkbox', self.use_dask_checkbox]]
+        self.checkbox_controls = [['basic_surface_group', self.basic_surface_group], ['line_surface_checkbox', self.line_surface_checkbox]]
 
         self.read_settings()
         self._event_update_status(None)
