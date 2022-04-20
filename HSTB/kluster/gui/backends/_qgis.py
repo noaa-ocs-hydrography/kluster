@@ -2036,6 +2036,49 @@ class MapView(QtWidgets.QMainWindow):
                 shader = raster_shader(minl, maxl)
             old_lyr.renderer().setShader(shader)
 
+    def _create_raster_renderer(self, raster_layer: qgis_core.QgsRasterLayer, layername: str):
+        """
+        Build a new Renderer object to apply to a raster layer.  Allow for overriding the actual min/max of the layer
+        with the globally set band_minmax, and use specific shaders/renderers depending on the layer name of the raster.
+
+        Parameters
+        ----------
+        raster_layer
+            qgis raster layer
+        layername
+                layer name to use from the source data
+
+        Returns
+        -------
+        qgis._core.QgsRasterRenderer
+            new raster renderer object
+        str
+            layername from the acceptedlayernames lookup
+        """
+
+        stats = raster_layer.dataProvider().bandStatistics(1)
+        minval = stats.minimumValue
+        maxval = stats.maximumValue
+        # surface layers can be added in chunks, i.e. 'depth_1', 'depth_2', etc., but they should all use the same
+        #  extents and global stats.  Figure out which category the layer fits into here.
+        formatted_layername = [aln for aln in acceptedlayernames if layername.find(aln) > -1][0]
+        if formatted_layername in self.band_minmax:
+            self.band_minmax[formatted_layername][0] = min(minval, self.band_minmax[formatted_layername][0])
+            self.band_minmax[formatted_layername][1] = max(maxval, self.band_minmax[formatted_layername][1])
+        else:
+            self.band_minmax[formatted_layername] = [minval, maxval]
+        if formatted_layername in invert_colormap_layernames:
+            shader = inv_raster_shader
+        else:
+            shader = raster_shader
+        if formatted_layername == 'hillshade':
+            renderer = qgis_core.QgsHillshadeRenderer(raster_layer.dataProvider(), 1, 315, 45)
+        else:
+            renderer = qgis_core.QgsSingleBandPseudoColorRenderer(raster_layer.dataProvider(), 1,
+                                                                  shader(self.band_minmax[formatted_layername][0],
+                                                                         self.band_minmax[formatted_layername][1]))
+        return renderer, formatted_layername
+
     def _add_raster_layer(self, source: str, layername: str, providertype: str):
         """
         Build the QgsRasterLayer for the provided source/layer.  We do some specific things based on surface layer
@@ -2062,29 +2105,10 @@ class MapView(QtWidgets.QMainWindow):
             print(rlayer.error().message())
             return
         if providertype == 'gdal':
-            stats = rlayer.dataProvider().bandStatistics(1)
-            minval = stats.minimumValue
-            maxval = stats.maximumValue
-            # surface layers can be added in chunks, i.e. 'depth_1', 'depth_2', etc., but they should all use the same
-            #  extents and global stats.  Figure out which category the layer fits into here.
-            formatted_layername = [aln for aln in acceptedlayernames if layername.find(aln) > -1][0]
-            if formatted_layername in self.band_minmax:
-                self.band_minmax[formatted_layername][0] = min(minval, self.band_minmax[formatted_layername][0])
-                self.band_minmax[formatted_layername][1] = max(maxval, self.band_minmax[formatted_layername][1])
-            else:
-                self.band_minmax[formatted_layername] = [minval, maxval]
-            if formatted_layername in invert_colormap_layernames:
-                shader = inv_raster_shader
-            else:
-                shader = raster_shader
-            self.update_layer_minmax(formatted_layername)
-            if formatted_layername == 'hillshade':
-                renderer = qgis_core.QgsHillshadeRenderer(rlayer.dataProvider(), 1, 315, 45)
-            else:
-                renderer = qgis_core.QgsSingleBandPseudoColorRenderer(rlayer.dataProvider(), 1, shader(self.band_minmax[formatted_layername][0],
-                                                                                                       self.band_minmax[formatted_layername][1]))
+            renderer, formatted_layername = self._create_raster_renderer(rlayer, layername)
             rlayer.setRenderer(renderer)
             rlayer.renderer().setOpacity(1 - self.surface_transparency)
+            self.update_layer_minmax(formatted_layername)
         rlayer.setName(source)
         self.project.addMapLayer(rlayer, True)
         return rlayer
@@ -2372,18 +2396,21 @@ class MapView(QtWidgets.QMainWindow):
                     ds = gdal.Warp(newsrc, lyr.source(), format='GTiff', dstSRS=f"EPSG:{kluster_variables.qgis_epsg}")
                     newlyr = qgis_core.QgsRasterLayer(newsrc, '', 'gdal')
                     # no way to copy the renderer (tried copyCommonProperties) have to rebuild
-                    formatted_layername = [aln for aln in acceptedlayernames if lyr.name().find(aln) > -1][0]
-                    if formatted_layername in invert_colormap_layernames:
-                        shader = inv_raster_shader
-                    else:
-                        shader = raster_shader
-                    if formatted_layername == 'hillshade':
-                        renderer = qgis_core.QgsHillshadeRenderer(newlyr.dataProvider(), 1, 315, 45)
-                    else:
-                        renderer = qgis_core.QgsSingleBandPseudoColorRenderer(newlyr.dataProvider(), 1, shader(float(np.floor(self.band_minmax[formatted_layername][0])),
-                                                                                                               float(np.ceil(self.band_minmax[formatted_layername][1]))))
+                    renderer, formatted_layername = self._create_raster_renderer(lyr, lyr.name())
                     newlyr.setRenderer(renderer)
                     newlyr.renderer().setOpacity(1 - self.surface_transparency)
+                    if formatted_layername in self.force_band_minmax:
+                        minl, maxl = self.force_band_minmax[formatted_layername]
+                    elif formatted_layername in self.band_minmax:
+                        minl, maxl = self.band_minmax[formatted_layername]
+                    else:
+                        minl, maxl = None, None
+                    if minl is not None:
+                        if formatted_layername in invert_colormap_layernames:
+                            shader = inv_raster_shader(minl, maxl)
+                        else:
+                            shader = raster_shader(minl, maxl)
+                        newlyr.renderer().setShader(shader)
                     ds = None
                     self.project.addMapLayer(newlyr, True)
                     drop_layers.append([newlyr, formatted_layername])
