@@ -6,7 +6,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
-    <title>generate_new_surface &#8212; kluster 0.9.2 documentation</title>
+    <title>generate_new_surface &#8212; kluster 0.9.3 documentation</title>
     <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
     <link rel="stylesheet" type="text/css" href="../_static/alabaster.css" />
     <link rel="stylesheet" type="text/css" href="../_static/graphviz.css" />
@@ -48,7 +48,11 @@ provided Kluster fqpr instance(s).</p>
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>fqpr_inst</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code>[<a class="reference internal" href="HSTB.kluster.fqpr_generation.Fqpr.html#HSTB.kluster.fqpr_generation.Fqpr" title="HSTB.kluster.fqpr_generation.Fqpr"><code class="xref py py-class docutils literal notranslate"><span class="pre">Fqpr</span></code></a>, <code class="xref py py-class docutils literal notranslate"><span class="pre">list</span></code>]) – instance or list of instances of fqpr_generation.Fqpr class that contains generated soundings data, see
-perform_all_processing or reload_data</p></li>
+perform_all_processing or reload_data.  Can also be a dict or list of dicts when generating a surface from
+point data outside of the FQPR object.  These dicts should have keys including [‘x’, ‘y’, ‘z’, ‘crs’, ‘vert_ref’]
+and optionally [‘tvu’, ‘thu’, ‘tag’, ‘files’].  tvu and thu will be used in the CUBE algorithm, tag will be
+the container name tagged for these points in the bathygrid instance, and files will be logged as the source
+files for that container in the bathygrid metadata.</p></li>
 <li><p><strong>grid_type</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>) – one of ‘single_resolution’, ‘variable_resolution_tile’</p></li>
 <li><p><strong>tile_size</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code>) – main tile size, the size in meters of the tiles within the grid, a larger tile size will improve performance,
 but size should be at most 1/2 the length/width of the survey area</p></li>

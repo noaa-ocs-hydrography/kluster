@@ -6,7 +6,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
-    <title>fqpr_convenience module &#8212; kluster 0.9.2 documentation</title>
+    <title>fqpr_convenience module &#8212; kluster 0.9.3 documentation</title>
     <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
     <link rel="stylesheet" type="text/css" href="../_static/alabaster.css" />
     <link rel="stylesheet" type="text/css" href="../_static/graphviz.css" />
@@ -70,28 +70,31 @@
 <tr class="row-even"><td><p><a class="reference internal" href="../api/HSTB.kluster.fqpr_convenience.perform_all_processing.html#HSTB.kluster.fqpr_convenience.perform_all_processing" title="HSTB.kluster.fqpr_convenience.perform_all_processing"><code class="xref py py-obj docutils literal notranslate"><span class="pre">perform_all_processing</span></code></a>(filname[, navfiles, ...])</p></td>
 <td><p>Use fqpr_generation to process multibeam data on the local cluster and generate a sound velocity corrected, georeferenced xyz with uncertainty in csv files in the provided output folder.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="../api/HSTB.kluster.fqpr_convenience.process_multibeam.html#HSTB.kluster.fqpr_convenience.process_multibeam" title="HSTB.kluster.fqpr_convenience.process_multibeam"><code class="xref py py-obj docutils literal notranslate"><span class="pre">process_multibeam</span></code></a>(fqpr_inst[, ...])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="../api/HSTB.kluster.fqpr_convenience.points_to_surface.html#HSTB.kluster.fqpr_convenience.points_to_surface" title="HSTB.kluster.fqpr_convenience.points_to_surface"><code class="xref py py-obj docutils literal notranslate"><span class="pre">points_to_surface</span></code></a>(data_files, ...[, ...])</p></td>
+<td><p>Take in points in either csv or las/laz formats, and build a new bathygrid grid from the data points.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="../api/HSTB.kluster.fqpr_convenience.process_multibeam.html#HSTB.kluster.fqpr_convenience.process_multibeam" title="HSTB.kluster.fqpr_convenience.process_multibeam"><code class="xref py py-obj docutils literal notranslate"><span class="pre">process_multibeam</span></code></a>(fqpr_inst[, ...])</p></td>
 <td><p>Use fqpr_generation to process already converted data on the local cluster and generate sound velocity corrected, georeferenced soundings in the same data store as the converted data.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="../api/HSTB.kluster.fqpr_convenience.reload_data.html#HSTB.kluster.fqpr_convenience.reload_data" title="HSTB.kluster.fqpr_convenience.reload_data"><code class="xref py py-obj docutils literal notranslate"><span class="pre">reload_data</span></code></a>(converted_folder[, ...])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="../api/HSTB.kluster.fqpr_convenience.reload_data.html#HSTB.kluster.fqpr_convenience.reload_data" title="HSTB.kluster.fqpr_convenience.reload_data"><code class="xref py py-obj docutils literal notranslate"><span class="pre">reload_data</span></code></a>(converted_folder[, ...])</p></td>
 <td><p>Pick up from a previous session.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="../api/HSTB.kluster.fqpr_convenience.reload_surface.html#HSTB.kluster.fqpr_convenience.reload_surface" title="HSTB.kluster.fqpr_convenience.reload_surface"><code class="xref py py-obj docutils literal notranslate"><span class="pre">reload_surface</span></code></a>(surface_path)</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="../api/HSTB.kluster.fqpr_convenience.reload_surface.html#HSTB.kluster.fqpr_convenience.reload_surface" title="HSTB.kluster.fqpr_convenience.reload_surface"><code class="xref py py-obj docutils literal notranslate"><span class="pre">reload_surface</span></code></a>(surface_path)</p></td>
 <td><p>Simple convenience method for reloading a surface from a path</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="../api/HSTB.kluster.fqpr_convenience.reprocess_sounding_selection.html#HSTB.kluster.fqpr_convenience.reprocess_sounding_selection" title="HSTB.kluster.fqpr_convenience.reprocess_sounding_selection"><code class="xref py py-obj docutils literal notranslate"><span class="pre">reprocess_sounding_selection</span></code></a>(fqpr_inst[, ...])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="../api/HSTB.kluster.fqpr_convenience.reprocess_sounding_selection.html#HSTB.kluster.fqpr_convenience.reprocess_sounding_selection" title="HSTB.kluster.fqpr_convenience.reprocess_sounding_selection"><code class="xref py py-obj docutils literal notranslate"><span class="pre">reprocess_sounding_selection</span></code></a>(fqpr_inst[, ...])</p></td>
 <td><p>Designed to feed a patch test tool.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="../api/HSTB.kluster.fqpr_convenience.return_processed_data_folders.html#HSTB.kluster.fqpr_convenience.return_processed_data_folders" title="HSTB.kluster.fqpr_convenience.return_processed_data_folders"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_processed_data_folders</span></code></a>(converted_folder)</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="../api/HSTB.kluster.fqpr_convenience.return_processed_data_folders.html#HSTB.kluster.fqpr_convenience.return_processed_data_folders" title="HSTB.kluster.fqpr_convenience.return_processed_data_folders"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_processed_data_folders</span></code></a>(converted_folder)</p></td>
 <td><p>After processing, you'll have a directory of folders containing the kluster records.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="../api/HSTB.kluster.fqpr_convenience.return_svcorr_xyz.html#HSTB.kluster.fqpr_convenience.return_svcorr_xyz" title="HSTB.kluster.fqpr_convenience.return_svcorr_xyz"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_svcorr_xyz</span></code></a>(filname[, outfold, ...])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="../api/HSTB.kluster.fqpr_convenience.return_svcorr_xyz.html#HSTB.kluster.fqpr_convenience.return_svcorr_xyz" title="HSTB.kluster.fqpr_convenience.return_svcorr_xyz"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_svcorr_xyz</span></code></a>(filname[, outfold, ...])</p></td>
 <td><p>Using fqpr_generation, convert and sv correct multibeam file (or directory of files) and return the sound velocity corrected xyz soundings.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="../api/HSTB.kluster.fqpr_convenience.update_surface.html#HSTB.kluster.fqpr_convenience.update_surface" title="HSTB.kluster.fqpr_convenience.update_surface"><code class="xref py py-obj docutils literal notranslate"><span class="pre">update_surface</span></code></a>(surface_instance[, add_fqpr, ...])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="../api/HSTB.kluster.fqpr_convenience.update_surface.html#HSTB.kluster.fqpr_convenience.update_surface" title="HSTB.kluster.fqpr_convenience.update_surface"><code class="xref py py-obj docutils literal notranslate"><span class="pre">update_surface</span></code></a>(surface_instance[, add_fqpr, ...])</p></td>
 <td><p>Bathygrid instances can be updated with new points from new converted multibeam data, or have points removed from old multibeam data.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="../api/HSTB.kluster.fqpr_convenience.validation_against_xyz88.html#HSTB.kluster.fqpr_convenience.validation_against_xyz88" title="HSTB.kluster.fqpr_convenience.validation_against_xyz88"><code class="xref py py-obj docutils literal notranslate"><span class="pre">validation_against_xyz88</span></code></a>(filname[, ...])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="../api/HSTB.kluster.fqpr_convenience.validation_against_xyz88.html#HSTB.kluster.fqpr_convenience.validation_against_xyz88" title="HSTB.kluster.fqpr_convenience.validation_against_xyz88"><code class="xref py py-obj docutils literal notranslate"><span class="pre">validation_against_xyz88</span></code></a>(filname[, ...])</p></td>
 <td><p>Function to take a multibeam file and compare the svcorrected xyz with the converted and sound velocity corrected data generated by Kluster/fqpr_generation.</p></td>
 </tr>
 </tbody>

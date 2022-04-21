@@ -6,7 +6,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
-    <title>FqprProject &#8212; kluster 0.9.2 documentation</title>
+    <title>FqprProject &#8212; kluster 0.9.3 documentation</title>
     <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
     <link rel="stylesheet" type="text/css" href="../_static/alabaster.css" />
     <link rel="stylesheet" type="text/css" href="../_static/graphviz.css" />
@@ -318,7 +318,7 @@ is the serial number of the starboard head</p></li>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="HSTB.kluster.fqpr_project.FqprProject.get_fqprs_by_paths">
-<span class="sig-name descname"><span class="pre">get_fqprs_by_paths</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">fqpr_paths</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">line_dict</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">relative_path</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">allow_different_offsets</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">raise_exception</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_project.FqprProject.get_fqprs_by_paths" title="Permalink to this definition">¶</a></dt>
+<span class="sig-name descname"><span class="pre">get_fqprs_by_paths</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">fqpr_paths</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">line_dict</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">relative_path</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">allow_different_offsets</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">concatenate</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">raise_exception</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_project.FqprProject.get_fqprs_by_paths" title="Permalink to this definition">¶</a></dt>
 <dd><p>Return a list of the paths and Fqpr instances associated with each provided path.  Path can be relative to the project
 or an absolute path.</p>
 <p>If a line_dict is provided, we will subset each Fqpr object to just the data associated with the lines in the line_dict.
@@ -332,7 +332,9 @@ object, the end result is a single Fqpr object with the data for all four lines 
 <li><p><strong>fqpr_paths</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">list</span></code>) – list of relative/absolute paths to the Fqpr objects we want</p></li>
 <li><p><strong>line_dict</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">dict</span></code>]) – dict of {fqpr_path: [line1, line2, …]} for the desired lines</p></li>
 <li><p><strong>relative_path</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code>) – if True, provided paths are relative to the project, otherwise they are absolute paths</p></li>
-<li><p><strong>allow_different_offsets</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code>) – if True, will merge Fqpr instances that have different offsets/angles.  Otherwise will reject</p></li>
+<li><p><strong>allow_different_offsets</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code>) – if True, and concatenate is True, will concatenate Fqpr instances that have different offsets/angles.
+Otherwise will reject.</p></li>
+<li><p><strong>concatenate</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code>) – if True, will concatenate the fqprs into one object, only possible if the sonar serial numbers match</p></li>
 <li><p><strong>raise_exception</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code>) – if True, will raise an exception instead of handling the error</p></li>
 </ul>
 </dd>
