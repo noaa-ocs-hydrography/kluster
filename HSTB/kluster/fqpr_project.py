@@ -837,7 +837,7 @@ class FqprProject:
         return out_path, out_instance
 
     def get_fqprs_by_paths(self, fqpr_paths: list, line_dict: dict = None, relative_path: bool = True,
-                           allow_different_offsets: bool = True, raise_exception: bool = False):
+                           allow_different_offsets: bool = True, concatenate: bool = True, raise_exception: bool = False):
         """
         Return a list of the paths and Fqpr instances associated with each provided path.  Path can be relative to the project
         or an absolute path.
@@ -858,7 +858,10 @@ class FqprProject:
         relative_path
             if True, provided paths are relative to the project, otherwise they are absolute paths
         allow_different_offsets
-            if True, will merge Fqpr instances that have different offsets/angles.  Otherwise will reject
+            if True, and concatenate is True, will concatenate Fqpr instances that have different offsets/angles.
+            Otherwise will reject.
+        concatenate
+            if True, will concatenate the fqprs into one object, only possible if the sonar serial numbers match
         raise_exception
             if True, will raise an exception instead of handling the error
 
@@ -897,7 +900,7 @@ class FqprProject:
                     fqpr_loaded.append(None)
             else:
                 fqpr_loaded.append(self.fqpr_instances[fq])
-        if line_dict:
+        if line_dict and concatenate:
             sysids = [fq.multibeam.raw_ping[0].attrs['system_serial_number'][0] for fq in fqpr_loaded]
             if not all([sysids[0] == sid for sid in sysids]):
                 if not raise_exception:

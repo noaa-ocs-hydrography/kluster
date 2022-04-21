@@ -229,14 +229,14 @@ class KlusterProjectTree(QtWidgets.QTreeView):
         e: QEvent on menu button click
 
         """
-        index = self.currentIndex()
-        mid_lvl_name = index.parent().data()
-        sel_data = index.data()
 
-        if mid_lvl_name == 'Converted':
-            self.close_fqpr.emit(sel_data)
-        elif mid_lvl_name == 'Surfaces':
-            self.close_surface.emit(sel_data)
+        fqprs, _ = self.return_selected_fqprs()
+        for fq in fqprs:
+            self.close_fqpr.emit(fq)
+
+        surfs = self.return_selected_surfaces()
+        for surf in surfs:
+            self.close_surface.emit(surf)
 
     def configure(self):
         """
@@ -560,7 +560,7 @@ class KlusterProjectTree(QtWidgets.QTreeView):
             mid_lvl_name = idx.parent().data()
             if mid_lvl_name == 'Surfaces':  # user has selected a surface
                 new_surf = self.model.data(idx)
-            if new_surf not in surfs:
+            if new_surf and new_surf not in surfs:
                 surfs.append(new_surf)
         return surfs
 

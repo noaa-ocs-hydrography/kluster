@@ -27,7 +27,7 @@ from HSTB.kluster.gui import dialog_vesselview, kluster_explorer, kluster_projec
     dialog_export, kluster_worker, kluster_interactive_console, dialog_basicplot, dialog_advancedplot, dialog_project_settings, \
     dialog_export_grid, dialog_layer_settings, dialog_settings, dialog_importppnav, dialog_overwritenav, dialog_surface_data, \
     dialog_about, dialog_patchtest, dialog_manualpatchtest, dialog_managedata, dialog_managesurface, \
-    dialog_reprocess, dialog_fileanalyzer, dialog_export_tracklines, dialog_filter
+    dialog_reprocess, dialog_fileanalyzer, dialog_export_tracklines, dialog_filter, dialog_surfacefrompoints
 from HSTB.kluster.fqpr_project import FqprProject
 from HSTB.kluster.fqpr_intelligence import FqprIntel
 from HSTB.kluster.fqpr_vessel import convert_from_fqpr_xyzrph, convert_from_vessel_xyzrph, compare_dict_data
@@ -350,6 +350,8 @@ class KlusterMain(QtWidgets.QMainWindow):
         export_tracklines_action.triggered.connect(self._action_export_tracklines)
         export_grid_action = QtWidgets.QAction('Surface', self)
         export_grid_action.triggered.connect(self._action_export_grid)
+        import_action = QtWidgets.QAction('Soundings', self)
+        import_action.triggered.connect(self._action_surfacefrompoints_generation)
 
         view_darkstyle = QtWidgets.QAction('Dark Mode', self)
         view_darkstyle.setCheckable(True)
@@ -414,6 +416,8 @@ class KlusterMain(QtWidgets.QMainWindow):
         exportmenu.addAction(export_action)
         exportmenu.addAction(export_tracklines_action)
         exportmenu.addAction(export_grid_action)
+        importmenu = file.addMenu('Import')
+        importmenu.addAction(import_action)
 
         view = menubar.addMenu('View')
         view.addAction(view_darkstyle)
@@ -818,7 +822,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         Right click an fqpr instance and trigger reprocessing, should only be necessary in case of emergency.
         """
 
-        fqprs, linedict = self.project_tree.return_selected_fqprs()
+        fqprs, _ = self.project_tree.return_selected_fqprs()
         if fqprs:
             # start over at 0, which is conversion in our state machine
             fq = self.project.fqpr_instances[fqprs[0]]
@@ -1365,7 +1369,7 @@ class KlusterMain(QtWidgets.QMainWindow):
                     fqprs = surface_opts.pop('fqpr_inst')
 
                     if dlog.line_surface_checkbox.isChecked():  # we now subset the fqpr instances by lines selected
-                        fqprspaths, fqprs = self.return_selected_fqprs(subset_by_line=True)
+                        fqprspaths, fqprs = self.return_selected_fqprs(subset_by_line=True, concatenate=False)
                         for fq in fqprs:
                             fq_chunks.extend([fq])
                     else:
@@ -1406,6 +1410,34 @@ class KlusterMain(QtWidgets.QMainWindow):
             print(self.surface_thread.exceptiontxt)
         self.surface_thread.populate(None, {})
         self._stop_action_progress()
+
+    def kluster_surfacefrompoints_generation(self):
+        """
+        Ask for input files to grid, supporting las and csv.  Dialog allows for adding/removing instances.
+
+        If a dask client hasn't been setup in this Kluster run, we auto setup a dask LocalCluster for processing
+
+        Refreshes the project at the end to load in the new surface.
+        """
+
+        if not self.no_threads_running():
+            print('Processing is already occurring.  Please wait for the process to finish')
+            cancelled = True
+        else:
+            cancelled = False
+            dlog = dialog_surfacefrompoints.SurfaceFromPointsDialog()
+            if dlog.exec_():
+                cancelled = dlog.canceled
+                opts = dlog.return_processing_options()
+                if opts is not None and not cancelled:
+                    surface_opts = opts
+                    infiles = surface_opts.pop('fqpr_inst')
+                    self.output_window.clear()
+                    self.surface_thread.populate(infiles, opts)
+                    self.surface_thread.mode = 'from_points'
+                    self.surface_thread.start()
+        if cancelled:
+            print('kluster_surface_generation: Processing was cancelled')
 
     def kluster_surface_update(self):
         if not self.no_threads_running():
@@ -1543,6 +1575,7 @@ class KlusterMain(QtWidgets.QMainWindow):
 
                 export_type = dlog.export_opts.currentText()
                 delimiter = dlog.csvdelimiter_dropdown.currentText()
+                formattype = dlog.format_dropdown.currentText()
                 filterset = dlog.filter_chk.isChecked()
                 separateset = dlog.byidentifier_chk.isChecked()
                 z_pos_down = dlog.zdirect_check.isChecked()
@@ -1560,8 +1593,9 @@ class KlusterMain(QtWidgets.QMainWindow):
                             fq_chunks.append([fq_inst])
                     if fq_chunks:
                         self.output_window.clear()
-                        self.export_thread.populate(fq_chunks, linenames, datablock, export_type, z_pos_down, delimiter, filterset,
-                                                    separateset, basic_export_mode, line_export_mode, points_export_mode)
+                        self.export_thread.populate(fq_chunks, linenames, datablock, export_type, z_pos_down, delimiter,
+                                                    formattype, filterset, separateset, basic_export_mode,
+                                                    line_export_mode, points_export_mode)
                         self.export_thread.start()
                 else:
                     cancelled = True
@@ -1578,7 +1612,7 @@ class KlusterMain(QtWidgets.QMainWindow):
             print(self.export_thread.exceptiontxt)
         else:
             print('Export complete.')
-        self.export_thread.populate(None, None, [], '', False, 'comma', False, False, True, False, False)
+        self.export_thread.populate(None, None, [], '', False, 'comma', 'xyz', False, False, True, False, False)
         self._stop_action_progress()
 
     def kluster_export_tracklines(self):
@@ -2043,7 +2077,9 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.two_d.reset_line_colors()
         self.explorer.clear_explorer_data()
         linenames = self.project.return_project_lines(proj=os.path.normpath(converted_pth))
-        self.attribute.display_file_attribution(self.project.fqpr_attrs[converted_pth])
+        attrs = self.project.fqpr_attrs[converted_pth]
+        filtered_attrs = {a: attrs[a] for a in attrs.keys() if a not in kluster_variables.hidden_fqpr_attributes}
+        self.attribute.display_file_attribution(filtered_attrs)
         for cnt, ln in enumerate(linenames):
             self._line_selected(ln, idx=cnt)
         self.two_d.change_line_colors(linenames, 'red')
@@ -2058,7 +2094,9 @@ class KlusterMain(QtWidgets.QMainWindow):
 
         """
 
-        self.attribute.display_file_attribution(self.project.surface_instances[converted_pth].return_attribution())
+        attrs = self.project.surface_instances[converted_pth].return_attribution()
+        filtered_attrs = {a: attrs[a] for a in attrs.keys() if a not in kluster_variables.hidden_grid_attributes}
+        self.attribute.display_file_attribution(filtered_attrs)
 
     def tree_surface_layer_selected(self, surfpath, layername, checked):
         """
@@ -2390,6 +2428,9 @@ class KlusterMain(QtWidgets.QMainWindow):
         """
         self.kluster_surface_generation()
 
+    def _action_surfacefrompoints_generation(self):
+        self.kluster_surfacefrompoints_generation()
+
     def _action_filter(self):
         """
         Connect menu action 'New Surface' with surface dialog
@@ -2549,15 +2590,17 @@ class KlusterMain(QtWidgets.QMainWindow):
         # self.setUpdatesEnabled(True)
         print('Reset interface settings to default')
 
-    def return_selected_fqprs(self, subset_by_line: bool = False):
+    def return_selected_fqprs(self, subset_by_line: bool = False, concatenate: bool = True):
         """
-        Return absolute paths to fqprs selected and the loaded fqpr instances.  In most instances, this is pretty simple,
-        you
+        Return absolute paths to fqprs selected and the loaded fqpr instances.  Subset by line if you want to only
+        return the data for the lines selected.
 
         Parameters
         ----------
         subset_by_line
             if True, will subset each Fqpr object to just the data associated with the lines selected
+        concatenate
+            if True, will concatenate the fqprs into one object, only possible if the sonar serial numbers match
 
         Returns
         -------
@@ -2568,7 +2611,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         """
         fqprs, linedict = self.project_tree.return_selected_fqprs()
         if subset_by_line and linedict:
-            fqpr_paths, fqpr_loaded = self.project.get_fqprs_by_paths(fqprs, linedict)
+            fqpr_paths, fqpr_loaded = self.project.get_fqprs_by_paths(fqprs, linedict, concatenate=concatenate)
         else:
             fqpr_paths, fqpr_loaded = self.project.get_fqprs_by_paths(fqprs)
         return fqpr_paths, fqpr_loaded

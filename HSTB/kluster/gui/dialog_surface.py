@@ -21,7 +21,7 @@ class SurfaceDialog(SaveStateDialog):
         super().__init__(parent, settings, widgetname='surface')
 
         self.setWindowTitle('Generate New Surface')
-        layout = QtWidgets.QVBoxLayout()
+        self.toplayout = QtWidgets.QVBoxLayout()
 
         self.basic_surface_group = QtWidgets.QGroupBox('Run surface generation on the following datasets:')
         self.basic_surface_group.setCheckable(True)
@@ -71,7 +71,7 @@ class SurfaceDialog(SaveStateDialog):
         self.hlayout_singlerez_one.addWidget(self.single_rez_tile_size_lbl)
         self.single_rez_tile_size = QtWidgets.QComboBox()
         self.single_rez_tile_size.addItems(['2048', '1024', '512', '256', '128'])
-        self.single_rez_tile_size.setCurrentText('128')
+        self.single_rez_tile_size.setCurrentText('512')
         self.single_rez_tile_size.setToolTip('The size of the single resolution tile in meters.  The default size of 1024 meters is a\n' +
                                              'good size for maximizing performance and minimizing memory usage.  Changing this value\n' +
                                              'could result in a much slower computation.  For larger grids, a larger tile size may\n' +
@@ -96,11 +96,11 @@ class SurfaceDialog(SaveStateDialog):
         self.variabletile_tile_size_lbl = QtWidgets.QLabel('Tile Size (meters): ')
         self.hlayout_variabletile_one.addWidget(self.variabletile_tile_size_lbl)
         self.variabletile_tile_size = QtWidgets.QComboBox()
-        self.variabletile_tile_size.addItems(['2048', '1024', '512', '256', '128', '64', '32'])
-        self.variabletile_tile_size.setCurrentText('1024')
+        self.variabletile_tile_size.addItems(['2048', '1024', '512', '256', '128'])
+        self.variabletile_tile_size.setCurrentText('512')
         self.variabletile_tile_size.setToolTip('The size of the tile in the variable resolution grid in meters.  The tile is all the same resolution, so this is the\n' +
                                                'smallest unit of resolution change.  With a value of 128 meters, each 128x128 tile can be a different resolution.  Make this\n' +
-                                               'larger if you want better performance.  The minimum resolution is the tile size.')
+                                               'larger if you want better performance.  Resolution can not be greater than tile size.')
         self.hlayout_variabletile_one.addWidget(self.variabletile_tile_size)
         self.variabletile_resolution_lbl = QtWidgets.QLabel('Resolution (meters): ')
         self.hlayout_variabletile_one.addStretch()
@@ -182,26 +182,30 @@ class SurfaceDialog(SaveStateDialog):
         self.hlayout_two.addWidget(self.cancel_button)
         self.hlayout_two.addStretch(1)
 
-        layout.addWidget(self.basic_surface_group)
-        layout.addWidget(self.line_surface_checkbox)
-        layout.addWidget(QtWidgets.QLabel(' '))
-        layout.addLayout(self.surf_layout)
-        layout.addStretch()
-        layout.addWidget(self.output_msg)
-        layout.addLayout(self.hlayout_output)
-        layout.addWidget(self.status_msg)
-        layout.addLayout(self.hlayout_two)
-        self.setLayout(layout)
+        self.toplayout.addWidget(self.basic_surface_group)
+        self.toplayout.addWidget(self.line_surface_checkbox)
+        self.toplayout.addWidget(QtWidgets.QLabel(' '))
+        self.toplayout.addLayout(self.surf_layout)
+        self.toplayout.addStretch()
+        self.toplayout.addWidget(self.output_msg)
+        self.toplayout.addLayout(self.hlayout_output)
+        self.toplayout.addWidget(self.status_msg)
+        self.toplayout.addLayout(self.hlayout_two)
+        self.setLayout(self.toplayout)
 
         self.fqpr_inst = []
         self.canceled = False
         self.output_pth = None
+        self.output_path_edited = False
 
         self.basic_surface_group.toggled.connect(self._handle_basic_checked)
         self.line_surface_checkbox.toggled.connect(self._handle_line_checked)
         self.grid_type.currentTextChanged.connect(self._event_update_status)
         self.input_fqpr.files_updated.connect(self._event_update_fqpr_instances)
         self.surf_method.currentTextChanged.connect(self._handle_method_changed)
+        self.grid_type.currentTextChanged.connect(self._handle_method_changed)
+        self.single_rez_resolution.currentTextChanged.connect(self._handle_method_changed)
+
         self.output_button.clicked.connect(self.file_browse)
         self.output_text.textChanged.connect(self._update_output_pth)
         self.ok_button.clicked.connect(self.start_processing)
@@ -211,7 +215,7 @@ class SurfaceDialog(SaveStateDialog):
                               ['cube_variance_dropdown', self.cube_variance_dropdown], ['cube_ihoorder_dropdown', self.cube_ihoorder_dropdown],
                               ['singlerez_tilesize', self.single_rez_tile_size], ['single_rez_resolution', self.single_rez_resolution],
                               ['variabletile_tile_size', self.variabletile_tile_size], ['variabletile_resolution', self.variabletile_resolution]]
-        # self.checkbox_controls = [['use_dask_checkbox', self.use_dask_checkbox]]
+        self.checkbox_controls = [['basic_surface_group', self.basic_surface_group], ['line_surface_checkbox', self.line_surface_checkbox]]
 
         self.read_settings()
         self._event_update_status(None)
@@ -274,6 +278,7 @@ class SurfaceDialog(SaveStateDialog):
             self.cube_method_label.hide()
             self.cube_ihoorder_label.hide()
             self.cube_variance_label.hide()
+        self.update_fqpr_instances()
 
     def _event_update_fqpr_instances(self):
         self.update_fqpr_instances()
@@ -281,9 +286,9 @@ class SurfaceDialog(SaveStateDialog):
     def update_fqpr_instances(self, addtl_files=None):
         if addtl_files is not None:
             self.input_fqpr.add_new_files(addtl_files)
-        self.fqpr_inst = [self.input_fqpr.list_widget.item(i).text() for i in range(self.input_fqpr.list_widget.count())]
-        if self.fqpr_inst:
-            if not self.output_text.text():
+        if self.input_fqpr.list_widget.count():
+            self.fqpr_inst = [self.input_fqpr.list_widget.item(i).text() for i in range(self.input_fqpr.list_widget.count())]
+            if not self.output_path_edited:
                 self.output_pth = os.path.dirname(self.fqpr_inst[0])
                 curr_opts = self.grid_type.currentText()
                 if curr_opts == 'Single Resolution':
@@ -293,20 +298,21 @@ class SurfaceDialog(SaveStateDialog):
                     outpth = os.path.join(self.output_pth, 'vrtilegrid_{}'.format(self.surf_method.currentText()).lower())
                 else:
                     raise NotImplementedError(f'dialog_surface: Unable to autobuild output path from grid type {curr_opts}')
-                self.output_pth = outpth
-                self.output_text.setText(outpth)
+                self.output_pth = os.path.normpath(outpth)
+                self.output_text.setText(self.output_pth)
+                self.output_path_edited = False
 
     def file_browse(self):
-        msg, output_pth = RegistryHelpers.GetFilenameFromUserQT(self, RegistryKey='Kluster',
-                                                                Title='Select output surface path',
-                                                                AppName='kluster', bMulti=False,
-                                                                bSave=True, fFilter='numpy npz (*.npz)')
+        msg, output_pth = RegistryHelpers.GetDirFromUserQT(self, RegistryKey='Kluster', Title='Select output surface path',
+                                                           AppName='kluster')
         if output_pth is not None:
-            self.output_text.setText(self.output_pth)
             self.output_pth = output_pth
+            self.output_text.setText(self.output_pth)
+            self.output_path_edited = True
 
     def _update_output_pth(self):
         self.output_pth = self.output_text.text()
+        self.output_path_edited = True
 
     def return_processing_options(self):
         if not self.canceled:

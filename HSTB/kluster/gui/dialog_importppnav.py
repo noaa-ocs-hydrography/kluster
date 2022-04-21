@@ -127,7 +127,7 @@ class ImportPostProcNavigationDialog(QtWidgets.QDialog):
         msg, self.log_file_path = RegistryHelpers.GetFilenameFromUserQT(self, RegistryKey='Kluster',
                                                                         Title='Select POSPac Export Log',
                                                                         AppName='\\reghelp', bSave=False,
-                                                                        fFilter="Log Files|*.txt;*.log")
+                                                                        fFilter="Log Files | *.txt;*.log")
         if self.log_file_path is not None:
             self.log_file.setText(self.log_file_path)
 

@@ -359,5 +359,5 @@ You can easily calculate tpu in the console as well
    # compute tpu assuming all other steps have been run
    fq.calculate_total_uncertainty()
 
-.. toctree:: 
+.. toctree::
    :maxdepth: 3

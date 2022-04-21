@@ -45,9 +45,9 @@ class TestFqprVessel(unittest.TestCase):
         self.vf = create_new_vessel_file(self.testfile)
         self.key = ['123', '345']
         self.data = [
-            {'beam_opening_angle': {"1234": 1.0, '1244': 1.5, '1254': 2.0},
+            {'rx_opening_angle': {"1234": 1.0, '1244': 1.5, '1254': 2.0},
              'rx_x': {"1234": 0.345, '1244': 0.456, '1254': 0.789}},
-            {'beam_opening_angle': {"1234": 3.0, '1244': 3.5, '1254': 4.0},
+            {'rx_opening_angle': {"1234": 3.0, '1244': 3.5, '1254': 4.0},
              'rx_x': {"1234": 1.345, '1244': 2.456, '1254': 3.789}}]
         self.data_dict = {self.key[0]: self.data[0], self.key[1]: self.data[1]}
 
@@ -85,45 +85,45 @@ class TestFqprVessel(unittest.TestCase):
         self.vf.update(self.key[0], self.data[0])
         self.vf.update(self.key[1], self.data[1])
         self.vf.save(self.testfile)
-        self.vf.update(self.key[1], {'beam_opening_angle': {"1234": 999}})
-        # self.data_dict.update('beam_opening_angle').update('1234') = 999
+        self.vf.update(self.key[1], {'rx_opening_angle': {"1234": 999}})
+        # self.data_dict.update('rx_opening_angle').update('1234') = 999
         #  no change made, will always try to carry over the last tpu entry
-        assert self.vf.data == {'123': {'beam_opening_angle': {"1234": 1.0, '1244': 1.5, '1254': 2.0},
+        assert self.vf.data == {'123': {'rx_opening_angle': {"1234": 1.0, '1244': 1.5, '1254': 2.0},
                                         'rx_x': {"1234": 0.345, '1244': 0.456, '1254': 0.789}},
-                                '345': {'beam_opening_angle': {"1234": 4.0, '1244': 3.5, '1254': 4.0},
+                                '345': {'rx_opening_angle': {"1234": 4.0, '1244': 3.5, '1254': 4.0},
                                         'rx_x': {"1234": 1.345, '1244': 2.456, '1254': 3.789}}}
         #  force the overwrite
-        self.vf.update('345', {'beam_opening_angle': {"1234": 999}}, carry_over_tpu=False)
-        assert self.vf.data == {'123': {'beam_opening_angle': {"1234": 1.0, '1244': 1.5, '1254': 2.0},
+        self.vf.update('345', {'rx_opening_angle': {"1234": 999}}, carry_over_tpu=False)
+        assert self.vf.data == {'123': {'rx_opening_angle': {"1234": 1.0, '1244': 1.5, '1254': 2.0},
                                         'rx_x': {"1234": 0.345, '1244': 0.456, '1254': 0.789}},
-                                '345': {'beam_opening_angle': {"1234": 999, '1244': 3.5, '1254': 4.0},
+                                '345': {'rx_opening_angle': {"1234": 999, '1244': 3.5, '1254': 4.0},
                                         'rx_x': {"1234": 1.345, '1244': 2.456, '1254': 3.789}}}
         self.vf.save(self.testfile)
         self.vf = VesselFile(self.testfile)
-        assert self.vf.data == {'123': {'beam_opening_angle': {"1234": 1.0, '1244': 1.5, '1254': 2.0},
+        assert self.vf.data == {'123': {'rx_opening_angle': {"1234": 1.0, '1244': 1.5, '1254': 2.0},
                                         'rx_x': {"1234": 0.345, '1244': 0.456, '1254': 0.789}},
-                                '345': {'beam_opening_angle': {"1234": 999, '1244': 3.5, '1254': 4.0},
+                                '345': {'rx_opening_angle': {"1234": 999, '1244': 3.5, '1254': 4.0},
                                         'rx_x': {"1234": 1.345, '1244': 2.456, '1254': 3.789}}}
 
     def test_return_data(self):
         self.vf.update(self.key[1], self.data[1])
         self.vf.save(self.testfile)
         new_data = self.vf.return_data('345', 1239, 1250)
-        assert new_data == {'beam_opening_angle': {"1234": 3.0, '1244': 3.5},
+        assert new_data == {'rx_opening_angle': {"1234": 3.0, '1244': 3.5},
                             'rx_x': {"1234": 1.345, '1244': 2.456}}
 
     def test_return_singletimestamp(self):
-        self.vf.update('123', {'beam_opening_angle': {"1234": 1.0}, 'rx_x': {"1234": 0.345}})
+        self.vf.update('123', {'rx_opening_angle': {"1234": 1.0}, 'rx_x': {"1234": 0.345}})
         new_data = self.vf.return_data('123', 1239, 1250)
-        assert new_data == {'beam_opening_angle': {"1234": 1.0}, 'rx_x': {"1234": 0.345}}
+        assert new_data == {'rx_opening_angle': {"1234": 1.0}, 'rx_x': {"1234": 0.345}}
         new_data = self.vf.return_data('123', 1230, 1235)
-        assert new_data == {'beam_opening_angle': {"1234": 1.0}, 'rx_x': {"1234": 0.345}}
+        assert new_data == {'rx_opening_angle': {"1234": 1.0}, 'rx_x': {"1234": 0.345}}
         # not a valid range, outside of the 60 second buffer
         new_data = self.vf.return_data('123', 1000, 1100)
         assert not new_data
         # data that is after the timestamp uses the closest previous timestamp
         new_data = self.vf.return_data('123', 1300, 1400)
-        assert new_data == {'beam_opening_angle': {"1234": 1.0}, 'rx_x': {"1234": 0.345}}
+        assert new_data == {'rx_opening_angle': {"1234": 1.0}, 'rx_x': {"1234": 0.345}}
 
     def test_split_by_timestamp(self):
         data_one = {"latency": {"1584426525": 0.1, "1584438532": 0.1, "1597569340": 0.1},

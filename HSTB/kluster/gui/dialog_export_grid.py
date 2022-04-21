@@ -118,7 +118,7 @@ class ExportGridDialog(SaveStateDialog):
         self.hlayout_one_one = QtWidgets.QHBoxLayout()
         self.output_text = QtWidgets.QLineEdit('', self)
         self.output_text.setMinimumWidth(400)
-        self.output_text.setReadOnly(True)
+        self.output_text.setReadOnly(False)
         self.hlayout_one_one.addWidget(self.output_text)
         self.output_button = QtWidgets.QPushButton("Browse", self)
         self.hlayout_one_one.addWidget(self.output_button)
@@ -152,6 +152,7 @@ class ExportGridDialog(SaveStateDialog):
 
         self.browse_button.clicked.connect(self.grid_folder_browse)
         self.output_button.clicked.connect(self.output_file_browse)
+        self.output_text.textChanged.connect(self._update_output_pth)
         self.export_opts.currentTextChanged.connect(self._event_update_status)
         self.ok_button.clicked.connect(self.start_export)
         self.cancel_button.clicked.connect(self.cancel_export)
@@ -184,6 +185,9 @@ class ExportGridDialog(SaveStateDialog):
         if self.input_pth is not None:
             self.update_input_path(self.input_pth)
 
+    def _update_output_pth(self):
+        self.output_pth = self.output_text.text()
+
     def update_input_path(self, foldername: str):
         if not any([os.path.exists(os.path.join(foldername, allw)) for allw in allowable_grid_root_names]):
             foldername = ''
@@ -215,13 +219,13 @@ class ExportGridDialog(SaveStateDialog):
         curr_opts = self.export_opts.currentText().lower()
         if curr_opts == 'csv':
             titl = 'Select output csv file'
-            ffilter = "csv file|*.csv"
+            ffilter = "csv file | *.csv"
         elif curr_opts == 'bag':
             titl = 'Select output bag file'
-            ffilter = "bag file|*.bag"
+            ffilter = "bag file | *.bag"
         elif curr_opts == 'geotiff':
             titl = 'Select output geotiff file'
-            ffilter = "geotiff file|*.tif"
+            ffilter = "geotiff file | *.tif"
         else:
             raise ValueError('dialog_export_grid: unrecognized method: {}'.format(curr_opts))
 

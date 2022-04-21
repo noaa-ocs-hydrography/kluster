@@ -1717,17 +1717,17 @@ class ThreeDWidget(QtWidgets.QWidget):
         """
         Triggers when the user ALT+Mouse2 selects data in the 3dview.  We set the selected points and let the widget know to accept these points.
         """
-
         points_in_screen = self._handle_point_selection(startpos, endpos, three_d)
-        self.three_d_window.selected_points = points_in_screen
-        self.last_change_buffer.append([self.three_d_window.selected_points, self.three_d_window.rejected[self.three_d_window.selected_points]])
-        self.three_d_window.rejected[self.three_d_window.selected_points] = kluster_variables.accepted_flag
-        self.points_cleaned.emit(kluster_variables.accepted_flag)
+        is_rejected = self.three_d_window.rejected[points_in_screen] == kluster_variables.rejected_flag
+        self.three_d_window.selected_points = points_in_screen[is_rejected]
+        if is_rejected.any():
+            self.last_change_buffer.append([self.three_d_window.selected_points, self.three_d_window.rejected[self.three_d_window.selected_points]])
+            self.three_d_window.rejected[self.three_d_window.selected_points] = kluster_variables.accepted_flag
+            self.points_cleaned.emit(kluster_variables.accepted_flag)
+            if len(self.last_change_buffer) > kluster_variables.last_change_buffer_size:
+                print('WARNING: Points view will only retain the last {} cleaning actions for undo'.format(kluster_variables.last_change_buffer_size))
+                self.last_change_buffer.pop(0)
         self.three_d_window.highlight_selected_scatter(self.colorby.currentText(), False)
-
-        if len(self.last_change_buffer) > kluster_variables.last_change_buffer_size:
-            print('WARNING: Points view will only retain the last {} cleaning actions for undo'.format(kluster_variables.last_change_buffer_size))
-            self.last_change_buffer.pop(0)
 
     def undo_clean(self):
         if self.last_change_buffer:
@@ -1830,9 +1830,9 @@ class ThreeDWidget(QtWidgets.QWidget):
                 dat = select_filtered - data_start
                 idx_key = self.three_d_window.idlookup[uid]
                 if idx_key not in idx:
-                    if headnum == 0:
+                    if headnum == 0:  # a new single head system found in selected index
                         idx[idx_key] = [dat]
-                    else:
+                    else:  # a new dual head system found in selected index, intialize all heads
                         idx[idx_key] = []
                         for i in range(headnum):
                             idx[idx_key].append([])

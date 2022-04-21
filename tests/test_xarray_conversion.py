@@ -22,7 +22,7 @@ class TestXArrayConversion(unittest.TestCase):
         assert os.path.exists(testfile)
 
         xyzrph, _sonarmodel, _serialnum = return_xyzrph_from_mbes(testfile)
-        assert xyzrph['beam_opening_angle']['1495563079'] == 1.0
+        assert xyzrph['rx_opening_angle']['1495563079'] == 1.0
         assert xyzrph['heading_patch_error']['1495563079'] == 0.5
         assert xyzrph['heading_sensor_error']['1495563079'] == 0.02
         assert xyzrph['heave_error']['1495563079'] == 0.05

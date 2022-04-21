@@ -156,8 +156,8 @@ class TestFqprGeneration(unittest.TestCase):
         fqpr_copy.multibeam.raw_ping[0]['vertical_reference'] = 'notwaterline'
         assert self.out.multibeam.raw_ping[0].vertical_reference == 'waterline'
         # what about the attributes that are layered dictionaries
-        fqpr_copy.multibeam.raw_ping[0].xyzrph['beam_opening_angle']['1495563079'] = 999
-        assert self.out.multibeam.raw_ping[0].xyzrph['beam_opening_angle']['1495563079'] == 1.3
+        fqpr_copy.multibeam.raw_ping[0].xyzrph['rx_opening_angle']['1495563079'] = 999
+        assert self.out.multibeam.raw_ping[0].xyzrph['rx_opening_angle']['1495563079'] == 1.3
 
     def test_set_variable_by_filter(self):
         self._access_processed_data()

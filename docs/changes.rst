@@ -1,6 +1,26 @@
 Changes List
 ============
 
+Kluster v0.9.3 (4/21/2022)
+--------------------------
+ - sync with bathygrid 1.3.3
+   - include bordering soundings from nearby grids with vr grid, eliminates gaps between tiles
+   - new export/drawing tile scheme in get_chunks_of_tiles, gets nice square tiles with adjustable size
+   - z positive up flag will now operate knowing the underlying sign convention, bug resolved with ellipse surface
+   - resolve bug with saving empty dask arrays to zarr seen on regridding surface
+
+ - new import soundings utility to grid csv and las/laz data
+ - add ability to customize csv export variables/columns
+ - resolve sign convention issues with displaying and exporting 'ellipse' surfaces, now z + up (height)
+ - resolve memory issues on exporting/viewing large surfaces, see File - Settings - Processing - Display/Export grid chunk size to customize
+ - only reaccept rejected soundings selected in Points View, ignore already accepted soundings on clean
+ - read tx and rx opening angle (beam width) on conversion, displayed under vessel offsets by transducer now
+
+ - resolve bugs with closing multiple highlighted data sources with right click close
+ - resolve issues with surface export path
+ - resolve bug with generating a surface from multiple lines from different sonars
+ - resolve bug with screenshot button not using the overridden layer min/max range
+
 Kluster v0.9.2 (4/8/2022)
 -------------------------
  - sync with bathycube 0.1.2

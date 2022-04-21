@@ -1,4 +1,4 @@
-import os
+import os, csv
 from time import perf_counter
 import xarray as xr
 import numpy as np
@@ -6,13 +6,17 @@ from dask.distributed import Client
 from typing import Union
 from matplotlib.gridspec import GridSpec
 import matplotlib.pyplot as plt
+from datetime import datetime
+import laspy
+from pyproj import CRS, Transformer
 
 from HSTB.kluster.fqpr_drivers import return_xyz_from_multibeam
 from HSTB.kluster.xarray_conversion import BatchRead
 from HSTB.kluster.fqpr_generation import Fqpr
-from HSTB.kluster.fqpr_helpers import seconds_to_formatted_string, return_files_from_path
+from HSTB.kluster.fqpr_helpers import seconds_to_formatted_string, return_files_from_path, epsg_determinator
 from HSTB.kluster.dask_helpers import dask_find_or_start_client
 from HSTB.kluster.logging_conf import return_log_name
+from HSTB.kluster.dms import return_zone_from_min_max_long
 from HSTB.kluster import kluster_variables
 
 from bathygrid.convenience import create_grid, load_grid, BathyGrid
@@ -448,30 +452,55 @@ def return_svcorr_xyz(filname: str, outfold: str = None, visualizations: bool = 
     return fqpr_inst, dset
 
 
-def _add_points_to_surface(fqpr_inst: Fqpr, bgrid: BathyGrid, fqpr_crs: int, fqpr_vertref: str, chunksize: int = 10000):
+def _add_points_to_surface(fqpr_inst: Union[dict, Fqpr], bgrid: BathyGrid, fqpr_crs: int, fqpr_vertref: str, chunksize: int = 10000):
     """
-    Add this FQPR instance to the bathygrid provided.
+    Add this FQPR instance or dict of point data to the bathygrid provided.
     """
-    cont_name = os.path.split(fqpr_inst.output_folder)[1]
-    multibeamfiles = list(fqpr_inst.multibeam.raw_ping[0].multibeam_files.keys())
-    cont_name_idx = 0
-    for rp in fqpr_inst.multibeam.raw_ping:
-        mintime, maxtime = rp.time.values[0], rp.time.values[-1]
-        number_of_pings = rp.time.size
-        rp = rp.drop_vars([nms for nms in rp.variables if nms not in ['x', 'y', 'z', 'tvu', 'thu', 'detectioninfo']])
-        totalchunks = int(np.ceil(number_of_pings / chunksize))
-        print('Adding points from {} in {} chunks...\n'.format(os.path.split(fqpr_inst.output_folder)[1], totalchunks))
-        for idx in range(totalchunks):
-            strt, end = idx * chunksize, min((idx + 1) * chunksize, number_of_pings)
-            data = rp.isel(time=slice(strt, end)).stack({'sounding': ('time', 'beam')})
-            # drop nan values in georeferenced data, generally where number of beams vary between pings
-            data = data.where(~np.isnan(data['z']), drop=True)
-            # filter out rejected soundings, i.e. where detectioninfo = 2
-            data = data.where(data['detectioninfo'] != kluster_variables.rejected_flag, drop=True)
-            data = data.drop_vars(['detectioninfo'])
-            bgrid.add_points(data, '{}_{}'.format(cont_name, cont_name_idx), multibeamfiles, fqpr_crs, fqpr_vertref,
-                             min_time=mintime, max_time=maxtime)
-            cont_name_idx += 1
+
+    if isinstance(fqpr_inst, dict):
+        dtyp = [('x', np.float64), ('y', np.float64), ('z', np.float32)]
+        if 'tvu' in fqpr_inst:
+            dtyp += [('tvu', np.float32)]
+        if 'thu' in fqpr_inst:
+            dtyp += [('thu', np.float32)]
+        parray = np.empty(len(fqpr_inst['z']), dtype=dtyp)
+        parray['x'] = fqpr_inst['x']
+        parray['y'] = fqpr_inst['y']
+        parray['z'] = fqpr_inst['z']
+        if 'tvu' in fqpr_inst:
+            parray['tvu'] = fqpr_inst['tvu']
+        if 'thu' in fqpr_inst:
+            parray['thu'] = fqpr_inst['thu']
+        if 'tag' in fqpr_inst:
+            containername = fqpr_inst['tag'] + '_0'
+        else:
+            containername = datetime.now().strftime('%Y%m%d_%H%M%S') + '_0'
+        if 'files' in fqpr_inst:
+            datafiles = fqpr_inst['files']
+        else:
+            datafiles = None
+        bgrid.add_points(parray, containername, datafiles, fqpr_crs, fqpr_vertref)
+    else:
+        cont_name = os.path.split(fqpr_inst.output_folder)[1]
+        multibeamfiles = list(fqpr_inst.multibeam.raw_ping[0].multibeam_files.keys())
+        cont_name_idx = 0
+        for rp in fqpr_inst.multibeam.raw_ping:
+            mintime, maxtime = rp.time.values[0], rp.time.values[-1]
+            number_of_pings = rp.time.size
+            rp = rp.drop_vars([nms for nms in rp.variables if nms not in ['x', 'y', 'z', 'tvu', 'thu', 'detectioninfo']])
+            totalchunks = int(np.ceil(number_of_pings / chunksize))
+            print('Adding points from {} in {} chunks...\n'.format(os.path.split(fqpr_inst.output_folder)[1], totalchunks))
+            for idx in range(totalchunks):
+                strt, end = idx * chunksize, min((idx + 1) * chunksize, number_of_pings)
+                data = rp.isel(time=slice(strt, end)).stack({'sounding': ('time', 'beam')})
+                # drop nan values in georeferenced data, generally where number of beams vary between pings
+                data = data.where(~np.isnan(data['z']), drop=True)
+                # filter out rejected soundings, i.e. where detectioninfo = 2
+                data = data.where(data['detectioninfo'] != kluster_variables.rejected_flag, drop=True)
+                data = data.drop_vars(['detectioninfo'])
+                bgrid.add_points(data, '{}_{}'.format(cont_name, cont_name_idx), multibeamfiles, fqpr_crs, fqpr_vertref,
+                                 min_time=mintime, max_time=maxtime)
+                cont_name_idx += 1
 
 
 def _remove_points_from_surface(fqpr_inst: Union[Fqpr, str], bgrid: BathyGrid):
@@ -526,9 +555,9 @@ def _get_unique_crs_vertref(fqpr_instances: list):
         print('_get_unique_crs_vertref: No valid EPSG for {}'.format(fqpr_instances[0].horizontal_crs.to_proj4()))
         return None, None
 
-    # if the vertical reference is a vdatum one, return the first WKT string.  We can't just get the unique WKT strings,
+    # if the vertical reference is an ERS one, return the first WKT string.  We can't just get the unique WKT strings,
     #  as there might be differences in region (which we should probably concatenate or something)
-    if unique_vertref[0] in ['NOAA MLLW', 'NOAA MHW', 'ellipse']:
+    if unique_vertref[0] in kluster_variables.ellipse_based_vertical_references:
         unique_vertref = [fqpr_instances[0].multibeam.raw_ping[0].vertical_crs]
 
     return unique_crs, unique_vertref
@@ -571,7 +600,11 @@ def generate_new_surface(fqpr_inst: Union[Fqpr, list], grid_type: str = 'single_
     ----------
     fqpr_inst
         instance or list of instances of fqpr_generation.Fqpr class that contains generated soundings data, see
-        perform_all_processing or reload_data
+        perform_all_processing or reload_data.  Can also be a dict or list of dicts when generating a surface from
+        point data outside of the FQPR object.  These dicts should have keys including ['x', 'y', 'z', 'crs', 'vert_ref']
+        and optionally ['tvu', 'thu', 'tag', 'files'].  tvu and thu will be used in the CUBE algorithm, tag will be
+        the container name tagged for these points in the bathygrid instance, and files will be logged as the source
+        files for that container in the bathygrid metadata.
     grid_type
         one of 'single_resolution', 'variable_resolution_tile'
     tile_size
@@ -615,11 +648,31 @@ def generate_new_surface(fqpr_inst: Union[Fqpr, list], grid_type: str = 'single_
 
     if not isinstance(fqpr_inst, list):
         fqpr_inst = [fqpr_inst]
+    if isinstance(fqpr_inst[0], Fqpr):
+        is_fqpr = True
+        unique_crs, unique_vertref = _get_unique_crs_vertref(fqpr_inst)
+    elif isinstance(fqpr_inst[0], dict):
+        try:
+            assert all([all([ky in fqprinst for ky in ['x', 'y', 'z', 'crs', 'vert_ref']]) for fqprinst in fqpr_inst])
+        except:
+            raise ValueError("generate_new_surface: When using point data, you must provide ['x', 'y', 'z', 'crs', 'vert_ref'] keys in each dict object")
+        try:
+            assert all([fqpr_inst[0]['crs'] == fq['crs'] for fq in fqpr_inst])
+        except:
+            raise ValueError("generate_new_surface: When using point data, all 'crs' keys must match")
+        try:
+            assert all([fqpr_inst[0]['vert_ref'] == fq['vert_ref'] for fq in fqpr_inst])
+        except:
+            raise ValueError("generate_new_surface: When using point data, all 'crs' keys must match")
+        is_fqpr = False
+        unique_crs = [fqpr_inst[0]['crs']]
+        unique_vertref = [fqpr_inst[0]['vert_ref']]
+    else:
+        raise NotImplementedError('generate_new_surface: Expected input data to either be a FQPR instance or a dict of variables')
 
     if not _validate_fqpr_for_gridding(fqpr_inst):
         return None
 
-    unique_crs, unique_vertref = _get_unique_crs_vertref(fqpr_inst)
     if unique_vertref is None or unique_crs is None:
         return None
     gridding_algorithm = gridding_algorithm.lower()
@@ -755,6 +808,170 @@ def reload_surface(surface_path: str):
     except Exception as e:  # allow to continue and simply print the exception to the screen
         print(e)
         bg = None
+    return bg
+
+
+def _csv_has_header(datafile: str):
+    with open(datafile, 'r') as dfile:
+        firstline = dfile.readline()
+        try:
+            int(firstline[0])
+            return False, 0
+        except ValueError:
+            skiplines = 1
+            for fline in dfile:
+                try:
+                    int(fline[0])
+                    break
+                except ValueError:
+                    skiplines += 1
+            return True, skiplines
+
+
+def _csv_get_delimiter(datafile: str, skiprows: int):
+    sniffer = csv.Sniffer()
+    with open(datafile, 'r') as dfile:
+        firstline = dfile.readline()
+        for i in range(skiprows):
+            firstline = dfile.readline()
+    dialect = sniffer.sniff(firstline)
+    return str(dialect.delimiter)
+
+
+def _get_pointstosurface_transformer(datablock, input_epsg):
+    zne = return_zone_from_min_max_long(datablock['x'][0], datablock['x'][0], datablock['y'][0])
+    zone, hemi = int(zne[:-1]), str(zne[-1:])
+    inname = CRS.from_epsg(input_epsg).name.lower()
+    if inname.find('wgs') != -1 or inname.find('itrf') != -1:
+        myepsg = epsg_determinator('wgs84', zone=zone, hemisphere=hemi)
+    elif input_epsg in [6324]:
+        myepsg = epsg_determinator('nad83(ma11)', zone=zone, hemisphere=hemi)
+    elif input_epsg in [6322]:
+        myepsg = epsg_determinator('nad83(pa11)', zone=zone, hemisphere=hemi)
+    else:
+        myepsg = epsg_determinator('nad83(2011)', zone=zone, hemisphere=hemi)
+
+    new_transformer = Transformer.from_crs(CRS.from_epsg(input_epsg), CRS.from_epsg(myepsg), always_xy=True)
+    return new_transformer
+
+
+def points_to_surface(data_files: list, horizontal_epsg: int, vertical_reference: str, grid_type: str = 'single_resolution',
+                      tile_size: float = 1024.0, subtile_size: float = 128, gridding_algorithm: str = 'mean', resolution: float = None,
+                      auto_resolution_mode: str = 'depth', use_dask: bool = False, output_path: str = None, export_path: str = None,
+                      export_format: str = 'geotiff', export_z_positive_up: bool = True, export_resolution: float = None,
+                      client: Client = None, grid_parameters: dict = None, csv_columns: list = ('x', 'y', 'z')):
+    """
+    Take in points in either csv or las/laz formats, and build a new bathygrid grid from the data points.
+
+    Parameters
+    ----------
+    data_files
+        list of filepaths to csv or las/laz files
+    horizontal_epsg
+        epsg integer code for the horizontal crs of this dataset
+    vertical_reference
+        string identifier for the vertical reference, ex: 'MLLW'
+    grid_type
+        one of 'single_resolution', 'variable_resolution_tile'
+    tile_size
+        main tile size, the size in meters of the tiles within the grid, a larger tile size will improve performance,
+        but size should be at most 1/2 the length/width of the survey area
+    subtile_size
+        sub tile size, only used for variable resolution, the size of the subtiles within the tiles, subtiles are the
+        smallest unit within the grid that is single resolution
+    gridding_algorithm
+        algorithm to grid by, one of 'mean', 'shoalest', 'cube'
+    resolution
+        resolution of the gridded data in the Tiles
+    auto_resolution_mode
+        one of density, depth; chooses the algorithm used to determine the resolution for the grid/tile
+    use_dask
+        if True, will start a dask LocalCluster instance and perform the gridding in parallel
+    output_path
+        if provided, will save the Bathygrid to this path, with data saved as stacked numpy (npy) files
+    export_path
+        if provided, will export the Bathygrid to csv
+    export_format
+        format option, one of 'csv', 'geotiff', 'bag'
+    export_z_positive_up
+        if True, will output bands with positive up convention
+    export_resolution
+        if provided, will only export the given resolution
+    client
+        dask.distributed.Client instance, if you don't include this, it will automatically start a LocalCluster with the
+        default options, if you set use_dask to True
+    grid_parameters
+        optional dict of settings to pass to the grid algorithm
+    csv_columns
+        Used with csv files, columns in order for variables ('x', 'y', 'z', 'thu', 'tvu').  'thu' and 'tvu' are optional columns,
+        but this tuple must at least include 'x', 'y' and 'z'.  If these columns are in a different order in the file,
+        use the order of the tuple to reflect this.  EX: ('y', '', 'x', 'z') for northings in first column, eastings
+        in the third column, depth in the fourth column, skipping the second column.
+
+    Returns
+    -------
+    BathyGrid
+        BathyGrid instance for the newly created surface
+    """
+
+    print('***** Generating new Bathygrid surface *****')
+    strttime = perf_counter()
+
+    try:
+        assert all([os.path.splitext(f)[1] in ['.csv', '.txt', '.las', '.laz'] for f in data_files])
+    except:
+        raise NotImplementedError("points_to_surface: only accepting files with the following extensions ['.csv', '.txt', '.las', '.laz']")
+    iscsv = os.path.splitext(data_files[0])[1] in ['.csv', '.txt']
+
+    gridding_algorithm = gridding_algorithm.lower()
+    if gridding_algorithm == 'cube':
+        print('compiling cube algorithm...')
+        compile_now()
+
+    is_geographic = CRS.from_epsg(horizontal_epsg).is_geographic
+    new_transformer = None
+
+    print('Preparing data...')
+    # set some arbitrary number of pings to hold in memory at once, probably need a smarter way to do this eventually
+    #  just make sure it is a multiple of 1000, the chunksize of the raw_ping dataset
+    bg = create_grid(folder_path=output_path, grid_type=grid_type, tile_size=tile_size, subtile_size=subtile_size)
+    if client is not None:
+        bg.client = client
+    for f in data_files:
+        fname = os.path.split(f)[1]
+        ftag = fname + '_' + datetime.now().strftime('%Y%m%d_%H%M%S') + '_0'
+        ffiles = [f]
+        if iscsv:
+            has_header, skiprows = _csv_has_header(f)
+            delimiter = _csv_get_delimiter(f, skiprows)
+            data = np.genfromtxt(f, delimiter=delimiter, skip_header=skiprows)
+            datablock = {'x': data[:, csv_columns.index('x')], 'y': data[:, csv_columns.index('y')], 'z': data[:, csv_columns.index('z')],
+                         'crs': horizontal_epsg, 'vert_ref': vertical_reference, 'tag': ftag, 'files': ffiles}
+            if 'tvu' in csv_columns:
+                datablock['tvu'] = data[:, csv_columns.index('tvu')]
+            if 'thu' in csv_columns:
+                datablock['thu'] = data[:, csv_columns.index('thu')]
+        else:
+            las = laspy.read(f)
+            datablock = {'x': las.x, 'y': las.y, 'z': las.z, 'crs': horizontal_epsg, 'vert_ref': vertical_reference,
+                         'tag': ftag, 'files': ffiles}
+        if is_geographic:
+            if new_transformer is None:
+                new_transformer = _get_pointstosurface_transformer(datablock, horizontal_epsg)
+            newpos = new_transformer.transform(datablock['x'], datablock['y'], errcheck=False)  # longitude / latitude order (x/y)
+            datablock['x'] = newpos[0]
+            datablock['y'] = newpos[1]
+            datablock['crs'] = new_transformer.target_crs.to_epsg()
+        _add_points_to_surface(datablock, bg, datablock['crs'], vertical_reference)
+    # now after all points are added, run grid with the options presented
+    bg.grid(algorithm=gridding_algorithm, resolution=resolution, auto_resolution_mode=auto_resolution_mode,
+            use_dask=use_dask, grid_parameters=grid_parameters)
+    if export_path:
+        bg.export(output_path=export_path, export_format=export_format, z_positive_up=export_z_positive_up,
+                  resolution=export_resolution)
+
+    endtime = perf_counter()
+    print('***** Surface Generation Complete: {} *****'.format(seconds_to_formatted_string(int(endtime - strttime))))
     return bg
 
 

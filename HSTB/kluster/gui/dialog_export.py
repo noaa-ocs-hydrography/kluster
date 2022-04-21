@@ -49,6 +49,12 @@ class ExportDialog(SaveStateDialog):
         self.csvdelimiter_dropdown = QtWidgets.QComboBox(self)
         self.csvdelimiter_dropdown.addItems(['comma', 'space'])
         self.hlayout_one.addWidget(self.csvdelimiter_dropdown)
+        self.format_lbl = QtWidgets.QLabel('Format')
+        self.hlayout_one.addWidget(self.format_lbl)
+        self.format_dropdown = QtWidgets.QComboBox(self)
+        self.format_dropdown.addItems(['xyz', 'xyzv', 'xyzhv'])
+        self.format_dropdown.setToolTip('xyz = easting,northing,depth\nxyzv = easting,northing,depth,vertical_uncertainty\nxyzhv = easting,northing,depth,horizontal_uncertainty,vertical_uncertainty')
+        self.hlayout_one.addWidget(self.format_dropdown)
         self.hlayout_one.addStretch()
 
         self.hlayout_one_one = QtWidgets.QHBoxLayout()
@@ -100,7 +106,8 @@ class ExportDialog(SaveStateDialog):
         self.ok_button.clicked.connect(self.start_export)
         self.cancel_button.clicked.connect(self.cancel_export)
 
-        self.text_controls = [['export_ops', self.export_opts], ['csvdelimiter_dropdown', self.csvdelimiter_dropdown]]
+        self.text_controls = [['export_ops', self.export_opts], ['csvdelimiter_dropdown', self.csvdelimiter_dropdown],
+                              ['format_dropdown', self.format_dropdown]]
         self.checkbox_controls = [['basic_export_group', self.basic_export_group], ['line_export', self.line_export],
                                   ['points_view_export', self.points_view_export], ['zdirect_check', self.zdirect_check],
                                   ['filter_chk', self.filter_chk], ['byidentifier_chk', self.byidentifier_chk]]
@@ -185,9 +192,13 @@ class ExportDialog(SaveStateDialog):
         if combobox_text == 'csv':
             self.csvdelimiter_dropdown.show()
             self.csvdelimiter_lbl.show()
+            self.format_dropdown.show()
+            self.format_lbl.show()
         else:
             self.csvdelimiter_dropdown.hide()
             self.csvdelimiter_lbl.hide()
+            self.format_dropdown.hide()
+            self.format_lbl.hide()
 
     def update_fqpr_instances(self, addtl_files=None):
         """
@@ -214,6 +225,9 @@ class ExportDialog(SaveStateDialog):
         elif self.points_view_export.isChecked() and not self.fqpr_inst:
             self.status_msg.setStyleSheet("QLabel { color : " + kluster_variables.error_color + "; }")
             self.status_msg.setText('Error: You must provide at least one dataset that the points come from before exporting')
+        elif self.points_view_export.isChecked() and self.export_opts.currentText() == 'csv' and self.format_dropdown.currentText() == 'xyzhv':
+            self.status_msg.setStyleSheet("QLabel { color : " + kluster_variables.error_color + "; }")
+            self.status_msg.setText('Error: xyzhv + points view export not currently supported, as horizontal uncertainty is not available.')
         elif not self.basic_export_group.isChecked() and not self.line_export.isChecked() and not self.points_view_export.isChecked():
             self.status_msg.setStyleSheet("QLabel { color : " + kluster_variables.error_color + "; }")
             self.status_msg.setText('Error: You must select one of the three export modes (export datasets, export lines, export points)')

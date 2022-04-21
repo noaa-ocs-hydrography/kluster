@@ -211,9 +211,29 @@ class SettingsDialog(SaveStateDialog):
         processingthree.addWidget(self.kvar_pingscsv_label)
         processingthree.addWidget(self.kvar_pingscsv)
 
+        processingfour = QtWidgets.QHBoxLayout()
+        self.kvar_tiledisplay_label = QtWidgets.QLabel('Display grid chunk size (meters)')
+        self.kvar_tiledisplay = QtWidgets.QSpinBox()
+        self.kvar_tiledisplay.setRange(1, 999999)
+        self.kvar_tiledisplay.setValue(kluster_variables.chunk_size_display)
+        self.kvar_tiledisplay.setToolTip('Loading a grid layer will load the grid in chunks of this size, raising this value can create overly large files for the backend and increase memory consumption')
+        processingfour.addWidget(self.kvar_tiledisplay_label)
+        processingfour.addWidget(self.kvar_tiledisplay)
+
+        processingfive = QtWidgets.QHBoxLayout()
+        self.kvar_tileexport_label = QtWidgets.QLabel('Export grid chunk size (meters)')
+        self.kvar_tileexport = QtWidgets.QSpinBox()
+        self.kvar_tileexport.setRange(1, 999999)
+        self.kvar_tileexport.setValue(kluster_variables.chunk_size_export)
+        self.kvar_tileexport.setToolTip('Exporting a grid will save one chunk to a file, the chunk being this wide/high. raising this value can create overly large files for the backend and increase memory consumption')
+        processingfive.addWidget(self.kvar_tileexport_label)
+        processingfive.addWidget(self.kvar_tileexport)
+
         self.processing_layout.addLayout(processingone)
         self.processing_layout.addLayout(processingtwo)
         self.processing_layout.addLayout(processingthree)
+        self.processing_layout.addLayout(processingfour)
+        self.processing_layout.addLayout(processingfive)
         self.processing_layout.addStretch()
 
         self.processing_tab.setLayout(self.processing_layout)
@@ -265,7 +285,7 @@ class SettingsDialog(SaveStateDialog):
         self.kvar_beamangle.setValidator(validator)
         self.kvar_beamangle.setText(str(kluster_variables.default_beam_opening_angle))
         self.kvar_beamangle.editingFinished.connect(self.validate_numctrl)
-        self.kvar_beamangle.setToolTip('Default Receiver beam opening angle, should auto populate from the multibeam data, this value is used otherwise')
+        self.kvar_beamangle.setToolTip('Default Transmitter/Receiver beam opening angle, should auto populate from the multibeam data, this value is used otherwise')
         self.kvar_sverror_label = QtWidgets.QLabel('Default Surface SV Error (meters/second)')
         self.kvar_sverror = QtWidgets.QLineEdit('')
         self.kvar_sverror.setValidator(validator)
@@ -397,6 +417,7 @@ class SettingsDialog(SaveStateDialog):
                     'phase_color': self.kvar_phase_color.currentText(), 'reject_color': self.kvar_reject_color.currentText(),
                     'reaccept_color': self.kvar_reaccept_color.currentText(), 'converted_files_at_once': self.kvar_convfiles.text(),
                     'pings_per_las': self.kvar_pingslas.text(), 'pings_per_csv': self.kvar_pingscsv.text(),
+                    'chunk_size_display': self.kvar_tiledisplay.text(), 'chunk_size_export': self.kvar_tileexport.text(),
                     'default_heave_error': self.kvar_heaveerror.text(), 'default_roll_sensor_error': self.kvar_rollerror.text(),
                     'default_pitch_sensor_error': self.kvar_pitcherror.text(), 'default_heading_sensor_error': self.kvar_yawerror.text(),
                     'default_beam_opening_angle': self.kvar_beamangle.text(), 'default_surface_sv_error': self.kvar_sverror.text(),
@@ -466,6 +487,8 @@ class SettingsDialog(SaveStateDialog):
             self.kvar_convfiles.setValue(int(kluster_variables.kvar_initial_state['converted_files_at_once']))
             self.kvar_pingslas.setValue(int(kluster_variables.kvar_initial_state['pings_per_las']))
             self.kvar_pingscsv.setValue(int(kluster_variables.kvar_initial_state['pings_per_csv']))
+            self.kvar_tiledisplay.setValue(int(kluster_variables.kvar_initial_state['chunk_size_display']))
+            self.kvar_tileexport.setValue(int(kluster_variables.kvar_initial_state['chunk_size_export']))
         elif curidx == 3:
             self.kvar_beamangle.setText(str(kluster_variables.kvar_initial_state['default_beam_opening_angle']))
             self.kvar_heaveerror.setText(str(kluster_variables.kvar_initial_state['default_heave_error']))

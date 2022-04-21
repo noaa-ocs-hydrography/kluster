@@ -59,7 +59,10 @@ class FqprExport:
             z variable stacked in the time/beam dimension to create 1 dim representation.  rejected soundings removed
             if filter_by_detection
         xr.DataArray
-            uncertainty variable stacked in the time/beam dimension to create 1 dim representation.  rejected soundings removed
+            horizontal uncertainty variable stacked in the time/beam dimension to create 1 dim representation.  rejected soundings removed
+            if filter_by_detection
+        xr.DataArray
+            vertical uncertainty variable stacked in the time/beam dimension to create 1 dim representation.  rejected soundings removed
             if filter_by_detection
         np.array
             indexes of the original z data before stacking, used to unstack x
@@ -78,7 +81,8 @@ class FqprExport:
         z_stck = ping_dataset['z'][nan_mask]
         if 'tvu' in ping_dataset:
             uncertainty_included = True
-            unc_stck = ping_dataset['tvu'][nan_mask]
+            vunc_stck = ping_dataset['tvu'][nan_mask]
+            hunc_stck = ping_dataset['thu'][nan_mask]
 
         # build mask with kongsberg detection info
         classification = None
@@ -92,14 +96,16 @@ class FqprExport:
             tot_valid = np.count_nonzero(valid_detections)
             tot_invalid = tot - tot_valid
         # filter points by mask
-        unc = None
+        vunc = None
+        hunc = None
         if filter_by_detection and valid_detections is not None:
             x = x_stck[valid_detections]
             y = y_stck[valid_detections]
             z = z_stck[valid_detections]
             classification = filter_stck[valid_detections]
             if uncertainty_included:
-                unc = unc_stck[valid_detections]
+                vunc = vunc_stck[valid_detections]
+                hunc = hunc_stck[valid_detections]
             print('{} total soundings, {} retained, {} filtered'.format(tot, tot_valid, tot_invalid))
         else:
             x = x_stck
@@ -108,13 +114,14 @@ class FqprExport:
             if 'detectioninfo' in ping_dataset:
                 classification = filter_stck
             if uncertainty_included:
-                unc = unc_stck
+                vunc = vunc_stck
+                hunc = hunc_stck
 
         # z positive down is the native convention in Kluster, if you want positive up, gotta flip
         if not z_pos_down:
             z = z * -1
 
-        return x, y, z, unc, nan_mask, classification, valid_detections, uncertainty_included
+        return x, y, z, hunc, vunc, nan_mask, classification, valid_detections, uncertainty_included
 
     def _validate_export(self, output_directory: str, file_format: str):
         """
@@ -166,7 +173,7 @@ class FqprExport:
         return chunksize, fldr_path, entwine_fldr_path, suffix
 
     def export_lines_to_file(self, linenames: list = None, output_directory: str = None, file_format: str = 'csv', csv_delimiter=' ',
-                             filter_by_detection: bool = True, z_pos_down: bool = True, export_by_identifiers: bool = True):
+                             filter_by_detection: bool = True, format_type: str = 'xyz', z_pos_down: bool = True, export_by_identifiers: bool = True):
         """
         Take each provided line name and export it to the file_format provided
 
@@ -182,6 +189,9 @@ class FqprExport:
             optional, if you choose file_format=csv, this will control the delimiter
         filter_by_detection
             optional, if True will only write soundings that are not rejected
+        format_type
+            optional, used in csv mode, will determine the columns/variables exported to the text file, one of ['xyz', 'xyzv', 'xyzhv'],
+            h being horizontal uncertainty and v being vertical uncertainty.
         z_pos_down
             if True, will export soundings with z positive down (this is the native Kluster convention), only for csv
             export
@@ -205,7 +215,7 @@ class FqprExport:
         totalfiles = []
         for linename in linenames:
             try:
-                data_dict = self.fqpr.subset_variables_by_line(['x', 'y', 'z', 'tvu', 'frequency', 'txsector_beam', 'detectioninfo'], [linename], filter_by_detection=filter_by_detection)
+                data_dict = self.fqpr.subset_variables_by_line(['x', 'y', 'z', 'thu', 'tvu', 'frequency', 'txsector_beam', 'detectioninfo'], [linename], filter_by_detection=filter_by_detection)
             except:
                 data_dict = self.fqpr.subset_variables_by_line(['x', 'y', 'z', 'frequency', 'txsector_beam', 'detectioninfo'], [linename], filter_by_detection=filter_by_detection)
             if data_dict:  # we could get the data_dict for all lines at once, but we do it line by line to avoid memory issues
@@ -213,7 +223,7 @@ class FqprExport:
                 new_files = []
                 if file_format == 'csv':
                     new_files = self._export_pings_to_csv(rp=line_rp, output_directory=fldr_path, suffix=suffix, csv_delimiter=csv_delimiter, filter_by_detection=False,
-                                                          z_pos_down=z_pos_down, export_by_identifiers=export_by_identifiers,
+                                                          z_pos_down=z_pos_down, export_by_identifiers=export_by_identifiers, format_type=format_type,
                                                           base_name=os.path.splitext(linename)[0])
                 elif file_format in ['las', 'entwine']:
                     new_files = self._export_pings_to_las(rp=line_rp, output_directory=fldr_path, suffix=suffix, filter_by_detection=False,
@@ -276,7 +286,8 @@ class FqprExport:
             self.fqpr.logger.error('export_tracklines_to_file: file format {} is not supported, currently we only support GPKG')
 
     def export_pings_to_file(self, output_directory: str = None, file_format: str = 'csv', csv_delimiter=' ',
-                             filter_by_detection: bool = True, z_pos_down: bool = True, export_by_identifiers: bool = True):
+                             filter_by_detection: bool = True, format_type: str = 'xyz', z_pos_down: bool = True,
+                             export_by_identifiers: bool = True):
         """
         Uses the output of georef_along_across_depth to build sounding exports.  Currently you can export to csv, las or
         entwine file formats, see file_format argument.  This will use all soundings in the dataset.
@@ -299,6 +310,9 @@ class FqprExport:
             optional, if you choose file_format=csv, this will control the delimiter
         filter_by_detection
             optional, if True will only write soundings that are not rejected
+        format_type
+            optional, used in csv mode, will determine the columns/variables exported to the text file, one of ['xyz', 'xyzv', 'xyzhv'],
+            h being horizontal uncertainty and v being vertical uncertainty.
         z_pos_down
             if True, will export soundings with z positive down (this is the native Kluster convention), only for csv
             export
@@ -335,7 +349,7 @@ class FqprExport:
                 if file_format == 'csv':
                     new_files = self._export_pings_to_csv(rp=slice_rp, output_directory=fldr_path, suffix=new_suffix, csv_delimiter=csv_delimiter,
                                                           filter_by_detection=filter_by_detection, z_pos_down=z_pos_down,
-                                                          export_by_identifiers=export_by_identifiers)
+                                                          export_by_identifiers=export_by_identifiers, format_type=format_type)
                 elif file_format in ['las', 'entwine']:
                     new_files = self._export_pings_to_las(rp=slice_rp, output_directory=fldr_path, suffix=new_suffix, filter_by_detection=filter_by_detection,
                                                           export_by_identifiers=export_by_identifiers)
@@ -351,7 +365,7 @@ class FqprExport:
         return written_files
 
     def export_soundings_to_file(self, datablock: list, output_directory: str = None, file_format: str = 'csv', csv_delimiter=' ',
-                                 filter_by_detection: bool = True, z_pos_down: bool = True):
+                                 filter_by_detection: bool = True, format_type: str = 'xyz', z_pos_down: bool = True):
         """
         A convenience method for exporting the data currently in the Kluster Points View to file.
 
@@ -368,6 +382,9 @@ class FqprExport:
             optional, if you choose file_format=csv, this will control the delimiter
         filter_by_detection
             optional, if True will only write soundings that are not rejected
+        format_type
+            optional, used in csv mode, will determine the columns/variables exported to the text file, one of ['xyz', 'xyzv'],
+            h being horizontal uncertainty and v being vertical uncertainty.
         z_pos_down
             if True, will export soundings with z positive down (this is the native Kluster convention), only for csv
             export
@@ -381,6 +398,8 @@ class FqprExport:
         chunksize, fldr_path, entwine_fldr_path, suffix = self._validate_export(output_directory, file_format)
         if not chunksize:
             return []
+        if format_type == 'xyzhv':
+            raise NotImplementedError('xyzhv not currently supported, as horizontal uncertainty is not available within the Points View')
 
         self.fqpr.logger.info('****Exporting xyz data to {}****'.format(file_format))
         starttime = perf_counter()
@@ -418,7 +437,10 @@ class FqprExport:
                 else:
                     dest_path = os.path.join(fldr_path, base_name + '.csv')
                 self.fqpr.logger.info('writing to {}'.format(dest_path))
-                self._csv_write(x, y, z, tvu, unc_included, dest_path, csv_delimiter)
+                if format_type == 'xyzv':
+                    self._csv_write(x, y, z, dest_path, csv_delimiter, vertical_uncertainty=tvu)
+                else:
+                    self._csv_write(x, y, z, dest_path, csv_delimiter)
             else:
                 if suffix:
                     dest_path = os.path.join(fldr_path, '{}_{}.las'.format(base_name, suffix))
@@ -438,7 +460,7 @@ class FqprExport:
         return written_files
 
     def _export_pings_to_csv(self, rp: xr.Dataset, output_directory: str = None, suffix: str = None, csv_delimiter: str = ' ', filter_by_detection: bool = True,
-                             z_pos_down: bool = True, export_by_identifiers: bool = True, base_name: str = None):
+                             z_pos_down: bool = True, export_by_identifiers: bool = True, format_type: str = 'xyz', base_name: str = None):
         """
         Method for exporting pings to csv files.  See export_pings_to_file to use.
 
@@ -458,6 +480,9 @@ class FqprExport:
             if True, will export soundings with z positive down (this is the native Kluster convention)
         export_by_identifiers
             if True, will generate separate files for each combination of serial number/sector/frequency
+        format_type
+            optional, used in csv mode, will determine the columns/variables exported to the text file, one of ['xyz', 'xyzv', 'xyzhv'],
+            h being horizontal uncertainty and v being vertical uncertainty.
         base_name
             optional, the base name of the exported file, if None it will use the folder name of the converted data
 
@@ -487,8 +512,13 @@ class FqprExport:
                         dest_path = os.path.join(output_directory, '{}_{}_{}.csv'.format(base_name, secid, freq))
                     self.fqpr.logger.info('writing to {}'.format(dest_path))
                     export_data = self._generate_export_data(sec_subset_rp, filter_by_detection=filter_by_detection, z_pos_down=z_pos_down)
-                    self._csv_write(export_data[0], export_data[1], export_data[2], export_data[3], export_data[7],
-                                    dest_path, csv_delimiter)
+                    x, y, z, hunc, vunc, nan_mask, classification, valid_detections, uncertainty_included = export_data
+                    if format_type == 'xyzhv':
+                        self._csv_write(x, y, z, dest_path, csv_delimiter, horizontal_uncertainty=hunc, vertical_uncertainty=vunc)
+                    elif format_type == 'xyzv':
+                        self._csv_write(x, y, z, dest_path, csv_delimiter, vertical_uncertainty=vunc)
+                    else:
+                        self._csv_write(x, y, z, dest_path, csv_delimiter)
                     written_files.append(dest_path)
 
         else:
@@ -498,14 +528,19 @@ class FqprExport:
                 dest_path = os.path.join(output_directory, base_name + '.csv')
             self.fqpr.logger.info('writing to {}'.format(dest_path))
             export_data = self._generate_export_data(rp, filter_by_detection=filter_by_detection, z_pos_down=z_pos_down)
-            self._csv_write(export_data[0], export_data[1], export_data[2], export_data[3], export_data[7],
-                            dest_path, csv_delimiter)
+            x, y, z, hunc, vunc, nan_mask, classification, valid_detections, uncertainty_included = export_data
+            if format_type == 'xyzhv':
+                self._csv_write(x, y, z, dest_path, csv_delimiter, horizontal_uncertainty=hunc, vertical_uncertainty=vunc)
+            elif format_type == 'xyzv':
+                self._csv_write(x, y, z, dest_path, csv_delimiter, vertical_uncertainty=vunc)
+            else:
+                self._csv_write(x, y, z, dest_path, csv_delimiter)
             written_files.append(dest_path)
 
         return written_files
 
-    def _csv_write(self, x: xr.DataArray, y: xr.DataArray, z: xr.DataArray, uncertainty: xr.DataArray,
-                   uncertainty_included: bool, dest_path: str, delimiter: str):
+    def _csv_write(self, x: xr.DataArray, y: xr.DataArray, z: xr.DataArray, dest_path: str, delimiter: str,
+                   horizontal_uncertainty: xr.DataArray = None, vertical_uncertainty: xr.DataArray = None):
         """
         Write the data to csv
 
@@ -520,22 +555,35 @@ class FqprExport:
         z
             z variable stacked in the time/beam dimension to create 1 dim representation.  rejected soundings removed
             if filter_by_detection
-        uncertainty
-            uncertainty variable stacked in the time/beam dimension to create 1 dim representation.  rejected soundings removed
-            if filter_by_detection
-        uncertainty_included
-            if tvu exists, True
+        horizontal_uncertainty
+            vertical uncertainty variable stacked in the time/beam dimension to create 1 dim representation.  rejected
+            soundings removed if filter_by_detection, Optional
+        vertical_uncertainty
+            vertical uncertainty variable stacked in the time/beam dimension to create 1 dim representation.  rejected
+            soundings removed if filter_by_detection, Optional
         dest_path
             output path to write to
         delimiter
             csv delimiter to use
         """
 
-        if uncertainty_included:
-            np.savetxt(dest_path, np.c_[x, y, z, uncertainty],
+        if horizontal_uncertainty is not None and vertical_uncertainty is not None:
+            np.savetxt(dest_path, np.c_[x, y, z, horizontal_uncertainty, vertical_uncertainty],
+                       fmt=['%3.3f', '%2.3f', '%4.3f', '%4.3f', '%4.3f'],
+                       delimiter=delimiter,
+                       header='easting{}northing{}depth{}horizontal_uncertainty{}vertical_uncertainty'.format(delimiter, delimiter, delimiter, delimiter),
+                       comments='')
+        elif horizontal_uncertainty is not None:
+            np.savetxt(dest_path, np.c_[x, y, z, horizontal_uncertainty],
                        fmt=['%3.3f', '%2.3f', '%4.3f', '%4.3f'],
                        delimiter=delimiter,
-                       header='easting{}northing{}depth{}uncertainty'.format(delimiter, delimiter, delimiter),
+                       header='easting{}northing{}depth{}horizontal_uncertainty'.format(delimiter, delimiter, delimiter),
+                       comments='')
+        elif vertical_uncertainty is not None:
+            np.savetxt(dest_path, np.c_[x, y, z, vertical_uncertainty],
+                       fmt=['%3.3f', '%2.3f', '%4.3f', '%4.3f'],
+                       delimiter=delimiter,
+                       header='easting{}northing{}depth{}vertical_uncertainty'.format(delimiter, delimiter, delimiter),
                        comments='')
         else:
             np.savetxt(dest_path, np.c_[x, y, z],
@@ -602,8 +650,8 @@ class FqprExport:
                         dest_path = os.path.join(output_directory, '{}_{}_{}.las'.format(base_name, secid, freq))
                     self.fqpr.logger.info('writing to {}'.format(dest_path))
                     export_data = self._generate_export_data(sec_subset_rp, filter_by_detection=filter_by_detection, z_pos_down=z_pos_down)
-                    self._las_write(export_data[0], export_data[1], export_data[2], export_data[3],
-                                    export_data[5], export_data[7], dest_path)
+                    x, y, z, hunc, vunc, nan_mask, classification, valid_detections, uncertainty_included = export_data
+                    self._las_write(x, y, z, vunc, classification, uncertainty_included, dest_path)
                     written_files.append(dest_path)
         else:
             if suffix:
@@ -612,8 +660,8 @@ class FqprExport:
                 dest_path = os.path.join(output_directory, base_name + '.las')
             self.fqpr.logger.info('writing to {}'.format(dest_path))
             export_data = self._generate_export_data(rp, filter_by_detection=filter_by_detection, z_pos_down=z_pos_down)
-            self._las_write(export_data[0], export_data[1], export_data[2], export_data[3],
-                            export_data[5], export_data[7], dest_path)
+            x, y, z, hunc, vunc, nan_mask, classification, valid_detections, uncertainty_included = export_data
+            self._las_write(x, y, z, vunc, classification, uncertainty_included, dest_path)
             written_files.append(dest_path)
 
         return written_files

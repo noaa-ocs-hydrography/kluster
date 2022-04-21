@@ -536,7 +536,7 @@ class BasicPlotDialog(QtWidgets.QDialog):
             if zero_centered:
                 defvalue = os.path.splitext(defvalue)[0] + '_zerocentered.csv'
 
-            msg, output_pth = RegistryHelpers.GetFilenameFromUserQT(self, RegistryKey='Kluster', DefaultVal=self.fqpr.output_folder, fFilter="csv files|*.csv",
+            msg, output_pth = RegistryHelpers.GetFilenameFromUserQT(self, RegistryKey='Kluster', DefaultVal=self.fqpr.output_folder, fFilter="csv files | *.csv",
                                                                     DefaultFile=defvalue, Title='Output dataset path for csv export', AppName='\\reghelp')
             if output_pth:
                 min_max = self.data_widget.return_trim_times()
@@ -559,7 +559,7 @@ class BasicPlotDialog(QtWidgets.QDialog):
             defvalue = os.path.join(self.fqpr.output_folder, 'export_{}.csv'.format(ky))
             msg, output_pth = RegistryHelpers.GetFilenameFromUserQT(self, RegistryKey='Kluster',
                                                                     DefaultVal=self.fqpr.output_folder,
-                                                                    fFilter="csv files|*.csv",
+                                                                    fFilter="csv files | *.csv",
                                                                     DefaultFile=defvalue,
                                                                     Title='Output dataset path for csv export',
                                                                     AppName='\\reghelp')

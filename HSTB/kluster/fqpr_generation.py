@@ -1454,7 +1454,7 @@ class Fqpr(ZarrBackend):
                                      input_datum, self.horizontal_crs, z_offset, vdatum_directory])
         return data_for_workers
 
-    def _generate_chunks_tpu(self, ra: xr.Dataset, idx_by_chunk: xr.DataArray, timestmp: str, run_index: int, silent: bool = False):
+    def _generate_chunks_tpu(self, ra: xr.Dataset, idx_by_chunk: xr.DataArray, prefixes: str, timestmp: str, run_index: int, silent: bool = False):
         """
         Take a single sector, and build the data for the distributed system to process.  Georeference requires the
         sv_corrected acrosstrack/alongtrack/depthoffsets, as well as navigation, heading, heave and the quality
@@ -1466,6 +1466,8 @@ class Fqpr(ZarrBackend):
             xarray Dataset for the raw_ping instance selected for processing
         idx_by_chunk
             xarray Datarray, values are the integer indexes of the pings to use, coords are the time of ping
+        prefixes
+            prefix identifier for the tx/rx, will vary for dual head systems
         timestmp
             timestamp of the installation parameters instance used
         run_index
@@ -1507,6 +1509,11 @@ class Fqpr(ZarrBackend):
             image_generation[0] = os.path.join(self.multibeam.converted_pth, 'ping_' + ra.system_identifier + '.zarr')
 
         tpu_params = self.multibeam.return_tpu_parameters(timestmp)
+        # tx/rx opening angles added in kluster 0.9.3, before it was just 'beam_opening_angle' and used as the rx angle
+        if prefixes[1] + '_opening_angle' in tpu_params:  # this is data processed after kluster 0.9.3
+            tpu_params.pop(prefixes[0] + '_opening_angle')
+            tpu_params['beam_opening_angle'] = tpu_params.pop(prefixes[1] + '_opening_angle')
+
         for cnt, chnk in enumerate(idx_by_chunk):
             if 'georef' in self.intermediate_dat[ra.system_identifier]:
                 raise NotImplementedError('_generate_chunks_tpu: in memory workflow not currently implemented for compute tpu')
@@ -2536,33 +2543,36 @@ class Fqpr(ZarrBackend):
             self.logger.info('****Calculating total uncertainty complete: {}****\n'.format(seconds_to_formatted_string(int(endtime - starttime))))
 
     def export_pings_to_file(self, output_directory: str = None, file_format: str = 'csv', csv_delimiter=' ',
-                             filter_by_detection: bool = True, z_pos_down: bool = True, export_by_identifiers: bool = True):
+                             filter_by_detection: bool = True, format_type: str = 'xyz', z_pos_down: bool = True, export_by_identifiers: bool = True):
         """
         Run the export module to export point cloud relevant data to file, see export.export_pings_to_file
         """
         written_files = self.export.export_pings_to_file(output_directory=output_directory, file_format=file_format,
                                                          csv_delimiter=csv_delimiter, filter_by_detection=filter_by_detection,
-                                                         z_pos_down=z_pos_down, export_by_identifiers=export_by_identifiers)
+                                                         format_type=format_type, z_pos_down=z_pos_down,
+                                                         export_by_identifiers=export_by_identifiers)
         return written_files
 
     def export_lines_to_file(self, linenames: list = None, output_directory: str = None, file_format: str = 'csv', csv_delimiter=' ',
-                             filter_by_detection: bool = True, z_pos_down: bool = True, export_by_identifiers: bool = True):
+                             filter_by_detection: bool = True, format_type: str = 'xyz', z_pos_down: bool = True, export_by_identifiers: bool = True):
         """
         Run the export module to export only the data belonging to the given lines to file, see export.export_lines_to_file
         """
         written_files = self.export.export_lines_to_file(linenames=linenames, output_directory=output_directory,
                                                          file_format=file_format, csv_delimiter=csv_delimiter,
-                                                         filter_by_detection=filter_by_detection, z_pos_down=z_pos_down,
-                                                         export_by_identifiers=export_by_identifiers)
+                                                         filter_by_detection=filter_by_detection, format_type=format_type,
+                                                         z_pos_down=z_pos_down, export_by_identifiers=export_by_identifiers)
         return written_files
 
     def export_soundings_to_file(self, datablock: list, output_directory: str = None, file_format: str = 'csv',
-                                 csv_delimiter=' ', filter_by_detection: bool = True, z_pos_down: bool = True):
+                                 csv_delimiter=' ', filter_by_detection: bool = True, format_type: str = 'xyz',
+                                 z_pos_down: bool = True):
         """
         Run the export module to export given soundings to file, see export.export_soundings_to_file
         """
 
-        self.export.export_soundings_to_file(datablock, output_directory, file_format, csv_delimiter, filter_by_detection, z_pos_down)
+        self.export.export_soundings_to_file(datablock, output_directory, file_format, csv_delimiter, filter_by_detection,
+                                             format_type, z_pos_down)
 
     def export_tracklines_to_file(self, linenames: list = None, output_file: str = None, file_format: str = 'GPKG'):
         """
@@ -2679,7 +2689,7 @@ class Fqpr(ZarrBackend):
                 kluster_function = distrib_run_calculate_tpu
                 chunk_function = self._generate_chunks_tpu
                 comp_time = 'tpu_time_complete'
-                chunkargs = [rawping, idx_by_chunk_subset, timestmp, start_run_index]
+                chunkargs = [rawping, idx_by_chunk_subset, prefixes, timestmp, start_run_index]
             else:
                 self.logger.error('Mode must be one of ["orientation", "bpv", "sv_corr", "georef", "tpu"]')
                 raise ValueError('Mode must be one of ["orientation", "bpv", "sv_corr", "georef", "tpu"]')

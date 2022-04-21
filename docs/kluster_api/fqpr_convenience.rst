@@ -17,3 +17,5 @@ fqpr\_convenience module
    :skip: dask_find_or_start_client
    :skip: return_xyz_from_multibeam
    :skip: compile_now
+   :skip: epsg_determinator
+   :skip: return_zone_from_min_max_long

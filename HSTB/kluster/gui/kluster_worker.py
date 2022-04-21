@@ -3,8 +3,9 @@ import traceback
 
 from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal
 from HSTB.kluster.fqpr_project import return_project_data, reprocess_fqprs
+from HSTB.kluster import kluster_variables
 from HSTB.kluster.fqpr_convenience import generate_new_surface, import_processed_navigation, overwrite_raw_navigation, \
-    update_surface, reload_data, reload_surface
+    update_surface, reload_data, reload_surface, points_to_surface
 
 
 class ActionWorker(QtCore.QThread):
@@ -179,7 +180,8 @@ class DrawSurfaceWorker(QtCore.QThread):
                     self.surface_data[resolution] = {}
                     chunk_count = 1
                     for geo_transform, maxdim, data in self.surf_object.get_chunks_of_tiles(resolution=resolution, layer=surface_layer_name,
-                                                                                            nodatavalue=np.float32(np.nan), z_positive_up=False,
+                                                                                            override_maximum_chunk_dimension=kluster_variables.chunk_size_display,
+                                                                                            nodatavalue=np.float32(np.nan), z_positive_up=self.surf_object.positive_up,
                                                                                             for_gdal=True):
                         data = list(data.values())
                         self.surface_data[resolution][self.surface_layer_name + '_{}'.format(chunk_count)] = [data, geo_transform]
@@ -307,12 +309,14 @@ class ExportWorker(QtCore.QThread):
         self.mode = ''
         self.z_pos_down = False
         self.delimiter = ' '
+        self.formattype = 'xyz'
         self.filterset = False
         self.separateset = False
         self.error = False
         self.exceptiontxt = None
 
-    def populate(self, fq_chunks, line_names, datablock, export_type, z_pos_down, delimiter, filterset, separateset, basic_mode, line_mode, points_mode):
+    def populate(self, fq_chunks, line_names, datablock, export_type, z_pos_down, delimiter, formattype, filterset,
+                 separateset, basic_mode, line_mode, points_mode):
         if basic_mode:
             self.mode = 'basic'
         elif line_mode:
@@ -332,6 +336,7 @@ class ExportWorker(QtCore.QThread):
             self.delimiter = ' '
         else:
             raise ValueError('ExportWorker: Expected either "comma" or "space", received {}'.format(delimiter))
+        self.formattype = formattype
         self.filterset = filterset
         self.separateset = separateset
         self.error = False
@@ -340,13 +345,13 @@ class ExportWorker(QtCore.QThread):
     def export_process(self, fq, datablock=None):
         if self.mode == 'basic':
             fq.export_pings_to_file(file_format=self.export_type, csv_delimiter=self.delimiter, filter_by_detection=self.filterset,
-                                    z_pos_down=self.z_pos_down, export_by_identifiers=self.separateset)
+                                    format_type=self.formattype, z_pos_down=self.z_pos_down, export_by_identifiers=self.separateset)
         elif self.mode == 'line':
             fq.export_lines_to_file(linenames=self.line_names, file_format=self.export_type, csv_delimiter=self.delimiter,
-                                    filter_by_detection=self.filterset, z_pos_down=self.z_pos_down, export_by_identifiers=self.separateset)
+                                    filter_by_detection=self.filterset, format_type=self.formattype, z_pos_down=self.z_pos_down, export_by_identifiers=self.separateset)
         else:
             fq.export_soundings_to_file(datablock=datablock, file_format=self.export_type, csv_delimiter=self.delimiter,
-                                        filter_by_detection=self.filterset, z_pos_down=self.z_pos_down)
+                                        filter_by_detection=self.filterset, format_type=self.formattype, z_pos_down=self.z_pos_down)
         return fq
 
     def run(self):
@@ -533,7 +538,9 @@ class ExportGridWorker(QtCore.QThread):
         self.started.emit(True)
         try:
             # None in the 4th arg to indicate you want to export all resolutions
-            self.surf_instance.export(self.output_path, self.export_type, self.z_pos_up, None, **self.bag_kwargs)
+            self.surf_instance.export(self.output_path, self.export_type, self.z_pos_up, None,
+                                      override_maximum_chunk_dimension=kluster_variables.chunk_size_export,
+                                      **self.bag_kwargs)
         except Exception as e:
             self.error = True
             self.exceptiontxt = traceback.format_exc()
@@ -555,6 +562,7 @@ class SurfaceWorker(QtCore.QThread):
         self.opts = {}
         self.error = False
         self.exceptiontxt = None
+        self.mode = 'from_fqpr'
 
     def populate(self, fqpr_instances, opts):
         self.fqpr_instances = fqpr_instances
@@ -562,11 +570,15 @@ class SurfaceWorker(QtCore.QThread):
         self.opts = opts
         self.error = False
         self.exceptiontxt = None
+        self.mode = 'from_fqpr'
 
     def run(self):
         self.started.emit(True)
         try:
-            self.fqpr_surface = generate_new_surface(self.fqpr_instances, **self.opts)
+            if self.mode == 'from_fqpr':
+                self.fqpr_surface = generate_new_surface(self.fqpr_instances, **self.opts)
+            elif self.mode == 'from_points':
+                self.fqpr_surface = points_to_surface(self.fqpr_instances, **self.opts)
         except Exception as e:
             self.error = True
             self.exceptiontxt = traceback.format_exc()

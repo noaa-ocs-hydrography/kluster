@@ -1,0 +1,6 @@
+points_to_surface
+=================
+
+.. currentmodule:: HSTB.kluster.fqpr_convenience
+
+.. autofunction:: points_to_surface

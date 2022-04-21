@@ -15,6 +15,10 @@ phase_color = 'blue'
 reject_color = 'red'
 reaccept_color = 'cyan'
 
+# hide some attributes from the attributes window if they are not significant
+hidden_fqpr_attributes = ['geohashes', 'multibeam_files']
+hidden_grid_attributes = []
+
 # dask_helpers
 # when we get the Client to run a task, we expect all tasks to have finished.  If you get the client and the mem
 # utilization is greater than this percentage, we restart it automatically to clear the memory.
@@ -63,6 +67,8 @@ default_vertical_reference = 'waterline'
 # export
 pings_per_las = 50000  # LAS export will put this many pings in one file before starting a new file
 pings_per_csv = 15000  # csv export will put this many pings in one file before starting a new file
+chunk_size_display = 5000  # width/height of the loaded grid chunks, lowering this creates more grid files but should lower the memory needed
+chunk_size_export = 20000  # width/height of the exported grid chunks, lowering this creates more grid files but should lower the memory needed
 
 # xarray conversion
 ping_chunk_size = 1000  # chunk size (in pings) of each written chunk of data in the ping records
@@ -78,7 +84,8 @@ tpu_parameter_names = ['tx_to_antenna_x', 'tx_to_antenna_y', 'tx_to_antenna_z', 
                        'y_offset_error', 'z_offset_error', 'surface_sv_error', 'roll_patch_error', 'pitch_patch_error',
                        'heading_patch_error', 'latency_patch_error', 'timing_latency_error',
                        'separation_model_error', 'waterline_error', 'vessel_speed_error', 'horizontal_positioning_error',
-                       'vertical_positioning_error', 'beam_opening_angle']
+                       'vertical_positioning_error', 'tx_port_opening_angle', 'tx_stbd_opening_angle', 'rx_port_opening_angle',
+                       'rx_stbd_opening_angle', 'tx_opening_angle', 'rx_opening_angle', 'beam_opening_angle']
 offset_parameter_names = ['tx_port_x', 'tx_stbd_x', 'rx_port_x', 'rx_stbd_x', 'tx_x', 'rx_x', 'tx_port_y', 'tx_stbd_y',
                           'rx_port_y', 'rx_stbd_y', 'tx_y', 'rx_y', 'tx_port_z', 'tx_stbd_z', 'rx_port_z', 'rx_stbd_z',
                           'tx_z', 'rx_z']
@@ -112,6 +119,7 @@ default_waterline_error = 0.020  # default tpu parameter for waterline
 default_horizontal_positioning_error = 1.000  # default tpu parameter for horizontal positioning
 default_vertical_positioning_error = 0.500  # default tpu parameter for vertical positioning
 default_beam_opening_angle = 1.0  # default parameter for beam opening angle in degrees
+
 # currently unused values
 default_x_offset_error = 0.200  # default tpu parameter for x offset measurement
 default_y_offset_error = 0.200  # default tpu parameter for y offset measurement
@@ -121,6 +129,38 @@ default_heading_patch_error = 0.500  # default tpu parameter for heading patch
 default_latency_patch_error = 0.000  # default tpu parameter for latency patch
 default_timing_latency_error = 0.001  # default tpu parameter for latency
 default_vessel_speed_error = 0.100  # default tpu parameter for vessel speed
+
+
+# default beam opening angle has built in transducer identifier, but we keep the same constant across
+@property
+def default_tx_opening_angle():
+    return default_beam_opening_angle
+
+
+@property
+def default_tx_port_opening_angle():
+    return default_beam_opening_angle
+
+
+@property
+def default_tx_stbd_opening_angle():
+    return default_beam_opening_angle
+
+
+@property
+def default_rx_opening_angle():
+    return default_beam_opening_angle
+
+
+@property
+def default_rx_port_opening_angle():
+    return default_beam_opening_angle
+
+
+@property
+def default_rx_stbd_opening_angle():
+    return default_beam_opening_angle
+
 
 # all tpu parameters must have matching default values
 for tname in tpu_parameter_names:
@@ -323,7 +363,8 @@ variable_descriptions = {'acrosstrack': 'The result of running Sound Velocity Co
                          'z': 'The result of running Georeference in Kluster.  This is the sound velocity offsets projected into the coordinate reference system you chose.  Depth is in meters from the vertical reference you chose.'
                          }
 
-int_parameters = ['converted_files_at_once', 'pings_per_las', 'pings_per_csv', 'max_profile_length']
+int_parameters = ['converted_files_at_once', 'pings_per_las', 'pings_per_csv', 'max_profile_length', 'chunk_size_display',
+                  'chunk_size_export']
 float_parameters = ['default_heave_error', 'default_roll_sensor_error', 'default_pitch_sensor_error', 'default_heading_sensor_error',
                     'default_surface_sv_error', 'default_roll_patch_error', 'default_separation_model_error',
                     'default_waterline_error', 'default_horizontal_positioning_error', 'default_vertical_positioning_error',

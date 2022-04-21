@@ -89,7 +89,7 @@ class TestFqprConvenience(unittest.TestCase):
                           'separation_model_error': 0.0,
                           'waterline_error': 0.02, 'vessel_speed_error': 0.1, 'horizontal_positioning_error': 1.0,
                           'vertical_positioning_error': 0.5,
-                          'beam_opening_angle': 1.3}
+                          'tx_opening_angle': 1.0, 'rx_opening_angle': 1.3}
 
     def test_return_system_time_indexed_array(self):
         sysidx = self.out.multibeam.return_system_time_indexed_array()
