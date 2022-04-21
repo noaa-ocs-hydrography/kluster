@@ -196,12 +196,16 @@ class SurfaceDialog(SaveStateDialog):
         self.fqpr_inst = []
         self.canceled = False
         self.output_pth = None
+        self.output_path_edited = False
 
         self.basic_surface_group.toggled.connect(self._handle_basic_checked)
         self.line_surface_checkbox.toggled.connect(self._handle_line_checked)
         self.grid_type.currentTextChanged.connect(self._event_update_status)
         self.input_fqpr.files_updated.connect(self._event_update_fqpr_instances)
         self.surf_method.currentTextChanged.connect(self._handle_method_changed)
+        self.grid_type.currentTextChanged.connect(self._handle_method_changed)
+        self.single_rez_resolution.currentTextChanged.connect(self._handle_method_changed)
+
         self.output_button.clicked.connect(self.file_browse)
         self.output_text.textChanged.connect(self._update_output_pth)
         self.ok_button.clicked.connect(self.start_processing)
@@ -274,6 +278,7 @@ class SurfaceDialog(SaveStateDialog):
             self.cube_method_label.hide()
             self.cube_ihoorder_label.hide()
             self.cube_variance_label.hide()
+        self.update_fqpr_instances()
 
     def _event_update_fqpr_instances(self):
         self.update_fqpr_instances()
@@ -283,7 +288,7 @@ class SurfaceDialog(SaveStateDialog):
             self.input_fqpr.add_new_files(addtl_files)
         if self.input_fqpr.list_widget.count():
             self.fqpr_inst = [self.input_fqpr.list_widget.item(i).text() for i in range(self.input_fqpr.list_widget.count())]
-            if not self.output_text.text():
+            if not self.output_path_edited:
                 self.output_pth = os.path.dirname(self.fqpr_inst[0])
                 curr_opts = self.grid_type.currentText()
                 if curr_opts == 'Single Resolution':
@@ -295,6 +300,7 @@ class SurfaceDialog(SaveStateDialog):
                     raise NotImplementedError(f'dialog_surface: Unable to autobuild output path from grid type {curr_opts}')
                 self.output_pth = os.path.normpath(outpth)
                 self.output_text.setText(self.output_pth)
+                self.output_path_edited = False
 
     def file_browse(self):
         msg, output_pth = RegistryHelpers.GetDirFromUserQT(self, RegistryKey='Kluster', Title='Select output surface path',
@@ -302,9 +308,11 @@ class SurfaceDialog(SaveStateDialog):
         if output_pth is not None:
             self.output_pth = output_pth
             self.output_text.setText(self.output_pth)
+            self.output_path_edited = True
 
     def _update_output_pth(self):
         self.output_pth = self.output_text.text()
+        self.output_path_edited = True
 
     def return_processing_options(self):
         if not self.canceled:
