@@ -174,7 +174,7 @@ class SurfaceFromPointsDialog(SurfaceDialog):
     def _event_update_fqpr_instances(self):
         self.update_fqpr_instances()
         if self.fqpr_inst:
-            self.filetype = os.path.splitext(self.fqpr_inst[0])[1]
+            self.filetype = os.path.splitext(self.fqpr_inst[0])[1].lower()
 
     def return_processing_options(self):
         opts = super().return_processing_options()
@@ -216,6 +216,8 @@ class SurfaceFromPointsDialog(SurfaceDialog):
             pass
         elif not self.invertref_val.text():
             self.status_msg.setText('Error: You must provide a vertical reference string for these files')
+        elif self.surf_method.currentText() == 'CUBE' and (self.filetype in ['.csv', '.txt'] and (not self.tvu_include.isChecked() or not self.thu_include.isChecked())) or (self.filetype in ['.las', '.laz']):
+            self.status_msg.setText('Error: Uncertainty must be provided to run the CUBE algorithm (not supported for las data)')
         else:
             self.canceled = False
             self.save_settings()
