@@ -33,7 +33,6 @@ class KlusterActions(QtWidgets.QTreeView):
         super().__init__(parent)
         self.external_settings = settings
 
-        self.parent = parent
         self.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
         self.model = QtGui.QStandardItemModel()  # row can be 0 even when there are more than 0 rows
         self.setModel(self.model)
@@ -85,6 +84,18 @@ class KlusterActions(QtWidgets.QTreeView):
         self.customContextMenuRequested.connect(self.show_context_menu)
         self.configure()
         self.read_settings()
+
+    def print(self, msg: str, loglevel: int):
+        if self.parent() is not None:
+            self.parent().print(msg, loglevel)
+        else:
+            print(msg)
+
+    def debug_print(self, msg: str, loglevel: int):
+        if self.parent() is not None:
+            self.parent().debug_print(msg, loglevel)
+        else:
+            print(msg)
 
     @property
     def settings_object(self):
@@ -348,7 +359,7 @@ class KlusterActions(QtWidgets.QTreeView):
 
     def auto_process(self):
         if self.is_auto:
-            print('Enabling autoprocessing')
+            self.print('Enabling autoprocessing', logging.INFO)
             self.auto_thread = AutoThread(self.stop_auto, self.emit_auto_signal)
             self.stop_auto.clear()
             self.auto_thread.start()

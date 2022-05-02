@@ -1,3 +1,5 @@
+import logging
+
 import numpy as np
 import sys
 import os
@@ -47,6 +49,18 @@ class KlusterExplorer(TableWithCopy):
         self.set_mode('line')
         self.row_full_attribution = {}
         self.row_translated_attribution = {}
+
+    def print(self, msg: str, loglevel: int):
+        if self.parent() is not None:
+            self.parent().print(msg, loglevel)
+        else:
+            print(msg)
+
+    def debug_print(self, msg: str, loglevel: int):
+        if self.parent() is not None:
+            self.parent().debug_print(msg, loglevel)
+        else:
+            print(msg)
 
     def keyReleaseEvent(self, e):
         """
@@ -338,7 +352,7 @@ class KlusterExplorer(TableWithCopy):
                 if line['Name'] == linename:
                     line_data = line
             if line_data is None:
-                print('build_line_attribution: Unable to find attribution for line {}'.format(linename))
+                self.print('build_line_attribution: Unable to find attribution for line {}'.format(linename), logging.ERROR)
         return line_data
 
     def populate_explorer_with_lines(self, linename, raw_attrs):
@@ -471,6 +485,18 @@ class KlusterAttribution(TableWithCopy):
 
         self.setHorizontalHeaderLabels(self.headr)
         self.horizontalHeader().setStretchLastSection(True)
+
+    def print(self, msg: str, loglevel: int):
+        if self.parent() is not None:
+            self.parent().print(msg, loglevel)
+        else:
+            print(msg)
+
+    def debug_print(self, msg: str, loglevel: int):
+        if self.parent() is not None:
+            self.parent().debug_print(msg, loglevel)
+        else:
+            print(msg)
 
     def display_file_attribution(self, attrs):
         """

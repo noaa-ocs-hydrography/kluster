@@ -1,5 +1,6 @@
 import numpy as np
 import traceback
+import logging
 
 from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal
 from HSTB.kluster.fqpr_project import return_project_data, reprocess_fqprs
@@ -87,13 +88,13 @@ class OpenProjectWorker(QtCore.QThread):
                 if fqpr_entry is not None:  # no fqpr instance successfully loaded
                     self.new_fqprs.append(fqpr_entry)
                 else:
-                    print('Unable to load converted data from {}'.format(pth))
+                    self.parent().print('Unable to load converted data from {}'.format(pth), logging.WARNING)
             for pth in data['surface_paths']:
                 surf_entry = reload_surface(pth)
                 if surf_entry is not None:  # no grid instance successfully loaded
                     self.new_surfaces.append(surf_entry)
                 else:
-                    print('Unable to load surface from {}'.format(pth))
+                    self.parent().print('Unable to load surface from {}'.format(pth), logging.WARNING)
         except Exception as e:
             self.error = True
             self.exceptiontxt = traceback.format_exc()
@@ -127,7 +128,7 @@ class DrawNavigationWorker(QtCore.QThread):
         self.started.emit(True)
         try:
             for fq in self.new_fqprs:
-                print('building tracklines for {}...'.format(fq))
+                self.parent().print('building tracklines for {}...'.format(fq), logging.INFO)
                 for ln in self.project.return_project_lines(proj=fq, relative_path=True):
                     lats, lons = self.project.return_line_navigation(ln)
                     self.line_data[ln] = [lats, lons]

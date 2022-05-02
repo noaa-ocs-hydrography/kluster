@@ -1,6 +1,7 @@
 from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal
 import numpy as np
 import os
+import logging
 
 from HSTB.kluster.gui import common_widgets
 from HSTB.kluster.modules import wobble, sat
@@ -156,6 +157,18 @@ class AdvancedPlotDialog(QtWidgets.QDialog):
         self.plot_button.clicked.connect(self.plot)
         self.roundedfreq.clicked.connect(self._clear_alldata)
 
+    def print(self, msg: str, loglevel: int):
+        if self.parent() is not None:
+            self.parent().print(msg, loglevel)
+        else:
+            print(msg)
+
+    def debug_print(self, msg: str, loglevel: int):
+        if self.parent() is not None:
+            self.parent().debug_print(msg, loglevel)
+        else:
+            print(msg)
+
     def surf_browse(self):
         msg, surf_path = RegistryHelpers.GetDirFromUserQT(self, RegistryKey='Kluster',
                                                           Title='Select gridded data folder',
@@ -164,7 +177,7 @@ class AdvancedPlotDialog(QtWidgets.QDialog):
             if os.path.isdir(surf_path):
                 self.surf_text.setText(surf_path)
             else:
-                print('{} is not an existing directory'.format(surf_path))
+                self.print('{} is not an existing directory'.format(surf_path), logging.ERROR)
 
     def output_browse(self):
         msg, out_path = RegistryHelpers.GetDirFromUserQT(self, RegistryKey='Kluster',

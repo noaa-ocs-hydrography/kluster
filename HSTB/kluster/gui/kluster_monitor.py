@@ -1,3 +1,4 @@
+import logging
 import sys, os
 from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal
 from HSTB.shared import RegistryHelpers
@@ -21,9 +22,8 @@ class MonitorPath(QtWidgets.QWidget):
         parent
             MonitorDashboard
         """
-        super().__init__()
+        super().__init__(parent=parent)
 
-        self.parent = parent
         self.vlayout = QtWidgets.QVBoxLayout()
 
         self.hlayoutone = QtWidgets.QHBoxLayout()
@@ -57,6 +57,18 @@ class MonitorPath(QtWidgets.QWidget):
 
         self.monitor = None
 
+    def print(self, msg: str, loglevel: int):
+        if self.parent() is not None:
+            self.parent().print(msg, loglevel)
+        else:
+            print(msg)
+
+    def debug_print(self, msg: str, loglevel: int):
+        if self.parent() is not None:
+            self.parent().debug_print(msg, loglevel)
+        else:
+            print(msg)
+
     def dir_browse(self):
         """
         As long as you aren't currently running the monitoring, this will get the directory you want to monitor
@@ -69,7 +81,7 @@ class MonitorPath(QtWidgets.QWidget):
             if pth is not None:
                 self.fil_text.setText(pth)
         else:
-            print('You have to stop monitoring before you can change the path')
+            self.print('You have to stop monitoring before you can change the path', logging.WARNING)
 
     def return_monitoring_path(self):
         """
@@ -129,9 +141,9 @@ class MonitorPath(QtWidgets.QWidget):
             self.monitor_start.emit(pth)
             self.include_subdirectories.setEnabled(False)
             self.statuslight.setStyleSheet("QCheckBox::indicator {background-color : green;}")
-            print('Monitoring {}'.format(pth))
+            self.print('Monitoring {}'.format(pth), logging.INFO)
         else:
-            print('MonitorPath: Path does not exist: {}'.format(pth))
+            self.print('MonitorPath: Path does not exist: {}'.format(pth), logging.ERROR)
 
     def stop_monitoring(self):
         """
@@ -142,7 +154,7 @@ class MonitorPath(QtWidgets.QWidget):
             self.monitor.stop()
             self.include_subdirectories.setEnabled(True)
             self.statuslight.setStyleSheet("QCheckBox::indicator {background-color : black;}")
-            print('No longer monitoring {}'.format(self.return_monitoring_path()))
+            self.print('No longer monitoring {}'.format(self.return_monitoring_path()), logging.INFO)
 
     def emit_monitor_event(self, newfile: str, file_event: str):
         """
@@ -170,7 +182,6 @@ class KlusterMonitorWidget(QtWidgets.QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-
         self.parent = parent
         self.monitor_layout = QtWidgets.QVBoxLayout()
 
@@ -214,6 +225,18 @@ class KlusterMonitorWidget(QtWidgets.QWidget):
 
         self.setLayout(self.monitor_layout)
         self.layout()
+
+    def print(self, msg: str, loglevel: int):
+        if self.parent is not None:
+            self.parent.print(msg, loglevel)
+        else:
+            print(msg)
+
+    def debug_print(self, msg: str, loglevel: int):
+        if self.parent is not None:
+            self.parent.debug_print(msg, loglevel)
+        else:
+            print(msg)
 
     def emit_file_event(self, newfile: str, file_event: str):
         """
@@ -299,7 +322,6 @@ class KlusterMonitor(QtWidgets.QScrollArea):
     def __init__(self, parent=None):
         super().__init__(parent)
 
-        self.parent = parent
         self.widget = KlusterMonitorWidget(parent)
 
         # Scroll Area Properties

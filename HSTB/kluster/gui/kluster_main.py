@@ -88,6 +88,12 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.app_library = app_library
         self.start_horiz_size = 1360
         self.start_vert_size = 768
+        self.debug = False
+
+        # initialize the output window first, to get stdout/stderr configured
+        self.output_window = kluster_output_window.KlusterOutput(self)
+        # and then initialize the logger
+        self.logger = return_logger('kluster_main')
 
         self.resize(self.start_horiz_size, self.start_vert_size)
 
@@ -118,7 +124,6 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.explorer = kluster_explorer.KlusterExplorer(self)
         self.explorer_dock = self.dock_this_widget("Explorer", 'explorer_dock', self.explorer)
 
-        self.output_window = kluster_output_window.KlusterOutput(self)
         self.output_window_dock = self.dock_this_widget('Output', 'output_window_dock', self.output_window)
 
         self.attribute = kluster_explorer.KlusterAttribution(self)
@@ -135,8 +140,6 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.console = kluster_interactive_console.KlusterConsole(self)
         self.console_dock = self.dock_this_widget('Console', 'console_dock', self.console)
 
-        self.debug = False
-        self.logger = return_logger('kluster_main')
         self.vessel_win = None
         self.basicplots_win = None
         self.advancedplots_win = None
@@ -162,8 +165,8 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.export_tracklines_thread = kluster_worker.ExportTracklinesWorker()
         self.export_grid_thread = kluster_worker.ExportGridWorker()
         self.filter_thread = kluster_worker.FilterWorker()
-        self.open_project_thread = kluster_worker.OpenProjectWorker()
-        self.draw_navigation_thread = kluster_worker.DrawNavigationWorker()
+        self.open_project_thread = kluster_worker.OpenProjectWorker(self)
+        self.draw_navigation_thread = kluster_worker.DrawNavigationWorker(self)
         self.draw_surface_thread = kluster_worker.DrawSurfaceWorker()
         self.load_points_thread = kluster_worker.LoadPointsWorker()
         self.patch_test_load_thread = kluster_worker.PatchTestUpdateWorker()
@@ -259,12 +262,14 @@ class KlusterMain(QtWidgets.QMainWindow):
         return QtCore.QSettings(kluster_ini, QtCore.QSettings.IniFormat)
 
     def print(self, msg: str, loglevel: int):
+        # all gui objects are going to use this method in printing
         if self.logger is not None:
             self.logger.log(loglevel, msg)
         else:
             print(msg)
 
     def debug_print(self, msg: str, loglevel: int):
+        # all gui objects are going to use this method in debug printing
         if self.debug:
             if self.logger is not None:
                 self.logger.log(loglevel, msg)
@@ -877,12 +882,12 @@ class KlusterMain(QtWidgets.QMainWindow):
         fqprspaths, fqprs = self.return_selected_fqprs(subset_by_line=True)
 
         self.basicplots_win = None
-        self.basicplots_win = dialog_basicplot.BasicPlotDialog()
+        self.basicplots_win = dialog_basicplot.BasicPlotDialog(self)
 
         if fqprs:
             self.basicplots_win.data_widget.new_fqpr_path(fqprspaths[0], fqprs[0])
             self.basicplots_win.data_widget.initialize_controls()
-        self.basicplots_win.setWindowFlags(self.basicplots_win.windowFlags() | QtCore.Qt.WindowStaysOnTopHint)
+        # self.basicplots_win.setWindowFlags(self.basicplots_win.windowFlags() | QtCore.Qt.WindowStaysOnTopHint)
         self.basicplots_win.show()
 
     def kluster_advanced_plots(self):
@@ -900,7 +905,7 @@ class KlusterMain(QtWidgets.QMainWindow):
                 default_plots = os.path.join(os.path.dirname(first_surf), 'accuracy_test_{}'.format(datetime.now().strftime('%Y%m%d_%H%M%S')))
 
         self.advancedplots_win = None
-        self.advancedplots_win = dialog_advancedplot.AdvancedPlotDialog()
+        self.advancedplots_win = dialog_advancedplot.AdvancedPlotDialog(self)
 
         if fqprspaths:
             self.advancedplots_win.data_widget.new_fqpr_path(fqprspaths[0], fqprs[0])
@@ -908,7 +913,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         if first_surf:
             self.advancedplots_win.surf_text.setText(first_surf)
             self.advancedplots_win.out_text.setText(default_plots)
-        self.advancedplots_win.setWindowFlags(self.advancedplots_win.windowFlags() | QtCore.Qt.WindowStaysOnTopHint)
+        # self.advancedplots_win.setWindowFlags(self.advancedplots_win.windowFlags() | QtCore.Qt.WindowStaysOnTopHint)
         self.advancedplots_win.show()
 
     def kluster_execute_action(self, action_container: list, action_index: int = 0):

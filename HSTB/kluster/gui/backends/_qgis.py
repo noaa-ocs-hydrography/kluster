@@ -1,3 +1,4 @@
+import logging
 import os, sys, re
 import numpy as np
 from typing import Union
@@ -743,7 +744,8 @@ class LayerManager:
     Manage the layer order and what layers are currently loaded in QgsMapCanvas.  As layers are added, the order is
     maintained in the names in order attribute.  The layers currently shown are maintained in the shown layers index.
     """
-    def __init__(self):
+    def __init__(self, parent):
+        self.parent = parent
         self.layer_data_lookup = {}
         self.layer_type_lookup = {}
         self.names_in_order = []
@@ -880,7 +882,7 @@ class LayerManager:
             self.layer_type_lookup[layername] = layertype
             self.names_in_order.append(layername)
         else:
-            print('Cant add layer {}, already in layer manager'.format(layername))
+            self.parent.print('Cant add layer {}, already in layer manager'.format(layername), logging.ERROR)
 
     def show_layer(self, layername: str):
         """
@@ -897,9 +899,9 @@ class LayerManager:
             if layer_idx not in self.shown_layers_index:
                 self.shown_layers_index.append(layer_idx)
             else:
-                print('show_layer: layer already in shown layers')
+                self.parent.print('show_layer: layer already in shown layers', logging.WARNING)
         else:
-            print('show layer: layer not loaded')
+            self.parent.print('show layer: layer not loaded', logging.WARNING)
 
     def show_all_layers(self):
         """
@@ -931,9 +933,9 @@ class LayerManager:
             if layer_idx in self.shown_layers_index:
                 self.shown_layers_index.remove(layer_idx)
             else:
-                print('hide_layer: layer not in shown layers')
+                self.parent.print('hide_layer: layer not in shown layers', logging.ERROR)
         else:
-            print('hide layer: layer not loaded')
+            self.parent.print('hide layer: layer not loaded', logging.WARNING)
 
     def remove_layer(self, layername: str):
         """
@@ -958,7 +960,7 @@ class LayerManager:
             self.layer_type_lookup.pop(layername)
             self.names_in_order.remove(layername)
         else:
-            print('remove_layer: layer not loaded')
+            self.parent.print('remove_layer: layer not loaded', logging.ERROR)
 
     def return_layers_by_type(self, search_type: str):
         """
@@ -1016,7 +1018,7 @@ class MapView(QtWidgets.QMainWindow):
     turn_off_pointsview = Signal(bool)
 
     def __init__(self, parent=None, settings=None, epsg: int = kluster_variables.qgis_epsg):
-        super().__init__()
+        super().__init__(parent=parent)
         self.epsg = epsg
         self.vdatum_directory = None
         self.layer_background = 'Default'
@@ -1042,7 +1044,7 @@ class MapView(QtWidgets.QMainWindow):
         self.init_toolbar()
         # start off with the pan tool activated
         self.pan()
-        self.layer_manager = LayerManager()
+        self.layer_manager = LayerManager(self)
 
         # initialize the background layer with the default options (or the ones we have been provided in the optional settings kwarg)
         self.set_background(self.layer_background, self.layer_transparency, self.surface_transparency)
@@ -1050,6 +1052,18 @@ class MapView(QtWidgets.QMainWindow):
         self.toolSelect.select.connect(self._area_selected)
         self.toolPoints.select.connect(self._points_selected)
         self.set_extent(90, -90, 180, -180, buffer=False)
+
+    def print(self, msg: str, loglevel: int):
+        if self.parent() is not None:
+            self.parent().print(msg, loglevel)
+        else:
+            print(msg)
+
+    def debug_print(self, msg: str, loglevel: int):
+        if self.parent() is not None:
+            self.parent().debug_print(msg, loglevel)
+        else:
+            print(msg)
 
     def init_toolbar(self):
         """
@@ -1314,16 +1328,16 @@ class MapView(QtWidgets.QMainWindow):
                 if lyr:
                     lyr.setOpacity(1 - self.layer_transparency)
                 else:
-                    print('QGIS Initialize: Unable to find background layer: {}'.format(bpath))
+                    self.print('QGIS Initialize: Unable to find background layer: {}'.format(bpath), logging.WARNING)
             else:
-                print('QGIS Initialize: Unable to find background layer: {}'.format(bpath))
+                self.print('QGIS Initialize: Unable to find background layer: {}'.format(bpath), logging.WARNING)
 
     def _init_vdatum_extents(self):
         """
         Set the background to the vdatum kml files that signify the extents of vdatum coverage
         """
         if not self.vdatum_directory:
-            print('Unable to find vdatum directory, please make sure you set the path in File - Settings'.format(self.vdatum_directory))
+            self.print('Unable to find vdatum directory, please make sure you set the path in File - Settings'.format(self.vdatum_directory), logging.WARNING)
         else:
             for lname in self.layer_manager.background_layer_names:
                 self.remove_layer(lname)
@@ -1334,9 +1348,9 @@ class MapView(QtWidgets.QMainWindow):
                 if lyr:
                     lyr.setOpacity(1 - self.layer_transparency)
                 else:
-                    print('QGIS Initialize: Unable to find background layer: {}'.format(bpath))
+                    self.print('_init_vdatum_extents: Unable to find background layer: {}'.format(bpath), logging.WARNING)
             else:
-                print('QGIS Initialize: Unable to find background layer: {}'.format(bpath))
+                self.print('_init_vdatum_extents: Unable to find background layer: {}'.format(bpath), logging.WARNING)
 
             kmlfiles = []
             lnames = []
@@ -1358,10 +1372,10 @@ class MapView(QtWidgets.QMainWindow):
                     strsel = "NOT (description = 'GTX Coverage') AND NOT (description = 'masked out areas, code 2')"
                     lyr.setSubsetString(strsel)
                 else:
-                    print('QGIS Initialize: Unable to find background layer: {}'.format(kmlf))
-            print('Loaded {} VDatum kml files'.format(len(kmlfiles)))
+                    self.print('_init_vdatum_extents: Unable to find background layer: {}'.format(kmlf), logging.WARNING)
+            self.print('Loaded {} VDatum kml files'.format(len(kmlfiles)), logging.INFO)
             if not len(kmlfiles):
-                print('Unable to find any kml files in all subdirectories at {}'.format(self.vdatum_directory))
+                self.print('_init_vdatum_extents: Unable to find any kml files in all subdirectories at {}'.format(self.vdatum_directory), logging.ERROR)
 
     def _init_openstreetmap(self):
         """
@@ -1375,7 +1389,7 @@ class MapView(QtWidgets.QMainWindow):
         if lyr:
             lyr.renderer().setOpacity(1 - self.layer_transparency)
         else:
-            print('QGIS Initialize: Unable to find background layer: {}'.format(url_with_params))
+            self.print('_init_openstreetmap: Unable to find background layer: {}'.format(url_with_params), logging.ERROR)
 
     def _init_satellite(self):
         """
@@ -1388,7 +1402,7 @@ class MapView(QtWidgets.QMainWindow):
         if lyr:
             lyr.renderer().setOpacity(1 - self.layer_transparency)
         else:
-            print('QGIS Initialize: Unable to find background layer: {}'.format(url_with_params))
+            self.print('_init_satellite: Unable to find background layer: {}'.format(url_with_params), logging.ERROR)
 
     def _init_noaa_rnc(self):
         """
@@ -1401,7 +1415,7 @@ class MapView(QtWidgets.QMainWindow):
         if lyr:
             lyr.renderer().setOpacity(1 - self.layer_transparency)
         else:
-            print('QGIS Initialize: Unable to find background layer: {}'.format(url_with_params))
+            self.print('_init_noaa_rnc: Unable to find background layer: {}'.format(url_with_params), logging.ERROR)
 
     def _init_noaa_enc(self):
         """
@@ -1415,7 +1429,7 @@ class MapView(QtWidgets.QMainWindow):
             if lyr:
                 lyr.renderer().setOpacity(1 - self.layer_transparency)
             else:
-                print('QGIS Initialize: Unable to find background layer: {}'.format(url_with_params))
+                self.print('_init_noaa_enc: Unable to find background layer: {}'.format(url_with_params), logging.ERROR)
 
     def _init_noaa_chartdisplay(self):
         """
@@ -1429,7 +1443,7 @@ class MapView(QtWidgets.QMainWindow):
             if lyr:
                 lyr.renderer().setOpacity(1 - self.layer_transparency)
             else:
-                print('QGIS Initialize: Unable to find background layer: {}'.format(url_with_params))
+                self.print('_init_noaa_chartdisplay: Unable to find background layer: {}'.format(url_with_params), logging.ERROR)
 
     def _init_gebco(self):
         """
@@ -1442,7 +1456,7 @@ class MapView(QtWidgets.QMainWindow):
         if lyr:
             lyr.renderer().setOpacity(1 - self.layer_transparency)
         else:
-            print('QGIS Initialize: Unable to find background layer: {}'.format(url_with_params))
+            self.print('_init_gebco: Unable to find background layer: {}'.format(url_with_params), logging.ERROR)
 
     def _init_emodnet(self):
         """
@@ -1455,7 +1469,7 @@ class MapView(QtWidgets.QMainWindow):
         if lyr:
             lyr.renderer().setOpacity(1 - self.layer_transparency)
         else:
-            print('QGIS Initialize: Unable to find background layer: {}'.format(url_with_params))
+            self.print('_init_emodnet: Unable to find background layer: {}'.format(url_with_params), logging.ERROR)
 
     def _manager_add_layer(self, layername: str, layerdata: Union[qgis_core.QgsRasterLayer, qgis_core.QgsVectorLayer],
                            layertype: str):
@@ -1583,7 +1597,7 @@ class MapView(QtWidgets.QMainWindow):
             the transparency of all surfaces as a percentage
         """
 
-        print('Initializing {} with transparency of {}%'.format(layername, int(transparency * 100)))
+        self.print('Initializing {} with transparency of {}%'.format(layername, int(transparency * 100)), logging.INFO)
         self.layer_background = layername
         self.layer_transparency = transparency
         self.surface_transparency = surf_transparency
@@ -1608,7 +1622,7 @@ class MapView(QtWidgets.QMainWindow):
         elif self.layer_background == 'EMODnet Bathymetry (internet required)':
             self._init_emodnet()
         else:
-            print(f'Unable to enable layer "{self.layer_background}"')
+            self.print(f'Unable to enable layer "{self.layer_background}"', logging.ERROR)
 
         for lyr in self.layer_manager.surface_layers:
             lyr.renderer().setOpacity(1 - self.surface_transparency)
@@ -1674,7 +1688,7 @@ class MapView(QtWidgets.QMainWindow):
             if refresh:
                 lyr.reload()
         except:
-            print('ERROR: Unable to build navigation from line {}'.format(line_name))
+            self.print('ERROR: Unable to build navigation from line {}'.format(line_name), logging.ERROR)
 
     def remove_line(self, line_name: str, refresh: bool = False):
         """
@@ -2101,8 +2115,8 @@ class MapView(QtWidgets.QMainWindow):
         """
         rlayer = qgis_core.QgsRasterLayer(source, layername, providertype)
         if rlayer.error().message():
-            print("{} Layer failed to load!".format(layername))
-            print(rlayer.error().message())
+            self.print("{} Layer failed to load!".format(layername), logging.ERROR)
+            self.print(rlayer.error().message(), logging.ERROR)
             return
         if providertype == 'gdal':
             renderer, formatted_layername = self._create_raster_renderer(rlayer, layername)
@@ -2136,14 +2150,14 @@ class MapView(QtWidgets.QMainWindow):
         """
         vlayer = qgis_core.QgsVectorLayer(source, layername, providertype)
         if vlayer.error().message():
-            print("{} Layer failed to load!".format(source))
-            print(vlayer.error().message())
+            self.print("{} Layer failed to load!".format(source), logging.ERROR)
+            self.print(vlayer.error().message(), logging.ERROR)
             return
         if color:
             if vlayer.renderer():  # can only set color if there is data
                 vlayer.renderer().symbol().setColor(color)
             else:
-                print('{} unable to set color'.format(source))
+                self.print('{} unable to set color'.format(source), logging.ERROR)
         self.project.addMapLayer(vlayer, True)
         return vlayer
 
@@ -2188,7 +2202,7 @@ class MapView(QtWidgets.QMainWindow):
         else:
             layer = None
             if not silent:
-                print('layer_by_name: Unable to find layer {}'.format(layername))
+                self.print('layer_by_name: Unable to find layer {}'.format(layername), logging.ERROR)
         return layer
 
     def change_line_colors(self, line_names: list, color: str):
@@ -2248,7 +2262,7 @@ class MapView(QtWidgets.QMainWindow):
                 if lyrs:
                     break
             if not lyrs:
-                print('No layer loaded for {}'.format(subset_surf))
+                self.print('No layer loaded for {}'.format(subset_surf), logging.ERROR)
                 return
         else:
             lyrs = self.layer_manager.surface_layers
@@ -2356,11 +2370,11 @@ class MapView(QtWidgets.QMainWindow):
                                                          AppName='klusterproj', bMulti=False, bSave=True, DefaultFile="screenshot.png",
                                                          fFilter='png (*.png);;pdf (*.pdf);;jpeg (*.jpeg);;jpg (*.jpg)')
         if msg:
-            print(f'Generating screenshot {fil}')
+            self.print(f'Generating screenshot {fil}', logging.INFO)
             supported_extensions = ['.pdf', '.png', '.jpeg', '.jpg']
             fil_ext = os.path.splitext(fil)[1]
             if fil_ext not in supported_extensions:
-                print(f'take_screenshot - {fil} file type not supported, must be one of {supported_extensions}')
+                self.print(f'take_screenshot - {fil} file type not supported, must be one of {supported_extensions}', logging.ERROR)
                 return
 
             project = self.project
@@ -2376,7 +2390,7 @@ class MapView(QtWidgets.QMainWindow):
             doc.setContent(template_content)
             items, chk = layout.loadFromTemplate(doc, qgis_core.QgsReadWriteContext(), False)
             if not chk:
-                print(f'Error loading from template file {templatefile}')
+                self.print(f'Error loading from template file {templatefile}', logging.ERROR)
                 return
 
             # get the layout map from the template load.  we need to setLayers, so that our loaded lines/grids show up.
@@ -2385,7 +2399,7 @@ class MapView(QtWidgets.QMainWindow):
             #  but they are a pain in the ass to setup, and seem to cause issues on import.
             mymap = [itm for itm in items if isinstance(itm, qgis_core.QgsLayoutItemMap)]
             if not mymap or len(mymap) > 1:
-                print(f'Unexpected item map found {mymap}')
+                self.print(f'Unexpected item map found {mymap}', logging.ERROR)
                 return
             mymap = mymap[0]
             drop_layers = []
@@ -2441,7 +2455,7 @@ class MapView(QtWidgets.QMainWindow):
             # if we have grids, we need to use the legend
             mylegend = [itm for itm in items if isinstance(itm, qgis_core.QgsLayoutItemLegend)]
             if not mylegend or len(mylegend) > 1:
-                print(f'Unexpected item legend found {mylegend}')
+                self.print(f'Unexpected item legend found {mylegend}', logging.ERROR)
                 return
             mylegend = mylegend[0]
             if drop_layers:  # ideally all layers have the same legend (min max being the same)
@@ -2468,7 +2482,7 @@ class MapView(QtWidgets.QMainWindow):
             # I like this arrow more than any of the prebuilt ones in qgis
             myarrow = [itm for itm in pics if itm.mode() == qgis_core.QgsLayoutItemPicture.FormatRaster]
             if not myarrow or len(myarrow) > 1:
-                print(f'Unexpected item northarrow found {myarrow}')
+                self.print(f'Unexpected item northarrow found {myarrow}', logging.ERROR)
                 return
             myarrow = myarrow[0]
             myarrow.setPicturePath(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'images', 'NorthArrow.png'))
@@ -2485,7 +2499,7 @@ class MapView(QtWidgets.QMainWindow):
             #  to calculate the screenshot width, convert units, and then build scale bar units accordingly
             myscale = [itm for itm in items if isinstance(itm, qgis_core.QgsLayoutItemScaleBar)]
             if not myscale or len(myscale) > 1:
-                print(f'Unexpected item scalebar found {myscale}')
+                self.print(f'Unexpected item scalebar found {myscale}', logging.ERROR)
                 return
             myscale = myscale[0]
             myextent = mymap.extent()
@@ -2506,7 +2520,7 @@ class MapView(QtWidgets.QMainWindow):
                     found = True
                     break
             if not found:
-                print(f'Warning: Unable to generate scale bar for screen width of {screenshot_width_in_nm} NM')
+                self.print(f'Warning: Unable to generate scale bar for screen width of {screenshot_width_in_nm} NM', logging.WARNING)
 
             if os.path.exists(fil):
                 os.remove(fil)
@@ -2515,7 +2529,7 @@ class MapView(QtWidgets.QMainWindow):
                 exporter.exportToPdf(fil, qgis_core.QgsLayoutExporter.PdfExportSettings())
             else:
                 exporter.exportToImage(fil, qgis_core.QgsLayoutExporter.ImageExportSettings())
-            print(f'Screenshot saved to {fil}')
+            self.print(f'Screenshot saved to {fil}', logging.INFO)
             exporter = None
             mymap.setLayers([])
             mymap = None

@@ -2,7 +2,7 @@ from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal
 import matplotlib.pyplot as plt
 import numpy as np
 import os
-from datetime import datetime
+import logging
 
 from HSTB.shared import RegistryHelpers
 from HSTB.kluster import kluster_variables
@@ -137,6 +137,18 @@ class BasicPlotDialog(QtWidgets.QDialog):
         self.exportvar_button.clicked.connect(self.export_variable)
         self.exportsource_button.clicked.connect(self.export_source)
 
+    def print(self, msg: str, loglevel: int):
+        if self.parent() is not None:
+            self.parent().print(msg, loglevel)
+        else:
+            print(msg)
+
+    def debug_print(self, msg: str, loglevel: int):
+        if self.parent() is not None:
+            self.parent().debug_print(msg, loglevel)
+        else:
+            print(msg)
+
     def new_fqpr_loaded(self, loaded: bool):
         """
         If a new fqpr is loaded (fqpr = converted Kluster data store) load the datasets
@@ -175,17 +187,17 @@ class BasicPlotDialog(QtWidgets.QDialog):
                 if procnav is not None:
                     self.datasets['processed navigation'] = procnav
             else:
-                print('No multibeam dataset(s) found in {}'.format(self.fqpr.multibeam.converted_pth))
+                self.print('No multibeam dataset(s) found in {}'.format(self.fqpr.multibeam.converted_pth), logging.WARNING)
 
             if self.fqpr.multibeam.raw_att:
                 self.datasets['attitude'] = self.fqpr.multibeam.raw_att
             else:
-                print('No attitude dataset found in {}'.format(self.fqpr.multibeam.converted_pth))
+                self.print('No attitude dataset found in {}'.format(self.fqpr.multibeam.converted_pth), logging.WARNING)
 
             if 'alongtrack' in self.fqpr.multibeam.raw_ping[0] or 'x' in self.fqpr.multibeam.raw_ping[0]:
                 self.datasets['custom'] = self.fqpr.plot
             else:
-                print('No svcorrected/georeferenced variables found in {}'.format(self.fqpr.multibeam.converted_pth))
+                self.print('No svcorrected/georeferenced variables found in {}'.format(self.fqpr.multibeam.converted_pth), logging.WARNING)
 
             combo_items = list(self.datasets.keys())
             self.dataset_dropdown.clear()

@@ -60,19 +60,19 @@ def return_logger(name, logfile: str = None):
 
     """
     global log_counter
-    fmat = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    fmat = '%(asctime)s - %(levelname)s - %(message)s'
     logger = logging.getLogger(name + str('_') + str(log_counter))
     log_counter += 1
     logger.setLevel(loglevel)
 
     consolelogger = logging.StreamHandler(sys.stdout)
     consolelogger.setLevel(loglevel)
-    #consolelogger.setFormatter(logging.Formatter(fmat))
+    consolelogger.setFormatter(logging.Formatter(fmat))
     consolelogger.addFilter(StdOutFilter())
 
     errorlogger = logging.StreamHandler(sys.stderr)
     errorlogger.setLevel(logging.WARNING)
-    #errorlogger.setFormatter(logging.Formatter(fmat))
+    errorlogger.setFormatter(logging.Formatter(fmat))
     errorlogger.addFilter(StdErrFilter())
 
     logger.addHandler(consolelogger)
