@@ -36,7 +36,7 @@ def return_log_name():
     return 'logfile_{}.txt'.format(int(datetime.utcnow().timestamp()))
 
 
-def return_logger(name, logfile):
+def return_logger(name, logfile: str = None):
     """
     Built to support logging within the kluster system.  Each instance of each class gets a separate logger, identified
     by the name attribute passed in here.  This is important because each instance of the kluster processing that is
