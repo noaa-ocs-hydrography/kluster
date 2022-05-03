@@ -1,19 +1,21 @@
 import os
+import logging
 from datetime import datetime, timezone
 
 from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal
+from HSTB.kluster.gui.common_widgets import SaveStateDialog
 from matplotlib.backends.backend_qt5agg import (FigureCanvasQTAgg, NavigationToolbar2QT as NavigationToolbar)
 import matplotlib.pyplot as plt
 
 
-class ManageSurfaceDialog(QtWidgets.QWidget):
+class ManageSurfaceDialog(SaveStateDialog):
     """
     Dialog contains a summary of the surface data and some options for altering the data contained within.
     """
     update_surface = Signal(str)
 
-    def __init__(self, parent=None):
-        super().__init__(parent)
+    def __init__(self, parent=None, title='', settings=None):
+        super().__init__(parent, settings, widgetname='ManageSurfaceDialog')
 
         self.setMinimumWidth(500)
         self.setMinimumHeight(400)

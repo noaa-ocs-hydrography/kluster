@@ -1,4 +1,5 @@
 import os
+import logging
 from copy import deepcopy
 import numpy as np
 from datetime import datetime
@@ -6,7 +7,6 @@ from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal, back
 
 from vispy import use
 use(backend, 'gl2')
-
 
 from vispy import scene
 from vispy.io import read_mesh
@@ -2054,7 +2054,7 @@ class VesselWidget(QtWidgets.QWidget):
         self.vessview_window = VesselView(self)
         self.vessview_window.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
         self.opts_window = OptionsWidget(self)
-        self.opts_window.setFixedWidth(300)
+        # self.opts_window.setFixedWidth(300)
 
         self.show_vessel_action = QtWidgets.QAction('Show Vessel', self)
         self.show_vessel_action.setCheckable(True)
@@ -2093,6 +2093,40 @@ class VesselWidget(QtWidgets.QWidget):
         self.xyzrph = None
         self.canceled = False
         self.setup_toolbar()
+
+    def print(self, msg: str, loglevel: int):
+        """
+        convenience method for printing using kluster_main logger
+
+        Parameters
+        ----------
+        msg
+            print text
+        loglevel
+            logging level, ex: logging.INFO
+        """
+
+        if self.parent() is not None:
+            self.parent().print(msg, loglevel)
+        else:
+            print(msg)
+
+    def debug_print(self, msg: str, loglevel: int):
+        """
+        convenience method for printing using kluster_main logger, when debug is enabled
+
+        Parameters
+        ----------
+        msg
+            print text
+        loglevel
+            logging level, ex: logging.INFO
+        """
+
+        if self.parent() is not None:
+            self.parent().debug_print(msg, loglevel)
+        else:
+            print(msg)
 
     def setup_toolbar(self):
         """
@@ -2160,7 +2194,7 @@ class VesselWidget(QtWidgets.QWidget):
                     self.opts_window.data[orig_serial].pop(orig_time)
                     return
                 if new_timestamp in self.opts_window.data[orig_serial]:
-                    print('ERROR: {} is an existing timestamp, cannot change {} to {}'.format(new_timestamp, orig_time, new_timestamp))
+                    self.print('{} is an existing timestamp, cannot change {} to {}'.format(new_timestamp, orig_time, new_timestamp), logging.ERROR)
                 for sensor in self.xyzrph[orig_serial]:
                     sensor_data = self.xyzrph[orig_serial][sensor]
                     orig_timestamp_data = sensor_data[orig_timestamp]
@@ -2171,7 +2205,7 @@ class VesselWidget(QtWidgets.QWidget):
                 del self.opts_window.data[orig_serial][orig_timestamp]
                 self.opts_window.time_selected(None, setup=True)
         else:
-            print('No vessel file loaded')
+            self.print('No vessel file loaded', logging.ERROR)
 
     def new_entry(self):
         """
@@ -2186,8 +2220,8 @@ class VesselWidget(QtWidgets.QWidget):
             if dlog.exec_() and not dlog.canceled:
                 new_timestamp = dlog.return_new_timestamp()
                 if new_timestamp in self.opts_window.data[orig_serial]:
-                    print('ERROR: {} is an existing timestamp, cannot change {} to {}'.format(new_timestamp, orig_time,
-                                                                                              new_timestamp))
+                    self.print('{} is an existing timestamp, cannot change {} to {}'.format(new_timestamp, orig_time,
+                                                                                            new_timestamp), logging.ERROR)
                 tstmps = np.array([float(tst) for tst in self.opts_window.data[orig_serial].keys()])
                 nearest = str(int(tstmps[np.abs(tstmps - float(new_timestamp)).argmin()]))
                 for sensor in self.xyzrph[orig_serial]:
@@ -2195,7 +2229,7 @@ class VesselWidget(QtWidgets.QWidget):
                 self.opts_window.data[orig_serial][new_timestamp] = self.opts_window.data[orig_serial][nearest]
                 self.opts_window.time_selected(None, setup=True)
         else:
-            print('No vessel file loaded')
+            self.print('No vessel file loaded', logging.ERROR)
 
     def update_xyzrph_vessel(self, pth_to_vessel):
         """
@@ -2276,7 +2310,8 @@ class VesselWidget(QtWidgets.QWidget):
                                     # vesselcenter might not be in xyzrph, as it is created in the vessel view widget
                                     self.xyzrph[serial_num][entry] = {orig_tstmp: format(data[cnt], '.3f')}
                             except KeyError:
-                                print('Unable to update self.xyzrph for {} with time stamp {}: {} not in {}'.format(entry, orig_tstmp, orig_tstmp, entry))
+                                self.print('Unable to update self.xyzrph for {} with time stamp {}: {} not in {}'.format(entry, orig_tstmp, orig_tstmp, entry),
+                                           logging.ERROR)
 
     def populate_from_xyzrph(self):
         """
@@ -2309,11 +2344,12 @@ class VesselWidget(QtWidgets.QWidget):
                                 self.xyzrph[serial_num][sens][tstmp] = str(posxyzrph[sens])
                     self.populate_from_xyzrph()
                 else:
-                    print('Expect data to exist before loading from POS MV, please import from kongsberg first or open config file')
+                    self.print('Expect data to exist before loading from POS MV, please import from kongsberg first or open config file',
+                               logging.ERROR)
             else:
-                print('Unable to load from {}'.format(fil))
+                self.print('Unable to load from {}'.format(fil), logging.ERROR)
         else:
-            print('Import cancelled.')
+            self.print('Import cancelled.', logging.INFO)
 
     def import_from_kongsberg(self):
         """
@@ -2351,9 +2387,9 @@ class VesselWidget(QtWidgets.QWidget):
                                 raise ValueError('ERROR: Unable to load SN{} with sensor {} at timestamp {}'.format(serial_number, sensor, tstmp))
                 self.load_from_existing_xyzrph()
             else:
-                print('Unable to load from {}'.format(fil))
+                self.print('Unable to load from {}'.format(fil), logging.ERROR)
         else:
-            print('Import cancelled')
+            self.print('Import cancelled', logging.INFO)
 
     def _update_xyzrph_vesselposition(self, serial_number, tstmps):
         for tstmp in tstmps:
@@ -2376,12 +2412,12 @@ class VesselWidget(QtWidgets.QWidget):
         Open a blank instance of the vessel view
         """
 
-        self._handle_close_event()
-        self.opts_window.config_name.setText('None')
-        self.xyzrph = None
-        self.populate_from_xyzrph()
-        self.vessview_window.clear_sensors()
-        self.vessview_window.clear_vessel()
+        if self._handle_close_event():
+            self.opts_window.config_name.setText('None')
+            self.xyzrph = None
+            self.populate_from_xyzrph()
+            self.vessview_window.clear_sensors()
+            self.vessview_window.clear_vessel()
 
     def save_configuration(self, event=None):
         """
@@ -2427,10 +2463,11 @@ class VesselWidget(QtWidgets.QWidget):
                     self._update_xyzrph_vesselposition(serial_num, tstmps)
                     vf.update(serial_num, self.xyzrph[serial_num])
                 vf.save(fil)
+                self.print('Saving to {}'.format(fil), logging.INFO)
             else:
-                print('Unable to find file: {}'.format(fil))
+                self.print('Unable to find file: {}'.format(fil), logging.ERROR)
         else:
-            print('Add to configuration cancelled')
+            self.print('Add to configuration cancelled', logging.INFO)
 
     def load_from_existing_xyzrph(self):
         """
@@ -2485,6 +2522,7 @@ class VesselWidget(QtWidgets.QWidget):
         self.load_from_existing_xyzrph()
 
     def load_from_config_file(self, config_file: str):
+        self.print('Loading from {}'.format(config_file), logging.INFO)
         self.opts_window.config_name.setText(os.path.split(config_file)[1])
         self.vessview_window.clear_sensors()
         vf = VesselFile(config_file)
@@ -2502,11 +2540,12 @@ class VesselWidget(QtWidgets.QWidget):
                 vf = VesselFile()
                 vf.data = self.xyzrph
                 vf.save(fil)
+                self.print('Saving to {}'.format(fil), logging.INFO)
                 self.vessel_file_modified.emit(True)
             else:
-                print('No data found for xyzrph: {}'.format(self.xyzrph))
+                self.print('No data found for xyzrph: {}'.format(self.xyzrph), logging.ERROR)
         else:
-            print('Save cancelled')
+            self.print('Save cancelled', logging.INFO)
 
     def open_configuration(self):
         """
@@ -2522,9 +2561,9 @@ class VesselWidget(QtWidgets.QWidget):
             if os.path.exists(fil):
                 self.load_from_config_file(fil)
             else:
-                print('Unable to find file: {}'.format(fil))
+                self.print('Unable to find file: {}'.format(fil), logging.ERROR)
         else:
-            print('Open cancelled')
+            self.print('Open cancelled', logging.INFO)
 
     def _handle_close_event(self, event=None):
         """
@@ -2549,8 +2588,8 @@ class VesselWidget(QtWidgets.QWidget):
         """
         override the close event for the mainwindow, attach saving settings
         """
-        self._handle_close_event(event)
-        super(VesselWidget, self).closeEvent(event)
+        if self._handle_close_event(event):
+            super(VesselWidget, self).closeEvent(event)
 
 
 if __name__ == '__main__':

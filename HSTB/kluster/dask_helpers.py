@@ -1,3 +1,4 @@
+import logging
 import os
 import psutil
 import numpy as np
@@ -47,7 +48,8 @@ class DaskProcessSynchronizer:
 
 
 def dask_find_or_start_client(address: str = None, number_of_workers: int = None, threads_per_worker: int = None,
-                              memory_per_worker: str = None, multiprocessing: bool = True, silent: bool = False):
+                              memory_per_worker: str = None, multiprocessing: bool = True, silent: bool = False,
+                              logger: logging.Logger = None):
     """
     Either start or return Dask client in local/networked cluster mode.  Use this function whenever you need access to
     a new or existing cluster
@@ -66,6 +68,8 @@ def dask_find_or_start_client(address: str = None, number_of_workers: int = None
         if True, will allow multiple workers, if False, will only use threads
     silent
         whether or not to print messages
+    logger
+        if included, will print output messages to the provided logger
 
     Returns
     -------
@@ -78,11 +82,19 @@ def dask_find_or_start_client(address: str = None, number_of_workers: int = None
         if address is None:
             client = get_client()
             if not silent:
-                print('Using existing local cluster client...')
+                msg = 'Using existing local cluster client...'
+                if logger is not None:
+                    logger.info(msg)
+                else:
+                    print(msg)
         else:
             client = get_client(address=address)
             if not silent:
-                print('Using existing client on address {}...'.format(address))
+                msg = 'Using existing client on address {}...'.format(address)
+                if logger is not None:
+                    logger.info(msg)
+                else:
+                    print(msg)
         needs_restart = client_needs_restart(client)
         if needs_restart:
             client.restart()
@@ -110,14 +122,25 @@ def dask_find_or_start_client(address: str = None, number_of_workers: int = None
 
         if address is None:
             if not silent:
-                print('Starting local cluster client...')
+                msg = 'Starting local cluster client...'
+                if logger is not None:
+                    logger.info(msg)
+                else:
+                    print(msg)
             client = Client(**cluster_kwargs)
         else:
             if not silent:
-                print('Starting client on address {}...'.format(address))
+                msg = 'Starting client on address {}...'.format(address)
+                if logger is not None:
+                    logger.info(msg)
+                else:
+                    print(msg)
             client = Client(address=address)
     if client is not None:
-        print(client)
+        if logger is not None:
+            logger.info(client)
+        else:
+            print(client)
     return client
 
 

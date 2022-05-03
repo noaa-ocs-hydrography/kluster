@@ -1,4 +1,5 @@
 import os
+import logging
 from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal, qgis_enabled
 if qgis_enabled:
     os.environ['PYDRO_GUI_FORCE_PYQT'] = 'True'
@@ -454,7 +455,7 @@ class SettingsDialog(SaveStateDialog):
         Dialog completes if the specified widgets are populated, use return_processing_options to get access to the
         settings the user entered into the dialog.
         """
-        print('General settings saved')
+        self.print('General settings saved', logging.INFO)
         self.canceled = False
         self.save_settings()
         self.accept()

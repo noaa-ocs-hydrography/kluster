@@ -54,6 +54,18 @@ class SaveStateDialog(QtWidgets.QDialog):
         self.widgetname = widgetname
         self.appname = appname
 
+    def print(self, msg: str, loglevel: int):
+        if self.parent() is not None:
+            self.parent().print(msg, loglevel)
+        else:
+            print(msg)
+
+    def debug_print(self, msg: str, loglevel: int):
+        if self.parent() is not None:
+            self.parent().debug_print(msg, loglevel)
+        else:
+            print(msg)
+
     @property
     def settings_object(self):
         if self.external_settings:

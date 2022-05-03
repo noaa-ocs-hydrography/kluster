@@ -182,7 +182,6 @@ class KlusterMonitorWidget(QtWidgets.QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.parent = parent
         self.monitor_layout = QtWidgets.QVBoxLayout()
 
         self.monitorone_layout = QtWidgets.QHBoxLayout()
@@ -227,14 +226,42 @@ class KlusterMonitorWidget(QtWidgets.QWidget):
         self.layout()
 
     def print(self, msg: str, loglevel: int):
-        if self.parent is not None:
-            self.parent.print(msg, loglevel)
+        """
+        convenience method for printing using kluster_main logger
+
+        Parameters
+        ----------
+        msg
+            print text
+        loglevel
+            logging level, ex: logging.INFO
+        """
+
+        if self.parent() is not None:
+            if self.parent().parent().parent().parent() is not None:  # widget is docked, kluster_main is the parent of the dock
+                self.parent().parent().parent().parent().print(msg, loglevel)
+            else:  # widget is undocked, kluster_main is the parent
+                self.parent().parent().parent().print(msg, loglevel)
         else:
             print(msg)
 
     def debug_print(self, msg: str, loglevel: int):
-        if self.parent is not None:
-            self.parent.debug_print(msg, loglevel)
+        """
+        convenience method for printing using kluster_main logger, when debug is enabled
+
+        Parameters
+        ----------
+        msg
+            print text
+        loglevel
+            logging level, ex: logging.INFO
+        """
+
+        if self.parent() is not None:
+            if self.parent().parent() is not None:  # widget is docked, kluster_main is the parent of the dock
+                self.parent().parent().debug_print(msg, loglevel)
+            else:  # widget is undocked, kluster_main is the parent
+                self.parent().debug_print(msg, loglevel)
         else:
             print(msg)
 

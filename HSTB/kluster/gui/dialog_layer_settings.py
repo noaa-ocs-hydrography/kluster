@@ -1,4 +1,5 @@
 import numpy as np
+import logging
 
 from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal
 from HSTB.kluster.gui.common_widgets import SaveStateDialog
@@ -120,7 +121,7 @@ class LayerSettingsDialog(SaveStateDialog):
                 data = self.color_ranges[cur_band]
                 override, minval, maxval = data[0:3]
             except:
-                print('dialog_layer_settings: ERROR - Unable to load data for band {}'.format(cur_band))
+                self.print('dialog_layer_settings: ERROR - Unable to load data for band {}'.format(cur_band), logging.ERROR)
                 return
             self.color_range_box.setChecked(override)
             self.color_range_min_value.setText(str(minval))
@@ -163,13 +164,13 @@ class LayerSettingsDialog(SaveStateDialog):
                 transp = int(self.transparency.text()) / 100
                 transp = np.clip(transp, 0, 1)
             except ValueError:
-                print('Layer_Settings: transparency={} is invalid, must be an integer between 0 and 100, defaulting to 0'.format(self.transparency.text()))
+                self.print('Layer_Settings: transparency={} is invalid, must be an integer between 0 and 100, defaulting to 0'.format(self.transparency.text()), logging.WARNING)
                 transp = 0
             try:
                 surf_transp = int(self.surf_transparency.text()) / 100
                 surf_transp = np.clip(surf_transp, 0, 1)
             except ValueError:
-                print('Layer_Settings: surface_transparency={} is invalid, must be an integer between 0 and 100, defaulting to 0'.format(self.surf_transparency.text()))
+                self.print('Layer_Settings: surface_transparency={} is invalid, must be an integer between 0 and 100, defaulting to 0'.format(self.surf_transparency.text()), logging.WARNING)
                 surf_transp = 0
             opts = {'layer_background': self.layer_dropdown.currentText(),
                     'layer_transparency': transp,
@@ -184,7 +185,7 @@ class LayerSettingsDialog(SaveStateDialog):
         Dialog completes if the specified widgets are populated, use return_processing_options to get access to the
         settings the user entered into the dialog.
         """
-        print('Layer settings saved')
+        self.print('Layer settings saved', logging.INFO)
         self.canceled = False
         self.save_settings()
         self.accept()

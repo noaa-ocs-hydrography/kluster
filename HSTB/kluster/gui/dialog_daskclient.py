@@ -1,5 +1,7 @@
-from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal
 from dask.distributed import get_client
+import logging
+
+from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal
 from HSTB.kluster.gui.common_widgets import SaveStateDialog
 from HSTB.kluster.dask_helpers import dask_find_or_start_client
 from HSTB.kluster import kluster_variables
@@ -13,6 +15,10 @@ class DaskClientStart(SaveStateDialog):
 
     def __init__(self, parent=None, title='', settings=None):
         super().__init__(parent, settings, widgetname='daskclient')
+        if self.parent() is not None:
+            self.logger = self.parent().logger
+        else:
+            self.logger = None
 
         self.setWindowTitle('Setup Dask Client')
 
@@ -164,7 +170,7 @@ class DaskClientStart(SaveStateDialog):
                         if numworker == 1:
                             multiprocessing = False
                     except:
-                        print('Invalid number of workers provided, number must be an integer, ex: 4')
+                        self.print('Invalid number of workers provided, number must be an integer, ex: 4', logging.ERROR)
                         return
                 if self.number_threads_checkbox.isChecked():
                     try:
@@ -172,27 +178,28 @@ class DaskClientStart(SaveStateDialog):
                         if threadsworker < 1:
                             threadsworker = 1
                     except:
-                        print('Invalid number of threads provided, number must be an integer, ex: 2')
+                        self.print('Invalid number of threads provided, number must be an integer, ex: 2', logging.ERROR)
                         return
                 if self.number_memory_checkbox.isChecked():
                     try:
                         memoryworker = str(self.number_memory.text()) + 'GB'
                     except:
-                        print('Invalid memory per worker provided, number must be an integer, ex: 5')
+                        self.print('Invalid memory per worker provided, number must be an integer, ex: 5', logging.ERROR)
                         return
                 self.cl = dask_find_or_start_client(number_of_workers=numworker, threads_per_worker=threadsworker,
-                                                    memory_per_worker=memoryworker, multiprocessing=multiprocessing)
+                                                    memory_per_worker=memoryworker, multiprocessing=multiprocessing,
+                                                    logger=self.logger)
             else:
                 if self.remote_ip_radio.isChecked():
                     full_address = self.remote_ip_address.text() + ':' + self.remote_ip_port.text()
                 else:
                     full_address = self.remote_fqdn_address.text() + ':' + self.remote_fqdn_port.text()
 
-                print('Starting client at address {}'.format(full_address))
+                self.print('Starting client at address {}'.format(full_address), logging.INFO)
                 try:
-                    self.cl = dask_find_or_start_client(address=full_address)
+                    self.cl = dask_find_or_start_client(address=full_address, logger=self.logger)
                 except:  # throws dask socket.gaierror, i'm not bothering to make this explicit
-                    print('Unable to connect to remote Dask instance')
+                    self.print('Unable to connect to remote Dask instance', logging.ERROR)
         else:
             self.status_msg.setText('Please select one of the options above (Local or Remote)')
 

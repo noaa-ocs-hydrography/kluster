@@ -581,7 +581,7 @@ class KlusterMain(QtWidgets.QMainWindow):
     def manage_fqpr(self, pth):
         fq = self.project.fqpr_instances[pth]
         self.managedata_win = None
-        self.managedata_win = dialog_managedata.ManageDataDialog()
+        self.managedata_win = dialog_managedata.ManageDataDialog(parent=self)
         self.managedata_win.refresh_fqpr.connect(self._refresh_manage_fqpr)
         self.managedata_win.populate(fq)
         self.managedata_win.setWindowFlags(self.managedata_win.windowFlags() | QtCore.Qt.WindowStaysOnTopHint)
@@ -590,7 +590,7 @@ class KlusterMain(QtWidgets.QMainWindow):
     def manage_surface(self, pth):
         surf = self.project.surface_instances[pth]
         self.managedata_surf = None
-        self.managedata_surf = dialog_managesurface.ManageSurfaceDialog()
+        self.managedata_surf = dialog_managesurface.ManageSurfaceDialog(parent=self)
         self.managedata_surf.populate(surf)
         self.managedata_surf.setWindowFlags(self.managedata_surf.windowFlags() | QtCore.Qt.WindowStaysOnTopHint)
         self.managedata_surf.show()
@@ -766,7 +766,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         fqprs, _ = self.return_selected_fqprs()
 
         self.vessel_win = None
-        self.vessel_win = dialog_vesselview.VesselWidget()
+        self.vessel_win = dialog_vesselview.VesselWidget(parent=self)
         self.vessel_win.vessel_file_modified.connect(self.regenerate_offsets_actions)
         self.vessel_win.converted_xyzrph_modified.connect(self.update_offsets_vesselwidget)
 
@@ -977,7 +977,7 @@ class KlusterMain(QtWidgets.QMainWindow):
             cancelled = True
         else:
             fqprs, _ = self.return_selected_fqprs()
-            dlog = dialog_overwritenav.OverwriteNavigationDialog()
+            dlog = dialog_overwritenav.OverwriteNavigationDialog(parent=self)
             dlog.update_fqpr_instances(addtl_files=fqprs)
             cancelled = False
             if dlog.exec_():
@@ -1091,7 +1091,7 @@ class KlusterMain(QtWidgets.QMainWindow):
             if systems:
                 datablock = self.project.retrieve_data_for_time_segments(systems, time_segments)
                 if datablock:
-                    dlog_patch = dialog_manualpatchtest.PrePatchDialog()
+                    dlog_patch = dialog_manualpatchtest.PrePatchDialog(parent=self)
                     dlog_patch.add_data(datablock)
                     if dlog_patch.exec_():
                         if dlog_patch.canceled:
@@ -1181,7 +1181,7 @@ class KlusterMain(QtWidgets.QMainWindow):
             cancelled = True
         else:
             cancelled = False
-            self._patch = dialog_patchtest.PatchTestDialog()
+            self._patch = dialog_patchtest.PatchTestDialog(parent=self)
             self._patch.patch_query.connect(self._feed_auto_patch_test_dialog)
             if self._patch.exec_():
                 cancelled = self._patch.canceled
@@ -1222,7 +1222,7 @@ class KlusterMain(QtWidgets.QMainWindow):
                 cur_cnt += 1
 
     def _kluster_filter_dialog(self, filter_list, filter_module, fqprs, filter_descrip):
-        dlog = dialog_filter.FilterDialog(filter_list, filter_descrip)
+        dlog = dialog_filter.FilterDialog(filter_list, filter_descrip, parent=self)
         dlog.update_fqpr_instances(addtl_files=fqprs)
         cancelled = False
         basic_filter_mode = False
@@ -1266,7 +1266,7 @@ class KlusterMain(QtWidgets.QMainWindow):
     def _kluster_additional_filter_dialog(self, filter_controls, filter_name):
         cancelled = False
         if filter_controls:
-            add_dlog = dialog_filter.AdditionalFilterOptionsDialog(title=filter_name, controls=filter_controls)
+            add_dlog = dialog_filter.AdditionalFilterOptionsDialog(title=filter_name, controls=filter_controls, parent=self)
             if add_dlog.exec_():
                 if not add_dlog.canceled:
                     kwargs = add_dlog.return_kwargs()
@@ -1379,7 +1379,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         else:
             cancelled = False
             fqprspaths, fqprs = self.return_selected_fqprs()
-            dlog = dialog_surface.SurfaceDialog()
+            dlog = dialog_surface.SurfaceDialog(parent=self)
             dlog.update_fqpr_instances(addtl_files=fqprspaths)
             if dlog.exec_():
                 cancelled = dlog.canceled
@@ -1446,7 +1446,7 @@ class KlusterMain(QtWidgets.QMainWindow):
             cancelled = True
         else:
             cancelled = False
-            dlog = dialog_surfacefrompoints.SurfaceFromPointsDialog()
+            dlog = dialog_surfacefrompoints.SurfaceFromPointsDialog(parent=self)
             if dlog.exec_():
                 cancelled = dlog.canceled
                 opts = dlog.return_processing_options()
@@ -1470,7 +1470,7 @@ class KlusterMain(QtWidgets.QMainWindow):
             if surfs:
                 existing_container_names, possible_container_names = self.project.return_surface_containers(surfs[0], relative_path=False)
                 surf = self.project.surface_instances[self.project.path_relative_to_project(surfs[0])]
-                dlog = dialog_surface_data.SurfaceDataDialog(title=surf.output_folder)
+                dlog = dialog_surface_data.SurfaceDataDialog(parent=self, title=surf.output_folder)
                 dlog.setup(existing_container_names, possible_container_names)
                 if dlog.exec_():
                     cancelled = dlog.canceled
@@ -1887,7 +1887,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         Set the project up with a new Client object, either LocalCluster or a client to a remote cluster
         """
 
-        dlog = dialog_daskclient.DaskClientStart()
+        dlog = dialog_daskclient.DaskClientStart(parent=self)
         if dlog.exec_():
             client = dlog.cl
             if client is None:
@@ -1901,7 +1901,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         and intel instance.
         """
 
-        dlog = dialog_project_settings.ProjectSettingsDialog(settings=self.settings_object)
+        dlog = dialog_project_settings.ProjectSettingsDialog(parent=self, settings=self.settings_object)
         if dlog.exec_() and not dlog.canceled:
             settings = dlog.return_processing_options()
             self.settings.update(settings)
@@ -1918,7 +1918,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         Triggered on hitting OK in the layer settings dialog.  Takes the provided settings and regenerates the 2d display.
         """
 
-        dlog = dialog_layer_settings.LayerSettingsDialog(settings=self.settings_object)
+        dlog = dialog_layer_settings.LayerSettingsDialog(parent=self, settings=self.settings_object)
         layers = list(self.two_d.band_minmax.keys())
         layer_minmax = {}
         for lyr in layers:
@@ -1953,7 +1953,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         and intel instance.
         """
 
-        dlog = dialog_settings.SettingsDialog(settings=self.settings_object)
+        dlog = dialog_settings.SettingsDialog(parent=self, settings=self.settings_object)
         if dlog.exec_() and not dlog.canceled:
             settings = dlog.return_options()
             self.settings.update(settings)
@@ -2410,7 +2410,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         widget.show()
 
     def _action_file_analyzer(self):
-        self._fileanalyzer = dialog_fileanalyzer.FileAnalyzerDialog()
+        self._fileanalyzer = dialog_fileanalyzer.FileAnalyzerDialog(parent=self)
         self._fileanalyzer.setWindowFlags(self._fileanalyzer.windowFlags() | QtCore.Qt.WindowStaysOnTopHint)
         self._fileanalyzer.show()
 

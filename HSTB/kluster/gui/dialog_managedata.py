@@ -1,12 +1,14 @@
 import os
 from datetime import datetime, timezone
+import logging
 
 from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal
+from HSTB.kluster.gui.common_widgets import SaveStateDialog
 from matplotlib.backends.backend_qt5agg import (FigureCanvasQTAgg, NavigationToolbar2QT as NavigationToolbar)
 import matplotlib.pyplot as plt
 
 
-class ManageDataDialog(QtWidgets.QWidget):
+class ManageDataDialog(SaveStateDialog):
     """
     Dialog contains a summary of the Fqpr data and some options for altering the data contained within.
 
@@ -14,8 +16,8 @@ class ManageDataDialog(QtWidgets.QWidget):
     """
     refresh_fqpr = Signal(object, object)
 
-    def __init__(self, parent=None):
-        super().__init__(parent)
+    def __init__(self, parent=None, title='', settings=None):
+        super().__init__(parent, settings, widgetname='ManageData')
 
         self.setMinimumWidth(500)
         self.setMinimumHeight(400)
@@ -67,9 +69,9 @@ class ManageDataDialog(QtWidgets.QWidget):
                     self.fqpr.remove_post_processed_navigation()
                     self.refresh_fqpr.emit(self.fqpr, self)
             else:
-                print('No SBET files found')
+                self.print('No SBET files found', logging.ERROR)
         else:
-            print('No data found')
+            self.print('No data found', logging.ERROR)
 
     def remove_svp(self, profilename):
         if self.svpdialog is not None:
@@ -80,9 +82,9 @@ class ManageDataDialog(QtWidgets.QWidget):
                     self.svpdialog.remove_data_at_index(profilename)
                     self.refresh_fqpr.emit(self.fqpr, self)
             else:
-                print('Unable to remove the last profile of a dataset')
+                self.print('Unable to remove the last profile of a dataset', logging.ERROR)
         else:
-            print('WARNING: Unable to find svp data dialog')
+            self.print('WARNING: Unable to find svp data dialog', logging.ERROR)
 
     def manage_svp(self, e):
         if self.fqpr is not None:
