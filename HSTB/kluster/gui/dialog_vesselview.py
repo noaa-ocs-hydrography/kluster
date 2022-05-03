@@ -2048,6 +2048,11 @@ class VesselWidget(QtWidgets.QWidget):
     def __init__(self, parent=None):
         QtWidgets.QWidget.__init__(self, parent)
 
+        if self.parent() is not None:
+            self.logger = self.parent().logger
+        else:
+            self.logger = None
+
         self.setWindowTitle('Kluster Vessel Setup')
         self.setWindowFlags(QtCore.Qt.Window)
 
@@ -2363,7 +2368,7 @@ class VesselWidget(QtWidgets.QWidget):
         if fil:
             self.vessview_window.clear_sensors()
             self.vessview_window.build_vessel(self.vessview_window.pth_to_vessel_file)
-            mbesxyzrph, sonar_model, serial_number = return_xyzrph_from_mbes(fil)
+            mbesxyzrph, sonar_model, serial_number = return_xyzrph_from_mbes(fil, logger=self.logger)
             if mbesxyzrph is not None:
                 first_sensor = list(mbesxyzrph.keys())[0]
                 tstmps = list(mbesxyzrph[first_sensor].keys())
