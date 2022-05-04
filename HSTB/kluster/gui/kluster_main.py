@@ -33,7 +33,7 @@ from HSTB.kluster.fqpr_project import FqprProject
 from HSTB.kluster.fqpr_intelligence import FqprIntel
 from HSTB.kluster.fqpr_vessel import convert_from_fqpr_xyzrph, convert_from_vessel_xyzrph, compare_dict_data
 from HSTB.kluster.dask_helpers import dask_close_localcluster
-from HSTB.kluster.logging_conf import return_logger
+from HSTB.kluster.logging_conf import return_logger, add_file_handler, logfile_matches, logger_remove_file_handlers
 from HSTB.kluster import __version__ as kluster_version
 from HSTB.kluster import __file__ as kluster_init_file
 from HSTB.shared import RegistryHelpers, path_to_supplementals
@@ -57,6 +57,7 @@ settings_translator = {'Kluster/dark_mode': {'newname': 'dark_mode', 'defaultval
                        'Kluster/settings_enable_parallel_writes': {'newname': 'write_parallel', 'defaultvalue': True},
                        'Kluster/settings_vdatum_directory': {'newname': 'vdatum_directory', 'defaultvalue': ''},
                        'Kluster/settings_filter_directory': {'newname': 'filter_directory', 'defaultvalue': ''},
+                       'Kluster/settings_main_log_file': {'newname': 'main_log_file', 'defaultvalue': ''},
                        'Kluster/settings_auto_processing_mode': {'newname': 'autoprocessing_mode', 'defaultvalue': 'normal'},
                        'Kluster/settings_force_coordinate_match': {'newname': 'force_coordinate_match', 'defaultvalue': False},
                        }
@@ -276,6 +277,16 @@ class KlusterMain(QtWidgets.QMainWindow):
             else:
                 print(msg)
 
+    def _configure_logfile(self):
+        newlogfile = self.settings.get('main_log_file')
+        if newlogfile:
+            if not logfile_matches(self.logger, newlogfile):
+                add_file_handler(self.logger, newlogfile)
+                self.logger.info('******************************************************************************')
+                self.logger.info('Logfile initialized: {}'.format(newlogfile))
+        else:  # a blank newlogfile was found, so we remove all file handlers
+            logger_remove_file_handlers(self.logger)
+
     def _load_previously_used_settings(self):
         settings = self.settings_object
         for settname, opts in settings_translator.items():
@@ -296,6 +307,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         if self.project.path is not None:
             self.project.set_settings(self.settings.copy())
         self.intel.set_settings(self.settings.copy())
+        self._configure_logfile()
 
     def dragEnterEvent(self, e):
         """
@@ -1971,6 +1983,7 @@ class KlusterMain(QtWidgets.QMainWindow):
             for kvarkey, kvarval in newkvars.items():
                 kluster_variables.alter_variable(kvarkey, kvarval)
                 settings_obj.setValue(f'Kluster/kvariables_{kvarkey}', kvarval)
+            self._configure_logfile()
 
     def set_dark_mode(self, check_state: bool):
         """

@@ -128,3 +128,98 @@ def return_logger(name, logfile: str = None):
     logging.getLogger().handlers = []
 
     return logger
+
+
+def logger_remove_file_handlers(logger: logging.Logger):
+    """
+    Remove all existing file handlers from the logger instance
+
+    Parameters
+    ----------
+    logger
+        logger instance
+
+    Returns
+    -------
+    logging.Logger
+    """
+
+    removethese = []
+    for handler in logger.handlers:
+        if isinstance(handler, logging.FileHandler):
+            removethese.append(handler)
+    for handler in removethese:
+        logger.removeHandler(handler)
+    return logger
+
+
+def add_file_handler(logger: logging.Logger, logfile: str, remove_existing: bool = True):
+    """
+    Take an existing logger and add a new file handler to it, to save the log output to file.  If you remove_existing,
+    will remove all existing file handlers from the logger.
+
+    Parameters
+    ----------
+    logger
+        logger instance
+    logfile
+        file path to where you want to save the log ouput
+    remove_existing
+        if True, removes all existing file handlers from the log
+
+    Returns
+    -------
+    logging.Logger
+    """
+
+    if remove_existing:
+        logger_remove_file_handlers(logger)
+    filelogger = logging.FileHandler(logfile)
+    filelogger.setLevel(loglevel)
+    fmat = '%(asctime)s - %(levelname)s - %(message)s'
+    filelogger.setFormatter(logging.Formatter(fmat))
+    logger.addHandler(filelogger)
+    return logger
+
+
+def logfile_matches(logger: logging.Logger, logfile: str):
+    """
+    Check if the provided file path matches an existing file handler destination
+
+    Parameters
+    ----------
+    logger
+        logger instance
+    logfile
+        file path to where you want to save the log ouput
+
+    Returns
+    -------
+    bool
+        True if the logfile matches a baseFilename in an existing file handler
+    """
+    for handler in logger.handlers:
+        if isinstance(handler, logging.FileHandler):
+            if os.path.normpath(handler.baseFilename) == os.path.normpath(logfile):
+                return True
+    return False
+
+
+def logger_has_file_handler(logger: logging.Logger):
+    """
+    Check if this logger contains a file handler
+
+    Parameters
+    ----------
+    logger
+        logger instance
+
+    Returns
+    -------
+    bool
+        True if it contains a file handler
+    """
+    for handler in logger.handlers:
+        if isinstance(handler, logging.FileHandler):
+            return True
+    return False
