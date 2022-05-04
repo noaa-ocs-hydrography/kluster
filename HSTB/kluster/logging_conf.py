@@ -7,6 +7,38 @@ loglevel = logging.INFO
 log_counter = 0
 
 
+class LoggerClass:
+    """
+    Basic class for logging.  Include a logging.logger instance to use that, or set silent to true to disable print
+    messages entirely.  Use of Logger will trump silent.
+    """
+
+    def __init__(self, silent=False, logger=None):
+        self.silent = silent
+        self.logger = logger
+
+    def print_msg(self, msg: str, loglvl: int = logging.INFO):
+        """
+        Either print to console, print using logger, or do not print at all, if self.silent = True
+
+        Parameters
+        ----------
+        msg
+            message contents as string
+        loglvl
+            one of the logging enum values, logging.info or logging.warning as example
+        """
+
+        if self.logger is not None:
+            if not isinstance(loglvl, int):
+                raise ValueError('Log level must be an int (see logging enum), found {}'.format(loglvl))
+            self.logger.log(loglvl, msg)
+        elif self.silent:
+            pass
+        else:
+            print(msg)
+
+
 class StdErrFilter(logging.Filter):
     """
     filter out messages that are not CRITICAL or ERROR or WARNING
@@ -23,9 +55,14 @@ class StdOutFilter(logging.Filter):
         return rec.levelno in (logging.DEBUG, logging.INFO)
 
 
-def return_log_name():
+def return_log_name(timestamped: bool = False):
     """
     Return the log file name that we use throughout kluster.  Includes the utctimstamp in seconds as a unique id
+
+    Parameters
+    ----------
+    timestamped
+        if True, returns a timestamped log name
 
     Returns
     -------
@@ -33,7 +70,10 @@ def return_log_name():
         log file name
     """
 
-    return 'logfile_{}.txt'.format(int(datetime.utcnow().timestamp()))
+    if not timestamped:
+        return 'logfile.txt'
+    else:
+        return 'logfile_{}.txt'.format(int(datetime.utcnow().timestamp()))
 
 
 def return_logger(name, logfile: str = None):

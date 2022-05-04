@@ -1236,6 +1236,8 @@ class BatchRead(ZarrBackend):
         # chnks_flat is now a list of lists representing chunks of each file
         chnks_flat = [c for subc in chnks for c in subc]
         self.logger.info('{} file(s), Using {} chunk(s) in parallel'.format(len(fils), len(chnks_flat)))
+        for fil in fils:
+            self.logger.info(fil)
 
         return chnks_flat
 
