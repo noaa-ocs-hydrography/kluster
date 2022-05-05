@@ -53,6 +53,27 @@ class SaveStateDialog(QtWidgets.QDialog):
         self.checkbox_controls = []  # append a [name as string, control] to this to save checkbox controls
         self.widgetname = widgetname
         self.appname = appname
+        self._ontop = False
+        self._original_flags = None
+
+    @property
+    def settings_object(self):
+        if self.external_settings:
+            return self.external_settings
+        else:
+            return QtCore.QSettings("NOAA", self.appname)
+
+    def set_on_top(self):
+        if not self._ontop:
+            self._ontop = True
+            self._original_flags = self.windowFlags()
+            self.setWindowFlags(self._original_flags | QtCore.Qt.WindowStaysOnTopHint)
+            self.show()
+
+    def set_below(self):
+        if self._ontop:
+            self._ontop = False
+            self.setWindowFlags(self._original_flags)
 
     def print(self, msg: str, loglevel: int):
         if self.parent() is not None:
@@ -65,13 +86,6 @@ class SaveStateDialog(QtWidgets.QDialog):
             self.parent().debug_print(msg, loglevel)
         else:
             print(msg)
-
-    @property
-    def settings_object(self):
-        if self.external_settings:
-            return self.external_settings
-        else:
-            return QtCore.QSettings("NOAA", self.appname)
 
     def save_settings(self):
         """

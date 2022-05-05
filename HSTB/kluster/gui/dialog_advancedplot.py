@@ -1,4 +1,5 @@
 from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal
+import matplotlib.pyplot as plt
 import numpy as np
 import os
 import logging
@@ -511,6 +512,10 @@ class AdvancedPlotDialog(QtWidgets.QDialog):
                                       show_plots=self.show_accuracy.isChecked())
             if min_max and plottype != 'Accuracy Test':  # acc test restores the subset after it runs automatically
                 self.fqpr.restore_subset()
+
+        # set always on top
+        plt.gcf().canvas.manager.window.setWindowFlags(self.windowFlags() | QtCore.Qt.WindowStaysOnTopHint)
+        plt.gcf().canvas.manager.window.show()
 
     def new_ping_count(self, ping_count: int):
         """

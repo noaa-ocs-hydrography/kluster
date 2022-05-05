@@ -596,7 +596,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.managedata_win = dialog_managedata.ManageDataDialog(parent=self)
         self.managedata_win.refresh_fqpr.connect(self._refresh_manage_fqpr)
         self.managedata_win.populate(fq)
-        self.managedata_win.setWindowFlags(self.managedata_win.windowFlags() | QtCore.Qt.WindowStaysOnTopHint)
+        self.managedata_win.set_on_top()
         self.managedata_win.show()
 
     def manage_surface(self, pth):
@@ -604,7 +604,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.managedata_surf = None
         self.managedata_surf = dialog_managesurface.ManageSurfaceDialog(parent=self)
         self.managedata_surf.populate(surf)
-        self.managedata_surf.setWindowFlags(self.managedata_surf.windowFlags() | QtCore.Qt.WindowStaysOnTopHint)
+        self.managedata_surf.set_on_top()
         self.managedata_surf.show()
 
     def _refresh_manage_fqpr(self, fq, dlog):
@@ -791,7 +791,6 @@ class KlusterMain(QtWidgets.QMainWindow):
                                                    os.path.split(fqpr.output_folder)[1])
             self.vessel_win.xyzrph = vess_xyzrph
             self.vessel_win.load_from_existing_xyzrph()
-        # self.vessel_win.setWindowFlags(self.vessel_win.windowFlags() | QtCore.Qt.WindowStaysOnTopHint)
         self.vessel_win.show()
 
     def regenerate_offsets_actions(self, is_modified: bool):
@@ -899,7 +898,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         if fqprs:
             self.basicplots_win.data_widget.new_fqpr_path(fqprspaths[0], fqprs[0])
             self.basicplots_win.data_widget.initialize_controls()
-        # self.basicplots_win.setWindowFlags(self.basicplots_win.windowFlags() | QtCore.Qt.WindowStaysOnTopHint)
+        self.basicplots_win.setWindowFlags(self.basicplots_win.windowFlags() | QtCore.Qt.WindowStaysOnTopHint)
         self.basicplots_win.show()
 
     def kluster_advanced_plots(self):
@@ -925,7 +924,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         if first_surf:
             self.advancedplots_win.surf_text.setText(first_surf)
             self.advancedplots_win.out_text.setText(default_plots)
-        # self.advancedplots_win.setWindowFlags(self.advancedplots_win.windowFlags() | QtCore.Qt.WindowStaysOnTopHint)
+        self.advancedplots_win.setWindowFlags(self.advancedplots_win.windowFlags() | QtCore.Qt.WindowStaysOnTopHint)
         self.advancedplots_win.show()
 
     def kluster_execute_action(self, action_container: list, action_index: int = 0):

@@ -471,6 +471,9 @@ class BasicPlotDialog(QtWidgets.QDialog):
                 self.recent_plot[1].set_title('Starboard-{}'.format(serialnum[1]))
             else:
                 plt.title('{} (SN{}): {} Plot of {}'.format(sonartype, serialnum, plottype, translated_var))
+        # set always on top
+        plt.gcf().canvas.manager.window.setWindowFlags(self.windowFlags() | QtCore.Qt.WindowStaysOnTopHint)
+        plt.gcf().canvas.manager.window.show()
 
     def plot(self):
         """

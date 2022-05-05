@@ -64,10 +64,12 @@ class ManageDataDialog(SaveStateDialog):
     def remove_sbet(self, e):
         if self.fqpr is not None:
             if 'nav_files' in self.fqpr.multibeam.raw_ping[0].attrs:
+                self.set_below()
                 newstate = RemoveSBETDialog(list(self.fqpr.multibeam.raw_ping[0].nav_files.keys())).run()
                 if newstate:
                     self.fqpr.remove_post_processed_navigation()
                     self.refresh_fqpr.emit(self.fqpr, self)
+                self.set_on_top()
             else:
                 self.print('No SBET files found', logging.ERROR)
         else:
@@ -76,11 +78,13 @@ class ManageDataDialog(SaveStateDialog):
     def remove_svp(self, profilename):
         if self.svpdialog is not None:
             if self.svpdialog.number_of_profiles > 1:
+                self.set_below()
                 newstate = RemoveSVPDialog(profilename).run()
                 if newstate:
                     self.fqpr.remove_profile(profilename)
                     self.svpdialog.remove_data_at_index(profilename)
                     self.refresh_fqpr.emit(self.fqpr, self)
+                self.set_on_top()
             else:
                 self.print('Unable to remove the last profile of a dataset', logging.ERROR)
         else:
@@ -98,6 +102,9 @@ class ManageDataDialog(SaveStateDialog):
     def svp_map_display(self, e):
         if self.fqpr is not None:
             self.fqpr.plot.plot_sound_velocity_map()
+            # set always on top
+            plt.gcf().canvas.manager.window.setWindowFlags(self.windowFlags() | QtCore.Qt.WindowStaysOnTopHint)
+            plt.gcf().canvas.manager.window.show()
 
 
 class RemoveSBETDialog(QtWidgets.QMessageBox):
