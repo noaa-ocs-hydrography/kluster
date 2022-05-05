@@ -1155,7 +1155,8 @@ class FqprProject(LoggerClass):
             return [], []
         existing_container_names = surf.return_unique_containers()
         existing_needs_update = []
-        for existname in existing_container_names:
+        for existblock in existing_container_names:
+            existname, linename = existblock.split('__')
             if existname in self.fqpr_instances:
                 existtime = None
                 for ename, etime in surf.container_timestamp.items():
@@ -1165,9 +1166,14 @@ class FqprProject(LoggerClass):
                 if existtime:
                     last_time = self.fqpr_instances[existname].last_operation_date
                     if last_time > existtime:
-                        existing_needs_update.append(existname)
+                        existing_needs_update.append(existblock)
         existing_container_names = [exist if exist not in existing_needs_update else exist + '*' for exist in existing_container_names]
-        possible_container_names = [os.path.split(fqpr_inst.multibeam.raw_ping[0].output_path)[1] for fqpr_inst in self.fqpr_instances.values()]
+        possible_container_names = []
+        for fqpr_inst in self.fqpr_instances.values():
+            cont_name = os.path.split(fqpr_inst.output_folder)[1]
+            multibeamfiles = list(fqpr_inst.multibeam.raw_ping[0].multibeam_files.keys())
+            for mfile in multibeamfiles:
+                possible_container_names += ['{}__{}'.format(cont_name, mfile)]
         possible_container_names = [pname for pname in possible_container_names if (pname not in existing_container_names) and (pname + '*' not in existing_container_names)]
         return existing_container_names, possible_container_names
 

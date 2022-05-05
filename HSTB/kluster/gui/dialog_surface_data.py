@@ -21,6 +21,7 @@ class SurfaceDataDialog(SaveStateDialog):
 
         self.listdata = TwoListWidget(title, 'In the Surface', 'Possible Containers')
         self.mark_for_update_button = QtWidgets.QPushButton('Mark Update')
+        self.mark_for_update_button.setToolTip('Mark one of the "In the Surface" containers as needing to be re-added to the grid')
         self.mark_for_update_button.setDisabled(True)
         self.listdata.center_layout.addWidget(self.mark_for_update_button)
         self.listdata.center_layout.addStretch()

@@ -896,10 +896,10 @@ class TwoListWidget(QtWidgets.QWidget):
 
         self.left_list_label = QtWidgets.QLabel(left_label)
         self.left_list_label.setAlignment(QtCore.Qt.AlignHCenter)
-        self.left_layout.addWidget(self.left_list_label, QtCore.Qt.AlignHCenter)
+        self.left_layout.addWidget(self.left_list_label, 1, QtCore.Qt.AlignHCenter)
         self.left_list = QtWidgets.QListWidget()
         self.left_list.setSelectionMode(QtWidgets.QAbstractItemView.ExtendedSelection)
-        self.left_layout.addWidget(self.left_list)
+        self.left_layout.addWidget(self.left_list, 20)
         self.main_layout.addLayout(self.left_layout)
 
         self.center_layout.addStretch()
@@ -912,10 +912,10 @@ class TwoListWidget(QtWidgets.QWidget):
 
         self.right_list_label = QtWidgets.QLabel(right_label)
         self.right_list_label.setAlignment(QtCore.Qt.AlignHCenter)
-        self.right_layout.addWidget(self.right_list_label, QtCore.Qt.AlignHCenter)
+        self.right_layout.addWidget(self.right_list_label, 1, QtCore.Qt.AlignHCenter)
         self.right_list = QtWidgets.QListWidget()
         self.right_list.setSelectionMode(QtWidgets.QAbstractItemView.ExtendedSelection)
-        self.right_layout.addWidget(self.right_list)
+        self.right_layout.addWidget(self.right_list, 20)
         self.main_layout.addLayout(self.right_layout)
 
         self.top_layout.addLayout(self.main_layout)
