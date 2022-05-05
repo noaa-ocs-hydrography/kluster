@@ -1547,8 +1547,7 @@ class KlusterMain(QtWidgets.QMainWindow):
                     export_format = opts.pop('export_format')
                     z_pos_up = opts.pop('z_positive_up')
                     relsurf = self.project.path_relative_to_project(surf)
-                    if (export_format == 'BAG' or z_pos_up) and opts['vert_crs']:
-                        opts['vert_crs'] = opts['vert_crs'].replace('"depth (D)",down', '"gravity-related height (H),up')
+
                     if relsurf not in self.project.surface_instances:
                         self.print('Unable to find {} in currently loaded project'.format(relsurf), logging.ERROR)
                         return
