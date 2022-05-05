@@ -32,7 +32,6 @@ class MonitorPath(QtWidgets.QWidget):
         self.statuslight.setDisabled(True)
         self.hlayoutone.addWidget(self.statuslight)
         self.fil_text = QtWidgets.QLineEdit('')
-        self.fil_text.setReadOnly(True)
         self.hlayoutone.addWidget(self.fil_text)
         self.browse_button = QtWidgets.QPushButton("Browse")
         self.hlayoutone.addWidget(self.browse_button)
@@ -142,6 +141,7 @@ class MonitorPath(QtWidgets.QWidget):
             self.include_subdirectories.setEnabled(False)
             self.statuslight.setStyleSheet("QCheckBox::indicator {background-color : green;}")
             self.print('Monitoring {}'.format(pth), logging.INFO)
+            self.fil_text.setDisabled(True)
         else:
             self.print('MonitorPath: Path does not exist: {}'.format(pth), logging.ERROR)
 
@@ -155,6 +155,7 @@ class MonitorPath(QtWidgets.QWidget):
             self.include_subdirectories.setEnabled(True)
             self.statuslight.setStyleSheet("QCheckBox::indicator {background-color : black;}")
             self.print('No longer monitoring {}'.format(self.return_monitoring_path()), logging.INFO)
+            self.fil_text.setDisabled(False)
 
     def emit_monitor_event(self, newfile: str, file_event: str):
         """
