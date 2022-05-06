@@ -3395,12 +3395,12 @@ class Fqpr(ZarrBackend):
                     raise ValueError('return_next_action: Unable to convert current coordinate system to epsg: {}'.format(self.horizontal_crs))
             else:
                 existing_epsg = 1  # georeference has not been run yet, so we use this default value that always fails the next check
+            default_use_epsg = True
+            default_use_coord = False
+            default_epsg = new_epsg
+            default_coord_system = None
             if new_epsg != existing_epsg and new_epsg and existing_epsg:
                 new_diff_coordinate = True
-                default_use_epsg = True
-                default_use_coord = False
-                default_epsg = new_epsg
-                default_coord_system = None
         if new_vertical_reference:
             if new_vertical_reference != self.vert_ref:
                 new_diff_vertref = True
