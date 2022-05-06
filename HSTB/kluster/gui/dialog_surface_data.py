@@ -149,8 +149,8 @@ class SurfaceDataDialog(SaveStateDialog):
             for container, lines in current_containers.items():
                 needs_update = [ln[:-1] for ln in lines if ln[-1] == '*']
                 if needs_update:
-                    add_fqpr[container] = needs_update
-                    remove_fqpr[container] = needs_update
+                    add_fqpr[container] = [ln for ln in needs_update]
+                    remove_fqpr[container] = [ln for ln in needs_update]
         for container, lines in self.original_current.items():
             fmatlines = [ln[:-1] for ln in lines if ln[-1] == '*'] + [ln for ln in lines if ln[-1] != '*']
             remove_lines = []

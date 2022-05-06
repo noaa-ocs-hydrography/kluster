@@ -1492,15 +1492,16 @@ class KlusterMain(QtWidgets.QMainWindow):
                     cancelled = dlog.canceled
                     add_container, add_lines, remove_container, remove_lines, opts = dlog.return_processing_options()
                     if not cancelled:
-                        add_fqpr = []
-                        for fqpr_inst in self.project.fqpr_instances.values():
-                            fname = os.path.split(fqpr_inst.multibeam.raw_ping[0].output_path)[1]
-                            if fname in add_container:
-                                add_fqpr.append(fqpr_inst)
-                                add_container.remove(fname)
                         if add_container:
-                            self.print('kluster_surface_update: {} must be loaded in Kluster for it to be added to the surface.'.format(add_container), logging.ERROR)
-                            return
+                            add_fqpr = []
+                            for fqpr_inst in self.project.fqpr_instances.values():
+                                fname = os.path.split(fqpr_inst.multibeam.raw_ping[0].output_path)[1]
+                                if fname in add_container:
+                                    add_fqpr.append(fqpr_inst)
+                                    add_container.remove(fname)
+                            if add_container:
+                                self.print('kluster_surface_update: {} must be loaded in Kluster for it to be added to the surface.'.format(add_container), logging.ERROR)
+                                return
                         self.output_window.clear()
                         self.surface_update_thread.populate(surf, add_fqpr, add_lines, remove_container, remove_lines, opts)
                         self.surface_update_thread.start()
