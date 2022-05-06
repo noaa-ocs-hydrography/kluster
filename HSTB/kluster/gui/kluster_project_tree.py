@@ -318,8 +318,6 @@ class KlusterProjectTree(QtWidgets.QTreeView):
             else:  # see if there are new lines to display
                 idx = self.tree_data['Converted'][1:].index(fq_proj)
                 proj_child = parent.child(idx)
-                tst = proj_child.rowCount()
-                tsttwo = len(line_data[fq_proj])
                 if proj_child.rowCount() != len(line_data[fq_proj]):  # new lines
                     tree_lines = [proj_child.child(rw).text() for rw in range(proj_child.rowCount())]
                     for fq_line in line_data[fq_proj]:

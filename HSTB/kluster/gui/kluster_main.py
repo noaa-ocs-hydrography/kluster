@@ -1480,25 +1480,29 @@ class KlusterMain(QtWidgets.QMainWindow):
             cancelled = False
             surfs = self.return_selected_surfaces()
             if surfs:
-                existing_container_names, possible_container_names = self.project.return_surface_containers(surfs[0], relative_path=False)
                 surf = self.project.surface_instances[self.project.path_relative_to_project(surfs[0])]
+                surf_version = [int(vnumber) for vnumber in surf.version.split('.')]
+                if surf_version[0] < 1 or (surf_version[0] == 1 and surf_version[1] < 3) or (surf_version[0] == 1 and surf_version[1] == 3 and surf_version[2] < 5):
+                    self.print('kluster_surface_update: surface update received a rework in bathygrid 1.3.5, grid created prior to that cannot be updated in Kluster.', logging.ERROR)
+                    return
+                existing_container_names, possible_container_names = self.project.return_surface_containers(surfs[0], relative_path=False)
                 dlog = dialog_surface_data.SurfaceDataDialog(parent=self, title=surf.output_folder)
                 dlog.setup(existing_container_names, possible_container_names)
                 if dlog.exec_():
                     cancelled = dlog.canceled
-                    add_fqpr_names, remove_fqpr_names, opts = dlog.return_processing_options()
+                    add_container, add_lines, remove_container, remove_lines, opts = dlog.return_processing_options()
                     if not cancelled:
                         add_fqpr = []
                         for fqpr_inst in self.project.fqpr_instances.values():
                             fname = os.path.split(fqpr_inst.multibeam.raw_ping[0].output_path)[1]
-                            if fname in add_fqpr_names:
+                            if fname in add_container:
                                 add_fqpr.append(fqpr_inst)
-                                add_fqpr_names.remove(fname)
-                        if add_fqpr_names:
-                            self.print('kluster_surface_update: {} must be loaded in Kluster for it to be added to the surface.'.format(add_fqpr_names), logging.ERROR)
+                                add_container.remove(fname)
+                        if add_container:
+                            self.print('kluster_surface_update: {} must be loaded in Kluster for it to be added to the surface.'.format(add_container), logging.ERROR)
                             return
                         self.output_window.clear()
-                        self.surface_update_thread.populate(surf, add_fqpr, remove_fqpr_names, opts)
+                        self.surface_update_thread.populate(surf, add_fqpr, add_lines, remove_container, remove_lines, opts)
                         self.surface_update_thread.start()
                     else:
                         self.print('kluster_surface_update: Processing was cancelled', logging.INFO)
@@ -1518,7 +1522,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         else:
             self.print('Error updating surface', logging.ERROR)
             self.print(self.surface_update_thread.exceptiontxt, logging.ERROR)
-        self.surface_update_thread.populate(None, None, None, {})
+        self.surface_update_thread.populate(None, None, None, None, None, {})
         self._stop_action_progress()
 
     def kluster_export_grid(self):
@@ -2129,6 +2133,27 @@ class KlusterMain(QtWidgets.QMainWindow):
 
         attrs = self.project.surface_instances[converted_pth].return_attribution()
         filtered_attrs = {a: attrs[a] for a in attrs.keys() if a not in kluster_variables.hidden_grid_attributes}
+        combined_source = {}
+        remove_keys = []
+        for ky, val in filtered_attrs.items():
+            if ky[:6] == 'source':
+                remove_keys += [ky]
+                splitky = ky.split('__')
+                if len(splitky) != 2:  # this must be pre bathygrid 1.3.5 where we started combining container name and line name as the key
+                    combined_source[ky] = val
+                else:  # we combine the containers by just appending the multibeam line to the total lines
+                    contname, linename = splitky
+                    if contname not in combined_source:
+                        combined_source[contname] = val
+                    else:
+                        for mline in val['multibeam_lines']:
+                            if mline not in combined_source[contname]['multibeam_lines']:
+                                combined_source[contname]['multibeam_lines'] += [mline]
+        for ky in remove_keys:
+            filtered_attrs.pop(ky)
+        for ky in combined_source.keys():
+            combined_source[ky]['multibeam_lines'] = sorted(combined_source[ky]['multibeam_lines'])
+        filtered_attrs.update(combined_source)
         self.attribute.display_file_attribution(filtered_attrs)
 
     def tree_surface_layer_selected(self, surfpath, layername, checked):

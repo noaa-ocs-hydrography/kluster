@@ -1121,6 +1121,17 @@ class FqprProject(LoggerClass):
             vf = None
         return vf
 
+    def return_surface(self, surface_name: str, relative_path: bool = True):
+        try:
+            if relative_path:
+                surf = self.surface_instances[surface_name]
+            else:
+                surf = self.surface_instances[self.path_relative_to_project(surface_name)]
+            return surf
+        except:
+            self.print_msg('return_surface_containers: Surface {} not found in project'.format(surface_name), logging.ERROR)
+            return None
+
     def return_surface_containers(self, surface_name: str, relative_path: bool = True):
         """
         Project has loaded surface and fqpr instances.  This method will return the names of the existing fqpr instances
@@ -1138,21 +1149,16 @@ class FqprProject(LoggerClass):
 
         Returns
         -------
-        list
-            list of the fqpr instance names that are in the surface, with an asterisk at the end if the surface version
+        dict
+            dict of the fqpr instance names/line names that are in the surface, with an asterisk at the end if the surface version
             of the fqpr instance soundings is out of date
-        list
-            list of fqpr instances that are in the project and not in the surface
+        dict
+            dict of fqpr instances/line names that are in the project and not in the surface
         """
 
-        try:
-            if relative_path:
-                surf = self.surface_instances[surface_name]
-            else:
-                surf = self.surface_instances[self.path_relative_to_project(surface_name)]
-        except:
-            self.print_msg('return_surface_containers: Surface {} not found in project'.format(surface_name), logging.ERROR)
-            return [], []
+        surf = self.return_surface(surface_name, relative_path)
+        if not surf:
+            return {}, {}
         existing_container_names = surf.return_unique_containers()
         existing_needs_update = []
         for existblock in existing_container_names:
@@ -1175,7 +1181,22 @@ class FqprProject(LoggerClass):
             for mfile in multibeamfiles:
                 possible_container_names += ['{}__{}'.format(cont_name, mfile)]
         possible_container_names = [pname for pname in possible_container_names if (pname not in existing_container_names) and (pname + '*' not in existing_container_names)]
-        return existing_container_names, possible_container_names
+
+        existing_data = {}
+        possible_data = {}
+        for entry in existing_container_names:
+            container, mline = entry.split('__')
+            if container not in existing_data:
+                existing_data[container] = [mline]
+            elif mline not in existing_data[container]:
+                existing_data[container] += [mline]
+        for entry in possible_container_names:
+            container, mline = entry.split('__')
+            if container not in possible_data:
+                possible_data[container] = [mline]
+            elif mline not in possible_data[container]:
+                possible_data[container] += [mline]
+        return existing_data, possible_data
 
     def _validate_xyzrph_for_lines(self, line_list: list):
         """

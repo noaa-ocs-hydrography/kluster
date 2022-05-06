@@ -494,7 +494,7 @@ def _add_points_to_surface(fqpr_inst: Union[dict, Fqpr], bgrid: BathyGrid, fqpr_
             rp = linedata[mfile]
             # drop nan values in georeferenced data, generally where number of beams vary between pings
             data = rp.where(~np.isnan(rp['z']), drop=True)
-            bgrid.add_points(data, '{}__{}'.format(cont_name, mfile), multibeamfiles, fqpr_crs, fqpr_vertref,
+            bgrid.add_points(data, '{}__{}'.format(cont_name, mfile), [mfile], fqpr_crs, fqpr_vertref,
                              min_time=min_time, max_time=max_time)
 
 

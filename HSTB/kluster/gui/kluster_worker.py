@@ -598,15 +598,19 @@ class SurfaceUpdateWorker(QtCore.QThread):
         super().__init__(parent)
         self.fqpr_surface = None
         self.add_fqpr_instances = None
-        self.remove_fqpr_instances = None
+        self.add_lines = None
+        self.remove_fqpr_names = None
+        self.remove_lines = None
         self.opts = {}
         self.error = False
         self.exceptiontxt = None
 
-    def populate(self, fqpr_surface, add_fqpr_instances, remove_fqpr_instances, opts):
+    def populate(self, fqpr_surface, add_fqpr_instances, add_lines, remove_fqpr_names, remove_lines, opts):
         self.fqpr_surface = fqpr_surface
         self.add_fqpr_instances = add_fqpr_instances
-        self.remove_fqpr_instances = remove_fqpr_instances
+        self.add_lines = add_lines
+        self.remove_fqpr_names = remove_fqpr_names
+        self.remove_lines = remove_lines
         self.opts = opts
         self.error = False
         self.exceptiontxt = None
@@ -614,8 +618,8 @@ class SurfaceUpdateWorker(QtCore.QThread):
     def run(self):
         self.started.emit(True)
         try:
-            self.fqpr_surface = update_surface(self.fqpr_surface, self.add_fqpr_instances, self.remove_fqpr_instances,
-                                               **self.opts)
+            self.fqpr_surface = update_surface(self.fqpr_surface, self.add_fqpr_instances, self.add_lines,
+                                               self.remove_fqpr_names, self.remove_lines, **self.opts)
         except Exception as e:
             self.error = True
             self.exceptiontxt = traceback.format_exc()
