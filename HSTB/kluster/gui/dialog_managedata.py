@@ -1,12 +1,14 @@
 import os
 from datetime import datetime, timezone
+import logging
 
 from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal
+from HSTB.kluster.gui.common_widgets import SaveStateDialog
 from matplotlib.backends.backend_qt5agg import (FigureCanvasQTAgg, NavigationToolbar2QT as NavigationToolbar)
 import matplotlib.pyplot as plt
 
 
-class ManageDataDialog(QtWidgets.QWidget):
+class ManageDataDialog(SaveStateDialog):
     """
     Dialog contains a summary of the Fqpr data and some options for altering the data contained within.
 
@@ -14,8 +16,8 @@ class ManageDataDialog(QtWidgets.QWidget):
     """
     refresh_fqpr = Signal(object, object)
 
-    def __init__(self, parent=None):
-        super().__init__(parent)
+    def __init__(self, parent=None, title='', settings=None):
+        super().__init__(parent, settings, widgetname='ManageData')
 
         self.setMinimumWidth(500)
         self.setMinimumHeight(400)
@@ -62,27 +64,31 @@ class ManageDataDialog(QtWidgets.QWidget):
     def remove_sbet(self, e):
         if self.fqpr is not None:
             if 'nav_files' in self.fqpr.multibeam.raw_ping[0].attrs:
+                self.set_below()
                 newstate = RemoveSBETDialog(list(self.fqpr.multibeam.raw_ping[0].nav_files.keys())).run()
                 if newstate:
                     self.fqpr.remove_post_processed_navigation()
                     self.refresh_fqpr.emit(self.fqpr, self)
+                self.set_on_top()
             else:
-                print('No SBET files found')
+                self.print('No SBET files found', logging.ERROR)
         else:
-            print('No data found')
+            self.print('No data found', logging.ERROR)
 
     def remove_svp(self, profilename):
         if self.svpdialog is not None:
             if self.svpdialog.number_of_profiles > 1:
+                self.set_below()
                 newstate = RemoveSVPDialog(profilename).run()
                 if newstate:
                     self.fqpr.remove_profile(profilename)
                     self.svpdialog.remove_data_at_index(profilename)
                     self.refresh_fqpr.emit(self.fqpr, self)
+                self.set_on_top()
             else:
-                print('Unable to remove the last profile of a dataset')
+                self.print('Unable to remove the last profile of a dataset', logging.ERROR)
         else:
-            print('WARNING: Unable to find svp data dialog')
+            self.print('WARNING: Unable to find svp data dialog', logging.ERROR)
 
     def manage_svp(self, e):
         if self.fqpr is not None:
@@ -96,6 +102,9 @@ class ManageDataDialog(QtWidgets.QWidget):
     def svp_map_display(self, e):
         if self.fqpr is not None:
             self.fqpr.plot.plot_sound_velocity_map()
+            # set always on top
+            plt.gcf().canvas.manager.window.setWindowFlags(self.windowFlags() | QtCore.Qt.WindowStaysOnTopHint)
+            plt.gcf().canvas.manager.window.show()
 
 
 class RemoveSBETDialog(QtWidgets.QMessageBox):

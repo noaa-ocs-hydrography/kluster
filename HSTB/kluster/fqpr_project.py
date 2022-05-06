@@ -5,6 +5,7 @@ import json
 from typing import Union
 from datetime import datetime, timezone
 from types import FunctionType
+import logging
 
 from HSTB.kluster.fqpr_generation import Fqpr
 from HSTB.kluster.dask_helpers import dask_find_or_start_client, client_needs_restart
@@ -14,10 +15,12 @@ from HSTB.kluster.fqpr_helpers import haversine
 from HSTB.kluster.fqpr_vessel import VesselFile, create_new_vessel_file, convert_from_fqpr_xyzrph, compare_dict_data, \
     split_by_timestamp, trim_xyzrprh_to_times
 from HSTB.kluster.modules.autopatch import PatchTest
+from HSTB.kluster.logging_conf import LoggerClass
+
 from bathygrid.bgrid import BathyGrid
 
 
-class FqprProject:
+class FqprProject(LoggerClass):
     """
     The FqprProject class contains all the fqpr_generated.Fqpr objects and has methods for interacting with multiple
     of these objects as one big project.
@@ -42,7 +45,7 @@ class FqprProject:
     |    fqp.add_fqpr(pd, skip_dask=True)
     """
 
-    def __init__(self, is_gui: bool = False):
+    def __init__(self, is_gui: bool = False, **kwargs):
         """
 
         Parameters
@@ -50,6 +53,7 @@ class FqprProject:
         is_gui
              if True, this project is attached to a gui, so we disable progress so that we aren't filling up the output window
         """
+        super().__init__(**kwargs)
 
         self.client = None
         self.path = None
@@ -105,7 +109,8 @@ class FqprProject:
             relative file path from the project file
         """
         if self.path is None:
-            raise ValueError('FqprProject: path to project file not setup, is currently undefined.')
+            self.print_msg('path_relative_to_project: path to project file not setup, is currently undefined.', logging.ERROR)
+            raise ValueError('path_relative_to_project: path to project file not setup, is currently undefined.')
         return os.path.relpath(pth, os.path.dirname(self.path))
 
     def absolute_path_from_relative(self, pth: str):
@@ -125,7 +130,8 @@ class FqprProject:
         """
 
         if self.path is None:
-            raise ValueError('FqprProject: path to project file not setup, is currently undefined.')
+            self.print_msg('absolute_path_from_relative: path to project file not setup, is currently undefined.', logging.ERROR)
+            raise ValueError('absolute_path_from_relative: path to project file not setup, is currently undefined.')
         return os.path.abspath(os.path.join(os.path.dirname(self.path), pth))
 
     def _setup_new_project(self, pth: str):
@@ -162,7 +168,8 @@ class FqprProject:
         """
 
         if os.path.split(projfile)[1] != 'kluster_project.json':
-            raise IOError('Expected a file named kluster_project.json, found {}'.format(projfile))
+            self.print_msg('_load_project_file: Expected a file named kluster_project.json, found {}'.format(projfile), logging.ERROR)
+            raise IOError('_load_project_file: Expected a file named kluster_project.json, found {}'.format(projfile))
         with open(projfile, 'r') as pf:
             data = json.load(pf)
         # now translate the relative paths to absolute
@@ -171,7 +178,7 @@ class FqprProject:
             if data['vessel_file']:
                 self.vessel_file = self.absolute_path_from_relative(data['vessel_file'])
                 if not os.path.exists(self.vessel_file):
-                    print('Unable to find vessel file: {}'.format(self.vessel_file))
+                    self.print_msg('_load_project_file: Unable to find vessel file: {}'.format(self.vessel_file), logging.ERROR)
                     self.vessel_file = None
                     data['vessel_file'] = None
         else:
@@ -181,7 +188,7 @@ class FqprProject:
         for ky in ['fqpr_paths', 'surface_paths']:
             for fil in data[ky]:
                 if not os.path.exists(fil):
-                    print('Unable to find {}'.format(fil))
+                    self.print_msg('_load_project_file: Unable to find {}'.format(fil), logging.ERROR)
                     data[ky].remove(fil)
         return data
 
@@ -242,6 +249,7 @@ class FqprProject:
         """
 
         if self.path is None:
+            self.print_msg('kluster_project save_project - no data found, you must add data before saving a project', logging.ERROR)
             raise EnvironmentError('kluster_project save_project - no data found, you must add data before saving a project')
         if os.path.exists(self.path):
             try:
@@ -249,7 +257,7 @@ class FqprProject:
                 data['fqpr_paths'] = [self.path_relative_to_project(pth) for pth in data['fqpr_paths']]
                 data['surface_paths'] = [self.path_relative_to_project(pth) for pth in data['surface_paths']]
             except:
-                print('Warning: Unable to read from project file: {}'.format(self.path))
+                self.print_msg('save_project: Unable to read from project file: {}'.format(self.path), logging.WARNING)
                 data = {'fqpr_paths': [], 'surface_paths': [], 'vessel_file': None}
         else:
             data = {'fqpr_paths': [], 'surface_paths': [], 'vessel_file': None}
@@ -261,7 +269,7 @@ class FqprProject:
                 data['vessel_file'] = self.path_relative_to_project(self.vessel_file)
             data.update(self.settings)
             json.dump(data, pf, sort_keys=True, indent=4)
-        print('Project saved to {}'.format(self.path))
+        self.print_msg('Project saved to {}'.format(self.path), logging.INFO)
 
     def open_project(self, projfile: str, skip_dask: bool = False):
         """
@@ -283,13 +291,13 @@ class FqprProject:
             if os.path.exists(pth):
                 self.add_fqpr(pth, skip_dask=skip_dask)
             else:  # invalid path
-                print('Unable to find converted data: {}'.format(pth))
+                self.print_msg('open_project: Unable to find converted data: {}'.format(pth), logging.ERROR)
 
         for pth in data['surface_paths']:
             if os.path.exists(pth):
                 self.add_surface(pth)
             else:  # invalid path
-                print('Unable to find surface: {}'.format(pth))
+                self.print_msg('open_project: Unable to find surface: {}'.format(pth), logging.ERROR)
 
         data.pop('vessel_file')
         data.pop('fqpr_paths')
@@ -316,7 +324,7 @@ class FqprProject:
         elif self.path:
             vessel_file = os.path.join(os.path.dirname(self.path), 'vessel_file.kfc')
         else:
-            print('WARNING: Unable to setup new vessel file, save the project or add data first.')
+            self.print_msg('add_vessel_file: Unable to setup new vessel file, save the project or add data first.', logging.ERROR)
             return
         if not os.path.exists(vessel_file):
             create_new_vessel_file(vessel_file)
@@ -414,7 +422,7 @@ class FqprProject:
             self.regenerate_fqpr_lines(relpath)
             for callback in self._project_observers:
                 callback(True)
-            print('Successfully added {}'.format(pth))
+            self.print_msg('Successfully added {}'.format(pth), logging.INFO)
             return relpath, already_in
         return None, False
 
@@ -441,20 +449,20 @@ class FqprProject:
             if relpath in self.fqpr_attrs:
                 self.fqpr_attrs.pop(relpath)
             else:
-                print('Warning: On removing from project, unable to find attributes for {}'.format(relpath))
+                self.print_msg('remove_fqpr: On removing from project, unable to find attributes for {}'.format(relpath), logging.WARNING)
             for linename in self.fqpr_lines[relpath]:
                 if linename in self.convert_path_lookup:
                     self.convert_path_lookup.pop(linename)
                 else:
-                    print('Warning: On removing from project, unable to find loaded line attributes for {} in {}'.format(linename, relpath))
+                    self.print_msg('remove_fqpr: On removing from project, unable to find loaded line attributes for {} in {}'.format(linename, relpath), logging.WARNING)
             if relpath in self.fqpr_lines:
                 self.fqpr_lines.pop(relpath)
             else:
-                print('Warning: On removing from project, unable to find loaded lines for {}'.format(relpath))
+                self.print_msg('remove_fqpr: On removing from project, unable to find loaded lines for {}'.format(relpath), logging.WARNING)
             for callback in self._project_observers:
                 callback(True)
         else:
-            print('Unable to remove instance {}'.format(relpath))
+            self.print_msg('remove_fqpr: Unable to remove instance {}'.format(relpath), logging.ERROR)
 
     def refresh_fqpr_attribution(self, pth: str, relative_path: bool = False):
         if relative_path:
@@ -465,7 +473,7 @@ class FqprProject:
             fq = self.fqpr_instances[relpath]
             self.fqpr_attrs[relpath] = get_attributes_from_fqpr(fq, include_mode=False)
         else:
-            print('Warning: {} not found in project, unable to refresh attribution'.format(relpath))
+            self.print_msg('refresh_fqpr_attribution: {} not found in project, unable to refresh attribution'.format(relpath), logging.WARNING)
 
     def add_surface(self, pth: Union[str, BathyGrid]):
         """
@@ -489,7 +497,7 @@ class FqprProject:
                 self._setup_new_project(os.path.dirname(pth))
             relpath = self.path_relative_to_project(pth)
             self.surface_instances[relpath] = bg
-            print('Successfully added {}'.format(pth))
+            self.print_msg('Successfully added {}'.format(pth), logging.INFO)
 
     def remove_surface(self, pth: str, relative_path: bool = False):
         """
@@ -576,7 +584,8 @@ class FqprProject:
                 elif visualization_type == 'corrected_beam_vectors':
                     fq_inst.plot.visualize_beam_pointing_vectors(corrected=True)
                 else:
-                    raise ValueError("Expected one of 'orientation', 'beam_vectors', 'corrected_beam_vectors', got {}".format(visualization_type))
+                    self.print_msg("build_visualizations: Expected one of 'orientation', 'beam_vectors', 'corrected_beam_vectors', got {}".format(visualization_type), logging.ERROR)
+                    raise ValueError("build_visualizations: Expected one of 'orientation', 'beam_vectors', 'corrected_beam_vectors', got {}".format(visualization_type))
 
     def return_line_owner(self, line: str):
         """
@@ -597,7 +606,7 @@ class FqprProject:
             convert_pth = self.convert_path_lookup[line]
             return self.fqpr_instances[convert_pth]
         else:
-            print('return_line_owner: Unable to find project for line {}'.format(line))
+            self.print_msg('return_line_owner: Unable to find project for line {}'.format(line), logging.ERROR)
             return None
 
     def return_surface_paths(self):
@@ -660,7 +669,7 @@ class FqprProject:
                 else:
                     return self.fqpr_lines[self.path_relative_to_project(proj)]
             else:
-                print('return_project_lines: expected a string path to be provided to the kluster fqpr datastore')
+                self.print_msg('return_project_lines: expected a string path to be provided to the kluster fqpr datastore', logging.ERROR)
                 return None
         return self.fqpr_lines
 
@@ -707,10 +716,10 @@ class FqprProject:
                     # save nav so we don't have to redo this routine if asked for the same line
                     self.buffered_fqpr_navigation[line] = [lat, lon]
                 else:
-                    print('No navigation found for line {}'.format(line))
+                    self.print_msg('No navigation found for line {}'.format(line), logging.ERROR)
                     return None, None
             else:
-                print('{} not found in project'.format(line))
+                self.print_msg('{} not found in project'.format(line), logging.ERROR)
                 return None, None
         else:
             lat, lon = self.buffered_fqpr_navigation[line]
@@ -883,8 +892,8 @@ class FqprProject:
                 fq = self.path_relative_to_project(fq)
             fqpr_abs_paths.append(fq_path)  # the full file path to the Fqpr data
             if fq not in self.fqpr_instances:
+                self.print_msg('get_fqprs_by_paths: Unable to find {} in project'.format(fq), logging.WARNING)
                 if not raise_exception:
-                    print('Unable to find {} in project'.format(fq))
                     fqpr_loaded.append(None)
                     continue
                 else:
@@ -903,8 +912,8 @@ class FqprProject:
         if line_dict and concatenate:
             sysids = [fq.multibeam.raw_ping[0].attrs['system_serial_number'][0] for fq in fqpr_loaded]
             if not all([sysids[0] == sid for sid in sysids]):
+                self.print_msg('get_fqprs_by_paths: Data from multiple different sonars found, returning only the data for the first selected sonar', logging.WARNING)
                 if not raise_exception:
-                    print('ERROR: Data from multiple different sonars found, returning only the data for the first selected sonar')
                     return [fqpr_abs_paths[0]], [fqpr_loaded[0]]
                 else:
                     raise ValueError('get_fqprs_by_paths: Data from multiple different sonars found')
@@ -913,10 +922,10 @@ class FqprProject:
                 offsets, angles, _, _, _ = compare_dict_data(first_xyzrph, fq.multibeam.xyzrph)
                 if not offsets or not angles:
                     if allow_different_offsets:
-                        print('Warning: loading data for selected lines when installation offsets/angles do not match between converted instances')
+                        self.print_msg('get_fqprs_by_paths: loading data for selected lines when installation offsets/angles do not match between converted instances', logging.WARNING)
                     else:
+                        self.print_msg('get_fqprs_by_paths: loading data for selected lines when installation offsets/angles do not match between converted instances is not allowed, returning only the data for the first selected sonar', logging.ERROR)
                         if not raise_exception:
-                            print('ERROR: loading data for selected lines when installation offsets/angles do not match between converted instances is not allowed, returning only the data for the first selected sonar')
                             return [fqpr_abs_paths[0]], [fqpr_loaded[0]]
                         else:
                             raise ValueError('get_fqprs_by_paths: loading data for selected lines when installation offsets/angles do not match between converted instances is not allowed')
@@ -935,7 +944,7 @@ class FqprProject:
                     for fq in fqpr_loaded:  # for each dataset
                         dropthese = [ky for ky in fq.multibeam.raw_ping[cnt].variables.keys() if ky not in commonkeys]
                         if dropthese:
-                            print('Warning: forced to drop {} when merging these datasets, variables found in one dataset but not the other'.format(dropthese))
+                            self.print_msg('get_fqprs_by_paths: forced to drop {} when merging these datasets, variables found in one dataset but not the other'.format(dropthese), logging.WARNING)
                             fq.multibeam.raw_ping[cnt] = fq.multibeam.raw_ping[cnt].drop(dropthese)
                 final_fqpr.multibeam.raw_ping = [xr.concat([fq.multibeam.raw_ping[cnt] for fq in fqpr_loaded], dim='time') for cnt in range(len(fqpr_loaded[0].multibeam.raw_ping))]
             [final_fqpr.multibeam.raw_ping[0].multibeam_files.update(fq.multibeam.raw_ping[0].multibeam_files) for fq in fqpr_loaded]
@@ -966,7 +975,7 @@ class FqprProject:
         fqpaths = []
         for multibeam_line in line_list:  # first pass to get the azimuth and positions of the lines
             if multibeam_line not in self.convert_path_lookup:
-                print('Unable to find {} in project'.format(multibeam_line))
+                self.print_msg('_return_patch_test_line_data: Unable to find {} in project'.format(multibeam_line), logging.WARNING)
             fqpr_rel_pth = self.convert_path_lookup[multibeam_line]
             fq = self.fqpr_instances[fqpr_rel_pth]
             try:
@@ -974,7 +983,7 @@ class FqprProject:
                 start_position = [start_latitude, start_longitude]
                 end_position = [end_latitude, end_longitude]
             except:
-                print('Warning: unable to pull line attributes added in Kluster 0.8.3, is this an older version of Kluster?')
+                self.print_msg('_return_patch_test_line_data: unable to pull line attributes added in Kluster 0.8.3, is this an older version of Kluster?', logging.ERROR)
                 line_start, line_end = fq.multibeam.raw_ping[0].multibeam_files[multibeam_line][0], fq.multibeam.raw_ping[0].multibeam_files[multibeam_line][1]
                 dstart = fq.multibeam.raw_ping[0].interp(time=np.array([max(line_start, fq.multibeam.raw_ping[0].time.values[0])]), method='nearest', assume_sorted=True)
                 start_position = [dstart.latitude.values, dstart.longitude.values]
@@ -1113,6 +1122,17 @@ class FqprProject:
             vf = None
         return vf
 
+    def return_surface(self, surface_name: str, relative_path: bool = True):
+        try:
+            if relative_path:
+                surf = self.surface_instances[surface_name]
+            else:
+                surf = self.surface_instances[self.path_relative_to_project(surface_name)]
+            return surf
+        except:
+            self.print_msg('return_surface_containers: Surface {} not found in project'.format(surface_name), logging.ERROR)
+            return None
+
     def return_surface_containers(self, surface_name: str, relative_path: bool = True):
         """
         Project has loaded surface and fqpr instances.  This method will return the names of the existing fqpr instances
@@ -1130,24 +1150,20 @@ class FqprProject:
 
         Returns
         -------
-        list
-            list of the fqpr instance names that are in the surface, with an asterisk at the end if the surface version
+        dict
+            dict of the fqpr instance names/line names that are in the surface, with an asterisk at the end if the surface version
             of the fqpr instance soundings is out of date
-        list
-            list of fqpr instances that are in the project and not in the surface
+        dict
+            dict of fqpr instances/line names that are in the project and not in the surface
         """
 
-        try:
-            if relative_path:
-                surf = self.surface_instances[surface_name]
-            else:
-                surf = self.surface_instances[self.path_relative_to_project(surface_name)]
-        except:
-            print('Surface {} not found in project'.format(surface_name))
-            return [], []
+        surf = self.return_surface(surface_name, relative_path)
+        if not surf:
+            return {}, {}
         existing_container_names = surf.return_unique_containers()
         existing_needs_update = []
-        for existname in existing_container_names:
+        for existblock in existing_container_names:
+            existname, linename = existblock.split('__')
             if existname in self.fqpr_instances:
                 existtime = None
                 for ename, etime in surf.container_timestamp.items():
@@ -1157,11 +1173,31 @@ class FqprProject:
                 if existtime:
                     last_time = self.fqpr_instances[existname].last_operation_date
                     if last_time > existtime:
-                        existing_needs_update.append(existname)
+                        existing_needs_update.append(existblock)
         existing_container_names = [exist if exist not in existing_needs_update else exist + '*' for exist in existing_container_names]
-        possible_container_names = [os.path.split(fqpr_inst.multibeam.raw_ping[0].output_path)[1] for fqpr_inst in self.fqpr_instances.values()]
+        possible_container_names = []
+        for fqpr_inst in self.fqpr_instances.values():
+            cont_name = os.path.split(fqpr_inst.output_folder)[1]
+            multibeamfiles = list(fqpr_inst.multibeam.raw_ping[0].multibeam_files.keys())
+            for mfile in multibeamfiles:
+                possible_container_names += ['{}__{}'.format(cont_name, mfile)]
         possible_container_names = [pname for pname in possible_container_names if (pname not in existing_container_names) and (pname + '*' not in existing_container_names)]
-        return existing_container_names, possible_container_names
+
+        existing_data = {}
+        possible_data = {}
+        for entry in existing_container_names:
+            container, mline = entry.split('__')
+            if container not in existing_data:
+                existing_data[container] = [mline]
+            elif mline not in existing_data[container]:
+                existing_data[container] += [mline]
+        for entry in possible_container_names:
+            container, mline = entry.split('__')
+            if container not in possible_data:
+                possible_data[container] = [mline]
+            elif mline not in possible_data[container]:
+                possible_data[container] += [mline]
+        return existing_data, possible_data
 
     def _validate_xyzrph_for_lines(self, line_list: list):
         """
@@ -1192,6 +1228,7 @@ class FqprProject:
                 if not offsets or not angles:
                     msg = '_validate_xyzrph_for_lines: line {} was found to have different offsets/angles relative to the other lines.'.format(line)
                     msg += '  All lines must have the same offsets/angles for the patch test to be valid.'
+                    self.print_msg(msg, logging.ERROR)
                     raise NotImplementedError(msg)
         return xyzrph
 
@@ -1246,6 +1283,8 @@ def create_new_project(output_folder: str = None):
     """
     Create a new FqprProject by taking in multibeam files, converting them, making a new Fqpr instance and loading that
     Fqpr into a new FqprProject.
+
+    No longer used in general, instead use _setup_new_project
 
     Parameters
     ----------

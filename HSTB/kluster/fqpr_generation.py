@@ -3383,24 +3383,30 @@ class Fqpr(ZarrBackend):
             else:
                 new_diff_inputdatum = True
                 input_datum = new_input_datum
+        if 'horizontal_crs' in self.multibeam.raw_ping[0].attrs:
+            try:
+                existing_epsg = int(self.multibeam.raw_ping[0].attrs['horizontal_crs'])
+            except:
+                raise ValueError('return_next_action: Unable to convert current coordinate system to epsg: {}'.format(
+                    self.horizontal_crs))
+        else:
+            existing_epsg = 1  # georeference has not been run yet, so we use this default value that always fails the next check
         if new_coordinate_system:
             try:
                 new_epsg = new_coordinate_system.to_epsg()
             except:
                 raise ValueError('return_next_action: Unable to convert new coordinate system to epsg: {}'.format(new_coordinate_system))
-            if 'horizontal_crs' in self.multibeam.raw_ping[0].attrs:
-                try:
-                    existing_epsg = int(self.multibeam.raw_ping[0].attrs['horizontal_crs'])
-                except:
-                    raise ValueError('return_next_action: Unable to convert current coordinate system to epsg: {}'.format(self.horizontal_crs))
-            else:
-                existing_epsg = 1  # georeference has not been run yet, so we use this default value that always fails the next check
+            default_use_epsg = True
+            default_use_coord = False
+            default_epsg = new_epsg
+            default_coord_system = None
             if new_epsg != existing_epsg and new_epsg and existing_epsg:
                 new_diff_coordinate = True
-                default_use_epsg = True
-                default_use_coord = False
-                default_epsg = new_epsg
-                default_coord_system = None
+        elif existing_epsg != 1:
+            default_use_epsg = True
+            default_use_coord = False
+            default_epsg = existing_epsg
+            default_coord_system = None
         if new_vertical_reference:
             if new_vertical_reference != self.vert_ref:
                 new_diff_vertref = True

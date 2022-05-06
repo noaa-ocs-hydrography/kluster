@@ -1,3 +1,5 @@
+import logging
+
 from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal
 
 from HSTB.kluster.gui.common_widgets import BrowseListWidget
@@ -158,7 +160,7 @@ class FilterDialog(SaveStateDialog):
             descrip += f'{combobox_text}: {curdescrip}'
             self.filter_opts.setToolTip(descrip)
         except:
-            print(f'WARNING: Unable to load description for filter {combobox_text}')
+            self.print(f'Unable to load description for filter {combobox_text}', logging.WARNING)
         self.status_msg.setText('')
         self.ok_button.setEnabled(True)
 
@@ -200,9 +202,9 @@ class FilterDialog(SaveStateDialog):
         self.accept()
 
 
-class AdditionalFilterOptionsDialog(QtWidgets.QDialog):
-    def __init__(self, parent=None, title='', controls=None):
-        super().__init__(parent)
+class AdditionalFilterOptionsDialog(SaveStateDialog):
+    def __init__(self, parent=None, title='', settings=None, controls=None):
+        super().__init__(parent, settings, widgetname='AdditionalFilterOptionsDialog')
         self.setWindowTitle(title)
         layout = QtWidgets.QVBoxLayout()
         self.controls = []
@@ -230,7 +232,7 @@ class AdditionalFilterOptionsDialog(QtWidgets.QDialog):
                 try:
                     newcntrl.setProperty(propkey, propvalue)
                 except:
-                    print(f'AdditionalFilterOptionsDialog: Error: unable to set property {propkey}:{propvalue} on {newcntrl}')
+                    self.print(f'AdditionalFilterOptionsDialog: Error: unable to set property {propkey}:{propvalue} on {newcntrl}', logging.ERROR)
             if cntrl_type == 'float':
                 newcntrl.setValue(cntrl_val)
             elif cntrl_type == 'int':

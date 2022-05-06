@@ -15,6 +15,7 @@ from HSTB.kluster import monitor, fqpr_actions
 from HSTB.kluster.fqpr_project import FqprProject
 from HSTB.kluster.fqpr_helpers import build_crs
 from HSTB.kluster.fqpr_vessel import compare_dict_data, convert_from_fqpr_xyzrph
+from HSTB.kluster.logging_conf import LoggerClass
 from HSTB.kluster import kluster_variables
 
 
@@ -24,38 +25,6 @@ supported_sbet = kluster_variables.supported_ppnav  # people keep mixing up thes
 supported_export_log = kluster_variables.supported_ppnav_log
 supported_svp = kluster_variables.supported_sv
 all_extensions = list(np.concatenate([supported_mbes, supported_sbet, supported_export_log, supported_svp]))
-
-
-class LoggerClass:
-    """
-    Basic class for logging.  Include a logging.logger instance to use that, or set silent to true to disable print
-    messages entirely.  Use of Logger will trump silent.
-    """
-
-    def __init__(self, silent=False, logger=None):
-        self.silent = silent
-        self.logger = logger
-
-    def print_msg(self, msg: str, loglvl: int = logging.INFO):
-        """
-        Either print to console, print using logger, or do not print at all, if self.silent = True
-
-        Parameters
-        ----------
-        msg
-            message contents as string
-        loglvl
-            one of the logging enum values, logging.info or logging.warning as example
-        """
-
-        if self.logger is not None:
-            if not isinstance(loglvl, int):
-                raise ValueError('Log level must be an int (see logging enum), found {}'.format(loglvl))
-            self.logger.log(loglvl, msg)
-        elif self.silent:
-            pass
-        else:
-            print(msg)
 
 
 class FqprIntel(LoggerClass):
@@ -1872,7 +1841,7 @@ def intel_process(filname: Union[str, list], outfold: str = None, coord_system: 
         list of Fqpr instances
     """
 
-    project = FqprProject(is_gui=False)
+    project = FqprProject(is_gui=False, logger=logger)
     if client:
         project.client = client
     if outfold:
@@ -1953,7 +1922,7 @@ def intel_process_service(folder_path: str, is_recursive: bool = True, outfold: 
     """
 
     # consider daemonizing this at some point: https://daemoniker.readthedocs.io/en/latest/index.html
-    project = FqprProject(is_gui=False)
+    project = FqprProject(is_gui=False, logger=logger)
     if client:
         project.client = client
     if outfold:

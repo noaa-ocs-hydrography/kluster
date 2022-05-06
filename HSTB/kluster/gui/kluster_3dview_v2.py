@@ -3,6 +3,7 @@ from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal, qgis
 if qgis_enabled:
     from HSTB.kluster.gui.backends._qt import qgis_core, qgis_gui
 
+import logging
 import matplotlib
 matplotlib.use('qt5agg')
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
@@ -729,6 +730,18 @@ class ThreeDView(QtWidgets.QWidget):
         if not self.z.any():
             return True
         return False
+
+    def print(self, msg: str, loglevel: int):
+        if self.parent is not None:
+            self.parent.print(msg, loglevel)
+        else:
+            print(msg)
+
+    def debug_print(self, msg: str, loglevel: int):
+        if self.parent is not None:
+            self.parent.debug_print(msg, loglevel)
+        else:
+            print(msg)
 
     def _on_mouse_press(self, event):
         """
@@ -1510,6 +1523,46 @@ class ThreeDWidget(QtWidgets.QWidget):
         self._select_rect_color = clr
         self.three_d_window.select_rect_color = clr
 
+    def print(self, msg: str, loglevel: int):
+        """
+        convenience method for printing using kluster_main logger
+
+        Parameters
+        ----------
+        msg
+            print text
+        loglevel
+            logging level, ex: logging.INFO
+        """
+
+        if self.parent() is not None:
+            if self.parent().parent() is not None:  # widget is docked, kluster_main is the parent of the dock
+                self.parent().parent().print(msg, loglevel)
+            else:  # widget is undocked, kluster_main is the parent
+                self.parent().print(msg, loglevel)
+        else:
+            print(msg)
+
+    def debug_print(self, msg: str, loglevel: int):
+        """
+        convenience method for printing using kluster_main logger, when debug is enabled
+
+        Parameters
+        ----------
+        msg
+            print text
+        loglevel
+            logging level, ex: logging.INFO
+        """
+
+        if self.parent() is not None:
+            if self.parent().parent() is not None:  # widget is docked, kluster_main is the parent of the dock
+                self.parent().parent().debug_print(msg, loglevel)
+            else:  # widget is undocked, kluster_main is the parent
+                self.parent().debug_print(msg, loglevel)
+        else:
+            print(msg)
+
     def save_settings(self):
         """
         Save the settings to the Qsettings registry
@@ -1690,28 +1743,27 @@ class ThreeDWidget(QtWidgets.QWidget):
             self.three_d_window.highlight_selected_scatter(self.colorby.currentText(), False)
 
             if len(self.last_change_buffer) > kluster_variables.last_change_buffer_size:
-                print('WARNING: Points view will only retain the last {} cleaning actions for undo'.format(kluster_variables.last_change_buffer_size))
+                self.print('clean_points: Points view will only retain the last {} cleaning actions for undo'.format(kluster_variables.last_change_buffer_size), logging.WARNING)
                 self.last_change_buffer.pop(0)
         else:
-            print('Point cloud cleaning disabled while patch test is running')
+            self.print('Point cloud cleaning disabled while patch test is running', logging.INFO)
 
     def override_sounding_status(self, new_status: np.ndarray):
         if not self.patch_test_running:
             try:
                 assert new_status.size == self.three_d_window.rejected.size
             except AssertionError:
-                print(f'override_sounding_status: unable to override Points View rejected with new array, size does not match (new size {new_status.size} != {self.three_d_window.rejected.size}')
+                self.print(f'override_sounding_status: unable to override Points View rejected with new array, size does not match (new size {new_status.size} != {self.three_d_window.rejected.size}', logging.ERROR)
             self.three_d_window.selected_points = np.ones(self.three_d_window.rejected.shape[0], dtype=bool)
             self.last_change_buffer.append([self.three_d_window.selected_points, self.three_d_window.rejected.copy()])
             self.three_d_window.rejected[self.three_d_window.selected_points] = new_status
             self.three_d_window.selected_points = None
             self.three_d_window.highlight_selected_scatter(self.colorby.currentText(), False)
             if len(self.last_change_buffer) > kluster_variables.last_change_buffer_size:
-                print('WARNING: Points view will only retain the last {} cleaning actions for undo'.format(
-                    kluster_variables.last_change_buffer_size))
+                self.print('override_sounding_status: Points view will only retain the last {} cleaning actions for undo'.format(kluster_variables.last_change_buffer_size), logging.WARNING)
                 self.last_change_buffer.pop(0)
         else:
-            print('Point cloud cleaning disabled while patch test is running')
+            self.print('Point cloud cleaning disabled while patch test is running', logging.INFO)
 
     def accept_points(self, startpos, endpos, three_d: bool = False):
         """
@@ -1725,7 +1777,7 @@ class ThreeDWidget(QtWidgets.QWidget):
             self.three_d_window.rejected[self.three_d_window.selected_points] = kluster_variables.accepted_flag
             self.points_cleaned.emit(kluster_variables.accepted_flag)
             if len(self.last_change_buffer) > kluster_variables.last_change_buffer_size:
-                print('WARNING: Points view will only retain the last {} cleaning actions for undo'.format(kluster_variables.last_change_buffer_size))
+                self.print('accept_points: Points view will only retain the last {} cleaning actions for undo'.format(kluster_variables.last_change_buffer_size), logging.WARNING)
                 self.last_change_buffer.pop(0)
         self.three_d_window.highlight_selected_scatter(self.colorby.currentText(), False)
 
@@ -1737,7 +1789,7 @@ class ThreeDWidget(QtWidgets.QWidget):
             self.points_cleaned.emit(last_status)
             self.three_d_window.highlight_selected_scatter(self.colorby.currentText())
         else:
-            print('Points View: No changes to undo')
+            self.print('undo_clean: no changes to undo', logging.INFO)
 
     def return_array(self, arr_name: str):
         idx = {}
@@ -1944,7 +1996,7 @@ class ThreeDWidget(QtWidgets.QWidget):
             except:
                 pass
         else:
-            print('Points View: Unable to load state, no saved state')
+            self.print('Points View: Unable to load state, no saved state', logging.WARNING)
 
     def clear_display(self):
         self.three_d_window.clear_display()

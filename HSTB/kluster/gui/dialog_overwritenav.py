@@ -2,19 +2,19 @@ from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal
 from datetime import datetime
 
 from HSTB.shared import RegistryHelpers
-from HSTB.kluster.gui.common_widgets import BrowseListWidget
+from HSTB.kluster.gui.common_widgets import BrowseListWidget, SaveStateDialog
 from HSTB.kluster import kluster_variables
 
 
-class OverwriteNavigationDialog(QtWidgets.QDialog):
+class OverwriteNavigationDialog(SaveStateDialog):
     """
     Dialog contains all the options related to overwriting the navigation with POSMV files.  Use
     return_processing_options to get the kwargs to feed the fqpr_convenience.process_multibeam function.
 
     fqpr = fully qualified ping record, the term for the datastore in kluster
     """
-    def __init__(self, parent=None):
-        super().__init__(parent)
+    def __init__(self, parent=None, title='', settings=None):
+        super().__init__(parent, settings, widgetname='OverwriteNavigationDialog')
 
         self.setWindowTitle('Overwrite Navigation')
         layout = QtWidgets.QVBoxLayout()

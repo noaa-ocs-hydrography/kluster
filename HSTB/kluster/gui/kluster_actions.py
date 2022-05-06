@@ -33,7 +33,6 @@ class KlusterActions(QtWidgets.QTreeView):
         super().__init__(parent)
         self.external_settings = settings
 
-        self.parent = parent
         self.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
         self.model = QtGui.QStandardItemModel()  # row can be 0 even when there are more than 0 rows
         self.setModel(self.model)
@@ -85,6 +84,46 @@ class KlusterActions(QtWidgets.QTreeView):
         self.customContextMenuRequested.connect(self.show_context_menu)
         self.configure()
         self.read_settings()
+
+    def print(self, msg: str, loglevel: int):
+        """
+        convenience method for printing using kluster_main logger
+
+        Parameters
+        ----------
+        msg
+            print text
+        loglevel
+            logging level, ex: logging.INFO
+        """
+
+        if self.parent() is not None:
+            if self.parent().parent() is not None:  # widget is docked, kluster_main is the parent of the dock
+                self.parent().parent().print(msg, loglevel)
+            else:  # widget is undocked, kluster_main is the parent
+                self.parent().print(msg, loglevel)
+        else:
+            print(msg)
+
+    def debug_print(self, msg: str, loglevel: int):
+        """
+        convenience method for printing using kluster_main logger, when debug is enabled
+
+        Parameters
+        ----------
+        msg
+            print text
+        loglevel
+            logging level, ex: logging.INFO
+        """
+
+        if self.parent() is not None:
+            if self.parent().parent() is not None:  # widget is docked, kluster_main is the parent of the dock
+                self.parent().parent().debug_print(msg, loglevel)
+            else:  # widget is undocked, kluster_main is the parent
+                self.parent().debug_print(msg, loglevel)
+        else:
+            print(msg)
 
     @property
     def settings_object(self):
@@ -348,7 +387,7 @@ class KlusterActions(QtWidgets.QTreeView):
 
     def auto_process(self):
         if self.is_auto:
-            print('Enabling autoprocessing')
+            self.print('Enabling autoprocessing', logging.INFO)
             self.auto_thread = AutoThread(self.stop_auto, self.emit_auto_signal)
             self.stop_auto.clear()
             self.auto_thread.start()

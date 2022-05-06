@@ -2,11 +2,12 @@ from datetime import datetime
 
 from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal
 from HSTB.kluster import kluster_variables
+from HSTB.kluster.gui.common_widgets import SaveStateDialog
 
 
-class PrePatchDialog(QtWidgets.QDialog):
-    def __init__(self, parent=None):
-        super().__init__(parent)
+class PrePatchDialog(SaveStateDialog):
+    def __init__(self, parent=None, title='', settings=None):
+        super().__init__(parent, settings, widgetname='PrePatchDialog')
 
         self.setWindowTitle('Patch Test')
 

@@ -1,14 +1,16 @@
 import os
+import logging
 
 from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal
 from HSTB.shared import RegistryHelpers
+from HSTB.kluster.gui.common_widgets import SaveStateDialog
 from HSTB.drivers import par3, kmall, PCSio, sbet
 from HSTB.kluster.fqpr_drivers import read_first_fifty_records, kluster_read_test, bscorr_generation
 
 
-class FileAnalyzerDialog(QtWidgets.QDialog):
-    def __init__(self, parent=None):
-        super().__init__(parent)
+class FileAnalyzerDialog(SaveStateDialog):
+    def __init__(self, parent=None, title='', settings=None):
+        super().__init__(parent, settings, widgetname='FileAnalyzerDialog')
 
         self.setWindowTitle('File Analyzer')
         self.mainlayout = QtWidgets.QVBoxLayout()
@@ -96,11 +98,11 @@ class FileAnalyzerDialog(QtWidgets.QDialog):
         if file_path:
             fext = os.path.splitext(file_path)[1]
             if self.filetype == 'kongsberg_all' and fext != '.all':
-                print('Expected .all file, got {}'.format(file_path))
+                self.print('Expected .all file, got {}'.format(file_path), logging.ERROR)
             elif self.filetype == 'kongsberg_kmall' and fext != '.kmall':
-                print('Expected .kmall file, got {}'.format(file_path))
+                self.print('Expected .kmall file, got {}'.format(file_path), logging.ERROR)
             elif self.filetype in ['applanix_sbet', 'applanix_smrmsg'] and fext not in ['.out', '.sbet', 'smrmsg']:
-                print('Expected .kmall file, got {}'.format(file_path))
+                self.print('Expected .kmall file, got {}'.format(file_path), logging.ERROR)
             else:
                 self.fil_two_text.setText(file_path)
                 self.filenametwo = file_path
@@ -114,14 +116,14 @@ class FileAnalyzerDialog(QtWidgets.QDialog):
                     elif sbet.is_smrmsg(file_path):
                         self.fileobjecttwo = sbet.read(file_path, numcolumns=10)
                     else:
-                        print(f'Not a recognized file type, tried sbet and smrmsg: {file_path}')
+                        self.print(f'Not a recognized file type, tried sbet and smrmsg: {file_path}', logging.ERROR)
                         self.fileobjecttwo = None
                 else:
                     try:
                         poscheck = int(fext[1:])
                         self.fileobjecttwo = PCSio.PCSFile(self.filename)
                     except:
-                        print(f'Not a recognized file type: {self.filename}')
+                        self.print(f'Not a recognized file type: {self.filename}', logging.ERROR)
                         self.fileobjecttwo = None
 
     def file_browse(self, e):
@@ -152,7 +154,7 @@ class FileAnalyzerDialog(QtWidgets.QDialog):
                     self.fileobject = sbet.read(file_path, numcolumns=10)
                     self.functioncombobox.addItems(['read_first_fifty_records'])
                 else:
-                    print(f'Not a recognized file type, tried sbet and smrmsg: {self.filename}')
+                    self.print(f'Not a recognized file type, tried sbet and smrmsg: {self.filename}', logging.ERROR)
                     self.filetype = ''
                     self.fileobject = None
             else:
@@ -162,7 +164,7 @@ class FileAnalyzerDialog(QtWidgets.QDialog):
                     self.fileobject = PCSio.PCSFile(self.filename)
                     self.functioncombobox.addItems(['read_first_fifty_records'])
                 except:
-                    print(f'Not a recognized file type: {self.filename}')
+                    self.print(f'Not a recognized file type: {self.filename}', logging.ERROR)
                     self.filetype = ''
                     self.fileobject = None
         self.ftypelabel.setText(f'File Type: {self.filetype}')

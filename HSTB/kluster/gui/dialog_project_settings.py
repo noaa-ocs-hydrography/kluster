@@ -1,5 +1,6 @@
 import os
 from pyproj import CRS
+import logging
 
 from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal
 from HSTB.kluster.gui.common_widgets import SaveStateDialog
@@ -233,7 +234,7 @@ class ProjectSettingsDialog(SaveStateDialog):
         self.find_vdatum()
         if self.status_msg.text():
             return
-        print('Project settings saved')
+        self.print('Project settings saved', logging.INFO)
         self.canceled = False
         self.save_settings()
         self.accept()

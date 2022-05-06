@@ -21,6 +21,7 @@ from datetime import datetime
 from pyproj import CRS, Transformer
 import qdarkstyle
 import matplotlib.pyplot as plt
+import logging
 
 from HSTB.kluster.gui import dialog_vesselview, kluster_explorer, kluster_project_tree, kluster_3dview_v2, \
     kluster_output_window, kluster_2dview, kluster_actions, kluster_monitor, dialog_daskclient, dialog_surface, \
@@ -32,6 +33,7 @@ from HSTB.kluster.fqpr_project import FqprProject
 from HSTB.kluster.fqpr_intelligence import FqprIntel
 from HSTB.kluster.fqpr_vessel import convert_from_fqpr_xyzrph, convert_from_vessel_xyzrph, compare_dict_data
 from HSTB.kluster.dask_helpers import dask_close_localcluster
+from HSTB.kluster.logging_conf import return_logger, add_file_handler, logfile_matches, logger_remove_file_handlers
 from HSTB.kluster import __version__ as kluster_version
 from HSTB.kluster import __file__ as kluster_init_file
 from HSTB.shared import RegistryHelpers, path_to_supplementals
@@ -55,6 +57,7 @@ settings_translator = {'Kluster/dark_mode': {'newname': 'dark_mode', 'defaultval
                        'Kluster/settings_enable_parallel_writes': {'newname': 'write_parallel', 'defaultvalue': True},
                        'Kluster/settings_vdatum_directory': {'newname': 'vdatum_directory', 'defaultvalue': ''},
                        'Kluster/settings_filter_directory': {'newname': 'filter_directory', 'defaultvalue': ''},
+                       'Kluster/settings_main_log_file': {'newname': 'main_log_file', 'defaultvalue': ''},
                        'Kluster/settings_auto_processing_mode': {'newname': 'autoprocessing_mode', 'defaultvalue': 'normal'},
                        'Kluster/settings_force_coordinate_match': {'newname': 'force_coordinate_match', 'defaultvalue': False},
                        }
@@ -86,6 +89,12 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.app_library = app_library
         self.start_horiz_size = 1360
         self.start_vert_size = 768
+        self.debug = False
+
+        # initialize the output window first, to get stdout/stderr configured
+        self.output_window = kluster_output_window.KlusterOutput(self)
+        # and then initialize the logger
+        self.logger = return_logger('kluster_main')
 
         self.resize(self.start_horiz_size, self.start_vert_size)
 
@@ -95,8 +104,8 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.widget_obj_names = []
 
         # fqpr = fully qualified ping record, the term for the datastore in kluster
-        self.project = FqprProject(is_gui=False)  # is_gui controls the progress bar text, used to disable it for gui, no longer
-        self.intel = FqprIntel(self.project, self)
+        self.project = FqprProject(is_gui=False, logger=self.logger)  # is_gui controls the progress bar text, used to disable it for gui, no longer doing that though
+        self.intel = FqprIntel(self.project, self, logger=self.logger)
         # settings, like the chosen vertical reference
         # ex: {'use_epsg': True, 'epsg': 26910, ...}
         self.settings = {}
@@ -116,7 +125,6 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.explorer = kluster_explorer.KlusterExplorer(self)
         self.explorer_dock = self.dock_this_widget("Explorer", 'explorer_dock', self.explorer)
 
-        self.output_window = kluster_output_window.KlusterOutput(self)
         self.output_window_dock = self.dock_this_widget('Output', 'output_window_dock', self.output_window)
 
         self.attribute = kluster_explorer.KlusterAttribution(self)
@@ -158,8 +166,8 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.export_tracklines_thread = kluster_worker.ExportTracklinesWorker()
         self.export_grid_thread = kluster_worker.ExportGridWorker()
         self.filter_thread = kluster_worker.FilterWorker()
-        self.open_project_thread = kluster_worker.OpenProjectWorker()
-        self.draw_navigation_thread = kluster_worker.DrawNavigationWorker()
+        self.open_project_thread = kluster_worker.OpenProjectWorker(self)
+        self.draw_navigation_thread = kluster_worker.DrawNavigationWorker(self)
         self.draw_surface_thread = kluster_worker.DrawSurfaceWorker()
         self.load_points_thread = kluster_worker.LoadPointsWorker()
         self.patch_test_load_thread = kluster_worker.PatchTestUpdateWorker()
@@ -254,6 +262,31 @@ class KlusterMain(QtWidgets.QMainWindow):
         kluster_ini = os.path.join(kluster_dir, 'misc', 'kluster.ini')
         return QtCore.QSettings(kluster_ini, QtCore.QSettings.IniFormat)
 
+    def print(self, msg: str, loglevel: int):
+        # all gui objects are going to use this method in printing
+        if self.logger is not None:
+            self.logger.log(loglevel, msg)
+        else:
+            print(msg)
+
+    def debug_print(self, msg: str, loglevel: int):
+        # all gui objects are going to use this method in debug printing
+        if self.debug:
+            if self.logger is not None:
+                self.logger.log(loglevel, msg)
+            else:
+                print(msg)
+
+    def _configure_logfile(self):
+        newlogfile = self.settings.get('main_log_file')
+        if newlogfile:
+            if not logfile_matches(self.logger, newlogfile):
+                add_file_handler(self.logger, newlogfile)
+                self.logger.info('******************************************************************************')
+                self.logger.info('Logfile initialized: {}'.format(newlogfile))
+        else:  # a blank newlogfile was found, so we remove all file handlers
+            logger_remove_file_handlers(self.logger)
+
     def _load_previously_used_settings(self):
         settings = self.settings_object
         for settname, opts in settings_translator.items():
@@ -274,6 +307,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         if self.project.path is not None:
             self.project.set_settings(self.settings.copy())
         self.intel.set_settings(self.settings.copy())
+        self._configure_logfile()
 
     def dragEnterEvent(self, e):
         """
@@ -483,7 +517,7 @@ class KlusterMain(QtWidgets.QMainWindow):
             try:
                 updated_type, new_data, new_project = self.intel.add_file(f)
             except Exception as e:
-                print('Unable to load from file {}, {}'.format(f, e))
+                self.print('Unable to load from file {}, {}'.format(f, e), logging.ERROR)
                 updated_type, new_data, new_project = None, True, None
 
             if new_project:  # user added a data file when there was no project, so we loaded or created a new one
@@ -531,7 +565,7 @@ class KlusterMain(QtWidgets.QMainWindow):
                         self.two_d.remove_surface(remove_surface, resolution)
         if add_surface is not None and surface_layer_name:
             if self.surface_update_thread.isRunning():
-                print('Surface is currently updating, please wait until after that process is complete.')
+                self.print('Surface is currently updating, please wait until after that process is complete.', logging.WARNING)
                 return
             surf_object = self.project.surface_instances[add_surface]
             needs_drawing = []
@@ -548,7 +582,7 @@ class KlusterMain(QtWidgets.QMainWindow):
                     if not shown:  # show didnt work, must need to add the surface instead, loading from disk...
                         needs_drawing.append(resolution)
             if needs_drawing:
-                print('Drawing {} - {}, resolution {}'.format(add_surface, surface_layer_name, needs_drawing))
+                self.print('Drawing {} - {}, resolution {}'.format(add_surface, surface_layer_name, needs_drawing), logging.INFO)
                 self.draw_surface_thread.populate(add_surface, surf_object, needs_drawing, surface_layer_name)
                 self.draw_surface_thread.start()
 
@@ -559,18 +593,18 @@ class KlusterMain(QtWidgets.QMainWindow):
     def manage_fqpr(self, pth):
         fq = self.project.fqpr_instances[pth]
         self.managedata_win = None
-        self.managedata_win = dialog_managedata.ManageDataDialog()
+        self.managedata_win = dialog_managedata.ManageDataDialog(parent=self)
         self.managedata_win.refresh_fqpr.connect(self._refresh_manage_fqpr)
         self.managedata_win.populate(fq)
-        self.managedata_win.setWindowFlags(self.managedata_win.windowFlags() | QtCore.Qt.WindowStaysOnTopHint)
+        self.managedata_win.set_on_top()
         self.managedata_win.show()
 
     def manage_surface(self, pth):
         surf = self.project.surface_instances[pth]
         self.managedata_surf = None
-        self.managedata_surf = dialog_managesurface.ManageSurfaceDialog()
+        self.managedata_surf = dialog_managesurface.ManageSurfaceDialog(parent=self)
         self.managedata_surf.populate(surf)
-        self.managedata_surf.setWindowFlags(self.managedata_surf.windowFlags() | QtCore.Qt.WindowStaysOnTopHint)
+        self.managedata_surf.set_on_top()
         self.managedata_surf.show()
 
     def _refresh_manage_fqpr(self, fq, dlog):
@@ -690,7 +724,7 @@ class KlusterMain(QtWidgets.QMainWindow):
             if os.path.exists(fil):
                 self.intel.add_file(fil)
             else:
-                print('Unable to find {}'.format(fil))
+                self.print('Unable to find {}'.format(fil), logging.ERROR)
 
     def visualize_orientation(self, pth):
         self.project.build_visualizations(pth, 'orientation')
@@ -744,7 +778,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         fqprs, _ = self.return_selected_fqprs()
 
         self.vessel_win = None
-        self.vessel_win = dialog_vesselview.VesselWidget()
+        self.vessel_win = dialog_vesselview.VesselWidget(parent=self)
         self.vessel_win.vessel_file_modified.connect(self.regenerate_offsets_actions)
         self.vessel_win.converted_xyzrph_modified.connect(self.update_offsets_vesselwidget)
 
@@ -757,7 +791,6 @@ class KlusterMain(QtWidgets.QMainWindow):
                                                    os.path.split(fqpr.output_folder)[1])
             self.vessel_win.xyzrph = vess_xyzrph
             self.vessel_win.load_from_existing_xyzrph()
-        # self.vessel_win.setWindowFlags(self.vessel_win.windowFlags() | QtCore.Qt.WindowStaysOnTopHint)
         self.vessel_win.show()
 
     def regenerate_offsets_actions(self, is_modified: bool):
@@ -794,7 +827,7 @@ class KlusterMain(QtWidgets.QMainWindow):
             matching_fq = list(source[0].values())[0]
             for fqname, fq in self.project.fqpr_instances.items():
                 if fqname == matching_fq:
-                    print('Updating xyzrph record for {}'.format(fqname))
+                    self.print('Updating xyzrph record for {}'.format(fqname), logging.INFO)
                     identical_offsets, identical_angles, identical_tpu, data_matches, new_waterline = compare_dict_data(fq.multibeam.xyzrph,
                                                                                                                         xyzrph[cnt])
                     # # drop the vessel setup specific keys, like the vessel file used and the vess_center location
@@ -828,7 +861,7 @@ class KlusterMain(QtWidgets.QMainWindow):
             fq = self.project.fqpr_instances[fqprs[0]]
             current_status = fq.multibeam.raw_ping[0].current_processing_status
             if current_status == 0:
-                print('reprocess_fqpr: Unable to reprocess converted data, current process is already at the beginning (conversion)')
+                self.print('reprocess_fqpr: Unable to reprocess converted data, current process is already at the beginning (conversion)', logging.ERROR)
                 return
             dlog = dialog_reprocess.ReprocessDialog(current_status, fq.output_folder)
             cancelled = False
@@ -842,9 +875,9 @@ class KlusterMain(QtWidgets.QMainWindow):
                         fq.multibeam.reload_pingrecords(skip_dask=fq.client is None)
                         self.intel.regenerate_actions()
                     else:
-                        print('reprocess_fqpr: new status is None, unable to set status')
+                        self.print('reprocess_fqpr: new status is None, unable to set status', logging.ERROR)
                 else:
-                    print('reprocess_fqpr: cancelled')
+                    self.print('reprocess_fqpr: cancelled', logging.INFO)
 
     def update_surface_selected(self):
         """
@@ -860,7 +893,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         fqprspaths, fqprs = self.return_selected_fqprs(subset_by_line=True)
 
         self.basicplots_win = None
-        self.basicplots_win = dialog_basicplot.BasicPlotDialog()
+        self.basicplots_win = dialog_basicplot.BasicPlotDialog(self)
 
         if fqprs:
             self.basicplots_win.data_widget.new_fqpr_path(fqprspaths[0], fqprs[0])
@@ -883,7 +916,7 @@ class KlusterMain(QtWidgets.QMainWindow):
                 default_plots = os.path.join(os.path.dirname(first_surf), 'accuracy_test_{}'.format(datetime.now().strftime('%Y%m%d_%H%M%S')))
 
         self.advancedplots_win = None
-        self.advancedplots_win = dialog_advancedplot.AdvancedPlotDialog()
+        self.advancedplots_win = dialog_advancedplot.AdvancedPlotDialog(self)
 
         if fqprspaths:
             self.advancedplots_win.data_widget.new_fqpr_path(fqprspaths[0], fqprs[0])
@@ -909,7 +942,6 @@ class KlusterMain(QtWidgets.QMainWindow):
 
         cancelled = False
         if not self.no_threads_running():
-            # print('Processing is already occurring.  Please wait for the process to finish')
             cancelled = True
         if not cancelled:
             self.output_window.clear()
@@ -935,9 +967,10 @@ class KlusterMain(QtWidgets.QMainWindow):
             else:  # new fqpr, or conversion actions always need a full refresh
                 self.refresh_project(fqpr=[fqpr_entry])
         else:
-            print('Error running action {}'.format(self.action_thread.action_type))
-            print(self.action_thread.exceptiontxt)
-            print('kluster_action: no data returned from action execution: {}'.format(fqpr))
+            self.print('Error running action {}'.format(self.action_thread.action_type), logging.ERROR)
+            self.print(self.action_thread.exceptiontxt, logging.INFO)
+            self.print('kluster_action: no data returned from action execution: {}'.format(fqpr), logging.INFO)
+            self.intel.update_intel_for_action_results(action_type=self.action_thread.action_type)
         self.action_thread.populate(None, None)
         self._stop_action_progress()
 
@@ -952,11 +985,11 @@ class KlusterMain(QtWidgets.QMainWindow):
 
         """
         if not self.no_threads_running():
-            print('Processing is already occurring.  Please wait for the process to finish')
+            self.print('Processing is already occurring.  Please wait for the process to finish', logging.WARNING)
             cancelled = True
         else:
             fqprs, _ = self.return_selected_fqprs()
-            dlog = dialog_overwritenav.OverwriteNavigationDialog()
+            dlog = dialog_overwritenav.OverwriteNavigationDialog(parent=self)
             dlog.update_fqpr_instances(addtl_files=fqprs)
             cancelled = False
             if dlog.exec_():
@@ -968,7 +1001,7 @@ class KlusterMain(QtWidgets.QMainWindow):
                     for fq in fqprs:
                         relfq = self.project.path_relative_to_project(fq)
                         if relfq not in self.project.fqpr_instances:
-                            print('Unable to find {} in currently loaded project'.format(relfq))
+                            self.print('Unable to find {} in currently loaded project'.format(relfq), logging.ERROR)
                             return
                         if relfq in self.project.fqpr_instances:
                             fq_inst = self.project.fqpr_instances[relfq]
@@ -981,7 +1014,7 @@ class KlusterMain(QtWidgets.QMainWindow):
                 else:
                     cancelled = True
         if cancelled:
-            print('kluster_import_navigation: Processing was cancelled')
+            self.print('kluster_import_navigation: Processing was cancelled', logging.INFO)
 
     def _kluster_overwrite_nav_results(self):
         """
@@ -994,8 +1027,8 @@ class KlusterMain(QtWidgets.QMainWindow):
                 self.project.add_fqpr(fq)
                 self.refresh_explorer(fq)
         else:
-            print('Error overwriting raw navigation')
-            print(self.overwrite_nav_thread.exceptiontxt)
+            self.print('Error overwriting raw navigation', logging.ERROR)
+            self.print(self.overwrite_nav_thread.exceptiontxt, logging.ERROR)
         self.overwrite_nav_thread.populate(None)
         self._stop_action_progress()
 
@@ -1010,7 +1043,7 @@ class KlusterMain(QtWidgets.QMainWindow):
 
         """
         if not self.no_threads_running():
-            print('Processing is already occurring.  Please wait for the process to finish')
+            self.print('Processing is already occurring.  Please wait for the process to finish', logging.WARNING)
             cancelled = True
         else:
             fqprs, _ = self.return_selected_fqprs()
@@ -1026,7 +1059,7 @@ class KlusterMain(QtWidgets.QMainWindow):
                     for fq in fqprs:
                         relfq = self.project.path_relative_to_project(fq)
                         if relfq not in self.project.fqpr_instances:
-                            print('Unable to find {} in currently loaded project'.format(relfq))
+                            self.print('Unable to find {} in currently loaded project'.format(relfq), logging.ERROR)
                             return
                         if relfq in self.project.fqpr_instances:
                             fq_inst = self.project.fqpr_instances[relfq]
@@ -1039,7 +1072,7 @@ class KlusterMain(QtWidgets.QMainWindow):
                 else:
                     cancelled = True
         if cancelled:
-            print('kluster_import_navigation: Processing was cancelled')
+            self.print('kluster_import_navigation: Processing was cancelled', logging.INFO)
 
     def _kluster_import_ppnav_results(self):
         """
@@ -1052,8 +1085,8 @@ class KlusterMain(QtWidgets.QMainWindow):
                 self.project.add_fqpr(fq)
                 self.refresh_explorer(fq)
         else:
-            print('Error importing post processed navigation')
-            print(self.import_ppnav_thread.exceptiontxt)
+            self.print('Error importing post processed navigation', logging.ERROR)
+            self.print(self.import_ppnav_thread.exceptiontxt, logging.ERROR)
         self.import_ppnav_thread.populate(None)
         self._stop_action_progress()
 
@@ -1064,17 +1097,17 @@ class KlusterMain(QtWidgets.QMainWindow):
         the patch test tool (ManualPatchTestWidget).  After that selection, we run the Patch Test tool.
         """
         if not self.no_threads_running():
-            print('Processing is already occurring.  Please wait for the process to finish')
+            self.print('Processing is already occurring.  Please wait for the process to finish', logging.WARNING)
         else:
             systems, linenames, time_segments = self.points_view.return_lines_and_times()
             if systems:
                 datablock = self.project.retrieve_data_for_time_segments(systems, time_segments)
                 if datablock:
-                    dlog_patch = dialog_manualpatchtest.PrePatchDialog()
+                    dlog_patch = dialog_manualpatchtest.PrePatchDialog(parent=self)
                     dlog_patch.add_data(datablock)
                     if dlog_patch.exec_():
                         if dlog_patch.canceled:
-                            print('Patch Test: test canceled')
+                            self.print('Patch Test: test canceled', logging.INFO)
                         else:
                             final_datablock = dlog_patch.return_final_data()
                             if final_datablock:
@@ -1095,11 +1128,11 @@ class KlusterMain(QtWidgets.QMainWindow):
                                 self._manpatchtest.setWindowFlags(self._manpatchtest.windowFlags() | QtCore.Qt.WindowStaysOnTopHint)
                                 self._manpatchtest.show()
                             else:
-                                print('Patch Test: no data selected')
+                                self.print('Patch Test: no data selected', logging.ERROR)
                 else:
-                    print('Patch Test: no data selected for running in Patch Test utility')
+                    self.print('Patch Test: no data selected for running in Patch Test utility', logging.ERROR)
             else:
-                print('Patch Test: no data found in Points View')
+                self.print('Patch Test: no data found in Points View', logging.ERROR)
 
     def _update_manual_patch_test(self):
         """
@@ -1119,7 +1152,7 @@ class KlusterMain(QtWidgets.QMainWindow):
                                                  headindex, prefixes, tstamps, serial_num, self.load_points_thread.polygon)
             self.patch_test_load_thread.start()
         else:
-            print('Unable to load the data for updating the manual patch test')
+            self.print('Unable to load the data for updating the manual patch test', logging.ERROR)
 
     def _kluster_update_manual_patch_test(self):
         """
@@ -1145,8 +1178,8 @@ class KlusterMain(QtWidgets.QMainWindow):
             self.points_view.load_view_settings()
             self.points_view.patch_test_running = True
         else:
-            print('Error reprocessing patch test subset')
-            print(self.patch_test_load_thread.exceptiontxt)
+            self.print('Error reprocessing patch test subset', logging.ERROR)
+            self.print(self.patch_test_load_thread.exceptiontxt, logging.ERROR)
         self.patch_test_load_thread.populate(None)
         self._stop_action_progress()
 
@@ -1156,11 +1189,11 @@ class KlusterMain(QtWidgets.QMainWindow):
         in the auto patch test procedure, so the results of this should not be used.
         """
         if not self.no_threads_running():
-            print('Processing is already occurring.  Please wait for the process to finish')
+            self.print('Processing is already occurring.  Please wait for the process to finish', logging.WARNING)
             cancelled = True
         else:
             cancelled = False
-            self._patch = dialog_patchtest.PatchTestDialog()
+            self._patch = dialog_patchtest.PatchTestDialog(parent=self)
             self._patch.patch_query.connect(self._feed_auto_patch_test_dialog)
             if self._patch.exec_():
                 cancelled = self._patch.canceled
@@ -1168,7 +1201,7 @@ class KlusterMain(QtWidgets.QMainWindow):
                 if pairs:
                     self.project.run_auto_patch_test(pairs)
         if cancelled:
-            print('kluster_auto_patch_test: Processing was cancelled')
+            self.print('kluster_auto_patch_test: Processing was cancelled', logging.INFO)
         self._patch = None
 
     def _feed_auto_patch_test_dialog(self, mode: str):
@@ -1184,7 +1217,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         """
 
         if self._patch is None:
-            print('ERROR: Lost handle on patch test dialog')
+            self.print('ERROR: Lost handle on patch test dialog', logging.ERROR)
             return
         self._patch.clear()
         if mode == 'pointsview':
@@ -1201,7 +1234,7 @@ class KlusterMain(QtWidgets.QMainWindow):
                 cur_cnt += 1
 
     def _kluster_filter_dialog(self, filter_list, filter_module, fqprs, filter_descrip):
-        dlog = dialog_filter.FilterDialog(filter_list, filter_descrip)
+        dlog = dialog_filter.FilterDialog(filter_list, filter_descrip, parent=self)
         dlog.update_fqpr_instances(addtl_files=fqprs)
         cancelled = False
         basic_filter_mode = False
@@ -1245,7 +1278,7 @@ class KlusterMain(QtWidgets.QMainWindow):
     def _kluster_additional_filter_dialog(self, filter_controls, filter_name):
         cancelled = False
         if filter_controls:
-            add_dlog = dialog_filter.AdditionalFilterOptionsDialog(title=filter_name, controls=filter_controls)
+            add_dlog = dialog_filter.AdditionalFilterOptionsDialog(title=filter_name, controls=filter_controls, parent=self)
             if add_dlog.exec_():
                 if not add_dlog.canceled:
                     kwargs = add_dlog.return_kwargs()
@@ -1265,7 +1298,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         """
 
         if not self.no_threads_running():
-            print('Processing is already occurring.  Please wait for the process to finish')
+            self.print('Processing is already occurring.  Please wait for the process to finish', logging.WARNING)
             cancelled = True
         else:
             fqprs, _ = self.return_selected_fqprs()
@@ -1275,7 +1308,7 @@ class KlusterMain(QtWidgets.QMainWindow):
                 filter_list = filter_module.list_filters()
                 filter_descrip = filter_module.list_descriptions()
             except:
-                print('Error: kluster_filter no loaded converted data found to filter, unable to initialize filter list.')
+                self.print('Error: kluster_filter no loaded converted data found to filter, unable to initialize filter list.', logging.ERROR)
                 return
 
             result = self._kluster_filter_dialog(filter_list, filter_module, fqprs, filter_descrip)
@@ -1289,14 +1322,14 @@ class KlusterMain(QtWidgets.QMainWindow):
                     for fq in fqprs:
                         relfq = self.project.path_relative_to_project(fq)
                         if relfq not in self.project.fqpr_instances:
-                            print('kluster_filter: Unable to find {} in currently loaded project'.format(relfq))
+                            self.print('kluster_filter: Unable to find {} in currently loaded project'.format(relfq), logging.ERROR)
                             return
                         fq_inst = self.project.fqpr_instances[relfq]
                         # use the project client, or start a new LocalCluster if client is None
                         fq_inst.client = self.project.get_dask_client()
                         if points_filter_mode:
                             if relfq not in pointtime or relfq not in pointbeam:
-                                print(f'kluster_filter: {relfq} is not currently being used in Points View, skipping filter')
+                                self.print(f'kluster_filter: {relfq} is not currently being used in Points View, skipping filter', logging.WARNING)
                                 continue
                             fq_chunks.append([fq_inst, pointtime[relfq], pointbeam[relfq], relfq])
                         else:
@@ -1305,16 +1338,16 @@ class KlusterMain(QtWidgets.QMainWindow):
                                                     points_filter_mode, savetodisk, kwargs)
                         self.filter_thread.start()
                 else:
-                    print('kluster_filter: Filter was cancelled')
+                   self.print('kluster_filter: Filter was cancelled', logging.WARNING)
             else:
-                print('kluster_filter: Filter was cancelled')
+                self.print('kluster_filter: Filter was cancelled', logging.WARNING)
 
     def _kluster_filter_results(self):
         if self.filter_thread.error:
-            print('Filter complete: Unable to filter')
-            print(self.filter_thread.exceptiontxt)
+            self.print('Filter complete: Unable to filter', logging.ERROR)
+            self.print(self.filter_thread.exceptiontxt, logging.ERROR)
         else:
-            print('Filter complete.')
+            self.print('Filter complete.', logging.INFO)
         if self.filter_thread.mode == 'points':
             newinfo = self.filter_thread.new_status
             selindex = self.filter_thread.selected_index
@@ -1353,12 +1386,12 @@ class KlusterMain(QtWidgets.QMainWindow):
         """
 
         if not self.no_threads_running():
-            print('Processing is already occurring.  Please wait for the process to finish')
+            self.print('Processing is already occurring.  Please wait for the process to finish', logging.WARNING)
             cancelled = True
         else:
             cancelled = False
             fqprspaths, fqprs = self.return_selected_fqprs()
-            dlog = dialog_surface.SurfaceDialog()
+            dlog = dialog_surface.SurfaceDialog(parent=self)
             dlog.update_fqpr_instances(addtl_files=fqprspaths)
             if dlog.exec_():
                 cancelled = dlog.canceled
@@ -1377,10 +1410,10 @@ class KlusterMain(QtWidgets.QMainWindow):
                             try:
                                 relfq = self.project.path_relative_to_project(fq)
                             except:
-                                print('No project loaded, you must load some data before generating a surface')
+                                self.print('No project loaded, you must load some data before generating a surface', logging.ERROR)
                                 return
                             if relfq not in self.project.fqpr_instances:
-                                print('Unable to find {} in currently loaded project'.format(relfq))
+                                self.print('Unable to find {} in currently loaded project'.format(relfq), logging.ERROR)
                                 return
                             if relfq in self.project.fqpr_instances:
                                 fq_inst = self.project.fqpr_instances[relfq]
@@ -1393,7 +1426,7 @@ class KlusterMain(QtWidgets.QMainWindow):
                         self.surface_thread.populate(fq_chunks, opts)
                         self.surface_thread.start()
         if cancelled:
-            print('kluster_surface_generation: Processing was cancelled')
+            self.print('kluster_surface_generation: Processing was cancelled', logging.INFO)
 
     def _kluster_surface_generation_results(self):
         """
@@ -1406,8 +1439,8 @@ class KlusterMain(QtWidgets.QMainWindow):
             self.project.add_surface(fq_surf)
             self.redraw()
         else:
-            print('Error building surface')
-            print(self.surface_thread.exceptiontxt)
+            self.print('Error building surface', logging.ERROR)
+            self.print(self.surface_thread.exceptiontxt, logging.ERROR)
         self.surface_thread.populate(None, {})
         self._stop_action_progress()
 
@@ -1421,11 +1454,11 @@ class KlusterMain(QtWidgets.QMainWindow):
         """
 
         if not self.no_threads_running():
-            print('Processing is already occurring.  Please wait for the process to finish')
+            self.print('Processing is already occurring.  Please wait for the process to finish', logging.WARNING)
             cancelled = True
         else:
             cancelled = False
-            dlog = dialog_surfacefrompoints.SurfaceFromPointsDialog()
+            dlog = dialog_surfacefrompoints.SurfaceFromPointsDialog(parent=self)
             if dlog.exec_():
                 cancelled = dlog.canceled
                 opts = dlog.return_processing_options()
@@ -1437,38 +1470,43 @@ class KlusterMain(QtWidgets.QMainWindow):
                     self.surface_thread.mode = 'from_points'
                     self.surface_thread.start()
         if cancelled:
-            print('kluster_surface_generation: Processing was cancelled')
+            self.print('kluster_surface_generation: Processing was cancelled', logging.INFO)
 
     def kluster_surface_update(self):
         if not self.no_threads_running():
-            print('Processing is already occurring.  Please wait for the process to finish')
+            self.print('Processing is already occurring.  Please wait for the process to finish', logging.WARNING)
             cancelled = True
         else:
             cancelled = False
             surfs = self.return_selected_surfaces()
             if surfs:
-                existing_container_names, possible_container_names = self.project.return_surface_containers(surfs[0], relative_path=False)
                 surf = self.project.surface_instances[self.project.path_relative_to_project(surfs[0])]
-                dlog = dialog_surface_data.SurfaceDataDialog(title=surf.output_folder)
+                surf_version = [int(vnumber) for vnumber in surf.version.split('.')]
+                if surf_version[0] < 1 or (surf_version[0] == 1 and surf_version[1] < 3) or (surf_version[0] == 1 and surf_version[1] == 3 and surf_version[2] < 5):
+                    self.print('kluster_surface_update: surface update received a rework in bathygrid 1.3.5, grid created prior to that cannot be updated in Kluster.', logging.ERROR)
+                    return
+                existing_container_names, possible_container_names = self.project.return_surface_containers(surfs[0], relative_path=False)
+                dlog = dialog_surface_data.SurfaceDataDialog(parent=self, title=surf.output_folder)
                 dlog.setup(existing_container_names, possible_container_names)
                 if dlog.exec_():
                     cancelled = dlog.canceled
-                    add_fqpr_names, remove_fqpr_names, opts = dlog.return_processing_options()
+                    add_container, add_lines, remove_container, remove_lines, opts = dlog.return_processing_options()
                     if not cancelled:
-                        add_fqpr = []
-                        for fqpr_inst in self.project.fqpr_instances.values():
-                            fname = os.path.split(fqpr_inst.multibeam.raw_ping[0].output_path)[1]
-                            if fname in add_fqpr_names:
-                                add_fqpr.append(fqpr_inst)
-                                add_fqpr_names.remove(fname)
-                        if add_fqpr_names:
-                            print('kluster_surface_update: {} must be loaded in Kluster for it to be added to the surface.'.format(add_fqpr_names))
-                            return
+                        if add_container:
+                            add_fqpr = []
+                            for fqpr_inst in self.project.fqpr_instances.values():
+                                fname = os.path.split(fqpr_inst.multibeam.raw_ping[0].output_path)[1]
+                                if fname in add_container:
+                                    add_fqpr.append(fqpr_inst)
+                                    add_container.remove(fname)
+                            if add_container:
+                                self.print('kluster_surface_update: {} must be loaded in Kluster for it to be added to the surface.'.format(add_container), logging.ERROR)
+                                return
                         self.output_window.clear()
-                        self.surface_update_thread.populate(surf, add_fqpr, remove_fqpr_names, opts)
+                        self.surface_update_thread.populate(surf, add_fqpr, add_lines, remove_container, remove_lines, opts)
                         self.surface_update_thread.start()
                     else:
-                        print('kluster_surface_update: Processing was cancelled')
+                        self.print('kluster_surface_update: Processing was cancelled', logging.INFO)
 
     def _kluster_surface_update_results(self):
         """
@@ -1482,10 +1520,11 @@ class KlusterMain(QtWidgets.QMainWindow):
             self.close_surface(relpath_surf)
             self.project.add_surface(fq_surf)
             self.project_tree.refresh_project(proj=self.project)
+            self.print('Updating surface complete', logging.INFO)
         else:
-            print('Error updating surface')
-            print(self.surface_update_thread.exceptiontxt)
-        self.surface_update_thread.populate(None, None, None, {})
+            self.print('Error updating surface', logging.ERROR)
+            self.print(self.surface_update_thread.exceptiontxt, logging.ERROR)
+        self.surface_update_thread.populate(None, None, None, None, None, {})
         self._stop_action_progress()
 
     def kluster_export_grid(self):
@@ -1494,7 +1533,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         """
 
         if not self.no_threads_running():
-            print('Processing is already occurring.  Please wait for the process to finish')
+            self.print('Processing is already occurring.  Please wait for the process to finish', logging.WARNING)
             cancelled = True
         else:
             surfs = self.return_selected_surfaces()
@@ -1514,23 +1553,22 @@ class KlusterMain(QtWidgets.QMainWindow):
                     export_format = opts.pop('export_format')
                     z_pos_up = opts.pop('z_positive_up')
                     relsurf = self.project.path_relative_to_project(surf)
-                    if (export_format == 'BAG' or z_pos_up) and opts['vert_crs']:
-                        opts['vert_crs'] = opts['vert_crs'].replace('"depth (D)",down', '"gravity-related height (H),up')
+
                     if relsurf not in self.project.surface_instances:
-                        print('Unable to find {} in currently loaded project'.format(relsurf))
+                        self.print('Unable to find {} in currently loaded project'.format(relsurf), logging.ERROR)
                         return
                     if relsurf in self.project.surface_instances:
                         surf_inst = self.project.surface_instances[relsurf]
                         self.output_window.clear()
-                        print('Exporting to {}, format {}..'.format(output_path, export_format))
+                        self.print('Exporting to {}, format {}..'.format(output_path, export_format), logging.INFO)
                         self.export_grid_thread.populate(surf_inst, export_format, output_path, z_pos_up, opts)
                         self.export_grid_thread.start()
                     else:
-                        print('kluster_grid_export: Unable to load from {}'.format(surf))
+                        self.print('kluster_grid_export: Unable to load from {}'.format(surf), logging.ERROR)
                 else:
                     cancelled = True
         if cancelled:
-            print('kluster_grid_export: Export was cancelled')
+            self.print('kluster_grid_export: Export was cancelled', logging.INFO)
 
     def _kluster_export_grid_results(self):
         """
@@ -1539,10 +1577,10 @@ class KlusterMain(QtWidgets.QMainWindow):
         """
 
         if self.export_grid_thread.error:
-            print('Error exporting grid')
-            print(self.export_grid_thread.exceptiontxt)
+            self.print('Error exporting grid', logging.ERROR)
+            self.print(self.export_grid_thread.exceptiontxt, logging.ERROR)
         else:
-            print('Export complete.')
+            self.print('Export complete.', logging.INFO)
         self.export_grid_thread.populate(None, '', '', True, {})
         self._stop_action_progress()
 
@@ -1553,7 +1591,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         """
 
         if not self.no_threads_running():
-            print('Processing is already occurring.  Please wait for the process to finish')
+            self.print('Processing is already occurring.  Please wait for the process to finish', logging.WARNING)
             cancelled = True
         else:
             fqprs, _ = self.return_selected_fqprs()
@@ -1584,7 +1622,7 @@ class KlusterMain(QtWidgets.QMainWindow):
                     for fq in fqprs:
                         relfq = self.project.path_relative_to_project(fq)
                         if relfq not in self.project.fqpr_instances:
-                            print('Unable to find {} in currently loaded project'.format(relfq))
+                            self.print('Unable to find {} in currently loaded project'.format(relfq), logging.ERROR)
                             return
                         if relfq in self.project.fqpr_instances:
                             fq_inst = self.project.fqpr_instances[relfq]
@@ -1600,7 +1638,7 @@ class KlusterMain(QtWidgets.QMainWindow):
                 else:
                     cancelled = True
         if cancelled:
-            print('kluster_export: Export was cancelled')
+            self.print('kluster_export: Export was cancelled', logging.INFO)
 
     def _kluster_export_results(self):
         """
@@ -1608,10 +1646,10 @@ class KlusterMain(QtWidgets.QMainWindow):
         """
 
         if self.export_thread.error:
-            print('Export complete: Unable to export')
-            print(self.export_thread.exceptiontxt)
+            self.print('Export complete: Unable to export', logging.ERROR)
+            self.print(self.export_thread.exceptiontxt, logging.ERROR)
         else:
-            print('Export complete.')
+            self.print('Export complete.', logging.INFO)
         self.export_thread.populate(None, None, [], '', False, 'comma', 'xyz', False, False, True, False, False)
         self._stop_action_progress()
 
@@ -1622,7 +1660,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         """
 
         if not self.no_threads_running():
-            print('Processing is already occurring.  Please wait for the process to finish')
+            self.print('Processing is already occurring.  Please wait for the process to finish', logging.WARNING)
             cancelled = True
         else:
             fqprs, _ = self.return_selected_fqprs()
@@ -1646,7 +1684,7 @@ class KlusterMain(QtWidgets.QMainWindow):
                     for fq in fqprs:
                         relfq = self.project.path_relative_to_project(fq)
                         if relfq not in self.project.fqpr_instances:
-                            print('Unable to find {} in currently loaded project'.format(relfq))
+                            self.print('Unable to find {} in currently loaded project'.format(relfq), logging.ERROR)
                             return
                         if relfq in self.project.fqpr_instances:
                             fq_inst = self.project.fqpr_instances[relfq]
@@ -1661,7 +1699,7 @@ class KlusterMain(QtWidgets.QMainWindow):
                 else:
                     cancelled = True
         if cancelled:
-            print('kluster_export_tracklines: Export was cancelled')
+            self.print('kluster_export_tracklines: Export was cancelled', logging.INFO)
 
     def _kluster_export_tracklines_results(self):
         """
@@ -1669,10 +1707,10 @@ class KlusterMain(QtWidgets.QMainWindow):
         """
 
         if self.export_tracklines_thread.error:
-            print('Export complete: Unable to export')
-            print(self.export_tracklines_thread.exceptiontxt)
+            self.print('Export complete: Unable to export', logging.ERROR)
+            self.print(self.export_tracklines_thread.exceptiontxt, logging.ERROR)
         else:
-            print('Export complete.')
+            self.print('Export complete.', logging.INFO)
         self.export_tracklines_thread.populate(None, None, '', False, True, '')
         self._stop_action_progress()
 
@@ -1735,7 +1773,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         """
 
         if not self.no_threads_running():
-            print('Processing is already occurring.  Please wait for the process to finish')
+            self.print('Processing is already occurring.  Please wait for the process to finish', logging.WARNING)
             cancelled = True
         else:
             self.close_project()
@@ -1744,7 +1782,7 @@ class KlusterMain(QtWidgets.QMainWindow):
             self.open_project_thread.start()
             cancelled = False
         if cancelled:
-            print('open_project: opening project was cancelled')
+            self.print('open_project: opening project was cancelled', logging.INFO)
 
     def _kluster_open_project_results(self):
         """
@@ -1755,13 +1793,13 @@ class KlusterMain(QtWidgets.QMainWindow):
             for new_fq in self.open_project_thread.new_fqprs:
                 fqpr_entry, already_in = self.project.add_fqpr(new_fq, skip_dask=True)
                 if already_in:
-                    print('{} already exists in project'.format(new_fq.output_folder))
+                    self.print('{} already exists in project'.format(new_fq.output_folder), logging.WARNING)
             for new_surf in self.open_project_thread.new_surfaces:
                 self.project.add_surface(new_surf)
             self.redraw(new_fqprs=[self.project.path_relative_to_project(fq.output_folder) for fq in self.open_project_thread.new_fqprs])
         else:
-            print('Error on opening data')
-            print(self.open_project_thread.exceptiontxt)
+            self.print('Error on opening data', logging.ERROR)
+            self.print(self.open_project_thread.exceptiontxt, logging.ERROR)
         self.open_project_thread.populate(None)
         self._stop_action_progress()
 
@@ -1775,11 +1813,11 @@ class KlusterMain(QtWidgets.QMainWindow):
                 self.two_d.add_line(ln, self.draw_navigation_thread.line_data[ln][0], self.draw_navigation_thread.line_data[ln][1])
             self.two_d.set_extents_from_lines()
         else:
-            print('Error drawing lines from {}'.format(self.draw_navigation_thread.new_fqprs))
-            print(self.draw_navigation_thread.exceptiontxt)
+            self.print('Error drawing lines from {}'.format(self.draw_navigation_thread.new_fqprs), logging.ERROR)
+            self.print(self.draw_navigation_thread.exceptiontxt, logging.ERROR)
         self.draw_navigation_thread.populate(None, None)
         self._stop_action_progress()
-        print('draw_navigation: Drawing navigation complete.')
+        self.print('draw_navigation: Drawing navigation complete.', logging.INFO)
 
     def _kluster_draw_surface_results(self):
         """
@@ -1810,11 +1848,11 @@ class KlusterMain(QtWidgets.QMainWindow):
                 if drawresolution:
                     self.two_d.set_extents_from_surfaces(surf_path, drawresolution)
         else:
-            print('Error drawing surface {}'.format(self.draw_surface_thread.surface_path))
-            print(self.draw_surface_thread.exceptiontxt)
+            self.print('Error drawing surface {}'.format(self.draw_surface_thread.surface_path), logging.ERROR)
+            self.print(self.draw_surface_thread.exceptiontxt, logging.ERROR)
         self.draw_surface_thread.populate(None, None, None, None)
         self._stop_action_progress()
-        print('draw_surface: Drawing surface complete.')
+        self.print('draw_surface: Drawing surface complete.', logging.INFO)
 
     def close_project(self):
         """
@@ -1866,11 +1904,11 @@ class KlusterMain(QtWidgets.QMainWindow):
         Set the project up with a new Client object, either LocalCluster or a client to a remote cluster
         """
 
-        dlog = dialog_daskclient.DaskClientStart()
+        dlog = dialog_daskclient.DaskClientStart(parent=self)
         if dlog.exec_():
             client = dlog.cl
             if client is None:
-                print('start_dask_client: no client started successfully')
+                self.print('start_dask_client: no client started successfully', logging.ERROR)
             else:
                 self.project.client = client
 
@@ -1880,7 +1918,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         and intel instance.
         """
 
-        dlog = dialog_project_settings.ProjectSettingsDialog(settings=self.settings_object)
+        dlog = dialog_project_settings.ProjectSettingsDialog(parent=self, settings=self.settings_object)
         if dlog.exec_() and not dlog.canceled:
             settings = dlog.return_processing_options()
             self.settings.update(settings)
@@ -1897,7 +1935,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         Triggered on hitting OK in the layer settings dialog.  Takes the provided settings and regenerates the 2d display.
         """
 
-        dlog = dialog_layer_settings.LayerSettingsDialog(settings=self.settings_object)
+        dlog = dialog_layer_settings.LayerSettingsDialog(parent=self, settings=self.settings_object)
         layers = list(self.two_d.band_minmax.keys())
         layer_minmax = {}
         for lyr in layers:
@@ -1932,7 +1970,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         and intel instance.
         """
 
-        dlog = dialog_settings.SettingsDialog(settings=self.settings_object)
+        dlog = dialog_settings.SettingsDialog(parent=self, settings=self.settings_object)
         if dlog.exec_() and not dlog.canceled:
             settings = dlog.return_options()
             self.settings.update(settings)
@@ -1949,6 +1987,7 @@ class KlusterMain(QtWidgets.QMainWindow):
             for kvarkey, kvarval in newkvars.items():
                 kluster_variables.alter_variable(kvarkey, kvarval)
                 settings_obj.setValue(f'Kluster/kvariables_{kvarkey}', kvarval)
+            self._configure_logfile()
 
     def set_dark_mode(self, check_state: bool):
         """
@@ -1972,7 +2011,7 @@ class KlusterMain(QtWidgets.QMainWindow):
                 self.points_view.colorbar.fig.set_facecolor('black')
                 plt.style.use('dark_background')
             except:
-                print('Unable to set qdarkstyle style sheet for app library {}'.format(self.app_library))
+                self.print('Unable to set qdarkstyle style sheet for app library {}'.format(self.app_library), logging.ERROR)
         else:
             self.app.setStyleSheet('')
             self.two_d.canvas.setCanvasColor(QtCore.Qt.white)
@@ -1988,9 +2027,9 @@ class KlusterMain(QtWidgets.QMainWindow):
                 darkaction = darkaction[0]
                 darkaction.setChecked(check_state)
             else:
-                print('Warning: Can not find the Dark Mode action to set dark mode control!')
+                self.print('Warning: Can not find the Dark Mode action to set dark mode control!', logging.WARNING)
         else:
-            print('Warning: Can not find the view menu to set dark mode control!')
+            self.print('Warning: Can not find the view menu to set dark mode control!', logging.WARNING)
 
     def dockwidget_is_visible(self, widg):
         """
@@ -2096,6 +2135,27 @@ class KlusterMain(QtWidgets.QMainWindow):
 
         attrs = self.project.surface_instances[converted_pth].return_attribution()
         filtered_attrs = {a: attrs[a] for a in attrs.keys() if a not in kluster_variables.hidden_grid_attributes}
+        combined_source = {}
+        remove_keys = []
+        for ky, val in filtered_attrs.items():
+            if ky[:6] == 'source':
+                remove_keys += [ky]
+                splitky = ky.split('__')
+                if len(splitky) != 2:  # this must be pre bathygrid 1.3.5 where we started combining container name and line name as the key
+                    combined_source[ky] = val
+                else:  # we combine the containers by just appending the multibeam line to the total lines
+                    contname, linename = splitky
+                    if contname not in combined_source:
+                        combined_source[contname] = val
+                    else:
+                        for mline in val['multibeam_lines']:
+                            if mline not in combined_source[contname]['multibeam_lines']:
+                                combined_source[contname]['multibeam_lines'] += [mline]
+        for ky in remove_keys:
+            filtered_attrs.pop(ky)
+        for ky in combined_source.keys():
+            combined_source[ky]['multibeam_lines'] = sorted(combined_source[ky]['multibeam_lines'])
+        filtered_attrs.update(combined_source)
         self.attribute.display_file_attribution(filtered_attrs)
 
     def tree_surface_layer_selected(self, surfpath, layername, checked):
@@ -2191,14 +2251,14 @@ class KlusterMain(QtWidgets.QMainWindow):
         """
 
         if not self.no_threads_running():
-            print('Processing is already occurring.  Please wait for the process to finish')
+            self.print('Processing is already occurring.  Please wait for the process to finish', logging.WARNING)
             cancelled = True
         else:
             cancelled = False
             self.load_points_thread.populate(polygon, azimuth, self.project)
             self.load_points_thread.start()
         if cancelled:
-            print('select_points_in_box: Processing was cancelled')
+            self.print('select_points_in_box: Processing was cancelled', logging.INFO)
 
     def _kluster_load_points_results(self):
         """
@@ -2208,7 +2268,8 @@ class KlusterMain(QtWidgets.QMainWindow):
 
         pointcount = 0
         if not self.load_points_thread.error:
-            self._manpatchtest = None
+            self._manpatchtest = None  # clear the patch test tool if it is loaded
+            self.clear_points(True)
             points_data = self.load_points_thread.points_data
             azimuth = self.load_points_thread.azimuth
             for fqpr_name, pointdata in points_data.items():
@@ -2217,10 +2278,10 @@ class KlusterMain(QtWidgets.QMainWindow):
                 pointcount += pointdata[0].size
             self.points_view.display_points()
         else:
-            print('Error loading points from project')
-            print(self.load_points_thread.exceptiontxt)
+            self.print('Error loading points from project', logging.ERROR)
+            self.print(self.load_points_thread.exceptiontxt, logging.ERROR)
         self.two_d.finalize_points_tool()
-        print('Selected {} Points for display'.format(pointcount))
+        self.print('Selected {} Points for display'.format(pointcount), logging.INFO)
         # we retain the polygon/azimuth in case you are using the patch test tool
         self.load_points_thread.populate(polygon=self.load_points_thread.polygon, azimuth=self.load_points_thread.azimuth)
         self._stop_action_progress()
@@ -2289,7 +2350,7 @@ class KlusterMain(QtWidgets.QMainWindow):
                 self.project.refresh_fqpr_attribution(fqpr_name, relative_path=True)
             self.points_view.clear_selection()
         else:
-            print('Cleaning disabled while patch test is running')
+            self.print('Cleaning disabled while patch test is running', logging.WARNING)
 
     def dock_this_widget(self, title, objname, widget):
         """
@@ -2388,7 +2449,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         widget.show()
 
     def _action_file_analyzer(self):
-        self._fileanalyzer = dialog_fileanalyzer.FileAnalyzerDialog()
+        self._fileanalyzer = dialog_fileanalyzer.FileAnalyzerDialog(parent=self)
         self._fileanalyzer.setWindowFlags(self._fileanalyzer.windowFlags() | QtCore.Qt.WindowStaysOnTopHint)
         self._fileanalyzer.show()
 
@@ -2506,7 +2567,7 @@ class KlusterMain(QtWidgets.QMainWindow):
                 self.project.add_vessel_file(fil)
                 self.refresh_project()
         else:
-            print('Build a new project or open an existing project before creating a vessel file')
+            self.print('Build a new project or open an existing project before creating a vessel file', logging.ERROR)
 
     def _action_open_vessel_file(self):
         if self.project.path is not None:
@@ -2518,7 +2579,7 @@ class KlusterMain(QtWidgets.QMainWindow):
                 self.refresh_project()
             self.regenerate_offsets_actions(True)
         else:
-            print('Build a new project or open an existing project before opening a vessel file')
+            self.print('Build a new project or open an existing project before opening a vessel file', logging.ERROR)
 
     def _action_export(self):
         """
@@ -2554,7 +2615,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         if os.path.exists(doc_html):
             webbrowser.open_new(doc_html)
         else:
-            print('Unable to find documentation at {}'.format(doc_html))
+            self.print('Unable to find documentation at {}'.format(doc_html), logging.ERROR)
 
     def _action_show_odocs(self):
         """
@@ -2588,7 +2649,7 @@ class KlusterMain(QtWidgets.QMainWindow):
             widg.setFloating(False)
         self.setup_widgets()
         # self.setUpdatesEnabled(True)
-        print('Reset interface settings to default')
+        self.print('Reset interface settings to default', logging.INFO)
 
     def return_selected_fqprs(self, subset_by_line: bool = False, concatenate: bool = True):
         """

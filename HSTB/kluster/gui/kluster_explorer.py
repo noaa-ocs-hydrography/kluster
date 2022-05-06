@@ -1,3 +1,5 @@
+import logging
+
 import numpy as np
 import sys
 import os
@@ -47,6 +49,46 @@ class KlusterExplorer(TableWithCopy):
         self.set_mode('line')
         self.row_full_attribution = {}
         self.row_translated_attribution = {}
+
+    def print(self, msg: str, loglevel: int):
+        """
+        convenience method for printing using kluster_main logger
+
+        Parameters
+        ----------
+        msg
+            print text
+        loglevel
+            logging level, ex: logging.INFO
+        """
+
+        if self.parent() is not None:
+            if self.parent().parent() is not None:  # widget is docked, kluster_main is the parent of the dock
+                self.parent().parent().print(msg, loglevel)
+            else:  # widget is undocked, kluster_main is the parent
+                self.parent().print(msg, loglevel)
+        else:
+            print(msg)
+
+    def debug_print(self, msg: str, loglevel: int):
+        """
+        convenience method for printing using kluster_main logger, when debug is enabled
+
+        Parameters
+        ----------
+        msg
+            print text
+        loglevel
+            logging level, ex: logging.INFO
+        """
+
+        if self.parent() is not None:
+            if self.parent().parent() is not None:  # widget is docked, kluster_main is the parent of the dock
+                self.parent().parent().debug_print(msg, loglevel)
+            else:  # widget is undocked, kluster_main is the parent
+                self.parent().debug_print(msg, loglevel)
+        else:
+            print(msg)
 
     def keyReleaseEvent(self, e):
         """
@@ -338,7 +380,7 @@ class KlusterExplorer(TableWithCopy):
                 if line['Name'] == linename:
                     line_data = line
             if line_data is None:
-                print('build_line_attribution: Unable to find attribution for line {}'.format(linename))
+                self.print('build_line_attribution: Unable to find attribution for line {}'.format(linename), logging.ERROR)
         return line_data
 
     def populate_explorer_with_lines(self, linename, raw_attrs):
@@ -471,6 +513,46 @@ class KlusterAttribution(TableWithCopy):
 
         self.setHorizontalHeaderLabels(self.headr)
         self.horizontalHeader().setStretchLastSection(True)
+
+    def print(self, msg: str, loglevel: int):
+        """
+        convenience method for printing using kluster_main logger
+
+        Parameters
+        ----------
+        msg
+            print text
+        loglevel
+            logging level, ex: logging.INFO
+        """
+
+        if self.parent() is not None:
+            if self.parent().parent() is not None:  # widget is docked, kluster_main is the parent of the dock
+                self.parent().parent().print(msg, loglevel)
+            else:  # widget is undocked, kluster_main is the parent
+                self.parent().print(msg, loglevel)
+        else:
+            print(msg)
+
+    def debug_print(self, msg: str, loglevel: int):
+        """
+        convenience method for printing using kluster_main logger, when debug is enabled
+
+        Parameters
+        ----------
+        msg
+            print text
+        loglevel
+            logging level, ex: logging.INFO
+        """
+
+        if self.parent() is not None:
+            if self.parent().parent() is not None:  # widget is docked, kluster_main is the parent of the dock
+                self.parent().parent().debug_print(msg, loglevel)
+            else:  # widget is undocked, kluster_main is the parent
+                self.parent().debug_print(msg, loglevel)
+        else:
+            print(msg)
 
     def display_file_attribution(self, attrs):
         """

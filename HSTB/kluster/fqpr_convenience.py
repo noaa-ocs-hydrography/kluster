@@ -395,8 +395,10 @@ def reload_data(converted_folder: str, require_raw_data: bool = True, skip_dask:
         if not silent:
             fqpr_inst.logger.info('****Reloading from file {}****'.format(converted_folder))
         fqpr_inst.multibeam.xyzrph = fqpr_inst.multibeam.raw_ping[0].xyzrph
-        for rp in fqpr_inst.multibeam.raw_ping:
-            rp.attrs['output_path'] = fqpr_inst.multibeam.converted_pth
+
+        # set new output path to the current directory of the reloaded data
+        fqpr_inst.write_attribute_to_ping_records({'output_path': fqpr_inst.multibeam.converted_pth})
+
         if 'vertical_reference' in fqpr_inst.multibeam.raw_ping[0].attrs:
             fqpr_inst.set_vertical_reference(fqpr_inst.multibeam.raw_ping[0].vertical_reference)
         fqpr_inst.generate_starter_orientation_vectors(None, None)
@@ -452,7 +454,7 @@ def return_svcorr_xyz(filname: str, outfold: str = None, visualizations: bool = 
     return fqpr_inst, dset
 
 
-def _add_points_to_surface(fqpr_inst: Union[dict, Fqpr], bgrid: BathyGrid, fqpr_crs: int, fqpr_vertref: str, chunksize: int = 10000):
+def _add_points_to_surface(fqpr_inst: Union[dict, Fqpr], bgrid: BathyGrid, fqpr_crs: int, fqpr_vertref: str, add_lines: Union[list, str] = None):
     """
     Add this FQPR instance or dict of point data to the bathygrid provided.
     """
@@ -472,9 +474,9 @@ def _add_points_to_surface(fqpr_inst: Union[dict, Fqpr], bgrid: BathyGrid, fqpr_
         if 'thu' in fqpr_inst:
             parray['thu'] = fqpr_inst['thu']
         if 'tag' in fqpr_inst:
-            containername = fqpr_inst['tag'] + '_0'
+            containername = fqpr_inst['tag']
         else:
-            containername = datetime.now().strftime('%Y%m%d_%H%M%S') + '_0'
+            containername = datetime.now().strftime('%Y%m%d_%H%M%S')
         if 'files' in fqpr_inst:
             datafiles = fqpr_inst['files']
         else:
@@ -482,43 +484,48 @@ def _add_points_to_surface(fqpr_inst: Union[dict, Fqpr], bgrid: BathyGrid, fqpr_
         bgrid.add_points(parray, containername, datafiles, fqpr_crs, fqpr_vertref)
     else:
         cont_name = os.path.split(fqpr_inst.output_folder)[1]
+        min_time = np.min([rp.time.values[0] for rp in fqpr_inst.multibeam.raw_ping])
+        max_time = np.max([rp.time.values[-1] for rp in fqpr_inst.multibeam.raw_ping])
         multibeamfiles = list(fqpr_inst.multibeam.raw_ping[0].multibeam_files.keys())
-        cont_name_idx = 0
-        for rp in fqpr_inst.multibeam.raw_ping:
-            mintime, maxtime = rp.time.values[0], rp.time.values[-1]
-            number_of_pings = rp.time.size
-            rp = rp.drop_vars([nms for nms in rp.variables if nms not in ['x', 'y', 'z', 'tvu', 'thu', 'detectioninfo']])
-            totalchunks = int(np.ceil(number_of_pings / chunksize))
-            print('Adding points from {} in {} chunks...\n'.format(os.path.split(fqpr_inst.output_folder)[1], totalchunks))
-            for idx in range(totalchunks):
-                strt, end = idx * chunksize, min((idx + 1) * chunksize, number_of_pings)
-                data = rp.isel(time=slice(strt, end)).stack({'sounding': ('time', 'beam')})
-                # drop nan values in georeferenced data, generally where number of beams vary between pings
-                data = data.where(~np.isnan(data['z']), drop=True)
-                # filter out rejected soundings, i.e. where detectioninfo = 2
-                data = data.where(data['detectioninfo'] != kluster_variables.rejected_flag, drop=True)
-                data = data.drop_vars(['detectioninfo'])
-                bgrid.add_points(data, '{}_{}'.format(cont_name, cont_name_idx), multibeamfiles, fqpr_crs, fqpr_vertref,
-                                 min_time=mintime, max_time=maxtime)
-                cont_name_idx += 1
+        if add_lines:
+            multibeamfiles = [mfile for mfile in multibeamfiles if mfile in add_lines]
+        for mfile in multibeamfiles:
+            linedata = fqpr_inst.subset_variables_by_line(['x', 'y', 'z', 'tvu', 'thu'], line_names=mfile, filter_by_detection=True)
+            rp = linedata[mfile]
+            # drop nan values in georeferenced data, generally where number of beams vary between pings
+            data = rp.where(~np.isnan(rp['z']), drop=True)
+            bgrid.add_points(data, '{}__{}'.format(cont_name, mfile), [mfile], fqpr_crs, fqpr_vertref,
+                             min_time=min_time, max_time=max_time)
 
 
-def _remove_points_from_surface(fqpr_inst: Union[Fqpr, str], bgrid: BathyGrid):
+def _remove_points_from_surface(fqpr_inst: Union[Fqpr, str], bgrid: BathyGrid, remove_lines: Union[list, str] = None):
     """
     Remove all points from the grid that match this FQPR instance.  Will remove all tags from the grid that match the
     container name of the FQPR instance.
 
-    ex: for cont_name = em2040_dual_tx_rx_389_07_10_2019, removes 'em2040_dual_tx_rx_389_07_10_2019_0',
-    'em2040_dual_tx_rx_389_07_10_2019_1', 'em2040_dual_tx_rx_389_07_10_2019_2', etc.
+    if remove_lines is provided, will only remove container names that contain one of the line names in remove_lines
+
+    ex: for cont_name = em2040_dual_tx_rx_389_07_10_2019, removes 'em2040_dual_tx_rx_389_07_10_2019__linename1',
+    'em2040_dual_tx_rx_389_07_10_2019__linename2', 'em2040_dual_tx_rx_389_07_10_2019__linename3', etc.
     """
     if isinstance(fqpr_inst, str):
         cont_name = fqpr_inst
     else:
         cont_name = os.path.split(fqpr_inst.output_folder)[1]
+    if isinstance(remove_lines, str):
+        remove_lines = [remove_lines]
+    elif not remove_lines:
+        remove_lines = []
+
     remove_these = []
     for existing_cont in bgrid.container:
-        if existing_cont.find(cont_name) != -1:
-            remove_these.append(existing_cont)
+        if existing_cont.find(cont_name) != -1:  # container name match
+            if remove_lines:
+                for remline in remove_lines:
+                    if existing_cont.find(remline) != -1:
+                        remove_these.append(existing_cont)
+            else:
+                remove_these.append(existing_cont)
 
     for remove_cont in remove_these:
         bgrid.remove_points(remove_cont)
@@ -701,8 +708,9 @@ def generate_new_surface(fqpr_inst: Union[Fqpr, list], grid_type: str = 'single_
     return bg
 
 
-def update_surface(surface_instance: Union[str, BathyGrid], add_fqpr: Union[Fqpr, list] = None, remove_fqpr: Union[Fqpr, list, str] = None,
-                   regrid: bool = True, regrid_option: str = 'update', use_dask: bool = False):
+def update_surface(surface_instance: Union[str, BathyGrid], add_fqpr: Union[Fqpr, list] = None, add_lines: list = None,
+                   remove_fqpr: Union[Fqpr, list, str] = None, remove_lines: list = None, regrid: bool = True,
+                   regrid_option: str = 'update', use_dask: bool = False):
     """
     Bathygrid instances can be updated with new points from new converted multibeam data, or have points removed from
     old multibeam data.  If you want to update the surface for changes in the multibeam data, provide the same FQPR instance
@@ -717,8 +725,14 @@ def update_surface(surface_instance: Union[str, BathyGrid], add_fqpr: Union[Fqpr
         Either a path to a Bathygrid folder (will reload the surface) or a loaded Bathygrid instance
     add_fqpr
         Either a list of Fqpr instances or a single Fqpr instance to add to the surface
+    add_lines
+        Optional, if provided will only add lines that are in this list(s).  Either a list of lines (when a single fqpr instance
+        is provided) or a list of lists of lines (when a list of fqpr instances is provided)
     remove_fqpr
         Either a list of Fqpr instances, a list of fqpr container names or a single Fqpr instance to remove from the surface
+    remove_lines
+        Optional, if provided will only add lines that are in this list(s).  Either a list of lines (when a single fqpr instance
+        is provided) or a list of lists of lines (when a list of fqpr instances is provided)
     regrid
         If True, will immediately run grid() after adding the points to update the gridded data
     regrid_option
@@ -733,6 +747,9 @@ def update_surface(surface_instance: Union[str, BathyGrid], add_fqpr: Union[Fqpr
         BathyGrid instance for the newly updated surface
     """
 
+    print('***** Updating Bathygrid surface *****')
+    strttime = perf_counter()
+
     if isinstance(surface_instance, str):
         surface_instance = reload_surface(surface_instance)
         if surface_instance is None:
@@ -745,12 +762,29 @@ def update_surface(surface_instance: Union[str, BathyGrid], add_fqpr: Union[Fqpr
     if remove_fqpr:
         if not isinstance(remove_fqpr, list):
             remove_fqpr = [remove_fqpr]
-        for rfqpr in remove_fqpr:
-            _remove_points_from_surface(rfqpr, surface_instance)
+            if remove_lines and not isinstance(remove_lines[0], str):  # expect a list of lines when a single fqpr is provided
+                print(f'update_surface - remove: when a single fqpr data instance is added by line, expect a list of line names: fqpr: {remove_fqpr}, add_lines: {remove_lines}')
+                return None
+            remove_lines = [remove_lines]
+        else:  # list of fqprs provided
+            if remove_lines and len(remove_fqpr) != len(remove_lines):
+                print(f'update_surface - remove: when a list of fqpr data instances are added by line, expect a list of line names of the same length: fqpr: {add_fqpr}, add_lines: {add_lines}')
+                return None
+
+        for cnt, rfqpr in enumerate(remove_fqpr):
+            _remove_points_from_surface(rfqpr, surface_instance, remove_lines=remove_lines[cnt])
 
     if add_fqpr:
         if not isinstance(add_fqpr, list):
             add_fqpr = [add_fqpr]
+            if add_lines and not isinstance(add_lines[0], str):  # expect a list of lines when a single fqpr is provided
+                print(f'update_surface - add: when a single fqpr data instance is added by line, expect a list of line names: fqpr: {add_fqpr}, add_lines: {add_lines}')
+                return None
+            add_lines = [add_lines]
+        else:  # list of fqprs provided
+            if add_lines and len(add_fqpr) != len(add_lines):
+                print(f'update_surface - add: when a list of fqpr data instances are added by line, expect a list of line names of the same length: fqpr: {add_fqpr}, add_lines: {add_lines}')
+                return None
 
         if not _validate_fqpr_for_gridding(add_fqpr):
             return None
@@ -759,8 +793,8 @@ def update_surface(surface_instance: Union[str, BathyGrid], add_fqpr: Union[Fqpr
         if unique_vertref is None or unique_crs is None:
             return None
 
-        for afqpr in add_fqpr:
-            _add_points_to_surface(afqpr, surface_instance, unique_crs[0], unique_vertref[0])
+        for cnt, afqpr in enumerate(add_fqpr):
+            _add_points_to_surface(afqpr, surface_instance, unique_crs[0], unique_vertref[0], add_lines=add_lines[cnt])
 
     if regrid:
         if isinstance(surface_instance.grid_resolution, str):
@@ -782,6 +816,10 @@ def update_surface(surface_instance: Union[str, BathyGrid], add_fqpr: Union[Fqpr
             automode = 'depth'  # the default value, this will not be used when resolution is specified
         surface_instance.grid(surface_instance.grid_algorithm, rez, auto_resolution_mode=automode,
                               regrid_option=regrid_option, use_dask=use_dask, grid_parameters=surface_instance.grid_parameters)
+
+    endtime = perf_counter()
+    print('***** Surface Update Complete: {} *****'.format(seconds_to_formatted_string(int(endtime - strttime))))
+
     return surface_instance
 
 

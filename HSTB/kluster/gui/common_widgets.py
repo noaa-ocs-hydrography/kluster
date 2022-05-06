@@ -53,6 +53,8 @@ class SaveStateDialog(QtWidgets.QDialog):
         self.checkbox_controls = []  # append a [name as string, control] to this to save checkbox controls
         self.widgetname = widgetname
         self.appname = appname
+        self._ontop = False
+        self._original_flags = None
 
     @property
     def settings_object(self):
@@ -60,6 +62,30 @@ class SaveStateDialog(QtWidgets.QDialog):
             return self.external_settings
         else:
             return QtCore.QSettings("NOAA", self.appname)
+
+    def set_on_top(self):
+        if not self._ontop:
+            self._ontop = True
+            self._original_flags = self.windowFlags()
+            self.setWindowFlags(self._original_flags | QtCore.Qt.WindowStaysOnTopHint)
+            self.show()
+
+    def set_below(self):
+        if self._ontop:
+            self._ontop = False
+            self.setWindowFlags(self._original_flags)
+
+    def print(self, msg: str, loglevel: int):
+        if self.parent() is not None:
+            self.parent().print(msg, loglevel)
+        else:
+            print(msg)
+
+    def debug_print(self, msg: str, loglevel: int):
+        if self.parent() is not None:
+            self.parent().debug_print(msg, loglevel)
+        else:
+            print(msg)
 
     def save_settings(self):
         """
@@ -870,10 +896,10 @@ class TwoListWidget(QtWidgets.QWidget):
 
         self.left_list_label = QtWidgets.QLabel(left_label)
         self.left_list_label.setAlignment(QtCore.Qt.AlignHCenter)
-        self.left_layout.addWidget(self.left_list_label, QtCore.Qt.AlignHCenter)
+        self.left_layout.addWidget(self.left_list_label, 1, QtCore.Qt.AlignHCenter)
         self.left_list = QtWidgets.QListWidget()
         self.left_list.setSelectionMode(QtWidgets.QAbstractItemView.ExtendedSelection)
-        self.left_layout.addWidget(self.left_list)
+        self.left_layout.addWidget(self.left_list, 20)
         self.main_layout.addLayout(self.left_layout)
 
         self.center_layout.addStretch()
@@ -886,10 +912,10 @@ class TwoListWidget(QtWidgets.QWidget):
 
         self.right_list_label = QtWidgets.QLabel(right_label)
         self.right_list_label.setAlignment(QtCore.Qt.AlignHCenter)
-        self.right_layout.addWidget(self.right_list_label, QtCore.Qt.AlignHCenter)
+        self.right_layout.addWidget(self.right_list_label, 1, QtCore.Qt.AlignHCenter)
         self.right_list = QtWidgets.QListWidget()
         self.right_list.setSelectionMode(QtWidgets.QAbstractItemView.ExtendedSelection)
-        self.right_layout.addWidget(self.right_list)
+        self.right_layout.addWidget(self.right_list, 20)
         self.main_layout.addLayout(self.right_layout)
 
         self.top_layout.addLayout(self.main_layout)
@@ -948,6 +974,181 @@ class TwoListWidget(QtWidgets.QWidget):
         for cnt in range(self.right_list.count()):
             data.append(self.right_list.item(cnt).text())
         return data
+
+
+class TwoTreeTreeView(QtWidgets.QTreeView):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+
+        self.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
+        self.model = QtGui.QStandardItemModel()
+        self.setModel(self.model)
+        self.setUniformRowHeights(True)
+
+        # ExtendedSelection - allows multiselection with shift/ctrl
+        self.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
+        self.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
+
+        self.setDragDropMode(QtWidgets.QAbstractItemView.NoDragDrop)
+
+        # makes it so no editing is possible with the table
+        self.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)
+
+        self.categories = ['Data']
+        self.tree_data = {}
+        self.shown_layers = []
+
+        self.model.clear()
+        self.model.setHorizontalHeaderLabels([''])
+        for cnt, c in enumerate(self.categories):
+            parent = QtGui.QStandardItem(c)
+            self.tree_data[c] = [parent]
+            self.model.appendRow(parent)
+            self.setFirstColumnSpanned(cnt, self.rootIndex(), True)
+
+    def add_data(self, data: dict):
+        for container in data.keys():
+            if container not in self.tree_data['Data'][1:]:
+                container_child = QtGui.QStandardItem(container)
+                self.tree_data['Data'][0].appendRow(container_child)
+                for mline in data[container]:
+                    line_child = QtGui.QStandardItem(mline)
+                    container_child.appendRow([line_child])
+                self.tree_data['Data'].append(container)
+            else:
+                idx = self.tree_data['Data'][1:].index(container)
+                container_child = self.tree_data['Data'][0].child(idx)
+                tree_lines = [container_child.child(rw).text() for rw in range(container_child.rowCount())]
+                for fq_line in data[container]:
+                    if fq_line not in tree_lines:
+                        line_child = QtGui.QStandardItem(fq_line)
+                        container_child.appendRow([line_child])
+
+    def remove_data(self, data: dict):
+        current_container = self.tree_data['Data'][1:]
+        for container in data.keys():
+            if container in current_container:
+                idx = self.tree_data['Data'][1:].index(container)
+                container_child = self.tree_data['Data'][0].child(idx)
+                for mline in data[container]:
+                    mline_idx = [idx for idx in range(container_child.rowCount()) if container_child.child(idx).text() == mline]
+                    if mline_idx:
+                        container_child.removeRow(mline_idx[0])
+                if container_child.rowCount() == 0:
+                    self.tree_data['Data'][0].removeRow(idx)
+                    self.tree_data['Data'].pop(idx + 1)
+
+    def return_data(self):
+        data = {}
+        current_container = self.tree_data['Data'][1:]
+        for container in current_container:
+            idx = self.tree_data['Data'][1:].index(container)
+            container_child = self.tree_data['Data'][0].child(idx)
+            data[container] = []
+            for i in range(container_child.rowCount()):
+                data[container].append(container_child.child(i).text())
+        return data
+
+
+class TwoTreeWidget(QtWidgets.QWidget):
+    def __init__(self, title_label: str = '', left_label: str = 'Existing', right_label: str = 'New'):
+        super().__init__()
+        self.top_layout = QtWidgets.QVBoxLayout()
+        self.main_layout = QtWidgets.QHBoxLayout()
+        self.left_layout = QtWidgets.QVBoxLayout()
+        self.center_layout = QtWidgets.QVBoxLayout()
+        self.right_layout = QtWidgets.QVBoxLayout()
+
+        self.title_label = QtWidgets.QLabel(title_label)
+        self.title_label.setAlignment(QtCore.Qt.AlignHCenter)
+        self.top_layout.addWidget(self.title_label)
+
+        self.left_tree_label = QtWidgets.QLabel(left_label)
+        self.left_tree_label.setAlignment(QtCore.Qt.AlignHCenter)
+        self.left_layout.addWidget(self.left_tree_label, 1, QtCore.Qt.AlignHCenter)
+        self.left_tree = TwoTreeTreeView(self)
+        self.left_layout.addWidget(self.left_tree, 20)
+        self.main_layout.addLayout(self.left_layout)
+
+        self.center_layout.addStretch()
+        self.left_button = QtWidgets.QPushButton("<---")
+        self.center_layout.addWidget(self.left_button)
+        self.right_button = QtWidgets.QPushButton("--->")
+        self.center_layout.addWidget(self.right_button)
+        self.center_layout.addStretch()
+        self.main_layout.addLayout(self.center_layout)
+
+        self.right_tree_label = QtWidgets.QLabel(right_label)
+        self.right_tree_label.setAlignment(QtCore.Qt.AlignHCenter)
+        self.right_layout.addWidget(self.right_tree_label, 1, QtCore.Qt.AlignHCenter)
+        self.right_tree = TwoTreeTreeView(self)
+        self.right_tree.setSelectionMode(QtWidgets.QAbstractItemView.ExtendedSelection)
+        self.right_layout.addWidget(self.right_tree, 20)
+        self.main_layout.addLayout(self.right_layout)
+
+        self.top_layout.addLayout(self.main_layout)
+        self.setLayout(self.top_layout)
+
+        self.left_button.clicked.connect(self.move_to_left_tree)
+        self.right_button.clicked.connect(self.move_to_right_tree)
+
+    def _add_data(self, data: dict, side: str):
+        if side == 'left':
+            widg = self.left_tree
+        else:
+            widg = self.right_tree
+        widg.add_data(data)
+
+    def _remove_data(self, data: dict, side: str):
+        if side == 'left':
+            widg = self.left_tree
+        else:
+            widg = self.right_tree
+        widg.remove_data(data)
+
+    def add_left_tree(self, data: dict):
+        self._add_data(data, 'left')
+
+    def add_right_tree(self, data: dict):
+        self._add_data(data, 'right')
+
+    def move_to_left_tree(self, e):
+        for itm in self.right_tree.selectedIndexes():
+            top_lvl_name = itm.parent().parent().data()
+            mid_lvl_name = itm.parent().data()
+            selected_name = itm.data()
+            if top_lvl_name == 'Data':  # they selected a sub item
+                data = {mid_lvl_name: [selected_name]}
+            elif mid_lvl_name == 'Data':  # they selected a item
+                data = {selected_name: self.right_tree.return_data()[selected_name]}
+            else:
+                continue
+            self._remove_data(data, 'right')
+            self._add_data(data, 'left')
+
+    def move_to_right_tree(self, e):
+        for itm in self.left_tree.selectedIndexes():
+            top_lvl_name = itm.parent().parent().data()
+            mid_lvl_name = itm.parent().data()
+            selected_name = itm.data()
+            if top_lvl_name == 'Data':  # they selected a sub item
+                data = {mid_lvl_name: [selected_name]}
+            elif mid_lvl_name == 'Data':  # they selected a item
+                data = {selected_name: self.left_tree.return_data()[selected_name]}
+            else:
+                continue
+            self._remove_data(data, 'left')
+            self._add_data(data, 'right')
+
+    def return_left_tree_data(self):
+        return self.left_tree.return_data()
+
+    def return_right_tree_data(self):
+        return self.right_tree.return_data()
+
+    def expand_all(self):
+        self.left_tree.expandAll()
+        self.right_tree.expandAll()
 
 
 class BrowseListWidget(QtWidgets.QWidget):
@@ -1154,12 +1355,11 @@ class OutWindow(QtWidgets.QMainWindow):
         super().__init__(parent)
 
         self.setWindowTitle('Test Window')
-        # self.top_widget = TwoListWidget()
-        # self.top_widget.add_left_list('test1')
-        # self.top_widget.add_left_list('test2')
-        # self.top_widget.add_right_list('test3')
+        self.top_widget = TwoTreeWidget()
+        self.top_widget.add_left_tree({'test': ['1', '2']})
+        self.top_widget.add_right_tree({'test2': ['3', '4'], 'test3': ['5','6','7']})
 
-        self.top_widget = PlotDataHandler()
+        # self.top_widget = PlotDataHandler()
         self.setCentralWidget(self.top_widget)
         layout = QtWidgets.QHBoxLayout()
         self.top_widget.setLayout(layout)

@@ -6,7 +6,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
-    <title>return_logger &#8212; kluster 0.9.3 documentation</title>
+    <title>return_logger &#8212; kluster 0.9.4 documentation</title>
     <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
     <link rel="stylesheet" type="text/css" href="../_static/alabaster.css" />
     <link rel="stylesheet" type="text/css" href="../_static/graphviz.css" />
@@ -16,7 +16,7 @@
     <script src="../_static/doctools.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="StdErrFilter" href="HSTB.kluster.logging_conf.StdErrFilter.html" />
+    <link rel="next" title="LoggerClass" href="HSTB.kluster.logging_conf.LoggerClass.html" />
     <link rel="prev" title="return_log_name" href="HSTB.kluster.logging_conf.return_log_name.html" />
    
   <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
@@ -38,7 +38,7 @@
 <h1>return_logger<a class="headerlink" href="#return-logger" title="Permalink to this headline">¶</a></h1>
 <dl class="py function">
 <dt class="sig sig-object py" id="HSTB.kluster.logging_conf.return_logger">
-<span class="sig-prename descclassname"><span class="pre">HSTB.kluster.logging_conf.</span></span><span class="sig-name descname"><span class="pre">return_logger</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logfile</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.logging_conf.return_logger" title="Permalink to this definition">¶</a></dt>
+<span class="sig-prename descclassname"><span class="pre">HSTB.kluster.logging_conf.</span></span><span class="sig-name descname"><span class="pre">return_logger</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logfile</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.logging_conf.return_logger" title="Permalink to this definition">¶</a></dt>
 <dd><p>Built to support logging within the kluster system.  Each instance of each class gets a separate logger, identified
 by the name attribute passed in here.  This is important because each instance of the kluster processing that is
 running should be driven to that instance’s log file.  So we need them all segregated.</p>
@@ -141,7 +141,7 @@ ends up duplicating messages.  Since I want the stderr messages formatted nicely
   <li><a href="../kluster_api/index.html">API</a><ul>
   <li><a href="../kluster_api/logging_conf.html">logging_conf module</a><ul>
       <li>Previous: <a href="HSTB.kluster.logging_conf.return_log_name.html" title="previous chapter">return_log_name</a></li>
-      <li>Next: <a href="HSTB.kluster.logging_conf.StdErrFilter.html" title="next chapter">StdErrFilter</a></li>
+      <li>Next: <a href="HSTB.kluster.logging_conf.LoggerClass.html" title="next chapter">LoggerClass</a></li>
   </ul></li>
   </ul></li>
   </ul></li>

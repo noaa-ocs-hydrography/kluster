@@ -1,4 +1,5 @@
 import os
+import logging
 from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal, qgis_enabled
 if qgis_enabled:
     os.environ['PYDRO_GUI_FORCE_PYQT'] = 'True'
@@ -81,6 +82,15 @@ class SettingsDialog(SaveStateDialog):
         self.browse_filter_button = QtWidgets.QPushButton("Browse", self)
         self.gen_hlayout_two.addWidget(self.browse_filter_button)
 
+        self.gen_hlayout_three = QtWidgets.QHBoxLayout()
+        self.log_label = QtWidgets.QLabel('Output Log')
+        self.gen_hlayout_three.addWidget(self.log_label)
+        self.log_text = QtWidgets.QLineEdit('', self)
+        self.log_text.setToolTip('Optional, set if you want to save the output in the Output Window to a file.  This will only save the non-processing output, all the processing output is saved to the log in the processed data folder.')
+        self.gen_hlayout_three.addWidget(self.log_text)
+        self.browse_log_button = QtWidgets.QPushButton("Browse", self)
+        self.gen_hlayout_three.addWidget(self.browse_log_button)
+
         self.status_msg = QtWidgets.QLabel('')
         self.status_msg.setStyleSheet("QLabel { color : " + kluster_variables.error_color + "; }")
 
@@ -102,6 +112,7 @@ class SettingsDialog(SaveStateDialog):
         self.general_layout.addLayout(self.gen_hlayout_one_one)
         self.general_layout.addLayout(self.gen_hlayout_one)
         self.general_layout.addLayout(self.gen_hlayout_two)
+        self.general_layout.addLayout(self.gen_hlayout_three)
         self.general_layout.addWidget(self.status_msg)
         self.general_layout.addStretch()
 
@@ -349,19 +360,24 @@ class SettingsDialog(SaveStateDialog):
 
         self.vdatum_pth = None
         self.filter_pth = None
+        self.log_pth = None
 
         self.canceled = False
 
         self.browse_button.clicked.connect(self.vdatum_browse)
         self.vdatum_text.textChanged.connect(self.vdatum_changed)
         self.browse_filter_button.clicked.connect(self.filter_browse)
+        self.browse_log_button.clicked.connect(self.log_browse)
         self.filter_text.textChanged.connect(self.filter_changed)
+        self.log_text.textChanged.connect(self.log_changed)
         self.ok_button.clicked.connect(self.start)
         self.cancel_button.clicked.connect(self.cancel)
         self.default_button.clicked.connect(self.set_to_default)
 
+        # note that the controls that are populated from kluster_variables use the kluster_variables save state ability
+        #  you would not need to list them here (colors and stuff)
         self.text_controls = [['vdatum_directory', self.vdatum_text], ['auto_processing_mode', self.auto_processing_mode],
-                              ['filter_text', self.filter_text]]
+                              ['filter_text', self.filter_text], ['log_text', self.log_text]]
         self.checkbox_controls = [['enable_parallel_writes', self.parallel_write], ['keep_waterline_changes', self.keep_waterline_changes],
                                   ['force_coordinate_match', self.force_coordinate_match]]
 
@@ -401,6 +417,7 @@ class SettingsDialog(SaveStateDialog):
                     'force_coordinate_match': self.force_coordinate_match.isChecked(),
                     'vdatum_directory': self.vdatum_pth,
                     'filter_directory': self.filter_pth,
+                    'main_log_file': self.log_pth,
                     'autoprocessing_mode': self.auto_processing_mode.currentText()}
             self.set_vyperdatum_path()
         else:
@@ -449,12 +466,23 @@ class SettingsDialog(SaveStateDialog):
     def filter_changed(self):
         self.filter_pth = self.filter_text.text()
 
+    def log_browse(self):
+        # dirpath will be None or a string
+        msg, log_pth = RegistryHelpers.GetFilenameFromUserQT(self,  RegistryKey='kluster', Title='Save a new log file',
+                                                             AppName='klusterproj', bMulti=False, bSave=True, DefaultFile="logfile.txt",
+                                                             fFilter='text (*.txt)')
+        if log_pth:
+            self.log_text.setText(log_pth)
+
+    def log_changed(self):
+        self.log_pth = self.filter_text.text()
+
     def start(self):
         """
         Dialog completes if the specified widgets are populated, use return_processing_options to get access to the
         settings the user entered into the dialog.
         """
-        print('General settings saved')
+        self.print('General settings saved', logging.INFO)
         self.canceled = False
         self.save_settings()
         self.accept()
@@ -474,6 +502,8 @@ class SettingsDialog(SaveStateDialog):
             self.keep_waterline_changes.setChecked(True)
             self.auto_processing_mode.setCurrentText('normal')
             self.vdatum_text.setText('')
+            self.filter_text.setText('')
+            self.log_pth.setText('')
             self.set_vyperdatum_path()
         elif curidx == 1:
             self.kvar_pass_color.setCurrentText(kluster_variables.kvar_initial_state['pass_color'])
@@ -507,6 +537,7 @@ class SettingsDialog(SaveStateDialog):
         super().read_settings()
         self.vdatum_pth = self.vdatum_text.text()
         self.filter_pth = self.filter_text.text()
+        self.log_pth = self.log_text.text()
         self.set_vyperdatum_path()
 
 

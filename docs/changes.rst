@@ -1,13 +1,31 @@
 Changes List
 ============
 
+Kluster v0.9.4 (5/6/2022)
+--------------------------
+ - sync with bathygrid 1.3.5
+    - move to new container/linename tagging system
+    - adjust vert wkt for z positive up, when applicable
+    - add total uncertainty plot
+
+ - allow adding points by line to surfaces, see update surface
+ - update surface dialog rework, can now remove/add individual lines from/to the surface
+ - check for uncertainty before allowing CUBE in surface from points
+ - add total uncertainty plot to manage surface
+ - allow for text editing montior paths in monitor tool
+ - encapsulate printing from GUI in a logger instance, add ability to save to file (settings)
+
+ - resolve bug with using an incorrect coordinate system on georeference when all coordinate systems match
+ - fix bug with reloading data that was processed on a different drive
+ - fix bug with points view retaining previously loaded data
+
 Kluster v0.9.3 (4/21/2022)
 --------------------------
  - sync with bathygrid 1.3.3
-   - include bordering soundings from nearby grids with vr grid, eliminates gaps between tiles
-   - new export/drawing tile scheme in get_chunks_of_tiles, gets nice square tiles with adjustable size
-   - z positive up flag will now operate knowing the underlying sign convention, bug resolved with ellipse surface
-   - resolve bug with saving empty dask arrays to zarr seen on regridding surface
+    - include bordering soundings from nearby grids with vr grid, eliminates gaps between tiles
+    - new export/drawing tile scheme in get_chunks_of_tiles, gets nice square tiles with adjustable size
+    - z positive up flag will now operate knowing the underlying sign convention, bug resolved with ellipse surface
+    - resolve bug with saving empty dask arrays to zarr seen on regridding surface
 
  - new import soundings utility to grid csv and las/laz data
  - add ability to customize csv export variables/columns

@@ -1,19 +1,21 @@
 import os
+import logging
 from datetime import datetime, timezone
 
 from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal
+from HSTB.kluster.gui.common_widgets import SaveStateDialog
 from matplotlib.backends.backend_qt5agg import (FigureCanvasQTAgg, NavigationToolbar2QT as NavigationToolbar)
 import matplotlib.pyplot as plt
 
 
-class ManageSurfaceDialog(QtWidgets.QWidget):
+class ManageSurfaceDialog(SaveStateDialog):
     """
     Dialog contains a summary of the surface data and some options for altering the data contained within.
     """
     update_surface = Signal(str)
 
-    def __init__(self, parent=None):
-        super().__init__(parent)
+    def __init__(self, parent=None, title='', settings=None):
+        super().__init__(parent, settings, widgetname='ManageSurfaceDialog')
 
         self.setMinimumWidth(500)
         self.setMinimumHeight(400)
@@ -48,13 +50,40 @@ class ManageSurfaceDialog(QtWidgets.QWidget):
         szepolicy.setHorizontalStretch(2)
         self.plotdropdown.setSizePolicy(szepolicy)
         plotlayout.addWidget(self.plotdropdown)
+        self.bincount_label = QtWidgets.QLabel('Bins')
+        plotlayout.addWidget(self.bincount_label)
+        self.bincount = QtWidgets.QLineEdit('100', self)
+        plotlayout.addWidget(self.bincount)
         layout.addLayout(plotlayout)
 
         self.calcbutton.clicked.connect(self.calculate_statistic)
         self.plotbutton.clicked.connect(self.generate_plot)
+        self.plotdropdown.currentTextChanged.connect(self.plot_tooltip_config)
 
         self.setLayout(layout)
         self.surf = None
+        self.plot_tooltip_config(None)
+
+    def plot_tooltip_config(self, e):
+        plotname = self.plotdropdown.currentText()
+        if plotname == 'Histogram, Intensity (dB)':
+            self.plotdropdown.setToolTip('Compute a histogram of the Intensity layer values in the gridded data in this surface')
+        elif plotname == 'Histogram, Depth (meters)':
+            self.plotdropdown.setToolTip('Compute a histogram of the Depth layer values in the gridded data in this surface')
+        elif plotname in ['Histogram, Density (count)']:
+            self.plotdropdown.setToolTip('Compute a histogram of soundings per cell across all tiles in the grid')
+        elif plotname in ['Histogram, Density (sq meters)']:
+            self.plotdropdown.setToolTip('Compute a histogram of soundings per cell per square meter across all tiles in the grid')
+        elif plotname in ['Depth vs Density (count)']:
+            self.plotdropdown.setToolTip('Plot the average depth vs density, where density is the number of soundings per cell')
+        elif plotname in ['Depth vs Density (sq meters)']:
+            self.plotdropdown.setToolTip('Plot the average depth vs density, where density is the density per cell per square meter')
+        elif plotname in ['Histogram, vertical uncertainty (2 sigma, meters)']:
+            self.plotdropdown.setToolTip('Compute a histogram of the Vertical Uncertainty layer values in the gridded data in this surface')
+        elif plotname in ['Histogram, horizontal uncertainty (2 sigma, meters)']:
+            self.plotdropdown.setToolTip('Compute a histogram of the Horizontal Uncertainty layer values in the gridded data in this surface')
+        elif plotname in ['Histogram, total uncertainty (2 sigma, meters)']:
+            self.plotdropdown.setToolTip('Compute a histogram of the Total Uncertainty layer values in the gridded data in this surface')
 
     def populate(self, surf):
         """
@@ -72,6 +101,8 @@ class ManageSurfaceDialog(QtWidgets.QWidget):
             if 'vertical_uncertainty' in self.surf.layer_names:
                 allplots += ['Histogram, vertical uncertainty (2 sigma, meters)',
                              'Histogram, horizontal uncertainty (2 sigma, meters)']
+            elif 'total_uncertainty' in self.surf.layer_names:
+                allplots += ['Histogram, total uncertainty (2 sigma, meters)']
         allplots.sort()
         self.plotdropdown.addItems(allplots)
 
@@ -85,22 +116,28 @@ class ManageSurfaceDialog(QtWidgets.QWidget):
             raise ValueError(f'Unrecognized input for calculating statistic: {stat}')
 
     def generate_plot(self, e):
+        bincount = int(self.bincount.text())
         plotname = self.plotdropdown.currentText()
         plt.figure()
         if plotname in ['Histogram, Intensity (dB)', 'Histogram, Depth (meters)']:
-            self.surf.plot_z_histogram()
+            self.surf.plot_z_histogram(number_of_bins=bincount)
         elif plotname in ['Histogram, Density (count)']:
-            self.surf.plot_density_histogram()
+            self.surf.plot_density_histogram(number_of_bins=bincount)
         elif plotname in ['Histogram, Density (sq meters)']:
-            self.surf.plot_density_per_square_meter_histogram()
+            self.surf.plot_density_per_square_meter_histogram(number_of_bins=bincount)
         elif plotname in ['Depth vs Density (count)']:
             self.surf.plot_density_vs_depth()
         elif plotname in ['Depth vs Density (sq meters)']:
             self.surf.plot_density_per_square_meter_vs_depth()
         elif plotname in ['Histogram, vertical uncertainty (2 sigma, meters)']:
-            self.surf.plot_vertical_uncertainty_histogram()
+            self.surf.plot_vertical_uncertainty_histogram(number_of_bins=bincount)
         elif plotname in ['Histogram, horizontal uncertainty (2 sigma, meters)']:
-            self.surf.plot_horizontal_uncertainty_histogram()
+            self.surf.plot_horizontal_uncertainty_histogram(number_of_bins=bincount)
+        elif plotname in ['Histogram, total uncertainty (2 sigma, meters)']:
+            self.surf.plot_total_uncertainty_histogram(number_of_bins=bincount)
+        # set always on top
+        plt.gcf().canvas.manager.window.setWindowFlags(self.windowFlags() | QtCore.Qt.WindowStaysOnTopHint)
+        plt.gcf().canvas.manager.window.show()
 
 
 if __name__ == '__main__':

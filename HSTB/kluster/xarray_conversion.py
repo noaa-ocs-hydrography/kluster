@@ -9,6 +9,7 @@ from datetime import datetime
 import xarray as xr
 import numpy as np
 from typing import Union
+import logging
 
 from HSTB.kluster import __version__ as klustervers
 from HSTB.kluster.dms import return_zone_from_min_max_long
@@ -1235,6 +1236,8 @@ class BatchRead(ZarrBackend):
         # chnks_flat is now a list of lists representing chunks of each file
         chnks_flat = [c for subc in chnks for c in subc]
         self.logger.info('{} file(s), Using {} chunk(s) in parallel'.format(len(fils), len(chnks_flat)))
+        for fil in fils:
+            self.logger.info(fil)
 
         return chnks_flat
 
@@ -1693,7 +1696,7 @@ class BatchRead(ZarrBackend):
 
             # translate over the offsets/angles for the transducers following the sonar_translator scheme
             self.sonartype = snrmodels[0]
-            self.xyzrph = build_xyzrph(settdict, runtimesettdict, self.sonartype)
+            self.xyzrph = build_xyzrph(settdict, runtimesettdict, self.sonartype, logger=self.logger)
 
             if save_pths is not None:
                 for svpth in save_pths:  # write the new attributes to disk
@@ -2361,7 +2364,7 @@ def get_nearest_runtime(timestamp: str, runtime_settdict: dict):
     return runtime_param
 
 
-def build_xyzrph(settdict: dict, runtime_settdict: dict, sonartype: str):
+def build_xyzrph(settdict: dict, runtime_settdict: dict, sonartype: str, logger: logging.Logger = None):
     """
     Translate the raw settings dictionary from the multibeam file (see sequential_read_records) into a dictionary of
     timestamped entries for each sensor offset/angle.  Sector based phase center differences are included as well.
@@ -2377,6 +2380,8 @@ def build_xyzrph(settdict: dict, runtime_settdict: dict, sonartype: str):
         keys are unix timestamps, vals are json dumps containing key/record for each system
     sonartype
         sonar identifer
+    logger
+        optional, logger object if you want to log any text output to a particular file/handler
 
     Returns
     -------
@@ -2431,7 +2436,10 @@ def build_xyzrph(settdict: dict, runtime_settdict: dict, sonartype: str):
                         xyzrph[tme][tx_ident + '_opening_angle'] = float(runtime_params['TransmitBeamWidth'])
                         xyzrph[tme][rx_ident + '_opening_angle'] = float(runtime_params['ReceiveBeamWidth'])
                     except:
-                        print('xarray_conversion: Warning, unable to decode transducer beam width, using default value of {}'.format(kluster_variables.default_beam_opening_angle))
+                        if logger:
+                            logger.warning('build_xyzrph: Warning, unable to decode transducer beam width, using default value of {}'.format(kluster_variables.default_beam_opening_angle))
+                        else:
+                            print('build_xyzrph: Warning, unable to decode transducer beam width, using default value of {}'.format(kluster_variables.default_beam_opening_angle))
                         xyzrph[tme][tx_ident + '_opening_angle'] = kluster_variables.default_beam_opening_angle
                         xyzrph[tme][rx_ident + '_opening_angle'] = kluster_variables.default_beam_opening_angle
             else:
@@ -2465,7 +2473,10 @@ def build_xyzrph(settdict: dict, runtime_settdict: dict, sonartype: str):
                     try:  # .all workflow reading from runtime parameters
                         xyzrph[tme][val + '_opening_angle'] = float(runtime_params[runtimekey])
                     except:
-                        print('xarray_conversion: Warning, unable to decode transducer beam width, using default value of {}'.format(kluster_variables.default_beam_opening_angle))
+                        if logger:
+                            logger.warning('build_xyzrph: Warning, unable to decode transducer beam width, using default value of {}'.format(kluster_variables.default_beam_opening_angle))
+                        else:
+                            print('build_xyzrph: Warning, unable to decode transducer beam width, using default value of {}'.format(kluster_variables.default_beam_opening_angle))
                         xyzrph[tme][val + '_opening_angle'] = kluster_variables.default_beam_opening_angle
 
         # additional offsets based on sector
@@ -2572,7 +2583,7 @@ def sort_and_drop_duplicates(dset: xr.Dataset, dsetpath: str):
     return dset
 
 
-def return_xyzrph_from_mbes(mbesfil: str):
+def return_xyzrph_from_mbes(mbesfil: str, logger: logging.Logger = None):
     """
     Currently being used to load Vessel View with the first installation parameters from a multibeam file.  This will
     take the first installation record in the multibeam file and convert it over to the xyzrph format used by kluster.
@@ -2584,6 +2595,8 @@ def return_xyzrph_from_mbes(mbesfil: str):
     ----------
     mbesfil
         path to a multibeam file
+    logger
+        optional, logger object if you want to log any text output to a particular file/handler
 
     Returns
     -------
@@ -2601,22 +2614,32 @@ def return_xyzrph_from_mbes(mbesfil: str):
         runtime_dict = {}
         snrmodels = np.unique([settings_dict[x]['sonar_model_number'] for x in settings_dict])
         if len(snrmodels) > 1:
+            if logger:
+                logger.error('Found multiple sonars types in data provided: {}'.format(snrmodels))
             raise NotImplementedError('Found multiple sonars types in data provided: {}'.format(snrmodels))
         sonartype = snrmodels[0].lower()
         if sonartype not in sonar_translator:
+            if logger:
+                logger.error('Sonar model not understood "{}"'.format(snrmodels[0]))
             raise NotImplementedError('Sonar model not understood "{}"'.format(snrmodels[0]))
         serialnum = np.unique(recs['installation_params']['serial_one'])
         if len(serialnum) > 1:
+            if logger:
+                logger.error('Found multiple sonar serial numbers in data provided: {}'.format(snrmodels))
             raise NotImplementedError('Found multiple sonar serial numbers in data provided: {}'.format(snrmodels))
         serialnum = serialnum[0]
 
         # translate over the offsets/angles for the transducers following the sonar_translator scheme
-        xyzrph = build_xyzrph(settings_dict, runtime_dict, sonartype)
+        xyzrph = build_xyzrph(settings_dict, runtime_dict, sonartype, logger=logger)
 
         return xyzrph, sonartype, serialnum
     except IndexError:
-        print('Unable to read from {}: data not found for installation records'.format(mbesfil))
-        print(recs['installation_params'])
+        if logger:
+            logger.error('Unable to read from {}: data not found for installation records'.format(mbesfil))
+            logger.error(recs['installation_params'])
+        else:
+            print('Unable to read from {}: data not found for installation records'.format(mbesfil))
+            print(recs['installation_params'])
         return None, None, None
 
 

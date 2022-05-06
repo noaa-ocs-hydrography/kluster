@@ -1,3 +1,4 @@
+import logging
 import sys, os
 
 from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal
@@ -60,6 +61,46 @@ class KlusterProjectTree(QtWidgets.QTreeView):
         self.clicked.connect(self.item_selected)
         self.customContextMenuRequested.connect(self.show_context_menu)
         self.configure()
+
+    def print(self, msg: str, loglevel: int):
+        """
+        convenience method for printing using kluster_main logger
+
+        Parameters
+        ----------
+        msg
+            print text
+        loglevel
+            logging level, ex: logging.INFO
+        """
+
+        if self.parent() is not None:
+            if self.parent().parent() is not None:  # widget is docked, kluster_main is the parent of the dock
+                self.parent().parent().print(msg, loglevel)
+            else:  # widget is undocked, kluster_main is the parent
+                self.parent().print(msg, loglevel)
+        else:
+            print(msg)
+
+    def debug_print(self, msg: str, loglevel: int):
+        """
+        convenience method for printing using kluster_main logger, when debug is enabled
+
+        Parameters
+        ----------
+        msg
+            print text
+        loglevel
+            logging level, ex: logging.INFO
+        """
+
+        if self.parent() is not None:
+            if self.parent().parent() is not None:  # widget is docked, kluster_main is the parent of the dock
+                self.parent().parent().debug_print(msg, loglevel)
+            else:  # widget is undocked, kluster_main is the parent
+                self.parent().debug_print(msg, loglevel)
+        else:
+            print(msg)
 
     def setup_menu(self):
         """
@@ -277,8 +318,6 @@ class KlusterProjectTree(QtWidgets.QTreeView):
             else:  # see if there are new lines to display
                 idx = self.tree_data['Converted'][1:].index(fq_proj)
                 proj_child = parent.child(idx)
-                tst = proj_child.rowCount()
-                tsttwo = len(line_data[fq_proj])
                 if proj_child.rowCount() != len(line_data[fq_proj]):  # new lines
                     tree_lines = [proj_child.child(rw).text() for rw in range(proj_child.rowCount())]
                     for fq_line in line_data[fq_proj]:
@@ -344,7 +383,7 @@ class KlusterProjectTree(QtWidgets.QTreeView):
             try:
                 idx = self.tree_data['Converted'][1:].index(remv)
             except ValueError:
-                print('Unable to close {} in project tree, not found in kluster_project_tree.tree_data'.format(remv))
+                self.print('_remove_fqpr_not_in_proj: Unable to close {} in project tree, not found in kluster_project_tree.tree_data'.format(remv), logging.ERROR)
                 continue
             if idx != -1:
                 self.tree_data['Converted'].pop(idx + 1)
@@ -352,7 +391,7 @@ class KlusterProjectTree(QtWidgets.QTreeView):
                 if tree_idx and len(tree_idx) == 1:
                     parent.removeRow(tree_idx[0])
                 else:
-                    print('Unable to remove "{}"'.format(remv))
+                    self.print('_remove_fqpr_not_in_proj: Unable to remove "{}"'.format(remv), logging.ERROR)
 
     def _remove_surf_not_in_proj(self, parent, surf_data):
         """
@@ -374,7 +413,7 @@ class KlusterProjectTree(QtWidgets.QTreeView):
             try:
                 idx = self.tree_data['Surfaces'][1:].index(remv)
             except ValueError:
-                print('Unable to close {} in project tree, not found in kluster_project_tree.tree_data'.format(remv))
+                self.print('_remove_surf_not_in_proj: Unable to close {} in project tree, not found in kluster_project_tree.tree_data'.format(remv), logging.ERROR)
                 continue
             if idx != -1:
                 self.tree_data['Surfaces'].pop(idx + 1)
@@ -382,7 +421,7 @@ class KlusterProjectTree(QtWidgets.QTreeView):
                 if tree_idx and len(tree_idx) == 1:
                     parent.removeRow(tree_idx[0])
                 else:
-                    print('Unable to remove "{}"'.format(remv))
+                    self.print('_remove_surf_not_in_proj: Unable to remove "{}"'.format(remv), logging.ERROR)
 
     def _setup_project(self, parent, proj_directory):
         if len(self.tree_data['Project']) == 1:
@@ -621,7 +660,7 @@ class OutWindow(QtWidgets.QMainWindow):
         for f in fil:
             fqpr_entry, already_in = self.project.add_fqpr(f, skip_dask=True)
             if fqpr_entry is None:
-                print('update_ktree: Unable to add to Project: {}'.format(f))
+                self.print('update_ktree: Unable to add to Project: {}'.format(f), logging.ERROR)
 
         self.k_tree.refresh_project(self.project)
 

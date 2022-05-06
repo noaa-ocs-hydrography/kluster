@@ -1,5 +1,5 @@
 import sys, os
-from queue import Queue
+import logging
 from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal, qgis_enabled
 if qgis_enabled:
     from HSTB.kluster.gui.backends._qt import qgis_core, qgis_gui
