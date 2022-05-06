@@ -747,6 +747,9 @@ def update_surface(surface_instance: Union[str, BathyGrid], add_fqpr: Union[Fqpr
         BathyGrid instance for the newly updated surface
     """
 
+    print('***** Updating Bathygrid surface *****')
+    strttime = perf_counter()
+
     if isinstance(surface_instance, str):
         surface_instance = reload_surface(surface_instance)
         if surface_instance is None:
@@ -813,6 +816,10 @@ def update_surface(surface_instance: Union[str, BathyGrid], add_fqpr: Union[Fqpr
             automode = 'depth'  # the default value, this will not be used when resolution is specified
         surface_instance.grid(surface_instance.grid_algorithm, rez, auto_resolution_mode=automode,
                               regrid_option=regrid_option, use_dask=use_dask, grid_parameters=surface_instance.grid_parameters)
+
+    endtime = perf_counter()
+    print('***** Surface Update Complete: {} *****'.format(seconds_to_formatted_string(int(endtime - strttime))))
+
     return surface_instance
 
 

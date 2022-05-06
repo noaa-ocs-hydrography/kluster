@@ -1520,6 +1520,7 @@ class KlusterMain(QtWidgets.QMainWindow):
             self.close_surface(relpath_surf)
             self.project.add_surface(fq_surf)
             self.project_tree.refresh_project(proj=self.project)
+            self.print('Updating surface complete', logging.INFO)
         else:
             self.print('Error updating surface', logging.ERROR)
             self.print(self.surface_update_thread.exceptiontxt, logging.ERROR)

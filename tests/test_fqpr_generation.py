@@ -3,7 +3,7 @@ import shutil
 import logging
 
 from HSTB.kluster.fqpr_convenience import process_multibeam, convert_multibeam, reload_data
-from HSTB.kluster.fqpr_generation import Fqpr
+from HSTB.kluster.fqpr_generation import *
 try:  # when running from pycharm console
     from hstb_kluster.tests.test_datasets import RealFqpr, RealDualheadFqpr, SyntheticFqpr, load_dataset
 except ImportError:  # relative import as tests directory can vary in location depending on how kluster is installed
@@ -486,6 +486,108 @@ class TestFqprGeneration(unittest.TestCase):
         self._access_processed_data()
         assert datetime.strptime(self.out.multibeam.raw_ping[0]._total_uncertainty_complete, '%c') ==\
                self.out.last_operation_date
+
+    def test_return_next_action(self):
+        self._access_processed_data()
+        args, kwargs = self.out.return_next_action()
+        # no action required
+        assert isinstance(args[0], Fqpr)
+        assert len(args) == 1
+        assert not kwargs
+
+        args, kwargs = self.out.return_next_action(new_vertical_reference='ellipse')
+        # should require reprocessing starting with georeferencing
+        assert kwargs['run_georef']
+        assert kwargs['run_tpu']
+        assert not kwargs['run_svcorr']
+        assert kwargs['vert_ref'] == 'ellipse'
+
+        args, kwargs = self.out.return_next_action(new_coordinate_system=CRS.from_epsg(32610))
+        # should require reprocessing starting with georeferencing
+        assert kwargs['run_georef']
+        assert kwargs['run_tpu']
+        assert not kwargs['run_svcorr']
+        assert kwargs['use_epsg'] == True
+        assert kwargs['use_coord'] == False
+        assert kwargs['epsg'] == 32610
+
+        args, kwargs = self.out.return_next_action(new_offsets=True)
+        # should require reprocessing starting with svcorrect
+        assert not kwargs['run_beam_vec']
+        assert kwargs['run_georef']
+        assert kwargs['run_tpu']
+        assert kwargs['run_svcorr']
+        assert kwargs['use_epsg'] == True
+        assert kwargs['use_coord'] == False
+        assert kwargs['epsg'] == 6339
+
+        args, kwargs = self.out.return_next_action(new_angles=True)
+        # should require reprocessing starting completely over
+        assert kwargs['run_orientation']
+        assert kwargs['run_beam_vec']
+        assert kwargs['run_svcorr']
+        assert kwargs['run_georef']
+        assert kwargs['run_tpu']
+        assert kwargs['use_epsg'] == True
+        assert kwargs['use_coord'] == False
+        assert kwargs['epsg'] == 6339
+
+        args, kwargs = self.out.return_next_action(new_tpu=True)
+        # should require reprocessing starting at TPU
+        assert not kwargs['run_orientation']
+        assert not kwargs['run_beam_vec']
+        assert not kwargs['run_svcorr']
+        assert not kwargs['run_georef']
+        assert kwargs['run_tpu']
+
+        args, kwargs = self.out.return_next_action(new_input_datum='NAD83')
+        # should require reprocessing starting with georeferencing
+        assert kwargs['run_georef']
+        assert kwargs['run_tpu']
+        assert not kwargs['run_svcorr']
+        assert kwargs['use_epsg'] == True
+        assert kwargs['use_coord'] == False
+        assert kwargs['epsg'] == 6339
+        assert kwargs['input_datum'] == 'NAD83'
+
+        args, kwargs = self.out.return_next_action(new_waterline=True)
+        # should require reprocessing starting with svcorrect
+        assert not kwargs['run_beam_vec']
+        assert kwargs['run_georef']
+        assert kwargs['run_tpu']
+        assert kwargs['run_svcorr']
+        assert kwargs['use_epsg'] == True
+        assert kwargs['use_coord'] == False
+        assert kwargs['epsg'] == 6339
+
+        args, kwargs = self.out.return_next_action(process_mode='normal')
+        # no action required, normal mode is the default and this data is fully processed
+        assert isinstance(args[0], Fqpr)
+        assert len(args) == 1
+        assert not kwargs
+
+        args, kwargs = self.out.return_next_action(process_mode='convert_only')
+        # no action required, data is already converted
+        assert isinstance(args[0], Fqpr)
+        assert len(args) == 1
+        assert not kwargs
+
+        args, kwargs = self.out.return_next_action(process_mode='concatenate')
+        # no action required, concatenate mode will add a new line and process just that line, this line is already processed though
+        assert isinstance(args[0], Fqpr)
+        assert len(args) == 1
+        assert not kwargs
+
+        args, kwargs = self.out.return_next_action(process_mode='reprocess')
+        # should require reprocessing starting completely over
+        assert kwargs['run_orientation']
+        assert kwargs['run_beam_vec']
+        assert kwargs['run_svcorr']
+        assert kwargs['run_georef']
+        assert kwargs['run_tpu']
+        assert kwargs['use_epsg'] == True
+        assert kwargs['use_coord'] == False
+        assert kwargs['epsg'] == 6339
 
     def test_export_files(self):
         self._access_processed_data()
