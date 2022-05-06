@@ -1,0 +1,6 @@
+logfile_matches
+===============
+
+.. currentmodule:: HSTB.kluster.logging_conf
+
+.. autofunction:: logfile_matches

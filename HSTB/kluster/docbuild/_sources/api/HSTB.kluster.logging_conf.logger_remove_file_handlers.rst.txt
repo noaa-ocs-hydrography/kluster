@@ -1,0 +1,6 @@
+logger_remove_file_handlers
+===========================
+
+.. currentmodule:: HSTB.kluster.logging_conf
+
+.. autofunction:: logger_remove_file_handlers

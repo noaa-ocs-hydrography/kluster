@@ -24,4 +24,4 @@ fqpr\_project module
    :skip: haversine
    :skip: reprocess_sounding_selection
    :skip: trim_xyzrprh_to_times
-
+   :skip: LoggerClass

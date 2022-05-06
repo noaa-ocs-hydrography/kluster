@@ -1,0 +1,6 @@
+add_file_handler
+================
+
+.. currentmodule:: HSTB.kluster.logging_conf
+
+.. autofunction:: add_file_handler

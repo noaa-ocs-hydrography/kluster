@@ -6,7 +6,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
-    <title>return_log_name &#8212; kluster 0.9.3 documentation</title>
+    <title>return_log_name &#8212; kluster 0.9.4 documentation</title>
     <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
     <link rel="stylesheet" type="text/css" href="../_static/alabaster.css" />
     <link rel="stylesheet" type="text/css" href="../_static/graphviz.css" />
@@ -17,7 +17,7 @@
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
     <link rel="next" title="return_logger" href="HSTB.kluster.logging_conf.return_logger.html" />
-    <link rel="prev" title="logging_conf module" href="../kluster_api/logging_conf.html" />
+    <link rel="prev" title="logger_remove_file_handlers" href="HSTB.kluster.logging_conf.logger_remove_file_handlers.html" />
    
   <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
   
@@ -38,14 +38,17 @@
 <h1>return_log_name<a class="headerlink" href="#return-log-name" title="Permalink to this headline">¶</a></h1>
 <dl class="py function">
 <dt class="sig sig-object py" id="HSTB.kluster.logging_conf.return_log_name">
-<span class="sig-prename descclassname"><span class="pre">HSTB.kluster.logging_conf.</span></span><span class="sig-name descname"><span class="pre">return_log_name</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.logging_conf.return_log_name" title="Permalink to this definition">¶</a></dt>
+<span class="sig-prename descclassname"><span class="pre">HSTB.kluster.logging_conf.</span></span><span class="sig-name descname"><span class="pre">return_log_name</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">timestamped</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.logging_conf.return_log_name" title="Permalink to this definition">¶</a></dt>
 <dd><p>Return the log file name that we use throughout kluster.  Includes the utctimstamp in seconds as a unique id</p>
 <dl class="field-list simple">
-<dt class="field-odd">Returns</dt>
-<dd class="field-odd"><p>log file name</p>
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>timestamped</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code>) – if True, returns a timestamped log name</p>
 </dd>
-<dt class="field-even">Return type</dt>
-<dd class="field-even"><p>str</p>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>log file name</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>str</p>
 </dd>
 </dl>
 </dd></dl>
@@ -129,7 +132,7 @@
   <li><a href="../index.html">Documentation overview</a><ul>
   <li><a href="../kluster_api/index.html">API</a><ul>
   <li><a href="../kluster_api/logging_conf.html">logging_conf module</a><ul>
-      <li>Previous: <a href="../kluster_api/logging_conf.html" title="previous chapter">logging_conf module</a></li>
+      <li>Previous: <a href="HSTB.kluster.logging_conf.logger_remove_file_handlers.html" title="previous chapter">logger_remove_file_handlers</a></li>
       <li>Next: <a href="HSTB.kluster.logging_conf.return_logger.html" title="next chapter">return_logger</a></li>
   </ul></li>
   </ul></li>

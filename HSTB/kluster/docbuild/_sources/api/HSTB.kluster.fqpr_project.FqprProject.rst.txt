@@ -37,6 +37,7 @@ FqprProject
       ~FqprProject.return_project_lines
       ~FqprProject.return_sorted_line_list
       ~FqprProject.return_soundings_in_polygon
+      ~FqprProject.return_surface
       ~FqprProject.return_surface_containers
       ~FqprProject.return_surface_paths
       ~FqprProject.return_vessel_file
@@ -74,6 +75,7 @@ FqprProject
    .. automethod:: return_project_lines
    .. automethod:: return_sorted_line_list
    .. automethod:: return_soundings_in_polygon
+   .. automethod:: return_surface
    .. automethod:: return_surface_containers
    .. automethod:: return_surface_paths
    .. automethod:: return_vessel_file

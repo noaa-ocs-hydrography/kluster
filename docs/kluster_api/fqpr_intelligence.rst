@@ -22,3 +22,4 @@ fqpr\_intelligence module
    :skip: is_smrmsg
    :skip: read_pospac_export_log
    :skip: read_soundvelocity_file
+   :skip: LoggerClass

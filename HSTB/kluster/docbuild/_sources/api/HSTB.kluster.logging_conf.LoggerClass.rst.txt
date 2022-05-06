@@ -1,7 +1,7 @@
 LoggerClass
 ===========
 
-.. currentmodule:: HSTB.kluster.fqpr_intelligence
+.. currentmodule:: HSTB.kluster.logging_conf
 
 .. autoclass:: LoggerClass
    :show-inheritance:
