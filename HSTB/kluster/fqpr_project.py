@@ -15,8 +15,9 @@ from HSTB.kluster.fqpr_helpers import haversine
 from HSTB.kluster.fqpr_vessel import VesselFile, create_new_vessel_file, convert_from_fqpr_xyzrph, compare_dict_data, \
     split_by_timestamp, trim_xyzrprh_to_times
 from HSTB.kluster.modules.autopatch import PatchTest
-from bathygrid.bgrid import BathyGrid
 from HSTB.kluster.logging_conf import LoggerClass
+
+from bathygrid.bgrid import BathyGrid
 
 
 class FqprProject(LoggerClass):
