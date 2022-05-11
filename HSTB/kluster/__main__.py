@@ -4,7 +4,11 @@ import argparse
 
 
 # custom modules
-from HSTB.kluster.gui import kluster_main
+try:  # this will work unless we are trying to run in headless mode
+    from HSTB.kluster.gui import kluster_main
+    gui_disabled = False
+except ImportError:  # headless mode, importerror stems from kluster_main specifying pyqt, gui will be disabled, matplotlib will be using the 'headless' backend
+    gui_disabled = True
 from HSTB.kluster.fqpr_convenience import *
 from HSTB.kluster.fqpr_intelligence import intel_process, intel_process_service
 from HSTB.kluster import kluster_variables
@@ -213,7 +217,10 @@ if __name__ == "__main__":  # run from command line
 
     args = parser.parse_args()
     if not args.kluster_function:
-        kluster_main.main()
+        if gui_disabled:
+            print('Unable to start gui - main import failed')
+        else:
+            kluster_main.main()
     else:
         funcname = args.kluster_function
         reloaded_data = None
