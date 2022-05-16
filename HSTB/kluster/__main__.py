@@ -8,6 +8,8 @@ try:  # this will work unless we are trying to run in headless mode
     from HSTB.kluster.gui import kluster_main
     gui_disabled = False
 except ImportError:  # headless mode, importerror stems from kluster_main specifying pyqt, gui will be disabled, matplotlib will be using the 'headless' backend
+    import matplotlib
+    matplotlib.use('agg')
     gui_disabled = True
 from HSTB.kluster.fqpr_convenience import *
 from HSTB.kluster.fqpr_intelligence import intel_process, intel_process_service
