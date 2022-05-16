@@ -643,13 +643,14 @@ class PatchTestUpdateWorker(QtCore.QThread):
         self.timestamps = None
         self.serial_number = None
         self.polygon = None
+        self.vdatum_directory = None
 
         self.result = []
         self.error = False
         self.exceptiontxt = None
 
     def populate(self, fqprs=None, newvalues=None, headindex=None, prefixes=None, timestamps=None, serial_number=None,
-                 polygon=None):
+                 polygon=None, vdatum_directory=None):
         self.fqprs = fqprs
         self.newvalues = newvalues
         self.headindex = headindex
@@ -657,6 +658,7 @@ class PatchTestUpdateWorker(QtCore.QThread):
         self.timestamps = timestamps
         self.serial_number = serial_number
         self.polygon = polygon
+        self.vdatum_directory = vdatum_directory
 
         self.result = []
         self.error = False
@@ -666,7 +668,7 @@ class PatchTestUpdateWorker(QtCore.QThread):
         self.started.emit(True)
         try:
             self.fqprs, self.result = reprocess_fqprs(self.fqprs, self.newvalues, self.headindex, self.prefixes, self.timestamps,
-                                                      self.serial_number, self.polygon)
+                                                      self.serial_number, self.polygon, self.vdatum_directory)
         except Exception as e:
             self.error = True
             self.exceptiontxt = traceback.format_exc()

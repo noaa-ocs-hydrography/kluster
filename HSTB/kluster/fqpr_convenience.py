@@ -1065,7 +1065,8 @@ def return_processed_data_folders(converted_folder: str):
 
 def reprocess_sounding_selection(fqpr_inst: Fqpr, new_xyzrph: dict = None, subset_time: list = None, return_soundings: bool = False,
                                  georeference: bool = False, turn_off_dask: bool = True, turn_dask_back_on: bool = False,
-                                 override_datum: str = None, override_vertical_reference: str = None, isolate_head: int = None):
+                                 override_datum: str = None, override_vertical_reference: str = None, isolate_head: int = None,
+                                 vdatum_directory: str = None):
     """
     Designed to feed a patch test tool.  This function will reprocess all the soundings within the given subset
     time and return the xyz values without writing to disk.  If a new xyzrph (dictionary that holds the offsets and
@@ -1109,6 +1110,8 @@ def reprocess_sounding_selection(fqpr_inst: Fqpr, new_xyzrph: dict = None, subse
     isolate_head
         only used with return_soundings, if provided will only return soundings corresponding to this head index,
         0 = port, 1 = starboard
+    vdatum_directory
+        path to the vdatum directory, required for georeferencing with NOAA MLLW or MHW vertical references
 
     Returns
     -------
@@ -1151,7 +1154,7 @@ def reprocess_sounding_selection(fqpr_inst: Fqpr, new_xyzrph: dict = None, subse
             epsg = fqpr_inst.multibeam.raw_ping[0].horizontal_crs
 
         fqpr_inst.construct_crs(epsg=epsg, datum=datum)
-        fqpr_inst.georef_xyz(subset_time=subset_time, dump_data=False)
+        fqpr_inst.georef_xyz(subset_time=subset_time, vdatum_directory=vdatum_directory, dump_data=False)
         data_store = 'georef'
     else:
         data_store = 'sv_corr'

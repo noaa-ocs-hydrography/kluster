@@ -1148,8 +1148,17 @@ class KlusterMain(QtWidgets.QMainWindow):
             latency = self._manpatchtest.latency
             prefixes = self._manpatchtest.patchdatablock[15]
             serial_num = str(self._manpatchtest.patchdatablock[3])
+            try:
+                vdatum_directory = self.settings['vdatum_directory']
+                if not vdatum_directory:
+                    vdatum_directory = None
+            except:
+                self.print('Unable to find vdatum_directory attribute for patch test processing', logging.WARNING)
+                vdatum_directory = None
+
             self.patch_test_load_thread.populate(fqprs, [roll, pitch, heading, xlever, ylever, zlever, latency],
-                                                 headindex, prefixes, tstamps, serial_num, self.load_points_thread.polygon)
+                                                 headindex, prefixes, tstamps, serial_num, self.load_points_thread.polygon,
+                                                 vdatum_directory)
             self.patch_test_load_thread.start()
         else:
             self.print('Unable to load the data for updating the manual patch test', logging.ERROR)

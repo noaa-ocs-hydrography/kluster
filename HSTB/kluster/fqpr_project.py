@@ -1347,7 +1347,7 @@ def return_project_data(project_path: str):
 
 
 def reprocess_fqprs(fqprs: list, newvalues: list, headindex: int, prefixes: list, timestamps: list, serial_number: str,
-                    polygon: np.ndarray):
+                    polygon: np.ndarray, vdatum_directory: str = None):
     """
     Convenience function for reprocessing a list of Fqpr objects according to the new arguments given here.  Used in
     the manual patch test tool in Kluster Points View.
@@ -1368,6 +1368,8 @@ def reprocess_fqprs(fqprs: list, newvalues: list, headindex: int, prefixes: list
         serial number of each fqpr instance, used in the lookup
     polygon
         polygon in geographic coordinates encompassing the patch test region
+    vdatum_directory
+        path to the vdatum directory, required for georeferencing with NOAA MLLW or MHW vertical references
 
     Returns
     -------
@@ -1396,7 +1398,7 @@ def reprocess_fqprs(fqprs: list, newvalues: list, headindex: int, prefixes: list
             fq.multibeam.xyzrph[prefixes[5]][tstmp] = zlever
             fq.multibeam.xyzrph[prefixes[6]][tstmp] = latency
         fq.intermediate_dat = {}  # clear out the reprocessed cached data
-        fq, soundings = reprocess_sounding_selection(fq, georeference=True)
+        fq, soundings = reprocess_sounding_selection(fq, vdatum_directory=vdatum_directory, georeference=True)
 
         for tstmp in fqtimestamps:
             newx = np.concatenate([d[0][0].values for d in fq.intermediate_dat[serial_number]['georef'][tstmp]], axis=0)
