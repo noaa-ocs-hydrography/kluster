@@ -665,8 +665,8 @@ class PatchTestUpdateWorker(QtCore.QThread):
     def run(self):
         self.started.emit(True)
         try:
-            self.result = reprocess_fqprs(self.fqprs, self.newvalues, self.headindex, self.prefixes, self.timestamps,
-                                          self.serial_number, self.polygon)
+            self.fqprs, self.result = reprocess_fqprs(self.fqprs, self.newvalues, self.headindex, self.prefixes, self.timestamps,
+                                                      self.serial_number, self.polygon)
         except Exception as e:
             self.error = True
             self.exceptiontxt = traceback.format_exc()

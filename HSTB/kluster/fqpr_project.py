@@ -1372,28 +1372,46 @@ def reprocess_fqprs(fqprs: list, newvalues: list, headindex: int, prefixes: list
     Returns
     -------
     list
+        list of the fqpr objects reprocessed
+    list
         list of lists for each fqpr containing the reprocessed xyz data
     """
 
     roll, pitch, heading, xlever, ylever, zlever, latency = newvalues
+    fqpr_folders = [fq.output_folder for fq in fqprs]
+    filtered_fqs = {}
+    filtered_results = []
+    for cnt, fqprf in enumerate(fqpr_folders):  # handle use case where user submits the same fqpr instance with multiple timestamps to process
+        if fqprf not in filtered_results:
+            filtered_fqs[fqprs[cnt]] = [timestamps[findex] for findex in [cnt for cnt, i in enumerate(fqpr_folders) if i == fqprf]]
+            filtered_results.append(fqprf)
     results = []
-    for cnt, fq in enumerate(fqprs):
-        fq.multibeam.xyzrph[prefixes[0]][timestamps[cnt]] = roll
-        fq.multibeam.xyzrph[prefixes[1]][timestamps[cnt]] = pitch
-        fq.multibeam.xyzrph[prefixes[2]][timestamps[cnt]] = heading
-        fq.multibeam.xyzrph[prefixes[3]][timestamps[cnt]] = xlever
-        fq.multibeam.xyzrph[prefixes[4]][timestamps[cnt]] = ylever
-        fq.multibeam.xyzrph[prefixes[5]][timestamps[cnt]] = zlever
-        fq.multibeam.xyzrph[prefixes[6]][timestamps[cnt]] = latency
+    for cnt, (fq, fqtimestamps) in enumerate(filtered_fqs.items()):
+        for tstmp in fqtimestamps:
+            fq.multibeam.xyzrph[prefixes[0]][tstmp] = roll
+            fq.multibeam.xyzrph[prefixes[1]][tstmp] = pitch
+            fq.multibeam.xyzrph[prefixes[2]][tstmp] = heading
+            fq.multibeam.xyzrph[prefixes[3]][tstmp] = xlever
+            fq.multibeam.xyzrph[prefixes[4]][tstmp] = ylever
+            fq.multibeam.xyzrph[prefixes[5]][tstmp] = zlever
+            fq.multibeam.xyzrph[prefixes[6]][tstmp] = latency
         fq.intermediate_dat = {}  # clear out the reprocessed cached data
         fq, soundings = reprocess_sounding_selection(fq, georeference=True)
-        newx = np.concatenate([d[0][0].values for d in fq.intermediate_dat[serial_number]['georef'][timestamps[cnt]]], axis=0)
-        newy = np.concatenate([d[0][1].values for d in fq.intermediate_dat[serial_number]['georef'][timestamps[cnt]]], axis=0)
-        newz = np.concatenate([d[0][2].values for d in fq.intermediate_dat[serial_number]['georef'][timestamps[cnt]]], axis=0)
-        fq.multibeam.raw_ping[headindex]['x'] = xr.DataArray(newx, dims=('time', 'beam'))
-        fq.multibeam.raw_ping[headindex]['y'] = xr.DataArray(newy, dims=('time', 'beam'))
-        fq.multibeam.raw_ping[headindex]['z'] = xr.DataArray(newz, dims=('time', 'beam'))
+
+        for tstmp in fqtimestamps:
+            newx = np.concatenate([d[0][0].values for d in fq.intermediate_dat[serial_number]['georef'][tstmp]], axis=0)
+            newy = np.concatenate([d[0][1].values for d in fq.intermediate_dat[serial_number]['georef'][tstmp]], axis=0)
+            newz = np.concatenate([d[0][2].values for d in fq.intermediate_dat[serial_number]['georef'][tstmp]], axis=0)
+            if newx.shape == fq.multibeam.raw_ping[headindex]['x'].shape:
+                fq.multibeam.raw_ping[headindex]['x'] = xr.DataArray(newx, dims=('time', 'beam'))
+                fq.multibeam.raw_ping[headindex]['y'] = xr.DataArray(newy, dims=('time', 'beam'))
+                fq.multibeam.raw_ping[headindex]['z'] = xr.DataArray(newz, dims=('time', 'beam'))
+            else:
+                newtime = np.concatenate([d[0][0].time.values for d in fq.intermediate_dat[serial_number]['georef'][tstmp]], axis=0)
+                fq.multibeam.raw_ping[headindex]['x'][overlap] = newx
+                fq.multibeam.raw_ping[headindex]['y'][overlap] = newy
+                fq.multibeam.raw_ping[headindex]['z'][overlap] = newz
         fq.intermediate_dat = {}  # clear out the reprocessed cached data
         head, x, y, z, tvu, rejected, pointtime, beam = fq.return_soundings_in_polygon(polygon, geographic=True, isolate_head=headindex)
         results.append([head, x, y, z, tvu, rejected, pointtime, beam])
-    return results
+    return list(filtered_fqs.keys()), results
