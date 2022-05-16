@@ -629,9 +629,9 @@ def generate_new_surface(fqpr_inst: Union[Fqpr, list], grid_type: str = 'single_
     use_dask
         if True, will start a dask LocalCluster instance and perform the gridding in parallel
     output_path
-        if provided, will save the Bathygrid to this path, with data saved as stacked numpy (npy) files
+        if provided, will save the Bathygrid to this path
     export_path
-        if provided, will export the Bathygrid to csv
+        if provided, will export the Bathygrid to file using export_format and export_resolution
     export_format
         format option, one of 'csv', 'geotiff', 'bag'
     export_z_positive_up

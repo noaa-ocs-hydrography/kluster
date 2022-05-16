@@ -1563,7 +1563,7 @@ class BatchRead(ZarrBackend):
 
         if self.client is not None:
             self._batch_read_file_setup()
-            self.logger.info('****Running Kongsberg .all converter****')
+            self.logger.info('****Running multibeam converter****')
 
             chnks_flat = self._batch_read_chunk_generation(self.fils)
             newrecfutures = self._batch_read_sequential(chnks_flat)

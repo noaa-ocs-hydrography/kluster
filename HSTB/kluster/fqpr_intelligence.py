@@ -1877,7 +1877,7 @@ def intel_process(filname: Union[str, list], outfold: str = None, coord_system: 
     return intel, list(intel.project.fqpr_instances.values())
 
 
-def intel_process_service(folder_path: str, is_recursive: bool = True, outfold: str = None, coord_system: str = 'WGS84',
+def intel_process_service(folder_path: Union[list, str], is_recursive: bool = True, outfold: str = None, coord_system: str = 'WGS84',
                           epsg: int = None, use_epsg: bool = False, vert_ref: str = 'waterline',
                           parallel_write: bool = True, vdatum_directory: str = None, force_coordinate_system: bool = True,
                           process_mode: str = 'normal', logger: logging.Logger = None, client: Client = None):
@@ -1889,7 +1889,7 @@ def intel_process_service(folder_path: str, is_recursive: bool = True, outfold: 
     Parameters
     ----------
     folder_path
-        a directory path that the IntelModule will monitor for new/existing files
+        a directory path or list of directory paths that the IntelModule will monitor for new/existing files
     is_recursive
         if True, the directory monitor session will monitor all subfolders as well
     outfold
@@ -1938,7 +1938,10 @@ def intel_process_service(folder_path: str, is_recursive: bool = True, outfold: 
                 'force_coordinate_match': force_coordinate_system, 'autoprocessing_mode': process_mode}
     intel.set_settings(settings)
 
-    intel.start_folder_monitor(folder_path, is_recursive=is_recursive)
+    if not isinstance(folder_path, list):
+        folder_path = [folder_path]
+    for fldrpth in folder_path:
+        intel.start_folder_monitor(fldrpth, is_recursive=is_recursive)
     while True:
         if intel.has_actions:
             intel.execute_action()
