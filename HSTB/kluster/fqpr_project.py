@@ -1408,6 +1408,7 @@ def reprocess_fqprs(fqprs: list, newvalues: list, headindex: int, prefixes: list
                 fq.multibeam.raw_ping[headindex]['z'] = xr.DataArray(newz, dims=('time', 'beam'))
             else:
                 newtime = np.concatenate([d[0][0].time.values for d in fq.intermediate_dat[serial_number]['georef'][tstmp]], axis=0)
+                overlap = np.in1d(fq.multibeam.raw_ping[headindex].time.values, newtime)
                 fq.multibeam.raw_ping[headindex]['x'][overlap] = newx
                 fq.multibeam.raw_ping[headindex]['y'][overlap] = newy
                 fq.multibeam.raw_ping[headindex]['z'][overlap] = newz
