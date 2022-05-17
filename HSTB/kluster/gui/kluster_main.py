@@ -735,19 +735,23 @@ class KlusterMain(QtWidgets.QMainWindow):
     def visualize_corrected_beam_vectors(self, pth):
         self.project.build_visualizations(pth, 'corrected_beam_vectors')
 
-    def close_surface(self, pth):
+    def close_surface(self, pth: str, only_resolutions: list = None):
         """
         With the given path to the surface instance, remove the loaded data associated with the surface and remove it from
         the gui widgets / project.
 
         Parameters
         ----------
-        pth: str, path to the Fqpr top level folder
-
+        pth
+            path to the Fqpr top level folder
+        only_resolutions
+            list of resolutions to close, default is all the resolutions in the grid
         """
 
         surf_object = self.project.surface_instances[pth]
-        for resolution in surf_object.resolutions:
+        if not only_resolutions:
+            only_resolutions = surf_object.resolutions
+        for resolution in only_resolutions:
             self.two_d.remove_surface(pth, resolution)
         self.project.remove_surface(pth, relative_path=True)
         self.project_tree.refresh_project(self.project)
@@ -1494,15 +1498,18 @@ class KlusterMain(QtWidgets.QMainWindow):
                 if surf_version[0] < 1 or (surf_version[0] == 1 and surf_version[1] < 3) or (surf_version[0] == 1 and surf_version[1] == 3 and surf_version[2] < 5):
                     self.print('kluster_surface_update: surface update received a rework in bathygrid 1.3.5, grid created prior to that cannot be updated in Kluster.', logging.ERROR)
                     return
+                # we need to grab all the resolutions in the grid so that when we close it later, we close the correct layers
+                #  the resolutions can change during regridding, so we need the original ones
+                all_resolutions = surf.resolutions
                 existing_container_names, possible_container_names = self.project.return_surface_containers(surfs[0], relative_path=False)
                 dlog = dialog_surface_data.SurfaceDataDialog(parent=self, title=surf.output_folder)
                 dlog.setup(existing_container_names, possible_container_names)
                 if dlog.exec_():
                     cancelled = dlog.canceled
                     add_container, add_lines, remove_container, remove_lines, opts = dlog.return_processing_options()
+                    add_fqpr = []
                     if not cancelled:
                         if add_container:
-                            add_fqpr = []
                             for fqpr_inst in self.project.fqpr_instances.values():
                                 fname = os.path.split(fqpr_inst.multibeam.raw_ping[0].output_path)[1]
                                 if fname in add_container:
@@ -1512,7 +1519,7 @@ class KlusterMain(QtWidgets.QMainWindow):
                                 self.print('kluster_surface_update: {} must be loaded in Kluster for it to be added to the surface.'.format(add_container), logging.ERROR)
                                 return
                         self.output_window.clear()
-                        self.surface_update_thread.populate(surf, add_fqpr, add_lines, remove_container, remove_lines, opts)
+                        self.surface_update_thread.populate(surf, add_fqpr, add_lines, remove_container, remove_lines, opts, all_resolutions)
                         self.surface_update_thread.start()
                     else:
                         self.print('kluster_surface_update: Processing was cancelled', logging.INFO)
@@ -1526,14 +1533,14 @@ class KlusterMain(QtWidgets.QMainWindow):
         fq_surf = self.surface_update_thread.fqpr_surface
         if fq_surf is not None and not self.surface_thread.error:
             relpath_surf = self.project.path_relative_to_project(os.path.normpath(fq_surf.output_folder))
-            self.close_surface(relpath_surf)
+            self.close_surface(relpath_surf, only_resolutions=self.surface_update_thread.all_resolutions)
             self.project.add_surface(fq_surf)
             self.project_tree.refresh_project(proj=self.project)
             self.print('Updating surface complete', logging.INFO)
         else:
             self.print('Error updating surface', logging.ERROR)
             self.print(self.surface_update_thread.exceptiontxt, logging.ERROR)
-        self.surface_update_thread.populate(None, None, None, None, None, {})
+        self.surface_update_thread.populate(None, None, None, None, None, {}, None)
         self._stop_action_progress()
 
     def kluster_export_grid(self):

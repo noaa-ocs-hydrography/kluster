@@ -798,19 +798,18 @@ def update_surface(surface_instance: Union[str, BathyGrid], add_fqpr: Union[Fqpr
 
     if regrid:
         if isinstance(surface_instance.grid_resolution, str):
-            if surface_instance.grid_resolution.lower() == 'auto_depth':
+            if surface_instance.name[:2].lower() == 'sr':
+                rez = surface_instance.resolutions[0]
+                automode = 'depth'  # doesn't matter, not used
+            elif surface_instance.grid_resolution.lower() == 'auto_depth':
                 rez = None
                 automode = 'depth'
             elif surface_instance.grid_resolution.lower() == 'auto_density':
                 rez = None
                 automode = 'density'
             else:
-                try:
-                    rez = float(surface_instance.grid_resolution)
-                    automode = 'depth'  # the default value, this will not be used when resolution is specified
-                except:
-                    print('Unrecognized grid resolution: {}'.format(surface_instance.grid_resolution))
-                    return
+                print('Unrecognized grid resolution: {}'.format(surface_instance.grid_resolution))
+                return
         else:
             rez = float(surface_instance.grid_resolution)
             automode = 'depth'  # the default value, this will not be used when resolution is specified
