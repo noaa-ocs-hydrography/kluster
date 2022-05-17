@@ -1841,15 +1841,10 @@ def intel_process(filname: Union[str, list], outfold: str = None, coord_system: 
         list of Fqpr instances
     """
 
-    project = FqprProject(is_gui=False, logger=logger)
+    project = FqprProject(is_gui=False, project_path=outfold, logger=logger)
     if client:
         project.client = client
-    if outfold:
-        potential_project_file = os.path.join(outfold, 'kluster_project.json')
-        if os.path.exists(potential_project_file):
-            project.open_project(potential_project_file)
-        else:
-            project._setup_new_project(outfold)
+
     intel = FqprIntel(project, logger=logger)
 
     settings = {'use_epsg': use_epsg, 'epsg': epsg, 'use_coord': not use_epsg, 'coord_system': coord_system,
@@ -1922,15 +1917,10 @@ def intel_process_service(folder_path: Union[list, str], is_recursive: bool = Tr
     """
 
     # consider daemonizing this at some point: https://daemoniker.readthedocs.io/en/latest/index.html
-    project = FqprProject(is_gui=False, logger=logger)
+    project = FqprProject(is_gui=False, project_path=outfold, logger=logger)
     if client:
         project.client = client
-    if outfold:
-        potential_project_file = os.path.join(outfold, 'kluster_project.json')
-        if os.path.exists(potential_project_file):
-            project.open_project(potential_project_file)
-        else:
-            project._setup_new_project(outfold)
+
     intel = FqprIntel(project, logger=logger)
 
     settings = {'use_epsg': use_epsg, 'epsg': epsg, 'use_coord': not use_epsg, 'coord_system': coord_system,

@@ -45,7 +45,7 @@ class FqprProject(LoggerClass):
     |    fqp.add_fqpr(pd, skip_dask=True)
     """
 
-    def __init__(self, is_gui: bool = False, **kwargs):
+    def __init__(self, is_gui: bool = False, project_path: str = None, **kwargs):
         """
 
         Parameters
@@ -93,6 +93,13 @@ class FqprProject(LoggerClass):
         self.node_vals_for_surf = {}
 
         self._project_observers = []
+
+        if project_path:
+            potential_project_file = os.path.join(project_path, 'kluster_project.json')
+            if os.path.exists(potential_project_file):
+                self.open_project(potential_project_file)
+            else:
+                self._setup_new_project(project_path)
 
     def path_relative_to_project(self, pth: str):
         """
@@ -518,34 +525,6 @@ class FqprProject(LoggerClass):
 
         if relpath in self.surface_instances:
             self.surface_instances.pop(relpath)
-
-    def build_raw_attitude_for_line(self, line: str, subset: bool = True):
-        """
-        With the given linename, return the raw_attitude dataset from the fqpr_generation.FQPR instance that contains
-        the line.  If subset is true, the returned attitude will only be the raw attitude that covers the line.
-
-        Parameters
-        ----------
-        line
-            line name
-        subset
-            if True will only return the dataset cut to the min max time of the multibeam line
-
-        Returns
-        -------
-        xr.Dataset
-            the raw attitude either for the whole Fqpr instance that contains the line, or subset to the min/max time of the line
-        """
-
-        line_att = None
-        fq_inst = self.return_line_owner(line)
-        if fq_inst is not None:
-            line_att = fq_inst.multibeam.raw_att
-            if subset:
-                # attributes are all the same across raw_ping datasets, just use the first
-                line_start_time, line_end_time = fq_inst.multibeam.raw_ping[0].multibeam_files[line][0], fq_inst.multibeam.raw_ping[0].multibeam_files[line][1]
-                line_att = slice_xarray_by_dim(line_att, dimname='time', start_time=line_start_time, end_time=line_end_time)
-        return line_att
 
     def regenerate_fqpr_lines(self, pth: str):
         """
@@ -1284,8 +1263,6 @@ def create_new_project(output_folder: str = None):
     Create a new FqprProject by taking in multibeam files, converting them, making a new Fqpr instance and loading that
     Fqpr into a new FqprProject.
 
-    No longer used in general, instead use _setup_new_project
-
     Parameters
     ----------
     output_folder
@@ -1301,8 +1278,7 @@ def create_new_project(output_folder: str = None):
         print('create_new_project: Found existing project in this directory, please remove and re-create')
         print('{}'.format(expected_project_file))
         return None
-    fqp = FqprProject()
-    fqp.new_project_from_directory(output_folder)
+    fqp = FqprProject(project_path=output_folder)
     return fqp
 
 
