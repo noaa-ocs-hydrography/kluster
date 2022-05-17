@@ -153,3 +153,44 @@ class TestFqprProject(unittest.TestCase):
                                                          self.out.multibeam.raw_ping[0].attrs['secondary_system_serial_number'][0])
         assert pth == os.path.join(self.expected_output, relpath)
         assert fq == self.out
+
+    def test_reprocess_fqprs(self):
+        out_cpy = self.out.copy()
+        plygon = np.array([[-122, 47], [-123, 48], [-123, 48], [-122, 48], [-122, 47]])
+        fqprs, results = reprocess_fqprs([out_cpy], [45, 0, 0, 0, 0, 0, 0], 0,
+                                         ['rx_r', 'rx_p', 'rx_h', 'tx_x', 'tx_y', 'tx_z', 'latency'], ['1495563079'],
+                                         str(out_cpy.multibeam.raw_ping[0].attrs['system_serial_number'][0]), plygon)
+        assert len(results) == len([out_cpy])
+        assert len(results[0]) == 8
+        assert results[0][0].shape == (out_cpy.return_total_soundings(),)
+        assert out_cpy.multibeam.xyzrph['rx_r']['1495563079'] == 45
+
+        # you have to provide a timestamped entry for each fqpr
+        try:
+            fqprs, results = reprocess_fqprs([out_cpy, out_cpy], [45, 0, 0, 0, 0, 0, 0], 0,
+                                             ['rx_r', 'rx_p', 'rx_h', 'tx_x', 'tx_y', 'tx_z', 'latency'],
+                                             ['1495563079'], str(out_cpy.multibeam.raw_ping[0].attrs['system_serial_number'][0]), plygon)
+        except ValueError:
+            assert True
+
+        # the timestamps provided have to already exist in the processed data
+        try:
+            fqprs, results = reprocess_fqprs([out_cpy, out_cpy], [45, 0, 0, 0, 0, 0, 0], 0,
+                                             ['rx_r', 'rx_p', 'rx_h', 'tx_x', 'tx_y', 'tx_z', 'latency'],
+                                             ['1495563079', '1495563081'], str(out_cpy.multibeam.raw_ping[0].attrs['system_serial_number'][0]), plygon)
+        except ValueError:
+            assert True
+
+        # now test for the case where you want to reprocess with multiple changes, add a new entry first to the xyzrph to manipulate
+        out_cpy = self.out.copy()
+        for ky in out_cpy.multibeam.xyzrph:
+            out_cpy.multibeam.xyzrph[ky]['1495563081'] = out_cpy.multibeam.xyzrph[ky]['1495563079']
+        plygon = np.array([[-122, 47], [-123, 48], [-123, 48], [-122, 48], [-122, 47]])
+        fqprs, results = reprocess_fqprs([out_cpy, out_cpy], [45, 0, 0, 0, 0, 0, 0], 0,
+                                         ['rx_r', 'rx_p', 'rx_h', 'tx_x', 'tx_y', 'tx_z', 'latency'], ['1495563079', '1495563081'],
+                                         str(out_cpy.multibeam.raw_ping[0].attrs['system_serial_number'][0]), plygon)
+        assert len(results) == len([out_cpy])
+        assert len(results[0]) == 8
+        assert results[0][0].shape == (out_cpy.return_total_soundings(),)
+        assert out_cpy.multibeam.xyzrph['rx_r']['1495563079'] == 45
+        assert out_cpy.multibeam.xyzrph['rx_r']['1495563081'] == 45

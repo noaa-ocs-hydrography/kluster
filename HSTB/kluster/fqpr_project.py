@@ -1355,6 +1355,8 @@ def reprocess_fqprs(fqprs: list, newvalues: list, headindex: int, prefixes: list
         list of lists for each fqpr containing the reprocessed xyz data
     """
 
+    if len(fqprs) != len(timestamps):
+        raise ValueError(f'You must provide one timestamp entry for each fqpr object: number of fqprs ({len(fqprs)}), timestamps ({timestamps})')
     roll, pitch, heading, xlever, ylever, zlever, latency = newvalues
     fqpr_folders = [fq.output_folder for fq in fqprs]
     filtered_fqs = {}
@@ -1366,6 +1368,8 @@ def reprocess_fqprs(fqprs: list, newvalues: list, headindex: int, prefixes: list
     results = []
     for cnt, (fq, fqtimestamps) in enumerate(filtered_fqs.items()):
         for tstmp in fqtimestamps:
+            if tstmp not in fq.multibeam.xyzrph[prefixes[0]]:
+                raise ValueError(f'Unable to reprocess {fq.output_folder} with timestamped xyzprh entry {tstmp}, this timestamp is not in the xyzrph record')
             fq.multibeam.xyzrph[prefixes[0]][tstmp] = roll
             fq.multibeam.xyzrph[prefixes[1]][tstmp] = pitch
             fq.multibeam.xyzrph[prefixes[2]][tstmp] = heading
