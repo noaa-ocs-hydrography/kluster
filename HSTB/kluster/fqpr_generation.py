@@ -1981,7 +1981,7 @@ class Fqpr(ZarrBackend):
 
         navfiles, errorfiles, logfiles = self._validate_post_processed_navigation(navfiles, errorfiles, logfiles, overwrite)
         if not navfiles:
-            print('import_post_processed_navigation: No valid navigation files to import')
+            self.logger.error('import_post_processed_navigation: No valid navigation files to import')
             return
 
         try:
@@ -1991,19 +1991,25 @@ class Fqpr(ZarrBackend):
         except:
             navdata = None
         if not navdata:
-            print('import_post_processed_navigation: Unable to read from {}'.format(navfiles))
+            self.logger.error('import_post_processed_navigation: Unable to read from {}'.format(navfiles))
             return
 
         for rp in self.multibeam.raw_ping:
             if navdata.time.values[0] > rp.time.values[-1] or navdata.time.values[-1] < rp.time.values[0]:
-                print('{}: No overlap found between ping data and SBET navigation.')
-                print('Raw navigation: UTC seconds from {} to {}.  SBET data: UTC seconds from {} to {}'.format(rp.time.values[0], rp.time.values[-1],
+                self.logger.warning('No overlap found between ping data and SBET navigation.')
+                self.logger.warning('Raw navigation: UTC seconds from {} to {}.  SBET data: UTC seconds from {} to {}'.format(rp.time.values[0], rp.time.values[-1],
                                                                                                                 navdata.time.values[0], navdata.time.values[-1]))
                 continue
 
-            # find the nearest new record to each existing navigation record
+            # find the nearest new record to each existing navigation record, trim off the time period greater than max sbet time
+            #  (should probably just have a max gap time in interp_across_chunks)
             nav_wise_data = interp_across_chunks(navdata, rp.time, 'time')
-            print('{}: Writing {} new SBET navigation records'.format(rp.system_identifier, nav_wise_data.time.shape[0]))
+            gap_mask = np.logical_or(nav_wise_data.time < navdata.time[0] - max_gap_length,
+                                     nav_wise_data.time > navdata.time[-1] + max_gap_length)
+            for ky in nav_wise_data.variables.keys():
+                if ky != 'time':
+                    nav_wise_data[ky][gap_mask] = np.nan
+            self.logger.info('{}: Writing {} new SBET navigation records'.format(rp.system_identifier, nav_wise_data.time.shape[0]))
 
             # find gaps that don't line up with existing nav gaps (like time between multibeam files)
             gaps = compare_and_find_gaps(self.multibeam.raw_ping[0], navdata, max_gap_length=max_gap_length, dimname='time')
@@ -2015,7 +2021,10 @@ class Fqpr(ZarrBackend):
                     gap_mask = np.logical_and(nav_wise_data.time < gp[1], nav_wise_data.time > gp[0])
                     for ky in nav_wise_data.variables.keys():
                         if ky != 'time':
-                            nav_wise_data[ky][gap_mask] = np.nan
+                            if ky in rp:
+                                nav_wise_data[ky][gap_mask] = rp[ky][gap_mask]
+                            else:
+                                nav_wise_data[ky][gap_mask] = np.nan
 
             navdata_attrs = nav_wise_data.attrs
             navdata_times = [nav_wise_data.time]
