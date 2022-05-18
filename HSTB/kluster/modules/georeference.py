@@ -149,14 +149,23 @@ def georef_by_worker(sv_corr: list, alt: xr.DataArray, lon: xr.DataArray, lat: x
         # - lat, lon - this appears to be valid when using CRS from epsg
         # use the always_xy option to force the transform to expect lon/lat order
         georef_transformer = Transformer.from_crs(input_crs, horizontal_crs, always_xy=True)
-        newpos = georef_transformer.transform(pos[0], pos[1], errcheck=True)  # longitude / latitude order (x/y)
+        newpos = georef_transformer.transform(pos[0], pos[1], errcheck=False)  # longitude / latitude order (x/y)
     else:
         newpos = pos
-    newpos[0][np.isinf(newpos[0])] = np.nan
-    newpos[1][np.isinf(newpos[1])] = np.nan
+
+    bad_nav_mask = np.isinf(newpos[0])
+    if bad_nav_mask.any():
+        newpos[0][bad_nav_mask] = np.nan
+        newpos[1][bad_nav_mask] = np.nan
     x = reform_nan_array(np.around(newpos[0], 3), at_idx, alongtrack.shape, alongtrack.coords, alongtrack.dims)
     y = reform_nan_array(np.around(newpos[1], 3), ac_idx, acrosstrack.shape, acrosstrack.coords, acrosstrack.dims)
     ghash = reform_nan_array(ghash, ac_idx, acrosstrack.shape, acrosstrack.coords, acrosstrack.dims)
+    if bad_nav_mask.any():
+        final_mask = ~np.isnan(x)
+        if final_mask.any():
+            z = z.where(final_mask, np.nan)
+            vdatum_unc = vdatum_unc.where(final_mask, np.nan)
+            ghash = ghash.where(final_mask, b'       ')
 
     return [x, y, z, corr_heave, corr_altitude, vdatum_unc, ghash]
 
