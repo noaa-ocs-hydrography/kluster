@@ -159,6 +159,7 @@ class FqprIntel(LoggerClass):
         """
 
         if project_updated:
+            self.update_intel_for_action_results('multibeam')
             self.regenerate_actions()
 
     def bind_to_action_update(self, callback: FunctionType):
