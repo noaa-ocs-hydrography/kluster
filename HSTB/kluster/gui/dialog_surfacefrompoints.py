@@ -178,23 +178,24 @@ class SurfaceFromPointsDialog(SurfaceDialog):
 
     def return_processing_options(self):
         opts = super().return_processing_options()
-        opts['horizontal_epsg'] = int(self.inepsg_val.text())
-        opts['vertical_reference'] = str(self.invertref_val.text())
+        if opts is not None:
+            opts['horizontal_epsg'] = int(self.inepsg_val.text())
+            opts['vertical_reference'] = str(self.invertref_val.text())
 
-        csv_columns = []
-        cvals = [self.x_entry.value(), self.y_entry.value(), self.z_entry.value(), self.thu_entry.value(), self.tvu_entry.value()]
-        clbls = ['x', 'y', 'z', 'thu', 'tvu']
-        cenabled = [self.x_include.isChecked(), self.y_include.isChecked(), self.z_include.isChecked(), self.thu_include.isChecked(),
-                    self.tvu_include.isChecked()]
-        cvals = [cv for cnt, cv in enumerate(cvals) if cenabled[cnt]]
-        clbls = [cv for cnt, cv in enumerate(clbls) if cenabled[cnt]]
-        for i in range(max(cvals)):
-            try:
-                varindex = cvals.index(i + 1)
-                csv_columns.append(clbls[varindex])
-            except ValueError:
-                csv_columns.append('')
-        opts['csv_columns'] = tuple(csv_columns)
+            csv_columns = []
+            cvals = [self.x_entry.value(), self.y_entry.value(), self.z_entry.value(), self.thu_entry.value(), self.tvu_entry.value()]
+            clbls = ['x', 'y', 'z', 'thu', 'tvu']
+            cenabled = [self.x_include.isChecked(), self.y_include.isChecked(), self.z_include.isChecked(), self.thu_include.isChecked(),
+                        self.tvu_include.isChecked()]
+            cvals = [cv for cnt, cv in enumerate(cvals) if cenabled[cnt]]
+            clbls = [cv for cnt, cv in enumerate(clbls) if cenabled[cnt]]
+            for i in range(max(cvals)):
+                try:
+                    varindex = cvals.index(i + 1)
+                    csv_columns.append(clbls[varindex])
+                except ValueError:
+                    csv_columns.append('')
+            opts['csv_columns'] = tuple(csv_columns)
         return opts
 
     def validate_epsg(self):

@@ -982,12 +982,17 @@ def points_to_surface(data_files: list, horizontal_epsg: int, vertical_reference
             has_header, skiprows = _csv_has_header(f)
             delimiter = _csv_get_delimiter(f, skiprows)
             data = np.genfromtxt(f, delimiter=delimiter, skip_header=skiprows)
-            datablock = {'x': data[:, csv_columns.index('x')], 'y': data[:, csv_columns.index('y')], 'z': data[:, csv_columns.index('z')],
-                         'crs': horizontal_epsg, 'vert_ref': vertical_reference, 'tag': ftag, 'files': ffiles}
-            if 'tvu' in csv_columns:
-                datablock['tvu'] = data[:, csv_columns.index('tvu')]
+            datablock = {'crs': horizontal_epsg, 'vert_ref': vertical_reference, 'tag': ftag, 'files': ffiles}
+            columnheaders = ['x', 'y', 'z']
             if 'thu' in csv_columns:
-                datablock['thu'] = data[:, csv_columns.index('thu')]
+                columnheaders += ['thu']
+            if 'tvu' in csv_columns:
+                columnheaders += ['tvu']
+            for column_header in columnheaders:
+                try:
+                    datablock[column_header] = data[:, csv_columns.index(column_header)]
+                except IndexError:
+                    raise NotImplementedError('points_to_surface: Unable to read "{}" column in position {}, column index does not work'.format(column_header, csv_columns.index(column_header)))
         else:
             las = laspy.read(f)
             datablock = {'x': las.x, 'y': las.y, 'z': las.z, 'crs': horizontal_epsg, 'vert_ref': vertical_reference,
