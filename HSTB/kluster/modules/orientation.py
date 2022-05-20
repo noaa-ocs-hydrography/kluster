@@ -70,13 +70,16 @@ def build_orientation_vectors(raw_att: xr.Dataset, twtt: xr.DataArray, delay: xr
          xr.DataArray 3 dim (time, beam, xyz) representing rx 3d orientation in space across time/beam]
 
     """
+
     # generate rotation matrices for the transmit array at time of ping
     new_tx_tstmp_idx, tx_inv_idx, tx_interptimes = get_times(tx_tstmp_idx + latency, delay)
     txatt = interp_across_chunks(raw_att, tx_interptimes.compute())
     tx_att_times, tx_attitude_rotation = return_attitude_rotation_matrix(txatt, time_index=tx_inv_idx)
 
     # generate rotation matrices for receive array at time of receive, ping + twtt
-    rx_tstmp_idx, rx_inv_idx, rx_interptimes = get_times(tx_tstmp_idx + latency, twtt + delay)
+    # two way travel time must be >= 0 for this process to work
+
+    rx_tstmp_idx, rx_inv_idx, rx_interptimes = get_times(tx_tstmp_idx + latency, twtt.clip(0, 30) + delay)
     rxatt = interp_across_chunks(raw_att, rx_interptimes.compute())
     rx_att_times, rx_attitude_rotation = return_attitude_rotation_matrix(rxatt, time_index=rx_inv_idx)
 

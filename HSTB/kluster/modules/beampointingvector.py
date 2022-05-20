@@ -68,7 +68,7 @@ def build_beam_pointing_vectors(hdng: xr.DataArray, bpa: xr.DataArray, tiltangle
     """
 
     # main vec (primary head) is accessed using the primary system selection
-    rx_angle = np.deg2rad(bpa)
+    rx_angle = np.deg2rad(bpa.clip(-180, 180))
     tx_angle = np.deg2rad(tiltangle)
 
     if tx_reversed:
