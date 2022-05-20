@@ -7,8 +7,8 @@ import xarray as xr
 import numpy as np
 
 try:  # when running from pycharm console
-    from hstb_kluster.tests.test_datasets import RealFqpr, load_dataset
-    from hstb_kluster.tests.modules.module_test_arrays import expected_alongtrack, expected_acrosstrack, expected_depth, \
+    from kluster.tests.test_datasets import RealFqpr, load_dataset
+    from kluster.tests.modules.module_test_arrays import expected_alongtrack, expected_acrosstrack, expected_depth, \
         expected_georef_x, expected_georef_y, expected_georef_z
 except ImportError:  # relative import as tests directory can vary in location depending on how kluster is installed
     from ..test_datasets import RealFqpr, load_dataset

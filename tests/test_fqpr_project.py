@@ -5,7 +5,7 @@ import logging
 from HSTB.kluster.fqpr_convenience import process_multibeam, convert_multibeam, reload_data
 from HSTB.kluster.fqpr_project import *
 try:  # when running from pycharm console
-    from hstb_kluster.tests.test_datasets import RealFqpr, RealDualheadFqpr, SyntheticFqpr, load_dataset
+    from kluster.tests.test_datasets import RealFqpr, RealDualheadFqpr, SyntheticFqpr, load_dataset
 except ImportError:  # relative import as tests directory can vary in location depending on how kluster is installed
     from .test_datasets import RealFqpr, RealDualheadFqpr, SyntheticFqpr, load_dataset
 
