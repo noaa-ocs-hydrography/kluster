@@ -384,7 +384,7 @@ class Fqpr(ZarrBackend):
             self.logger.error(f'input_datum: Unable to set input datum with new datum {new_datum}')
             raise ValueError(f'input_datum: Unable to set input datum with new datum {new_datum}')
 
-    def return_navigation(self, start_time: float = None, end_time: float = None):
+    def return_navigation(self, start_time: float = None, end_time: float = None, nav_source: str = 'raw'):
         """
         Return the navigation from the multibeam data for the first sonar head. Can assume that all sonar heads have
         basically the same navigation.  If sbet navigation exists, return that instead, renaming the sbet variables
@@ -398,6 +398,9 @@ class Fqpr(ZarrBackend):
         end_time
             if provided will allow you to only return navigation before this time.  Selects the nearest time value to
             the one provided.
+        nav_source
+            one of ['raw', 'processed'] if you want to specify the navigation source to be the raw
+            multibeam data or the processed sbet
 
         Returns
         -------
@@ -406,7 +409,9 @@ class Fqpr(ZarrBackend):
         """
 
         nav = self.sbet_navigation
-        if nav is None:
+        if nav is None or nav_source == 'raw':
+            if nav_source == 'processed':
+                self.logger.warning(f'return_navigation: processed navigation not found, defaulting to raw navigation. (starttime: {start_time}, endtime: {end_time}')
             return self.multibeam.return_raw_navigation(start_time=start_time, end_time=end_time)
         else:
             nav = nav.rename({'sbet_latitude': 'latitude', 'sbet_longitude': 'longitude', 'sbet_altitude': 'altitude'})

@@ -54,6 +54,7 @@ settings_translator = {'Kluster/dark_mode': {'newname': 'dark_mode', 'defaultval
                        'Kluster/layer_settings_transparency': {'newname': 'layer_transparency', 'defaultvalue': '0'},
                        'Kluster/layer_settings_surfacetransparency': {'newname': 'surface_transparency', 'defaultvalue': 0},
                        'Kluster/settings_keep_waterline_changes': {'newname': 'keep_waterline_changes', 'defaultvalue': True},
+                       'Kluster/settings_draw_navigation': {'newname': 'draw_navigation', 'defaultvalue': 'raw'},
                        'Kluster/settings_enable_parallel_writes': {'newname': 'write_parallel', 'defaultvalue': True},
                        'Kluster/settings_vdatum_directory': {'newname': 'vdatum_directory', 'defaultvalue': ''},
                        'Kluster/settings_filter_directory': {'newname': 'filter_directory', 'defaultvalue': ''},
@@ -304,8 +305,7 @@ class KlusterMain(QtWidgets.QMainWindow):
             if possible_vdatum and os.path.exists(possible_vdatum):
                 self.settings['vdatum_directory'] = possible_vdatum
                 self.two_d.vdatum_directory = self.settings['vdatum_directory']  # used for the 2d vdatum region display
-        if self.project.path is not None:
-            self.project.set_settings(self.settings.copy())
+        self.project.set_settings(self.settings.copy())
         self.intel.set_settings(self.settings.copy())
         self._configure_logfile()
 
@@ -536,6 +536,13 @@ class KlusterMain(QtWidgets.QMainWindow):
             self.redraw(new_fqprs=fqpr)
         else:
             self.redraw()
+
+    def redraw_all_lines(self):
+        for linelyr in self.project.buffered_fqpr_navigation:
+            self.two_d.remove_line(linelyr)
+        self.project.buffered_fqpr_navigation = {}
+        fqprs = [fqpr for fqpr in self.project.fqpr_instances.keys()]
+        self.refresh_project(fqprs)
 
     def redraw(self, new_fqprs=None, add_surface=None, remove_surface=None, surface_layer_name=''):
         """
@@ -1942,8 +1949,7 @@ class KlusterMain(QtWidgets.QMainWindow):
             for settname, opts in settings_translator.items():
                 settings_obj.setValue(settname, self.settings[opts['newname']])
 
-            if self.project.path is not None:
-                self.project.set_settings(settings)
+            self.project.set_settings(settings)
             self.intel.set_settings(settings)
 
     def set_layer_settings(self):
@@ -1989,13 +1995,16 @@ class KlusterMain(QtWidgets.QMainWindow):
         dlog = dialog_settings.SettingsDialog(parent=self, settings=self.settings_object)
         if dlog.exec_() and not dlog.canceled:
             settings = dlog.return_options()
+            redraw = False
+            if 'draw_navigation' in self.settings and settings['draw_navigation'] != self.settings['draw_navigation']:
+                self.print(f'regenerating all tracklines with draw_navigation={settings["draw_navigation"]}', logging.INFO)
+                redraw = True
             self.settings.update(settings)
             settings_obj = self.settings_object
             for settname, opts in settings_translator.items():
                 settings_obj.setValue(settname, self.settings[opts['newname']])
 
-            if self.project.path is not None:
-                self.project.set_settings(settings)
+            self.project.set_settings(settings)
             self.intel.set_settings(settings)
 
             # now overwrite the default kluster variables and save them to the ini file as well
@@ -2003,6 +2012,9 @@ class KlusterMain(QtWidgets.QMainWindow):
             for kvarkey, kvarval in newkvars.items():
                 kluster_variables.alter_variable(kvarkey, kvarval)
                 settings_obj.setValue(f'Kluster/kvariables_{kvarkey}', kvarval)
+            if redraw:
+                # since we changed the nav source, we need to clear and redraw all the tracklines
+                self.redraw_all_lines()
             self._configure_logfile()
 
     def set_dark_mode(self, check_state: bool):

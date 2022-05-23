@@ -378,7 +378,8 @@ class FqprProject(LoggerClass):
         self.settings.update(settings)
         for relpath, fqpr_instance in self.fqpr_instances.items():
             self._update_fqpr_settings(fqpr_instance)
-        self.save_project()
+        if self.path is not None:
+            self.save_project()
 
     def _update_fqpr_settings(self, fq: Fqpr):
         """
@@ -668,7 +669,7 @@ class FqprProject(LoggerClass):
                 total_lines.append(fq_line)
         return sorted(total_lines)
 
-    def return_line_navigation(self, line: str):
+    def return_line_navigation(self, line: str, override_source: str = None):
         """
         For given line name, return the latitude/longitude from the ping record
 
@@ -676,6 +677,9 @@ class FqprProject(LoggerClass):
         ----------
         line
             line name
+        override_source
+            optional, one of ['raw', 'processed'] if you want to specify the navigation source to be the raw
+            multibeam data or the processed sbet
 
         Returns
         -------
@@ -685,11 +689,17 @@ class FqprProject(LoggerClass):
             longitude values (geographic) downsampled in degrees
         """
 
+        if override_source:
+            draw_navigation = override_source
+        elif 'draw_navigation' not in self.settings:
+            draw_navigation = 'raw'
+        else:
+            draw_navigation = self.settings['draw_navigation']
         if line not in self.buffered_fqpr_navigation:
             fq_inst = self.return_line_owner(line)
             if fq_inst is not None:
                 line_start_time, line_end_time = fq_inst.multibeam.raw_ping[0].multibeam_files[line][0], fq_inst.multibeam.raw_ping[0].multibeam_files[line][1]
-                nav = fq_inst.return_navigation(line_start_time, line_end_time)
+                nav = fq_inst.return_navigation(line_start_time, line_end_time, nav_source=draw_navigation)
                 if nav is not None:
                     lat, lon = nav.latitude.values, nav.longitude.values
                     # save nav so we don't have to redo this routine if asked for the same line
