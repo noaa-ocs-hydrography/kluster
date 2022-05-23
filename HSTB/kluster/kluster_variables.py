@@ -64,6 +64,8 @@ geographic_coordinate_systems = ['NAD83', 'WGS84']  # horizontal coordinate syst
 default_coordinate_system = 'WGS84'
 default_vertical_reference = 'waterline'
 
+cast_selection_methods = ['nearestintime', 'nearestintimefourhours', 'nearestindistance', 'nearestindistancefourhours']
+
 # export
 pings_per_las = 50000  # LAS export will put this many pings in one file before starting a new file
 pings_per_csv = 15000  # csv export will put this many pings in one file before starting a new file

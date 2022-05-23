@@ -14,7 +14,7 @@ from HSTB.kluster.modules.orientation import distrib_run_build_orientation_vecto
 from HSTB.kluster.modules.beampointingvector import distrib_run_build_beam_pointing_vector
 from HSTB.kluster.modules.svcorrect import get_sv_files_from_directory, return_supported_casts_from_list, \
     distributed_run_sv_correct, cast_data_from_file
-from HSTB.kluster.modules.georeference import distrib_run_georeference, vertical_datum_to_wkt, vyperdatum_found
+from HSTB.kluster.modules.georeference import distrib_run_georeference, vertical_datum_to_wkt, vyperdatum_found, distance_between_coordinates
 from HSTB.kluster.modules.tpu import distrib_run_calculate_tpu
 from HSTB.kluster.modules.filter import FilterManager
 from HSTB.kluster.xarray_conversion import BatchRead
@@ -825,7 +825,7 @@ class Fqpr(ZarrBackend):
             idx_by_chunk = np.array_split(idx, split_indices, axis=0)
         return idx_by_chunk
 
-    def return_cast_idx_nearestintime(self, cast_times: list, idx_by_chunk: list, silent: bool = False):
+    def return_cast_idx_nearestintime(self, idx_by_chunk: list, silent: bool = False):
         """
         Need to find the cast associated with each chunk of data.  Currently we just take the average chunk time and
         find the closest cast time, and assign that cast.  We also need the index of the chunk in the original size
@@ -833,8 +833,6 @@ class Fqpr(ZarrBackend):
 
         Parameters
         ----------
-        cast_times
-            list of floats, time each cast was taken
         idx_by_chunk
             list of xarray Datarrays, values are the integer indexes of the pings to use, coords are the time of ping
         silent
@@ -847,9 +845,14 @@ class Fqpr(ZarrBackend):
             applies to that chunk]
         """
 
+        profnames, casts, cast_times, castlocations = self.return_all_profiles()
         data = []
         casts_used = []
         for chnk in idx_by_chunk:
+            if not cast_times:  # no casts
+                self.logger.error(f'return_cast_idx_nearestintime: Unable to find any casts!')
+                data.append([chnk, None])
+                continue
             # get average chunk time and find the nearest cast to that time.  Retain the index of that cast object.
             avgtme = float(chnk.time.mean())
             cst = np.argmin([np.abs(c - avgtme) for c in cast_times])
@@ -859,6 +862,146 @@ class Fqpr(ZarrBackend):
 
         if not silent:
             self.logger.info('nearest-in-time: selecting nearest cast for each {} pings...'.format(kluster_variables.ping_chunk_size))
+        return data
+
+    def return_cast_idx_nearestintime_fourhours(self, idx_by_chunk: list, silent: bool = False):
+        """
+        Need to find the cast associated with each chunk of data.  Currently we just take the average chunk time and
+        find the closest cast time, and assign that cast.  We also need the index of the chunk in the original size
+        dataset, as we built the casts based on the original size soundvelocity dataarray.
+
+        This method will only retain the cast if it is within four hours, otherwise, you will get a None for that chunk
+
+        Parameters
+        ----------
+        idx_by_chunk
+            list of xarray Datarrays, values are the integer indexes of the pings to use, coords are the time of ping
+        silent
+            if True, will not print out messages
+
+        Returns
+        -------
+        data
+            list of lists, each sub-list is [xarray Datarray with times/indices for the chunk, integer index of the cast that
+            applies to that chunk]
+        """
+
+        profnames, casts, cast_times, castlocations = self.return_all_profiles()
+        data = []
+        casts_used = []
+        for chnk in idx_by_chunk:
+            if not cast_times:  # no casts
+                self.logger.error(f'return_cast_idx_nearestintime_fourhours: Unable to find any casts!')
+                data.append([chnk, None])
+                continue
+            # get average chunk time and find the nearest cast to that time.  Retain the index of that cast object.
+            avgtme = float(chnk.time.mean())
+            mintimes = [np.abs(c - avgtme) for c in cast_times]
+            cst = np.argmin(mintimes)
+            finalmintime = mintimes[cst]
+            if finalmintime <= 4 * 60 * 60:
+                data.append([chnk, cst])
+            else:
+                self.logger.error(f'return_cast_idx_nearestintime_fourhours: Unable to find a good cast within four hours for time {avgtme}')
+                data.append([chnk, None])
+                continue
+            if cast_times[cst] not in casts_used:
+                casts_used.append(cast_times[cst])
+
+        if not silent:
+            self.logger.info('nearest-in-time-four-hours: selecting nearest cast for each {} pings...'.format(kluster_variables.ping_chunk_size))
+        return data
+
+    def return_cast_idx_nearestindistance(self, idx_by_chunk: list, silent: bool = False):
+        """
+        Need to find the cast associated with each chunk of data.  Currently we just take the average chunk time and
+        find the closest cast in terms of distance.  We also need the index of the chunk in the original size
+        dataset, as we built the casts based on the original size soundvelocity dataarray.
+
+        Parameters
+        ----------
+        idx_by_chunk
+            list of xarray Datarrays, values are the integer indexes of the pings to use, coords are the time of ping
+        silent
+            if True, will not print out messages
+
+        Returns
+        -------
+        data
+            list of lists, each sub-list is [xarray Datarray with times/indices for the chunk, integer index of the cast that
+            applies to that chunk]
+        """
+
+        profnames, casts, cast_times, castlocations = self.return_all_profiles()
+        data = []
+        casts_used = []
+        for chnk in idx_by_chunk:
+            if not cast_times:  # no casts
+                self.logger.error(f'return_cast_idx_nearestindistance: Unable to find any casts!')
+                data.append([chnk, None])
+                continue
+            # get average chunk time and find the nearest cast to that time.  Retain the index of that cast object.
+            avgtme = float(chnk.time.mean())
+            avg_ping_dset = self.multibeam.raw_ping[0].sel(time=avgtme, method='nearest')
+            ping_lat, ping_lon = float(avg_ping_dset.latitude), float(avg_ping_dset.longitude)
+            cast_dists = [distance_between_coordinates(ping_lat, ping_lon, lat, lon) for lat, lon in castlocations]
+            cst = np.argmin(cast_dists)
+            data.append([chnk, cst])
+            if cast_times[cst] not in casts_used:
+                casts_used.append(cast_times[cst])
+        if not silent:
+            self.logger.info('nearest-in-distance: selecting nearest cast for each {} pings...'.format(kluster_variables.ping_chunk_size))
+        return data
+
+    def return_cast_idx_nearestindistance_fourhours(self, idx_by_chunk: list, silent: bool = False):
+        """
+        Need to find the cast associated with each chunk of data.  Currently we just take the average chunk time and
+        find the closest cast in terms of distance.  We also need the index of the chunk in the original size
+        dataset, as we built the casts based on the original size soundvelocity dataarray.
+
+        Only retain the cast if it is within four hours.
+
+        Parameters
+        ----------
+        idx_by_chunk
+            list of xarray Datarrays, values are the integer indexes of the pings to use, coords are the time of ping
+        silent
+            if True, will not print out messages
+
+        Returns
+        -------
+        data
+            list of lists, each sub-list is [xarray Datarray with times/indices for the chunk, integer index of the cast that
+            applies to that chunk]
+        """
+
+        profnames, casts, cast_times, castlocations = self.return_all_profiles()
+        data = []
+        casts_used = []
+        for chnk in idx_by_chunk:
+            if not cast_times:  # no casts
+                self.logger.error(f'return_cast_idx_nearestindistance_fourhours: Unable to find any casts!')
+                data.append([chnk, None])
+                continue
+            # get average chunk time and find the nearest cast to that time.  Retain the index of that cast object.
+            avgtme = float(chnk.time.mean())
+            avg_ping_dset = self.multibeam.raw_ping[0].sel(time=avgtme, method='nearest')
+            ping_lat, ping_lon = float(avg_ping_dset.latitude), float(avg_ping_dset.longitude)
+            mintimes = [np.abs(c - avgtme) for c in cast_times]
+            filtered_mintimes = [mt if mt <= 4 * 60 * 60 else None for mt in mintimes]
+            filtered_cast_locations = [ct if filtered_mintimes[castlocations.index(ct)] is not None else [None, None] for ct in castlocations]
+            filtered_cast_dists = [distance_between_coordinates(ping_lat, ping_lon, lat, lon) if lat is not None else np.nan for lat, lon in filtered_cast_locations]
+            try:
+                cst = np.nanargmin(filtered_cast_dists)
+                data.append([chnk, cst])
+            except ValueError:
+                self.logger.error(f'return_cast_idx_nearestindistance_fourhours: Unable to find a good cast within four hours for time {avgtme}')
+                data.append([chnk, None])
+                continue
+            if cast_times[cst] not in casts_used:
+                casts_used.append(cast_times[cst])
+        if not silent:
+            self.logger.info('nearest-in-distance-four-hours: selecting nearest cast for each {} pings...'.format(kluster_variables.ping_chunk_size))
         return data
 
     def return_applicable_casts(self, method='nearestintime'):
@@ -886,15 +1029,24 @@ class Fqpr(ZarrBackend):
         for s_cnt, system in enumerate(systems):
             if system is None:  # get here if one of the heads is disabled (set to None)
                 continue
-            ra = self.multibeam.raw_ping[s_cnt]
             pings_per_chunk, max_chunks_at_a_time = self.get_cluster_params()
             for applicable_index, timestmp, prefixes in system:
                 idx_by_chunk = self.return_chunk_indices(applicable_index, pings_per_chunk)
                 if method == 'nearestintime':
-                    cast_chunks = self.return_cast_idx_nearestintime(cast_times, idx_by_chunk, silent=True)
-                    final_idxs += [c[1] for c in cast_chunks]
+                    cast_chunks = self.return_cast_idx_nearestintime(idx_by_chunk, silent=True)
+                elif method == 'nearestintimefourhours':
+                    cast_chunks = self.return_cast_idx_nearestintime_fourhours(idx_by_chunk, silent=True)
+                elif method == 'nearestindistance':
+                    cast_chunks = self.return_cast_idx_nearestindistance(idx_by_chunk, silent=True)
+                elif method == 'nearestindistancefourhours':
+                    cast_chunks = self.return_cast_idx_nearestindistance_fourhours(idx_by_chunk, silent=True)
+                else:
+                    msg = f'return_applicable_casts - unexpected cast selection method {method}, must be one of {kluster_variables.cast_selection_methods}'
+                    self.logger.error(msg)
+                    raise NotImplementedError(msg)
+                final_idxs += [c[1] for c in cast_chunks]
         final_idxs = np.unique(final_idxs).tolist()
-        return [profnames[idx] for idx in final_idxs]
+        return [profnames[idx] for idx in final_idxs if idx is not None]
 
     def determine_induced_heave(self, ra: xr.Dataset, hve: xr.DataArray, raw_att: xr.Dataset,
                                 tx_tstmp_idx: xr.DataArray, prefixes: str, timestmp: str):
@@ -1290,6 +1442,9 @@ class Fqpr(ZarrBackend):
         """
 
         data_for_workers = []
+        if any(c[1] is None for c in cast_chunks):
+            self.logger.error('Unable to sound velocity correct, one of the data chunks was unable to find a cast, see log for more details')
+            raise ValueError('Unable to sound velocity correct, one of the data chunks was unable to find a cast, see log for more details')
 
         # this should be the transducer to waterline, positive down
         refpt = self.multibeam.return_prefix_for_rp()
@@ -2351,7 +2506,8 @@ class Fqpr(ZarrBackend):
             endtime = perf_counter()
             self.logger.info('****Beam Pointing Vector generation complete: {}****\n'.format(seconds_to_formatted_string(int(endtime - starttime))))
 
-    def sv_correct(self, add_cast_files: Union[str, list] = None, subset_time: list = None, dump_data: bool = True):
+    def sv_correct(self, add_cast_files: Union[str, list] = None, cast_selection_method: str = 'nearestintime',
+                   subset_time: list = None, dump_data: bool = True):
         """
         Apply sv cast/surface sound speed to raytrace.  Generates xyz for each beam.
         Currently only supports nearest-in-time for selecting the cast for each chunk.   Sends the data and
@@ -2368,6 +2524,9 @@ class Fqpr(ZarrBackend):
         add_cast_files
             either a list of files to include or the path to a directory containing files.  These are in addition to
             the casts in the ping dataset.
+        cast_selection_method
+            the method used to select the cast that goes with each chunk of the dataset, one of ['nearestintime',
+            'nearestintimefourhours', 'nearestindistance', 'nearestindistancefourhours']
         subset_time
             List of unix timestamps in seconds, used as ranges for times that you want to process.
         dump_data
@@ -2405,7 +2564,8 @@ class Fqpr(ZarrBackend):
                 idx_by_chunk = self.return_chunk_indices(applicable_index, pings_per_chunk)
                 if len(idx_by_chunk[0]):  # if there are pings in this system that align with this installation parameter record
                     self._submit_data_to_cluster(ra, 'sv_corr', idx_by_chunk, max_chunks_at_a_time,
-                                                 timestmp, prefixes, dump_data=dump_data, skip_dask=skip_dask)
+                                                 timestmp, prefixes, dump_data=dump_data, skip_dask=skip_dask,
+                                                 cast_selection_method=cast_selection_method)
                 else:
                     if dump_data:
                         self.logger.info('No pings found for {}-{}'.format(ra.system_identifier, timestmp))
@@ -2630,7 +2790,7 @@ class Fqpr(ZarrBackend):
 
     def _submit_data_to_cluster(self, rawping: xr.Dataset, mode: str, idx_by_chunk: list, max_chunks_at_a_time: int,
                                 timestmp: str, prefixes: str, dump_data: bool = True, skip_dask: bool = False,
-                                prefer_pp_nav: bool = True, vdatum_directory: str = None):
+                                prefer_pp_nav: bool = True, vdatum_directory: str = None, cast_selection_method: str = 'nearestintime'):
         """
         For all of the main processes, we break up our inputs into chunks, appended to a list (data_for_workers).
         Knowing the capacity of the cluster memory, we can determine how many chunks to run at a time
@@ -2660,6 +2820,9 @@ class Fqpr(ZarrBackend):
             if 'NOAA MLLW' 'NOAA MHW' is the vertical reference, a path to the vdatum directory is required here
         skip_dask
             if True will not use the dask.distributed client to submit tasks, will run locally instead
+        cast_selection_method
+            the method used to select the cast that goes with each chunk of the dataset, one of ['nearestintime',
+            'nearestintimefourhours', 'nearestindistance', 'nearestindistancefourhours']
         """
 
         # clear out the intermediate data just in case there is old data there
@@ -2689,7 +2852,18 @@ class Fqpr(ZarrBackend):
                 chunk_function = self._generate_chunks_svcorr
                 comp_time = 'sv_time_complete'
                 profnames, casts, cast_times, castlocations = self.return_all_profiles()
-                cast_chunks = self.return_cast_idx_nearestintime(cast_times, idx_by_chunk_subset, silent=silent)
+                if cast_selection_method == 'nearestintime':
+                    cast_chunks = self.return_cast_idx_nearestintime(idx_by_chunk_subset, silent=silent)
+                elif cast_selection_method == 'nearestintimefourhours':
+                    cast_chunks = self.return_cast_idx_nearestintime_fourhours(idx_by_chunk_subset, silent=silent)
+                elif cast_selection_method == 'nearestindistance':
+                    cast_chunks = self.return_cast_idx_nearestindistance(idx_by_chunk_subset, silent=silent)
+                elif cast_selection_method == 'nearestindistancefourhours':
+                    cast_chunks = self.return_cast_idx_nearestindistance_fourhours(idx_by_chunk_subset, silent=silent)
+                else:
+                    msg = f'unexpected cast selection method {cast_selection_method}, must be one of {kluster_variables.cast_selection_methods}'
+                    self.logger.error(msg)
+                    raise NotImplementedError(msg)
                 addtl_offsets = self.return_additional_xyz_offsets(rawping, prefixes, timestmp, idx_by_chunk_subset)
                 chunkargs = [rawping, cast_chunks, casts, prefixes, timestmp, addtl_offsets, start_run_index]
             elif mode == 'georef':
