@@ -15,6 +15,7 @@ from HSTB.kluster import __version__ as klustervers
 from HSTB.kluster.dms import return_zone_from_min_max_long
 from HSTB.kluster.fqpr_drivers import sequential_read_multibeam, fast_read_multibeam_metadata, return_offsets_from_posfile, \
     sonar_reference_point, par_sonar_translator, kmall_sonar_translator
+from HSTB.kluster.fqpr_vessel import only_retain_earliest_entry
 from HSTB.kluster.dask_helpers import dask_find_or_start_client
 from HSTB.kluster.xarray_helpers import resize_zarr, xarr_to_netcdf, combine_xr_attributes, reload_zarr_records, slice_xarray_by_dim
 from HSTB.kluster.fqpr_helpers import seconds_to_formatted_string
@@ -1563,7 +1564,7 @@ class BatchRead(ZarrBackend):
 
         if self.client is not None:
             self._batch_read_file_setup()
-            self.logger.info('****Running Kongsberg .all converter****')
+            self.logger.info('****Running multibeam converter****')
 
             chnks_flat = self._batch_read_chunk_generation(self.fils)
             newrecfutures = self._batch_read_sequential(chnks_flat)
@@ -2548,6 +2549,7 @@ def build_xyzrph(settdict: dict, runtime_settdict: dict, sonartype: str, logger:
                 newdict[stmp] = SortedDict()
             newdict[stmp][ky] = xyzrph[ky][stmp]
     xyzrph = SortedDict(newdict)
+    only_retain_earliest_entry(xyzrph)
 
     return xyzrph
 

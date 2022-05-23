@@ -1,6 +1,32 @@
 Changes List
 ============
 
+Kluster v0.9.5 (5/23/2022)
+--------------------------
+ - sync with bathygrid 1.3.6
+    - fix for updating vr grids, forcibly clear out old data
+
+ - allow running command line in headless mode
+ - update command line arguments for function changes
+ - on conversion, clear out non-unique offset/angle xyzrph entries
+ - closing a surface will close all layers correctly now
+ - update surface will now correctly maintain the current resolution settings and clear out old data
+ - actions will now correctly regenerate when new converted data is added
+ - rebuilt SBET import, will correctly handle datagaps and multiple sbets that do not entirely cover the dataset time range
+ - georeference now correctly rejects z, unc, geohash when x/y is out of bounds
+ - allow drawing raw and processed navigation in settings
+
+ - bug fix for fqpr_intelligence.intel_service and monitoring multiple folders
+ - bug fix for patch test tool when data has multiple xyzrph entries
+ - bug fix for patch test tool when data is processed to MLLW and vdatum directory has not been set yet
+ - bug fix for auto processing checkbox bug that was related to the new logging ability
+ - bug fix with setting new uncertainty values from vessel setup screen
+ - bug fix with orientation processing and beam angles outside of (-180,180)
+ - bug fix with corrected beam vectors processing and traveltime outside of (0, 30)
+ - bug fix with import points dialog, will correctly cancel and provides better messaging
+ - bug fix with retaining project settings even when not saving the project
+ - bug fix with closing the tiles layer when closing a surface
+
 Kluster v0.9.4 (5/6/2022)
 --------------------------
  - sync with bathygrid 1.3.5

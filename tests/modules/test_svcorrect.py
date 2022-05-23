@@ -5,8 +5,8 @@ import numpy as np
 
 from HSTB.kluster.modules.svcorrect import run_ray_trace_v2
 try:  # when running from pycharm console
-    from hstb_kluster.tests.test_datasets import RealFqpr, load_dataset
-    from hstb_kluster.tests.modules.module_test_arrays import expected_beam_azimuth, expected_corrected_beam_angles, \
+    from kluster.tests.test_datasets import RealFqpr, load_dataset
+    from kluster.tests.modules.module_test_arrays import expected_beam_azimuth, expected_corrected_beam_angles, \
         expected_alongtrack, expected_acrosstrack, expected_depth
 except ImportError:  # relative import as tests directory can vary in location depending on how kluster is installed
     from ..test_datasets import RealFqpr, load_dataset

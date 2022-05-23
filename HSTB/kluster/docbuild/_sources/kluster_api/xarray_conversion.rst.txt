@@ -25,4 +25,5 @@ xarray\_conversion module
    :skip: fast_read_multibeam_metadata
    :skip: return_offsets_from_posfile
    :skip: sequential_read_multibeam
+   :skip: only_retain_earliest_entry
    

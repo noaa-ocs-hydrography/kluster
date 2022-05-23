@@ -1,5 +1,6 @@
 import sys
 from threading import Thread, Event
+import logging
 
 from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal
 

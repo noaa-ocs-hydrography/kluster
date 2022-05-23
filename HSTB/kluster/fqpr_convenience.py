@@ -629,9 +629,9 @@ def generate_new_surface(fqpr_inst: Union[Fqpr, list], grid_type: str = 'single_
     use_dask
         if True, will start a dask LocalCluster instance and perform the gridding in parallel
     output_path
-        if provided, will save the Bathygrid to this path, with data saved as stacked numpy (npy) files
+        if provided, will save the Bathygrid to this path
     export_path
-        if provided, will export the Bathygrid to csv
+        if provided, will export the Bathygrid to file using export_format and export_resolution
     export_format
         format option, one of 'csv', 'geotiff', 'bag'
     export_z_positive_up
@@ -798,19 +798,18 @@ def update_surface(surface_instance: Union[str, BathyGrid], add_fqpr: Union[Fqpr
 
     if regrid:
         if isinstance(surface_instance.grid_resolution, str):
-            if surface_instance.grid_resolution.lower() == 'auto_depth':
+            if surface_instance.name[:2].lower() == 'sr':
+                rez = surface_instance.resolutions[0]
+                automode = 'depth'  # doesn't matter, not used
+            elif surface_instance.grid_resolution.lower() == 'auto_depth':
                 rez = None
                 automode = 'depth'
             elif surface_instance.grid_resolution.lower() == 'auto_density':
                 rez = None
                 automode = 'density'
             else:
-                try:
-                    rez = float(surface_instance.grid_resolution)
-                    automode = 'depth'  # the default value, this will not be used when resolution is specified
-                except:
-                    print('Unrecognized grid resolution: {}'.format(surface_instance.grid_resolution))
-                    return
+                print('Unrecognized grid resolution: {}'.format(surface_instance.grid_resolution))
+                return
         else:
             rez = float(surface_instance.grid_resolution)
             automode = 'depth'  # the default value, this will not be used when resolution is specified
@@ -983,12 +982,17 @@ def points_to_surface(data_files: list, horizontal_epsg: int, vertical_reference
             has_header, skiprows = _csv_has_header(f)
             delimiter = _csv_get_delimiter(f, skiprows)
             data = np.genfromtxt(f, delimiter=delimiter, skip_header=skiprows)
-            datablock = {'x': data[:, csv_columns.index('x')], 'y': data[:, csv_columns.index('y')], 'z': data[:, csv_columns.index('z')],
-                         'crs': horizontal_epsg, 'vert_ref': vertical_reference, 'tag': ftag, 'files': ffiles}
-            if 'tvu' in csv_columns:
-                datablock['tvu'] = data[:, csv_columns.index('tvu')]
+            datablock = {'crs': horizontal_epsg, 'vert_ref': vertical_reference, 'tag': ftag, 'files': ffiles}
+            columnheaders = ['x', 'y', 'z']
             if 'thu' in csv_columns:
-                datablock['thu'] = data[:, csv_columns.index('thu')]
+                columnheaders += ['thu']
+            if 'tvu' in csv_columns:
+                columnheaders += ['tvu']
+            for column_header in columnheaders:
+                try:
+                    datablock[column_header] = data[:, csv_columns.index(column_header)]
+                except IndexError:
+                    raise NotImplementedError('points_to_surface: Unable to read "{}" column in position {}, column index does not work'.format(column_header, csv_columns.index(column_header)))
         else:
             las = laspy.read(f)
             datablock = {'x': las.x, 'y': las.y, 'z': las.z, 'crs': horizontal_epsg, 'vert_ref': vertical_reference,
@@ -1065,7 +1069,8 @@ def return_processed_data_folders(converted_folder: str):
 
 def reprocess_sounding_selection(fqpr_inst: Fqpr, new_xyzrph: dict = None, subset_time: list = None, return_soundings: bool = False,
                                  georeference: bool = False, turn_off_dask: bool = True, turn_dask_back_on: bool = False,
-                                 override_datum: str = None, override_vertical_reference: str = None, isolate_head: int = None):
+                                 override_datum: str = None, override_vertical_reference: str = None, isolate_head: int = None,
+                                 vdatum_directory: str = None):
     """
     Designed to feed a patch test tool.  This function will reprocess all the soundings within the given subset
     time and return the xyz values without writing to disk.  If a new xyzrph (dictionary that holds the offsets and
@@ -1109,6 +1114,8 @@ def reprocess_sounding_selection(fqpr_inst: Fqpr, new_xyzrph: dict = None, subse
     isolate_head
         only used with return_soundings, if provided will only return soundings corresponding to this head index,
         0 = port, 1 = starboard
+    vdatum_directory
+        path to the vdatum directory, required for georeferencing with NOAA MLLW or MHW vertical references
 
     Returns
     -------
@@ -1151,7 +1158,7 @@ def reprocess_sounding_selection(fqpr_inst: Fqpr, new_xyzrph: dict = None, subse
             epsg = fqpr_inst.multibeam.raw_ping[0].horizontal_crs
 
         fqpr_inst.construct_crs(epsg=epsg, datum=datum)
-        fqpr_inst.georef_xyz(subset_time=subset_time, dump_data=False)
+        fqpr_inst.georef_xyz(subset_time=subset_time, vdatum_directory=vdatum_directory, dump_data=False)
         data_store = 'georef'
     else:
         data_store = 'sv_corr'

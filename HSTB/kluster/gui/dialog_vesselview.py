@@ -1165,7 +1165,7 @@ class OptionsWidget(QtWidgets.QWidget):
             self.data[serial_num][tstmp][sens] = pos
             self.update_sensor_data(sens, *pos)
         elif sens == 'Uncertainty':
-            pos = [float(self.tx_opening_angle.text()), float(self.rx_opening_angle.text()), float(self.heave_error.text()), float(self.roll_sensor_error.text()),
+            pos = [float(self.heave_error.text()), float(self.roll_sensor_error.text()),
                    float(self.pitch_sensor_error.text()), float(self.heading_sensor_error.text()), float(self.surface_sv_error.text()),
                    float(self.roll_patch_error.text()), float(self.waterline_error.text()), float(self.horizontal_positioning_error.text()),
                    float(self.vertical_positioning_error.text())]

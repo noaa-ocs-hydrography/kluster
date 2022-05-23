@@ -602,15 +602,17 @@ class SurfaceUpdateWorker(QtCore.QThread):
         self.remove_fqpr_names = None
         self.remove_lines = None
         self.opts = {}
+        self.all_resolutions = None
         self.error = False
         self.exceptiontxt = None
 
-    def populate(self, fqpr_surface, add_fqpr_instances, add_lines, remove_fqpr_names, remove_lines, opts):
+    def populate(self, fqpr_surface, add_fqpr_instances, add_lines, remove_fqpr_names, remove_lines, opts, all_resolutions):
         self.fqpr_surface = fqpr_surface
         self.add_fqpr_instances = add_fqpr_instances
         self.add_lines = add_lines
         self.remove_fqpr_names = remove_fqpr_names
         self.remove_lines = remove_lines
+        self.all_resolutions = all_resolutions
         self.opts = opts
         self.error = False
         self.exceptiontxt = None
@@ -643,13 +645,14 @@ class PatchTestUpdateWorker(QtCore.QThread):
         self.timestamps = None
         self.serial_number = None
         self.polygon = None
+        self.vdatum_directory = None
 
         self.result = []
         self.error = False
         self.exceptiontxt = None
 
     def populate(self, fqprs=None, newvalues=None, headindex=None, prefixes=None, timestamps=None, serial_number=None,
-                 polygon=None):
+                 polygon=None, vdatum_directory=None):
         self.fqprs = fqprs
         self.newvalues = newvalues
         self.headindex = headindex
@@ -657,6 +660,7 @@ class PatchTestUpdateWorker(QtCore.QThread):
         self.timestamps = timestamps
         self.serial_number = serial_number
         self.polygon = polygon
+        self.vdatum_directory = vdatum_directory
 
         self.result = []
         self.error = False
@@ -665,8 +669,8 @@ class PatchTestUpdateWorker(QtCore.QThread):
     def run(self):
         self.started.emit(True)
         try:
-            self.result = reprocess_fqprs(self.fqprs, self.newvalues, self.headindex, self.prefixes, self.timestamps,
-                                          self.serial_number, self.polygon)
+            self.fqprs, self.result = reprocess_fqprs(self.fqprs, self.newvalues, self.headindex, self.prefixes, self.timestamps,
+                                                      self.serial_number, self.polygon, self.vdatum_directory)
         except Exception as e:
             self.error = True
             self.exceptiontxt = traceback.format_exc()

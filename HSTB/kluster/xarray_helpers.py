@@ -863,7 +863,7 @@ def compare_and_find_gaps(source_dat: Union[xr.DataArray, xr.Dataset], new_dat: 
 
     # consider postprocessed nav starting too late or ending too early as a gap as well
     if new_dat[dimname].min() > source_dat[dimname].time.min() + max_gap_length:
-        datagap_times.insert([float(source_dat[dimname].time.min()), float(new_dat[dimname].min())])
+        datagap_times.insert(0, [float(source_dat[dimname].time.min()), float(new_dat[dimname].min())])
     if new_dat[dimname].max() + max_gap_length < source_dat[dimname].time.max():
         datagap_times.append([float(new_dat[dimname].max()), float(source_dat[dimname].time.max())])
 
@@ -888,7 +888,8 @@ def compare_and_find_gaps(source_dat: Union[xr.DataArray, xr.Dataset], new_dat: 
                 dgtime[0] = existtime[1]
             elif existtime[0] < dgtime[1] < existtime[1]:
                 dgtime[1] = existtime[0]
-        finalgaps.append(dgtime)
+        if dgtime[1] - dgtime[0] >= max_gap_length:
+            finalgaps.append(dgtime)
 
     return np.array(finalgaps)
 

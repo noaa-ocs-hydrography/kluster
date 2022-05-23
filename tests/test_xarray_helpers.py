@@ -9,7 +9,7 @@ from HSTB.kluster.xarray_helpers import compare_and_find_gaps, get_beamwise_inte
     stack_nan_array, reform_nan_array, clear_data_vars_from_dataset, interp_across_chunks, slice_xarray_by_dim, \
     combine_arrays_to_dataset, combine_xr_attributes
 try:  # when running from pycharm console
-    from hstb_kluster.tests.test_datasets import RealFqpr, RealDualheadFqpr, SyntheticFqpr, load_dataset
+    from kluster.tests.test_datasets import RealFqpr, RealDualheadFqpr, SyntheticFqpr, load_dataset
 except ImportError:  # relative import as tests directory can vary in location depending on how kluster is installed
     from .test_datasets import RealFqpr, RealDualheadFqpr, SyntheticFqpr, load_dataset
 

@@ -176,9 +176,8 @@ class PrePatchDialog(SaveStateDialog):
             total_dates = [self.timestamps_formatted[self.selected_data[0]]]
             total_timesegments = [self.time_segments[self.selected_data[0]]]
             for idx in self.selected_data[1:]:
-                if self.fqprs[idx] not in total_fqpr:
-                    total_fqpr += [self.fqprs[idx]]
-                    total_timesegments += [self.time_segments[idx]]
+                total_fqpr += [self.fqprs[idx]]
+                total_timesegments += [self.time_segments[idx]]
                 total_systemids += [self.sysids[idx]]
                 total_timestamps += [self.timestamps[idx]]
                 total_dates += [self.timestamps_formatted[idx]]

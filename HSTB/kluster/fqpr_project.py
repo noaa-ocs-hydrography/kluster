@@ -45,7 +45,7 @@ class FqprProject(LoggerClass):
     |    fqp.add_fqpr(pd, skip_dask=True)
     """
 
-    def __init__(self, is_gui: bool = False, **kwargs):
+    def __init__(self, is_gui: bool = False, project_path: str = None, **kwargs):
         """
 
         Parameters
@@ -93,6 +93,13 @@ class FqprProject(LoggerClass):
         self.node_vals_for_surf = {}
 
         self._project_observers = []
+
+        if project_path:
+            potential_project_file = os.path.join(project_path, 'kluster_project.json')
+            if os.path.exists(potential_project_file):
+                self.open_project(potential_project_file)
+            else:
+                self._setup_new_project(project_path)
 
     def path_relative_to_project(self, pth: str):
         """
@@ -371,7 +378,8 @@ class FqprProject(LoggerClass):
         self.settings.update(settings)
         for relpath, fqpr_instance in self.fqpr_instances.items():
             self._update_fqpr_settings(fqpr_instance)
-        self.save_project()
+        if self.path is not None:
+            self.save_project()
 
     def _update_fqpr_settings(self, fq: Fqpr):
         """
@@ -519,34 +527,6 @@ class FqprProject(LoggerClass):
         if relpath in self.surface_instances:
             self.surface_instances.pop(relpath)
 
-    def build_raw_attitude_for_line(self, line: str, subset: bool = True):
-        """
-        With the given linename, return the raw_attitude dataset from the fqpr_generation.FQPR instance that contains
-        the line.  If subset is true, the returned attitude will only be the raw attitude that covers the line.
-
-        Parameters
-        ----------
-        line
-            line name
-        subset
-            if True will only return the dataset cut to the min max time of the multibeam line
-
-        Returns
-        -------
-        xr.Dataset
-            the raw attitude either for the whole Fqpr instance that contains the line, or subset to the min/max time of the line
-        """
-
-        line_att = None
-        fq_inst = self.return_line_owner(line)
-        if fq_inst is not None:
-            line_att = fq_inst.multibeam.raw_att
-            if subset:
-                # attributes are all the same across raw_ping datasets, just use the first
-                line_start_time, line_end_time = fq_inst.multibeam.raw_ping[0].multibeam_files[line][0], fq_inst.multibeam.raw_ping[0].multibeam_files[line][1]
-                line_att = slice_xarray_by_dim(line_att, dimname='time', start_time=line_start_time, end_time=line_end_time)
-        return line_att
-
     def regenerate_fqpr_lines(self, pth: str):
         """
         After adding a new Fqpr object, we want to get the line information from the attributes so that we can quickly
@@ -689,7 +669,7 @@ class FqprProject(LoggerClass):
                 total_lines.append(fq_line)
         return sorted(total_lines)
 
-    def return_line_navigation(self, line: str):
+    def return_line_navigation(self, line: str, override_source: str = None):
         """
         For given line name, return the latitude/longitude from the ping record
 
@@ -697,6 +677,9 @@ class FqprProject(LoggerClass):
         ----------
         line
             line name
+        override_source
+            optional, one of ['raw', 'processed'] if you want to specify the navigation source to be the raw
+            multibeam data or the processed sbet
 
         Returns
         -------
@@ -706,11 +689,17 @@ class FqprProject(LoggerClass):
             longitude values (geographic) downsampled in degrees
         """
 
+        if override_source:
+            draw_navigation = override_source
+        elif 'draw_navigation' not in self.settings:
+            draw_navigation = 'raw'
+        else:
+            draw_navigation = self.settings['draw_navigation']
         if line not in self.buffered_fqpr_navigation:
             fq_inst = self.return_line_owner(line)
             if fq_inst is not None:
                 line_start_time, line_end_time = fq_inst.multibeam.raw_ping[0].multibeam_files[line][0], fq_inst.multibeam.raw_ping[0].multibeam_files[line][1]
-                nav = fq_inst.return_navigation(line_start_time, line_end_time)
+                nav = fq_inst.return_navigation(line_start_time, line_end_time, nav_source=draw_navigation)
                 if nav is not None:
                     lat, lon = nav.latitude.values, nav.longitude.values
                     # save nav so we don't have to redo this routine if asked for the same line
@@ -1284,8 +1273,6 @@ def create_new_project(output_folder: str = None):
     Create a new FqprProject by taking in multibeam files, converting them, making a new Fqpr instance and loading that
     Fqpr into a new FqprProject.
 
-    No longer used in general, instead use _setup_new_project
-
     Parameters
     ----------
     output_folder
@@ -1301,8 +1288,7 @@ def create_new_project(output_folder: str = None):
         print('create_new_project: Found existing project in this directory, please remove and re-create')
         print('{}'.format(expected_project_file))
         return None
-    fqp = FqprProject()
-    fqp.new_project_from_directory(output_folder)
+    fqp = FqprProject(project_path=output_folder)
     return fqp
 
 
@@ -1347,7 +1333,7 @@ def return_project_data(project_path: str):
 
 
 def reprocess_fqprs(fqprs: list, newvalues: list, headindex: int, prefixes: list, timestamps: list, serial_number: str,
-                    polygon: np.ndarray):
+                    polygon: np.ndarray, vdatum_directory: str = None):
     """
     Convenience function for reprocessing a list of Fqpr objects according to the new arguments given here.  Used in
     the manual patch test tool in Kluster Points View.
@@ -1368,32 +1354,57 @@ def reprocess_fqprs(fqprs: list, newvalues: list, headindex: int, prefixes: list
         serial number of each fqpr instance, used in the lookup
     polygon
         polygon in geographic coordinates encompassing the patch test region
+    vdatum_directory
+        path to the vdatum directory, required for georeferencing with NOAA MLLW or MHW vertical references
 
     Returns
     -------
     list
+        list of the fqpr objects reprocessed
+    list
         list of lists for each fqpr containing the reprocessed xyz data
     """
 
+    if len(fqprs) != len(timestamps):
+        raise ValueError(f'You must provide one timestamp entry for each fqpr object: number of fqprs ({len(fqprs)}), timestamps ({timestamps})')
     roll, pitch, heading, xlever, ylever, zlever, latency = newvalues
+    fqpr_folders = [fq.output_folder for fq in fqprs]
+    filtered_fqs = {}
+    filtered_results = []
+    for cnt, fqprf in enumerate(fqpr_folders):  # handle use case where user submits the same fqpr instance with multiple timestamps to process
+        if fqprf not in filtered_results:
+            filtered_fqs[fqprs[cnt]] = [timestamps[findex] for findex in [cnt for cnt, i in enumerate(fqpr_folders) if i == fqprf]]
+            filtered_results.append(fqprf)
     results = []
-    for cnt, fq in enumerate(fqprs):
-        fq.multibeam.xyzrph[prefixes[0]][timestamps[cnt]] = roll
-        fq.multibeam.xyzrph[prefixes[1]][timestamps[cnt]] = pitch
-        fq.multibeam.xyzrph[prefixes[2]][timestamps[cnt]] = heading
-        fq.multibeam.xyzrph[prefixes[3]][timestamps[cnt]] = xlever
-        fq.multibeam.xyzrph[prefixes[4]][timestamps[cnt]] = ylever
-        fq.multibeam.xyzrph[prefixes[5]][timestamps[cnt]] = zlever
-        fq.multibeam.xyzrph[prefixes[6]][timestamps[cnt]] = latency
+    for cnt, (fq, fqtimestamps) in enumerate(filtered_fqs.items()):
+        for tstmp in fqtimestamps:
+            if tstmp not in fq.multibeam.xyzrph[prefixes[0]]:
+                raise ValueError(f'Unable to reprocess {fq.output_folder} with timestamped xyzprh entry {tstmp}, this timestamp is not in the xyzrph record')
+            fq.multibeam.xyzrph[prefixes[0]][tstmp] = roll
+            fq.multibeam.xyzrph[prefixes[1]][tstmp] = pitch
+            fq.multibeam.xyzrph[prefixes[2]][tstmp] = heading
+            fq.multibeam.xyzrph[prefixes[3]][tstmp] = xlever
+            fq.multibeam.xyzrph[prefixes[4]][tstmp] = ylever
+            fq.multibeam.xyzrph[prefixes[5]][tstmp] = zlever
+            fq.multibeam.xyzrph[prefixes[6]][tstmp] = latency
         fq.intermediate_dat = {}  # clear out the reprocessed cached data
-        fq, soundings = reprocess_sounding_selection(fq, georeference=True)
-        newx = np.concatenate([d[0][0].values for d in fq.intermediate_dat[serial_number]['georef'][timestamps[cnt]]], axis=0)
-        newy = np.concatenate([d[0][1].values for d in fq.intermediate_dat[serial_number]['georef'][timestamps[cnt]]], axis=0)
-        newz = np.concatenate([d[0][2].values for d in fq.intermediate_dat[serial_number]['georef'][timestamps[cnt]]], axis=0)
-        fq.multibeam.raw_ping[headindex]['x'] = xr.DataArray(newx, dims=('time', 'beam'))
-        fq.multibeam.raw_ping[headindex]['y'] = xr.DataArray(newy, dims=('time', 'beam'))
-        fq.multibeam.raw_ping[headindex]['z'] = xr.DataArray(newz, dims=('time', 'beam'))
+        fq, soundings = reprocess_sounding_selection(fq, vdatum_directory=vdatum_directory, georeference=True)
+
+        for tstmp in fqtimestamps:
+            newx = np.concatenate([d[0][0].values for d in fq.intermediate_dat[serial_number]['georef'][tstmp]], axis=0)
+            newy = np.concatenate([d[0][1].values for d in fq.intermediate_dat[serial_number]['georef'][tstmp]], axis=0)
+            newz = np.concatenate([d[0][2].values for d in fq.intermediate_dat[serial_number]['georef'][tstmp]], axis=0)
+            if newx.shape == fq.multibeam.raw_ping[headindex]['x'].shape:
+                fq.multibeam.raw_ping[headindex]['x'] = xr.DataArray(newx, dims=('time', 'beam'))
+                fq.multibeam.raw_ping[headindex]['y'] = xr.DataArray(newy, dims=('time', 'beam'))
+                fq.multibeam.raw_ping[headindex]['z'] = xr.DataArray(newz, dims=('time', 'beam'))
+            else:
+                newtime = np.concatenate([d[0][0].time.values for d in fq.intermediate_dat[serial_number]['georef'][tstmp]], axis=0)
+                overlap = np.in1d(fq.multibeam.raw_ping[headindex].time.values, newtime)
+                fq.multibeam.raw_ping[headindex]['x'][overlap] = newx
+                fq.multibeam.raw_ping[headindex]['y'][overlap] = newy
+                fq.multibeam.raw_ping[headindex]['z'][overlap] = newz
         fq.intermediate_dat = {}  # clear out the reprocessed cached data
         head, x, y, z, tvu, rejected, pointtime, beam = fq.return_soundings_in_polygon(polygon, geographic=True, isolate_head=headindex)
         results.append([head, x, y, z, tvu, rejected, pointtime, beam])
-    return results
+    return list(filtered_fqs.keys()), results

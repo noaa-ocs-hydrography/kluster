@@ -29,16 +29,31 @@ class SettingsDialog(SaveStateDialog):
         self.general_tab = QtWidgets.QWidget()
         self.general_layout = QtWidgets.QVBoxLayout()
 
+        self.toprows = QtWidgets.QGridLayout()
+        rightside = QtWidgets.QHBoxLayout()
         self.parallel_write = QtWidgets.QCheckBox('Enable Parallel Writes')
         self.parallel_write.setChecked(True)
         self.parallel_write.setToolTip('If checked, Kluster will write to the hard drive in parallel, disabling this ' +
                                        'is a useful step in troubleshooting PermissionErrors.')
+        self.toprows.addWidget(self.parallel_write, 0, 0)
+        self.draw_navigation_label = QtWidgets.QLabel('Draw Navigation: ')
+        rightside.addWidget(self.draw_navigation_label)
+        self.draw_navigation = QtWidgets.QComboBox()
+        drawoptions = ['raw', 'processed']
+        self.draw_navigation.addItems(drawoptions)
+        self.draw_navigation.setToolTip('Sets the type of navigation used when drawing the tracklines on screen.\n\n' +
+                                        'processed = will try to use SBET latitude/longitude if exists, otherwise defaults to raw navigation\n' +
+                                        'raw = will use the converted multibeam latitude/longitude')
+        rightside.addWidget(self.draw_navigation)
+        rightside.addStretch()
+        self.toprows.addLayout(rightside, 0, 1)
 
         self.keep_waterline_changes = QtWidgets.QCheckBox('Retain Waterline Changes')
         self.keep_waterline_changes.setChecked(True)
         self.keep_waterline_changes.setToolTip('If checked (only applicable if you are using a Vessel File), Kluster will save all ' +
                                                'waterline changes in later multibeam files to the vessel file.  \nUncheck this if you ' +
                                                'do not want changes in waterline to be new entries in the vessel file.')
+        self.toprows.addWidget(self.keep_waterline_changes, 1, 0)
 
         self.force_coordinate_match = QtWidgets.QCheckBox('Force all days to have the same Coordinate System')
         self.force_coordinate_match.setChecked(True)
@@ -47,6 +62,7 @@ class SettingsDialog(SaveStateDialog):
                                                'different coordinate systems.  Check this box if you want to force all days in a project ' +
                                                '\nto have the same coordinate system by using the most prevalent coordinate system in the Project Tree list.  use_epsg in project ' +
                                                'settings will ignore this.')
+        self.toprows.addWidget(self.force_coordinate_match, 2, 0)
 
         self.gen_hlayout_one_one = QtWidgets.QHBoxLayout()
         self.auto_processing_mode_label = QtWidgets.QLabel('Process Mode: ')
@@ -106,9 +122,7 @@ class SettingsDialog(SaveStateDialog):
         self.hlayout_five.addWidget(self.default_button)
         self.hlayout_five.addStretch(1)
 
-        self.general_layout.addWidget(self.parallel_write)
-        self.general_layout.addWidget(self.keep_waterline_changes)
-        self.general_layout.addWidget(self.force_coordinate_match)
+        self.general_layout.addLayout(self.toprows)
         self.general_layout.addLayout(self.gen_hlayout_one_one)
         self.general_layout.addLayout(self.gen_hlayout_one)
         self.general_layout.addLayout(self.gen_hlayout_two)
@@ -358,6 +372,7 @@ class SettingsDialog(SaveStateDialog):
         layout.addLayout(self.hlayout_five)
         self.setLayout(layout)
 
+        self.orig_vdatum_pth = None
         self.vdatum_pth = None
         self.filter_pth = None
         self.log_pth = None
@@ -377,7 +392,7 @@ class SettingsDialog(SaveStateDialog):
         # note that the controls that are populated from kluster_variables use the kluster_variables save state ability
         #  you would not need to list them here (colors and stuff)
         self.text_controls = [['vdatum_directory', self.vdatum_text], ['auto_processing_mode', self.auto_processing_mode],
-                              ['filter_text', self.filter_text], ['log_text', self.log_text]]
+                              ['filter_text', self.filter_text], ['log_text', self.log_text], ['draw_navigation', self.draw_navigation]]
         self.checkbox_controls = [['enable_parallel_writes', self.parallel_write], ['keep_waterline_changes', self.keep_waterline_changes],
                                   ['force_coordinate_match', self.force_coordinate_match]]
 
@@ -400,7 +415,8 @@ class SettingsDialog(SaveStateDialog):
             else:
                 self.status_msg.setStyleSheet("QLabel { color : " + kluster_variables.pass_color + "; }")
             self.status_msg.setText(status)
-        elif self.vdatum_pth == '':  # special case where the user is wanting to clear the vdatum directory path
+        elif self.vdatum_pth == '' and self.vdatum_pth != self.orig_vdatum_pth:  # special case where the user is wanting to clear the vdatum directory path
+            self.print('clearing out old vdatum path...', logging.INFO)
             clear_vdatum_path()
             self.status_msg.setText('')
         else:
@@ -415,11 +431,11 @@ class SettingsDialog(SaveStateDialog):
             opts = {'write_parallel': self.parallel_write.isChecked(),
                     'keep_waterline_changes': self.keep_waterline_changes.isChecked(),
                     'force_coordinate_match': self.force_coordinate_match.isChecked(),
+                    'draw_navigation': self.draw_navigation.currentText(),
                     'vdatum_directory': self.vdatum_pth,
                     'filter_directory': self.filter_pth,
                     'main_log_file': self.log_pth,
                     'autoprocessing_mode': self.auto_processing_mode.currentText()}
-            self.set_vyperdatum_path()
         else:
             opts = None
         return opts
@@ -535,6 +551,7 @@ class SettingsDialog(SaveStateDialog):
 
     def read_settings(self):
         super().read_settings()
+        self.orig_vdatum_pth = self.vdatum_text.text()
         self.vdatum_pth = self.vdatum_text.text()
         self.filter_pth = self.filter_text.text()
         self.log_pth = self.log_text.text()

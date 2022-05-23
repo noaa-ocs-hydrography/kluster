@@ -1924,6 +1924,15 @@ class MapView(QtWidgets.QMainWindow):
             self.band_minmax = {}
             self.force_band_minmax = {}
 
+    def remove_all_lines(self):
+        """
+        Remove all tracklines from the display and layer manager
+        """
+        remlyrs = self.layer_manager.line_layer_names
+        if remlyrs:
+            for lyr in remlyrs:
+                self.remove_layer(lyr)
+
     def layer_point_to_map_point(self, layer: Union[qgis_core.QgsRasterLayer, qgis_core.QgsVectorLayer],
                                  point: qgis_core.QgsPoint):
         """
