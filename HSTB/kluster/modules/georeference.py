@@ -1,7 +1,7 @@
 import os
 import xarray as xr
 import numpy as np
-from pyproj import Transformer, CRS
+from pyproj import Transformer, CRS, Geod
 from typing import Union
 import geohash
 from shapely import geometry
@@ -421,3 +421,33 @@ def polygon_to_geohashes(polygon: Union[np.array, geometry.Polygon], precision):
                         testing_geohashes.put(neighbor)
 
     return list(inner_geohashes), list(intersect_geohashes)
+
+
+def distance_between_coordinates(lat_one: Union[float, np.ndarray], lon_one: Union[float, np.ndarray],
+                                 lat_two: Union[float, np.ndarray], lon_two: Union[float, np.ndarray], ellipse_string: str = 'WGS84'):
+    """
+    Use the pyproj inverse transformation to determine the distance between the given point(s).  Can either be a single point,
+    or an array of points
+
+    Parameters
+    ----------
+    lat_one
+        latitude of the initial point
+    lon_one
+        longitude of the initial point
+    lat_two
+        latitude of the terminus point
+    lon_two
+        longitude of the terminus point
+    ellipse_string
+        initialization string for the geod object
+
+    Returns
+    -------
+    Union[float, np.ndarray]
+        either a float or an array of floats for the distance between the point(s), in meters
+    """
+
+    g = Geod(ellps=ellipse_string)
+    _, _, dist = g.inv(lon_one, lat_one, lon_two, lat_two)
+    return dist
