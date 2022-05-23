@@ -760,6 +760,7 @@ class KlusterMain(QtWidgets.QMainWindow):
             only_resolutions = surf_object.resolutions
         for resolution in only_resolutions:
             self.two_d.remove_surface(pth, resolution)
+        self.two_d.remove_line(pth)  # also remove the tiles layer if that was loaded
         self.project.remove_surface(pth, relative_path=True)
         self.project_tree.refresh_project(self.project)
 
