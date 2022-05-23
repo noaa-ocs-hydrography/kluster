@@ -14,7 +14,6 @@ FqprProject
       ~FqprProject.add_fqpr
       ~FqprProject.add_surface
       ~FqprProject.add_vessel_file
-      ~FqprProject.build_raw_attitude_for_line
       ~FqprProject.build_visualizations
       ~FqprProject.close
       ~FqprProject.get_dask_client
@@ -52,7 +51,6 @@ FqprProject
    .. automethod:: add_fqpr
    .. automethod:: add_surface
    .. automethod:: add_vessel_file
-   .. automethod:: build_raw_attitude_for_line
    .. automethod:: build_visualizations
    .. automethod:: close
    .. automethod:: get_dask_client
