@@ -669,6 +669,10 @@ class FqprIntel(LoggerClass):
                     new_input_datum = self.processing_settings['input_datum']
                 else:
                     new_input_datum = None
+                if 'cast_selection_method' in self.processing_settings:  # someone setup a new cast selection method
+                    cast_selection_method = self.processing_settings['cast_selection_method']
+                else:
+                    cast_selection_method = kluster_variables.default_cast_selection_method
                 abs_path = self.project.absolute_path_from_relative(relative_path)
                 action = [a for a in existing_actions if a.output_destination == abs_path]
                 full_reprocess = reprocess_fqpr == relative_path
@@ -685,7 +689,7 @@ class FqprIntel(LoggerClass):
                                                                 new_tpu=not identical_tpu,
                                                                 new_input_datum=new_input_datum,
                                                                 process_mode=process_mode,
-                                                                cast_selection_method=self.processing_settings['cast_selection_method'])
+                                                                cast_selection_method=cast_selection_method)
                 if len(action) == 1 and not action[0].is_running:  # modify the existing processing action
                     if kwargs == {}:
                         self.action_container.remove_action(action[0])
