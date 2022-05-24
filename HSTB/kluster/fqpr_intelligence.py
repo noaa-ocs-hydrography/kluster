@@ -118,7 +118,8 @@ class FqprIntel(LoggerClass):
             dictionary of processing settings
         """
 
-        desired_keys = ['use_epsg', 'epsg', 'use_coord', 'coord_system', 'vert_ref', 'vdatum_directory', 'input_datum']
+        desired_keys = ['use_epsg', 'epsg', 'use_coord', 'coord_system', 'vert_ref', 'vdatum_directory', 'input_datum',
+                        'cast_selection_method']
         self.processing_settings.update({ky: settings[ky] for ky in desired_keys if ky in settings})
         existing_kwargs = list(settings.keys())
         [settings.pop(ky) for ky in existing_kwargs if ky in desired_keys]
@@ -683,7 +684,8 @@ class FqprIntel(LoggerClass):
                                                                 new_waterline=new_waterline is not None,
                                                                 new_tpu=not identical_tpu,
                                                                 new_input_datum=new_input_datum,
-                                                                process_mode=process_mode)
+                                                                process_mode=process_mode,
+                                                                cast_selection_method=self.processing_settings['cast_selection_method'])
                 if len(action) == 1 and not action[0].is_running:  # modify the existing processing action
                     if kwargs == {}:
                         self.action_container.remove_action(action[0])

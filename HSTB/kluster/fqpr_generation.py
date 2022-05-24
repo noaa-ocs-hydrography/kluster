@@ -701,7 +701,7 @@ class Fqpr(ZarrBackend):
                 except:  # all other data ends up replacing which is fine
                     rp.attrs[ky] = copy_dict[ky]
 
-    def import_sound_velocity_files(self, src: Union[str, list], cast_selection_method: str = 'nearestintime'):
+    def import_sound_velocity_files(self, src: Union[str, list], cast_selection_method: str = 'nearest_in_time'):
         """
         Load to self.cast_files the file paths to the sv casts of interest.
 
@@ -1035,7 +1035,7 @@ class Fqpr(ZarrBackend):
             self.logger.info('nearest-in-distance-four-hours: selecting nearest cast for each {} pings...'.format(kluster_variables.ping_chunk_size))
         return data
 
-    def return_applicable_casts(self, method='nearestintime'):
+    def return_applicable_casts(self, method='nearest_in_time'):
         """
         When we check for sound velocity correct actions, we look to see if any new sv profiles imported into the
         fqpr instance are applicable, by running the chosen method (default is cast nearest in time to the ping chunk).
@@ -1063,13 +1063,13 @@ class Fqpr(ZarrBackend):
             pings_per_chunk, max_chunks_at_a_time = self.get_cluster_params()
             for applicable_index, timestmp, prefixes in system:
                 idx_by_chunk = self.return_chunk_indices(applicable_index, pings_per_chunk)
-                if method == 'nearestintime':
+                if method == 'nearest_in_time':
                     cast_chunks = self.return_cast_idx_nearestintime(idx_by_chunk, silent=True)
-                elif method == 'nearestintimefourhours':
+                elif method == 'nearest_in_time_four_hours':
                     cast_chunks = self.return_cast_idx_nearestintime_fourhours(idx_by_chunk, silent=True)
-                elif method == 'nearestindistance':
+                elif method == 'nearest_in_distance':
                     cast_chunks = self.return_cast_idx_nearestindistance(idx_by_chunk, silent=True)
-                elif method == 'nearestindistancefourhours':
+                elif method == 'nearest_in_distance_four_hours':
                     cast_chunks = self.return_cast_idx_nearestindistance_fourhours(idx_by_chunk, silent=True)
                 else:
                     msg = f'return_applicable_casts - unexpected cast selection method {method}, must be one of {kluster_variables.cast_selection_methods}'
@@ -2537,7 +2537,7 @@ class Fqpr(ZarrBackend):
             endtime = perf_counter()
             self.logger.info('****Beam Pointing Vector generation complete: {}****\n'.format(seconds_to_formatted_string(int(endtime - starttime))))
 
-    def sv_correct(self, add_cast_files: Union[str, list] = None, cast_selection_method: str = 'nearestintime',
+    def sv_correct(self, add_cast_files: Union[str, list] = None, cast_selection_method: str = 'nearest_in_time',
                    subset_time: list = None, dump_data: bool = True):
         """
         Apply sv cast/surface sound speed to raytrace.  Generates xyz for each beam.
@@ -2556,8 +2556,8 @@ class Fqpr(ZarrBackend):
             either a list of files to include or the path to a directory containing files.  These are in addition to
             the casts in the ping dataset.
         cast_selection_method
-            the method used to select the cast that goes with each chunk of the dataset, one of ['nearestintime',
-            'nearestintimefourhours', 'nearestindistance', 'nearestindistancefourhours']
+            the method used to select the cast that goes with each chunk of the dataset, one of ['nearest_in_time',
+            'nearest_in_time_four_hours', 'nearest_in_distance', 'nearest_in_distance_four_hours']
         subset_time
             List of unix timestamps in seconds, used as ranges for times that you want to process.
         dump_data
@@ -2821,7 +2821,8 @@ class Fqpr(ZarrBackend):
 
     def _submit_data_to_cluster(self, rawping: xr.Dataset, mode: str, idx_by_chunk: list, max_chunks_at_a_time: int,
                                 timestmp: str, prefixes: str, dump_data: bool = True, skip_dask: bool = False,
-                                prefer_pp_nav: bool = True, vdatum_directory: str = None, cast_selection_method: str = 'nearestintime'):
+                                prefer_pp_nav: bool = True, vdatum_directory: str = None,
+                                cast_selection_method: str = 'nearest_in_time'):
         """
         For all of the main processes, we break up our inputs into chunks, appended to a list (data_for_workers).
         Knowing the capacity of the cluster memory, we can determine how many chunks to run at a time
@@ -2852,8 +2853,8 @@ class Fqpr(ZarrBackend):
         skip_dask
             if True will not use the dask.distributed client to submit tasks, will run locally instead
         cast_selection_method
-            the method used to select the cast that goes with each chunk of the dataset, one of ['nearestintime',
-            'nearestintimefourhours', 'nearestindistance', 'nearestindistancefourhours']
+            the method used to select the cast that goes with each chunk of the dataset, one of ['nearest_in_time',
+            'nearest_in_time_four_hours', 'nearest_in_distance', 'nearest_in_distance_four_hours']
         """
 
         # clear out the intermediate data just in case there is old data there
@@ -2883,13 +2884,13 @@ class Fqpr(ZarrBackend):
                 chunk_function = self._generate_chunks_svcorr
                 comp_time = 'sv_time_complete'
                 profnames, casts, cast_times, castlocations = self.return_all_profiles()
-                if cast_selection_method == 'nearestintime':
+                if cast_selection_method == 'nearest_in_time':
                     cast_chunks = self.return_cast_idx_nearestintime(idx_by_chunk_subset, silent=silent)
-                elif cast_selection_method == 'nearestintimefourhours':
+                elif cast_selection_method == 'nearest_in_time_four_hours':
                     cast_chunks = self.return_cast_idx_nearestintime_fourhours(idx_by_chunk_subset, silent=silent)
-                elif cast_selection_method == 'nearestindistance':
+                elif cast_selection_method == 'nearest_in_distance':
                     cast_chunks = self.return_cast_idx_nearestindistance(idx_by_chunk_subset, silent=silent)
-                elif cast_selection_method == 'nearestindistancefourhours':
+                elif cast_selection_method == 'nearest_in_distance_four_hours':
                     cast_chunks = self.return_cast_idx_nearestindistance_fourhours(idx_by_chunk_subset, silent=silent)
                 else:
                     msg = f'unexpected cast selection method {cast_selection_method}, must be one of {kluster_variables.cast_selection_methods}'
@@ -3520,7 +3521,7 @@ class Fqpr(ZarrBackend):
 
     def return_next_action(self, new_vertical_reference: str = None, new_coordinate_system: CRS = None, new_offsets: bool = False,
                            new_angles: bool = False, new_tpu: bool = False, new_input_datum: str = None,
-                           new_waterline: bool = False, process_mode: str = 'normal'):
+                           new_waterline: bool = False, process_mode: str = 'normal', cast_selection_method: str = 'nearest_in_time'):
         """
         Determine the next action to take, building the arguments for the fqpr_convenience.process_multibeam function.
         Uses the processing status, which is updated as a process is completed at a sounding level.
@@ -3562,6 +3563,9 @@ class Fqpr(ZarrBackend):
             - reprocess = perform a full reprocess of the dataset ignoring the current_processing_status
             - convert_only = only convert incoming data, return no processing actions
             - concatenate = process line by line if there is no processed data for that line
+        cast_selection_method
+            the method used to select the cast that goes with each chunk of the dataset, one of ['nearest_in_time',
+            'nearest_in_time_four_hours', 'nearest_in_distance', 'nearest_in_distance_four_hours']
 
         Returns
         -------
@@ -3649,6 +3653,7 @@ class Fqpr(ZarrBackend):
         if min_status < 3 or new_offsets or new_angles or new_waterline:
             kwargs['run_svcorr'] = True
             kwargs['add_cast_files'] = []
+            kwargs['cast_selection_method'] = cast_selection_method
         if min_status < 2 or new_angles:
             kwargs['run_orientation'] = True
             kwargs['orientation_initial_interpolation'] = False

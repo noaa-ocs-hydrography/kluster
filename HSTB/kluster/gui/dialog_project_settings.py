@@ -92,14 +92,28 @@ class ProjectSettingsDialog(SaveStateDialog):
 
         self.outcoord_group.setLayout(self.outcoord_layout)
 
-        self.vertref_msg = QtWidgets.QLabel('Vertical Reference:')
-
         self.hlayout_three = QtWidgets.QHBoxLayout()
+        self.vertref_msg = QtWidgets.QLabel('Vertical Reference:')
+        self.hlayout_three.addWidget(self.vertref_msg)
         self.georef_vertref = QtWidgets.QComboBox()
         self.georef_vertref.addItems(kluster_variables.vertical_references)
         self.georef_vertref.setToolTip('Set the vertical reference used in georeferencing, this determines the zero point for all depths generated in Kluster.')
         self.hlayout_three.addWidget(self.georef_vertref)
         self.hlayout_three.addStretch(1)
+
+        self.hlayout_four = QtWidgets.QHBoxLayout()
+        self.svmode_msg = QtWidgets.QLabel('SV Cast Selection:')
+        self.hlayout_four.addWidget(self.svmode_msg)
+        self.svmode = QtWidgets.QComboBox()
+        self.svmode.addItems(kluster_variables.cast_selection_methods)
+        self.svmode.setCurrentIndex(kluster_variables.cast_selection_methods.index(kluster_variables.default_cast_selection_method))
+        self.svmode.setToolTip(f'Determines which sound velocity profiles will be used for each {kluster_variables.ping_chunk_size} pings during sound velocity correction.\n\n'
+                               f'nearest_in_time: use the cast that is nearest in time to each {kluster_variables.ping_chunk_size} ping chunk of data\n' +
+                               f'nearest_in_time_four_hours: use the cast that is nearest in time to each chunk as long as it is within four hours\n' +
+                               f'nearest_in_distance: use the cast that is nearest in distance to each chunk of data\n' +
+                               f'nearest_in_distance_four_hours: use the cast that is nearest in distance to each chunk as long as it is within four hours\n')
+        self.hlayout_four.addWidget(self.svmode)
+        self.hlayout_four.addStretch(1)
 
         self.hlayout_five = QtWidgets.QHBoxLayout()
         self.hlayout_five.addStretch(1)
@@ -120,8 +134,9 @@ class ProjectSettingsDialog(SaveStateDialog):
         layout.addStretch()
         layout.addWidget(self.outcoord_group)
         layout.addStretch()
-        layout.addWidget(self.vertref_msg)
         layout.addLayout(self.hlayout_three)
+        layout.addStretch()
+        layout.addLayout(self.hlayout_four)
         layout.addStretch()
         layout.addLayout(self.statusbox)
         layout.addLayout(self.hlayout_five)
@@ -136,7 +151,7 @@ class ProjectSettingsDialog(SaveStateDialog):
         self.inepsg_val.textChanged.connect(self.validate_epsg)
 
         self.text_controls = [['epsgval', self.epsg_val], ['utmval', self.auto_utm_val], ['vertref', self.georef_vertref],
-                              ['inepsg_val', self.inepsg_val], ['indropdown_val', self.indropdown_val]]
+                              ['inepsg_val', self.inepsg_val], ['indropdown_val', self.indropdown_val], ['svmode', self.svmode]]
         self.checkbox_controls = [['infromdata_radio', self.infromdata_radio], ['inepsg_radio', self.inepsg_radio],
                                   ['indropdown_radio', self.indropdown_radio], ['epsg_radio', self.epsg_radio],
                                   ['auto_utm_radio', self.auto_utm_radio]]
@@ -217,6 +232,7 @@ class ProjectSettingsDialog(SaveStateDialog):
                 inepsg = str(self.indropdown_val.currentText())
             opts = {'use_epsg': self.epsg_radio.isChecked(), 'epsg': epsg,
                     'use_coord': self.auto_utm_radio.isChecked(), 'coord_system': self.auto_utm_val.currentText(),
+                    'cast_selection_method': self.svmode.currentText(),
                     'vert_ref': self.georef_vertref.currentText(), 'input_datum': inepsg}
         else:
             opts = None

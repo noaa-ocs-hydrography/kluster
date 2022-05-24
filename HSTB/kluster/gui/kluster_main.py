@@ -50,6 +50,7 @@ settings_translator = {'Kluster/dark_mode': {'newname': 'dark_mode', 'defaultval
                        'Kluster/proj_settings_utmradio': {'newname': 'use_coord', 'defaultvalue': True},
                        'Kluster/proj_settings_utmval': {'newname': 'coord_system', 'defaultvalue': kluster_variables.default_coordinate_system},
                        'Kluster/proj_settings_vertref': {'newname': 'vert_ref', 'defaultvalue': kluster_variables.default_vertical_reference},
+                       'Kluster/proj_settings_svmode': {'newname': 'cast_selection_method', 'defaultvalue': kluster_variables.default_cast_selection_method},
                        'Kluster/layer_settings_background': {'newname': 'layer_background', 'defaultvalue': 'Default'},
                        'Kluster/layer_settings_transparency': {'newname': 'layer_transparency', 'defaultvalue': '0'},
                        'Kluster/layer_settings_surfacetransparency': {'newname': 'surface_transparency', 'defaultvalue': 0},

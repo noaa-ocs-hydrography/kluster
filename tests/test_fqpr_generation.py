@@ -448,19 +448,19 @@ class TestFqprGeneration(unittest.TestCase):
             assert False
         except NotImplementedError:
             assert True
-        assert self.out.return_applicable_casts('nearestintime') == ['profile_1495563100']
-        assert self.out.return_applicable_casts('nearestintimefourhours') == ['profile_1495563100']
-        assert self.out.return_applicable_casts('nearestindistance') == ['profile_2495563132']
-        assert self.out.return_applicable_casts('nearestindistancefourhours') == ['profile_1495563100']
+        assert self.out.return_applicable_casts('nearest_in_time') == ['profile_1495563100']
+        assert self.out.return_applicable_casts('nearest_in_time_four_hours') == ['profile_1495563100']
+        assert self.out.return_applicable_casts('nearest_in_distance') == ['profile_2495563132']
+        assert self.out.return_applicable_casts('nearest_in_distance_four_hours') == ['profile_1495563100']
 
         # now see what happens if we only leave the weird time one in
         self.out.multibeam.raw_ping[0].attrs.pop('profile_1495563100')
         self.out.multibeam.raw_ping[0].attrs.pop('attributes_1495563100')
 
-        assert self.out.return_applicable_casts('nearestintime') == ['profile_2495563132']
-        assert self.out.return_applicable_casts('nearestintimefourhours') == []
-        assert self.out.return_applicable_casts('nearestindistance') == ['profile_2495563132']
-        assert self.out.return_applicable_casts('nearestindistancefourhours') == []
+        assert self.out.return_applicable_casts('nearest_in_time') == ['profile_2495563132']
+        assert self.out.return_applicable_casts('nearest_in_time_four_hours') == []
+        assert self.out.return_applicable_casts('nearest_in_distance') == ['profile_2495563132']
+        assert self.out.return_applicable_casts('nearest_in_distance_four_hours') == []
 
     def test_return_line_xyzrph(self):
         self._access_processed_data()

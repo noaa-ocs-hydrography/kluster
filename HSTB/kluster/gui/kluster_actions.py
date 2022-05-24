@@ -290,6 +290,8 @@ class KlusterActions(QtWidgets.QTreeView):
             ttip = '{}\n\nPriority:{}\nRun Orientation:{}\nRun Correct Beam Vectors:{}\n'.format(action.text, action.priority, action.kwargs['run_orientation'], action.kwargs['run_beam_vec'])
             ttip += 'Run Sound Velocity:{}\nRun Georeference:{}\nRun TPU:{}'.format(action.kwargs['run_svcorr'], action.kwargs['run_georef'], action.kwargs['run_tpu'])
             if action.kwargs['run_georef']:
+                ttip += '\nCast Selection: {}'.format(action.kwargs['cast_selection_method'])
+            if action.kwargs['run_georef']:
                 if action.kwargs['use_epsg']:
                     ttip += '\nEPSG: {}\nVertical Reference: {}'.format(action.kwargs['epsg'], action.kwargs['vert_ref'])
                 else:
