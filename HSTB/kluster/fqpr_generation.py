@@ -740,7 +740,7 @@ class Fqpr(ZarrBackend):
                     cast_does_not_exist = cst_name not in self.multibeam.raw_ping[0].attrs
                     cast_needs_updating = False
                     # for each cast that we currently have in the dataset, check to see if the data matches this new cast
-                    for cnt, prev_cast in enumerate(casts):
+                    for cast_cnt, prev_cast in enumerate(casts):
                         prev_dpth, prev_sv = prev_cast
                         # compare casts, if we find that they match completely, we replace with the new cast which probably has a more accurate time/position
                         #   than the send-to-SIS version (which is probably what is currently in there)
@@ -751,7 +751,7 @@ class Fqpr(ZarrBackend):
                             else:
                                 cast_needs_updating = True
                         if cast_needs_updating:
-                            old_profile = 'profile_{}'.format(int(cast_times[cnt]))
+                            old_profile = 'profile_{}'.format(int(cast_times[cast_cnt]))
                             self.logger.info(f'Replacing sound velocity profile {old_profile} with {cst_name}')
                             self.remove_profile(old_profile)
                             break
