@@ -96,6 +96,7 @@ class Fqpr(ZarrBackend):
         self.orientation_time_complete = ''
         self.bpv_time_complete = ''
         self.sv_time_complete = ''
+        self.svmethod = ''
         self.georef_time_complete = ''
         self.tpu_time_complete = ''
 
@@ -728,17 +729,32 @@ class Fqpr(ZarrBackend):
         if svfils is not None:
             attr_dict = {}
             cast_dict = {}
+            profnames, casts, cast_times, castlocations = self.return_all_profiles()
             for f in svfils:
                 data, locs, times, name = cast_data_from_file(f)
                 for cnt, dat in enumerate(data):
                     cst_name = 'profile_{}'.format(int(times[cnt]))
                     attrs_name = 'attributes_{}'.format(int(times[cnt]))
+                    new_dpth = [d[0] for d in dat.items()]
+                    new_sv = [d[1] for d in dat.items()]
                     cast_does_not_exist = cst_name not in self.multibeam.raw_ping[0].attrs
                     cast_needs_updating = False
-                    if not cast_does_not_exist:
-                        curpos = self.multibeam.raw_ping[0].attrs[attrs_name]['location']
-                        if curpos != locs[cnt]:
-                            cast_needs_updating = True
+                    # for each cast that we currently have in the dataset, check to see if the data matches this new cast
+                    for cnt, prev_cast in enumerate(casts):
+                        prev_dpth, prev_sv = prev_cast
+                        # compare casts, if we find that they match completely, we replace with the new cast which probably has a more accurate time/position
+                        #   than the send-to-SIS version (which is probably what is currently in there)
+                        for idx in range(len(new_dpth)):
+                            if (round(new_dpth[idx], 1) != round(prev_dpth[idx], 1)) or (round(new_sv[idx], 1) != round(prev_sv[idx], 1)):
+                                cast_needs_updating = False
+                                break
+                            else:
+                                cast_needs_updating = True
+                        if cast_needs_updating:
+                            old_profile = 'profile_{}'.format(int(cast_times[cnt]))
+                            self.logger.info(f'Replacing sound velocity profile {old_profile} with {cst_name}')
+                            self.remove_profile(old_profile)
+                            break
                     if cast_does_not_exist or cast_needs_updating:
                         attr_dict[attrs_name] = json.dumps({'location': locs[cnt], 'source': name})
                         cast_dict[cst_name] = json.dumps([list(d) for d in dat.items()])
@@ -780,12 +796,18 @@ class Fqpr(ZarrBackend):
             profile_removed = True
             for rpindex in range(len(self.multibeam.raw_ping)):  # for each sonar head (raw_ping)...
                 try:
+                    prof_id, prof_time = profile_name.split('_')
+                    matching_attributes = 'attributes_' + prof_time
                     self.multibeam.raw_ping[rpindex].attrs.pop(profile_name)
+                    self.multibeam.raw_ping[rpindex].attrs.pop(matching_attributes)
                 except:
                     self.logger.warning('WARNING: Unable to find loaded profile data matching attribute "{}"'.format(profile_name))
                     profile_removed = False
                 try:
-                    self.remove_attribute('ping', profile_name, self.multibeam.raw_ping[0].system_identifier)
+                    prof_id, prof_time = profile_name.split('_')
+                    matching_attributes = 'attributes_' + prof_time
+                    self.remove_attribute('ping', profile_name, self.multibeam.raw_ping[rpindex].system_identifier)
+                    self.remove_attribute('ping', matching_attributes, self.multibeam.raw_ping[rpindex].system_identifier)
                 except:
                     self.logger.warning('WARNING: Unable to find data on disk matching attribute "{}" for sonar {}'.format(profile_name, self.multibeam.raw_ping[rpindex].system_identifier))
                     profile_removed = False
@@ -797,7 +819,7 @@ class Fqpr(ZarrBackend):
                 else:
                     self.logger.warning('WARNING: Profile "{}" unsuccessfully removed')
         else:
-            print('Unable to find sound velocity profile "{}" in converted data'.format(profile_name))
+            self.logger.warning('Unable to find sound velocity profile "{}" in converted data'.format(profile_name))
 
     def return_chunk_indices(self, idx_mask: xr.DataArray, pings_per_chunk: int):
         """
@@ -2873,6 +2895,7 @@ class Fqpr(ZarrBackend):
                     msg = f'unexpected cast selection method {cast_selection_method}, must be one of {kluster_variables.cast_selection_methods}'
                     self.logger.error(msg)
                     raise NotImplementedError(msg)
+                self.svmethod = cast_selection_method
                 addtl_offsets = self.return_additional_xyz_offsets(rawping, prefixes, timestmp, idx_by_chunk_subset)
                 chunkargs = [rawping, cast_chunks, casts, prefixes, timestmp, addtl_offsets, start_run_index]
             elif mode == 'georef':
@@ -2946,7 +2969,7 @@ class Fqpr(ZarrBackend):
                               'units': {'rel_azimuth': 'radians', 'corr_pointing_angle': 'radians'}}]
         elif mode == 'sv_corr':
             mode_settings = ['sv_corr', ['alongtrack', 'acrosstrack', 'depthoffset', 'processing_status'], 'sv corrected data',
-                             {'svmode': 'nearest in time', '_sound_velocity_correct_complete': self.sv_time_complete,
+                             {'svmode': self.svmethod, '_sound_velocity_correct_complete': self.sv_time_complete,
                               'current_processing_status': 3,
                               'reference': {'alongtrack': 'reference point', 'acrosstrack': 'reference point',
                                             'depthoffset': 'transmitter'},
