@@ -700,7 +700,7 @@ class Fqpr(ZarrBackend):
                 except:  # all other data ends up replacing which is fine
                     rp.attrs[ky] = copy_dict[ky]
 
-    def import_sound_velocity_files(self, src: Union[str, list]):
+    def import_sound_velocity_files(self, src: Union[str, list], cast_selection_method: str = 'nearestintime'):
         """
         Load to self.cast_files the file paths to the sv casts of interest.
 
@@ -708,6 +708,9 @@ class Fqpr(ZarrBackend):
         ----------
         src
             either a list of files to include or the path to a directory containing sv files (only supporting .svp currently)
+        cast_selection_method
+            method used to determine the cast appropriate for each data chunk.  Used here to determine whether or not this new cast(s)
+            will require reprocessing, i.e. they are selected by one or more chunks of this dataset.
         """
 
         if type(src) is str:
@@ -730,7 +733,13 @@ class Fqpr(ZarrBackend):
                 for cnt, dat in enumerate(data):
                     cst_name = 'profile_{}'.format(int(times[cnt]))
                     attrs_name = 'attributes_{}'.format(int(times[cnt]))
-                    if cst_name not in self.multibeam.raw_ping[0].attrs:
+                    cast_does_not_exist = cst_name not in self.multibeam.raw_ping[0].attrs
+                    cast_needs_updating = False
+                    if not cast_does_not_exist:
+                        curpos = self.multibeam.raw_ping[0].attrs[attrs_name]['location']
+                        if curpos != locs[cnt]:
+                            cast_needs_updating = True
+                    if cast_does_not_exist or cast_needs_updating:
                         attr_dict[attrs_name] = json.dumps({'location': locs[cnt], 'source': name})
                         cast_dict[cst_name] = json.dumps([list(d) for d in dat.items()])
 
@@ -738,7 +747,7 @@ class Fqpr(ZarrBackend):
             self.write_attribute_to_ping_records(attr_dict)
 
             new_cast_names = list(cast_dict.keys())
-            applicable_casts = self.return_applicable_casts()
+            applicable_casts = self.return_applicable_casts(method=cast_selection_method)
             new_applicable_casts = [nc for nc in new_cast_names if nc in applicable_casts]
             if new_applicable_casts:
                 if self.multibeam.raw_ping[0].current_processing_status >= 3:  # have to start over at sound velocity now

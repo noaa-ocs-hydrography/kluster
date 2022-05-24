@@ -28,7 +28,7 @@ def perform_all_processing(filname: Union[str, list], navfiles: list = None, inp
                            vert_ref: str = 'waterline', orientation_initial_interpolation: bool = False,
                            add_cast_files: Union[str, list] = None,
                            skip_dask: bool = False, show_progress: bool = True, parallel_write: bool = True,
-                           vdatum_directory: str = None, **kwargs):
+                           vdatum_directory: str = None, cast_selection_method: str = 'nearestintime', **kwargs):
     """
     Use fqpr_generation to process multibeam data on the local cluster and generate a sound velocity corrected,
     georeferenced xyz with uncertainty in csv files in the provided output folder.
@@ -68,6 +68,9 @@ def perform_all_processing(filname: Union[str, list], navfiles: list = None, inp
         if True, will write in parallel to disk, Disable for permissions issues troubleshooting.
     vdatum_directory
         if 'NOAA MLLW' 'NOAA MHW' is the vertical reference, a path to the vdatum directory is required here
+    cast_selection_method
+        the method used to select the cast that goes with each chunk of the dataset, one of ['nearestintime',
+        'nearestintimefourhours', 'nearestindistance', 'nearestindistancefourhours']
 
     Returns
     -------
@@ -82,7 +85,7 @@ def perform_all_processing(filname: Union[str, list], navfiles: list = None, inp
             fqpr_inst = import_processed_navigation(fqpr_inst, navfiles, **kwargs)
         fqpr_inst = process_multibeam(fqpr_inst, add_cast_files=add_cast_files, coord_system=coord_system, vert_ref=vert_ref,
                                       orientation_initial_interpolation=orientation_initial_interpolation,
-                                      vdatum_directory=vdatum_directory)
+                                      vdatum_directory=vdatum_directory, cast_selection_method=cast_selection_method)
     return fqpr_inst
 
 
@@ -225,7 +228,7 @@ def overwrite_raw_navigation(fqpr_inst: Fqpr, navfiles: list, weekstart_year: in
     return fqpr_inst
 
 
-def import_sound_velocity(fqpr_inst: Fqpr, sv_files: Union[str, list]):
+def import_sound_velocity(fqpr_inst: Fqpr, sv_files: Union[str, list], cast_selection_method: str = 'nearestintime'):
     """
     Convenience function for passing in an instance of fqpr_generation.Fqpr and importing the provided sound velocity
     profile files as attributes.  Allows you to then run sv_correct and automatically select from the saved cast file
@@ -241,6 +244,9 @@ def import_sound_velocity(fqpr_inst: Fqpr, sv_files: Union[str, list]):
         Fqpr instance containing converted data (converted data must exist for the import to work)
     sv_files
         either a list of files to include or the path to a directory containing sv files (only supporting .svp currently)
+    cast_selection_method
+        method used to determine the cast appropriate for each data chunk.  Used here to determine whether or not this new cast(s)
+        will require reprocessing, i.e. they are selected by one or more chunks of this dataset.
 
     Returns
     -------
@@ -248,7 +254,7 @@ def import_sound_velocity(fqpr_inst: Fqpr, sv_files: Union[str, list]):
         Fqpr passed in with additional post processed navigation
     """
 
-    fqpr_inst.import_sound_velocity_files(sv_files)
+    fqpr_inst.import_sound_velocity_files(sv_files, cast_selection_method=cast_selection_method)
     return fqpr_inst
 
 
@@ -256,8 +262,8 @@ def process_multibeam(fqpr_inst: Fqpr, run_orientation: bool = True, orientation
                       run_beam_vec: bool = True, run_svcorr: bool = True, run_georef: bool = True, run_tpu: bool = True,
                       add_cast_files: Union[str, list] = None, input_datum: Union[str, int] = None,
                       use_epsg: bool = False, use_coord: bool = True, epsg: int = None, coord_system: str = 'WGS84',
-                      vert_ref: str = 'waterline', vdatum_directory: str = None, only_this_line: str = None,
-                      only_these_times: tuple = None):
+                      vert_ref: str = 'waterline', vdatum_directory: str = None, cast_selection_method: str = 'nearestintime',
+                      only_this_line: str = None, only_these_times: tuple = None):
     """
     Use fqpr_generation to process already converted data on the local cluster and generate sound velocity corrected,
     georeferenced soundings in the same data store as the converted data.
@@ -301,6 +307,9 @@ def process_multibeam(fqpr_inst: Fqpr, run_orientation: bool = True, orientation
         the vertical reference point, one of ['ellipse', 'waterline', 'NOAA MLLW', 'NOAA MHW']
     vdatum_directory
         if 'NOAA MLLW' 'NOAA MHW' is the vertical reference, a path to the vdatum directory is required here
+    cast_selection_method
+        the method used to select the cast that goes with each chunk of the dataset, one of ['nearestintime',
+        'nearestintimefourhours', 'nearestindistance', 'nearestindistancefourhours']
     only_this_line
         only process this line, subset the full dataset by the min time and maximum time of the line name provided.  ex: 0000_testline.all
     only_these_times
@@ -335,7 +344,7 @@ def process_multibeam(fqpr_inst: Fqpr, run_orientation: bool = True, orientation
     if run_beam_vec:
         fqpr_inst.get_beam_pointing_vectors(subset_time=subset_time)
     if run_svcorr:
-        fqpr_inst.sv_correct(add_cast_files=add_cast_files, subset_time=subset_time)
+        fqpr_inst.sv_correct(add_cast_files=add_cast_files, cast_selection_method=cast_selection_method, subset_time=subset_time)
     if run_georef:
         fqpr_inst.georef_xyz(vdatum_directory=vdatum_directory, subset_time=subset_time)
     if run_tpu:
@@ -1070,7 +1079,7 @@ def return_processed_data_folders(converted_folder: str):
 def reprocess_sounding_selection(fqpr_inst: Fqpr, new_xyzrph: dict = None, subset_time: list = None, return_soundings: bool = False,
                                  georeference: bool = False, turn_off_dask: bool = True, turn_dask_back_on: bool = False,
                                  override_datum: str = None, override_vertical_reference: str = None, isolate_head: int = None,
-                                 vdatum_directory: str = None):
+                                 vdatum_directory: str = None, cast_selection_method: str = 'nearestintime'):
     """
     Designed to feed a patch test tool.  This function will reprocess all the soundings within the given subset
     time and return the xyz values without writing to disk.  If a new xyzrph (dictionary that holds the offsets and
@@ -1116,6 +1125,9 @@ def reprocess_sounding_selection(fqpr_inst: Fqpr, new_xyzrph: dict = None, subse
         0 = port, 1 = starboard
     vdatum_directory
         path to the vdatum directory, required for georeferencing with NOAA MLLW or MHW vertical references
+    cast_selection_method
+        the method used to select the cast that goes with each chunk of the dataset, one of ['nearestintime',
+        'nearestintimefourhours', 'nearestindistance', 'nearestindistancefourhours']
 
     Returns
     -------
@@ -1148,7 +1160,7 @@ def reprocess_sounding_selection(fqpr_inst: Fqpr, new_xyzrph: dict = None, subse
 
     fqpr_inst.get_orientation_vectors(subset_time=subset_time, dump_data=False)
     fqpr_inst.get_beam_pointing_vectors(subset_time=subset_time, dump_data=False)
-    fqpr_inst.sv_correct(subset_time=subset_time, dump_data=False)
+    fqpr_inst.sv_correct(cast_selection_method=cast_selection_method, subset_time=subset_time, dump_data=False)
     if georeference:
         if override_datum is not None:
             datum = override_datum
