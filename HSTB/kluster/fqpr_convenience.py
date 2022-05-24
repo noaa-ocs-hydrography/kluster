@@ -903,8 +903,8 @@ def _get_pointstosurface_transformer(datablock, input_epsg):
 
 def points_to_surface(data_files: list, horizontal_epsg: int, vertical_reference: str, grid_type: str = 'single_resolution',
                       tile_size: float = 1024.0, subtile_size: float = 128, gridding_algorithm: str = 'mean', resolution: float = None,
-                      auto_resolution_mode: str = 'depth', use_dask: bool = False, output_path: str = None, export_path: str = None,
-                      export_format: str = 'geotiff', export_z_positive_up: bool = True, export_resolution: float = None,
+                      auto_resolution_mode: str = 'depth', use_dask: bool = False, output_path: str = None, allow_append: bool = True,
+                      export_path: str = None, export_format: str = 'geotiff', export_z_positive_up: bool = True, export_resolution: float = None,
                       client: Client = None, grid_parameters: dict = None, csv_columns: list = ('x', 'y', 'z')):
     """
     Take in points in either csv or las/laz formats, and build a new bathygrid grid from the data points.
@@ -935,6 +935,9 @@ def points_to_surface(data_files: list, horizontal_epsg: int, vertical_reference
         if True, will start a dask LocalCluster instance and perform the gridding in parallel
     output_path
         if provided, will save the Bathygrid to this path, with data saved as stacked numpy (npy) files
+    allow_append
+        if True and the output_path provided exists, this function will attempt to add the new points to the existing
+        grid, using the existing grid resolution, grid type, etc.
     export_path
         if provided, will export the Bathygrid to csv
     export_format
@@ -978,14 +981,27 @@ def points_to_surface(data_files: list, horizontal_epsg: int, vertical_reference
     new_transformer = None
 
     print('Preparing data...')
-    # set some arbitrary number of pings to hold in memory at once, probably need a smarter way to do this eventually
-    #  just make sure it is a multiple of 1000, the chunksize of the raw_ping dataset
-    bg = create_grid(folder_path=output_path, grid_type=grid_type, tile_size=tile_size, subtile_size=subtile_size)
+    if allow_append and output_path and os.path.exists(output_path):
+        print('Appending to existing grid, using the existing grid attribution for resolution, epsg, vertical reference, etc.')
+        bg = reload_surface(output_path)
+        grid_attribution = bg.return_attribution()
+        horizontal_epsg = grid_attribution['epsg']
+        vertical_reference = grid_attribution['vertical_reference']
+        gridding_algorithm = grid_attribution['grid_algorithm']
+        if isinstance(bg.grid_resolution, float) or isinstance(bg.grid_resolution, int):  # sr
+            resolution = bg.grid_resolution
+            auto_resolution_mode = 'depth'
+        else:  # variable resolution mode
+            resolution = None
+            auto_resolution_mode = bg.grid_resolution[5:].lower()
+        grid_parameters = grid_attribution['grid_parameters']
+    else:
+        bg = create_grid(folder_path=output_path, grid_type=grid_type, tile_size=tile_size, subtile_size=subtile_size)
     if client is not None:
         bg.client = client
     for f in data_files:
         fname = os.path.split(f)[1]
-        ftag = fname + '_' + datetime.now().strftime('%Y%m%d_%H%M%S') + '_0'
+        ftag = fname + '__' + fname
         ffiles = [f]
         if iscsv:
             has_header, skiprows = _csv_has_header(f)

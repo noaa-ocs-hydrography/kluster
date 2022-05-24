@@ -11,7 +11,7 @@ class SurfaceFromPointsDialog(SurfaceDialog):
     def __init__(self, parent=None, title='', settings=None):
         super().__init__(parent=parent, title=title, settings=settings)
 
-        self.setWindowTitle('Generate New Surface From Points')
+        self.setWindowTitle('Generate Surface From Points')
         self.input_fqpr.setup(mode='file', registry_key='kluster', app_name='pointfilebrowse',
                               supported_file_extension=['.txt', '.csv', '.las', '.laz'], multiselect=True,
                               filebrowse_title='Select points files to import',
@@ -112,12 +112,52 @@ class SurfaceFromPointsDialog(SurfaceDialog):
 
         self.toplayout.insertWidget(1, self.export_options)
 
+        self.new_grid_checkbox = QtWidgets.QCheckBox('Create new surface')
+        self.new_grid_checkbox.setChecked(True)
+        self.toplayout.insertWidget(4, self.new_grid_checkbox)
+
+        self.append_grid_checkbox = QtWidgets.QCheckBox('Add to existing surface')
+        self.append_grid_checkbox.setChecked(False)
+        self.toplayout.insertWidget(7, self.append_grid_checkbox)
+
+        self.append_options = QtWidgets.QGroupBox('Select from the following options:')
+        self.append_options.setCheckable(False)
+        self.append_layout = QtWidgets.QVBoxLayout()
+
+        self.append_output_msg = QtWidgets.QLabel('Add to:')
+        self.append_layout.addWidget(self.append_output_msg)
+
+        self.hlayout_append = QtWidgets.QHBoxLayout()
+        self.append_output_text = QtWidgets.QLineEdit('', self)
+        self.append_output_text.setMinimumWidth(400)
+        self.append_output_text.setReadOnly(False)
+        self.hlayout_append.addWidget(self.append_output_text)
+        self.append_output_button = QtWidgets.QPushButton("Browse", self)
+        self.hlayout_append.addWidget(self.append_output_button)
+        self.append_layout.addLayout(self.hlayout_append)
+
+        self.append_options.setLayout(self.append_layout)
+
+        self.toplayout.insertWidget(8, self.append_options)
+
+        self.append_pth = None
+        self.append_path_edited = False
+
+        self.append_grid_checkbox.toggled.connect(self.handle_append_checked)
+        self.new_grid_checkbox.toggled.connect(self.handle_create_checked)
+
+        self.append_output_button.clicked.connect(self.append_browse)
+        self.append_output_text.textChanged.connect(self._update_append_pth)
+
         self._filetype = ''
         self.text_controls += [['inepsg_val', self.inepsg_val], ['invertref_val', self.invertref_val],
                                ['x_entry', self.x_entry], ['y_entry', self.y_entry], ['z_entry', self.z_entry],
-                               ['thu_entry', self.thu_entry], ['tvu_entry', self.tvu_entry]]
-        self.checkbox_controls += [['thu_include', self.thu_include], ['tvu_include', self.tvu_include]]
+                               ['thu_entry', self.thu_entry], ['tvu_entry', self.tvu_entry], ['append_output_text', self.append_output_text]]
+        self.checkbox_controls += [['thu_include', self.thu_include], ['tvu_include', self.tvu_include],
+                                   ['append_grid_checkbox', self.append_grid_checkbox], ['new_grid_checkbox', self.new_grid_checkbox]]
         self.read_settings()
+        self.handle_append_checked(self.append_grid_checkbox.isChecked())
+        self.handle_create_checked(self.new_grid_checkbox.isChecked())
 
     @property
     def filetype(self):
@@ -171,6 +211,38 @@ class SurfaceFromPointsDialog(SurfaceDialog):
             self.tvu_entry.hide()
             self.tvuspacer.hide()
 
+    def append_browse(self):
+        msg, output_pth = RegistryHelpers.GetDirFromUserQT(self, RegistryKey='Kluster', Title='Select output surface path',
+                                                           AppName='kluster')
+        if output_pth is not None:
+            self.append_pth = output_pth
+            self.append_output_text.setText(self.append_pth)
+            self.append_path_edited = True
+
+    def _update_append_pth(self):
+        self.append_pth = self.append_output_text.text()
+        self.append_path_edited = True
+
+    def handle_create_checked(self, e):
+        if e:
+            self.inepsg_val.setDisabled(False)
+            self.invertref_val.setDisabled(False)
+            self.epsg_label.setDisabled(False)
+            self.vertref_label.setDisabled(False)
+            self.surf_options.setDisabled(False)
+            self.append_options.setDisabled(True)
+            self.append_grid_checkbox.setChecked(False)
+
+    def handle_append_checked(self, e):
+        if e:
+            self.inepsg_val.setDisabled(True)
+            self.invertref_val.setDisabled(True)
+            self.epsg_label.setDisabled(True)
+            self.vertref_label.setDisabled(True)
+            self.surf_options.setDisabled(True)
+            self.append_options.setDisabled(False)
+            self.new_grid_checkbox.setChecked(False)
+
     def _event_update_fqpr_instances(self):
         self.update_fqpr_instances()
         if self.fqpr_inst:
@@ -179,6 +251,9 @@ class SurfaceFromPointsDialog(SurfaceDialog):
     def return_processing_options(self):
         opts = super().return_processing_options()
         if opts is not None:
+            opts['allow_append'] = self.append_grid_checkbox.isChecked()
+            if opts['allow_append']:
+                opts['output_path'] = self.append_pth
             opts['horizontal_epsg'] = int(self.inepsg_val.text())
             opts['vertical_reference'] = str(self.invertref_val.text())
 
@@ -209,10 +284,12 @@ class SurfaceFromPointsDialog(SurfaceDialog):
             return False
 
     def start_processing(self):
-        if self.output_pth is None:
-            self.status_msg.setText('Error: You must insert a Save To path to continue')
+        if (self.output_pth is None and self.new_grid_checkbox.isChecked()) or (self.append_pth is None and self.append_grid_checkbox.isChecked()):
+            self.status_msg.setText('Error: You must insert an output path to continue')
         elif not self.fqpr_inst:
             self.status_msg.setText('Error: You must provide at least one file in the box above')
+        elif not self.append_grid_checkbox.isChecked() and not self.new_grid_checkbox.isChecked():
+            self.status_msg.setText('Error: You must select either Create New Surface or Add to Existing Surface to proceed.')
         elif not self.validate_epsg():
             pass
         elif not self.invertref_val.text():
