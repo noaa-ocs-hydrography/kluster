@@ -1143,6 +1143,7 @@ def reprocess_sounding_selection(fqpr_inst: Fqpr, new_xyzrph: dict = None, subse
         raise ValueError('horizontal_crs object not found.  Please run Fqpr.construct_crs first')
     if 'vertical_reference' not in fqpr_inst.multibeam.raw_ping[0].attrs and georeference:
         raise NotImplementedError('set_vertical_reference must be run before georeferencing')
+
     if turn_off_dask and fqpr_inst.client is not None:
         fqpr_inst.client.close()
         fqpr_inst.client = None

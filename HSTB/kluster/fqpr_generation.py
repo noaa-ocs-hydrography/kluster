@@ -2893,9 +2893,10 @@ class Fqpr(ZarrBackend):
                 elif cast_selection_method == 'nearest_in_distance_four_hours':
                     cast_chunks = self.return_cast_idx_nearestindistance_fourhours(idx_by_chunk_subset, silent=silent)
                 else:
-                    msg = f'unexpected cast selection method {cast_selection_method}, must be one of {kluster_variables.cast_selection_methods}'
-                    self.logger.error(msg)
-                    raise NotImplementedError(msg)
+                    msg = f'unexpected cast selection method "{cast_selection_method}", must be one of ' \
+                          f'{kluster_variables.cast_selection_methods} as of 0.9.6.  Defaulting to nearest_in_time.'
+                    self.logger.warning(msg)
+                    cast_chunks = self.return_cast_idx_nearestintime(idx_by_chunk_subset, silent=silent)
                 self.svmethod = cast_selection_method
                 addtl_offsets = self.return_additional_xyz_offsets(rawping, prefixes, timestmp, idx_by_chunk_subset)
                 chunkargs = [rawping, cast_chunks, casts, prefixes, timestmp, addtl_offsets, start_run_index]

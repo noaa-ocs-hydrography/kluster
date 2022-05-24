@@ -1388,7 +1388,12 @@ def reprocess_fqprs(fqprs: list, newvalues: list, headindex: int, prefixes: list
             fq.multibeam.xyzrph[prefixes[5]][tstmp] = zlever
             fq.multibeam.xyzrph[prefixes[6]][tstmp] = latency
         fq.intermediate_dat = {}  # clear out the reprocessed cached data
-        fq, soundings = reprocess_sounding_selection(fq, vdatum_directory=vdatum_directory, georeference=True)
+        try:
+            cast_selection_method = fq.multibeam.raw_ping[0].svmode
+        except:
+            cast_selection_method = 'nearest_in_time'
+        fq, soundings = reprocess_sounding_selection(fq, vdatum_directory=vdatum_directory, georeference=True,
+                                                     cast_selection_method=cast_selection_method)
 
         for tstmp in fqtimestamps:
             newx = np.concatenate([d[0][0].values for d in fq.intermediate_dat[serial_number]['georef'][tstmp]], axis=0)
