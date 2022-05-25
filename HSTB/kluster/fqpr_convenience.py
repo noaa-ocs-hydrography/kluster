@@ -469,19 +469,28 @@ def _add_points_to_surface(fqpr_inst: Union[dict, Fqpr], bgrid: BathyGrid, fqpr_
     """
 
     if isinstance(fqpr_inst, dict):
+        has_thu = bgrid.has_horizontal_uncertainty
+        has_tvu = bgrid.has_vertical_uncertainty
+        nan_msk = ~np.isnan(fqpr_inst['z'])
         dtyp = [('x', np.float64), ('y', np.float64), ('z', np.float32)]
-        if 'tvu' in fqpr_inst:
+        if 'tvu' in fqpr_inst or has_tvu:
             dtyp += [('tvu', np.float32)]
-        if 'thu' in fqpr_inst:
+        if 'thu' in fqpr_inst or has_thu:
             dtyp += [('thu', np.float32)]
-        parray = np.empty(len(fqpr_inst['z']), dtype=dtyp)
-        parray['x'] = fqpr_inst['x']
-        parray['y'] = fqpr_inst['y']
-        parray['z'] = fqpr_inst['z']
+        parray = np.empty(len(fqpr_inst['z'][nan_msk]), dtype=dtyp)
+        parray['x'] = fqpr_inst['x'][nan_msk]
+        parray['y'] = fqpr_inst['y'][nan_msk]
+        parray['z'] = fqpr_inst['z'][nan_msk]
         if 'tvu' in fqpr_inst:
-            parray['tvu'] = fqpr_inst['tvu']
+            parray['tvu'] = fqpr_inst['tvu'][nan_msk]
+        elif has_tvu:
+            print('WARNING: This grid contains vertical uncertainty but these new points do not, algorithms like CUBE will no longer work properly')
+            parray['tvu'] = np.full_like(parray['z'], np.nan)
         if 'thu' in fqpr_inst:
-            parray['thu'] = fqpr_inst['thu']
+            parray['thu'] = fqpr_inst['thu'][nan_msk]
+        elif has_thu:
+            print('WARNING: This grid contains vertical uncertainty but these new points do not, algorithms like CUBE will no longer work properly\n')
+            parray['thu'] = np.full_like(parray['z'], np.nan)
         if 'tag' in fqpr_inst:
             containername = fqpr_inst['tag']
         else:
