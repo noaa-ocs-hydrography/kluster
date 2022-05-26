@@ -605,8 +605,8 @@ def _validate_fqpr_for_gridding(fqpr_instances: list):
     return True
 
 
-def generate_new_surface(fqpr_inst: Union[Fqpr, list], grid_type: str = 'single_resolution', tile_size: float = 1024.0,
-                         subtile_size: float = 128, gridding_algorithm: str = 'mean', resolution: float = None,
+def generate_new_surface(fqpr_inst: Union[Fqpr, list] = None, grid_type: str = 'single_resolution', tile_size: float = 1024.0,
+                         subtile_size: float = 128.0, gridding_algorithm: str = 'mean', resolution: float = None,
                          auto_resolution_mode: str = 'depth',
                          use_dask: bool = False, output_path: str = None, export_path: str = None,
                          export_format: str = 'geotiff', export_z_positive_up: bool = True,
@@ -629,7 +629,7 @@ def generate_new_surface(fqpr_inst: Union[Fqpr, list], grid_type: str = 'single_
         point data outside of the FQPR object.  These dicts should have keys including ['x', 'y', 'z', 'crs', 'vert_ref']
         and optionally ['tvu', 'thu', 'tag', 'files'].  tvu and thu will be used in the CUBE algorithm, tag will be
         the container name tagged for these points in the bathygrid instance, and files will be logged as the source
-        files for that container in the bathygrid metadata.
+        files for that container in the bathygrid metadata.  If None is provided, will create an empty surface.
     grid_type
         one of 'single_resolution', 'variable_resolution_tile'
     tile_size
@@ -671,55 +671,67 @@ def generate_new_surface(fqpr_inst: Union[Fqpr, list], grid_type: str = 'single_
     print('***** Generating new Bathygrid surface *****')
     strttime = perf_counter()
 
-    if not isinstance(fqpr_inst, list):
-        fqpr_inst = [fqpr_inst]
-    if isinstance(fqpr_inst[0], Fqpr):
-        is_fqpr = True
-        unique_crs, unique_vertref = _get_unique_crs_vertref(fqpr_inst)
-    elif isinstance(fqpr_inst[0], dict):
-        try:
-            assert all([all([ky in fqprinst for ky in ['x', 'y', 'z', 'crs', 'vert_ref']]) for fqprinst in fqpr_inst])
-        except:
-            raise ValueError("generate_new_surface: When using point data, you must provide ['x', 'y', 'z', 'crs', 'vert_ref'] keys in each dict object")
-        try:
-            assert all([fqpr_inst[0]['crs'] == fq['crs'] for fq in fqpr_inst])
-        except:
-            raise ValueError("generate_new_surface: When using point data, all 'crs' keys must match")
-        try:
-            assert all([fqpr_inst[0]['vert_ref'] == fq['vert_ref'] for fq in fqpr_inst])
-        except:
-            raise ValueError("generate_new_surface: When using point data, all 'crs' keys must match")
-        is_fqpr = False
-        unique_crs = [fqpr_inst[0]['crs']]
-        unique_vertref = [fqpr_inst[0]['vert_ref']]
-    else:
-        raise NotImplementedError('generate_new_surface: Expected input data to either be a FQPR instance or a dict of variables')
+    if fqpr_inst is not None:  # creating and adding data to a surface, validate the input data
+        if not isinstance(fqpr_inst, list):
+            fqpr_inst = [fqpr_inst]
+        if isinstance(fqpr_inst[0], Fqpr):
+            is_fqpr = True
+            unique_crs, unique_vertref = _get_unique_crs_vertref(fqpr_inst)
+        elif isinstance(fqpr_inst[0], dict):
+            try:
+                assert all([all([ky in fqprinst for ky in ['x', 'y', 'z', 'crs', 'vert_ref']]) for fqprinst in fqpr_inst])
+            except:
+                raise ValueError("generate_new_surface: When using point data, you must provide ['x', 'y', 'z', 'crs', 'vert_ref'] keys in each dict object")
+            try:
+                assert all([fqpr_inst[0]['crs'] == fq['crs'] for fq in fqpr_inst])
+            except:
+                raise ValueError("generate_new_surface: When using point data, all 'crs' keys must match")
+            try:
+                assert all([fqpr_inst[0]['vert_ref'] == fq['vert_ref'] for fq in fqpr_inst])
+            except:
+                raise ValueError("generate_new_surface: When using point data, all 'crs' keys must match")
+            is_fqpr = False
+            unique_crs = [fqpr_inst[0]['crs']]
+            unique_vertref = [fqpr_inst[0]['vert_ref']]
+        else:
+            raise NotImplementedError('generate_new_surface: Expected input data to either be a FQPR instance or a dict of variables')
 
-    if not _validate_fqpr_for_gridding(fqpr_inst):
-        return None
+        if not _validate_fqpr_for_gridding(fqpr_inst):
+            return None
 
-    if unique_vertref is None or unique_crs is None:
-        return None
-    gridding_algorithm = gridding_algorithm.lower()
-    if gridding_algorithm == 'cube':
-        print('compiling cube algorithm...')
-        compile_now()
+        if unique_vertref is None or unique_crs is None:
+            return None
 
-    print('Preparing data...')
-    # set some arbitrary number of pings to hold in memory at once, probably need a smarter way to do this eventually
-    #  just make sure it is a multiple of 1000, the chunksize of the raw_ping dataset
+        gridding_algorithm = gridding_algorithm.lower()
+        if gridding_algorithm == 'cube' and fqpr_inst is not None:
+            print('compiling cube algorithm...')
+            compile_now()
+
+        print('Preparing data...')
+        # add data to grid line by line
+
     bg = create_grid(folder_path=output_path, grid_type=grid_type, tile_size=tile_size, subtile_size=subtile_size)
-    if client is not None:
-        bg.client = client
-    for f in fqpr_inst:
-        _add_points_to_surface(f, bg, unique_crs[0], unique_vertref[0])
+    if fqpr_inst is not None:
+        if client is not None:
+            bg.client = client
+        for f in fqpr_inst:
+            _add_points_to_surface(f, bg, unique_crs[0], unique_vertref[0])
 
-    # now after all points are added, run grid with the options presented
-    bg.grid(algorithm=gridding_algorithm, resolution=resolution, auto_resolution_mode=auto_resolution_mode,
-            use_dask=use_dask, grid_parameters=grid_parameters)
-    if export_path:
-        bg.export(output_path=export_path, export_format=export_format, z_positive_up=export_z_positive_up,
-                  resolution=export_resolution)
+        # now after all points are added, run grid with the options presented.  If empty grid, just save the parameters
+        bg.grid(algorithm=gridding_algorithm, resolution=resolution, auto_resolution_mode=auto_resolution_mode,
+                use_dask=use_dask, grid_parameters=grid_parameters)
+        if export_path:
+            bg.export(output_path=export_path, export_format=export_format, z_positive_up=export_z_positive_up,
+                      resolution=export_resolution)
+    else:  # save the gridding variables to the empty surface, so that you can add and regrid easily later without respecifying
+        bg.grid_algorithm = gridding_algorithm
+        if resolution is None:
+            bg.grid_resolution = 'AUTO_{}'.format(auto_resolution_mode).upper()
+        else:
+            bg.grid_resolution = float(resolution)
+        bg.grid_parameters = grid_parameters
+        bg.resolutions = []
+        bg._save_grid()
 
     endtime = perf_counter()
     print('***** Surface Generation Complete: {} *****'.format(seconds_to_formatted_string(int(endtime - strttime))))
