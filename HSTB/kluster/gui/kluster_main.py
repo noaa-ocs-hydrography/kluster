@@ -1464,7 +1464,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         if fq_surf is not None and not self.surface_thread.error:
             relpath_surf = self.project.path_relative_to_project(os.path.normpath(fq_surf.output_folder))
             if relpath_surf in self.project.surface_instances:
-                self.close_surface(relpath_surf, only_resolutions=self.surface_update_thread.all_resolutions)
+                self.close_surface(relpath_surf)
             self.project.add_surface(fq_surf)
             self.project_tree.refresh_project(proj=self.project)
             self.redraw()
@@ -1548,7 +1548,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         """
 
         fq_surf = self.surface_update_thread.fqpr_surface
-        if fq_surf is not None and not self.surface_thread.error:
+        if fq_surf is not None and not self.surface_update_thread.error:
             relpath_surf = self.project.path_relative_to_project(os.path.normpath(fq_surf.output_folder))
             self.close_surface(relpath_surf, only_resolutions=self.surface_update_thread.all_resolutions)
             self.project.add_surface(fq_surf)

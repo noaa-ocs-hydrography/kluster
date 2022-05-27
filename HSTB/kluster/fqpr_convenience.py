@@ -499,12 +499,27 @@ def _add_points_to_surface(fqpr_inst: Union[dict, Fqpr], bgrid: BathyGrid, fqpr_
             datafiles = fqpr_inst['files']
         else:
             datafiles = None
+        if bgrid.vertical_reference and (bgrid.vertical_reference != fqpr_vertref):
+            # add another check for when you have complicated mllw wkt strings that might be slightly different
+            if not (bgrid.vertical_reference.find('MLLW') != -1 and fqpr_vertref.find('MLLW') != -1):
+                print(f'ERROR: this imported data {containername} has a vertical reference of {fqpr_vertref}, where the grid has a vertical reference of {bgrid.vertical_reference}')
+                return
+        elif bgrid.epsg and (bgrid.epsg != fqpr_crs):
+            print(f'ERROR: this imported data {containername} has an EPSG of {fqpr_crs}, where the grid has an EPSG of {bgrid.epsg}')
+            return
         bgrid.add_points(parray, containername, datafiles, fqpr_crs, fqpr_vertref)
     else:
         cont_name = os.path.split(fqpr_inst.output_folder)[1]
         min_time = np.min([rp.time.values[0] for rp in fqpr_inst.multibeam.raw_ping])
         max_time = np.max([rp.time.values[-1] for rp in fqpr_inst.multibeam.raw_ping])
         multibeamfiles = list(fqpr_inst.multibeam.raw_ping[0].multibeam_files.keys())
+        if bgrid.vertical_reference and (bgrid.vertical_reference != fqpr_vertref):
+            if not (bgrid.vertical_reference.find('MLLW') != -1 and fqpr_vertref.find('MLLW') != -1):
+                print(f'ERROR: this imported data {cont_name} has a vertical reference of {fqpr_vertref}, where the grid has a vertical reference of {bgrid.vertical_reference}')
+                return
+        elif bgrid.epsg and (bgrid.epsg != fqpr_crs):
+            print(f'ERROR: this imported data {cont_name} has an EPSG of {fqpr_crs}, where the grid has an EPSG of {bgrid.epsg}')
+            return
         if add_lines:
             multibeamfiles = [mfile for mfile in multibeamfiles if mfile in add_lines]
         for mfile in multibeamfiles:
@@ -558,6 +573,9 @@ def _get_unique_crs_vertref(fqpr_instances: list):
     unique_crs = []
     unique_vertref = []
     for fq in fqpr_instances:
+        if not fq.is_processed():
+            print(f'_get_unique_crs_vertref: {fq.output_folder} is not fully processed, current processing status={fq.status}')
+            return None, None
         crs_data = fq.horizontal_crs.to_epsg()
         vertref = fq.multibeam.raw_ping[0].vertical_reference
         if crs_data is None:
@@ -696,10 +714,10 @@ def generate_new_surface(fqpr_inst: Union[Fqpr, list] = None, grid_type: str = '
         else:
             raise NotImplementedError('generate_new_surface: Expected input data to either be a FQPR instance or a dict of variables')
 
-        if not _validate_fqpr_for_gridding(fqpr_inst):
+        if unique_vertref is None or unique_crs is None:
             return None
 
-        if unique_vertref is None or unique_crs is None:
+        if not _validate_fqpr_for_gridding(fqpr_inst):
             return None
 
         gridding_algorithm = gridding_algorithm.lower()
@@ -814,6 +832,11 @@ def update_surface(surface_instance: Union[str, BathyGrid], add_fqpr: Union[Fqpr
         else:  # list of fqprs provided
             if add_lines and len(add_fqpr) != len(add_lines):
                 print(f'update_surface - add: when a list of fqpr data instances are added by line, expect a list of line names of the same length: fqpr: {add_fqpr}, add_lines: {add_lines}')
+                return None
+
+        for fq in add_fqpr:
+            if not fq.is_processed():
+                print(f'_get_unique_crs_vertref: {fq.output_folder} is not fully processed, current processing status={fq.status}')
                 return None
 
         if not _validate_fqpr_for_gridding(add_fqpr):
