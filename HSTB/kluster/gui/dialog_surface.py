@@ -363,6 +363,8 @@ class SurfaceDialog(SaveStateDialog):
     def start_processing(self):
         if self.output_pth is None:
             self.status_msg.setText('Error: You must insert a surface path to continue')
+        elif not self.line_surface_checkbox.isChecked() and not self.basic_surface_group.isChecked():
+            self.status_msg.setText('Error: You must either check "Run Surface Generation..." or "Only Selected Lines"')
         else:
             self.canceled = False
             self.save_settings()

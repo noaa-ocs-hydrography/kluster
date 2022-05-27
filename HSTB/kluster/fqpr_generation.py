@@ -439,6 +439,37 @@ class Fqpr(ZarrBackend):
         copyfq.multibeam.raw_att.attrs = deepcopy(self.multibeam.raw_att.attrs)
         return copyfq
 
+    def is_processed(self, in_depth: bool = False):
+        """
+        Kluster maintains two records for processing status.  current_processing_status is a scalar attribute used by
+        the intelligence engine to max processing decisions.  processing_status is a sounding variable that records the
+        integer processing status for each sounding.
+
+        The is_processed check will see if this fqpr instance has achieved max_processing_status.  in_depth will use
+        the processing_status variable, checking each sounding attribute to compare against the max_processing_status.
+        Otherwise, we just check the current_processing_status number, which is much faster
+
+        Parameters
+        ----------
+        in_depth
+            if True, will use the more expensive check to ensure each sounding is fully processed
+
+        Returns
+        -------
+        bool
+            if True, this fqpr is fully processed
+        """
+        if not in_depth:
+            for rp in self.multibeam.raw_ping:
+                if rp.current_processing_status < kluster_variables.max_processing_status:
+                    return False
+            return True
+        else:
+            for rp in self.multibeam.raw_ping:
+                if bool((rp.processing_status < kluster_variables.max_processing_status).any()):
+                    return False
+            return True
+
     def line_is_processed(self, line_name: str):
         """
         If line is processed, the TVU will not be all NaN in the middle of the line.  This method will check that and
@@ -462,7 +493,7 @@ class Fqpr(ZarrBackend):
                 # nearest to start/end time could be the next line, so just use the midpoint
                 middle_time = starttime + ((endtime - starttime) / 2)
                 # if it is processed, you should have all max processing status for each beam
-                isprocessed = bool((rp.processing_status.sel(time=middle_time, method='nearest') == kluster_variables.max_processing_status).all())
+                isprocessed = bool((rp.processing_status.sel(time=middle_time, method='nearest') >= kluster_variables.max_processing_status).all())
                 return isprocessed
         print('Warning: unable to find line {} in converted dataset'.format(line_name))
         return None

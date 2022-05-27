@@ -1442,6 +1442,10 @@ class KlusterMain(QtWidgets.QMainWindow):
                                 # use the project client, or start a new LocalCluster if client is None
                                 # fq_inst.client = self.project.get_dask_client()
                                 fq_chunks.extend([fq_inst])
+                    for fq in fq_chunks:
+                        if not fq.is_processed(in_depth=False):
+                            self.print(f'{fq.output_folder} is not fully processed, current processing status={fq.status}', logging.ERROR)
+                            return
                     if not dlog.canceled:
                         # if the project has a client, use it here.  If None, BatchRead starts a new LocalCluster
                         self.output_window.clear()
