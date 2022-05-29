@@ -1148,7 +1148,6 @@ class Fqpr(ZarrBackend):
         if self.multibeam.is_dual_head():  # dual dual systems
             if not is_primary_system:  # secondary head
                 # self.logger.info('Building induced heave for secondary system in dual head arrangement')
-
                 # lever arms for secondary head to ref pt
                 refpt = self.multibeam.return_prefix_for_rp()
                 secondary_x_lever = float(self.multibeam.xyzrph[prefixes[refpt[0]] + '_x'][timestmp])
@@ -1158,6 +1157,8 @@ class Fqpr(ZarrBackend):
                 # lever arms for primary head to ref pt
                 if prefixes[0].find('port') != -1:
                     prefixes = [pfix.replace('port', 'stbd') for pfix in prefixes]
+                elif prefixes[0].find('stbd') != -1:
+                    prefixes = [pfix.replace('stbd', 'port') for pfix in prefixes]
 
                 primary_x_lever = float(self.multibeam.xyzrph[prefixes[refpt[0]] + '_x'][timestmp])
                 primary_y_lever = float(self.multibeam.xyzrph[prefixes[refpt[1]] + '_y'][timestmp])
