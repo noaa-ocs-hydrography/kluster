@@ -52,6 +52,7 @@ class FqprIntel(LoggerClass):
         self.keep_waterline_changes = True
         self.force_coordinate_match = True
         self.autoprocessing_mode = 'normal'
+        self.designated_surface = ''
 
         self.multibeam_intel = MultibeamModule(silent=self.silent, logger=self.logger)
         self.nav_intel = NavigationModule(silent=self.silent, logger=self.logger)
@@ -119,7 +120,7 @@ class FqprIntel(LoggerClass):
         """
 
         desired_keys = ['use_epsg', 'epsg', 'use_coord', 'coord_system', 'vert_ref', 'vdatum_directory', 'input_datum',
-                        'cast_selection_method']
+                        'cast_selection_method', 'designated_surface']
         self.processing_settings.update({ky: settings[ky] for ky in desired_keys if ky in settings})
         existing_kwargs = list(settings.keys())
         [settings.pop(ky) for ky in existing_kwargs if ky in desired_keys]
@@ -132,6 +133,8 @@ class FqprIntel(LoggerClass):
             self.force_coordinate_match = settings['force_coordinate_match']
         if 'autoprocessing_mode' in settings:
             self.autoprocessing_mode = settings['autoprocessing_mode']
+        if 'designated_surface' in settings:
+            self.designated_surface = settings['designated_surface']
         self.regenerate_actions()
 
     def set_auto_processing_mode(self, process_mode: str = 'normal'):
@@ -147,6 +150,28 @@ class FqprIntel(LoggerClass):
         """
 
         self.set_settings({'autoprocessing_mode': process_mode})
+
+    def set_designated_surface(self, surf_name: str):
+        """
+        Set a new designated surface by providing the path to a bathygrid folder here.  The designated surface will
+        be automatically updated when new processed fqpr containers are added to the project.
+
+        Parameters
+        ----------
+        surf_name
+            path to the bathygrid folder that you want to set as the designated surface
+        """
+
+        if not surf_name:  # clear the designated surface
+            self.set_settings({'designated_surface': ''})
+        if surf_name in self.project.surface_instances:  # you got the path to the surface instance right
+            self.set_settings({'designated_surface': surf_name})
+        elif self.project.path_relative_to_project(surf_name) in self.project.surface_instances:  # not found, check to see if we need to use a relative path
+            surf_name = self.project.path_relative_to_project(surf_name)
+            self.set_settings({'designated_surface': surf_name})
+        else:
+            self.print_msg(f'Unable to add {surf_name} as new designated surface, surface not found in project, please add to project first', logging.ERROR)
+        self.print_msg(f'Set {surf_name} as new designated surface for updating')
 
     def update_from_project(self, project_updated: bool = True):
         """

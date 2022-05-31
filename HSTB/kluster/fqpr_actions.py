@@ -212,7 +212,7 @@ class FqprActionContainer:
         Parameters
         ----------
         action_type
-            one of 'multibeam', 'svp', 'navigation', 'processing'
+            one of 'multibeam', 'svp', 'navigation', 'processing', 'gridding'
         """
 
         if self.actions:
@@ -226,7 +226,7 @@ class FqprActionContainer:
         Parameters
         ----------
         action_type
-            one of 'multibeam', 'svp', 'navigation', 'processing'
+            one of 'multibeam', 'svp', 'navigation', 'processing', 'gridding'
 
         Returns
         -------
@@ -360,7 +360,7 @@ def build_nav_action(destination: str, fqpr_instance: fqpr_generation.Fqpr, navf
     Returns
     -------
     FqprAction
-        newly generated multibeam conversion action
+        newly generated import processed navigation action
     """
 
     args = [fqpr_instance, navfiles]
@@ -420,7 +420,7 @@ def build_svp_action(destination: str, fqpr_instance: fqpr_generation.Fqpr, svfi
     Returns
     -------
     FqprAction
-        newly generated multibeam conversion action
+        newly generated import sound velocity action
     """
 
     args = [fqpr_instance, svfiles]
@@ -479,7 +479,7 @@ def build_processing_action(destination: str, args: list, kwargs: dict, settings
     Returns
     -------
     FqprAction
-        newly generated multibeam conversion action
+        newly generated multibeam processing action
     """
 
     # update the default processing kwargs for settings
@@ -536,7 +536,7 @@ def update_kwargs_for_processing(destination: str, args: list, kwargs: dict, set
     Returns
     -------
     dict
-        updated args for the svp action
+        updated args for the processing action
     """
 
     # update the default processing kwargs for settings
@@ -565,4 +565,79 @@ def update_kwargs_for_processing(destination: str, args: list, kwargs: dict, set
         text = 'Process {} with custom setup'.format(source)
 
     update_settings = {'text': text, 'args': args, 'kwargs': kwargs}
+    return update_settings
+
+
+def build_surface_action(destination: str, surface_instance: fqpr_convenience.BathyGrid, add_fqpr: list = None,
+                         add_lines: list = None, remove_fqpr: list = None, remove_lines: list = None):
+    """
+    Generate a new update surface action, adding multibeam files (or removing multibeam files) and regridding
+
+    Parameters
+    ----------
+    destination
+        folder path to the bathygrid surface folder
+    surface_instance
+        a loaded Bathygrid instance
+    add_fqpr
+        Optional, a list of Fqpr instances to add to the surface
+    add_lines
+        Optional, if provided will only add lines that are in this list(s).  a list of lists of lines (when a list of
+        fqpr instances is provided)
+    remove_fqpr
+        Optional, a list of Fqpr instances to remove from the surface
+    remove_lines
+        Optional, if provided will only add lines that are in this list(s)  a list of lists of lines (when a list of
+        fqpr instances is provided)
+
+    Returns
+    -------
+    FqprAction
+        newly generated update surface action
+    """
+
+    args = [surface_instance]
+    kwargs = {'add_fqpr': add_fqpr, 'add_lines': add_lines, 'remove_fqpr': remove_fqpr, 'remove_lines': remove_lines}
+    ttext = 'Adding:\n{}\nRemoving:\n{}\n'.format('\n'.join(add_fqpr), '\n'.join(remove_fqpr))
+    action = FqprAction(priority=6, action_type='gridding', output_destination=destination,
+                        input_files=[], text='Update Surface {}'.format(destination),
+                        tooltip_text=ttext, function=fqpr_convenience.update_surface,
+                        args=args, kwargs=kwargs)
+    return action
+
+
+def update_kwargs_for_surface(destination: str, surface_instance: fqpr_convenience.BathyGrid, add_fqpr: list = None,
+                              add_lines: list = None, remove_fqpr: list = None, remove_lines: list = None):
+    """
+    Build a dictionary of updated settings for an existing update surface action, use this with FqprActionContainer to
+    update the action.
+
+    Parameters
+    ----------
+    destination
+        folder path to the bathygrid surface folder
+    surface_instance
+        a loaded Bathygrid instance
+    add_fqpr
+        Optional, a list of Fqpr instances to add to the surface
+    add_lines
+        Optional, if provided will only add lines that are in this list(s).  a list of lists of lines (when a list of
+        fqpr instances is provided)
+    remove_fqpr
+        Optional, a list of Fqpr instances to remove from the surface
+    remove_lines
+        Optional, if provided will only add lines that are in this list(s)  a list of lists of lines (when a list of
+        fqpr instances is provided)
+
+    Returns
+    -------
+    dict
+        updated args for the surface action
+    """
+
+    args = [surface_instance]
+    kwargs = {'add_fqpr': add_fqpr, 'add_lines': add_lines, 'remove_fqpr': remove_fqpr, 'remove_lines': remove_lines}
+    ttext = 'Adding:\n{}\nRemoving:\n{}\n'.format('\n'.join(add_fqpr), '\n'.join(remove_fqpr))
+    update_settings = {'text': 'Update Surface {}'.format(destination),
+                       'tooltip_text': ttext, 'args': args, 'kwargs': kwargs}
     return update_settings
