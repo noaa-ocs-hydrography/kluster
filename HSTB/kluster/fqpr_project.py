@@ -185,7 +185,7 @@ class FqprProject(LoggerClass):
             if data['vessel_file']:
                 self.vessel_file = self.absolute_path_from_relative(data['vessel_file'])
                 if not os.path.exists(self.vessel_file):
-                    self.print_msg('_load_project_file: Unable to find vessel file: {}'.format(self.vessel_file), logging.ERROR)
+                    self.print_msg('_load_project_file: Unable to find vessel file: {}'.format(self.vessel_file), logging.WARNING)
                     self.vessel_file = None
                     data['vessel_file'] = None
         else:
@@ -195,7 +195,7 @@ class FqprProject(LoggerClass):
         for ky in ['fqpr_paths', 'surface_paths']:
             for fil in data[ky]:
                 if not os.path.exists(fil):
-                    self.print_msg('_load_project_file: Unable to find {}'.format(fil), logging.ERROR)
+                    self.print_msg('_load_project_file: Unable to find {}'.format(fil), logging.WARNING)
                     data[ky].remove(fil)
         return data
 
@@ -506,6 +506,8 @@ class FqprProject(LoggerClass):
             relpath = self.path_relative_to_project(pth)
             self.surface_instances[relpath] = bg
             self.print_msg('Successfully added {}'.format(pth), logging.INFO)
+            for callback in self._project_observers:
+                callback(True)
 
     def remove_surface(self, pth: str, relative_path: bool = False):
         """
@@ -526,6 +528,8 @@ class FqprProject(LoggerClass):
 
         if relpath in self.surface_instances:
             self.surface_instances.pop(relpath)
+        for callback in self._project_observers:
+            callback(True)
 
     def regenerate_fqpr_lines(self, pth: str):
         """

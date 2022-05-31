@@ -522,6 +522,7 @@ def _add_points_to_surface(fqpr_inst: Union[dict, Fqpr], bgrid: BathyGrid, fqpr_
             return
         if add_lines:
             multibeamfiles = [mfile for mfile in multibeamfiles if mfile in add_lines]
+        print()
         for mfile in multibeamfiles:
             linedata = fqpr_inst.subset_variables_by_line(['x', 'y', 'z', 'tvu', 'thu'], line_names=mfile, filter_by_detection=True)
             rp = linedata[mfile]
@@ -559,7 +560,7 @@ def _remove_points_from_surface(fqpr_inst: Union[Fqpr, str], bgrid: BathyGrid, r
                         remove_these.append(existing_cont)
             else:
                 remove_these.append(existing_cont)
-
+    print()
     for remove_cont in remove_these:
         bgrid.remove_points(remove_cont)
 
@@ -736,6 +737,7 @@ def generate_new_surface(fqpr_inst: Union[Fqpr, list] = None, grid_type: str = '
             _add_points_to_surface(f, bg, unique_crs[0], unique_vertref[0])
 
         # now after all points are added, run grid with the options presented.  If empty grid, just save the parameters
+        print()
         bg.grid(algorithm=gridding_algorithm, resolution=resolution, auto_resolution_mode=auto_resolution_mode,
                 use_dask=use_dask, grid_parameters=grid_parameters)
         if export_path:
@@ -793,67 +795,95 @@ def update_surface(surface_instance: Union[str, BathyGrid], add_fqpr: Union[Fqpr
     -------
     BathyGrid
         BathyGrid instance for the newly updated surface
+    list
+        old resolution list
+    list
+        new resolution list
     """
 
-    print('***** Updating Bathygrid surface *****')
+    print('***** Updating Bathygrid surface *****\n')
     strttime = perf_counter()
 
     if isinstance(surface_instance, str):
         surface_instance = reload_surface(surface_instance)
         if surface_instance is None:
-            return None
+            return None, None, None
 
     if surface_instance.grid_algorithm == 'cube':
         print('compiling cube algorithm...')
         compile_now()
 
+    oldrez = surface_instance.resolutions
+    newrez = None
     if remove_fqpr:
         if not isinstance(remove_fqpr, list):
             remove_fqpr = [remove_fqpr]
             if remove_lines and not isinstance(remove_lines[0], str):  # expect a list of lines when a single fqpr is provided
                 print(f'update_surface - remove: when a single fqpr data instance is added by line, expect a list of line names: fqpr: {remove_fqpr}, add_lines: {remove_lines}')
-                return None
+                return None, oldrez, newrez
             remove_lines = [remove_lines]
         else:  # list of fqprs provided
             if remove_lines and len(remove_fqpr) != len(remove_lines):
                 print(f'update_surface - remove: when a list of fqpr data instances are added by line, expect a list of line names of the same length: fqpr: {add_fqpr}, add_lines: {add_lines}')
-                return None
+                return None, oldrez, newrez
 
         for cnt, rfqpr in enumerate(remove_fqpr):
-            _remove_points_from_surface(rfqpr, surface_instance, remove_lines=remove_lines[cnt])
+            if remove_lines:
+                _remove_points_from_surface(rfqpr, surface_instance, remove_lines=remove_lines[cnt])
+            else:
+                _remove_points_from_surface(rfqpr, surface_instance)
 
     if add_fqpr:
         if not isinstance(add_fqpr, list):
             add_fqpr = [add_fqpr]
             if add_lines and not isinstance(add_lines[0], str):  # expect a list of lines when a single fqpr is provided
                 print(f'update_surface - add: when a single fqpr data instance is added by line, expect a list of line names: fqpr: {add_fqpr}, add_lines: {add_lines}')
-                return None
+                return None, oldrez, newrez
             add_lines = [add_lines]
         else:  # list of fqprs provided
             if add_lines and len(add_fqpr) != len(add_lines):
                 print(f'update_surface - add: when a list of fqpr data instances are added by line, expect a list of line names of the same length: fqpr: {add_fqpr}, add_lines: {add_lines}')
-                return None
+                return None, oldrez, newrez
 
         for fq in add_fqpr:
             if not fq.is_processed():
                 print(f'_get_unique_crs_vertref: {fq.output_folder} is not fully processed, current processing status={fq.status}')
-                return None
+                return None, oldrez, newrez
 
         if not _validate_fqpr_for_gridding(add_fqpr):
-            return None
+            return None, oldrez, newrez
 
         unique_crs, unique_vertref = _get_unique_crs_vertref(add_fqpr)
         if unique_vertref is None or unique_crs is None:
-            return None
+            return None, oldrez, newrez
 
         for cnt, afqpr in enumerate(add_fqpr):
-            _add_points_to_surface(afqpr, surface_instance, unique_crs[0], unique_vertref[0], add_lines=add_lines[cnt])
+            if add_lines:
+                _add_points_to_surface(afqpr, surface_instance, unique_crs[0], unique_vertref[0], add_lines=add_lines[cnt])
+            else:
+                _add_points_to_surface(afqpr, surface_instance, unique_crs[0], unique_vertref[0])
 
     if regrid:
         if isinstance(surface_instance.grid_resolution, str):
             if surface_instance.name[:2].lower() == 'sr':
-                rez = surface_instance.resolutions[0]
-                automode = 'depth'  # doesn't matter, not used
+                # single resolution with a layer that exists already, just pull it for the update
+                if surface_instance.resolutions:
+                    rez = surface_instance.resolutions[0]
+                    automode = 'depth'  # doesn't matter, not used
+                # single resolution empty grid, with a specified resolution option
+                elif isinstance(surface_instance.grid_resolution, float):
+                    rez = surface_instance.grid_resolution
+                    automode = 'depth'  # doesn't matter, not used
+                # single resolution empty grid, with one of the auto options to pick the resolution
+                else:
+                    rez = None
+                    if surface_instance.grid_resolution.lower() == 'auto_depth':
+                        automode = 'depth'
+                    elif surface_instance.grid_resolution.lower() == 'auto_density':
+                        automode = 'density'
+                    else:
+                        print('Unrecognized grid resolution: {}'.format(surface_instance.grid_resolution))
+                        return None, oldrez, newrez
             elif surface_instance.grid_resolution.lower() == 'auto_depth':
                 rez = None
                 automode = 'depth'
@@ -862,17 +892,19 @@ def update_surface(surface_instance: Union[str, BathyGrid], add_fqpr: Union[Fqpr
                 automode = 'density'
             else:
                 print('Unrecognized grid resolution: {}'.format(surface_instance.grid_resolution))
-                return
+                return None, oldrez, newrez
         else:
             rez = float(surface_instance.grid_resolution)
             automode = 'depth'  # the default value, this will not be used when resolution is specified
+        print()
         surface_instance.grid(surface_instance.grid_algorithm, rez, auto_resolution_mode=automode,
                               regrid_option=regrid_option, use_dask=use_dask, grid_parameters=surface_instance.grid_parameters)
 
+    newrez = surface_instance.resolutions
     endtime = perf_counter()
     print('***** Surface Update Complete: {} *****'.format(seconds_to_formatted_string(int(endtime - strttime))))
 
-    return surface_instance
+    return surface_instance, oldrez, newrez
 
 
 def reload_surface(surface_path: str):
@@ -1075,6 +1107,7 @@ def points_to_surface(data_files: list, horizontal_epsg: int, vertical_reference
             datablock['crs'] = new_transformer.target_crs.to_epsg()
         _add_points_to_surface(datablock, bg, datablock['crs'], vertical_reference)
     # now after all points are added, run grid with the options presented
+    print()
     bg.grid(algorithm=gridding_algorithm, resolution=resolution, auto_resolution_mode=auto_resolution_mode,
             use_dask=use_dask, grid_parameters=grid_parameters)
     if export_path:

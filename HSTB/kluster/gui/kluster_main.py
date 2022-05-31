@@ -171,7 +171,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.filter_thread = kluster_worker.FilterWorker()
         self.open_project_thread = kluster_worker.OpenProjectWorker(self)
         self.draw_navigation_thread = kluster_worker.DrawNavigationWorker(self)
-        self.draw_surface_thread = kluster_worker.DrawSurfaceWorker()
+        self.draw_surface_thread = kluster_worker.DrawSurfaceWorker(self)
         self.load_points_thread = kluster_worker.LoadPointsWorker()
         self.patch_test_load_thread = kluster_worker.PatchTestUpdateWorker()
         self.allthreads = [self.action_thread, self.import_ppnav_thread, self.overwrite_nav_thread, self.surface_thread,
@@ -969,21 +969,30 @@ class KlusterMain(QtWidgets.QMainWindow):
         """
 
         # fqpr is now the output path of the Fqpr instance
-        fqpr = self.action_thread.result
-        if fqpr is not None and not self.action_thread.error:
-            fqpr_entry, already_in = self.project.add_fqpr(fqpr)
-            self.project.save_project()
-            self.intel.update_intel_for_action_results(action_type=self.action_thread.action_type)
+        if not self.action_thread.error:
+            if self.action_thread.action_type != 'gridding':
+                fqpr = self.action_thread.result
+                if fqpr is not None:
+                    fqpr_entry, already_in = self.project.add_fqpr(fqpr)
+                    self.project.save_project()
+                    self.intel.update_intel_for_action_results(action_type=self.action_thread.action_type)
 
-            if already_in and self.action_thread.action_type != 'multibeam':
-                self.refresh_project()
-                self.refresh_explorer(self.project.fqpr_instances[fqpr_entry])
-            else:  # new fqpr, or conversion actions always need a full refresh
-                self.refresh_project(fqpr=[fqpr_entry])
+                    if already_in and self.action_thread.action_type != 'multibeam':
+                        self.refresh_project()
+                        self.refresh_explorer(self.project.fqpr_instances[fqpr_entry])
+                    else:  # new fqpr, or conversion actions always need a full refresh
+                        self.refresh_project(fqpr=[fqpr_entry])
+            else:
+                fq_surf, oldrez, newrez = self.action_thread.result
+                if fq_surf is not None:
+                    relpath_surf = self.project.path_relative_to_project(os.path.normpath(fq_surf.output_folder))
+                    self.close_surface(relpath_surf, only_resolutions=oldrez)
+                    self.project.add_surface(fq_surf)
+                    self.project_tree.refresh_project(proj=self.project)
         else:
             self.print('Error running action {}'.format(self.action_thread.action_type), logging.ERROR)
             self.print(self.action_thread.exceptiontxt, logging.INFO)
-            self.print('kluster_action: no data returned from action execution: {}'.format(fqpr), logging.INFO)
+            self.print('kluster_action: no data returned from action execution', logging.INFO)
             self.intel.update_intel_for_action_results(action_type=self.action_thread.action_type)
         self.action_thread.populate(None, None)
         self._stop_action_progress()
@@ -1861,15 +1870,16 @@ class KlusterMain(QtWidgets.QMainWindow):
             surf_path = self.draw_surface_thread.surface_path
             surf_epsg = self.draw_surface_thread.surf_object.epsg
             if self.draw_surface_thread.surface_layer_name == 'tiles':
-                x, y = self.draw_surface_thread.surface_data
-                trans = Transformer.from_crs(CRS.from_epsg(self.draw_surface_thread.surf_object.epsg),
-                                             CRS.from_epsg(self.two_d.epsg), always_xy=True)
-                lon, lat = trans.transform(x, y)
-                if self.settings['dark_mode']:
-                    self.two_d.add_line(surf_path, lat, lon, color='white')
-                else:
-                    self.two_d.add_line(surf_path, lat, lon, color='black')
-                self.two_d.set_extents_from_lines()
+                if self.draw_surface_thread.surface_data:
+                    x, y = self.draw_surface_thread.surface_data
+                    trans = Transformer.from_crs(CRS.from_epsg(self.draw_surface_thread.surf_object.epsg),
+                                                 CRS.from_epsg(self.two_d.epsg), always_xy=True)
+                    lon, lat = trans.transform(x, y)
+                    if self.settings['dark_mode']:
+                        self.two_d.add_line(surf_path, lat, lon, color='white')
+                    else:
+                        self.two_d.add_line(surf_path, lat, lon, color='black')
+                    self.two_d.set_extents_from_lines()
             else:
                 drawresolution = None
                 for surf_resolution in self.draw_surface_thread.surface_data:
@@ -1955,11 +1965,31 @@ class KlusterMain(QtWidgets.QMainWindow):
         dlog = dialog_project_settings.ProjectSettingsDialog(parent=self, settings=self.settings_object)
         if dlog.exec_() and not dlog.canceled:
             settings = dlog.return_processing_options()
+            new_surface_options = None
+            if 'new_surface_options' in settings:
+                new_surface_options = settings.pop('new_surface_options')
+
+            # now handle the designated surface setting, create a new one if the user asked for it, and make sure that
+            #   we load the surface to the project afterwards, if it isn't already
+            if 'designated_surface' in settings:
+                try:
+                    if new_surface_options:
+                        bg = kluster_worker.generate_new_surface(None, **new_surface_options)
+                    elif self.project.path_relative_to_project(settings['designated_surface']) in self.project.surface_instances:
+                        bg = None  # no need to create or reload, it is already in the project
+                    else:
+                        bg = kluster_worker.reload_surface(settings['designated_surface'])
+                    if bg:
+                        self.project.add_surface(bg)
+                    self.redraw()
+                except:
+                    self.print(f'set_project_settings: Unable to designate surface {settings["designated_surface"]}', logging.ERROR)
+                    settings["designated_surface"] = ''
+
             self.settings.update(settings)
             settings_obj = self.settings_object
             for settname, opts in settings_translator.items():
                 settings_obj.setValue(settname, self.settings[opts['newname']])
-
             self.project.set_settings(settings)
             self.intel.set_settings(settings)
 

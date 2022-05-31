@@ -170,8 +170,12 @@ class DrawSurfaceWorker(QtCore.QThread):
         self.started.emit(True)
         try:
             if self.surface_layer_name == 'tiles':
-                x, y = self.surf_object.get_tile_boundaries()
-                self.surface_data = [x, y]
+                try:
+                    x, y = self.surf_object.get_tile_boundaries()
+                    self.surface_data = [x, y]
+                except:
+                    self.parent().print('Unable to load tile layer from {}, no surface data found'.format(self.surface_path), logging.WARNING)
+                    self.surface_data = {}
             else:
                 if self.surface_layer_name == 'hillshade':
                     surface_layer_name = 'depth'
@@ -620,8 +624,8 @@ class SurfaceUpdateWorker(QtCore.QThread):
     def run(self):
         self.started.emit(True)
         try:
-            self.fqpr_surface = update_surface(self.fqpr_surface, self.add_fqpr_instances, self.add_lines,
-                                               self.remove_fqpr_names, self.remove_lines, **self.opts)
+            self.fqpr_surface, oldrez, newrez = update_surface(self.fqpr_surface, self.add_fqpr_instances, self.add_lines,
+                                                               self.remove_fqpr_names, self.remove_lines, **self.opts)
         except Exception as e:
             self.error = True
             self.exceptiontxt = traceback.format_exc()

@@ -120,7 +120,7 @@ class FqprIntel(LoggerClass):
         """
 
         desired_keys = ['use_epsg', 'epsg', 'use_coord', 'coord_system', 'vert_ref', 'vdatum_directory', 'input_datum',
-                        'cast_selection_method', 'designated_surface']
+                        'cast_selection_method']
         self.processing_settings.update({ky: settings[ky] for ky in desired_keys if ky in settings})
         existing_kwargs = list(settings.keys())
         [settings.pop(ky) for ky in existing_kwargs if ky in desired_keys]
@@ -740,12 +740,14 @@ class FqprIntel(LoggerClass):
         curr_acts, cur_dests = self.action_container.update_action_from_list('gridding', [self.designated_surface])
 
         if self.designated_surface:
-            if self.designated_surface not in self.project.surface_instances:
-                self.print_msg(f'Designated surface {self.designated_surface} not currently loaded in project.', logging.ERROR)
+
+            if not self.project.path or (self.project.path and self.project.path_relative_to_project(self.designated_surface) not in self.project.surface_instances):
+                # self.print_msg(f'Designated surface {self.designated_surface} not currently loaded in project.', logging.WARNING)
                 return
-            surf = self.project.surface_instances[self.designated_surface]
+            relpath_surf = self.project.path_relative_to_project(self.designated_surface)
+            surf = self.project.surface_instances[relpath_surf]
             destination = surf.output_folder
-            existing_container_names, possible_container_names = self.project.return_surface_containers(self.designated_surface)
+            existing_container_names, possible_container_names = self.project.return_surface_containers(relpath_surf)
             add_fqpr, add_lines, remove_fqpr, remove_lines = [], [], [], []
             for fq_path, fq_instance in self.project.fqpr_instances.items():
                 if fq_instance.is_processed():
@@ -758,17 +760,18 @@ class FqprIntel(LoggerClass):
                             add_lines += [new_files]
                     else:
                         add_fqpr += [fq_instance]
-                        add_lines += [[mfiles]]
-            if destination in cur_dests:
-                action = [a for a in curr_acts if a.output_destination == destination]
-                if len(action) == 1:
-                    settings = fqpr_actions.update_kwargs_for_surface(destination, surf, add_fqpr, add_lines, remove_fqpr, remove_lines)
-                    self.action_container.update_action(action[0], **settings)
-                elif len(action) > 1:
-                    raise ValueError('Gridding actions found with the same destinations, {}'.format(destination))
-            else:
-                newaction = fqpr_actions.build_surface_action(destination, surf, add_fqpr, add_lines, remove_fqpr, remove_lines)
-                self.action_container.add_action(newaction)
+                        add_lines += [mfiles]
+            if add_fqpr or remove_fqpr:
+                if destination in cur_dests:
+                    action = [a for a in curr_acts if a.output_destination == destination]
+                    if len(action) == 1:
+                        settings = fqpr_actions.update_kwargs_for_surface(destination, surf, add_fqpr, add_lines, remove_fqpr, remove_lines)
+                        self.action_container.update_action(action[0], **settings)
+                    elif len(action) > 1:
+                        raise ValueError('Gridding actions found with the same destinations, {}'.format(destination))
+                else:
+                    newaction = fqpr_actions.build_surface_action(destination, surf, add_fqpr, add_lines, remove_fqpr, remove_lines)
+                    self.action_container.add_action(newaction)
 
     def _build_unmatched_list(self):
         """

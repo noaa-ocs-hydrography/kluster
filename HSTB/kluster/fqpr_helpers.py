@@ -218,8 +218,8 @@ def seconds_to_formatted_string(seconds: Union[float, int]):
         formatted string
     """
 
-    if seconds < 0:
-        return '0 seconds'
+    if seconds < 1:
+        return '1 second'
     m, s = divmod(seconds, 60)
     h, m = divmod(m, 60)
     if h:

@@ -598,10 +598,9 @@ def build_surface_action(destination: str, surface_instance: fqpr_convenience.Ba
 
     args = [surface_instance]
     kwargs = {'add_fqpr': add_fqpr, 'add_lines': add_lines, 'remove_fqpr': remove_fqpr, 'remove_lines': remove_lines}
-    ttext = 'Adding:\n{}\nRemoving:\n{}\n'.format('\n'.join(add_fqpr), '\n'.join(remove_fqpr))
     action = FqprAction(priority=6, action_type='gridding', output_destination=destination,
                         input_files=[], text='Update Surface {}'.format(destination),
-                        tooltip_text=ttext, function=fqpr_convenience.update_surface,
+                        tooltip_text='{}'.format(destination), function=fqpr_convenience.update_surface,
                         args=args, kwargs=kwargs)
     return action
 
@@ -637,7 +636,7 @@ def update_kwargs_for_surface(destination: str, surface_instance: fqpr_convenien
 
     args = [surface_instance]
     kwargs = {'add_fqpr': add_fqpr, 'add_lines': add_lines, 'remove_fqpr': remove_fqpr, 'remove_lines': remove_lines}
-    ttext = 'Adding:\n{}\nRemoving:\n{}\n'.format('\n'.join(add_fqpr), '\n'.join(remove_fqpr))
+    ttext = '{}'.format(destination)
     update_settings = {'text': 'Update Surface {}'.format(destination),
                        'tooltip_text': ttext, 'args': args, 'kwargs': kwargs}
     return update_settings

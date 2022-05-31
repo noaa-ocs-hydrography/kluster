@@ -120,7 +120,7 @@ cont_data = tile.data[0:48322]
 #  associated with that Fqpr object and re-add them.  This is what update_surface does.
 
 # lets show how to update the points by adding/removing this fqpr object
-bs = update_surface(bs, add_fqpr=fq, remove_fqpr=fq)
+bs, oldrez, newrez = update_surface(bs, add_fqpr=fq, remove_fqpr=fq)
 # Out[37]:
 # Removing Points from em2040_40111_05_23_2017_0: |██████████████████████████████████████████████████████████████████████| 100.0% Complete
 # Adding points from em2040_40111_05_23_2017 in 1 chunks...
@@ -133,7 +133,7 @@ bs = update_surface(bs, add_fqpr=fq, remove_fqpr=fq)
 # there are other routines you can do with update_surface.  You can also do a full regrid of the data if you like, although
 #  this really shouldn't ever be necessary.  Ideally you should be able to update the grid (regrid_option=update) while adding
 #  removing points as we did earlier
-bs = update_surface(bs, regrid_option='full')
+bs, oldrez, newrez = update_surface(bs, regrid_option='full')
 # Gridding SRGrid_Root - mean: |██████████████████████████████████████████████████████████████████████| 100.0% Complete
 
 # so you can see that the grid was updated without adding or removing points.

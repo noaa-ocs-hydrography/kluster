@@ -299,6 +299,10 @@ class KlusterActions(QtWidgets.QTreeView):
             if 'only_this_line' in action.kwargs:
                 if action.kwargs['only_this_line']:
                     ttip += '\nLine: {}'.format(action.kwargs['only_this_line'])
+        elif action.priority == 6:
+            ttip = '{}\n\nPriority:{}\nAdding from:\n{}\nRemoving:\n{}'.format(action.text, action.priority,
+                                                                               '\n'.join([af.output_folder for af in action.kwargs['add_fqpr']]),
+                                                                               '\n'.join([rf.output_folder for rf in action.kwargs['remove_fqpr']]))
         else:
             ttip = '{}\n\nPriority:{}'.format(action.text, action.priority)
         return ttip

@@ -162,6 +162,9 @@ class SurfaceDialog(SaveStateDialog):
         self.output_text = QtWidgets.QLineEdit('', self)
         self.output_text.setMinimumWidth(400)
         self.output_text.setReadOnly(False)
+        self.output_text.setToolTip('Path to the folder that contains the bathygrid instance.  Folder should contain a\n'
+                                    'root folder, like "SRGridZarr_Root".  You will need to create a new empty folder\n'
+                                    'and point to it here if you want to set your own path to a new surface.')
         self.hlayout_output.addWidget(self.output_text)
         self.output_button = QtWidgets.QPushButton("Browse", self)
         self.hlayout_output.addWidget(self.output_button)
