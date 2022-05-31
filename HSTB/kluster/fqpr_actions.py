@@ -489,18 +489,23 @@ def build_processing_action(destination: str, args: list, kwargs: dict, settings
                 continue
             kwargs[ky] = val
 
-    if kwargs['run_orientation'] and kwargs['run_beam_vec'] and kwargs['run_svcorr'] and kwargs['run_georef'] and kwargs['run_tpu']:
-        text = 'Run all processing on {}'.format(os.path.split(destination)[1])
-    elif kwargs['run_beam_vec'] and kwargs['run_svcorr'] and kwargs['run_georef'] and kwargs['run_tpu']:
-        text = 'Process {} starting with beam correction'.format(os.path.split(destination)[1])
-    elif kwargs['run_svcorr'] and kwargs['run_georef'] and kwargs['run_tpu']:
-        text = 'Process {} starting with sound velocity'.format(os.path.split(destination)[1])
-    elif kwargs['run_georef'] and kwargs['run_tpu']:
-        text = 'Process {} starting with georeferencing'.format(os.path.split(destination)[1])
-    elif kwargs['run_tpu']:
-        text = 'Process {} only computing TPU'.format(os.path.split(destination)[1])
+    if 'only_this_line' in kwargs and kwargs['only_this_line']:
+        source = '{} ({})'.format(os.path.split(destination)[1], kwargs['only_this_line'])
     else:
-        text = 'Process {} with custom setup'.format(os.path.split(destination)[1])
+        source = '{}'.format(os.path.split(destination)[1])
+
+    if kwargs['run_orientation'] and kwargs['run_beam_vec'] and kwargs['run_svcorr'] and kwargs['run_georef'] and kwargs['run_tpu']:
+        text = 'Run all processing on {}'.format(source)
+    elif kwargs['run_beam_vec'] and kwargs['run_svcorr'] and kwargs['run_georef'] and kwargs['run_tpu']:
+        text = 'Process {} starting with beam correction'.format(source)
+    elif kwargs['run_svcorr'] and kwargs['run_georef'] and kwargs['run_tpu']:
+        text = 'Process {} starting with sound velocity'.format(source)
+    elif kwargs['run_georef'] and kwargs['run_tpu']:
+        text = 'Process {} starting with georeferencing'.format(source)
+    elif kwargs['run_tpu']:
+        text = 'Process {} only computing TPU'.format(source)
+    else:
+        text = 'Process {} with custom setup'.format(source)
 
     action = FqprAction(priority=5, action_type='processing', output_destination=destination,
                         input_files=[], text=text,
@@ -541,18 +546,23 @@ def update_kwargs_for_processing(destination: str, args: list, kwargs: dict, set
                 continue
             kwargs[ky] = val
 
-    if kwargs['run_orientation'] and kwargs['run_beam_vec'] and kwargs['run_svcorr'] and kwargs['run_georef'] and kwargs['run_tpu']:
-        text = 'Run all processing on {}'.format(os.path.split(destination)[1])
-    elif kwargs['run_beam_vec'] and kwargs['run_svcorr'] and kwargs['run_georef'] and kwargs['run_tpu']:
-        text = 'Process {} starting with beam correction'.format(os.path.split(destination)[1])
-    elif kwargs['run_svcorr'] and kwargs['run_georef'] and kwargs['run_tpu']:
-        text = 'Process {} starting with sound velocity'.format(os.path.split(destination)[1])
-    elif kwargs['run_georef'] and kwargs['run_tpu']:
-        text = 'Process {} starting with georeferencing'.format(os.path.split(destination)[1])
-    elif kwargs['run_tpu']:
-        text = 'Process {} only computing TPU'.format(os.path.split(destination)[1])
+    if 'only_this_line' in kwargs and kwargs['only_this_line']:
+        source = '{} ({})'.format(os.path.split(destination)[1], kwargs['only_this_line'])
     else:
-        text = 'Process {} with custom setup'.format(os.path.split(destination)[1])
+        source = '{}'.format(os.path.split(destination)[1])
+
+    if kwargs['run_orientation'] and kwargs['run_beam_vec'] and kwargs['run_svcorr'] and kwargs['run_georef'] and kwargs['run_tpu']:
+        text = 'Run all processing on {}'.format(source)
+    elif kwargs['run_beam_vec'] and kwargs['run_svcorr'] and kwargs['run_georef'] and kwargs['run_tpu']:
+        text = 'Process {} starting with beam correction'.format(source)
+    elif kwargs['run_svcorr'] and kwargs['run_georef'] and kwargs['run_tpu']:
+        text = 'Process {} starting with sound velocity'.format(source)
+    elif kwargs['run_georef'] and kwargs['run_tpu']:
+        text = 'Process {} starting with georeferencing'.format(source)
+    elif kwargs['run_tpu']:
+        text = 'Process {} only computing TPU'.format(source)
+    else:
+        text = 'Process {} with custom setup'.format(source)
 
     update_settings = {'text': text, 'args': args, 'kwargs': kwargs}
     return update_settings

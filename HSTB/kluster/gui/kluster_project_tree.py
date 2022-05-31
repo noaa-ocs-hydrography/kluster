@@ -316,14 +316,15 @@ class KlusterProjectTree(QtWidgets.QTreeView):
                     proj_child.appendRow([line_child])
                 self.tree_data['Converted'].append(fq_proj)
             else:  # see if there are new lines to display
-                idx = self.tree_data['Converted'][1:].index(fq_proj)
-                proj_child = parent.child(idx)
-                if proj_child.rowCount() != len(line_data[fq_proj]):  # new lines
-                    tree_lines = [proj_child.child(rw).text() for rw in range(proj_child.rowCount())]
-                    for fq_line in line_data[fq_proj]:
-                        if fq_line not in tree_lines:
-                            line_child = QtGui.QStandardItem(fq_line)
-                            proj_child.appendRow([line_child])
+                child_match = [parent.child(r) for r in range(parent.rowCount()) if parent.child(r).text() == fq_proj]
+                if child_match:
+                    proj_child = child_match[0]
+                    if proj_child.rowCount() != len(line_data[fq_proj]):  # new lines
+                        tree_lines = [proj_child.child(rw).text() for rw in range(proj_child.rowCount())]
+                        for fq_line in line_data[fq_proj]:
+                            if fq_line not in tree_lines:
+                                line_child = QtGui.QStandardItem(fq_line)
+                                proj_child.appendRow([line_child])
         parent.sortChildren(0, order=QtCore.Qt.AscendingOrder)
 
     def _add_new_surf_from_proj(self, parent: QtGui.QStandardItem, surf_data):
