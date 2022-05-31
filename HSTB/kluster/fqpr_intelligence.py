@@ -730,6 +730,46 @@ class FqprIntel(LoggerClass):
         else:
             print('FqprIntel: no project loaded, no processing actions constructed.')
 
+    def _regenerate_gridding_actions(self):
+        """
+        Gridding actions include adding new data to the designated surface, and, if the data has been reprocessed, will
+        remove/add the data to the surface.
+        """
+
+        # remove actions that do not match any fqpr instances that are in the project
+        curr_acts, cur_dests = self.action_container.update_action_from_list('gridding', [self.designated_surface])
+
+        if self.designated_surface:
+            if self.designated_surface not in self.project.surface_instances:
+                self.print_msg(f'Designated surface {self.designated_surface} not currently loaded in project.', logging.ERROR)
+                return
+            surf = self.project.surface_instances[self.designated_surface]
+            destination = surf.output_folder
+            existing_container_names, possible_container_names = self.project.return_surface_containers(self.designated_surface)
+            add_fqpr, add_lines, remove_fqpr, remove_lines = [], [], [], []
+            for fq_path, fq_instance in self.project.fqpr_instances.items():
+                if fq_instance.is_processed():
+                    mfiles = list(fq_instance.multibeam.raw_ping[0].multibeam_files.keys())
+                    if fq_path in existing_container_names:
+                        old_files = existing_container_names[fq_path]
+                        new_files = [fil for fil in mfiles if fil not in old_files]
+                        if new_files:
+                            add_fqpr += [fq_instance]
+                            add_lines += [new_files]
+                    else:
+                        add_fqpr += [fq_instance]
+                        add_lines += [[mfiles]]
+            if destination in cur_dests:
+                action = [a for a in curr_acts if a.output_destination == destination]
+                if len(action) == 1:
+                    settings = fqpr_actions.update_kwargs_for_surface(destination, surf, add_fqpr, add_lines, remove_fqpr, remove_lines)
+                    self.action_container.update_action(action[0], **settings)
+                elif len(action) > 1:
+                    raise ValueError('Gridding actions found with the same destinations, {}'.format(destination))
+            else:
+                newaction = fqpr_actions.build_surface_action(destination, surf, add_fqpr, add_lines, remove_fqpr, remove_lines)
+                self.action_container.add_action(newaction)
+
     def _build_unmatched_list(self):
         """
         Get all unmatched files from all included intel modules
@@ -761,6 +801,7 @@ class FqprIntel(LoggerClass):
         """
 
         # print('Checking for new actions...')
+        self._regenerate_gridding_actions()
         self._regenerate_processing_actions(reprocess_fqpr=reprocess_fqpr, keep_waterline_changes=self.keep_waterline_changes)
         self._regenerate_svp_actions()
         self._regenerate_nav_actions()
