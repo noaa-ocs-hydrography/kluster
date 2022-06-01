@@ -532,12 +532,13 @@ def _add_points_to_surface(fqpr_inst: Union[dict, Fqpr], bgrid: BathyGrid, fqpr_
             rp = linedata[mfile]
             # drop nan values in georeferenced data, generally where number of beams vary between pings
             data = rp.where(~np.isnan(rp['z']), drop=True)
-            try:
-                bgrid.add_points(data, '{}__{}'.format(cont_name, mfile), [mfile], fqpr_crs, fqpr_vertref, min_time=min_time,
-                                 max_time=max_time)
-            except:
-                print(f'ERROR: this imported data {"{}__{}".format(cont_name, mfile)} was not able to be added to the surface')
-                continue
+            if data['z'].any():
+                try:
+                    bgrid.add_points(data, '{}__{}'.format(cont_name, mfile), [mfile], fqpr_crs, fqpr_vertref, min_time=min_time,
+                                     max_time=max_time)
+                except:
+                    print(f'ERROR: this imported data {"{}__{}".format(cont_name, mfile)} was not able to be added to the surface')
+                    continue
 
 
 def _remove_points_from_surface(fqpr_inst: Union[Fqpr, str], bgrid: BathyGrid, remove_lines: Union[list, str] = None):

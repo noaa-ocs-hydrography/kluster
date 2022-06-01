@@ -1004,11 +1004,16 @@ class KlusterMain(QtWidgets.QMainWindow):
                         self.refresh_explorer(self.project.fqpr_instances[fqpr_entry])
                     else:  # new fqpr, or conversion actions always need a full refresh
                         self.refresh_project(fqpr=[fqpr_entry])
+                else:
+                    self.print('Error running action {}'.format(self.action_thread.action_type), logging.ERROR)
             else:
-                fq_surf, oldrez, newrez = self.action_thread.result
-                if fq_surf is not None:
-                    relpath_surf = self.project.path_relative_to_project(os.path.normpath(fq_surf.output_folder))
-                    self.update_surface(relpath_surf, fq_surf, only_resolutions=oldrez)
+                if self.action_thread.result:
+                    fq_surf, oldrez, newrez = self.action_thread.result
+                    if fq_surf is not None:
+                        relpath_surf = self.project.path_relative_to_project(os.path.normpath(fq_surf.output_folder))
+                        self.update_surface(relpath_surf, fq_surf, only_resolutions=oldrez)
+                else:
+                    self.print('Error running action {}'.format(self.action_thread.action_type), logging.ERROR)
         else:
             self.print('Error running action {}'.format(self.action_thread.action_type), logging.ERROR)
             self.print(self.action_thread.exceptiontxt, logging.INFO)
