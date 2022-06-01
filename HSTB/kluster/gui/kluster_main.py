@@ -1993,7 +1993,7 @@ class KlusterMain(QtWidgets.QMainWindow):
                 try:
                     if new_surface_options:
                         bg = kluster_worker.generate_new_surface(None, **new_surface_options)
-                    elif self.project.path_relative_to_project(settings['designated_surface']) in self.project.surface_instances:
+                    elif self.project.path and self.project.path_relative_to_project(settings['designated_surface']) in self.project.surface_instances:
                         bg = None  # no need to create or reload, it is already in the project
                     else:
                         bg = kluster_worker.reload_surface(settings['designated_surface'])
