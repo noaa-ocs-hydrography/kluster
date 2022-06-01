@@ -757,7 +757,7 @@ class FqprIntel(LoggerClass):
                         new_files = [fil for fil in mfiles if fil not in old_files]
                         if new_files:
                             add_fqpr += [fq_instance]
-                            add_lines += [new_files]
+                            add_lines += [f for f in new_files if fq_instance.line_is_processed(f)]
                     else:
                         add_fqpr += [fq_instance]
                         add_lines += [mfiles]
