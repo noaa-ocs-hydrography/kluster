@@ -103,7 +103,8 @@ class ProjectSettingsDialog(SaveStateDialog):
         self.hlayout_three.addWidget(self.vertref_msg)
         self.georef_vertref = QtWidgets.QComboBox()
         self.georef_vertref.addItems(kluster_variables.vertical_references)
-        self.georef_vertref.setToolTip('Set the vertical reference used in georeferencing, this determines the zero point for all depths generated in Kluster.')
+        self.georef_vertref.setToolTip('Set the vertical reference used in georeferencing, this determines the zero point for all depths generated in Kluster.\n\n' + \
+                                       '\n'.join([f'{k} = {v}' for k, v in kluster_variables.vertical_references_explanation.items()]))
         self.hlayout_three.addWidget(self.georef_vertref)
         self.hlayout_three.addStretch(1)
 
@@ -113,11 +114,8 @@ class ProjectSettingsDialog(SaveStateDialog):
         self.svmode = QtWidgets.QComboBox()
         self.svmode.addItems(kluster_variables.cast_selection_methods)
         self.svmode.setCurrentIndex(kluster_variables.cast_selection_methods.index(kluster_variables.default_cast_selection_method))
-        self.svmode.setToolTip(f'Determines which sound velocity profiles will be used for each {kluster_variables.ping_chunk_size} pings during sound velocity correction.\n\n'
-                               f'nearest_in_time: use the cast that is nearest in time to each {kluster_variables.ping_chunk_size} ping chunk of data\n' +
-                               f'nearest_in_time_four_hours: use the cast that is nearest in time to each chunk as long as it is within four hours\n' +
-                               f'nearest_in_distance: use the cast that is nearest in distance to each chunk of data\n' +
-                               f'nearest_in_distance_four_hours: use the cast that is nearest in distance to each chunk as long as it is within four hours\n')
+        self.svmode.setToolTip(f'Determines which sound velocity profiles will be used for each {kluster_variables.ping_chunk_size} pings during sound velocity correction.\n\n' + \
+                               '\n'.join([f'{k} = {v}' for k, v in kluster_variables.cast_selection_explanation.items()]))
         self.hlayout_four.addWidget(self.svmode)
         self.hlayout_four.addStretch(1)
 
@@ -189,7 +187,7 @@ class ProjectSettingsDialog(SaveStateDialog):
         self.find_vdatum()
 
         sizeObject = QtWidgets.QDesktopWidget().screenGeometry(-1)
-        self.setMinimumWidth(sizeObject.width() / 5)
+        self.setMinimumWidth(int(sizeObject.width() / 5))
 
     def designatesurf_browse(self):
         # dirpath will be None or a string

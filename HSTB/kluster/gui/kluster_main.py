@@ -1994,7 +1994,7 @@ class KlusterMain(QtWidgets.QMainWindow):
 
             # now handle the designated surface setting, create a new one if the user asked for it, and make sure that
             #   we load the surface to the project afterwards, if it isn't already
-            if 'designated_surface' in settings:
+            if 'designated_surface' in settings and settings["designated_surface"]:
                 try:
                     if new_surface_options:
                         bg = kluster_worker.generate_new_surface(None, **new_surface_options)

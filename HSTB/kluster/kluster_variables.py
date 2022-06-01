@@ -59,14 +59,15 @@ vertical_references = ['waterline', 'ellipse', 'NOAA MLLW', 'NOAA MHW']  # all v
 vdatum_vertical_references = ['NOAA MLLW', 'NOAA MHW']  # vertical reference options based in vdatum
 ellipse_based_vertical_references = ['ellipse', 'NOAA MLLW', 'NOAA MHW']  # vertical reference options based on the ellipsoid
 waterline_based_vertical_references = ['waterline']  # vertical reference options based on waterline
+vertical_references_explanation = {'waterline': 'Sound velocity corrected data plus heave minus the waterline value',
+                                   'ellipse': 'Sound velocity corrected data minus ellipsoid height, positive up',
+                                   'NOAA MLLW': 'Sound velocity corrected data minus ellipsoid height plus VDatum MLLW separation value',
+                                   'NOAA MHW': 'Sound velocity corrected data minus ellipsoid height plus VDatum MHW separation value'}
+
 coordinate_systems = ['NAD83', 'NAD83 PA11', 'NAD83 MA11', 'WGS84']  # horizontal coordinate system options
 geographic_coordinate_systems = ['NAD83', 'WGS84']  # horizontal coordinate system options
 default_coordinate_system = 'WGS84'
 default_vertical_reference = 'waterline'
-
-cast_selection_methods = ['nearest_in_time', 'nearest_in_time_four_hours', 'nearest_in_distance',
-                          'nearest_in_distance_four_hours']
-default_cast_selection_method = 'nearest_in_time'
 
 # export
 pings_per_las = 50000  # LAS export will put this many pings in one file before starting a new file
@@ -79,6 +80,14 @@ ping_chunk_size = 1000  # chunk size (in pings) of each written chunk of data in
 navigation_chunk_size = 50000  # chunk size (in time) of each written chunk of data in the navigation records
 attitude_chunk_size = 20000  # chunk size (in time) of each written chunk of data in the attitude records
 max_profile_length = 80  # maximum layers in a sound velocity profile, will interpolate if greater than this length
+
+cast_selection_methods = ['nearest_in_time', 'nearest_in_time_four_hours', 'nearest_in_distance',
+                          'nearest_in_distance_four_hours']
+cast_selection_explanation = {'nearest_in_time': f'use the cast that is nearest in time to each {ping_chunk_size} ping chunk of data',
+                              'nearest_in_time_four_hours': f'use the cast that is nearest in time to each {ping_chunk_size} ping chunk as long as it is within four hours',
+                              'nearest_in_distance': f'use the cast that is nearest in distance to each {ping_chunk_size} ping chunk of data',
+                              'nearest_in_distance_four_hours': f'use the cast that is nearest in distance to each {ping_chunk_size} ping chunk as long as it is within four hours'}
+default_cast_selection_method = 'nearest_in_time'
 
 single_head_sonar = ['em122', 'em302', 'em710', 'em2045', 'em2040', 'em2040p', 'em3002', 'em3020', 'me70']  # all single head sonar models
 dual_head_sonar = ['em2040_dual_rx', 'em2040_dual_tx', 'em2045_dual', 'em2040_dual_tx_rx', 'em3020_dual']  # all dual head sonar models

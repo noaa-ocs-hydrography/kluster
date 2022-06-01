@@ -1180,7 +1180,10 @@ class FqprProject(LoggerClass):
         existing_container_names = surf.return_unique_containers()
         existing_needs_update = []
         for existblock in existing_container_names:
-            existname, linename = existblock.split('__')
+            try:
+                existname, linename = existblock.split('__')
+            except:  # grids created prior to 0.9.5 have container_chunkindex naming, now we just do container__linename
+                existname = existblock
             if existname in self.fqpr_instances:
                 existtime = None
                 for ename, etime in surf.container_timestamp.items():
@@ -1203,13 +1206,19 @@ class FqprProject(LoggerClass):
         existing_data = {}
         possible_data = {}
         for entry in existing_container_names:
-            container, mline = entry.split('__')
+            try:
+                container, mline = entry.split('__')
+            except:  # grids created prior to 0.9.5 have container_chunkindex naming, now we just do container__linename
+                container, mline = entry, entry
             if container not in existing_data:
                 existing_data[container] = [mline]
             elif mline not in existing_data[container]:
                 existing_data[container] += [mline]
         for entry in possible_container_names:
-            container, mline = entry.split('__')
+            try:
+                container, mline = entry.split('__')
+            except:  # grids created prior to 0.9.5 have container_chunkindex naming, now we just do container__linename
+                container, mline = entry, entry
             if container not in possible_data:
                 possible_data[container] = [mline]
             elif mline not in possible_data[container]:
