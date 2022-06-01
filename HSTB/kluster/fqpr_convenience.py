@@ -827,12 +827,12 @@ def update_surface(surface_instance: Union[str, BathyGrid], add_fqpr: Union[Fqpr
         if not isinstance(remove_fqpr, list):
             remove_fqpr = [remove_fqpr]
             if remove_lines and not isinstance(remove_lines[0], str):  # expect a list of lines when a single fqpr is provided
-                print(f'update_surface - remove: when a single fqpr data instance is added by line, expect a list of line names: fqpr: {remove_fqpr}, add_lines: {remove_lines}')
+                print(f'update_surface - remove: when a single fqpr data instance is removed by line, expect a list of line names: fqpr: {len(remove_fqpr)}, add_lines: {len(remove_lines)}')
                 return None, oldrez, newrez
             remove_lines = [remove_lines]
         else:  # list of fqprs provided
             if remove_lines and len(remove_fqpr) != len(remove_lines):
-                print(f'update_surface - remove: when a list of fqpr data instances are added by line, expect a list of line names of the same length: fqpr: {add_fqpr}, add_lines: {add_lines}')
+                print(f'update_surface - remove: when a list of fqpr data instances are removed by line, expect a list of line names of the same length: fqpr: {len(remove_fqpr)}, add_lines: {len(remove_lines)}')
                 return None, oldrez, newrez
 
         for cnt, rfqpr in enumerate(remove_fqpr):
@@ -845,12 +845,12 @@ def update_surface(surface_instance: Union[str, BathyGrid], add_fqpr: Union[Fqpr
         if not isinstance(add_fqpr, list):
             add_fqpr = [add_fqpr]
             if add_lines and not isinstance(add_lines[0], str):  # expect a list of lines when a single fqpr is provided
-                print(f'update_surface - add: when a single fqpr data instance is added by line, expect a list of line names: fqpr: {add_fqpr}, add_lines: {add_lines}')
+                print(f'update_surface - add: when a single fqpr data instance is added by line, expect a list of line names: fqpr: {len(add_fqpr)}, add_lines: {len(add_lines)}')
                 return None, oldrez, newrez
             add_lines = [add_lines]
         else:  # list of fqprs provided
             if add_lines and len(add_fqpr) != len(add_lines):
-                print(f'update_surface - add: when a list of fqpr data instances are added by line, expect a list of line names of the same length: fqpr: {add_fqpr}, add_lines: {add_lines}')
+                print(f'update_surface - add: when a list of fqpr data instances are added by line, expect a list of line names of the same length: fqpr: {len(add_fqpr)}, add_lines: {len(add_lines)}')
                 return None, oldrez, newrez
 
         for fq in add_fqpr:

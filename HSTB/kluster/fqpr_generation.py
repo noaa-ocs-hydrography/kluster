@@ -3442,7 +3442,7 @@ class Fqpr(ZarrBackend):
             end time in utc seconds for the line
         """
 
-        line_dict = self.return_line_dict(line_name)
+        line_dict = self.return_line_dict()
         sortedlines = sorted(line_dict, key=lambda item: item[0])  # first item in values is the minimum time
         if line_name in line_dict.keys():
             line_times = [line_dict[line_name][0], line_dict[line_name][1]]
