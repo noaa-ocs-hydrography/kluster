@@ -753,7 +753,7 @@ class FqprIntel(LoggerClass):
                 if fq_instance.is_processed():
                     mfiles = list(fq_instance.multibeam.raw_ping[0].multibeam_files.keys())
                     if fq_path in existing_container_names:
-                        old_files = existing_container_names[fq_path]
+                        old_files = [ec[:-1] if ec[-1] == '*' else ec for ec in existing_container_names[fq_path]]
                         new_files = [fil for fil in mfiles if fil not in old_files]
                         if new_files:
                             add_fqpr += [fq_instance]

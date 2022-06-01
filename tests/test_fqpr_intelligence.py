@@ -179,7 +179,7 @@ class TestFqprIntelligence(unittest.TestCase):
         # concatenate will have a new action to only convert this one line
         self.fintel.set_auto_processing_mode('concatenate')
         assert self.fintel.has_actions
-        assert self.fintel.action_container.actions[0].text == 'Run all processing on em2040_40111_05_23_2017'
+        assert self.fintel.action_container.actions[0].text == 'Run all processing on em2040_40111_05_23_2017 (0009_20170523_181119_FA2806.all)'
         assert self.fintel.action_container.actions[0].kwargs['only_this_line'] == self.filename
 
     def test_intel_vessel_file(self):

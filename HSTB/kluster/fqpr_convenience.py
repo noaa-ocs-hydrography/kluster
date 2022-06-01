@@ -507,7 +507,11 @@ def _add_points_to_surface(fqpr_inst: Union[dict, Fqpr], bgrid: BathyGrid, fqpr_
         elif bgrid.epsg and (bgrid.epsg != fqpr_crs):
             print(f'ERROR: this imported data {containername} has an EPSG of {fqpr_crs}, where the grid has an EPSG of {bgrid.epsg}')
             return
-        bgrid.add_points(parray, containername, datafiles, fqpr_crs, fqpr_vertref)
+        try:
+            bgrid.add_points(parray, containername, datafiles, fqpr_crs, fqpr_vertref)
+        except:
+            print(f'ERROR: this imported data {containername} was not able to be added to the surface')
+            return
     else:
         cont_name = os.path.split(fqpr_inst.output_folder)[1]
         min_time = np.min([rp.time.values[0] for rp in fqpr_inst.multibeam.raw_ping])
@@ -528,8 +532,12 @@ def _add_points_to_surface(fqpr_inst: Union[dict, Fqpr], bgrid: BathyGrid, fqpr_
             rp = linedata[mfile]
             # drop nan values in georeferenced data, generally where number of beams vary between pings
             data = rp.where(~np.isnan(rp['z']), drop=True)
-            bgrid.add_points(data, '{}__{}'.format(cont_name, mfile), [mfile], fqpr_crs, fqpr_vertref,
-                             min_time=min_time, max_time=max_time)
+            try:
+                bgrid.add_points(data, '{}__{}'.format(cont_name, mfile), [mfile], fqpr_crs, fqpr_vertref, min_time=min_time,
+                                 max_time=max_time)
+            except:
+                print(f'ERROR: this imported data {"{}__{}".format(cont_name, mfile)} was not able to be added to the surface')
+                continue
 
 
 def _remove_points_from_surface(fqpr_inst: Union[Fqpr, str], bgrid: BathyGrid, remove_lines: Union[list, str] = None):

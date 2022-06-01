@@ -744,6 +744,28 @@ class KlusterMain(QtWidgets.QMainWindow):
     def visualize_corrected_beam_vectors(self, pth):
         self.project.build_visualizations(pth, 'corrected_beam_vectors')
 
+    def update_surface(self, pth: str, new_surface, only_resolutions: list = None):
+        """
+        Update the attached bathygrid instance with the provided one, refresh the project tree and display
+
+        Parameters
+        ----------
+        pth
+            relative path to the bathygrid instance
+        new_surface
+            new bathygrid instance
+        only_resolutions
+            list of resolutions to close, default is all the resolutions in the grid
+        """
+
+        if not only_resolutions:
+            only_resolutions = new_surface.resolutions
+        for resolution in only_resolutions:
+            self.two_d.remove_surface(pth, resolution)
+        self.two_d.remove_line(pth)  # also remove the tiles layer if that was loaded
+        self.project.update_surface(pth, new_surface, relative_path=True)
+        self.project_tree.refresh_project(self.project)
+
     def close_surface(self, pth: str, only_resolutions: list = None):
         """
         With the given path to the surface instance, remove the loaded data associated with the surface and remove it from
@@ -752,7 +774,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         Parameters
         ----------
         pth
-            path to the Fqpr top level folder
+            path to the bathygrid top level folder
         only_resolutions
             list of resolutions to close, default is all the resolutions in the grid
         """
@@ -986,9 +1008,7 @@ class KlusterMain(QtWidgets.QMainWindow):
                 fq_surf, oldrez, newrez = self.action_thread.result
                 if fq_surf is not None:
                     relpath_surf = self.project.path_relative_to_project(os.path.normpath(fq_surf.output_folder))
-                    self.close_surface(relpath_surf, only_resolutions=oldrez)
-                    self.project.add_surface(fq_surf)
-                    self.project_tree.refresh_project(proj=self.project)
+                    self.update_surface(relpath_surf, fq_surf, only_resolutions=oldrez)
         else:
             self.print('Error running action {}'.format(self.action_thread.action_type), logging.ERROR)
             self.print(self.action_thread.exceptiontxt, logging.INFO)
@@ -1560,9 +1580,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         fq_surf = self.surface_update_thread.fqpr_surface
         if fq_surf is not None and not self.surface_update_thread.error:
             relpath_surf = self.project.path_relative_to_project(os.path.normpath(fq_surf.output_folder))
-            self.close_surface(relpath_surf, only_resolutions=self.surface_update_thread.all_resolutions)
-            self.project.add_surface(fq_surf)
-            self.project_tree.refresh_project(proj=self.project)
+            self.update_surface(relpath_surf, fq_surf, only_resolutions=self.surface_update_thread.all_resolutions)
             self.print('Updating surface complete', logging.INFO)
         else:
             self.print('Error updating surface', logging.ERROR)

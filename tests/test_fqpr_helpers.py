@@ -39,8 +39,8 @@ class TestFqprHelper(unittest.TestCase):
         assert seconds_to_formatted_string(666) == '11 minutes, 6 seconds'
         assert seconds_to_formatted_string(66666) == '18 hours, 31 minutes, 6 seconds'
         assert seconds_to_formatted_string(6666666) == '1851 hours, 51 minutes, 6 seconds'
-        assert seconds_to_formatted_string(0) == '0 seconds'
-        assert seconds_to_formatted_string(-1) == '0 seconds'
+        assert seconds_to_formatted_string(0) == '1 second'
+        assert seconds_to_formatted_string(-1) == '1 second'
 
     def test_haversine(self):
         assert haversine(128.1234, 45.1234, 128.5678, 45.5678) == 60.398765789070794

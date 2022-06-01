@@ -531,6 +531,30 @@ class FqprProject(LoggerClass):
         for callback in self._project_observers:
             callback(True)
 
+    def update_surface(self, pth: str, surf: BathyGrid, relative_path: bool = False):
+        """
+        Update an attached Bathygrid instance with a new instance, to avoid a costly close/re-open
+
+        Parameters
+        ----------
+        pth
+            path to the surface file
+        surf
+            new bathygrid instance
+        relative_path
+            if True, pth is a relative path (relative to self.path)
+        """
+
+        if relative_path:
+            relpath = pth
+        else:
+            relpath = self.path_relative_to_project(pth)
+
+        if relpath in self.surface_instances:
+            self.surface_instances[relpath] = surf
+        for callback in self._project_observers:
+            callback(True)
+
     def regenerate_fqpr_lines(self, pth: str):
         """
         After adding a new Fqpr object, we want to get the line information from the attributes so that we can quickly
