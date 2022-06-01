@@ -3443,8 +3443,15 @@ class Fqpr(ZarrBackend):
         """
 
         line_dict = self.return_line_dict(line_name)
+        sortedlines = sorted(line_dict, key=lambda item: item[0])  # first item in values is the minimum time
         if line_name in line_dict.keys():
-            return line_dict[line_name][0], line_dict[line_name][1]
+            line_times = [line_dict[line_name][0], line_dict[line_name][1]]
+            if line_name == sortedlines[0]:  # first line, correct for any small discrepancy between metadata and data
+                return float(np.min([rp.time.values[0] for rp in self.multibeam.raw_ping])), line_times[1]
+            elif line_name == sortedlines[-1]:  # last line
+                return line_times[0], float(np.max([rp.time.values[-1] for rp in self.multibeam.raw_ping]))
+            else:
+                return line_times[0], line_times[1]
         else:
             return None, None
 
