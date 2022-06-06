@@ -26,7 +26,7 @@ The first thing you can do is experiment with background layers.  Go to View –
 .. image:: quickstart_2.png
    :target: ../_images/quickstart_2.png
  
-OK, so let us convert some data.  Drag a multibeam file into the ‘Project Tree’ window on the left of Kluster to get this display.  For this demo, we are just including a single line, but you can grab multiple lines at once if you like.
+OK, so let us convert some data.  Drag a multibeam file into the application to get this display.  For this demo, we are just including a single line, but you can grab multiple lines at once if you like.
 
 .. image:: quickstart_3.png
    :target: ../_images/quickstart_3.png
@@ -44,6 +44,10 @@ If you get an error talking about the coordinate system, you might have converte
 Otherwise pick a more basic reference such as ‘waterline’ (data referenced to the waterline of the vessel) or ‘ellipse’ (data referenced to the ellipsoid, either NAD83(GRS80)/WGS84 ellipsoid).
 
 You can almost always leave the input coordinate system alone, unless you think the sonar was setup with the wrong coordinate system.
+
+SV Cast Selection describes the way that we choose which sound velocity profile (cast) applies to each chunk of data during processing.  You can choose a different algorithm here, or leave it at the default, which will select the cast that is closest in time to that data chunk.
+
+Designated Surface is a new features as of Kluster 0.9.6 that allows you to choose a surface (or create a new one) and have your data auto added to that surface as you process new data.  Leave it blank if you want to just manually create surfaces later.
 
 .. image:: quickstart_5.png
    :target: ../_images/quickstart_5.png
