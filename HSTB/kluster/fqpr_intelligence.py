@@ -1987,7 +1987,7 @@ def intel_process_service(folder_path: Union[list, str], is_recursive: bool = Tr
     use_epsg
         if True, will use the epsg code to build the CRS to use
     vert_ref
-        the vertical reference point, one of ['ellipse', 'waterline']
+        the vertical reference point, one of ['waterline', 'ellipse', 'NOAA MLLW', 'NOAA MHW']
     parallel_write
         if True, will write in parallel to disk, Disable for permissions issues troubleshooting.
     vdatum_directory

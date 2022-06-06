@@ -1,5 +1,5 @@
-Quickstart
-==========
+Quickstart - Basic
+==================
 
 Welcome to Kluster!  
 
