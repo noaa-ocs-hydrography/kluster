@@ -78,6 +78,9 @@ if __name__ == "__main__":  # run from command line
                          help='If true, writes to disk in parallel, turn this off to troubleshoot PermissionErrors, default is True')
     allproc.add_argument('-vdatum', '--vdatum_directory', required=False,
                          help="if 'NOAA MLLW' 'NOAA MHW' is the vertical reference, a path to the vdatum directory is required here.")
+    allproc.add_argument('-csl', '--cast_selection_method', required=False, nargs='?', const=kluster_variables.default_cast_selection_method,
+                         default=kluster_variables.default_cast_selection_method,
+                         help='the method used to select the cast that goes with each chunk of the dataset, one of {}, default {}'.format(kluster_variables.default_cast_selection_method, kluster_variables.cast_selection_methods))
 
     intelprochelp = 'R|Use Kluster intelligence module to organize and process all input files.  Files can be a list of files, a single '
     intelprochelp += 'file, or a directory full of files.  Files can be multibeam files, .svp sound velocity profile files, SBET and '
@@ -109,6 +112,12 @@ if __name__ == "__main__":  # run from command line
                            help='One of the following process modes: normal=generate the next processing action using the current_processing_status attribute as normal, convert_only=only convert incoming data, return no processing actions, concatenate=process line by line if there is no processed data for that line')
     intelproc.add_argument('-vdatum', '--vdatum_directory', required=False,
                            help="if 'NOAA MLLW' 'NOAA MHW' is the vertical reference, a path to the vdatum directory is required here.")
+    intelproc.add_argument('-csl', '--cast_selection_method', required=False, nargs='?',
+                           const=kluster_variables.default_cast_selection_method,
+                           default=kluster_variables.default_cast_selection_method,
+                           help='the method used to select the cast that goes with each chunk of the dataset, one of {}, default {}'.format(kluster_variables.default_cast_selection_method, kluster_variables.cast_selection_methods))
+    intelproc.add_argument('-ds', '--designated_surface', required=False, nargs='?', const='', default='',
+                           help='path to a Kluster Bathygrid surface.  If this is provided, newly processed data will be added to the surface as it is processed.')
 
     intelservicehelp = 'R|Use Kluster intelligence module to start a new folder monitoring session and process all new files that show '
     intelservicehelp += 'up in the directory.  Files can be multibeam files, .svp sound velocity profile files, SBET and '
@@ -139,6 +148,13 @@ if __name__ == "__main__":  # run from command line
                               help='One of the following process modes: normal=generate the next processing action using the current_processing_status attribute as normal, convert_only=only convert incoming data, return no processing actions, concatenate=process line by line if there is no processed data for that line')
     intelservice.add_argument('-vdatum', '--vdatum_directory', required=False,
                               help="if 'NOAA MLLW' 'NOAA MHW' is the vertical reference, a path to the vdatum directory is required here.")
+    intelservice.add_argument('-csl', '--cast_selection_method', required=False, nargs='?',
+                              const=kluster_variables.default_cast_selection_method,
+                              default=kluster_variables.default_cast_selection_method,
+                              help='the method used to select the cast that goes with each chunk of the dataset, one of {}, default {}'.format(
+                                  kluster_variables.default_cast_selection_method, kluster_variables.cast_selection_methods))
+    intelservice.add_argument('-ds', '--designated_surface', required=False, nargs='?', const='', default='',
+                              help='path to a Kluster Bathygrid surface.  If this is provided, newly processed data will be added to the surface as it is processed.')
 
     converthelp = 'R|Convert multibeam from raw files to xarray datasets within the kluster data structure\n'
     converthelp += 'example (relying on default arguments): convert -f fileone.all\n'
@@ -222,11 +238,16 @@ if __name__ == "__main__":  # run from command line
                              help="if 'NOAA MLLW' 'NOAA MHW' is the vertical reference, a path to the vdatum directory is required here.")
     processproc.add_argument('-line', '--only_this_line', required=False,
                              help="only process this line, subset the full dataset by the min time and maximum time of the line name provided.  ex: 0000_testline.all")
+    processproc.add_argument('-csl', '--cast_selection_method', required=False, nargs='?',
+                             const=kluster_variables.default_cast_selection_method,
+                             default=kluster_variables.default_cast_selection_method,
+                             help='the method used to select the cast that goes with each chunk of the dataset, one of {}, default {}'.format(
+                                 kluster_variables.default_cast_selection_method, kluster_variables.cast_selection_methods))
 
     gridhelp = 'R|Generate a new grid from the processed Kluster multibeam datasets provided\n'
     gridhelp += 'example: new_surface -df "C:/data_dir/em2045_20098_07_11_2018" -res 8'
     gridproc = subparsers.add_parser('new_surface', help=gridhelp)
-    gridproc.add_argument('-df', '--dataset_folders', nargs='+', required=True, help='list of Kluster processed folders')
+    gridproc.add_argument('-df', '--dataset_folders', nargs='+', required=False, help='list of Kluster processed folders')
     gridproc.add_argument('-gt', '--grid_type', type=str, required=False, nargs='?', const='single_resolution',
                           default='single_resolution', help="one of 'single_resolution', 'variable_resolution_tile'")
     gridproc.add_argument('-ts', '--tile_size', type=float, required=False, nargs='?', const=1024.0,
@@ -239,7 +260,7 @@ if __name__ == "__main__":  # run from command line
                           help="one of density, depth; chooses the algorithm used to determine the resolution for the grid/tile")
     gridproc.add_argument('-res', '--resolution', type=int, required=False, nargs='?', const=8, default=8,
                           help='Resolution of the gridded data, in meters, used for single_resolution grids')
-    gridproc.add_argument('-o', '--output_folder', type=str, required=False,
+    gridproc.add_argument('-o', '--output_folder', type=str, required=True,
                           help='If provided, overrides the default destination with this one')
     gridproc.add_argument('-ex', '--export_folder', type=str, required=False,
                           help='If provided, overrides the default destination with this one')
@@ -279,17 +300,18 @@ if __name__ == "__main__":  # run from command line
                                    vert_ref=args.vertical_reference, add_cast_files=args.cast_profiles, show_progress=args.show_progress,
                                    parallel_write=args.parallel_write, errorfiles=args.error_files, logfiles=args.export_log,
                                    weekstart_year=args.weekstart_year, weekstart_week=args.weekstart_week, override_datum=args.navigation_datum,
-                                   max_gap_length=args.max_navigation_gap, vdatum_directory=args.vdatum_directory, overwrite=args.navigation_overwrite)
+                                   max_gap_length=args.max_navigation_gap, vdatum_directory=args.vdatum_directory, overwrite=args.navigation_overwrite,
+                                   cast_selection_method=args.cast_selection_method)
         elif funcname == 'intel_processing':
             intel_process(args.files, outfold=args.output_folder, coord_system=args.coordinate_system, use_epsg=args.use_epsg,
                           vert_ref=args.vertical_reference, epsg=args.epsg_code,
                           parallel_write=args.parallel_write, force_coordinate_system=args.force_coordinate_system, process_mode=args.process_mode,
-                          vdatum_directory=args.vdatum_directory)
+                          vdatum_directory=args.vdatum_directory, cast_selection_method=args.cast_selection_method, designated_surface=args.designated_surface)
         elif funcname == 'intel_service':
             intel_process_service(args.folder, outfold=args.output_folder, coord_system=args.coordinate_system, vert_ref=args.vertical_reference,
                                   use_epsg=args.use_epsg, epsg=args.epsg_code,
                                   parallel_write=args.parallel_write, force_coordinate_system=args.force_coordinate_system, process_mode=args.process_mode,
-                                  vdatum_directory=args.vdatum_directory)
+                                  vdatum_directory=args.vdatum_directory, cast_selection_method=args.cast_selection_method, designated_surface=args.designated_surface)
         elif funcname == 'convert':
             convert_multibeam(args.files, input_datum=args.input_datum, outfold=args.output_folder, show_progress=args.show_progress,
                               parallel_write=args.parallel_write)
@@ -306,17 +328,18 @@ if __name__ == "__main__":  # run from command line
             process_multibeam(reloaded_data, run_orientation=args.run_orientation, run_beam_vec=args.run_beam_vector, run_svcorr=args.run_sv_correct,
                               run_georef=args.run_georeference, run_tpu=args.run_tpu, use_epsg=args.use_epsg, use_coord=args.use_coord, epsg=args.epsg_code,
                               coord_system=args.coordinate_identifier, vert_ref=args.vertical_identifier, vdatum_directory=args.vdatum_directory,
-                              only_this_line=args.only_this_line)
+                              only_this_line=args.only_this_line, cast_selection_method=args.cast_selection_method)
         elif funcname == 'new_surface':
             reloaded_data = []
-            for conv in args.dataset_folders:
-                dat = reload_data(conv)
-                if not dat:
-                    print('{}: unable to reload from {}, not a valid converted kluster dataset'.format(funcname, conv))
-                    sys.exit()
-                reloaded_data.append(dat)
+            if args.dataset_folders:
+                for conv in args.dataset_folders:
+                    dat = reload_data(conv)
+                    if not dat:
+                        print('{}: unable to reload from {}, not a valid converted kluster dataset'.format(funcname, conv))
+                        sys.exit()
+                    reloaded_data.append(dat)
             if not reloaded_data:
-                print('{}: no data reloaded from provided paths: {}'.format(funcname, args.dataset_folders))
+                reloaded_data = None
             output_path = args.output_folder
             if not output_path:
                 output_path = os.path.join(os.path.dirname(args.dataset_folders[0]), 'grid')

@@ -12,7 +12,7 @@ from dask.distributed import Client
 from HSTB.kluster.fqpr_drivers import fast_read_multibeam_metadata, fast_read_sbet_metadata, fast_read_errorfile_metadata, \
     read_pospac_export_log, is_sbet, is_smrmsg, read_soundvelocity_file
 from HSTB.kluster import monitor, fqpr_actions
-from HSTB.kluster.fqpr_project import FqprProject
+from HSTB.kluster.fqpr_project import FqprProject, Fqpr
 from HSTB.kluster.fqpr_helpers import build_crs
 from HSTB.kluster.fqpr_vessel import compare_dict_data, convert_from_fqpr_xyzrph
 from HSTB.kluster.logging_conf import LoggerClass
@@ -1132,7 +1132,11 @@ class FqprIntel(LoggerClass):
                     self.parent.kluster_execute_action(self.action_container, 0)
                 else:
                     output = self.action_container.execute_action(idx)
-                    self.project.add_fqpr(output)
+                    if isinstance(output, Fqpr):  # if the output is fqpr data
+                        self.project.add_fqpr(output)
+                    else:  # if the output is a new surf
+                        fq_surf, oldrez, newrez = output
+                        self.project.update_surface(fq_surf.output_folder, fq_surf, relative_path=False)
                     self.project.save_project()
                     self.update_intel_for_action_results(action_type)
 
@@ -1871,6 +1875,7 @@ def likelihood_start_end_times_close(filetimes: list, compare_times: list, allow
 def intel_process(filname: Union[str, list], outfold: str = None, coord_system: str = 'WGS84',
                   epsg: int = None, use_epsg: bool = False, vert_ref: str = 'waterline',
                   parallel_write: bool = True, vdatum_directory: str = None, force_coordinate_system: bool = True,
+                  cast_selection_method: str = 'nearest_in_time', designated_surface: str = '',
                   process_mode: str = 'normal', logger: logging.Logger = None, client: Client = None):
     """
     Use Kluster intelligence module to organize and process all input files.  Files can be a list of files, a single
@@ -1899,6 +1904,12 @@ def intel_process(filname: Union[str, list], outfold: str = None, coord_system: 
         if True, will force all converted data to have the same coordinate system.  Only takes effect if you do not use_epsg.
         use_epsg overwrites this.  If coord_system/autoutm is used, this will ensure that all data added will have a
         utm zone equal to the first converted data instance.
+    cast_selection_method
+        the method used to select the cast that goes with each chunk of the dataset, one of ['nearest_in_time',
+        'nearest_in_time_four_hours', 'nearest_in_distance', 'nearest_in_distance_four_hours']
+    designated_surface
+        path to a Kluster Bathygrid surface.  If this is provided, newly processed data will be added to the surface
+        as it is processed.
     process_mode
         One of the following process modes: normal=generate the next processing action using the
         current_processing_status attribute as normal, convert_only=only convert incoming data, return no
@@ -1920,12 +1931,15 @@ def intel_process(filname: Union[str, list], outfold: str = None, coord_system: 
     project = FqprProject(is_gui=False, project_path=outfold, logger=logger)
     if client:
         project.client = client
+    if designated_surface:
+        project.add_surface(designated_surface)
 
     intel = FqprIntel(project, logger=logger)
 
     settings = {'use_epsg': use_epsg, 'epsg': epsg, 'use_coord': not use_epsg, 'coord_system': coord_system,
                 'vert_ref': vert_ref, 'parallel_write': parallel_write, 'vdatum_directory': vdatum_directory,
-                'force_coordinate_match': force_coordinate_system, 'autoprocessing_mode': process_mode}
+                'force_coordinate_match': force_coordinate_system, 'autoprocessing_mode': process_mode,
+                'cast_selection_method': cast_selection_method, 'designated_surface': designated_surface}
     intel.set_settings(settings)
 
     if isinstance(filname, str):
@@ -1951,6 +1965,7 @@ def intel_process(filname: Union[str, list], outfold: str = None, coord_system: 
 def intel_process_service(folder_path: Union[list, str], is_recursive: bool = True, outfold: str = None, coord_system: str = 'WGS84',
                           epsg: int = None, use_epsg: bool = False, vert_ref: str = 'waterline',
                           parallel_write: bool = True, vdatum_directory: str = None, force_coordinate_system: bool = True,
+                          cast_selection_method: str = 'nearest_in_time', designated_surface: str = '',
                           process_mode: str = 'normal', logger: logging.Logger = None, client: Client = None):
     """
     Use Kluster intelligence module to start a new folder monitoring session and process all new files that show
@@ -1981,6 +1996,12 @@ def intel_process_service(folder_path: Union[list, str], is_recursive: bool = Tr
         if True, will force all converted data to have the same coordinate system.  Only takes effect if you do not use_epsg.
         use_epsg overwrites this.  If coord_system/autoutm is used, this will ensure that all data added will have a
         utm zone equal to the first converted data instance.
+    cast_selection_method
+        the method used to select the cast that goes with each chunk of the dataset, one of ['nearest_in_time',
+        'nearest_in_time_four_hours', 'nearest_in_distance', 'nearest_in_distance_four_hours']
+    designated_surface
+        path to a Kluster Bathygrid surface.  If this is provided, newly processed data will be added to the surface
+        as it is processed.
     process_mode
         One of the following process modes: normal=generate the next processing action using the
         current_processing_status attribute as normal, convert_only=only convert incoming data, return no
@@ -1996,12 +2017,15 @@ def intel_process_service(folder_path: Union[list, str], is_recursive: bool = Tr
     project = FqprProject(is_gui=False, project_path=outfold, logger=logger)
     if client:
         project.client = client
+    if designated_surface:
+        project.add_surface(designated_surface)
 
     intel = FqprIntel(project, logger=logger)
 
     settings = {'use_epsg': use_epsg, 'epsg': epsg, 'use_coord': not use_epsg, 'coord_system': coord_system,
                 'vert_ref': vert_ref, 'parallel_write': parallel_write, 'vdatum_directory': vdatum_directory,
-                'force_coordinate_match': force_coordinate_system, 'autoprocessing_mode': process_mode}
+                'force_coordinate_match': force_coordinate_system, 'autoprocessing_mode': process_mode,
+                'cast_selection_method': cast_selection_method, 'designated_surface': designated_surface}
     intel.set_settings(settings)
 
     if not isinstance(folder_path, list):
