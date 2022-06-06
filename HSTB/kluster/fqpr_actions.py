@@ -598,7 +598,7 @@ def build_surface_action(destination: str, surface_instance: fqpr_convenience.Ba
 
     args = [surface_instance]
     kwargs = {'add_fqpr': add_fqpr, 'add_lines': add_lines, 'remove_fqpr': remove_fqpr, 'remove_lines': remove_lines}
-    action = FqprAction(priority=6, action_type='gridding', output_destination=destination,
+    action = FqprAction(priority=10, action_type='gridding', output_destination=destination,
                         input_files=[], text='Update surface {}'.format(destination),
                         tooltip_text='{}'.format(destination), function=fqpr_convenience.update_surface,
                         args=args, kwargs=kwargs)
