@@ -1,0 +1,6 @@
+update_kwargs_for_surface
+=========================
+
+.. currentmodule:: HSTB.kluster.fqpr_actions
+
+.. autofunction:: update_kwargs_for_surface

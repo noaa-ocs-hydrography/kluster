@@ -44,6 +44,7 @@ FqprProject
       ~FqprProject.save_project
       ~FqprProject.set_settings
       ~FqprProject.sort_lines_patch_test_pairs
+      ~FqprProject.update_surface
 
    .. rubric:: Methods Documentation
 
@@ -81,3 +82,4 @@ FqprProject
    .. automethod:: save_project
    .. automethod:: set_settings
    .. automethod:: sort_lines_patch_test_pairs
+   .. automethod:: update_surface

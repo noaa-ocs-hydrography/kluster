@@ -6,7 +6,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
-    <title>Quickstart &#8212; kluster 0.9.5 documentation</title>
+    <title>Quickstart - Basic &#8212; kluster 0.9.6 documentation</title>
     <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
     <link rel="stylesheet" type="text/css" href="../_static/alabaster.css" />
     <link rel="stylesheet" type="text/css" href="../_static/graphviz.css" />
@@ -16,7 +16,7 @@
     <script src="../_static/doctools.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="FAQ" href="../faq/index.html" />
+    <link rel="next" title="Quickstart - Monitor" href="../quickstart_monitor/index.html" />
     <link rel="prev" title="Requirements" href="../requirements/index.html" />
    
   <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
@@ -34,8 +34,8 @@
 
           <div class="body" role="main">
             
-  <section id="quickstart">
-<h1>Quickstart<a class="headerlink" href="#quickstart" title="Permalink to this headline">¶</a></h1>
+  <section id="quickstart-basic">
+<h1>Quickstart - Basic<a class="headerlink" href="#quickstart-basic" title="Permalink to this headline">¶</a></h1>
 <p>Welcome to Kluster!</p>
 <p>If you want to learn more, try the YouTube series: <a class="reference external" href="https://www.youtube.com/playlist?list=PLrjCvP_J9AA_memBs2ZyKXGHG1AMx0GWx">Kluster Playlist</a></p>
 <p>Kluster is an open-source multibeam processing system designed around ease of use and performance.  Currently Kluster supports Kongsberg multibeam formats (.all, .kmall), Caris SVP files (.svp) and Applanix POSPac SBET files (.sbet, .smrmsg), and you need to have at least a multibeam file to start.  I have one on the GitHub if you are just experimenting with this software:</p>
@@ -48,7 +48,7 @@
 <a class="reference external image-reference" href="../_images/quickstart_1.png"><img alt="../_images/quickstart_1.png" src="../_images/quickstart_1.png" /></a>
 <p>The first thing you can do is experiment with background layers.  Go to View – Layer Settings and select one of the background layers.  Note that some require internet, these are marked as so.  If you know of some web map services that are not in this list, feel free to let me know and I can add them!  Here we are with the satellite layer and some transparency.</p>
 <a class="reference external image-reference" href="../_images/quickstart_2.png"><img alt="../_images/quickstart_2.png" src="../_images/quickstart_2.png" /></a>
-<p>OK, so let us convert some data.  Drag a multibeam file into the ‘Project Tree’ window on the left of Kluster to get this display.  For this demo, we are just including a single line, but you can grab multiple lines at once if you like.</p>
+<p>OK, so let us convert some data.  Drag a multibeam file into the application to get this display.  For this demo, we are just including a single line, but you can grab multiple lines at once if you like.</p>
 <a class="reference external image-reference" href="../_images/quickstart_3.png"><img alt="../_images/quickstart_3.png" src="../_images/quickstart_3.png" /></a>
 <p>We have a new action (see the ‘Actions’ on the right) to convert this line.  All we need to do is hit ‘Start Process’ and it will start converting.  Since we did not setup a new project (‘File – New Project’) the converted data will go right next to the multibeam file along with a new project file ‘kluster_project.json’.  You will notice a 2 to 3 second delay right after hitting the ‘Start Process’ button.  That is the Dask Cluster starting up!  It powers all the parallel processing and must start the first time you hit that button.  Here we are with our new converted data.</p>
 <a class="reference external image-reference" href="../_images/quickstart_4.png"><img alt="../_images/quickstart_4.png" src="../_images/quickstart_4.png" /></a>
@@ -59,6 +59,8 @@
 </ul>
 <p>Otherwise pick a more basic reference such as ‘waterline’ (data referenced to the waterline of the vessel) or ‘ellipse’ (data referenced to the ellipsoid, either NAD83(GRS80)/WGS84 ellipsoid).</p>
 <p>You can almost always leave the input coordinate system alone, unless you think the sonar was setup with the wrong coordinate system.</p>
+<p>SV Cast Selection describes the way that we choose which sound velocity profile (cast) applies to each chunk of data during processing.  You can choose a different algorithm here, or leave it at the default, which will select the cast that is closest in time to that data chunk.</p>
+<p>Designated Surface is a new features as of Kluster 0.9.6 that allows you to choose a surface (or create a new one) and have your data auto added to that surface as you process new data.  Leave it blank if you want to just manually create surfaces later.</p>
 <a class="reference external image-reference" href="../_images/quickstart_5.png"><img alt="../_images/quickstart_5.png" src="../_images/quickstart_5.png" /></a>
 <p>As a side note, remember when I mentioned the Dask Cluster earlier?  You can also manually start the cluster with options that you select instead of letting Kluster auto start it.  You can find it under ‘Setup - Dask Client’.  There isn’t much there currently, but in the future, expect more advanced options for working in the Cloud!  When Kluster auto starts the cluster, we just use the Local Cluster.</p>
 <a class="reference external image-reference" href="../_images/quickstart_6.png"><img alt="../_images/quickstart_6.png" src="../_images/quickstart_6.png" /></a>
@@ -173,7 +175,7 @@
 <h3>Navigation</h3>
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="../requirements/index.html">Requirements</a></li>
-<li class="toctree-l1 current"><a class="current reference internal" href="#">Quickstart</a><ul>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Quickstart - Basic</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#let-s-process">Let’s Process!</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#analysis">Analysis!</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#gridding">Gridding!</a></li>
@@ -182,6 +184,7 @@
 </li>
 </ul>
 </li>
+<li class="toctree-l1"><a class="reference internal" href="../quickstart_monitor/index.html">Quickstart - Monitor</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../faq/index.html">FAQ</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../vessel_setup/index.html">Vessel Setup</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../processing/index.html">Processing</a></li>
@@ -201,7 +204,7 @@
 <ul>
   <li><a href="../index.html">Documentation overview</a><ul>
       <li>Previous: <a href="../requirements/index.html" title="previous chapter">Requirements</a></li>
-      <li>Next: <a href="../faq/index.html" title="next chapter">FAQ</a></li>
+      <li>Next: <a href="../quickstart_monitor/index.html" title="next chapter">Quickstart - Monitor</a></li>
   </ul></li>
 </ul>
 </div>

@@ -52,6 +52,7 @@ Fqpr
       ~Fqpr.initialize_log
       ~Fqpr.interp_to_ping_record
       ~Fqpr.intersects
+      ~Fqpr.is_processed
       ~Fqpr.line_attributes
       ~Fqpr.line_is_processed
       ~Fqpr.overwrite_raw_navigation
@@ -63,7 +64,10 @@ Fqpr
       ~Fqpr.return_all_profiles
       ~Fqpr.return_applicable_casts
       ~Fqpr.return_cast_dict
+      ~Fqpr.return_cast_idx_nearestindistance
+      ~Fqpr.return_cast_idx_nearestindistance_fourhours
       ~Fqpr.return_cast_idx_nearestintime
+      ~Fqpr.return_cast_idx_nearestintime_fourhours
       ~Fqpr.return_chunk_indices
       ~Fqpr.return_line_dict
       ~Fqpr.return_line_time
@@ -134,6 +138,7 @@ Fqpr
    .. automethod:: initialize_log
    .. automethod:: interp_to_ping_record
    .. automethod:: intersects
+   .. automethod:: is_processed
    .. automethod:: line_attributes
    .. automethod:: line_is_processed
    .. automethod:: overwrite_raw_navigation
@@ -145,7 +150,10 @@ Fqpr
    .. automethod:: return_all_profiles
    .. automethod:: return_applicable_casts
    .. automethod:: return_cast_dict
+   .. automethod:: return_cast_idx_nearestindistance
+   .. automethod:: return_cast_idx_nearestindistance_fourhours
    .. automethod:: return_cast_idx_nearestintime
+   .. automethod:: return_cast_idx_nearestintime_fourhours
    .. automethod:: return_chunk_indices
    .. automethod:: return_line_dict
    .. automethod:: return_line_time

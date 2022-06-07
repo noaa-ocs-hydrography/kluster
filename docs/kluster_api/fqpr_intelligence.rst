@@ -23,3 +23,4 @@ fqpr\_intelligence module
    :skip: read_pospac_export_log
    :skip: read_soundvelocity_file
    :skip: LoggerClass
+   :skip: Fqpr
