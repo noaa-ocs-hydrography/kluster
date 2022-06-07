@@ -104,7 +104,7 @@ This is going to allow us to create a new grid and automatically process/add to 
    surf = generate_new_surface(output_path=r"C:\collab\dasktest\data_dir\newsurf", tile_size=512.0, gridding_algorithm='cube', auto_resolution_mode='depth',
                                grid_parameters={'variance_selection': 'CUBE', 'iho_order': 'order1a', 'method': 'local'})
    # pass in that surface as the designated surface, start the processing service, which is a combination of the fqpr_intelligence.intel_process and folder monitoring
-   fq = intel_process_service(r"C:\collab\dasktest\data_dir\EM2040_Fairweather_SmallFile", coord_system='WGS84', vert_ref='NOAA MLLW',
+   fq = intel_process_service(r"C:\collab\dasktest\data_dir\EM2040_Fairweather_SmallFile", coord_system='WGS84', vert_ref='NOAA MLLW', process_mode='concatenate',
                               vdatum_directory=r'C:/vdatum/vdatum_all_20220324/vdatum', designated_surface=r"C:\collab\dasktest\data_dir\newsurf")
 
 And that is it!  If you have concerns or issues, please consider submitting an issue on the GitHub here
