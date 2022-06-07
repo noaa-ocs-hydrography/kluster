@@ -154,6 +154,7 @@ Build docker image using the provided dockerfile
 
    requirements/index
    quickstart/index
+   quickstart_monitor/index
    faq/index
    vessel_setup/index
    processing/index

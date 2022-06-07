@@ -42,3 +42,4 @@ fqpr\_generation module
    :skip: return_xarray_from_posfiles
    :skip: return_xarray_from_sbet
    :skip: FilterManager
+   :skip: distance_between_coordinates

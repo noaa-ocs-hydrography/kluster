@@ -5,7 +5,7 @@ import numpy as np
 import tempfile
 
 from HSTB.drivers import par3
-from HSTB.kluster.fqpr_convenience import convert_multibeam, reload_data, process_multibeam, reprocess_sounding_selection
+from HSTB.kluster.fqpr_convenience import convert_multibeam, reload_data, process_multibeam, reprocess_sounding_selection, generate_new_surface
 
 
 class TestFqprConvenience(unittest.TestCase):
@@ -14,6 +14,7 @@ class TestFqprConvenience(unittest.TestCase):
     def setUpClass(cls) -> None:
         cls.testfile = os.path.join(os.path.dirname(__file__), 'resources', '0009_20170523_181119_FA2806.all')
         cls.expected_output = os.path.join(tempfile.tempdir, 'TestFqprConvenience')
+
         try:
             os.mkdir(cls.expected_output)
         except FileExistsError:
@@ -137,4 +138,57 @@ class TestFqprConvenience(unittest.TestCase):
         assert float(z[0][0]) == 53.2859992980957
         assert float(z[0][399]) == 111.13099670410156
 
+    def test_generate_new_surface_empty(self):
+        bs = generate_new_surface()
+        assert bs.data is None
+        assert bs.cell_count == {}
+        assert bs.container == {}
+        assert bs.coverage_area_square_meters == 0.0
+        assert bs.coverage_area_square_nm == 0.0
+        assert bs.epsg is None
+        assert not bs.has_tiles
+        assert bs.height is None
+        assert bs.layer_names == []
+        assert bs.is_empty
 
+    def test_generate_new_sr_surface(self):
+        bs = generate_new_surface(self.out)
+        assert bs.data is None
+        assert bs.cell_count == {8.0: 901}
+        assert bs.container == {'converted__0009_20170523_181119_FA2806.all': ['0009_20170523_181119_FA2806.all']}
+        assert bs.coverage_area_square_meters == 57664.0
+        assert round(bs.coverage_area_square_nm, 6) == 0.016791
+        assert bs.epsg == 6339
+        assert bs.has_tiles
+        assert bs.height == 2048.0
+        assert bs.layer_names == ['depth', 'density', 'vertical_uncertainty', 'horizontal_uncertainty']
+        assert bs.min_x == 538624.0
+        assert bs.max_x == 539648.0
+        assert bs.min_y == 5292032.0
+        assert bs.min_y == 5292032.0
+        assert int(bs.mean_depth) == 89
+        assert bs.resolutions == [8.0]
+        assert bs.number_of_tiles == 2
+        assert not bs.is_empty
+        assert bs.sub_type == 'srtile'
+
+    def test_generate_new_vr_surface(self):
+        bs = generate_new_surface(self.out, grid_type='variable_resolution_tile')
+        assert bs.data is None
+        assert bs.cell_count == {8.0: 901}
+        assert bs.container == {'converted__0009_20170523_181119_FA2806.all': ['0009_20170523_181119_FA2806.all']}
+        assert bs.coverage_area_square_meters == 57664.0
+        assert round(bs.coverage_area_square_nm, 6) == 0.016791
+        assert bs.epsg == 6339
+        assert not bs.has_tiles
+        assert bs.height == 2048.0
+        assert bs.layer_names == ['depth', 'density', 'vertical_uncertainty', 'horizontal_uncertainty']
+        assert bs.min_x == 538624.0
+        assert bs.max_x == 539648.0
+        assert bs.min_y == 5292032.0
+        assert bs.min_y == 5292032.0
+        assert int(bs.mean_depth) == 89
+        assert bs.resolutions == [8.0]
+        assert bs.number_of_tiles == 2
+        assert not bs.is_empty
+        assert bs.sub_type == 'grid'

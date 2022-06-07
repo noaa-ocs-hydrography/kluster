@@ -6,7 +6,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
-    <title>Settings &#8212; kluster 0.9.5 documentation</title>
+    <title>Settings &#8212; kluster 0.9.6 documentation</title>
     <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
     <link rel="stylesheet" type="text/css" href="../_static/alabaster.css" />
     <link rel="stylesheet" type="text/css" href="../_static/graphviz.css" />
@@ -47,6 +47,10 @@
 </ul>
 <p>Although this should not be the case, I have seen occasional issues with how Kluster writes to disk in parallel.  There should no longer be issues with PermissionsErrors and writes to disk, but if you were to see this again, disabling the parallel writes would most likely eliminate those.  It will also slow down the Kluster performance, so keep this checked if you can</p>
 <ul class="simple">
+<li><p>Draw Navigation</p></li>
+</ul>
+<p>Sets the type of navigation used when drawing the tracklines on screen.  Raw is just the raw multibeam navigation, processed will try and draw SBET navigation if it exists.</p>
+<ul class="simple">
 <li><p>Retain Waterline Changes</p></li>
 </ul>
 <p>Only used when you are using the Kluster vessel file.  With a vessel file loaded, when you add new multibeam data it will use the most recent entry in the vessel file for the offsets/angles/tpu parameters.  The vessel file will override the offsets/angles in the multibeam data.  This includes the waterline value, which is the one setting that might change
@@ -67,6 +71,14 @@ across days of data that you want to keep.  If you want to retain the waterline 
 <li><p>VDatum directory</p></li>
 </ul>
 <p>Only used when you are using the ‘NOAA MLLW’ or ‘NOAA MHW’ options under vertical reference in Project Settings.  These two options require VDatum to perform the vertical transformation from ellipse to MLLW/MHW.  With VDatum provided, you are able to process using these two vertical references natively in Kluster, without the need for a separate gridded transformation file.</p>
+<ul class="simple">
+<li><p>External Filter directory</p></li>
+</ul>
+<p>Optional, set if you have a directory of custom Kluster filter .py files that you would like to include.</p>
+<ul class="simple">
+<li><p>Output Log</p></li>
+</ul>
+<p>Optional, set if you want to save the output in the Output Window to a file.  This will only save the non-processing output, all the processing output is saved to the log in the processed data folder.</p>
 <a class="reference external image-reference" href="../_images/settings_1_2.png"><img alt="../_images/settings_1_2.png" src="../_images/settings_1_2.png" /></a>
 <ul class="simple">
 <li><p>Pass Color</p></li>
@@ -109,6 +121,14 @@ across days of data that you want to keep.  If you want to retain the waterline 
 <li><p>Pings per CSV file</p></li>
 </ul>
 <p>When exporting soundings to CSV, this is the number of pings that are stored in each exported file.  Raise this number if you want larger chunked file exports.</p>
+<ul class="simple">
+<li><p>Display grid chunk size</p></li>
+</ul>
+<p>Loading a grid layer will load the grid in chunks of this size, raising this value can create overly large files for the backend and increase memory consumption.</p>
+<ul class="simple">
+<li><p>Export grid chunk size</p></li>
+</ul>
+<p>Exporting a grid will save one chunk to a file, the chunk being this wide/high. raising this value can create overly large files for the backend and increase memory consumption.</p>
 <a class="reference external image-reference" href="../_images/settings_1_4.png"><img alt="../_images/settings_1_4.png" src="../_images/settings_1_4.png" /></a>
 <p>This screen allows you to control the default uncertainty values used when converting and processing data.</p>
 <p>Changes to these values will be reflected in the Setup - Vessel Offsets - Uncertainty screen for newly converted multibeam data.</p>
@@ -130,17 +150,22 @@ across days of data that you want to keep.  If you want to retain the waterline 
 <li><p>Surface Transparency</p></li>
 </ul>
 <p>Percent transparency to apply to the surface layer(s)</p>
+<ul class="simple">
+<li><p>Color Ranges</p></li>
+</ul>
+<p>With a populated surface, this shows the min/max that is used to color the surface in the map view.  You can override the min/max for a layer by selecting the override box and then entering in new values.</p>
 </section>
 <section id="project-settings">
 <h2>Project Settings<a class="headerlink" href="#project-settings" title="Permalink to this headline">¶</a></h2>
 <p>Project settings are accessed through the “Setup - Set Project Settings”</p>
 <a class="reference external image-reference" href="../_images/settings_3.png"><img alt="../_images/settings_3.png" src="../_images/settings_3.png" /></a>
 <ul class="simple">
-<li><p>Coordinate System</p></li>
+<li><p>Input/Output Coordinate System</p></li>
 </ul>
 <p>The Coordinate System is used during georeferencing to project the sound velocity corrected offsets to northing/easting/depth values.  Altering the Coordinate System will produce a new georeference/TPU action.  The Coordinate System specified here will apply to all currently loaded days of data.</p>
 <p>From EPSG will use an integer EPSG code to determine the coordinate system of this project.  See the currently available codes <a class="reference external" href="https://epsg.org/home.html">here</a>  Note that the coordinate system provide must be a projected coordinate system with units in meters/feet.</p>
 <p>Auto UTM is the primary way to set the coordinate system for a project.  This will use the provided coordinate system and the longitude of the provided data to automatically determine the appropriate UTM zone.  It will do this for each day, unless you use the Settings - Force all days to have the same Coordinate System option.  If that option is set and you are using Auto UTM, it will use the UTM zone of the first loaded day of data.</p>
+<p>We ask for an Input and Output coordinate system, because we end up doing a transform during georeferencing.  That transform is from input navigation in geographic coordinates to the desired projected coordinate system, specified using the output coordinate system box here.</p>
 <ul class="simple">
 <li><p>Vertical Reference</p></li>
 </ul>
@@ -149,6 +174,18 @@ across days of data that you want to keep.  If you want to retain the waterline 
 <p>Ellipse - sound velocity corrected offsets (relative to reference point) - altitude</p>
 <p>NOAA MLLW - sound velocity corrected offsets (relative to reference point) - altitude - MLLW Separation from VDatum</p>
 <p>NOAA MHW - sound velocity corrected offsets (relative to reference point) - altitude - MHW Separation from VDatum</p>
+<ul class="simple">
+<li><p>SV Cast Selection</p></li>
+</ul>
+<p>Choose which cast is chosen for each chunk of data.</p>
+<p>nearest_in_time - use the cast that is nearest in time to each chunk of data</p>
+<p>nearest_in_time_four_hours - use the cast that is nearest in time to each chunk as long as it is within four hours</p>
+<p>nearest_in_distance - use the cast that is nearest in distance to each chunk of data</p>
+<p>nearest_in_distance_four_hours - use the cast that is nearest in distance to each chunk as long as it is within four hours</p>
+<ul class="simple">
+<li><p>Designated Surface</p></li>
+</ul>
+<p>Choose a surface that will be automatically updated as you add data to the project.</p>
 <div class="toctree-wrapper compound">
 </div>
 </section>
@@ -173,7 +210,8 @@ across days of data that you want to keep.  If you want to retain the waterline 
 <h3>Navigation</h3>
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="../requirements/index.html">Requirements</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../quickstart/index.html">Quickstart</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../quickstart/index.html">Quickstart - Basic</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../quickstart_monitor/index.html">Quickstart - Monitor</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../faq/index.html">FAQ</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../vessel_setup/index.html">Vessel Setup</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../processing/index.html">Processing</a></li>

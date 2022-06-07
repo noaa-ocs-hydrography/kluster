@@ -12,7 +12,7 @@ from dask.distributed import Client
 from HSTB.kluster.fqpr_drivers import fast_read_multibeam_metadata, fast_read_sbet_metadata, fast_read_errorfile_metadata, \
     read_pospac_export_log, is_sbet, is_smrmsg, read_soundvelocity_file
 from HSTB.kluster import monitor, fqpr_actions
-from HSTB.kluster.fqpr_project import FqprProject
+from HSTB.kluster.fqpr_project import FqprProject, Fqpr
 from HSTB.kluster.fqpr_helpers import build_crs
 from HSTB.kluster.fqpr_vessel import compare_dict_data, convert_from_fqpr_xyzrph
 from HSTB.kluster.logging_conf import LoggerClass
@@ -52,6 +52,8 @@ class FqprIntel(LoggerClass):
         self.keep_waterline_changes = True
         self.force_coordinate_match = True
         self.autoprocessing_mode = 'normal'
+        # use set_designated_surface to set, will be the absolute path to the designated surface
+        self.designated_surface = ''
 
         self.multibeam_intel = MultibeamModule(silent=self.silent, logger=self.logger)
         self.nav_intel = NavigationModule(silent=self.silent, logger=self.logger)
@@ -118,7 +120,8 @@ class FqprIntel(LoggerClass):
             dictionary of processing settings
         """
 
-        desired_keys = ['use_epsg', 'epsg', 'use_coord', 'coord_system', 'vert_ref', 'vdatum_directory', 'input_datum']
+        desired_keys = ['use_epsg', 'epsg', 'use_coord', 'coord_system', 'vert_ref', 'vdatum_directory', 'input_datum',
+                        'cast_selection_method']
         self.processing_settings.update({ky: settings[ky] for ky in desired_keys if ky in settings})
         existing_kwargs = list(settings.keys())
         [settings.pop(ky) for ky in existing_kwargs if ky in desired_keys]
@@ -131,6 +134,8 @@ class FqprIntel(LoggerClass):
             self.force_coordinate_match = settings['force_coordinate_match']
         if 'autoprocessing_mode' in settings:
             self.autoprocessing_mode = settings['autoprocessing_mode']
+        if 'designated_surface' in settings:
+            self.designated_surface = settings['designated_surface']
         self.regenerate_actions()
 
     def set_auto_processing_mode(self, process_mode: str = 'normal'):
@@ -146,6 +151,28 @@ class FqprIntel(LoggerClass):
         """
 
         self.set_settings({'autoprocessing_mode': process_mode})
+
+    def set_designated_surface(self, surf_name: str):
+        """
+        Set a new designated surface by providing the path to a bathygrid folder here.  The designated surface will
+        be automatically updated when new processed fqpr containers are added to the project.
+
+        Parameters
+        ----------
+        surf_name
+            path to the bathygrid folder that you want to set as the designated surface
+        """
+
+        if not surf_name:  # clear the designated surface
+            self.set_settings({'designated_surface': ''})
+        if surf_name in self.project.surface_instances:  # you got the path to the surface instance right, it is a relative path
+            self.set_settings({'designated_surface': self.project.absolute_path_from_relative(surf_name)})
+        elif self.project.path_relative_to_project(surf_name) in self.project.surface_instances:  # you gave an absolute path that is in the project
+            self.set_settings({'designated_surface': surf_name})
+        else:
+            self.print_msg(f'Unable to add {surf_name} as new designated surface, surface not found in project, please add to project first', logging.ERROR)
+            return
+        self.print_msg(f'Set {surf_name} as new designated surface for updating')
 
     def update_from_project(self, project_updated: bool = True):
         """
@@ -668,6 +695,10 @@ class FqprIntel(LoggerClass):
                     new_input_datum = self.processing_settings['input_datum']
                 else:
                     new_input_datum = None
+                if 'cast_selection_method' in self.processing_settings:  # someone setup a new cast selection method
+                    cast_selection_method = self.processing_settings['cast_selection_method']
+                else:
+                    cast_selection_method = kluster_variables.default_cast_selection_method
                 abs_path = self.project.absolute_path_from_relative(relative_path)
                 action = [a for a in existing_actions if a.output_destination == abs_path]
                 full_reprocess = reprocess_fqpr == relative_path
@@ -683,7 +714,8 @@ class FqprIntel(LoggerClass):
                                                                 new_waterline=new_waterline is not None,
                                                                 new_tpu=not identical_tpu,
                                                                 new_input_datum=new_input_datum,
-                                                                process_mode=process_mode)
+                                                                process_mode=process_mode,
+                                                                cast_selection_method=cast_selection_method)
                 if len(action) == 1 and not action[0].is_running:  # modify the existing processing action
                     if kwargs == {}:
                         self.action_container.remove_action(action[0])
@@ -698,6 +730,49 @@ class FqprIntel(LoggerClass):
                         self.action_container.add_action(newaction)
         else:
             print('FqprIntel: no project loaded, no processing actions constructed.')
+
+    def _regenerate_gridding_actions(self):
+        """
+        Gridding actions include adding new data to the designated surface, and, if the data has been reprocessed, will
+        remove/add the data to the surface.
+        """
+
+        # remove actions that do not match any fqpr instances that are in the project
+        curr_acts, cur_dests = self.action_container.update_action_from_list('gridding', [self.designated_surface])
+
+        if self.designated_surface:
+
+            if not self.project.path or (self.project.path and self.project.path_relative_to_project(self.designated_surface) not in self.project.surface_instances):
+                # self.print_msg(f'Designated surface {self.designated_surface} not currently loaded in project.', logging.WARNING)
+                return
+            relpath_surf = self.project.path_relative_to_project(self.designated_surface)
+            surf = self.project.surface_instances[relpath_surf]
+            destination = surf.output_folder
+            existing_container_names, possible_container_names = self.project.return_surface_containers(relpath_surf)
+            add_fqpr, add_lines, remove_fqpr, remove_lines = [], [], [], []
+            for fq_path, fq_instance in self.project.fqpr_instances.items():
+                if fq_instance.is_processed():
+                    mfiles = list(fq_instance.multibeam.raw_ping[0].multibeam_files.keys())
+                    if fq_path in existing_container_names:
+                        old_files = [ec[:-1] if ec[-1] == '*' else ec for ec in existing_container_names[fq_path]]
+                        new_files = [fil for fil in mfiles if fil not in old_files]
+                        if new_files:
+                            add_fqpr += [fq_instance]
+                            add_lines += [[f for f in new_files if fq_instance.line_is_processed(f)]]
+                    else:
+                        add_fqpr += [fq_instance]
+                        add_lines += [mfiles]
+            if add_fqpr or remove_fqpr:
+                if destination in cur_dests:
+                    action = [a for a in curr_acts if a.output_destination == destination]
+                    if len(action) == 1:
+                        settings = fqpr_actions.update_kwargs_for_surface(destination, surf, add_fqpr, add_lines, remove_fqpr, remove_lines)
+                        self.action_container.update_action(action[0], **settings)
+                    elif len(action) > 1:
+                        raise ValueError('Gridding actions found with the same destinations, {}'.format(destination))
+                else:
+                    newaction = fqpr_actions.build_surface_action(destination, surf, add_fqpr, add_lines, remove_fqpr, remove_lines)
+                    self.action_container.add_action(newaction)
 
     def _build_unmatched_list(self):
         """
@@ -730,6 +805,7 @@ class FqprIntel(LoggerClass):
         """
 
         # print('Checking for new actions...')
+        self._regenerate_gridding_actions()
         self._regenerate_processing_actions(reprocess_fqpr=reprocess_fqpr, keep_waterline_changes=self.keep_waterline_changes)
         self._regenerate_svp_actions()
         self._regenerate_nav_actions()
@@ -1057,7 +1133,11 @@ class FqprIntel(LoggerClass):
                     self.parent.kluster_execute_action(self.action_container, 0)
                 else:
                     output = self.action_container.execute_action(idx)
-                    self.project.add_fqpr(output)
+                    if isinstance(output, Fqpr):  # if the output is fqpr data
+                        self.project.add_fqpr(output)
+                    else:  # if the output is a new surf
+                        fq_surf, oldrez, newrez = output
+                        self.project.update_surface(fq_surf.output_folder, fq_surf, relative_path=False)
                     self.project.save_project()
                     self.update_intel_for_action_results(action_type)
 
@@ -1796,6 +1876,7 @@ def likelihood_start_end_times_close(filetimes: list, compare_times: list, allow
 def intel_process(filname: Union[str, list], outfold: str = None, coord_system: str = 'WGS84',
                   epsg: int = None, use_epsg: bool = False, vert_ref: str = 'waterline',
                   parallel_write: bool = True, vdatum_directory: str = None, force_coordinate_system: bool = True,
+                  cast_selection_method: str = 'nearest_in_time', designated_surface: str = '',
                   process_mode: str = 'normal', logger: logging.Logger = None, client: Client = None):
     """
     Use Kluster intelligence module to organize and process all input files.  Files can be a list of files, a single
@@ -1824,6 +1905,12 @@ def intel_process(filname: Union[str, list], outfold: str = None, coord_system: 
         if True, will force all converted data to have the same coordinate system.  Only takes effect if you do not use_epsg.
         use_epsg overwrites this.  If coord_system/autoutm is used, this will ensure that all data added will have a
         utm zone equal to the first converted data instance.
+    cast_selection_method
+        the method used to select the cast that goes with each chunk of the dataset, one of ['nearest_in_time',
+        'nearest_in_time_four_hours', 'nearest_in_distance', 'nearest_in_distance_four_hours']
+    designated_surface
+        path to a Kluster Bathygrid surface.  If this is provided, newly processed data will be added to the surface
+        as it is processed.
     process_mode
         One of the following process modes: normal=generate the next processing action using the
         current_processing_status attribute as normal, convert_only=only convert incoming data, return no
@@ -1845,12 +1932,15 @@ def intel_process(filname: Union[str, list], outfold: str = None, coord_system: 
     project = FqprProject(is_gui=False, project_path=outfold, logger=logger)
     if client:
         project.client = client
+    if designated_surface:
+        project.add_surface(designated_surface)
 
     intel = FqprIntel(project, logger=logger)
 
     settings = {'use_epsg': use_epsg, 'epsg': epsg, 'use_coord': not use_epsg, 'coord_system': coord_system,
                 'vert_ref': vert_ref, 'parallel_write': parallel_write, 'vdatum_directory': vdatum_directory,
-                'force_coordinate_match': force_coordinate_system, 'autoprocessing_mode': process_mode}
+                'force_coordinate_match': force_coordinate_system, 'autoprocessing_mode': process_mode,
+                'cast_selection_method': cast_selection_method, 'designated_surface': designated_surface}
     intel.set_settings(settings)
 
     if isinstance(filname, str):
@@ -1876,6 +1966,7 @@ def intel_process(filname: Union[str, list], outfold: str = None, coord_system: 
 def intel_process_service(folder_path: Union[list, str], is_recursive: bool = True, outfold: str = None, coord_system: str = 'WGS84',
                           epsg: int = None, use_epsg: bool = False, vert_ref: str = 'waterline',
                           parallel_write: bool = True, vdatum_directory: str = None, force_coordinate_system: bool = True,
+                          cast_selection_method: str = 'nearest_in_time', designated_surface: str = '',
                           process_mode: str = 'normal', logger: logging.Logger = None, client: Client = None):
     """
     Use Kluster intelligence module to start a new folder monitoring session and process all new files that show
@@ -1897,7 +1988,7 @@ def intel_process_service(folder_path: Union[list, str], is_recursive: bool = Tr
     use_epsg
         if True, will use the epsg code to build the CRS to use
     vert_ref
-        the vertical reference point, one of ['ellipse', 'waterline']
+        the vertical reference point, one of ['waterline', 'ellipse', 'NOAA MLLW', 'NOAA MHW']
     parallel_write
         if True, will write in parallel to disk, Disable for permissions issues troubleshooting.
     vdatum_directory
@@ -1906,6 +1997,12 @@ def intel_process_service(folder_path: Union[list, str], is_recursive: bool = Tr
         if True, will force all converted data to have the same coordinate system.  Only takes effect if you do not use_epsg.
         use_epsg overwrites this.  If coord_system/autoutm is used, this will ensure that all data added will have a
         utm zone equal to the first converted data instance.
+    cast_selection_method
+        the method used to select the cast that goes with each chunk of the dataset, one of ['nearest_in_time',
+        'nearest_in_time_four_hours', 'nearest_in_distance', 'nearest_in_distance_four_hours']
+    designated_surface
+        path to a Kluster Bathygrid surface.  If this is provided, newly processed data will be added to the surface
+        as it is processed.
     process_mode
         One of the following process modes: normal=generate the next processing action using the
         current_processing_status attribute as normal, convert_only=only convert incoming data, return no
@@ -1921,12 +2018,15 @@ def intel_process_service(folder_path: Union[list, str], is_recursive: bool = Tr
     project = FqprProject(is_gui=False, project_path=outfold, logger=logger)
     if client:
         project.client = client
+    if designated_surface:
+        project.add_surface(designated_surface)
 
     intel = FqprIntel(project, logger=logger)
 
     settings = {'use_epsg': use_epsg, 'epsg': epsg, 'use_coord': not use_epsg, 'coord_system': coord_system,
                 'vert_ref': vert_ref, 'parallel_write': parallel_write, 'vdatum_directory': vdatum_directory,
-                'force_coordinate_match': force_coordinate_system, 'autoprocessing_mode': process_mode}
+                'force_coordinate_match': force_coordinate_system, 'autoprocessing_mode': process_mode,
+                'cast_selection_method': cast_selection_method, 'designated_surface': designated_surface}
     intel.set_settings(settings)
 
     if not isinstance(folder_path, list):

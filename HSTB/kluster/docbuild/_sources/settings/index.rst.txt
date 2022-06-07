@@ -17,6 +17,10 @@ General settings are accessed through the "File - Settings" menu.
 
 Although this should not be the case, I have seen occasional issues with how Kluster writes to disk in parallel.  There should no longer be issues with PermissionsErrors and writes to disk, but if you were to see this again, disabling the parallel writes would most likely eliminate those.  It will also slow down the Kluster performance, so keep this checked if you can
 
+- Draw Navigation
+
+Sets the type of navigation used when drawing the tracklines on screen.  Raw is just the raw multibeam navigation, processed will try and draw SBET navigation if it exists.
+
 - Retain Waterline Changes
 
 Only used when you are using the Kluster vessel file.  With a vessel file loaded, when you add new multibeam data it will use the most recent entry in the vessel file for the offsets/angles/tpu parameters.  The vessel file will override the offsets/angles in the multibeam data.  This includes the waterline value, which is the one setting that might change
@@ -41,6 +45,14 @@ WARNING: This mode will need to be changed back to normal mode if you want to us
 - VDatum directory
 
 Only used when you are using the 'NOAA MLLW' or 'NOAA MHW' options under vertical reference in Project Settings.  These two options require VDatum to perform the vertical transformation from ellipse to MLLW/MHW.  With VDatum provided, you are able to process using these two vertical references natively in Kluster, without the need for a separate gridded transformation file.
+
+- External Filter directory
+
+Optional, set if you have a directory of custom Kluster filter .py files that you would like to include.
+
+- Output Log
+
+Optional, set if you want to save the output in the Output Window to a file.  This will only save the non-processing output, all the processing output is saved to the log in the processed data folder.
 
 .. image:: settings_1_2.png
    :target: ../_images/settings_1_2.png
@@ -88,6 +100,14 @@ When exporting soundings to LAS, this is the number of pings that are stored in 
 
 When exporting soundings to CSV, this is the number of pings that are stored in each exported file.  Raise this number if you want larger chunked file exports.
 
+- Display grid chunk size
+
+Loading a grid layer will load the grid in chunks of this size, raising this value can create overly large files for the backend and increase memory consumption.
+
+- Export grid chunk size
+
+Exporting a grid will save one chunk to a file, the chunk being this wide/high. raising this value can create overly large files for the backend and increase memory consumption.
+
 .. image:: settings_1_4.png
    :target: ../_images/settings_1_4.png
 
@@ -117,6 +137,10 @@ Percent transparency to apply to the background layer(s)
 
 Percent transparency to apply to the surface layer(s)
 
+- Color Ranges
+
+With a populated surface, this shows the min/max that is used to color the surface in the map view.  You can override the min/max for a layer by selecting the override box and then entering in new values.
+
 
 Project Settings
 ----------------
@@ -126,13 +150,15 @@ Project settings are accessed through the "Setup - Set Project Settings"
 .. image:: settings_3.png
    :target: ../_images/settings_3.png
 
-- Coordinate System
+- Input/Output Coordinate System
 
 The Coordinate System is used during georeferencing to project the sound velocity corrected offsets to northing/easting/depth values.  Altering the Coordinate System will produce a new georeference/TPU action.  The Coordinate System specified here will apply to all currently loaded days of data.
 
 From EPSG will use an integer EPSG code to determine the coordinate system of this project.  See the currently available codes `here <https://epsg.org/home.html>`_  Note that the coordinate system provide must be a projected coordinate system with units in meters/feet.
 
 Auto UTM is the primary way to set the coordinate system for a project.  This will use the provided coordinate system and the longitude of the provided data to automatically determine the appropriate UTM zone.  It will do this for each day, unless you use the Settings - Force all days to have the same Coordinate System option.  If that option is set and you are using Auto UTM, it will use the UTM zone of the first loaded day of data.
+
+We ask for an Input and Output coordinate system, because we end up doing a transform during georeferencing.  That transform is from input navigation in geographic coordinates to the desired projected coordinate system, specified using the output coordinate system box here.
 
 - Vertical Reference
 
@@ -146,5 +172,20 @@ NOAA MLLW - sound velocity corrected offsets (relative to reference point) - alt
 
 NOAA MHW - sound velocity corrected offsets (relative to reference point) - altitude - MHW Separation from VDatum
 
+- SV Cast Selection
+
+Choose which cast is chosen for each chunk of data.
+
+nearest_in_time - use the cast that is nearest in time to each chunk of data
+
+nearest_in_time_four_hours - use the cast that is nearest in time to each chunk as long as it is within four hours
+
+nearest_in_distance - use the cast that is nearest in distance to each chunk of data
+
+nearest_in_distance_four_hours - use the cast that is nearest in distance to each chunk as long as it is within four hours
+
+- Designated Surface
+
+Choose a surface that will be automatically updated as you add data to the project.
 
 .. toctree::

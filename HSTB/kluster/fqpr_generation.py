@@ -14,7 +14,7 @@ from HSTB.kluster.modules.orientation import distrib_run_build_orientation_vecto
 from HSTB.kluster.modules.beampointingvector import distrib_run_build_beam_pointing_vector
 from HSTB.kluster.modules.svcorrect import get_sv_files_from_directory, return_supported_casts_from_list, \
     distributed_run_sv_correct, cast_data_from_file
-from HSTB.kluster.modules.georeference import distrib_run_georeference, vertical_datum_to_wkt, vyperdatum_found
+from HSTB.kluster.modules.georeference import distrib_run_georeference, vertical_datum_to_wkt, vyperdatum_found, distance_between_coordinates
 from HSTB.kluster.modules.tpu import distrib_run_calculate_tpu
 from HSTB.kluster.modules.filter import FilterManager
 from HSTB.kluster.xarray_conversion import BatchRead
@@ -96,6 +96,7 @@ class Fqpr(ZarrBackend):
         self.orientation_time_complete = ''
         self.bpv_time_complete = ''
         self.sv_time_complete = ''
+        self.svmethod = ''
         self.georef_time_complete = ''
         self.tpu_time_complete = ''
 
@@ -438,6 +439,37 @@ class Fqpr(ZarrBackend):
         copyfq.multibeam.raw_att.attrs = deepcopy(self.multibeam.raw_att.attrs)
         return copyfq
 
+    def is_processed(self, in_depth: bool = False):
+        """
+        Kluster maintains two records for processing status.  current_processing_status is a scalar attribute used by
+        the intelligence engine to max processing decisions.  processing_status is a sounding variable that records the
+        integer processing status for each sounding.
+
+        The is_processed check will see if this fqpr instance has achieved max_processing_status.  in_depth will use
+        the processing_status variable, checking each sounding attribute to compare against the max_processing_status.
+        Otherwise, we just check the current_processing_status number, which is much faster
+
+        Parameters
+        ----------
+        in_depth
+            if True, will use the more expensive check to ensure each sounding is fully processed
+
+        Returns
+        -------
+        bool
+            if True, this fqpr is fully processed
+        """
+        if not in_depth:
+            for rp in self.multibeam.raw_ping:
+                if rp.current_processing_status < kluster_variables.max_processing_status:
+                    return False
+            return True
+        else:
+            for rp in self.multibeam.raw_ping:
+                if bool((rp.processing_status < kluster_variables.max_processing_status).any()):
+                    return False
+            return True
+
     def line_is_processed(self, line_name: str):
         """
         If line is processed, the TVU will not be all NaN in the middle of the line.  This method will check that and
@@ -461,7 +493,7 @@ class Fqpr(ZarrBackend):
                 # nearest to start/end time could be the next line, so just use the midpoint
                 middle_time = starttime + ((endtime - starttime) / 2)
                 # if it is processed, you should have all max processing status for each beam
-                isprocessed = bool((rp.processing_status.sel(time=middle_time, method='nearest') == kluster_variables.max_processing_status).all())
+                isprocessed = bool((rp.processing_status.sel(time=middle_time, method='nearest') >= kluster_variables.max_processing_status).all())
                 return isprocessed
         print('Warning: unable to find line {} in converted dataset'.format(line_name))
         return None
@@ -700,7 +732,7 @@ class Fqpr(ZarrBackend):
                 except:  # all other data ends up replacing which is fine
                     rp.attrs[ky] = copy_dict[ky]
 
-    def import_sound_velocity_files(self, src: Union[str, list]):
+    def import_sound_velocity_files(self, src: Union[str, list], cast_selection_method: str = 'nearest_in_time'):
         """
         Load to self.cast_files the file paths to the sv casts of interest.
 
@@ -708,6 +740,9 @@ class Fqpr(ZarrBackend):
         ----------
         src
             either a list of files to include or the path to a directory containing sv files (only supporting .svp currently)
+        cast_selection_method
+            method used to determine the cast appropriate for each data chunk.  Used here to determine whether or not this new cast(s)
+            will require reprocessing, i.e. they are selected by one or more chunks of this dataset.
         """
 
         if type(src) is str:
@@ -725,12 +760,33 @@ class Fqpr(ZarrBackend):
         if svfils is not None:
             attr_dict = {}
             cast_dict = {}
+            profnames, casts, cast_times, castlocations = self.return_all_profiles()
             for f in svfils:
                 data, locs, times, name = cast_data_from_file(f)
                 for cnt, dat in enumerate(data):
                     cst_name = 'profile_{}'.format(int(times[cnt]))
                     attrs_name = 'attributes_{}'.format(int(times[cnt]))
-                    if cst_name not in self.multibeam.raw_ping[0].attrs:
+                    new_dpth = [d[0] for d in dat.items()]
+                    new_sv = [d[1] for d in dat.items()]
+                    cast_does_not_exist = cst_name not in self.multibeam.raw_ping[0].attrs
+                    cast_needs_updating = False
+                    # for each cast that we currently have in the dataset, check to see if the data matches this new cast
+                    for cast_cnt, prev_cast in enumerate(casts):
+                        prev_dpth, prev_sv = prev_cast
+                        # compare casts, if we find that they match completely, we replace with the new cast which probably has a more accurate time/position
+                        #   than the send-to-SIS version (which is probably what is currently in there)
+                        for idx in range(len(new_dpth)):
+                            if (round(new_dpth[idx], 1) != round(prev_dpth[idx], 1)) or (round(new_sv[idx], 1) != round(prev_sv[idx], 1)):
+                                cast_needs_updating = False
+                                break
+                            else:
+                                cast_needs_updating = True
+                        if cast_needs_updating:
+                            old_profile = 'profile_{}'.format(int(cast_times[cast_cnt]))
+                            self.logger.info(f'Replacing sound velocity profile {old_profile} with {cst_name}')
+                            self.remove_profile(old_profile)
+                            break
+                    if cast_does_not_exist or cast_needs_updating:
                         attr_dict[attrs_name] = json.dumps({'location': locs[cnt], 'source': name})
                         cast_dict[cst_name] = json.dumps([list(d) for d in dat.items()])
 
@@ -738,7 +794,7 @@ class Fqpr(ZarrBackend):
             self.write_attribute_to_ping_records(attr_dict)
 
             new_cast_names = list(cast_dict.keys())
-            applicable_casts = self.return_applicable_casts()
+            applicable_casts = self.return_applicable_casts(method=cast_selection_method)
             new_applicable_casts = [nc for nc in new_cast_names if nc in applicable_casts]
             if new_applicable_casts:
                 if self.multibeam.raw_ping[0].current_processing_status >= 3:  # have to start over at sound velocity now
@@ -771,12 +827,18 @@ class Fqpr(ZarrBackend):
             profile_removed = True
             for rpindex in range(len(self.multibeam.raw_ping)):  # for each sonar head (raw_ping)...
                 try:
+                    prof_id, prof_time = profile_name.split('_')
+                    matching_attributes = 'attributes_' + prof_time
                     self.multibeam.raw_ping[rpindex].attrs.pop(profile_name)
+                    self.multibeam.raw_ping[rpindex].attrs.pop(matching_attributes)
                 except:
                     self.logger.warning('WARNING: Unable to find loaded profile data matching attribute "{}"'.format(profile_name))
                     profile_removed = False
                 try:
-                    self.remove_attribute('ping', profile_name, self.multibeam.raw_ping[0].system_identifier)
+                    prof_id, prof_time = profile_name.split('_')
+                    matching_attributes = 'attributes_' + prof_time
+                    self.remove_attribute('ping', profile_name, self.multibeam.raw_ping[rpindex].system_identifier)
+                    self.remove_attribute('ping', matching_attributes, self.multibeam.raw_ping[rpindex].system_identifier)
                 except:
                     self.logger.warning('WARNING: Unable to find data on disk matching attribute "{}" for sonar {}'.format(profile_name, self.multibeam.raw_ping[rpindex].system_identifier))
                     profile_removed = False
@@ -788,7 +850,7 @@ class Fqpr(ZarrBackend):
                 else:
                     self.logger.warning('WARNING: Profile "{}" unsuccessfully removed')
         else:
-            print('Unable to find sound velocity profile "{}" in converted data'.format(profile_name))
+            self.logger.warning('Unable to find sound velocity profile "{}" in converted data'.format(profile_name))
 
     def return_chunk_indices(self, idx_mask: xr.DataArray, pings_per_chunk: int):
         """
@@ -825,7 +887,7 @@ class Fqpr(ZarrBackend):
             idx_by_chunk = np.array_split(idx, split_indices, axis=0)
         return idx_by_chunk
 
-    def return_cast_idx_nearestintime(self, cast_times: list, idx_by_chunk: list, silent: bool = False):
+    def return_cast_idx_nearestintime(self, idx_by_chunk: list, silent: bool = False):
         """
         Need to find the cast associated with each chunk of data.  Currently we just take the average chunk time and
         find the closest cast time, and assign that cast.  We also need the index of the chunk in the original size
@@ -833,8 +895,6 @@ class Fqpr(ZarrBackend):
 
         Parameters
         ----------
-        cast_times
-            list of floats, time each cast was taken
         idx_by_chunk
             list of xarray Datarrays, values are the integer indexes of the pings to use, coords are the time of ping
         silent
@@ -847,9 +907,14 @@ class Fqpr(ZarrBackend):
             applies to that chunk]
         """
 
+        profnames, casts, cast_times, castlocations = self.return_all_profiles()
         data = []
         casts_used = []
         for chnk in idx_by_chunk:
+            if not cast_times:  # no casts
+                self.logger.error(f'return_cast_idx_nearestintime: Unable to find any casts!')
+                data.append([chnk, None])
+                continue
             # get average chunk time and find the nearest cast to that time.  Retain the index of that cast object.
             avgtme = float(chnk.time.mean())
             cst = np.argmin([np.abs(c - avgtme) for c in cast_times])
@@ -861,7 +926,147 @@ class Fqpr(ZarrBackend):
             self.logger.info('nearest-in-time: selecting nearest cast for each {} pings...'.format(kluster_variables.ping_chunk_size))
         return data
 
-    def return_applicable_casts(self, method='nearestintime'):
+    def return_cast_idx_nearestintime_fourhours(self, idx_by_chunk: list, silent: bool = False):
+        """
+        Need to find the cast associated with each chunk of data.  Currently we just take the average chunk time and
+        find the closest cast time, and assign that cast.  We also need the index of the chunk in the original size
+        dataset, as we built the casts based on the original size soundvelocity dataarray.
+
+        This method will only retain the cast if it is within four hours, otherwise, you will get a None for that chunk
+
+        Parameters
+        ----------
+        idx_by_chunk
+            list of xarray Datarrays, values are the integer indexes of the pings to use, coords are the time of ping
+        silent
+            if True, will not print out messages
+
+        Returns
+        -------
+        data
+            list of lists, each sub-list is [xarray Datarray with times/indices for the chunk, integer index of the cast that
+            applies to that chunk]
+        """
+
+        profnames, casts, cast_times, castlocations = self.return_all_profiles()
+        data = []
+        casts_used = []
+        for chnk in idx_by_chunk:
+            if not cast_times:  # no casts
+                self.logger.error(f'return_cast_idx_nearestintime_fourhours: Unable to find any casts!')
+                data.append([chnk, None])
+                continue
+            # get average chunk time and find the nearest cast to that time.  Retain the index of that cast object.
+            avgtme = float(chnk.time.mean())
+            mintimes = [np.abs(c - avgtme) for c in cast_times]
+            cst = np.argmin(mintimes)
+            finalmintime = mintimes[cst]
+            if finalmintime <= 4 * 60 * 60:
+                data.append([chnk, cst])
+            else:
+                self.logger.error(f'return_cast_idx_nearestintime_fourhours: Unable to find a good cast within four hours for time {avgtme}')
+                data.append([chnk, None])
+                continue
+            if cast_times[cst] not in casts_used:
+                casts_used.append(cast_times[cst])
+
+        if not silent:
+            self.logger.info('nearest-in-time-four-hours: selecting nearest cast for each {} pings...'.format(kluster_variables.ping_chunk_size))
+        return data
+
+    def return_cast_idx_nearestindistance(self, idx_by_chunk: list, silent: bool = False):
+        """
+        Need to find the cast associated with each chunk of data.  Currently we just take the average chunk time and
+        find the closest cast in terms of distance.  We also need the index of the chunk in the original size
+        dataset, as we built the casts based on the original size soundvelocity dataarray.
+
+        Parameters
+        ----------
+        idx_by_chunk
+            list of xarray Datarrays, values are the integer indexes of the pings to use, coords are the time of ping
+        silent
+            if True, will not print out messages
+
+        Returns
+        -------
+        data
+            list of lists, each sub-list is [xarray Datarray with times/indices for the chunk, integer index of the cast that
+            applies to that chunk]
+        """
+
+        profnames, casts, cast_times, castlocations = self.return_all_profiles()
+        data = []
+        casts_used = []
+        for chnk in idx_by_chunk:
+            if not cast_times:  # no casts
+                self.logger.error(f'return_cast_idx_nearestindistance: Unable to find any casts!')
+                data.append([chnk, None])
+                continue
+            # get average chunk time and find the nearest cast to that time.  Retain the index of that cast object.
+            avgtme = float(chnk.time.mean())
+            avg_ping_dset = self.multibeam.raw_ping[0].sel(time=avgtme, method='nearest')
+            ping_lat, ping_lon = float(avg_ping_dset.latitude), float(avg_ping_dset.longitude)
+            cast_dists = [distance_between_coordinates(ping_lat, ping_lon, lat, lon) for lat, lon in castlocations]
+            cst = np.argmin(cast_dists)
+            data.append([chnk, cst])
+            if cast_times[cst] not in casts_used:
+                casts_used.append(cast_times[cst])
+        if not silent:
+            self.logger.info('nearest-in-distance: selecting nearest cast for each {} pings...'.format(kluster_variables.ping_chunk_size))
+        return data
+
+    def return_cast_idx_nearestindistance_fourhours(self, idx_by_chunk: list, silent: bool = False):
+        """
+        Need to find the cast associated with each chunk of data.  Currently we just take the average chunk time and
+        find the closest cast in terms of distance.  We also need the index of the chunk in the original size
+        dataset, as we built the casts based on the original size soundvelocity dataarray.
+
+        Only retain the cast if it is within four hours.
+
+        Parameters
+        ----------
+        idx_by_chunk
+            list of xarray Datarrays, values are the integer indexes of the pings to use, coords are the time of ping
+        silent
+            if True, will not print out messages
+
+        Returns
+        -------
+        data
+            list of lists, each sub-list is [xarray Datarray with times/indices for the chunk, integer index of the cast that
+            applies to that chunk]
+        """
+
+        profnames, casts, cast_times, castlocations = self.return_all_profiles()
+        data = []
+        casts_used = []
+        for chnk in idx_by_chunk:
+            if not cast_times:  # no casts
+                self.logger.error(f'return_cast_idx_nearestindistance_fourhours: Unable to find any casts!')
+                data.append([chnk, None])
+                continue
+            # get average chunk time and find the nearest cast to that time.  Retain the index of that cast object.
+            avgtme = float(chnk.time.mean())
+            avg_ping_dset = self.multibeam.raw_ping[0].sel(time=avgtme, method='nearest')
+            ping_lat, ping_lon = float(avg_ping_dset.latitude), float(avg_ping_dset.longitude)
+            mintimes = [np.abs(c - avgtme) for c in cast_times]
+            filtered_mintimes = [mt if mt <= 4 * 60 * 60 else None for mt in mintimes]
+            filtered_cast_locations = [ct if filtered_mintimes[castlocations.index(ct)] is not None else [None, None] for ct in castlocations]
+            filtered_cast_dists = [distance_between_coordinates(ping_lat, ping_lon, lat, lon) if lat is not None else np.nan for lat, lon in filtered_cast_locations]
+            try:
+                cst = np.nanargmin(filtered_cast_dists)
+                data.append([chnk, cst])
+            except ValueError:
+                self.logger.error(f'return_cast_idx_nearestindistance_fourhours: Unable to find a good cast within four hours for time {avgtme}')
+                data.append([chnk, None])
+                continue
+            if cast_times[cst] not in casts_used:
+                casts_used.append(cast_times[cst])
+        if not silent:
+            self.logger.info('nearest-in-distance-four-hours: selecting nearest cast for each {} pings...'.format(kluster_variables.ping_chunk_size))
+        return data
+
+    def return_applicable_casts(self, method='nearest_in_time'):
         """
         When we check for sound velocity correct actions, we look to see if any new sv profiles imported into the
         fqpr instance are applicable, by running the chosen method (default is cast nearest in time to the ping chunk).
@@ -886,15 +1091,24 @@ class Fqpr(ZarrBackend):
         for s_cnt, system in enumerate(systems):
             if system is None:  # get here if one of the heads is disabled (set to None)
                 continue
-            ra = self.multibeam.raw_ping[s_cnt]
             pings_per_chunk, max_chunks_at_a_time = self.get_cluster_params()
             for applicable_index, timestmp, prefixes in system:
                 idx_by_chunk = self.return_chunk_indices(applicable_index, pings_per_chunk)
-                if method == 'nearestintime':
-                    cast_chunks = self.return_cast_idx_nearestintime(cast_times, idx_by_chunk, silent=True)
-                    final_idxs += [c[1] for c in cast_chunks]
+                if method == 'nearest_in_time':
+                    cast_chunks = self.return_cast_idx_nearestintime(idx_by_chunk, silent=True)
+                elif method == 'nearest_in_time_four_hours':
+                    cast_chunks = self.return_cast_idx_nearestintime_fourhours(idx_by_chunk, silent=True)
+                elif method == 'nearest_in_distance':
+                    cast_chunks = self.return_cast_idx_nearestindistance(idx_by_chunk, silent=True)
+                elif method == 'nearest_in_distance_four_hours':
+                    cast_chunks = self.return_cast_idx_nearestindistance_fourhours(idx_by_chunk, silent=True)
+                else:
+                    msg = f'return_applicable_casts - unexpected cast selection method {method}, must be one of {kluster_variables.cast_selection_methods}'
+                    self.logger.error(msg)
+                    raise NotImplementedError(msg)
+                final_idxs += [c[1] for c in cast_chunks]
         final_idxs = np.unique(final_idxs).tolist()
-        return [profnames[idx] for idx in final_idxs]
+        return [profnames[idx] for idx in final_idxs if idx is not None]
 
     def determine_induced_heave(self, ra: xr.Dataset, hve: xr.DataArray, raw_att: xr.Dataset,
                                 tx_tstmp_idx: xr.DataArray, prefixes: str, timestmp: str):
@@ -934,7 +1148,6 @@ class Fqpr(ZarrBackend):
         if self.multibeam.is_dual_head():  # dual dual systems
             if not is_primary_system:  # secondary head
                 # self.logger.info('Building induced heave for secondary system in dual head arrangement')
-
                 # lever arms for secondary head to ref pt
                 refpt = self.multibeam.return_prefix_for_rp()
                 secondary_x_lever = float(self.multibeam.xyzrph[prefixes[refpt[0]] + '_x'][timestmp])
@@ -944,6 +1157,8 @@ class Fqpr(ZarrBackend):
                 # lever arms for primary head to ref pt
                 if prefixes[0].find('port') != -1:
                     prefixes = [pfix.replace('port', 'stbd') for pfix in prefixes]
+                elif prefixes[0].find('stbd') != -1:
+                    prefixes = [pfix.replace('stbd', 'port') for pfix in prefixes]
 
                 primary_x_lever = float(self.multibeam.xyzrph[prefixes[refpt[0]] + '_x'][timestmp])
                 primary_y_lever = float(self.multibeam.xyzrph[prefixes[refpt[1]] + '_y'][timestmp])
@@ -1290,6 +1505,9 @@ class Fqpr(ZarrBackend):
         """
 
         data_for_workers = []
+        if any(c[1] is None for c in cast_chunks):
+            self.logger.error('Unable to sound velocity correct, one of the data chunks was unable to find a cast, see log for more details')
+            raise ValueError('Unable to sound velocity correct, one of the data chunks was unable to find a cast, see log for more details')
 
         # this should be the transducer to waterline, positive down
         refpt = self.multibeam.return_prefix_for_rp()
@@ -2351,7 +2569,8 @@ class Fqpr(ZarrBackend):
             endtime = perf_counter()
             self.logger.info('****Beam Pointing Vector generation complete: {}****\n'.format(seconds_to_formatted_string(int(endtime - starttime))))
 
-    def sv_correct(self, add_cast_files: Union[str, list] = None, subset_time: list = None, dump_data: bool = True):
+    def sv_correct(self, add_cast_files: Union[str, list] = None, cast_selection_method: str = 'nearest_in_time',
+                   subset_time: list = None, dump_data: bool = True):
         """
         Apply sv cast/surface sound speed to raytrace.  Generates xyz for each beam.
         Currently only supports nearest-in-time for selecting the cast for each chunk.   Sends the data and
@@ -2368,6 +2587,9 @@ class Fqpr(ZarrBackend):
         add_cast_files
             either a list of files to include or the path to a directory containing files.  These are in addition to
             the casts in the ping dataset.
+        cast_selection_method
+            the method used to select the cast that goes with each chunk of the dataset, one of ['nearest_in_time',
+            'nearest_in_time_four_hours', 'nearest_in_distance', 'nearest_in_distance_four_hours']
         subset_time
             List of unix timestamps in seconds, used as ranges for times that you want to process.
         dump_data
@@ -2405,7 +2627,8 @@ class Fqpr(ZarrBackend):
                 idx_by_chunk = self.return_chunk_indices(applicable_index, pings_per_chunk)
                 if len(idx_by_chunk[0]):  # if there are pings in this system that align with this installation parameter record
                     self._submit_data_to_cluster(ra, 'sv_corr', idx_by_chunk, max_chunks_at_a_time,
-                                                 timestmp, prefixes, dump_data=dump_data, skip_dask=skip_dask)
+                                                 timestmp, prefixes, dump_data=dump_data, skip_dask=skip_dask,
+                                                 cast_selection_method=cast_selection_method)
                 else:
                     if dump_data:
                         self.logger.info('No pings found for {}-{}'.format(ra.system_identifier, timestmp))
@@ -2630,7 +2853,8 @@ class Fqpr(ZarrBackend):
 
     def _submit_data_to_cluster(self, rawping: xr.Dataset, mode: str, idx_by_chunk: list, max_chunks_at_a_time: int,
                                 timestmp: str, prefixes: str, dump_data: bool = True, skip_dask: bool = False,
-                                prefer_pp_nav: bool = True, vdatum_directory: str = None):
+                                prefer_pp_nav: bool = True, vdatum_directory: str = None,
+                                cast_selection_method: str = 'nearest_in_time'):
         """
         For all of the main processes, we break up our inputs into chunks, appended to a list (data_for_workers).
         Knowing the capacity of the cluster memory, we can determine how many chunks to run at a time
@@ -2660,6 +2884,9 @@ class Fqpr(ZarrBackend):
             if 'NOAA MLLW' 'NOAA MHW' is the vertical reference, a path to the vdatum directory is required here
         skip_dask
             if True will not use the dask.distributed client to submit tasks, will run locally instead
+        cast_selection_method
+            the method used to select the cast that goes with each chunk of the dataset, one of ['nearest_in_time',
+            'nearest_in_time_four_hours', 'nearest_in_distance', 'nearest_in_distance_four_hours']
         """
 
         # clear out the intermediate data just in case there is old data there
@@ -2689,7 +2916,20 @@ class Fqpr(ZarrBackend):
                 chunk_function = self._generate_chunks_svcorr
                 comp_time = 'sv_time_complete'
                 profnames, casts, cast_times, castlocations = self.return_all_profiles()
-                cast_chunks = self.return_cast_idx_nearestintime(cast_times, idx_by_chunk_subset, silent=silent)
+                if cast_selection_method == 'nearest_in_time':
+                    cast_chunks = self.return_cast_idx_nearestintime(idx_by_chunk_subset, silent=silent)
+                elif cast_selection_method == 'nearest_in_time_four_hours':
+                    cast_chunks = self.return_cast_idx_nearestintime_fourhours(idx_by_chunk_subset, silent=silent)
+                elif cast_selection_method == 'nearest_in_distance':
+                    cast_chunks = self.return_cast_idx_nearestindistance(idx_by_chunk_subset, silent=silent)
+                elif cast_selection_method == 'nearest_in_distance_four_hours':
+                    cast_chunks = self.return_cast_idx_nearestindistance_fourhours(idx_by_chunk_subset, silent=silent)
+                else:
+                    msg = f'unexpected cast selection method "{cast_selection_method}", must be one of ' \
+                          f'{kluster_variables.cast_selection_methods} as of 0.9.6.  Defaulting to nearest_in_time.'
+                    self.logger.warning(msg)
+                    cast_chunks = self.return_cast_idx_nearestintime(idx_by_chunk_subset, silent=silent)
+                self.svmethod = cast_selection_method
                 addtl_offsets = self.return_additional_xyz_offsets(rawping, prefixes, timestmp, idx_by_chunk_subset)
                 chunkargs = [rawping, cast_chunks, casts, prefixes, timestmp, addtl_offsets, start_run_index]
             elif mode == 'georef':
@@ -2763,7 +3003,7 @@ class Fqpr(ZarrBackend):
                               'units': {'rel_azimuth': 'radians', 'corr_pointing_angle': 'radians'}}]
         elif mode == 'sv_corr':
             mode_settings = ['sv_corr', ['alongtrack', 'acrosstrack', 'depthoffset', 'processing_status'], 'sv corrected data',
-                             {'svmode': 'nearest in time', '_sound_velocity_correct_complete': self.sv_time_complete,
+                             {'svmode': self.svmethod, '_sound_velocity_correct_complete': self.sv_time_complete,
                               'current_processing_status': 3,
                               'reference': {'alongtrack': 'reference point', 'acrosstrack': 'reference point',
                                             'depthoffset': 'transmitter'},
@@ -3202,9 +3442,19 @@ class Fqpr(ZarrBackend):
             end time in utc seconds for the line
         """
 
-        line_dict = self.return_line_dict(line_name)
+        line_dict = self.return_line_dict()
+        sortedlines = sorted(line_dict, key=lambda item: item[0])  # first item in values is the minimum time
         if line_name in line_dict.keys():
-            return line_dict[line_name][0], line_dict[line_name][1]
+            line_times = [line_dict[line_name][0], line_dict[line_name][1]]
+            if len(list(line_dict.keys())) == 1:  # only one line
+                return float(np.min([rp.time.values[0] for rp in self.multibeam.raw_ping])),\
+                       float(np.max([rp.time.values[-1] for rp in self.multibeam.raw_ping]))
+            elif line_name == sortedlines[0]:  # first line, correct for any small discrepancy between metadata and data
+                return float(np.min([rp.time.values[0] for rp in self.multibeam.raw_ping])), line_times[1]
+            elif line_name == sortedlines[-1]:  # last line
+                return line_times[0], float(np.max([rp.time.values[-1] for rp in self.multibeam.raw_ping]))
+            else:
+                return line_times[0], line_times[1]
         else:
             return None, None
 
@@ -3314,7 +3564,7 @@ class Fqpr(ZarrBackend):
 
     def return_next_action(self, new_vertical_reference: str = None, new_coordinate_system: CRS = None, new_offsets: bool = False,
                            new_angles: bool = False, new_tpu: bool = False, new_input_datum: str = None,
-                           new_waterline: bool = False, process_mode: str = 'normal'):
+                           new_waterline: bool = False, process_mode: str = 'normal', cast_selection_method: str = 'nearest_in_time'):
         """
         Determine the next action to take, building the arguments for the fqpr_convenience.process_multibeam function.
         Uses the processing status, which is updated as a process is completed at a sounding level.
@@ -3356,6 +3606,9 @@ class Fqpr(ZarrBackend):
             - reprocess = perform a full reprocess of the dataset ignoring the current_processing_status
             - convert_only = only convert incoming data, return no processing actions
             - concatenate = process line by line if there is no processed data for that line
+        cast_selection_method
+            the method used to select the cast that goes with each chunk of the dataset, one of ['nearest_in_time',
+            'nearest_in_time_four_hours', 'nearest_in_distance', 'nearest_in_distance_four_hours']
 
         Returns
         -------
@@ -3443,6 +3696,7 @@ class Fqpr(ZarrBackend):
         if min_status < 3 or new_offsets or new_angles or new_waterline:
             kwargs['run_svcorr'] = True
             kwargs['add_cast_files'] = []
+            kwargs['cast_selection_method'] = cast_selection_method
         if min_status < 2 or new_angles:
             kwargs['run_orientation'] = True
             kwargs['orientation_initial_interpolation'] = False

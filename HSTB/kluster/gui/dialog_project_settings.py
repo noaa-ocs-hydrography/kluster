@@ -1,11 +1,15 @@
 import os
 from pyproj import CRS
 import logging
+from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal, qgis_enabled
+if qgis_enabled:
+    os.environ['PYDRO_GUI_FORCE_PYQT'] = 'True'
+from HSTB.shared import RegistryHelpers
 
-from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal
 from HSTB.kluster.gui.common_widgets import SaveStateDialog
 from HSTB.kluster import kluster_variables
 from HSTB.kluster.fqpr_helpers import epsg_determinator
+from HSTB.kluster.gui.dialog_surface import SurfaceDialog
 
 geo_datum_descrip = [f'{k} = EPSG:{epsg_determinator(k)}' for k in kluster_variables.geographic_coordinate_systems]
 proj_datum_descrip = []
@@ -45,6 +49,7 @@ class ProjectSettingsDialog(SaveStateDialog):
         self.inepsg_radio = QtWidgets.QRadioButton('From EPSG')
         self.inepsg_radio.setToolTip(inepsg_tooltip)
         self.hlayout_zero_one.addWidget(self.inepsg_radio)
+        self.hlayout_zero_one.addStretch()
         self.inepsg_val = QtWidgets.QLineEdit('', self)
         self.inepsg_val.setToolTip(inepsg_tooltip)
         self.hlayout_zero_one.addWidget(self.inepsg_val)
@@ -72,6 +77,7 @@ class ProjectSettingsDialog(SaveStateDialog):
         self.epsg_radio = QtWidgets.QRadioButton('From EPSG')
         self.epsg_radio.setToolTip(outepsg_tooltip)
         self.hlayout_one.addWidget(self.epsg_radio)
+        self.hlayout_one.addStretch()
         self.epsg_val = QtWidgets.QLineEdit('', self)
         self.epsg_val.setToolTip(outepsg_tooltip)
         self.hlayout_one.addWidget(self.epsg_val)
@@ -92,14 +98,42 @@ class ProjectSettingsDialog(SaveStateDialog):
 
         self.outcoord_group.setLayout(self.outcoord_layout)
 
-        self.vertref_msg = QtWidgets.QLabel('Vertical Reference:')
-
         self.hlayout_three = QtWidgets.QHBoxLayout()
+        self.vertref_msg = QtWidgets.QLabel('Vertical Reference:')
+        self.hlayout_three.addWidget(self.vertref_msg)
         self.georef_vertref = QtWidgets.QComboBox()
         self.georef_vertref.addItems(kluster_variables.vertical_references)
-        self.georef_vertref.setToolTip('Set the vertical reference used in georeferencing, this determines the zero point for all depths generated in Kluster.')
+        self.georef_vertref.setToolTip('Set the vertical reference used in georeferencing, this determines the zero point for all depths generated in Kluster.\n\n' + \
+                                       '\n'.join([f'{k} = {v}' for k, v in kluster_variables.vertical_references_explanation.items()]))
         self.hlayout_three.addWidget(self.georef_vertref)
         self.hlayout_three.addStretch(1)
+
+        self.hlayout_four = QtWidgets.QHBoxLayout()
+        self.svmode_msg = QtWidgets.QLabel('SV Cast Selection:')
+        self.hlayout_four.addWidget(self.svmode_msg)
+        self.svmode = QtWidgets.QComboBox()
+        self.svmode.addItems(kluster_variables.cast_selection_methods)
+        self.svmode.setCurrentIndex(kluster_variables.cast_selection_methods.index(kluster_variables.default_cast_selection_method))
+        self.svmode.setToolTip(f'Determines which sound velocity profiles will be used for each {kluster_variables.ping_chunk_size} pings during sound velocity correction.\n\n' + \
+                               '\n'.join([f'{k} = {v}' for k, v in kluster_variables.cast_selection_explanation.items()]))
+        self.hlayout_four.addWidget(self.svmode)
+        self.hlayout_four.addStretch(1)
+
+        self.hlayout_four_one = QtWidgets.QHBoxLayout()
+        designatesurf_ttip = 'Optional, if you set this path to an existing Kluster Surface, all new processed data will be added to the surface.\n' + \
+                             'You may "Create" an empty surface here if you do not have an existing surface to add to.  Otherwise, "Browse" to your\n' + \
+                             'existing surface.'
+        self.designatesurf_msg = QtWidgets.QLabel('Designated Surface:')
+        self.hlayout_four_one.addWidget(self.designatesurf_msg)
+        self.designatesurf_text = QtWidgets.QLineEdit('', self)
+        self.designatesurf_text.setToolTip(designatesurf_ttip)
+        self.hlayout_four_one.addWidget(self.designatesurf_text, 3)
+        self.designatesurf_browse_button = QtWidgets.QPushButton("Browse", self)
+        self.designatesurf_browse_button.setToolTip(designatesurf_ttip)
+        self.hlayout_four_one.addWidget(self.designatesurf_browse_button)
+        self.designatesurf_create_button = QtWidgets.QPushButton("Create", self)
+        self.designatesurf_create_button.setToolTip(designatesurf_ttip)
+        self.hlayout_four_one.addWidget(self.designatesurf_create_button)
 
         self.hlayout_five = QtWidgets.QHBoxLayout()
         self.hlayout_five.addStretch(1)
@@ -120,13 +154,16 @@ class ProjectSettingsDialog(SaveStateDialog):
         layout.addStretch()
         layout.addWidget(self.outcoord_group)
         layout.addStretch()
-        layout.addWidget(self.vertref_msg)
         layout.addLayout(self.hlayout_three)
+        layout.addLayout(self.hlayout_four)
+        layout.addLayout(self.hlayout_four_one)
         layout.addStretch()
         layout.addLayout(self.statusbox)
         layout.addLayout(self.hlayout_five)
         self.setLayout(layout)
 
+        self.designate_surf = ''
+        self.new_surface_options = None
         self.canceled = False
 
         self.ok_button.clicked.connect(self.start)
@@ -134,9 +171,13 @@ class ProjectSettingsDialog(SaveStateDialog):
         self.georef_vertref.currentTextChanged.connect(self.find_vdatum)
         self.epsg_val.textChanged.connect(self.validate_epsg)
         self.inepsg_val.textChanged.connect(self.validate_epsg)
+        self.designatesurf_browse_button.clicked.connect(self.designatesurf_browse)
+        self.designatesurf_text.textChanged.connect(self.designatesurf_textchanged)
+        self.designatesurf_create_button.clicked.connect(self.designatesurf_create)
 
         self.text_controls = [['epsgval', self.epsg_val], ['utmval', self.auto_utm_val], ['vertref', self.georef_vertref],
-                              ['inepsg_val', self.inepsg_val], ['indropdown_val', self.indropdown_val]]
+                              ['inepsg_val', self.inepsg_val], ['indropdown_val', self.indropdown_val], ['svmode', self.svmode],
+                              ['designated_surf_path', self.designatesurf_text]]
         self.checkbox_controls = [['infromdata_radio', self.infromdata_radio], ['inepsg_radio', self.inepsg_radio],
                                   ['indropdown_radio', self.indropdown_radio], ['epsg_radio', self.epsg_radio],
                                   ['auto_utm_radio', self.auto_utm_radio]]
@@ -144,6 +185,33 @@ class ProjectSettingsDialog(SaveStateDialog):
         self.read_settings()
         self.validate_epsg()
         self.find_vdatum()
+
+        sizeObject = QtWidgets.QDesktopWidget().screenGeometry(-1)
+        self.setMinimumWidth(int(sizeObject.width() / 5))
+
+    def designatesurf_browse(self):
+        # dirpath will be None or a string
+        msg, designate_surf = RegistryHelpers.GetDirFromUserQT(self, RegistryKey='Kluster',
+                                                               Title='Select grid folder', AppName='\\reghelp')
+        if designate_surf:
+            self.designatesurf_text.setText(designate_surf)
+
+    def designatesurf_textchanged(self):
+        self.designate_surf = self.designatesurf_text.text()
+
+    def designatesurf_create(self):
+        dlog = SurfaceDialog(parent=self.parent())
+        dlog.basic_surface_group.hide()
+        dlog.line_surface_checkbox.setChecked(True)  # trick the dialog into succeeding without actually providing any source data
+        dlog.line_surface_checkbox.hide()
+        if dlog.exec_():
+            cancelled = dlog.canceled
+            opts = dlog.return_processing_options()
+            if opts is not None and not cancelled:
+                outpath = opts['output_path']
+                self.designatesurf_text.setText(outpath)
+                opts.pop('fqpr_inst')
+                self.new_surface_options = opts
 
     def validate_epsg(self):
         self.status_msg.setText('')
@@ -215,9 +283,13 @@ class ProjectSettingsDialog(SaveStateDialog):
                 inepsg = str(self.inepsg_val.text())
             else:
                 inepsg = str(self.indropdown_val.currentText())
+            if self.new_surface_options:  # update the output path in case the user modified it after "Create"
+                self.new_surface_options['output_path'] = self.designate_surf
             opts = {'use_epsg': self.epsg_radio.isChecked(), 'epsg': epsg,
                     'use_coord': self.auto_utm_radio.isChecked(), 'coord_system': self.auto_utm_val.currentText(),
-                    'vert_ref': self.georef_vertref.currentText(), 'input_datum': inepsg}
+                    'cast_selection_method': self.svmode.currentText(),
+                    'vert_ref': self.georef_vertref.currentText(), 'input_datum': inepsg,
+                    'designated_surface': self.designate_surf, 'new_surface_options': self.new_surface_options}
         else:
             opts = None
         return opts

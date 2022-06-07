@@ -1,0 +1,6 @@
+distance_between_coordinates
+============================
+
+.. currentmodule:: HSTB.kluster.modules.georeference
+
+.. autofunction:: distance_between_coordinates

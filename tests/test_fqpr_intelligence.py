@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 import tempfile
 
 from HSTB.kluster.fqpr_intelligence import FqprIntel
+from HSTB.kluster.fqpr_convenience import generate_new_surface
 from HSTB.kluster.fqpr_project import create_new_project
 
 
@@ -17,6 +18,7 @@ class TestFqprIntelligence(unittest.TestCase):
         cls.testfile = os.path.join(os.path.dirname(__file__), 'resources', cls.filename)
         cls.testsv = os.path.join(os.path.dirname(cls.testfile), cls.svname)
         cls.expected_data_folder = 'em2040_40111_05_23_2017'
+        cls.expected_grid_folder = 'gridfolder'
 
         cls.clsFolder = os.path.join(tempfile.tempdir, 'TestFqprIntelligence')
         try:
@@ -28,6 +30,7 @@ class TestFqprIntelligence(unittest.TestCase):
     def setUp(self) -> None:
         self.tmpfolder = tempfile.mkdtemp(dir=self.clsFolder)
         self.expected_data_folder_path = os.path.join(self.tmpfolder, self.expected_data_folder)
+        self.expected_grid_folder_path = os.path.join(self.tmpfolder, self.expected_grid_folder)
         self.proj_path = os.path.join(self.tmpfolder, 'kluster_project.json')
         self.vessel_file = os.path.join(self.tmpfolder, 'vessel_file.kfc')
 
@@ -179,7 +182,7 @@ class TestFqprIntelligence(unittest.TestCase):
         # concatenate will have a new action to only convert this one line
         self.fintel.set_auto_processing_mode('concatenate')
         assert self.fintel.has_actions
-        assert self.fintel.action_container.actions[0].text == 'Run all processing on em2040_40111_05_23_2017'
+        assert self.fintel.action_container.actions[0].text == 'Run all processing on em2040_40111_05_23_2017 (0009_20170523_181119_FA2806.all)'
         assert self.fintel.action_container.actions[0].kwargs['only_this_line'] == self.filename
 
     def test_intel_vessel_file(self):
@@ -327,9 +330,43 @@ class TestFqprIntelligence(unittest.TestCase):
                                  'run_beam_vec': True,
                                  'run_svcorr': True, 'add_cast_files': [], 'run_georef': True, 'run_tpu': True,
                                  'use_epsg': False, 'input_datum': None,
-                                 'use_coord': True, 'epsg': None, 'coord_system': 'NAD83', 'vert_ref': 'waterline'}
-        assert self.proj.fqpr_instances['em2040_40111_05_23_2017'] == self.proj.return_line_owner(
-            '0009_20170523_181119_FA2806.all')
+                                 'use_coord': True, 'epsg': None, 'coord_system': 'NAD83', 'vert_ref': 'waterline',
+                                 'cast_selection_method': 'nearest_in_time'}
+        assert self.proj.fqpr_instances['em2040_40111_05_23_2017'] == self.proj.return_line_owner('0009_20170523_181119_FA2806.all')
+
+    def test_setting_designated_surface(self):
+        # create a new empty grid, which is what you will often do with a designated surface
+        new_empty = generate_new_surface(output_path=self.expected_grid_folder_path)
+        self.proj.add_surface(self.expected_grid_folder_path)
+        self.fintel.set_designated_surface(self.expected_grid_folder_path)
+        # the designated_surface attribute is now the absolute path from project to grid folder
+        assert self.fintel.designated_surface == self.expected_grid_folder_path
+
+        self.fintel.add_file(self.testfile)
+        # convert multibeam file
+        self.fintel.execute_action()
+        # process multibeam file
+        self.fintel.execute_action()
+
+        # you should now have a gridding action
+        assert len(self.fintel.action_container.actions) == 1
+        actn = self.fintel.action_container.actions[0]
+        assert actn.text[:14] == 'Update surface'
+        assert actn.kwargs == {'add_fqpr': [list(self.proj.fqpr_instances.values())[0]],
+                               'add_lines': [['0009_20170523_181119_FA2806.all']],
+                               'remove_fqpr': [],
+                               'remove_lines': []}
+        assert actn.input_files == []
+        assert actn.args == [self.proj.surface_instances[self.expected_grid_folder]]
+        assert not actn.is_running
+        assert actn.output_destination == self.expected_grid_folder_path
+        assert actn.priority == 10
+
+        # add data to the grid
+        self.fintel.execute_action()
+
+        assert self.fintel.action_container.get_next_action() is None
+        assert self.proj.surface_instances[self.expected_grid_folder].container == {'em2040_40111_05_23_2017__0009_20170523_181119_FA2806.all': ['0009_20170523_181119_FA2806.all']}
 
     # some issue with pytest hanging when we use the folder monitoring stuff
     # not sure what to do here, stopping/joining the observer is what the docs say to do

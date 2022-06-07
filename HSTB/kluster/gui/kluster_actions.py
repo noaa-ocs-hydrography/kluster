@@ -290,6 +290,8 @@ class KlusterActions(QtWidgets.QTreeView):
             ttip = '{}\n\nPriority:{}\nRun Orientation:{}\nRun Correct Beam Vectors:{}\n'.format(action.text, action.priority, action.kwargs['run_orientation'], action.kwargs['run_beam_vec'])
             ttip += 'Run Sound Velocity:{}\nRun Georeference:{}\nRun TPU:{}'.format(action.kwargs['run_svcorr'], action.kwargs['run_georef'], action.kwargs['run_tpu'])
             if action.kwargs['run_georef']:
+                ttip += '\nCast Selection: {}'.format(action.kwargs['cast_selection_method'])
+            if action.kwargs['run_georef']:
                 if action.kwargs['use_epsg']:
                     ttip += '\nEPSG: {}\nVertical Reference: {}'.format(action.kwargs['epsg'], action.kwargs['vert_ref'])
                 else:
@@ -297,6 +299,10 @@ class KlusterActions(QtWidgets.QTreeView):
             if 'only_this_line' in action.kwargs:
                 if action.kwargs['only_this_line']:
                     ttip += '\nLine: {}'.format(action.kwargs['only_this_line'])
+        elif action.priority == 6:
+            ttip = '{}\n\nPriority:{}\nAdding from:\n{}\nRemoving:\n{}'.format(action.text, action.priority,
+                                                                               '\n'.join([af.output_folder for af in action.kwargs['add_fqpr']]),
+                                                                               '\n'.join([rf.output_folder for rf in action.kwargs['remove_fqpr']]))
         else:
             ttip = '{}\n\nPriority:{}'.format(action.text, action.priority)
         return ttip

@@ -1,0 +1,190 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+    <title>Quickstart - Monitor &#8212; kluster 0.9.6 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/alabaster.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/graphviz.css" />
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="FAQ" href="../faq/index.html" />
+    <link rel="prev" title="Quickstart - Basic" href="../quickstart/index.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <section id="quickstart-monitor">
+<h1>Quickstart - Monitor<a class="headerlink" href="#quickstart-monitor" title="Permalink to this headline">¶</a></h1>
+<p>Welcome to Kluster!</p>
+<p>If you want to learn more, try the YouTube series: <a class="reference external" href="https://www.youtube.com/playlist?list=PLrjCvP_J9AA_memBs2ZyKXGHG1AMx0GWx">Kluster Playlist</a></p>
+<p>Kluster is an open-source multibeam processing system designed around ease of use and performance.  Currently Kluster supports Kongsberg multibeam formats (.all, .kmall), Caris SVP files (.svp) and Applanix POSPac SBET files (.sbet, .smrmsg), and you need to have at least a multibeam file to start.  I have one on the GitHub if you are just experimenting with this software:</p>
+<p><a class="reference external" href="https://github.com/noaa-ocs-hydrography/kluster/blob/master/test_data/0009_20170523_181119_FA2806.all">0009_20170523_181119_FA2806.all</a></p>
+<p>Head to the <a class="reference external" href="https://github.com/noaa-ocs-hydrography/kluster/releases">Kluster releases section</a> to get the Kluster zip file for the version you want.  Use the latest unless you are after a specific version.  Unzip the file and run the kluster_main.exe to start Kluster.</p>
+<p>If you want to start Kluster from source, run “python -m HSTB.kluster” from the shell after activating your conda environment.</p>
+<section id="let-s-process">
+<h2>Let’s Process!<a class="headerlink" href="#let-s-process" title="Permalink to this headline">¶</a></h2>
+<p>This is an advanced tutorial covering a more automated processing routine that you might use if you wanted to process as you collect data.  If you need information on the basic setup of Kluster, or a description of the windows, see the Quickstart - Basic page.</p>
+<p>First, we need to setup Kluster for this monitoring mode.  Let’s go to File - Settings and set a few things.  We want to check “Force all days to…” if we might be acquiring across two different UTM zones.  Each day in Kluster has it’s own coordinate system, so if you don’t have this checked, you might end up with days with two different zones.  You can also just specify an EPSG code in Project Settings, as this only really applies to the Auto UTM Zone option in Project Settings.  Either way, this is only for those huge surveys that might go across UTM zones.</p>
+<p>Now we need to set Process Mode to Concatenate.  Concatenate mode will convert a line and then process that line individually.  If you add line after line to a project, concatenate mode will save you a lot of time by not reprocessing lines that have already been processed.  You do need to make sure that you go back to normal mode after you stop adding lines, just so that we get the new processing actions that come up when you change things after your initial processing.</p>
+<p>I set the Vdatum Directory here, which is needed if you want to process to MLLW.</p>
+<a class="reference external image-reference" href="../_images/quickstart_monitor_1.png"><img alt="../_images/quickstart_monitor_1.png" src="../_images/quickstart_monitor_1.png" /></a>
+<p>Now, we move over to Project Settings, and like we discussed, we leave the output coordinate system to Auto UTM (let it pick the UTM zone) and rely on “Force all days to…” to select the same coordinate system for all the days.</p>
+<p>We also need to do something new, and select a Designated Surface.  This is only if you want to have a grid that gets automatically updated in the background as you add data to the project.  If so, we click the Create button (assuming you don’t already have a grid) and create a new empty surface.  In the Save To box, we Browse and create a new empty folder to pick.  We select the gridding options that we want to use, I’ve got CUBE selected here, with the resolution automatically chosen based on the depth.</p>
+<p>For cast selection, you are probably best off choosing nearest in time, as the converted casts don’t really have meaningful positions (you’ll get that later if you import SVP)</p>
+<a class="reference external image-reference" href="../_images/quickstart_monitor_2.png"><img alt="../_images/quickstart_monitor_2.png" src="../_images/quickstart_monitor_2.png" /></a>
+<p>Now we are ready to setup the actual monitoring.  In the Monitor tab on the right, we browse to where we expect the new data to show up.  I have ‘Include Subdirectories’ checked as well, to search for data in folders that might be in this folder.  Any new data that it finds will be included, as well as whatever data might be in there already.  So if you have a few .all files in the directory and slowly add more over the course of the day, all of those files will be added to Kluster.  Hit ‘Start’ to start the monitoring.</p>
+<p>NOTE: It is recommended to ‘Stop’ monitoring before closing Kluster, just so that it closes nicely.</p>
+<a class="reference external image-reference" href="../_images/quickstart_monitor_3.png"><img alt="../_images/quickstart_monitor_3.png" src="../_images/quickstart_monitor_3.png" /></a>
+<p>Let’s test it out here.  You can see below that I have added a .all file to the directory we are monitoring.  On the right, you can see that we have a new conversion action.  So far so good!  You can add multiple files at once if you like, you can also take away files to see the action change.</p>
+<a class="reference external image-reference" href="../_images/quickstart_monitor_4.png"><img alt="../_images/quickstart_monitor_4.png" src="../_images/quickstart_monitor_4.png" /></a>
+<p>NOTE: If you want the processed data to live somewhere other than next to the raw data, go ahead and do a File - New Project and point to a different place.</p>
+<p>The final step here is to check ‘Auto’ next to the ‘Start Process’ button in the top right.  It’ll take a few seconds for the Dask Cluster to start (it locks up for a few seconds) and then the process begins.  It will cycle through Conversion, Processing, and Gridding one after the other.  The result is a processed multibeam container and a grid, and the processed data is in the grid.  We can turn on one of the layers to show this.</p>
+<a class="reference external image-reference" href="../_images/quickstart_monitor_5.png"><img alt="../_images/quickstart_monitor_5.png" src="../_images/quickstart_monitor_5.png" /></a>
+<p>So let’s test this process on multiple files.  Here I have thrown in four more .all files, with Auto checked, and let it run.  The result is that those four lines are processed one by one, and each line is added to the grid.</p>
+<a class="reference external image-reference" href="../_images/quickstart_monitor_6.png"><img alt="../_images/quickstart_monitor_6.png" src="../_images/quickstart_monitor_6.png" /></a>
+<p>You can see that you can now just set Kluster up and conduct your survey, and you will end up with a processed dataset after you are done.  If you get a crash, or have to stop monitoring for some reason, you can restart Kluster in the same way and it will pick back up where you left it.</p>
+<p>But this is never the end of the process, we often have to add files such as SVP or SBET files to the dataset.  Once you get to that point, you will need to change from ‘Process Mode’ = ‘Concatenate’ to ‘Process Mode’ = ‘Normal’ in ‘Settings’.  This is so that we get our normal actions back, with reprocessing as additional data is imported to the dataset.</p>
+<p>With a Normal Processing Mode, we can drag in our other files to the folder that we are monitoring.  You can see the result below.  Since we have an SBET/SMRMSG and POSPac Export Log, we are able to import the SBET to the dataset, and after that import we import the Sound Velocity Profile.  These actions are listed under ‘All Actions’ in the top right.  After these imports we need to restart the processing at sound velocity.  You can see that there is a ‘Process … starting with georeferencing’ action currently, this will be updated as this new data is imported.</p>
+<p>NOTE: If you have ‘Auto’ checked, all of this will automatically start as you drag in those files.</p>
+<a class="reference external image-reference" href="../_images/quickstart_monitor_7.png"><img alt="../_images/quickstart_monitor_7.png" src="../_images/quickstart_monitor_7.png" /></a>
+<p>After that processing completes, you will end up with new soundings.  But we currently only have the old soundings in the surface!  The surface needs to be updated.</p>
+<p>Right click on the surface and go to Update Surface.  You end up with a screen with two boxes, one on the left that shows the data in the surface, and one on the right that shows what is available to add to the surface.  Note that all the lines on the left match what we would expect to be in the surface, but they have little asterisks next to them.  These asterisks mark these lines for update, as Kluster knows that the newly processed data is newer than the data added to the grid.  If the Kluster version is newer, it gets an asterisk.  If you have ‘Update Existing Container Data’ checked, you will automatically remove/re-add all lines that have an asterisk.  And with ‘Re-Grid Data’ set to ‘Only where points have changed’, the whole grid will be re-gridded.</p>
+<p>So the short answer is, you can basically just hit OK here.  This should remove/add the lines, and regrid.</p>
+<a class="reference external image-reference" href="../_images/quickstart_monitor_8.png"><img alt="../_images/quickstart_monitor_8.png" src="../_images/quickstart_monitor_8.png" /></a>
+<a class="reference external image-reference" href="../_images/quickstart_monitor_9.png"><img alt="../_images/quickstart_monitor_9.png" src="../_images/quickstart_monitor_9.png" /></a>
+<p>And your screen should now look like mine.  You can see that all operations went smoothly.</p>
+<p>At this point, you now have correctly processed data, and can move on to Analysis.  See Quickstart - Basic.</p>
+</section>
+<section id="in-the-console">
+<h2>In the Console<a class="headerlink" href="#in-the-console" title="Permalink to this headline">¶</a></h2>
+<p>All processing options are available in the Python console as well.  We are going to use the intel_service and generate_new_surface to do the operation. (see API - fqpr_intelligence - intel_process)</p>
+<p>This is going to allow us to create a new grid and automatically process/add to that grid.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">HSTB.kluster.fqpr_intelligence</span> <span class="kn">import</span> <span class="n">intel_process_service</span>
+<span class="kn">from</span> <span class="nn">HSTB.kluster.fqpr_convenience</span> <span class="kn">import</span> <span class="n">generate_new_surface</span>
+
+<span class="c1"># generate a new empty surface for the designated surface.  You can use an existing surface if you like, and skip this step</span>
+<span class="c1"># use grid_parameters to alter the CUBE parameters</span>
+<span class="n">surf</span> <span class="o">=</span> <span class="n">generate_new_surface</span><span class="p">(</span><span class="n">output_path</span><span class="o">=</span><span class="sa">r</span><span class="s2">&quot;C:\collab\dasktest\data_dir\newsurf&quot;</span><span class="p">,</span> <span class="n">tile_size</span><span class="o">=</span><span class="mf">512.0</span><span class="p">,</span> <span class="n">gridding_algorithm</span><span class="o">=</span><span class="s1">&#39;cube&#39;</span><span class="p">,</span> <span class="n">auto_resolution_mode</span><span class="o">=</span><span class="s1">&#39;depth&#39;</span><span class="p">,</span>
+                            <span class="n">grid_parameters</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;variance_selection&#39;</span><span class="p">:</span> <span class="s1">&#39;CUBE&#39;</span><span class="p">,</span> <span class="s1">&#39;iho_order&#39;</span><span class="p">:</span> <span class="s1">&#39;order1a&#39;</span><span class="p">,</span> <span class="s1">&#39;method&#39;</span><span class="p">:</span> <span class="s1">&#39;local&#39;</span><span class="p">})</span>
+<span class="c1"># pass in that surface as the designated surface, start the processing service, which is a combination of the fqpr_intelligence.intel_process and folder monitoring</span>
+<span class="n">fq</span> <span class="o">=</span> <span class="n">intel_process_service</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;C:\collab\dasktest\data_dir\EM2040_Fairweather_SmallFile&quot;</span><span class="p">,</span> <span class="n">coord_system</span><span class="o">=</span><span class="s1">&#39;WGS84&#39;</span><span class="p">,</span> <span class="n">vert_ref</span><span class="o">=</span><span class="s1">&#39;NOAA MLLW&#39;</span><span class="p">,</span> <span class="n">process_mode</span><span class="o">=</span><span class="s1">&#39;concatenate&#39;</span><span class="p">,</span>
+                           <span class="n">vdatum_directory</span><span class="o">=</span><span class="sa">r</span><span class="s1">&#39;C:/vdatum/vdatum_all_20220324/vdatum&#39;</span><span class="p">,</span> <span class="n">designated_surface</span><span class="o">=</span><span class="sa">r</span><span class="s2">&quot;C:\collab\dasktest\data_dir\newsurf&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>And that is it!  If you have concerns or issues, please consider submitting an issue on the GitHub here</p>
+<p><a class="reference external" href="https://github.com/noaa-ocs-hydrography/kluster/issues">https://github.com/noaa-ocs-hydrography/kluster/issues</a></p>
+<div class="toctree-wrapper compound">
+</div>
+</section>
+</section>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">kluster</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../requirements/index.html">Requirements</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../quickstart/index.html">Quickstart - Basic</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Quickstart - Monitor</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#let-s-process">Let’s Process!</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#in-the-console">In the Console</a><ul class="simple">
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../faq/index.html">FAQ</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../vessel_setup/index.html">Vessel Setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../processing/index.html">Processing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../surface/index.html">Surfacing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../sonar_acceptance/index.html">Sonar Acceptance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../cleaning/index.html">Cleaning</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../products/index.html">Products</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../settings/index.html">Settings</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../indepth/index.html">Learn more about Kluster</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../for_developers/index.html">For Developers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../kluster_api/index.html">API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../changes.html">Changes List</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="../quickstart/index.html" title="previous chapter">Quickstart - Basic</a></li>
+      <li>Next: <a href="../faq/index.html" title="next chapter">FAQ</a></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2020, Eric Younkin.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 4.3.2</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="../_sources/quickstart_monitor/index.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

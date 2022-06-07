@@ -41,9 +41,10 @@ class SurfaceDialog(SaveStateDialog):
         self.line_surface_checkbox.setChecked(False)
 
         self.hlayout_one = QtWidgets.QHBoxLayout()
+
+        self.surf_options = QtWidgets.QGroupBox('Select from the following options:')
+        self.surf_options.setCheckable(False)
         self.surf_layout = QtWidgets.QVBoxLayout()
-        self.surf_msg = QtWidgets.QLabel('Select from the following options:')
-        self.surf_layout.addWidget(self.surf_msg)
 
         self.hlayout_one_one = QtWidgets.QHBoxLayout()
         self.surf_method_lbl = QtWidgets.QLabel('Method: ')
@@ -155,20 +156,26 @@ class SurfaceDialog(SaveStateDialog):
         self.surf_layout.addLayout(self.hlayout_cube_two)
 
         self.output_msg = QtWidgets.QLabel('Save to:')
+        self.surf_layout.addWidget(self.output_msg)
 
         self.hlayout_output = QtWidgets.QHBoxLayout()
         self.output_text = QtWidgets.QLineEdit('', self)
         self.output_text.setMinimumWidth(400)
         self.output_text.setReadOnly(False)
+        self.output_text.setToolTip('Path to the folder that contains the bathygrid instance.  Folder should contain a\n'
+                                    'root folder, like "SRGridZarr_Root".  You will need to create a new empty folder\n'
+                                    'and point to it here if you want to set your own path to a new surface.')
         self.hlayout_output.addWidget(self.output_text)
         self.output_button = QtWidgets.QPushButton("Browse", self)
         self.hlayout_output.addWidget(self.output_button)
+        self.surf_layout.addLayout(self.hlayout_output)
 
         # self.use_dask_checkbox = QtWidgets.QCheckBox('Process in Parallel')
         # self.use_dask_checkbox.setToolTip('With this checked, gridding will be done in parallel using the Dask Client.  Assuming you have multiple\n' +
         #                                   'tiles, this should improve performance significantly.  You may experience some instability, although this\n' +
         #                                   'current implementation has not shown any during testing.')
         # self.surf_layout.addWidget(self.use_dask_checkbox)
+        self.surf_options.setLayout(self.surf_layout)
 
         self.status_msg = QtWidgets.QLabel('')
         self.status_msg.setStyleSheet("QLabel { color : " + kluster_variables.error_color + "; }")
@@ -185,10 +192,8 @@ class SurfaceDialog(SaveStateDialog):
         self.toplayout.addWidget(self.basic_surface_group)
         self.toplayout.addWidget(self.line_surface_checkbox)
         self.toplayout.addWidget(QtWidgets.QLabel(' '))
-        self.toplayout.addLayout(self.surf_layout)
+        self.toplayout.addWidget(self.surf_options)
         self.toplayout.addStretch()
-        self.toplayout.addWidget(self.output_msg)
-        self.toplayout.addLayout(self.hlayout_output)
         self.toplayout.addWidget(self.status_msg)
         self.toplayout.addLayout(self.hlayout_two)
         self.setLayout(self.toplayout)
@@ -361,6 +366,8 @@ class SurfaceDialog(SaveStateDialog):
     def start_processing(self):
         if self.output_pth is None:
             self.status_msg.setText('Error: You must insert a surface path to continue')
+        elif not self.line_surface_checkbox.isChecked() and not self.basic_surface_group.isChecked():
+            self.status_msg.setText('Error: You must either check "Run Surface Generation..." or "Only Selected Lines"')
         else:
             self.canceled = False
             self.save_settings()

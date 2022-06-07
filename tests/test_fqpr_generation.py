@@ -301,6 +301,167 @@ class TestFqprGeneration(unittest.TestCase):
                                                          [56.13, 1481.0], [60.67, 1481.5], [74.2, 1481.9000244140625],
                                                          [12000.0, 1675.800048828125]]}}
 
+    def test_return_cast_idx_nearestintime(self):
+        self._access_processed_data()
+        # add some test profiles
+        self.out.multibeam.raw_ping[0].attrs['profile_1495563200'] = '[[0.0, 1489.2000732421875]]'
+        self.out.multibeam.raw_ping[0].attrs['attributes_1495563200'] = '{"location": [47.78890945494799, -122.47711319986821], "source": "multibeam"}'
+        self.out.multibeam.raw_ping[0].attrs['profile_1495563400'] = '[[0.0, 1489.2000732421875]]'
+        self.out.multibeam.raw_ping[0].attrs['attributes_1495563400'] = '{"location": [47.78890945494799, -122.47711319986821], "source": "multibeam"}'
+        # now test out the nearest in time functionality
+        profnames, casts, cast_times, castlocations = self.out.return_all_profiles()
+        assert cast_times == [1495563079, 1495563200, 1495563400]
+
+        query_time = 1495563199
+        query_array = xr.DataArray(np.array([query_time]), dims=['time'], coords=np.array([[query_time]]))
+        data = self.out.return_cast_idx_nearestintime([query_array])
+        assert cast_times[data[0][1]] == 1495563200
+
+        query_time = 1495563100
+        query_array = xr.DataArray(np.array([query_time]), dims=['time'], coords=np.array([[query_time]]))
+        data = self.out.return_cast_idx_nearestintime([query_array])
+        assert cast_times[data[0][1]] == 1495563079
+
+        query_time = 1495563050
+        query_array = xr.DataArray(np.array([query_time]), dims=['time'], coords=np.array([[query_time]]))
+        data = self.out.return_cast_idx_nearestintime([query_array])
+        assert cast_times[data[0][1]] == 1495563079
+
+        query_time = 1495563450
+        query_array = xr.DataArray(np.array([query_time]), dims=['time'], coords=np.array([[query_time]]))
+        data = self.out.return_cast_idx_nearestintime([query_array])
+        assert cast_times[data[0][1]] == 1495563400
+
+    def test_return_cast_idx_nearestintime_fourhours(self):
+        self._access_processed_data()
+        # add some test profiles
+        self.out.multibeam.raw_ping[0].attrs['profile_1495563200'] = '[[0.0, 1489.2000732421875]]'
+        self.out.multibeam.raw_ping[0].attrs['attributes_1495563200'] = '{"location": [47.78890945494799, -122.47711319986821], "source": "multibeam"}'
+        self.out.multibeam.raw_ping[0].attrs['profile_1495563400'] = '[[0.0, 1489.2000732421875]]'
+        self.out.multibeam.raw_ping[0].attrs['attributes_1495563400'] = '{"location": [47.78890945494799, -122.47711319986821], "source": "multibeam"}'
+        # now test out the nearest in time functionality
+        profnames, casts, cast_times, castlocations = self.out.return_all_profiles()
+        assert cast_times == [1495563079, 1495563200, 1495563400]
+
+        query_time = 1495563199
+        query_array = xr.DataArray(np.array([query_time]), dims=['time'], coords=np.array([[query_time]]))
+        data = self.out.return_cast_idx_nearestintime_fourhours([query_array])
+        assert cast_times[data[0][1]] == 1495563200
+
+        query_time = 1495563100
+        query_array = xr.DataArray(np.array([query_time]), dims=['time'], coords=np.array([[query_time]]))
+        data = self.out.return_cast_idx_nearestintime_fourhours([query_array])
+        assert cast_times[data[0][1]] == 1495563079
+
+        query_time = 1
+        query_array = xr.DataArray(np.array([query_time]), dims=['time'], coords=np.array([[query_time]]))
+        data = self.out.return_cast_idx_nearestintime_fourhours([query_array])
+        assert data[0][1] is None
+
+        query_time = 1495593400
+        query_array = xr.DataArray(np.array([query_time]), dims=['time'], coords=np.array([[query_time]]))
+        data = self.out.return_cast_idx_nearestintime_fourhours([query_array])
+        assert data[0][1] is None
+
+    def test_return_cast_idx_nearestindistance(self):
+        self._access_processed_data()
+        # add some test profiles
+        # three in total, the existing one is at the start of the line, add one in the middle and one on the end
+        # mix up the times just to demonstrate that we are selecting by nearest in distance
+        self.out.multibeam.raw_ping[0].attrs['profile_999123100'] = '[[0.0, 1489.2000732421875]]'
+        self.out.multibeam.raw_ping[0].attrs['attributes_999123100'] = '{"location": [47.789165284626435, -122.4777638001023], "source": "multibeam"}'
+        self.out.multibeam.raw_ping[0].attrs['profile_123'] = '[[0.0, 1489.2000732421875]]'
+        self.out.multibeam.raw_ping[0].attrs['attributes_123'] = '{"location": [47.78942111430487, -122.47841440033638], "source": "multibeam"}'
+        # now test out the nearest in time functionality
+        profnames, casts, cast_times, castlocations = self.out.return_all_profiles()
+        assert cast_times == [1495563079, 999123100, 123]
+
+        query_time = 1495563081
+        query_array = xr.DataArray(np.array([query_time]), dims=['time'], coords=np.array([[query_time]]))
+        data = self.out.return_cast_idx_nearestindistance([query_array])
+        assert cast_times[data[0][1]] == 1495563079
+
+        query_time = 1495563111
+        query_array = xr.DataArray(np.array([query_time]), dims=['time'], coords=np.array([[query_time]]))
+        data = self.out.return_cast_idx_nearestindistance([query_array])
+        assert cast_times[data[0][1]] == 999123100
+
+        query_time = 1495563211
+        query_array = xr.DataArray(np.array([query_time]), dims=['time'], coords=np.array([[query_time]]))
+        data = self.out.return_cast_idx_nearestindistance([query_array])
+        assert cast_times[data[0][1]] == 123
+
+        query_time = 1495563811
+        query_array = xr.DataArray(np.array([query_time]), dims=['time'], coords=np.array([[query_time]]))
+        data = self.out.return_cast_idx_nearestindistance([query_array])
+        assert cast_times[data[0][1]] == 123
+
+    def test_return_cast_idx_nearestindistance_fourhours(self):
+        self._access_processed_data()
+        # add some test profiles
+        # three in total, the existing one is at the start of the line, add one in the middle and one on the end
+        # mix up the times just to demonstrate that we are selecting by nearest in distance
+        self.out.multibeam.raw_ping[0].attrs['profile_1495563100'] = '[[0.0, 1489.2000732421875]]'
+        self.out.multibeam.raw_ping[0].attrs['attributes_1495563100'] = '{"location": [47.789165284626435, -122.4777638001023], "source": "multibeam"}'
+        self.out.multibeam.raw_ping[0].attrs['profile_1495563132'] = '[[0.0, 1489.2000732421875]]'
+        self.out.multibeam.raw_ping[0].attrs['attributes_1495563132'] = '{"location": [47.78942111430487, -122.47841440033638], "source": "multibeam"}'
+        # now test out the nearest in time functionality
+        profnames, casts, cast_times, castlocations = self.out.return_all_profiles()
+        assert cast_times == [1495563079, 1495563100, 1495563132]
+
+        query_time = 1495563081
+        query_array = xr.DataArray(np.array([query_time]), dims=['time'], coords=np.array([[query_time]]))
+        data = self.out.return_cast_idx_nearestindistance_fourhours([query_array])
+        assert cast_times[data[0][1]] == 1495563079
+
+        query_time = 1495563111
+        query_array = xr.DataArray(np.array([query_time]), dims=['time'], coords=np.array([[query_time]]))
+        data = self.out.return_cast_idx_nearestindistance_fourhours([query_array])
+        assert cast_times[data[0][1]] == 1495563100
+
+        query_time = 1495563211
+        query_array = xr.DataArray(np.array([query_time]), dims=['time'], coords=np.array([[query_time]]))
+        data = self.out.return_cast_idx_nearestindistance_fourhours([query_array])
+        assert cast_times[data[0][1]] == 1495563132
+
+        query_time = 999999999
+        query_array = xr.DataArray(np.array([query_time]), dims=['time'], coords=np.array([[query_time]]))
+        data = self.out.return_cast_idx_nearestindistance_fourhours([query_array])
+        assert data[0][1] is None
+
+    def test_return_applicable_casts(self):
+        self._access_processed_data()
+        # add some test profiles
+        # two in total, the existing one is at the start of the line, add one with a weird time and one with a weird position
+        # weird position
+        self.out.multibeam.raw_ping[0].attrs['profile_1495563100'] = '[[0.0, 1489.2000732421875]]'
+        self.out.multibeam.raw_ping[0].attrs['attributes_1495563100'] = '{"location": [57.789165284626435, -162.4777638001023], "source": "multibeam"}'
+        # weird time
+        self.out.multibeam.raw_ping[0].attrs['profile_2495563132'] = '[[0.0, 1489.2000732421875]]'
+        self.out.multibeam.raw_ping[0].attrs['attributes_2495563132'] = '{"location": [47.78942111430487, -122.47841440033638], "source": "multibeam"}'
+        # drop the good one you would expect to be selected each time
+        self.out.multibeam.raw_ping[0].attrs.pop('profile_1495563079')
+        self.out.multibeam.raw_ping[0].attrs.pop('attributes_1495563079')
+
+        try:
+            self.out.return_applicable_casts('thisshouldfail')
+            assert False
+        except NotImplementedError:
+            assert True
+        assert self.out.return_applicable_casts('nearest_in_time') == ['profile_1495563100']
+        assert self.out.return_applicable_casts('nearest_in_time_four_hours') == ['profile_1495563100']
+        assert self.out.return_applicable_casts('nearest_in_distance') == ['profile_2495563132']
+        assert self.out.return_applicable_casts('nearest_in_distance_four_hours') == ['profile_1495563100']
+
+        # now see what happens if we only leave the weird time one in
+        self.out.multibeam.raw_ping[0].attrs.pop('profile_1495563100')
+        self.out.multibeam.raw_ping[0].attrs.pop('attributes_1495563100')
+
+        assert self.out.return_applicable_casts('nearest_in_time') == ['profile_2495563132']
+        assert self.out.return_applicable_casts('nearest_in_time_four_hours') == []
+        assert self.out.return_applicable_casts('nearest_in_distance') == ['profile_2495563132']
+        assert self.out.return_applicable_casts('nearest_in_distance_four_hours') == []
+
     def test_return_line_xyzrph(self):
         self._access_processed_data()
         xyzrph = self.out.return_line_xyzrph('0009_20170523_181119_FA2806.all')

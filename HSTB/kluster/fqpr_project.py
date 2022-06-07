@@ -185,7 +185,7 @@ class FqprProject(LoggerClass):
             if data['vessel_file']:
                 self.vessel_file = self.absolute_path_from_relative(data['vessel_file'])
                 if not os.path.exists(self.vessel_file):
-                    self.print_msg('_load_project_file: Unable to find vessel file: {}'.format(self.vessel_file), logging.ERROR)
+                    self.print_msg('_load_project_file: Unable to find vessel file: {}'.format(self.vessel_file), logging.WARNING)
                     self.vessel_file = None
                     data['vessel_file'] = None
         else:
@@ -195,7 +195,7 @@ class FqprProject(LoggerClass):
         for ky in ['fqpr_paths', 'surface_paths']:
             for fil in data[ky]:
                 if not os.path.exists(fil):
-                    self.print_msg('_load_project_file: Unable to find {}'.format(fil), logging.ERROR)
+                    self.print_msg('_load_project_file: Unable to find {}'.format(fil), logging.WARNING)
                     data[ky].remove(fil)
         return data
 
@@ -506,6 +506,8 @@ class FqprProject(LoggerClass):
             relpath = self.path_relative_to_project(pth)
             self.surface_instances[relpath] = bg
             self.print_msg('Successfully added {}'.format(pth), logging.INFO)
+            for callback in self._project_observers:
+                callback(True)
 
     def remove_surface(self, pth: str, relative_path: bool = False):
         """
@@ -526,6 +528,32 @@ class FqprProject(LoggerClass):
 
         if relpath in self.surface_instances:
             self.surface_instances.pop(relpath)
+        for callback in self._project_observers:
+            callback(True)
+
+    def update_surface(self, pth: str, surf: BathyGrid, relative_path: bool = False):
+        """
+        Update an attached Bathygrid instance with a new instance, to avoid a costly close/re-open
+
+        Parameters
+        ----------
+        pth
+            path to the surface file
+        surf
+            new bathygrid instance
+        relative_path
+            if True, pth is a relative path (relative to self.path)
+        """
+
+        if relative_path:
+            relpath = pth
+        else:
+            relpath = self.path_relative_to_project(pth)
+
+        if relpath in self.surface_instances:
+            self.surface_instances[relpath] = surf
+        for callback in self._project_observers:
+            callback(True)
 
     def regenerate_fqpr_lines(self, pth: str):
         """
@@ -1152,7 +1180,10 @@ class FqprProject(LoggerClass):
         existing_container_names = surf.return_unique_containers()
         existing_needs_update = []
         for existblock in existing_container_names:
-            existname, linename = existblock.split('__')
+            try:
+                existname, linename = existblock.split('__')
+            except:  # grids created prior to 0.9.5 have container_chunkindex naming, now we just do container__linename
+                existname = existblock
             if existname in self.fqpr_instances:
                 existtime = None
                 for ename, etime in surf.container_timestamp.items():
@@ -1175,13 +1206,19 @@ class FqprProject(LoggerClass):
         existing_data = {}
         possible_data = {}
         for entry in existing_container_names:
-            container, mline = entry.split('__')
+            try:
+                container, mline = entry.split('__')
+            except:  # grids created prior to 0.9.5 have container_chunkindex naming, now we just do container__linename
+                container, mline = entry, entry
             if container not in existing_data:
                 existing_data[container] = [mline]
             elif mline not in existing_data[container]:
                 existing_data[container] += [mline]
         for entry in possible_container_names:
-            container, mline = entry.split('__')
+            try:
+                container, mline = entry.split('__')
+            except:  # grids created prior to 0.9.5 have container_chunkindex naming, now we just do container__linename
+                container, mline = entry, entry
             if container not in possible_data:
                 possible_data[container] = [mline]
             elif mline not in possible_data[container]:
@@ -1388,7 +1425,12 @@ def reprocess_fqprs(fqprs: list, newvalues: list, headindex: int, prefixes: list
             fq.multibeam.xyzrph[prefixes[5]][tstmp] = zlever
             fq.multibeam.xyzrph[prefixes[6]][tstmp] = latency
         fq.intermediate_dat = {}  # clear out the reprocessed cached data
-        fq, soundings = reprocess_sounding_selection(fq, vdatum_directory=vdatum_directory, georeference=True)
+        try:
+            cast_selection_method = fq.multibeam.raw_ping[0].svmode
+        except:
+            cast_selection_method = 'nearest_in_time'
+        fq, soundings = reprocess_sounding_selection(fq, vdatum_directory=vdatum_directory, georeference=True,
+                                                     cast_selection_method=cast_selection_method)
 
         for tstmp in fqtimestamps:
             newx = np.concatenate([d[0][0].values for d in fq.intermediate_dat[serial_number]['georef'][tstmp]], axis=0)

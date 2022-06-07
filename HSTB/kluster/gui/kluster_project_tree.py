@@ -316,14 +316,15 @@ class KlusterProjectTree(QtWidgets.QTreeView):
                     proj_child.appendRow([line_child])
                 self.tree_data['Converted'].append(fq_proj)
             else:  # see if there are new lines to display
-                idx = self.tree_data['Converted'][1:].index(fq_proj)
-                proj_child = parent.child(idx)
-                if proj_child.rowCount() != len(line_data[fq_proj]):  # new lines
-                    tree_lines = [proj_child.child(rw).text() for rw in range(proj_child.rowCount())]
-                    for fq_line in line_data[fq_proj]:
-                        if fq_line not in tree_lines:
-                            line_child = QtGui.QStandardItem(fq_line)
-                            proj_child.appendRow([line_child])
+                child_match = [parent.child(r) for r in range(parent.rowCount()) if parent.child(r).text() == fq_proj]
+                if child_match:
+                    proj_child = child_match[0]
+                    if proj_child.rowCount() != len(line_data[fq_proj]):  # new lines
+                        tree_lines = [proj_child.child(rw).text() for rw in range(proj_child.rowCount())]
+                        for fq_line in line_data[fq_proj]:
+                            if fq_line not in tree_lines:
+                                line_child = QtGui.QStandardItem(fq_line)
+                                proj_child.appendRow([line_child])
         parent.sortChildren(0, order=QtCore.Qt.AscendingOrder)
 
     def _add_new_surf_from_proj(self, parent: QtGui.QStandardItem, surf_data):
@@ -340,8 +341,10 @@ class KlusterProjectTree(QtWidgets.QTreeView):
                             <HSTB.kluster.fqpr_surface.BaseSurface object at 0x0000019CFFF1A520>}
 
         """
+        needs_refresh = []
         current_surfs = self.tree_data['Surfaces'][1:]
         for surf in surf_data:
+            layer_names = surf_data[surf].return_layer_names()
             if surf not in current_surfs:
                 surf_child = QtGui.QStandardItem(surf)
                 parent.appendRow(surf_child)
@@ -361,6 +364,16 @@ class KlusterProjectTree(QtWidgets.QTreeView):
                 except AttributeError:  # bathygrid does not support this method
                     pass
                 self.tree_data['Surfaces'].append(surf)
+            else:  # an empty surface has no checkable layers, if the layer names change, we need to update the project tree
+                surf_child = [parent.child(idx) for idx in range(parent.rowCount()) if parent.child(idx).text() == surf][0]
+                existing_surf_layer_names = [surf_child.child(idx).text() for idx in range(surf_child.rowCount())]
+                no_update_needed = all([lname in existing_surf_layer_names for lname in layer_names])
+                if not no_update_needed:
+                    needs_refresh.append(surf)
+        if needs_refresh:
+            force_removal = {k: None for k in surf_data.keys() if k not in needs_refresh}
+            self._remove_surf_not_in_proj(parent, force_removal)
+            self._add_new_surf_from_proj(parent, surf_data)
         parent.sortChildren(0, order=QtCore.Qt.AscendingOrder)
 
     def _remove_fqpr_not_in_proj(self, parent, line_data):

@@ -120,6 +120,18 @@ class FqprSubset:
         subset_times = [[data[0], data[1]] for data in mfiles.values()]
         self.subset_by_times(subset_times)
 
+        # Seen that sometimes the line min/max time can overlap, so you get just a half second of another line in the
+        #   output of subset_by_times.  Only retain the line information for the line requested.
+        removelines = []
+        mfiles = deepcopy(self.fqpr.multibeam.raw_ping[0].multibeam_files)
+        desired_lines = line_names if isinstance(line_names, list) else [line_names]
+        for mfil in mfiles.keys():
+            if mfil not in desired_lines:
+                removelines.append(mfil)
+        [mfiles.pop(mfil) for mfil in removelines]
+        for ra in self.fqpr.multibeam.raw_ping:
+            ra.attrs['multibeam_files'] = mfiles
+
         # we want to ensure this subset is logged as a line subset, so that if we redo it later, it will be done correctly
         self.subset_times = []
         self.subset_lines = list(mfiles.keys())

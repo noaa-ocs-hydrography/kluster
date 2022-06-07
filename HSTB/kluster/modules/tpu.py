@@ -373,6 +373,7 @@ class Tpu:
         plt.legend()
         if drive_plots_to_file:
             plt.savefig(horiz_fname)
+        plt.close(horiz_figure)
 
         vert_figure = plt.figure(figsize=(12, 9))
         plt.ylabel('meters')
@@ -384,6 +385,7 @@ class Tpu:
         plt.legend()
         if drive_plots_to_file:
             plt.savefig(vert_fname)
+        plt.close(vert_figure)
 
     def _calculate_beam_angle_variance(self):
         """

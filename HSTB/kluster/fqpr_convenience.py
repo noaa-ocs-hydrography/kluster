@@ -28,7 +28,7 @@ def perform_all_processing(filname: Union[str, list], navfiles: list = None, inp
                            vert_ref: str = 'waterline', orientation_initial_interpolation: bool = False,
                            add_cast_files: Union[str, list] = None,
                            skip_dask: bool = False, show_progress: bool = True, parallel_write: bool = True,
-                           vdatum_directory: str = None, **kwargs):
+                           vdatum_directory: str = None, cast_selection_method: str = 'nearest_in_time', **kwargs):
     """
     Use fqpr_generation to process multibeam data on the local cluster and generate a sound velocity corrected,
     georeferenced xyz with uncertainty in csv files in the provided output folder.
@@ -68,6 +68,9 @@ def perform_all_processing(filname: Union[str, list], navfiles: list = None, inp
         if True, will write in parallel to disk, Disable for permissions issues troubleshooting.
     vdatum_directory
         if 'NOAA MLLW' 'NOAA MHW' is the vertical reference, a path to the vdatum directory is required here
+    cast_selection_method
+        the method used to select the cast that goes with each chunk of the dataset, one of ['nearest_in_time',
+        'nearest_in_time_four_hours', 'nearest_in_distance', 'nearest_in_distance_four_hours']
 
     Returns
     -------
@@ -82,7 +85,7 @@ def perform_all_processing(filname: Union[str, list], navfiles: list = None, inp
             fqpr_inst = import_processed_navigation(fqpr_inst, navfiles, **kwargs)
         fqpr_inst = process_multibeam(fqpr_inst, add_cast_files=add_cast_files, coord_system=coord_system, vert_ref=vert_ref,
                                       orientation_initial_interpolation=orientation_initial_interpolation,
-                                      vdatum_directory=vdatum_directory)
+                                      vdatum_directory=vdatum_directory, cast_selection_method=cast_selection_method)
     return fqpr_inst
 
 
@@ -225,7 +228,7 @@ def overwrite_raw_navigation(fqpr_inst: Fqpr, navfiles: list, weekstart_year: in
     return fqpr_inst
 
 
-def import_sound_velocity(fqpr_inst: Fqpr, sv_files: Union[str, list]):
+def import_sound_velocity(fqpr_inst: Fqpr, sv_files: Union[str, list], cast_selection_method: str = 'nearest_in_time'):
     """
     Convenience function for passing in an instance of fqpr_generation.Fqpr and importing the provided sound velocity
     profile files as attributes.  Allows you to then run sv_correct and automatically select from the saved cast file
@@ -241,6 +244,9 @@ def import_sound_velocity(fqpr_inst: Fqpr, sv_files: Union[str, list]):
         Fqpr instance containing converted data (converted data must exist for the import to work)
     sv_files
         either a list of files to include or the path to a directory containing sv files (only supporting .svp currently)
+    cast_selection_method
+        method used to determine the cast appropriate for each data chunk.  Used here to determine whether or not this new cast(s)
+        will require reprocessing, i.e. they are selected by one or more chunks of this dataset.
 
     Returns
     -------
@@ -248,7 +254,7 @@ def import_sound_velocity(fqpr_inst: Fqpr, sv_files: Union[str, list]):
         Fqpr passed in with additional post processed navigation
     """
 
-    fqpr_inst.import_sound_velocity_files(sv_files)
+    fqpr_inst.import_sound_velocity_files(sv_files, cast_selection_method=cast_selection_method)
     return fqpr_inst
 
 
@@ -256,8 +262,8 @@ def process_multibeam(fqpr_inst: Fqpr, run_orientation: bool = True, orientation
                       run_beam_vec: bool = True, run_svcorr: bool = True, run_georef: bool = True, run_tpu: bool = True,
                       add_cast_files: Union[str, list] = None, input_datum: Union[str, int] = None,
                       use_epsg: bool = False, use_coord: bool = True, epsg: int = None, coord_system: str = 'WGS84',
-                      vert_ref: str = 'waterline', vdatum_directory: str = None, only_this_line: str = None,
-                      only_these_times: tuple = None):
+                      vert_ref: str = 'waterline', vdatum_directory: str = None, cast_selection_method: str = 'nearest_in_time',
+                      only_this_line: str = None, only_these_times: tuple = None):
     """
     Use fqpr_generation to process already converted data on the local cluster and generate sound velocity corrected,
     georeferenced soundings in the same data store as the converted data.
@@ -301,6 +307,9 @@ def process_multibeam(fqpr_inst: Fqpr, run_orientation: bool = True, orientation
         the vertical reference point, one of ['ellipse', 'waterline', 'NOAA MLLW', 'NOAA MHW']
     vdatum_directory
         if 'NOAA MLLW' 'NOAA MHW' is the vertical reference, a path to the vdatum directory is required here
+    cast_selection_method
+        the method used to select the cast that goes with each chunk of the dataset, one of ['nearest_in_time',
+        'nearest_in_time_four_hours', 'nearest_in_distance', 'nearest_in_distance_four_hours']
     only_this_line
         only process this line, subset the full dataset by the min time and maximum time of the line name provided.  ex: 0000_testline.all
     only_these_times
@@ -335,7 +344,7 @@ def process_multibeam(fqpr_inst: Fqpr, run_orientation: bool = True, orientation
     if run_beam_vec:
         fqpr_inst.get_beam_pointing_vectors(subset_time=subset_time)
     if run_svcorr:
-        fqpr_inst.sv_correct(add_cast_files=add_cast_files, subset_time=subset_time)
+        fqpr_inst.sv_correct(add_cast_files=add_cast_files, cast_selection_method=cast_selection_method, subset_time=subset_time)
     if run_georef:
         fqpr_inst.georef_xyz(vdatum_directory=vdatum_directory, subset_time=subset_time)
     if run_tpu:
@@ -460,19 +469,28 @@ def _add_points_to_surface(fqpr_inst: Union[dict, Fqpr], bgrid: BathyGrid, fqpr_
     """
 
     if isinstance(fqpr_inst, dict):
+        has_thu = bgrid.has_horizontal_uncertainty
+        has_tvu = bgrid.has_vertical_uncertainty
+        nan_msk = ~np.isnan(fqpr_inst['z'])
         dtyp = [('x', np.float64), ('y', np.float64), ('z', np.float32)]
-        if 'tvu' in fqpr_inst:
+        if 'tvu' in fqpr_inst or has_tvu:
             dtyp += [('tvu', np.float32)]
-        if 'thu' in fqpr_inst:
+        if 'thu' in fqpr_inst or has_thu:
             dtyp += [('thu', np.float32)]
-        parray = np.empty(len(fqpr_inst['z']), dtype=dtyp)
-        parray['x'] = fqpr_inst['x']
-        parray['y'] = fqpr_inst['y']
-        parray['z'] = fqpr_inst['z']
+        parray = np.empty(len(fqpr_inst['z'][nan_msk]), dtype=dtyp)
+        parray['x'] = fqpr_inst['x'][nan_msk]
+        parray['y'] = fqpr_inst['y'][nan_msk]
+        parray['z'] = fqpr_inst['z'][nan_msk]
         if 'tvu' in fqpr_inst:
-            parray['tvu'] = fqpr_inst['tvu']
+            parray['tvu'] = fqpr_inst['tvu'][nan_msk]
+        elif has_tvu:
+            print('WARNING: This grid contains vertical uncertainty but these new points do not, algorithms like CUBE will no longer work properly')
+            parray['tvu'] = np.full_like(parray['z'], np.nan)
         if 'thu' in fqpr_inst:
-            parray['thu'] = fqpr_inst['thu']
+            parray['thu'] = fqpr_inst['thu'][nan_msk]
+        elif has_thu:
+            print('WARNING: This grid contains vertical uncertainty but these new points do not, algorithms like CUBE will no longer work properly\n')
+            parray['thu'] = np.full_like(parray['z'], np.nan)
         if 'tag' in fqpr_inst:
             containername = fqpr_inst['tag']
         else:
@@ -481,21 +499,46 @@ def _add_points_to_surface(fqpr_inst: Union[dict, Fqpr], bgrid: BathyGrid, fqpr_
             datafiles = fqpr_inst['files']
         else:
             datafiles = None
-        bgrid.add_points(parray, containername, datafiles, fqpr_crs, fqpr_vertref)
+        if bgrid.vertical_reference and (bgrid.vertical_reference != fqpr_vertref):
+            # add another check for when you have complicated mllw wkt strings that might be slightly different
+            if not (bgrid.vertical_reference.find('MLLW') != -1 and fqpr_vertref.find('MLLW') != -1):
+                print(f'ERROR: this imported data {containername} has a vertical reference of {fqpr_vertref}, where the grid has a vertical reference of {bgrid.vertical_reference}')
+                return
+        elif bgrid.epsg and (bgrid.epsg != fqpr_crs):
+            print(f'ERROR: this imported data {containername} has an EPSG of {fqpr_crs}, where the grid has an EPSG of {bgrid.epsg}')
+            return
+        try:
+            bgrid.add_points(parray, containername, datafiles, fqpr_crs, fqpr_vertref)
+        except:
+            print(f'ERROR: this imported data {containername} was not able to be added to the surface')
+            return
     else:
         cont_name = os.path.split(fqpr_inst.output_folder)[1]
         min_time = np.min([rp.time.values[0] for rp in fqpr_inst.multibeam.raw_ping])
         max_time = np.max([rp.time.values[-1] for rp in fqpr_inst.multibeam.raw_ping])
         multibeamfiles = list(fqpr_inst.multibeam.raw_ping[0].multibeam_files.keys())
+        if bgrid.vertical_reference and (bgrid.vertical_reference != fqpr_vertref):
+            if not (bgrid.vertical_reference.find('MLLW') != -1 and fqpr_vertref.find('MLLW') != -1):
+                print(f'ERROR: this imported data {cont_name} has a vertical reference of {fqpr_vertref}, where the grid has a vertical reference of {bgrid.vertical_reference}')
+                return
+        elif bgrid.epsg and (bgrid.epsg != fqpr_crs):
+            print(f'ERROR: this imported data {cont_name} has an EPSG of {fqpr_crs}, where the grid has an EPSG of {bgrid.epsg}')
+            return
         if add_lines:
             multibeamfiles = [mfile for mfile in multibeamfiles if mfile in add_lines]
+        print()
         for mfile in multibeamfiles:
             linedata = fqpr_inst.subset_variables_by_line(['x', 'y', 'z', 'tvu', 'thu'], line_names=mfile, filter_by_detection=True)
             rp = linedata[mfile]
             # drop nan values in georeferenced data, generally where number of beams vary between pings
             data = rp.where(~np.isnan(rp['z']), drop=True)
-            bgrid.add_points(data, '{}__{}'.format(cont_name, mfile), [mfile], fqpr_crs, fqpr_vertref,
-                             min_time=min_time, max_time=max_time)
+            if data['z'].any():
+                try:
+                    bgrid.add_points(data, '{}__{}'.format(cont_name, mfile), [mfile], fqpr_crs, fqpr_vertref, min_time=min_time,
+                                     max_time=max_time)
+                except:
+                    print(f'ERROR: this imported data {"{}__{}".format(cont_name, mfile)} was not able to be added to the surface')
+                    continue
 
 
 def _remove_points_from_surface(fqpr_inst: Union[Fqpr, str], bgrid: BathyGrid, remove_lines: Union[list, str] = None):
@@ -526,7 +569,7 @@ def _remove_points_from_surface(fqpr_inst: Union[Fqpr, str], bgrid: BathyGrid, r
                         remove_these.append(existing_cont)
             else:
                 remove_these.append(existing_cont)
-
+    print()
     for remove_cont in remove_these:
         bgrid.remove_points(remove_cont)
 
@@ -540,6 +583,9 @@ def _get_unique_crs_vertref(fqpr_instances: list):
     unique_crs = []
     unique_vertref = []
     for fq in fqpr_instances:
+        if not fq.is_processed():
+            print(f'_get_unique_crs_vertref: {fq.output_folder} is not fully processed, current processing status={fq.status}')
+            return None, None
         crs_data = fq.horizontal_crs.to_epsg()
         vertref = fq.multibeam.raw_ping[0].vertical_reference
         if crs_data is None:
@@ -587,8 +633,8 @@ def _validate_fqpr_for_gridding(fqpr_instances: list):
     return True
 
 
-def generate_new_surface(fqpr_inst: Union[Fqpr, list], grid_type: str = 'single_resolution', tile_size: float = 1024.0,
-                         subtile_size: float = 128, gridding_algorithm: str = 'mean', resolution: float = None,
+def generate_new_surface(fqpr_inst: Union[Fqpr, list] = None, grid_type: str = 'single_resolution', tile_size: float = 1024.0,
+                         subtile_size: float = 128.0, gridding_algorithm: str = 'mean', resolution: float = None,
                          auto_resolution_mode: str = 'depth',
                          use_dask: bool = False, output_path: str = None, export_path: str = None,
                          export_format: str = 'geotiff', export_z_positive_up: bool = True,
@@ -611,7 +657,7 @@ def generate_new_surface(fqpr_inst: Union[Fqpr, list], grid_type: str = 'single_
         point data outside of the FQPR object.  These dicts should have keys including ['x', 'y', 'z', 'crs', 'vert_ref']
         and optionally ['tvu', 'thu', 'tag', 'files'].  tvu and thu will be used in the CUBE algorithm, tag will be
         the container name tagged for these points in the bathygrid instance, and files will be logged as the source
-        files for that container in the bathygrid metadata.
+        files for that container in the bathygrid metadata.  If None is provided, will create an empty surface.
     grid_type
         one of 'single_resolution', 'variable_resolution_tile'
     tile_size
@@ -653,55 +699,68 @@ def generate_new_surface(fqpr_inst: Union[Fqpr, list], grid_type: str = 'single_
     print('***** Generating new Bathygrid surface *****')
     strttime = perf_counter()
 
-    if not isinstance(fqpr_inst, list):
-        fqpr_inst = [fqpr_inst]
-    if isinstance(fqpr_inst[0], Fqpr):
-        is_fqpr = True
-        unique_crs, unique_vertref = _get_unique_crs_vertref(fqpr_inst)
-    elif isinstance(fqpr_inst[0], dict):
-        try:
-            assert all([all([ky in fqprinst for ky in ['x', 'y', 'z', 'crs', 'vert_ref']]) for fqprinst in fqpr_inst])
-        except:
-            raise ValueError("generate_new_surface: When using point data, you must provide ['x', 'y', 'z', 'crs', 'vert_ref'] keys in each dict object")
-        try:
-            assert all([fqpr_inst[0]['crs'] == fq['crs'] for fq in fqpr_inst])
-        except:
-            raise ValueError("generate_new_surface: When using point data, all 'crs' keys must match")
-        try:
-            assert all([fqpr_inst[0]['vert_ref'] == fq['vert_ref'] for fq in fqpr_inst])
-        except:
-            raise ValueError("generate_new_surface: When using point data, all 'crs' keys must match")
-        is_fqpr = False
-        unique_crs = [fqpr_inst[0]['crs']]
-        unique_vertref = [fqpr_inst[0]['vert_ref']]
-    else:
-        raise NotImplementedError('generate_new_surface: Expected input data to either be a FQPR instance or a dict of variables')
+    if fqpr_inst is not None:  # creating and adding data to a surface, validate the input data
+        if not isinstance(fqpr_inst, list):
+            fqpr_inst = [fqpr_inst]
+        if isinstance(fqpr_inst[0], Fqpr):
+            is_fqpr = True
+            unique_crs, unique_vertref = _get_unique_crs_vertref(fqpr_inst)
+        elif isinstance(fqpr_inst[0], dict):
+            try:
+                assert all([all([ky in fqprinst for ky in ['x', 'y', 'z', 'crs', 'vert_ref']]) for fqprinst in fqpr_inst])
+            except:
+                raise ValueError("generate_new_surface: When using point data, you must provide ['x', 'y', 'z', 'crs', 'vert_ref'] keys in each dict object")
+            try:
+                assert all([fqpr_inst[0]['crs'] == fq['crs'] for fq in fqpr_inst])
+            except:
+                raise ValueError("generate_new_surface: When using point data, all 'crs' keys must match")
+            try:
+                assert all([fqpr_inst[0]['vert_ref'] == fq['vert_ref'] for fq in fqpr_inst])
+            except:
+                raise ValueError("generate_new_surface: When using point data, all 'crs' keys must match")
+            is_fqpr = False
+            unique_crs = [fqpr_inst[0]['crs']]
+            unique_vertref = [fqpr_inst[0]['vert_ref']]
+        else:
+            raise NotImplementedError('generate_new_surface: Expected input data to either be a FQPR instance or a dict of variables')
 
-    if not _validate_fqpr_for_gridding(fqpr_inst):
-        return None
+        if unique_vertref is None or unique_crs is None:
+            return None
 
-    if unique_vertref is None or unique_crs is None:
-        return None
-    gridding_algorithm = gridding_algorithm.lower()
-    if gridding_algorithm == 'cube':
-        print('compiling cube algorithm...')
-        compile_now()
+        if not _validate_fqpr_for_gridding(fqpr_inst):
+            return None
 
-    print('Preparing data...')
-    # set some arbitrary number of pings to hold in memory at once, probably need a smarter way to do this eventually
-    #  just make sure it is a multiple of 1000, the chunksize of the raw_ping dataset
+        gridding_algorithm = gridding_algorithm.lower()
+        if gridding_algorithm == 'cube' and fqpr_inst is not None:
+            print('compiling cube algorithm...')
+            compile_now()
+
+        print('Preparing data...')
+        # add data to grid line by line
+
     bg = create_grid(folder_path=output_path, grid_type=grid_type, tile_size=tile_size, subtile_size=subtile_size)
-    if client is not None:
-        bg.client = client
-    for f in fqpr_inst:
-        _add_points_to_surface(f, bg, unique_crs[0], unique_vertref[0])
+    if fqpr_inst is not None:
+        if client is not None:
+            bg.client = client
+        for f in fqpr_inst:
+            _add_points_to_surface(f, bg, unique_crs[0], unique_vertref[0])
 
-    # now after all points are added, run grid with the options presented
-    bg.grid(algorithm=gridding_algorithm, resolution=resolution, auto_resolution_mode=auto_resolution_mode,
-            use_dask=use_dask, grid_parameters=grid_parameters)
-    if export_path:
-        bg.export(output_path=export_path, export_format=export_format, z_positive_up=export_z_positive_up,
-                  resolution=export_resolution)
+        # now after all points are added, run grid with the options presented.  If empty grid, just save the parameters
+        print()
+        bg.grid(algorithm=gridding_algorithm, resolution=resolution, auto_resolution_mode=auto_resolution_mode,
+                use_dask=use_dask, grid_parameters=grid_parameters)
+        if export_path:
+            bg.export(output_path=export_path, export_format=export_format, z_positive_up=export_z_positive_up,
+                      resolution=export_resolution)
+    else:  # save the gridding variables to the empty surface, so that you can add and regrid easily later without respecifying
+        bg.grid_algorithm = gridding_algorithm
+        if resolution is None:
+            bg.grid_resolution = 'AUTO_{}'.format(auto_resolution_mode).upper()
+        else:
+            bg.grid_resolution = float(resolution)
+        bg.grid_parameters = grid_parameters
+        bg.resolutions = []
+        bg._save_grid()
 
     endtime = perf_counter()
     print('***** Surface Generation Complete: {} *****'.format(seconds_to_formatted_string(int(endtime - strttime))))
@@ -745,62 +804,95 @@ def update_surface(surface_instance: Union[str, BathyGrid], add_fqpr: Union[Fqpr
     -------
     BathyGrid
         BathyGrid instance for the newly updated surface
+    list
+        old resolution list
+    list
+        new resolution list
     """
 
-    print('***** Updating Bathygrid surface *****')
+    print('***** Updating Bathygrid surface *****\n')
     strttime = perf_counter()
 
     if isinstance(surface_instance, str):
         surface_instance = reload_surface(surface_instance)
         if surface_instance is None:
-            return None
+            return None, None, None
 
     if surface_instance.grid_algorithm == 'cube':
         print('compiling cube algorithm...')
         compile_now()
 
+    oldrez = surface_instance.resolutions
+    newrez = None
     if remove_fqpr:
         if not isinstance(remove_fqpr, list):
             remove_fqpr = [remove_fqpr]
             if remove_lines and not isinstance(remove_lines[0], str):  # expect a list of lines when a single fqpr is provided
-                print(f'update_surface - remove: when a single fqpr data instance is added by line, expect a list of line names: fqpr: {remove_fqpr}, add_lines: {remove_lines}')
-                return None
+                print(f'update_surface - remove: when a single fqpr data instance is removed by line, expect a list of line names: fqpr: {len(remove_fqpr)}, add_lines: {len(remove_lines)}')
+                return None, oldrez, newrez
             remove_lines = [remove_lines]
         else:  # list of fqprs provided
             if remove_lines and len(remove_fqpr) != len(remove_lines):
-                print(f'update_surface - remove: when a list of fqpr data instances are added by line, expect a list of line names of the same length: fqpr: {add_fqpr}, add_lines: {add_lines}')
-                return None
+                print(f'update_surface - remove: when a list of fqpr data instances are removed by line, expect a list of line names of the same length: fqpr: {len(remove_fqpr)}, add_lines: {len(remove_lines)}')
+                return None, oldrez, newrez
 
         for cnt, rfqpr in enumerate(remove_fqpr):
-            _remove_points_from_surface(rfqpr, surface_instance, remove_lines=remove_lines[cnt])
+            if remove_lines:
+                _remove_points_from_surface(rfqpr, surface_instance, remove_lines=remove_lines[cnt])
+            else:
+                _remove_points_from_surface(rfqpr, surface_instance)
 
     if add_fqpr:
         if not isinstance(add_fqpr, list):
             add_fqpr = [add_fqpr]
             if add_lines and not isinstance(add_lines[0], str):  # expect a list of lines when a single fqpr is provided
-                print(f'update_surface - add: when a single fqpr data instance is added by line, expect a list of line names: fqpr: {add_fqpr}, add_lines: {add_lines}')
-                return None
+                print(f'update_surface - add: when a single fqpr data instance is added by line, expect a list of line names: fqpr: {len(add_fqpr)}, add_lines: {len(add_lines)}')
+                return None, oldrez, newrez
             add_lines = [add_lines]
         else:  # list of fqprs provided
             if add_lines and len(add_fqpr) != len(add_lines):
-                print(f'update_surface - add: when a list of fqpr data instances are added by line, expect a list of line names of the same length: fqpr: {add_fqpr}, add_lines: {add_lines}')
-                return None
+                print(f'update_surface - add: when a list of fqpr data instances are added by line, expect a list of line names of the same length: fqpr: {len(add_fqpr)}, add_lines: {len(add_lines)}')
+                return None, oldrez, newrez
+
+        for fq in add_fqpr:
+            if not fq.is_processed():
+                print(f'_get_unique_crs_vertref: {fq.output_folder} is not fully processed, current processing status={fq.status}')
+                return None, oldrez, newrez
 
         if not _validate_fqpr_for_gridding(add_fqpr):
-            return None
+            return None, oldrez, newrez
 
         unique_crs, unique_vertref = _get_unique_crs_vertref(add_fqpr)
         if unique_vertref is None or unique_crs is None:
-            return None
+            return None, oldrez, newrez
 
         for cnt, afqpr in enumerate(add_fqpr):
-            _add_points_to_surface(afqpr, surface_instance, unique_crs[0], unique_vertref[0], add_lines=add_lines[cnt])
+            if add_lines:
+                _add_points_to_surface(afqpr, surface_instance, unique_crs[0], unique_vertref[0], add_lines=add_lines[cnt])
+            else:
+                _add_points_to_surface(afqpr, surface_instance, unique_crs[0], unique_vertref[0])
 
     if regrid:
         if isinstance(surface_instance.grid_resolution, str):
             if surface_instance.name[:2].lower() == 'sr':
-                rez = surface_instance.resolutions[0]
-                automode = 'depth'  # doesn't matter, not used
+                # single resolution with a layer that exists already, just pull it for the update
+                if surface_instance.resolutions:
+                    rez = surface_instance.resolutions[0]
+                    automode = 'depth'  # doesn't matter, not used
+                # single resolution empty grid, with a specified resolution option
+                elif isinstance(surface_instance.grid_resolution, float):
+                    rez = surface_instance.grid_resolution
+                    automode = 'depth'  # doesn't matter, not used
+                # single resolution empty grid, with one of the auto options to pick the resolution
+                else:
+                    rez = None
+                    if surface_instance.grid_resolution.lower() == 'auto_depth':
+                        automode = 'depth'
+                    elif surface_instance.grid_resolution.lower() == 'auto_density':
+                        automode = 'density'
+                    else:
+                        print('Unrecognized grid resolution: {}'.format(surface_instance.grid_resolution))
+                        return None, oldrez, newrez
             elif surface_instance.grid_resolution.lower() == 'auto_depth':
                 rez = None
                 automode = 'depth'
@@ -809,17 +901,19 @@ def update_surface(surface_instance: Union[str, BathyGrid], add_fqpr: Union[Fqpr
                 automode = 'density'
             else:
                 print('Unrecognized grid resolution: {}'.format(surface_instance.grid_resolution))
-                return
+                return None, oldrez, newrez
         else:
             rez = float(surface_instance.grid_resolution)
             automode = 'depth'  # the default value, this will not be used when resolution is specified
+        print()
         surface_instance.grid(surface_instance.grid_algorithm, rez, auto_resolution_mode=automode,
                               regrid_option=regrid_option, use_dask=use_dask, grid_parameters=surface_instance.grid_parameters)
 
+    newrez = surface_instance.resolutions
     endtime = perf_counter()
     print('***** Surface Update Complete: {} *****'.format(seconds_to_formatted_string(int(endtime - strttime))))
 
-    return surface_instance
+    return surface_instance, oldrez, newrez
 
 
 def reload_surface(surface_path: str):
@@ -894,8 +988,8 @@ def _get_pointstosurface_transformer(datablock, input_epsg):
 
 def points_to_surface(data_files: list, horizontal_epsg: int, vertical_reference: str, grid_type: str = 'single_resolution',
                       tile_size: float = 1024.0, subtile_size: float = 128, gridding_algorithm: str = 'mean', resolution: float = None,
-                      auto_resolution_mode: str = 'depth', use_dask: bool = False, output_path: str = None, export_path: str = None,
-                      export_format: str = 'geotiff', export_z_positive_up: bool = True, export_resolution: float = None,
+                      auto_resolution_mode: str = 'depth', use_dask: bool = False, output_path: str = None, allow_append: bool = True,
+                      export_path: str = None, export_format: str = 'geotiff', export_z_positive_up: bool = True, export_resolution: float = None,
                       client: Client = None, grid_parameters: dict = None, csv_columns: list = ('x', 'y', 'z')):
     """
     Take in points in either csv or las/laz formats, and build a new bathygrid grid from the data points.
@@ -926,6 +1020,9 @@ def points_to_surface(data_files: list, horizontal_epsg: int, vertical_reference
         if True, will start a dask LocalCluster instance and perform the gridding in parallel
     output_path
         if provided, will save the Bathygrid to this path, with data saved as stacked numpy (npy) files
+    allow_append
+        if True and the output_path provided exists, this function will attempt to add the new points to the existing
+        grid, using the existing grid resolution, grid type, etc.
     export_path
         if provided, will export the Bathygrid to csv
     export_format
@@ -969,14 +1066,27 @@ def points_to_surface(data_files: list, horizontal_epsg: int, vertical_reference
     new_transformer = None
 
     print('Preparing data...')
-    # set some arbitrary number of pings to hold in memory at once, probably need a smarter way to do this eventually
-    #  just make sure it is a multiple of 1000, the chunksize of the raw_ping dataset
-    bg = create_grid(folder_path=output_path, grid_type=grid_type, tile_size=tile_size, subtile_size=subtile_size)
+    if allow_append and output_path and os.path.exists(output_path):
+        print('Appending to existing grid, using the existing grid attribution for resolution, epsg, vertical reference, etc.')
+        bg = reload_surface(output_path)
+        grid_attribution = bg.return_attribution()
+        horizontal_epsg = grid_attribution['epsg']
+        vertical_reference = grid_attribution['vertical_reference']
+        gridding_algorithm = grid_attribution['grid_algorithm']
+        if isinstance(bg.grid_resolution, float) or isinstance(bg.grid_resolution, int):  # sr
+            resolution = bg.grid_resolution
+            auto_resolution_mode = 'depth'
+        else:  # variable resolution mode
+            resolution = None
+            auto_resolution_mode = bg.grid_resolution[5:].lower()
+        grid_parameters = grid_attribution['grid_parameters']
+    else:
+        bg = create_grid(folder_path=output_path, grid_type=grid_type, tile_size=tile_size, subtile_size=subtile_size)
     if client is not None:
         bg.client = client
     for f in data_files:
         fname = os.path.split(f)[1]
-        ftag = fname + '_' + datetime.now().strftime('%Y%m%d_%H%M%S') + '_0'
+        ftag = fname + '__' + fname
         ffiles = [f]
         if iscsv:
             has_header, skiprows = _csv_has_header(f)
@@ -1006,6 +1116,7 @@ def points_to_surface(data_files: list, horizontal_epsg: int, vertical_reference
             datablock['crs'] = new_transformer.target_crs.to_epsg()
         _add_points_to_surface(datablock, bg, datablock['crs'], vertical_reference)
     # now after all points are added, run grid with the options presented
+    print()
     bg.grid(algorithm=gridding_algorithm, resolution=resolution, auto_resolution_mode=auto_resolution_mode,
             use_dask=use_dask, grid_parameters=grid_parameters)
     if export_path:
@@ -1070,7 +1181,7 @@ def return_processed_data_folders(converted_folder: str):
 def reprocess_sounding_selection(fqpr_inst: Fqpr, new_xyzrph: dict = None, subset_time: list = None, return_soundings: bool = False,
                                  georeference: bool = False, turn_off_dask: bool = True, turn_dask_back_on: bool = False,
                                  override_datum: str = None, override_vertical_reference: str = None, isolate_head: int = None,
-                                 vdatum_directory: str = None):
+                                 vdatum_directory: str = None, cast_selection_method: str = 'nearest_in_time'):
     """
     Designed to feed a patch test tool.  This function will reprocess all the soundings within the given subset
     time and return the xyz values without writing to disk.  If a new xyzrph (dictionary that holds the offsets and
@@ -1116,6 +1227,9 @@ def reprocess_sounding_selection(fqpr_inst: Fqpr, new_xyzrph: dict = None, subse
         0 = port, 1 = starboard
     vdatum_directory
         path to the vdatum directory, required for georeferencing with NOAA MLLW or MHW vertical references
+    cast_selection_method
+        the method used to select the cast that goes with each chunk of the dataset, one of ['nearest_in_time',
+        'nearest_in_time_four_hours', 'nearest_in_distance', 'nearest_in_distance_four_hours']
 
     Returns
     -------
@@ -1131,6 +1245,7 @@ def reprocess_sounding_selection(fqpr_inst: Fqpr, new_xyzrph: dict = None, subse
         raise ValueError('horizontal_crs object not found.  Please run Fqpr.construct_crs first')
     if 'vertical_reference' not in fqpr_inst.multibeam.raw_ping[0].attrs and georeference:
         raise NotImplementedError('set_vertical_reference must be run before georeferencing')
+
     if turn_off_dask and fqpr_inst.client is not None:
         fqpr_inst.client.close()
         fqpr_inst.client = None
@@ -1148,7 +1263,7 @@ def reprocess_sounding_selection(fqpr_inst: Fqpr, new_xyzrph: dict = None, subse
 
     fqpr_inst.get_orientation_vectors(subset_time=subset_time, dump_data=False)
     fqpr_inst.get_beam_pointing_vectors(subset_time=subset_time, dump_data=False)
-    fqpr_inst.sv_correct(subset_time=subset_time, dump_data=False)
+    fqpr_inst.sv_correct(cast_selection_method=cast_selection_method, subset_time=subset_time, dump_data=False)
     if georeference:
         if override_datum is not None:
             datum = override_datum

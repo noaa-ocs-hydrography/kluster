@@ -28,6 +28,7 @@ FqprIntel
       ~FqprIntel.remove_file
       ~FqprIntel.return_intel_modules
       ~FqprIntel.set_auto_processing_mode
+      ~FqprIntel.set_designated_surface
       ~FqprIntel.set_settings
       ~FqprIntel.start_folder_monitor
       ~FqprIntel.stop_folder_monitor
@@ -54,6 +55,7 @@ FqprIntel
    .. automethod:: remove_file
    .. automethod:: return_intel_modules
    .. automethod:: set_auto_processing_mode
+   .. automethod:: set_designated_surface
    .. automethod:: set_settings
    .. automethod:: start_folder_monitor
    .. automethod:: stop_folder_monitor

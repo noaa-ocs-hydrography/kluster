@@ -178,3 +178,10 @@ class TestGeoReference(unittest.TestCase):
         assert geohash_to_polygon(b'drqp4yv').bounds == (-70.18478393554688, 42.048797607421875, -70.18341064453125, 42.0501708984375)
         assert geohash_to_polygon(b'drqp4zp').bounds == (-70.18203735351562, 42.0501708984375, -70.1806640625, 42.051544189453125)
         assert geohash_to_polygon(b'drqp5p1').bounds == (-70.17929077148438, 42.0501708984375, -70.17791748046875, 42.051544189453125)
+
+    def test_distance_between_coordinates(self):
+        assert round(distance_between_coordinates(43, -73, 43.1, -73), 1) == 11109.4
+        assert round(distance_between_coordinates(-40, -23, -40.1, -23.1), 1) == 14003.7
+        rslts = distance_between_coordinates(np.array([43, 44]), np.array([28, 28]), np.array([43, 43]), np.array([27, 28]))
+        assert round(rslts[0], 1) == 81540.5
+        assert round(rslts[1], 1) == 111102.5
