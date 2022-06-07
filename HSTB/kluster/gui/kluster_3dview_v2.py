@@ -1171,8 +1171,9 @@ class ThreeDView(QtWidgets.QWidget):
         """
 
         msk = self._build_display_mask()
+        self.scatter.symbol = 'o'
         if self.is_3d:
-            self.scatter.set_data(self.displayed_points[msk], edge_color=clrs, face_color=clrs, symbol='o', size=3)
+            self.scatter.set_data(self.displayed_points[msk], edge_color=clrs, face_color=clrs, size=3)
             if self.view.camera.fresh_camera:
                 self.view.camera.center = (self.mean_x - self.x_offset, self.mean_y - self.y_offset, self.mean_z - self.min_z)
                 self.view.camera.distance = (self.max_x - self.x_offset) * 2
@@ -1180,13 +1181,13 @@ class ThreeDView(QtWidgets.QWidget):
                 self.view.camera.view_changed()
         else:
             if self.view_direction in ['north']:
-                self.scatter.set_data(self.displayed_points[msk][:, [0, 2]], edge_color=clrs, face_color=clrs, symbol='o', size=3)
+                self.scatter.set_data(self.displayed_points[msk][:, [0, 2]], edge_color=clrs, face_color=clrs, size=3)
                 self.view.camera.center = (self.mean_x - self.x_offset, self.mean_z - self.min_z)
                 if self.view.camera.fresh_camera:
                     self.view.camera.zoom((self.max_x - self.x_offset) + 10)  # try and fit the swath in view on load
                     self.view.camera.fresh_camera = False
             elif self.view_direction in ['east', 'arrow']:
-                self.scatter.set_data(self.displayed_points[msk][:, [1, 2]], edge_color=clrs, face_color=clrs, symbol='o', size=3)
+                self.scatter.set_data(self.displayed_points[msk][:, [1, 2]], edge_color=clrs, face_color=clrs, size=3)
                 self.view.camera.center = (self.mean_y - self.y_offset, self.mean_z - self.min_z)
                 if self.view.camera.fresh_camera:
                     self.view.camera.zoom((self.max_y - self.y_offset) + 10)  # try and fit the swath in view on load
@@ -1330,13 +1331,14 @@ class ThreeDView(QtWidgets.QWidget):
         clrs, cmap, minval, maxval = self._build_color_by_soundings(color_by, color_selected)
         if self.scatter is not None:
             msk = self._build_display_mask()
+            self.scatter.symbol = 'o'
             if self.is_3d:
-                self.scatter.set_data(self.displayed_points[msk], edge_color=clrs, face_color=clrs, symbol='o', size=3)
+                self.scatter.set_data(self.displayed_points[msk], edge_color=clrs, face_color=clrs, size=3)
             else:
                 if self.view_direction in ['north']:
-                    self.scatter.set_data(self.displayed_points[msk][:, [0, 2]], edge_color=clrs, face_color=clrs, symbol='o', size=3)
+                    self.scatter.set_data(self.displayed_points[msk][:, [0, 2]], edge_color=clrs, face_color=clrs, size=3)
                 elif self.view_direction in ['east', 'arrow']:
-                    self.scatter.set_data(self.displayed_points[msk][:, [1, 2]], edge_color=clrs, face_color=clrs, symbol='o', size=3)
+                    self.scatter.set_data(self.displayed_points[msk][:, [1, 2]], edge_color=clrs, face_color=clrs, size=3)
         return cmap, minval, maxval
 
     def clear_display(self):
