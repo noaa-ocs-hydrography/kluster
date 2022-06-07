@@ -1,6 +1,31 @@
 Changes List
 ============
 
+Kluster v0.9.6 (6/7/2022)
+-------------------------
+ - sync with bathygrid 1.3.9
+    - allow for creating empty grids
+    - check new points for issues before adding new container metadata
+
+ - add new designated surface for the intelligence module, will create gridding actions if there is new data not in the grid
+ - add Quickstart - Monitor documentation page on the designated surface
+ - setting a designated surface will open the surface in the project
+ - add new cast selection methods, searching in distance and time in profiloes
+ - on SVP import, overwrite profile attributes with better cast position/time
+ - add ability to import points from csv/las to existing surface
+ - updating a surface now refreshes that surface, instead of an expensive close/reopen
+ - can now use generate_new_surface to create an empty surface
+ - concatenate mode now displays the line to be processed in Actions
+ - update command line tools for new parameters
+
+ - add better messaging when trying to add only converted (not processed) lines to a grid
+ - explicitly close the tpu figures during processing to avoid memory warnings from pyplot
+ - bug fix for heave correction in dual head systems
+ - bug fix for Project Tree and displaying lines not from that container
+ - bug fix for processing by line, and dual head systems that sometimes have lines that overlap (subset by times)
+ - bug fix for hitting ESCAPE in points view and the app closing, disabled interactive mode
+ - update tests for new routines
+
 Kluster v0.9.5 (5/23/2022)
 --------------------------
  - sync with bathygrid 1.3.6
