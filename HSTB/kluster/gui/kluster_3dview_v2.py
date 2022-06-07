@@ -175,6 +175,7 @@ class PanZoomInteractive(scene.PanZoomCamera):
         self.accept_callback = None
         self.undo_callback = None
         self.fresh_camera = True
+        self.pressed_keys = []
 
     def _bind_event(self, selfunc, eventname):
         """
@@ -382,6 +383,7 @@ class TurntableCameraInteractive(scene.TurntableCamera):
         self.accept_callback = None
         self.undo_callback = None
         self.fresh_camera = True
+        self.pressed_keys = []
 
     def _bind_event(self, selfunc, eventname):
         """
@@ -634,7 +636,8 @@ class ThreeDView(QtWidgets.QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.parent = parent
-        self.canvas = DockableCanvas(keys='interactive', show=True, parent=parent)
+        # used to use keys='interactive', but I've discovered that hitting ESCAPE key will close the app, so we now just set it to None
+        self.canvas = DockableCanvas(keys=None, show=True, parent=parent)
         self.view = self.canvas.central_widget.add_view()
         self.axis_x = None
         self.axis_y = None
@@ -709,6 +712,8 @@ class ThreeDView(QtWidgets.QWidget):
         self.canvas.events.mouse_press.connect(self._on_mouse_press)
         self.canvas.events.mouse_release.connect(self._on_mouse_release)
         self.canvas.events.mouse_move.connect(self._on_mouse_move)
+        self.canvas.events.key_press.connect(self._on_key_press)
+        self.canvas.events.key_release.connect(self._on_key_release)
 
         # Set up for rectangle drawing
         self.line_pos = []
@@ -774,6 +779,22 @@ class ThreeDView(QtWidgets.QWidget):
                 center = (width / 2. + self.line_origin[0], height / 2. + self.line_origin[1], 0)
                 self.line_pos = rectangle_vertice(center, height, width)
                 self.line.set_data(np.array(self.line_pos))
+
+    def _on_key_press(self, event):
+        """
+        catch any key events and populate the camera property so that it can use those keys to handle clicking + key events
+        """
+        if self.view.camera and 'pressed_keys' in self.view.camera.__dict__ and event.key not in self.view.camera.pressed_keys:
+            self.view.camera.pressed_keys.append(event.key)
+        event.handled = True
+
+    def _on_key_release(self, event):
+        """
+        catch any key events and populate the camera property so that it can use those keys to handle clicking + key events
+        """
+        if self.view.camera and 'pressed_keys' in self.view.camera.__dict__ and event.key in self.view.camera.pressed_keys:
+            self.view.camera.pressed_keys.remove(event.key)
+        event.handled = True
 
     def _select_points(self, startpos, endpos, three_d: bool = False):
         """
