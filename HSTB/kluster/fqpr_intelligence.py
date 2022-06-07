@@ -52,6 +52,7 @@ class FqprIntel(LoggerClass):
         self.keep_waterline_changes = True
         self.force_coordinate_match = True
         self.autoprocessing_mode = 'normal'
+        # use set_designated_surface to set, will be the absolute path to the designated surface
         self.designated_surface = ''
 
         self.multibeam_intel = MultibeamModule(silent=self.silent, logger=self.logger)
@@ -164,13 +165,13 @@ class FqprIntel(LoggerClass):
 
         if not surf_name:  # clear the designated surface
             self.set_settings({'designated_surface': ''})
-        if surf_name in self.project.surface_instances:  # you got the path to the surface instance right
-            self.set_settings({'designated_surface': surf_name})
-        elif self.project.path_relative_to_project(surf_name) in self.project.surface_instances:  # not found, check to see if we need to use a relative path
-            surf_name = self.project.path_relative_to_project(surf_name)
+        if surf_name in self.project.surface_instances:  # you got the path to the surface instance right, it is a relative path
+            self.set_settings({'designated_surface': self.project.absolute_path_from_relative(surf_name)})
+        elif self.project.path_relative_to_project(surf_name) in self.project.surface_instances:  # you gave an absolute path that is in the project
             self.set_settings({'designated_surface': surf_name})
         else:
             self.print_msg(f'Unable to add {surf_name} as new designated surface, surface not found in project, please add to project first', logging.ERROR)
+            return
         self.print_msg(f'Set {surf_name} as new designated surface for updating')
 
     def update_from_project(self, project_updated: bool = True):
