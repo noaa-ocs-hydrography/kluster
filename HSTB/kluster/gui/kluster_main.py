@@ -44,7 +44,8 @@ from bathygrid.grid_variables import allowable_grid_root_names
 # https://joekuan.wordpress.com/2015/09/23/list-of-qt-icons/
 
 
-settings_translator = {'Kluster/dark_mode': {'newname': 'dark_mode', 'defaultvalue': False},
+settings_translator = {'Kluster/debug': {'newname': 'debug', 'defaultvalue': False},
+                       'Kluster/dark_mode': {'newname': 'dark_mode', 'defaultvalue': False},
                        'Kluster/proj_settings_epsgradio': {'newname': 'use_epsg', 'defaultvalue': False},
                        'Kluster/proj_settings_epsgval': {'newname': 'epsg', 'defaultvalue': ''},
                        'Kluster/proj_settings_utmradio': {'newname': 'use_coord', 'defaultvalue': True},
@@ -92,7 +93,6 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.app_library = app_library
         self.start_horiz_size = 1360
         self.start_vert_size = 768
-        self.debug = False
 
         # initialize the output window first, to get stdout/stderr configured
         self.output_window = kluster_output_window.KlusterOutput(self)
@@ -160,20 +160,20 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.generic_progressbar.setMinimum(0)
         self.statusBar().addPermanentWidget(self.generic_progressbar, stretch=1)
 
-        self.action_thread = kluster_worker.ActionWorker()
-        self.import_ppnav_thread = kluster_worker.ImportNavigationWorker()
-        self.overwrite_nav_thread = kluster_worker.OverwriteNavigationWorker()
-        self.surface_thread = kluster_worker.SurfaceWorker()
-        self.surface_update_thread = kluster_worker.SurfaceUpdateWorker()
-        self.export_thread = kluster_worker.ExportWorker()
-        self.export_tracklines_thread = kluster_worker.ExportTracklinesWorker()
-        self.export_grid_thread = kluster_worker.ExportGridWorker()
-        self.filter_thread = kluster_worker.FilterWorker()
+        self.action_thread = kluster_worker.ActionWorker(self)
+        self.import_ppnav_thread = kluster_worker.ImportNavigationWorker(self)
+        self.overwrite_nav_thread = kluster_worker.OverwriteNavigationWorker(self)
+        self.surface_thread = kluster_worker.SurfaceWorker(self)
+        self.surface_update_thread = kluster_worker.SurfaceUpdateWorker(self)
+        self.export_thread = kluster_worker.ExportWorker(self)
+        self.export_tracklines_thread = kluster_worker.ExportTracklinesWorker(self)
+        self.export_grid_thread = kluster_worker.ExportGridWorker(self)
+        self.filter_thread = kluster_worker.FilterWorker(self)
         self.open_project_thread = kluster_worker.OpenProjectWorker(self)
         self.draw_navigation_thread = kluster_worker.DrawNavigationWorker(self)
         self.draw_surface_thread = kluster_worker.DrawSurfaceWorker(self)
-        self.load_points_thread = kluster_worker.LoadPointsWorker()
-        self.patch_test_load_thread = kluster_worker.PatchTestUpdateWorker()
+        self.load_points_thread = kluster_worker.LoadPointsWorker(self)
+        self.patch_test_load_thread = kluster_worker.PatchTestUpdateWorker(self)
         self.allthreads = [self.action_thread, self.import_ppnav_thread, self.overwrite_nav_thread, self.surface_thread,
                            self.surface_update_thread, self.export_thread, self.export_grid_thread, self.open_project_thread,
                            self.draw_navigation_thread, self.draw_surface_thread, self.load_points_thread, self.patch_test_load_thread,
@@ -258,6 +258,10 @@ class KlusterMain(QtWidgets.QMainWindow):
             self.set_dark_mode(self.settings['dark_mode'])
         else:
             self.set_dark_mode(False)
+        if self.settings.get('debug'):
+            self.set_debug(self.settings['debug'])
+        else:
+            self.set_debug(False)
 
     @property
     def settings_object(self):
@@ -265,14 +269,21 @@ class KlusterMain(QtWidgets.QMainWindow):
         kluster_ini = os.path.join(kluster_dir, 'misc', 'kluster.ini')
         return QtCore.QSettings(kluster_ini, QtCore.QSettings.IniFormat)
 
-    def print(self, msg: str, loglevel: int):
+    @property
+    def debug(self):
+        if self.settings.get('debug'):
+            return self.settings['debug']
+        else:
+            return False
+
+    def print(self, msg: str, loglevel: int = logging.INFO):
         # all gui objects are going to use this method in printing
         if self.logger is not None:
             self.logger.log(loglevel, msg)
         else:
             print(msg)
 
-    def debug_print(self, msg: str, loglevel: int):
+    def debug_print(self, msg: str, loglevel: int = logging.INFO):
         # all gui objects are going to use this method in debug printing
         if self.debug:
             if self.logger is not None:
@@ -425,6 +436,9 @@ class KlusterMain(QtWidgets.QMainWindow):
         advancedplots_action = QtWidgets.QAction('Advanced Plots', self)
         advancedplots_action.triggered.connect(self._action_advancedplots)
 
+        set_debug = QtWidgets.QAction('Debug', self)
+        set_debug.setCheckable(True)
+        set_debug.triggered.connect(self.set_debug)
         about_action = QtWidgets.QAction('About', self)
         about_action.triggered.connect(self._action_show_about)
         docs_action = QtWidgets.QAction('Documentation', self)
@@ -481,6 +495,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         visual.addAction(advancedplots_action)
 
         klusterhelp = menubar.addMenu('Help')
+        klusterhelp.addAction(set_debug)
         klusterhelp.addAction(about_action)
         klusterhelp.addAction(docs_action)
         klusterhelp.addAction(videos_action)
@@ -510,7 +525,8 @@ class KlusterMain(QtWidgets.QMainWindow):
             if os.path.split(fnorm)[1] == 'kluster_project.json':
                 self.open_project(fnorm)
                 fil.remove(f)
-                return  # we can't handle loading a new project and adding data at the same time, if a project is added, halt
+                self.debug_print("project file detected, we can't handle loading a new project and adding data at the same time, if a project is added, halt", logging.WARNING)
+                return
 
         potential_surface_paths = []
         potential_fqpr_paths = []
@@ -522,10 +538,12 @@ class KlusterMain(QtWidgets.QMainWindow):
                 self.print('Unable to load from file {}, {}'.format(f, e), logging.ERROR)
                 updated_type, new_data, new_project = None, True, None
 
-            if new_project:  # user added a data file when there was no project, so we loaded or created a new one
+            if new_project:
+                self.debug_print("user added a data file when there was no project, so we loaded or created a new one", logging.INFO)
                 new_fqprs.extend([fqpr for fqpr in self.project.fqpr_instances.keys() if fqpr not in new_fqprs])
             if new_data is None:
                 if any([os.path.exists(os.path.join(f, gname)) for gname in allowable_grid_root_names]):
+                    self.debug_print("Got surfaces that match allowed grid root names: {}".format(allowable_grid_root_names), logging.INFO)
                     potential_surface_paths.append(f)
                 elif os.path.isdir(f):
                     potential_fqpr_paths.append(f)
@@ -563,14 +581,18 @@ class KlusterMain(QtWidgets.QMainWindow):
             surf_object = self.project.surface_instances[remove_surface]
             if surface_layer_name == 'tiles':
                 if surface_layer_name:
+                    self.debug_print("Hiding {} tiles layer".format(remove_surface), logging.INFO)
                     self.two_d.hide_line(remove_surface)
                 else:
+                    self.debug_print("Removing {} tiles layer".format(remove_surface), logging.INFO)
                     self.two_d.remove_line(remove_surface)
             else:
                 for resolution in surf_object.resolutions:
                     if surface_layer_name:
+                        self.debug_print("Hiding {} {} {} layer".format(remove_surface, surface_layer_name, resolution), logging.INFO)
                         self.two_d.hide_surface(remove_surface, surface_layer_name, resolution)
                     else:
+                        self.debug_print("Removing all {} {} layers".format(remove_surface, resolution), logging.INFO)
                         self.two_d.remove_surface(remove_surface, resolution)
         if add_surface is not None and surface_layer_name:
             if self.surface_update_thread.isRunning():
@@ -579,16 +601,20 @@ class KlusterMain(QtWidgets.QMainWindow):
             surf_object = self.project.surface_instances[add_surface]
             needs_drawing = []
             if surface_layer_name == 'tiles':
+                self.debug_print("Trying to show {} {} layer".format(add_surface, surface_layer_name), logging.INFO)
                 if self.settings['dark_mode']:
                     shown = self.two_d.show_line(add_surface, color='white')
                 else:
                     shown = self.two_d.show_line(add_surface, color='black')
-                if not shown:  # show didnt work, must need to add the surface instead, loading from disk...
+                if not shown:
+                    self.debug_print("show didnt work, must need to add the surface instead, loading from disk...", logging.INFO)
                     needs_drawing.append(None)
             else:
                 for resolution in surf_object.resolutions:
+                    self.debug_print("Trying to show {} {} {} layer".format(add_surface, surface_layer_name, resolution), logging.INFO)
                     shown = self.two_d.show_surface(add_surface, surface_layer_name, resolution)
-                    if not shown:  # show didnt work, must need to add the surface instead, loading from disk...
+                    if not shown:
+                        self.debug_print("show didnt work, must need to add the surface instead, loading from disk...", logging.INFO)
                         needs_drawing.append(resolution)
             if needs_drawing:
                 self.print('Drawing {} - {}, resolution {}'.format(add_surface, surface_layer_name, needs_drawing), logging.INFO)
@@ -819,9 +845,11 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.vessel_win.converted_xyzrph_modified.connect(self.update_offsets_vesselwidget)
 
         if vessel_file:
+            self.debug_print("Load offsets/angles from designated vessel file {}".format(vessel_file), logging.INFO)
             self.vessel_win.load_from_config_file(vessel_file)
         elif fqprs:
             fqpr = self.project.fqpr_instances[self.project.path_relative_to_project(fqprs[0])]
+            self.debug_print("Load offsets/angles from selected container {}".format(fqprs[0]), logging.INFO)
             vess_xyzrph = convert_from_fqpr_xyzrph(fqpr.multibeam.xyzrph, fqpr.multibeam.raw_ping[0].sonartype,
                                                    fqpr.multibeam.raw_ping[0].system_identifier,
                                                    os.path.split(fqpr.output_folder)[1])
@@ -842,6 +870,7 @@ class KlusterMain(QtWidgets.QMainWindow):
 
         vessel_file = self.project.return_vessel_file()
         if vessel_file:
+            self.debug_print("Regenerating processing actions on new vessel file {}".format(self.project.vessel_file), logging.INFO)
             self.intel.regenerate_actions()
 
     def update_offsets_vesselwidget(self, vess_xyzrph: dict):
@@ -860,15 +889,13 @@ class KlusterMain(QtWidgets.QMainWindow):
 
         xyzrph, sonar_type, system_identifiers, source = convert_from_vessel_xyzrph(vess_xyzrph)
         for cnt, sysident in enumerate(system_identifiers):
+            self.debug_print("Searching for multibeam containers that match serial number {}".format(sysident), logging.INFO)
             matching_fq = list(source[0].values())[0]
             for fqname, fq in self.project.fqpr_instances.items():
                 if fqname == matching_fq:
                     self.print('Updating xyzrph record for {}'.format(fqname), logging.INFO)
                     identical_offsets, identical_angles, identical_tpu, data_matches, new_waterline = compare_dict_data(fq.multibeam.xyzrph,
                                                                                                                         xyzrph[cnt])
-                    # # drop the vessel setup specific keys, like the vessel file used and the vess_center location
-                    # drop_these = [ky for ky in xyzrph[cnt].keys() if ky not in fq.multibeam.xyzrph.keys()]
-                    # [xyzrph[cnt].pop(ky) for ky in drop_these]
                     fq.write_attribute_to_ping_records({'xyzrph': xyzrph[cnt]})
                     fq.multibeam.xyzrph.update(xyzrph[cnt])
                     if not identical_angles:  # if the angles changed then we have to start over at converted status
@@ -1148,6 +1175,7 @@ class KlusterMain(QtWidgets.QMainWindow):
             self.print('Processing is already occurring.  Please wait for the process to finish', logging.WARNING)
         else:
             systems, linenames, time_segments = self.points_view.return_lines_and_times()
+            self.debug_print("Using data from points view by system and time\nSystems:{}\nTime Segments{}".format(systems, time_segments), logging.INFO)
             if systems:
                 datablock = self.project.retrieve_data_for_time_segments(systems, time_segments)
                 if datablock:
@@ -1228,6 +1256,7 @@ class KlusterMain(QtWidgets.QMainWindow):
                 head, x, y, z, tvu, rejected, pointtime, beam = rslt
                 newid = self._manpatchtest.patchdatablock[1][cnt]
                 linenames = fq.return_lines_for_times(pointtime)
+                self.debug_print("Loading points from {} : {}".format(newid, linenames), logging.INFO)
                 self.points_view.remove_points(system_id=newid + '_' + str(headindex))
                 self.points_view.add_points(head, x, y, z, tvu, rejected, pointtime, beam, newid, linenames, cur_azimuth)
             self.points_view.three_d_window.hide_lines = hl
@@ -1395,7 +1424,7 @@ class KlusterMain(QtWidgets.QMainWindow):
                                                     points_filter_mode, savetodisk, kwargs)
                         self.filter_thread.start()
                 else:
-                   self.print('kluster_filter: Filter was cancelled', logging.WARNING)
+                    self.print('kluster_filter: Filter was cancelled', logging.WARNING)
             else:
                 self.print('kluster_filter: Filter was cancelled', logging.WARNING)
 
@@ -1406,6 +1435,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         else:
             self.print('Filter complete.', logging.INFO)
         if self.filter_thread.mode == 'points':
+            self.debug_print("Updating points view data with filter results", logging.INFO)
             newinfo = self.filter_thread.new_status
             selindex = self.filter_thread.selected_index
             base_points_view_status = self.points_view.three_d_window.rejected.copy()
@@ -2080,6 +2110,29 @@ class KlusterMain(QtWidgets.QMainWindow):
                 # since we changed the nav source, we need to clear and redraw all the tracklines
                 self.redraw_all_lines()
             self._configure_logfile()
+
+    def set_debug(self, check_state: bool):
+        """
+        Set a new debug status
+        """
+        self.settings['debug'] = check_state
+        settings_obj = self.settings_object
+        for settname, opts in settings_translator.items():
+            settings_obj.setValue(settname, self.settings[opts['newname']])
+        if check_state:
+            self.print('Debug messaging enabled', logging.INFO)
+        # now update the control if we are doing this manually, not through the checkbox event
+        help_menu = [mn for mn in self.menuBar().actions() if mn.text() == 'Help']
+        if help_menu:
+            help_menu = help_menu[0]
+            debugaction = [mn for mn in help_menu.menu().actions() if mn.text() == 'Debug']
+            if debugaction:
+                debugaction = debugaction[0]
+                debugaction.setChecked(check_state)
+            else:
+                self.print('Warning: Can not find the Debug action to set debug control!', logging.WARNING)
+        else:
+            self.print('Warning: Can not find the help menu to set debug control!', logging.WARNING)
 
     def set_dark_mode(self, check_state: bool):
         """
