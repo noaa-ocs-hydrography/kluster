@@ -1683,6 +1683,7 @@ class MapView(QtWidgets.QMainWindow):
         max_lon = np.clip(max_lon + lon_buffer, -179.999999999, 179.999999999)
         min_lat = np.clip(min_lat - lat_buffer, -90, 90)
         max_lat = np.clip(max_lat + lat_buffer, -90, 90)
+        self.debug_print(f'2dview Setting extent: {min_lat},{min_lon} - {max_lat},{max_lon}', logging.INFO)
         self.canvas.setExtent(qgis_core.QgsRectangle(qgis_core.QgsPointXY(min_lon, min_lat),
                                                      qgis_core.QgsPointXY(max_lon, max_lat)))
 
@@ -1704,6 +1705,7 @@ class MapView(QtWidgets.QMainWindow):
         color
             color of the line
         """
+        self.debug_print(f'2dview Adding Line {line_name}: color={color}', logging.INFO)
         source = self.build_line_source(line_name)
         if ogr_output_file_exists(source):
             # raise ValueError('Line {} already exists in this map view session'.format(line_name))
@@ -1730,6 +1732,7 @@ class MapView(QtWidgets.QMainWindow):
             optional screen refresh, True most of the time, unless you want to remove multiple lines and then refresh
             at the end
         """
+        self.debug_print(f'2dview Removing Line {line_name}', logging.INFO)
         source = self.build_line_source(line_name)
         remlyr = ogr_output_file_exists(source)
         if remlyr:
@@ -1749,6 +1752,7 @@ class MapView(QtWidgets.QMainWindow):
             optional screen refresh, True most of the time, unless you want to remove multiple lines and then refresh
             at the end
         """
+        self.debug_print(f'2dview Hiding Line {line_name}', logging.INFO)
         source = self.build_line_source(line_name)
         hidelyr = ogr_output_file_exists(source)
         if hidelyr:
@@ -1767,8 +1771,10 @@ class MapView(QtWidgets.QMainWindow):
         refresh
             optional screen refresh, True most of the time, unless you want to remove multiple lines and then refresh
             at the end
+        color
+            color of the line
         """
-
+        self.debug_print(f'2dview Showing Line {line_name}', logging.INFO)
         source = self.build_line_source(line_name)
         showlyr = ogr_output_file_exists(source)
         if showlyr:
@@ -1843,6 +1849,7 @@ class MapView(QtWidgets.QMainWindow):
 
         source = self.build_surface_source(surfname, lyrname, resolution)
         showlyr = gdal_output_file_exists(source)
+        self.debug_print(f'2dview add_surface {surfname}, {lyrname}, {resolution} = {source}', logging.INFO)
 
         if not showlyr:
             if all([lyrname.find(lyr) == -1 for lyr in ['density', 'hypothesis_count']]):
@@ -1956,6 +1963,7 @@ class MapView(QtWidgets.QMainWindow):
         transform_context = self.project.transformContext()
         xform = qgis_core.QgsCoordinateTransform(crs_src, crs_dest, transform_context)
         newpoint = xform.transform(point)
+        self.debug_print(f'2dview layer_point_to_map_point: layerpoint={point} mappoint={newpoint}', logging.INFO)
         return newpoint
 
     def layer_extents_to_map_extents(self, layer: Union[qgis_core.QgsRasterLayer, qgis_core.QgsVectorLayer]):
@@ -2001,6 +2009,7 @@ class MapView(QtWidgets.QMainWindow):
         transform_context = self.project.transformContext()
         xform = qgis_core.QgsCoordinateTransform(crs_src, crs_dest, transform_context)
         newpoint = xform.transform(point)
+        self.debug_print(f'2dview map_point_to_layer_point: mappoint={point} layerpoint={newpoint}', logging.INFO)
         return newpoint
 
     def add_layer(self, source: str, layername: str, providertype: str, color: QtGui.QColor = None,
@@ -2026,6 +2035,7 @@ class MapView(QtWidgets.QMainWindow):
         Union[qgis_core.QgsRasterLayer, qgis_core.QgsVectorLayer]
             the created layer
         """
+        self.debug_print(f'2dview add_layer: source={source} layername={layername} providertype={providertype} color={color}, layertype={layertype}', logging.INFO)
 
         if providertype in ['gdal', 'wms']:
             lyr = self._add_raster_layer(source, layername, providertype)
@@ -2285,6 +2295,7 @@ class MapView(QtWidgets.QMainWindow):
                 total_extent = extent
             else:
                 total_extent.combineExtentWith(extent)
+        self.debug_print(f'2dview set_extents_from_lines: lines={lyrs} extent={total_extent}', logging.INFO)
         self.canvas.zoomToFeatureExtent(total_extent)
 
     def set_extents_from_surfaces(self, subset_surf: str = None, resolution: float = None):
@@ -2310,6 +2321,7 @@ class MapView(QtWidgets.QMainWindow):
                 total_extent = extent
             else:
                 total_extent.combineExtentWith(extent)
+        self.debug_print(f'2dview set_extents_from_surfaces: surfaces={lyrs} extent={total_extent}', logging.INFO)
         self.canvas.zoomToFeatureExtent(total_extent)
 
     def refresh_screen(self):
