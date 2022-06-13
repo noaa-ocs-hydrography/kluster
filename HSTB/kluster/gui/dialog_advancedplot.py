@@ -62,6 +62,7 @@ class AdvancedPlotDialog(QtWidgets.QDialog):
         self.plot_type_label = QtWidgets.QLabel('Plot Type ', self)
         self.hlayout_one.addWidget(self.plot_type_label)
         self.plot_type_dropdown = QtWidgets.QComboBox(self)
+        self.plot_type_dropdown.setSizeAdjustPolicy(QtWidgets.QComboBox.AdjustToContents)
         self.hlayout_one.addWidget(self.plot_type_dropdown)
         self.hlayout_one.addStretch()
 
@@ -69,6 +70,7 @@ class AdvancedPlotDialog(QtWidgets.QDialog):
         self.mode_label = QtWidgets.QLabel('Mode       ', self)
         self.hlayout_two.addWidget(self.mode_label)
         self.mode_dropdown = QtWidgets.QComboBox(self)
+        self.mode_dropdown.setSizeAdjustPolicy(QtWidgets.QComboBox.AdjustToContents)
         self.hlayout_two.addWidget(self.mode_dropdown)
         self.hlayout_two.addStretch()
 
@@ -81,13 +83,28 @@ class AdvancedPlotDialog(QtWidgets.QDialog):
         self.extinction_onlycomplete.setChecked(True)
         self.extinction_onlycomplete.hide()
         self.hlayout_extinction.addWidget(self.extinction_onlycomplete)
+        self.hlayout_extinction.addStretch()
+
+        self.hlayout_extinction_two = QtWidgets.QHBoxLayout()
+        self.extinction_pointsizelabel = QtWidgets.QLabel('Point Size (1-10): ')
+        self.extinction_pointsizelabel.hide()
+        self.hlayout_extinction_two.addWidget(self.extinction_pointsizelabel)
+        self.extinction_pointsize = QtWidgets.QSpinBox()
+        self.extinction_pointsize.setRange(1, 10)
+        self.extinction_pointsize.setValue(3)
+        self.extinction_pointsize.hide()
+        self.hlayout_extinction_two.addWidget(self.extinction_pointsize)
         self.extinction_binsizelabel = QtWidgets.QLabel('Depth Bin Size (m): ')
         self.extinction_binsizelabel.hide()
-        self.hlayout_extinction.addWidget(self.extinction_binsizelabel)
-        self.extinction_binsize = QtWidgets.QLineEdit('1', self)
+        self.hlayout_extinction_two.addWidget(self.extinction_binsizelabel)
+        self.extinction_binsize = QtWidgets.QDoubleSpinBox()
+        self.extinction_binsize.setRange(0.1, 100.0)
+        self.extinction_binsize.setSingleStep(1.0)
+        self.extinction_binsize.setDecimals(1)
+        self.extinction_binsize.setValue(1.0)
         self.extinction_binsize.hide()
-        self.hlayout_extinction.addWidget(self.extinction_binsize)
-        self.hlayout_extinction.addStretch()
+        self.hlayout_extinction_two.addWidget(self.extinction_binsize)
+        self.hlayout_extinction_two.addStretch()
 
         self.vlayout_accuracy = QtWidgets.QVBoxLayout()
         self.surface_label = QtWidgets.QLabel('Path to Kluster Surface:')
@@ -137,6 +154,7 @@ class AdvancedPlotDialog(QtWidgets.QDialog):
         self.vlayout_left.addLayout(self.hlayout_two)
         self.vlayout_left.addStretch()
         self.vlayout_left.addLayout(self.hlayout_extinction)
+        self.vlayout_left.addLayout(self.hlayout_extinction_two)
         self.vlayout_left.addLayout(self.vlayout_accuracy)
         self.vlayout_left.addStretch()
 
@@ -298,8 +316,12 @@ class AdvancedPlotDialog(QtWidgets.QDialog):
                 self.extinction_binsizelabel.show()
                 if plottype == 'Extinction Test':
                     self.extinction_onlycomplete.show()
+                    self.extinction_pointsizelabel.show()
+                    self.extinction_pointsize.show()
                 else:
                     self.extinction_onlycomplete.hide()
+                    self.extinction_pointsizelabel.hide()
+                    self.extinction_pointsize.hide()
                 self.surface_label.hide()
                 self.surf_text.hide()
                 self.surf_button.hide()
@@ -312,6 +334,8 @@ class AdvancedPlotDialog(QtWidgets.QDialog):
                 self.extinction_binsizelabel.hide()
                 self.roundedfreq.hide()
                 self.extinction_onlycomplete.hide()
+                self.extinction_pointsizelabel.hide()
+                self.extinction_pointsize.hide()
                 self.surface_label.show()
                 self.surf_text.show()
                 self.surf_button.show()
@@ -323,6 +347,8 @@ class AdvancedPlotDialog(QtWidgets.QDialog):
                 self.extinction_binsize.hide()
                 self.extinction_binsizelabel.hide()
                 self.extinction_onlycomplete.hide()
+                self.extinction_pointsizelabel.hide()
+                self.extinction_pointsize.hide()
                 self.roundedfreq.hide()
                 self.surface_label.hide()
                 self.surf_text.hide()
@@ -476,24 +502,24 @@ class AdvancedPlotDialog(QtWidgets.QDialog):
                     self.wobble.plot_heave_sound_speed_two()
             elif plottype == 'Extinction Test':
                 try:
-                    binsize = float(self.extinction_binsize.text())
+                    binsize = float(self.extinction_binsize.value())
                 except:
-                    self.data_widget.warning_message.setText('ERROR: Bin Size must be a number, found {}'.format(self.extinction_binsize.text()))
+                    self.data_widget.warning_message.setText('ERROR: Bin Size must be a number, found {}'.format(self.extinction_binsize.value()))
                     return
                 if self.needs_rebuilding or self.extinction is None:
                     self.extinction = sat.ExtinctionTest(self.fqpr, round_frequency=self.roundedfreq.isChecked())
                     self.needs_rebuilding = False
                 if mode == 'Plot Extinction by Frequency':
-                    self.extinction.plot(mode='frequency', depth_bin_size=binsize, filter_incomplete_swaths=self.extinction_onlycomplete.isChecked())
+                    self.extinction.plotv2(mode='frequency', depth_bin_size=binsize, point_size=int(self.extinction_pointsize.text()), filter_incomplete_swaths=self.extinction_onlycomplete.isChecked())
                 elif mode == 'Plot Extinction by Mode':
-                    self.extinction.plot(mode='mode', depth_bin_size=binsize, filter_incomplete_swaths=self.extinction_onlycomplete.isChecked())
+                    self.extinction.plotv2(mode='mode', depth_bin_size=binsize, point_size=int(self.extinction_pointsize.text()), filter_incomplete_swaths=self.extinction_onlycomplete.isChecked())
                 elif mode == 'Plot Extinction by Sub Mode':
-                    self.extinction.plot(mode='modetwo', depth_bin_size=binsize, filter_incomplete_swaths=self.extinction_onlycomplete.isChecked())
+                    self.extinction.plotv2(mode='modetwo', depth_bin_size=binsize, point_size=int(self.extinction_pointsize.text()), filter_incomplete_swaths=self.extinction_onlycomplete.isChecked())
             elif plottype == 'Ping Period Test':
                 try:
-                    binsize = float(self.extinction_binsize.text())
+                    binsize = float(self.extinction_binsize.value())
                 except:
-                    self.data_widget.warning_message.setText('ERROR: Bin Size must be a number, found {}'.format(self.extinction_binsize.text()))
+                    self.data_widget.warning_message.setText('ERROR: Bin Size must be a number, found {}'.format(self.extinction_binsize.value()))
                     return
                 if self.needs_rebuilding or self.period is None:
                     self.period = sat.PingPeriodTest(self.fqpr, round_frequency=self.roundedfreq.isChecked())
