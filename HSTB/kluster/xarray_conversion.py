@@ -33,7 +33,8 @@ sonar_translator = {'em122': [None, 'tx', 'rx', None], 'em302': [None, 'tx', 'rx
                     'em2045': [None, 'txrx', None, None], 'em2045_dual': [None, 'txrx_port', 'txrx_stbd', None],
                     'em3002': [None, 'tx', 'rx', None], 'em2040p': [None, 'txrx', None, None],
                     'em3020': [None, 'tx', 'rx', None], 'em3020_dual': [None, 'txrx_port', 'txrx_stbd', None],
-                    'me70': [None, 'txrx', None, None]}
+                    'me70': [None, 'txrx', None, None], '7125': [None, 'tx', 'rx', None], 'T20': [None, 'tx', 'rx', None],
+                    'T50': [None, 'tx', 'rx', None], 'T51': [None, 'tx', 'rx', None]}
 
 # ensure that Kluster sonar translator supports all sonar_translators in multibeam drivers
 assert all([snr in sonar_translator for snr in par_sonar_translator.keys()])
@@ -305,8 +306,7 @@ def _sequential_to_xarray(rec: dict):
                                 tim = tim[:-1]
 
                             # these records are by time/beam.  Have to combine recs to build correct array shape
-                            if ky in ['beampointingangle', 'txsector_beam', 'detectioninfo', 'qualityfactor',
-                                      'traveltime', 'processing_status', 'tiltangle', 'delay', 'frequency']:
+                            if ky in kluster_variables.subset_variable_2d:
                                 beam_idx = np.arange(arr.shape[1])
                                 recs_to_merge[r][systemid][ky] = xr.DataArray(arr.astype(datadtype), coords=[tim, beam_idx], dims=['time', 'beam'])
                             #  everything else isn't by beam, proceed normally
@@ -2502,7 +2502,7 @@ def build_xyzrph(settdict: dict, runtime_settdict: dict, sonartype: str, logger:
         # do the same over motion sensor (which is still the POSMV), make assumption that its one of the motion
         #   entries
         pos_motion_ident = settdict[tme]['active_heading_sensor'].split('_')
-        pos_motion_ident = pos_motion_ident[0] + '_sensor_' + pos_motion_ident[1]  # 'motion_1_com2'
+        pos_motion_ident = pos_motion_ident[0] + '_sensor_' + pos_motion_ident[1]  # 'motion_sensor_1'
 
         # for suffix in [['_vertical_location', '_motionz'], ['_along_location', '_motionx'],
         #                ['_athwart_location', '_motiony'], ['_time_delay', '_motionlatency'],

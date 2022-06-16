@@ -48,9 +48,9 @@ status_lookup = {0: 'converted', 1: 'orientation', 2: 'beamvector', 3: 'soundvel
 status_reverse_lookup = {'converted': 0, 'orientation': 1, 'beamvector': 2, 'soundvelocity': 3, 'georeference': 4, 'tpu': 5}
 
 excluded_files = ['9999.all']
-supported_multibeam = ['.all', '.kmall']
+supported_multibeam = ['.all', '.kmall', '.s7k']
 multibeam_uses_quality_factor = ['.all']
-multibeam_uses_ifremer = ['.kmall']
+multibeam_uses_ifremer = ['.kmall', '.s7k']
 supported_ppnav = ['.out', '.sbet', '.smrmsg']
 supported_ppnav_log = ['.txt', '.log']
 supported_sv = ['.svp']
@@ -260,10 +260,11 @@ subset_variable_selection = ['head', 'time', 'beam', 'acrosstrack', 'alongtrack'
                              'soundspeed', 'thu', 'tiltangle', 'traveltime', 'tvu', 'txsector_beam', 'x', 'y', 'yawpitchstab', 'z']
 subset_variable_2d = ['acrosstrack', 'alongtrack', 'beampointingangle', 'datum_uncertainty', 'delay', 'depthoffset', 'detectioninfo',
                       'frequency', 'geohash', 'ntx', 'processing_status', 'qualityfactor', 'rel_azimuth', 'thu',
-                      'tiltangle', 'traveltime', 'tvu', 'tx', 'txsector_beam', 'x', 'y', 'yawpitchstab', 'z']
+                      'tiltangle', 'traveltime', 'tvu', 'tx', 'txsector_beam', 'x', 'y', 'z']
 subset_variable_1d = ['head', 'time', 'beam', 'altitude', 'corr_altitude', 'corr_heave', 'corr_pointing_angle', 'counter', 'latitude',
                       'longitude', 'mode', 'modetwo', 'sbet_latitude', 'sbet_longitude', 'sbet_altitude', 'sbet_north_position_error',
-                      'sbet_east_position_error', 'sbet_down_position_error', 'sbet_roll_error', 'sbet_pitch_error', 'sbet_heading_error', 'soundspeed']
+                      'sbet_east_position_error', 'sbet_down_position_error', 'sbet_roll_error', 'sbet_pitch_error', 'sbet_heading_error',
+                      'soundspeed', 'yawpitchstab']
 
 # export helper for formatting variables in ascii export
 variable_format_str = {'time': '%1.6f', 'beam': '%d', 'xyz': '%s',
@@ -353,7 +354,7 @@ variable_descriptions = {'acrosstrack': 'The result of running Sound Velocity Co
                          'mode': 'The first mode value. \n(if TX Pulse Form) CW for continuous waveform, FM for frequency modulated, MIX for mix between FM and CW. \n(if Ping mode) VS for Very Shallow, SH for Shallow, ME for Medium, DE for Deep, VD for Very Deep, ED for Extra Deep.',
                          'modetwo': 'The second mode value. \n(if Pulse Length) vsCW = very short continuous waveform, shCW = short cw, meCW = medium cw, loCW = long cw, vlCW = very long cw, elCW = extra long cw, shFM = short frequency modulated, loFM = long fm. \n(if Depth Mode) VS = Very Shallow, SH = Shallow, ME = Medium, DE = Deep, DR = Deeper, VD = Very Deep, ED = Extra deep, XD = Extreme Deep, if followed by "m" system is in manual mode.',
                          'processing_status': 'The Kluster processing status of each beam, the highest state of the beam.  EX: If 3, sounding is only processed up to sound velocity correction. 0 = converted, 1 = orientation, 2 = beamvector, 3 = soundvelocity, 4 = georeference, 5 = tpu.',
-                         'qualityfactor': 'The raw uncertainty record that comes from the multibeam.  Corresponds to the Kongsberg detectioninfo (.all) detectiontype (.kmall).  See datagram description for more information.',
+                         'qualityfactor': 'The raw uncertainty record that comes from the multibeam.  Corresponds to the Kongsberg detectioninfo (.all) detectiontype (.kmall) or uncertainty (.s7k).  See datagram description for more information.',
                          'rel_azimuth': 'The result of running Compute Beam Vectors in Kluster.  This is the direction to the beam footprint on the seafloor from the sonar in radians.',
                          'sbet_latitude': 'From the imported post processed navigation, the logged latitude data from the navigation system in degrees.',
                          'sbet_longitude': 'From the imported post processed navigation, the logged longitude data from the navigation system in degrees.',

@@ -275,3 +275,11 @@ fq.import_post_processed_navigation(['D:/FA_EM712_Acceptance-20220506T175353Z-00
                                     logfiles=['D:/FA_EM712_Acceptance-20220506T175353Z-001/FA_EM712_Acceptance/EM_712_Acceptance_data/sbets/Ref_sruface_ONE.log'])
 
 fq.remove_post_processed_navigation()
+
+
+
+from HSTB.kluster.fqpr_drivers import sequential_read_multibeam
+recskm = sequential_read_multibeam(r"C:\collab\dasktest\data_dir\EM304_KMALL_fromkongs\0000_20200428_101105_ShipName.kmall")
+recsal = sequential_read_multibeam(r"C:\collab\dasktest\data_dir\EM300_Hiialakai\0005_20170327_004321_ShipName.all")
+recss7k = sequential_read_multibeam(r"C:\collab\dasktest\data_dir\7125_no7030_2devices_WORKS\20150310_174534.s7k")
+

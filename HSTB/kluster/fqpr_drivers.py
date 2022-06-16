@@ -9,12 +9,13 @@ import os
 import numpy as np
 
 from HSTB.kluster import kluster_variables
-from HSTB.drivers import kmall, par3, sbet, svp, PCSio
+from HSTB.drivers import kmall, par3, sbet, svp, PCSio, prr3
 
 par_sonar_translator = par3.sonar_translator
 kmall_sonar_translator = kmall.sonar_translator
 sonar_reference_point = {'.all': ['tx_x', 'tx_y', 'tx_z'],
-                         '.kmall': ['tx_x', 'tx_y', 'tx_z']}
+                         '.kmall': ['tx_x', 'tx_y', 'tx_z'],
+                         '.s7k': ['rx_x', 'tx_y', 'rx_z']}
 
 
 def _check_multibeam_file(multibeam_file: str):
@@ -102,6 +103,18 @@ def fast_read_multibeam_metadata(multibeam_file: str, gather_times: bool = True,
         else:
             serialnums = None
         km.closeFile()
+    elif fileext == '.s7k':
+        mtype = 'reson_s7k'
+        skread = prr3.X7kRead(multibeam_file)
+        if gather_times:
+            start_end = skread.fast_read_start_end_time()
+        else:
+            start_end = None
+        if gather_serialnumber:
+            serialnums = skread.fast_read_serial_number()
+        else:
+            serialnums = None
+        skread.close()
     else:
         raise NotImplementedError('fqpr_drivers: {} is supported by kluster, but not currently supported by fast_read_multibeam_metadata'.format(multibeam_file))
     return mtype, start_end, serialnums
@@ -144,6 +157,151 @@ def return_xyz_from_multibeam(multibeam_file: str):
     return x, y, z, times, counters
 
 
+def _validate_sequential_read(recs: dict):
+    """
+    the return from sequential_read_multibeam should be a nested dict of records from the multibeam file.  This method
+    will ensure that all the required records are there, and the shape of those records makes sense
+
+    Parameters
+    ----------
+    recs
+        dictionary return from sequential_read_multibeam
+    """
+
+    required_categories = ['attitude', 'installation_params', 'ping', 'navigation', 'runtime_params']
+    required_attitude = ['time', 'roll', 'pitch', 'heave', 'heading']
+    required_attitude_dtype = ['float64', 'float32', 'float32', 'float32', 'float32']
+    required_installation_params = ['time', 'serial_one', 'serial_two', 'installation_settings']
+    required_installation_params_dtype = ['float64', 'uint16', 'uint16', 'object']
+
+    # two options for runtime parameters.  They can either be a value per ping stored in the ping records, or they can
+    #   be in a separate record that shows intermittently throughout the file and needs to be interpolated to the ping
+    #   time during xarray conversion (all format).
+    if recs['format'] in ['all']:
+        required_ping = ['time', 'counter', 'soundspeed', 'serial_num', 'tiltangle', 'delay', 'frequency', 'beampointingangle',
+                         'txsector_beam', 'detectioninfo', 'qualityfactor', 'traveltime', 'processing_status']
+        required_ping_dtype = ['float64', 'uint32', 'float32', 'uint16', 'float32', 'float32', 'int32', 'float32',
+                               'uint8', 'int32', 'float32', 'float32', 'uint8']
+        required_runtime_params = ['time', 'mode', 'modetwo', 'yawpitchstab', 'runtime_settings']
+        required_runtime_params_dtype = ['float64', 'u2-u5', 'u2-u5', 'u2-u5', 'object']
+    else:
+        required_ping = ['time', 'counter', 'soundspeed', 'serial_num', 'tiltangle', 'delay', 'frequency', 'beampointingangle',
+                         'txsector_beam', 'detectioninfo', 'qualityfactor', 'traveltime', 'processing_status', 'mode',
+                         'modetwo', 'yawpitchstab']
+        required_ping_dtype = ['float64', 'uint32', 'float32', 'uint16', 'float32', 'float32', 'int32', 'float32',
+                               'uint8', 'int32', 'float32', 'float32', 'uint8', 'u2-u5', 'u2-u5', 'u2-u5']
+        required_runtime_params = ['time', 'runtime_settings']
+        required_runtime_params_dtype = ['float64', 'object']
+    required_navigation = ['time', 'latitude', 'longitude']
+    required_navigation_dtype = ['float64', 'float64', 'float64']
+
+    try:
+        assert all([ct in recs for ct in required_categories])
+    except AssertionError:
+        raise ValueError(f'sequential_read: Unable to find all required categories in multibeam data.  Required: {required_categories}, Found: {list(recs.keys())}')
+
+    try:
+        assert all([pms in recs['attitude'] for pms in required_attitude])
+    except AssertionError:
+        raise ValueError(f'sequential_read: Unable to find required attitude records.  Required: {required_attitude}, Found: {list(recs["attitude"].keys())}')
+    try:
+        assert all([recs['attitude'][pms].size == recs['attitude']['time'].size for pms in required_attitude])
+    except AssertionError:
+        raise ValueError(f'sequential_read: All attitude records must be of the same size. Records: {required_attitude}, Sizes: {[recs["attitude"][pms].size for pms in required_attitude]}')
+    try:
+        assert all([recs['attitude'][pms].dtype == required_attitude_dtype[cnt] for cnt, pms in enumerate(required_attitude)])
+    except AssertionError:
+        raise ValueError(f'sequential_read: All attitude records must be of the required data type. Records: {required_attitude}, '
+                         f'Dtype: {[recs["attitude"][pms].dtype for pms in required_attitude]}, Required Dtype: {required_attitude_dtype}')
+
+    try:
+        assert all([pms in recs['installation_params'] for pms in required_installation_params])
+    except AssertionError:
+        raise ValueError(f'sequential_read: Unable to find required installation parameter records.  Required: {required_installation_params}, Found: {list(recs["installation_params"].keys())}')
+    try:
+        assert recs['installation_params']['time'].size == recs['installation_params']['installation_settings'].size
+    except AssertionError:
+        raise ValueError(f'sequential_read: All installation parameter records must be of the same size. Records: {["time", "installation_settings"]}, Sizes: {[recs["installation_params"][pms].size for pms in ["time", "installation_settings"]]}')
+    try:
+        assert all([recs['installation_params'][pms].dtype == required_installation_params_dtype[cnt] for cnt, pms in enumerate(required_installation_params)])
+    except AssertionError:
+        raise ValueError(f'sequential_read: All installation parameter records must be of the required data type. Records: {required_installation_params}, '
+                         f'Dtype: {[recs["installation_params"][pms].dtype for pms in required_installation_params]}, Required Dtype: {required_installation_params_dtype}')
+
+    try:
+        assert all([pms in recs['ping'] for pms in required_ping])
+    except AssertionError:
+        raise ValueError(f'sequential_read: Unable to find required ping records.  Required: {required_ping}, Found: {list(recs["ping"].keys())}')
+    try:
+        assert all([recs['ping'][pms].shape == recs['ping']['time'].shape for pms in required_ping if pms in kluster_variables.subset_variable_1d])
+    except AssertionError:
+        raise ValueError(f'sequential_read: All ping records must be of the same size. Records: {[rec for rec in required_ping if rec in kluster_variables.subset_variable_1d]}, Sizes: {[recs["ping"][pms].size for pms in [rec for rec in required_ping if rec in kluster_variables.subset_variable_1d]]}')
+    try:
+        assert all([recs['ping'][pms].shape == recs['ping']['frequency'].shape for pms in required_ping if pms in kluster_variables.subset_variable_2d])
+    except AssertionError:
+        raise ValueError(f'sequential_read: All ping records must be of the same size. Records: {[rec for rec in required_ping if rec in kluster_variables.subset_variable_2d]}, Sizes: {[recs["ping"][pms].size for pms in [rec for rec in required_ping if rec in kluster_variables.subset_variable_2d]]}')
+    if 'u2-u5' in required_ping_dtype:  # this is a place holder to put in here to allow us to have a range of lengths for these variables
+        for tmprec in ['mode', 'modetwo', 'yawpitchstab']:
+            try:
+                assert recs['ping'][tmprec].dtype in ['<U2', '<U3', '<U4', '<U5']
+                required_ping_dtype[required_ping.index(tmprec)] = str(recs['ping'][tmprec].dtype)
+            except AssertionError:
+                raise ValueError(f'sequential_read: ping record {tmprec} must be of the required data type. '
+                                 f"Dtype: {recs['ping'][tmprec].dtype}, Required Dtype: {['<U2', '<U3', '<U4', '<U5']}")
+    try:
+        assert all([recs['ping'][pms].dtype == required_ping_dtype[cnt] for cnt, pms in enumerate(required_ping)])
+    except AssertionError:
+        raise ValueError(f'sequential_read: All ping records must be of the required data type. Records: {required_ping}, '
+                         f'Dtype: {[recs["ping"][pms].dtype for pms in required_ping]}, Required Dtype: {required_ping_dtype}')
+
+    try:
+        assert all([pms in recs['runtime_params'] for pms in required_runtime_params])
+    except AssertionError:
+        raise ValueError(f'sequential_read: Unable to find required runtime parameter records.  Required: {required_runtime_params}, Found: {list(recs["runtime_params"].keys())}')
+    try:
+        assert all([recs['runtime_params'][pms].size == recs['runtime_params']['time'].size for pms in required_runtime_params])
+    except AssertionError:
+        raise ValueError(f'sequential_read: All runtime parameter records must be of the same size. Records: {required_runtime_params}, Sizes: {[recs["runtime_params"][pms].size for pms in required_runtime_params]}')
+    if 'u2-u5' in required_runtime_params_dtype:  # this is a place holder to put in here to allow us to have a range of lengths for these variables
+        for tmprec in ['mode', 'modetwo', 'yawpitchstab']:
+            try:
+                assert recs['runtime_params'][tmprec].dtype in ['<U2', '<U3', '<U4', '<U5']
+                required_runtime_params_dtype[required_runtime_params.index(tmprec)] = str(recs['runtime_params'][tmprec].dtype)
+            except AssertionError:
+                raise ValueError(f'sequential_read: runtime parameters record {tmprec} must be of the required data type. '
+                                 f"Dtype: {recs['runtime_params'][tmprec].dtype}, Required Dtype: {['<U2', '<U3', '<U4', '<U5']}")
+    try:
+        assert all([recs['runtime_params'][pms].dtype == required_runtime_params_dtype[cnt] for cnt, pms in enumerate(required_runtime_params)])
+    except AssertionError:
+        raise ValueError(f'sequential_read: All runtime parameter records must be of the required data type. Records: {required_runtime_params}, '
+                         f'Dtype: {[recs["runtime_params"][pms].dtype for pms in required_runtime_params]}, Required Dtype: {required_runtime_params_dtype}')
+
+    try:
+        assert all([pms in recs['navigation'] for pms in required_navigation])
+    except AssertionError:
+        raise ValueError(f'sequential_read: Unable to find required navigation records.  Required: {required_navigation}, Found: {list(recs["navigation"].keys())}')
+    try:
+        assert all([recs['navigation'][pms].size == recs['navigation']['time'].size for pms in required_navigation])
+    except AssertionError:
+        raise ValueError(f'sequential_read: All navigation records must be of the same size. Records: {required_navigation}, Sizes: {[recs["navigation"][pms].size for pms in required_navigation]}')
+    try:
+        assert all([recs['navigation'][pms].dtype == required_navigation_dtype[cnt] for cnt, pms in enumerate(required_navigation)])
+    except AssertionError:
+        raise ValueError(f'sequential_read: All navigation parameter records must be of the required data type. Records: {required_navigation}, '
+                         f'Dtype: {[recs["navigation"][pms].dtype for pms in required_navigation]}, Required Dtype: {required_navigation_dtype}')
+
+    assert '.' + recs['format'] in kluster_variables.supported_multibeam
+
+    required_profile = ['time', 'depth', 'soundspeed']
+    if 'profile' in recs:
+        assert all([pms in recs['profile'] for pms in required_profile])
+    if 'altitude' in recs['navigation']:
+        try:
+            assert recs['navigation']['altitude'].dtype == 'float32'
+        except AssertionError:
+            raise ValueError(f'sequential_read: expected altitude record with dtype of "float32", found {recs["navigation"]["altitude"].dtype}')
+
+
 def sequential_read_multibeam(multibeam_file: str, start_pointer: int = 0, end_pointer: int = 0, first_installation_rec: bool = False):
     """
     Run the sequential read function built in to all multibeam drivers in Kluster.  Sequential read takes a multibeam file
@@ -180,8 +338,13 @@ def sequential_read_multibeam(multibeam_file: str, start_pointer: int = 0, end_p
         recs = km.sequential_read_records(start_ptr=start_pointer, end_ptr=end_pointer, first_installation_rec=first_installation_rec,
                                           serial_translator=serial_translator)
         km.closeFile()
+    elif multibeam_extension == '.s7k':
+        sk = prr3.X7kRead(multibeam_file, start_ptr=start_pointer, end_ptr=end_pointer)
+        recs = sk.sequential_read_records(first_installation_rec=first_installation_rec)
+        sk.close()
     else:
         raise NotImplementedError('fqpr_drivers: {} is supported by kluster, but not currently supported by sequential_read_multibeam'.format(multibeam_file))
+    _validate_sequential_read(recs)
     return recs
 
 
