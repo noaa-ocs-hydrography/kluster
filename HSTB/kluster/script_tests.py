@@ -280,6 +280,6 @@ fq.remove_post_processed_navigation()
 
 from HSTB.kluster.fqpr_drivers import sequential_read_multibeam
 recskm = sequential_read_multibeam(r"C:\collab\dasktest\data_dir\EM304_KMALL_fromkongs\0000_20200428_101105_ShipName.kmall")
-recsal = sequential_read_multibeam(r"C:\collab\dasktest\data_dir\EM300_Hiialakai\0005_20170327_004321_ShipName.all")
+recsal = sequential_read_multibeam(r"C:\collab\dasktest\data_dir\EM2040_Fairweather_patchtest2022\0001_20220421_165552_FA2808_M.all")
 recss7k = sequential_read_multibeam(r"C:\collab\dasktest\data_dir\7125_no7030_2devices_WORKS\20150310_174534.s7k")
 

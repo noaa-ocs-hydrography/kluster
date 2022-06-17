@@ -2417,6 +2417,17 @@ class KlusterMain(QtWidgets.QMainWindow):
             self.clear_points(True)
             points_data = self.load_points_thread.points_data
             azimuth = self.load_points_thread.azimuth
+            vert_ref = ''
+            for fqpr_name, pointdata in points_data.items():
+                new_vert_ref = self.project.fqpr_instances[fqpr_name].vert_ref
+                if vert_ref and new_vert_ref != vert_ref:
+                    self.print(f"New vertical reference {new_vert_ref} doesn't match current vertical reference {vert_ref}, using {vert_ref} to determine z sign convention", loglevel=logging.WARNING)
+                if not vert_ref:
+                    vert_ref = new_vert_ref
+                    if vert_ref in kluster_variables.positive_up_vertical_references:
+                        self.points_view.z_flipped = False
+                    else:
+                        self.points_view.z_flipped = True
             for fqpr_name, pointdata in points_data.items():
                 self.points_view.add_points(pointdata[0], pointdata[1], pointdata[2], pointdata[3], pointdata[4], pointdata[5],
                                             pointdata[6], pointdata[7], fqpr_name, pointdata[8], azimuth=azimuth)

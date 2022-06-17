@@ -647,6 +647,7 @@ class ThreeDView(QtWidgets.QWidget):
 
         self._select_rect_color = 'white'
         self.is_3d = True
+        self.z_flipped = True
 
         self.scatter = None
         self.scatter_transform = None
@@ -1307,9 +1308,11 @@ class ThreeDView(QtWidgets.QWidget):
 
         # camera assumes z is positive up, flip the values
         if self.is_3d:
-            centered_z = (centered_z - centered_z.max()) * -1 * vertical_exaggeration
+            centered_z = (centered_z - centered_z.max()) * vertical_exaggeration
         else:
-            centered_z = centered_z * -1
+            centered_z = centered_z
+        if self.z_flipped:
+            centered_z *= -1
 
         self.displayed_points = np.stack([centered_x, centered_y, centered_z], axis=1)
         clrs, cmap, minval, maxval = self._build_color_by_soundings(color_by)
@@ -1432,6 +1435,7 @@ class ThreeDWidget(QtWidgets.QWidget):
         self.opts_layout.addWidget(self.viewdirection_label)
         self.viewdirection2d = QtWidgets.QComboBox()
         self.viewdirection2d.addItems(['north', 'east', 'arrow'])
+        self.viewdirection2d.setCurrentText('arrow')
         self.viewdirection2d.setToolTip('View direction shown in the Points View:\n\n' +
                                         'north - this will show the eastings (x) vs depth\n' +
                                         'east - this will show the northings (y) vs depth\n' +
@@ -1439,6 +1443,7 @@ class ThreeDWidget(QtWidgets.QWidget):
         self.opts_layout.addWidget(self.viewdirection2d)
         self.viewdirection3d = QtWidgets.QComboBox()
         self.viewdirection3d.addItems(['top', 'arrow'])
+        self.viewdirection2d.setCurrentText('arrow')
         self.viewdirection3d.setToolTip('View direction shown in the Points View:\n\n' +
                                         'top - this will show the unrotated soundings (soundings as is)\n' +
                                         'arrow - this will show the rotated soundings in a top view, using the direction shown as the arrow of the box select tool in 2dview')
@@ -1519,6 +1524,7 @@ class ThreeDWidget(QtWidgets.QWidget):
         self.hide_lines_btn.clicked.connect(self._event_hide_lines)
 
         self.is_3d = None
+        self._z_flipped = True
         self.patch_test_running = False
         self.last_change_buffer = []
         self.text_controls = [['dimension', self.dimension], ['colorby', self.colorby],
@@ -1552,6 +1558,15 @@ class ThreeDWidget(QtWidgets.QWidget):
     def select_rect_color(self, clr):
         self._select_rect_color = clr
         self.three_d_window.select_rect_color = clr
+
+    @property
+    def z_flipped(self):
+        return self._z_flipped
+
+    @z_flipped.setter
+    def z_flipped(self, flipz: bool = True):
+        self._z_flipped = flipz
+        self.three_d_window.z_flipped = flipz
 
     def print(self, msg: str, loglevel: int):
         """

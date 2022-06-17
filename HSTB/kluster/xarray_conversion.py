@@ -192,11 +192,11 @@ def _assign_reference_points(fileformat: str, finalraw: dict, finalatt: xr.Datas
                                                                   'roll': '+ Port Up', 'pitch': '+ Bow Up', 'gyro': '+ Clockwise'}
                 finalraw[systemid].attrs['sonar_reference_point'] = sonar_reference_point['.' + fileformat]
                 finalraw[systemid].attrs['reference'] = {'beampointingangle': 'receiver', 'delay': 'None', 'frequency': 'None',
-                                                         'soundspeed': 'None', 'tiltangle': 'transmitter',
+                                                         'soundspeed': 'None', 'tiltangle': 'transmitter', 'reflectivity': 'None',
                                                          'traveltime': 'None', 'latitude': 'reference point',
                                                          'longitude': 'reference point', 'altitude': 'reference point'}
                 finalraw[systemid].attrs['units'] = {'beampointingangle': 'degrees', 'delay': 'seconds', 'frequency': 'hertz',
-                                                     'soundspeed': 'meters per second', 'tiltangle': 'degrees',
+                                                     'soundspeed': 'meters per second', 'tiltangle': 'degrees', 'reflectivity': 'decibels',
                                                      'traveltime': 'seconds', 'latitude': 'degrees', 'longitude': 'degrees',
                                                      'altitude': 'meters (+ down from ellipsoid)'}
             return finalraw, finalatt
