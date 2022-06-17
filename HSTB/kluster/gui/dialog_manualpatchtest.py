@@ -218,7 +218,7 @@ class XyzrphList(QtWidgets.QTableWidget):
         # makes it so no editing is possible with the table
         self.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)
 
-        self.headr = ['', 'Container', r'S/N', 'Record Time', 'Record Time UTC', 'Head', 'RX Roll', 'TX Pitch', 'RX Heading', 'TX X Lever', 'TX Y Lever', 'TX Z Lever', 'Latency']
+        self.headr = ['', 'Container', r'S/N', 'Record Time', 'Record Time UTC', 'Head', 'RX Roll', 'TX Pitch', 'RX Heading', 'X Lever', 'Y Lever', 'Z Lever', 'Latency']
         self.setColumnCount(13)
         self.setHorizontalHeaderLabels(self.headr)
         self.setColumnWidth(0, 20)
@@ -267,8 +267,13 @@ class PatchSpinBox(QtWidgets.QDoubleSpinBox):
 class ManualPatchTestWidget(QtWidgets.QWidget):
     new_offsets_angles = Signal(bool)
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, prefixes=None):
         QtWidgets.QWidget.__init__(self, parent)
+
+        # shouldn't ever see this, but just in case, these are the defaults before we added the reference point identifier
+        #  in kluster 0.9, align with the old Kongsberg only workflow
+        if prefixes is None:
+            prefixes = ['rx', 'tx', 'rx', 'tx', 'tx', 'tx']
 
         self.setWindowTitle('Patch Test')
 
@@ -301,7 +306,7 @@ class ManualPatchTestWidget(QtWidgets.QWidget):
         attdevices_layout = QtWidgets.QHBoxLayout()
 
         roll_layout = QtWidgets.QVBoxLayout()
-        self.xlever_label = QtWidgets.QLabel(' TX X Lever Arm (+ Forward)')
+        self.xlever_label = QtWidgets.QLabel(' {} X Lever Arm (+ Forward)'.format(prefixes[3][:2].upper()))
         roll_layout.addWidget(self.xlever_label)
         xlspinbox = QtWidgets.QHBoxLayout()
         self.xlever_spinbox = PatchSpinBox()
@@ -309,7 +314,7 @@ class ManualPatchTestWidget(QtWidgets.QWidget):
         self.xlever_difference = QtWidgets.QLabel('0.000')
         xlspinbox.addWidget(self.xlever_difference)
         roll_layout.addLayout(xlspinbox)
-        self.roll_label = QtWidgets.QLabel('RX Roll (+ Port Up)')
+        self.roll_label = QtWidgets.QLabel('{} Roll (+ Port Up)'.format(prefixes[0][:2].upper()))
         roll_layout.addWidget(self.roll_label)
         rspinbox = QtWidgets.QHBoxLayout()
         self.roll_spinbox = PatchSpinBox()
@@ -321,7 +326,7 @@ class ManualPatchTestWidget(QtWidgets.QWidget):
 
         attdevices_layout.addStretch()
         pitch_layout = QtWidgets.QVBoxLayout()
-        self.ylever_label = QtWidgets.QLabel('TX Y Lever Arm (+ Starboard)')
+        self.ylever_label = QtWidgets.QLabel('{} Y Lever Arm (+ Starboard)'.format(prefixes[4][:2].upper()))
         pitch_layout.addWidget(self.ylever_label)
         ylspinbox = QtWidgets.QHBoxLayout()
         self.ylever_spinbox = PatchSpinBox()
@@ -329,7 +334,7 @@ class ManualPatchTestWidget(QtWidgets.QWidget):
         self.ylever_difference = QtWidgets.QLabel('0.000')
         ylspinbox.addWidget(self.ylever_difference)
         pitch_layout.addLayout(ylspinbox)
-        self.pitch_label = QtWidgets.QLabel('TX Pitch (+ Bow Up)')
+        self.pitch_label = QtWidgets.QLabel('{} Pitch (+ Bow Up)'.format(prefixes[1][:2].upper()))
         pitch_layout.addWidget(self.pitch_label)
         pspinbox = QtWidgets.QHBoxLayout()
         self.pitch_spinbox = PatchSpinBox()
@@ -341,7 +346,7 @@ class ManualPatchTestWidget(QtWidgets.QWidget):
         attdevices_layout.addStretch()
 
         heading_layout = QtWidgets.QVBoxLayout()
-        self.zlever_label = QtWidgets.QLabel('TX Z Lever Arm (+ Down)')
+        self.zlever_label = QtWidgets.QLabel('{} Z Lever Arm (+ Down)'.format(prefixes[5][:2].upper()))
         heading_layout.addWidget(self.zlever_label)
         zlspinbox = QtWidgets.QHBoxLayout()
         self.zlever_spinbox = PatchSpinBox()
@@ -349,7 +354,7 @@ class ManualPatchTestWidget(QtWidgets.QWidget):
         self.zlever_difference = QtWidgets.QLabel('0.000')
         zlspinbox.addWidget(self.zlever_difference)
         heading_layout.addLayout(zlspinbox)
-        self.heading_label = QtWidgets.QLabel('RX Heading (+ Clockwise)')
+        self.heading_label = QtWidgets.QLabel('{} Heading (+ Clockwise)'.format(prefixes[2][:2].upper()))
         heading_layout.addWidget(self.heading_label)
         hspinbox = QtWidgets.QHBoxLayout()
         self.heading_spinbox = PatchSpinBox()

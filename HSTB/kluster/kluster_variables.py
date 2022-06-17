@@ -202,7 +202,7 @@ ping_chunks = {'time': (ping_chunk_size,), 'beam': (max_beams,), 'xyz': (3,),
                'longitude': (ping_chunk_size,),
                'mode': (ping_chunk_size,),
                'modetwo': (ping_chunk_size,),
-               'ntx': (ping_chunk_size,),
+               'ntx': (ping_chunk_size,),  # dropped in kluster 1.0
                'processing_status': (ping_chunk_size, max_beams),
                'qualityfactor': (ping_chunk_size, max_beams),
                'rel_azimuth': (ping_chunk_size, max_beams),
@@ -259,10 +259,10 @@ subset_variable_selection = ['head', 'time', 'beam', 'acrosstrack', 'alongtrack'
                              'sbet_east_position_error', 'sbet_down_position_error', 'sbet_roll_error', 'sbet_pitch_error', 'sbet_heading_error'
                              'soundspeed', 'thu', 'tiltangle', 'traveltime', 'tvu', 'txsector_beam', 'x', 'y', 'yawpitchstab', 'z']
 subset_variable_2d = ['acrosstrack', 'alongtrack', 'beampointingangle', 'datum_uncertainty', 'delay', 'depthoffset', 'detectioninfo',
-                      'frequency', 'geohash', 'ntx', 'processing_status', 'qualityfactor', 'rel_azimuth', 'thu',
+                      'frequency', 'geohash', 'processing_status', 'qualityfactor', 'rel_azimuth', 'thu',
                       'tiltangle', 'traveltime', 'tvu', 'tx', 'txsector_beam', 'x', 'y', 'z']
 subset_variable_1d = ['head', 'time', 'beam', 'altitude', 'corr_altitude', 'corr_heave', 'corr_pointing_angle', 'counter', 'latitude',
-                      'longitude', 'mode', 'modetwo', 'sbet_latitude', 'sbet_longitude', 'sbet_altitude', 'sbet_north_position_error',
+                      'longitude', 'mode', 'modetwo', 'ntx', 'sbet_latitude', 'sbet_longitude', 'sbet_altitude', 'sbet_north_position_error',
                       'sbet_east_position_error', 'sbet_down_position_error', 'sbet_roll_error', 'sbet_pitch_error', 'sbet_heading_error',
                       'soundspeed', 'yawpitchstab']
 

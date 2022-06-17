@@ -172,7 +172,6 @@ def _validate_sequential_read(recs: dict):
     required_attitude = ['time', 'roll', 'pitch', 'heave', 'heading']
     required_attitude_dtype = ['float64', 'float32', 'float32', 'float32', 'float32']
     required_installation_params = ['time', 'serial_one', 'serial_two', 'installation_settings']
-    required_installation_params_dtype = ['float64', 'uint16', 'uint16', 'object']
 
     # two options for runtime parameters.  They can either be a value per ping stored in the ping records, or they can
     #   be in a separate record that shows intermittently throughout the file and needs to be interpolated to the ping
@@ -222,11 +221,6 @@ def _validate_sequential_read(recs: dict):
         assert recs['installation_params']['time'].size == recs['installation_params']['installation_settings'].size
     except AssertionError:
         raise ValueError(f'sequential_read: All installation parameter records must be of the same size. Records: {["time", "installation_settings"]}, Sizes: {[recs["installation_params"][pms].size for pms in ["time", "installation_settings"]]}')
-    try:
-        assert all([recs['installation_params'][pms].dtype == required_installation_params_dtype[cnt] for cnt, pms in enumerate(required_installation_params)])
-    except AssertionError:
-        raise ValueError(f'sequential_read: All installation parameter records must be of the required data type. Records: {required_installation_params}, '
-                         f'Dtype: {[recs["installation_params"][pms].dtype for pms in required_installation_params]}, Required Dtype: {required_installation_params_dtype}')
 
     try:
         assert all([pms in recs['ping'] for pms in required_ping])

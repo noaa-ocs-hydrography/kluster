@@ -1190,12 +1190,12 @@ class KlusterMain(QtWidgets.QMainWindow):
                                 vessel_file_name = datablock[0][-1]
                                 roll, pitch, heading = final_datablock[8], final_datablock[9], final_datablock[10]
                                 xlever, ylever, zlever = final_datablock[11], final_datablock[12], final_datablock[13]
-                                latency = final_datablock[14]
+                                latency, prefixes = final_datablock[14], final_datablock[15]
                                 fqprs, timesegments = final_datablock[0], final_datablock[6]
                                 for cnt, fq in enumerate(fqprs):
                                     fq.subset_by_times(timesegments[cnt].tolist())
                                 self._manpatchtest = None
-                                self._manpatchtest = dialog_manualpatchtest.ManualPatchTestWidget()
+                                self._manpatchtest = dialog_manualpatchtest.ManualPatchTestWidget(prefixes=prefixes)
                                 self._manpatchtest.new_offsets_angles.connect(self._update_manual_patch_test)
                                 self._manpatchtest.patchdatablock = final_datablock
                                 self._manpatchtest.populate(vessel_file_name, ','.join(final_datablock[1]), final_datablock[2],
