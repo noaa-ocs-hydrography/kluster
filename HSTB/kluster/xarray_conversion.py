@@ -198,7 +198,7 @@ def _assign_reference_points(fileformat: str, finalraw: dict, finalatt: xr.Datas
                 finalraw[systemid].attrs['units'] = {'beampointingangle': 'degrees', 'delay': 'seconds', 'frequency': 'hertz',
                                                      'soundspeed': 'meters per second', 'tiltangle': 'degrees', 'reflectivity': 'decibels',
                                                      'traveltime': 'seconds', 'latitude': 'degrees', 'longitude': 'degrees',
-                                                     'altitude': 'meters (+ down from ellipsoid)'}
+                                                     'altitude': 'meters (+ up)'}
             return finalraw, finalatt
         else:
             raise ValueError('Did not recognize format "{}" during xarray conversion'.format(fileformat))
