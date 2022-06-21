@@ -135,8 +135,9 @@ class DrawNavigationWorker(QtCore.QThread):
                 self.parent().print('building tracklines for {}...'.format(fq), logging.INFO)
                 for ln in self.project.return_project_lines(proj=fq, relative_path=True):
                     lats, lons = self.project.return_line_navigation(ln)
-                    self.line_data[ln] = [lats, lons]
-                    self.parent().debug_print(f'project.return_line_navigation: drawing {ln}: {len(lats)} points, {lats[0]},{lons[0]} to {lats[-1]},{lons[-1]}', logging.INFO)
+                    if lats is not None:
+                        self.line_data[ln] = [lats, lons]
+                        self.parent().debug_print(f'project.return_line_navigation: drawing {ln}: {len(lats)} points, {lats[0]},{lons[0]} to {lats[-1]},{lons[-1]}', logging.INFO)
         except Exception as e:
             self.error = True
             self.exceptiontxt = traceback.format_exc()
