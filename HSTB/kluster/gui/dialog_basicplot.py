@@ -421,8 +421,19 @@ class BasicPlotDialog(QtWidgets.QDialog):
                 else:
                     newdata.plot.line(ax=self.recent_plot[cnt], label=identifier + ' (port outer)')
             elif plottype == 'Line - Starboard Outer Beam':
+                idxs = []
+                for vdbms in data.values:
+                    for vcnt, vdbm in enumerate(vdbms[::-1]):
+                        if not (np.isnan(vdbm) or vdbm == 0):  # this is an attempt to ensure the last beam in the ping is valid (some sonar vary in beams, so you get empty values in the square array)
+                            idxs += [len(vdbms) - (vcnt + 1)]
+                            break
+                        elif vcnt == len(vdbms) - 1:  # no valid values for the ping
+                            idxs += [0]
+
                 last_beam_num = int((data.beam.shape[0]) - 1)
                 newdata = data.isel(beam=last_beam_num)
+                # overwrite with our fixed last beam values
+                newdata[:] = data.values[np.arange(data.shape[0]), idxs]
                 if self.zero_center_plot.isChecked():
                     (newdata - newdata.mean()).plot.line(ax=self.recent_plot[cnt], label=identifier + ' (stbd outer)')
                 else:

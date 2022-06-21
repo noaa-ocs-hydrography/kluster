@@ -225,32 +225,34 @@ def _validate_sequential_read_ping(recs: dict):
         assert all([pms in recs['ping'] for pms in required_ping])
     except AssertionError:
         raise ValueError(f'sequential_read: Unable to find required ping records.  Required: {required_ping}, Found: {list(recs["ping"].keys())}')
-    try:
-        assert all([recs['ping'][pms].shape == recs['ping']['time'].shape for pms in required_ping if pms in kluster_variables.subset_variable_1d])
-    except AssertionError:
-        raise ValueError(f'sequential_read: All ping records must be of the same size. Records: {[rec for rec in required_ping if rec in kluster_variables.subset_variable_1d]}, Sizes: {[recs["ping"][pms].size for pms in [rec for rec in required_ping if rec in kluster_variables.subset_variable_1d]]}')
-    try:
-        assert all([recs['ping'][pms].shape == recs['ping']['frequency'].shape for pms in required_ping if pms in kluster_variables.subset_variable_2d])
-    except AssertionError:
-        raise ValueError(f'sequential_read: All ping records must be of the same size. Records: {[rec for rec in required_ping if rec in kluster_variables.subset_variable_2d]}, Sizes: {[recs["ping"][pms].size for pms in [rec for rec in required_ping if rec in kluster_variables.subset_variable_2d]]}')
-    if 'u2-u5' in required_ping_dtype:  # this is a place holder to put in here to allow us to have a range of lengths for these variables
-        for tmprec in ['mode', 'modetwo', 'yawpitchstab']:
-            try:
-                assert recs['ping'][tmprec].dtype in ['<U2', '<U3', '<U4', '<U5']
-                required_ping_dtype[required_ping.index(tmprec)] = str(recs['ping'][tmprec].dtype)
-            except AssertionError:
-                raise ValueError(f'sequential_read: ping record {tmprec} must be of the required data type. '
-                                 f"Dtype: {recs['ping'][tmprec].dtype}, Required Dtype: {['<U2', '<U3', '<U4', '<U5']}")
-    try:
-        assert all([recs['ping'][pms].dtype == required_ping_dtype[cnt] for cnt, pms in enumerate(required_ping)])
-    except AssertionError:
-        raise ValueError(f'sequential_read: All ping records must be of the required data type. Records: {required_ping}, '
-                         f'Dtype: {[recs["ping"][pms].dtype for pms in required_ping]}, Required Dtype: {required_ping_dtype}')
-    if 'reflectivity' in recs['ping']:
+    # handle reads without pings, we don't want this to just be an exception
+    if recs['ping']['time'].size != 0:
         try:
-            assert recs['ping']['reflectivity'].dtype == 'float32'
+            assert all([recs['ping'][pms].shape == recs['ping']['time'].shape for pms in required_ping if pms in kluster_variables.subset_variable_1d])
         except AssertionError:
-            raise ValueError(f'sequential_read: expected reflectivity record with dtype of "float32", found {recs["ping"]["reflectivity"].dtype}')
+            raise ValueError(f'sequential_read: All ping records must be of the same size. Records: {[rec for rec in required_ping if rec in kluster_variables.subset_variable_1d]}, Sizes: {[recs["ping"][pms].size for pms in [rec for rec in required_ping if rec in kluster_variables.subset_variable_1d]]}')
+        try:
+            assert all([recs['ping'][pms].shape == recs['ping']['frequency'].shape for pms in required_ping if pms in kluster_variables.subset_variable_2d])
+        except AssertionError:
+            raise ValueError(f'sequential_read: All ping records must be of the same size. Records: {[rec for rec in required_ping if rec in kluster_variables.subset_variable_2d]}, Sizes: {[recs["ping"][pms].size for pms in [rec for rec in required_ping if rec in kluster_variables.subset_variable_2d]]}')
+        if 'u2-u5' in required_ping_dtype:  # this is a place holder to put in here to allow us to have a range of lengths for these variables
+            for tmprec in ['mode', 'modetwo', 'yawpitchstab']:
+                try:
+                    assert recs['ping'][tmprec].dtype in ['<U2', '<U3', '<U4', '<U5']
+                    required_ping_dtype[required_ping.index(tmprec)] = str(recs['ping'][tmprec].dtype)
+                except AssertionError:
+                    raise ValueError(f'sequential_read: ping record {tmprec} must be of the required data type. '
+                                     f"Dtype: {recs['ping'][tmprec].dtype}, Required Dtype: {['<U2', '<U3', '<U4', '<U5']}")
+        try:
+            assert all([recs['ping'][pms].dtype == required_ping_dtype[cnt] for cnt, pms in enumerate(required_ping)])
+        except AssertionError:
+            raise ValueError(f'sequential_read: All ping records must be of the required data type. Records: {required_ping}, '
+                             f'Dtype: {[recs["ping"][pms].dtype for pms in required_ping]}, Required Dtype: {required_ping_dtype}')
+        if 'reflectivity' in recs['ping']:
+            try:
+                assert recs['ping']['reflectivity'].dtype == 'float32'
+            except AssertionError:
+                raise ValueError(f'sequential_read: expected reflectivity record with dtype of "float32", found {recs["ping"]["reflectivity"].dtype}')
 
 
 def _validate_sequential_read_runtime(recs: dict):
