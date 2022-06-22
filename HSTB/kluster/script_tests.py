@@ -85,7 +85,13 @@ for cnt, dset in enumerate(datasets_w_sbets):
                                 vert_ref='ellipse', errorfiles=[smrmsg], logfiles=[logf], weekstart_year=yr,
                                 weekstart_week=wk, override_datum=dat)
     generate_new_surface(fq, resolution=8.0, output_path=os.path.join(outputdir, fldernames[cnt]))
-    # fq.export_pings_to_file()
+
+reson_datasets = [r"C:\collab\dasktest\data_dir\7125", r"C:\collab\dasktest\data_dir\7125_no7030_2devices"]
+reson_svps = [r"C:\collab\dasktest\data_dir\7125\WOA09_20140416_161500.svp", r"C:\collab\dasktest\data_dir\7125_no7030_2devices\WOA09_20220617_134138.svp"]
+fldernames = ['7125_s7k', '7125_s7k_svandimage']
+for cnt, dset in enumerate(datasets):
+    fq = perform_all_processing(dset, outfold=os.path.join(outputdir, fldernames[cnt]), add_cast_files=reson_svps[cnt],
+                                coord_system='WGS84', vert_ref='waterline')
 
 sbet = r"C:\collab\dasktest\data_dir\ra_mbes\2801_em2040\pospac\035_sbet.out"
 logf = r"C:\collab\dasktest\data_dir\ra_mbes\2801_em2040\pospac\035_sbet_export.log"
