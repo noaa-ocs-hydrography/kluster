@@ -1042,7 +1042,7 @@ class KlusterMain(QtWidgets.QMainWindow):
                 else:
                     self.print('Error running action {}'.format(self.action_thread.action_type), logging.ERROR)
         else:
-            self.print('Error running action {}'.format(self.action_thread.action_type), logging.ERROR)
+            self.print('Error running action: {}'.format(self.action_thread.action_type), logging.ERROR)
             self.print(self.action_thread.exceptiontxt, logging.INFO)
             self.print('kluster_action: no data returned from action execution', logging.INFO)
             self.intel.update_intel_for_action_results(action_type=self.action_thread.action_type)

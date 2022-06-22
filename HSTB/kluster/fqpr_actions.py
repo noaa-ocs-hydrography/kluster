@@ -265,11 +265,11 @@ class FqprActionContainer:
         -------
 
         """
-        action = self.actions[idx]
+        action = self.actions.pop(idx)
+        self._update_actions()
         if action:
             action.execute()
             output = action.output
-            self.remove_action(action)
             return output
         else:
             print('FqprActionContainer: no actions found.')
