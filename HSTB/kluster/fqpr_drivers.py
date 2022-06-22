@@ -15,7 +15,7 @@ par_sonar_translator = par3.sonar_translator
 kmall_sonar_translator = kmall.sonar_translator
 sonar_reference_point = {'.all': ['tx_x', 'tx_y', 'tx_z'],
                          '.kmall': ['tx_x', 'tx_y', 'tx_z'],
-                         '.s7k': ['rx_x', 'tx_y', 'rx_z']}
+                         '.s7k': ['tx_x', 'rx_y', 'rx_z']}
 
 
 def _check_multibeam_file(multibeam_file: str):
