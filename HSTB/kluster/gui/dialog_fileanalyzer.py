@@ -4,7 +4,7 @@ import logging
 from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal
 from HSTB.shared import RegistryHelpers
 from HSTB.kluster.gui.common_widgets import SaveStateDialog
-from HSTB.drivers import par3, kmall, PCSio, sbet
+from HSTB.drivers import par3, kmall, PCSio, sbet, prr3
 from HSTB.kluster.fqpr_drivers import read_first_fifty_records, kluster_read_test, bscorr_generation
 
 
@@ -101,6 +101,8 @@ class FileAnalyzerDialog(SaveStateDialog):
                 self.print('Expected .all file, got {}'.format(file_path), logging.ERROR)
             elif self.filetype == 'kongsberg_kmall' and fext != '.kmall':
                 self.print('Expected .kmall file, got {}'.format(file_path), logging.ERROR)
+            if self.filetype == 'reson_s7k' and fext != '.s7k':
+                self.print('Expected .s7k file, got {}'.format(file_path), logging.ERROR)
             elif self.filetype in ['applanix_sbet', 'applanix_smrmsg'] and fext not in ['.out', '.sbet', 'smrmsg']:
                 self.print('Expected .kmall file, got {}'.format(file_path), logging.ERROR)
             else:
@@ -110,6 +112,8 @@ class FileAnalyzerDialog(SaveStateDialog):
                     self.fileobjecttwo = par3.AllRead(file_path)
                 elif fext == '.kmall':
                     self.fileobjecttwo = kmall.kmall(file_path)
+                elif fext == '.s7k':
+                    self.fileobjecttwo = prr3.X7kRead(file_path)
                 elif fext in ['.out', '.sbet', 'smrmsg']:
                     if sbet.is_sbet(file_path):
                         self.fileobjecttwo = sbet.read(file_path, numcolumns=17)
@@ -144,6 +148,10 @@ class FileAnalyzerDialog(SaveStateDialog):
                 self.filetype = 'kongsberg_kmall'
                 self.fileobject = kmall.kmall(self.filename)
                 self.functioncombobox.addItems(['read_first_fifty_records'])
+            elif fext == '.s7k':
+                self.filetype = 'reson_s7k'
+                self.fileobject = prr3.X7kRead(self.filename)
+                self.functioncombobox.addItems(['read_first_fifty_records', 'kluster_read_test'])
             elif fext in ['.out', '.sbet', 'smrmsg']:
                 if sbet.is_sbet(file_path):
                     self.filetype = 'applanix_sbet'

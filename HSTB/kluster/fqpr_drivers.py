@@ -11,8 +11,12 @@ import numpy as np
 from HSTB.kluster import kluster_variables
 from HSTB.drivers import kmall, par3, sbet, svp, PCSio, prr3
 
+# these translators are used to figure out the numbering in the installation parametes for each sonar
 par_sonar_translator = par3.sonar_translator
 kmall_sonar_translator = kmall.sonar_translator
+# no sonar translator for s7k, as there are only two transducers, and tx and rx are always given (we assume something
+#    like ('7125': [None, 'tx', 'rx', None])
+
 sonar_reference_point = {'.all': ['tx_x', 'tx_y', 'tx_z'],
                          '.kmall': ['tx_x', 'tx_y', 'tx_z'],
                          '.s7k': ['tx_x', 'rx_y', 'rx_z']}
@@ -398,6 +402,8 @@ def read_first_fifty_records(file_object):
         par3.print_some_records(file_object, recordnum=50)
     elif isinstance(file_object, kmall.kmall):
         kmall.print_some_records(file_object, recordnum=50)
+    elif isinstance(file_object, prr3.X7kRead):
+        prr3.print_some_records(file_object, recordnum=50)
     elif isinstance(file_object, PCSio.PCSBaseFile):
         PCSio.print_some_records(file_object, recordnum=50)
     elif isinstance(file_object, np.ndarray):
@@ -411,6 +417,8 @@ def kluster_read_test(file_object):
     print('Kluster Read Test:')
     if isinstance(file_object, par3.AllRead):
         par3.kluster_read_test(file_object, byte_count=-1)
+    elif isinstance(file_object, prr3.X7kRead):
+        prr3.kluster_read_test(file_object, byte_count=-1)
     else:
         print(f'read_first_fifty_records: Unsupported file object: {file_object}')
 
