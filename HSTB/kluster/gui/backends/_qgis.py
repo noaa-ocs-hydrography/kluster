@@ -2296,7 +2296,8 @@ class MapView(QtWidgets.QMainWindow):
             else:
                 total_extent.combineExtentWith(extent)
         self.debug_print(f'2dview set_extents_from_lines: lines={lyrs} extent={total_extent}', logging.INFO)
-        self.canvas.zoomToFeatureExtent(total_extent)
+        if total_extent:
+            self.canvas.zoomToFeatureExtent(total_extent)
 
     def set_extents_from_surfaces(self, subset_surf: str = None, resolution: float = None):
         """

@@ -33,8 +33,8 @@ sonar_translator = {'em122': [None, 'tx', 'rx', None], 'em302': [None, 'tx', 'rx
                     'em2045': [None, 'txrx', None, None], 'em2045_dual': [None, 'txrx_port', 'txrx_stbd', None],
                     'em3002': [None, 'tx', 'rx', None], 'em2040p': [None, 'txrx', None, None],
                     'em3020': [None, 'tx', 'rx', None], 'em3020_dual': [None, 'txrx_port', 'txrx_stbd', None],
-                    'me70': [None, 'txrx', None, None], '7125': [None, 'tx', 'rx', None], 'T20': [None, 'tx', 'rx', None],
-                    'T50': [None, 'tx', 'rx', None], 'T51': [None, 'tx', 'rx', None]}
+                    'me70': [None, 'txrx', None, None], '7125': [None, 'tx', 'rx', None], 't20': [None, 'tx', 'rx', None],
+                    't50': [None, 'tx', 'rx', None], 't51': [None, 'tx', 'rx', None]}
 
 # ensure that Kluster sonar translator supports all sonar_translators in multibeam drivers
 assert all([snr in sonar_translator for snr in par_sonar_translator.keys()])
@@ -289,11 +289,11 @@ def _sequential_to_xarray(rec: dict):
                 recs_to_merge[r] = {systemid: xr.Dataset() for systemid in ids}
                 for systemid in ids:
                     idx = ids.index(systemid)
-                    tim = rec['ping']['time'][msk[idx]]
 
                     for ky in rec[r]:
+                        tim = rec['ping']['time'][msk[idx]]
                         if ky not in ['time', 'serial_num']:
-                            if ky == 'counter':  # counter is 16bit in raw data, we want 32 to handle zero crossing
+                            if ky == 'counter':  # counter is 16bit in raw data, we want 64 to handle zero crossing
                                 datadtype = np.int64
                             else:
                                 datadtype = rec[r][ky].dtype
