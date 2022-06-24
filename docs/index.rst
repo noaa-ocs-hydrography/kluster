@@ -11,6 +11,8 @@ Known Issues
 
 Kluster does not support 'multifrequency' as seen in the most recent KMALL logged data.
 
+Kluster s7k is limited to certain records, see the 'Requirements' section.
+
 Overview
 --------
 

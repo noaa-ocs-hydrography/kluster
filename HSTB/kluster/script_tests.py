@@ -86,10 +86,11 @@ for cnt, dset in enumerate(datasets_w_sbets):
                                 weekstart_week=wk, override_datum=dat)
     generate_new_surface(fq, resolution=8.0, output_path=os.path.join(outputdir, fldernames[cnt]))
 
-reson_datasets = [r"C:\collab\dasktest\data_dir\7125", r"C:\collab\dasktest\data_dir\7125_no7030_2devices"]
-reson_svps = [r"C:\collab\dasktest\data_dir\7125\WOA09_20140416_161500.svp", r"C:\collab\dasktest\data_dir\7125_no7030_2devices\WOA09_20220617_134138.svp"]
-fldernames = ['7125_s7k', '7125_s7k_svandimage']
-for cnt, dset in enumerate(datasets):
+reson_datasets = [r"C:\collab\dasktest\data_dir\7125", r"C:\collab\dasktest\data_dir\7125_no7030_2devices", r'C:\collab\dasktest\data_dir\T51_from_Reson']
+reson_svps = [r"C:\collab\dasktest\data_dir\7125\WOA09_20140416_161500.svp", r"C:\collab\dasktest\data_dir\7125_no7030_2devices\WOA09_20220617_134138.svp",
+              r"C:\collab\dasktest\data_dir\T51_from_Reson\WOA09_20210616_120000.svp"]
+fldernames = ['7125_s7k', '7125_s7k_svandimage', 't51_wreck']
+for cnt, dset in enumerate(reson_datasets):
     fq = perform_all_processing(dset, outfold=os.path.join(outputdir, fldernames[cnt]), add_cast_files=reson_svps[cnt],
                                 coord_system='WGS84', vert_ref='waterline')
 
