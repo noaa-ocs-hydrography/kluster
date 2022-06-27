@@ -256,10 +256,21 @@ class QueryTool(qgis_gui.QgsMapTool):
         y = e.pos().y()
         point = self.parent.canvas.getCoordinateTransform().toMapCoordinates(x, y)
         text = 'Latitude: {}, Longitude: {}'.format(round(point.y(), 7), round(point.x(), 7))
+
+        first_layer = True
         for name, layer in self.parent.project.mapLayers().items():
             if layer.type() == qgis_core.QgsMapLayerType.RasterLayer:
-                # if 'hillshade' in layer.name():
-                #     continue
+                if first_layer:
+                    try:
+                        datum = layer.crs().description()
+                    except:
+                        datum = 'unknown'
+                    try:
+                        layerpt = self.parent.map_point_to_layer_point(layer, point)
+                        layerpt = (layerpt.y(), layerpt.x())
+                    except:
+                        layerpt = ('unknown', 'unknown')
+                    text += f'\n({datum}) Northing: {layerpt[0]} Easting: {layerpt[1]}'
                 if layer.dataProvider().name() != 'wms':
                     if layer.name() in self.parent.layer_manager.shown_layer_names:
                         try:
@@ -668,75 +679,33 @@ class RectangleMapTool(qgis_gui.QgsMapToolEmitPoint):
         self.deactivated.emit()
 
 
-def raster_shader(lyrmin: float, lyrmax: float):
+class RasterShader(qgis_core.QgsRasterShader):
     """
-    Use the provided minimum/maximum layer value to build a color ramp for rendering surface tifs.  We don't have the
-    ability in Kluster to pick a color ramp, we just give them this one.
-
-    Parameters
-    ----------
-    lyrmin
-        minimum value for this band
-    lyrmax
-        maximum value for this band
-
-    Returns
-    -------
-    qgis_core.QgsRasterShader
-        Return a new raster shader with the built color ramp from band min to max
+    Configure a new raster shader, controls the appearance of the raster layers in the 2dview.  Add a new tuple
+    attribute (see redtoblue) if you want to have a new colorramp options.
     """
+    def __init__(self, layer_min: float, layer_max: float, color_scheme: str = 'redtoblue'):
+        super().__init__()
+        self.layer_min = layer_min
+        self.layer_max = layer_max
+        self.color_scheme = color_scheme
 
-    fcn = qgis_core.QgsColorRampShader()
-    fcn.setColorRampType(qgis_core.QgsColorRampShader.Interpolated)
-    diff = (lyrmax - lyrmin) / 6
-    lst = [qgis_core.QgsColorRampShader.ColorRampItem(lyrmin, QtGui.QColor(255, 0, 0)),
-           qgis_core.QgsColorRampShader.ColorRampItem(lyrmin + diff, QtGui.QColor(255, 165, 0)),
-           qgis_core.QgsColorRampShader.ColorRampItem(lyrmin + 2 * diff, QtGui.QColor(255, 255, 0)),
-           qgis_core.QgsColorRampShader.ColorRampItem(lyrmin + 3 * diff, QtGui.QColor(0, 128, 0)),
-           qgis_core.QgsColorRampShader.ColorRampItem(lyrmin + 4 * diff, QtGui.QColor(0, 0, 255)),
-           qgis_core.QgsColorRampShader.ColorRampItem(lyrmin + 5 * diff, QtGui.QColor(75, 0, 130)),
-           qgis_core.QgsColorRampShader.ColorRampItem(lyrmin + 6 * diff, QtGui.QColor(238, 130, 238))]
-    fcn.setColorRampItemList(lst)
-    shader = qgis_core.QgsRasterShader()
-    shader.setRasterShaderFunction(fcn)
-    shader.setMinimumValue(lyrmin)
-    shader.setMaximumValue(lyrmax)
-    return shader
+        self.redtoblue = ((255, 0, 0), (255, 165, 0), (255, 255, 0), (0, 128, 0), (0, 0, 255), (75, 0, 130), (238, 130, 238))
+        self.bluetored = ((238, 130, 238), (75, 0, 130), (0, 0, 255), (0, 128, 0), (255, 255, 0), (255, 165, 0), (255, 0, 0))
+        self._set_scheme()
 
-
-def inv_raster_shader(lyrmin: float, lyrmax: float):
-    """
-    Use the provided minimum/maximum layer value to build a color ramp for rendering surface tifs.  The inverted
-    shader is used in Kluster to visualize uncertainty, as we probably want red values to be high uncertainty (bad = hot)
-
-    Parameters
-    ----------
-    lyrmin
-        minimum value for this band
-    lyrmax
-        maximum value for this band
-
-    Returns
-    -------
-    qgis_core.QgsRasterShader
-        Return a new raster shader with the built color ramp from band min to max
-    """
-    fcn = qgis_core.QgsColorRampShader()
-    fcn.setColorRampType(qgis_core.QgsColorRampShader.Interpolated)
-    diff = (lyrmax - lyrmin) / 6
-    lst = [qgis_core.QgsColorRampShader.ColorRampItem(lyrmin, QtGui.QColor(238, 130, 238)),
-           qgis_core.QgsColorRampShader.ColorRampItem(lyrmin + diff, QtGui.QColor(75, 0, 130)),
-           qgis_core.QgsColorRampShader.ColorRampItem(lyrmin + 2 * diff, QtGui.QColor(0, 0, 255)),
-           qgis_core.QgsColorRampShader.ColorRampItem(lyrmin + 3 * diff, QtGui.QColor(0, 128, 0)),
-           qgis_core.QgsColorRampShader.ColorRampItem(lyrmin + 4 * diff, QtGui.QColor(255, 255, 0)),
-           qgis_core.QgsColorRampShader.ColorRampItem(lyrmin + 5 * diff, QtGui.QColor(255, 165, 0)),
-           qgis_core.QgsColorRampShader.ColorRampItem(lyrmin + 6 * diff, QtGui.QColor(255, 0, 0))]
-    fcn.setColorRampItemList(lst)
-    shader = qgis_core.QgsRasterShader()
-    shader.setRasterShaderFunction(fcn)
-    shader.setMinimumValue(lyrmin)
-    shader.setMaximumValue(lyrmax)
-    return shader
+    def _set_scheme(self):
+        lyrcolors = getattr(self, self.color_scheme)
+        fcn = qgis_core.QgsColorRampShader()
+        fcn.setColorRampType(qgis_core.QgsColorRampShader.Interpolated)
+        diff = (self.layer_max - self.layer_min) / len(lyrcolors)
+        lyrlst = []
+        for cnt, lyrcolor in enumerate(lyrcolors):
+            lyrlst.append(qgis_core.QgsColorRampShader.ColorRampItem(self.layer_min + (cnt * diff), QtGui.QColor(lyrcolor[0], lyrcolor[1], lyrcolor[2])))
+        fcn.setColorRampItemList(lyrlst)
+        self.setRasterShaderFunction(fcn)
+        self.setMinimumValue(self.layer_min)
+        self.setMaximumValue(self.layer_max)
 
 
 class LayerManager:
@@ -748,6 +717,7 @@ class LayerManager:
         self.parent = parent
         self.layer_data_lookup = {}
         self.layer_type_lookup = {}
+        self.layer_settings_lookup = {}
         self.names_in_order = []
         self.shown_layers_index = []
 
@@ -763,8 +733,14 @@ class LayerManager:
                           self.layer_type_lookup[self.names_in_order[t]] == 'line']
         surf_lyr_names = [self.names_in_order[t] for t in self.shown_layers_index if
                           self.layer_type_lookup[self.names_in_order[t]] == 'surface']
+        genraster_lyr_names = [self.names_in_order[t] for t in self.shown_layers_index if
+                               self.layer_type_lookup[self.names_in_order[t]] == 'raster']
+        genvector_lyr_names = [self.names_in_order[t] for t in self.shown_layers_index if
+                               self.layer_type_lookup[self.names_in_order[t]] == 'vector']
+        mesh_lyr_names = [self.names_in_order[t] for t in self.shown_layers_index if
+                          self.layer_type_lookup[self.names_in_order[t]] == 'mesh']
         # always render surfaces on top of lines on top of background layers
-        lyr_names = surf_lyr_names + line_lyr_names + bground_lyr_names
+        lyr_names = mesh_lyr_names + genvector_lyr_names + genraster_lyr_names + surf_lyr_names + line_lyr_names + bground_lyr_names
         return [self.layer_data_lookup[lyr] for lyr in lyr_names]
 
     @property
@@ -798,6 +774,30 @@ class LayerManager:
         return self.return_layers_by_type('surface')
 
     @property
+    def raster_layers(self):
+        """
+        return the list of QgsMapLayer objects for all general raster layers
+        """
+
+        return self.return_layers_by_type('raster')
+
+    @property
+    def vector_layers(self):
+        """
+        return the list of QgsMapLayer objects for all general vector layers
+        """
+
+        return self.return_layers_by_type('vector')
+
+    @property
+    def mesh_layers(self):
+        """
+        return the list of QgsMapLayer objects for all mesh layers
+        """
+
+        return self.return_layers_by_type('mesh')
+
+    @property
     def background_layers(self):
         """
         return the list of QgsMapLayer objects for all background layers
@@ -828,6 +828,30 @@ class LayerManager:
         """
 
         return self.return_layer_names_by_type('background')
+
+    @property
+    def raster_layer_names(self):
+        """
+        return the list of layer names for all raster layers
+        """
+
+        return self.return_layer_names_by_type('raster')
+
+    @property
+    def vector_layer_names(self):
+        """
+        return the list of layer names for all vector layers
+        """
+
+        return self.return_layer_names_by_type('vector')
+
+    @property
+    def mesh_layer_names(self):
+        """
+        return the list of layer names for all mesh layers
+        """
+
+        return self.return_layer_names_by_type('mesh')
 
     def surface_layer_names_by_type(self, layertype: str):
         """
@@ -860,26 +884,40 @@ class LayerManager:
         list
             list of all qgis_core.QgsRasterLayer that match this layertype
         """
+
         return [self.layer_data_lookup[lname] for lname in self.surface_layer_names if re.findall(r'_{}_[0-9]*_[0-9]'.format(layertype), lname)]
 
-    def add_layer(self, layername: str, layerdata: Union[qgis_core.QgsRasterLayer, qgis_core.QgsVectorLayer], 
-                  layertype: str):
+    def add_layer(self, layername: str, bandname: str, providertype: str, color: QtGui.QColor,
+                  layertype: str, layerdata: Union[qgis_core.QgsRasterLayer, qgis_core.QgsVectorLayer],
+                  opacity: float, renderer):
         """
         Add new layer to the layer manager class.  We populate the lookups for data/type/name.
         
         Parameters
         ----------
         layername
-            name of the layer, generally a file path or vsimem path
+            name of the layer, generally a file path or vsimem path, ex: '/vsimem/tj_patch_test_710_20220624_002103_depth_1_8.0.tif'
+        bandname
+            layer name to use from the source data, ex: 'depth_1'
+        providertype
+            one of ['gdal', 'wms', 'ogr']
+        color
+            optional, only used for vector layers, will set the color of that layer to the provided, can just be None
+        layertype
+            one of line, background, surface, raster, vector, mesh
         layerdata
             the qgs layer object for that layer
-        layertype
-            one of line, background, surface
+        opacity
+            opacity as percentage from 0 to 1
+        renderer
+            qgis._core.QgsRasterRenderer object for the layer
         """
         
         if layername not in self.names_in_order:
             self.layer_data_lookup[layername] = layerdata
             self.layer_type_lookup[layername] = layertype
+            self.layer_settings_lookup[layername] = {'color': color, 'bandname': bandname, 'opacity': opacity,
+                                                     'providertype': providertype, 'renderer': renderer}
             self.names_in_order.append(layername)
         else:
             self.parent.print('Cant add layer {}, already in layer manager'.format(layername), logging.ERROR)
@@ -958,6 +996,7 @@ class LayerManager:
                     self.shown_layers_index[cnt] = self.shown_layers_index[cnt] - 1
             self.layer_data_lookup.pop(layername)
             self.layer_type_lookup.pop(layername)
+            self.layer_settings_lookup.pop(layername)
             self.names_in_order.remove(layername)
         else:
             self.parent.print('remove_layer: layer not loaded', logging.ERROR)
@@ -969,7 +1008,7 @@ class LayerManager:
         Parameters
         ----------
         search_type
-            one of line, background, surface
+            one of line, background, surface, raster, vector, mesh
 
         Returns
         -------
@@ -989,7 +1028,7 @@ class LayerManager:
         Parameters
         ----------
         search_type
-            one of line, background, surface
+            one of line, background, surface, raster, vector, mesh
 
         Returns
         -------
@@ -1001,6 +1040,56 @@ class LayerManager:
             if layertype == search_type:
                 lyrs.append(layername)
         return lyrs
+
+    def set_layer_renderer(self, layername: str, renderer=None, color=None, opacity=None):
+        """
+        Set the renderer properties of the layer, override the settings lookup as well so you can examine them later
+
+        Parameters
+        ----------
+        layername
+            name of the layer, generally a file path or vsimem path
+        renderer
+            optional, qgis renderer object if you want to override the existing
+        color
+            optional, only used for vector layers, will set the color of that layer to the provided
+        opacity
+            optional, transparency from 0 to 1
+
+        Returns
+        -------
+
+        """
+        if layername not in self.layer_data_lookup:
+            print(f'ERROR: {layername} not found in layer manager')
+            return
+        layerdata = self.layer_data_lookup[layername]
+        if renderer is None:
+            renderer = layerdata.renderer()
+        else:
+            layerdata.setRenderer(renderer)
+            renderer = layerdata.renderer()
+        if color is not None:
+            renderer.symbol().setColor(color)
+        else:
+            try:
+                renderer.symbol().getColor()
+            except:  # not a vector
+                color = None
+        if opacity is not None:
+            try:  # raster
+                renderer.setOpacity(opacity)
+            except:  # vector
+                layerdata.setOpacity(opacity)
+        else:
+            try:
+                opacity = renderer.opacity()
+            except:  # a vector layer
+                opacity = None
+        layerdata.triggerRepaint()
+        self.layer_settings_lookup[layername]['renderer'] = renderer
+        self.layer_settings_lookup[layername]['color'] = color
+        self.layer_settings_lookup[layername]['opacity'] = opacity
 
 
 class MapView(QtWidgets.QMainWindow):
@@ -1309,7 +1398,6 @@ class MapView(QtWidgets.QMainWindow):
             for feature in line_layer.getFeatures(request):
                 selected_line_names.append(line_layer.name())
         self.lines_select.emit(selected_line_names)
-        # self.box_select.emit(min_lat, max_lat, min_lon, max_lon)
 
     def _points_selected(self, polygon: np.ndarray, azimuth: float):
         """
@@ -1338,8 +1426,7 @@ class MapView(QtWidgets.QMainWindow):
         Set the default background layers, which are GSHHS shapefiles I've downloaded and included with Kluster
         """
 
-        for lname in self.layer_manager.background_layer_names:
-            self.remove_layer(lname)
+        self._init_none()
         background_dir = os.path.join(os.path.dirname(klusterdir), 'background')
         # order here is important, will build layers in the correct sequence to show on top of each other
         bground_layers = ['WDBII_border_L2.shp', 'WDBII_border_L1.shp', 'WDBII_river_L04.shp', 'WDBII_river_L03.shp',
@@ -1354,7 +1441,7 @@ class MapView(QtWidgets.QMainWindow):
             if os.path.exists(bpath):
                 lyr = self.add_layer(bpath, bname, 'ogr', bcolor)
                 if lyr:
-                    lyr.setOpacity(1 - self.layer_transparency)
+                    self.layer_manager.set_layer_renderer(bpath, opacity=1 - self.layer_transparency)
                 else:
                     self.print('QGIS Initialize: Unable to find background layer: {}'.format(bpath), logging.WARNING)
             else:
@@ -1367,14 +1454,13 @@ class MapView(QtWidgets.QMainWindow):
         if not self.vdatum_directory:
             self.print('Unable to find vdatum directory, please make sure you set the path in File - Settings'.format(self.vdatum_directory), logging.WARNING)
         else:
-            for lname in self.layer_manager.background_layer_names:
-                self.remove_layer(lname)
+            self._init_none()
             background_dir = os.path.join(os.path.dirname(klusterdir), 'background')
             bpath = os.path.join(background_dir, 'GSHHS_L1.shp')
             if os.path.exists(bpath):
                 lyr = self.add_layer(bpath, 'GSHHS_L1', 'ogr', QtGui.QColor.fromRgb(125, 100, 45, 150))
                 if lyr:
-                    lyr.setOpacity(1 - self.layer_transparency)
+                    self.layer_manager.set_layer_renderer(bpath, opacity=1 - self.layer_transparency)
                 else:
                     self.print('_init_vdatum_extents: Unable to find background layer: {}'.format(bpath), logging.WARNING)
             else:
@@ -1393,7 +1479,7 @@ class MapView(QtWidgets.QMainWindow):
                 if lyr:  # change default symbol to line from fill, that way we just get the outline
                     symb = qgis_core.QgsSimpleFillSymbolLayer.create({'color': QtGui.QColor(0, 0, 255, 120)})
                     lyr.renderer().symbol().changeSymbolLayer(0, symb)
-                    lyr.setOpacity(1 - self.layer_transparency)
+                    self.layer_manager.set_layer_renderer(kmlf, opacity=1 - self.layer_transparency)
                     # now hide all features that represent the extents of the kml file, so that we don't have a bunch
                     #  of rectangles obscuring the actual coverage features.
                     # also hide the masked out areas
@@ -1410,12 +1496,11 @@ class MapView(QtWidgets.QMainWindow):
         Set the background to the WMS openstreetmap service
         """
 
-        for lname in self.layer_manager.background_layer_names:
-            self.remove_layer(lname)
+        self._init_none()
         url_with_params = self.wms_openstreetmap_url()
         lyr = self.add_layer(url_with_params, 'OpenStreetMap', 'wms')
         if lyr:
-            lyr.renderer().setOpacity(1 - self.layer_transparency)
+            self.layer_manager.set_layer_renderer(url_with_params, opacity=1 - self.layer_transparency)
         else:
             self.print('_init_openstreetmap: Unable to find background layer: {}'.format(url_with_params), logging.ERROR)
 
@@ -1423,12 +1508,11 @@ class MapView(QtWidgets.QMainWindow):
         """
         Set the background to the google provied satellite imagery
         """
-        for lname in self.layer_manager.background_layer_names:
-            self.remove_layer(lname)
+        self._init_none()
         url_with_params = self.wms_satellite_url()
         lyr = self.add_layer(url_with_params, 'Satellite', 'wms')
         if lyr:
-            lyr.renderer().setOpacity(1 - self.layer_transparency)
+            self.layer_manager.set_layer_renderer(url_with_params, opacity=1 - self.layer_transparency)
         else:
             self.print('_init_satellite: Unable to find background layer: {}'.format(url_with_params), logging.ERROR)
 
@@ -1436,12 +1520,11 @@ class MapView(QtWidgets.QMainWindow):
         """
         Set the background to the NOAA RNC WMS service
         """
-        for lname in self.layer_manager.background_layer_names:
-            self.remove_layer(lname)
+        self._init_none()
         url_with_params = self.wms_noaa_rnc()
         lyr = self.add_layer(url_with_params, 'NOAA_RNC', 'wms')
         if lyr:
-            lyr.renderer().setOpacity(1 - self.layer_transparency)
+            self.layer_manager.set_layer_renderer(url_with_params, opacity=1 - self.layer_transparency)
         else:
             self.print('_init_noaa_rnc: Unable to find background layer: {}'.format(url_with_params), logging.ERROR)
 
@@ -1449,13 +1532,12 @@ class MapView(QtWidgets.QMainWindow):
         """
         Set the background to the NOAA ENC service
         """
-        for lname in self.layer_manager.background_layer_names:
-            self.remove_layer(lname)
+        self._init_none()
         urls = self.wms_noaa_enc()
         for cnt, url_with_params in enumerate(urls):
             lyr = self.add_layer(url_with_params, 'NOAA_ENC_{}'.format(cnt), 'wms')
             if lyr:
-                lyr.renderer().setOpacity(1 - self.layer_transparency)
+                self.layer_manager.set_layer_renderer(url_with_params, opacity=1 - self.layer_transparency)
             else:
                 self.print('_init_noaa_enc: Unable to find background layer: {}'.format(url_with_params), logging.ERROR)
 
@@ -1463,13 +1545,12 @@ class MapView(QtWidgets.QMainWindow):
         """
         Set the background to the NOAA Chart Display service
         """
-        for lname in self.layer_manager.background_layer_names:
-            self.remove_layer(lname)
+        self._init_none()
         urls = self.wms_noaa_chartdisplay()
         for cnt, url_with_params in enumerate(urls):
             lyr = self.add_layer(url_with_params, 'NOAA_CHARTDISPLAY_{}'.format(cnt), 'wms')
             if lyr:
-                lyr.renderer().setOpacity(1 - self.layer_transparency)
+                self.layer_manager.set_layer_renderer(url_with_params, opacity=1 - self.layer_transparency)
             else:
                 self.print('_init_noaa_chartdisplay: Unable to find background layer: {}'.format(url_with_params), logging.ERROR)
 
@@ -1477,12 +1558,11 @@ class MapView(QtWidgets.QMainWindow):
         """
         Set the background to the Gebco latest Grid Shaded Relief WMS
         """
-        for lname in self.layer_manager.background_layer_names:
-            self.remove_layer(lname)
+        self._init_none()
         url_with_params = self.wms_gebco()
         lyr = self.add_layer(url_with_params, 'GEBCO', 'wms')
         if lyr:
-            lyr.renderer().setOpacity(1 - self.layer_transparency)
+            self.layer_manager.set_layer_renderer(url_with_params, opacity=1 - self.layer_transparency)
         else:
             self.print('_init_gebco: Unable to find background layer: {}'.format(url_with_params), logging.ERROR)
 
@@ -1490,34 +1570,44 @@ class MapView(QtWidgets.QMainWindow):
         """
         Set the background to the Gebco latest Grid Shaded Relief WMS
         """
-        for lname in self.layer_manager.background_layer_names:
-            self.remove_layer(lname)
+        self._init_none()
         url_with_params = self.wms_emodnet()
         lyr = self.add_layer(url_with_params, 'EMODNET', 'wms')
         if lyr:
-            lyr.renderer().setOpacity(1 - self.layer_transparency)
+            self.layer_manager.set_layer_renderer(url_with_params, opacity=1 - self.layer_transparency)
         else:
             self.print('_init_emodnet: Unable to find background layer: {}'.format(url_with_params), logging.ERROR)
 
-    def _manager_add_layer(self, layername: str, layerdata: Union[qgis_core.QgsRasterLayer, qgis_core.QgsVectorLayer],
-                           layertype: str):
+    def _manager_add_layer(self, layerpath: str, bandname: str, providertype: str, color: QtGui.QColor,
+                           layertype: str, layerdata: Union[qgis_core.QgsRasterLayer, qgis_core.QgsVectorLayer],
+                           opacity: float, renderer):
         """
         Add the layer to the layer manager, set the layer to 'shown' in the layer manager, and add the layer to the
         shown layers in the QgsMapCanvas (see setLayers)
 
         Parameters
         ----------
-        layername
-            name of the layer, generally a file path or vsimem path
+        layerpath
+            name of the layer, generally a file path or vsimem path, ex: '/vsimem/tj_patch_test_710_20220624_002103_depth_1_8.0.tif'
+        bandname
+            layer name to use from the source data, ex: 'depth_1'
+        providertype
+            one of ['gdal', 'wms', 'ogr']
+        color
+            optional, only used for vector layers, will set the color of that layer to the provided, can just be None
+        layertype
+            one of line, background, surface, raster, vector, mesh
         layerdata
             the qgs layer object for that layer
-        layertype
-            one of line, background, surface
+        opacity
+            opacity as percentage from 0 to 1
+        renderer
+            qgis._core.QgsRasterRenderer object for the layer
         """
 
-        if layername not in self.layer_manager.layer_data_lookup:
-            self.layer_manager.add_layer(layername, layerdata, layertype)
-        self._manager_show_layer(layername)
+        if layerpath not in self.layer_manager.layer_data_lookup:
+            self.layer_manager.add_layer(layerpath, bandname, providertype, color, layertype, layerdata, opacity, renderer)
+        self._manager_show_layer(layerpath)
 
     def _manager_show_layer(self, layername: str):
         """
@@ -1653,7 +1743,7 @@ class MapView(QtWidgets.QMainWindow):
             self.print(f'Unable to enable layer "{self.layer_background}"', logging.ERROR)
 
         for lyr in self.layer_manager.surface_layers:
-            lyr.renderer().setOpacity(1 - self.surface_transparency)
+            self.layer_manager.set_layer_renderer(lyr.source(), opacity=1 - self.surface_transparency)
 
     def set_extent(self, max_lat: float, min_lat: float, max_lon: float, min_lon: float, buffer: bool = True):
         """
@@ -1777,13 +1867,10 @@ class MapView(QtWidgets.QMainWindow):
         self.debug_print(f'2dview Showing Line {line_name}', logging.INFO)
         source = self.build_line_source(line_name)
         showlyr = ogr_output_file_exists(source)
-        if showlyr:
+        if showlyr:  # line is added already but hidden, we need to reconfigure
             if color:
                 color = QtGui.QColor(color)
-                line_lyr = [lyr for lyr in self.layer_manager.line_layers if lyr.name() == line_name]
-                if line_lyr:
-                    line_lyr[0].renderer().symbol().setColor(color)
-                    line_lyr[0].triggerRepaint()
+                self.layer_manager.set_layer_renderer(source, color=color)
             self.show_layer(source)
         if refresh:
             self.layer_by_name(source).reload()
@@ -2038,13 +2125,12 @@ class MapView(QtWidgets.QMainWindow):
         self.debug_print(f'2dview add_layer: source={source} layername={layername} providertype={providertype} color={color}, layertype={layertype}', logging.INFO)
 
         if providertype in ['gdal', 'wms']:
-            lyr = self._add_raster_layer(source, layername, providertype)
-
+            lyr, opacity, renderer = self._add_raster_layer(source, layername, providertype)
         elif providertype in ['ogr']:
-            lyr = self._add_vector_layer(source, layername, providertype, color)
+            lyr, opacity, renderer = self._add_vector_layer(source, layername, providertype, color)
         else:
             raise NotImplementedError('Only currently supporting gdal and ogr formats, found {}'.format(providertype))
-        self._manager_add_layer(source, lyr, layertype)
+        self._manager_add_layer(source, layername, providertype, color, layertype, lyr, opacity, renderer)
         return lyr
 
     def _update_global_layer_minmax(self, layername: str):
@@ -2091,11 +2177,11 @@ class MapView(QtWidgets.QMainWindow):
             if layername == 'hillshade':
                 continue
             old_lyr = self.layer_manager.layer_data_lookup[lname]
-            if layername in invert_colormap_layernames:
-                shader = inv_raster_shader(minl, maxl)
-            else:
-                shader = raster_shader(minl, maxl)
-            old_lyr.renderer().setShader(shader)
+            # this would be ideal, but does not seem to work.  The triggerRepaint method does not acknowledge the change
+            # renderer.shader().setMinimumValue(minl)
+            # renderer.shader().setMaximumValue(maxl)
+            old_lyr.renderer().setShader(RasterShader(minl, maxl, old_lyr.renderer().shader().color_scheme))
+            self.layer_manager.set_layer_renderer(lname)  # no arguments, just to update the renderer we currently have cached
 
     def _create_raster_renderer(self, raster_layer: qgis_core.QgsRasterLayer, layername: str):
         """
@@ -2129,15 +2215,16 @@ class MapView(QtWidgets.QMainWindow):
         else:
             self.band_minmax[formatted_layername] = [minval, maxval]
         if formatted_layername in invert_colormap_layernames:
-            shader = inv_raster_shader
+            shadercolor = 'bluetored'
         else:
-            shader = raster_shader
+            shadercolor = 'redtoblue'
         if formatted_layername == 'hillshade':
             renderer = qgis_core.QgsHillshadeRenderer(raster_layer.dataProvider(), 1, 315, 45)
         else:
             renderer = qgis_core.QgsSingleBandPseudoColorRenderer(raster_layer.dataProvider(), 1,
-                                                                  shader(self.band_minmax[formatted_layername][0],
-                                                                         self.band_minmax[formatted_layername][1]))
+                                                                  RasterShader(self.band_minmax[formatted_layername][0],
+                                                                               self.band_minmax[formatted_layername][1],
+                                                                               shadercolor))
         return renderer, formatted_layername
 
     def _add_raster_layer(self, source: str, layername: str, providertype: str):
@@ -2159,20 +2246,30 @@ class MapView(QtWidgets.QMainWindow):
         Returns
         -------
         qgis_core.QgsRasterLayer
+            raster layer
+        float
+            opacity
+        qgis._core.QgsRasterRenderer
+            renderer object
         """
+
         rlayer = qgis_core.QgsRasterLayer(source, layername, providertype)
         if rlayer.error().message():
             self.print("{} Layer failed to load!".format(layername), logging.ERROR)
             self.print(rlayer.error().message(), logging.ERROR)
-            return
+            return None, None, None
         if providertype == 'gdal':
             renderer, formatted_layername = self._create_raster_renderer(rlayer, layername)
             rlayer.setRenderer(renderer)
-            rlayer.renderer().setOpacity(1 - self.surface_transparency)
+            opacity = 1 - self.surface_transparency
+            rlayer.renderer().setOpacity(opacity)
             self.update_layer_minmax(formatted_layername)
+        else:
+            opacity = None
+            renderer = None
         rlayer.setName(source)
         self.project.addMapLayer(rlayer, True)
-        return rlayer
+        return rlayer, opacity, renderer
 
     def _add_vector_layer(self, source: str, layername: str, providertype: str, color: QtGui.QColor = None):
         """
@@ -2199,14 +2296,17 @@ class MapView(QtWidgets.QMainWindow):
         if vlayer.error().message():
             self.print("{} Layer failed to load!".format(source), logging.ERROR)
             self.print(vlayer.error().message(), logging.ERROR)
-            return
+            return None, None, None
+        renderer = None
+        opacity = None
         if color:
             if vlayer.renderer():  # can only set color if there is data
                 vlayer.renderer().symbol().setColor(color)
+                renderer = vlayer.renderer()
             else:
                 self.print('{} unable to set color'.format(source), logging.ERROR)
         self.project.addMapLayer(vlayer, True)
-        return vlayer
+        return vlayer, opacity, renderer
 
     def hide_layer(self, source: str):
         """
@@ -2263,23 +2363,25 @@ class MapView(QtWidgets.QMainWindow):
         color
             string color identifier, ex: 'r' or 'red'
         """
-        color = QtGui.QColor(color)
-        lyrs = self.layer_manager.line_layers
-        for lyr in lyrs:
+
+        newcolor = QtGui.QColor(color)
+        lyrnames = self.layer_manager.line_layer_names
+        for lyrname in lyrnames:
+            lyr = self.layer_manager.layer_data_lookup[lyrname]
             if lyr.name() in line_names:
-                lyr.renderer().symbol().setColor(color)
-                lyr.triggerRepaint()
+                self.layer_manager.set_layer_renderer(lyrname, color=newcolor)
 
     def reset_line_colors(self):
         """
         Reset all lines back to the default color
         """
 
-        lyrs = self.layer_manager.line_layers
-        for lyr in lyrs:
+        lyrnames = self.layer_manager.line_layer_names
+        for lyrname in lyrnames:
+            lyr = self.layer_manager.layer_data_lookup[lyrname]
             if lyr.renderer().symbol().color().name() == '#ff0000':  # red
-                lyr.renderer().symbol().setColor(QtGui.QColor('blue'))
-                lyr.triggerRepaint()
+                newcolor = QtGui.QColor('blue')
+                self.layer_manager.set_layer_renderer(lyrname, color=newcolor)
 
     def set_extents_from_lines(self, subset_lines: list = None):
         """
@@ -2459,22 +2561,10 @@ class MapView(QtWidgets.QMainWindow):
                     newsrc = f'/vsimem/newsrc_{cnt}'
                     ds = gdal.Warp(newsrc, lyr.source(), format='GTiff', dstSRS=f"EPSG:{kluster_variables.qgis_epsg}")
                     newlyr = qgis_core.QgsRasterLayer(newsrc, '', 'gdal')
-                    # no way to copy the renderer (tried copyCommonProperties) have to rebuild
-                    renderer, formatted_layername = self._create_raster_renderer(lyr, lyr.name())
-                    newlyr.setRenderer(renderer)
-                    newlyr.renderer().setOpacity(1 - self.surface_transparency)
-                    if formatted_layername in self.force_band_minmax:
-                        minl, maxl = self.force_band_minmax[formatted_layername]
-                    elif formatted_layername in self.band_minmax:
-                        minl, maxl = self.band_minmax[formatted_layername]
-                    else:
-                        minl, maxl = None, None
-                    if minl is not None:
-                        if formatted_layername in invert_colormap_layernames:
-                            shader = inv_raster_shader(minl, maxl)
-                        else:
-                            shader = raster_shader(minl, maxl)
-                        newlyr.renderer().setShader(shader)
+                    current_settings = self.layer_manager.layer_settings_lookup[lyr.source()]
+                    if current_settings['renderer'] is not None:
+                        newlyr.setRenderer(current_settings['renderer'])
+                    formatted_layername = [aln for aln in acceptedlayernames if lyr.name().find(aln) > -1][0]
                     ds = None
                     self.project.addMapLayer(newlyr, True)
                     drop_layers.append([newlyr, formatted_layername])
