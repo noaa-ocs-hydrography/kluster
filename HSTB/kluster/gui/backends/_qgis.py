@@ -11,7 +11,7 @@ if not qgis_enabled:
 from HSTB.kluster.gui.backends._qt import qgis_core, qgis_gui
 from HSTB.kluster import __file__ as klusterdir
 
-from HSTB.kluster.gdal_helpers import gdal_raster_create, VectorLayer, gdal_output_file_exists, ogr_output_file_exists
+from HSTB.kluster.gdal_helpers import gdal_raster_create, VectorLayer, gdal_output_file_exists, ogr_output_file_exists, get_raster_bands
 from HSTB.kluster import kluster_variables
 
 from HSTB.shared import RegistryHelpers
@@ -2007,6 +2007,35 @@ class MapView(QtWidgets.QMainWindow):
                 self._update_global_layer_minmax(lyrname)
                 self.update_layer_minmax(lyrname)
 
+    def add_raster(self, raster_source: str, layername: str):
+        """
+        Add a new raster from the given source
+
+        Parameters
+        ----------
+        raster_source
+            filepath to the raster
+        """
+
+        self.debug_print(f'2dview add_raster {raster_source}, {layername}', logging.INFO)
+        self.add_layer(raster_source, layername, 'gdal', layertype='raster')
+
+    def show_raster(self, combname: str):
+        """
+        Show the raster layer that corresponds to the given names, if it was hidden
+
+        Parameters
+        ----------
+        combname
+            surface path + '____' + layername
+        """
+
+        found_raster = [rlyr for rlyr in self.layer_manager.raster_layers if os.path.normpath(rlyr.GetDescription()) == os.path.normpath(combname)]
+        if found_raster:
+            self.show_layer(combname)
+            return True
+        return False
+
     def remove_all_surfaces(self):
         """
         Remove all surfaces from the display and layer manager
@@ -2115,7 +2144,7 @@ class MapView(QtWidgets.QMainWindow):
         color
             optional, only used for vector layers, will set the color of that layer to the provided
         layertype
-            corresponding to the layer_manager categories: background, line, surface.  Used to sort the layer draw order.
+            corresponding to the layer_manager categories: line, background, surface, raster, vector, mesh.  Used to sort the layer draw order.
 
         Returns
         -------
@@ -2193,7 +2222,7 @@ class MapView(QtWidgets.QMainWindow):
         raster_layer
             qgis raster layer
         layername
-                layer name to use from the source data
+            layer name to use from the source data
 
         Returns
         -------
@@ -2208,7 +2237,10 @@ class MapView(QtWidgets.QMainWindow):
         maxval = stats.maximumValue
         # surface layers can be added in chunks, i.e. 'depth_1', 'depth_2', etc., but they should all use the same
         #  extents and global stats.  Figure out which category the layer fits into here.
-        formatted_layername = [aln for aln in acceptedlayernames if layername.find(aln) > -1][0]
+        try:
+            formatted_layername = [aln for aln in acceptedlayernames if layername.find(aln) > -1][0]
+        except IndexError:
+            formatted_layername = layername
         if formatted_layername in self.band_minmax:
             self.band_minmax[formatted_layername][0] = min(minval, self.band_minmax[formatted_layername][0])
             self.band_minmax[formatted_layername][1] = max(maxval, self.band_minmax[formatted_layername][1])
@@ -2259,11 +2291,15 @@ class MapView(QtWidgets.QMainWindow):
             self.print(rlayer.error().message(), logging.ERROR)
             return None, None, None
         if providertype == 'gdal':
-            renderer, formatted_layername = self._create_raster_renderer(rlayer, layername)
-            rlayer.setRenderer(renderer)
-            opacity = 1 - self.surface_transparency
-            rlayer.renderer().setOpacity(opacity)
-            self.update_layer_minmax(formatted_layername)
+            try:
+                renderer, formatted_layername = self._create_raster_renderer(rlayer, layername)
+                rlayer.setRenderer(renderer)
+                opacity = 1 - self.surface_transparency
+                rlayer.renderer().setOpacity(opacity)
+                self.update_layer_minmax(formatted_layername)
+            except:
+                opacity = 1
+                renderer = rlayer.renderer()
         else:
             opacity = None
             renderer = None

@@ -48,6 +48,18 @@ class Kluster2dview(MapView):
     def remove_surface(self, surfname, resolution):
         super().remove_surface(surfname, resolution)
 
+    def add_raster(self, surfname, lyrname):
+        super().add_raster(surfname, lyrname)
+
+    def hide_raster(self, surfname, lyrname):
+        super().hide_raster(surfname, lyrname)
+
+    def show_raster(self, surfname: str, lyrname: str):
+        return super().show_raster(surfname, lyrname)
+
+    def remove_raster(self, surfname, resolution):
+        super().remove_raster(surfname, resolution)
+
     def change_line_colors(self, line_names, color):
         super().change_line_colors(line_names, color)
 

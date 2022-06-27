@@ -215,6 +215,21 @@ def gdal_raster_create(output_raster: str, data: list, geo_transform: list, crs:
     return dataset
 
 
+def get_raster_bands(raster_source: str):
+    ds = gdal.Open(raster_source)
+    if ds is None:
+        return None
+    rbands = []
+    for bandcount in range(ds.RasterCount):
+        bandcount += 1  # gdal is 1 indexed
+        band = ds.GetRasterBand(bandcount)
+        lyrname = band.GetDescription()
+        rbands.append(lyrname)
+        band = None
+    ds = None
+    return rbands
+
+
 class VectorLayer:
     """
     Convert numpy arrays and metadata to OGR geometry to then generate OGR files.  Includes methods for the common

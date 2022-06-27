@@ -187,6 +187,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.project_tree.fqpr_selected.connect(self.tree_fqpr_selected)
         self.project_tree.surface_selected.connect(self.tree_surf_selected)
         self.project_tree.surface_layer_selected.connect(self.tree_surface_layer_selected)
+        self.project_tree.raster_layer_selected.connect(self.tree_raster_layer_selected)
         self.project_tree.all_lines_selected.connect(self.tree_all_lines_selected)
         self.project_tree.close_fqpr.connect(self.close_fqpr)
         self.project_tree.close_surface.connect(self.close_surface)
@@ -530,6 +531,7 @@ class KlusterMain(QtWidgets.QMainWindow):
 
         potential_surface_paths = []
         potential_fqpr_paths = []
+        potential_raster_paths = []
         for f in fil:
             f = os.path.normpath(f)
             try:
@@ -547,15 +549,14 @@ class KlusterMain(QtWidgets.QMainWindow):
                     potential_surface_paths.append(f)
                 elif os.path.isdir(f):
                     potential_fqpr_paths.append(f)
-        self.refresh_project(new_fqprs)
+                elif os.path.splitext(f)[1] in kluster_variables.supported_raster:
+                    potential_raster_paths.append(f)
+        self.refresh_project(new_fqprs, new_raster=potential_raster_paths)
         self.open_project_thread.populate(force_add_fqprs=potential_fqpr_paths, force_add_surfaces=potential_surface_paths)
         self.open_project_thread.start()
 
-    def refresh_project(self, fqpr=None):
-        if fqpr:
-            self.redraw(new_fqprs=fqpr)
-        else:
-            self.redraw()
+    def refresh_project(self, fqpr=None, new_raster=None):
+        self.redraw(new_fqprs=fqpr, add_raster=new_raster)
 
     def redraw_all_lines(self):
         for linelyr in self.project.buffered_fqpr_navigation:
@@ -564,28 +565,12 @@ class KlusterMain(QtWidgets.QMainWindow):
         fqprs = [fqpr for fqpr in self.project.fqpr_instances.keys()]
         self.refresh_project(fqprs)
 
-    def redraw(self, new_fqprs=None, add_surface=None, remove_surface=None, surface_layer_name=''):
-        """
-        After adding new projects or surfaces, refresh the widgets to display the new data
-
-        Parameters
-        ----------
-        new_fqprs: list, list of str file paths to converted fqpr instances
-        add_surface: optional, str, path to new surface to add
-        remove_surface: optional, str, path to existing surface to hide
-        surface_layer_name: optional, str, name of the layer of the surface to add or hide
-        """
-
-        self.project_tree.refresh_project(proj=self.project)
+    def _redraw_remove_surface(self, remove_surface, surface_layer_name):
         if remove_surface is not None:
             surf_object = self.project.surface_instances[remove_surface]
             if surface_layer_name == 'tiles':
-                if surface_layer_name:
-                    self.debug_print("Hiding {} tiles layer".format(remove_surface), logging.INFO)
-                    self.two_d.hide_line(remove_surface)
-                else:
-                    self.debug_print("Removing {} tiles layer".format(remove_surface), logging.INFO)
-                    self.two_d.remove_line(remove_surface)
+                self.debug_print("Hiding {} tiles layer".format(remove_surface), logging.INFO)
+                self.two_d.hide_line(remove_surface)
             else:
                 for resolution in surf_object.resolutions:
                     if surface_layer_name:
@@ -594,6 +579,8 @@ class KlusterMain(QtWidgets.QMainWindow):
                     else:
                         self.debug_print("Removing all {} {} layers".format(remove_surface, resolution), logging.INFO)
                         self.two_d.remove_surface(remove_surface, resolution)
+
+    def _redraw_add_surface(self, add_surface, surface_layer_name):
         if add_surface is not None and surface_layer_name:
             if self.surface_update_thread.isRunning():
                 self.print('Surface is currently updating, please wait until after that process is complete.', logging.WARNING)
@@ -620,6 +607,34 @@ class KlusterMain(QtWidgets.QMainWindow):
                 self.print('Drawing {} - {}, resolution {}'.format(add_surface, surface_layer_name, needs_drawing), logging.INFO)
                 self.draw_surface_thread.populate(add_surface, surf_object, needs_drawing, surface_layer_name)
                 self.draw_surface_thread.start()
+
+    def _redraw_add_raster(self, add_raster, surface_layer_name):
+        if add_raster is not None and surface_layer_name:
+            self.debug_print("Trying to show {} {} layer".format(add_raster, surface_layer_name), logging.INFO)
+            combname = add_raster + '____' + surface_layer_name
+            # shown = self.two_d.show_surface(combname)
+            # if not shown:
+            self.debug_print("show didnt work, must need to add the raster instead, loading from disk...", logging.INFO)
+            self.two_d.add_raster(add_raster, surface_layer_name)
+
+    def redraw(self, new_fqprs=None, add_surface=None, remove_surface=None, surface_layer_name='',
+               add_raster=None, remove_raster=None):
+        """
+        After adding new projects or surfaces, refresh the widgets to display the new data
+
+        Parameters
+        ----------
+        new_fqprs: list, list of str file paths to converted fqpr instances
+        add_surface: optional, str, path to new surface to add
+        remove_surface: optional, str, path to existing surface to hide
+        surface_layer_name: optional, str, name of the layer of the surface to add or hide
+        add_raster: optional, list of raster paths to add
+        """
+
+        self.project_tree.refresh_project(proj=self.project, add_raster=add_raster)
+        self._redraw_add_raster(add_raster, surface_layer_name)
+        self._redraw_remove_surface(remove_surface, surface_layer_name)
+        self._redraw_add_surface(add_surface, surface_layer_name)
 
         if new_fqprs is not None and new_fqprs:
             self.draw_navigation_thread.populate(self.project, new_fqprs)
@@ -2319,6 +2334,12 @@ class KlusterMain(QtWidgets.QMainWindow):
             self.redraw(add_surface=surfpath, surface_layer_name=layername)
         else:
             self.redraw(remove_surface=surfpath, surface_layer_name=layername)
+
+    def tree_raster_layer_selected(self, rasterpath, layername, checked):
+        if checked:
+            self.redraw(add_raster=rasterpath, surface_layer_name=layername)
+        else:
+            self.redraw(remove_raster=rasterpath, surface_layer_name=layername)
 
     def tree_all_lines_selected(self, is_selected):
         """

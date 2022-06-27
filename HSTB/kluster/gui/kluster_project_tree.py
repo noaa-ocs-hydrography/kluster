@@ -3,6 +3,7 @@ import sys, os
 
 from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal
 from HSTB.kluster.fqpr_project import FqprProject
+from HSTB.kluster.gdal_helpers import get_raster_bands
 
 
 class KlusterProjectTree(QtWidgets.QTreeView):
@@ -19,6 +20,7 @@ class KlusterProjectTree(QtWidgets.QTreeView):
     lines_selected = Signal(object)
     all_lines_selected = Signal(bool)
     surface_layer_selected = Signal(str, str, bool)
+    raster_layer_selected = Signal(str, str, bool)
     close_fqpr = Signal(str)
     close_surface = Signal(str)
     manage_fqpr = Signal(str)
@@ -54,7 +56,7 @@ class KlusterProjectTree(QtWidgets.QTreeView):
         self.right_click_menu_surfaces = None
         self.setup_menu()
 
-        self.categories = ['Project', 'Vessel File', 'Converted', 'Surfaces']
+        self.categories = ['Project', 'Vessel File', 'Converted', 'Surfaces', 'Raster', 'Vector', 'Mesh']
         self.tree_data = {}
         self.shown_layers = []
 
@@ -125,19 +127,19 @@ class KlusterProjectTree(QtWidgets.QTreeView):
         manage_fqpr.triggered.connect(self.manage_data_event)
 
         self.right_click_menu_converted.addAction(manage_fqpr)
+        self.right_click_menu_converted.addAction(reprocess)
+        self.right_click_menu_converted.addSeparator()
         self.right_click_menu_converted.addAction(load_in_console)
         self.right_click_menu_converted.addAction(show_explorer_action)
         self.right_click_menu_converted.addAction(zoom_extents)
-        self.right_click_menu_converted.addSeparator()
-        self.right_click_menu_converted.addAction(reprocess)
         self.right_click_menu_converted.addAction(close_dat)
 
         self.right_click_menu_surfaces.addAction(manage_fqpr)
+        self.right_click_menu_surfaces.addAction(update_surface)
+        self.right_click_menu_surfaces.addSeparator()
         self.right_click_menu_surfaces.addAction(load_in_console)
         self.right_click_menu_surfaces.addAction(show_explorer_action)
         self.right_click_menu_surfaces.addAction(zoom_extents)
-        self.right_click_menu_surfaces.addSeparator()
-        self.right_click_menu_surfaces.addAction(update_surface)
         self.right_click_menu_surfaces.addAction(close_dat)
 
     def show_context_menu(self):
@@ -310,6 +312,7 @@ class KlusterProjectTree(QtWidgets.QTreeView):
         for fq_proj in line_data:
             if fq_proj not in current_fq_proj:
                 proj_child = QtGui.QStandardItem(fq_proj)
+                proj_child.setToolTip(fq_proj)
                 parent.appendRow(proj_child)
                 for fq_line in line_data[fq_proj]:
                     line_child = QtGui.QStandardItem(fq_line)
@@ -347,6 +350,7 @@ class KlusterProjectTree(QtWidgets.QTreeView):
             layer_names = surf_data[surf].return_layer_names()
             if surf not in current_surfs:
                 surf_child = QtGui.QStandardItem(surf)
+                surf_child.setToolTip(surf)
                 parent.appendRow(surf_child)
                 for lyr in surf_data[surf].return_layer_names():
                     lyr_child = QtGui.QStandardItem(lyr)
@@ -357,7 +361,6 @@ class KlusterProjectTree(QtWidgets.QTreeView):
                         lyr_child.setCheckable(True)
                         surf_child.appendRow([lyr_child])
                 try:  # add the ability to draw the grid outline, new in bathygrid 1.1.2
-                    surf_data[surf].get_tile_boundaries
                     lyr_child = QtGui.QStandardItem('tiles')
                     lyr_child.setCheckable(True)
                     surf_child.appendRow([lyr_child])
@@ -439,11 +442,13 @@ class KlusterProjectTree(QtWidgets.QTreeView):
     def _setup_project(self, parent, proj_directory):
         if len(self.tree_data['Project']) == 1:
             proj_child = QtGui.QStandardItem(proj_directory)
+            proj_child.setToolTip(proj_directory)
             parent.appendRow(proj_child)
             self.tree_data['Project'].append(proj_directory)
         else:
             parent.removeRow(0)
             proj_child = QtGui.QStandardItem(proj_directory)
+            proj_child.setToolTip(proj_directory)
             parent.appendRow(proj_child)
             self.tree_data['Project'][1] = proj_directory
 
@@ -451,16 +456,41 @@ class KlusterProjectTree(QtWidgets.QTreeView):
         if len(self.tree_data['Vessel File']) == 1:
             if vessel_path:
                 proj_child = QtGui.QStandardItem(vessel_path)
+                proj_child.setToolTip(vessel_path)
                 parent.appendRow(proj_child)
                 self.tree_data['Vessel File'].append(vessel_path)
         else:
             parent.removeRow(0)
             if vessel_path:
                 proj_child = QtGui.QStandardItem(vessel_path)
+                proj_child.setToolTip(vessel_path)
                 parent.appendRow(proj_child)
                 self.tree_data['Vessel File'][1] = vessel_path
 
-    def refresh_project(self, proj):
+    def _add_new_raster(self, parent: QtGui.QStandardItem, raster_path: str):
+        """
+        Add from a generic raster file, like a geotiff
+
+        Parameters
+        ----------
+        parent: PySide2.QtGui.QStandardItem, the item that represents the 'Converted' entry in the tree.  All fqpr
+                projects go underneath.
+        raster_path: full filepath to the raster
+        """
+
+        current_rasterdata = self.tree_data['Raster'][1:]
+        rbands = get_raster_bands(raster_path)
+        if raster_path not in current_rasterdata and rbands:
+            proj_child = QtGui.QStandardItem(raster_path)
+            proj_child.setToolTip(raster_path)
+            parent.appendRow(proj_child)
+            for rband in rbands:
+                band_child = QtGui.QStandardItem(rband)
+                band_child.setCheckable(True)
+                proj_child.appendRow([band_child])
+            self.tree_data['Raster'].append(raster_path)
+
+    def refresh_project(self, proj, add_raster=None):
         """
         Loading from a FqprProject will update the tree, triggered on dragging in a converted data folder
 
@@ -485,6 +515,11 @@ class KlusterProjectTree(QtWidgets.QTreeView):
             elif c == 'Vessel File':
                 if proj.vessel_file:
                     self._setup_vessel_file(parent, proj.vessel_file)
+            elif c == 'Raster' and add_raster:
+                if isinstance(add_raster, str):
+                    add_raster = [add_raster]
+                for arast in add_raster:
+                    self._add_new_raster(parent, arast)
 
     def select_multibeam_lines(self, line_names: list, clear_existing_selection: bool = True):
         parent = self.tree_data['Converted'][0]
@@ -524,18 +559,11 @@ class KlusterProjectTree(QtWidgets.QTreeView):
             if top_lvl_name == 'Converted':
                 self.lines_selected.emit(self.return_selected_lines())
             elif top_lvl_name == 'Surfaces':
-                lname = mid_lvl_name + selected_name
                 ischecked = self.model.itemFromIndex(index).checkState()
-                # if ischecked and lname in self.shown_layers:  # don't do anything, it is already shown
-                #     pass
-                # elif not ischecked and lname not in self.shown_layers:  # don't do anything, it is already hidden
-                #     pass
-                # else:
-                # if ischecked:
-                #     self.shown_layers.append(lname)
-                # else:
-                #     self.shown_layers.remove(lname)
                 self.surface_layer_selected.emit(mid_lvl_name, selected_name, ischecked)
+            elif top_lvl_name == 'Raster':
+                ischecked = self.model.itemFromIndex(index).checkState()
+                self.raster_layer_selected.emit(mid_lvl_name, selected_name, ischecked)
         elif mid_lvl_name in self.categories:  # this is a sub item, like a converted fqpr path
             if mid_lvl_name == 'Converted':
                 self.fqpr_selected.emit(selected_name)

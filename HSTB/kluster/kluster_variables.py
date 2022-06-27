@@ -54,6 +54,7 @@ multibeam_uses_ifremer = ['.kmall', '.s7k']
 supported_ppnav = ['.out', '.sbet', '.smrmsg']
 supported_ppnav_log = ['.txt', '.log']
 supported_sv = ['.svp']
+supported_raster = ['.adf', '.kap', '.gif', '.img', '.jpg', '.png', '.tif', '.tiff', '.dem', '.gtx']
 
 vertical_references = ['waterline', 'ellipse', 'NOAA MLLW', 'NOAA MHW']  # all vertical reference options
 vdatum_vertical_references = ['NOAA MLLW', 'NOAA MHW']  # vertical reference options based in vdatum
