@@ -17,7 +17,7 @@ from HSTB.kluster import kluster_variables
 from HSTB.shared import RegistryHelpers
 
 
-acceptedlayernames = ['hillshade', 'depth', 'density', 'vertical_uncertainty', 'horizontal_uncertainty', 'total_uncertainty',
+acceptedlayernames = ['hillshade', 'depth', 'elevation', 'density', 'vertical_uncertainty', 'horizontal_uncertainty', 'total_uncertainty',
                       'hypothesis_count', 'hypothesis_ratio']
 invert_colormap_layernames = ['vertical_uncertainty', 'horizontal_uncertainty', 'total_uncertainty', 'hypothesis_count',
                               'hypothesis_ratio']
@@ -257,36 +257,43 @@ class QueryTool(qgis_gui.QgsMapTool):
         point = self.parent.canvas.getCoordinateTransform().toMapCoordinates(x, y)
         text = 'Latitude: {}, Longitude: {}'.format(round(point.y(), 7), round(point.x(), 7))
 
-        first_layer = True
+        datum_layers = []
         for name, layer in self.parent.project.mapLayers().items():
-            if layer.type() == qgis_core.QgsMapLayerType.RasterLayer:
-                if first_layer:
-                    try:
-                        datum = layer.crs().description()
-                    except:
-                        datum = 'unknown'
+            if layer.type() in [qgis_core.QgsMapLayerType.RasterLayer, qgis_core.QgsMapLayerType.MeshLayer]:
+                try:
+                    datum = layer.crs().description()
+                except:
+                    datum = 'unknown'
+                if datum not in datum_layers and datum:
                     try:
                         layerpt = self.parent.map_point_to_layer_point(layer, point)
                         layerpt = (layerpt.y(), layerpt.x())
                     except:
                         layerpt = ('unknown', 'unknown')
                     text += f'\n({datum}) Northing: {layerpt[0]} Easting: {layerpt[1]}'
+                    datum_layers.append(datum)
                 if layer.dataProvider().name() != 'wms':
                     if layer.name() in self.parent.layer_manager.shown_layer_names:
                         try:
                             layer_point = self.parent.map_point_to_layer_point(layer, point)
-                            ident = layer.dataProvider().identify(layer_point, qgis_core.QgsRaster.IdentifyFormatValue)
-                            if ident:
-                                lname = layer.name()
-                                if lname[0:8] == '/vsimem/':
-                                    lname = lname[8:]
-                                bands_under_cursor = ident.results()
-                                band_exists = False
-                                for ky, val in bands_under_cursor.items():
-                                    band_name, band_value = layer.bandName(ky), round(val, 3)
-                                    if not band_exists and band_name:
-                                        text += '\n\n{}'.format(lname)
-                                    text += '\n{}: {}'.format(band_name, band_value)
+                            if layer.type() == qgis_core.QgsMapLayerType.RasterLayer:
+                                ident = layer.dataProvider().identify(layer_point, qgis_core.QgsRaster.IdentifyFormatValue)
+                                if ident:
+                                    lname = layer.name()
+                                    if lname[0:8] == '/vsimem/':
+                                        lname = lname[8:]
+                                    bands_under_cursor = ident.results()
+                                    band_exists = False
+                                    for ky, val in bands_under_cursor.items():
+                                        band_name, band_value = layer.bandName(ky), round(val, 3)
+                                        if not band_exists and band_name:
+                                            text += '\n\n{}'.format(lname)
+                                        text += '\n{}: {}'.format(band_name, band_value)
+                            else:  # mesh layers don't have the identify method, you have to use datasetValue
+                                mval = layer.datasetValue(qgis_core.QgsMeshDatasetIndex(0, 0), point).scalar()
+                                lname = layer.name().split('____')[1]
+                                text += '\n\n{}'.format(lname)
+                                text += '\n{}: {}'.format(lname, mval)
                         except:  # point is outside of the transform
                             pass
         return text
@@ -2007,6 +2014,17 @@ class MapView(QtWidgets.QMainWindow):
                 self._update_global_layer_minmax(lyrname)
                 self.update_layer_minmax(lyrname)
 
+    def _generate_combined_source(self, file_source: str, layername: str):
+        if os.path.splitext(file_source)[1] in ['.000', '.s57']:
+            # a quirk of the s57 driver, you need to pipe in the layername in the source
+            return file_source + '|layername=' + layername + '____' + layername
+        else:
+            return file_source + '____' + layername
+
+    def _parse_combined_source(self, combined_source: str):
+        src, layername = combined_source.split('____')
+        return src, layername
+
     def add_raster(self, raster_source: str, layername: str):
         """
         Add a new raster from the given source
@@ -2015,26 +2033,198 @@ class MapView(QtWidgets.QMainWindow):
         ----------
         raster_source
             filepath to the raster
+        layername
+            band name, ex: depth
         """
 
         self.debug_print(f'2dview add_raster {raster_source}, {layername}', logging.INFO)
         self.add_layer(raster_source, layername, 'gdal', layertype='raster')
 
-    def show_raster(self, combname: str):
+    def show_raster(self, raster_source: str, layername: str):
         """
         Show the raster layer that corresponds to the given names, if it was hidden
 
         Parameters
         ----------
-        combname
-            surface path + '____' + layername
+        raster_source
+            filepath to the raster
+        layername
+            band name, ex: depth
         """
 
-        found_raster = [rlyr for rlyr in self.layer_manager.raster_layers if os.path.normpath(rlyr.GetDescription()) == os.path.normpath(combname)]
+        combined_src = self._generate_combined_source(raster_source, layername)
+        found_raster = [rlyr for rlyr in self.layer_manager.raster_layers if os.path.normpath(rlyr.name()) == os.path.normpath(combined_src)]
         if found_raster:
-            self.show_layer(combname)
+            self.show_layer(combined_src)
             return True
         return False
+
+    def hide_raster(self, raster_source: str, layername: str):
+        """
+        Hide the raster layer that corresponds to the given names
+
+        Parameters
+        ----------
+        raster_source
+            filepath to the raster
+        layername
+            band name, ex: depth
+        """
+        combined_src = self._generate_combined_source(raster_source, layername)
+        self.hide_layer(combined_src)
+
+    def remove_raster(self, raster_source: str, layername: str = None):
+        """
+        Remove a raster from the mapcanvas/layer_manager
+
+        Parameters
+        ----------
+        raster_source
+            filepath to the raster
+        layername
+            band name, ex: depth
+        """
+        if layername:
+            combined_src = self._generate_combined_source(raster_source, layername)
+            self.remove_layer(combined_src)
+        else:
+            for rlyr in self.layer_manager.raster_layers:
+                if rlyr.name().find(raster_source) > -1:
+                    self.remove_layer(rlyr.name())
+
+    def add_vector(self, vector_source: str, layername: str):
+        """
+        Add a new vector from the given source
+
+        Parameters
+        ----------
+        vector_source
+            filepath to the vector
+        layername
+            feature layer
+        """
+
+        self.debug_print(f'2dview add_vector {vector_source}, {layername}', logging.INFO)
+        self.add_layer(vector_source, layername, 'ogr', color=QtGui.QColor('blue'), layertype='vector')
+
+    def show_vector(self, vector_source: str, layername: str):
+        """
+        Show the vector layer that corresponds to the given names, if it was hidden
+
+        Parameters
+        ----------
+        vector_source
+            filepath to the vector
+        layername
+            feature layer
+        """
+
+        combined_src = self._generate_combined_source(vector_source, layername)
+        found_vector = [rlyr for rlyr in self.layer_manager.vector_layers if os.path.normpath(rlyr.name()) == os.path.normpath(combined_src)]
+        if found_vector:
+            self.show_layer(combined_src)
+            return True
+        return False
+
+    def hide_vector(self, vector_source: str, layername: str):
+        """
+        Hide the vector layer that corresponds to the given names
+
+        Parameters
+        ----------
+        vector_source
+            filepath to the vector
+        layername
+            band name, ex: depth
+        """
+        combined_src = self._generate_combined_source(vector_source, layername)
+        self.hide_layer(combined_src)
+
+    def remove_vector(self, vector_source: str, layername: str = None):
+        """
+        Remove a vector from the mapcanvas/layer_manager
+
+        Parameters
+        ----------
+        vector_source
+            filepath to the vector
+        layername
+            band name, ex: depth
+        """
+        if layername:
+            combined_src = self._generate_combined_source(vector_source, layername)
+            self.remove_layer(combined_src)
+        else:
+            for rlyr in self.layer_manager.vector_layers:
+                if rlyr.name().find(vector_source) > -1:
+                    self.remove_layer(rlyr.name())
+
+    def add_mesh(self, mesh_source: str, layername: str):
+        """
+        Add a new mesh from the given source
+
+        Parameters
+        ----------
+        mesh_source
+            filepath to the mesh
+        layername
+            feature layer
+        """
+
+        self.debug_print(f'2dview add_mesh {mesh_source}, {layername}', logging.INFO)
+        self.add_layer(mesh_source, layername, 'mdal', layertype='mesh')
+
+    def show_mesh(self, mesh_source: str, layername: str):
+        """
+        Show the mesh layer that corresponds to the given names, if it was hidden
+
+        Parameters
+        ----------
+        mesh_source
+            filepath to the mesh
+        layername
+            feature layer
+        """
+
+        combined_src = self._generate_combined_source(mesh_source, layername)
+        found_mesh = [rlyr for rlyr in self.layer_manager.mesh_layers if os.path.normpath(rlyr.name()) == os.path.normpath(combined_src)]
+        if found_mesh:
+            self.show_layer(combined_src)
+            return True
+        return False
+
+    def hide_mesh(self, mesh_source: str, layername: str):
+        """
+        Hide the mesh layer that corresponds to the given names
+
+        Parameters
+        ----------
+        mesh_source
+            filepath to the mesh
+        layername
+            band name, ex: depth
+        """
+        combined_src = self._generate_combined_source(mesh_source, layername)
+        self.hide_layer(combined_src)
+
+    def remove_mesh(self, mesh_source: str, layername: str = None):
+        """
+        Remove a mesh from the mapcanvas/layer_manager
+
+        Parameters
+        ----------
+        mesh_source
+            filepath to the mesh
+        layername
+            band name, ex: depth
+        """
+        if layername:
+            combined_src = self._generate_combined_source(mesh_source, layername)
+            self.remove_layer(combined_src)
+        else:
+            for rlyr in self.layer_manager.mesh_layers:
+                if rlyr.name().find(mesh_source) > -1:
+                    self.remove_layer(rlyr.name())
 
     def remove_all_surfaces(self):
         """
@@ -2154,9 +2344,11 @@ class MapView(QtWidgets.QMainWindow):
         self.debug_print(f'2dview add_layer: source={source} layername={layername} providertype={providertype} color={color}, layertype={layertype}', logging.INFO)
 
         if providertype in ['gdal', 'wms']:
-            lyr, opacity, renderer = self._add_raster_layer(source, layername, providertype)
+            source, lyr, opacity, renderer = self._add_raster_layer(source, layername, providertype, layertype)
         elif providertype in ['ogr']:
-            lyr, opacity, renderer = self._add_vector_layer(source, layername, providertype, color)
+            source, lyr, opacity, renderer = self._add_vector_layer(source, layername, providertype, color, layertype)
+        elif providertype in ['mdal']:
+            source, lyr, opacity, renderer = self._add_mesh_layer(source, layername, providertype, layertype)
         else:
             raise NotImplementedError('Only currently supporting gdal and ogr formats, found {}'.format(providertype))
         self._manager_add_layer(source, layername, providertype, color, layertype, lyr, opacity, renderer)
@@ -2238,7 +2430,8 @@ class MapView(QtWidgets.QMainWindow):
         # surface layers can be added in chunks, i.e. 'depth_1', 'depth_2', etc., but they should all use the same
         #  extents and global stats.  Figure out which category the layer fits into here.
         try:
-            formatted_layername = [aln for aln in acceptedlayernames if layername.find(aln) > -1][0]
+            fixed_layername = layername.lower().replace(' ', '_')
+            formatted_layername = [aln for aln in acceptedlayernames if fixed_layername.find(aln) > -1][0]
         except IndexError:
             formatted_layername = layername
         if formatted_layername in self.band_minmax:
@@ -2259,7 +2452,7 @@ class MapView(QtWidgets.QMainWindow):
                                                                                shadercolor))
         return renderer, formatted_layername
 
-    def _add_raster_layer(self, source: str, layername: str, providertype: str):
+    def _add_raster_layer(self, source: str, layername: str, providertype: str, layertype: str):
         """
         Build the QgsRasterLayer for the provided source/layer.  We do some specific things based on surface layer
         names, for instance the 'vertical_uncertainty' layer gets an inverted shader.
@@ -2274,9 +2467,13 @@ class MapView(QtWidgets.QMainWindow):
             layer name to use from the source data
         providertype
             one of ['gdal', 'wms']
+        layertype
+            corresponding to the layer_manager categories: line, background, surface, raster, vector, mesh.
 
         Returns
         -------
+        str
+            source str, modified for the raster driver to include layer name
         qgis_core.QgsRasterLayer
             raster layer
         float
@@ -2289,7 +2486,7 @@ class MapView(QtWidgets.QMainWindow):
         if rlayer.error().message():
             self.print("{} Layer failed to load!".format(layername), logging.ERROR)
             self.print(rlayer.error().message(), logging.ERROR)
-            return None, None, None
+            return None, None, None, None
         if providertype == 'gdal':
             try:
                 renderer, formatted_layername = self._create_raster_renderer(rlayer, layername)
@@ -2298,16 +2495,22 @@ class MapView(QtWidgets.QMainWindow):
                 rlayer.renderer().setOpacity(opacity)
                 self.update_layer_minmax(formatted_layername)
             except:
+                self.print(f'2dview: Unable to generate custom renderer for {source}', logging.WARNING)
                 opacity = 1
                 renderer = rlayer.renderer()
         else:
             opacity = None
             renderer = None
+
+        if layertype == 'raster':
+            # we encode the source and layername together to find it easier later for raster, surface data uses the virtual raster
+            #    which has this already in the source, ex: '/vsimem/tj_patch_test_2040_20220624_002634_depth_1_8.0.tif'
+            source = self._generate_combined_source(source, layername)
         rlayer.setName(source)
         self.project.addMapLayer(rlayer, True)
-        return rlayer, opacity, renderer
+        return source, rlayer, opacity, renderer
 
-    def _add_vector_layer(self, source: str, layername: str, providertype: str, color: QtGui.QColor = None):
+    def _add_vector_layer(self, source: str, layername: str, providertype: str, color: QtGui.QColor = None, layertype: str = 'line'):
         """
         Build the QgsVectorLayer from the source/layername.
 
@@ -2323,16 +2526,22 @@ class MapView(QtWidgets.QMainWindow):
             one of ['ogr']
         color
             optional, only used for vector layers, will set the color of that layer to the provided
+        layertype
+            corresponding to the layer_manager categories: line, background, surface, raster, vector, mesh.
 
         Returns
         -------
         qgis_core.QgsVectorLayer
         """
+
+        if os.path.splitext(source)[1] in ['.000', '.s57']:
+            # a quirk of the s57 driver, you need to pipe in the layername in the source
+            source = source + '|layername=' + layername
         vlayer = qgis_core.QgsVectorLayer(source, layername, providertype)
         if vlayer.error().message():
             self.print("{} Layer failed to load!".format(source), logging.ERROR)
             self.print(vlayer.error().message(), logging.ERROR)
-            return None, None, None
+            return None, None, None, None
         renderer = None
         opacity = None
         if color:
@@ -2341,8 +2550,55 @@ class MapView(QtWidgets.QMainWindow):
                 renderer = vlayer.renderer()
             else:
                 self.print('{} unable to set color'.format(source), logging.ERROR)
+        if layertype == 'vector':
+            # we encode the source and layername together to find it easier later for vector, lines use the virtual raster
+            #    which has this already in the source
+            source = self._generate_combined_source(source, layername)
+            vlayer.setName(source)
         self.project.addMapLayer(vlayer, True)
-        return vlayer, opacity, renderer
+        return source, vlayer, opacity, renderer
+
+    def _add_mesh_layer(self, source: str, layername: str, providertype: str, layertype: str):
+        """
+        Build the QgsMeshLayer for the provided source/layer.
+
+        source needs to be either a path to a mdal supported file, a vsimem path, or an URI for wms data
+
+        Parameters
+        ----------
+        source
+            source str, generally a file path to the object/file
+        layername
+            layer name to use from the source data
+        providertype
+            one of ['mdal']
+        layertype
+            corresponding to the layer_manager categories: line, background, surface, raster, vector, mesh.
+
+        Returns
+        -------
+        str
+            source str, modified for the raster driver to include layer name
+        qgis_core.QgsMeshLayer
+            mesh layer
+        float
+            opacity
+        qgis._core.QgsMeshRenderer
+            renderer object
+        """
+
+        mlayer = qgis_core.QgsMeshLayer(source, layername, providertype)
+        if mlayer.error().message():
+            self.print("{} Layer failed to load!".format(layername), logging.ERROR)
+            self.print(mlayer.error().message(), logging.ERROR)
+            return None, None, None, None
+        opacity = None
+        renderer = None
+
+        source = self._generate_combined_source(source, layername)
+        mlayer.setName(source)
+        self.project.addMapLayer(mlayer, True)
+        return source, mlayer, opacity, renderer
 
     def hide_layer(self, source: str):
         """
@@ -2463,6 +2719,87 @@ class MapView(QtWidgets.QMainWindow):
         self.debug_print(f'2dview set_extents_from_surfaces: surfaces={lyrs} extent={total_extent}', logging.INFO)
         self.canvas.zoomToFeatureExtent(total_extent)
 
+    def set_extents_from_rasters(self, subset_raster: str = None, layername: str = None):
+        if subset_raster:
+            lyr = None
+            if layername:
+                combname = self._generate_combined_source(subset_raster, layername)
+                lyr = self.layer_by_name(combname, silent=True)
+            else:
+                for rlyr in self.layer_manager.raster_layers:
+                    if rlyr.name().find(subset_raster) > -1:
+                        lyr = rlyr
+                        break
+            if not lyr:
+                self.print(f'No layer loaded for {subset_raster}', logging.ERROR)
+                return
+            lyrs = [lyr]
+        else:
+            lyrs = self.layer_manager.raster_layers
+        total_extent = None
+        for lyr in lyrs:
+            extent = self.layer_extents_to_map_extents(lyr)
+            if total_extent is None:
+                total_extent = extent
+            else:
+                total_extent.combineExtentWith(extent)
+        self.debug_print(f'2dview set_extents_from_rasters: rasters={lyrs} extent={total_extent}', logging.INFO)
+        self.canvas.zoomToFeatureExtent(total_extent)
+
+    def set_extents_from_vectors(self, subset_vector: str = None, layername: str = None):
+        if subset_vector:
+            lyr = None
+            if layername:
+                combname = self._generate_combined_source(subset_vector, layername)
+                lyr = self.layer_by_name(combname, silent=True)
+            else:
+                for rlyr in self.layer_manager.vector_layers:
+                    if rlyr.name().find(subset_vector) > -1:
+                        lyr = rlyr
+                        break
+            if not lyr:
+                self.print(f'No layer loaded for {subset_vector}', logging.ERROR)
+                return
+            lyrs = [lyr]
+        else:
+            lyrs = self.layer_manager.vector_layers
+        total_extent = None
+        for lyr in lyrs:
+            extent = self.layer_extents_to_map_extents(lyr)
+            if total_extent is None:
+                total_extent = extent
+            else:
+                total_extent.combineExtentWith(extent)
+        self.debug_print(f'2dview set_extents_from_vectors: vectors={lyrs} extent={total_extent}', logging.INFO)
+        self.canvas.zoomToFeatureExtent(total_extent)
+
+    def set_extents_from_meshes(self, subset_mesh: str = None, layername: str = None):
+        if subset_mesh:
+            lyr = None
+            if layername:
+                combname = self._generate_combined_source(subset_mesh, layername)
+                lyr = self.layer_by_name(combname, silent=True)
+            else:
+                for rlyr in self.layer_manager.mesh_layers:
+                    if rlyr.name().find(subset_mesh) > -1:
+                        lyr = rlyr
+                        break
+            if not lyr:
+                self.print(f'No layer loaded for {subset_mesh}', logging.ERROR)
+                return
+            lyrs = [lyr]
+        else:
+            lyrs = self.layer_manager.mesh_layers
+        total_extent = None
+        for lyr in lyrs:
+            extent = self.layer_extents_to_map_extents(lyr)
+            if total_extent is None:
+                total_extent = extent
+            else:
+                total_extent.combineExtentWith(extent)
+        self.debug_print(f'2dview set_extents_from_meshes: meshs={lyrs} extent={total_extent}', logging.INFO)
+        self.canvas.zoomToFeatureExtent(total_extent)
+
     def refresh_screen(self):
         """
         Refresh the screen by redrawing the canvas
@@ -2482,6 +2819,7 @@ class MapView(QtWidgets.QMainWindow):
         layer = self.layer_by_name(layername)
         if layer:
             extents = self.layer_extents_to_map_extents(layer)
+            self.debug_print(f'2dview zoom_to_layer: layer={layername} extent={extents}', logging.INFO)
             self.canvas.zoomToFeatureExtent(extents)
 
     def clear(self):

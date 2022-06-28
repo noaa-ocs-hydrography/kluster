@@ -126,7 +126,12 @@ def ogr_output_file_exists(pth: str):
         True if the file exists
     """
 
-    openfil = ogr.Open(pth)
+    ogr.UseExceptions()
+    try:
+        openfil = ogr.Open(pth)
+    except RuntimeError:
+        openfil = None
+    ogr.DontUseExceptions()
     if openfil is None:
         return False
     openfil = None
@@ -228,6 +233,20 @@ def get_raster_bands(raster_source: str):
         band = None
     ds = None
     return rbands
+
+
+def get_vector_layers(vector_source: str):
+    ds = ogr.Open(vector_source)
+    if ds is None:
+        return None
+    vlayers = []
+    for lyrcount in range(ds.GetLayerCount()):
+        lyr = ds.GetLayer(lyrcount)
+        lyrname = lyr.GetDescription()
+        vlayers.append(lyrname)
+        lyr = None
+    ds = None
+    return vlayers
 
 
 class VectorLayer:

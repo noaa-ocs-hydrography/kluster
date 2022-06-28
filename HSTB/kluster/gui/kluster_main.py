@@ -33,6 +33,7 @@ from HSTB.kluster.fqpr_project import FqprProject
 from HSTB.kluster.fqpr_intelligence import FqprIntel
 from HSTB.kluster.fqpr_vessel import convert_from_fqpr_xyzrph, convert_from_vessel_xyzrph, compare_dict_data
 from HSTB.kluster.dask_helpers import dask_close_localcluster
+from HSTB.kluster.gdal_helpers import ogr_output_file_exists, gdal_output_file_exists
 from HSTB.kluster.logging_conf import return_logger, add_file_handler, logfile_matches, logger_remove_file_handlers
 from HSTB.kluster import __version__ as kluster_version
 from HSTB.kluster import __file__ as kluster_init_file
@@ -188,9 +189,14 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.project_tree.surface_selected.connect(self.tree_surf_selected)
         self.project_tree.surface_layer_selected.connect(self.tree_surface_layer_selected)
         self.project_tree.raster_layer_selected.connect(self.tree_raster_layer_selected)
+        self.project_tree.vector_layer_selected.connect(self.tree_vector_layer_selected)
+        self.project_tree.mesh_layer_selected.connect(self.tree_mesh_layer_selected)
         self.project_tree.all_lines_selected.connect(self.tree_all_lines_selected)
         self.project_tree.close_fqpr.connect(self.close_fqpr)
         self.project_tree.close_surface.connect(self.close_surface)
+        self.project_tree.close_raster.connect(self.close_raster)
+        self.project_tree.close_vector.connect(self.close_vector)
+        self.project_tree.close_mesh.connect(self.close_mesh)
         self.project_tree.manage_fqpr.connect(self.manage_fqpr)
         self.project_tree.manage_surface.connect(self.manage_surface)
         self.project_tree.load_console_fqpr.connect(self.load_console_fqpr)
@@ -198,6 +204,9 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.project_tree.show_explorer.connect(self.show_in_explorer)
         self.project_tree.zoom_extents_fqpr.connect(self.zoom_extents_fqpr)
         self.project_tree.zoom_extents_surface.connect(self.zoom_extents_surface)
+        self.project_tree.zoom_extents_raster.connect(self.zoom_extents_raster)
+        self.project_tree.zoom_extents_vector.connect(self.zoom_extents_vector)
+        self.project_tree.zoom_extents_mesh.connect(self.zoom_extents_mesh)
         self.project_tree.reprocess_instance.connect(self.reprocess_fqpr)
         self.project_tree.update_surface.connect(self.update_surface_selected)
 
@@ -532,6 +541,9 @@ class KlusterMain(QtWidgets.QMainWindow):
         potential_surface_paths = []
         potential_fqpr_paths = []
         potential_raster_paths = []
+        potential_vector_paths = []
+        potential_mesh_paths = []
+
         for f in fil:
             f = os.path.normpath(f)
             try:
@@ -544,19 +556,25 @@ class KlusterMain(QtWidgets.QMainWindow):
                 self.debug_print("user added a data file when there was no project, so we loaded or created a new one", logging.INFO)
                 new_fqprs.extend([fqpr for fqpr in self.project.fqpr_instances.keys() if fqpr not in new_fqprs])
             if new_data is None:
+                fextension = os.path.splitext(f)[1]
                 if any([os.path.exists(os.path.join(f, gname)) for gname in allowable_grid_root_names]):
                     self.debug_print("Got surfaces that match allowed grid root names: {}".format(allowable_grid_root_names), logging.INFO)
                     potential_surface_paths.append(f)
                 elif os.path.isdir(f):
                     potential_fqpr_paths.append(f)
-                elif os.path.splitext(f)[1] in kluster_variables.supported_raster:
-                    potential_raster_paths.append(f)
-        self.refresh_project(new_fqprs, new_raster=potential_raster_paths)
+                else:
+                    if gdal_output_file_exists(f):
+                        potential_raster_paths.append(f)
+                    elif ogr_output_file_exists(f):
+                        potential_vector_paths.append(f)
+                    elif fextension in kluster_variables.supported_mesh:
+                        potential_mesh_paths.append(f)
+        self.refresh_project(new_fqprs, new_raster=potential_raster_paths, new_vector=potential_vector_paths, new_mesh=potential_mesh_paths)
         self.open_project_thread.populate(force_add_fqprs=potential_fqpr_paths, force_add_surfaces=potential_surface_paths)
         self.open_project_thread.start()
 
-    def refresh_project(self, fqpr=None, new_raster=None):
-        self.redraw(new_fqprs=fqpr, add_raster=new_raster)
+    def refresh_project(self, fqpr=None, new_raster=None, new_vector=None, new_mesh=None):
+        self.redraw(new_fqprs=fqpr, add_raster=new_raster, add_vector=new_vector, add_mesh=new_mesh)
 
     def redraw_all_lines(self):
         for linelyr in self.project.buffered_fqpr_navigation:
@@ -608,17 +626,62 @@ class KlusterMain(QtWidgets.QMainWindow):
                 self.draw_surface_thread.populate(add_surface, surf_object, needs_drawing, surface_layer_name)
                 self.draw_surface_thread.start()
 
-    def _redraw_add_raster(self, add_raster, surface_layer_name):
-        if add_raster is not None and surface_layer_name:
-            self.debug_print("Trying to show {} {} layer".format(add_raster, surface_layer_name), logging.INFO)
-            combname = add_raster + '____' + surface_layer_name
-            # shown = self.two_d.show_surface(combname)
-            # if not shown:
-            self.debug_print("show didnt work, must need to add the raster instead, loading from disk...", logging.INFO)
-            self.two_d.add_raster(add_raster, surface_layer_name)
+    def _redraw_add_raster(self, add_raster, layer_name):
+        if add_raster is not None and layer_name:
+            self.debug_print("Trying to show {} {} layer".format(add_raster, layer_name), logging.INFO)
+            shown = self.two_d.show_raster(add_raster, layer_name)
+            if not shown:
+                self.debug_print("show didnt work, must need to add the raster instead, loading from disk...", logging.INFO)
+                self.two_d.add_raster(add_raster, layer_name)
+            self.two_d.set_extents_from_rasters(add_raster, layer_name)
+
+    def _redraw_remove_raster(self, remove_raster, layer_name):
+        if remove_raster is not None:
+            if layer_name:
+                self.debug_print("Hiding {} {} layer".format(remove_raster, layer_name), logging.INFO)
+                self.two_d.hide_raster(remove_raster, layer_name)
+            else:
+                self.debug_print("Removing all {} layers".format(remove_raster), logging.INFO)
+                self.two_d.remove_raster(remove_raster, layer_name)
+
+    def _redraw_add_vector(self, add_vector, layer_name):
+        if add_vector is not None and layer_name:
+            self.debug_print("Trying to show {} {} layer".format(add_vector, layer_name), logging.INFO)
+            shown = self.two_d.show_vector(add_vector, layer_name)
+            if not shown:
+                self.debug_print("show didnt work, must need to add the vector instead, loading from disk...", logging.INFO)
+                self.two_d.add_vector(add_vector, layer_name)
+            self.two_d.set_extents_from_vectors(add_vector, layer_name)
+
+    def _redraw_remove_vector(self, remove_vector, layer_name):
+        if remove_vector is not None:
+            if layer_name:
+                self.debug_print("Hiding {} {} layer".format(remove_vector, layer_name), logging.INFO)
+                self.two_d.hide_vector(remove_vector, layer_name)
+            else:
+                self.debug_print("Removing all {} layers".format(remove_vector), logging.INFO)
+                self.two_d.remove_vector(remove_vector, layer_name)
+
+    def _redraw_add_mesh(self, add_mesh, layer_name):
+        if add_mesh is not None and layer_name:
+            self.debug_print("Trying to show {} {} layer".format(add_mesh, layer_name), logging.INFO)
+            shown = self.two_d.show_mesh(add_mesh, layer_name)
+            if not shown:
+                self.debug_print("show didnt work, must need to add the mesh instead, loading from disk...", logging.INFO)
+                self.two_d.add_mesh(add_mesh, layer_name)
+            self.two_d.set_extents_from_meshes(add_mesh, layer_name)
+
+    def _redraw_remove_mesh(self, remove_mesh, layer_name):
+        if remove_mesh is not None:
+            if layer_name:
+                self.debug_print("Hiding {} {} layer".format(remove_mesh, layer_name), logging.INFO)
+                self.two_d.hide_mesh(remove_mesh, layer_name)
+            else:
+                self.debug_print("Removing all {} layers".format(remove_mesh), logging.INFO)
+                self.two_d.remove_mesh(remove_mesh, layer_name)
 
     def redraw(self, new_fqprs=None, add_surface=None, remove_surface=None, surface_layer_name='',
-               add_raster=None, remove_raster=None):
+               add_raster=None, remove_raster=None, add_vector=None, remove_vector=None, add_mesh=None, remove_mesh=None):
         """
         After adding new projects or surfaces, refresh the widgets to display the new data
 
@@ -629,12 +692,22 @@ class KlusterMain(QtWidgets.QMainWindow):
         remove_surface: optional, str, path to existing surface to hide
         surface_layer_name: optional, str, name of the layer of the surface to add or hide
         add_raster: optional, list of raster paths to add
+        remove_raster: optional, str, path to existing raster to hide
+        add_vector: optional, list of vector paths to add
+        remove_vector: optional, str, path to existing vector to hide
+        add_mesh: optional, list of mesh paths to add
+        remove_mesh: optional, str, path to existing mesh to hide
         """
 
-        self.project_tree.refresh_project(proj=self.project, add_raster=add_raster)
-        self._redraw_add_raster(add_raster, surface_layer_name)
-        self._redraw_remove_surface(remove_surface, surface_layer_name)
+        self.project_tree.refresh_project(proj=self.project, add_raster=add_raster, add_vector=add_vector, add_mesh=add_mesh)
         self._redraw_add_surface(add_surface, surface_layer_name)
+        self._redraw_remove_surface(remove_surface, surface_layer_name)
+        self._redraw_add_raster(add_raster, surface_layer_name)
+        self._redraw_remove_raster(remove_raster, surface_layer_name)
+        self._redraw_add_vector(add_vector, surface_layer_name)
+        self._redraw_remove_vector(remove_vector, surface_layer_name)
+        self._redraw_add_mesh(add_mesh, surface_layer_name)
+        self._redraw_remove_mesh(remove_mesh, surface_layer_name)
 
         if new_fqprs is not None and new_fqprs:
             self.draw_navigation_thread.populate(self.project, new_fqprs)
@@ -730,7 +803,11 @@ class KlusterMain(QtWidgets.QMainWindow):
         pth
             path to the grid folder
         """
-        absolute_path = self.project.absolute_path_from_relative(pth)
+        if not os.path.exists(pth):
+            absolute_path = self.project.absolute_path_from_relative(pth)
+        else:
+            # this must be an auxiliary file, like a geotiff or a s57.  Show the containing folder
+            absolute_path = os.path.dirname(pth)
         os.startfile(absolute_path)
 
     def zoom_extents_fqpr(self, pth: str):
@@ -759,6 +836,39 @@ class KlusterMain(QtWidgets.QMainWindow):
         if pth in self.project.surface_instances:
             self.two_d.set_extents_from_surfaces(subset_surf=pth,
                                                  resolution=self.project.surface_instances[pth].resolutions[0])
+
+    def zoom_extents_raster(self, pth: str):
+        """
+        Right click on raster and zoom to the extents of that layer
+
+        Parameters
+        ----------
+        pth
+            path to the converted data/surface
+        """
+        self.two_d.set_extents_from_rasters(pth)
+
+    def zoom_extents_vector(self, pth: str):
+        """
+        Right click on vector and zoom to the extents of that layer
+
+        Parameters
+        ----------
+        pth
+            path to the converted data/surface
+        """
+        self.two_d.set_extents_from_vectors(pth)
+
+    def zoom_extents_mesh(self, pth: str):
+        """
+        Right click on mesh and zoom to the extents of that layer
+
+        Parameters
+        ----------
+        pth
+            path to the converted data/surface
+        """
+        self.two_d.set_extents_from_meshes(pth)
 
     def _action_process(self, is_auto):
         if is_auto:
@@ -828,6 +938,18 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.two_d.remove_line(pth)  # also remove the tiles layer if that was loaded
         self.project.remove_surface(pth, relative_path=True)
         self.project_tree.refresh_project(self.project)
+
+    def close_raster(self, pth: str):
+        self.two_d.remove_raster(pth)
+        self.project_tree.refresh_project(self.project, remove_raster=pth)
+
+    def close_vector(self, pth: str):
+        self.two_d.remove_vector(pth)
+        self.project_tree.refresh_project(self.project, remove_vector=pth)
+
+    def close_mesh(self, pth: str):
+        self.two_d.remove_mesh(pth)
+        self.project_tree.refresh_project(self.project, remove_mesh=pth)
 
     def no_threads_running(self):
         """
@@ -2340,6 +2462,18 @@ class KlusterMain(QtWidgets.QMainWindow):
             self.redraw(add_raster=rasterpath, surface_layer_name=layername)
         else:
             self.redraw(remove_raster=rasterpath, surface_layer_name=layername)
+
+    def tree_vector_layer_selected(self, vectorpath, layername, checked):
+        if checked:
+            self.redraw(add_vector=vectorpath, surface_layer_name=layername)
+        else:
+            self.redraw(remove_vector=vectorpath, surface_layer_name=layername)
+
+    def tree_mesh_layer_selected(self, meshpath, layername, checked):
+        if checked:
+            self.redraw(add_mesh=meshpath, surface_layer_name=layername)
+        else:
+            self.redraw(remove_mesh=meshpath, surface_layer_name=layername)
 
     def tree_all_lines_selected(self, is_selected):
         """
