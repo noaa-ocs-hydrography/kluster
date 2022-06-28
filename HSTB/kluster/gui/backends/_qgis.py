@@ -2938,6 +2938,8 @@ class MapView(QtWidgets.QMainWindow):
                     current_settings = self.layer_manager.layer_settings_lookup[lyr.source()]
                     if current_settings['renderer'] is not None:
                         newlyr.setRenderer(current_settings['renderer'])
+                    if lyr.renderer() is not None:
+                        newlyr.setRenderer(lyr.renderer())
                     formatted_layername = [aln for aln in acceptedlayernames if lyr.name().find(aln) > -1][0]
                     ds = None
                     self.project.addMapLayer(newlyr, True)
