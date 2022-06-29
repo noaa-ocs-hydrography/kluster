@@ -33,6 +33,7 @@ class KlusterProjectTree(QtWidgets.QTreeView):
     load_console_fqpr = Signal(str)
     load_console_surface = Signal(str)
     show_explorer = Signal(str)
+    show_properties = Signal(str, str)
     zoom_extents_fqpr = Signal(str)
     zoom_extents_surface = Signal(str)
     zoom_extents_raster = Signal(str)
@@ -139,6 +140,8 @@ class KlusterProjectTree(QtWidgets.QTreeView):
         update_surface.triggered.connect(self.update_surface_event)
         manage_fqpr = QtWidgets.QAction('Manage', self)
         manage_fqpr.triggered.connect(self.manage_data_event)
+        properties_action = QtWidgets.QAction('Properties', self)
+        properties_action.triggered.connect(self.properties_event)
 
         self.right_click_menu_converted.addAction(manage_fqpr)
         self.right_click_menu_converted.addAction(reprocess)
@@ -150,20 +153,27 @@ class KlusterProjectTree(QtWidgets.QTreeView):
 
         self.right_click_menu_surfaces.addAction(manage_fqpr)
         self.right_click_menu_surfaces.addAction(update_surface)
+        self.right_click_menu_surfaces.addAction(properties_action)
         self.right_click_menu_surfaces.addSeparator()
         self.right_click_menu_surfaces.addAction(load_in_console)
         self.right_click_menu_surfaces.addAction(show_explorer_action)
         self.right_click_menu_surfaces.addAction(zoom_extents)
         self.right_click_menu_surfaces.addAction(close_dat)
 
+        self.right_click_menu_raster.addAction(properties_action)
+        self.right_click_menu_raster.addSeparator()
         self.right_click_menu_raster.addAction(show_explorer_action)
         self.right_click_menu_raster.addAction(zoom_extents)
         self.right_click_menu_raster.addAction(close_dat)
 
+        self.right_click_menu_vector.addAction(properties_action)
+        self.right_click_menu_vector.addSeparator()
         self.right_click_menu_vector.addAction(show_explorer_action)
         self.right_click_menu_vector.addAction(zoom_extents)
         self.right_click_menu_vector.addAction(close_dat)
 
+        self.right_click_menu_mesh.addAction(properties_action)
+        self.right_click_menu_mesh.addSeparator()
         self.right_click_menu_mesh.addAction(show_explorer_action)
         self.right_click_menu_mesh.addAction(zoom_extents)
         self.right_click_menu_mesh.addAction(close_dat)
@@ -299,6 +309,22 @@ class KlusterProjectTree(QtWidgets.QTreeView):
             self.manage_fqpr.emit(sel_data)
         elif mid_lvl_name == 'Surfaces':
             self.manage_surface.emit(sel_data)
+
+    def properties_event(self, e):
+        """
+        We want the ability for the user to right click a layer and edit the display properties of that layer
+
+        Parameters
+        ----------
+        e
+            QEvent on menu button click
+        """
+
+        index = self.currentIndex()
+        mid_lvl_name = index.parent().data()
+        sel_data = index.data()
+
+        self.show_properties.emit(mid_lvl_name, sel_data)
 
     def close_item_event(self, e):
         """

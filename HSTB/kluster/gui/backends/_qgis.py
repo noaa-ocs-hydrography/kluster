@@ -894,7 +894,7 @@ class LayerManager:
 
         return [self.layer_data_lookup[lname] for lname in self.surface_layer_names if re.findall(r'_{}_[0-9]*_[0-9]'.format(layertype), lname)]
 
-    def add_layer(self, layername: str, bandname: str, providertype: str, color: QtGui.QColor,
+    def add_layer(self, layername: str, bandname: str, file_source: str, providertype: str, color: QtGui.QColor,
                   layertype: str, layerdata: Union[qgis_core.QgsRasterLayer, qgis_core.QgsVectorLayer],
                   opacity: float, renderer):
         """
@@ -906,6 +906,8 @@ class LayerManager:
             name of the layer, generally a file path or vsimem path, ex: '/vsimem/tj_patch_test_710_20220624_002103_depth_1_8.0.tif'
         bandname
             layer name to use from the source data, ex: 'depth_1'
+        file_source
+            the file path to the object/file, will be the same as source for external file based layers
         providertype
             one of ['gdal', 'wms', 'ogr']
         color
@@ -924,7 +926,8 @@ class LayerManager:
             self.layer_data_lookup[layername] = layerdata
             self.layer_type_lookup[layername] = layertype
             self.layer_settings_lookup[layername] = {'color': color, 'bandname': bandname, 'opacity': opacity,
-                                                     'providertype': providertype, 'renderer': renderer}
+                                                     'providertype': providertype, 'renderer': renderer,
+                                                     'file_source': file_source}
             self.names_in_order.append(layername)
         else:
             self.parent.print('Cant add layer {}, already in layer manager'.format(layername), logging.ERROR)
@@ -1097,6 +1100,58 @@ class LayerManager:
         self.layer_settings_lookup[layername]['renderer'] = renderer
         self.layer_settings_lookup[layername]['color'] = color
         self.layer_settings_lookup[layername]['opacity'] = opacity
+
+    def layer_data_from_path(self, source_type: str, source_path: str):
+        """
+        There can be multiple layers from one path, different raster bands and vector layers.  Use this method to query
+        the layer manager and pull layer data by band/layer and metadata.  We use this to feed the layer properties
+        dialog.
+
+        Parameters
+        ----------
+        source_type
+            one of line, background, surface, raster, vector, mesh
+        source_path
+            path to the source file on disk
+
+        Returns
+        -------
+        list
+            list of unique band names across layers from this source.  If a layer is composed of multiple tiles, 'depth_1', 'depth_2',
+            this list will only contain 'depth'
+        list
+            list of QgsLayer objects the same length as the band names.  If a layer is composed of multiple tiles, will be
+            the first layer for that band
+        list
+            either None if not a 'surface' type, or a list of all resolutions for all layers associated with this
+            source path.  May not be the same length as the other lists.
+
+        """
+
+        bands = []
+        lyrdata = []
+        resolutions = []
+        matching_layer_names = [lname for lname in self.layer_settings_lookup.keys() if self.layer_settings_lookup[lname]['file_source'] == source_path]
+        if matching_layer_names:
+            for lname in matching_layer_names:
+                bandname, provider = self.layer_settings_lookup[lname]['bandname'], self.layer_settings_lookup[lname]['providertype']
+                if source_type == 'surface':
+                    if provider == 'gdal':
+                        bandsegments = bandname.split('_')
+                        if len(bandsegments) > 1:
+                            bandname = bandname.rstrip(bandsegments[-1]).rstrip('_')
+                        resolution = self.layer_data_lookup[lname].rasterUnitsPerPixelX()
+                        if resolution not in resolutions:
+                            resolutions.append(resolution)
+                    else:
+                        bandname = 'tiles'
+                if bandname not in bands:
+                    bands.append(bandname)
+                    lyrdata.append(self.layer_data_lookup[lname])
+        if not resolutions:
+            resolutions = None
+
+        return bands, lyrdata, resolutions
 
 
 class MapView(QtWidgets.QMainWindow):
@@ -1446,7 +1501,7 @@ class MapView(QtWidgets.QMainWindow):
         for blayer, bcolor, bname in zip(bground_layers, bground_colors, bground_name):
             bpath = os.path.join(background_dir, blayer)
             if os.path.exists(bpath):
-                lyr = self.add_layer(bpath, bname, 'ogr', bcolor)
+                lyr = self.add_layer(bpath, bname, bpath, 'ogr', bcolor)
                 if lyr:
                     self.layer_manager.set_layer_renderer(bpath, opacity=1 - self.layer_transparency)
                 else:
@@ -1465,7 +1520,7 @@ class MapView(QtWidgets.QMainWindow):
             background_dir = os.path.join(os.path.dirname(klusterdir), 'background')
             bpath = os.path.join(background_dir, 'GSHHS_L1.shp')
             if os.path.exists(bpath):
-                lyr = self.add_layer(bpath, 'GSHHS_L1', 'ogr', QtGui.QColor.fromRgb(125, 100, 45, 150))
+                lyr = self.add_layer(bpath, 'GSHHS_L1', bpath, 'ogr', QtGui.QColor.fromRgb(125, 100, 45, 150))
                 if lyr:
                     self.layer_manager.set_layer_renderer(bpath, opacity=1 - self.layer_transparency)
                 else:
@@ -1482,7 +1537,7 @@ class MapView(QtWidgets.QMainWindow):
                         kmlfiles.append(os.path.join(root, f))
                         lnames.append(fname)
             for kmlf, lname in zip(kmlfiles, lnames):
-                lyr = self.add_layer(kmlf, lname, 'ogr')
+                lyr = self.add_layer(kmlf, lname, kmlf, 'ogr')
                 if lyr:  # change default symbol to line from fill, that way we just get the outline
                     symb = qgis_core.QgsSimpleFillSymbolLayer.create({'color': QtGui.QColor(0, 0, 255, 120)})
                     lyr.renderer().symbol().changeSymbolLayer(0, symb)
@@ -1505,7 +1560,7 @@ class MapView(QtWidgets.QMainWindow):
 
         self._init_none()
         url_with_params = self.wms_openstreetmap_url()
-        lyr = self.add_layer(url_with_params, 'OpenStreetMap', 'wms')
+        lyr = self.add_layer(url_with_params, 'OpenStreetMap', url_with_params, 'wms')
         if lyr:
             self.layer_manager.set_layer_renderer(url_with_params, opacity=1 - self.layer_transparency)
         else:
@@ -1517,7 +1572,7 @@ class MapView(QtWidgets.QMainWindow):
         """
         self._init_none()
         url_with_params = self.wms_satellite_url()
-        lyr = self.add_layer(url_with_params, 'Satellite', 'wms')
+        lyr = self.add_layer(url_with_params, 'Satellite', url_with_params, 'wms')
         if lyr:
             self.layer_manager.set_layer_renderer(url_with_params, opacity=1 - self.layer_transparency)
         else:
@@ -1529,7 +1584,7 @@ class MapView(QtWidgets.QMainWindow):
         """
         self._init_none()
         url_with_params = self.wms_noaa_rnc()
-        lyr = self.add_layer(url_with_params, 'NOAA_RNC', 'wms')
+        lyr = self.add_layer(url_with_params, 'NOAA_RNC', url_with_params, 'wms')
         if lyr:
             self.layer_manager.set_layer_renderer(url_with_params, opacity=1 - self.layer_transparency)
         else:
@@ -1542,7 +1597,7 @@ class MapView(QtWidgets.QMainWindow):
         self._init_none()
         urls = self.wms_noaa_enc()
         for cnt, url_with_params in enumerate(urls):
-            lyr = self.add_layer(url_with_params, 'NOAA_ENC_{}'.format(cnt), 'wms')
+            lyr = self.add_layer(url_with_params, 'NOAA_ENC_{}'.format(cnt), url_with_params, 'wms')
             if lyr:
                 self.layer_manager.set_layer_renderer(url_with_params, opacity=1 - self.layer_transparency)
             else:
@@ -1555,7 +1610,7 @@ class MapView(QtWidgets.QMainWindow):
         self._init_none()
         urls = self.wms_noaa_chartdisplay()
         for cnt, url_with_params in enumerate(urls):
-            lyr = self.add_layer(url_with_params, 'NOAA_CHARTDISPLAY_{}'.format(cnt), 'wms')
+            lyr = self.add_layer(url_with_params, 'NOAA_CHARTDISPLAY_{}'.format(cnt), url_with_params, 'wms')
             if lyr:
                 self.layer_manager.set_layer_renderer(url_with_params, opacity=1 - self.layer_transparency)
             else:
@@ -1567,7 +1622,7 @@ class MapView(QtWidgets.QMainWindow):
         """
         self._init_none()
         url_with_params = self.wms_gebco()
-        lyr = self.add_layer(url_with_params, 'GEBCO', 'wms')
+        lyr = self.add_layer(url_with_params, 'GEBCO', url_with_params, 'wms')
         if lyr:
             self.layer_manager.set_layer_renderer(url_with_params, opacity=1 - self.layer_transparency)
         else:
@@ -1579,13 +1634,13 @@ class MapView(QtWidgets.QMainWindow):
         """
         self._init_none()
         url_with_params = self.wms_emodnet()
-        lyr = self.add_layer(url_with_params, 'EMODNET', 'wms')
+        lyr = self.add_layer(url_with_params, 'EMODNET', url_with_params, 'wms')
         if lyr:
             self.layer_manager.set_layer_renderer(url_with_params, opacity=1 - self.layer_transparency)
         else:
             self.print('_init_emodnet: Unable to find background layer: {}'.format(url_with_params), logging.ERROR)
 
-    def _manager_add_layer(self, layerpath: str, bandname: str, providertype: str, color: QtGui.QColor,
+    def _manager_add_layer(self, layerpath: str, bandname: str, file_source: str, providertype: str, color: QtGui.QColor,
                            layertype: str, layerdata: Union[qgis_core.QgsRasterLayer, qgis_core.QgsVectorLayer],
                            opacity: float, renderer):
         """
@@ -1598,6 +1653,8 @@ class MapView(QtWidgets.QMainWindow):
             name of the layer, generally a file path or vsimem path, ex: '/vsimem/tj_patch_test_710_20220624_002103_depth_1_8.0.tif'
         bandname
             layer name to use from the source data, ex: 'depth_1'
+        file_source
+            the file path to the object/file, will be the same as source for external file based layers
         providertype
             one of ['gdal', 'wms', 'ogr']
         color
@@ -1613,7 +1670,7 @@ class MapView(QtWidgets.QMainWindow):
         """
 
         if layerpath not in self.layer_manager.layer_data_lookup:
-            self.layer_manager.add_layer(layerpath, bandname, providertype, color, layertype, layerdata, opacity, renderer)
+            self.layer_manager.add_layer(layerpath, bandname, file_source, providertype, color, layertype, layerdata, opacity, renderer)
         self._manager_show_layer(layerpath)
 
     def _manager_show_layer(self, layername: str):
@@ -1811,7 +1868,7 @@ class MapView(QtWidgets.QMainWindow):
             vl = VectorLayer(source, 'ESRI Shapefile', self.epsg, False)
             vl.write_to_layer(line_name, np.stack([lons, lats], axis=1), 2)  # ogr.wkbLineString
             vl.close()
-            lyr = self.add_layer(source, line_name, 'ogr', QtGui.QColor(color), layertype='line')
+            lyr = self.add_layer(source, line_name, line_name, 'ogr', QtGui.QColor(color), layertype='line')
             if refresh:
                 lyr.reload()
         except:
@@ -1950,7 +2007,7 @@ class MapView(QtWidgets.QMainWindow):
                 gdal_raster_create(source, data, geo_transform, crs, np.nan, (lyrname,))
             else:
                 gdal_raster_create(source, data, geo_transform, crs, 0, (lyrname,))
-            self.add_layer(source, lyrname, 'gdal', layertype='surface')
+            self.add_layer(source, lyrname, surfname, 'gdal', layertype='surface')
         else:
             self.show_surface(surfname, lyrname, resolution)
 
@@ -2038,7 +2095,7 @@ class MapView(QtWidgets.QMainWindow):
         """
 
         self.debug_print(f'2dview add_raster {raster_source}, {layername}', logging.INFO)
-        self.add_layer(raster_source, layername, 'gdal', layertype='raster')
+        self.add_layer(raster_source, layername, raster_source, 'gdal', layertype='raster')
 
     def show_raster(self, raster_source: str, layername: str):
         """
@@ -2105,7 +2162,7 @@ class MapView(QtWidgets.QMainWindow):
         """
 
         self.debug_print(f'2dview add_vector {vector_source}, {layername}', logging.INFO)
-        self.add_layer(vector_source, layername, 'ogr', color=QtGui.QColor('blue'), layertype='vector')
+        self.add_layer(vector_source, layername, vector_source, 'ogr', color=QtGui.QColor('blue'), layertype='vector')
 
     def show_vector(self, vector_source: str, layername: str):
         """
@@ -2172,7 +2229,7 @@ class MapView(QtWidgets.QMainWindow):
         """
 
         self.debug_print(f'2dview add_mesh {mesh_source}, {layername}', logging.INFO)
-        self.add_layer(mesh_source, layername, 'mdal', layertype='mesh')
+        self.add_layer(mesh_source, layername, mesh_source, 'mdal', layertype='mesh')
 
     def show_mesh(self, mesh_source: str, layername: str):
         """
@@ -2318,7 +2375,7 @@ class MapView(QtWidgets.QMainWindow):
         self.debug_print(f'2dview map_point_to_layer_point: mappoint={point} layerpoint={newpoint}', logging.INFO)
         return newpoint
 
-    def add_layer(self, source: str, layername: str, providertype: str, color: QtGui.QColor = None,
+    def add_layer(self, source: str, layername: str, file_source: str, providertype: str, color: QtGui.QColor = None,
                   layertype: str = 'background'):
         """
         Generate the Qgs layer.  provider type specifies the driver to use to open the data.
@@ -2329,6 +2386,8 @@ class MapView(QtWidgets.QMainWindow):
             source str, generally a file path to the object/file
         layername
             layer name to use from the source data
+        file_source
+            the file path to the object/file, will be the same as source for external file based layers
         providertype
             one of ['gdal', 'wms', 'ogr']
         color
@@ -2341,7 +2400,7 @@ class MapView(QtWidgets.QMainWindow):
         Union[qgis_core.QgsRasterLayer, qgis_core.QgsVectorLayer]
             the created layer
         """
-        self.debug_print(f'2dview add_layer: source={source} layername={layername} providertype={providertype} color={color}, layertype={layertype}', logging.INFO)
+        self.debug_print(f'2dview add_layer: source={source} layername={layername} file_source={file_source} providertype={providertype} color={color}, layertype={layertype}', logging.INFO)
 
         if providertype in ['gdal', 'wms']:
             source, lyr, opacity, renderer = self._add_raster_layer(source, layername, providertype, layertype)
@@ -2351,7 +2410,7 @@ class MapView(QtWidgets.QMainWindow):
             source, lyr, opacity, renderer = self._add_mesh_layer(source, layername, providertype, layertype)
         else:
             raise NotImplementedError('Only currently supporting gdal and ogr formats, found {}'.format(providertype))
-        self._manager_add_layer(source, layername, providertype, color, layertype, lyr, opacity, renderer)
+        self._manager_add_layer(source, layername, file_source, providertype, color, layertype, lyr, opacity, renderer)
         return lyr
 
     def _update_global_layer_minmax(self, layername: str):
@@ -2799,6 +2858,9 @@ class MapView(QtWidgets.QMainWindow):
                 total_extent.combineExtentWith(extent)
         self.debug_print(f'2dview set_extents_from_meshes: meshs={lyrs} extent={total_extent}', logging.INFO)
         self.canvas.zoomToFeatureExtent(total_extent)
+
+    def show_properties(self, layertype: str, layer_path: str):
+        print(self.layer_manager.layer_data_from_path(layertype, layer_path))
 
     def refresh_screen(self):
         """

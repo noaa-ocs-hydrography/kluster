@@ -202,6 +202,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.project_tree.load_console_fqpr.connect(self.load_console_fqpr)
         self.project_tree.load_console_surface.connect(self.load_console_surface)
         self.project_tree.show_explorer.connect(self.show_in_explorer)
+        self.project_tree.show_properties.connect(self.show_layer_properties)
         self.project_tree.zoom_extents_fqpr.connect(self.zoom_extents_fqpr)
         self.project_tree.zoom_extents_surface.connect(self.zoom_extents_surface)
         self.project_tree.zoom_extents_raster.connect(self.zoom_extents_raster)
@@ -809,6 +810,25 @@ class KlusterMain(QtWidgets.QMainWindow):
             # this must be an auxiliary file, like a geotiff or a s57.  Show the containing folder
             absolute_path = os.path.dirname(pth)
         os.startfile(absolute_path)
+
+    def show_layer_properties(self, layertype: str, pth: str):
+        """
+        Right click in the project tree and select properties to run this code block.  Will open the layer properties
+        for editing qgis display attributes.
+
+        Parameters
+        ----------
+        layertype:
+            the layer category for the file
+        pth
+            path to the layer source file
+        """
+
+        translator_layer_type = {'Converted': 'line', 'Surfaces': 'surface', 'Raster': 'raster', 'Vector': 'vector', 'Mesh': 'mesh'}
+        if layertype not in translator_layer_type:
+            self.print(f'show_layer_properties: got unrecognized layer category: {layertype}', logging.ERROR)
+            return
+        self.two_d.show_properties(translator_layer_type[layertype], pth)
 
     def zoom_extents_fqpr(self, pth: str):
         """

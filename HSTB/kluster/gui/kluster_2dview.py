@@ -105,6 +105,9 @@ class Kluster2dview(MapView):
     def set_extents_from_meshes(self, subset_mesh: str = None, layername: str = None):
         super().set_extents_from_meshes(subset_mesh, layername)
 
+    def show_properties(self, layertype: str, layer_path: str):
+        super().show_properties(layertype, layer_path)
+
     def clear(self):
         super().clear()
 
