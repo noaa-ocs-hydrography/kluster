@@ -2935,9 +2935,8 @@ class MapView(QtWidgets.QMainWindow):
                     newsrc = f'/vsimem/newsrc_{cnt}'
                     ds = gdal.Warp(newsrc, lyr.source(), format='GTiff', dstSRS=f"EPSG:{kluster_variables.qgis_epsg}")
                     newlyr = qgis_core.QgsRasterLayer(newsrc, '', 'gdal')
-                    current_settings = self.layer_manager.layer_settings_lookup[lyr.source()]
-                    if current_settings['renderer'] is not None:
-                        newlyr.setRenderer(current_settings['renderer'])
+                    if lyr.renderer() is not None:
+                        newlyr.setRenderer(lyr.renderer())
                     formatted_layername = [aln for aln in acceptedlayernames if lyr.name().find(aln) > -1][0]
                     ds = None
                     self.project.addMapLayer(newlyr, True)
