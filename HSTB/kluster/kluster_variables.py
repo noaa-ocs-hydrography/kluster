@@ -15,6 +15,10 @@ phase_color = 'blue'
 reject_color = 'red'
 reaccept_color = 'cyan'
 
+# raster color bands for QGIS display in 2dview, will include these as well as the matplotlib bands
+raster_color_bands = {'redtoblue': ((255, 0, 0), (255, 165, 0), (255, 255, 0), (0, 128, 0), (0, 0, 255), (75, 0, 130), (238, 130, 238)),
+                      'bluetored': ((238, 130, 238), (75, 0, 130), (0, 0, 255), (0, 128, 0), (255, 255, 0), (255, 165, 0), (255, 0, 0))}
+
 # hide some attributes from the attributes window if they are not significant
 hidden_fqpr_attributes = ['geohashes', 'multibeam_files']
 hidden_grid_attributes = []

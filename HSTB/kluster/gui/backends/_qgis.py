@@ -15,12 +15,29 @@ from HSTB.kluster.gdal_helpers import gdal_raster_create, VectorLayer, gdal_outp
 from HSTB.kluster import kluster_variables
 
 from HSTB.shared import RegistryHelpers
+from matplotlib import cm
 
 
 acceptedlayernames = ['hillshade', 'depth', 'elevation', 'density', 'vertical_uncertainty', 'horizontal_uncertainty', 'total_uncertainty',
                       'hypothesis_count', 'hypothesis_ratio']
 invert_colormap_layernames = ['vertical_uncertainty', 'horizontal_uncertainty', 'total_uncertainty', 'hypothesis_count',
                               'hypothesis_ratio']
+
+
+def get_color_lookup():
+    # start with a few default ones I like
+    colordict = kluster_variables.raster_color_bands.copy()
+    for colmap in cm.__dict__:
+        try:
+            # build default 16 range colorbands
+            bandvalues = []
+            for i in [0, 17, 34, 51, 68, 85, 102, 119, 136, 153, 170, 187, 204, 221, 238, 255]:
+                flvalues = cm.__dict__[colmap](i)
+                bandvalues.append(tuple([int(fl * 255) for fl in flvalues[:3]]))
+            colordict[colmap] = tuple(bandvalues)
+        except:
+            pass
+    return colordict
 
 
 class CompassRoseItem(qgis_gui.QgsMapCanvasItem):
@@ -688,8 +705,7 @@ class RectangleMapTool(qgis_gui.QgsMapToolEmitPoint):
 
 class RasterShader(qgis_core.QgsRasterShader):
     """
-    Configure a new raster shader, controls the appearance of the raster layers in the 2dview.  Add a new tuple
-    attribute (see redtoblue) if you want to have a new colorramp options.
+    Configure a new raster shader, controls the appearance of the raster layers in the 2dview.
     """
     def __init__(self, layer_min: float, layer_max: float, color_scheme: str = 'redtoblue'):
         super().__init__()
@@ -697,12 +713,11 @@ class RasterShader(qgis_core.QgsRasterShader):
         self.layer_max = layer_max
         self.color_scheme = color_scheme
 
-        self.redtoblue = ((255, 0, 0), (255, 165, 0), (255, 255, 0), (0, 128, 0), (0, 0, 255), (75, 0, 130), (238, 130, 238))
-        self.bluetored = ((238, 130, 238), (75, 0, 130), (0, 0, 255), (0, 128, 0), (255, 255, 0), (255, 165, 0), (255, 0, 0))
+        self.color_lookup = get_color_lookup()
         self._set_scheme()
 
     def _set_scheme(self):
-        lyrcolors = getattr(self, self.color_scheme)
+        lyrcolors = self.color_lookup[self.color_scheme]
         fcn = qgis_core.QgsColorRampShader()
         fcn.setColorRampType(qgis_core.QgsColorRampShader.Interpolated)
         diff = (self.layer_max - self.layer_min) / len(lyrcolors)
@@ -2426,6 +2441,7 @@ class MapView(QtWidgets.QMainWindow):
         """
 
         for rlayer in self.layer_manager.surface_layers_by_type(layername):
+            # all kluster grid layers are single band tifs
             stats = rlayer.dataProvider().bandStatistics(1)
             minval = stats.minimumValue
             maxval = stats.maximumValue
@@ -2483,7 +2499,19 @@ class MapView(QtWidgets.QMainWindow):
             layername from the acceptedlayernames lookup
         """
 
-        stats = raster_layer.dataProvider().bandStatistics(1)
+        # by default, all the kluster grid layers are going to be inmemory tiffs with one band.  But with 1.0, we started
+        #  supporting external gdal datasets, so now we need to get the right band index
+        if raster_layer.bandCount() > 1:
+            bandindex = [bd for bd in range(1, raster_layer.bandCount() + 1) if raster_layer.bandName(bd).find(layername) > -1]
+            if not bandindex:
+                self.print(f'2dview: unable to find band name {layername} while building raster layer extents, defaulting to first layer.  existing bands {[raster_layer.bandName(bd) for bd in range(1, raster_layer.bandCount() + 1)]}', logging.WARNING)
+                bandindex = 1
+            else:
+                bandindex = bandindex[0]
+        else:
+            bandindex = 1
+
+        stats = raster_layer.dataProvider().bandStatistics(bandindex)
         minval = stats.minimumValue
         maxval = stats.maximumValue
         # surface layers can be added in chunks, i.e. 'depth_1', 'depth_2', etc., but they should all use the same
@@ -2860,7 +2888,13 @@ class MapView(QtWidgets.QMainWindow):
         self.canvas.zoomToFeatureExtent(total_extent)
 
     def show_properties(self, layertype: str, layer_path: str):
-        print(self.layer_manager.layer_data_from_path(layertype, layer_path))
+        bands, lyrdata, resolutions = self.layer_manager.layer_data_from_path(layertype, layer_path)
+        if bands and lyrdata:
+            dlog = PropertiesDialog(layer_path, layertype, bands, lyrdata)
+            if dlog.exec_():
+                pass
+        else:
+            self.print(f'2dview: Unable to show properties, no currently loaded layers for {layer_path}', logging.ERROR)
 
     def refresh_screen(self):
         """
@@ -3115,11 +3149,211 @@ class MapView(QtWidgets.QMainWindow):
                 self.project.removeMapLayer(dlyr)
 
 
+class PropertiesDialog(QtWidgets.QDialog):
+    """
+    Right click on a layer and select 'Properties' and use this dialog to alter the rendered visual properties
+    """
+
+    def __init__(self, source_data, source_type, bands, banddata, parent=None):
+        super().__init__(parent)
+
+        self.source_data = source_data
+        self.source_type = source_type
+        self.bands = bands
+        self.banddata = banddata
+
+        self.active_layer_index = 0
+        self.parsed_layer_data = {}
+        self._initialize_layers()
+        self.orig_layer_data = self.parsed_layer_data.copy()
+
+        self.setWindowTitle('Layer Properties')
+        self.toplayout = QtWidgets.QVBoxLayout()
+
+        self.source_group = QtWidgets.QGroupBox('')
+        self.source_group_layout = QtWidgets.QVBoxLayout()
+
+        self.source_hlayout_one = QtWidgets.QHBoxLayout()
+        self.source_label = QtWidgets.QLabel('Source')
+        self.source_hlayout_one.addWidget(self.source_label)
+        self.source_text = QtWidgets.QLineEdit(source_data, self)
+        self.source_text.setReadOnly(True)
+        self.source_hlayout_one.addWidget(self.source_text)
+
+        self.source_hlayout_two = QtWidgets.QHBoxLayout()
+        self.layer_label = QtWidgets.QLabel('Layer')
+        self.source_hlayout_two.addWidget(self.layer_label)
+        self.layer_options = QtWidgets.QComboBox()
+        self.layer_options.addItems(bands)
+        self.source_hlayout_two.addWidget(self.layer_options)
+
+        self.source_group_layout.addLayout(self.source_hlayout_one)
+        self.source_group_layout.addLayout(self.source_hlayout_two)
+        self.source_group.setLayout(self.source_group_layout)
+
+        self.transparency_layout = QtWidgets.QHBoxLayout()
+        self.transparency_label = QtWidgets.QLabel('Transparency')
+        self.transparency_layout.addWidget(self.transparency_label, 1)
+        self.transparency_slider = QtWidgets.QSlider(QtCore.Qt.Horizontal, self)
+        self.transparency_slider.setTickInterval(100)
+        self.transparency_slider.setMinimum(0)
+        self.transparency_slider.setMaximum(100)
+        self.transparency_slider.setValue(0)
+        self.transparency_layout.addWidget(self.transparency_slider, 5)
+        self.transparency_display = QtWidgets.QLineEdit('', self)
+        self.transparency_layout.addWidget(self.transparency_display, 1)
+
+        self.raster_group = QtWidgets.QGroupBox('Raster Properties')
+        self.raster_group_layout = QtWidgets.QVBoxLayout()
+
+        self.raster_hlayout_one = QtWidgets.QHBoxLayout()
+        self.raster_color_label = QtWidgets.QLabel('Color')
+        self.raster_hlayout_one.addWidget(self.raster_color_label)
+        self.raster_color_dropdown = QtWidgets.QComboBox()
+        self.raster_color_dropdown.addItems(list(get_color_lookup().keys()))
+        self.raster_hlayout_one.addWidget(self.raster_color_dropdown)
+
+        self.raster_hlayout_two = QtWidgets.QHBoxLayout()
+        self.raster_min_label = QtWidgets.QLabel('Minimum')
+        self.raster_hlayout_two.addWidget(self.raster_min_label)
+        self.raster_min = QtWidgets.QLineEdit('')
+        self.raster_hlayout_two.addWidget(self.raster_min)
+        self.raster_max_label = QtWidgets.QLabel('Maximum')
+        self.raster_hlayout_two.addWidget(self.raster_max_label)
+        self.raster_max = QtWidgets.QLineEdit('')
+        self.raster_hlayout_two.addWidget(self.raster_max)
+
+        self.raster_group_layout.addLayout(self.raster_hlayout_one)
+        self.raster_group_layout.addLayout(self.raster_hlayout_two)
+        self.raster_group.setLayout(self.raster_group_layout)
+        self.raster_group.hide()
+
+        self.vector_group = QtWidgets.QGroupBox('Vector Properties')
+        self.vector_group_layout = QtWidgets.QVBoxLayout()
+
+        self.vector_hlayout_one = QtWidgets.QHBoxLayout()
+        self.vector_color_label = QtWidgets.QLabel('Color')
+        self.vector_hlayout_one.addWidget(self.vector_color_label)
+        self.vector_color_dropdown = QtWidgets.QComboBox()
+        self.vector_hlayout_one.addWidget(self.vector_color_dropdown)
+
+        self.vector_hlayout_two = QtWidgets.QHBoxLayout()
+        self.vector_shape_label = QtWidgets.QLabel('Shape')
+        self.vector_hlayout_two.addWidget(self.vector_shape_label)
+        self.vector_shape_dropdown = QtWidgets.QComboBox()
+        self.vector_hlayout_two.addWidget(self.vector_shape_dropdown)
+
+        self.vector_hlayout_three = QtWidgets.QHBoxLayout()
+        self.vector_size_label = QtWidgets.QLabel('Size')
+        self.vector_hlayout_three.addWidget(self.vector_size_label, 1)
+        self.vector_size = QtWidgets.QLineEdit('')
+        validator = QtGui.QIntValidator(0, 20)
+        self.vector_size.setValidator(validator)
+        self.vector_size.setText('0')
+        self.vector_hlayout_three.addWidget(self.vector_size, 1)
+
+        self.vector_group_layout.addLayout(self.vector_hlayout_one)
+        self.vector_group_layout.addLayout(self.vector_hlayout_two)
+        self.vector_group_layout.addLayout(self.vector_hlayout_three)
+        self.vector_group.setLayout(self.vector_group_layout)
+
+        self.toplayout.addWidget(self.source_group)
+        self.toplayout.addLayout(self.transparency_layout)
+        self.toplayout.addWidget(self.raster_group)
+        self.toplayout.addWidget(self.vector_group)
+        self.setLayout(self.toplayout)
+
+        self.transparency_slider.valueChanged.connect(self._change_transparency)
+        self.layer_options.currentTextChanged.connect(self._handle_layer_changed)
+
+        self._handle_layer_changed(self.layer_options.currentText())
+
+    def _change_transparency(self, value):
+        self.transparency_display.setText(str(value))
+
+    def _handle_layer_changed(self, curtext):
+        self.active_layer_index = self.bands.index(curtext)
+        myband = self.bands[self.active_layer_index]
+        if self.source_type == 'mesh':
+            self._set_mesh_layer(myband)
+        if self.source_type in ['raster', 'surface']:
+            if myband == 'tiles':
+                self._set_vector_layer(myband)
+            else:
+                self._set_raster_layer(myband)
+        else:
+            self._set_vector_layer(myband)
+        self.resize(self.sizeHint())
+
+    def _initialize_layers(self):
+        for i in range(len(self.bands)):
+            myband = self.bands[i]
+            mylyr = self.banddata[i]
+            if self.source_type == 'mesh':
+                self._initialize_mesh_layer(myband, mylyr)
+            if self.source_type in ['raster', 'surface']:
+                if myband == 'tiles':
+                    self._initialize_vector_layer(myband, mylyr)
+                else:
+                    self._initialize_raster_layer(myband, mylyr)
+            else:
+                self._initialize_vector_layer(myband, mylyr)
+
+    def _initialize_raster_layer(self, lyrband, lyrdata):
+        transp = int((1 - lyrdata.renderer().opacity()) * 100)
+        try:
+            self.parsed_layer_data[lyrband] = {'type': 'raster', 'transparency': transp, 'colorscheme': lyrdata.renderer().shader().color_scheme,
+                                               'raster_min': str(round(lyrdata.renderer().shader().layer_min, 3)),
+                                               'raster_max': str(round(lyrdata.renderer().shader().layer_max, 3))}
+        except:  # hillshade renderer won't have a shader
+            self.parsed_layer_data[lyrband] = {'type': 'raster', 'transparency': transp, 'colorscheme': None,
+                                               'raster_min': '0', 'raster_max': '0'}
+
+    def _set_raster_layer(self, lyrband):
+        self.raster_group.setTitle('Raster Properties')
+        self.raster_group.show()
+        self.vector_group.hide()
+        self.transparency_slider.setValue(self.parsed_layer_data[lyrband]['transparency'])
+        if self.parsed_layer_data[lyrband]['colorscheme']:
+            self.raster_color_dropdown.setCurrentText(self.parsed_layer_data[lyrband]['colorscheme'])
+            self.raster_min.setText(self.parsed_layer_data[lyrband]['raster_min'])
+            self.raster_max.setText(self.parsed_layer_data[lyrband]['raster_max'])
+            self.raster_color_dropdown.setDisabled(False)
+            self.raster_min.setDisabled(False)
+            self.raster_max.setDisabled(False)
+        else:
+            self.raster_color_dropdown.setDisabled(True)
+            self.raster_min.setDisabled(True)
+            self.raster_max.setDisabled(True)
+
+    def _initialize_vector_layer(self, lyrband, lyrdata):
+        print('here')
+
+    def _set_vector_layer(self, lyrband):
+        self.raster_group.hide()
+        self.vector_group.show()
+
+    def _initialize_mesh_layer(self, lyrband, lyrdata):
+        pass
+
+    def _set_mesh_layer(self, lyrband):
+        self.raster_group.setTitle('Mesh Properties')
+        self.raster_group.show()
+        self.vector_group.hide()
+
+
 if __name__ == '__main__':
-    app = qgis_core.QgsApplication([], True)
-    app.initQgis()
-    tst = MapView()
-    tst.show()
-    exitcode = app.exec_()
-    app.exitQgis()
-    sys.exit(exitcode)
+    # app = qgis_core.QgsApplication([], True)
+    # app.initQgis()
+    # tst = MapView()
+    # tst.show()
+    # exitcode = app.exec_()
+    # app.exitQgis()
+    # sys.exit(exitcode)
+    try:  # pyside2
+        app = QtWidgets.QApplication()
+    except TypeError:  # pyqt5
+        app = QtWidgets.QApplication([])
+    dlog = PropertiesDialog()
+    dlog.show()
+    app.exec_()
