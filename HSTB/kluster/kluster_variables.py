@@ -18,6 +18,9 @@ reaccept_color = 'cyan'
 # raster color bands for QGIS display in 2dview, will include these as well as the matplotlib bands
 raster_color_bands = {'redtoblue': ((255, 0, 0), (255, 165, 0), (255, 255, 0), (0, 128, 0), (0, 0, 255), (75, 0, 130), (238, 130, 238)),
                       'bluetored': ((238, 130, 238), (75, 0, 130), (0, 0, 255), (0, 128, 0), (255, 255, 0), (255, 165, 0), (255, 0, 0))}
+vector_shapes = ['arrow', 'asterisk_fill', 'circle', 'cross', 'cross2', 'cross_fill', 'diamond', 'equilateral_triangle',
+                 'filled_arrowhead', 'hexagon', 'octagon', 'pentagon', 'rectangle', 'regular_star', 'square', 'square_with_corners',
+                 'star', 'triangle', 'x']
 
 # hide some attributes from the attributes window if they are not significant
 hidden_fqpr_attributes = ['geohashes', 'multibeam_files']

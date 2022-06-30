@@ -3201,6 +3201,7 @@ class PropertiesDialog(QtWidgets.QDialog):
         self.transparency_slider.setValue(0)
         self.transparency_layout.addWidget(self.transparency_slider, 5)
         self.transparency_display = QtWidgets.QLineEdit('', self)
+        self.transparency_display.setReadOnly(True)
         self.transparency_layout.addWidget(self.transparency_display, 1)
 
         self.raster_group = QtWidgets.QGroupBox('Raster Properties')
@@ -3233,14 +3234,18 @@ class PropertiesDialog(QtWidgets.QDialog):
 
         self.vector_hlayout_one = QtWidgets.QHBoxLayout()
         self.vector_color_label = QtWidgets.QLabel('Color')
-        self.vector_hlayout_one.addWidget(self.vector_color_label)
-        self.vector_color_dropdown = QtWidgets.QComboBox()
-        self.vector_hlayout_one.addWidget(self.vector_color_dropdown)
+        self.vector_hlayout_one.addWidget(self.vector_color_label, 2)
+        self.vector_color_text = QtWidgets.QLineEdit('')
+        self.vector_color_text.setReadOnly(True)
+        self.vector_hlayout_one.addWidget(self.vector_color_text, 1)
+        self.vector_color_picker_button = QtWidgets.QPushButton('Select Color')
+        self.vector_hlayout_one.addWidget(self.vector_color_picker_button, 1)
 
         self.vector_hlayout_two = QtWidgets.QHBoxLayout()
         self.vector_shape_label = QtWidgets.QLabel('Shape')
         self.vector_hlayout_two.addWidget(self.vector_shape_label)
         self.vector_shape_dropdown = QtWidgets.QComboBox()
+        self.vector_shape_dropdown.addItems(kluster_variables.vector_shapes)
         self.vector_hlayout_two.addWidget(self.vector_shape_dropdown)
 
         self.vector_hlayout_three = QtWidgets.QHBoxLayout()
@@ -3265,6 +3270,7 @@ class PropertiesDialog(QtWidgets.QDialog):
 
         self.transparency_slider.valueChanged.connect(self._change_transparency)
         self.layer_options.currentTextChanged.connect(self._handle_layer_changed)
+        self.vector_color_picker_button.clicked.connect(self._set_color)
 
         self._handle_layer_changed(self.layer_options.currentText())
 
@@ -3284,6 +3290,17 @@ class PropertiesDialog(QtWidgets.QDialog):
         else:
             self._set_vector_layer(myband)
         self.resize(self.sizeHint())
+
+    def _set_color(self):
+        curcolor = self.vector_color_text.text()
+        if curcolor:
+            r, g, b = [int(cclr) for cclr in curcolor.split(',')]
+            curcolor = QtGui.QColor(r, g, b)
+            color = QtWidgets.QColorDialog.getColor(initial=curcolor)
+        else:
+            color = QtWidgets.QColorDialog.getColor()
+        if color:
+            self.vector_color_text.setText(f'{color.red()},{color.green()},{color.blue()}')
 
     def _initialize_layers(self):
         for i in range(len(self.bands)):
@@ -3314,6 +3331,8 @@ class PropertiesDialog(QtWidgets.QDialog):
         self.raster_group.show()
         self.vector_group.hide()
         self.transparency_slider.setValue(self.parsed_layer_data[lyrband]['transparency'])
+        self.transparency_display.setText(str(self.parsed_layer_data[lyrband]['transparency']))
+        self.transparency_slider.setEnabled(True)
         if self.parsed_layer_data[lyrband]['colorscheme']:
             self.raster_color_dropdown.setCurrentText(self.parsed_layer_data[lyrband]['colorscheme'])
             self.raster_min.setText(self.parsed_layer_data[lyrband]['raster_min'])
@@ -3322,16 +3341,81 @@ class PropertiesDialog(QtWidgets.QDialog):
             self.raster_min.setDisabled(False)
             self.raster_max.setDisabled(False)
         else:
+            self.raster_color_dropdown.setCurrentText('')
+            self.raster_min.setText('0')
+            self.raster_max.setText('0')
             self.raster_color_dropdown.setDisabled(True)
             self.raster_min.setDisabled(True)
             self.raster_max.setDisabled(True)
 
     def _initialize_vector_layer(self, lyrband, lyrdata):
-        print('here')
+        if lyrdata.renderer().type() == 'singleSymbol':
+            if len(lyrdata.renderer().symbol().symbolLayers()) == 1:
+                symlyr = lyrdata.renderer().symbol().symbolLayer(0)
+                symproperties = symlyr.properties()
+                if 'color' in symproperties:
+                    cvals = symproperties['color'].split(',')
+                    if len(cvals) != 4:
+                        print(f'Expected 4 comma separated color values for {lyrband}, got {cvals}')
+                        color = None
+                        transp = None
+                    else:
+                        color = f'{cvals[0]},{cvals[1]},{cvals[2]}'
+                        transp = int((1 - float(cvals[-1]) / 255.0) * 100)
+                else:
+                    print(f'Unable to find color property for layer {lyrband}')
+                    color = None
+                    transp = None
+                if 'name' in symproperties:
+                    shape = symproperties['name']
+                else:
+                    shape = None
+                if 'size' in symproperties:
+                    size = symproperties['name']
+                else:
+                    size = None
+                self.parsed_layer_data[lyrband] = {'type': 'vector', 'color': color, 'transparency': transp,
+                                                   'shape': shape, 'size': size}
+            else:
+                print(f'Found multiple symbol layers for layer {lyrband}, this is not currently supported in the properties dialog')
+                self.parsed_layer_data[lyrband] = {'type': 'vector', 'color': None, 'transparency': None, 'shape': None, 'size': None}
+        else:
+            print(f'Found a non-single symbol layer {lyrband}={lyrdata.renderer().type()}, this is not currently supported in the properties dialog')
+            self.parsed_layer_data[lyrband] = {'type': 'vector', 'color': None, 'transparency': None, 'shape': None, 'size': None}
 
     def _set_vector_layer(self, lyrband):
         self.raster_group.hide()
         self.vector_group.show()
+        transp = self.parsed_layer_data[lyrband]['transparency']
+        if transp:
+            self.transparency_slider.setValue(transp)
+            self.transparency_display.setText(str(transp))
+            self.transparency_slider.setEnabled(True)
+        else:
+            self.transparency_slider.setEnabled(False)
+        color = self.parsed_layer_data[lyrband]['color']
+        if color:
+            self.vector_color_text.setText(color)
+            self.vector_color_text.setDisabled(False)
+            self.vector_color_picker_button.setDisabled(False)
+        else:
+            self.vector_color_text.setText('')
+            self.vector_color_text.setDisabled(True)
+            self.vector_color_picker_button.setDisabled(True)
+        shape = self.parsed_layer_data[lyrband]['color']
+        if shape:
+            self.vector_shape_dropdown.setCurrentText(shape)
+            self.vector_shape_dropdown.setDisabled(False)
+        else:
+            self.vector_shape_dropdown.setCurrentText('')
+            self.vector_shape_dropdown.setDisabled(True)
+        size = self.parsed_layer_data[lyrband]['color']
+        if size:
+            self.vector_size.setText(size)
+            self.vector_size.setDisabled(False)
+        else:
+            self.vector_size.setText('')
+            self.vector_size.setDisabled(True)
 
     def _initialize_mesh_layer(self, lyrband, lyrdata):
         pass
