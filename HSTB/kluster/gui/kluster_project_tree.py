@@ -172,8 +172,9 @@ class KlusterProjectTree(QtWidgets.QTreeView):
         self.right_click_menu_vector.addAction(zoom_extents)
         self.right_click_menu_vector.addAction(close_dat)
 
-        self.right_click_menu_mesh.addAction(properties_action)
-        self.right_click_menu_mesh.addSeparator()
+        # I still haven't figured out how to access the renderer settings for qgsmeshlayers
+        # self.right_click_menu_mesh.addAction(properties_action)
+        # self.right_click_menu_mesh.addSeparator()
         self.right_click_menu_mesh.addAction(show_explorer_action)
         self.right_click_menu_mesh.addAction(zoom_extents)
         self.right_click_menu_mesh.addAction(close_dat)

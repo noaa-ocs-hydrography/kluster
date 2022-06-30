@@ -2890,7 +2890,7 @@ class MapView(QtWidgets.QMainWindow):
     def show_properties(self, layertype: str, layer_path: str):
         bands, lyrdata, resolutions = self.layer_manager.layer_data_from_path(layertype, layer_path)
         if bands and lyrdata:
-            dlog = PropertiesDialog(layer_path, layertype, bands, lyrdata)
+            dlog = PropertiesDialog(layer_path, layertype, bands, lyrdata, parent=self)
             if dlog.exec_():
                 pass
         else:
@@ -3215,13 +3215,16 @@ class PropertiesDialog(QtWidgets.QDialog):
         self.raster_hlayout_one.addWidget(self.raster_color_dropdown)
 
         self.raster_hlayout_two = QtWidgets.QHBoxLayout()
+        validator = QtGui.QDoubleValidator(-999999, 999999, 3)
         self.raster_min_label = QtWidgets.QLabel('Minimum')
         self.raster_hlayout_two.addWidget(self.raster_min_label)
-        self.raster_min = QtWidgets.QLineEdit('')
+        self.raster_min = QtWidgets.QLineEdit('0')
+        self.raster_min.setValidator(validator)
         self.raster_hlayout_two.addWidget(self.raster_min)
         self.raster_max_label = QtWidgets.QLabel('Maximum')
         self.raster_hlayout_two.addWidget(self.raster_max_label)
-        self.raster_max = QtWidgets.QLineEdit('')
+        self.raster_max = QtWidgets.QLineEdit('0')
+        self.raster_max.setValidator(validator)
         self.raster_hlayout_two.addWidget(self.raster_max)
 
         self.raster_group_layout.addLayout(self.raster_hlayout_one)
@@ -3262,15 +3265,28 @@ class PropertiesDialog(QtWidgets.QDialog):
         self.vector_group_layout.addLayout(self.vector_hlayout_three)
         self.vector_group.setLayout(self.vector_group_layout)
 
+        self.buttonlayout = QtWidgets.QHBoxLayout()
+        self.buttonlayout.addStretch(1)
+        self.apply_button = QtWidgets.QPushButton('Apply', self)
+        self.buttonlayout.addWidget(self.apply_button)
+        self.buttonlayout.addStretch(1)
+        self.exit_button = QtWidgets.QPushButton('Exit', self)
+        self.buttonlayout.addWidget(self.exit_button)
+        self.buttonlayout.addStretch(1)
+
         self.toplayout.addWidget(self.source_group)
         self.toplayout.addLayout(self.transparency_layout)
         self.toplayout.addWidget(self.raster_group)
         self.toplayout.addWidget(self.vector_group)
+        self.toplayout.addStretch()
+        self.toplayout.addLayout(self.buttonlayout)
         self.setLayout(self.toplayout)
 
         self.transparency_slider.valueChanged.connect(self._change_transparency)
         self.layer_options.currentTextChanged.connect(self._handle_layer_changed)
         self.vector_color_picker_button.clicked.connect(self._set_color)
+        self.apply_button.clicked.connect(self._apply_new_settings)
+        self.exit_button.clicked.connect(self.myexit)
 
         self._handle_layer_changed(self.layer_options.currentText())
 
@@ -3371,7 +3387,7 @@ class PropertiesDialog(QtWidgets.QDialog):
                 else:
                     shape = None
                 if 'size' in symproperties:
-                    size = symproperties['name']
+                    size = symproperties['size']
                 else:
                     size = None
                 self.parsed_layer_data[lyrband] = {'type': 'vector', 'color': color, 'transparency': transp,
@@ -3387,14 +3403,14 @@ class PropertiesDialog(QtWidgets.QDialog):
         self.raster_group.hide()
         self.vector_group.show()
         transp = self.parsed_layer_data[lyrband]['transparency']
-        if transp:
+        if transp is not None:
             self.transparency_slider.setValue(transp)
             self.transparency_display.setText(str(transp))
             self.transparency_slider.setEnabled(True)
         else:
             self.transparency_slider.setEnabled(False)
         color = self.parsed_layer_data[lyrband]['color']
-        if color:
+        if color is not None:
             self.vector_color_text.setText(color)
             self.vector_color_text.setDisabled(False)
             self.vector_color_picker_button.setDisabled(False)
@@ -3402,15 +3418,15 @@ class PropertiesDialog(QtWidgets.QDialog):
             self.vector_color_text.setText('')
             self.vector_color_text.setDisabled(True)
             self.vector_color_picker_button.setDisabled(True)
-        shape = self.parsed_layer_data[lyrband]['color']
-        if shape:
+        shape = self.parsed_layer_data[lyrband]['shape']
+        if shape is not None:
             self.vector_shape_dropdown.setCurrentText(shape)
             self.vector_shape_dropdown.setDisabled(False)
         else:
             self.vector_shape_dropdown.setCurrentText('')
             self.vector_shape_dropdown.setDisabled(True)
-        size = self.parsed_layer_data[lyrband]['color']
-        if size:
+        size = self.parsed_layer_data[lyrband]['size']
+        if size is not None:
             self.vector_size.setText(size)
             self.vector_size.setDisabled(False)
         else:
@@ -3418,26 +3434,46 @@ class PropertiesDialog(QtWidgets.QDialog):
             self.vector_size.setDisabled(True)
 
     def _initialize_mesh_layer(self, lyrband, lyrdata):
-        pass
+        raise NotImplementedError('Altering mesh properties is not currently supported')
 
     def _set_mesh_layer(self, lyrband):
         self.raster_group.setTitle('Mesh Properties')
         self.raster_group.show()
         self.vector_group.hide()
+        raise NotImplementedError('Altering mesh properties is not currently supported')
+
+    def _apply_new_settings(self):
+        myband = self.layer_options.currentText()
+        self.active_layer_index = self.bands.index(self.layer_options.currentText())
+        lyrdata = self.banddata[self.active_layer_index]
+        lyrsettings = self.parsed_layer_data[myband]
+        if lyrsettings['type'] == 'raster':
+            cscheme = self.raster_color_dropdown.currentText()
+            if cscheme:
+                rmin = float(self.raster_min.text())
+                rmax = float(self.raster_max.text())
+                lyrdata.renderer().setShader(RasterShader(rmin, rmax, cscheme))
+            transp = int(self.transparency_display.text())
+            try:
+                opacity = 1 - (float(transp) / 100)
+                lyrdata.renderer().setOpacity(opacity)
+            except:
+                opacity = None
+            lyrdata.triggerRepaint()
+
+    def myexit(self):
+        """
+        Dialog completes
+        """
+
+        self.accept()
 
 
 if __name__ == '__main__':
-    # app = qgis_core.QgsApplication([], True)
-    # app.initQgis()
-    # tst = MapView()
-    # tst.show()
-    # exitcode = app.exec_()
-    # app.exitQgis()
-    # sys.exit(exitcode)
-    try:  # pyside2
-        app = QtWidgets.QApplication()
-    except TypeError:  # pyqt5
-        app = QtWidgets.QApplication([])
-    dlog = PropertiesDialog()
-    dlog.show()
-    app.exec_()
+    app = qgis_core.QgsApplication([], True)
+    app.initQgis()
+    tst = MapView()
+    tst.show()
+    exitcode = app.exec_()
+    app.exitQgis()
+    sys.exit(exitcode)
