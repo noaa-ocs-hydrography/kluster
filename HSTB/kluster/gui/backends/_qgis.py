@@ -2297,25 +2297,56 @@ class MapView(QtWidgets.QMainWindow):
                 if rlyr.name().find(mesh_source) > -1:
                     self.remove_layer(rlyr.name())
 
+    def _remove_all_layers_by_type(self, layertype: str):
+        if layertype == 'trackline':
+            remlyrs = self.layer_manager.line_layer_names
+        elif layertype == 'surface':
+            remlyrs = self.layer_manager.surface_layer_names
+        elif layertype == 'raster':
+            remlyrs = self.layer_manager.raster_layer_names
+        elif layertype == 'vector':
+            remlyrs = self.layer_manager.vector_layer_names
+        elif layertype == 'mesh':
+            remlyrs = self.layer_manager.mesh_layer_names
+        else:
+            self.print(f'remove_all_layers_by_type: unrecognized type: {layertype}', logging.ERROR)
+            return
+        if remlyrs:
+            for lyr in remlyrs:
+                self.remove_layer(lyr)
+        if layertype == 'surfaces':
+            self.band_minmax = {}
+            self.force_band_minmax = {}
+
     def remove_all_surfaces(self):
         """
         Remove all surfaces from the display and layer manager
         """
-        remlyrs = self.layer_manager.surface_layer_names
-        if remlyrs:
-            for lyr in remlyrs:
-                self.remove_layer(lyr)
-            self.band_minmax = {}
-            self.force_band_minmax = {}
+        self._remove_all_layers_by_type('surface')
 
     def remove_all_lines(self):
         """
         Remove all tracklines from the display and layer manager
         """
-        remlyrs = self.layer_manager.line_layer_names
-        if remlyrs:
-            for lyr in remlyrs:
-                self.remove_layer(lyr)
+        self._remove_all_layers_by_type('trackline')
+
+    def remove_all_rasters(self):
+        """
+        Remove all rasters from the display and layer manager
+        """
+        self._remove_all_layers_by_type('raster')
+
+    def remove_all_vectors(self):
+        """
+        Remove all remove_all_vectors from the display and layer manager
+        """
+        self._remove_all_layers_by_type('vector')
+
+    def remove_all_meshes(self):
+        """
+        Remove all meshes from the display and layer manager
+        """
+        self._remove_all_layers_by_type('mesh')
 
     def layer_point_to_map_point(self, layer: Union[qgis_core.QgsRasterLayer, qgis_core.QgsVectorLayer],
                                  point: qgis_core.QgsPoint):
@@ -2805,23 +2836,32 @@ class MapView(QtWidgets.QMainWindow):
         self.debug_print(f'2dview set_extents_from_surfaces: surfaces={lyrs} extent={total_extent}', logging.INFO)
         self.canvas.zoomToFeatureExtent(total_extent)
 
-    def set_extents_from_rasters(self, subset_raster: str = None, layername: str = None):
-        if subset_raster:
+    def _set_extents_from_file_source(self, subset_filepath: str, layername: str, layertype: str):
+        if layertype == 'raster':
+            existing_layers = self.layer_manager.raster_layers
+        elif layertype == 'vector':
+            existing_layers = self.layer_manager.vector_layers
+        elif layertype == 'mesh':
+            existing_layers = self.layer_manager.mesh_layers
+        else:
+            self.print(f'_set_extents_from_file_source: layertype not one of the supported types: {layertype}', logging.ERROR)
+            return
+        if subset_filepath:
             lyr = None
             if layername:
-                combname = self._generate_combined_source(subset_raster, layername)
+                combname = self._generate_combined_source(subset_filepath, layername)
                 lyr = self.layer_by_name(combname, silent=True)
             else:
-                for rlyr in self.layer_manager.raster_layers:
-                    if rlyr.name().find(subset_raster) > -1:
-                        lyr = rlyr
+                for flyr in existing_layers:
+                    if flyr.name().find(subset_filepath) > -1:
+                        lyr = flyr
                         break
             if not lyr:
-                self.print(f'No layer loaded for {subset_raster}', logging.ERROR)
+                self.print(f'No layer loaded for {subset_filepath}', logging.ERROR)
                 return
             lyrs = [lyr]
         else:
-            lyrs = self.layer_manager.raster_layers
+            lyrs = existing_layers
         total_extent = None
         for lyr in lyrs:
             extent = self.layer_extents_to_map_extents(lyr)
@@ -2829,66 +2869,70 @@ class MapView(QtWidgets.QMainWindow):
                 total_extent = extent
             else:
                 total_extent.combineExtentWith(extent)
-        self.debug_print(f'2dview set_extents_from_rasters: rasters={lyrs} extent={total_extent}', logging.INFO)
+        self.debug_print(f'2dview _set_extents_from_file_source: layertype={layertype}, path={subset_filepath} extent={total_extent}', logging.INFO)
         self.canvas.zoomToFeatureExtent(total_extent)
+
+    def set_extents_from_rasters(self, subset_raster: str = None, layername: str = None):
+        """
+        Set the 2dview canvas to the extents of the given raster layer.  If no subset raster is provided, will use the full
+        extents of all rasters.
+
+        Parameters
+        ----------
+        subset_raster
+            optional, the raster you want to use to set extents
+        layername
+            optional, if you want to specify only one layer
+        """
+
+        self._set_extents_from_file_source(subset_raster, layername, 'raster')
 
     def set_extents_from_vectors(self, subset_vector: str = None, layername: str = None):
-        if subset_vector:
-            lyr = None
-            if layername:
-                combname = self._generate_combined_source(subset_vector, layername)
-                lyr = self.layer_by_name(combname, silent=True)
-            else:
-                for rlyr in self.layer_manager.vector_layers:
-                    if rlyr.name().find(subset_vector) > -1:
-                        lyr = rlyr
-                        break
-            if not lyr:
-                self.print(f'No layer loaded for {subset_vector}', logging.ERROR)
-                return
-            lyrs = [lyr]
-        else:
-            lyrs = self.layer_manager.vector_layers
-        total_extent = None
-        for lyr in lyrs:
-            extent = self.layer_extents_to_map_extents(lyr)
-            if total_extent is None:
-                total_extent = extent
-            else:
-                total_extent.combineExtentWith(extent)
-        self.debug_print(f'2dview set_extents_from_vectors: vectors={lyrs} extent={total_extent}', logging.INFO)
-        self.canvas.zoomToFeatureExtent(total_extent)
+        """
+        Set the 2dview canvas to the extents of the given vector layer.  If no subset vector is provided, will use the full
+        extents of all vector.
+
+        Parameters
+        ----------
+        subset_vector
+            optional, the vector you want to use to set extents
+        layername
+            optional, if you want to specify only one layer
+        """
+
+        self._set_extents_from_file_source(subset_vector, layername, 'vector')
 
     def set_extents_from_meshes(self, subset_mesh: str = None, layername: str = None):
-        if subset_mesh:
-            lyr = None
-            if layername:
-                combname = self._generate_combined_source(subset_mesh, layername)
-                lyr = self.layer_by_name(combname, silent=True)
-            else:
-                for rlyr in self.layer_manager.mesh_layers:
-                    if rlyr.name().find(subset_mesh) > -1:
-                        lyr = rlyr
-                        break
-            if not lyr:
-                self.print(f'No layer loaded for {subset_mesh}', logging.ERROR)
-                return
-            lyrs = [lyr]
-        else:
-            lyrs = self.layer_manager.mesh_layers
-        total_extent = None
-        for lyr in lyrs:
-            extent = self.layer_extents_to_map_extents(lyr)
-            if total_extent is None:
-                total_extent = extent
-            else:
-                total_extent.combineExtentWith(extent)
-        self.debug_print(f'2dview set_extents_from_meshes: meshs={lyrs} extent={total_extent}', logging.INFO)
-        self.canvas.zoomToFeatureExtent(total_extent)
+        """
+        Set the 2dview canvas to the extents of the given mesh layer.  If no subset mesh is provided, will use the full
+        extents of all mesh.
+
+        Parameters
+        ----------
+        subset_mesh
+            optional, the mesh you want to use to set extents
+        layername
+            optional, if you want to specify only one layer
+        """
+
+        self._set_extents_from_file_source(subset_mesh, layername, 'mesh')
 
     def show_properties(self, layertype: str, layer_path: str):
+        """
+        Open the properties dialog for the given layer_path/layername.  The dialog will display the current renderer
+        settings and allow you to change these settings.
+
+        Parameters
+        ----------
+        layertype
+            one of line, background, surface, raster, vector, mesh
+        layer_path
+            path to the layer
+        """
+
         bands, lyrdata, resolutions = self.layer_manager.layer_data_from_path(layertype, layer_path)
         if bands and lyrdata:
+            # properties dialog will also set the layer properties, the layers being passed to it in lyrdata
             dlog = PropertiesDialog(layer_path, layertype, bands, lyrdata, parent=self)
             if dlog.exec_():
                 pass
@@ -2922,9 +2966,10 @@ class MapView(QtWidgets.QMainWindow):
         Clears all data (except background data) from the Map
         """
         self.remove_all_surfaces()
-        for layername, layertype in self.layer_manager.layer_type_lookup.items():
-            if layertype == 'line':
-                self.remove_line(layername)
+        self.remove_all_lines()
+        self.remove_all_rasters()
+        self.remove_all_vectors()
+        self.remove_all_meshes()
         self.set_extent(90, -90, 180, -180, buffer=False)
 
     def zoomIn(self):
