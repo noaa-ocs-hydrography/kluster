@@ -85,7 +85,6 @@ class TestFqprGeneration(unittest.TestCase):
         first_dinfo = rp.detectioninfo.values
         first_mode = rp.mode.values
         first_modetwo = rp.modetwo.values
-        first_ntx = rp.ntx.values
         firstbeam_procstatus = rp.processing_status.values
         firstbeam_qualityfactor = rp.qualityfactor.values
         first_soundspeed = rp.soundspeed.values
@@ -114,7 +113,6 @@ class TestFqprGeneration(unittest.TestCase):
         assert first_dinfo == 2
         assert first_mode == 'FM'
         assert first_modetwo == '__FM'
-        assert first_ntx == 3
         assert firstbeam_procstatus == 5
         assert firstbeam_qualityfactor == 42
         assert first_soundspeed == np.float32(1488.6)
@@ -801,14 +799,7 @@ class TestFqprGeneration(unittest.TestCase):
     def test_export_dataset(self):
         self._access_processed_data()
         self.out.export_dataset('multibeam', self.multicheck)
-        self.check_export(self.expected_multi, 'time,mean_acrosstrack,mean_alongtrack,altitude,mean_beampointingangle,'
-                                               'corr_altitude,corr_heave,mean_corr_pointing_angle,counter,'
-                                               'mean_datum_uncertainty,mean_delay,mean_depthoffset,'
-                                               'median_detectioninfo,median_frequency,nadir_geohash,'
-                                               'latitude,longitude,mode,modetwo,ntx,median_processing_status,'
-                                               'median_qualityfactor,mean_rel_azimuth,soundspeed,mean_thu,'
-                                               'mean_tiltangle,mean_traveltime,mean_tvu,median_txsector_beam,mean_x,'
-                                               'mean_y,yawpitchstab,mean_z')
+        self.check_export(self.expected_multi, 'time,mean_acrosstrack,mean_alongtrack,altitude,mean_beampointingangle,corr_altitude,corr_heave,mean_corr_pointing_angle,counter,mean_datum_uncertainty,mean_delay,mean_depthoffset,median_detectioninfo,median_frequency,nadir_geohash,latitude,longitude,mode,modetwo,median_processing_status,mean_qualityfactor,mean_reflectivity,mean_rel_azimuth,soundspeed,mean_thu,mean_tiltangle,mean_traveltime,mean_tvu,median_txsector_beam,mean_x,mean_y,yawpitchstab,mean_z')
 
         self.out.export_dataset('raw navigation', self.navcheck)
         self.check_export(self.expected_nav, 'time,altitude,latitude,longitude')

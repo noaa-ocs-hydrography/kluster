@@ -173,7 +173,9 @@ def _validate_sequential_read_attitude(recs: dict):
     except AssertionError:
         raise ValueError(f'sequential_read: All attitude records must be of the same size. Records: {required_attitude}, Sizes: {[recs["attitude"][pms].size for pms in required_attitude]}')
     try:
-        assert all([recs['attitude'][pms].dtype == required_attitude_dtype[cnt] for cnt, pms in enumerate(required_attitude)])
+        for cnt, pms in enumerate(required_attitude):
+            if recs['attitude'][pms].size > 0:
+                assert recs['attitude'][pms].dtype == required_attitude_dtype[cnt]
     except AssertionError:
         raise ValueError(f'sequential_read: All attitude records must be of the required data type. Records: {required_attitude}, '
                          f'Dtype: {[recs["attitude"][pms].dtype for pms in required_attitude]}, Required Dtype: {required_attitude_dtype}')
@@ -304,13 +306,16 @@ def _validate_sequential_read_navigation(recs: dict):
     except AssertionError:
         raise ValueError(f'sequential_read: All navigation records must be of the same size. Records: {required_navigation}, Sizes: {[recs["navigation"][pms].size for pms in required_navigation]}')
     try:
-        assert all([recs['navigation'][pms].dtype == required_navigation_dtype[cnt] for cnt, pms in enumerate(required_navigation)])
+        for cnt, pms in enumerate(required_navigation):
+            if recs['navigation'][pms].size > 0:
+                assert recs['navigation'][pms].dtype == required_navigation_dtype[cnt]
     except AssertionError:
         raise ValueError(f'sequential_read: All navigation parameter records must be of the required data type. Records: {required_navigation}, '
                          f'Dtype: {[recs["navigation"][pms].dtype for pms in required_navigation]}, Required Dtype: {required_navigation_dtype}')
     if 'altitude' in recs['navigation']:
         try:
-            assert recs['navigation']['altitude'].dtype == 'float32'
+            if recs['navigation']['altitude'].size > 0:
+                assert recs['navigation']['altitude'].dtype == 'float32'
         except AssertionError:
             raise ValueError(f'sequential_read: expected altitude record with dtype of "float32", found {recs["navigation"]["altitude"].dtype}')
 
