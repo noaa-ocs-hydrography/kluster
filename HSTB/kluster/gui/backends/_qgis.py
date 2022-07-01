@@ -3500,6 +3500,10 @@ class PropertiesDialog(QtWidgets.QDialog):
         raise NotImplementedError('Altering mesh properties is not currently supported')
 
     def _apply_new_settings(self):
+        """
+        Triggered on hitting the apply button.  We have all the QgsLayers in self.banddata, so we take the settings
+        the user provides via the GUI, and alter the QgsLayers on the fly, storing the new settings in parsed_layer_data
+        """
         myband = self.layer_options.currentText()
         self.active_layer_index = self.bands.index(self.layer_options.currentText())
         lyrdata = self.banddata[self.active_layer_index]
