@@ -941,9 +941,7 @@ class LayerManager:
         if layername not in self.names_in_order:
             self.layer_data_lookup[layername] = layerdata
             self.layer_type_lookup[layername] = layertype
-            self.layer_settings_lookup[layername] = {'color': color, 'bandname': bandname, 'opacity': opacity,
-                                                     'providertype': providertype, 'renderer': renderer,
-                                                     'file_source': file_source}
+            self.layer_settings_lookup[layername] = {'bandname': bandname, 'providertype': providertype, 'file_source': file_source}
             self.names_in_order.append(layername)
         else:
             self.parent.print('Cant add layer {}, already in layer manager'.format(layername), logging.ERROR)
@@ -1113,9 +1111,6 @@ class LayerManager:
             except:  # a vector layer
                 opacity = None
         layerdata.triggerRepaint()
-        self.layer_settings_lookup[layername]['renderer'] = renderer
-        self.layer_settings_lookup[layername]['color'] = color
-        self.layer_settings_lookup[layername]['opacity'] = opacity
 
     def layer_data_from_path(self, source_type: str, source_path: str):
         """
@@ -3158,12 +3153,12 @@ class PropertiesDialog(QtWidgets.QDialog):
     Right click on a layer and select 'Properties' and use this dialog to alter the rendered visual properties
     """
 
-    def __init__(self, source_data, source_type, bands, banddata, parent=None):
+    def __init__(self, source_data: str, source_type: str, bands: list, banddata: list, parent=None):
         super().__init__(parent)
 
         self.source_data = source_data
         self.source_type = source_type
-        self.bands = bands
+        self.bands = bands  # list of band names for the layers
         self.banddata = banddata  # list of lists of the QgsLayer objects that make up that layer
 
         self.active_layer_index = 0
@@ -3295,9 +3290,16 @@ class PropertiesDialog(QtWidgets.QDialog):
         self._handle_layer_changed(self.layer_options.currentText())
 
     def _change_transparency(self, value):
+        """
+        Update the text box next to the slider when the slider bar changes
+        """
+
         self.transparency_display.setText(str(value))
 
     def _handle_layer_changed(self, curtext):
+        """
+        User selects a new band name/layer name
+        """
         self.active_layer_index = self.bands.index(curtext)
         myband = self.bands[self.active_layer_index]
         if self.source_type == 'mesh':
@@ -3323,6 +3325,9 @@ class PropertiesDialog(QtWidgets.QDialog):
             self.vector_color_text.setText(f'{color.red()},{color.green()},{color.blue()}')
 
     def _initialize_layers(self):
+        """
+        Runs once to get the parsed_layer_data for each layer
+        """
         for i in range(len(self.bands)):
             myband = self.bands[i]
             mylyr = self.banddata[i][0]  # get the first tile that makes up the band to read, all tiles should have the same properties
@@ -3457,11 +3462,15 @@ class PropertiesDialog(QtWidgets.QDialog):
         if lyrsettings['type'] in ['raster', 'surface']:
             cscheme = self.raster_color_dropdown.currentText()
             if cscheme:
+                lyrsettings['colorscheme'] = cscheme
                 rmin = float(self.raster_min.text())
+                lyrsettings['raster_min'] = str(rmin)
                 rmax = float(self.raster_max.text())
+                lyrsettings['raster_max'] = str(rmax)
                 for lyrd in lyrdata:
                     lyrd.renderer().setShader(RasterShader(rmin, rmax, cscheme))
             transp = int(self.transparency_display.text())
+            lyrsettings['transparency'] = transp
             try:
                 opacity = 1 - (float(transp) / 100)
                 for lyrd in lyrdata:
@@ -3475,6 +3484,8 @@ class PropertiesDialog(QtWidgets.QDialog):
             if color:
                 transp = int(self.transparency_display.text())
                 alpha = int((1 - (float(transp) / 100)) * 255)
+                lyrsettings['color'] = color
+                lyrsettings['transparency'] = transp
                 color += f',{alpha}'
             shape = self.vector_shape_dropdown.currentText()
             size = self.vector_size.text()
@@ -3487,8 +3498,10 @@ class PropertiesDialog(QtWidgets.QDialog):
                         props['line_color'] = color
                 if shape:
                     props['name'] = shape
+                    lyrsettings['shape'] = shape
                 if size:
                     props['size'] = size
+                    lyrsettings['size'] = size
                 lyrd.renderer().setSymbol(type(lyrd.renderer().symbol()).createSimple(props))
                 lyrd.triggerRepaint()
 
