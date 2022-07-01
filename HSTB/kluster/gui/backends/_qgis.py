@@ -22,6 +22,7 @@ acceptedlayernames = ['hillshade', 'depth', 'elevation', 'density', 'vertical_un
                       'hypothesis_count', 'hypothesis_ratio']
 invert_colormap_layernames = ['vertical_uncertainty', 'horizontal_uncertainty', 'total_uncertainty', 'hypothesis_count',
                               'hypothesis_ratio']
+layered_vector_formats = ['.000', '.s57', '.gpkg']
 
 
 def get_color_lookup():
@@ -762,7 +763,7 @@ class LayerManager:
         mesh_lyr_names = [self.names_in_order[t] for t in self.shown_layers_index if
                           self.layer_type_lookup[self.names_in_order[t]] == 'mesh']
         # always render surfaces on top of lines on top of background layers
-        lyr_names = mesh_lyr_names + genvector_lyr_names + genraster_lyr_names + surf_lyr_names + line_lyr_names + bground_lyr_names
+        lyr_names = genvector_lyr_names + mesh_lyr_names + genraster_lyr_names + surf_lyr_names + line_lyr_names + bground_lyr_names
         return [self.layer_data_lookup[lyr] for lyr in lyr_names]
 
     @property
@@ -1135,8 +1136,8 @@ class LayerManager:
             list of unique band names across layers from this source.  If a layer is composed of multiple tiles, 'depth_1', 'depth_2',
             this list will only contain 'depth'
         list
-            list of QgsLayer objects the same length as the band names.  If a layer is composed of multiple tiles, will be
-            the first layer for that band
+            list of lists of QgsLayer objects the same length as the band names.  If a layer is composed of multiple tiles, will be
+            all the tiles that make up that layer
         list
             either None if not a 'surface' type, or a list of all resolutions for all layers associated with this
             source path.  May not be the same length as the other lists.
@@ -1162,7 +1163,10 @@ class LayerManager:
                         bandname = 'tiles'
                 if bandname not in bands:
                     bands.append(bandname)
-                    lyrdata.append(self.layer_data_lookup[lname])
+                    lyrdata.append([self.layer_data_lookup[lname]])
+                else:
+                    bndindex = bands.index(bandname)
+                    lyrdata[bndindex].append(self.layer_data_lookup[lname])
         if not resolutions:
             resolutions = None
 
@@ -2087,7 +2091,7 @@ class MapView(QtWidgets.QMainWindow):
                 self.update_layer_minmax(lyrname)
 
     def _generate_combined_source(self, file_source: str, layername: str):
-        if os.path.splitext(file_source)[1] in ['.000', '.s57']:
+        if os.path.splitext(file_source)[1] in layered_vector_formats:
             # a quirk of the s57 driver, you need to pipe in the layername in the source
             return file_source + '|layername=' + layername + '____' + layername
         else:
@@ -2621,8 +2625,8 @@ class MapView(QtWidgets.QMainWindow):
         qgis_core.QgsVectorLayer
         """
 
-        if os.path.splitext(source)[1] in ['.000', '.s57']:
-            # a quirk of the s57 driver, you need to pipe in the layername in the source
+        if os.path.splitext(source)[1] in layered_vector_formats:
+            # a quirk of the s57/geopackage driver, you need to pipe in the layername in the source
             source = source + '|layername=' + layername
         vlayer = qgis_core.QgsVectorLayer(source, layername, providertype)
         if vlayer.error().message():
@@ -3160,7 +3164,7 @@ class PropertiesDialog(QtWidgets.QDialog):
         self.source_data = source_data
         self.source_type = source_type
         self.bands = bands
-        self.banddata = banddata
+        self.banddata = banddata  # list of lists of the QgsLayer objects that make up that layer
 
         self.active_layer_index = 0
         self.parsed_layer_data = {}
@@ -3237,7 +3241,7 @@ class PropertiesDialog(QtWidgets.QDialog):
 
         self.vector_hlayout_one = QtWidgets.QHBoxLayout()
         self.vector_color_label = QtWidgets.QLabel('Color')
-        self.vector_hlayout_one.addWidget(self.vector_color_label, 2)
+        self.vector_hlayout_one.addWidget(self.vector_color_label, 1)
         self.vector_color_text = QtWidgets.QLineEdit('')
         self.vector_color_text.setReadOnly(True)
         self.vector_hlayout_one.addWidget(self.vector_color_text, 1)
@@ -3321,7 +3325,7 @@ class PropertiesDialog(QtWidgets.QDialog):
     def _initialize_layers(self):
         for i in range(len(self.bands)):
             myband = self.bands[i]
-            mylyr = self.banddata[i]
+            mylyr = self.banddata[i][0]  # get the first tile that makes up the band to read, all tiles should have the same properties
             if self.source_type == 'mesh':
                 self._initialize_mesh_layer(myband, mylyr)
             if self.source_type in ['raster', 'surface']:
@@ -3369,8 +3373,11 @@ class PropertiesDialog(QtWidgets.QDialog):
             if len(lyrdata.renderer().symbol().symbolLayers()) == 1:
                 symlyr = lyrdata.renderer().symbol().symbolLayer(0)
                 symproperties = symlyr.properties()
-                if 'color' in symproperties:
-                    cvals = symproperties['color'].split(',')
+                if 'color' in symproperties or 'line_color' in symproperties:
+                    if 'color' in symproperties:
+                        cvals = symproperties['color'].split(',')
+                    else:
+                        cvals = symproperties['line_color'].split(',')
                     if len(cvals) != 4:
                         print(f'Expected 4 comma separated color values for {lyrband}, got {cvals}')
                         color = None
@@ -3447,25 +3454,45 @@ class PropertiesDialog(QtWidgets.QDialog):
         self.active_layer_index = self.bands.index(self.layer_options.currentText())
         lyrdata = self.banddata[self.active_layer_index]
         lyrsettings = self.parsed_layer_data[myband]
-        if lyrsettings['type'] == 'raster':
+        if lyrsettings['type'] in ['raster', 'surface']:
             cscheme = self.raster_color_dropdown.currentText()
             if cscheme:
                 rmin = float(self.raster_min.text())
                 rmax = float(self.raster_max.text())
-                lyrdata.renderer().setShader(RasterShader(rmin, rmax, cscheme))
+                for lyrd in lyrdata:
+                    lyrd.renderer().setShader(RasterShader(rmin, rmax, cscheme))
             transp = int(self.transparency_display.text())
             try:
                 opacity = 1 - (float(transp) / 100)
-                lyrdata.renderer().setOpacity(opacity)
+                for lyrd in lyrdata:
+                    lyrd.renderer().setOpacity(opacity)
             except:
                 opacity = None
-            lyrdata.triggerRepaint()
+            for lyrd in lyrdata:
+                lyrd.triggerRepaint()
+        elif lyrsettings['type'] == 'vector':
+            color = self.vector_color_text.text()
+            if color:
+                transp = int(self.transparency_display.text())
+                alpha = int((1 - (float(transp) / 100)) * 255)
+                color += f',{alpha}'
+            shape = self.vector_shape_dropdown.currentText()
+            size = self.vector_size.text()
+            for lyrd in lyrdata:
+                props = lyrd.renderer().symbol().symbolLayer(0).properties()
+                if color:
+                    if 'color' in props:
+                        props['color'] = color
+                    elif 'line_color' in props:
+                        props['line_color'] = color
+                if shape:
+                    props['name'] = shape
+                if size:
+                    props['size'] = size
+                lyrd.renderer().setSymbol(type(lyrd.renderer().symbol()).createSimple(props))
+                lyrd.triggerRepaint()
 
-    def myexit(self):
-        """
-        Dialog completes
-        """
-
+    def myexit(self, e):
         self.accept()
 
 
