@@ -7,6 +7,7 @@ Kluster has been tested on Windows 10 and Ubuntu 20.04.  See the readme for inst
 Kluster utilizes the following readers.
 
 - kmall - Kongsberg kmall file reader
+- prr3 - Reson .s7k file reader
 - par3 - Kongsberg .all file reader
 - sbet - POSPac sbet/rms file reader
 
@@ -76,6 +77,10 @@ Data80 (Position)
  - Longitude
  - Altitude (decoded from Position Input Datagram)
 
+Data89 (Seabed Image - if exists)
+ - Time
+ - Reflectivity
+
 Path 2 (newer systems without Network Attitude)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -122,6 +127,10 @@ Data80 (Position)
  - Latitude
  - Longitude
  - Altitude (decoded from Position Input Datagram)
+
+Data89 (Seabed Image - if exists)
+ - Time
+ - Reflectivity
 
 Path 3 (newer systems with Network Attitude)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -170,6 +179,10 @@ Data110 (Network Attitude)
  - Longitude
  - Altitude
 
+Data89 (Seabed Image - if exists)
+ - Time
+ - Reflectivity
+
 Kongsberg .kmall
 ----------------
 
@@ -208,6 +221,7 @@ MRZ (Multibeam Raw Range and Depth)
  - Sounding_DetectionMethod
  - Sounding_QualityFactor
  - Sounding_TwoWayTravelTime
+ - Sounding_Reflectivity2_dB
 
 IIP (Installation Parameters)
  - Time
@@ -221,5 +235,109 @@ SVP (Sound Velocity Profile)
  - Time
  - DepthProfile
  - SoundSpeedProfile
+
+Reson s7k
+-----------
+
+Kluster supports two separate processing paths for Reson .s7k files.  These are as follows (in order of oldest first, to newest last):
+
+Each datagram listed will also list the components of that datagram used by Kluster.
+
+NOTE: will use Data7000 when Data7503 is not available, but Data7503 is preferred for reading BeamSpacingMode and the offsets that are used when 7030 is not available.
+
+Path 1 (Standard)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Data1003 (Position)
+ - Time
+ - LatitudeNorthing
+ - LongitudeEasting
+ - Height
+
+Data1009 (SoundVelocityProfile - Optional)
+ - Time
+ - Depth
+ - SoundSpeed
+
+Data1012 (Attitude)
+ - Time
+ - Roll
+ - Pitch
+ - Heave
+
+Data1013 (Heading)
+ - Time
+ - Heading
+
+Data7001 (Configuration)
+ - Serial Numbers
+
+Data7027 (Raw Detection Data)
+ - Time
+ - PingNumber
+ - TxAngle
+ - RxAngle
+ - Intensity
+ - Uncertainty
+ - TravelTime
+ - DetectionFlags
+
+Data7030 (Installation Parameters - Optional)
+ - Time
+ - InstallationSettings
+
+Data7503 or Data7000 (SonarSettings, prefer 7503)
+ - Time
+ - SoundVelocity
+ - TxPulseTypeID
+ - TransmitFlags
+ - Frequency
+ - BeamSpacingMode (if 7503)
+
+Path 2 (Software that generates 1016 record)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Data1003 (Position)
+ - Time
+ - LatitudeNorthing
+ - LongitudeEasting
+ - Height
+
+Data1009 (SoundVelocityProfile - Optional)
+ - Time
+ - Depth
+ - SoundSpeed
+
+Data1016 (Attitude)
+ - Time
+ - Roll
+ - Pitch
+ - Heave
+ - Heading
+
+Data7001 (Configuration)
+ - Serial Numbers
+
+Data7027 (Raw Detection Data)
+ - Time
+ - PingNumber
+ - TxAngle
+ - RxAngle
+ - Intensity
+ - Uncertainty
+ - TravelTime
+ - DetectionFlags
+
+Data7030 (Installation Parameters - Optional)
+ - Time
+ - InstallationSettings
+
+Data7503 or Data7000 (SonarSettings, prefer 7503)
+ - Time
+ - SoundVelocity
+ - TxPulseTypeID
+ - TransmitFlags
+ - Frequency
+ - BeamSpacingMode (if 7503)
 
 .. toctree::

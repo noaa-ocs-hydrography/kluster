@@ -1,6 +1,23 @@
 Changes List
 ============
 
+Kluster v1.0.0 (7/5/2022)
+-------------------------
+ - sync with vyperdatum 0.1.15
+   - include 3d transformation depending on 3d output coordinate system
+
+ - include support for reading Reson s7k data
+ - all multibeam drivers will now convert raw backscatter intensity (reflectivity)
+ - Kluster will now open and display raster, vector. mesh formats
+ - Right click layer - Properties, to adjust display properties, symbology
+ - add validation for converted data in Kluster to ensure datatypes are correct
+ - revise extinction test to correctly bin points and reject rejected soundings
+ - add debug mode to display helpful messages in detail during operations
+
+ - bug with skipping lines that do not have line navigation on drawing trackline
+ - fix basic plot starboard beam plots for when beam counts vary
+ - bug fix with Intel module and clearing out an action when it fails, to regenerate later
+
 Kluster v0.9.6 (6/7/2022)
 -------------------------
  - sync with bathygrid 1.3.9
