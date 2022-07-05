@@ -1,0 +1,177 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+    <title>Can you describe the general data flow in Kluster? &#8212; kluster 1.0.0 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/alabaster.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/graphviz.css" />
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Vessel Setup" href="../vessel_setup/index.html" />
+    <link rel="prev" title="How do I import POSPac SBETs in Kluster?" href="howdoiusesbets.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <section id="can-you-describe-the-general-data-flow-in-kluster">
+<h1>Can you describe the general data flow in Kluster?<a class="headerlink" href="#can-you-describe-the-general-data-flow-in-kluster" title="Permalink to this headline">¶</a></h1>
+<p>When you drag data into the Kluster GUI, it adds those files to the Intelligence module.  See the ‘Learn more about Kluster - Kluster Intelligence’ article.  The intelligence module makes all the processing decisions for you, so that you don’t have to know if sv correction comes before georeferencing or after.  If the intelligence module has an available action, it shows in the Actions window in Kluster and you either hit the start button to run or check ‘Auto’ to automatically process.</p>
+<p>If you have a designated surface, actions will include updating that surface with any new data.</p>
+<p>If you run the fqpr_intelligence.intel_process method directly (see Quickstart - Monitor), you get the same result as having ‘Auto’ checked in the GUI.  Actions are generated based on the state of the data and what source files exist.</p>
+<p>As an example, let’s say you drag in some multibeam files and an SVP file in Kluster and run in ‘Auto’, with a designated surface.  You will see the following actions:</p>
+<blockquote>
+<div><ul class="simple">
+<li><dl class="simple">
+<dt>A conversion action appears first</dt><dd><ul>
+<li><p>if this is the first process and a Dask cluster does not exist, a LocalCluster is automatically started (this takes a few seconds, the application locks up during this process)</p></li>
+<li><p>conversion is the process that takes the raw multibeam data and converts it to the Kluster format.</p></li>
+<li><p>conversion reads chunks of raw multibeam files, processes them in parallel, and writes those chunks to disk in the Kluster format.</p></li>
+<li><p>the Kluster format is an Xarray Dataset saved to disk as Zarr, you will see folders for each variable and attribution in a JSON format.</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+<li><dl class="simple">
+<dt>An import action appears next</dt><dd><ul>
+<li><p>As there is now converted data available, the Intelligence module looks to see if the SVP file is in the converted data already, and if not, the new data is imported into the converted data.</p></li>
+<li><p>This is how SBET imports work as well, it checks if the file exists, and if not, it is imported</p></li>
+<li><p>Importing a new file starts processing over at the relevant step (i.e. if you import a new SVP file, it generates a new SV correct action, assuming you are at that stage in the state machine)</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+<li><dl class="simple">
+<dt>A processing action appears next</dt><dd><ul>
+<li><p>Processing encompasses orientation, beam correction, sound velocity correction, georeferencing, and TPU.</p></li>
+<li><p>By reading the converted data processing status, we can determine which of these actions we need to perform.</p></li>
+<li><p>Newly converted data will require the full stack of processing, you will see it listed as a new ‘All Processing’ action.</p></li>
+<li><p>If you were to import sound velocity profiles after processing once, you might instead have a new action called ‘Process Sound Velocity’ which would include sound velocity correction, georeferencing, and TPU.</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+<li><dl class="simple">
+<dt>A gridding action appears last</dt><dd><ul>
+<li><p>The Intelligence module looks at the grid to see if the newly processed data exists within the grid.</p></li>
+<li><p>If not, the data is automatically added to the grid, and all tiles in the grid that have new data are regridded.</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+</ul>
+</div></blockquote>
+<p>In the end you will have two products, the processed data (which contains the raw multibeam data, the intermediate processed data, and the point cloud) and the grid.  If you choose, you can export the point cloud and/or the grid to a variety of formats.</p>
+</section>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">kluster</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../requirements/index.html">Requirements</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../quickstart/index.html">Quickstart - Basic</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../quickstart_monitor/index.html">Quickstart - Monitor</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">FAQ</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="project_file.html">How do I reload the processed data?</a></li>
+<li class="toctree-l2"><a class="reference internal" href="whatisproject.html">What is a project in Kluster?  How do I use it?</a></li>
+<li class="toctree-l2"><a class="reference internal" href="howdoiusesbets.html">How do I import POSPac SBETs in Kluster?</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Can you describe the general data flow in Kluster?</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../vessel_setup/index.html">Vessel Setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../processing/index.html">Processing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../surface/index.html">Surfacing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../sonar_acceptance/index.html">Sonar Acceptance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../cleaning/index.html">Cleaning</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../products/index.html">Products</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../settings/index.html">Settings</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../indepth/index.html">Learn more about Kluster</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../for_developers/index.html">For Developers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../kluster_api/index.html">API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../changes.html">Changes List</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  <li><a href="index.html">FAQ</a><ul>
+      <li>Previous: <a href="howdoiusesbets.html" title="previous chapter">How do I import POSPac SBETs in Kluster?</a></li>
+      <li>Next: <a href="../vessel_setup/index.html" title="next chapter">Vessel Setup</a></li>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2020, Eric Younkin.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 4.3.2</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="../_sources/faq/faqflow.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

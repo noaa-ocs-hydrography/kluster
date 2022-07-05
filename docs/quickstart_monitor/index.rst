@@ -5,7 +5,7 @@ Welcome to Kluster!
 
 If you want to learn more, try the YouTube series: `Kluster Playlist <https://www.youtube.com/playlist?list=PLrjCvP_J9AA_memBs2ZyKXGHG1AMx0GWx>`_
 
-Kluster is an open-source multibeam processing system designed around ease of use and performance.  Currently Kluster supports Kongsberg multibeam formats (.all, .kmall), Caris SVP files (.svp) and Applanix POSPac SBET files (.sbet, .smrmsg), and you need to have at least a multibeam file to start.  I have one on the GitHub if you are just experimenting with this software:
+Kluster is an open-source multibeam processing system designed around ease of use and performance.  Currently Kluster supports Kongsberg and Reson multibeam formats (.s7k, .all, .kmall), Caris SVP files (.svp) and Applanix POSPac SBET files (.sbet, .smrmsg), and you need to have at least a multibeam file to start.  I have one on the GitHub if you are just experimenting with this software:
 
 `0009_20170523_181119_FA2806.all <https://github.com/noaa-ocs-hydrography/kluster/blob/master/test_data/0009_20170523_181119_FA2806.all>`_
 

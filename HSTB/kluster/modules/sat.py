@@ -7,9 +7,9 @@ from matplotlib.pyplot import cm
 from matplotlib.pyplot import Figure, Axes
 from typing import Union
 
-from HSTB.kluster.fqpr_helpers import return_directory_from_data
 from HSTB.kluster.fqpr_generation import Fqpr
 from HSTB.kluster.fqpr_convenience import reload_data, reload_surface
+from HSTB.kluster import kluster_variables
 
 from bathygrid.bgrid import BathyGrid
 
@@ -196,7 +196,7 @@ class ExtinctionTest(BaseTest):
 
         print('Loading data for extinction test')
         try:
-            dset = self.fqpr.subset_variables(['acrosstrack', 'depthoffset', 'frequency', 'mode', 'modetwo'],
+            dset = self.fqpr.subset_variables(['acrosstrack', 'depthoffset', 'detectioninfo', 'frequency', 'mode', 'modetwo'],
                                               skip_subset_by_time=True)
         except KeyError:
             print(
@@ -205,7 +205,7 @@ class ExtinctionTest(BaseTest):
 
         maxbeam = dset.beam.shape[0]
 
-        self.alongtrack = np.ravel(dset.acrosstrack)
+        self.acrosstrack = np.ravel(dset.acrosstrack)
         self.depth = np.ravel(dset.depthoffset)
         self.frequency = np.ravel(dset.frequency)
 
@@ -216,9 +216,25 @@ class ExtinctionTest(BaseTest):
 
         self.frequency = self._round_frequency_ident()
 
+        # filter rejected
+        idx = np.ravel(dset.detectioninfo) != kluster_variables.rejected_flag
+        self.acrosstrack = self.acrosstrack[idx]
+        self.depth = self.depth[idx]
+        self.frequency = self.frequency[idx]
+        self.modeone = self.modeone[idx]
+        self.modetwo = self.modetwo[idx]
+
         # filter out zero depth values, get inserted sometimes when empty beams are found during conversion
         idx = self.depth != 0
-        self.alongtrack = self.alongtrack[idx]
+        self.acrosstrack = self.acrosstrack[idx]
+        self.depth = self.depth[idx]
+        self.frequency = self.frequency[idx]
+        self.modeone = self.modeone[idx]
+        self.modetwo = self.modetwo[idx]
+
+        # sort from mindepth to maxdepth
+        idx = np.argsort(self.depth)
+        self.acrosstrack = self.acrosstrack[idx]
         self.depth = self.depth[idx]
         self.frequency = self.frequency[idx]
         self.modeone = self.modeone[idx]
@@ -231,6 +247,8 @@ class ExtinctionTest(BaseTest):
 
     def plot(self, mode: str = 'frequency', depth_bin_size: float = 1.0, filter_incomplete_swaths: bool = True):
         """
+        Deprecated, left in case you want to experiment with this approach.  See plotv2.
+
         Plot all outermost points binned in the depth dimension according to the provided size.  Each plot is organized
         by the given mode, if mode is frequency will plot once per frequency, such that the colors let you know the extinction
         at each frequency.
@@ -245,7 +263,7 @@ class ExtinctionTest(BaseTest):
             If True, will only plot outermost points if the outermost port alongtrack value is negative, outermost starboard alongtrack value is positive
         """
 
-        if self.alongtrack is None or self.depth is None:
+        if self.acrosstrack is None or self.depth is None:
             print('Data was not successfully loaded, ExtinctionTest must be recreated')
             return
 
@@ -261,7 +279,7 @@ class ExtinctionTest(BaseTest):
         for grp in groups:
             print('Building plot for {}={}'.format(mode, grp))
             idx = comparison == grp
-            atrack_by_idx = self.alongtrack[idx]
+            atrack_by_idx = self.acrosstrack[idx]
             dpth_by_idx = self.depth[idx]
 
             mindepth = np.int(np.min(dpth_by_idx))
@@ -303,6 +321,87 @@ class ExtinctionTest(BaseTest):
         plt.xlabel('AcrossTrack Distance (meters)')
         plt.ylabel('Depth (meters, +down)')
         plt.legend()
+        plt.show()
+
+    def plotv2(self, mode: str = 'frequency', depth_bin_size: float = 10.0, point_size: int = 4, filter_incomplete_swaths: bool = True):
+        """
+        Plot all outermost points binned in the depth dimension according to the provided size.
+
+        Found that grouping points by category and then plotting, resulted in a messy picture, where you would have
+        the min/max acrosstrack values for multiple modes at the same depth.  You would instead generally just want
+        the full extent at each depth interval, colored by the specified mode.  Results in less points and a cleaner
+        picture.  I believe this is generally preferred, leaving the first version just in case.
+
+        Parameters
+        ----------
+        mode
+            allowable plot mode, must be one of "frequency", "mode", "modetwo"
+        depth_bin_size
+            bin size in meters for the depth, size of 1 will produce one point for each meter of depth
+        point_size
+            point size in the resulting scatter plot, generally a value from 2 to 6 for a good display
+        filter_incomplete_swaths
+            If True, will only plot outermost points if the outermost port alongtrack value is negative, outermost starboard alongtrack value is positive
+        """
+
+        if self.acrosstrack is None or self.depth is None:
+            print('Data was not successfully loaded, ExtinctionTest must be recreated')
+            return
+
+        fig = plt.figure()
+
+        groups, comparison, empty_lbl = self._build_groups(mode)
+
+        colors = cm.rainbow(np.linspace(0, 1, len(groups)))
+
+        mindepth = int(np.min(self.depth))
+        maxdepth = int(np.ceil(np.max(self.depth)))
+        minacross = int(np.min(self.acrosstrack))
+        maxacross = int(np.ceil(np.max(self.acrosstrack)))
+
+        # maintain at least 5 bins just to make a halfway decent plot if they pick a bad bin size
+        bins = np.linspace(mindepth, maxdepth, max(int((maxdepth - mindepth) / depth_bin_size), 5))
+        dpth_indices = np.digitize(self.depth, bins) - 1
+        valid_indices = [i for i in range(len(bins) - 1) if i in dpth_indices]
+
+        binned_acrosstrack = [self.acrosstrack[dpth_indices == i] for i in valid_indices]
+        binned_depth = [self.depth[dpth_indices == i] for i in valid_indices]
+        binned_comparison = [comparison[dpth_indices == i] for i in valid_indices]
+
+        min_indices = [np.argmin(ba) for ba in binned_acrosstrack]
+        min_across_across = np.array([ba[min_indices[cnt]] for cnt, ba in enumerate(binned_acrosstrack)])
+        min_across_comparison = np.array([cp[min_indices[cnt]] for cnt, cp in enumerate(binned_comparison)])
+        min_across_depth = np.array([dpth[min_indices[cnt]] for cnt, dpth in enumerate(binned_depth)])
+
+        max_indices = [np.argmax(ba) for ba in binned_acrosstrack]
+        max_across_across = np.array([ba[max_indices[cnt]] for cnt, ba in enumerate(binned_acrosstrack)])
+        max_across_comparison = np.array([cp[max_indices[cnt]] for cnt, cp in enumerate(binned_comparison)])
+        max_across_depth = np.array([dpth[max_indices[cnt]] for cnt, dpth in enumerate(binned_depth)])
+
+        if filter_incomplete_swaths:
+            swath_filter = np.logical_and(min_across_across < 0, max_across_across > 0)
+            min_across_across = min_across_across[swath_filter]
+            max_across_across = max_across_across[swath_filter]
+            min_across_comparison = min_across_comparison[swath_filter]
+            max_across_comparison = max_across_comparison[swath_filter]
+            min_across_depth = min_across_depth[swath_filter]
+            max_across_depth = max_across_depth[swath_filter]
+
+        for clr, grp in zip(colors, groups):
+            valid_min_indices = min_across_comparison == grp
+            valid_max_indices = max_across_comparison == grp
+            newlbl, newgrp = self._translate_label(mode, grp, empty_lbl)
+            plt.scatter(min_across_across[valid_min_indices], min_across_depth[valid_min_indices], c=np.array([clr]), label=newlbl.format(newgrp), s=point_size)
+            plt.scatter(max_across_across[valid_max_indices], max_across_depth[valid_max_indices], c=np.array([clr]), s=point_size)
+
+        self._plot_depth_guidelines(mindepth, maxdepth)
+        plt.xlim(minacross * 1.3, maxacross * 1.3)
+        plt.gca().invert_yaxis()
+        plt.title('{} (SN{}): {} by {}'.format(self.sonartype, self.serialnum, self.name, mode))
+        plt.xlabel('AcrossTrack Distance (meters)')
+        plt.ylabel('Depth (meters, +down)')
+        plt.legend()
+        plt.grid()
         plt.show()
 
 

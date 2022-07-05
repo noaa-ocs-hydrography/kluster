@@ -85,7 +85,14 @@ for cnt, dset in enumerate(datasets_w_sbets):
                                 vert_ref='ellipse', errorfiles=[smrmsg], logfiles=[logf], weekstart_year=yr,
                                 weekstart_week=wk, override_datum=dat)
     generate_new_surface(fq, resolution=8.0, output_path=os.path.join(outputdir, fldernames[cnt]))
-    # fq.export_pings_to_file()
+
+reson_datasets = [r"C:\collab\dasktest\data_dir\7125", r"C:\collab\dasktest\data_dir\7125_no7030_2devices", r'C:\collab\dasktest\data_dir\T51_from_Reson']
+reson_svps = [r"C:\collab\dasktest\data_dir\7125\WOA09_20140416_161500.svp", r"C:\collab\dasktest\data_dir\7125_no7030_2devices\WOA09_20220617_134138.svp",
+              r"C:\collab\dasktest\data_dir\T51_from_Reson\WOA09_20210616_120000.svp"]
+fldernames = ['7125_s7k', '7125_s7k_svandimage', 't51_wreck']
+for cnt, dset in enumerate(reson_datasets):
+    fq = perform_all_processing(dset, outfold=os.path.join(outputdir, fldernames[cnt]), add_cast_files=reson_svps[cnt],
+                                coord_system='WGS84', vert_ref='waterline')
 
 sbet = r"C:\collab\dasktest\data_dir\ra_mbes\2801_em2040\pospac\035_sbet.out"
 logf = r"C:\collab\dasktest\data_dir\ra_mbes\2801_em2040\pospac\035_sbet_export.log"
@@ -275,3 +282,13 @@ fq.import_post_processed_navigation(['D:/FA_EM712_Acceptance-20220506T175353Z-00
                                     logfiles=['D:/FA_EM712_Acceptance-20220506T175353Z-001/FA_EM712_Acceptance/EM_712_Acceptance_data/sbets/Ref_sruface_ONE.log'])
 
 fq.remove_post_processed_navigation()
+
+
+
+from HSTB.kluster.fqpr_drivers import sequential_read_multibeam
+recskm = sequential_read_multibeam(r"C:\collab\dasktest\data_dir\EM304_KMALL_fromkongs\0000_20200428_101105_ShipName.kmall")
+recsal = sequential_read_multibeam(r"C:\collab\dasktest\data_dir\EM2040_Fairweather_patchtest2022\0001_20220421_165552_FA2808_M.all")
+recsal = sequential_read_multibeam(r"C:\collab\dasktest\data_dir\EM2040_Fairweather_SmallFile\0009_20170523_181119_FA2806.all")
+recss7k = sequential_read_multibeam(r"C:\collab\dasktest\data_dir\7125_no7030_2devices_WORKS\20150310_174534.s7k")
+recss7k = sequential_read_multibeam(r"C:\collab\dasktest\data_dir\7125\20140416_161226.s7k")
+

@@ -7,3 +7,4 @@ FAQ
    project_file
    whatisproject
    howdoiusesbets
+   faqflow

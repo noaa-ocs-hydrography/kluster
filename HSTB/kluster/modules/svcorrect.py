@@ -1002,7 +1002,7 @@ def _interpolate_cumulative_table(cumulative_depth: np.ndarray, cumulative_h_dis
             print('Found beam traveltime outside the range of the provided cast')
             continue
         elif layer_index == 0:
-            print('Found beam traveltime that places it above the transducer')
+            # print('Found beam traveltime that places it above the transducer')
             continue
         layer_index_mask = nearest_next_layer_index == layer_index
         tt_one = cumulative_raytime[layer_index - 1][layer_index_mask]

@@ -33,6 +33,7 @@ from HSTB.kluster.fqpr_project import FqprProject
 from HSTB.kluster.fqpr_intelligence import FqprIntel
 from HSTB.kluster.fqpr_vessel import convert_from_fqpr_xyzrph, convert_from_vessel_xyzrph, compare_dict_data
 from HSTB.kluster.dask_helpers import dask_close_localcluster
+from HSTB.kluster.gdal_helpers import ogr_output_file_exists, gdal_output_file_exists
 from HSTB.kluster.logging_conf import return_logger, add_file_handler, logfile_matches, logger_remove_file_handlers
 from HSTB.kluster import __version__ as kluster_version
 from HSTB.kluster import __file__ as kluster_init_file
@@ -44,7 +45,8 @@ from bathygrid.grid_variables import allowable_grid_root_names
 # https://joekuan.wordpress.com/2015/09/23/list-of-qt-icons/
 
 
-settings_translator = {'Kluster/dark_mode': {'newname': 'dark_mode', 'defaultvalue': False},
+settings_translator = {'Kluster/debug': {'newname': 'debug', 'defaultvalue': False},
+                       'Kluster/dark_mode': {'newname': 'dark_mode', 'defaultvalue': False},
                        'Kluster/proj_settings_epsgradio': {'newname': 'use_epsg', 'defaultvalue': False},
                        'Kluster/proj_settings_epsgval': {'newname': 'epsg', 'defaultvalue': ''},
                        'Kluster/proj_settings_utmradio': {'newname': 'use_coord', 'defaultvalue': True},
@@ -64,6 +66,8 @@ settings_translator = {'Kluster/dark_mode': {'newname': 'dark_mode', 'defaultval
                        'Kluster/settings_auto_processing_mode': {'newname': 'autoprocessing_mode', 'defaultvalue': 'normal'},
                        'Kluster/settings_force_coordinate_match': {'newname': 'force_coordinate_match', 'defaultvalue': False},
                        }
+
+config_text = ''
 
 
 class KlusterProxyStyle(QtWidgets.QProxyStyle):
@@ -92,7 +96,6 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.app_library = app_library
         self.start_horiz_size = 1360
         self.start_vert_size = 768
-        self.debug = False
 
         # initialize the output window first, to get stdout/stderr configured
         self.output_window = kluster_output_window.KlusterOutput(self)
@@ -160,20 +163,20 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.generic_progressbar.setMinimum(0)
         self.statusBar().addPermanentWidget(self.generic_progressbar, stretch=1)
 
-        self.action_thread = kluster_worker.ActionWorker()
-        self.import_ppnav_thread = kluster_worker.ImportNavigationWorker()
-        self.overwrite_nav_thread = kluster_worker.OverwriteNavigationWorker()
-        self.surface_thread = kluster_worker.SurfaceWorker()
-        self.surface_update_thread = kluster_worker.SurfaceUpdateWorker()
-        self.export_thread = kluster_worker.ExportWorker()
-        self.export_tracklines_thread = kluster_worker.ExportTracklinesWorker()
-        self.export_grid_thread = kluster_worker.ExportGridWorker()
-        self.filter_thread = kluster_worker.FilterWorker()
+        self.action_thread = kluster_worker.ActionWorker(self)
+        self.import_ppnav_thread = kluster_worker.ImportNavigationWorker(self)
+        self.overwrite_nav_thread = kluster_worker.OverwriteNavigationWorker(self)
+        self.surface_thread = kluster_worker.SurfaceWorker(self)
+        self.surface_update_thread = kluster_worker.SurfaceUpdateWorker(self)
+        self.export_thread = kluster_worker.ExportWorker(self)
+        self.export_tracklines_thread = kluster_worker.ExportTracklinesWorker(self)
+        self.export_grid_thread = kluster_worker.ExportGridWorker(self)
+        self.filter_thread = kluster_worker.FilterWorker(self)
         self.open_project_thread = kluster_worker.OpenProjectWorker(self)
         self.draw_navigation_thread = kluster_worker.DrawNavigationWorker(self)
         self.draw_surface_thread = kluster_worker.DrawSurfaceWorker(self)
-        self.load_points_thread = kluster_worker.LoadPointsWorker()
-        self.patch_test_load_thread = kluster_worker.PatchTestUpdateWorker()
+        self.load_points_thread = kluster_worker.LoadPointsWorker(self)
+        self.patch_test_load_thread = kluster_worker.PatchTestUpdateWorker(self)
         self.allthreads = [self.action_thread, self.import_ppnav_thread, self.overwrite_nav_thread, self.surface_thread,
                            self.surface_update_thread, self.export_thread, self.export_grid_thread, self.open_project_thread,
                            self.draw_navigation_thread, self.draw_surface_thread, self.load_points_thread, self.patch_test_load_thread,
@@ -187,16 +190,26 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.project_tree.fqpr_selected.connect(self.tree_fqpr_selected)
         self.project_tree.surface_selected.connect(self.tree_surf_selected)
         self.project_tree.surface_layer_selected.connect(self.tree_surface_layer_selected)
+        self.project_tree.raster_layer_selected.connect(self.tree_raster_layer_selected)
+        self.project_tree.vector_layer_selected.connect(self.tree_vector_layer_selected)
+        self.project_tree.mesh_layer_selected.connect(self.tree_mesh_layer_selected)
         self.project_tree.all_lines_selected.connect(self.tree_all_lines_selected)
         self.project_tree.close_fqpr.connect(self.close_fqpr)
         self.project_tree.close_surface.connect(self.close_surface)
+        self.project_tree.close_raster.connect(self.close_raster)
+        self.project_tree.close_vector.connect(self.close_vector)
+        self.project_tree.close_mesh.connect(self.close_mesh)
         self.project_tree.manage_fqpr.connect(self.manage_fqpr)
         self.project_tree.manage_surface.connect(self.manage_surface)
         self.project_tree.load_console_fqpr.connect(self.load_console_fqpr)
         self.project_tree.load_console_surface.connect(self.load_console_surface)
         self.project_tree.show_explorer.connect(self.show_in_explorer)
+        self.project_tree.show_properties.connect(self.show_layer_properties)
         self.project_tree.zoom_extents_fqpr.connect(self.zoom_extents_fqpr)
         self.project_tree.zoom_extents_surface.connect(self.zoom_extents_surface)
+        self.project_tree.zoom_extents_raster.connect(self.zoom_extents_raster)
+        self.project_tree.zoom_extents_vector.connect(self.zoom_extents_vector)
+        self.project_tree.zoom_extents_mesh.connect(self.zoom_extents_mesh)
         self.project_tree.reprocess_instance.connect(self.reprocess_fqpr)
         self.project_tree.update_surface.connect(self.update_surface_selected)
 
@@ -258,6 +271,11 @@ class KlusterMain(QtWidgets.QMainWindow):
             self.set_dark_mode(self.settings['dark_mode'])
         else:
             self.set_dark_mode(False)
+        if self.settings.get('debug'):
+            self.set_debug(self.settings['debug'])
+        else:
+            self.set_debug(False)
+        self.debug_print(config_text)
 
     @property
     def settings_object(self):
@@ -265,14 +283,21 @@ class KlusterMain(QtWidgets.QMainWindow):
         kluster_ini = os.path.join(kluster_dir, 'misc', 'kluster.ini')
         return QtCore.QSettings(kluster_ini, QtCore.QSettings.IniFormat)
 
-    def print(self, msg: str, loglevel: int):
+    @property
+    def debug(self):
+        if self.settings.get('debug'):
+            return self.settings['debug']
+        else:
+            return False
+
+    def print(self, msg: str, loglevel: int = logging.INFO):
         # all gui objects are going to use this method in printing
         if self.logger is not None:
             self.logger.log(loglevel, msg)
         else:
             print(msg)
 
-    def debug_print(self, msg: str, loglevel: int):
+    def debug_print(self, msg: str, loglevel: int = logging.INFO):
         # all gui objects are going to use this method in debug printing
         if self.debug:
             if self.logger is not None:
@@ -425,10 +450,15 @@ class KlusterMain(QtWidgets.QMainWindow):
         advancedplots_action = QtWidgets.QAction('Advanced Plots', self)
         advancedplots_action.triggered.connect(self._action_advancedplots)
 
+        set_debug = QtWidgets.QAction('Debug', self)
+        set_debug.setCheckable(True)
+        set_debug.triggered.connect(self.set_debug)
         about_action = QtWidgets.QAction('About', self)
         about_action.triggered.connect(self._action_show_about)
-        docs_action = QtWidgets.QAction('Documentation', self)
+        docs_action = QtWidgets.QAction('Offline Documentation', self)
         docs_action.triggered.connect(self._action_show_docs)
+        odocs_action = QtWidgets.QAction('Online Documentation', self)
+        odocs_action.triggered.connect(self._action_show_odocs)
         videos_action = QtWidgets.QAction('YouTube Videos', self)
         videos_action.triggered.connect(self.open_youtube_playlist)
 
@@ -481,8 +511,10 @@ class KlusterMain(QtWidgets.QMainWindow):
         visual.addAction(advancedplots_action)
 
         klusterhelp = menubar.addMenu('Help')
+        klusterhelp.addAction(set_debug)
         klusterhelp.addAction(about_action)
         klusterhelp.addAction(docs_action)
+        klusterhelp.addAction(odocs_action)
         klusterhelp.addAction(videos_action)
 
     def update_on_file_added(self, fil: Union[str, list] = ''):
@@ -510,10 +542,15 @@ class KlusterMain(QtWidgets.QMainWindow):
             if os.path.split(fnorm)[1] == 'kluster_project.json':
                 self.open_project(fnorm)
                 fil.remove(f)
-                return  # we can't handle loading a new project and adding data at the same time, if a project is added, halt
+                self.debug_print("project file detected, we can't handle loading a new project and adding data at the same time, if a project is added, halt", logging.WARNING)
+                return
 
         potential_surface_paths = []
         potential_fqpr_paths = []
+        potential_raster_paths = []
+        potential_vector_paths = []
+        potential_mesh_paths = []
+
         for f in fil:
             f = os.path.normpath(f)
             try:
@@ -522,22 +559,29 @@ class KlusterMain(QtWidgets.QMainWindow):
                 self.print('Unable to load from file {}, {}'.format(f, e), logging.ERROR)
                 updated_type, new_data, new_project = None, True, None
 
-            if new_project:  # user added a data file when there was no project, so we loaded or created a new one
+            if new_project:
+                self.debug_print("user added a data file when there was no project, so we loaded or created a new one", logging.INFO)
                 new_fqprs.extend([fqpr for fqpr in self.project.fqpr_instances.keys() if fqpr not in new_fqprs])
             if new_data is None:
+                fextension = os.path.splitext(f)[1]
                 if any([os.path.exists(os.path.join(f, gname)) for gname in allowable_grid_root_names]):
+                    self.debug_print("Got surfaces that match allowed grid root names: {}".format(allowable_grid_root_names), logging.INFO)
                     potential_surface_paths.append(f)
                 elif os.path.isdir(f):
                     potential_fqpr_paths.append(f)
-        self.refresh_project(new_fqprs)
+                else:
+                    if gdal_output_file_exists(f):
+                        potential_raster_paths.append(f)
+                    elif ogr_output_file_exists(f):
+                        potential_vector_paths.append(f)
+                    elif fextension in kluster_variables.supported_mesh:
+                        potential_mesh_paths.append(f)
+        self.refresh_project(new_fqprs, new_raster=potential_raster_paths, new_vector=potential_vector_paths, new_mesh=potential_mesh_paths)
         self.open_project_thread.populate(force_add_fqprs=potential_fqpr_paths, force_add_surfaces=potential_surface_paths)
         self.open_project_thread.start()
 
-    def refresh_project(self, fqpr=None):
-        if fqpr:
-            self.redraw(new_fqprs=fqpr)
-        else:
-            self.redraw()
+    def refresh_project(self, fqpr=None, new_raster=None, new_vector=None, new_mesh=None):
+        self.redraw(new_fqprs=fqpr, add_raster=new_raster, add_vector=new_vector, add_mesh=new_mesh)
 
     def redraw_all_lines(self):
         for linelyr in self.project.buffered_fqpr_navigation:
@@ -546,7 +590,105 @@ class KlusterMain(QtWidgets.QMainWindow):
         fqprs = [fqpr for fqpr in self.project.fqpr_instances.keys()]
         self.refresh_project(fqprs)
 
-    def redraw(self, new_fqprs=None, add_surface=None, remove_surface=None, surface_layer_name=''):
+    def _redraw_remove_surface(self, remove_surface, surface_layer_name):
+        if remove_surface is not None:
+            surf_object = self.project.surface_instances[remove_surface]
+            if surface_layer_name == 'tiles':
+                self.debug_print("Hiding {} tiles layer".format(remove_surface), logging.INFO)
+                self.two_d.hide_line(remove_surface)
+            else:
+                for resolution in surf_object.resolutions:
+                    if surface_layer_name:
+                        self.debug_print("Hiding {} {} {} layer".format(remove_surface, surface_layer_name, resolution), logging.INFO)
+                        self.two_d.hide_surface(remove_surface, surface_layer_name, resolution)
+                    else:
+                        self.debug_print("Removing all {} {} layers".format(remove_surface, resolution), logging.INFO)
+                        self.two_d.remove_surface(remove_surface, resolution)
+
+    def _redraw_add_surface(self, add_surface, surface_layer_name):
+        if add_surface is not None and surface_layer_name:
+            if self.surface_update_thread.isRunning():
+                self.print('Surface is currently updating, please wait until after that process is complete.', logging.WARNING)
+                return
+            surf_object = self.project.surface_instances[add_surface]
+            needs_drawing = []
+            if surface_layer_name == 'tiles':
+                self.debug_print("Trying to show {} {} layer".format(add_surface, surface_layer_name), logging.INFO)
+                if self.settings['dark_mode']:
+                    shown = self.two_d.show_line(add_surface, color='white')
+                else:
+                    shown = self.two_d.show_line(add_surface, color='black')
+                if not shown:
+                    self.debug_print("show didnt work, must need to add the surface instead, loading from disk...", logging.INFO)
+                    needs_drawing.append(None)
+            else:
+                for resolution in surf_object.resolutions:
+                    self.debug_print("Trying to show {} {} {} layer".format(add_surface, surface_layer_name, resolution), logging.INFO)
+                    shown = self.two_d.show_surface(add_surface, surface_layer_name, resolution)
+                    if not shown:
+                        self.debug_print("show didnt work, must need to add the surface instead, loading from disk...", logging.INFO)
+                        needs_drawing.append(resolution)
+            if needs_drawing:
+                self.print('Drawing {} - {}, resolution {}'.format(add_surface, surface_layer_name, needs_drawing), logging.INFO)
+                self.draw_surface_thread.populate(add_surface, surf_object, needs_drawing, surface_layer_name)
+                self.draw_surface_thread.start()
+
+    def _redraw_add_raster(self, add_raster, layer_name):
+        if add_raster is not None and layer_name:
+            self.debug_print("Trying to show {} {} layer".format(add_raster, layer_name), logging.INFO)
+            shown = self.two_d.show_raster(add_raster, layer_name)
+            if not shown:
+                self.debug_print("show didnt work, must need to add the raster instead, loading from disk...", logging.INFO)
+                self.two_d.add_raster(add_raster, layer_name)
+            self.two_d.set_extents_from_rasters(add_raster, layer_name)
+
+    def _redraw_remove_raster(self, remove_raster, layer_name):
+        if remove_raster is not None:
+            if layer_name:
+                self.debug_print("Hiding {} {} layer".format(remove_raster, layer_name), logging.INFO)
+                self.two_d.hide_raster(remove_raster, layer_name)
+            else:
+                self.debug_print("Removing all {} layers".format(remove_raster), logging.INFO)
+                self.two_d.remove_raster(remove_raster, layer_name)
+
+    def _redraw_add_vector(self, add_vector, layer_name):
+        if add_vector is not None and layer_name:
+            self.debug_print("Trying to show {} {} layer".format(add_vector, layer_name), logging.INFO)
+            shown = self.two_d.show_vector(add_vector, layer_name)
+            if not shown:
+                self.debug_print("show didnt work, must need to add the vector instead, loading from disk...", logging.INFO)
+                self.two_d.add_vector(add_vector, layer_name)
+            self.two_d.set_extents_from_vectors(add_vector, layer_name)
+
+    def _redraw_remove_vector(self, remove_vector, layer_name):
+        if remove_vector is not None:
+            if layer_name:
+                self.debug_print("Hiding {} {} layer".format(remove_vector, layer_name), logging.INFO)
+                self.two_d.hide_vector(remove_vector, layer_name)
+            else:
+                self.debug_print("Removing all {} layers".format(remove_vector), logging.INFO)
+                self.two_d.remove_vector(remove_vector, layer_name)
+
+    def _redraw_add_mesh(self, add_mesh, layer_name):
+        if add_mesh is not None and layer_name:
+            self.debug_print("Trying to show {} {} layer".format(add_mesh, layer_name), logging.INFO)
+            shown = self.two_d.show_mesh(add_mesh, layer_name)
+            if not shown:
+                self.debug_print("show didnt work, must need to add the mesh instead, loading from disk...", logging.INFO)
+                self.two_d.add_mesh(add_mesh, layer_name)
+            self.two_d.set_extents_from_meshes(add_mesh, layer_name)
+
+    def _redraw_remove_mesh(self, remove_mesh, layer_name):
+        if remove_mesh is not None:
+            if layer_name:
+                self.debug_print("Hiding {} {} layer".format(remove_mesh, layer_name), logging.INFO)
+                self.two_d.hide_mesh(remove_mesh, layer_name)
+            else:
+                self.debug_print("Removing all {} layers".format(remove_mesh), logging.INFO)
+                self.two_d.remove_mesh(remove_mesh, layer_name)
+
+    def redraw(self, new_fqprs=None, add_surface=None, remove_surface=None, surface_layer_name='',
+               add_raster=None, remove_raster=None, add_vector=None, remove_vector=None, add_mesh=None, remove_mesh=None):
         """
         After adding new projects or surfaces, refresh the widgets to display the new data
 
@@ -556,44 +698,23 @@ class KlusterMain(QtWidgets.QMainWindow):
         add_surface: optional, str, path to new surface to add
         remove_surface: optional, str, path to existing surface to hide
         surface_layer_name: optional, str, name of the layer of the surface to add or hide
+        add_raster: optional, list of raster paths to add
+        remove_raster: optional, str, path to existing raster to hide
+        add_vector: optional, list of vector paths to add
+        remove_vector: optional, str, path to existing vector to hide
+        add_mesh: optional, list of mesh paths to add
+        remove_mesh: optional, str, path to existing mesh to hide
         """
 
-        self.project_tree.refresh_project(proj=self.project)
-        if remove_surface is not None:
-            surf_object = self.project.surface_instances[remove_surface]
-            if surface_layer_name == 'tiles':
-                if surface_layer_name:
-                    self.two_d.hide_line(remove_surface)
-                else:
-                    self.two_d.remove_line(remove_surface)
-            else:
-                for resolution in surf_object.resolutions:
-                    if surface_layer_name:
-                        self.two_d.hide_surface(remove_surface, surface_layer_name, resolution)
-                    else:
-                        self.two_d.remove_surface(remove_surface, resolution)
-        if add_surface is not None and surface_layer_name:
-            if self.surface_update_thread.isRunning():
-                self.print('Surface is currently updating, please wait until after that process is complete.', logging.WARNING)
-                return
-            surf_object = self.project.surface_instances[add_surface]
-            needs_drawing = []
-            if surface_layer_name == 'tiles':
-                if self.settings['dark_mode']:
-                    shown = self.two_d.show_line(add_surface, color='white')
-                else:
-                    shown = self.two_d.show_line(add_surface, color='black')
-                if not shown:  # show didnt work, must need to add the surface instead, loading from disk...
-                    needs_drawing.append(None)
-            else:
-                for resolution in surf_object.resolutions:
-                    shown = self.two_d.show_surface(add_surface, surface_layer_name, resolution)
-                    if not shown:  # show didnt work, must need to add the surface instead, loading from disk...
-                        needs_drawing.append(resolution)
-            if needs_drawing:
-                self.print('Drawing {} - {}, resolution {}'.format(add_surface, surface_layer_name, needs_drawing), logging.INFO)
-                self.draw_surface_thread.populate(add_surface, surf_object, needs_drawing, surface_layer_name)
-                self.draw_surface_thread.start()
+        self.project_tree.refresh_project(proj=self.project, add_raster=add_raster, add_vector=add_vector, add_mesh=add_mesh)
+        self._redraw_add_surface(add_surface, surface_layer_name)
+        self._redraw_remove_surface(remove_surface, surface_layer_name)
+        self._redraw_add_raster(add_raster, surface_layer_name)
+        self._redraw_remove_raster(remove_raster, surface_layer_name)
+        self._redraw_add_vector(add_vector, surface_layer_name)
+        self._redraw_remove_vector(remove_vector, surface_layer_name)
+        self._redraw_add_mesh(add_mesh, surface_layer_name)
+        self._redraw_remove_mesh(remove_mesh, surface_layer_name)
 
         if new_fqprs is not None and new_fqprs:
             self.draw_navigation_thread.populate(self.project, new_fqprs)
@@ -689,8 +810,31 @@ class KlusterMain(QtWidgets.QMainWindow):
         pth
             path to the grid folder
         """
-        absolute_path = self.project.absolute_path_from_relative(pth)
+        if not os.path.exists(pth):
+            absolute_path = self.project.absolute_path_from_relative(pth)
+        else:
+            # this must be an auxiliary file, like a geotiff or a s57.  Show the containing folder
+            absolute_path = os.path.dirname(pth)
         os.startfile(absolute_path)
+
+    def show_layer_properties(self, layertype: str, pth: str):
+        """
+        Right click in the project tree and select properties to run this code block.  Will open the layer properties
+        for editing qgis display attributes.
+
+        Parameters
+        ----------
+        layertype:
+            the layer category for the file
+        pth
+            path to the layer source file
+        """
+
+        translator_layer_type = {'Converted': 'line', 'Surfaces': 'surface', 'Raster': 'raster', 'Vector': 'vector', 'Mesh': 'mesh'}
+        if layertype not in translator_layer_type:
+            self.print(f'show_layer_properties: got unrecognized layer category: {layertype}', logging.ERROR)
+            return
+        self.two_d.show_properties(translator_layer_type[layertype], pth)
 
     def zoom_extents_fqpr(self, pth: str):
         """
@@ -718,6 +862,39 @@ class KlusterMain(QtWidgets.QMainWindow):
         if pth in self.project.surface_instances:
             self.two_d.set_extents_from_surfaces(subset_surf=pth,
                                                  resolution=self.project.surface_instances[pth].resolutions[0])
+
+    def zoom_extents_raster(self, pth: str):
+        """
+        Right click on raster and zoom to the extents of that layer
+
+        Parameters
+        ----------
+        pth
+            path to the converted data/surface
+        """
+        self.two_d.set_extents_from_rasters(pth)
+
+    def zoom_extents_vector(self, pth: str):
+        """
+        Right click on vector and zoom to the extents of that layer
+
+        Parameters
+        ----------
+        pth
+            path to the converted data/surface
+        """
+        self.two_d.set_extents_from_vectors(pth)
+
+    def zoom_extents_mesh(self, pth: str):
+        """
+        Right click on mesh and zoom to the extents of that layer
+
+        Parameters
+        ----------
+        pth
+            path to the converted data/surface
+        """
+        self.two_d.set_extents_from_meshes(pth)
 
     def _action_process(self, is_auto):
         if is_auto:
@@ -788,6 +965,18 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.project.remove_surface(pth, relative_path=True)
         self.project_tree.refresh_project(self.project)
 
+    def close_raster(self, pth: str):
+        self.two_d.remove_raster(pth)
+        self.project_tree.refresh_project(self.project, remove_raster=pth)
+
+    def close_vector(self, pth: str):
+        self.two_d.remove_vector(pth)
+        self.project_tree.refresh_project(self.project, remove_vector=pth)
+
+    def close_mesh(self, pth: str):
+        self.two_d.remove_mesh(pth)
+        self.project_tree.refresh_project(self.project, remove_mesh=pth)
+
     def no_threads_running(self):
         """
         Simple check to see if any of the available processes are running.  Maybe in the future we want to allow
@@ -819,9 +1008,11 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.vessel_win.converted_xyzrph_modified.connect(self.update_offsets_vesselwidget)
 
         if vessel_file:
+            self.debug_print("Load offsets/angles from designated vessel file {}".format(vessel_file), logging.INFO)
             self.vessel_win.load_from_config_file(vessel_file)
         elif fqprs:
             fqpr = self.project.fqpr_instances[self.project.path_relative_to_project(fqprs[0])]
+            self.debug_print("Load offsets/angles from selected container {}".format(fqprs[0]), logging.INFO)
             vess_xyzrph = convert_from_fqpr_xyzrph(fqpr.multibeam.xyzrph, fqpr.multibeam.raw_ping[0].sonartype,
                                                    fqpr.multibeam.raw_ping[0].system_identifier,
                                                    os.path.split(fqpr.output_folder)[1])
@@ -842,6 +1033,7 @@ class KlusterMain(QtWidgets.QMainWindow):
 
         vessel_file = self.project.return_vessel_file()
         if vessel_file:
+            self.debug_print("Regenerating processing actions on new vessel file {}".format(self.project.vessel_file), logging.INFO)
             self.intel.regenerate_actions()
 
     def update_offsets_vesselwidget(self, vess_xyzrph: dict):
@@ -860,15 +1052,13 @@ class KlusterMain(QtWidgets.QMainWindow):
 
         xyzrph, sonar_type, system_identifiers, source = convert_from_vessel_xyzrph(vess_xyzrph)
         for cnt, sysident in enumerate(system_identifiers):
+            self.debug_print("Searching for multibeam containers that match serial number {}".format(sysident), logging.INFO)
             matching_fq = list(source[0].values())[0]
             for fqname, fq in self.project.fqpr_instances.items():
                 if fqname == matching_fq:
                     self.print('Updating xyzrph record for {}'.format(fqname), logging.INFO)
                     identical_offsets, identical_angles, identical_tpu, data_matches, new_waterline = compare_dict_data(fq.multibeam.xyzrph,
                                                                                                                         xyzrph[cnt])
-                    # # drop the vessel setup specific keys, like the vessel file used and the vess_center location
-                    # drop_these = [ky for ky in xyzrph[cnt].keys() if ky not in fq.multibeam.xyzrph.keys()]
-                    # [xyzrph[cnt].pop(ky) for ky in drop_these]
                     fq.write_attribute_to_ping_records({'xyzrph': xyzrph[cnt]})
                     fq.multibeam.xyzrph.update(xyzrph[cnt])
                     if not identical_angles:  # if the angles changed then we have to start over at converted status
@@ -1015,7 +1205,7 @@ class KlusterMain(QtWidgets.QMainWindow):
                 else:
                     self.print('Error running action {}'.format(self.action_thread.action_type), logging.ERROR)
         else:
-            self.print('Error running action {}'.format(self.action_thread.action_type), logging.ERROR)
+            self.print('Error running action: {}'.format(self.action_thread.action_type), logging.ERROR)
             self.print(self.action_thread.exceptiontxt, logging.INFO)
             self.print('kluster_action: no data returned from action execution', logging.INFO)
             self.intel.update_intel_for_action_results(action_type=self.action_thread.action_type)
@@ -1148,6 +1338,7 @@ class KlusterMain(QtWidgets.QMainWindow):
             self.print('Processing is already occurring.  Please wait for the process to finish', logging.WARNING)
         else:
             systems, linenames, time_segments = self.points_view.return_lines_and_times()
+            self.debug_print("Using data from points view by system and time\nSystems:{}\nTime Segments{}".format(systems, time_segments), logging.INFO)
             if systems:
                 datablock = self.project.retrieve_data_for_time_segments(systems, time_segments)
                 if datablock:
@@ -1162,12 +1353,12 @@ class KlusterMain(QtWidgets.QMainWindow):
                                 vessel_file_name = datablock[0][-1]
                                 roll, pitch, heading = final_datablock[8], final_datablock[9], final_datablock[10]
                                 xlever, ylever, zlever = final_datablock[11], final_datablock[12], final_datablock[13]
-                                latency = final_datablock[14]
+                                latency, prefixes = final_datablock[14], final_datablock[15]
                                 fqprs, timesegments = final_datablock[0], final_datablock[6]
                                 for cnt, fq in enumerate(fqprs):
                                     fq.subset_by_times(timesegments[cnt].tolist())
                                 self._manpatchtest = None
-                                self._manpatchtest = dialog_manualpatchtest.ManualPatchTestWidget()
+                                self._manpatchtest = dialog_manualpatchtest.ManualPatchTestWidget(prefixes=prefixes)
                                 self._manpatchtest.new_offsets_angles.connect(self._update_manual_patch_test)
                                 self._manpatchtest.patchdatablock = final_datablock
                                 self._manpatchtest.populate(vessel_file_name, ','.join(final_datablock[1]), final_datablock[2],
@@ -1228,6 +1419,7 @@ class KlusterMain(QtWidgets.QMainWindow):
                 head, x, y, z, tvu, rejected, pointtime, beam = rslt
                 newid = self._manpatchtest.patchdatablock[1][cnt]
                 linenames = fq.return_lines_for_times(pointtime)
+                self.debug_print("Loading points from {} : {}".format(newid, linenames), logging.INFO)
                 self.points_view.remove_points(system_id=newid + '_' + str(headindex))
                 self.points_view.add_points(head, x, y, z, tvu, rejected, pointtime, beam, newid, linenames, cur_azimuth)
             self.points_view.three_d_window.hide_lines = hl
@@ -1395,7 +1587,7 @@ class KlusterMain(QtWidgets.QMainWindow):
                                                     points_filter_mode, savetodisk, kwargs)
                         self.filter_thread.start()
                 else:
-                   self.print('kluster_filter: Filter was cancelled', logging.WARNING)
+                    self.print('kluster_filter: Filter was cancelled', logging.WARNING)
             else:
                 self.print('kluster_filter: Filter was cancelled', logging.WARNING)
 
@@ -1406,6 +1598,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         else:
             self.print('Filter complete.', logging.INFO)
         if self.filter_thread.mode == 'points':
+            self.debug_print("Updating points view data with filter results", logging.INFO)
             newinfo = self.filter_thread.new_status
             selindex = self.filter_thread.selected_index
             base_points_view_status = self.points_view.three_d_window.rejected.copy()
@@ -2022,32 +2215,15 @@ class KlusterMain(QtWidgets.QMainWindow):
         """
 
         dlog = dialog_layer_settings.LayerSettingsDialog(parent=self, settings=self.settings_object)
-        layers = list(self.two_d.band_minmax.keys())
-        layer_minmax = {}
-        for lyr in layers:
-            if lyr in self.two_d.force_band_minmax:
-                layer_minmax[lyr] = [True, self.two_d.force_band_minmax[lyr][0], self.two_d.force_band_minmax[lyr][1]]
-            else:
-                layer_minmax[lyr] = [False, self.two_d.band_minmax[lyr][0], self.two_d.band_minmax[lyr][1]]
-        dlog.set_color_ranges(layer_minmax)
         if dlog.exec_() and not dlog.canceled:
             settings = dlog.return_layer_options()
-            new_layer_minmax = settings.pop('color_ranges')
-            for lyr, lyrdata in new_layer_minmax.items():
-                if lyrdata[0]:
-                    self.two_d.force_band_minmax[lyr] = [lyrdata[1], lyrdata[2]]
-                else:
-                    if lyr in self.two_d.force_band_minmax:
-                        self.two_d.force_band_minmax.pop(lyr)
-                self.two_d.update_layer_minmax(lyr)
             self.settings.update(settings)
             settings_obj = self.settings_object
             for settname, opts in settings_translator.items():
                 settings_obj.setValue(settname, self.settings[opts['newname']])
 
             self.two_d.vdatum_directory = self.settings['vdatum_directory']
-            self.two_d.set_background(self.settings['layer_background'], self.settings['layer_transparency'],
-                                      self.settings['surface_transparency'])
+            self.two_d.set_background(self.settings['layer_background'], self.settings['layer_transparency'])
             self.two_d.canvas.redrawAllLayers()
 
     def set_settings(self):
@@ -2080,6 +2256,29 @@ class KlusterMain(QtWidgets.QMainWindow):
                 # since we changed the nav source, we need to clear and redraw all the tracklines
                 self.redraw_all_lines()
             self._configure_logfile()
+
+    def set_debug(self, check_state: bool):
+        """
+        Set a new debug status
+        """
+        self.settings['debug'] = check_state
+        settings_obj = self.settings_object
+        for settname, opts in settings_translator.items():
+            settings_obj.setValue(settname, self.settings[opts['newname']])
+        if check_state:
+            self.print('Debug messaging enabled', logging.INFO)
+        # now update the control if we are doing this manually, not through the checkbox event
+        help_menu = [mn for mn in self.menuBar().actions() if mn.text() == 'Help']
+        if help_menu:
+            help_menu = help_menu[0]
+            debugaction = [mn for mn in help_menu.menu().actions() if mn.text() == 'Debug']
+            if debugaction:
+                debugaction = debugaction[0]
+                debugaction.setChecked(check_state)
+            else:
+                self.print('Warning: Can not find the Debug action to set debug control!', logging.WARNING)
+        else:
+            self.print('Warning: Can not find the help menu to set debug control!', logging.WARNING)
 
     def set_dark_mode(self, check_state: bool):
         """
@@ -2267,6 +2466,24 @@ class KlusterMain(QtWidgets.QMainWindow):
         else:
             self.redraw(remove_surface=surfpath, surface_layer_name=layername)
 
+    def tree_raster_layer_selected(self, rasterpath, layername, checked):
+        if checked:
+            self.redraw(add_raster=rasterpath, surface_layer_name=layername)
+        else:
+            self.redraw(remove_raster=rasterpath, surface_layer_name=layername)
+
+    def tree_vector_layer_selected(self, vectorpath, layername, checked):
+        if checked:
+            self.redraw(add_vector=vectorpath, surface_layer_name=layername)
+        else:
+            self.redraw(remove_vector=vectorpath, surface_layer_name=layername)
+
+    def tree_mesh_layer_selected(self, meshpath, layername, checked):
+        if checked:
+            self.redraw(add_mesh=meshpath, surface_layer_name=layername)
+        else:
+            self.redraw(remove_mesh=meshpath, surface_layer_name=layername)
+
     def tree_all_lines_selected(self, is_selected):
         """
         method is run on selecting a the top level 'Converted' heading in KlusterProjectTree
@@ -2364,6 +2581,17 @@ class KlusterMain(QtWidgets.QMainWindow):
             self.clear_points(True)
             points_data = self.load_points_thread.points_data
             azimuth = self.load_points_thread.azimuth
+            vert_ref = ''
+            for fqpr_name, pointdata in points_data.items():
+                new_vert_ref = self.project.fqpr_instances[fqpr_name].vert_ref
+                if vert_ref and new_vert_ref != vert_ref:
+                    self.print(f"New vertical reference {new_vert_ref} doesn't match current vertical reference {vert_ref}, using {vert_ref} to determine z sign convention", loglevel=logging.WARNING)
+                if not vert_ref:
+                    vert_ref = new_vert_ref
+                    if vert_ref in kluster_variables.positive_up_vertical_references:
+                        self.points_view.z_flipped = False
+                    else:
+                        self.points_view.z_flipped = True
             for fqpr_name, pointdata in points_data.items():
                 self.points_view.add_points(pointdata[0], pointdata[1], pointdata[2], pointdata[3], pointdata[4], pointdata[5],
                                             pointdata[6], pointdata[7], fqpr_name, pointdata[8], azimuth=azimuth)
@@ -2839,23 +3067,28 @@ def main():
                 plugin_dir = os.path.join(os.path.dirname(found_path), 'plugins')
                 prefix_dir = os.path.join(os.path.dirname(found_path))
                 processing_dir = os.path.join(os.path.dirname(found_path), 'python', 'plugins', 'processing')
+
         try:
             assert os.path.exists(plugin_dir)
         except:
-            raise EnvironmentError(f"Can't find plugin directory at {plugin_dir}, pyinstaller={ispyinstaller}")
+            print(f"WARNING: QGIS - Can't find plugin directory at {plugin_dir}, is pyinstaller={ispyinstaller}")
         try:
             assert os.path.exists(prefix_dir)
         except:
-            raise EnvironmentError(f"Can't find prefix directory at {prefix_dir}, pyinstaller={ispyinstaller}")
+            print(f"WARNING: QGIS - Can't find prefix directory at {prefix_dir}, is pyinstaller={ispyinstaller}")
         try:
             assert os.path.exists(processing_dir)
         except:
-            raise EnvironmentError(f"Can't find processing directory at {processing_dir}, pyinstaller={ispyinstaller}")
+            print(f"WARNING: QGIS - Can't find processing directory at {processing_dir}, is pyinstaller={ispyinstaller}")
 
         app.setPrefixPath(prefix_dir, True)
         app.setPluginPath(plugin_dir)
 
         app.initQgis()
+
+        # set a configuration text block, in case you want to display it for the user
+        global config_text
+        config_text = f'**************************************************\nQGIS Version: {qgis_core.Qgis.QGIS_VERSION}\n\n{app.showSettings()}**************************************************'
 
         # setup the processing algorithms in no gui mode, this is pretty hacky but the only documented way to get it
         #   to work that I have found.

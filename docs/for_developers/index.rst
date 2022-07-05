@@ -1,5 +1,5 @@
 For Developers
-==============
+===============
 
 This article is here to provide some guidance for potential developers in the Kluster environment.  As I get questions,
 I'll be adding to this so that we have a repository of guidance.
@@ -24,3 +24,5 @@ These are all common processes to use when starting out.  The FQPR object (fully
 for the kluster processed data.
 
 .. toctree::
+
+   fordev_sonar

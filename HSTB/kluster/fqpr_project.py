@@ -298,13 +298,13 @@ class FqprProject(LoggerClass):
             if os.path.exists(pth):
                 self.add_fqpr(pth, skip_dask=skip_dask)
             else:  # invalid path
-                self.print_msg('open_project: Unable to find converted data: {}'.format(pth), logging.ERROR)
+                self.print_msg('open_project: Unable to find converted data: {}'.format(pth), logging.WARNING)
 
         for pth in data['surface_paths']:
             if os.path.exists(pth):
                 self.add_surface(pth)
             else:  # invalid path
-                self.print_msg('open_project: Unable to find surface: {}'.format(pth), logging.ERROR)
+                self.print_msg('open_project: Unable to find surface: {}'.format(pth), logging.WARNING)
 
         data.pop('vessel_file')
         data.pop('fqpr_paths')

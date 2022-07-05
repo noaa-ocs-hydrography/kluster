@@ -91,7 +91,7 @@ class FqprExport:
             dinfo = ping_dataset.detectioninfo
             filter_stck = dinfo.values[nan_mask]
             # filter_idx, filter_stck = stack_nan_array(dinfo, stack_dims=('time', 'beam'))
-            valid_detections = filter_stck != 2
+            valid_detections = filter_stck != kluster_variables.rejected_flag
             tot = len(filter_stck)
             tot_valid = np.count_nonzero(valid_detections)
             tot_invalid = tot - tot_valid

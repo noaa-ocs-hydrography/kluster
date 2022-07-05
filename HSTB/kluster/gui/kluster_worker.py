@@ -36,7 +36,10 @@ class ActionWorker(QtCore.QThread):
     def run(self):
         self.started.emit(True)
         try:
-            self.action_type = self.action_container.actions[self.action_index].action_type
+            action = self.action_container.actions[self.action_index]
+            self.parent().debug_print(f'current action container')
+            self.parent().debug_print(f'running {action}: {action.function}, kwargs={action.kwargs}', logging.INFO)
+            self.action_type = action.action_type
             self.result = self.action_container.execute_action(self.action_index)
         except Exception as e:
             self.error = True
@@ -83,6 +86,7 @@ class OpenProjectWorker(QtCore.QThread):
                     data['fqpr_paths'] = self.force_add_fqprs
                 if self.force_add_surfaces:
                     data['surface_paths'] = self.force_add_surfaces
+            self.parent().debug_print(f'loading {data}', logging.INFO)
             for pth in data['fqpr_paths']:
                 fqpr_entry = reload_data(pth, skip_dask=True, silent=True, show_progress=True)
                 if fqpr_entry is not None:  # no fqpr instance successfully loaded
@@ -131,7 +135,9 @@ class DrawNavigationWorker(QtCore.QThread):
                 self.parent().print('building tracklines for {}...'.format(fq), logging.INFO)
                 for ln in self.project.return_project_lines(proj=fq, relative_path=True):
                     lats, lons = self.project.return_line_navigation(ln)
-                    self.line_data[ln] = [lats, lons]
+                    if lats is not None:
+                        self.line_data[ln] = [lats, lons]
+                        self.parent().debug_print(f'project.return_line_navigation: drawing {ln}: {len(lats)} points, {lats[0]},{lons[0]} to {lats[-1]},{lons[-1]}', logging.INFO)
         except Exception as e:
             self.error = True
             self.exceptiontxt = traceback.format_exc()
@@ -172,6 +178,7 @@ class DrawSurfaceWorker(QtCore.QThread):
             if self.surface_layer_name == 'tiles':
                 try:
                     x, y = self.surf_object.get_tile_boundaries()
+                    self.parent().debug_print(f'surf_object.get_tile_boundaries: getting bathygrid tile boundaries, {len(x)} points from {x[0]},{y[0]} to {x[-1]},{y[-1]}', logging.INFO)
                     self.surface_data = [x, y]
                 except:
                     self.parent().print('Unable to load tile layer from {}, no surface data found'.format(self.surface_path), logging.WARNING)
@@ -189,8 +196,10 @@ class DrawSurfaceWorker(QtCore.QThread):
                                                                                             nodatavalue=np.float32(np.nan), z_positive_up=self.surf_object.positive_up,
                                                                                             for_gdal=True):
                         data = list(data.values())
-                        self.surface_data[resolution][self.surface_layer_name + '_{}'.format(chunk_count)] = [data, geo_transform]
+                        tilename = self.surface_layer_name + '_{}'.format(chunk_count)
+                        self.surface_data[resolution][tilename] = [data, geo_transform]
                         chunk_count += 1
+                        self.parent().debug_print(f'surf_object.get_chunks_of_tiles: {self.surface_path} : {tilename} : {resolution}m geotransform {geo_transform} maxdimension {maxdim}', logging.INFO)
         except Exception as e:
             self.error = True
             self.exceptiontxt = traceback.format_exc()
@@ -225,6 +234,7 @@ class LoadPointsWorker(QtCore.QThread):
     def run(self):
         self.started.emit(True)
         try:
+            self.parent().debug_print(f'project.return_soundings_in_polygon: Returning soundings within polygon {self.polygon}', logging.INFO)
             self.points_data = self.project.return_soundings_in_polygon(self.polygon)
         except Exception as e:
             self.error = True
@@ -257,6 +267,7 @@ class ImportNavigationWorker(QtCore.QThread):
         self.started.emit(True)
         try:
             for chnk in self.fq_chunks:
+                self.parent().debug_print(f'fqpr_convenience.import_processed_navigation {chnk[1]}', logging.INFO)
                 self.fqpr_instances.append(import_processed_navigation(chnk[0], **chnk[1]))
         except Exception as e:
             self.error = True
@@ -289,6 +300,7 @@ class OverwriteNavigationWorker(QtCore.QThread):
         self.started.emit(True)
         try:
             for chnk in self.fq_chunks:
+                self.parent().debug_print(f'fqpr_convenience.overwrite_raw_navigation {chnk[1]}', logging.INFO)
                 self.fqpr_instances.append(overwrite_raw_navigation(chnk[0], **chnk[1]))
         except Exception as e:
             self.error = True
@@ -349,12 +361,15 @@ class ExportWorker(QtCore.QThread):
 
     def export_process(self, fq, datablock=None):
         if self.mode == 'basic':
+            self.parent().debug_print(f'export_pings_to_file file_format={self.export_type}, csv_delimiter={self.delimiter}, filter_by_detection={self.filterset}, format_type={self.formattype}, z_pos_down={self.z_pos_down}, export_by_identifiers={self.separateset}', logging.INFO)
             fq.export_pings_to_file(file_format=self.export_type, csv_delimiter=self.delimiter, filter_by_detection=self.filterset,
                                     format_type=self.formattype, z_pos_down=self.z_pos_down, export_by_identifiers=self.separateset)
         elif self.mode == 'line':
+            self.parent().debug_print(f'export_lines_to_file linenames={self.line_names}, file_format={self.export_type}, csv_delimiter={self.delimiter}, filter_by_detection={self.filterset}, format_type={self.formattype}, z_pos_down={self.z_pos_down}, export_by_identifiers={self.separateset}', logging.INFO)
             fq.export_lines_to_file(linenames=self.line_names, file_format=self.export_type, csv_delimiter=self.delimiter,
                                     filter_by_detection=self.filterset, format_type=self.formattype, z_pos_down=self.z_pos_down, export_by_identifiers=self.separateset)
         else:
+            self.parent().debug_print(f'export_soundings_to_file file_format={self.export_type}, csv_delimiter={self.delimiter}, filter_by_detection={self.filterset}, format_type={self.formattype}, z_pos_down={self.z_pos_down}', logging.INFO)
             fq.export_soundings_to_file(datablock=datablock, file_format=self.export_type, csv_delimiter=self.delimiter,
                                         filter_by_detection=self.filterset, format_type=self.formattype, z_pos_down=self.z_pos_down)
         return fq
@@ -424,16 +439,19 @@ class FilterWorker(QtCore.QThread):
 
     def filter_process(self, fq, subset_time=None, subset_beam=None):
         if self.mode == 'basic':
+            self.parent().debug_print(f'run_filter {self.filter_name}, {self.kwargs}', logging.INFO)
             new_status = fq.run_filter(self.filter_name, **self.kwargs)
             fq.multibeam.reload_pingrecords()
         elif self.mode == 'line':
+            self.parent().debug_print(f'run_filter {self.filter_name}, {self.kwargs}', logging.INFO)
             fq.subset_by_lines(self.line_names)
             new_status = fq.run_filter(self.filter_name, **self.kwargs)
             fq.restore_subset()
             fq.multibeam.reload_pingrecords()
         else:
-            # take the provided Points View time and subset the provided fqpr to just those times,beams
+            self.parent().debug_print(f'take the provided Points View time and subset the provided fqpr to just those times,beams', logging.INFO)
             selected_index = fq.subset_by_time_and_beam(subset_time, subset_beam)
+            self.parent().debug_print(f'run_filter {self.filter_name}, {self.kwargs}', logging.INFO)
             new_status = fq.run_filter(self.filter_name, selected_index=selected_index, save_to_disk=self.save_to_disk, **self.kwargs)
             fq.restore_subset()
             if self.save_to_disk:
@@ -496,8 +514,10 @@ class ExportTracklinesWorker(QtCore.QThread):
 
     def export_process(self, fq):
         if self.mode == 'basic':
+            self.parent().debug_print(f'export_tracklines_to_file output_file={self.output_path}, file_format={self.export_type}', logging.INFO)
             fq.export_tracklines_to_file(linenames=None, output_file=self.output_path, file_format=self.export_type)
         elif self.mode == 'line':
+            self.parent().debug_print(f'export_tracklines_to_file linenames={self.line_names} output_file={self.output_path}, file_format={self.export_type}', logging.INFO)
             fq.export_tracklines_to_file(linenames=self.line_names, output_file=self.output_path, file_format=self.export_type)
         return fq
 
@@ -542,6 +562,7 @@ class ExportGridWorker(QtCore.QThread):
     def run(self):
         self.started.emit(True)
         try:
+            self.parent().debug_print(f'surf_instance.export {self.output_path} export_type={self.export_type}, z_pos_up={self.z_pos_up}', logging.INFO)
             # None in the 4th arg to indicate you want to export all resolutions
             self.surf_instance.export(self.output_path, self.export_type, self.z_pos_up, None,
                                       override_maximum_chunk_dimension=kluster_variables.chunk_size_export,
@@ -581,8 +602,10 @@ class SurfaceWorker(QtCore.QThread):
         self.started.emit(True)
         try:
             if self.mode == 'from_fqpr':
+                self.parent().debug_print(f'generate_new_surface {self.opts}', logging.INFO)
                 self.fqpr_surface = generate_new_surface(self.fqpr_instances, **self.opts)
             elif self.mode == 'from_points':
+                self.parent().debug_print(f'points_to_surface {self.opts}', logging.INFO)
                 self.fqpr_surface = points_to_surface(self.fqpr_instances, **self.opts)
         except Exception as e:
             self.error = True
@@ -624,6 +647,7 @@ class SurfaceUpdateWorker(QtCore.QThread):
     def run(self):
         self.started.emit(True)
         try:
+            self.parent().debug_print(f'update_surface add_fqpr={self.add_fqpr_instances}, add_lines={self.add_lines}, remove_fqpr={self.remove_fqpr_names}, remove_lines={self.remove_lines}, {self.opts}', logging.INFO)
             self.fqpr_surface, oldrez, newrez = update_surface(self.fqpr_surface, self.add_fqpr_instances, self.add_lines,
                                                                self.remove_fqpr_names, self.remove_lines, **self.opts)
         except Exception as e:
@@ -673,6 +697,7 @@ class PatchTestUpdateWorker(QtCore.QThread):
     def run(self):
         self.started.emit(True)
         try:
+            self.parent().debug_print(f'reprocess_fqprs fqprs={self.fqprs}, newvalues={self.newvalues}, headindex={self.headindex}, prefixes={self.prefixes}, timestamps={self.timestamps}, serial_number={self.serial_number}, polygon={self.polygon}, vdatum_directory={self.vdatum_directory}', logging.INFO)
             self.fqprs, self.result = reprocess_fqprs(self.fqprs, self.newvalues, self.headindex, self.prefixes, self.timestamps,
                                                       self.serial_number, self.polygon, self.vdatum_directory)
         except Exception as e:

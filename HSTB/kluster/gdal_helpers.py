@@ -126,7 +126,12 @@ def ogr_output_file_exists(pth: str):
         True if the file exists
     """
 
-    openfil = ogr.Open(pth)
+    ogr.UseExceptions()
+    try:
+        openfil = ogr.Open(pth)
+    except RuntimeError:
+        openfil = None
+    ogr.DontUseExceptions()
     if openfil is None:
         return False
     openfil = None
@@ -213,6 +218,35 @@ def gdal_raster_create(output_raster: str, data: list, geo_transform: list, crs:
     if driver != 'MEM':  # MEM driver relies on you returning the dataset for use
         dataset = None
     return dataset
+
+
+def get_raster_bands(raster_source: str):
+    ds = gdal.Open(raster_source)
+    if ds is None:
+        return None
+    rbands = []
+    for bandcount in range(ds.RasterCount):
+        bandcount += 1  # gdal is 1 indexed
+        band = ds.GetRasterBand(bandcount)
+        lyrname = band.GetDescription()
+        rbands.append(lyrname)
+        band = None
+    ds = None
+    return rbands
+
+
+def get_vector_layers(vector_source: str):
+    ds = ogr.Open(vector_source)
+    if ds is None:
+        return None
+    vlayers = []
+    for lyrcount in range(ds.GetLayerCount()):
+        lyr = ds.GetLayer(lyrcount)
+        lyrname = lyr.GetDescription()
+        vlayers.append(lyrname)
+        lyr = None
+    ds = None
+    return vlayers
 
 
 class VectorLayer:

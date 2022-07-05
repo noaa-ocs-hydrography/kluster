@@ -647,6 +647,7 @@ class ThreeDView(QtWidgets.QWidget):
 
         self._select_rect_color = 'white'
         self.is_3d = True
+        self.z_flipped = True
 
         self.scatter = None
         self.scatter_transform = None
@@ -884,6 +885,7 @@ class ThreeDView(QtWidgets.QWidget):
         if azimuth:
             cos_az = np.cos(azimuth)
             sin_az = np.sin(azimuth)
+            self.debug_print(f'points_view add_points - rotate points by azimuth {float(np.rad2deg(azimuth))}', logging.INFO)
 
             rotx = cos_az * x - sin_az * y
             roty = sin_az * x + cos_az * y
@@ -1288,23 +1290,29 @@ class ThreeDView(QtWidgets.QWidget):
         # values (like northings/eastings) cause floating point problems and the point positions jitter as you move
         # the camera (as successive redraw commands are run).  By zero centering and saving the offset, we can display
         # the centered northing/easting and rebuild the original value by adding the offset back in if we need to
+        self.debug_print('points_view display_points - normalize points (subtract min values) to resolve point jitter with large floating point numbers', logging.INFO)
+        self.debug_print(f'points_view display_points - min_x={self.min_x}, min_y={self.min_y}, min_z={self.min_z}', logging.INFO)
         self.x_offset = self.min_x
         self.y_offset = self.min_y
         self.z_offset = self.min_z
         centered_z = self.z - self.z_offset
 
         if view_direction in ['north', 'east', 'top']:
+            self.debug_print(f'points_view display_points - with view direction of {view_direction}, use the non-rotated points', logging.INFO)
             centered_x = self.x - self.x_offset
             centered_y = self.y - self.y_offset
         else:
+            self.debug_print(f'points_view display_points - with view direction of {view_direction}, use the rotated points', logging.INFO)
             centered_x = self.rotx - self.x_offset
             centered_y = self.roty - self.y_offset
 
         # camera assumes z is positive up, flip the values
         if self.is_3d:
-            centered_z = (centered_z - centered_z.max()) * -1 * vertical_exaggeration
+            centered_z = (centered_z - centered_z.max()) * vertical_exaggeration
         else:
-            centered_z = centered_z * -1
+            centered_z = centered_z
+        if self.z_flipped:
+            centered_z *= -1
 
         self.displayed_points = np.stack([centered_x, centered_y, centered_z], axis=1)
         clrs, cmap, minval, maxval = self._build_color_by_soundings(color_by)
@@ -1357,6 +1365,8 @@ class ThreeDView(QtWidgets.QWidget):
         """
         Clear display and all stored data
         """
+        self.debug_print(f'points_view clearing all loaded data', logging.INFO)
+
         self.clear_display()
         self.id = np.array([], dtype=object)
         self.head = np.array([], dtype=np.int8)
@@ -1425,6 +1435,7 @@ class ThreeDWidget(QtWidgets.QWidget):
         self.opts_layout.addWidget(self.viewdirection_label)
         self.viewdirection2d = QtWidgets.QComboBox()
         self.viewdirection2d.addItems(['north', 'east', 'arrow'])
+        self.viewdirection2d.setCurrentText('arrow')
         self.viewdirection2d.setToolTip('View direction shown in the Points View:\n\n' +
                                         'north - this will show the eastings (x) vs depth\n' +
                                         'east - this will show the northings (y) vs depth\n' +
@@ -1432,6 +1443,7 @@ class ThreeDWidget(QtWidgets.QWidget):
         self.opts_layout.addWidget(self.viewdirection2d)
         self.viewdirection3d = QtWidgets.QComboBox()
         self.viewdirection3d.addItems(['top', 'arrow'])
+        self.viewdirection2d.setCurrentText('arrow')
         self.viewdirection3d.setToolTip('View direction shown in the Points View:\n\n' +
                                         'top - this will show the unrotated soundings (soundings as is)\n' +
                                         'arrow - this will show the rotated soundings in a top view, using the direction shown as the arrow of the box select tool in 2dview')
@@ -1512,6 +1524,7 @@ class ThreeDWidget(QtWidgets.QWidget):
         self.hide_lines_btn.clicked.connect(self._event_hide_lines)
 
         self.is_3d = None
+        self._z_flipped = True
         self.patch_test_running = False
         self.last_change_buffer = []
         self.text_controls = [['dimension', self.dimension], ['colorby', self.colorby],
@@ -1545,6 +1558,15 @@ class ThreeDWidget(QtWidgets.QWidget):
     def select_rect_color(self, clr):
         self._select_rect_color = clr
         self.three_d_window.select_rect_color = clr
+
+    @property
+    def z_flipped(self):
+        return self._z_flipped
+
+    @z_flipped.setter
+    def z_flipped(self, flipz: bool = True):
+        self._z_flipped = flipz
+        self.three_d_window.z_flipped = flipz
 
     def print(self, msg: str, loglevel: int):
         """
@@ -1699,20 +1721,25 @@ class ThreeDWidget(QtWidgets.QWidget):
             self.three_d_window.highlight_selected_scatter('id', False)
             minx, miny = min(startpos_canvas[0], endpos_canvas[0]), min(startpos_canvas[1], endpos_canvas[1])
             window_width, window_height = max(abs(startpos_canvas[0] - endpos_canvas[0]), 1), max(abs(startpos_canvas[1] - endpos_canvas[1]), 1)
+            self.debug_print(f'points_view _handle_point_selection - identify points within selection (screen coordinates) {int(minx)}, {int(miny)}, {int(window_width)}, {int(window_height)}', logging.INFO)
             img = self.three_d_window.canvas.render((int(minx), int(miny), int(window_width), int(window_height)), bgcolor=(0, 0, 0, 0))
             idxs = img.ravel().view(np.uint32)
+            self.debug_print(f'points_view _handle_point_selection - found {idxs.size} points in selection', logging.INFO)
             if idxs.any():
                 idxs = np.unique(idxs)
                 idx = idxs[idxs != 0]
+                self.debug_print(f'points_view _handle_point_selection - filtered out invalid indexes, left with {idx.size} points in selection', logging.INFO)
                 if idx.any():
                     # subtract one; color 0 was reserved for the background
                     idx = idx - 1
                     # filter out the out of bounds indices
                     idx = idx[np.logical_and(idx > 0, idx < points_in_screen.shape[0])]
                     points_in_screen[idx] = True
+                    self.debug_print(f'points_view _handle_point_selection - remove background and out of bound indexes, left with {idx.size} points in selection', logging.INFO)
             self.three_d_window.scatter.update_gl_state(blend=True)
             self.three_d_window.scatter.antialias = 1
         else:
+            self.debug_print(f'points_view _handle_point_selection - identify points within selection (data coordinates) min_x={startpos[0]}, min_y={startpos[1] - self.three_d_window.z_offset} max_x={endpos[0]}, max_y={endpos[1] - self.three_d_window.z_offset}', logging.INFO)
             vd = self.viewdirection2d.currentText()
             if vd in ['north']:
                 m1 = self.three_d_window.displayed_points[:, [0, 2]] >= startpos[0:2]

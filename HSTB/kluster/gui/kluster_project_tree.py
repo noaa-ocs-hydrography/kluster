@@ -3,6 +3,7 @@ import sys, os
 
 from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal
 from HSTB.kluster.fqpr_project import FqprProject
+from HSTB.kluster.gdal_helpers import get_raster_bands, get_vector_layers
 
 
 class KlusterProjectTree(QtWidgets.QTreeView):
@@ -19,15 +20,25 @@ class KlusterProjectTree(QtWidgets.QTreeView):
     lines_selected = Signal(object)
     all_lines_selected = Signal(bool)
     surface_layer_selected = Signal(str, str, bool)
+    raster_layer_selected = Signal(str, str, bool)
+    vector_layer_selected = Signal(str, str, bool)
+    mesh_layer_selected = Signal(str, str, bool)
     close_fqpr = Signal(str)
     close_surface = Signal(str)
+    close_raster = Signal(str)
+    close_mesh = Signal(str)
+    close_vector = Signal(str)
     manage_fqpr = Signal(str)
     manage_surface = Signal(str)
     load_console_fqpr = Signal(str)
     load_console_surface = Signal(str)
     show_explorer = Signal(str)
+    show_properties = Signal(str, str)
     zoom_extents_fqpr = Signal(str)
     zoom_extents_surface = Signal(str)
+    zoom_extents_raster = Signal(str)
+    zoom_extents_vector = Signal(str)
+    zoom_extents_mesh = Signal(str)
     reprocess_instance = Signal(str)
     update_surface = Signal(str)
 
@@ -52,9 +63,12 @@ class KlusterProjectTree(QtWidgets.QTreeView):
         self.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
         self.right_click_menu_converted = None
         self.right_click_menu_surfaces = None
+        self.right_click_menu_raster = None
+        self.right_click_menu_vector = None
+        self.right_click_menu_mesh = None
         self.setup_menu()
 
-        self.categories = ['Project', 'Vessel File', 'Converted', 'Surfaces']
+        self.categories = ['Project', 'Vessel File', 'Converted', 'Surfaces', 'Raster', 'Vector', 'Mesh']
         self.tree_data = {}
         self.shown_layers = []
 
@@ -108,6 +122,9 @@ class KlusterProjectTree(QtWidgets.QTreeView):
         """
         self.right_click_menu_converted = QtWidgets.QMenu('menu', self)
         self.right_click_menu_surfaces = QtWidgets.QMenu('menu', self)
+        self.right_click_menu_raster = QtWidgets.QMenu('menu', self)
+        self.right_click_menu_vector = QtWidgets.QMenu('menu', self)
+        self.right_click_menu_mesh = QtWidgets.QMenu('menu', self)
 
         close_dat = QtWidgets.QAction('Close', self)
         close_dat.triggered.connect(self.close_item_event)
@@ -123,22 +140,44 @@ class KlusterProjectTree(QtWidgets.QTreeView):
         update_surface.triggered.connect(self.update_surface_event)
         manage_fqpr = QtWidgets.QAction('Manage', self)
         manage_fqpr.triggered.connect(self.manage_data_event)
+        properties_action = QtWidgets.QAction('Properties', self)
+        properties_action.triggered.connect(self.properties_event)
 
         self.right_click_menu_converted.addAction(manage_fqpr)
+        self.right_click_menu_converted.addAction(reprocess)
+        self.right_click_menu_converted.addSeparator()
         self.right_click_menu_converted.addAction(load_in_console)
         self.right_click_menu_converted.addAction(show_explorer_action)
         self.right_click_menu_converted.addAction(zoom_extents)
-        self.right_click_menu_converted.addSeparator()
-        self.right_click_menu_converted.addAction(reprocess)
         self.right_click_menu_converted.addAction(close_dat)
 
         self.right_click_menu_surfaces.addAction(manage_fqpr)
+        self.right_click_menu_surfaces.addAction(update_surface)
+        self.right_click_menu_surfaces.addAction(properties_action)
+        self.right_click_menu_surfaces.addSeparator()
         self.right_click_menu_surfaces.addAction(load_in_console)
         self.right_click_menu_surfaces.addAction(show_explorer_action)
         self.right_click_menu_surfaces.addAction(zoom_extents)
-        self.right_click_menu_surfaces.addSeparator()
-        self.right_click_menu_surfaces.addAction(update_surface)
         self.right_click_menu_surfaces.addAction(close_dat)
+
+        self.right_click_menu_raster.addAction(properties_action)
+        self.right_click_menu_raster.addSeparator()
+        self.right_click_menu_raster.addAction(show_explorer_action)
+        self.right_click_menu_raster.addAction(zoom_extents)
+        self.right_click_menu_raster.addAction(close_dat)
+
+        self.right_click_menu_vector.addAction(properties_action)
+        self.right_click_menu_vector.addSeparator()
+        self.right_click_menu_vector.addAction(show_explorer_action)
+        self.right_click_menu_vector.addAction(zoom_extents)
+        self.right_click_menu_vector.addAction(close_dat)
+
+        # I still haven't figured out how to access the renderer settings for qgsmeshlayers
+        # self.right_click_menu_mesh.addAction(properties_action)
+        # self.right_click_menu_mesh.addSeparator()
+        self.right_click_menu_mesh.addAction(show_explorer_action)
+        self.right_click_menu_mesh.addAction(zoom_extents)
+        self.right_click_menu_mesh.addAction(close_dat)
 
     def show_context_menu(self):
         """
@@ -153,6 +192,12 @@ class KlusterProjectTree(QtWidgets.QTreeView):
             self.right_click_menu_converted.exec_(QtGui.QCursor.pos())
         elif mid_lvl_name == 'Surfaces':
             self.right_click_menu_surfaces.exec_(QtGui.QCursor.pos())
+        elif mid_lvl_name == 'Raster':
+            self.right_click_menu_raster.exec_(QtGui.QCursor.pos())
+        elif mid_lvl_name == 'Vector':
+            self.right_click_menu_vector.exec_(QtGui.QCursor.pos())
+        elif mid_lvl_name == 'Mesh':
+            self.right_click_menu_mesh.exec_(QtGui.QCursor.pos())
 
     def reprocess_event(self, e: QtCore.QEvent):
         """
@@ -226,6 +271,12 @@ class KlusterProjectTree(QtWidgets.QTreeView):
             self.zoom_extents_fqpr.emit(sel_data)
         elif mid_lvl_name == 'Surfaces':
             self.zoom_extents_surface.emit(sel_data)
+        elif mid_lvl_name == 'Raster':
+            self.zoom_extents_raster.emit(sel_data)
+        elif mid_lvl_name == 'Vector':
+            self.zoom_extents_vector.emit(sel_data)
+        elif mid_lvl_name == 'Mesh':
+            self.zoom_extents_mesh.emit(sel_data)
 
     def update_surface_event(self, e):
         """
@@ -260,6 +311,22 @@ class KlusterProjectTree(QtWidgets.QTreeView):
         elif mid_lvl_name == 'Surfaces':
             self.manage_surface.emit(sel_data)
 
+    def properties_event(self, e):
+        """
+        We want the ability for the user to right click a layer and edit the display properties of that layer
+
+        Parameters
+        ----------
+        e
+            QEvent on menu button click
+        """
+
+        index = self.currentIndex()
+        mid_lvl_name = index.parent().data()
+        sel_data = index.data()
+
+        self.show_properties.emit(mid_lvl_name, sel_data)
+
     def close_item_event(self, e):
         """
         If user right clicks on a project tree item and selects close, triggers this event.  Emit signals depending
@@ -278,6 +345,18 @@ class KlusterProjectTree(QtWidgets.QTreeView):
         surfs = self.return_selected_surfaces()
         for surf in surfs:
             self.close_surface.emit(surf)
+
+        rasters = self.return_selected_rasters()
+        for rstr in rasters:
+            self.close_raster.emit(rstr)
+
+        vectors = self.return_selected_vectors()
+        for vstr in vectors:
+            self.close_vector.emit(vstr)
+
+        meshs = self.return_selected_mesh()
+        for msh in meshs:
+            self.close_mesh.emit(msh)
 
     def configure(self):
         """
@@ -310,6 +389,7 @@ class KlusterProjectTree(QtWidgets.QTreeView):
         for fq_proj in line_data:
             if fq_proj not in current_fq_proj:
                 proj_child = QtGui.QStandardItem(fq_proj)
+                proj_child.setToolTip(fq_proj)
                 parent.appendRow(proj_child)
                 for fq_line in line_data[fq_proj]:
                     line_child = QtGui.QStandardItem(fq_line)
@@ -347,6 +427,7 @@ class KlusterProjectTree(QtWidgets.QTreeView):
             layer_names = surf_data[surf].return_layer_names()
             if surf not in current_surfs:
                 surf_child = QtGui.QStandardItem(surf)
+                surf_child.setToolTip(surf)
                 parent.appendRow(surf_child)
                 for lyr in surf_data[surf].return_layer_names():
                     lyr_child = QtGui.QStandardItem(lyr)
@@ -357,7 +438,6 @@ class KlusterProjectTree(QtWidgets.QTreeView):
                         lyr_child.setCheckable(True)
                         surf_child.appendRow([lyr_child])
                 try:  # add the ability to draw the grid outline, new in bathygrid 1.1.2
-                    surf_data[surf].get_tile_boundaries
                     lyr_child = QtGui.QStandardItem('tiles')
                     lyr_child.setCheckable(True)
                     surf_child.appendRow([lyr_child])
@@ -439,11 +519,13 @@ class KlusterProjectTree(QtWidgets.QTreeView):
     def _setup_project(self, parent, proj_directory):
         if len(self.tree_data['Project']) == 1:
             proj_child = QtGui.QStandardItem(proj_directory)
+            proj_child.setToolTip(proj_directory)
             parent.appendRow(proj_child)
             self.tree_data['Project'].append(proj_directory)
         else:
             parent.removeRow(0)
             proj_child = QtGui.QStandardItem(proj_directory)
+            proj_child.setToolTip(proj_directory)
             parent.appendRow(proj_child)
             self.tree_data['Project'][1] = proj_directory
 
@@ -451,16 +533,151 @@ class KlusterProjectTree(QtWidgets.QTreeView):
         if len(self.tree_data['Vessel File']) == 1:
             if vessel_path:
                 proj_child = QtGui.QStandardItem(vessel_path)
+                proj_child.setToolTip(vessel_path)
                 parent.appendRow(proj_child)
                 self.tree_data['Vessel File'].append(vessel_path)
         else:
             parent.removeRow(0)
             if vessel_path:
                 proj_child = QtGui.QStandardItem(vessel_path)
+                proj_child.setToolTip(vessel_path)
                 parent.appendRow(proj_child)
                 self.tree_data['Vessel File'][1] = vessel_path
 
-    def refresh_project(self, proj):
+    def _add_new_raster(self, parent: QtGui.QStandardItem, raster_path: str):
+        """
+        Add from a generic raster file, like a geotiff
+
+        Parameters
+        ----------
+        parent: PySide2.QtGui.QStandardItem, the item that represents the 'Raster' entry in the tree.
+        raster_path: full filepath to the raster
+        """
+
+        current_rasterdata = self.tree_data['Raster'][1:]
+        rbands = get_raster_bands(raster_path)
+        if raster_path not in current_rasterdata and rbands:
+            proj_child = QtGui.QStandardItem(raster_path)
+            proj_child.setToolTip(raster_path)
+            parent.appendRow(proj_child)
+            for rband in rbands:
+                band_child = QtGui.QStandardItem(rband)
+                band_child.setCheckable(True)
+                proj_child.appendRow([band_child])
+            self.tree_data['Raster'].append(raster_path)
+
+    def _remove_raster(self, parent, raster_path: str):
+        """
+        Remove a generic raster file, like a geotiff
+
+        Parameters
+        ----------
+        parent: PySide2.QtGui.QStandardItem, the item that represents the 'Raster' entry in the tree.
+        raster_path: full filepath to the raster
+        """
+
+        current_rasters = self.tree_data['Raster'][1:]
+        if raster_path in current_rasters:
+            idx = self.tree_data['Raster'][1:].index(raster_path)
+            self.tree_data['Raster'].pop(idx + 1)
+            tree_idx = [idx for idx in range(parent.rowCount()) if parent.child(idx).text() == raster_path]
+            if tree_idx and len(tree_idx) == 1:
+                parent.removeRow(tree_idx[0])
+            else:
+                self.print('_remove_raster: Unable to remove "{}"'.format(raster_path), logging.ERROR)
+        else:
+            self.print('_remove_raster: Unable to find "{}" in project tree'.format(raster_path), logging.ERROR)
+
+    def _add_new_vector(self, parent: QtGui.QStandardItem, vector_path: str):
+        """
+        Add from a generic vector file, like an s57
+
+        Parameters
+        ----------
+        parent: PySide2.QtGui.QStandardItem, the item that represents the 'Vector' entry in the tree.
+        vector_path: full filepath to the vector
+        """
+
+        current_rasterdata = self.tree_data['Vector'][1:]
+        vlayers = get_vector_layers(vector_path)
+        if vector_path not in current_rasterdata and vlayers:
+            proj_child = QtGui.QStandardItem(vector_path)
+            proj_child.setToolTip(vector_path)
+            parent.appendRow(proj_child)
+            for vlayer in vlayers:
+                band_child = QtGui.QStandardItem(vlayer)
+                band_child.setCheckable(True)
+                proj_child.appendRow([band_child])
+            self.tree_data['Vector'].append(vector_path)
+
+    def _remove_vector(self, parent, vector_path: str):
+        """
+        Remove a generic vector file, like an s57
+
+        Parameters
+        ----------
+        parent: PySide2.QtGui.QStandardItem, the item that represents the 'Vector' entry in the tree.
+        vector_path: full filepath to the vector
+        """
+
+        current_vectors = self.tree_data['Vector'][1:]
+        if vector_path in current_vectors:
+            idx = self.tree_data['Vector'][1:].index(vector_path)
+            self.tree_data['Vector'].pop(idx + 1)
+            tree_idx = [idx for idx in range(parent.rowCount()) if parent.child(idx).text() == vector_path]
+            if tree_idx and len(tree_idx) == 1:
+                parent.removeRow(tree_idx[0])
+            else:
+                self.print('_remove_vector: Unable to remove "{}"'.format(vector_path), logging.ERROR)
+        else:
+            self.print('_remove_vector: Unable to find "{}" in project tree'.format(vector_path), logging.ERROR)
+
+    def _add_new_mesh(self, parent: QtGui.QStandardItem, mesh_path: str):
+        """
+        Add from a generic mesh file, like *.2dm
+
+        Parameters
+        ----------
+        parent: PySide2.QtGui.QStandardItem, the item that represents the 'Mesh' entry in the tree.
+        mesh_path: full filepath to the mesh
+        """
+
+        current_meshdata = self.tree_data['Mesh'][1:]
+        mbands = [os.path.split(mesh_path)[1]]
+        if mesh_path not in current_meshdata:
+            proj_child = QtGui.QStandardItem(mesh_path)
+            proj_child.setToolTip(mesh_path)
+            parent.appendRow(proj_child)
+            for mband in mbands:
+                band_child = QtGui.QStandardItem(mband)
+                band_child.setCheckable(True)
+                proj_child.appendRow([band_child])
+            self.tree_data['Mesh'].append(mesh_path)
+
+    def _remove_mesh(self, parent, mesh_path: str):
+        """
+        Remove a generic mesh file, like *.2dm
+
+        Parameters
+        ----------
+        parent: PySide2.QtGui.QStandardItem, the item that represents the 'Mesh' entry in the tree.
+        mesh_path: full filepath to the mesh
+        """
+
+        current_meshdata = self.tree_data['Mesh'][1:]
+        if mesh_path in current_meshdata:
+            idx = self.tree_data['Mesh'][1:].index(mesh_path)
+            self.tree_data['Mesh'].pop(idx + 1)
+            tree_idx = [idx for idx in range(parent.rowCount()) if parent.child(idx).text() == mesh_path]
+            if tree_idx and len(tree_idx) == 1:
+                parent.removeRow(tree_idx[0])
+            else:
+                self.print('_remove_mesh: Unable to remove "{}"'.format(mesh_path), logging.ERROR)
+        else:
+            self.print('_remove_mesh: Unable to find "{}" in project tree'.format(mesh_path), logging.ERROR)
+
+    def refresh_project(self, proj, add_raster=None, remove_raster=None, add_vector=None, remove_vector=None,
+                        add_mesh=None, remove_mesh=None):
         """
         Loading from a FqprProject will update the tree, triggered on dragging in a converted data folder
 
@@ -485,6 +702,39 @@ class KlusterProjectTree(QtWidgets.QTreeView):
             elif c == 'Vessel File':
                 if proj.vessel_file:
                     self._setup_vessel_file(parent, proj.vessel_file)
+            elif c == 'Raster':
+                if add_raster:
+                    if isinstance(add_raster, str):
+                        add_raster = [add_raster]
+                    for arast in add_raster:
+                        self._add_new_raster(parent, arast)
+                if remove_raster:
+                    if isinstance(remove_raster, str):
+                        remove_raster = [remove_raster]
+                    for arast in remove_raster:
+                        self._remove_raster(parent, arast)
+            elif c == 'Vector':
+                if add_vector:
+                    if isinstance(add_vector, str):
+                        add_vector = [add_vector]
+                    for avect in add_vector:
+                        self._add_new_vector(parent, avect)
+                if remove_vector:
+                    if isinstance(remove_vector, str):
+                        remove_vector = [remove_vector]
+                    for avect in remove_vector:
+                        self._remove_vector(parent, avect)
+            elif c == 'Mesh':
+                if add_mesh:
+                    if isinstance(add_mesh, str):
+                        add_mesh = [add_mesh]
+                    for amsh in add_mesh:
+                        self._add_new_mesh(parent, amsh)
+                if remove_mesh:
+                    if isinstance(remove_mesh, str):
+                        remove_mesh = [remove_mesh]
+                    for amsh in remove_mesh:
+                        self._remove_mesh(parent, amsh)
 
     def select_multibeam_lines(self, line_names: list, clear_existing_selection: bool = True):
         parent = self.tree_data['Converted'][0]
@@ -524,18 +774,17 @@ class KlusterProjectTree(QtWidgets.QTreeView):
             if top_lvl_name == 'Converted':
                 self.lines_selected.emit(self.return_selected_lines())
             elif top_lvl_name == 'Surfaces':
-                lname = mid_lvl_name + selected_name
                 ischecked = self.model.itemFromIndex(index).checkState()
-                # if ischecked and lname in self.shown_layers:  # don't do anything, it is already shown
-                #     pass
-                # elif not ischecked and lname not in self.shown_layers:  # don't do anything, it is already hidden
-                #     pass
-                # else:
-                # if ischecked:
-                #     self.shown_layers.append(lname)
-                # else:
-                #     self.shown_layers.remove(lname)
                 self.surface_layer_selected.emit(mid_lvl_name, selected_name, ischecked)
+            elif top_lvl_name == 'Raster':
+                ischecked = self.model.itemFromIndex(index).checkState()
+                self.raster_layer_selected.emit(mid_lvl_name, selected_name, ischecked)
+            elif top_lvl_name == 'Vector':
+                ischecked = self.model.itemFromIndex(index).checkState()
+                self.vector_layer_selected.emit(mid_lvl_name, selected_name, ischecked)
+            elif top_lvl_name == 'Mesh':
+                ischecked = self.model.itemFromIndex(index).checkState()
+                self.mesh_layer_selected.emit(mid_lvl_name, selected_name, ischecked)
         elif mid_lvl_name in self.categories:  # this is a sub item, like a converted fqpr path
             if mid_lvl_name == 'Converted':
                 self.fqpr_selected.emit(selected_name)
@@ -595,6 +844,21 @@ class KlusterProjectTree(QtWidgets.QTreeView):
                 fqprs.append(new_fqpr)
         return fqprs, line_list
 
+    def _return_selected_items(self, item_type: str):
+        itms = []
+        idxs = self.selectedIndexes()
+        for idx in idxs:
+            new_item = ''
+            if item_type == 'Converted':  # line names are one level lower
+                mid_lvl_name = idx.parent().parent().data()
+            else:
+                mid_lvl_name = idx.parent().data()
+            if mid_lvl_name == item_type:
+                new_item = self.model.data(idx)
+            if new_item and new_item not in itms:
+                itms.append(new_item)
+        return itms
+
     def return_selected_surfaces(self):
         """
         Return all the selected surface instances that are selected.  Only returns unique surface instances
@@ -605,16 +869,7 @@ class KlusterProjectTree(QtWidgets.QTreeView):
             list of all str paths to surface instance folders selected
 
         """
-        surfs = []
-        new_surf = ''
-        idxs = self.selectedIndexes()
-        for idx in idxs:
-            mid_lvl_name = idx.parent().data()
-            if mid_lvl_name == 'Surfaces':  # user has selected a surface
-                new_surf = self.model.data(idx)
-            if new_surf and new_surf not in surfs:
-                surfs.append(new_surf)
-        return surfs
+        return self._return_selected_items('Surfaces')
 
     def return_selected_lines(self):
         """
@@ -626,16 +881,43 @@ class KlusterProjectTree(QtWidgets.QTreeView):
             list of all str line names selected
         """
 
-        linenames = []
-        idxs = self.selectedIndexes()
-        for idx in idxs:
-            new_line = ''
-            top_lvl_name = idx.parent().parent().data()
-            if top_lvl_name == 'Converted':  # user selected a line
-                new_line = self.model.data(idx)
-            if new_line and (new_line not in linenames):
-                linenames.append(new_line)
-        return linenames
+        return self._return_selected_items('Converted')
+
+    def return_selected_rasters(self):
+        """
+        Return all the selected raster instances that are selected.  Only returns unique raster instances
+
+        Returns
+        -------
+        list
+            list of all str paths to raster instances selected
+
+        """
+        return self._return_selected_items('Raster')
+
+    def return_selected_vectors(self):
+        """
+        Return all the selected vector instances that are selected.  Only returns unique vector instances
+
+        Returns
+        -------
+        list
+            list of all str paths to vector instances selected
+
+        """
+        return self._return_selected_items('Vector')
+
+    def return_selected_mesh(self):
+        """
+        Return all the selected mesh instances that are selected.  Only returns unique mesh instances
+
+        Returns
+        -------
+        list
+            list of all str paths to mesh instances selected
+
+        """
+        return self._return_selected_items('Mesh')
 
 
 class OutWindow(QtWidgets.QMainWindow):

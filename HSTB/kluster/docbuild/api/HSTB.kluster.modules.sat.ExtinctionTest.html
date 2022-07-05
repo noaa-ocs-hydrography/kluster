@@ -6,7 +6,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
-    <title>ExtinctionTest &#8212; kluster 0.9.6 documentation</title>
+    <title>ExtinctionTest &#8212; kluster 1.0.0 documentation</title>
     <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
     <link rel="stylesheet" type="text/css" href="../_static/alabaster.css" />
     <link rel="stylesheet" type="text/css" href="../_static/graphviz.css" />
@@ -52,6 +52,9 @@ about 4 x 50 meters coverage (4x water depth)’</p>
 </colgroup>
 <tbody>
 <tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.modules.sat.ExtinctionTest.plot" title="HSTB.kluster.modules.sat.ExtinctionTest.plot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">plot</span></code></a>([mode, depth_bin_size, ...])</p></td>
+<td><p>Deprecated, left in case you want to experiment with this approach.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.modules.sat.ExtinctionTest.plotv2" title="HSTB.kluster.modules.sat.ExtinctionTest.plotv2"><code class="xref py py-obj docutils literal notranslate"><span class="pre">plotv2</span></code></a>([mode, depth_bin_size, point_size, ...])</p></td>
 <td><p>Plot all outermost points binned in the depth dimension according to the provided size.</p></td>
 </tr>
 </tbody>
@@ -60,7 +63,8 @@ about 4 x 50 meters coverage (4x water depth)’</p>
 <dl class="py method">
 <dt class="sig sig-object py" id="HSTB.kluster.modules.sat.ExtinctionTest.plot">
 <span class="sig-name descname"><span class="pre">plot</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mode</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'frequency'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">depth_bin_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filter_incomplete_swaths</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.modules.sat.ExtinctionTest.plot" title="Permalink to this definition">¶</a></dt>
-<dd><p>Plot all outermost points binned in the depth dimension according to the provided size.  Each plot is organized
+<dd><p>Deprecated, left in case you want to experiment with this approach.  See plotv2.</p>
+<p>Plot all outermost points binned in the depth dimension according to the provided size.  Each plot is organized
 by the given mode, if mode is frequency will plot once per frequency, such that the colors let you know the extinction
 at each frequency.</p>
 <dl class="field-list simple">
@@ -68,6 +72,26 @@ at each frequency.</p>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>mode</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>) – allowable plot mode, must be one of “frequency”, “mode”, “modetwo”</p></li>
 <li><p><strong>depth_bin_size</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code>) – bin size in meters for the depth, size of 1 will produce one point for each meter of depth</p></li>
+<li><p><strong>filter_incomplete_swaths</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code>) – If True, will only plot outermost points if the outermost port alongtrack value is negative, outermost starboard alongtrack value is positive</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="HSTB.kluster.modules.sat.ExtinctionTest.plotv2">
+<span class="sig-name descname"><span class="pre">plotv2</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mode</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'frequency'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">depth_bin_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">10.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">point_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">4</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filter_incomplete_swaths</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.modules.sat.ExtinctionTest.plotv2" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plot all outermost points binned in the depth dimension according to the provided size.</p>
+<p>Found that grouping points by category and then plotting, resulted in a messy picture, where you would have
+the min/max acrosstrack values for multiple modes at the same depth.  You would instead generally just want
+the full extent at each depth interval, colored by the specified mode.  Results in less points and a cleaner
+picture.  I believe this is generally preferred, leaving the first version just in case.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>mode</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>) – allowable plot mode, must be one of “frequency”, “mode”, “modetwo”</p></li>
+<li><p><strong>depth_bin_size</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code>) – bin size in meters for the depth, size of 1 will produce one point for each meter of depth</p></li>
+<li><p><strong>point_size</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code>) – point size in the resulting scatter plot, generally a value from 2 to 6 for a good display</p></li>
 <li><p><strong>filter_incomplete_swaths</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code>) – If True, will only plot outermost points if the outermost port alongtrack value is negative, outermost starboard alongtrack value is positive</p></li>
 </ul>
 </dd>

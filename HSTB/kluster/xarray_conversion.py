@@ -33,7 +33,8 @@ sonar_translator = {'em122': [None, 'tx', 'rx', None], 'em302': [None, 'tx', 'rx
                     'em2045': [None, 'txrx', None, None], 'em2045_dual': [None, 'txrx_port', 'txrx_stbd', None],
                     'em3002': [None, 'tx', 'rx', None], 'em2040p': [None, 'txrx', None, None],
                     'em3020': [None, 'tx', 'rx', None], 'em3020_dual': [None, 'txrx_port', 'txrx_stbd', None],
-                    'me70': [None, 'txrx', None, None]}
+                    'me70': [None, 'txrx', None, None], '7125': [None, 'tx', 'rx', None], 't20': [None, 'tx', 'rx', None],
+                    't50': [None, 'tx', 'rx', None], 't51': [None, 'tx', 'rx', None]}
 
 # ensure that Kluster sonar translator supports all sonar_translators in multibeam drivers
 assert all([snr in sonar_translator for snr in par_sonar_translator.keys()])
@@ -191,13 +192,13 @@ def _assign_reference_points(fileformat: str, finalraw: dict, finalatt: xr.Datas
                                                                   'roll': '+ Port Up', 'pitch': '+ Bow Up', 'gyro': '+ Clockwise'}
                 finalraw[systemid].attrs['sonar_reference_point'] = sonar_reference_point['.' + fileformat]
                 finalraw[systemid].attrs['reference'] = {'beampointingangle': 'receiver', 'delay': 'None', 'frequency': 'None',
-                                                         'soundspeed': 'None', 'tiltangle': 'transmitter',
+                                                         'soundspeed': 'None', 'tiltangle': 'transmitter', 'reflectivity': 'None',
                                                          'traveltime': 'None', 'latitude': 'reference point',
                                                          'longitude': 'reference point', 'altitude': 'reference point'}
                 finalraw[systemid].attrs['units'] = {'beampointingangle': 'degrees', 'delay': 'seconds', 'frequency': 'hertz',
-                                                     'soundspeed': 'meters per second', 'tiltangle': 'degrees',
+                                                     'soundspeed': 'meters per second', 'tiltangle': 'degrees', 'reflectivity': 'decibels',
                                                      'traveltime': 'seconds', 'latitude': 'degrees', 'longitude': 'degrees',
-                                                     'altitude': 'meters (+ down from ellipsoid)'}
+                                                     'altitude': 'meters (+ up)'}
             return finalraw, finalatt
         else:
             raise ValueError('Did not recognize format "{}" during xarray conversion'.format(fileformat))
@@ -288,11 +289,11 @@ def _sequential_to_xarray(rec: dict):
                 recs_to_merge[r] = {systemid: xr.Dataset() for systemid in ids}
                 for systemid in ids:
                     idx = ids.index(systemid)
-                    tim = rec['ping']['time'][msk[idx]]
 
                     for ky in rec[r]:
+                        tim = rec['ping']['time'][msk[idx]]
                         if ky not in ['time', 'serial_num']:
-                            if ky == 'counter':  # counter is 16bit in raw data, we want 32 to handle zero crossing
+                            if ky == 'counter':  # counter is 16bit in raw data, we want 64 to handle zero crossing
                                 datadtype = np.int64
                             else:
                                 datadtype = rec[r][ky].dtype
@@ -305,8 +306,7 @@ def _sequential_to_xarray(rec: dict):
                                 tim = tim[:-1]
 
                             # these records are by time/beam.  Have to combine recs to build correct array shape
-                            if ky in ['beampointingangle', 'txsector_beam', 'detectioninfo', 'qualityfactor',
-                                      'traveltime', 'processing_status', 'tiltangle', 'delay', 'frequency']:
+                            if ky in kluster_variables.subset_variable_2d:
                                 beam_idx = np.arange(arr.shape[1])
                                 recs_to_merge[r][systemid][ky] = xr.DataArray(arr.astype(datadtype), coords=[tim, beam_idx], dims=['time', 'beam'])
                             #  everything else isn't by beam, proceed normally
@@ -2502,7 +2502,7 @@ def build_xyzrph(settdict: dict, runtime_settdict: dict, sonartype: str, logger:
         # do the same over motion sensor (which is still the POSMV), make assumption that its one of the motion
         #   entries
         pos_motion_ident = settdict[tme]['active_heading_sensor'].split('_')
-        pos_motion_ident = pos_motion_ident[0] + '_sensor_' + pos_motion_ident[1]  # 'motion_1_com2'
+        pos_motion_ident = pos_motion_ident[0] + '_sensor_' + pos_motion_ident[1]  # 'motion_sensor_1'
 
         # for suffix in [['_vertical_location', '_motionz'], ['_along_location', '_motionx'],
         #                ['_athwart_location', '_motiony'], ['_time_delay', '_motionlatency'],

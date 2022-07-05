@@ -11,7 +11,9 @@ ExtinctionTest
    .. autosummary::
 
       ~ExtinctionTest.plot
+      ~ExtinctionTest.plotv2
 
    .. rubric:: Methods Documentation
 
    .. automethod:: plot
+   .. automethod:: plotv2

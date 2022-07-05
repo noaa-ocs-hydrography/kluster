@@ -15,6 +15,13 @@ phase_color = 'blue'
 reject_color = 'red'
 reaccept_color = 'cyan'
 
+# raster color bands for QGIS display in 2dview, will include these as well as the matplotlib bands
+raster_color_bands = {'redtoblue': ((255, 0, 0), (255, 165, 0), (255, 255, 0), (0, 128, 0), (0, 0, 255), (75, 0, 130), (238, 130, 238)),
+                      'bluetored': ((238, 130, 238), (75, 0, 130), (0, 0, 255), (0, 128, 0), (255, 255, 0), (255, 165, 0), (255, 0, 0))}
+vector_shapes = ['', 'arrow', 'asterisk_fill', 'circle', 'cross', 'cross2', 'cross_fill', 'diamond', 'equilateral_triangle',
+                 'filled_arrowhead', 'hexagon', 'octagon', 'pentagon', 'rectangle', 'regular_star', 'square', 'square_with_corners',
+                 'star', 'triangle', 'x']
+
 # hide some attributes from the attributes window if they are not significant
 hidden_fqpr_attributes = ['geohashes', 'multibeam_files']
 hidden_grid_attributes = []
@@ -48,12 +55,13 @@ status_lookup = {0: 'converted', 1: 'orientation', 2: 'beamvector', 3: 'soundvel
 status_reverse_lookup = {'converted': 0, 'orientation': 1, 'beamvector': 2, 'soundvelocity': 3, 'georeference': 4, 'tpu': 5}
 
 excluded_files = ['9999.all']
-supported_multibeam = ['.all', '.kmall']
+supported_multibeam = ['.all', '.kmall', '.s7k']
 multibeam_uses_quality_factor = ['.all']
-multibeam_uses_ifremer = ['.kmall']
+multibeam_uses_ifremer = ['.kmall', '.s7k']
 supported_ppnav = ['.out', '.sbet', '.smrmsg']
 supported_ppnav_log = ['.txt', '.log']
 supported_sv = ['.svp']
+supported_mesh = ['.ply', '.2dm']
 
 vertical_references = ['waterline', 'ellipse', 'NOAA MLLW', 'NOAA MHW']  # all vertical reference options
 vdatum_vertical_references = ['NOAA MLLW', 'NOAA MHW']  # vertical reference options based in vdatum
@@ -63,6 +71,7 @@ vertical_references_explanation = {'waterline': 'Sound velocity corrected data p
                                    'ellipse': 'Sound velocity corrected data minus ellipsoid height, positive up',
                                    'NOAA MLLW': 'Sound velocity corrected data minus ellipsoid height plus VDatum MLLW separation value',
                                    'NOAA MHW': 'Sound velocity corrected data minus ellipsoid height plus VDatum MHW separation value'}
+positive_up_vertical_references = ['ellipse']
 
 coordinate_systems = ['NAD83', 'NAD83 PA11', 'NAD83 MA11', 'WGS84']  # horizontal coordinate system options
 geographic_coordinate_systems = ['NAD83', 'WGS84']  # horizontal coordinate system options
@@ -202,9 +211,10 @@ ping_chunks = {'time': (ping_chunk_size,), 'beam': (max_beams,), 'xyz': (3,),
                'longitude': (ping_chunk_size,),
                'mode': (ping_chunk_size,),
                'modetwo': (ping_chunk_size,),
-               'ntx': (ping_chunk_size,),
+               'ntx': (ping_chunk_size,),  # dropped in kluster 1.0
                'processing_status': (ping_chunk_size, max_beams),
                'qualityfactor': (ping_chunk_size, max_beams),
+               'reflectivity': (ping_chunk_size, max_beams),
                'rel_azimuth': (ping_chunk_size, max_beams),
                'rx': (ping_chunk_size, max_beams, 3),
                'rxid': (ping_chunk_size,),
@@ -255,15 +265,16 @@ att_chunks = {'time': (attitude_chunk_size,),
 subset_variable_selection = ['head', 'time', 'beam', 'acrosstrack', 'alongtrack', 'altitude', 'beampointingangle', 'corr_altitude',
                              'corr_heave', 'corr_pointing_angle', 'counter', 'datum_uncertainty', 'delay', 'depthoffset', 'detectioninfo',
                              'frequency', 'geohash', 'latitude', 'longitude', 'mode', 'modetwo', 'ntx', 'processing_status', 'qualityfactor',
-                             'rel_azimuth', 'sbet_latitude', 'sbet_longitude', 'sbet_altitude', 'sbet_north_position_error',
+                             'reflectivity', 'rel_azimuth', 'sbet_latitude', 'sbet_longitude', 'sbet_altitude', 'sbet_north_position_error',
                              'sbet_east_position_error', 'sbet_down_position_error', 'sbet_roll_error', 'sbet_pitch_error', 'sbet_heading_error'
                              'soundspeed', 'thu', 'tiltangle', 'traveltime', 'tvu', 'txsector_beam', 'x', 'y', 'yawpitchstab', 'z']
 subset_variable_2d = ['acrosstrack', 'alongtrack', 'beampointingangle', 'datum_uncertainty', 'delay', 'depthoffset', 'detectioninfo',
-                      'frequency', 'geohash', 'ntx', 'processing_status', 'qualityfactor', 'rel_azimuth', 'thu',
-                      'tiltangle', 'traveltime', 'tvu', 'tx', 'txsector_beam', 'x', 'y', 'yawpitchstab', 'z']
+                      'frequency', 'geohash', 'processing_status', 'qualityfactor', 'reflectivity', 'rel_azimuth', 'thu',
+                      'tiltangle', 'traveltime', 'tvu', 'tx', 'txsector_beam', 'x', 'y', 'z']
 subset_variable_1d = ['head', 'time', 'beam', 'altitude', 'corr_altitude', 'corr_heave', 'corr_pointing_angle', 'counter', 'latitude',
-                      'longitude', 'mode', 'modetwo', 'sbet_latitude', 'sbet_longitude', 'sbet_altitude', 'sbet_north_position_error',
-                      'sbet_east_position_error', 'sbet_down_position_error', 'sbet_roll_error', 'sbet_pitch_error', 'sbet_heading_error', 'soundspeed']
+                      'longitude', 'mode', 'modetwo', 'ntx', 'sbet_latitude', 'sbet_longitude', 'sbet_altitude', 'sbet_north_position_error',
+                      'sbet_east_position_error', 'sbet_down_position_error', 'sbet_roll_error', 'sbet_pitch_error', 'sbet_heading_error',
+                      'soundspeed', 'yawpitchstab']
 
 # export helper for formatting variables in ascii export
 variable_format_str = {'time': '%1.6f', 'beam': '%d', 'xyz': '%s',
@@ -273,7 +284,7 @@ variable_format_str = {'time': '%1.6f', 'beam': '%d', 'xyz': '%s',
                        'counter': '%d', 'datum_uncertainty': '%1.3f', 'delay': '%1.6f',
                        'depthoffset': '%1.3f', 'detectioninfo': '%d', 'frequency': '%d', 'geohash': '%s',
                        'latitude': '%1.8f', 'longitude': '%1.8f', 'mode': '%s', 'modetwo': '%s', 'ntx': '%d',
-                       'processing_status': '%d', 'qualityfactor': '%d', 'rel_azimuth': '%f',
+                       'processing_status': '%d', 'qualityfactor': '%d', 'reflectivity': '%1.3f', 'rel_azimuth': '%f',
                        'rx': '%f', 'sbet_latitude': '%1.8f', 'sbet_longitude': '%1.8f', 'sbet_altitude': '%1.3f',
                        'sbet_north_position_error': '%1.3f', 'sbet_east_position_error': '%1.3f',
                        'sbet_down_position_error': '%1.3f', 'sbet_roll_error': '%1.3f', 'sbet_pitch_error': '%1.3f', 'sbet_heading_error': '%1.3f',
@@ -289,7 +300,7 @@ variable_format_str = {'time': '%1.6f', 'beam': '%d', 'xyz': '%s',
 variables_by_key = {'multibeam': ['acrosstrack', 'alongtrack', 'beampointingangle', 'corr_altitude', 'corr_heave',
                                   'corr_pointing_angle', 'counter', 'delay', 'depthoffset', 'detectioninfo',
                                   'frequency', 'geohash', 'mode', 'modetwo', 'processing_status', 'qualityfactor',
-                                  'rel_azimuth', 'soundspeed', 'thu', 'tiltangle', 'traveltime', 'tvu', 'txsector_beam',
+                                  'reflectivity', 'rel_azimuth', 'soundspeed', 'thu', 'tiltangle', 'traveltime', 'tvu', 'txsector_beam',
                                   'x', 'y', 'yawpitchstab', 'z', 'datum_uncertainty'],
                     'raw navigation': ['altitude', 'latitude', 'longitude'],
                     'processed navigation': ['sbet_latitude', 'sbet_longitude', 'sbet_altitude', 'sbet_north_position_error',
@@ -303,7 +314,7 @@ variable_translator = {'acrosstrack': 'SoundVelocity_AcrossTrack', 'alongtrack':
                        'detectioninfo': 'Beam_Filter', 'frequency': 'Beam_Frequency', 'geohash': 'Geohash',
                        'latitude': 'Latitude', 'longitude': 'Longitude', 'mode': 'Ping_Mode',
                        'modetwo': 'Ping_Mode_Two', 'processing_status': 'Processing_Status',
-                       'qualityfactor': 'Beam_Uncertainty', 'rel_azimuth': 'Relative_Azimuth',
+                       'qualityfactor': 'Beam_Uncertainty', 'reflectivity': 'Raw_Reflectivity', 'rel_azimuth': 'Relative_Azimuth',
                        'sbet_latitude': 'SBET_Latitude', 'sbet_longitude': 'SBET_Longitude', 'sbet_altitude': 'SBET_Altitude',
                        'sbet_north_position_error': 'SBET_North_Position_Error', 'sbet_east_position_error': 'SBET_East_Position_Error',
                        'sbet_down_position_error': 'SBET_Down_Position_Error', 'sbet_roll_error': 'SBET_Roll_Error',
@@ -321,7 +332,7 @@ variable_reverse_lookup = {'SoundVelocity_AcrossTrack': 'acrosstrack', 'SoundVel
                            'SoundVelocity_Depth': 'depthoffset', 'Beam_Filter': 'detectioninfo',
                            'Beam_Frequency': 'frequency', 'Ping_Mode': 'mode', 'Ping_Mode_Two': 'modetwo',
                            'Processing_Status': 'processing_status', 'Beam_Uncertainty': 'qualityfactor',
-                           'Relative_Azimuth': 'rel_azimuth', 'Surface_Sound_Velocity': 'soundspeed',
+                           'Raw_Reflectivity': 'reflectivity', 'Relative_Azimuth': 'rel_azimuth', 'Surface_Sound_Velocity': 'soundspeed',
                            'Beam_Total_Horizontal_Uncertainty': 'thu', 'Ping_Tilt_Angle': 'tiltangle',
                            'Beam_Travel_Time': 'traveltime', 'Beam_Total_Vertical_Uncertainty': 'tvu',
                            'Beam_Sector_Number': 'txsector_beam', 'Georeferenced_Easting': 'x',
@@ -353,7 +364,8 @@ variable_descriptions = {'acrosstrack': 'The result of running Sound Velocity Co
                          'mode': 'The first mode value. \n(if TX Pulse Form) CW for continuous waveform, FM for frequency modulated, MIX for mix between FM and CW. \n(if Ping mode) VS for Very Shallow, SH for Shallow, ME for Medium, DE for Deep, VD for Very Deep, ED for Extra Deep.',
                          'modetwo': 'The second mode value. \n(if Pulse Length) vsCW = very short continuous waveform, shCW = short cw, meCW = medium cw, loCW = long cw, vlCW = very long cw, elCW = extra long cw, shFM = short frequency modulated, loFM = long fm. \n(if Depth Mode) VS = Very Shallow, SH = Shallow, ME = Medium, DE = Deep, DR = Deeper, VD = Very Deep, ED = Extra deep, XD = Extreme Deep, if followed by "m" system is in manual mode.',
                          'processing_status': 'The Kluster processing status of each beam, the highest state of the beam.  EX: If 3, sounding is only processed up to sound velocity correction. 0 = converted, 1 = orientation, 2 = beamvector, 3 = soundvelocity, 4 = georeference, 5 = tpu.',
-                         'qualityfactor': 'The raw uncertainty record that comes from the multibeam.  Corresponds to the Kongsberg detectioninfo (.all) detectiontype (.kmall).  See datagram description for more information.',
+                         'qualityfactor': 'The raw uncertainty record that comes from the multibeam.  Corresponds to the Kongsberg detectioninfo (.all) detectiontype (.kmall) or uncertainty (.s7k).  See datagram description for more information.',
+                         'reflectivity': 'The raw reflectivity or backscatter intensity from the multibeam.  In decibels, represents the intensity of the beam return, uncorrected for things like sonar settings and transmission loss.',
                          'rel_azimuth': 'The result of running Compute Beam Vectors in Kluster.  This is the direction to the beam footprint on the seafloor from the sonar in radians.',
                          'sbet_latitude': 'From the imported post processed navigation, the logged latitude data from the navigation system in degrees.',
                          'sbet_longitude': 'From the imported post processed navigation, the logged longitude data from the navigation system in degrees.',
