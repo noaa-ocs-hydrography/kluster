@@ -67,6 +67,8 @@ settings_translator = {'Kluster/debug': {'newname': 'debug', 'defaultvalue': Fal
                        'Kluster/settings_force_coordinate_match': {'newname': 'force_coordinate_match', 'defaultvalue': False},
                        }
 
+config_text = ''
+
 
 class KlusterProxyStyle(QtWidgets.QProxyStyle):
     """
@@ -273,6 +275,7 @@ class KlusterMain(QtWidgets.QMainWindow):
             self.set_debug(self.settings['debug'])
         else:
             self.set_debug(False)
+        self.debug_print(config_text)
 
     @property
     def settings_object(self):
@@ -452,8 +455,10 @@ class KlusterMain(QtWidgets.QMainWindow):
         set_debug.triggered.connect(self.set_debug)
         about_action = QtWidgets.QAction('About', self)
         about_action.triggered.connect(self._action_show_about)
-        docs_action = QtWidgets.QAction('Documentation', self)
+        docs_action = QtWidgets.QAction('Offline Documentation', self)
         docs_action.triggered.connect(self._action_show_docs)
+        odocs_action = QtWidgets.QAction('Online Documentation', self)
+        odocs_action.triggered.connect(self._action_show_odocs)
         videos_action = QtWidgets.QAction('YouTube Videos', self)
         videos_action.triggered.connect(self.open_youtube_playlist)
 
@@ -509,6 +514,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         klusterhelp.addAction(set_debug)
         klusterhelp.addAction(about_action)
         klusterhelp.addAction(docs_action)
+        klusterhelp.addAction(odocs_action)
         klusterhelp.addAction(videos_action)
 
     def update_on_file_added(self, fil: Union[str, list] = ''):
@@ -2209,32 +2215,15 @@ class KlusterMain(QtWidgets.QMainWindow):
         """
 
         dlog = dialog_layer_settings.LayerSettingsDialog(parent=self, settings=self.settings_object)
-        layers = list(self.two_d.band_minmax.keys())
-        layer_minmax = {}
-        for lyr in layers:
-            if lyr in self.two_d.force_band_minmax:
-                layer_minmax[lyr] = [True, self.two_d.force_band_minmax[lyr][0], self.two_d.force_band_minmax[lyr][1]]
-            else:
-                layer_minmax[lyr] = [False, self.two_d.band_minmax[lyr][0], self.two_d.band_minmax[lyr][1]]
-        dlog.set_color_ranges(layer_minmax)
         if dlog.exec_() and not dlog.canceled:
             settings = dlog.return_layer_options()
-            new_layer_minmax = settings.pop('color_ranges')
-            for lyr, lyrdata in new_layer_minmax.items():
-                if lyrdata[0]:
-                    self.two_d.force_band_minmax[lyr] = [lyrdata[1], lyrdata[2]]
-                else:
-                    if lyr in self.two_d.force_band_minmax:
-                        self.two_d.force_band_minmax.pop(lyr)
-                self.two_d.update_layer_minmax(lyr)
             self.settings.update(settings)
             settings_obj = self.settings_object
             for settname, opts in settings_translator.items():
                 settings_obj.setValue(settname, self.settings[opts['newname']])
 
             self.two_d.vdatum_directory = self.settings['vdatum_directory']
-            self.two_d.set_background(self.settings['layer_background'], self.settings['layer_transparency'],
-                                      self.settings['surface_transparency'])
+            self.two_d.set_background(self.settings['layer_background'], self.settings['layer_transparency'])
             self.two_d.canvas.redrawAllLayers()
 
     def set_settings(self):
@@ -3078,23 +3067,28 @@ def main():
                 plugin_dir = os.path.join(os.path.dirname(found_path), 'plugins')
                 prefix_dir = os.path.join(os.path.dirname(found_path))
                 processing_dir = os.path.join(os.path.dirname(found_path), 'python', 'plugins', 'processing')
+
         try:
             assert os.path.exists(plugin_dir)
         except:
-            raise EnvironmentError(f"Can't find plugin directory at {plugin_dir}, pyinstaller={ispyinstaller}")
+            print(f"WARNING: QGIS - Can't find plugin directory at {plugin_dir}, is pyinstaller={ispyinstaller}")
         try:
             assert os.path.exists(prefix_dir)
         except:
-            raise EnvironmentError(f"Can't find prefix directory at {prefix_dir}, pyinstaller={ispyinstaller}")
+            print(f"WARNING: QGIS - Can't find prefix directory at {prefix_dir}, is pyinstaller={ispyinstaller}")
         try:
             assert os.path.exists(processing_dir)
         except:
-            raise EnvironmentError(f"Can't find processing directory at {processing_dir}, pyinstaller={ispyinstaller}")
+            print(f"WARNING: QGIS - Can't find processing directory at {processing_dir}, is pyinstaller={ispyinstaller}")
 
         app.setPrefixPath(prefix_dir, True)
         app.setPluginPath(plugin_dir)
 
         app.initQgis()
+
+        # set a configuration text block, in case you want to display it for the user
+        global config_text
+        config_text = f'**************************************************\nQGIS Version: {qgis_core.Qgis.QGIS_VERSION}\n\n{app.showSettings()}**************************************************'
 
         # setup the processing algorithms in no gui mode, this is pretty hacky but the only documented way to get it
         #   to work that I have found.

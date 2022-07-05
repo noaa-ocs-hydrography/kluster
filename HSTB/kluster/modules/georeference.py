@@ -132,9 +132,9 @@ def georef_by_worker(sv_corr: list, alt: xr.DataArray, lon: xr.DataArray, lat: x
     if vert_ref in ['NOAA MLLW', 'NOAA MHW']:
         z_stck = z.values[ac_idx]  # get the depth values where there are valid acrosstrack results (i.e. svcorrect worked)
         if vert_ref == 'NOAA MLLW':
-            z_stck, vdatum_unc = transform_vyperdatum(pos[0], pos[1], z_stck, input_crs.to_epsg(), 'mllw', vdatum_directory=vdatum_directory)
+            z_stck, vdatum_unc = transform_vyperdatum(pos[0], pos[1], z_stck, input_crs.to_epsg(), 'mllw', vdatum_directory=vdatum_directory, horizontal_crs=horizontal_crs)
         else:
-            z_stck, vdatum_unc = transform_vyperdatum(pos[0], pos[1], z_stck, input_crs.to_epsg(), 'mhw', vdatum_directory=vdatum_directory)
+            z_stck, vdatum_unc = transform_vyperdatum(pos[0], pos[1], z_stck, input_crs.to_epsg(), 'mhw', vdatum_directory=vdatum_directory, horizontal_crs=horizontal_crs)
         vdatum_unc = reform_nan_array(vdatum_unc, ac_idx, z.shape, z.coords, z.dims)
         z = reform_nan_array(z_stck, ac_idx, z.shape, z.coords, z.dims)
     else:
@@ -171,7 +171,7 @@ def georef_by_worker(sv_corr: list, alt: xr.DataArray, lon: xr.DataArray, lat: x
 
 
 def transform_vyperdatum(x: np.array, y: np.array, z: np.array, source_datum: Union[str, int] = 'nad83',
-                         final_datum: str = 'mllw', vdatum_directory: str = None):
+                         final_datum: str = 'mllw', vdatum_directory: str = None, horizontal_crs: CRS = None):
     """
     When we specify a NOAA vertical datum (NOAA Mean Lower Low Water, NOAA Mean High Water) in Kluster, we use
     vyperdatum/VDatum to transform the points to the appropriate vertical datum.
@@ -190,7 +190,9 @@ def transform_vyperdatum(x: np.array, y: np.array, z: np.array, source_datum: Un
     final_datum
         The desired final_datum vertical datum as a string (one of 'mllw', 'mhw')
     vdatum_directory
-            if 'NOAA MLLW' 'NOAA MHW' is the vertical reference, a path to the vdatum directory is required here
+        if 'NOAA MLLW' 'NOAA MHW' is the vertical reference, a path to the vdatum directory is required here
+    horizontal_crs
+        if included here, we use it to determine if we should include an output datum, which can be used to determine a 3d shift
 
     Returns
     -------
@@ -202,6 +204,12 @@ def transform_vyperdatum(x: np.array, y: np.array, z: np.array, source_datum: Un
 
     if final_datum == 'mllw':  # we need to let vyperdatum know this is positive down, do that by giving it the mllw epsg
         final_datum = 5866
+    horizontal_crs = None
+    if horizontal_crs:
+        if horizontal_crs.name.find('NAD83'):
+            final_datum = (kluster_variables.epsg_nad83, final_datum)
+        elif horizontal_crs.name.find('WGS'):
+            final_datum = (kluster_variables.epsg_wgs84, final_datum)
 
     if vdatum_directory:
         vp = VyperPoints(vdatum_directory=vdatum_directory, silent=True)

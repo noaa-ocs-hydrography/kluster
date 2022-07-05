@@ -1188,10 +1188,9 @@ class MapView(QtWidgets.QMainWindow):
         self.vdatum_directory = None
         self.layer_background = 'Default'
         self.layer_transparency = 0.5
-        self.surface_transparency = 0
+        self.surface_transparency = 0  # used to use this pre kluster 1.0, keep it in in case we want to set it later
         self.background_data = {}
         self.band_minmax = {}
-        self.force_band_minmax = {}
 
         self._init_settings(settings)
 
@@ -1212,7 +1211,7 @@ class MapView(QtWidgets.QMainWindow):
         self.layer_manager = LayerManager(self)
 
         # initialize the background layer with the default options (or the ones we have been provided in the optional settings kwarg)
-        self.set_background(self.layer_background, self.layer_transparency, self.surface_transparency)
+        self.set_background(self.layer_background, self.layer_transparency)
 
         self.toolSelect.select.connect(self._area_selected)
         self.toolPoints.select.connect(self._points_selected)
@@ -1448,7 +1447,6 @@ class MapView(QtWidgets.QMainWindow):
         if settings:
             self.layer_background = settings['layer_background']
             self.layer_transparency = float(settings['layer_transparency'])
-            self.surface_transparency = float(settings['surface_transparency'])
             self.vdatum_directory = settings['vdatum_directory']
 
     def _area_selected(self, min_lat: float, max_lat: float, min_lon: float, max_lon: float):
@@ -1734,7 +1732,7 @@ class MapView(QtWidgets.QMainWindow):
             self.layer_manager.remove_layer(layername)
         self.canvas.setLayers(self.layer_manager.shown_layers)
         # if the layer is a virtual file system object, unlink the layer to prevent mem leaks
-        if layername[0:7] == r'/vsimem':
+        if layername and layername[0:7] == r'/vsimem':
             gdal.Unlink(layername)
 
     def build_line_source(self, linename: str):
@@ -1778,7 +1776,7 @@ class MapView(QtWidgets.QMainWindow):
         source = '/vsimem/{}'.format(newname)
         return source
 
-    def set_background(self, layername: str, transparency: float, surf_transparency: float):
+    def set_background(self, layername: str, transparency: float):
         """
         Set the background layer(s) based on the provided layername.  See the various _init for details on how these
         background layer(s) are constructed.
@@ -1789,14 +1787,11 @@ class MapView(QtWidgets.QMainWindow):
             one of 'Default', 'OpenStreetMap (internet required)', etc.
         transparency
             the transparency of the layer as a percentage
-        surf_transparency
-            the transparency of all surfaces as a percentage
         """
 
         self.print('Initializing {} with transparency of {}%'.format(layername, int(transparency * 100)), logging.INFO)
         self.layer_background = layername
         self.layer_transparency = transparency
-        self.surface_transparency = surf_transparency
         if self.layer_background == 'None':
             self._init_none()
         elif self.layer_background == 'Default':
@@ -1819,9 +1814,6 @@ class MapView(QtWidgets.QMainWindow):
             self._init_emodnet()
         else:
             self.print(f'Unable to enable layer "{self.layer_background}"', logging.ERROR)
-
-        for lyr in self.layer_manager.surface_layers:
-            self.layer_manager.set_layer_renderer(lyr.source(), opacity=1 - self.surface_transparency)
 
     def set_extent(self, max_lat: float, min_lat: float, max_lon: float, min_lon: float, buffer: bool = True):
         """
@@ -2316,7 +2308,6 @@ class MapView(QtWidgets.QMainWindow):
                 self.remove_layer(lyr)
         if layertype == 'surfaces':
             self.band_minmax = {}
-            self.force_band_minmax = {}
 
     def remove_all_surfaces(self):
         """
@@ -2493,9 +2484,7 @@ class MapView(QtWidgets.QMainWindow):
             layer name to use from the source data
         """
 
-        if layername in self.force_band_minmax:
-            minl, maxl = self.force_band_minmax[layername]
-        elif layername in self.band_minmax:
+        if layername in self.band_minmax:
             minl, maxl = self.band_minmax[layername]
         else:
             return

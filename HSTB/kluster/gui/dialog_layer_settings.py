@@ -38,44 +38,6 @@ class LayerSettingsDialog(SaveStateDialog):
         self.transparency_sign_label = QtWidgets.QLabel('%')
         self.hlayout_two.addWidget(self.transparency_sign_label)
 
-        self.hlayout_three = QtWidgets.QHBoxLayout()
-        self.surf_transparency_label = QtWidgets.QLabel('Surface Transparency: ')
-        self.hlayout_three.addWidget(self.surf_transparency_label)
-        self.hlayout_three.addStretch(1)
-        self.surf_transparency = QtWidgets.QLineEdit('0')
-        self.hlayout_three.addWidget(self.surf_transparency)
-        self.surf_transparency_sign_label = QtWidgets.QLabel('%')
-        self.hlayout_three.addWidget(self.surf_transparency_sign_label)
-
-        self.hlayout_four = QtWidgets.QHBoxLayout()
-        self.color_range_label = QtWidgets.QLabel('Color Ranges: ')
-        self.hlayout_four.addWidget(self.color_range_label)
-        self.hlayout_four.addStretch(1)
-        self.color_range_select = QtWidgets.QComboBox()
-        self.hlayout_four.addWidget(self.color_range_select)
-
-        self.hlayout_five = QtWidgets.QHBoxLayout()
-        self.color_range_box = QtWidgets.QGroupBox('Override')
-        self.color_range_box.setCheckable(True)
-        self.color_range_box.setChecked(False)
-        self.range_group_layout = QtWidgets.QVBoxLayout()
-        self.minrange_layout = QtWidgets.QHBoxLayout()
-        self.color_range_min_label = QtWidgets.QLabel('Minimum')
-        self.minrange_layout.addWidget(self.color_range_min_label)
-        self.color_range_min_value = QtWidgets.QLineEdit('0.0')
-        self.minrange_layout.addWidget(self.color_range_min_value)
-        self.minrange_layout.addStretch()
-        self.range_group_layout.addLayout(self.minrange_layout)
-        self.maxrange_layout = QtWidgets.QHBoxLayout()
-        self.color_range_max_label = QtWidgets.QLabel('Maximum')
-        self.maxrange_layout.addWidget(self.color_range_max_label)
-        self.color_range_max_value = QtWidgets.QLineEdit('0.0')
-        self.maxrange_layout.addWidget(self.color_range_max_value)
-        self.maxrange_layout.addStretch()
-        self.range_group_layout.addLayout(self.maxrange_layout)
-        self.color_range_box.setLayout(self.range_group_layout)
-        self.hlayout_five.addWidget(self.color_range_box)
-
         self.hlayout_six = QtWidgets.QHBoxLayout()
         self.hlayout_six.addStretch(1)
         self.ok_button = QtWidgets.QPushButton('OK', self)
@@ -88,9 +50,6 @@ class LayerSettingsDialog(SaveStateDialog):
         layout.addWidget(self.layer_msg)
         layout.addLayout(self.hlayout_one)
         layout.addLayout(self.hlayout_two)
-        layout.addLayout(self.hlayout_three)
-        layout.addLayout(self.hlayout_four)
-        layout.addLayout(self.hlayout_five)
         layout.addStretch()
         layout.addLayout(self.hlayout_six)
         self.setLayout(layout)
@@ -100,59 +59,8 @@ class LayerSettingsDialog(SaveStateDialog):
 
         self.ok_button.clicked.connect(self.start)
         self.cancel_button.clicked.connect(self.cancel)
-        self.color_range_select.currentTextChanged.connect(self._update_color_ranges)
-        self.color_range_box.clicked.connect(self._update_override_box)
-        self.color_range_min_value.textChanged.connect(self._update_min_val)
-        self.color_range_max_value.textChanged.connect(self._update_max_val)
 
         self.read_settings()
-        # self.resize(600, 200)
-
-    def set_color_ranges(self, color_ranges: dict):
-        self.color_ranges = color_ranges
-        self.color_range_select.clear()
-        self.color_range_select.addItems(list(color_ranges.keys()))
-        self._update_color_ranges(None)
-
-    def _update_color_ranges(self, e):
-        cur_band = self.color_range_select.currentText()
-        if cur_band:
-            try:
-                data = self.color_ranges[cur_band]
-                override, minval, maxval = data[0:3]
-            except:
-                self.print('dialog_layer_settings: ERROR - Unable to load data for band {}'.format(cur_band), logging.ERROR)
-                return
-            self.color_range_box.setChecked(override)
-            self.color_range_min_value.setText(str(minval))
-            self.color_range_max_value.setText(str(maxval))
-
-    def _update_override_box(self, e):
-        cur_band = self.color_range_select.currentText()
-        override = self.color_range_box.isChecked()
-        self.color_ranges[cur_band][0] = override
-        if override:
-            self.color_range_min_value.setDisabled(False)
-            self.color_range_max_value.setDisabled(False)
-        else:
-            self.color_range_min_value.setDisabled(True)
-            self.color_range_max_value.setDisabled(True)
-
-    def _update_min_val(self, e):
-        try:
-            cur_band = self.color_range_select.currentText()
-            minval = self.color_range_min_value.text()
-            self.color_ranges[cur_band][1] = float(minval)
-        except:
-            pass
-
-    def _update_max_val(self, e):
-        try:
-            cur_band = self.color_range_select.currentText()
-            maxval = self.color_range_max_value.text()
-            self.color_ranges[cur_band][2] = float(maxval)
-        except:
-            pass
 
     def return_layer_options(self):
         """
@@ -166,16 +74,8 @@ class LayerSettingsDialog(SaveStateDialog):
             except ValueError:
                 self.print('Layer_Settings: transparency={} is invalid, must be an integer between 0 and 100, defaulting to 0'.format(self.transparency.text()), logging.WARNING)
                 transp = 0
-            try:
-                surf_transp = int(self.surf_transparency.text()) / 100
-                surf_transp = np.clip(surf_transp, 0, 1)
-            except ValueError:
-                self.print('Layer_Settings: surface_transparency={} is invalid, must be an integer between 0 and 100, defaulting to 0'.format(self.surf_transparency.text()), logging.WARNING)
-                surf_transp = 0
             opts = {'layer_background': self.layer_dropdown.currentText(),
-                    'layer_transparency': transp,
-                    'surface_transparency': surf_transp,
-                    'color_ranges': self.color_ranges}
+                    'layer_transparency': transp}
         else:
             opts = None
         return opts
@@ -207,7 +107,6 @@ class LayerSettingsDialog(SaveStateDialog):
         new_sets = self.return_layer_options()
         settings.setValue('Kluster/layer_settings_background', new_sets['layer_background'])
         settings.setValue('Kluster/layer_settings_transparency', new_sets['layer_transparency'])
-        settings.setValue('Kluster/layer_settings_surfacetransparency', new_sets['surface_transparency'])
 
     def read_settings(self):
         """
@@ -221,8 +120,6 @@ class LayerSettingsDialog(SaveStateDialog):
             self.layer_dropdown.setCurrentText(settings.value('Kluster/layer_settings_background'))
             if settings.value('Kluster/layer_settings_transparency'):
                 self.transparency.setText(str(min(100, int(float(settings.value('Kluster/layer_settings_transparency')) * 100))))
-            if settings.value('Kluster/layer_settings_surfacetransparency'):
-                self.surf_transparency.setText(str(min(100, int(float(settings.value('Kluster/layer_settings_surfacetransparency')) * 100))))
         except AttributeError:
             # no settings exist yet for this app, .lower failed
             pass
@@ -234,7 +131,6 @@ if __name__ == '__main__':
     except TypeError:  # pyqt5
         app = QtWidgets.QApplication([])
     dlog = LayerSettingsDialog()
-    dlog.set_color_ranges({'Depth': [False, 1, 10], 'Uncertainty': [True, 2.3, 5]})
     dlog.show()
     if dlog.exec_():
         print(dlog.return_layer_options())

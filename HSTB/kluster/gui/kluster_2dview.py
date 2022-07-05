@@ -16,8 +16,8 @@ class Kluster2dview(MapView):
     def __init__(self, parent=None, settings=None):
         super().__init__(parent=parent, settings=settings)
 
-    def set_background(self, layername: str, transparency: float, surface_transparency: float):
-        super().set_background(layername, transparency, surface_transparency)
+    def set_background(self, layername: str, transparency: float):
+        super().set_background(layername, transparency)
 
     def set_extent(self, max_lat: float, min_lat: float, max_lon: float, min_lon: float, buffer: bool = True):
         super().set_extent(max_lat, min_lat, max_lon, min_lon, buffer)
