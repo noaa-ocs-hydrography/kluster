@@ -6,6 +6,7 @@ from pyproj import CRS
 from pyproj.exceptions import CRSError
 
 from HSTB.kluster import kluster_variables
+from HSTB.kluster.fqpr_drivers import is_valid_multibeam_file
 
 
 def build_crs(zone_num: str = None, datum: str = None, epsg: str = None, projected: bool = True):
@@ -167,6 +168,10 @@ def return_files_from_path(pth: str, in_chunks: bool = True):
         fils = [pth]
     else:
         raise ValueError('_chunks_of_files: Expected either a multibeam file, a list of multibeam files or a directory')
+    if not fils:
+        return []
+
+    fils = [mf for mf in fils if is_valid_multibeam_file(mf)]
     if not fils:
         return []
 

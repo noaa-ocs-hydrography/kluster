@@ -354,6 +354,34 @@ def _validate_sequential_read(recs: dict):
     assert '.' + recs['format'] in kluster_variables.supported_multibeam
 
 
+def is_valid_multibeam_file(multibeam_file: str):
+    """
+    Ensures that before you start processing, the file is probably going to work.  If you have an s7k, you need to ensure
+    that it has the right records.  All the kongsberg formats should be fine.
+
+    Parameters
+    ----------
+    multibeam_file
+        path to the multibeam file
+
+    Returns
+    -------
+    bool
+        if True, file is ok to process
+    """
+    print(multibeam_file)
+    multibeam_extension = os.path.splitext(multibeam_file)[1]
+    if multibeam_extension == '.s7k':
+        sk = prr3.X7kRead(multibeam_file)
+        if sk.has_datagram([1012, 1013], 300) or sk.has_datagram(1016, 300):
+            return True
+        else:
+            print(f'fqpr_drivers: {multibeam_file} - Reson s7k data must have either (1012 and 1013) or (1016) records, unable to find either')
+            return False
+    else:
+        return True
+
+
 def sequential_read_multibeam(multibeam_file: str, start_pointer: int = 0, end_pointer: int = 0, first_installation_rec: bool = False):
     """
     Run the sequential read function built in to all multibeam drivers in Kluster.  Sequential read takes a multibeam file
