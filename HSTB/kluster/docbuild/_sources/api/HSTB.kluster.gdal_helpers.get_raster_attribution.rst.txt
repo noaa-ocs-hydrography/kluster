@@ -1,0 +1,6 @@
+get_raster_attribution
+======================
+
+.. currentmodule:: HSTB.kluster.gdal_helpers
+
+.. autofunction:: get_raster_attribution

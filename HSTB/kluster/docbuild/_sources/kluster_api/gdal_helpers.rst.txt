@@ -7,3 +7,4 @@ gdal\_helpers module
    :skip: SpatialReference
    :skip: CRS
    :skip: WktVersion
+   :skip: return_bag_vertical_wkt

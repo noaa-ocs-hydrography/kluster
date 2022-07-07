@@ -1,0 +1,6 @@
+get_vector_attribution
+======================
+
+.. currentmodule:: HSTB.kluster.gdal_helpers
+
+.. autofunction:: get_vector_attribution

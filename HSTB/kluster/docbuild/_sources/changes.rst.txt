@@ -1,6 +1,21 @@
 Changes List
 ============
 
+Kluster v1.0.1 (7/7/2022)
+-------------------------
+ - sync with drivers 0.2.11
+   - logic to prevent duplicate timestamps in multibeam records
+   - bug fix for serial numbers in kmall data
+
+ - conversion will now skip if you get no raw data back
+ - skip multibeam files that are not valid (missing records, seen in s7k)
+ - add reading attribution from raster and vector files
+ - move to uint64 for serial number after finding large serial numbers during s7k processing
+ - hide the system_identifier for kluster attribution, as system identifier will vary depending on the sonar head
+
+ - bug fix for setting the appropriate band when building the custom raster renderer
+ - bug fix with setting raster properties that are not singlebandpseudocolor
+
 Kluster v1.0.0 (7/5/2022)
 -------------------------
  - sync with vyperdatum 0.1.15
