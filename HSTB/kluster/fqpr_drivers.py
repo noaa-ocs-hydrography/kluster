@@ -219,13 +219,13 @@ def _validate_sequential_read_ping(recs: dict):
     if recs['format'] in ['all']:
         required_ping = ['time', 'counter', 'soundspeed', 'serial_num', 'tiltangle', 'delay', 'frequency', 'beampointingangle',
                          'txsector_beam', 'detectioninfo', 'qualityfactor', 'traveltime', 'processing_status']
-        required_ping_dtype = ['float64', 'uint32', 'float32', 'uint16', 'float32', 'float32', 'int32', 'float32',
+        required_ping_dtype = ['float64', 'uint32', 'float32', 'uint64', 'float32', 'float32', 'int32', 'float32',
                                'uint8', 'int32', 'float32', 'float32', 'uint8']
     else:
         required_ping = ['time', 'counter', 'soundspeed', 'serial_num', 'tiltangle', 'delay', 'frequency', 'beampointingangle',
                          'txsector_beam', 'detectioninfo', 'qualityfactor', 'traveltime', 'processing_status', 'mode',
                          'modetwo', 'yawpitchstab']
-        required_ping_dtype = ['float64', 'uint32', 'float32', 'uint16', 'float32', 'float32', 'int32', 'float32',
+        required_ping_dtype = ['float64', 'uint32', 'float32', 'uint64', 'float32', 'float32', 'int32', 'float32',
                                'uint8', 'int32', 'float32', 'float32', 'uint8', 'u2-u5', 'u2-u5', 'u2-u5']
     try:
         assert all([pms in recs['ping'] for pms in required_ping])

@@ -23,7 +23,7 @@ vector_shapes = ['', 'arrow', 'asterisk_fill', 'circle', 'cross', 'cross2', 'cro
                  'star', 'triangle', 'x']
 
 # hide some attributes from the attributes window if they are not significant
-hidden_fqpr_attributes = ['geohashes', 'multibeam_files']
+hidden_fqpr_attributes = ['geohashes', 'multibeam_files', 'system_identifier']
 hidden_grid_attributes = []
 
 # dask_helpers
