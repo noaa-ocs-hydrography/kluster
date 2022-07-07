@@ -22,18 +22,18 @@ class TestFqprHelper(unittest.TestCase):
         assert epsg_determinator('wgs84', 25, 'S') == 32725
 
     def test_return_files_from_path(self):
-        fil = os.path.join(os.path.dirname(__file__), 'resources', '0009_20170523_181119_FA2806.all')
-
+        mfil = os.path.join(os.path.dirname(__file__), 'resources', '0009_20170523_181119_FA2806.all')
+        fil = mfil
         assert return_files_from_path(fil) == [[fil]]
-        fil = ['a'] * 3
+        fil = [mfil] * 3
         assert return_files_from_path(fil) == [fil]
-        fil = ['a'] * (kluster_variables.converted_files_at_once + 1)
-        assert return_files_from_path(fil) == [['a'] * kluster_variables.converted_files_at_once, ['a']]
-        fil = ['a'] * (kluster_variables.converted_files_at_once * 3 + 1)
-        assert return_files_from_path(fil) == [['a'] * kluster_variables.converted_files_at_once,
-                                               ['a'] * kluster_variables.converted_files_at_once,
-                                               ['a'] * kluster_variables.converted_files_at_once,
-                                               ['a']]
+        fil = [mfil] * (kluster_variables.converted_files_at_once + 1)
+        assert return_files_from_path(fil) == [[mfil] * kluster_variables.converted_files_at_once, [mfil]]
+        fil = [mfil] * (kluster_variables.converted_files_at_once * 3 + 1)
+        assert return_files_from_path(fil) == [[mfil] * kluster_variables.converted_files_at_once,
+                                               [mfil] * kluster_variables.converted_files_at_once,
+                                               [mfil] * kluster_variables.converted_files_at_once,
+                                               [mfil]]
 
     def test_seconds_to_formatted_string(self):
         assert seconds_to_formatted_string(666) == '11 minutes, 6 seconds'

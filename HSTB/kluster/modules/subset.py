@@ -318,7 +318,7 @@ class FqprSubset:
         dataset_variables = {}
         maxbeams = 0
         times = np.concatenate([rp.time.values for rp in self.fqpr.multibeam.raw_ping]).flatten()
-        systems = np.concatenate([[rp.system_identifier] * rp.time.shape[0] for rp in self.fqpr.multibeam.raw_ping]).flatten().astype(np.int32)
+        systems = np.concatenate([[rp.system_identifier] * rp.time.shape[0] for rp in self.fqpr.multibeam.raw_ping]).flatten().astype(np.uint64)
         for var in variable_selection:
             if self.fqpr.multibeam.raw_ping[0][var].ndim == 2:
                 if self.fqpr.multibeam.raw_ping[0][var].dims == ('time', 'beam'):

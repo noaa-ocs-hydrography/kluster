@@ -7,3 +7,4 @@ fqpr\_helpers module
    :skip: CRS
    :skip: CRSError
    :skip: glob
+   :skip: is_valid_multibeam_file
