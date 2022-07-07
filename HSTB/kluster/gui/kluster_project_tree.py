@@ -17,6 +17,8 @@ class KlusterProjectTree(QtWidgets.QTreeView):
     file_added = Signal(object)
     fqpr_selected = Signal(str)
     surface_selected = Signal(str)
+    raster_selected = Signal(str)
+    vector_selected = Signal(str)
     lines_selected = Signal(object)
     all_lines_selected = Signal(bool)
     surface_layer_selected = Signal(str, str, bool)
@@ -790,6 +792,10 @@ class KlusterProjectTree(QtWidgets.QTreeView):
                 self.fqpr_selected.emit(selected_name)
             elif mid_lvl_name == 'Surfaces':
                 self.surface_selected.emit(selected_name)
+            elif mid_lvl_name == 'Raster':
+                self.raster_selected.emit(selected_name)
+            elif mid_lvl_name == 'Vector':
+                self.vector_selected.emit(selected_name)
         elif selected_name in self.categories:
             if selected_name == 'Converted':
                 # self.all_lines_selected.emit(True)

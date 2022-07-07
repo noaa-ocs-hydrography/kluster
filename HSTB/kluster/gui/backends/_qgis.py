@@ -2520,6 +2520,10 @@ class MapView(QtWidgets.QMainWindow):
 
         # by default, all the kluster grid layers are going to be inmemory tiffs with one band.  But with 1.0, we started
         #  supporting external gdal datasets, so now we need to get the right band index
+        if raster_layer.bandName(1) == 'Band 1':
+            # if an external raster has unnamed bands, we don't do anything with the rest of this logic, so keep
+            #   the default renderer
+            return None, None
         if raster_layer.bandCount() > 1:
             bandindex = [bd for bd in range(1, raster_layer.bandCount() + 1) if raster_layer.bandName(bd).find(layername) > -1]
             if not bandindex:
@@ -2550,9 +2554,9 @@ class MapView(QtWidgets.QMainWindow):
         else:
             shadercolor = 'redtoblue'
         if formatted_layername == 'hillshade':
-            renderer = qgis_core.QgsHillshadeRenderer(raster_layer.dataProvider(), 1, 315, 45)
+            renderer = qgis_core.QgsHillshadeRenderer(raster_layer.dataProvider(), bandindex, 315, 45)
         else:
-            renderer = qgis_core.QgsSingleBandPseudoColorRenderer(raster_layer.dataProvider(), 1,
+            renderer = qgis_core.QgsSingleBandPseudoColorRenderer(raster_layer.dataProvider(), bandindex,
                                                                   RasterShader(self.band_minmax[formatted_layername][0],
                                                                                self.band_minmax[formatted_layername][1],
                                                                                shadercolor))
@@ -3244,7 +3248,7 @@ class PropertiesDialog(QtWidgets.QDialog):
         self.raster_color_label = QtWidgets.QLabel('Color')
         self.raster_hlayout_one.addWidget(self.raster_color_label)
         self.raster_color_dropdown = QtWidgets.QComboBox()
-        self.raster_color_dropdown.addItems(list(get_color_lookup().keys()))
+        self.raster_color_dropdown.addItems([''] + list(get_color_lookup().keys()))
         self.raster_hlayout_one.addWidget(self.raster_color_dropdown)
 
         self.raster_hlayout_two = QtWidgets.QHBoxLayout()
@@ -3377,11 +3381,16 @@ class PropertiesDialog(QtWidgets.QDialog):
 
     def _initialize_raster_layer(self, lyrband, lyrdata):
         transp = int((1 - lyrdata.renderer().opacity()) * 100)
-        try:
+
+        if lyrdata.renderer().type() == 'singlebandpseudocolor':
             self.parsed_layer_data[lyrband] = {'type': 'raster', 'transparency': transp, 'colorscheme': lyrdata.renderer().shader().color_scheme,
                                                'raster_min': str(round(lyrdata.renderer().shader().layer_min, 3)),
                                                'raster_max': str(round(lyrdata.renderer().shader().layer_max, 3))}
-        except:  # hillshade renderer won't have a shader
+        else:
+            # 'hillshade' and 'singlebandgray' renderer won't have a shader
+            # 'paletted' would probably be complicated to configure, I also don't have a clear way to set a new palette
+            # 'multibandcolor' is RGB, we could probably make that work but do not currently
+            self.parent().print(f'Raster layer type "{lyrdata.renderer().type()}" currently only supports transparency', logging.WARNING)
             self.parsed_layer_data[lyrband] = {'type': 'raster', 'transparency': transp, 'colorscheme': None,
                                                'raster_min': '0', 'raster_max': '0'}
 

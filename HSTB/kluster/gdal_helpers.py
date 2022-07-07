@@ -8,6 +8,8 @@ from osgeo.osr import SpatialReference
 from pyproj.crs import CRS
 from pyproj.enums import WktVersion
 
+from bathygrid.utilities import return_bag_vertical_wkt
+
 
 def pyproj_crs_to_osgeo(proj_crs: Union[CRS, int]):
     """
@@ -221,6 +223,20 @@ def gdal_raster_create(output_raster: str, data: list, geo_transform: list, crs:
 
 
 def get_raster_bands(raster_source: str):
+    """
+    Return a list of all band names in the given GDAL supported raster file
+
+    Parameters
+    ----------
+    raster_source
+        absolute path to the raster file
+
+    Returns
+    -------
+    list
+        list of raster bands
+    """
+
     ds = gdal.Open(raster_source)
     if ds is None:
         return None
@@ -229,13 +245,84 @@ def get_raster_bands(raster_source: str):
         bandcount += 1  # gdal is 1 indexed
         band = ds.GetRasterBand(bandcount)
         lyrname = band.GetDescription()
+        if not lyrname:
+            lyrname = str(bandcount)
         rbands.append(lyrname)
         band = None
     ds = None
     return rbands
 
 
+def get_raster_attribution(raster_source: str):
+    """
+    Return a dictionary of all attribution from the given raster.  I started out just using gdal.Info, which I think
+    is probably ok, but I wanted to add additional info and was a little worried about the Info output changing between
+    versions.
+
+    Parameters
+    ----------
+    raster_source
+        absolute path to the raster file
+
+    Returns
+    -------
+    dict
+        dict of attribution
+    """
+
+    ds = gdal.Open(raster_source)
+    if ds is None:
+        return None
+
+    rdict = {}
+    rdict['type'] = ds.GetDriver().GetDescription()
+    rdict['horizontal datum'] = ds.GetProjection()
+    try:
+        rdict['EPSG'] = CRS.from_wkt(ds.GetProjection()).to_epsg()
+    except:
+        rdict['EPSG'] = 'Unknown'
+    try:
+        rdict['vertical datum'] = return_bag_vertical_wkt(raster_source)
+    except:
+        rdict['vertical datum'] = ''
+
+    gtrans = ds.GetGeoTransform()
+    rdict['resolution'] = gtrans[1]
+    rdict['min x'] = gtrans[0]
+    rdict['max x'] = gtrans[0] + gtrans[1] * ds.RasterXSize
+    rdict['min y'] = gtrans[3] + gtrans[5] * ds.RasterYSize
+    rdict['max y'] = gtrans[3]
+    rdict['width'] = ds.RasterXSize
+    rdict['height'] = ds.RasterYSize
+
+    for bandcount in range(ds.RasterCount):
+        bandcount += 1  # gdal is 1 indexed
+        band = ds.GetRasterBand(bandcount)
+        bandname = band.GetDescription()
+        mdict = band.GetMetadata()
+        for mky, mval in mdict.items():
+            rdict[f'{bandname}_{mky.lower()}'] = mval
+        band = None
+
+    ds = None
+    return rdict
+
+
 def get_vector_layers(vector_source: str):
+    """
+    Return a list of all layer names in the given GDAL supported vector file
+
+    Parameters
+    ----------
+    vector_source
+        absolute path to the vector file
+
+    Returns
+    -------
+    list
+        list of vector layers
+    """
+
     ds = ogr.Open(vector_source)
     if ds is None:
         return None
@@ -247,6 +334,37 @@ def get_vector_layers(vector_source: str):
         lyr = None
     ds = None
     return vlayers
+
+
+def get_vector_attribution(vector_source: str):
+    """
+    Return a dictionary of all attribution from the given vector file.
+
+    Parameters
+    ----------
+    vector_source
+        absolute path to the raster file
+
+    Returns
+    -------
+    dict
+        dict of attribution
+    """
+
+    ds = ogr.Open(vector_source)
+    if ds is None:
+        return None
+
+    vdict = {}
+    vdict['type'] = ds.GetDriver().GetDescription()
+    vdict['number of layers'] = ds.GetLayerCount()
+    try:
+        vdict['feature count'] = {ds.GetLayerByIndex(i).GetDescription(): ds.GetLayerByIndex(i).GetFeatureCount() for i in range(ds.GetLayerCount())}
+    except:
+        vdict['feature count'] = 'Unknown'
+
+    ds = None
+    return vdict
 
 
 class VectorLayer:

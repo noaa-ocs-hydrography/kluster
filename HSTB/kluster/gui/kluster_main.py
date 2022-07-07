@@ -33,7 +33,7 @@ from HSTB.kluster.fqpr_project import FqprProject
 from HSTB.kluster.fqpr_intelligence import FqprIntel
 from HSTB.kluster.fqpr_vessel import convert_from_fqpr_xyzrph, convert_from_vessel_xyzrph, compare_dict_data
 from HSTB.kluster.dask_helpers import dask_close_localcluster
-from HSTB.kluster.gdal_helpers import ogr_output_file_exists, gdal_output_file_exists
+from HSTB.kluster.gdal_helpers import ogr_output_file_exists, gdal_output_file_exists, get_raster_attribution, get_vector_attribution
 from HSTB.kluster.logging_conf import return_logger, add_file_handler, logfile_matches, logger_remove_file_handlers
 from HSTB.kluster import __version__ as kluster_version
 from HSTB.kluster import __file__ as kluster_init_file
@@ -189,6 +189,8 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.project_tree.lines_selected.connect(self.tree_line_selected)
         self.project_tree.fqpr_selected.connect(self.tree_fqpr_selected)
         self.project_tree.surface_selected.connect(self.tree_surf_selected)
+        self.project_tree.raster_selected.connect(self.tree_raster_selected)
+        self.project_tree.vector_selected.connect(self.tree_vector_selected)
         self.project_tree.surface_layer_selected.connect(self.tree_surface_layer_selected)
         self.project_tree.raster_layer_selected.connect(self.tree_raster_layer_selected)
         self.project_tree.vector_layer_selected.connect(self.tree_vector_layer_selected)
@@ -2448,6 +2450,32 @@ class KlusterMain(QtWidgets.QMainWindow):
             combined_source[ky]['multibeam_lines'] = sorted(combined_source[ky]['multibeam_lines'])
         filtered_attrs.update(combined_source)
         self.attribute.display_file_attribution(filtered_attrs)
+
+    def tree_raster_selected(self, rasterpath: str):
+        """
+        Click on a raster layer and get raster attribution in the Kluster Attribute window.
+
+        Parameters
+        ----------
+        rasterpath
+            path to the raster file
+        """
+
+        attrs = get_raster_attribution(rasterpath)
+        self.attribute.display_file_attribution(attrs)
+
+    def tree_vector_selected(self, vectorpath: str):
+        """
+        Click on a vector layer and get vector attribution in the Kluster Attribute window.
+
+        Parameters
+        ----------
+        vectorpath
+            path to the vector file
+        """
+        i = 0
+        attrs = get_vector_attribution(vectorpath)
+        self.attribute.display_file_attribution(attrs)
 
     def tree_surface_layer_selected(self, surfpath, layername, checked):
         """
