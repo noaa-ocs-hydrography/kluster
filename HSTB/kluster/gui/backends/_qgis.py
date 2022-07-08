@@ -1400,6 +1400,24 @@ class MapView(QtWidgets.QMainWindow):
             urls.append('crs={}&dpiMode={}&format={}&layers={}&styles&url={}'.format(crs, dpi, fmat, lyr, url))
         return urls
 
+    def wms_nowcoast_global_sea_surface_temp(self):
+        url = 'https://nowcoast.noaa.gov/arcgis/services/nowcoast/analysis_ocean_sfc_sst_time/MapServer/WMSServer'
+        lyrs = '1'
+        fmat = 'image/png'
+        dpi = 7
+        crs = 'EPSG:{}'.format(self.epsg)
+        url_with_params = 'crs={}&dpiMode={}&format={}&layers={}&styles&url={}'.format(crs, dpi, fmat, lyrs, url)
+        return url_with_params
+
+    def wms_nowcoast_highresolution_sea_surface_temp(self):
+        url = 'https://nowcoast.noaa.gov/arcgis/services/nowcoast/analysis_ocean_sfc_sst_time/MapServer/WMSServer'
+        lyrs = '5'
+        fmat = 'image/png'
+        dpi = 7
+        crs = 'EPSG:{}'.format(self.epsg)
+        url_with_params = 'crs={}&dpiMode={}&format={}&layers={}&styles&url={}'.format(crs, dpi, fmat, lyrs, url)
+        return url_with_params
+
     def wms_gebco(self):
         """
         Build the URL for the Gebco latest grid shaded relief wms
@@ -1640,6 +1658,24 @@ class MapView(QtWidgets.QMainWindow):
         else:
             self.print('_init_gebco: Unable to find background layer: {}'.format(url_with_params), logging.ERROR)
 
+    def _init_global_sea_surf(self):
+        self._init_none()
+        url_with_params = self.wms_nowcoast_global_sea_surface_temp()
+        lyr = self.add_layer(url_with_params, 'NOWCOAST_GLOBAL_SEA_SURFACE_TEMP', url_with_params, 'wms')
+        if lyr:
+            self.layer_manager.set_layer_renderer(url_with_params, opacity=1 - self.layer_transparency)
+        else:
+            self.print('_init_global_sea_surf: Unable to find background layer: {}'.format(url_with_params), logging.ERROR)
+
+    def _init_highrez_sea_surf(self):
+        self._init_none()
+        url_with_params = self.wms_nowcoast_highresolution_sea_surface_temp()
+        lyr = self.add_layer(url_with_params, 'NOWCOAST_HIGHREZ_SEA_SURFACE_TEMP', url_with_params, 'wms')
+        if lyr:
+            self.layer_manager.set_layer_renderer(url_with_params, opacity=1 - self.layer_transparency)
+        else:
+            self.print('_init_highrez_sea_surf: Unable to find background layer: {}'.format(url_with_params), logging.ERROR)
+
     def _init_emodnet(self):
         """
         Set the background to the Gebco latest Grid Shaded Relief WMS
@@ -1812,6 +1848,10 @@ class MapView(QtWidgets.QMainWindow):
             self._init_gebco()
         elif self.layer_background == 'EMODnet Bathymetry (internet required)':
             self._init_emodnet()
+        elif self.layer_background == 'NowCoast Global Sea Surface Temp (internet required)':
+            self._init_global_sea_surf()
+        elif self.layer_background == 'NowCoast High Resolution Sea Surface Temp (internet required)':
+            self._init_highrez_sea_surf()
         else:
             self.print(f'Unable to enable layer "{self.layer_background}"', logging.ERROR)
 
