@@ -1107,7 +1107,7 @@ class FqprIntel(LoggerClass):
                     matched = True
                 if not matched:
                     unmatch_reason = 'Sound Velocity Profile file (.svp)\n\n'
-                    unmatch_reason += 'All projects currently have these sound velocity profiles already.'
+                    unmatch_reason += 'All projects currently have these sound velocity profiles already.  Checked the profile cast times against existing cast times.'
                     self.svp_intel.unmatched_files[svpfilepath] = unmatch_reason
         else:
             for svpfilepath, svpfilename in self.svp_intel.file_name.items():
