@@ -10,6 +10,7 @@ from HSTB.kluster.gui.common_widgets import SaveStateDialog
 from HSTB.kluster import kluster_variables
 from HSTB.kluster.fqpr_helpers import epsg_determinator
 from HSTB.kluster.gui.dialog_surface import SurfaceDialog
+from HSTB.kluster.modules.georeference import fes_found, fes_grids
 
 geo_datum_descrip = [f'{k} = EPSG:{epsg_determinator(k)}' for k in kluster_variables.geographic_coordinate_systems]
 proj_datum_descrip = []
@@ -265,6 +266,14 @@ class ProjectSettingsDialog(SaveStateDialog):
                     self.status_msg.setText('Unable to find vdatum folder at {}'.format(vdatum))
             else:
                 self.status_msg.setText('VDatum folder not set')
+        elif curr_vert in kluster_variables.waterleveltides_based_vertical_references:
+            if fes_found:
+                if fes_grids:
+                    self.status_msg.setText('')
+                else:
+                    self.status_msg.setText('Found Aviso module, but unable to find any supporting grids, is supplementals installed?')
+            else:
+                self.status_msg.setText('Unable to find Aviso module.')
         else:
             self.status_msg.setText('')
 

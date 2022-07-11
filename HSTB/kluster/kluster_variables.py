@@ -63,14 +63,16 @@ supported_ppnav_log = ['.txt', '.log']
 supported_sv = ['.svp']
 supported_mesh = ['.ply', '.2dm']
 
-vertical_references = ['waterline', 'ellipse', 'NOAA MLLW', 'NOAA MHW']  # all vertical reference options
+vertical_references = ['waterline', 'ellipse', 'NOAA MLLW', 'NOAA MHW', 'Aviso MLLW']  # all vertical reference options
 vdatum_vertical_references = ['NOAA MLLW', 'NOAA MHW']  # vertical reference options based in vdatum
 ellipse_based_vertical_references = ['ellipse', 'NOAA MLLW', 'NOAA MHW']  # vertical reference options based on the ellipsoid
-waterline_based_vertical_references = ['waterline']  # vertical reference options based on waterline
+waterline_based_vertical_references = ['waterline', 'Aviso MLLW']  # vertical reference options based on waterline
+waterleveltides_based_vertical_references = ['Aviso MLLW']  # vertical reference options with tides, but not base on ellipsoid
 vertical_references_explanation = {'waterline': 'Sound velocity corrected data plus heave minus the waterline value',
                                    'ellipse': 'Sound velocity corrected data minus ellipsoid height, positive up',
                                    'NOAA MLLW': 'Sound velocity corrected data minus ellipsoid height plus VDatum MLLW separation value',
-                                   'NOAA MHW': 'Sound velocity corrected data minus ellipsoid height plus VDatum MHW separation value'}
+                                   'NOAA MHW': 'Sound velocity corrected data minus ellipsoid height plus VDatum MHW separation value',
+                                   'Aviso MLLW': 'Sound velocity corrected data plus heave minus the waterline value minus Aviso tidal MLLW separation value'}
 positive_up_vertical_references = ['ellipse']
 
 coordinate_systems = ['NAD83', 'NAD83 PA11', 'NAD83 MA11', 'WGS84']  # horizontal coordinate system options

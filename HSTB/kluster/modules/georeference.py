@@ -5,6 +5,7 @@ from pyproj import Transformer, CRS, Geod
 from typing import Union
 import geohash
 from shapely import geometry
+from datetime import datetime
 import queue
 
 from HSTB.kluster.xarray_helpers import stack_nan_array, reform_nan_array
@@ -17,6 +18,18 @@ try:
     vyperdatum_found = True
 except ModuleNotFoundError:
     vyperdatum_found = False
+
+try:
+    from aviso import fes
+    fes_grids = list(fes.regional_sep_catalog.keys())
+    fes_grids = [fg for fg in fes_grids if os.path.exists(fes.__dict__[fg])]
+    fes_found = True
+except ModuleNotFoundError:
+    fes_found = False
+    fes_grids = []
+
+fes_model = None
+fes_model_description = ''
 
 
 def distrib_run_georeference(dat: list):
@@ -459,3 +472,75 @@ def distance_between_coordinates(lat_one: Union[float, np.ndarray], lon_one: Uni
     g = Geod(ellps=ellipse_string)
     _, _, dist = g.inv(lon_one, lat_one, lon_two, lat_two)
     return dist
+
+
+def determine_aviso_grid(longitude: float):
+    """
+    The Aviso module contains gridded regions where we have computed tides.  Determine which region the given longitude
+    falls within.  Expects (-180 to 180) longitude.
+
+    Parameters
+    ----------
+    longitude
+        longitude of point
+
+    Returns
+    -------
+    str
+        gridded region name
+    """
+
+    # I computed these after loading Jack's EEZ dataset with numpy, transforming from 3338 to 6318
+    # these are the geographic longitudinal extents in 6318
+    alaska_min_x = -179.9937741
+    alaska_max_x = -127.8790600
+    if len(fes_grids) > 2:
+        print(f"WARNING: determine_aviso_grid found {len(fes_grids)} grids available in aviso, expected only two, this function might need to be updated.")
+    if longitude < alaska_max_x:
+        grid = 'jAcK_EEZ_ERTDM_2021'
+    else:  # currently there are only two grids, so this logic is simple
+        grid = 'gERTDM_NBS_NE'
+    if grid not in fes_grids:
+        raise ValueError(f'determine_aviso_grid: Attempting to load {grid}, but unable to find this file in the file system.')
+    return grid
+
+
+def aviso_tide_correct(latitudes: np.ndarray, longitudes: np.ndarray, times: np.ndarray, region: str, datum: str):
+    """
+    Run the aviso fes module to get tide corrections for the given positions/times.  Used for tide correcting svcorrected depths,
+    where you would subtract the return from this function from your (+ DOWN) depths to get a tide corrected answer.
+
+    Parameters
+    ----------
+    latitudes
+        1d array of latitudes
+    longitudes
+        1d array of longitudes
+    times
+        1d array of utc timestamps in seconds
+    region
+        one of the fes grid names, see georeference_fes_grids
+    datum
+        one of the supported vertical datum descriptors in fes
+
+    Returns
+    -------
+    np.ndarray
+        1d array of tide corrector values for the given points/times
+    """
+
+    if not fes_found:
+        raise ValueError(f'aviso_tide_correct: fes module not found.')
+    if region not in fes_grids:
+        raise ValueError(f'aviso_tide_correct: Attempting to load {region}, but unable to find this file in the file system.')
+    if not (latitudes.size == longitudes.size == times.size):
+        raise ValueError(f'aviso_tide_correct: given different length arrays, longitudes/latitudes/times must all be the same length.')
+    global fes_model
+    global fes_model_description
+    if (region != fes_model_description) or (not fes_model):
+        fes_model = fes.Model(sep_region=region)
+        fes_model_description = region
+
+    times = (times * 10**6).astype('datetime64[us]')
+    wl_fes = fes_model.tides(longitudes, latitudes, times, datum=datum)
+    return wl_fes
