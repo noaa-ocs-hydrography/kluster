@@ -358,10 +358,11 @@ def get_vector_attribution(vector_source: str):
     vdict = {}
     vdict['type'] = ds.GetDriver().GetDescription()
     vdict['number of layers'] = ds.GetLayerCount()
-    try:
-        vdict['feature count'] = {ds.GetLayerByIndex(i).GetDescription(): ds.GetLayerByIndex(i).GetFeatureCount() for i in range(ds.GetLayerCount())}
-    except:
-        vdict['feature count'] = 'Unknown'
+    if os.path.splitext(vector_source)[1] == '.000':
+        try:
+            vdict['feature count'] = {ds.GetLayerByIndex(i).GetDescription(): ds.GetLayerByIndex(i).GetFeatureCount() for i in range(ds.GetLayerCount())}
+        except:
+            vdict['feature count'] = 'Unknown'
 
     ds = None
     return vdict
