@@ -14,7 +14,8 @@ from HSTB.kluster.modules.orientation import distrib_run_build_orientation_vecto
 from HSTB.kluster.modules.beampointingvector import distrib_run_build_beam_pointing_vector
 from HSTB.kluster.modules.svcorrect import get_sv_files_from_directory, return_supported_casts_from_list, \
     distributed_run_sv_correct, cast_data_from_file
-from HSTB.kluster.modules.georeference import distrib_run_georeference, vertical_datum_to_wkt, vyperdatum_found, distance_between_coordinates
+from HSTB.kluster.modules.georeference import distrib_run_georeference, vertical_datum_to_wkt, vyperdatum_found, distance_between_coordinates, \
+    aviso_tide_correct, determine_aviso_grid, aviso_clear_model
 from HSTB.kluster.modules.tpu import distrib_run_calculate_tpu
 from HSTB.kluster.modules.filter import FilterManager
 from HSTB.kluster.xarray_conversion import BatchRead
@@ -1626,11 +1627,16 @@ class Fqpr(ZarrBackend):
             hve = rawatt.heave
 
         wline = float(self.multibeam.xyzrph['waterline'][str(timestmp)])
-
+        tidecorr = None
         if self.vert_ref in kluster_variables.ellipse_based_vertical_references:
             alt = self.determine_altitude_corr(alt, self.multibeam.raw_att, tx_tstmp_idx + latency, prefixes, timestmp)
         else:
             hve = self.determine_induced_heave(ra, hve, self.multibeam.raw_att, tx_tstmp_idx + latency, prefixes, timestmp)
+            if self.vert_ref == 'Aviso MLLW':
+                region = determine_aviso_grid(lon[0].values)
+                if not silent:
+                    self.logger.info(f'Aviso tides: building MLLW corrector values for region={region}')
+                tidecorr = aviso_tide_correct(lat.values, lon.values, lat.time.values, region, 'MLLW')
 
         data_for_workers = []
         min_chunk_index = np.min([idx.min() for idx in idx_by_chunk])
@@ -1661,6 +1667,10 @@ class Fqpr(ZarrBackend):
                     fut_alt = alt
                 else:
                     fut_alt = self.client.scatter(alt[chnk_vals].assign_coords({'time': chnk.time.time - latency}))
+                if tidecorr is None:
+                    fut_tide = tidecorr
+                else:
+                    fut_tide = self.client.scatter(tidecorr[chnk_vals].assign_coords({'time': chnk.time.time - latency}))
                 fut_lon = self.client.scatter(lon[chnk_vals].assign_coords({'time': chnk.time.time - latency}))
                 fut_lat = self.client.scatter(lat[chnk_vals].assign_coords({'time': chnk.time.time - latency}))
                 fut_hdng = self.client.scatter(hdng[chnk_vals].assign_coords({'time': chnk.time.time - latency}))
@@ -1670,12 +1680,16 @@ class Fqpr(ZarrBackend):
                     fut_alt = alt
                 else:
                     fut_alt = alt[chnk_vals].assign_coords({'time': chnk.time.time - latency})
+                if alt is None:
+                    fut_tide = tidecorr
+                else:
+                    fut_tide = tidecorr[chnk_vals].assign_coords({'time': chnk.time.time - latency})
                 fut_lon = lon[chnk_vals].assign_coords({'time': chnk.time.time - latency})
                 fut_lat = lat[chnk_vals].assign_coords({'time': chnk.time.time - latency})
                 fut_hdng = hdng[chnk_vals].assign_coords({'time': chnk.time.time - latency})
                 fut_hve = hve[chnk_vals].assign_coords({'time': chnk.time.time - latency})
             data_for_workers.append([sv_data, fut_alt, fut_lon, fut_lat, fut_hdng, fut_hve, wline, self.vert_ref,
-                                     input_datum, self.horizontal_crs, z_offset, vdatum_directory])
+                                     input_datum, self.horizontal_crs, z_offset, vdatum_directory, fut_tide])
         return data_for_workers
 
     def _generate_chunks_tpu(self, ra: xr.Dataset, idx_by_chunk: xr.DataArray, prefixes: str, timestmp: str, run_index: int, silent: bool = False):
@@ -2969,6 +2983,8 @@ class Fqpr(ZarrBackend):
                 endtime = perf_counter()
                 self.logger.info('Processing chunk {} out of {} complete: {}'.format(rn + 1, tot_runs,
                                                                                      seconds_to_formatted_string(int(endtime - starttime))))
+        if mode == 'georef' and self.vert_ref == 'Aviso MLLW':  # free up the memory associated with the aviso model after all runs
+            aviso_clear_model()
 
     def write_intermediate_futs_to_zarr(self, mode: str, sys_ident: str, timestmp: str, skip_dask: bool = False):
         """
