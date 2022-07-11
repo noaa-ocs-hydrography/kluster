@@ -273,7 +273,7 @@ class ProjectSettingsDialog(SaveStateDialog):
                 else:
                     self.status_msg.setText('Found Aviso module, but unable to find any supporting grids, is supplementals installed?')
             else:
-                self.status_msg.setText('Unable to find Aviso module.')
+                self.status_msg.setText('Unable to find Aviso module.  Aviso is only available through Pydro.')
         else:
             self.status_msg.setText('')
 
