@@ -424,7 +424,8 @@ def sequential_read_multibeam(multibeam_file: str, start_pointer: int = 0, end_p
         sk.close()
     else:
         raise NotImplementedError('fqpr_drivers: {} is supported by kluster, but not currently supported by sequential_read_multibeam'.format(multibeam_file))
-    _validate_sequential_read(recs)
+    if not first_installation_rec:
+        _validate_sequential_read(recs)
     return recs
 
 

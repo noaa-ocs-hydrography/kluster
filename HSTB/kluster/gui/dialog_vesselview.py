@@ -2143,9 +2143,9 @@ class VesselWidget(QtWidgets.QWidget):
         saveconfig = QtWidgets.QAction('Save Config', self)
         addconfig = QtWidgets.QAction('Add to Config File', self)
         importpos = QtWidgets.QAction('Import from POSMV', self)
-        importkongs = QtWidgets.QAction('Import from Kongsberg', self)
+        importmulti = QtWidgets.QAction('Import from Multibeam', self)
         importpos.triggered.connect(self.import_from_posmv)
-        importkongs.triggered.connect(self.import_from_kongsberg)
+        importmulti.triggered.connect(self.import_from_multibeam)
         newconfig.triggered.connect(self.new_configuration)
         openconfig.triggered.connect(self.open_configuration)
         saveconfig.triggered.connect(self.save_configuration)
@@ -2157,7 +2157,7 @@ class VesselWidget(QtWidgets.QWidget):
         file.addAction(addconfig)
         file.addSeparator()
         file.addAction(importpos)
-        file.addAction(importkongs)
+        file.addAction(importmulti)
 
         edit = self.mbar.addMenu('Edit')
         new_timestamp = QtWidgets.QAction('New Entry', self)
@@ -2349,22 +2349,23 @@ class VesselWidget(QtWidgets.QWidget):
                                 self.xyzrph[serial_num][sens][tstmp] = str(posxyzrph[sens])
                     self.populate_from_xyzrph()
                 else:
-                    self.print('Expect data to exist before loading from POS MV, please import from kongsberg first or open config file',
+                    self.print('Expect data to exist before loading from POS MV, please import from multibeam first or open config file',
                                logging.ERROR)
             else:
                 self.print('Unable to load from {}'.format(fil), logging.ERROR)
         else:
             self.print('Import cancelled.', logging.INFO)
 
-    def import_from_kongsberg(self):
+    def import_from_multibeam(self):
         """
-        A new configuration is created from loading a .all file and getting the sensor locations
+        A new configuration is created from loading a multibeam file and getting the sensor locations
 
         """
+
         msg, fil = RegistryHelpers.GetFilenameFromUserQT(self, RegistryKey='kluster',
                                                          Title='Select a Kongsberg file (.kmall, .all)',
                                                          AppName='klusterbrowse', bMulti=False, bSave=False,
-                                                         fFilter='Kongsberg file (*.all;*.kmall)')
+                                                         fFilter=f"Multibeam file ({';'.join(['*' + sm for sm in kluster_variables.supported_multibeam])})")
         if fil:
             self.vessview_window.clear_sensors()
             self.vessview_window.build_vessel(self.vessview_window.pth_to_vessel_file)
