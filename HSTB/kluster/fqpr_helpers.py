@@ -160,7 +160,7 @@ def return_files_from_path(pth: str, in_chunks: bool = True):
     if type(pth) == list:
         fils = pth
     elif os.path.isdir(pth):
-        for fext in kluster_variables.supported_multibeam:
+        for fext in kluster_variables.supported_sonar:
             fils = glob(os.path.join(pth, '*{}'.format(fext)))
             if fils:
                 break

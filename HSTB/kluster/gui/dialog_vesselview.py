@@ -2286,7 +2286,7 @@ class VesselWidget(QtWidgets.QWidget):
         msg, fil = RegistryHelpers.GetFilenameFromUserQT(self, RegistryKey='kluster',
                                                          Title='Select a Kongsberg file (.kmall, .all)',
                                                          AppName='klusterbrowse', bMulti=False, bSave=False,
-                                                         fFilter=f"Multibeam file ({';'.join(['*' + sm for sm in kluster_variables.supported_multibeam])})")
+                                                         fFilter=f"Multibeam file ({';'.join(['*' + sm for sm in kluster_variables.supported_sonar])})")
         if fil:
             self.vessview_window.clear_sensors()
             self.vessview_window.build_vessel(self.vessview_window.pth_to_vessel_file)

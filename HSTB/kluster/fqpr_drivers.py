@@ -9,23 +9,25 @@ import os
 import numpy as np
 
 from HSTB.kluster import kluster_variables
-from HSTB.drivers import kmall, par3, sbet, svp, PCSio, prr3
+from HSTB.drivers import kmall, par3, sbet, svp, PCSio, prr3, raw
 
 # these translators are used to figure out the numbering in the installation parametes for each sonar
 par_sonar_translator = par3.sonar_translator
 kmall_sonar_translator = kmall.sonar_translator
 # no sonar translator for s7k, as there are only two transducers, and tx and rx are always given (we assume something
 #    like ('7125': [None, 'tx', 'rx', None])
+# no sonar translator for raw, we just have those hard coded
 
-sonar_reference_point = {'.all': ['tx_x', 'tx_y', 'tx_z'],
+sonar_reference_point = {'.raw': ['tx_x', 'tx_y', 'tx_z'],
+                         '.all': ['tx_x', 'tx_y', 'tx_z'],
                          '.kmall': ['tx_x', 'tx_y', 'tx_z'],
                          '.s7k': ['tx_x', 'rx_y', 'rx_z']}
 
 
 def _check_multibeam_file(multibeam_file: str):
     fileext = os.path.splitext(multibeam_file)[1]
-    if fileext not in kluster_variables.supported_multibeam:
-        raise NotImplementedError('fqpr_drivers: File ({}) is not a Kluster supported multibeam file ({})'.format(multibeam_file, kluster_variables.supported_multibeam))
+    if fileext not in kluster_variables.supported_sonar:
+        raise NotImplementedError('fqpr_drivers: File ({}) is not a Kluster supported multibeam file ({})'.format(multibeam_file, kluster_variables.supported_sonar))
 
 
 def _check_sbet_file(sbet_file: str):
@@ -60,7 +62,7 @@ def fast_read_multibeam_metadata(multibeam_file: str, gather_times: bool = True,
     data without reading the entire file.  These include: the start and end time of the file in utc seconds, the serial
     number(s) of the multibeam sonar in the file.  Use gather_times and gather_serialnumber to select which/both of these options.
 
-    Multibeam file must be one of the multibeam files that we support in Kluster, see kluster_variables.supported_multibeam
+    Multibeam file must be one of the multibeam files that we support in Kluster, see kluster_variables.supported_sonar
 
     Parameters
     ----------
@@ -119,6 +121,18 @@ def fast_read_multibeam_metadata(multibeam_file: str, gather_times: bool = True,
         else:
             serialnums = None
         skread.close()
+    elif fileext == '.raw':
+        mtype = 'kongsberg_raw'
+        rawread = raw.readraw(multibeam_file)
+        if gather_times:
+            start_end = rawread.fast_read_start_end_time()
+        else:
+            start_end = None
+        if gather_serialnumber:
+            serialnums = rawread.fast_read_serial_number()
+        else:
+            serialnums = None
+        rawread.close()
     else:
         raise NotImplementedError('fqpr_drivers: {} is supported by kluster, but not currently supported by fast_read_multibeam_metadata'.format(multibeam_file))
     return mtype, start_end, serialnums
@@ -215,8 +229,8 @@ def _validate_sequential_read_installation(recs: dict):
 def _validate_sequential_read_ping(recs: dict):
     # two options for runtime parameters.  They can either be a value per ping stored in the ping records, or they can
     #   be in a separate record that shows intermittently throughout the file and needs to be interpolated to the ping
-    #   time during xarray conversion (all format).
-    if recs['format'] in ['all']:
+    #   time during xarray conversion (all and raw format).
+    if recs['format'] in ['all', 'raw']:
         required_ping = ['time', 'counter', 'soundspeed', 'serial_num', 'tiltangle', 'delay', 'frequency', 'beampointingangle',
                          'txsector_beam', 'detectioninfo', 'qualityfactor', 'traveltime', 'processing_status']
         required_ping_dtype = ['float64', 'uint32', 'float32', 'uint64', 'float32', 'float32', 'int32', 'float32',
@@ -265,7 +279,7 @@ def _validate_sequential_read_runtime(recs: dict):
     # two options for runtime parameters.  They can either be a value per ping stored in the ping records, or they can
     #   be in a separate record that shows intermittently throughout the file and needs to be interpolated to the ping
     #   time during xarray conversion (all format).
-    if recs['format'] in ['all']:
+    if recs['format'] in ['all', 'raw']:
         required_runtime_params = ['time', 'mode', 'modetwo', 'yawpitchstab', 'runtime_settings']
         required_runtime_params_dtype = ['float64', 'u2-u5', 'u2-u5', 'u2-u5', 'object']
     else:
@@ -351,7 +365,7 @@ def _validate_sequential_read(recs: dict):
     _validate_sequential_read_navigation(recs)
     _validate_sequential_read_profile(recs)
 
-    assert '.' + recs['format'] in kluster_variables.supported_multibeam
+    assert '.' + recs['format'] in kluster_variables.supported_sonar
 
 
 def is_valid_multibeam_file(multibeam_file: str):
@@ -369,14 +383,16 @@ def is_valid_multibeam_file(multibeam_file: str):
     bool
         if True, file is ok to process
     """
-    print(multibeam_file)
+
     multibeam_extension = os.path.splitext(multibeam_file)[1]
     if multibeam_extension == '.s7k':
         sk = prr3.X7kRead(multibeam_file)
         if sk.has_datagram([1012, 1013], 300) or sk.has_datagram(1016, 300):
+            sk.close()
             return True
         else:
             print(f'fqpr_drivers: {multibeam_file} - Reson s7k data must have either (1012 and 1013) or (1016) records, unable to find either')
+            sk.close()
             return False
     else:
         return True
@@ -422,6 +438,10 @@ def sequential_read_multibeam(multibeam_file: str, start_pointer: int = 0, end_p
         sk = prr3.X7kRead(multibeam_file, start_ptr=start_pointer, end_ptr=end_pointer)
         recs = sk.sequential_read_records(first_installation_rec=first_installation_rec)
         sk.close()
+    elif multibeam_extension == '.raw':
+        rd = raw.readraw(multibeam_file, start_ptr=start_pointer, end_ptr=end_pointer)
+        recs = rd.sequential_read_records(first_installation_rec=first_installation_rec)
+        rd.close()
     else:
         raise NotImplementedError('fqpr_drivers: {} is supported by kluster, but not currently supported by sequential_read_multibeam'.format(multibeam_file))
     if not first_installation_rec:
@@ -442,6 +462,8 @@ def read_first_fifty_records(file_object):
         PCSio.print_some_records(file_object, recordnum=50)
     elif isinstance(file_object, np.ndarray):
         sbet.print_some_records(file_object, recordnum=50)
+    elif isinstance(file_object, raw.readraw):
+        raw.print_some_records(file_object, recordnum=50)
     else:
         print(f'read_first_fifty_records: Unsupported file object: {file_object}')
 

@@ -1732,12 +1732,12 @@ class Fqpr(ZarrBackend):
 
         first_mbes_file = list(ra.multibeam_files.keys())[0]
         mbes_ext = os.path.splitext(first_mbes_file)[1]
-        if mbes_ext in kluster_variables.multibeam_uses_quality_factor:  # for .all files, quality factor is an int representing scaled std dev
+        if mbes_ext in kluster_variables.sonar_uses_quality_factor:  # for .all files, quality factor is an int representing scaled std dev
             qf_type = 'kongsberg'
-        elif mbes_ext in kluster_variables.multibeam_uses_ifremer:  # for .kmall files, quality factor is a percentage of water depth, see IFREMER formula
+        elif mbes_ext in kluster_variables.sonar_uses_ifremer:  # for .kmall files, quality factor is a percentage of water depth, see IFREMER formula
             qf_type = 'ifremer'
         else:
-            raise ValueError('Found multibeam file with {} extension, only {} supported by kluster'.format(mbes_ext, kluster_variables.supported_multibeam))
+            raise ValueError('Found multibeam file with {} extension, only {} supported by kluster'.format(mbes_ext, kluster_variables.supported_sonar))
 
         data_for_workers = []
 
