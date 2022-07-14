@@ -1514,15 +1514,20 @@ class Fqpr(ZarrBackend):
         # this should be the transducer to waterline, positive down
         refpt = self.multibeam.return_prefix_for_rp()
         z_pos = -float(self.multibeam.xyzrph[prefixes[refpt[2]] + '_z'][timestmp]) + float(self.multibeam.xyzrph['waterline'][timestmp])
-
+        # if we have no soundspeed data, just use the first entry in the cast
+        if ra.soundspeed.values[0] == 0.0:
+            self.logger.warning('svcorrect: Found surface sound speed values of 0.0, using the first entry of the cast instead.')
+            sspeed = xr.full_like(ra.soundspeed, casts[0][1][0])
+        else:
+            sspeed = ra.soundspeed
         try:
             twtt_data = self.client.scatter([ra.traveltime[d[0]] for d in cast_chunks])
-            ss_data = self.client.scatter([ra.soundspeed[d[0]] for d in cast_chunks])
+            ss_data = self.client.scatter([sspeed[d[0]] for d in cast_chunks])
             casts = self.client.scatter(casts)
             addtl_offsets = self.client.scatter([addtl for addtl in addtl_offsets])
         except:  # client is not setup, run locally
             twtt_data = [ra.traveltime[d[0]] for d in cast_chunks]
-            ss_data = [ra.soundspeed[d[0]] for d in cast_chunks]
+            ss_data = [sspeed[d[0]] for d in cast_chunks]
 
         for cnt, dat in enumerate(cast_chunks):
             intermediate_index = cnt + run_index
