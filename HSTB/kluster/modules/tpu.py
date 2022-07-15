@@ -421,6 +421,10 @@ class Tpu:
         """
         Calculate refraction variance, the sound speed error effects on range, beam angle
         """
+
+        # single beam case
+        if self.beam_angles.isel(time=0).size == 1 and self.beam_angles.isel(time=0).values == 0.0:
+            return xr.zeros_like(self.depth_offset)
         first_component = (self.depth_offset / self.surf_sound_speed)**2
         second_component = (np.tan(self.beam_angles) / (2 * self.surf_sound_speed)) ** 2
         third_component = ((np.tan(self.beam_angles - self.raw_beam_angles) / self.surf_sound_speed) ** 2)
