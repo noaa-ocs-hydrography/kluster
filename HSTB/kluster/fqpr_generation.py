@@ -1685,7 +1685,7 @@ class Fqpr(ZarrBackend):
                     fut_alt = alt
                 else:
                     fut_alt = alt[chnk_vals].assign_coords({'time': chnk.time.time - latency})
-                if alt is None:
+                if tidecorr is None:
                     fut_tide = tidecorr
                 else:
                     fut_tide = tidecorr[chnk_vals].assign_coords({'time': chnk.time.time - latency})
