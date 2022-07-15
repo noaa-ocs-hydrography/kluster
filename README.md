@@ -109,7 +109,7 @@ Start the GUI by activating the new environment and run Kluster as a module
 
 `(kluster_test) C:>python -m HSTB.kluster`
 
-####Docker
+###Docker
 
 Build docker image using the provided dockerfile
 
