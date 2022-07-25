@@ -3,8 +3,9 @@ import logging
 
 from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal
 from HSTB.shared import RegistryHelpers
+from HSTB.kluster import kluster_variables
 from HSTB.kluster.gui.common_widgets import SaveStateDialog
-from HSTB.drivers import par3, kmall, PCSio, sbet, prr3
+from HSTB.drivers import par3, kmall, PCSio, sbet, prr3, raw
 from HSTB.kluster.fqpr_drivers import read_first_fifty_records, kluster_read_test, bscorr_generation
 
 
@@ -17,7 +18,7 @@ class FileAnalyzerDialog(SaveStateDialog):
 
         self.instructions_msg = QtWidgets.QLabel('See Output tab for the results of the function.\nNOTE: posmv files are mapped on initialization, this can be a long process.')
 
-        self.start_msg = QtWidgets.QLabel('Select a raw file to analyze (kmall, all, posmv, sbet, smrmsg):')
+        self.start_msg = QtWidgets.QLabel(f'Select a raw file to analyze {kluster_variables.supported_sonar + kluster_variables.supported_ppnav}:')
 
         self.ftypelabel = QtWidgets.QLabel('')
 
@@ -101,8 +102,10 @@ class FileAnalyzerDialog(SaveStateDialog):
                 self.print('Expected .all file, got {}'.format(file_path), logging.ERROR)
             elif self.filetype == 'kongsberg_kmall' and fext != '.kmall':
                 self.print('Expected .kmall file, got {}'.format(file_path), logging.ERROR)
-            if self.filetype == 'reson_s7k' and fext != '.s7k':
+            elif self.filetype == 'reson_s7k' and fext != '.s7k':
                 self.print('Expected .s7k file, got {}'.format(file_path), logging.ERROR)
+            elif self.filetype == 'kongsberg_raw' and fext != '.raw':
+                self.print('Expected .raw file, got {}'.format(file_path), logging.ERROR)
             elif self.filetype in ['applanix_sbet', 'applanix_smrmsg'] and fext not in ['.out', '.sbet', 'smrmsg']:
                 self.print('Expected .kmall file, got {}'.format(file_path), logging.ERROR)
             else:
@@ -114,6 +117,8 @@ class FileAnalyzerDialog(SaveStateDialog):
                     self.fileobjecttwo = kmall.kmall(file_path)
                 elif fext == '.s7k':
                     self.fileobjecttwo = prr3.X7kRead(file_path)
+                elif fext == '.raw':
+                    self.fileobjecttwo = raw.readraw(file_path)
                 elif fext in ['.out', '.sbet', 'smrmsg']:
                     if sbet.is_sbet(file_path):
                         self.fileobjecttwo = sbet.read(file_path, numcolumns=17)
@@ -152,6 +157,10 @@ class FileAnalyzerDialog(SaveStateDialog):
                 self.filetype = 'reson_s7k'
                 self.fileobject = prr3.X7kRead(self.filename)
                 self.functioncombobox.addItems(['read_first_fifty_records', 'kluster_read_test'])
+            elif fext == '.raw':
+                self.filetype = 'kongsberg_raw'
+                self.fileobject = raw.readraw(self.filename)
+                self.functioncombobox.addItems(['read_first_fifty_records'])
             elif fext in ['.out', '.sbet', 'smrmsg']:
                 if sbet.is_sbet(file_path):
                     self.filetype = 'applanix_sbet'

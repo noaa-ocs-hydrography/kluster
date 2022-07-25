@@ -1227,6 +1227,8 @@ class ThreeDView(QtWidgets.QWidget):
         self.max_tvu = np.nanmax(self.tvu)
         self.max_rejected = np.nanmax(self.rejected)
         self.max_beam = np.nanmax(self.beam)
+        if self.max_beam == 0:  # singlebeam case, we need it to at least be 1 so that the color works
+            self.max_beam = 1
 
         self.mean_z = np.nanmean(self.z)
         self.mean_tvu = np.nanmean(self.tvu)

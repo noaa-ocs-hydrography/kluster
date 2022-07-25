@@ -7,7 +7,7 @@ import os
 from HSTB.kluster import kluster_variables
 
 
-supported_mbes = kluster_variables.supported_multibeam
+supported_mbes = kluster_variables.supported_sonar
 supported_sbet = kluster_variables.supported_ppnav  # people keep mixing up these extensions, so just check for the nav/smrmsg in both
 supported_export_log = kluster_variables.supported_ppnav_log
 supported_svp = kluster_variables.supported_sv

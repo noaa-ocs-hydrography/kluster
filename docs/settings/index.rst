@@ -172,6 +172,8 @@ NOAA MLLW - sound velocity corrected offsets (relative to reference point) - alt
 
 NOAA MHW - sound velocity corrected offsets (relative to reference point) - altitude - MHW Separation from VDatum
 
+Aviso MLLW - sound velocity corrected offsets (relative to reference point) + heave - waterline - Aviso Tide Corrector
+
 - SV Cast Selection
 
 Choose which cast is chosen for each chunk of data.

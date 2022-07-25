@@ -940,11 +940,6 @@ class OptionsWidget(QtWidgets.QWidget):
         third_option_sub = QtWidgets.QHBoxLayout()
         third_option_sub_labels = QtWidgets.QVBoxLayout()
         third_option_sub_ctrls = QtWidgets.QVBoxLayout()
-        self.refpt_label = QtWidgets.QLabel('Reference Point')
-        self.refpt_select = QtWidgets.QComboBox()
-        refpts = ['Sonar Transmitter', 'IMU', 'Custom']
-        self.refpt_select.addItems(refpts)
-        self.refpt_select.setEnabled(False)
         self.show_waterline = QtWidgets.QCheckBox('Show Waterline')
         self.show_waterline.setChecked(True)
         self.waterline_spacer = QtWidgets.QLabel('')
@@ -956,10 +951,10 @@ class OptionsWidget(QtWidgets.QWidget):
         self.yawlabel, self.yaw = self.add_num_ctrl('yaw (+Clockwise)')
         self.opening_angle_label, self.opening_angle = self.add_num_ctrl('Opening Angle (degrees)', tooltip='beam opening angle, should auto populate from the multibeam data.')
         self.latencylabel, self.latency = self.add_num_ctrl('Motion Latency (Seconds)')
-        for widg in [self.show_waterline, self.refpt_label, self.xlabel, self.ylabel, self.zlabel, self.rlabel,
-                     self.plabel, self.yawlabel, self.opening_angle_label, self.latencylabel]:
+        for widg in [self.show_waterline, self.xlabel, self.ylabel, self.zlabel, self.rlabel, self.plabel, self.yawlabel,
+                     self.opening_angle_label, self.latencylabel]:
             third_option_sub_labels.addWidget(widg)
-        for widg in [self.waterline_spacer, self.refpt_select, self.x, self.y, self.z, self.r, self.p, self.yaw, self.opening_angle,
+        for widg in [self.waterline_spacer, self.x, self.y, self.z, self.r, self.p, self.yaw, self.opening_angle,
                      self.latency]:
             third_option_sub_ctrls.addWidget(widg)
         third_option_sub.addLayout(third_option_sub_labels)
@@ -1312,41 +1307,6 @@ class OptionsWidget(QtWidgets.QWidget):
                                                                    kluster_variables.default_horizontal_positioning_error,
                                                                    kluster_variables.default_vertical_positioning_error]
 
-    def determine_reference_point(self, tstmp):
-        """
-        Each time the Vessel Reference Point comes up in the sensor_select, run this method to determine the current
-        reference point.  We assume that either IMU, sonar transmitter, or some custom option will always be the
-        reference point.
-
-        Parameters
-        ----------
-        tstmp: str, unix timestamp for the given entry
-
-        """
-
-        serial_num = self.serial_select.currentText()
-
-        refpt = 'Custom'
-        if self.data and serial_num in self.data and tstmp in self.data[serial_num]:
-            data_by_time = self.data[serial_num][tstmp]
-            imu_vals = np.array([np.round(float(x), 3) for x in data_by_time['IMU']])
-            if np.array_equal(imu_vals[0:3], v4_target_sensing_center_offset) or \
-                    np.array_equal(imu_vals[0:3], v5_target_sensing_center_offset) or \
-                    not np.any(imu_vals[0:3]):
-                refpt = 'IMU'
-
-            if 'Port Sonar Transmitter' in data_by_time:
-                ident = 'Port Sonar Transmitter'
-                sonar_vals = np.array([np.round(float(x), 3) for x in data_by_time['Port Sonar Transmitter']])
-            else:
-                ident = 'Sonar Transmitter'
-                sonar_vals = np.array([np.round(float(x), 3) for x in data_by_time['Sonar Transmitter']])
-            if not np.any(sonar_vals):
-                refpt = ident
-        else:
-            refpt = None
-        return refpt
-
     def populate_from_xyzrph(self, xyzrph):
         """
         User has provided a xyzrph dict.  Here we signal the scene to update the positions of each sensor and adjust
@@ -1370,7 +1330,6 @@ class OptionsWidget(QtWidgets.QWidget):
             self.serial_select.clear()
             self.time_select.clear()
             self.sensor_select.clear()
-            self.refpt_select.clear()
             self.source_name.setText('None')
             self.model_select.setText('None')
             self.data = {}
@@ -1402,11 +1361,11 @@ class OptionsWidget(QtWidgets.QWidget):
                 data = self.data[serial_num]
                 first_tstmp = list(data.keys())[0]
                 if data[first_tstmp]['Dual Head']:
-                    sensors = ['Display Config', 'Vessel Reference Point', 'Port Sonar Transmitter', 'Port Sonar Receiver',
+                    sensors = ['Display Config', 'Port Sonar Transmitter', 'Port Sonar Receiver',
                                'Stbd Sonar Transmitter', 'Stbd Sonar Receiver', 'IMU', 'Primary Antenna', 'Waterline',
                                'Latency', 'Uncertainty']
                 else:
-                    sensors = ['Display Config', 'Vessel Reference Point', 'Sonar Transmitter', 'Sonar Receiver', 'IMU',
+                    sensors = ['Display Config', 'Sonar Transmitter', 'Sonar Receiver', 'IMU',
                                'Primary Antenna', 'Waterline', 'Latency', 'Uncertainty']
                 curr_select = self.sensor_select.currentText()
                 self.sensor_select.clear()
@@ -1443,13 +1402,11 @@ class OptionsWidget(QtWidgets.QWidget):
                 if vessindex == currindex:
                     self.vessel_selected(None)
                 if data['Dual Head']:  # dual head
-                    refpts = ['Port Sonar Transmitter', 'IMU', 'Custom']
                     self.update_sensor_data('Port Sonar Transmitter', *[np.round(float(x), 3) for x in data['Port Sonar Transmitter']])
                     self.update_sensor_data('Port Sonar Receiver', *[np.round(float(x), 3) for x in data['Port Sonar Receiver']])
                     self.update_sensor_data('Stbd Sonar Transmitter', *[np.round(float(x), 3) for x in data['Stbd Sonar Transmitter']])
                     self.update_sensor_data('Stbd Sonar Receiver', *[np.round(float(x), 3) for x in data['Stbd Sonar Receiver']])
                 else:
-                    refpts = ['Sonar Transmitter', 'IMU', 'Custom']
                     self.update_sensor_data('Stbd Sonar Transmitter', *hide_loc)
                     self.update_sensor_data('Stbd Sonar Receiver', *hide_loc)
                     self.update_sensor_data('Sonar Transmitter', *[np.round(float(x), 3) for x in data['Sonar Transmitter']])
@@ -1461,8 +1418,6 @@ class OptionsWidget(QtWidgets.QWidget):
                 self.update_sensor_data('Vesselcenter', *[np.round(float(x), 3) for x in data['Vesselcenter']])
                 self.update_sensor_data('Uncertainty', *[np.round(float(x), 3) for x in data['Uncertainty']])
 
-                self.refpt_select.clear()
-                self.refpt_select.addItems(refpts)
             self.sensor_selected(None)
 
     def vessel_selected(self, evt):
@@ -1496,8 +1451,6 @@ class OptionsWidget(QtWidgets.QWidget):
             self.basic_tpu.hide()
             self.show_waterline.hide()
             self.waterline_spacer.hide()
-            self.refpt_label.hide()
-            self.refpt_select.hide()
             self.xlabel.hide()
             self.x.hide()
             self.ylabel.hide()
@@ -1520,8 +1473,6 @@ class OptionsWidget(QtWidgets.QWidget):
             self.basic_tpu.hide()
             self.show_waterline.show()
             self.waterline_spacer.show()
-            self.refpt_label.hide()
-            self.refpt_select.hide()
             self.xlabel.hide()
             self.x.hide()
             self.ylabel.hide()
@@ -1544,8 +1495,6 @@ class OptionsWidget(QtWidgets.QWidget):
             self.basic_tpu.hide()
             self.show_waterline.hide()
             self.waterline_spacer.hide()
-            self.refpt_label.hide()
-            self.refpt_select.hide()
             self.xlabel.show()
             self.x.show()
             self.ylabel.show()
@@ -1572,12 +1521,6 @@ class OptionsWidget(QtWidgets.QWidget):
             self.basic_tpu.hide()
             self.show_waterline.hide()
             self.waterline_spacer.hide()
-            if sens == 'Vessel Reference Point':
-                self.refpt_label.show()
-                self.refpt_select.show()
-            else:
-                self.refpt_label.hide()
-                self.refpt_select.hide()
             self.xlabel.show()
             self.x.show()
             self.ylabel.show()
@@ -1590,7 +1533,7 @@ class OptionsWidget(QtWidgets.QWidget):
             self.p.show()
             self.yawlabel.show()
             self.yaw.show()
-            if sens not in ['Vessel Reference Point', 'Display Config', 'Vessel Reference Point', 'IMU']:
+            if sens not in ['Display Config', 'IMU']:
                 self.opening_angle_label.show()
                 self.opening_angle.show()
             else:
@@ -1622,87 +1565,65 @@ class OptionsWidget(QtWidgets.QWidget):
             serial_num = self.serial_select.currentText()
             tstmp = self.get_currently_selected_time()
             if serial_num and tstmp:
-                refsensor = self.determine_reference_point(tstmp)
-                if refsensor:
-                    if sensor_label == 'Display Config':
-                        element_size = self.curr_sensor_size
-                        self.dualhead_option.setChecked(self.data[serial_num][tstmp]['Dual Head'])
-                        self.sensor_size.setText(str(element_size))
-                        data = self.data[serial_num][tstmp]['Vesselcenter']
-                        self.vcenter_x.setText(format(float(data[0]), '.3f'))
-                        self.vcenter_y.setText(format(float(data[1]), '.3f'))
-                        self.vcenter_z.setText(format(float(data[2]), '.3f'))
-                        self.vcenter_r.setText(format(float(data[3]), '.3f'))
-                        self.vcenter_p.setText(format(float(data[4]), '.3f'))
-                        self.vcenter_yaw.setText(format(float(data[5]), '.3f'))
-                        self.sensor_size.setText(format(float(data[6]), '.3f'))
-                        self.update_button.show()
-                    elif sensor_label == 'Vessel Reference Point':
-                        index = self.refpt_select.findText(refsensor)
-                        self.refpt_select.setCurrentIndex(index)
-                        if refsensor == 'Custom':
-                            data = [0, 0, 0, 0, 0, 0]
-                        else:
-                            data = self.data[serial_num][tstmp][refsensor]
-                        self.x.setText(format(float(data[0]), '.3f'))
-                        self.y.setText(format(float(data[1]), '.3f'))
-                        self.z.setText(format(float(data[2]), '.3f'))
-                        self.r.setText(format(float(data[3]), '.3f'))
-                        self.p.setText(format(float(data[4]), '.3f'))
-                        self.yaw.setText(format(float(data[5]), '.3f'))
+                if sensor_label == 'Display Config':
+                    element_size = self.curr_sensor_size
+                    self.dualhead_option.setChecked(self.data[serial_num][tstmp]['Dual Head'])
+                    self.sensor_size.setText(str(element_size))
+                    data = self.data[serial_num][tstmp]['Vesselcenter']
+                    self.vcenter_x.setText(format(float(data[0]), '.3f'))
+                    self.vcenter_y.setText(format(float(data[1]), '.3f'))
+                    self.vcenter_z.setText(format(float(data[2]), '.3f'))
+                    self.vcenter_r.setText(format(float(data[3]), '.3f'))
+                    self.vcenter_p.setText(format(float(data[4]), '.3f'))
+                    self.vcenter_yaw.setText(format(float(data[5]), '.3f'))
+                    self.sensor_size.setText(format(float(data[6]), '.3f'))
+                    self.update_button.show()
+                elif sensor_label == 'Uncertainty':
+                    data = self.data[serial_num][tstmp]['Uncertainty']
+                    self.heave_error.setText(format(float(data[0]), '.3f'))
+                    self.roll_sensor_error.setText(format(float(data[1]), '.3f'))
+                    self.pitch_sensor_error.setText(format(float(data[2]), '.3f'))
+                    self.heading_sensor_error.setText(format(float(data[3]), '.3f'))
+                    self.surface_sv_error.setText(format(float(data[4]), '.3f'))
+                    self.roll_patch_error.setText(format(float(data[5]), '.3f'))
+                    self.waterline_error.setText(format(float(data[6]), '.3f'))
+                    self.horizontal_positioning_error.setText(format(float(data[7]), '.3f'))
+                    self.vertical_positioning_error.setText(format(float(data[8]), '.3f'))
+                else:
+                    data = self.data[serial_num][tstmp][sensor_label]
+                    if sensor_label == 'IMU':
+                        if np.array_equal(data[0:3], v4_target_sensing_center_offset) or \
+                                np.array_equal(data[0:3], v5_target_sensing_center_offset):
+                            data[0:3] = np.array([0, 0, 0])
                         self.x.setEnabled(False)
                         self.y.setEnabled(False)
                         self.z.setEnabled(False)
                         self.r.setEnabled(False)
                         self.p.setEnabled(False)
                         self.yaw.setEnabled(False)
+                        self.opening_angle.setEnabled(False)
                         self.update_button.hide()
-                    elif sensor_label == 'Uncertainty':
-                        data = self.data[serial_num][tstmp]['Uncertainty']
-                        self.heave_error.setText(format(float(data[0]), '.3f'))
-                        self.roll_sensor_error.setText(format(float(data[1]), '.3f'))
-                        self.pitch_sensor_error.setText(format(float(data[2]), '.3f'))
-                        self.heading_sensor_error.setText(format(float(data[3]), '.3f'))
-                        self.surface_sv_error.setText(format(float(data[4]), '.3f'))
-                        self.roll_patch_error.setText(format(float(data[5]), '.3f'))
-                        self.waterline_error.setText(format(float(data[6]), '.3f'))
-                        self.horizontal_positioning_error.setText(format(float(data[7]), '.3f'))
-                        self.vertical_positioning_error.setText(format(float(data[8]), '.3f'))
                     else:
-                        data = self.data[serial_num][tstmp][sensor_label]
-                        if sensor_label == 'IMU':
-                            if np.array_equal(data[0:3], v4_target_sensing_center_offset) or \
-                                    np.array_equal(data[0:3], v5_target_sensing_center_offset):
-                                data[0:3] = np.array([0, 0, 0])
-                            self.x.setEnabled(False)
-                            self.y.setEnabled(False)
-                            self.z.setEnabled(False)
-                            self.r.setEnabled(False)
-                            self.p.setEnabled(False)
-                            self.yaw.setEnabled(False)
-                            self.opening_angle.setEnabled(False)
-                            self.update_button.hide()
-                        else:
-                            self.x.setEnabled(True)
-                            self.y.setEnabled(True)
-                            self.z.setEnabled(True)
-                            self.r.setEnabled(True)
-                            self.p.setEnabled(True)
-                            self.yaw.setEnabled(True)
-                            self.opening_angle.setEnabled(True)
-                            self.update_button.show()
+                        self.x.setEnabled(True)
+                        self.y.setEnabled(True)
+                        self.z.setEnabled(True)
+                        self.r.setEnabled(True)
+                        self.p.setEnabled(True)
+                        self.yaw.setEnabled(True)
+                        self.opening_angle.setEnabled(True)
+                        self.update_button.show()
 
-                        self.x.setText(format(float(data[0]), '.3f'))
-                        self.y.setText(format(float(data[1]), '.3f'))
-                        self.z.setText(format(float(data[2]), '.3f'))
-                        self.r.setText(format(float(data[3]), '.3f'))
-                        self.p.setText(format(float(data[4]), '.3f'))
-                        self.yaw.setText(format(float(data[5]), '.3f'))
-                        if sensor_label == 'Latency':
-                            self.latency.setText(format(float(data[6]), '.3f'))
-                        elif sensor_label in ['Sonar Transmitter', 'Sonar Receiver', 'Port Sonar Transmitter',
-                                              'Port Sonar Receiver', 'Stbd Sonar Transmitter', 'Stbd Sonar Receiver']:
-                            self.opening_angle.setText(format(float(data[6]), '.3f'))
+                    self.x.setText(format(float(data[0]), '.3f'))
+                    self.y.setText(format(float(data[1]), '.3f'))
+                    self.z.setText(format(float(data[2]), '.3f'))
+                    self.r.setText(format(float(data[3]), '.3f'))
+                    self.p.setText(format(float(data[4]), '.3f'))
+                    self.yaw.setText(format(float(data[5]), '.3f'))
+                    if sensor_label == 'Latency':
+                        self.latency.setText(format(float(data[6]), '.3f'))
+                    elif sensor_label in ['Sonar Transmitter', 'Sonar Receiver', 'Port Sonar Transmitter',
+                                          'Port Sonar Receiver', 'Stbd Sonar Transmitter', 'Stbd Sonar Receiver']:
+                        self.opening_angle.setText(format(float(data[6]), '.3f'))
 
 
 class VesselView(QtWidgets.QWidget):
@@ -1935,7 +1856,7 @@ class VesselView(QtWidgets.QWidget):
                     old_sensor_state = old_sensor.get_sensor_state()
                     if old_sensor_state != 0:
                         old_sensor.toggle_sensor(1)  # dim
-        if not sensor_name or sensor_name in ['Display Config', 'Vessel Reference Point', 'Latency']:
+        if not sensor_name or sensor_name in ['Display Config', 'Latency']:
             self.currselected = None
         else:
             if sensor_name and sensor_name in self.sensor_lookup:
@@ -2143,9 +2064,9 @@ class VesselWidget(QtWidgets.QWidget):
         saveconfig = QtWidgets.QAction('Save Config', self)
         addconfig = QtWidgets.QAction('Add to Config File', self)
         importpos = QtWidgets.QAction('Import from POSMV', self)
-        importkongs = QtWidgets.QAction('Import from Kongsberg', self)
+        importmulti = QtWidgets.QAction('Import from Multibeam', self)
         importpos.triggered.connect(self.import_from_posmv)
-        importkongs.triggered.connect(self.import_from_kongsberg)
+        importmulti.triggered.connect(self.import_from_multibeam)
         newconfig.triggered.connect(self.new_configuration)
         openconfig.triggered.connect(self.open_configuration)
         saveconfig.triggered.connect(self.save_configuration)
@@ -2157,7 +2078,7 @@ class VesselWidget(QtWidgets.QWidget):
         file.addAction(addconfig)
         file.addSeparator()
         file.addAction(importpos)
-        file.addAction(importkongs)
+        file.addAction(importmulti)
 
         edit = self.mbar.addMenu('Edit')
         new_timestamp = QtWidgets.QAction('New Entry', self)
@@ -2349,22 +2270,23 @@ class VesselWidget(QtWidgets.QWidget):
                                 self.xyzrph[serial_num][sens][tstmp] = str(posxyzrph[sens])
                     self.populate_from_xyzrph()
                 else:
-                    self.print('Expect data to exist before loading from POS MV, please import from kongsberg first or open config file',
+                    self.print('Expect data to exist before loading from POS MV, please import from multibeam first or open config file',
                                logging.ERROR)
             else:
                 self.print('Unable to load from {}'.format(fil), logging.ERROR)
         else:
             self.print('Import cancelled.', logging.INFO)
 
-    def import_from_kongsberg(self):
+    def import_from_multibeam(self):
         """
-        A new configuration is created from loading a .all file and getting the sensor locations
+        A new configuration is created from loading a multibeam file and getting the sensor locations
 
         """
+
         msg, fil = RegistryHelpers.GetFilenameFromUserQT(self, RegistryKey='kluster',
                                                          Title='Select a Kongsberg file (.kmall, .all)',
                                                          AppName='klusterbrowse', bMulti=False, bSave=False,
-                                                         fFilter='Kongsberg file (*.all;*.kmall)')
+                                                         fFilter=f"Multibeam file ({';'.join(['*' + sm for sm in kluster_variables.supported_sonar])})")
         if fil:
             self.vessview_window.clear_sensors()
             self.vessview_window.build_vessel(self.vessview_window.pth_to_vessel_file)

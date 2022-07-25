@@ -55,22 +55,26 @@ status_lookup = {0: 'converted', 1: 'orientation', 2: 'beamvector', 3: 'soundvel
 status_reverse_lookup = {'converted': 0, 'orientation': 1, 'beamvector': 2, 'soundvelocity': 3, 'georeference': 4, 'tpu': 5}
 
 excluded_files = ['9999.all']
+supported_sonar = ['.all', '.kmall', '.s7k', '.raw']
 supported_multibeam = ['.all', '.kmall', '.s7k']
-multibeam_uses_quality_factor = ['.all']
-multibeam_uses_ifremer = ['.kmall', '.s7k']
+supported_singlebeam = ['.raw']
+sonar_uses_quality_factor = ['.all']
+sonar_uses_ifremer = ['.kmall', '.s7k', '.raw']
 supported_ppnav = ['.out', '.sbet', '.smrmsg']
 supported_ppnav_log = ['.txt', '.log']
 supported_sv = ['.svp']
 supported_mesh = ['.ply', '.2dm']
 
-vertical_references = ['waterline', 'ellipse', 'NOAA MLLW', 'NOAA MHW']  # all vertical reference options
+vertical_references = ['waterline', 'ellipse', 'NOAA MLLW', 'NOAA MHW', 'Aviso MLLW']  # all vertical reference options
 vdatum_vertical_references = ['NOAA MLLW', 'NOAA MHW']  # vertical reference options based in vdatum
 ellipse_based_vertical_references = ['ellipse', 'NOAA MLLW', 'NOAA MHW']  # vertical reference options based on the ellipsoid
-waterline_based_vertical_references = ['waterline']  # vertical reference options based on waterline
+waterline_based_vertical_references = ['waterline', 'Aviso MLLW']  # vertical reference options based on waterline
+waterleveltides_based_vertical_references = ['Aviso MLLW']  # vertical reference options with tides, but not base on ellipsoid
 vertical_references_explanation = {'waterline': 'Sound velocity corrected data plus heave minus the waterline value',
                                    'ellipse': 'Sound velocity corrected data minus ellipsoid height, positive up',
                                    'NOAA MLLW': 'Sound velocity corrected data minus ellipsoid height plus VDatum MLLW separation value',
-                                   'NOAA MHW': 'Sound velocity corrected data minus ellipsoid height plus VDatum MHW separation value'}
+                                   'NOAA MHW': 'Sound velocity corrected data minus ellipsoid height plus VDatum MHW separation value',
+                                   'Aviso MLLW': 'Sound velocity corrected data plus heave minus the waterline value minus Aviso tidal MLLW separation value'}
 positive_up_vertical_references = ['ellipse']
 
 coordinate_systems = ['NAD83', 'NAD83 PA11', 'NAD83 MA11', 'WGS84']  # horizontal coordinate system options
@@ -268,7 +272,7 @@ subset_variable_selection = ['head', 'time', 'beam', 'acrosstrack', 'alongtrack'
                              'reflectivity', 'rel_azimuth', 'sbet_latitude', 'sbet_longitude', 'sbet_altitude', 'sbet_north_position_error',
                              'sbet_east_position_error', 'sbet_down_position_error', 'sbet_roll_error', 'sbet_pitch_error', 'sbet_heading_error'
                              'soundspeed', 'thu', 'tiltangle', 'traveltime', 'tvu', 'txsector_beam', 'x', 'y', 'yawpitchstab', 'z']
-subset_variable_2d = ['acrosstrack', 'alongtrack', 'beampointingangle', 'datum_uncertainty', 'delay', 'depthoffset', 'detectioninfo',
+subset_variable_2d = ['acrosstrack', 'alongtrack', 'beampointingangle', 'corr_pointing_angle', 'datum_uncertainty', 'delay', 'depthoffset', 'detectioninfo',
                       'frequency', 'geohash', 'processing_status', 'qualityfactor', 'reflectivity', 'rel_azimuth', 'thu',
                       'tiltangle', 'traveltime', 'tvu', 'tx', 'txsector_beam', 'x', 'y', 'z']
 subset_variable_1d = ['head', 'time', 'beam', 'altitude', 'corr_altitude', 'corr_heave', 'corr_pointing_angle', 'counter', 'latitude',

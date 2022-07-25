@@ -24,7 +24,8 @@ from HSTB.kluster.logging_conf import return_logger, return_log_name
 from HSTB.kluster import kluster_variables
 
 
-sonar_translator = {'em122': [None, 'tx', 'rx', None], 'em302': [None, 'tx', 'rx', None], 'em304': [None, 'tx', 'rx', None],
+sonar_translator = {'ek60': [None, 'tx', 'rx', None], 'ek80': [None, 'tx', 'rx', None],
+                    'em122': [None, 'tx', 'rx', None], 'em302': [None, 'tx', 'rx', None], 'em304': [None, 'tx', 'rx', None],
                     'em710': [None, 'tx', 'rx', None], 'em712': [None, 'tx', 'rx', None], 'em2040': [None, 'tx', 'rx', None],
                     'em2040_dual_rx': [None, 'tx', 'rx_port', 'rx_stbd'],
                     'em2040_dual_tx': ['tx_port', 'tx_stbd', 'rx_port', None],
@@ -182,7 +183,7 @@ def _assign_reference_points(fileformat: str, finalraw: dict, finalatt: xr.Datas
     """
 
     try:
-        if '.' + fileformat in kluster_variables.supported_multibeam:
+        if '.' + fileformat in kluster_variables.supported_sonar:
             finalatt.attrs['reference'] = {'heading': 'reference point', 'heave': 'transmitter',
                                            'pitch': 'reference point', 'roll': 'reference point'}
             finalatt.attrs['units'] = {'heading': 'degrees (+ clockwise)', 'heave': 'meters (+ down)', 'pitch': 'degrees (+ bow up)',
@@ -308,10 +309,16 @@ def _sequential_to_xarray(rec: dict):
                             # these records are by time/beam.  Have to combine recs to build correct array shape
                             if ky in kluster_variables.subset_variable_2d:
                                 beam_idx = np.arange(arr.shape[1])
-                                recs_to_merge[r][systemid][ky] = xr.DataArray(arr.astype(datadtype), coords=[tim, beam_idx], dims=['time', 'beam'])
+                                try:
+                                    recs_to_merge[r][systemid][ky] = xr.DataArray(arr.astype(datadtype), coords=[tim, beam_idx], dims=['time', 'beam'])
+                                except:
+                                    raise ValueError(f'_sequential_to_xarray: Found record {ky} with shape {arr.shape}, expected a two dimensional array')
                             #  everything else isn't by beam, proceed normally
                             else:
-                                recs_to_merge[r][systemid][ky] = xr.DataArray(arr.astype(datadtype), coords=[tim], dims=['time'])
+                                try:
+                                    recs_to_merge[r][systemid][ky] = xr.DataArray(arr.astype(datadtype), coords=[tim], dims=['time'])
+                                except:
+                                    raise ValueError(f'_sequential_to_xarray: Found record {ky} with shape {arr.shape}, expected a one dimensional array')
                     try:
                         recs_to_merge[r][systemid] = recs_to_merge[r][systemid].sortby('time')
                     except:  # no records to sort
@@ -851,7 +858,7 @@ class BatchRead(ZarrBackend):
     BatchRead - multibeam data converter using dask infrastructure and xarray data types
     Pass in multibeam files, call read(), and gain access to xarray Datasets for each data type
 
-    NOTE: CURRENTLY ONLY ZARR BASED PROCESSING OF kluster_variables.supported_multibeam FILES IS SUPPORTED
+    NOTE: CURRENTLY ONLY ZARR BASED PROCESSING OF kluster_variables.supported_sonar FILES IS SUPPORTED
 
     | BatchRead is stored internally using the following conventions:
     | X = + Forward, Y = + Starboard, Z = + Down
@@ -1184,7 +1191,7 @@ class BatchRead(ZarrBackend):
             self.filfolder = os.path.dirname(fils[0])
         elif os.path.isdir(self.filfolder):
             fils = []
-            for mext in kluster_variables.supported_multibeam:
+            for mext in kluster_variables.supported_sonar:
                 fils = glob(os.path.join(self.filfolder, '*' + mext))
                 if fils:
                     break
@@ -1195,7 +1202,7 @@ class BatchRead(ZarrBackend):
             raise ValueError('Only directory or file path is supported: {}'.format(self.filfolder))
 
         if not fils:
-            raise ValueError('Directory provided, but no {} files found: {}'.format(kluster_variables.supported_multibeam, self.filfolder))
+            raise ValueError('Directory provided, but no {} files found: {}'.format(kluster_variables.supported_sonar, self.filfolder))
 
         if self.dest is not None:  # path was provided, lets make sure it is an empty folder
             if not os.path.exists(self.dest):
@@ -1531,7 +1538,10 @@ class BatchRead(ZarrBackend):
         fil_start_end_times = self._gather_file_level_metadata(self.fils)
         combattrs['multibeam_files'] = fil_start_end_times  # override with start/end time dict
         combattrs['output_path'] = self.converted_pth
-        combattrs['current_processing_status'] = 0
+        if os.path.splitext(self.fils[0])[1] in kluster_variables.supported_singlebeam:
+            combattrs['current_processing_status'] = 2
+        else:
+            combattrs['current_processing_status'] = 0
         combattrs['kluster_version'] = klustervers
         combattrs['_conversion_complete'] = datetime.utcnow().strftime('%c')
         combattrs['status_lookup'] = kluster_variables.status_lookup
@@ -1727,13 +1737,22 @@ class BatchRead(ZarrBackend):
         for line_name, line_times in line_dict.items():
             if len(line_times) == 2:  # this line needs the additional line metadata, otherwise it must have been computed already
                 line_time_start, line_time_end = line_times[0], line_times[1]
-                dstart = rp.interp(time=np.array([max(line_time_start, rp.time.values[0])]), method='nearest', assume_sorted=True)
-                start_position = [dstart.latitude.values, dstart.longitude.values]
-                dend = rp.interp(time=np.array([min(line_time_end, rp.time.values[-1])]), method='nearest', assume_sorted=True)
-                end_position = [dend.latitude.values, dend.longitude.values]
+                try:
+                    dstart = rp.interp(time=np.array([max(line_time_start, rp.time.values[0])]), method='nearest', assume_sorted=True)
+                    start_position = [dstart.latitude.values, dstart.longitude.values]
+                except ValueError:
+                    print(f'WARNING: Unable to determine start position for line {line_name}')
+                    continue
+                try:
+                    dend = rp.interp(time=np.array([min(line_time_end, rp.time.values[-1])]), method='nearest', assume_sorted=True)
+                    end_position = [dend.latitude.values, dend.longitude.values]
+                except ValueError:
+                    print(f'WARNING: Unable to determine end position for line {line_name}')
+                    continue
                 line_az = self.raw_att.interp(time=np.array([line_time_start + (line_time_end - line_time_start) / 2]), method='nearest', assume_sorted=True).heading.values
                 line_dict[line_name] += [float(start_position[0]), float(start_position[1]), float(end_position[0]),
                                          float(end_position[1]), round(float(line_az), 3)]
+
         if save_pths is not None:
             for svpth in save_pths:  # write the new attributes to disk
                 my_xarr_add_attribute({'multibeam_files': line_dict}, svpth)

@@ -25,7 +25,9 @@ class LayerSettingsDialog(SaveStateDialog):
                                       'NOAA ENC (internet required)',
                                       'NOAA Chart Display Service (internet required)',
                                       'GEBCO Grid (internet required)',
-                                      'EMODnet Bathymetry (internet required)'])
+                                      'EMODnet Bathymetry (internet required)',
+                                      'NowCoast Global Sea Surface Temp (internet required)',
+                                      'NowCoast High Resolution Sea Surface Temp (internet required)'])
         self.hlayout_one.addWidget(self.layer_dropdown)
         self.hlayout_one.addStretch(1)
 

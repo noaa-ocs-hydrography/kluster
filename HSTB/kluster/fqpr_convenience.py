@@ -54,7 +54,7 @@ def perform_all_processing(filname: Union[str, list], navfiles: list = None, inp
     coord_system
         a valid datum identifier that pyproj CRS will accept
     vert_ref
-        the vertical reference point, one of ['ellipse', 'waterline', 'NOAA MLLW', 'NOAA MHW']
+        the vertical reference point, one of ['ellipse', 'waterline', 'NOAA MLLW', 'NOAA MHW', 'Aviso MLLW']
     orientation_initial_interpolation
         see process_multibeam
     add_cast_files
@@ -304,7 +304,7 @@ def process_multibeam(fqpr_inst: Fqpr, run_orientation: bool = True, orientation
     coord_system
         coord system identifier, anything that pyproj supports can be used here, will be used if use_coord is True
     vert_ref
-        the vertical reference point, one of ['ellipse', 'waterline', 'NOAA MLLW', 'NOAA MHW']
+        the vertical reference point, one of ['ellipse', 'waterline', 'NOAA MLLW', 'NOAA MHW', 'Aviso MLLW']
     vdatum_directory
         if 'NOAA MLLW' 'NOAA MHW' is the vertical reference, a path to the vdatum directory is required here
     cast_selection_method

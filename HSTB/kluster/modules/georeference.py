@@ -5,6 +5,7 @@ from pyproj import Transformer, CRS, Geod
 from typing import Union
 import geohash
 from shapely import geometry
+from datetime import datetime
 import queue
 
 from HSTB.kluster.xarray_helpers import stack_nan_array, reform_nan_array
@@ -18,6 +19,18 @@ try:
 except ModuleNotFoundError:
     vyperdatum_found = False
 
+try:
+    from aviso import fes
+    fes_grids = list(fes.regional_sep_catalog.keys())
+    fes_grids = [fg for fg in fes_grids if os.path.exists(fes.__dict__[fg])]
+    fes_found = True
+except ModuleNotFoundError:
+    fes_found = False
+    fes_grids = []
+
+fes_model = None
+fes_model_description = ''
+
 
 def distrib_run_georeference(dat: list):
     """
@@ -30,7 +43,7 @@ def distrib_run_georeference(dat: list):
     Parameters
     ----------
     dat
-        [sv_data, altitude, longitude, latitude, heading, heave, waterline, vert_ref, horizontal_crs, z_offset, vdatum_directory]
+        [sv_data, altitude, longitude, latitude, heading, heave, waterline, vert_ref, horizontal_crs, z_offset, vdatum_directory, tide_corrector]
 
     Returns
     -------
@@ -41,7 +54,7 @@ def distrib_run_georeference(dat: list):
          processing_status]
     """
 
-    ans = georef_by_worker(dat[0], dat[1], dat[2], dat[3], dat[4], dat[5], dat[6], dat[7], dat[8], dat[9], dat[10], dat[11])
+    ans = georef_by_worker(dat[0], dat[1], dat[2], dat[3], dat[4], dat[5], dat[6], dat[7], dat[8], dat[9], dat[10], dat[11], dat[12])
     # return processing status = 4 for all affected soundings
     processing_status = xr.DataArray(np.full_like(dat[0][0], 4, dtype=np.uint8),
                                      coords={'time': dat[0][0].coords['time'],
@@ -53,7 +66,7 @@ def distrib_run_georeference(dat: list):
 
 def georef_by_worker(sv_corr: list, alt: xr.DataArray, lon: xr.DataArray, lat: xr.DataArray, hdng: xr.DataArray,
                      heave: xr.DataArray, wline: float, vert_ref: str, input_crs: CRS, horizontal_crs: CRS,
-                     z_offset: float, vdatum_directory: str = None):
+                     z_offset: float, vdatum_directory: str = None, tide_corrector: xr.DataArray = None):
     """
     Use the raw attitude/navigation to transform the vessel relative along/across/down offsets to georeferenced
     soundings.  Will support transformation to geographic and projected coordinate systems and with a vertical
@@ -84,7 +97,9 @@ def georef_by_worker(sv_corr: list, alt: xr.DataArray, lon: xr.DataArray, lat: x
     z_offset
         lever arm from reference point to transmitter
     vdatum_directory
-            if 'NOAA MLLW' 'NOAA MHW' is the vertical reference, a path to the vdatum directory is required here
+        if 'NOAA MLLW' 'NOAA MHW' is the vertical reference, a path to the vdatum directory is required here
+    tide_corrector
+        if 'Aviso MLLW' is the vertical reference, this is the tide correction in meters
 
     Returns
     -------
@@ -118,6 +133,10 @@ def georef_by_worker(sv_corr: list, alt: xr.DataArray, lon: xr.DataArray, lat: x
         corr_heave = heave
         corr_altitude = xr.zeros_like(corr_heave)
         corr_dpth = (depthoffset + corr_heave.values[:, None] - wline).astype(np.float32)
+    elif vert_ref == 'Aviso MLLW':
+        corr_heave = heave
+        corr_altitude = xr.zeros_like(corr_heave)
+        corr_dpth = (depthoffset + corr_heave.values[:, None] - wline - tide_corrector).astype(np.float32)
 
     # get the sv corrected alongtrack/acrosstrack offsets stacked without the NaNs (arrays have NaNs for beams that do not exist in that sector)
     at_idx, alongtrack_stck = stack_nan_array(alongtrack, stack_dims=('time', 'beam'))
@@ -459,3 +478,99 @@ def distance_between_coordinates(lat_one: Union[float, np.ndarray], lon_one: Uni
     g = Geod(ellps=ellipse_string)
     _, _, dist = g.inv(lon_one, lat_one, lon_two, lat_two)
     return dist
+
+
+def determine_aviso_grid(longitude: float):
+    """
+    The Aviso module contains gridded regions where we have computed tides.  Determine which region the given longitude
+    falls within.  Expects (-180 to 180) longitude.
+
+    Parameters
+    ----------
+    longitude
+        longitude of point
+
+    Returns
+    -------
+    str
+        gridded region name
+    """
+
+    # I computed these after loading Jack's EEZ dataset with numpy, transforming from 3338 to 6318
+    # these are the geographic longitudinal extents in 6318
+    alaska_min_x = -179.9937741
+    alaska_max_x = -127.8790600
+    # and these from loading the NBS NE ERTDM
+    nbs_ne_min_x = -77.3833313
+    nbs_ne_max_x = -62.3833313
+
+    if len(fes_grids) > 2:
+        print(f"WARNING: determine_aviso_grid: found {len(fes_grids)} grids available in aviso, expected only two, this function might need to be updated.")
+
+    if (longitude <= alaska_max_x) and (longitude >= alaska_min_x):
+        grid = 'jAcK_EEZ_ERTDM_2021'
+    elif (longitude <= nbs_ne_max_x) and (longitude >= nbs_ne_min_x):
+        grid = 'gERTDM_NBS_NE'
+    else:  # currently there are only two grids, so this logic is simple
+        raise ValueError(f'determine_aviso_grid: Unable to determine grid for longitude={longitude}.  Tried jAcK_EEZ_ERTDM_2021 ({alaska_min_x} '
+                         f'to {alaska_max_x}) and gERTDM_NBS_NE ({nbs_ne_min_x} to {nbs_ne_max_x})')
+
+    if grid not in fes_grids:
+        raise ValueError(f'determine_aviso_grid: Attempting to load {grid}, but unable to find this file in the file system.')
+    return grid
+
+
+def aviso_tide_correct(latitudes: np.ndarray, longitudes: np.ndarray, times: np.ndarray, region: str, datum: str):
+    """
+    Run the aviso fes module to get tide corrections for the given positions/times.  Used for tide correcting svcorrected depths,
+    where you would subtract the return from this function from your (+ DOWN) depths to get a tide corrected answer.
+
+    Parameters
+    ----------
+    latitudes
+        1d array of latitudes
+    longitudes
+        1d array of longitudes
+    times
+        1d array of utc timestamps in seconds
+    region
+        one of the fes grid names, see georeference_fes_grids
+    datum
+        one of the supported vertical datum descriptors in fes
+
+    Returns
+    -------
+    np.ndarray
+        1d array of tide corrector values for the given points/times
+    """
+
+    if not fes_found:
+        raise ValueError(f'aviso_tide_correct: fes module not found.')
+    if region not in fes_grids:
+        raise ValueError(f'aviso_tide_correct: Attempting to load {region}, but unable to find this file in the file system.')
+    if not (latitudes.size == longitudes.size == times.size):
+        raise ValueError(f'aviso_tide_correct: given different length arrays, longitudes/latitudes/times must all be the same length.')
+
+    # we have logic here to store the model as a global, so that each call doesn't have to reload the grid
+    global fes_model
+    global fes_model_description
+    if (region != fes_model_description) or (not fes_model):
+        fes_model = fes.Model(sep_region=region)
+        fes_model_description = region
+
+    dtimes = (times * 10**6).astype('datetime64[us]')
+    wl_fes = fes_model.tides(longitudes, latitudes, dtimes, datum=datum)
+    wl_fes = xr.DataArray(wl_fes, coords={'time': times})
+    return wl_fes
+
+
+def aviso_clear_model():
+    """
+    We cache the model in between calls to aviso_tide_correct, as the model can be quite large, and takes some time to
+    load.  Use this call after your tide correct calls to clear the model and free up the memory.
+    """
+
+    global fes_model
+    global fes_model_description
+    fes_model = None
+    fes_model_description = ''

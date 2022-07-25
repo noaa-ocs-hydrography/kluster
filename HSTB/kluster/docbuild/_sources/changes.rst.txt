@@ -1,6 +1,25 @@
 Changes List
 ============
 
+Kluster v1.0.2 (7/25/2022)
+---------------------------
+ - sync with drivers 0.2.12
+   - add kluster relevant code to raw module
+   - add dropping duplicate times across multibeam drivers
+   - add saildrone navigation reading utilities
+
+ - add support for .raw Kongsberg EK60/EK80 conversion in Kluster.  Kluster will perform an amplitude detect and calculate a heave correction on conversion.  See 'Requirements' in documentation for more details.
+ - add support for AVISO tide correction, Pydro environment required for this.  Currently supporting Alaska/NE US regions.
+ - add generic 'single beam' support in Kluster, to accomodate the EK60/EK80 workflow.
+
+ - do not show plotting canvas if not required (custom - uncertainty samples in basicplots)
+ - use first layer of sound velocity profile when there is no soundspeed
+ - remove the old reference point screen from vessel setup
+ - allow for importing s7k and raw into vessel setup
+ - add better explanation when matching new/existing sv profiles
+ - add nowcoast wms background options
+ - only show feature count with s57 vector file
+
 Kluster v1.0.1 (7/7/2022)
 -------------------------
  - sync with drivers 0.2.11

@@ -20,7 +20,7 @@ from HSTB.kluster import kluster_variables
 
 
 excluded_files = kluster_variables.excluded_files
-supported_mbes = kluster_variables.supported_multibeam
+supported_mbes = kluster_variables.supported_sonar
 supported_sbet = kluster_variables.supported_ppnav  # people keep mixing up these extensions, so just check for the nav/smrmsg in both
 supported_export_log = kluster_variables.supported_ppnav_log
 supported_svp = kluster_variables.supported_sv
@@ -1107,7 +1107,7 @@ class FqprIntel(LoggerClass):
                     matched = True
                 if not matched:
                     unmatch_reason = 'Sound Velocity Profile file (.svp)\n\n'
-                    unmatch_reason += 'All projects currently have these sound velocity profiles already.'
+                    unmatch_reason += 'All projects currently have these sound velocity profiles already.  Checked the profile cast times against existing cast times.'
                     self.svp_intel.unmatched_files[svpfilepath] = unmatch_reason
         else:
             for svpfilepath, svpfilename in self.svp_intel.file_name.items():
@@ -1896,7 +1896,7 @@ def intel_process(filname: Union[str, list], outfold: str = None, coord_system: 
     use_epsg
         if True, will use the epsg code to build the CRS to use
     vert_ref
-        the vertical reference point, one of ['ellipse', 'waterline', 'NOAA MLLW', 'NOAA MHW']
+        the vertical reference point, one of ['ellipse', 'waterline', 'NOAA MLLW', 'NOAA MHW', 'Aviso MLLW']
     parallel_write
         if True, will write in parallel to disk, Disable for permissions issues troubleshooting.
     vdatum_directory
@@ -1988,7 +1988,7 @@ def intel_process_service(folder_path: Union[list, str], is_recursive: bool = Tr
     use_epsg
         if True, will use the epsg code to build the CRS to use
     vert_ref
-        the vertical reference point, one of ['waterline', 'ellipse', 'NOAA MLLW', 'NOAA MHW']
+        the vertical reference point, one of ['ellipse', 'waterline', 'NOAA MLLW', 'NOAA MHW', 'Aviso MLLW']
     parallel_write
         if True, will write in parallel to disk, Disable for permissions issues troubleshooting.
     vdatum_directory

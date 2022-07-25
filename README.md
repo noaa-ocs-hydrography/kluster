@@ -14,7 +14,7 @@ Youtube Series: [Kluster Playlist](https://www.youtube.com/playlist?list=PLrjCvP
 
 Development Items: [Trello Board](https://trello.com/b/nNZq8S9W)
 
-A distributed multibeam processing system built on the Pangeo ecosystem (https://pangeo.io/). Supports Kongsberg .all/.kmall and Reson s7k multibeam formats, POS MV post-processed SBET/RMS navigation files and Caris svp sound velocity profile files.
+A distributed multibeam processing system built on the Pangeo ecosystem (https://pangeo.io/).
 
 Kluster provides a fully open source hydrographic processing package to produce accessible bathymetry products in support of ocean mapping.
 
@@ -31,7 +31,8 @@ Contents
 
 ### Known Issues:
  - Kluster does not support 'multifrequency' as seen in the most recent KMALL logged data.
- - Kluster s7k is limited to certain records, see the 'Requirements' section in the documentation.
+ - Kluster .s7k is limited to certain records, see the 'Requirements' section in the documentation.
+ - Kluster .raw EK80 processing with Power workflow (and not ComplexSamples) has been seen to generate odd results.
   
 ### Kluster is:
 
@@ -45,6 +46,7 @@ Contents
 
 Kluster has been tested on:
 
+- EK60, EK80 (Using Kluster amplitude detection, see Requirements in Documentation)
 - Reson 7125, T20, T51
 - EM2040/2040c/2040p
 - EM2040 dual tx/dual rx
@@ -56,9 +58,10 @@ Kluster has been tested on:
 
 Kluster is built from the ground up in Python, and was developed using Python 3.8.  Kluster includes modules developed by the hydrographic community such as (see [drivers](https://github.com/noaa-ocs-hydrography/drivers)):
 
-- kmall - Kongsberg kmall file reader
+- kmall - Kongsberg .kmall file reader
 - par3 - Kongsberg .all file reader
 - prr3 - Reson .s7k file reader
+- raw - Kongsberg .raw file reader
 - sbet - POSPac sbet/rms file reader
 
 Kluster is a work in progress that has been in development since November 2019 by a small 'team', and is by no means feature complete.  If you are interested in contributing or have questions, please contact Eric Younkin (eric.g.younkin@noaa.gov)
@@ -109,7 +112,7 @@ Start the GUI by activating the new environment and run Kluster as a module
 
 `(kluster_test) C:>python -m HSTB.kluster`
 
-####Docker
+###Docker
 
 Build docker image using the provided dockerfile
 

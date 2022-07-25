@@ -1075,7 +1075,11 @@ def run_ray_trace_v2(cast: list, beam_azimuth: xr.DataArray, beam_angle: xr.Data
         subset_beam_angle = beam_angle[idx]
         subset_beam_azimuth = beam_azimuth[idx]
         ray_parameter = np.sin(subset_beam_angle) / ssv
-        max_allowed_sv_layer_value = float(1 / ray_parameter.max())
+        rpmax = ray_parameter.max()
+        if rpmax == 0:  # single beam case, we don't worry about outer beam refraction
+            max_allowed_sv_layer_value = np.inf
+        else:
+            max_allowed_sv_layer_value = float(1 / rpmax)
 
         # apply surface sv to the cast and clean it up
         cast_depth_rel_tx, cast_soundvelocity = _process_cast_for_ssv(cast_depth_rel_tx, cast_soundvelocity, max_allowed_sv_layer_value, ssv)
