@@ -210,7 +210,7 @@ class ExportGridDialog(SaveStateDialog):
             self.ok_button.setEnabled(False)
 
     def update_vert_ref(self, vertical_reference: str):
-        if vertical_reference in ['ellipse', 'waterline', 'NOAA MLLW', 'NOAA MHW']:
+        if vertical_reference in kluster_variables.vertical_references:
             self.bag_vert_crs.setText('VERT_CS["unknown", VERT_DATUM["unknown", 2000]]')
         else:
             self.bag_vert_crs.setText(vertical_reference)
