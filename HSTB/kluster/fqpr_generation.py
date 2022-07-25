@@ -589,7 +589,7 @@ class Fqpr(ZarrBackend):
         Parameters
         ----------
         vert_ref
-            vertical reference for the survey, one of ['ellipse', 'waterline', 'NOAA MLLW', 'NOAA MHW']
+            vertical reference for the survey, one of ['ellipse', 'waterline', 'NOAA MLLW', 'NOAA MHW', 'Aviso MLLW']
         """
 
         if 'vertical_reference' in self.multibeam.raw_ping[0].attrs:
@@ -642,7 +642,7 @@ class Fqpr(ZarrBackend):
         projected
             if True uses utm zone projected coordinates
         vert_ref
-            vertical reference for the survey, one of ['ellipse', 'waterline', 'NOAA MLLW', 'NOAA MHW']
+            vertical reference for the survey, one of ['ellipse', 'waterline', 'NOAA MLLW', 'NOAA MHW', 'Aviso MLLW']
 
         Returns
         -------
