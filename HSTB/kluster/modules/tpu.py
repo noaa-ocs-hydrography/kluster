@@ -189,6 +189,9 @@ class Tpu:
         self.sbet_pitch_error = None
         self.sbet_heading_error = None
 
+        # check to see if this is a singlebeam on loading data
+        self.is_singlebeam = False
+
         # if plotting is enabled, will save the components to this dict
         self.plot_components = {}
 
@@ -310,6 +313,7 @@ class Tpu:
             self.sbet_heading_error = np.deg2rad(heading_error)
         if datum_uncertainty is not None:
             self.separation_model_error = datum_uncertainty
+        self.is_singlebeam = self.beam_angles.isel(time=0).size == 1
 
     def generate_total_uncertainties(self, vert_ref: str = 'ellipse', sigma: float = 1.96):
         """
@@ -423,7 +427,7 @@ class Tpu:
         """
 
         # single beam case
-        if self.beam_angles.isel(time=0).size == 1 and self.beam_angles.isel(time=0).values == 0.0:
+        if self.is_singlebeam:
             return xr.zeros_like(self.depth_offset)
         first_component = (self.depth_offset / self.surf_sound_speed)**2
         second_component = (np.tan(self.beam_angles) / (2 * self.surf_sound_speed)) ** 2
