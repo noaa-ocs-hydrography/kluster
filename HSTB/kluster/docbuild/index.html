@@ -6,7 +6,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
-    <title>kluster &#8212; kluster 1.0.1 documentation</title>
+    <title>kluster &#8212; kluster 1.0.2 documentation</title>
     <link rel="stylesheet" type="text/css" href="_static/pygments.css" />
     <link rel="stylesheet" type="text/css" href="_static/alabaster.css" />
     <link rel="stylesheet" type="text/css" href="_static/graphviz.css" />
@@ -38,11 +38,12 @@
 <section id="known-issues">
 <h2>Known Issues<a class="headerlink" href="#known-issues" title="Permalink to this headline">¶</a></h2>
 <p>Kluster does not support ‘multifrequency’ as seen in the most recent KMALL logged data.</p>
-<p>Kluster s7k is limited to certain records, see the ‘Requirements’ section.</p>
+<p>Kluster .s7k is limited to certain records, see the ‘Requirements’ section.</p>
+<p>Kluster .raw EK80 processing with Power workflow (and not ComplexSamples) has been seen to generate odd results.</p>
 </section>
 <section id="overview">
 <h2>Overview<a class="headerlink" href="#overview" title="Permalink to this headline">¶</a></h2>
-<p>A distributed multibeam processing system built on the Pangeo ecosystem (<a class="reference external" href="https://pangeo.io/">https://pangeo.io/</a>). Supports Kongsberg .all/.kmall and Reson s7k multibeam formats, POS MV post-processed SBET/RMS navigation files and Caris svp sound velocity profile files.</p>
+<p>A distributed multibeam processing system built on the Pangeo ecosystem (<a class="reference external" href="https://pangeo.io/">https://pangeo.io/</a>).</p>
 <p>Kluster provides a fully open source hydrographic processing package to produce accessible bathymetry products in support of ocean mapping.</p>
 <p>Kluster is:</p>
 <ol class="arabic simple">
@@ -61,6 +62,7 @@ exchanged as needed.</p></li>
 </ol>
 <p>Kluster has been tested on:</p>
 <ul class="simple">
+<li><p>EK60, EK80 (Using Kluster amplitude detection, see Requirements in Documentation)</p></li>
 <li><p>Reson 7125, T20, T51</p></li>
 <li><p>EM2040/2040c/2040p</p></li>
 <li><p>EM2040 dual tx/dual rx</p></li>
@@ -77,6 +79,7 @@ community such as (see <cite>drivers</cite>):</p>
 <li><p>kmall - Kongsberg kmall file reader</p></li>
 <li><p>par3 - Kongsberg .all file reader</p></li>
 <li><p>prr3 - Reson .s7k file reader</p></li>
+<li><p>raw - Kongsberg .raw file reader</p></li>
 <li><p>sbet - POSPac sbet/rms file reader</p></li>
 </ul>
 <p>Kluster is a work in progress that has been in development since
@@ -158,6 +161,11 @@ sophisticated and modern software package.</p>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="requirements/index.html#kongsberg-kmall">Kongsberg .kmall</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="requirements/index.html#path-1">Path 1</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="requirements/index.html#kongsberg-raw">Kongsberg .raw</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="requirements/index.html#path-1-ek60">Path 1 (EK60)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="requirements/index.html#path-2-ek80">Path 2 (EK80)</a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="requirements/index.html#reson-s7k">Reson s7k</a><ul>
@@ -525,6 +533,7 @@ sophisticated and modern software package.</p>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="changes.html">Changes List</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="changes.html#kluster-v1-0-2-7-25-2022">Kluster v1.0.2 (7/25/2022)</a></li>
 <li class="toctree-l2"><a class="reference internal" href="changes.html#kluster-v1-0-1-7-7-2022">Kluster v1.0.1 (7/7/2022)</a></li>
 <li class="toctree-l2"><a class="reference internal" href="changes.html#kluster-v1-0-0-7-5-2022">Kluster v1.0.0 (7/5/2022)</a></li>
 <li class="toctree-l2"><a class="reference internal" href="changes.html#kluster-v0-9-6-6-7-2022">Kluster v0.9.6 (6/7/2022)</a></li>

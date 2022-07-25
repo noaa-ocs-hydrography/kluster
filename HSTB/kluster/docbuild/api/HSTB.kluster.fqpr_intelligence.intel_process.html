@@ -6,7 +6,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
-    <title>intel_process &#8212; kluster 1.0.1 documentation</title>
+    <title>intel_process &#8212; kluster 1.0.2 documentation</title>
     <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
     <link rel="stylesheet" type="text/css" href="../_static/alabaster.css" />
     <link rel="stylesheet" type="text/css" href="../_static/graphviz.css" />
@@ -50,7 +50,7 @@ SMRMSG files, etc.  The Intel module will organize and process each in order of 
 <li><p><strong>coord_system</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>) – If you want to autoselect the utm zone, provide the coordinate system as a string, one of ‘NAD83’ or ‘WGS84’</p></li>
 <li><p><strong>epsg</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code>]) – epsg code, used if use_epsg is True</p></li>
 <li><p><strong>use_epsg</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code>) – if True, will use the epsg code to build the CRS to use</p></li>
-<li><p><strong>vert_ref</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>) – the vertical reference point, one of [‘ellipse’, ‘waterline’, ‘NOAA MLLW’, ‘NOAA MHW’]</p></li>
+<li><p><strong>vert_ref</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>) – the vertical reference point, one of [‘ellipse’, ‘waterline’, ‘NOAA MLLW’, ‘NOAA MHW’, ‘Aviso MLLW’]</p></li>
 <li><p><strong>parallel_write</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code>) – if True, will write in parallel to disk, Disable for permissions issues troubleshooting.</p></li>
 <li><p><strong>vdatum_directory</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]) – if ‘NOAA MLLW’ ‘NOAA MHW’ is the vertical reference, a path to the vdatum directory is required here</p></li>
 <li><p><strong>force_coordinate_system</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code>) – if True, will force all converted data to have the same coordinate system.  Only takes effect if you do not use_epsg.

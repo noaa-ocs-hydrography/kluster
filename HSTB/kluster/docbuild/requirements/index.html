@@ -6,7 +6,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
-    <title>Requirements &#8212; kluster 1.0.1 documentation</title>
+    <title>Requirements &#8212; kluster 1.0.2 documentation</title>
     <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
     <link rel="stylesheet" type="text/css" href="../_static/alabaster.css" />
     <link rel="stylesheet" type="text/css" href="../_static/graphviz.css" />
@@ -43,13 +43,14 @@ Kluster has been tested on Windows 10 and Ubuntu 20.04.  See the readme for inst
 <li><p>kmall - Kongsberg kmall file reader</p></li>
 <li><p>prr3 - Reson .s7k file reader</p></li>
 <li><p>par3 - Kongsberg .all file reader</p></li>
+<li><p>raw - Kongsberg .raw file reader</p></li>
 <li><p>sbet - POSPac sbet/rms file reader</p></li>
 </ul>
 <p>Here I will layout the records/setup required for these systems to produce data that is compatible with Kluster.</p>
 <p>First though, I’ll lay out the basic requirements for any sonar that Kluster can/will handle in the future:</p>
 <blockquote>
 <div><ul class="simple">
-<li><p>Sound Speed Profile - Kluster requires a sound speed profile to be delivered in the raw multibeam data.  This allows Kluster to ray-trace any multibeam file regardless of the inclusion of an external profile file.</p></li>
+<li><p>Sound Speed Profile (optional) - Kluster prefers a sound speed profile to be delivered in the raw multibeam data.  This allows Kluster to ray-trace any multibeam file regardless of the inclusion of an external profile file.</p></li>
 <li><p>System Serial Number - Kluster requires that each file have a serial number that uniquely identifies a sonar.  This allows Kluster to catalogue and organize files according to system.</p></li>
 <li><p>Installation Parameters - Kluster requires that the offsets and mounting angles are provided in the file from the sonar reference point, including waterline vertical position.</p></li>
 <li><p>Time Standard - Times must be reported in UTC time within the multibeam file, or provide a way to get to UTC using only the information in the file.</p></li>
@@ -300,6 +301,79 @@ Kluster has been tested on Windows 10 and Ubuntu 20.04.  See the readme for inst
 </dl>
 </section>
 </section>
+<section id="kongsberg-raw">
+<h2>Kongsberg .raw<a class="headerlink" href="#kongsberg-raw" title="Permalink to this headline">¶</a></h2>
+<p>Kluster supports two separate processing paths for Kongsberg .raw files.  These are as follows:</p>
+<p>Each datagram listed will also list the components of that datagram used by Kluster.</p>
+<p>NOTE: Kluster will perform the amplitude detection during conversion.  Kluster will also calculate a heave correction.</p>
+<section id="path-1-ek60">
+<h3>Path 1 (EK60)<a class="headerlink" href="#path-1-ek60" title="Permalink to this headline">¶</a></h3>
+<dl class="simple">
+<dt>CON0 (EK60 Configuration Datagram)</dt><dd><ul class="simple">
+<li><p>Time</p></li>
+<li><p>InstallationSettings</p></li>
+</ul>
+</dd>
+<dt>RAW0 (EK60 Sample Datagram)</dt><dd><ul class="simple">
+<li><p>Time</p></li>
+<li><p>Count</p></li>
+<li><p>Offset</p></li>
+<li><p>Power</p></li>
+<li><p>PulseLength</p></li>
+<li><p>SampleInterval</p></li>
+<li><p>TransducerDepth</p></li>
+<li><p>SoundVelocity</p></li>
+<li><p>Frequency</p></li>
+<li><p>Roll</p></li>
+<li><p>Pitch</p></li>
+<li><p>Heading</p></li>
+</ul>
+</dd>
+<dt>NME0 (NMEA Text Datagram - prefers GGA)</dt><dd><ul class="simple">
+<li><p>Time</p></li>
+<li><p>Latitude</p></li>
+<li><p>Longitude</p></li>
+<li><p>Altitude (if found in NME0 record)</p></li>
+</ul>
+</dd>
+</dl>
+</section>
+<section id="path-2-ek80">
+<h3>Path 2 (EK80)<a class="headerlink" href="#path-2-ek80" title="Permalink to this headline">¶</a></h3>
+<p>NOTE: Saildrone EK80 data may not have NME0 records.  If this is the case, Kluster will look for a csv file with navigation with the extension .gps.csv that is in the same folder as the .raw files.  As long as those files are in the same folder, conversion of the navigation will be done automatically.  The csv file must have columns (‘gps_fix’, ‘gps_date’, ‘gps_time’, ‘latitude’, ‘longitude’) as shown in the example below:</p>
+<p>GPS_fix,GPS_date,GPS_time,Latitude,Longitude</p>
+<p>0,2018-07-01,00:00:00,53.9448,-166.53966079999998</p>
+<p>NOTE: Roll Pitch Heading are all set to zero for EK80 workflow, as they are not included in the datagrams</p>
+<dl class="simple">
+<dt>XML0 (Configuration XML Datagram)</dt><dd><ul class="simple">
+<li><p>Time</p></li>
+<li><p>InstallationSettings</p></li>
+</ul>
+</dd>
+<dt>XML0 (Channel XML Datagram)</dt><dd><ul class="simple">
+<li><p>Time</p></li>
+<li><p>Frequency</p></li>
+<li><p>PulseDuration</p></li>
+<li><p>SampleInterval</p></li>
+</ul>
+</dd>
+<dt>RAW3 (EK80 Sample Datagram)</dt><dd><ul class="simple">
+<li><p>Time</p></li>
+<li><p>Count</p></li>
+<li><p>Offset</p></li>
+<li><p>Power or ComplexSamples, depending on datatype</p></li>
+</ul>
+</dd>
+<dt>NME0 (NMEA Text Datagram - prefers GGA)</dt><dd><ul class="simple">
+<li><p>Time</p></li>
+<li><p>Latitude</p></li>
+<li><p>Longitude</p></li>
+<li><p>Altitude (if found in NME0 record)</p></li>
+</ul>
+</dd>
+</dl>
+</section>
+</section>
 <section id="reson-s7k">
 <h2>Reson s7k<a class="headerlink" href="#reson-s7k" title="Permalink to this headline">¶</a></h2>
 <p>Kluster supports two separate processing paths for Reson .s7k files.  These are as follows (in order of oldest first, to newest last):</p>
@@ -451,6 +525,11 @@ Kluster has been tested on Windows 10 and Ubuntu 20.04.  See the readme for inst
 </li>
 <li class="toctree-l2"><a class="reference internal" href="#kongsberg-kmall">Kongsberg .kmall</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#path-1">Path 1</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#kongsberg-raw">Kongsberg .raw</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#path-1-ek60">Path 1 (EK60)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#path-2-ek80">Path 2 (EK80)</a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="#reson-s7k">Reson s7k</a><ul>

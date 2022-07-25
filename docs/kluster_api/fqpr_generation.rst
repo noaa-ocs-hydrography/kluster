@@ -43,3 +43,6 @@ fqpr\_generation module
    :skip: return_xarray_from_sbet
    :skip: FilterManager
    :skip: distance_between_coordinates
+   :skip: aviso_clear_model
+   :skip: aviso_tide_correct
+   :skip: determine_aviso_grid
