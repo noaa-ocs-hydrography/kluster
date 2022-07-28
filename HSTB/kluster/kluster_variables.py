@@ -197,6 +197,7 @@ for tname in tpu_parameter_names:
 
 # zarr backend, chunksizes for writing to disk
 ping_chunks = {'time': (ping_chunk_size,), 'beam': (max_beams,), 'xyz': (3,),
+               'absorption': (ping_chunk_size, max_beams),
                'acrosstrack': (ping_chunk_size, max_beams),
                'alongtrack': (ping_chunk_size, max_beams),
                'altitude': (ping_chunk_size,),
@@ -239,6 +240,7 @@ ping_chunks = {'time': (ping_chunk_size,), 'beam': (max_beams,), 'xyz': (3,),
                'thu': (ping_chunk_size, max_beams),
                'tiltangle': (ping_chunk_size, max_beams),
                'traveltime': (ping_chunk_size, max_beams),
+               'tvg': (ping_chunk_size, max_beams),
                'tvu': (ping_chunk_size, max_beams),
                'tx': (ping_chunk_size, max_beams, 3),
                'txsector_beam': (ping_chunk_size, max_beams),
@@ -268,16 +270,17 @@ att_chunks = {'time': (attitude_chunk_size,),
               }
 
 # return soundings variable options, see subset.return_soundings_in_polygon
-subset_variable_selection = ['head', 'time', 'beam', 'acrosstrack', 'alongtrack', 'altitude', 'beampointingangle', 'corr_altitude',
+subset_variable_selection = ['head', 'time', 'beam', 'absorption', 'acrosstrack', 'alongtrack', 'altitude', 'beampointingangle', 'corr_altitude',
                              'corr_heave', 'corr_pointing_angle', 'counter', 'datum_uncertainty', 'delay', 'depthoffset', 'detectioninfo',
                              'frequency', 'geohash', 'latitude', 'longitude', 'mode', 'modetwo', 'nearnormalcorrect', 'ntx', 'processing_status',
                              'pulselength', 'qualityfactor',
                              'reflectivity', 'rel_azimuth', 'sbet_latitude', 'sbet_longitude', 'sbet_altitude', 'sbet_north_position_error',
                              'sbet_east_position_error', 'sbet_down_position_error', 'sbet_roll_error', 'sbet_pitch_error', 'sbet_heading_error'
-                             'soundspeed', 'thu', 'tiltangle', 'traveltime', 'tvu', 'txsector_beam', 'x', 'y', 'yawpitchstab', 'z']
-subset_variable_2d = ['acrosstrack', 'alongtrack', 'beampointingangle', 'corr_pointing_angle', 'datum_uncertainty', 'delay', 'depthoffset', 'detectioninfo',
-                      'frequency', 'geohash', 'nearnormalcorrect', 'processing_status', 'pulselength', 'qualityfactor', 'reflectivity', 'rel_azimuth', 'thu',
-                      'tiltangle', 'traveltime', 'tvu', 'tx', 'txsector_beam', 'x', 'y', 'z']
+                             'soundspeed', 'thu', 'tiltangle', 'traveltime', 'tvg', 'tvu', 'txsector_beam', 'x', 'y', 'yawpitchstab', 'z']
+subset_variable_2d = ['absorption', 'acrosstrack', 'alongtrack', 'beampointingangle', 'corr_pointing_angle', 'datum_uncertainty', 'delay',
+                      'depthoffset', 'detectioninfo', 'frequency', 'geohash', 'nearnormalcorrect', 'processing_status', 'pulselength',
+                      'qualityfactor', 'reflectivity', 'rel_azimuth', 'thu', 'tiltangle', 'traveltime', 'tvg', 'tvu', 'tx', 'txsector_beam',
+                      'x', 'y', 'z']
 subset_variable_1d = ['head', 'time', 'beam', 'altitude', 'corr_altitude', 'corr_heave', 'corr_pointing_angle', 'counter', 'latitude',
                       'longitude', 'mode', 'modetwo', 'ntx', 'sbet_latitude', 'sbet_longitude', 'sbet_altitude', 'sbet_north_position_error',
                       'sbet_east_position_error', 'sbet_down_position_error', 'sbet_roll_error', 'sbet_pitch_error', 'sbet_heading_error',
@@ -285,7 +288,7 @@ subset_variable_1d = ['head', 'time', 'beam', 'altitude', 'corr_altitude', 'corr
 
 # export helper for formatting variables in ascii export
 variable_format_str = {'time': '%1.6f', 'beam': '%d', 'xyz': '%s',
-                       'acrosstrack': '%1.3f', 'alongtrack': '%1.3f', 'altitude': '%1.3f',
+                       'absorption': '%1.3f', 'acrosstrack': '%1.3f', 'alongtrack': '%1.3f', 'altitude': '%1.3f',
                        'beampointingangle': '%1.3f', 'corr_altitude': '%1.3f',
                        'corr_heave': '%1.3f', 'corr_pointing_angle': '%1.6f',
                        'counter': '%d', 'datum_uncertainty': '%1.3f', 'delay': '%1.6f',
@@ -297,7 +300,7 @@ variable_format_str = {'time': '%1.6f', 'beam': '%d', 'xyz': '%s',
                        'sbet_north_position_error': '%1.3f', 'sbet_east_position_error': '%1.3f',
                        'sbet_down_position_error': '%1.3f', 'sbet_roll_error': '%1.3f', 'sbet_pitch_error': '%1.3f', 'sbet_heading_error': '%1.3f',
                        'soundspeed': '%1.3f', 'thu': '%1.3f', 'tiltangle': '%1.3f', 'pulselength': '%1.3f',
-                       'traveltime': '%1.6f', 'tvu': '%1.3f', 'tx': '%f', 'txsector_beam': '%d',
+                       'traveltime': '%1.6f', 'tvg': '%1.3f', 'tvu': '%1.3f', 'tx': '%f', 'txsector_beam': '%d',
                        'x': '%1.3f', 'y': '%1.3f', 'yawpitchstab': '%s', 'z': '%1.3f',
                        'alongtrackvelocity': '%1.3f', 'down_position_error': '%1.3f', 'east_position_error': '%1.3f',
                        'north_position_error': '%1.3f', 'pitch_error': '%1.3', 'roll_error': '%1.3f',
@@ -305,17 +308,17 @@ variable_format_str = {'time': '%1.6f', 'beam': '%d', 'xyz': '%s',
                        'roll': '%1.3f'}
 
 # 2d plot helpers for handling variable information
-variables_by_key = {'multibeam': ['acrosstrack', 'alongtrack', 'beampointingangle', 'corr_altitude', 'corr_heave',
+variables_by_key = {'multibeam': ['absorption', 'acrosstrack', 'alongtrack', 'beampointingangle', 'corr_altitude', 'corr_heave',
                                   'corr_pointing_angle', 'counter', 'delay', 'depthoffset', 'detectioninfo',
                                   'frequency', 'geohash', 'mode', 'modetwo', 'nearnormalcorrect', 'processing_status', 'qualityfactor',
-                                  'reflectivity', 'rel_azimuth', 'soundspeed', 'thu', 'tiltangle', 'traveltime', 'tvu', 'txsector_beam',
+                                  'reflectivity', 'rel_azimuth', 'soundspeed', 'thu', 'tiltangle', 'traveltime', 'tvg', 'tvu', 'txsector_beam',
                                   'x', 'y', 'yawpitchstab', 'z', 'datum_uncertainty', 'pulselength'],
                     'raw navigation': ['altitude', 'latitude', 'longitude'],
                     'processed navigation': ['sbet_latitude', 'sbet_longitude', 'sbet_altitude', 'sbet_north_position_error',
                                              'sbet_east_position_error', 'sbet_down_position_error', 'sbet_roll_error',
                                              'sbet_pitch_error', 'sbet_heading_error']}
 
-variable_translator = {'acrosstrack': 'SoundVelocity_AcrossTrack', 'alongtrack': 'SoundVelocity_AlongTrack',
+variable_translator = {'absorption': 'Absorption', 'acrosstrack': 'SoundVelocity_AcrossTrack', 'alongtrack': 'SoundVelocity_AlongTrack',
                        'altitude': 'Altitude', 'beampointingangle': 'Uncorrected_Beam_Angle', 'corr_altitude': 'Corrected_Altitude',
                        'corr_heave': 'Corrected_Heave', 'corr_pointing_angle': 'Corrected_Beam_Angle',
                        'counter': 'Ping_Counter', 'delay': 'Beam_Delay', 'depthoffset': 'SoundVelocity_Depth',
@@ -329,12 +332,13 @@ variable_translator = {'acrosstrack': 'SoundVelocity_AcrossTrack', 'alongtrack':
                        'sbet_down_position_error': 'SBET_Down_Position_Error', 'sbet_roll_error': 'SBET_Roll_Error',
                        'sbet_pitch_error': 'SBET_Pitch_Error', 'sbet_heading_error': 'SBET_Heading_Error',
                        'soundspeed': 'Surface_Sound_Velocity', 'thu': 'Beam_Total_Horizontal_Uncertainty',
-                       'tiltangle': 'Ping_Tilt_Angle', 'traveltime': 'Beam_Travel_Time',
+                       'tiltangle': 'Ping_Tilt_Angle', 'traveltime': 'Beam_Travel_Time', 'tvg': 'TVG',
                        'tvu': 'Beam_Total_Vertical_Uncertainty', 'txsector_beam': 'Beam_Sector_Number',
                        'x': 'Georeferenced_Easting', 'y': 'Georeferenced_Northing',
                        'yawpitchstab': 'Yaw_Pitch_Stabilization', 'z': 'Georeferenced_Depth',
                        'datum_uncertainty': 'Vertical_Datum_Uncertainty'}
-variable_reverse_lookup = {'SoundVelocity_AcrossTrack': 'acrosstrack', 'SoundVelocity_AlongTrack': 'alongtrack',
+variable_reverse_lookup = {'Absorption': 'absorption',
+                           'SoundVelocity_AcrossTrack': 'acrosstrack', 'SoundVelocity_AlongTrack': 'alongtrack',
                            'Uncorrected_Beam_Angle': 'beampointingangle', 'Corrected_Altitude': 'corr_altitude',
                            'Corrected_Heave': 'corr_heave', 'Corrected_Beam_Angle': 'corr_pointing_angle',
                            'Ping_Counter': 'counter', 'Beam_Delay': 'delay',
@@ -343,7 +347,7 @@ variable_reverse_lookup = {'SoundVelocity_AcrossTrack': 'acrosstrack', 'SoundVel
                            'Processing_Status': 'processing_status', 'Beam_Uncertainty': 'qualityfactor',
                            'Raw_Reflectivity': 'reflectivity', 'Relative_Azimuth': 'rel_azimuth', 'Surface_Sound_Velocity': 'soundspeed',
                            'Beam_Total_Horizontal_Uncertainty': 'thu', 'Ping_Tilt_Angle': 'tiltangle',
-                           'Pulse_Length': 'pulselength',
+                           'Pulse_Length': 'pulselength', 'TVG': 'tvg',
                            'Beam_Travel_Time': 'traveltime', 'Beam_Total_Vertical_Uncertainty': 'tvu',
                            'Beam_Sector_Number': 'txsector_beam', 'Georeferenced_Easting': 'x',
                            'Georeferenced_Northing': 'y', 'Yaw_Pitch_Stabilization': 'yawpitchstab',
@@ -355,7 +359,8 @@ variable_reverse_lookup = {'SoundVelocity_AcrossTrack': 'acrosstrack', 'SoundVel
                            'SBET_Roll_Error': 'sbet_roll_error', 'SBET_Pitch_Error': 'sbet_pitch_error', 'SBET_Heading_Error': 'sbet_heading_error',
                            'Altitude': 'altitude', 'Longitude': 'longitude', 'Latitude': 'latitude'
                            }
-variable_descriptions = {'acrosstrack': 'The result of running Sound Velocity Correct in Kluster.  This is the acrosstrack (perpendicular to vessel movement) distance to the beam footprint on the seafloor from the vessel reference point in meters.',
+variable_descriptions = {'absorption': 'The mean absorption coefficient in dB used by the multibeam during TVG correction.  Used during backscatter to remove multibeam applied gain.',
+                         'acrosstrack': 'The result of running Sound Velocity Correct in Kluster.  This is the acrosstrack (perpendicular to vessel movement) distance to the beam footprint on the seafloor from the vessel reference point in meters.',
                          'alongtrack': 'The result of running Sound Velocity Correct in Kluster.  This is the alongtrack (vessel direction) distance to the beam footprint on the seafloor from the vessel reference point in meters.',
                          'altitude': 'From the raw multibeam data, the logged altitude data from the navigation system in meters.  Relative to the ellipsoid chosen in the navigation system setup.',
                          'beampointingangle': 'The raw beam angle that comes from the multibeam data.  Angle in degrees from the receiver to the beam footprint on the seafloor, does not take attitude or mounting angles into account.',
@@ -392,6 +397,7 @@ variable_descriptions = {'acrosstrack': 'The result of running Sound Velocity Co
                          'thu': 'The Hare-Godin-Mayer TPU model - horizontal component.  In meters, 2sigma value.',
                          'tiltangle': 'Steering angle of the sector transmit beam, in degrees.',
                          'traveltime': 'The two way travel time of each beam in seconds.',
+                         'tvg': 'The time varying gain applied by the sonar to the raw reflectivity in dB.  Used during backscatter processing to remove the TVG from the raw reflectivity.',
                          'tvu': 'The Hare-Godin-Mayer TPU model - vertical component.  In meters, 2sigma value.',
                          'txsector_beam': 'The sector number of each beam.',
                          'x': 'The result of running Georeference in Kluster.  This is the sound velocity offsets projected into the coordinate reference system you chose.  Easting is in meters.',

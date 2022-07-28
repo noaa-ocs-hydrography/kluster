@@ -241,8 +241,8 @@ def _validate_sequential_read_ping(recs: dict):
                          'modetwo', 'yawpitchstab']
         required_ping_dtype = ['float64', 'uint32', 'float32', 'uint64', 'float32', 'float32', 'int32', 'float32',
                                'uint8', 'int32', 'float32', 'float32', 'uint8', 'u2-u5', 'u2-u5', 'u2-u5']
-    optional_ping = ['reflectivity', 'nearnormalcorrect', 'pulselength']
-    optional_ping_dtype = ['float32', 'float32', 'float32']
+    optional_ping = ['reflectivity', 'nearnormalcorrect', 'pulselength', 'absorption', 'tvg']
+    optional_ping_dtype = ['float32', 'float32', 'float32', 'float32', 'float32']
 
     try:
         assert all([pms in recs['ping'] for pms in required_ping])
