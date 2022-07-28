@@ -201,6 +201,7 @@ ping_chunks = {'time': (ping_chunk_size,), 'beam': (max_beams,), 'xyz': (3,),
                'acrosstrack': (ping_chunk_size, max_beams),
                'alongtrack': (ping_chunk_size, max_beams),
                'altitude': (ping_chunk_size,),
+               'backscatter': (ping_chunk_size, max_beams),
                'beampointingangle': (ping_chunk_size, max_beams),
                'corr_altitude': (ping_chunk_size,),
                'corr_heave': (ping_chunk_size,),
@@ -270,14 +271,14 @@ att_chunks = {'time': (attitude_chunk_size,),
               }
 
 # return soundings variable options, see subset.return_soundings_in_polygon
-subset_variable_selection = ['head', 'time', 'beam', 'absorption', 'acrosstrack', 'alongtrack', 'altitude', 'beampointingangle', 'corr_altitude',
+subset_variable_selection = ['head', 'time', 'beam', 'absorption', 'acrosstrack', 'alongtrack', 'altitude', 'backscatter', 'beampointingangle', 'corr_altitude',
                              'corr_heave', 'corr_pointing_angle', 'counter', 'datum_uncertainty', 'delay', 'depthoffset', 'detectioninfo',
                              'frequency', 'geohash', 'latitude', 'longitude', 'mode', 'modetwo', 'nearnormalcorrect', 'ntx', 'processing_status',
                              'pulselength', 'qualityfactor',
                              'reflectivity', 'rel_azimuth', 'sbet_latitude', 'sbet_longitude', 'sbet_altitude', 'sbet_north_position_error',
                              'sbet_east_position_error', 'sbet_down_position_error', 'sbet_roll_error', 'sbet_pitch_error', 'sbet_heading_error'
                              'soundspeed', 'thu', 'tiltangle', 'traveltime', 'tvg', 'tvu', 'txsector_beam', 'x', 'y', 'yawpitchstab', 'z']
-subset_variable_2d = ['absorption', 'acrosstrack', 'alongtrack', 'beampointingangle', 'corr_pointing_angle', 'datum_uncertainty', 'delay',
+subset_variable_2d = ['absorption', 'acrosstrack', 'alongtrack', 'backscatter', 'beampointingangle', 'corr_pointing_angle', 'datum_uncertainty', 'delay',
                       'depthoffset', 'detectioninfo', 'frequency', 'geohash', 'nearnormalcorrect', 'processing_status', 'pulselength',
                       'qualityfactor', 'reflectivity', 'rel_azimuth', 'thu', 'tiltangle', 'traveltime', 'tvg', 'tvu', 'tx', 'txsector_beam',
                       'x', 'y', 'z']
@@ -289,7 +290,7 @@ subset_variable_1d = ['head', 'time', 'beam', 'altitude', 'corr_altitude', 'corr
 # export helper for formatting variables in ascii export
 variable_format_str = {'time': '%1.6f', 'beam': '%d', 'xyz': '%s',
                        'absorption': '%1.3f', 'acrosstrack': '%1.3f', 'alongtrack': '%1.3f', 'altitude': '%1.3f',
-                       'beampointingangle': '%1.3f', 'corr_altitude': '%1.3f',
+                       'backscatter': '%1.3f', 'beampointingangle': '%1.3f', 'corr_altitude': '%1.3f',
                        'corr_heave': '%1.3f', 'corr_pointing_angle': '%1.6f',
                        'counter': '%d', 'datum_uncertainty': '%1.3f', 'delay': '%1.6f',
                        'depthoffset': '%1.3f', 'detectioninfo': '%d', 'frequency': '%d', 'geohash': '%s',
@@ -308,7 +309,7 @@ variable_format_str = {'time': '%1.6f', 'beam': '%d', 'xyz': '%s',
                        'roll': '%1.3f'}
 
 # 2d plot helpers for handling variable information
-variables_by_key = {'multibeam': ['absorption', 'acrosstrack', 'alongtrack', 'beampointingangle', 'corr_altitude', 'corr_heave',
+variables_by_key = {'multibeam': ['absorption', 'acrosstrack', 'alongtrack', 'backscatter', 'beampointingangle', 'corr_altitude', 'corr_heave',
                                   'corr_pointing_angle', 'counter', 'delay', 'depthoffset', 'detectioninfo',
                                   'frequency', 'geohash', 'mode', 'modetwo', 'nearnormalcorrect', 'processing_status', 'qualityfactor',
                                   'reflectivity', 'rel_azimuth', 'soundspeed', 'thu', 'tiltangle', 'traveltime', 'tvg', 'tvu', 'txsector_beam',
@@ -319,7 +320,7 @@ variables_by_key = {'multibeam': ['absorption', 'acrosstrack', 'alongtrack', 'be
                                              'sbet_pitch_error', 'sbet_heading_error']}
 
 variable_translator = {'absorption': 'Absorption', 'acrosstrack': 'SoundVelocity_AcrossTrack', 'alongtrack': 'SoundVelocity_AlongTrack',
-                       'altitude': 'Altitude', 'beampointingangle': 'Uncorrected_Beam_Angle', 'corr_altitude': 'Corrected_Altitude',
+                       'altitude': 'Altitude', 'backscatter': 'Backscatter', 'beampointingangle': 'Uncorrected_Beam_Angle', 'corr_altitude': 'Corrected_Altitude',
                        'corr_heave': 'Corrected_Heave', 'corr_pointing_angle': 'Corrected_Beam_Angle',
                        'counter': 'Ping_Counter', 'delay': 'Beam_Delay', 'depthoffset': 'SoundVelocity_Depth',
                        'detectioninfo': 'Beam_Filter', 'frequency': 'Beam_Frequency', 'geohash': 'Geohash',
@@ -337,7 +338,7 @@ variable_translator = {'absorption': 'Absorption', 'acrosstrack': 'SoundVelocity
                        'x': 'Georeferenced_Easting', 'y': 'Georeferenced_Northing',
                        'yawpitchstab': 'Yaw_Pitch_Stabilization', 'z': 'Georeferenced_Depth',
                        'datum_uncertainty': 'Vertical_Datum_Uncertainty'}
-variable_reverse_lookup = {'Absorption': 'absorption',
+variable_reverse_lookup = {'Absorption': 'absorption', 'Backscatter': 'backscatter',
                            'SoundVelocity_AcrossTrack': 'acrosstrack', 'SoundVelocity_AlongTrack': 'alongtrack',
                            'Uncorrected_Beam_Angle': 'beampointingangle', 'Corrected_Altitude': 'corr_altitude',
                            'Corrected_Heave': 'corr_heave', 'Corrected_Beam_Angle': 'corr_pointing_angle',
@@ -359,10 +360,11 @@ variable_reverse_lookup = {'Absorption': 'absorption',
                            'SBET_Roll_Error': 'sbet_roll_error', 'SBET_Pitch_Error': 'sbet_pitch_error', 'SBET_Heading_Error': 'sbet_heading_error',
                            'Altitude': 'altitude', 'Longitude': 'longitude', 'Latitude': 'latitude'
                            }
-variable_descriptions = {'absorption': 'The mean absorption coefficient in dB used by the multibeam during TVG correction.  Used during backscatter to remove multibeam applied gain.',
+variable_descriptions = {'absorption': 'The mean absorption coefficient in dB/km used by the multibeam during TVG correction.  Used during backscatter to remove multibeam applied gain.',
                          'acrosstrack': 'The result of running Sound Velocity Correct in Kluster.  This is the acrosstrack (perpendicular to vessel movement) distance to the beam footprint on the seafloor from the vessel reference point in meters.',
                          'alongtrack': 'The result of running Sound Velocity Correct in Kluster.  This is the alongtrack (vessel direction) distance to the beam footprint on the seafloor from the vessel reference point in meters.',
                          'altitude': 'From the raw multibeam data, the logged altitude data from the navigation system in meters.  Relative to the ellipsoid chosen in the navigation system setup.',
+                         'backscatter': 'Reflectivity corrected for all gains applied by the sonar manufacturer.  Used in backscatter mosaic generation.',
                          'beampointingangle': 'The raw beam angle that comes from the multibeam data.  Angle in degrees from the receiver to the beam footprint on the seafloor, does not take attitude or mounting angles into account.',
                          'corr_altitude': 'If this dataset is processed to the waterline this will be zero.  Otherwise, the altitude correction is the attitude rotated lever arm between the reference point of the altitude and the transmitter, if non-zero.  This will be the original altitude plus this correction.',
                          'corr_heave': 'If this dataset is processed to the ellipse this will be zero.  Otherwise, the heave correction is the attitude rotated lever arm between the reference point of the heave and the transmitter, if non-zero. This will be the original heave plus this correction.',

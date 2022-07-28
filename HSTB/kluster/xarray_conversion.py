@@ -1624,7 +1624,7 @@ class BatchRead(ZarrBackend):
             return finalpths
         return None
 
-    def _return_runtime_and_installation_settings_dicts(self):
+    def return_runtime_and_installation_settings_dicts(self):
         """
         installation and runtime parameters are saved as string (json.dumps) as attributes in each raw_ping
         dataset.  Use this method to return the dicts that encompass each installation and runtime entry.
@@ -1674,7 +1674,7 @@ class BatchRead(ZarrBackend):
             a list of paths to zarr datastores for writing the xyzrph attribute to if provided
         """
 
-        settdict, runtimesettdict = self._return_runtime_and_installation_settings_dicts()
+        settdict, runtimesettdict = self.return_runtime_and_installation_settings_dicts()
 
         # self.logger.info('Found {} total Installation Parameters entr(y)s'.format(len(settdict)))
         if len(settdict) > 0:

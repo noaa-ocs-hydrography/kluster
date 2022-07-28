@@ -131,6 +131,7 @@ class BScatter:
             corrector = self.area_correction
             out_intensity -= corrector
             self._add_plot_component('area_correction', corrector)
+        return out_intensity
 
 
 class S7kscatter(BScatter):
@@ -167,8 +168,8 @@ class S7kscatter(BScatter):
 
 class Allscatter(BScatter):
     def __init__(self, runtime_parameters: dict, raw_intensity: xr.DataArray, slant_range: xr.DataArray, surface_sound_speed: xr.DataArray,
-                 beam_angle: xr.DataArray, near_normal_corrector: xr.DataArray, pulse_length: xr.DataArray,
-                 tx_beam_width: float, rx_beam_width: float, plot_backscatter: bool = True):
+                 beam_angle: xr.DataArray, tx_beam_width: float, rx_beam_width: float, near_normal_corrector: xr.DataArray,
+                 pulse_length: xr.DataArray, plot_backscatter: bool = True):
         super().__init__(raw_intensity, slant_range, surface_sound_speed, beam_angle, plot_backscatter)
         self.runtime_parameters = runtime_parameters
         self.absorption_db_m = float(self.runtime_parameters['AbsorptionCoefficent']) / 1000
@@ -199,14 +200,14 @@ class Allscatter(BScatter):
 
 
 class Kmallscatter(BScatter):
-    def __init__(self, raw_intensity: xr.DataArray, slant_range: xr.DataArray, surface_sound_speed: xr.DataArray,
-                 beam_angle: xr.DataArray, near_normal_corrector: xr.DataArray, pulse_length: xr.DataArray, tvg: xr.DataArray,
-                 absorption: xr.DataArray, tx_beam_width: float, rx_beam_width: float, plot_backscatter: bool = True):
+    def __init__(self, runtime_parameters: dict, raw_intensity: xr.DataArray, slant_range: xr.DataArray, surface_sound_speed: xr.DataArray,
+                 beam_angle: xr.DataArray, tx_beam_width: float, rx_beam_width: float, pulse_length: xr.DataArray, tvg: xr.DataArray,
+                 absorption: xr.DataArray, plot_backscatter: bool = True):
         super().__init__(raw_intensity, slant_range, surface_sound_speed, beam_angle, plot_backscatter)
-        self.absorption_db_m = absorption
+        self.runtime_parameters = runtime_parameters
+        self.absorption_db_m = absorption / 1000
         self.tx_beam_width = tx_beam_width
         self.rx_beam_width = rx_beam_width
-        self.near_normal_corrector = near_normal_corrector
         self.pulse_length = pulse_length
         self.tvg_arr = tvg
 
@@ -227,3 +228,21 @@ class Kmallscatter(BScatter):
         area_beam_limited = self.tx_beam_width * self.rx_beam_width * ((self.slant_range * np.pi/180) ** 2)
         area_pulse_limited = (self.surface_sound_speed * self.pulse_length * self.tx_beam_width * self.slant_range * (np.pi / 180)) / (2 * np.sin(np.abs(self.beam_angle)))
         return 10 * np.log10(np.minimum(area_beam_limited, area_pulse_limited))
+
+
+def distrib_run_process_backscatter(worker_dat: list):
+    multibeam_extension = worker_dat[-1]
+    backscatter_settings = worker_dat[-2]
+    if multibeam_extension == '.all':
+        bclass = Allscatter(worker_dat[0], worker_dat[1], worker_dat[2], worker_dat[3], worker_dat[4], worker_dat[5],
+                            worker_dat[6], worker_dat[7], worker_dat[8], worker_dat[9])
+    elif multibeam_extension == '.s7k':
+        bclass = S7kscatter(worker_dat[0], worker_dat[1], worker_dat[2], worker_dat[3], worker_dat[4], worker_dat[5],
+                            worker_dat[6], worker_dat[7])
+    elif multibeam_extension == '.kmall':
+        bclass = Kmallscatter(worker_dat[0], worker_dat[1], worker_dat[2], worker_dat[3], worker_dat[4], worker_dat[5],
+                              worker_dat[6], worker_dat[7], worker_dat[8], worker_dat[9], worker_dat[10])
+    else:
+        raise NotImplementedError(f'distrib_run_process_backscatter: filetype {multibeam_extension} is not currently supported for backscatter processing')
+    pscatter = bclass.process(**backscatter_settings)
+    return pscatter

@@ -374,7 +374,7 @@ def combine_arrays_to_dataset(arrs: list, arrnames: list):
     """
 
     if len(arrs) != len(arrnames):
-        raise ValueError('Please provide an equal number of names to dataarrays')
+        raise ValueError(f'combine_arrays_to_dataset: Please provide an equal number of names to dataarrays, {[ar.name for ar in arrs]} vs {arrnames}')
     dat = {a: arrs[arrnames.index(a)] for a in arrnames}
     dset = xr.Dataset(dat)
     return dset
