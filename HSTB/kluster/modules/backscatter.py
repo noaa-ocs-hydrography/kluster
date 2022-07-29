@@ -142,11 +142,11 @@ class BScatter:
         self._add_plot_component('raw_intensity', out_intensity)
         if fixed_gain_corrected:
             corrector = self.fixed_gain
-            out_intensity -= corrector
+            out_intensity += corrector
             self._add_plot_component('fixed_gain', corrector)
         if tvg_corrected:
             corrector = self.tvg
-            out_intensity += corrector
+            out_intensity -= corrector
             self._add_plot_component('tvg', corrector)
         if transmission_loss_corrected:
             corrector = self.transmission_loss
@@ -230,7 +230,7 @@ class Allscatter(BScatter):
 class Kmallscatter(BScatter):
     def __init__(self, runtime_parameters: dict, raw_intensity: xr.DataArray, slant_range: xr.DataArray, surface_sound_speed: xr.DataArray,
                  beam_angle: xr.DataArray, tx_beam_width: float, rx_beam_width: float, pulse_length: xr.DataArray, tvg: xr.DataArray,
-                 fixedgain: xr.DataArray, plot_backscatter: bool = True):
+                 fixedgain: xr.DataArray, absorption: xr.DataArray, plot_backscatter: bool = True):
         super().__init__(raw_intensity, slant_range, surface_sound_speed, beam_angle, plot_backscatter)
         self.runtime_parameters = runtime_parameters
         self.fixedgain = fixedgain
@@ -269,7 +269,7 @@ def distrib_run_process_backscatter(worker_dat: list):
                             worker_dat[6], plot_backscatter=worker_dat[7])
     elif multibeam_extension == '.kmall':
         bclass = Kmallscatter(worker_dat[0], worker_dat[1], worker_dat[2], worker_dat[3], worker_dat[4], worker_dat[5],
-                              worker_dat[6], worker_dat[7], worker_dat[8], worker_dat[9], plot_backscatter=worker_dat[10])
+                              worker_dat[6], worker_dat[7], worker_dat[8], worker_dat[9], worker_dat[10], plot_backscatter=worker_dat[11])
     else:
         raise NotImplementedError(f'distrib_run_process_backscatter: filetype {multibeam_extension} is not currently supported for backscatter processing')
     pscatter = bclass.process(**backscatter_settings)
