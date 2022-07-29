@@ -259,38 +259,7 @@ build_BSCorr(fname1, fname2, show_fig=False, save_fig=True)
 
 ######################################################################
 
+
 from HSTB.kluster.fqpr_convenience import reload_data
-from HSTB.kluster.fqpr_generation import *
-fq = reload_data(r"D:\FA_EM712_Acceptance-20220506T175353Z-001\FA_EM712_Acceptance\EM_712_Acceptance_data\Reference_surface1\em712_10070_05_10_2022")
-navfiles = ['D:/FA_EM712_Acceptance-20220506T175353Z-001/FA_EM712_Acceptance/EM_712_Acceptance_data/sbets/Ref_sruface_ONE.out']
-errorfiles = ['D:/FA_EM712_Acceptance-20220506T175353Z-001/FA_EM712_Acceptance/EM_712_Acceptance_data/sbets/Ref_sruface_ONE_smrmsg_Mission 1.out']
-logfiles = ['D:/FA_EM712_Acceptance-20220506T175353Z-001/FA_EM712_Acceptance/EM_712_Acceptance_data/sbets/Ref_sruface_ONE.log']
-navdata = return_xarray_from_sbet(navfiles, smrmsgfiles=errorfiles, logfiles=logfiles)
-nav_wise_data = interp_across_chunks(navdata, fq.multibeam.raw_ping[0].time, 'time')
-nav_wise_data
-# plt.scatter(np.arange(nav_wise_data.time.size), nav_wise_data.time.values)
-# plt.scatter(np.arange(fq.multibeam.raw_ping[0].time.size), fq.multibeam.raw_ping[0].time.values)
-
-gaps = compare_and_find_gaps(fq.multibeam.raw_ping[0], navdata, max_gap_length=1.0, dimname='time')
-
-source_dat = fq.multibeam.raw_ping[0]
-new_dat = navdata
-dimname = 'time'
-max_gap_length = 1.0
-
-
-fq.import_post_processed_navigation(['D:/FA_EM712_Acceptance-20220506T175353Z-001/FA_EM712_Acceptance/EM_712_Acceptance_data/sbets/Ref_sruface_ONE.out'],
-                                    errorfiles=['D:/FA_EM712_Acceptance-20220506T175353Z-001/FA_EM712_Acceptance/EM_712_Acceptance_data/sbets/Ref_sruface_ONE_smrmsg_Mission 1.out'],
-                                    logfiles=['D:/FA_EM712_Acceptance-20220506T175353Z-001/FA_EM712_Acceptance/EM_712_Acceptance_data/sbets/Ref_sruface_ONE.log'])
-
-fq.remove_post_processed_navigation()
-
-
-
-from HSTB.kluster.fqpr_drivers import sequential_read_multibeam
-recskm = sequential_read_multibeam(r"C:\collab\dasktest\data_dir\EM304_KMALL_fromkongs\0000_20200428_101105_ShipName.kmall")
-recsal = sequential_read_multibeam(r"C:\collab\dasktest\data_dir\EM2040_Fairweather_patchtest2022\0001_20220421_165552_FA2808_M.all")
-recsal = sequential_read_multibeam(r"C:\collab\dasktest\data_dir\EM2040_Fairweather_SmallFile\0009_20170523_181119_FA2806.all")
-recss7k = sequential_read_multibeam(r"C:\collab\dasktest\data_dir\7125_no7030_2devices_WORKS\20150310_174534.s7k")
-recss7k = sequential_read_multibeam(r"C:\collab\dasktest\data_dir\7125\20140416_161226.s7k")
-
+fq = reload_data(r"C:\collab\dasktest\data_dir\EM304_KMALL_fromkongs\em304_105_04_28_2020", skip_dask=True)
+fq.process_backscatter()

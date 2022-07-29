@@ -356,7 +356,7 @@ def divide_arrays_by_time_index(arrs: list, idx: np.array):
     return dat
 
 
-def combine_arrays_to_dataset(arrs: list, arrnames: list):
+def combine_arrays_to_dataset(arrs: Union[list, xr.DataArray], arrnames: list):
     """
     Build a dataset from a list of Xarray DataArrays, given a list of names for each array.
 
@@ -373,9 +373,15 @@ def combine_arrays_to_dataset(arrs: list, arrnames: list):
         xarray Dataset with variables equal to the provided arrays
     """
 
-    if len(arrs) != len(arrnames):
+    if isinstance(arrs, list) and len(arrs) != len(arrnames):
         raise ValueError(f'combine_arrays_to_dataset: Please provide an equal number of names to dataarrays, {[ar.name for ar in arrs]} vs {arrnames}')
-    dat = {a: arrs[arrnames.index(a)] for a in arrnames}
+
+    if isinstance(arrs, list):
+        dat = {a: arrs[arrnames.index(a)] for a in arrnames}
+    elif isinstance(arrs, xr.DataArray):  # if arrs is just a single dataarray
+        dat = {arrnames[0]: arrs}
+    else:
+        raise ValueError(f'combine_arrays_to_dataset: expected either a list of Dataarrays or a single Dataarray, got {type(arrs)}')
     dset = xr.Dataset(dat)
     return dset
 

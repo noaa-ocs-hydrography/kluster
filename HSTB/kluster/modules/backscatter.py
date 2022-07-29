@@ -1,5 +1,7 @@
+import os
 import numpy as np
 import xarray as xr
+import matplotlib.pyplot as plt
 
 
 def generate_avg_corrector(corrected_bscatter: xr.DataArray, beam_angles_degrees: xr.DataArray, bin_size_degree: float = 1.0,
@@ -107,9 +109,32 @@ class BScatter:
     def _add_plot_component(self, pc_tag: str, data):
         if self.plot_backscatter:
             try:
-                self.plot_components[pc_tag] = np.nanmedian(data, axis=1)
-            except np.AxisError:
+                self.plot_components[pc_tag] = data.isel(time=0).values
+            except AttributeError:
                 self.plot_components[pc_tag] = data
+
+    def _plot_backscatter_components(self):
+        drive_plots_to_file = isinstance(self.plot_backscatter, str)
+        if drive_plots_to_file:
+            plt.ioff()  # turn off interactive plotting
+            if os.path.isdir(self.plot_backscatter):
+                bscat_fname = os.path.join(self.plot_backscatter, 'backscatter_firstping_sample.png')
+            elif os.path.isfile(self.plot_backscatter):
+                bscat_fname = os.path.join(os.path.splitext(self.plot_backscatter)[0] + '_sample.png')
+
+        bscat_figure = plt.figure(figsize=(12, 9))
+        plt.title('backscatter components of first ping')
+        plt.ylabel('dB')
+        plt.xlabel('beam')
+        for comp in self.plot_components.keys():
+            if isinstance(self.plot_components[comp], (float, int)):
+                plt.axhline(y=self.plot_components[comp], linestyle='dashed', label=comp)
+            else:
+                plt.plot(self.plot_components[comp], label=comp)
+        plt.legend()
+        if drive_plots_to_file:
+            plt.savefig(bscat_fname)
+        plt.close(bscat_figure)
 
     def process(self, fixed_gain_corrected: bool = True, tvg_corrected: bool = True,
                 transmission_loss_corrected: bool = True, area_corrected: bool = True):
@@ -121,7 +146,7 @@ class BScatter:
             self._add_plot_component('fixed_gain', corrector)
         if tvg_corrected:
             corrector = self.tvg
-            out_intensity -= corrector
+            out_intensity += corrector
             self._add_plot_component('tvg', corrector)
         if transmission_loss_corrected:
             corrector = self.transmission_loss
@@ -131,6 +156,9 @@ class BScatter:
             corrector = self.area_correction
             out_intensity -= corrector
             self._add_plot_component('area_correction', corrector)
+        self._add_plot_component('final_intensity', out_intensity)
+        if self.plot_backscatter:
+            self._plot_backscatter_components()
         return out_intensity
 
 
@@ -202,10 +230,10 @@ class Allscatter(BScatter):
 class Kmallscatter(BScatter):
     def __init__(self, runtime_parameters: dict, raw_intensity: xr.DataArray, slant_range: xr.DataArray, surface_sound_speed: xr.DataArray,
                  beam_angle: xr.DataArray, tx_beam_width: float, rx_beam_width: float, pulse_length: xr.DataArray, tvg: xr.DataArray,
-                 absorption: xr.DataArray, plot_backscatter: bool = True):
+                 fixedgain: xr.DataArray, plot_backscatter: bool = True):
         super().__init__(raw_intensity, slant_range, surface_sound_speed, beam_angle, plot_backscatter)
         self.runtime_parameters = runtime_parameters
-        self.absorption_db_m = absorption / 1000
+        self.fixedgain = fixedgain
         self.tx_beam_width = tx_beam_width
         self.rx_beam_width = rx_beam_width
         self.pulse_length = pulse_length
@@ -213,11 +241,11 @@ class Kmallscatter(BScatter):
 
     @property
     def fixed_gain(self):
-        return 0.0
+        return self.fixedgain
 
     @property
-    def attenuation(self):
-        return 2 * self.absorption_db_m * self.slant_range
+    def transmission_loss(self):
+        return 0.0
 
     @property
     def tvg(self):
@@ -235,13 +263,13 @@ def distrib_run_process_backscatter(worker_dat: list):
     backscatter_settings = worker_dat[-2]
     if multibeam_extension == '.all':
         bclass = Allscatter(worker_dat[0], worker_dat[1], worker_dat[2], worker_dat[3], worker_dat[4], worker_dat[5],
-                            worker_dat[6], worker_dat[7], worker_dat[8], worker_dat[9])
+                            worker_dat[6], worker_dat[7], worker_dat[8], plot_backscatter=worker_dat[9])
     elif multibeam_extension == '.s7k':
         bclass = S7kscatter(worker_dat[0], worker_dat[1], worker_dat[2], worker_dat[3], worker_dat[4], worker_dat[5],
-                            worker_dat[6], worker_dat[7])
+                            worker_dat[6], plot_backscatter=worker_dat[7])
     elif multibeam_extension == '.kmall':
         bclass = Kmallscatter(worker_dat[0], worker_dat[1], worker_dat[2], worker_dat[3], worker_dat[4], worker_dat[5],
-                              worker_dat[6], worker_dat[7], worker_dat[8], worker_dat[9], worker_dat[10])
+                              worker_dat[6], worker_dat[7], worker_dat[8], worker_dat[9], plot_backscatter=worker_dat[10])
     else:
         raise NotImplementedError(f'distrib_run_process_backscatter: filetype {multibeam_extension} is not currently supported for backscatter processing')
     pscatter = bclass.process(**backscatter_settings)

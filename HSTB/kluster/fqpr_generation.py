@@ -1935,11 +1935,11 @@ class Fqpr(ZarrBackend):
                 try:
                     dchunk.append(self.client.scatter(ra.pulselength[chnk.values]))
                     dchunk.append(self.client.scatter(ra.tvg[chnk.values]))
-                    dchunk.append(self.client.scatter(ra.absorption[chnk.values]))
+                    dchunk.append(self.client.scatter(ra.fixedgain[chnk.values]))
                 except:  # get here if client is closed or doesnt exist
                     dchunk.append(ra.pulselength[chnk.values])
                     dchunk.append(ra.tvg[chnk.values])
-                    dchunk.append(ra.absorption[chnk.values])
+                    dchunk.append(ra.fixedgain[chnk.values])
             else:
                 raise NotImplementedError(f'process_backscatter: sonar file type {mext} not currently supported')
             dchunk.append(image_generation[cnt])
@@ -2229,7 +2229,7 @@ class Fqpr(ZarrBackend):
         elif multibeam_extension == '.all':
             required += ['nearnormalcorrect', 'pulselength']
         elif multibeam_extension == '.kmall':
-            required += ['pulselength', 'absorption', 'tvg']
+            required += ['pulselength', 'fixedgain', 'tvg']
 
         for req in required:
             if req not in list(self.multibeam.raw_ping[0].keys()):
