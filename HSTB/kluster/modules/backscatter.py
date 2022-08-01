@@ -36,7 +36,9 @@ def generate_avg_corrector(corrected_bscatter: xr.DataArray, beam_angles_degrees
     refval = meanvals[refval_idx - 1]
     # final avg correction is the difference between the angle-bin-mean value and the reference value.  Angles that are
     #  unused in the provided dataset are left as zero
-    lookup = {bins[idx]: meanvals[idx] - refval if not msk[idx] else 0 for idx in range(len(meanvals))}
+
+    # cast to string here to allow dumping to json without serialization issues
+    lookup = {str(bins[idx]): str(meanvals[idx] - refval) if not msk[idx] else 0 for idx in range(len(meanvals))}
     return lookup
 
 

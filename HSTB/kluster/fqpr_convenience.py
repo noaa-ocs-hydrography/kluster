@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 from datetime import datetime
 import laspy
 from pyproj import CRS, Transformer
+import json
 
 from HSTB.kluster.modules.backscatter import generate_avg_corrector, avg_correct
 from HSTB.kluster.fqpr_drivers import return_xyz_from_multibeam
@@ -484,8 +485,14 @@ def _add_points_to_mosaic(fqpr_inst: Fqpr, bgrid: BathyGrid, fqpr_crs: int, fqpr
         # drop nan values in georeferenced data, generally where number of beams vary between pings
         data = rp.where(~np.isnan(rp['x']), drop=True)
         if avg_table is not None:
-            data['backscatter'] = data['backscatter'] - avg_correct(np.rad2deg(data['corr_pointing_angle']), avg_table)
-        if data['backscatter'].any():
+            acorr = avg_correct(np.rad2deg(data['corr_pointing_angle']), avg_table)
+        else:
+            acorr = 0.0
+        data = data.drop_vars('corr_pointing_angle')
+        # bathygrid is looking for a 'z' variable.
+        data = data.rename_vars({'backscatter': 'z'})
+        data['z'] = data['z'] - acorr
+        if data['z'].any():
             try:
                 bgrid.add_points(data, '{}__{}'.format(cont_name, mfile), [mfile], fqpr_crs, fqpr_vertref, min_time=min_time, max_time=max_time)
             except:
@@ -859,7 +866,8 @@ def return_avg_tables(fqpr_inst: list = None, avg_bin_size: float = 1.0, avg_ang
     if not overwrite_existing_avg:
         for fq in fqpr_inst:
             try:
-                avg_tables.append(fq.multibeam.raw_ping[0].attrs['avg_table'])
+                fqtbl = json.loads(fq.multibeam.raw_ping[0].attrs['avg_table'])
+                avg_tables.append({float(k): float(v) for k, v in fqtbl.items()})
             except:
                 raise ValueError(f'_avgcorrect_fqprs: using existing avg tables, but unable to find avg table in FQPR {fq.output_folder}')
     else:
@@ -868,25 +876,29 @@ def return_avg_tables(fqpr_inst: list = None, avg_bin_size: float = 1.0, avg_ang
             for fq in fqpr_inst:
                 if fq.line_attributes(avg_line) is not None:
                     found_fq = fq
-                    fq.subset_by_lines(avg_line)
+                    found_fq.subset_by_lines(avg_line)
+                    break
             if found_fq is None:
                 raise ValueError(f'_avgcorrect_fqprs: was provided avg line = {avg_line}, but was unable to find this line in any of the provided fqpr instances')
         else:
             found_fq = fqpr_inst[0]
             first_line = list(found_fq.multibeam.raw_ping[0].multibeam_files.keys())[0]
             found_fq.subset_by_lines(first_line)
-        bscatter = xr.concat([rp.backscatter for rp in fq.multibeam.raw_ping], dim='time')
-        bangle = xr.concat([np.rad2deg(rp.corr_pointing_angle) for rp in fq.multibeam.raw_ping], dim='time')
+        bscatter = xr.concat([rp.backscatter for rp in found_fq.multibeam.raw_ping], dim='time')
+        bangle = xr.concat([np.rad2deg(rp.corr_pointing_angle) for rp in found_fq.multibeam.raw_ping], dim='time')
+        found_fq.restore_subset()
         avgtbl = generate_avg_corrector(bscatter, bangle, avg_bin_size, avg_angle)
         for fq in fqpr_inst:
-            fq.write_attribute_to_ping_records({'avg_table': avgtbl})
-            avg_tables.append(avgtbl)
+            fq.write_attribute_to_ping_records({'avg_table': json.dumps(avgtbl)})
+            fmt_avgtbl = {float(k): float(v) for k, v in avgtbl.items()}
+            avg_tables.append(fmt_avgtbl)
+
     return avg_tables
 
 
 def generate_new_mosaic(fqpr_inst: Union[Fqpr, list] = None, tile_size: float = 1024.0, gridding_algorithm: str = 'mean',
                         resolution: float = None, process_backscatter: bool = True, create_mosaic: bool = True,
-                        angle_varying_gain: bool = True, avg_angle: float = 45.0, avg_line: str = None, avg_bin_size: float = 1.0,
+                        angle_varying_gain: bool = True, avg_angle: float = 45.0, avg_line: str = None, avg_bin_size: float = 5.0,
                         overwrite_existing_avg: bool = True, process_backscatter_fixed_gain_corrected: bool = True,
                         process_backscatter_tvg_corrected: bool = True, process_backscatter_transmission_loss_corrected: bool = True,
                         process_backscatter_area_corrected: bool = True, use_dask: bool = False, output_path: str = None,
@@ -987,13 +999,13 @@ def generate_new_mosaic(fqpr_inst: Union[Fqpr, list] = None, tile_size: float = 
         if unique_vertref is None or unique_crs is None:
             return None
 
-        if angle_varying_gain:
-            avgtables = return_avg_tables(fqpr_inst, avg_bin_size, avg_angle, avg_line, overwrite_existing_avg)
-
         if process_backscatter:
             for fq in fqpr_inst:
                 fq.process_backscatter(fixed_gain_corrected=process_backscatter_fixed_gain_corrected, tvg_corrected=process_backscatter_tvg_corrected,
                                        transmission_loss_corrected=process_backscatter_transmission_loss_corrected, area_corrected=process_backscatter_area_corrected)
+        if angle_varying_gain:
+            print('Building AVG tables...')
+            avgtables = return_avg_tables(fqpr_inst, avg_bin_size, avg_angle, avg_line, overwrite_existing_avg)
 
         if create_mosaic:
             if not _validate_fqpr_for_mosaic(fqpr_inst):

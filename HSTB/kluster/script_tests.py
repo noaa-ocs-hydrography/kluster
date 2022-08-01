@@ -260,6 +260,6 @@ build_BSCorr(fname1, fname2, show_fig=False, save_fig=True)
 ######################################################################
 
 
-from HSTB.kluster.fqpr_convenience import reload_data
-fq = reload_data(r"C:\collab\dasktest\data_dir\EM304_KMALL_fromkongs\em304_105_04_28_2020", skip_dask=True)
-fq.process_backscatter()
+from HSTB.kluster.fqpr_convenience import reload_data, generate_new_mosaic
+fq = reload_data(r"C:\collab\dasktest\data_dir\hassler_acceptance\refsurf\em2040_dual_tx_rx_389_03_04_2020")
+bs = generate_new_mosaic(fq, resolution=4.0, output_path=r"C:\collab\dasktest\data_dir\hassler_acceptance\refsurf\mosaic_4m")

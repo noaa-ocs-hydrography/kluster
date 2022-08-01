@@ -17,7 +17,8 @@ reaccept_color = 'cyan'
 
 # raster color bands for QGIS display in 2dview, will include these as well as the matplotlib bands
 raster_color_bands = {'redtoblue': ((255, 0, 0), (255, 165, 0), (255, 255, 0), (0, 128, 0), (0, 0, 255), (75, 0, 130), (238, 130, 238)),
-                      'bluetored': ((238, 130, 238), (75, 0, 130), (0, 0, 255), (0, 128, 0), (255, 255, 0), (255, 165, 0), (255, 0, 0))}
+                      'bluetored': ((238, 130, 238), (75, 0, 130), (0, 0, 255), (0, 128, 0), (255, 255, 0), (255, 165, 0), (255, 0, 0)),
+                      'blackandwhite': ((0, 0, 0), (43, 43, 43), (86, 86, 86), (129, 129, 129), (172, 172, 172), (215, 215, 215), (255, 255, 255))}
 vector_shapes = ['', 'arrow', 'asterisk_fill', 'circle', 'cross', 'cross2', 'cross_fill', 'diamond', 'equilateral_triangle',
                  'filled_arrowhead', 'hexagon', 'octagon', 'pentagon', 'rectangle', 'regular_star', 'square', 'square_with_corners',
                  'star', 'triangle', 'x']

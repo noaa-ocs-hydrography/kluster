@@ -19,9 +19,10 @@ from matplotlib import cm
 
 
 acceptedlayernames = ['hillshade', 'depth', 'elevation', 'density', 'vertical_uncertainty', 'horizontal_uncertainty', 'total_uncertainty',
-                      'hypothesis_count', 'hypothesis_ratio']
+                      'hypothesis_count', 'hypothesis_ratio', 'intensity']
 invert_colormap_layernames = ['vertical_uncertainty', 'horizontal_uncertainty', 'total_uncertainty', 'hypothesis_count',
                               'hypothesis_ratio']
+blackandwhite_layernames = ['intensity']
 layered_vector_formats = ['.000', '.s57', '.gpkg']
 
 
@@ -2591,6 +2592,8 @@ class MapView(QtWidgets.QMainWindow):
             self.band_minmax[formatted_layername] = [minval, maxval]
         if formatted_layername in invert_colormap_layernames:
             shadercolor = 'bluetored'
+        elif formatted_layername in blackandwhite_layernames:
+            shadercolor = 'blackandwhite'
         else:
             shadercolor = 'redtoblue'
         if formatted_layername == 'hillshade':
