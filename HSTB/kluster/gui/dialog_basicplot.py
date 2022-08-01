@@ -34,6 +34,7 @@ class BasicPlotDialog(QtWidgets.QDialog):
                                 'Line - Port Outer Beam', 'Line - Starboard Outer Beam'],
                             1: ['Line', 'Histogram', 'Scatter']}
         self.custom_plot_lookup = {'uncertainty': ['Vertical Sample', 'Horizontal Sample'],
+                                   'backscatter': ['Backscatter Sample'],
                                    'sound_velocity_profiles': ['Plot Profiles', 'Profile Map'],
                                    'sound_velocity_correct': ['2d scatter, color by depth', '2d scatter, color by sector',
                                                               '3d scatter, color by depth', '3d scatter, color by sector'],
@@ -240,7 +241,7 @@ class BasicPlotDialog(QtWidgets.QDialog):
                         variable_names = [nm for nm in list(dset.variables.keys()) if nm in self.variable_translator]
                     variable_names = [self.variable_translator[nm] for nm in variable_names]
                 elif ky == 'custom':
-                    variable_names = ['uncertainty', 'sound_velocity_profiles', 'sound_velocity_correct', 'georeferenced', 'animations']
+                    variable_names = ['uncertainty', 'backscatter', 'sound_velocity_profiles', 'sound_velocity_correct', 'georeferenced', 'animations']
                 else:
                     variable_names = [nm for nm in list(dset.variables.keys()) if nm not in ['time', 'beam', 'xyz']]
 
@@ -470,11 +471,13 @@ class BasicPlotDialog(QtWidgets.QDialog):
                 data.plot.plot_tvu_sample()
             elif plottype == 'Horizontal Sample':
                 data.plot.plot_thu_sample()
+            elif plottype == 'Backscatter Sample':
+                data.plot.plot_backscatter_sample()
 
             if dataset_name != 'custom' and plottype not in ['Image', 'Contour']:
                 self.recent_plot[cnt].legend()
 
-        if not self.add_to_current_plot.isChecked() and plottype not in ['Vertical Sample', 'Horizontal Sample']:
+        if not self.add_to_current_plot.isChecked() and plottype not in ['Vertical Sample', 'Horizontal Sample', 'Backscatter Sample']:
             # a new plot was made, here we set the title based on the options provided
             # Sample plots only show a premade image, they do not make plots
             if dataset_name != 'custom' and len(self.recent_plot) == 2:
@@ -641,6 +644,8 @@ class BasicPlotDialog(QtWidgets.QDialog):
                 variable_expl = 'Variable = Build custom animations from the Kluster processed data'
             elif variable == 'uncertainty':
                 variable_expl = 'Variable = Display images generated on running the calculate total uncertainty process'
+            elif variable == 'backscatter':
+                variable_expl = 'Variable = Display images generated on running process backscatter/mosaic'
         if plottype == 'Line':
             plot_expl = 'Plot = Line plot connecting the points in the variable, will connect points across gaps in data.  Use scatter to see the gaps.'
         elif plottype == 'Line - Mean':
@@ -688,13 +693,15 @@ class BasicPlotDialog(QtWidgets.QDialog):
                         'beamangle - error related to the Beam Opening Angle\n' + \
                         'waterline - Waterline Error applied directly, assuming you are using a non-ERS vertical datum\n' + \
                         'total_vertical_uncertainty - total vertical propagated uncertainty generated from all the above elements, where applicable'
-
         elif plottype == 'Horizontal Sample':
             plot_expl = 'Plot = Each successful calculate TPU process will generate a thu (total horizontal uncertainty) sample image.  This is the average thu across the ping for the first 1000 pings.\n\n' + \
                         'sounder_horizontal - horizontal uncertainty taken from the raw multibeam data\n' + \
                         'distance_rms - radial positioning error using either SBET north/east position error or Horizontal Positioning Error\n' + \
                         'antenna_lever_arm - horizontal error related to the antenna/reference point lever arm, using either SBET Sensor error or Roll/Pitch/Yaw Sensor Error\n' + \
                         'total_horizontal_uncertainty - total horizontal propagated uncertainty generated from all the above elements, where applicable'
+        elif plottype == 'Backscatter Sample':
+            plot_expl = 'Plot = Each successful backscatter process will generate a backscatter sample image.  This is the different backscatter components for the first ping.\n\n' + \
+                        'See the "backscatter_settings" in the Attribution window for the converted data to learn more about each of these components.'
 
         if plot_expl and variable_expl and source_expl:
             self.explanation.setText('{}\n\n{}\n\n{}'.format(source_expl, variable_expl, plot_expl))
