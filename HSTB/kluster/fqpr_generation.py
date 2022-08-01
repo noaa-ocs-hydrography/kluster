@@ -18,7 +18,7 @@ from HSTB.kluster.modules.georeference import distrib_run_georeference, vertical
     aviso_tide_correct, determine_aviso_grid, aviso_clear_model
 from HSTB.kluster.modules.tpu import distrib_run_calculate_tpu
 from HSTB.kluster.modules.filter import FilterManager
-from HSTB.kluster.modules.backscatter import distrib_run_process_backscatter
+from HSTB.kluster.modules.backscatter import distrib_run_process_backscatter, return_backscatter_settings
 from HSTB.kluster.xarray_conversion import BatchRead
 from HSTB.kluster.fqpr_vessel import trim_xyzrprh_to_times
 from HSTB.kluster.modules.visualizations import FqprVisualizations
@@ -3201,7 +3201,7 @@ class Fqpr(ZarrBackend):
                 chunk_function = self._generate_chunks_backscatter
                 comp_time = 'backscatter_time_complete'
                 runtime_chunks = self.return_runtime_idx_nearestintime(idx_by_chunk_subset)
-                self.bscatter_settings = backscatter_settings
+                self.bscatter_settings = return_backscatter_settings(self.multibeam_extension, **backscatter_settings)
                 chunkargs = [rawping, backscatter_settings, runtime_chunks, idx_by_chunk_subset, prefixes, timestmp, start_run_index]
             else:
                 self.logger.error('Mode must be one of ["orientation", "bpv", "sv_corr", "georef", "tpu", "backscatter"]')

@@ -71,12 +71,21 @@ def avg_correct(beam_angles_degrees: xr.DataArray, avg_corrector: dict):
 
 
 class BScatter:
+    absorption_description = ''
+    tx_beam_width_description = ''
+    rx_beam_width_description = ''
+    pulse_length_description = ''
+
     def __init__(self, raw_intensity: xr.DataArray, slant_range: xr.DataArray, surface_sound_speed: xr.DataArray,
                  beam_angle: xr.DataArray, plot_backscatter: bool):
         self.raw_intensity = raw_intensity
         self.slant_range = slant_range
         self.surface_sound_speed = surface_sound_speed
         self.beam_angle = beam_angle
+        self.absorption_db_m = None
+        self.tx_beam_width = None
+        self.rx_beam_width = None
+        self.pulse_length = None
 
         # if plotting is enabled, will save the components to this dict
         self.plot_backscatter = plot_backscatter
@@ -96,7 +105,9 @@ class BScatter:
 
     @property
     def attenuation(self):
-        raise NotImplementedError('Expected a sonar specific backscatter class to inherit this class to process')
+        if self.absorption_db_m is None:
+            raise NotImplementedError('Expected a sonar specific backscatter class to inherit this class to process')
+        return 2 * self.absorption_db_m * self.slant_range
 
     @property
     def tvg(self):
@@ -104,7 +115,29 @@ class BScatter:
 
     @property
     def area_correction(self):
-        raise NotImplementedError('Expected a sonar specific backscatter class to inherit this class to process')
+        if self.tx_beam_width is None:
+            raise NotImplementedError('Expected a sonar specific backscatter class to inherit this class to process')
+        area_beam_limited = self.tx_beam_width * self.rx_beam_width * ((self.slant_range * np.pi/180) ** 2)
+        area_pulse_limited = (self.surface_sound_speed * self.pulse_length * self.tx_beam_width * self.slant_range * (np.pi / 180)) / (2 * np.sin(np.abs(self.beam_angle)))
+        return 10 * np.log10(np.minimum(area_beam_limited, area_pulse_limited))
+
+    @classmethod
+    def return_settings(cls, fixed_gain_corrected: bool = True, tvg_corrected: bool = True,
+                        transmission_loss_corrected: bool = True, area_corrected: bool = True):
+        if not cls.absorption_description:
+            raise NotImplementedError('Expected a sonar specific backscatter class to inherit this class to process')
+        setts = {}
+        if transmission_loss_corrected:
+            setts['transmission_loss_corrector'] = f'40 * log10(svcorr slant range) + (2 * {cls.absorption_description} * svcorr slant range)'
+        else:
+            setts['transmission_loss_corrector'] = 'disabled by user'
+        if area_corrected:
+            setts['area_beam_limited'] = f'{cls.tx_beam_width_description} * {cls.rx_beam_width_description} * (svcorr slant range * PI/180)^2'
+            setts['area_pulse_limited'] = f'(surface sound speed * {cls.pulse_length_description} * {cls.tx_beam_width_description} * svcorr slant range * PI/180) / (2 * sin(abs(beam angle)))'
+            setts['area_correction_added'] ='10 * log10(minimum of (area_beam_limited, area_pulse_limited))'
+        else:
+            setts['area_correction_added'] = 'disabled by user'
+        return setts
 
     def _add_plot_component(self, pc_tag: str, data):
         if self.plot_backscatter:
@@ -142,20 +175,20 @@ class BScatter:
         self._add_plot_component('raw_intensity', out_intensity)
         if fixed_gain_corrected:
             corrector = self.fixed_gain
-            out_intensity += corrector
-            self._add_plot_component('fixed_gain', corrector)
+            out_intensity -= corrector
+            self._add_plot_component('fixed_gain_removed', corrector)
         if tvg_corrected:
             corrector = self.tvg
             out_intensity -= corrector
-            self._add_plot_component('tvg', corrector)
+            self._add_plot_component('tvg_removed', corrector)
         if transmission_loss_corrected:
             corrector = self.transmission_loss
-            out_intensity -= corrector
-            self._add_plot_component('transmission_loss', corrector)
+            out_intensity += corrector
+            self._add_plot_component('transmission_loss_corrector', corrector)
         if area_corrected:
             corrector = self.area_correction
             out_intensity -= corrector
-            self._add_plot_component('area_correction', corrector)
+            self._add_plot_component('area_correction_added', corrector)
         self._add_plot_component('final_intensity', out_intensity)
         if self.plot_backscatter:
             self._plot_backscatter_components()
@@ -163,38 +196,58 @@ class BScatter:
 
 
 class S7kscatter(BScatter):
+    absorption_description = 'runtime parameters absorption_db_km'
+    spreading_description = 'runtime parameters spreading_loss_db'
+    power_selection_description = 'runtime parameters power_selection_db_re_1micropascal'
+    tx_beam_width_description = 'runtime parameters ProjectorBeamWidthVertical'
+    rx_beam_width_description = 'runtime parameters ReceiveBeamWidth'
+    pulse_length_description = 'runtime parameters tx_pulse_width_seconds'
+    gain_selection_description = 'runtime parameters gain_selection_db'
+
     def __init__(self, runtime_parameters: dict, raw_intensity: xr.DataArray, slant_range: xr.DataArray, surface_sound_speed: xr.DataArray,
                  beam_angle: xr.DataArray, tx_beam_width: float, rx_beam_width: float, plot_backscatter: bool = True):
         super().__init__(raw_intensity, slant_range, surface_sound_speed, beam_angle, plot_backscatter)
         self.runtime_parameters = runtime_parameters
+
         self.absorption_db_m = float(self.runtime_parameters['absorption_db_km']) / 1000
         self.spreading_loss_db = float(self.runtime_parameters['spreading_loss_db'])
         self.power_selection_db_re_1micropascal = float(self.runtime_parameters['power_selection_db_re_1micropascal'])
-        self.tx_beam_width = tx_beam_width
-        self.rx_beam_width = rx_beam_width
         self.pulse_length = float(self.runtime_parameters['tx_pulse_width_seconds'])
         self.gain_selection_db = float(self.runtime_parameters['gain_selection_db'])
+
+        self.tx_beam_width = tx_beam_width
+        self.rx_beam_width = rx_beam_width
 
     @property
     def fixed_gain(self):
         return self.gain_selection_db + self.power_selection_db_re_1micropascal
 
     @property
-    def attenuation(self):
-        return 2 * self.absorption_db_m * self.slant_range
-
-    @property
     def tvg(self):
         return (self.spreading_loss_db * np.log10(self.slant_range)) + self.attenuation
 
-    @property
-    def area_correction(self):
-        area_beam_limited = self.tx_beam_width * self.rx_beam_width * ((self.slant_range * np.pi/180) ** 2)
-        area_pulse_limited = (self.surface_sound_speed * self.pulse_length * self.tx_beam_width * self.slant_range * (np.pi / 180)) / (2 * np.sin(np.abs(self.beam_angle)))
-        return 10 * np.log10(np.minimum(area_beam_limited, area_pulse_limited))
+    @classmethod
+    def return_settings(cls, fixed_gain_corrected: bool = True, tvg_corrected: bool = True,
+                        transmission_loss_corrected: bool = True, area_corrected: bool = True):
+        setts = super().return_settings(fixed_gain_corrected, tvg_corrected, transmission_loss_corrected, area_corrected)
+        if fixed_gain_corrected:
+            setts['fixed_gain_removed'] = f'{cls.gain_selection_description} + {cls.power_selection_description}'
+        else:
+            setts['fixed_gain_removed'] = 'disabled by user'
+        if tvg_corrected:
+            setts['tvg_removed'] = f'{cls.spreading_description} * log10(svcorr slant range) + (2 * {cls.absorption_description} * svcorr slant range)'
+        else:
+            setts['tvg_removed'] = 'disabled by user'
+        return setts
 
 
 class Allscatter(BScatter):
+    absorption_description = 'runtime parameters AbsorptionCoefficent'
+    tx_beam_width_description = 'runtime parameters TransmitBeamWidth'
+    rx_beam_width_description = 'runtime parameters ReceiveBeamWidth'
+    near_normal_description = '(BSnormal_dB - BSoblique_dB) * (1 - sqrt((range - minrange) / ((minrange / crossoverangle) - minrange)))'
+    pulse_length_description = 'RangeandAngleDatagram SignalLength'
+
     def __init__(self, runtime_parameters: dict, raw_intensity: xr.DataArray, slant_range: xr.DataArray, surface_sound_speed: xr.DataArray,
                  beam_angle: xr.DataArray, tx_beam_width: float, rx_beam_width: float, near_normal_corrector: xr.DataArray,
                  pulse_length: xr.DataArray, plot_backscatter: bool = True):
@@ -213,26 +266,39 @@ class Allscatter(BScatter):
         return 0.0
 
     @property
-    def attenuation(self):
-        return 2 * self.absorption_db_m * self.slant_range
-
-    @property
     def tvg(self):
         return (40 * np.log10(self.slant_range)) + self.attenuation - self.near_normal_corrector
 
-    @property
-    def area_correction(self):
-        area_beam_limited = self.tx_beam_width * self.rx_beam_width * ((self.slant_range * np.pi/180) ** 2)
-        area_pulse_limited = (self.surface_sound_speed * self.pulse_length * self.tx_beam_width * self.slant_range * (np.pi / 180)) / (2 * np.sin(np.abs(self.beam_angle)))
-        return 10 * np.log10(np.minimum(area_beam_limited, area_pulse_limited))
+    @classmethod
+    def return_settings(cls, fixed_gain_corrected: bool = True, tvg_corrected: bool = True,
+                        transmission_loss_corrected: bool = True, area_corrected: bool = True):
+        setts = super().return_settings(fixed_gain_corrected, tvg_corrected, transmission_loss_corrected, area_corrected)
+        if fixed_gain_corrected:
+            setts['fixed_gain_removed'] = f'no gain for .all file'
+        else:
+            setts['fixed_gain_removed'] = 'disabled by user'
+        if tvg_corrected:
+            setts['near_normal_corrector'] = cls.near_normal_description
+            setts['tvg_removed'] = f'40 * log10(svcorr slant range) + (2 * {cls.absorption_description} * svcorr slant range) - (near_normal_corrector)'
+        else:
+            setts['tvg_removed'] = 'disabled by user'
+        return setts
 
 
 class Kmallscatter(BScatter):
+    absorption_description = 'mrz.sounding.meanAbsCoeff_dbPerkm / 1000'
+    tx_beam_width_description = 'iip.sounding_size_deg (TX)'
+    rx_beam_width_description = 'iip.sounding_size_deg (RX)'
+    pulse_length_description = 'mrz.txSectorInfo.totalSignalLength_sec'
+    gain_selection_description = 'mrz.sounding.sourceLevelApplied_dB + mrz.sounding.receiverSensitivityApplied_dB'
+    tvg_description = 'mrz.sounding.TVG_dB'
+
     def __init__(self, runtime_parameters: dict, raw_intensity: xr.DataArray, slant_range: xr.DataArray, surface_sound_speed: xr.DataArray,
                  beam_angle: xr.DataArray, tx_beam_width: float, rx_beam_width: float, pulse_length: xr.DataArray, tvg: xr.DataArray,
                  fixedgain: xr.DataArray, absorption: xr.DataArray, plot_backscatter: bool = True):
         super().__init__(raw_intensity, slant_range, surface_sound_speed, beam_angle, plot_backscatter)
         self.runtime_parameters = runtime_parameters
+        self.absorption_db_m = absorption / 1000
         self.fixedgain = fixedgain
         self.tx_beam_width = tx_beam_width
         self.rx_beam_width = rx_beam_width
@@ -244,18 +310,23 @@ class Kmallscatter(BScatter):
         return self.fixedgain
 
     @property
-    def transmission_loss(self):
-        return 0.0
-
-    @property
     def tvg(self):
         return self.tvg_arr
 
-    @property
-    def area_correction(self):
-        area_beam_limited = self.tx_beam_width * self.rx_beam_width * ((self.slant_range * np.pi/180) ** 2)
-        area_pulse_limited = (self.surface_sound_speed * self.pulse_length * self.tx_beam_width * self.slant_range * (np.pi / 180)) / (2 * np.sin(np.abs(self.beam_angle)))
-        return 10 * np.log10(np.minimum(area_beam_limited, area_pulse_limited))
+    @classmethod
+    def return_settings(cls, fixed_gain_corrected: bool = True, tvg_corrected: bool = True,
+                        transmission_loss_corrected: bool = True, area_corrected: bool = True):
+        setts = super().return_settings(fixed_gain_corrected, tvg_corrected, transmission_loss_corrected,
+                                        area_corrected)
+        if fixed_gain_corrected:
+            setts['fixed_gain_removed'] = cls.gain_selection_description
+        else:
+            setts['fixed_gain_removed'] = 'disabled by user'
+        if tvg_corrected:
+            setts['tvg_removed'] = cls.tvg_description
+        else:
+            setts['tvg_removed'] = 'disabled by user'
+        return setts
 
 
 def distrib_run_process_backscatter(worker_dat: list):
@@ -274,3 +345,16 @@ def distrib_run_process_backscatter(worker_dat: list):
         raise NotImplementedError(f'distrib_run_process_backscatter: filetype {multibeam_extension} is not currently supported for backscatter processing')
     pscatter = bclass.process(**backscatter_settings)
     return pscatter
+
+
+def return_backscatter_settings(multibeam_extension: str, fixed_gain_corrected: bool = True, tvg_corrected: bool = True,
+                                transmission_loss_corrected: bool = True, area_corrected: bool = True):
+    if multibeam_extension == '.s7k':
+        setts = S7kscatter.return_settings(fixed_gain_corrected, tvg_corrected, transmission_loss_corrected, area_corrected)
+    elif multibeam_extension == '.all':
+        setts = Allscatter.return_settings(fixed_gain_corrected, tvg_corrected, transmission_loss_corrected, area_corrected)
+    elif multibeam_extension == '.kmall':
+        setts = Kmallscatter.return_settings(fixed_gain_corrected, tvg_corrected, transmission_loss_corrected, area_corrected)
+    else:
+        raise NotImplementedError(f'return_backscatter_settings: filetype {multibeam_extension} is not currently supported for backscatter processing')
+    return setts
