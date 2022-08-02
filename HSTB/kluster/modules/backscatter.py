@@ -471,6 +471,22 @@ class Kmallscatter(BScatter):
 
 
 def distrib_run_process_backscatter(worker_dat: list):
+    """
+    Convenience function for mapping process across cluster.  Assumes that you are mapping this function with a
+    list of data.
+
+    Parameters
+    ----------
+    worker_dat
+        depending on sonar manufacturer, will at least include [raw_intensity, slant_range, surface_sound_speed, beam_angle]
+        as the first entries.  See the init for the different backscatter classes.
+
+    Returns
+    -------
+    xr.Dataarray
+        xarray Dataarray of the processed backscattering strength
+    """
+
     multibeam_extension = worker_dat[-1]
     backscatter_settings = worker_dat[-2]
     if multibeam_extension == '.all':
@@ -490,6 +506,28 @@ def distrib_run_process_backscatter(worker_dat: list):
 
 def return_backscatter_settings(multibeam_extension: str, fixed_gain_corrected: bool = True, tvg_corrected: bool = True,
                                 transmission_loss_corrected: bool = True, area_corrected: bool = True):
+    """
+    Return the basic formula/descriptions for each corrector enabled and this given sonar file extension.
+
+    Parameters
+    ----------
+    multibeam_extension
+        one of [.all, .s7k, .kmall]
+    fixed_gain_corrected
+        if True, will return descriptor for removing fixed_gain from raw reflectivity
+    tvg_corrected
+        if True, will return descriptor for removing tvg from raw reflectivity
+    transmission_loss_corrected
+        if True, will return descriptor for adding on the transmission loss corrector
+    area_corrected
+        if True, will return descriptor for adding on the area correction
+
+    Returns
+    -------
+    dict
+        dict of processing settings for the given inputs
+    """
+    
     if multibeam_extension == '.s7k':
         setts = S7kscatter.return_settings(fixed_gain_corrected, tvg_corrected, transmission_loss_corrected, area_corrected)
     elif multibeam_extension == '.all':
