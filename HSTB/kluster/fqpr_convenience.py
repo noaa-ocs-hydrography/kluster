@@ -872,6 +872,7 @@ def return_avg_tables(fqpr_inst: list = None, avg_bin_size: float = 1.0, avg_ang
                 raise ValueError(f'_avgcorrect_fqprs: using existing avg tables, but unable to find avg table in FQPR {fq.output_folder}')
     else:
         if avg_line:
+            print(f'Using line {avg_line} to determine AVG corrector...')
             found_fq = None
             for fq in fqpr_inst:
                 if fq.line_attributes(avg_line) is not None:
@@ -883,6 +884,7 @@ def return_avg_tables(fqpr_inst: list = None, avg_bin_size: float = 1.0, avg_ang
         else:
             found_fq = fqpr_inst[0]
             first_line = list(found_fq.multibeam.raw_ping[0].multibeam_files.keys())[0]
+            print(f'Using line {first_line} to determine AVG corrector...')
             found_fq.subset_by_lines(first_line)
         bscatter = xr.concat([rp.backscatter for rp in found_fq.multibeam.raw_ping], dim='time')
         bangle = xr.concat([np.rad2deg(rp.corr_pointing_angle) for rp in found_fq.multibeam.raw_ping], dim='time')
@@ -1013,11 +1015,9 @@ def generate_new_mosaic(fqpr_inst: Union[Fqpr, list] = None, tile_size: float = 
             if resolution is None and fqpr_inst is not None:
                 print('generate_new_mosaic: resolution must be provided and be a power of two value to create a non-empty mosaic')
                 return None
-
+    if create_mosaic:
         print('Preparing data...')
         # add data to grid line by line
-
-    if create_mosaic:
         bg = create_grid(folder_path=output_path, grid_type='single_resolution', tile_size=tile_size, is_backscatter=True)
         if fqpr_inst is not None:
             if client is not None:
@@ -1038,12 +1038,11 @@ def generate_new_mosaic(fqpr_inst: Union[Fqpr, list] = None, tile_size: float = 
             bg.grid_resolution = float(resolution)
             bg.resolutions = []
             bg._save_grid()
-
-        endtime = perf_counter()
-        print('***** Mosaic Generation Complete: {} *****'.format(seconds_to_formatted_string(int(endtime - strttime))))
-        return bg
     else:
-        return None
+        bg = None
+    endtime = perf_counter()
+    print('***** Mosaic Generation Complete: {} *****'.format(seconds_to_formatted_string(int(endtime - strttime))))
+    return bg
 
 
 def update_surface(surface_instance: Union[str, BathyGrid], add_fqpr: Union[Fqpr, list] = None, add_lines: list = None,

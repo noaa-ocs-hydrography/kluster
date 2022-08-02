@@ -1774,19 +1774,21 @@ class KlusterMain(QtWidgets.QMainWindow):
         """
 
         pbscatter = self.mosaic_thread.opts['process_backscatter']
-        if pbscatter:
+        avgon = self.mosaic_thread.opts['angle_varying_gain']
+        if pbscatter or avgon:
             # processing backscatter will add the backscatter_settings and avg_table attributes, so we need to refresh attribution
             for fqpr in self.mosaic_thread.fqpr_instances:
                 self.project.refresh_fqpr_attribution(fqpr.output_folder, relative_path=False)
 
         fq_surf = self.mosaic_thread.fqpr_surface
-        if fq_surf is not None and not self.mosaic_thread.error:
-            relpath_surf = self.project.path_relative_to_project(os.path.normpath(fq_surf.output_folder))
-            if relpath_surf in self.project.surface_instances:
-                self.close_surface(relpath_surf)
-            self.project.add_surface(fq_surf)
-            self.project_tree.refresh_project(proj=self.project)
-            self.redraw()
+        if not self.mosaic_thread.error:
+            if self.mosaic_thread.opts['create_mosaic']:
+                relpath_surf = self.project.path_relative_to_project(os.path.normpath(fq_surf.output_folder))
+                if relpath_surf in self.project.surface_instances:
+                    self.close_surface(relpath_surf)
+                self.project.add_surface(fq_surf)
+                self.project_tree.refresh_project(proj=self.project)
+                self.redraw()
         else:
             self.print('Error building mosaic', logging.ERROR)
             self.print(self.mosaic_thread.exceptiontxt, logging.ERROR)

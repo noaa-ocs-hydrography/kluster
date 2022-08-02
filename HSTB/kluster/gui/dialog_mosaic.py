@@ -133,7 +133,7 @@ class MosaicDialog(SurfaceDialog):
                 bsizechk = False
             try:
                 tst = float(self.refangle.text())
-                assert 0 < tst <= 90
+                assert 0 <= tst <= 90
                 refanglechk = True
             except:
                 refanglechk = False

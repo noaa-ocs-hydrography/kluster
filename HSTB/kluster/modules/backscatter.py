@@ -73,33 +73,55 @@ def avg_correct(beam_angles_degrees: xr.DataArray, avg_corrector: dict):
 
 
 class BScatter:
+    """
+    Backscatter processing module for all sonars.  Inherit from this for your manufacturer specific model.
+    """
     absorption_description = ''
     tx_beam_width_description = ''
     rx_beam_width_description = ''
     pulse_length_description = ''
+    raw_intensity_description = ''
 
     def __init__(self, raw_intensity: xr.DataArray, slant_range: xr.DataArray, surface_sound_speed: xr.DataArray,
-                 beam_angle: xr.DataArray, plot_backscatter: bool):
-        self.raw_intensity = raw_intensity
-        self.slant_range = slant_range
-        self.surface_sound_speed = surface_sound_speed
-        self.beam_angle = beam_angle
+                 beam_angle: xr.DataArray, plot_backscatter: str = None):
+        """
+        Base class for all manufacturer specific backscatter classes.  The methods contained within are sonar agnostic.
+
+        Parameters
+        ----------
+        raw_intensity
+            see other Bscatter classes to get the origin of this
+        slant_range
+            kluster will calculate this using the svcorrected alongtrack/acrosstrack/depth values
+        surface_sound_speed
+            from converted multibeam data
+        beam_angle
+            the attitude/mounting angle corrected beam angles, in radians
+        plot_backscatter
+            if plot_backscatter is the path to a folder where you want the plots, this will save plots for you.  If
+            plot_backscatter=None, will skip plots.
+        """
+        self.raw_intensity = raw_intensity  #
+        self.slant_range = slant_range  #
+        self.surface_sound_speed = surface_sound_speed  #
+        self.beam_angle = beam_angle  #
+
+        # these are required by any inheriting class
         self.absorption_db_m = None
         self.tx_beam_width = None
         self.rx_beam_width = None
         self.pulse_length = None
 
-        # if plotting is enabled, will save the components to this dict
         self.plot_backscatter = plot_backscatter
         self.plot_components = {}
 
     @property
     def spherical_spreading(self):
-        return 40 * np.log10(self.slant_range)
+        return 20 * np.log10(self.slant_range)
 
     @property
     def transmission_loss(self):
-        return self.spherical_spreading + self.attenuation
+        return 2 * (self.spherical_spreading + self.attenuation)
 
     @property
     def fixed_gain(self):
@@ -109,7 +131,7 @@ class BScatter:
     def attenuation(self):
         if self.absorption_db_m is None:
             raise NotImplementedError('Expected a sonar specific backscatter class to inherit this class to process')
-        return 2 * self.absorption_db_m * self.slant_range
+        return self.absorption_db_m * self.slant_range
 
     @property
     def tvg(self):
@@ -128,7 +150,7 @@ class BScatter:
                         transmission_loss_corrected: bool = True, area_corrected: bool = True):
         if not cls.absorption_description:
             raise NotImplementedError('Expected a sonar specific backscatter class to inherit this class to process')
-        setts = {}
+        setts = {'raw_intensity': cls.raw_intensity_description}
         if transmission_loss_corrected:
             setts['transmission_loss_corrector'] = f'40 * log10(svcorr slant range) + (2 * {cls.absorption_description} * svcorr slant range)'
         else:
@@ -142,37 +164,57 @@ class BScatter:
         return setts
 
     def _add_plot_component(self, pc_tag: str, data):
+        """
+        Record either all beams for the first ping of the given data, or the data itself if it is a float/int
+        """
         if self.plot_backscatter:
             try:
                 self.plot_components[pc_tag] = data.isel(time=0).values
             except AttributeError:
                 self.plot_components[pc_tag] = data
 
-    def _plot_backscatter_components(self):
-        drive_plots_to_file = isinstance(self.plot_backscatter, str)
-        if drive_plots_to_file:
+    def plot_backscatter_components(self):
+        if self.plot_backscatter:
             plt.ioff()  # turn off interactive plotting
             if os.path.isdir(self.plot_backscatter):
                 bscat_fname = os.path.join(self.plot_backscatter, 'backscatter_firstping_sample.png')
             elif os.path.isfile(self.plot_backscatter):
                 bscat_fname = os.path.join(os.path.splitext(self.plot_backscatter)[0] + '_sample.png')
-
-        bscat_figure = plt.figure(figsize=(12, 9))
-        plt.title('backscatter components of first ping')
-        plt.ylabel('dB')
-        plt.xlabel('beam')
-        for comp in self.plot_components.keys():
-            if isinstance(self.plot_components[comp], (float, int)):
-                plt.axhline(y=self.plot_components[comp], linestyle='dashed', label=comp)
             else:
-                plt.plot(self.plot_components[comp], label=comp)
-        plt.legend()
-        if drive_plots_to_file:
+                raise ValueError(f'plot_backscatter_components: Expected either a directory path, file path, or None, got plot_backscatter={self.plot_backscatter}')
+            bscat_figure = plt.figure(figsize=(12, 9))
+            plt.title('backscatter components of first ping')
+            plt.ylabel('dB')
+            plt.xlabel('beam')
+            for comp in self.plot_components.keys():
+                if isinstance(self.plot_components[comp], (float, int)):
+                    plt.axhline(y=self.plot_components[comp], linestyle='dashed', label=comp)
+                else:
+                    plt.plot(self.plot_components[comp], label=comp)
+            plt.legend()
             plt.savefig(bscat_fname)
-        plt.close(bscat_figure)
+            plt.close(bscat_figure)
 
     def process(self, fixed_gain_corrected: bool = True, tvg_corrected: bool = True,
                 transmission_loss_corrected: bool = True, area_corrected: bool = True):
+        """
+        Process the raw intensity for each of the given correctors.  Uses the following basic equation:
+
+        final intensity = raw intensity - fixed gain - manufacturer tvg + calculated transmission loss - calculated area correction
+
+        Will optionally save plots if you provided plot_backscatter.
+
+        Parameters
+        ----------
+        fixed_gain_corrected
+            if True, will remove fixed_gain from raw reflectivity
+        tvg_corrected
+            if True, will remove tvg from raw reflectivity
+        transmission_loss_corrected
+            if True, will add on the transmission loss corrector
+        area_corrected
+            if True, will add on the area correction
+        """
         out_intensity = self.raw_intensity
         self._add_plot_component('raw_intensity', out_intensity)
         if fixed_gain_corrected:
@@ -193,11 +235,16 @@ class BScatter:
             self._add_plot_component('area_correction_added', corrector)
         self._add_plot_component('final_intensity', out_intensity)
         if self.plot_backscatter:
-            self._plot_backscatter_components()
+            self.plot_backscatter_components()
         return out_intensity
 
 
 class S7kscatter(BScatter):
+    """
+    Backscatter processing module for the Reson .s7k format.  See the description class variables to get a sense
+    of where the raw data comes from.
+    """
+    # see s7k datagram definition document for more information about these entries.
     absorption_description = 'runtime parameters absorption_db_km'
     spreading_description = 'runtime parameters spreading_loss_db'
     power_selection_description = 'runtime parameters power_selection_db_re_1micropascal'
@@ -205,12 +252,16 @@ class S7kscatter(BScatter):
     rx_beam_width_description = 'runtime parameters ReceiveBeamWidth'
     pulse_length_description = 'runtime parameters tx_pulse_width_seconds'
     gain_selection_description = 'runtime parameters gain_selection_db'
+    raw_intensity_description = 'RawDetection7027 Intensity'
 
     def __init__(self, runtime_parameters: dict, raw_intensity: xr.DataArray, slant_range: xr.DataArray, surface_sound_speed: xr.DataArray,
-                 beam_angle: xr.DataArray, tx_beam_width: float, rx_beam_width: float, plot_backscatter: bool = True):
+                 beam_angle: xr.DataArray, tx_beam_width: float, rx_beam_width: float, plot_backscatter: str = None):
         super().__init__(raw_intensity, slant_range, surface_sound_speed, beam_angle, plot_backscatter)
+        # Kluster will process in 1000 ping chunks.  This runtime parameters is the entry that is nearest in time to this
+        #    chunk.
         self.runtime_parameters = runtime_parameters
 
+        # we rely on the runtime parameters for all of these variables.  Only the raw intensity is (time, beam) dim for s7k.
         self.absorption_db_m = float(self.runtime_parameters['absorption_db_km']) / 1000
         self.spreading_loss_db = float(self.runtime_parameters['spreading_loss_db'])
         self.power_selection_db_re_1micropascal = float(self.runtime_parameters['power_selection_db_re_1micropascal'])
@@ -222,15 +273,37 @@ class S7kscatter(BScatter):
 
     @property
     def fixed_gain(self):
+        """
+        For s7k, the fixed_gain that we can remove from the raw intensity is the user set gain + power.
+        """
         return self.gain_selection_db + self.power_selection_db_re_1micropascal
 
     @property
     def tvg(self):
-        return (self.spreading_loss_db * np.log10(self.slant_range)) + self.attenuation
+        """
+        For s7k, the tvg that we can remove from the raw intensity is calculated based on these other runtime parameters
+        and the calculated slant range.
+        """
+        return 2 * ((self.spreading_loss_db * np.log10(self.slant_range)) + self.attenuation)
 
     @classmethod
     def return_settings(cls, fixed_gain_corrected: bool = True, tvg_corrected: bool = True,
                         transmission_loss_corrected: bool = True, area_corrected: bool = True):
+        """
+        Return a dict of descriptions for each corrector
+
+        Parameters
+        ----------
+        fixed_gain_corrected
+            if True, will return descriptor for removing fixed_gain from raw reflectivity
+        tvg_corrected
+            if True, will return descriptor for removing tvg from raw reflectivity
+        transmission_loss_corrected
+            if True, will return descriptor for adding on the transmission loss corrector
+        area_corrected
+            if True, will return descriptor for adding on the area correction
+        """
+
         setts = super().return_settings(fixed_gain_corrected, tvg_corrected, transmission_loss_corrected, area_corrected)
         if fixed_gain_corrected:
             setts['fixed_gain_removed'] = f'{cls.gain_selection_description} + {cls.power_selection_description}'
@@ -244,36 +317,71 @@ class S7kscatter(BScatter):
 
 
 class Allscatter(BScatter):
+    """
+    Backscatter processing module for the Kongsberg .all format.  See the description class variables to get a sense
+    of where the raw data comes from.
+    """
+    # see .all datagram definition document for more information about these entries.
     absorption_description = 'runtime parameters AbsorptionCoefficent'
     tx_beam_width_description = 'runtime parameters TransmitBeamWidth'
     rx_beam_width_description = 'runtime parameters ReceiveBeamWidth'
     near_normal_description = '(BSnormal_dB - BSoblique_dB) * (1 - sqrt((range - minrange) / ((minrange / crossoverangle) - minrange)))'
     pulse_length_description = 'RangeandAngleDatagram SignalLength'
+    raw_intensity_description = 'SeaBedImage89 Reflectivity'
 
     def __init__(self, runtime_parameters: dict, raw_intensity: xr.DataArray, slant_range: xr.DataArray, surface_sound_speed: xr.DataArray,
                  beam_angle: xr.DataArray, tx_beam_width: float, rx_beam_width: float, near_normal_corrector: xr.DataArray,
-                 pulse_length: xr.DataArray, plot_backscatter: bool = True):
+                 pulse_length: xr.DataArray, plot_backscatter: str = None):
         super().__init__(raw_intensity, slant_range, surface_sound_speed, beam_angle, plot_backscatter)
+        # Kluster will process in 1000 ping chunks.  This runtime parameters is the entry that is nearest in time to this
+        #    chunk.
         self.runtime_parameters = runtime_parameters
         self.absorption_db_m = float(self.runtime_parameters['AbsorptionCoefficent']) / 1000
-        self.tx_beam_width = tx_beam_width
-        self.rx_beam_width = rx_beam_width
-        self.near_normal_corrector = near_normal_corrector
-        self.pulse_length = pulse_length
+        self.tx_beam_width = tx_beam_width  # see tx_beam_width_description
+        self.rx_beam_width = rx_beam_width  # see rx_beam_width_description
+
+        # note that the near_normal_corrector relies on a number of different variables from the .all file.  Instead
+        #   of carrying all of that around in Kluster, Kluster will generate a 'nearnormal' variable on conversion.  See the
+        #   par3 module nearnormal_correction function.
+        self.near_normal_corrector = near_normal_corrector  # see near_normal_description
+        self.pulse_length = pulse_length  # see pulse_length_description
 
     @property
     def fixed_gain(self):
-        # there is a ReceiverFixedGain runtime parameter but it contains Mode2 for most sonar.  It appears to mostly be a legacy thing.
-        # from the docs "Receiver fixed gain setting in dB (only valid for) EM 2000, EM 1002, EM 3000, EM 3002, EM300, EM 120"
+        """
+        There is a ReceiverFixedGain runtime parameter but it contains Mode2 for most sonar.  It appears to mostly be a legacy thing.
+        from the docs "Receiver fixed gain setting in dB (only valid for) EM 2000, EM 1002, EM 3000, EM 3002, EM300, EM 120".
+
+        So for this module, we leave fixed gain at 0.
+        """
         return 0.0
 
     @property
     def tvg(self):
-        return (40 * np.log10(self.slant_range)) + self.attenuation - self.near_normal_corrector
+        """
+        Kluster uses a basic model for calculating the tvg used by Kongsberg to remove from the raw reflectivity, also
+        including the nearnormal corrector.
+        """
+        return 2 * ((20 * np.log10(self.slant_range)) + self.attenuation) - self.near_normal_corrector
 
     @classmethod
     def return_settings(cls, fixed_gain_corrected: bool = True, tvg_corrected: bool = True,
                         transmission_loss_corrected: bool = True, area_corrected: bool = True):
+        """
+        Return a dict of descriptions for each corrector
+
+        Parameters
+        ----------
+        fixed_gain_corrected
+            if True, will remove fixed_gain from raw reflectivity
+        tvg_corrected
+            if True, will remove tvg from raw reflectivity
+        transmission_loss_corrected
+            if True, will add on the transmission loss corrector
+        area_corrected
+            if True, will add on the area correction
+        """
+
         setts = super().return_settings(fixed_gain_corrected, tvg_corrected, transmission_loss_corrected, area_corrected)
         if fixed_gain_corrected:
             setts['fixed_gain_removed'] = f'no gain for .all file'
@@ -288,36 +396,67 @@ class Allscatter(BScatter):
 
 
 class Kmallscatter(BScatter):
-    absorption_description = 'mrz.sounding.meanAbsCoeff_dbPerkm / 1000'
-    tx_beam_width_description = 'iip.sounding_size_deg (TX)'
-    rx_beam_width_description = 'iip.sounding_size_deg (RX)'
-    pulse_length_description = 'mrz.txSectorInfo.totalSignalLength_sec'
-    gain_selection_description = 'mrz.sounding.sourceLevelApplied_dB + mrz.sounding.receiverSensitivityApplied_dB'
-    tvg_description = 'mrz.sounding.TVG_dB'
+    """
+    Backscatter processing module for the Kongsberg .kmall format.  See the description class variables to get a sense
+    of where the raw data comes from.
+    """
+    # see kmall datagram definition document for more information about these entries.
+    absorption_description = 'MRZ sounding meanAbsCoeff_dbPerkm / 1000'
+    tx_beam_width_description = 'IIP sounding_size_deg (TX)'
+    rx_beam_width_description = 'IIP sounding_size_deg (RX)'
+    pulse_length_description = 'MRZ txSectorInfo totalSignalLength_sec'
+    gain_selection_description = 'MRZ sounding sourceLevelApplied_dB + MRZ sounding receiverSensitivityApplied_dB'
+    tvg_description = 'MRZ sounding TVG_dB'
+    raw_intensity_description = ' MRZ sounding reflectivity2_dB'
 
     def __init__(self, runtime_parameters: dict, raw_intensity: xr.DataArray, slant_range: xr.DataArray, surface_sound_speed: xr.DataArray,
                  beam_angle: xr.DataArray, tx_beam_width: float, rx_beam_width: float, pulse_length: xr.DataArray, tvg: xr.DataArray,
-                 fixedgain: xr.DataArray, absorption: xr.DataArray, plot_backscatter: bool = True):
+                 fixedgain: xr.DataArray, absorption: xr.DataArray, plot_backscatter: str = None):
+
         super().__init__(raw_intensity, slant_range, surface_sound_speed, beam_angle, plot_backscatter)
+        # Kluster will process in 1000 ping chunks.  This runtime parameters is the entry that is nearest in time to this
+        #    chunk.
         self.runtime_parameters = runtime_parameters
         self.absorption_db_m = absorption / 1000
-        self.fixedgain = fixedgain
-        self.tx_beam_width = tx_beam_width
-        self.rx_beam_width = rx_beam_width
-        self.pulse_length = pulse_length
-        self.tvg_arr = tvg
+        self.fixedgain = fixedgain  # see gain_selection_description
+        self.tx_beam_width = tx_beam_width  # see tx_beam_width_description
+        self.rx_beam_width = rx_beam_width  # see rx_beam_width_description
+        self.pulse_length = pulse_length  # see pulse_length_description
+        self.tvg_arr = tvg  # see tvg_description
 
     @property
     def fixed_gain(self):
+        """
+        For kmall, the fixed_gain that we can remove from the reflectivity2 is the sourceLevel + receiverSensitivity,
+        kluster will combine both of these on conversion into the 'fixedgain' variable.
+        """
         return self.fixedgain
 
     @property
     def tvg(self):
+        """
+        Kluster will use the converted kmall tvg variable to represent the tvg to remove from reflectivity2
+        """
         return self.tvg_arr
 
     @classmethod
     def return_settings(cls, fixed_gain_corrected: bool = True, tvg_corrected: bool = True,
                         transmission_loss_corrected: bool = True, area_corrected: bool = True):
+        """
+        Return a dict of descriptions for each corrector
+
+        Parameters
+        ----------
+        fixed_gain_corrected
+            if True, will remove fixed_gain from raw reflectivity
+        tvg_corrected
+            if True, will remove tvg from raw reflectivity
+        transmission_loss_corrected
+            if True, will add on the transmission loss corrector
+        area_corrected
+            if True, will add on the area correction
+        """
+
         setts = super().return_settings(fixed_gain_corrected, tvg_corrected, transmission_loss_corrected,
                                         area_corrected)
         if fixed_gain_corrected:
