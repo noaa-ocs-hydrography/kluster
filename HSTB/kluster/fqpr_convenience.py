@@ -1096,6 +1096,10 @@ def update_surface(surface_instance: Union[str, BathyGrid], add_fqpr: Union[Fqpr
         if surface_instance is None:
             return None, None, None
 
+    if surface_instance.is_backscatter:
+        print('update_surface: updating backscatter surfaces is not currently implemented')
+        return None, None, None
+
     if surface_instance.grid_algorithm == 'cube':
         print('compiling cube algorithm...')
         compile_now()
