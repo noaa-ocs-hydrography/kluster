@@ -1896,6 +1896,7 @@ class KlusterMain(QtWidgets.QMainWindow):
                 relsurf = self.project.path_relative_to_project(first_surf)
                 if relsurf in self.project.surface_instances:
                     dlog.update_vert_ref(self.project.surface_instances[relsurf].vertical_reference)
+                    dlog.update_isbackscatter(self.project.surface_instances[relsurf].is_backscatter)
             cancelled = False
             if dlog.exec_():
                 if not dlog.canceled:
