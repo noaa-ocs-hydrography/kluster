@@ -5,7 +5,7 @@ from HSTB.kluster.gui.dialog_surface import *
 
 class MosaicDialog(SurfaceDialog):
     """
-    Dialog for selecting surfacing options that we want to use to generate a new surface.
+    Dialog for selecting mosaicing options that we want to use to generate a new mosaic.
     """
 
     def __init__(self, parent=None, title='', settings=None):
@@ -35,18 +35,26 @@ class MosaicDialog(SurfaceDialog):
         self.bscatter_hbox1 = QtWidgets.QHBoxLayout()
         self.fgcorrect = QtWidgets.QCheckBox('Remove Fixed Gain')
         self.fgcorrect.setChecked(True)
+        self.fgcorrect.setToolTip('Remove the fixed gain that the sonar manufacturer has applied to the raw reflectivity.  This should\n'
+                                  'always be checked unless you are experimenting with these values.')
         self.bscatter_hbox1.addWidget(self.fgcorrect)
         self.tvgcorrect = QtWidgets.QCheckBox('Remove TVG')
         self.tvgcorrect.setChecked(True)
+        self.tvgcorrect.setToolTip('Remove the time varying gain that the sonar manufacturer has applied to the raw reflectivity.  This should\n'
+                                   'always be checked unless you are experimenting with these values.')
         self.bscatter_hbox1.addWidget(self.tvgcorrect)
         self.backscatter_layout.addLayout(self.bscatter_hbox1)
 
         self.bscatter_hbox2 = QtWidgets.QHBoxLayout()
         self.tlcorrect = QtWidgets.QCheckBox('Transmission Loss Correct')
         self.tlcorrect.setChecked(True)
+        self.tlcorrect.setToolTip('Add a calculated transmission loss corrector to the raw reflectivity.  This should\n'
+                                  'always be checked unless you are experimenting with these values.')
         self.bscatter_hbox2.addWidget(self.tlcorrect)
         self.areacorrect = QtWidgets.QCheckBox('Area Correct')
         self.areacorrect.setChecked(True)
+        self.areacorrect.setToolTip('Add a calculated insonified area correction to the raw reflectivity.  This should\n'
+                                    'always be checked unless you are experimenting with these values.')
         self.bscatter_hbox2.addWidget(self.areacorrect)
         self.backscatter_layout.addLayout(self.bscatter_hbox2)
 
@@ -59,25 +67,44 @@ class MosaicDialog(SurfaceDialog):
         self.avg_layout = QtWidgets.QVBoxLayout()
 
         self.avg_useexist = QtWidgets.QCheckBox('Use Existing')
+        self.avg_useexist.setToolTip('Correct backscatter for AVG when creating mosaic, using the AVG Corrector previously generated.')
         self.avg_layout.addWidget(self.avg_useexist)
 
         validator = QtGui.QDoubleValidator(0, 90, 3)
+        bstooltip = 'Size of the angle bins in the AVG corrector in degrees.  Smaller bins allow for more granular correction\n' \
+                    'at the cost of processing time.'
         self.avg_horiz_one = QtWidgets.QHBoxLayout()
         self.binsize_lbl = QtWidgets.QLabel('Bin Size (deg)')
+        self.binsize_lbl.setToolTip(bstooltip)
         self.avg_horiz_one.addWidget(self.binsize_lbl)
         self.binsize = QtWidgets.QLineEdit('1.0')
         self.binsize.setValidator(validator)
+        self.binsize.setToolTip(bstooltip)
         self.avg_horiz_one.addWidget(self.binsize)
+        refangtooltip = 'Reference angle used in building the AVG table.  Values in each bin are equal to "binned_average - refangle_binned_average".'
         self.refangle_lbl = QtWidgets.QLabel('Reference Angle (deg)')
+        self.refangle_lbl.setToolTip(refangtooltip)
         self.avg_horiz_one.addWidget(self.refangle_lbl)
         self.refangle = QtWidgets.QLineEdit('45.0')
         self.refangle.setValidator(validator)
+        self.refangle.setToolTip(refangtooltip)
         self.avg_horiz_one.addWidget(self.refangle)
         self.avg_layout.addLayout(self.avg_horiz_one)
 
         self.avg_groupbox.setLayout(self.avg_layout)
         self.toplayout.insertWidget(4, self.avg_groupbox)
         self.toplayout.insertWidget(4, QtWidgets.QLabel(''))
+
+        mode_tooltip = 'There are three different functions within generate new mosaic:\n\n' \
+                       '1. Process Backscatter - generate "backscatter" variable for each dataset and save that to disk.\n' \
+                       '2. AVG Corrector - build table of "angle": "db offset" for the datasets.  Save this to disk as well.\n' \
+                       '3. Create Mosaic - use the "backscatter" variable and the AVG Corrector (optionally) to build a backscatter mosaic.\n\n' \
+                       'You can select any/all of these to run.  Generally you want to select all three.  If you want to only make\n' \
+                       'the "backscatter" variable without a surface, only check Process Backscatter.  If you want to create a mosaic after\n' \
+                       'running this tool once, you can only check Create Mosaic to use existing "backscatter" and AVG Corrector.'
+        self.surf_options.setToolTip(mode_tooltip)
+        self.backscatter_groupbox.setToolTip(mode_tooltip)
+        self.avg_groupbox.setToolTip(mode_tooltip)
 
         self.basesrgrid_name = 'mosaic'
 

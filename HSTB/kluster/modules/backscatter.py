@@ -527,7 +527,7 @@ def return_backscatter_settings(multibeam_extension: str, fixed_gain_corrected: 
     dict
         dict of processing settings for the given inputs
     """
-    
+
     if multibeam_extension == '.s7k':
         setts = S7kscatter.return_settings(fixed_gain_corrected, tvg_corrected, transmission_loss_corrected, area_corrected)
     elif multibeam_extension == '.all':
