@@ -202,6 +202,7 @@ class SurfaceDialog(SaveStateDialog):
         self.canceled = False
         self.output_pth = None
         self.output_path_edited = False
+        self.basesrgrid_name = 'srgrid'
 
         self.basic_surface_group.toggled.connect(self._handle_basic_checked)
         self.line_surface_checkbox.toggled.connect(self._handle_line_checked)
@@ -297,8 +298,8 @@ class SurfaceDialog(SaveStateDialog):
                 self.output_pth = os.path.dirname(self.fqpr_inst[0])
                 curr_opts = self.grid_type.currentText()
                 if curr_opts == 'Single Resolution':
-                    outpth = os.path.join(self.output_pth, 'srgrid_{}_{}'.format(self.surf_method.currentText(),
-                                                                                 self.single_rez_resolution.currentText()).lower())
+                    outpth = os.path.join(self.output_pth, '{}_{}_{}'.format(self.basesrgrid_name, self.surf_method.currentText(),
+                                                                             self.single_rez_resolution.currentText()).lower())
                 elif curr_opts == 'Variable Resolution Tile':
                     outpth = os.path.join(self.output_pth, 'vrtilegrid_{}'.format(self.surf_method.currentText()).lower())
                 else:

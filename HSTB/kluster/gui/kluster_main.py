@@ -28,7 +28,7 @@ from HSTB.kluster.gui import dialog_vesselview, kluster_explorer, kluster_projec
     dialog_export, kluster_worker, kluster_interactive_console, dialog_basicplot, dialog_advancedplot, dialog_project_settings, \
     dialog_export_grid, dialog_layer_settings, dialog_settings, dialog_importppnav, dialog_overwritenav, dialog_surface_data, \
     dialog_about, dialog_patchtest, dialog_manualpatchtest, dialog_managedata, dialog_managesurface, \
-    dialog_reprocess, dialog_fileanalyzer, dialog_export_tracklines, dialog_filter, dialog_surfacefrompoints
+    dialog_reprocess, dialog_fileanalyzer, dialog_export_tracklines, dialog_filter, dialog_surfacefrompoints, dialog_mosaic
 from HSTB.kluster.fqpr_project import FqprProject
 from HSTB.kluster.fqpr_intelligence import FqprIntel
 from HSTB.kluster.fqpr_vessel import convert_from_fqpr_xyzrph, convert_from_vessel_xyzrph, compare_dict_data
@@ -167,6 +167,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.import_ppnav_thread = kluster_worker.ImportNavigationWorker(self)
         self.overwrite_nav_thread = kluster_worker.OverwriteNavigationWorker(self)
         self.surface_thread = kluster_worker.SurfaceWorker(self)
+        self.mosaic_thread = kluster_worker.MosaicWorker(self)
         self.surface_update_thread = kluster_worker.SurfaceUpdateWorker(self)
         self.export_thread = kluster_worker.ExportWorker(self)
         self.export_tracklines_thread = kluster_worker.ExportTracklinesWorker(self)
@@ -239,6 +240,8 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.import_ppnav_thread.finished.connect(self._kluster_import_ppnav_results)
         self.surface_thread.started.connect(self._start_action_progress)
         self.surface_thread.finished.connect(self._kluster_surface_generation_results)
+        self.mosaic_thread.started.connect(self._start_action_progress)
+        self.mosaic_thread.finished.connect(self._kluster_mosaic_generation_results)
         self.surface_update_thread.started.connect(self._start_action_progress)
         self.surface_update_thread.finished.connect(self._kluster_surface_update_results)
         self.export_thread.started.connect(self._start_action_progress)
@@ -442,6 +445,8 @@ class KlusterMain(QtWidgets.QMainWindow):
         overwritenav_action.triggered.connect(self._action_overwrite_nav)
         surface_action = QtWidgets.QAction('New Surface', self)
         surface_action.triggered.connect(self._action_surface_generation)
+        mosaic_action = QtWidgets.QAction('New Mosaic', self)
+        mosaic_action.triggered.connect(self._action_mosaic_generation)
         # patch_action = QtWidgets.QAction('Patch Test', self)
         # patch_action.triggered.connect(self._action_patch_test)
         filter_action = QtWidgets.QAction('Filter', self)
@@ -505,6 +510,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         process.addAction(overwritenav_action)
         process.addAction(importppnav_action)
         process.addAction(surface_action)
+        process.addAction(mosaic_action)
         process.addAction(filter_action)
         # process.addAction(patch_action)
 
@@ -1704,6 +1710,89 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.surface_thread.populate(None, {})
         self._stop_action_progress()
 
+    def kluster_mosaic_generation(self):
+        """
+        Takes all the selected fqpr instances in the project tree and runs the generate mosaic dialog to process those
+        instances.  Dialog allows for adding/removing instances.
+
+        If a dask client hasn't been setup in this Kluster run, we auto setup a dask LocalCluster for processing
+
+        Refreshes the project at the end to load in the new surface
+        """
+
+        if not self.no_threads_running():
+            self.print('Processing is already occurring.  Please wait for the process to finish', logging.WARNING)
+            cancelled = True
+        else:
+            cancelled = False
+            fqprspaths, fqprs = self.return_selected_fqprs()
+            dlog = dialog_mosaic.MosaicDialog(parent=self)
+            dlog.update_fqpr_instances(addtl_files=fqprspaths)
+            if dlog.exec_():
+                cancelled = dlog.canceled
+                opts = dlog.return_processing_options()
+                if opts is not None and not cancelled:
+                    surface_opts = opts
+                    fq_chunks = []
+                    fqprs = surface_opts.pop('fqpr_inst')
+
+                    if dlog.line_surface_checkbox.isChecked():  # we now subset the fqpr instances by lines selected
+                        fqprspaths, fqprs = self.return_selected_fqprs(subset_by_line=True, concatenate=False)
+                        for fq in fqprs:
+                            fq_chunks.extend([fq])
+                    else:
+                        for fq in fqprs:
+                            try:
+                                relfq = self.project.path_relative_to_project(fq)
+                            except:
+                                self.print('No project loaded, you must load some data before generating a surface', logging.ERROR)
+                                return
+                            if relfq not in self.project.fqpr_instances:
+                                self.print('Unable to find {} in currently loaded project'.format(relfq), logging.ERROR)
+                                return
+                            if relfq in self.project.fqpr_instances:
+                                fq_inst = self.project.fqpr_instances[relfq]
+                                # use the project client, or start a new LocalCluster if client is None
+                                # fq_inst.client = self.project.get_dask_client()
+                                fq_chunks.extend([fq_inst])
+                    for fq in fq_chunks:
+                        if not fq.is_processed(in_depth=False):
+                            self.print(f'{fq.output_folder} is not fully processed, current processing status={fq.status}', logging.ERROR)
+                            return
+                    if not dlog.canceled:
+                        # if the project has a client, use it here.  If None, BatchRead starts a new LocalCluster
+                        self.output_window.clear()
+                        self.mosaic_thread.populate(fq_chunks, opts)
+                        self.mosaic_thread.start()
+        if cancelled:
+            self.print('kluster_mosaic_generation: Processing was cancelled', logging.INFO)
+
+    def _kluster_mosaic_generation_results(self):
+        """
+        Method is run when the mosaic_thread signals completion.  All we need to do here is add the mosaic to the project
+        and display.
+        """
+
+        pbscatter = self.mosaic_thread.opts['process_backscatter']
+        if pbscatter:
+            # processing backscatter will add the backscatter_settings and avg_table attributes, so we need to refresh attribution
+            for fqpr in self.mosaic_thread.fqpr_instances:
+                self.project.refresh_fqpr_attribution(fqpr.output_folder, relative_path=False)
+
+        fq_surf = self.mosaic_thread.fqpr_surface
+        if fq_surf is not None and not self.mosaic_thread.error:
+            relpath_surf = self.project.path_relative_to_project(os.path.normpath(fq_surf.output_folder))
+            if relpath_surf in self.project.surface_instances:
+                self.close_surface(relpath_surf)
+            self.project.add_surface(fq_surf)
+            self.project_tree.refresh_project(proj=self.project)
+            self.redraw()
+        else:
+            self.print('Error building mosaic', logging.ERROR)
+            self.print(self.mosaic_thread.exceptiontxt, logging.ERROR)
+        self.mosaic_thread.populate(None, {})
+        self._stop_action_progress()
+
     def kluster_surfacefrompoints_generation(self):
         """
         Ask for input files to grid, supporting las and csv.  Dialog allows for adding/removing instances.
@@ -2836,6 +2925,12 @@ class KlusterMain(QtWidgets.QMainWindow):
         Connect menu action 'New Surface' with surface dialog
         """
         self.kluster_surface_generation()
+
+    def _action_mosaic_generation(self):
+        """
+        Connect menu action 'New Mosaic' with surface dialog
+        """
+        self.kluster_mosaic_generation()
 
     def _action_surfacefrompoints_generation(self):
         self.kluster_surfacefrompoints_generation()
