@@ -900,7 +900,7 @@ def return_avg_tables(fqpr_inst: list = None, avg_bin_size: float = 1.0, avg_ang
 
 def generate_new_mosaic(fqpr_inst: Union[Fqpr, list] = None, tile_size: float = 1024.0, gridding_algorithm: str = 'mean',
                         resolution: float = None, process_backscatter: bool = True, create_mosaic: bool = True,
-                        angle_varying_gain: bool = True, avg_angle: float = 45.0, avg_line: str = None, avg_bin_size: float = 5.0,
+                        angle_varying_gain: bool = True, avg_angle: float = 45.0, avg_line: str = None, avg_bin_size: float = 1.0,
                         overwrite_existing_avg: bool = True, process_backscatter_fixed_gain_corrected: bool = True,
                         process_backscatter_tvg_corrected: bool = True, process_backscatter_transmission_loss_corrected: bool = True,
                         process_backscatter_area_corrected: bool = True, use_dask: bool = False, output_path: str = None,

@@ -261,10 +261,28 @@ build_BSCorr(fname1, fname2, show_fig=False, save_fig=True)
 
 
 from HSTB.kluster.fqpr_convenience import reload_data, generate_new_mosaic
-fq = reload_data(r"C:\collab\dasktest\data_dir\EM304_KMALL_fromkongs\em304_105_04_28_2020")
-bs = generate_new_mosaic(fq, resolution=4.0, output_path=r"C:\collab\dasktest\data_dir\hassler_acceptance\refsurf\mosaic_4m")
+fq = reload_data(r"C:\collab\dasktest\data_dir\T51_from_Reson\T51_0_06_16_2021")
+bs = generate_new_mosaic(fq, resolution=4.0, output_path=r"C:\collab\dasktest\data_dir\T51_from_Reson\mosaictest")
 
 
 from HSTB.drivers.par3 import AllRead
 ad = AllRead(r"C:\collab\dasktest\data_dir\EM2040_Fairweather_SmallFile\0009_20170523_181119_FA2806.all")
 recs = ad.sequential_read_records()
+
+
+
+# chunks used during conversion
+# C:\collab\dasktest\data_dir\T51_from_Reson\20210616_102930_0_Odin_T51_Port.s7k 0 44152506
+# C:\collab\dasktest\data_dir\T51_from_Reson\20210616_102930_0_Odin_T51_Port.s7k 44152506 88305013
+# C:\collab\dasktest\data_dir\T51_from_Reson\20210616_105510_Odin_T51_Port.s7k 0 51413058
+# C:\collab\dasktest\data_dir\T51_from_Reson\20210616_105510_Odin_T51_Port.s7k 51413058 102826116
+
+# pings stacking up around 1623832187 to 1623832190
+
+from HSTB.drivers.prr3 import X7kRead
+ad = X7kRead(r"C:\collab\dasktest\data_dir\T51_from_Reson\20210616_102930_0_Odin_T51_Port.s7k", 44152506, 88305013)
+recs = ad.sequential_read_records()
+
+
+from HSTB.kluster.fqpr_convenience import convert_multibeam
+fq = convert_multibeam(r"C:\collab\dasktest\data_dir\T51_from_Reson\20210616_102930_0_Odin_T51_Port.s7k")

@@ -30,15 +30,17 @@ def generate_avg_corrector(corrected_bscatter: xr.DataArray, beam_angles_degrees
     bins = np.arange(-90, 90 + bin_size_degree, bin_size_degree)
     # get the mean bscatter value in each angle bin
     meanvals = corrected_bscatter.groupby_bins(beam_angles_degrees, bins, right=True).mean().values
+    # fill in nan with nearest, to extend out the corrector to all angles
     msk = np.isnan(meanvals)
+    meanvals[msk] = np.interp(np.flatnonzero(msk), np.flatnonzero(~msk), meanvals[~msk])
     # figure out which angle bin is closest to the desired reference angle to use as the reference value
-    refval_idx = np.max([np.argmin(np.abs(bins - reference_angle)), 1])
-    refval = meanvals[refval_idx - 1]
+    refval_idx = np.min([np.argmin(np.abs(bins - reference_angle)), len(meanvals) - 1])
+    refval = meanvals[refval_idx]
     # final avg correction is the difference between the angle-bin-mean value and the reference value.  Angles that are
     #  unused in the provided dataset are left as zero
 
     # cast to string here to allow dumping to json without serialization issues
-    lookup = {str(bins[idx]): str(meanvals[idx] - refval) if not msk[idx] else 0 for idx in range(len(meanvals))}
+    lookup = {str(bins[idx]): str(meanvals[idx] - refval) for idx in range(len(meanvals))}
     return lookup
 
 
