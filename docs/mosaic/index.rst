@@ -25,6 +25,11 @@ Mosaic generation consists of three steps:
 
 The recommended process is to leave all values as default.
 
+The result of the process is a new backscatter mosaic that is available under Surfaces in the Project Tree.  Select the intensity layer to view the gridded backscatter data.  You can right click on the surface name to adjust the 'Properties' to change the display of the grid or select 'Manage' to see some other useful utilities.
+
+.. image:: mosaic_5.png
+   :target: ../_images/mosaic_5.png
+
 About AVG Correction
 ======================
 So how does this correction actually work?  First, we need two parameters, bin size and reference angle.  With these two parameters, we can take a subset of your dataset, and build a lookup table of angle to corrector.
