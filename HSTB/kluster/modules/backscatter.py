@@ -217,7 +217,7 @@ class BScatter:
         area_corrected
             if True, will add on the area correction
         """
-        out_intensity = self.raw_intensity
+        out_intensity = self.raw_intensity.copy()
         self._add_plot_component('raw_intensity', out_intensity)
         if fixed_gain_corrected:
             corrector = self.fixed_gain
