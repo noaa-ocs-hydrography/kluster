@@ -817,7 +817,9 @@ def _validate_fqpr_for_mosaic(fqpr_instances: list):
         return False
 
     if not all_have_soundings:
-        print('_validate_fqpr_for_mosaic: No georeferenced soundings found')
+        for f in fqpr_instances:
+            if 'x' not in f.multibeam.raw_ping[0]:
+                print(f'_validate_fqpr_for_mosaic: No georeferenced soundings found in {f.output_folder}')
         return False
 
     try:
@@ -827,7 +829,9 @@ def _validate_fqpr_for_mosaic(fqpr_instances: list):
         return False
 
     if not all_have_backscatter:
-        print('_validate_fqpr_for_mosaic: No processed backscatter found')
+        for f in fqpr_instances:
+            if 'backscatter' not in f.multibeam.raw_ping[0]:
+                print(f'_validate_fqpr_for_mosaic: No processed backscatter found in {f.output_folder}')
         return False
     return True
 

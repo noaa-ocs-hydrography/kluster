@@ -1782,7 +1782,7 @@ class KlusterMain(QtWidgets.QMainWindow):
 
         fq_surf = self.mosaic_thread.fqpr_surface
         if not self.mosaic_thread.error:
-            if self.mosaic_thread.opts['create_mosaic']:
+            if self.mosaic_thread.opts['create_mosaic'] and fq_surf:
                 relpath_surf = self.project.path_relative_to_project(os.path.normpath(fq_surf.output_folder))
                 if relpath_surf in self.project.surface_instances:
                     self.close_surface(relpath_surf)
