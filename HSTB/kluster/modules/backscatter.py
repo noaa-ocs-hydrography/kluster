@@ -249,12 +249,12 @@ class S7kscatter(BScatter):
     # see s7k datagram definition document for more information about these entries.
     absorption_description = 'runtime parameters absorption_db_km'
     spreading_description = 'runtime parameters spreading_loss_db'
-    power_selection_description = 'runtime parameters power_selection_db_re_1micropascal'
+    power_selection_description = '20 * log10(runtime parameters PowerSelection)'
     tx_beam_width_description = 'runtime parameters ProjectorBeamWidthVertical'
     rx_beam_width_description = 'runtime parameters ReceiveBeamWidth'
     pulse_length_description = 'runtime parameters tx_pulse_width_seconds'
-    gain_selection_description = 'runtime parameters gain_selection_db'
-    raw_intensity_description = 'RawDetection7027 Intensity'
+    gain_selection_description = '20 * log10(runtime parameters GainSelection)'
+    raw_intensity_description = '20 * log10(RawDetection7027 Intensity)'
 
     def __init__(self, runtime_parameters: dict, raw_intensity: xr.DataArray, slant_range: xr.DataArray, surface_sound_speed: xr.DataArray,
                  beam_angle: xr.DataArray, tx_beam_width: float, rx_beam_width: float, plot_backscatter: str = None):
@@ -266,9 +266,9 @@ class S7kscatter(BScatter):
         # we rely on the runtime parameters for all of these variables.  Only the raw intensity is (time, beam) dim for s7k.
         self.absorption_db_m = float(self.runtime_parameters['absorption_db_km']) / 1000
         self.spreading_loss_db = float(self.runtime_parameters['spreading_loss_db'])
-        self.power_selection_db_re_1micropascal = float(self.runtime_parameters['power_selection_db_re_1micropascal'])
+        self.power_selection_db_re_1micropascal = 20 * np.log10(float(self.runtime_parameters['power_selection_db_re_1micropascal']))
         self.pulse_length = float(self.runtime_parameters['tx_pulse_width_seconds'])
-        self.gain_selection_db = float(self.runtime_parameters['gain_selection_db'])
+        self.gain_selection_db = 20 * np.log10(float(self.runtime_parameters['gain_selection_db']))
 
         self.tx_beam_width = tx_beam_width
         self.rx_beam_width = rx_beam_width

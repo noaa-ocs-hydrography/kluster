@@ -163,51 +163,6 @@ st.start_folder_monitor(r'C:\collab\dasktest\data_dir\tj_patch_test', is_recursi
 
 ###############################################################################################
 
-from HSTB.kluster.fqpr_generation import *
-from HSTB.kluster.fqpr_convenience import reload_data
-from HSTB.kluster.modules.georeference import *
-
-fq = reload_data(r"C:\collab\dasktest\data_dir\outputtest\EM2040_BHII")
-self = fq
-subset_time: list = None
-prefer_pp_nav: bool = True
-dump_data: bool = True
-delete_futs: bool = True
-vdatum_directory: str = None
-
-self._validate_georef_xyz(subset_time, dump_data)
-self.logger.info('****Georeferencing sound velocity corrected beam offsets****\n')
-starttime = perf_counter()
-
-self.logger.info('Using pyproj CRS: {}'.format(self.horizontal_crs.to_string()))
-
-skip_dask = False
-if self.client is None:  # small datasets benefit from just running it without dask distributed
-    skip_dask = True
-
-systems = self.multibeam.return_system_time_indexed_array(subset_time=subset_time)
-
-for s_cnt, system in enumerate(systems):
-    if system is None:  # get here if one of the heads is disabled (set to None)
-        continue
-    ra = self.multibeam.raw_ping[s_cnt]
-    sys_ident = ra.system_identifier
-    self.logger.info('Operating on system serial number = {}'.format(sys_ident))
-    self.initialize_intermediate_data(sys_ident, 'xyz')
-    pings_per_chunk, max_chunks_at_a_time = self.get_cluster_params()
-
-    for applicable_index, timestmp, prefixes in system:
-        self.logger.info('using installation params {}'.format(timestmp))
-        z_offset = float(self.multibeam.xyzrph[prefixes[0] + '_z'][timestmp])
-        idx_by_chunk = self.return_chunk_indices(applicable_index, pings_per_chunk)
-        data_for_workers = self._generate_chunks_georef(ra, idx_by_chunk, applicable_index, prefixes,
-                                                        timestmp, z_offset, prefer_pp_nav, vdatum_directory)
-        break
-    break
-
-sv_corr, alt, lon, lat, hdng, heave, wline, vert_ref, input_crs, horizontal_crs, z_offset, vdatum_directory = self.client.gather(data_for_workers[0])
-
-################################################################
 from HSTB.kluster.fqpr_convenience import reload_data
 import numpy as np
 
@@ -215,33 +170,6 @@ fq = reload_data(r"C:\Pydro21_Dev\NOAA\site-packages\Python38\git_repos\hstb_klu
 polygon = np.array([[-122.47798556, 47.78949665], [-122.47798556, 47.78895117], [-122.47771027, 47.78895117],
                     [-122.47771027, 47.78949665]])
 x, y, z, tvu, rejected, pointtime, beam = fq.return_soundings_in_polygon(polygon)
-
-###################################################################
-
-"""
-message 1003 has 1592 packets and 0.205% of file
-message 1012 has 4774 packets and 0.472% of file
-message 1013 has 4774 packets and 0.425% of file
-message 7000 has 1018 packets and 0.282% of file
-message 7001 has 1 packets and 0.007% of file
-message 7004 has 1018 packets and 6.541% of file
-message 7006 has 1018 packets and 6.958% of file
-message 7008 has 1007 packets and 83.734% of file
-message 7022 has 1 packets and 0.0% of file
-message 7200 has 1 packets and 0.0% of file
-message 7300 has 1 packets and 0.962% of file
-message 7503 has 1018 packets and 0.413% of file
-message 7777 has 2 packets and 0.001% of file
-"""
-
-from HSTB.drivers.prr3 import X7kRead
-
-fil = r"C:\collab\dasktest\data_dir\s7kdata\20140416_060218.s7k"
-tst = X7kRead(fil)
-tst.mapfile()
-
-dat = tst.getrecord(7004, 0)
-data = dat.full_settings
 
 ########################################################################
 from HSTB.kluster.fqpr_convenience import reload_data, generate_new_surface
@@ -280,7 +208,7 @@ recs = ad.sequential_read_records()
 # pings stacking up around 1623832187 to 1623832190
 
 from HSTB.drivers.prr3 import X7kRead
-ad = X7kRead(r"C:\collab\dasktest\data_dir\T51_from_Reson\20210616_102930_0_Odin_T51_Port.s7k", 44152506, 88305013)
+ad = X7kRead(r"C:\collab\dasktest\data_dir\T51_from_Reson\20210616_102930_0_Odin_T51_Port.s7k")
 recs = ad.sequential_read_records()
 
 
