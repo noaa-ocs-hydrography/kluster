@@ -1,0 +1,41 @@
+Allscatter
+==========
+
+.. currentmodule:: HSTB.kluster.modules.backscatter
+
+.. autoclass:: Allscatter
+   :show-inheritance:
+
+   .. rubric:: Attributes Summary
+
+   .. autosummary::
+
+      ~Allscatter.absorption_description
+      ~Allscatter.fixed_gain
+      ~Allscatter.near_normal_description
+      ~Allscatter.pulse_length_description
+      ~Allscatter.raw_intensity_description
+      ~Allscatter.rx_beam_width_description
+      ~Allscatter.tvg
+      ~Allscatter.tx_beam_width_description
+
+   .. rubric:: Methods Summary
+
+   .. autosummary::
+
+      ~Allscatter.return_settings
+
+   .. rubric:: Attributes Documentation
+
+   .. autoattribute:: absorption_description
+   .. autoattribute:: fixed_gain
+   .. autoattribute:: near_normal_description
+   .. autoattribute:: pulse_length_description
+   .. autoattribute:: raw_intensity_description
+   .. autoattribute:: rx_beam_width_description
+   .. autoattribute:: tvg
+   .. autoattribute:: tx_beam_width_description
+
+   .. rubric:: Methods Documentation
+
+   .. automethod:: return_settings

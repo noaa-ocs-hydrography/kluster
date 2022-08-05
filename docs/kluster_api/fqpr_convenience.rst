@@ -19,3 +19,5 @@ fqpr\_convenience module
    :skip: compile_now
    :skip: epsg_determinator
    :skip: return_zone_from_min_max_long
+   :skip: avg_correct
+   :skip: generate_avg_corrector

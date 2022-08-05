@@ -1,0 +1,45 @@
+S7kscatter
+==========
+
+.. currentmodule:: HSTB.kluster.modules.backscatter
+
+.. autoclass:: S7kscatter
+   :show-inheritance:
+
+   .. rubric:: Attributes Summary
+
+   .. autosummary::
+
+      ~S7kscatter.absorption_description
+      ~S7kscatter.fixed_gain
+      ~S7kscatter.gain_selection_description
+      ~S7kscatter.power_selection_description
+      ~S7kscatter.pulse_length_description
+      ~S7kscatter.raw_intensity_description
+      ~S7kscatter.rx_beam_width_description
+      ~S7kscatter.spreading_description
+      ~S7kscatter.tvg
+      ~S7kscatter.tx_beam_width_description
+
+   .. rubric:: Methods Summary
+
+   .. autosummary::
+
+      ~S7kscatter.return_settings
+
+   .. rubric:: Attributes Documentation
+
+   .. autoattribute:: absorption_description
+   .. autoattribute:: fixed_gain
+   .. autoattribute:: gain_selection_description
+   .. autoattribute:: power_selection_description
+   .. autoattribute:: pulse_length_description
+   .. autoattribute:: raw_intensity_description
+   .. autoattribute:: rx_beam_width_description
+   .. autoattribute:: spreading_description
+   .. autoattribute:: tvg
+   .. autoattribute:: tx_beam_width_description
+
+   .. rubric:: Methods Documentation
+
+   .. automethod:: return_settings

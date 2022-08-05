@@ -1,0 +1,43 @@
+Kmallscatter
+============
+
+.. currentmodule:: HSTB.kluster.modules.backscatter
+
+.. autoclass:: Kmallscatter
+   :show-inheritance:
+
+   .. rubric:: Attributes Summary
+
+   .. autosummary::
+
+      ~Kmallscatter.absorption_description
+      ~Kmallscatter.fixed_gain
+      ~Kmallscatter.gain_selection_description
+      ~Kmallscatter.pulse_length_description
+      ~Kmallscatter.raw_intensity_description
+      ~Kmallscatter.rx_beam_width_description
+      ~Kmallscatter.tvg
+      ~Kmallscatter.tvg_description
+      ~Kmallscatter.tx_beam_width_description
+
+   .. rubric:: Methods Summary
+
+   .. autosummary::
+
+      ~Kmallscatter.return_settings
+
+   .. rubric:: Attributes Documentation
+
+   .. autoattribute:: absorption_description
+   .. autoattribute:: fixed_gain
+   .. autoattribute:: gain_selection_description
+   .. autoattribute:: pulse_length_description
+   .. autoattribute:: raw_intensity_description
+   .. autoattribute:: rx_beam_width_description
+   .. autoattribute:: tvg
+   .. autoattribute:: tvg_description
+   .. autoattribute:: tx_beam_width_description
+
+   .. rubric:: Methods Documentation
+
+   .. automethod:: return_settings

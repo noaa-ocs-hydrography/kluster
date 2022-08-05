@@ -1,6 +1,22 @@
 Changes List
 ============
 
+Kluster v1.1.0 (8/5/2022)
+---------------------------
+ - sync with drivers 0.3.0
+    - include backscatter specific variables for all multibeam drivers
+    - fix for kmall sonar with varying beam counts across pings
+ - sync with bathygrid 1.3.10
+    - resolve bug with exporting backscatter surfaces
+
+ - add support for backscatter processing for .all, .kmall, .s7k
+ - new 'New Mosaic' processing, includes process_backscatter, avgcorrect, and mosaic creation
+ - backscatter processing will save the avg_table attribute to disk when using AVG correction
+ - backscatter processing will save backscatter_settings attribute to disk on process_backscatter, contains formulae used during processing
+ - allow for exporting mosaic to geotiff, csv
+ - mosaics by default will use the blackandwhite color map
+ - update documentation, add backscatter section
+
 Kluster v1.0.2 (7/25/2022)
 ---------------------------
  - sync with drivers 0.2.12

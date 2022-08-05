@@ -1,0 +1,51 @@
+BScatter
+========
+
+.. currentmodule:: HSTB.kluster.modules.backscatter
+
+.. autoclass:: BScatter
+   :show-inheritance:
+
+   .. rubric:: Attributes Summary
+
+   .. autosummary::
+
+      ~BScatter.absorption_description
+      ~BScatter.area_correction
+      ~BScatter.attenuation
+      ~BScatter.fixed_gain
+      ~BScatter.pulse_length_description
+      ~BScatter.raw_intensity_description
+      ~BScatter.rx_beam_width_description
+      ~BScatter.spherical_spreading
+      ~BScatter.transmission_loss
+      ~BScatter.tvg
+      ~BScatter.tx_beam_width_description
+
+   .. rubric:: Methods Summary
+
+   .. autosummary::
+
+      ~BScatter.plot_backscatter_components
+      ~BScatter.process
+      ~BScatter.return_settings
+
+   .. rubric:: Attributes Documentation
+
+   .. autoattribute:: absorption_description
+   .. autoattribute:: area_correction
+   .. autoattribute:: attenuation
+   .. autoattribute:: fixed_gain
+   .. autoattribute:: pulse_length_description
+   .. autoattribute:: raw_intensity_description
+   .. autoattribute:: rx_beam_width_description
+   .. autoattribute:: spherical_spreading
+   .. autoattribute:: transmission_loss
+   .. autoattribute:: tvg
+   .. autoattribute:: tx_beam_width_description
+
+   .. rubric:: Methods Documentation
+
+   .. automethod:: plot_backscatter_components
+   .. automethod:: process
+   .. automethod:: return_settings
