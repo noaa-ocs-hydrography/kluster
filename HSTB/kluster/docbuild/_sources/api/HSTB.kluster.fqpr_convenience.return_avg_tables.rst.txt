@@ -1,0 +1,6 @@
+return_avg_tables
+=================
+
+.. currentmodule:: HSTB.kluster.fqpr_convenience
+
+.. autofunction:: return_avg_tables

@@ -9,7 +9,9 @@ import matplotlib.pyplot as plt
 from datetime import datetime
 import laspy
 from pyproj import CRS, Transformer
+import json
 
+from HSTB.kluster.modules.backscatter import generate_avg_corrector, avg_correct
 from HSTB.kluster.fqpr_drivers import return_xyz_from_multibeam
 from HSTB.kluster.xarray_conversion import BatchRead
 from HSTB.kluster.fqpr_generation import Fqpr
@@ -463,6 +465,41 @@ def return_svcorr_xyz(filname: str, outfold: str = None, visualizations: bool = 
     return fqpr_inst, dset
 
 
+def _add_points_to_mosaic(fqpr_inst: Fqpr, bgrid: BathyGrid, fqpr_crs: int, fqpr_vertref: str, avg_table: list = None):
+    """
+    Add this FQPR instance to the backscatter bathygrid provided.
+    """
+
+    cont_name = os.path.split(fqpr_inst.output_folder)[1]
+    min_time = np.min([rp.time.values[0] for rp in fqpr_inst.multibeam.raw_ping])
+    max_time = np.max([rp.time.values[-1] for rp in fqpr_inst.multibeam.raw_ping])
+    multibeamfiles = list(fqpr_inst.multibeam.raw_ping[0].multibeam_files.keys())
+    if bgrid.epsg and (bgrid.epsg != fqpr_crs):
+        print(f'ERROR: this imported data {cont_name} has an EPSG of {fqpr_crs}, where the grid has an EPSG of {bgrid.epsg}')
+        return
+
+    print()
+    for mfile in multibeamfiles:
+        linedata = fqpr_inst.subset_variables_by_line(['x', 'y', 'corr_pointing_angle', 'backscatter'], line_names=mfile, filter_by_detection=True)
+        rp = linedata[mfile]
+        # drop nan values in georeferenced data, generally where number of beams vary between pings
+        data = rp.where(~np.isnan(rp['x']), drop=True)
+        if avg_table is not None:
+            acorr = avg_correct(np.rad2deg(data['corr_pointing_angle']), avg_table)
+        else:
+            acorr = 0.0
+        data = data.drop_vars('corr_pointing_angle')
+        # bathygrid is looking for a 'z' variable.
+        data = data.rename_vars({'backscatter': 'z'})
+        data['z'] = data['z'] - acorr
+        if data['z'].any():
+            try:
+                bgrid.add_points(data, '{}__{}'.format(cont_name, mfile), [mfile], fqpr_crs, fqpr_vertref, min_time=min_time, max_time=max_time)
+            except:
+                print(f'ERROR: this imported data {"{}__{}".format(cont_name, mfile)} was not able to be added to the surface')
+                continue
+
+
 def _add_points_to_surface(fqpr_inst: Union[dict, Fqpr], bgrid: BathyGrid, fqpr_crs: int, fqpr_vertref: str, add_lines: Union[list, str] = None):
     """
     Add this FQPR instance or dict of point data to the bathygrid provided.
@@ -722,7 +759,7 @@ def generate_new_surface(fqpr_inst: Union[Fqpr, list] = None, grid_type: str = '
             unique_crs = [fqpr_inst[0]['crs']]
             unique_vertref = [fqpr_inst[0]['vert_ref']]
         else:
-            raise NotImplementedError('generate_new_surface: Expected input data to either be a FQPR instance or a dict of variables')
+            raise NotImplementedError('generate_new_surface: Expected input data to either be a FQPR instance, a list of FQPR instances or a dict of variables')
 
         if unique_vertref is None or unique_crs is None:
             return None
@@ -764,6 +801,251 @@ def generate_new_surface(fqpr_inst: Union[Fqpr, list] = None, grid_type: str = '
 
     endtime = perf_counter()
     print('***** Surface Generation Complete: {} *****'.format(seconds_to_formatted_string(int(endtime - strttime))))
+    return bg
+
+
+def _validate_fqpr_for_mosaic(fqpr_instances: list):
+    """
+    Check to make sure all fqpr instances that we are trying to create mosaics for have the correct georeferenced data and
+    processed backscatter
+    """
+
+    try:
+        all_have_soundings = np.all(['x' in rp for f in fqpr_instances for rp in f.multibeam.raw_ping])
+    except AttributeError:
+        print('_validate_fqpr_for_mosaic: Invalid Fqpr instances passed in, could not find instance.multibeam.raw_ping[0].x')
+        return False
+
+    if not all_have_soundings:
+        for f in fqpr_instances:
+            if 'x' not in f.multibeam.raw_ping[0]:
+                print(f'_validate_fqpr_for_mosaic: No georeferenced soundings found in {f.output_folder}')
+        return False
+
+    try:
+        all_have_backscatter = np.all(['backscatter' in rp for f in fqpr_instances for rp in f.multibeam.raw_ping])
+    except AttributeError:
+        print('_validate_fqpr_for_mosaic: Invalid Fqpr instances passed in, could not find instance.multibeam.raw_ping[0].backscatter')
+        return False
+
+    if not all_have_backscatter:
+        for f in fqpr_instances:
+            if 'backscatter' not in f.multibeam.raw_ping[0]:
+                print(f'_validate_fqpr_for_mosaic: No processed backscatter found in {f.output_folder}')
+        return False
+    return True
+
+
+def return_avg_tables(fqpr_inst: list = None, avg_bin_size: float = 1.0, avg_angle: float = 45.0,
+                      avg_line: str = None, overwrite_existing_avg: bool = True):
+    """
+    Helper function for building the angle varying gain tables used during backscatter processing.  This function is
+    also wrapped into generate_new_mosaic, so you will most likely use it there.
+
+    Will return a list of the avg table dict for each fqpr_inst provided, and if new tables are created, will also
+    save the table to the 'avg_table' attribute in each fqpr object.
+
+    Parameters
+    ----------
+    fqpr_inst
+        list of instances of fqpr_generation.Fqpr class that contains generated backscatter data, see
+        perform_all_processing or reload_data.
+    avg_bin_size
+        the size of the bins in the avg table in degrees.
+    avg_angle
+        reference angle used in the angle varying gain process
+    avg_line
+        multibeam file name used for the subset of data used in angle varying gain process.  if None, will use the first
+        line in the first dataset
+    overwrite_existing_avg
+        if True, will overwrite the existing avg table with a new one.  if False, will use the existing avg table.
+
+    Returns
+    -------
+    dict
+        dictionary of {angles (degrees): avg correctors (dB)}
+    """
+
+    avg_tables = []
+    if not overwrite_existing_avg:
+        for fq in fqpr_inst:
+            try:
+                fqtbl = json.loads(fq.multibeam.raw_ping[0].attrs['avg_table'])
+                avg_tables.append({float(k): float(v) for k, v in fqtbl.items()})
+            except:
+                raise ValueError(f'_avgcorrect_fqprs: using existing avg tables, but unable to find avg table in FQPR {fq.output_folder}')
+    else:
+        if avg_line:
+            print(f'Using line {avg_line} to determine AVG corrector...')
+            found_fq = None
+            for fq in fqpr_inst:
+                if fq.line_attributes(avg_line) is not None:
+                    found_fq = fq
+                    found_fq.subset_by_lines(avg_line)
+                    break
+            if found_fq is None:
+                raise ValueError(f'_avgcorrect_fqprs: was provided avg line = {avg_line}, but was unable to find this line in any of the provided fqpr instances')
+        else:
+            found_fq = fqpr_inst[0]
+            first_line = list(found_fq.multibeam.raw_ping[0].multibeam_files.keys())[0]
+            print(f'Using line {first_line} to determine AVG corrector...')
+            found_fq.subset_by_lines(first_line)
+        bscatter = xr.concat([rp.backscatter for rp in found_fq.multibeam.raw_ping], dim='time')
+        bangle = xr.concat([np.rad2deg(rp.corr_pointing_angle) for rp in found_fq.multibeam.raw_ping], dim='time')
+        found_fq.restore_subset()
+        avgtbl = generate_avg_corrector(bscatter, bangle, avg_bin_size, avg_angle)
+        for fq in fqpr_inst:
+            fq.write_attribute_to_ping_records({'avg_table': json.dumps(avgtbl)})
+            fmt_avgtbl = {float(k): float(v) for k, v in avgtbl.items()}
+            avg_tables.append(fmt_avgtbl)
+
+    return avg_tables
+
+
+def generate_new_mosaic(fqpr_inst: Union[Fqpr, list] = None, tile_size: float = 1024.0, gridding_algorithm: str = 'mean',
+                        resolution: float = None, process_backscatter: bool = True, create_mosaic: bool = True,
+                        angle_varying_gain: bool = True, avg_angle: float = 45.0, avg_line: str = None, avg_bin_size: float = 1.0,
+                        overwrite_existing_avg: bool = True, process_backscatter_fixed_gain_corrected: bool = True,
+                        process_backscatter_tvg_corrected: bool = True, process_backscatter_transmission_loss_corrected: bool = True,
+                        process_backscatter_area_corrected: bool = True, use_dask: bool = False, output_path: str = None,
+                        export_path: str = None, export_format: str = 'geotiff', export_resolution: float = None,
+                        client: Client = None):
+    """
+    Using the bathygrid create_grid convenience function, process backscatter and generate a new single resolution
+    backscatter mosaic for the provided Kluster fqpr instance(s).  This is a three part process, including processing
+    backscatter and saving that data to disk as a new variable, generating avg table and correcting for angle varying gain,
+    building a new backscatter mosaic.  You can enable/disable these processes as you choose, for example:
+
+     - Create mosaic from existing backscatter data = process_backscatter=False, create_mosaic=True, angle_varying_gain=True, overwrite_existing_avg=False
+     - Create mosaic and process backscatter at the same time (what you do for new data) = default options
+     - Just process backscatter, no mosaic = process_backscatter=True, create_mosaic=False, angle_varying_gain=False
+
+    If fqpr_inst is provided and is not a list, generates a mosaic based on that specific fqpr converted instance.
+
+    If fqpr_inst provided is a list of fqpr instances, will concatenate these instances and build a single mosaic.
+
+    Returns an instance of the surface class and optionally saves the surface to disk.
+
+    Parameters
+    ----------
+    fqpr_inst
+        instance or list of instances of fqpr_generation.Fqpr class that contains generated backscatter data, see
+        perform_all_processing or reload_data.  If None is provided, will create an empty surface.
+    tile_size
+        main tile size, the size in meters of the tiles within the grid, a larger tile size will improve performance,
+        but size should be at most 1/2 the length/width of the survey area
+    gridding_algorithm
+        algorithm to grid by, one of 'mean'
+    resolution
+        resolution of the gridded data in the Tiles
+    process_backscatter
+        set to True if you want to generate the 'backscatter' variable and save this variable to disk, overwriting any
+        existing processed backscatter.  'backscatter' must exist for you to create a new mosaic.  Set to False only
+        if you want to use existing 'backscatter' variable
+    create_mosaic
+        set to True if you want to generate a new Bathygrid backscatter mosaic, saving to disk at output_path
+    angle_varying_gain
+        set to True if you want to normalize the processed 'backscatter' variable to the value at avg_angle prior to
+        generating the mosaic.  Will use avg_line or the first line in the first dataset to generate the avg table.  avg
+        table is then saved to the attribution in each fqpr provided.
+    avg_angle
+        if angle_varying_gain, reference angle used in the angle varying gain process
+    avg_line
+        if angle_varying_gain, multibeam file name used for the subset of data used in angle varying gain process.  if None, will use the first
+        line in the first dataset
+    avg_bin_size
+        if angle_varying_gain, the size of the bins in the avg table in degrees.
+    overwrite_existing_avg
+        if True, will overwrite the existing avg table with a new one, if angle_varying_gain is True.  if False, will
+        use the existing avg table.
+    process_backscatter_fixed_gain_corrected
+        if True and process_backscatter is True, will remove fixed gain from the raw reflectivity during backscatter processing,
+        default is True and should probably be left so except for research purposes.
+    process_backscatter_tvg_corrected
+        if True and process_backscatter is True, will remove tvg from the raw reflectivity during backscatter processing,
+        default is True and should probably be left so except for research purposes.
+    process_backscatter_transmission_loss_corrected
+        if True and process_backscatter is True, will add a transmission loss corrector to the raw reflectivity during backscatter processing,
+        default is True and should probably be left so except for research purposes.
+    process_backscatter_area_corrected
+        if True and process_backscatter is True, will add an insonified area corrector to the raw reflectivity during backscatter processing,
+        default is True and should probably be left so except for research purposes.
+    use_dask
+        if True, will start a dask LocalCluster instance and perform the gridding in parallel
+    output_path
+        if provided, will save the Bathygrid to this path
+    export_path
+        if provided, will export the Bathygrid to file using export_format and export_resolution
+    export_format
+        format option, one of 'csv', 'geotiff', 'bag'
+    export_resolution
+        if provided, will only export the given resolution
+    client
+        dask.distributed.Client instance, if you don't include this, it will automatically start a LocalCluster with the
+        default options, if you set use_dask to True
+
+    Returns
+    -------
+    BathyGrid
+        BathyGrid instance for the newly created surface
+    """
+
+    print('***** Generating new Bathygrid mosaic *****')
+    strttime = perf_counter()
+
+    avgtables = None
+    if fqpr_inst is not None:  # creating and adding data to a surface, validate the input data
+        if not isinstance(fqpr_inst, list):
+            fqpr_inst = [fqpr_inst]
+        if isinstance(fqpr_inst[0], Fqpr):
+            unique_crs, unique_vertref = _get_unique_crs_vertref(fqpr_inst)
+        else:
+            raise NotImplementedError('generate_new_mosaic: Expected input data to either be a FQPR instance a list of FQPR instances')
+
+        if unique_vertref is None or unique_crs is None:
+            return None
+
+        if process_backscatter:
+            for fq in fqpr_inst:
+                fq.process_backscatter(fixed_gain_corrected=process_backscatter_fixed_gain_corrected, tvg_corrected=process_backscatter_tvg_corrected,
+                                       transmission_loss_corrected=process_backscatter_transmission_loss_corrected, area_corrected=process_backscatter_area_corrected)
+        if angle_varying_gain:
+            print('Building AVG tables...')
+            avgtables = return_avg_tables(fqpr_inst, avg_bin_size, avg_angle, avg_line, overwrite_existing_avg)
+
+        if create_mosaic:
+            if not _validate_fqpr_for_mosaic(fqpr_inst):
+                return None
+            if resolution is None and fqpr_inst is not None:
+                print('generate_new_mosaic: resolution must be provided and be a power of two value to create a non-empty mosaic')
+                return None
+    if create_mosaic:
+        print('Preparing data...')
+        # add data to grid line by line
+        bg = create_grid(folder_path=output_path, grid_type='single_resolution', tile_size=tile_size, is_backscatter=True)
+        if fqpr_inst is not None:
+            if client is not None:
+                bg.client = client
+            for cnt, f in enumerate(fqpr_inst):
+                if avgtables:
+                    _add_points_to_mosaic(f, bg, unique_crs[0], unique_vertref[0], avg_table=avgtables[cnt])
+                else:
+                    _add_points_to_mosaic(f, bg, unique_crs[0], unique_vertref[0])
+
+            # now after all points are added, run grid with the options presented.  If empty grid, just save the parameters
+            print()
+            bg.grid(algorithm=gridding_algorithm, resolution=resolution, use_dask=use_dask)
+            if export_path:
+                bg.export(output_path=export_path, export_format=export_format, resolution=export_resolution)
+        else:  # save the gridding variables to the empty surface, so that you can add and regrid easily later without respecifying
+            bg.grid_algorithm = gridding_algorithm
+            bg.grid_resolution = float(resolution)
+            bg.resolutions = []
+            bg._save_grid()
+    else:
+        bg = None
+    endtime = perf_counter()
+    print('***** Mosaic Generation Complete: {} *****'.format(seconds_to_formatted_string(int(endtime - strttime))))
     return bg
 
 
@@ -817,6 +1099,10 @@ def update_surface(surface_instance: Union[str, BathyGrid], add_fqpr: Union[Fqpr
         surface_instance = reload_surface(surface_instance)
         if surface_instance is None:
             return None, None, None
+
+    if surface_instance.is_backscatter:
+        print('update_surface: updating backscatter surfaces is not currently implemented')
+        return None, None, None
 
     if surface_instance.grid_algorithm == 'cube':
         print('compiling cube algorithm...')

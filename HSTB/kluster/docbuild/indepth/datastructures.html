@@ -6,7 +6,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
-    <title>Data Structures &#8212; kluster 1.0.2 documentation</title>
+    <title>Data Structures &#8212; kluster 1.1.0 documentation</title>
     <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
     <link rel="stylesheet" type="text/css" href="../_static/alabaster.css" />
     <link rel="stylesheet" type="text/css" href="../_static/graphviz.css" />
@@ -192,10 +192,13 @@
 <li><p>_compute_orientation_complete - the time of the last orientation process, this is the first step in the Kluster processing pipeline</p></li>
 <li><p>_conversion_complete - the time of the last conversion process, the step that builds the Kluster datasets</p></li>
 <li><p>_georeference_soundings_complete - the time of the last georeferencing process, the fourth step in the Kluster processing pipeline</p></li>
+<li><p>_process_backscatter_complete - the time of the last process backscatter (see generate_new_mosaic), an optional 5th processing step in the pipeline</p></li>
 <li><p>_sound_velocity_correct_complete - the time of the last sound velocity correction process, the third step in the Kluster processing pipeline</p></li>
 <li><p>_soundings_last_cleaned - the time of the last sounding rejection process, either through filter or manually cleaning soundings in Points View</p></li>
 <li><p>_total_uncertainty_complete - the time of the last TPU process, the fifth step in the Kluster processing pipeline</p></li>
 <li><p>attributes_XXXXXXXXXXX - the attributes corresponding to a sound velocity profile, the XXXXXXXXXXX represents the time of the profile in UTC seconds</p></li>
+<li><p>avg_table - generated during backscatter processing, a lookup of ‘angle: backscatter corrector in dB’ applied during create mosaic</p></li>
+<li><p>backscatter_settings - a table generated during backscatter processing, contains the formulae and data types used during backscatter processing</p></li>
 <li><p>current_processing_status - the current status of the FQPR record, the last successful process run, see ‘status_lookup’</p></li>
 <li><p>geohashes - the geohash regions that each line goes through, see ‘Learn more about Kluster - Geohashes’</p></li>
 <li><p>horizontal_crs - the epsg for the horizontal coordinate reference system that we used to build the ‘x’ ‘y’ and ‘z’ data</p></li>
@@ -540,6 +543,10 @@
 <li class="toctree-l1"><a class="reference internal" href="../vessel_setup/index.html">Vessel Setup</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../processing/index.html">Processing</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../surface/index.html">Surfacing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mosaic/index.html">Backscatter</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mosaic/index.html#overview">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mosaic/index.html#about-avg-correction">About AVG Correction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mosaic/index.html#settings">Settings</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../sonar_acceptance/index.html">Sonar Acceptance</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../cleaning/index.html">Cleaning</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../products/index.html">Products</a></li>

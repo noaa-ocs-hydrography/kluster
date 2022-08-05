@@ -18,6 +18,7 @@ from HSTB.kluster.modules.georeference import distrib_run_georeference, vertical
     aviso_tide_correct, determine_aviso_grid, aviso_clear_model
 from HSTB.kluster.modules.tpu import distrib_run_calculate_tpu
 from HSTB.kluster.modules.filter import FilterManager
+from HSTB.kluster.modules.backscatter import distrib_run_process_backscatter, return_backscatter_settings
 from HSTB.kluster.xarray_conversion import BatchRead
 from HSTB.kluster.fqpr_vessel import trim_xyzrprh_to_times
 from HSTB.kluster.modules.visualizations import FqprVisualizations
@@ -94,12 +95,15 @@ class Fqpr(ZarrBackend):
         self.ideal_rx_vec = None
         self._using_sbet = False
 
+        # these are populated after the corresponding process, such that we can write them to disk later
         self.orientation_time_complete = ''
         self.bpv_time_complete = ''
         self.sv_time_complete = ''
         self.svmethod = ''
         self.georef_time_complete = ''
         self.tpu_time_complete = ''
+        self.backscatter_time_complete = ''
+        self.bscatter_settings = ''
 
         # plotting module
         self.plot = FqprVisualizations(self)
@@ -385,6 +389,16 @@ class Fqpr(ZarrBackend):
         else:
             self.logger.error(f'input_datum: Unable to set input datum with new datum {new_datum}')
             raise ValueError(f'input_datum: Unable to set input datum with new datum {new_datum}')
+
+    @property
+    def multibeam_extension(self):
+        """
+        The file extension of the multibeam file(s) used in this fqpr object
+        """
+
+        first_mbes_file = list(self.multibeam.raw_ping[0].multibeam_files.keys())[0]
+        mbes_ext = os.path.splitext(first_mbes_file)[1]
+        return mbes_ext
 
     def return_navigation(self, start_time: float = None, end_time: float = None, nav_source: str = 'raw'):
         """
@@ -1068,6 +1082,30 @@ class Fqpr(ZarrBackend):
             self.logger.info('nearest-in-distance-four-hours: selecting nearest cast for each {} pings...'.format(kluster_variables.ping_chunk_size))
         return data
 
+    def return_runtime_idx_nearestintime(self, idx_by_chunk: list):
+        """
+        Find the runtime parameter that is nearest to each chunk in the provided chunk arrays
+
+        Parameters
+        ----------
+        idx_by_chunk
+            list of xarray Datarrays, values are the integer indexes of the pings to use, coords are the time of ping
+
+        Returns
+        -------
+        list
+            list of dict objects for the runtime parameters that is nearest to each chunk
+        """
+
+        _, rparams = self.multibeam.return_runtime_and_installation_settings_dicts()
+        rtimes = list(rparams.keys())
+        rparams_for_chunks = []
+        for chnk in idx_by_chunk:
+            avgtme = float(chnk.time.mean())
+            rtime = rtimes[np.argmin([np.abs(float(rt) - avgtme) for rt in rtimes])]
+            rparams_for_chunks.append(rparams[rtime])
+        return rparams_for_chunks
+
     def return_applicable_casts(self, method='nearest_in_time'):
         """
         When we check for sound velocity correct actions, we look to see if any new sv profiles imported into the
@@ -1721,7 +1759,7 @@ class Fqpr(ZarrBackend):
         Returns
         -------
         list
-            list of lists, each list contains future objects for distrib_run_georeference, see georef_xyz
+            list of lists, each list contains future objects for distrib_run_georeference, see calculate_total_uncertainty
         """
 
         latency = self.motion_latency
@@ -1826,6 +1864,90 @@ class Fqpr(ZarrBackend):
             data_for_workers.append([fut_roll, fut_raw_point, fut_corr_point, fut_acrosstrack, fut_depthoffset, fut_soundspeed,
                                      fut_datumuncertainty, tpu_params, fut_qualityfactor, fut_npe, fut_epe, fut_dpe,
                                      fut_rpe, fut_ppe, fut_hpe, qf_type, self.vert_ref, image_generation[cnt]])
+        return data_for_workers
+
+    def _generate_chunks_backscatter(self, ra: xr.Dataset, backscatter_settings: dict, runtime_chunks: list,
+                                     idx_by_chunk: xr.DataArray, prefixes: str, timestmp: str, run_index: int, silent: bool = False):
+        """
+        Build out the chunks of data for submitting to the cluster for processing backscatter.
+
+        Parameters
+        ----------
+        ra
+            xarray Dataset for the raw_ping instance selected for processing
+        backscatter_settings
+            dict of backscatter processing settings
+        runtime_chunks
+            list of runtime parameters dict for each chunk
+        idx_by_chunk
+            xarray Datarray, values are the integer indexes of the pings to use, coords are the time of ping
+        prefixes
+            prefix identifier for the tx/rx, will vary for dual head systems
+        timestmp
+            timestamp of the installation parameters instance used
+        run_index
+            the run counter that we are currently on, used in the in memory workflow to figure out which intermediate chunks of data to use
+        silent
+            if True, does not print out the log messages
+
+        Returns
+        -------
+        list
+            list of lists, each list contains future objects for distrib_run_process_backscatter, see process_backscatter
+        """
+
+        tx_openingangle = self.multibeam.xyzrph[prefixes[0] + '_opening_angle'][timestmp]
+        rx_openingangle = self.multibeam.xyzrph[prefixes[1] + '_opening_angle'][timestmp]
+        mext = self.multibeam_extension
+        data_for_workers = []
+
+        # set the first chunk of the first write to build the backscatter sample image, provide a path to the folder to save in
+        image_generation = [False] * len(idx_by_chunk)
+        if not silent:
+            image_generation[0] = os.path.join(self.multibeam.converted_pth, 'ping_' + ra.system_identifier + '.zarr')
+
+        for cnt, chnk in enumerate(idx_by_chunk):
+            dchunk = []
+            slantrange = np.sqrt(ra.acrosstrack[chnk.values]**2 + ra.alongtrack[chnk.values]**2 + ra.depthoffset[chnk.values]**2)
+            dchunk.append(runtime_chunks[cnt])
+            try:
+                dchunk.append(self.client.scatter(ra.reflectivity[chnk.values]))
+                dchunk.append(self.client.scatter(slantrange))
+                dchunk.append(self.client.scatter(ra.soundspeed[chnk.values]))
+                dchunk.append(self.client.scatter(ra.corr_pointing_angle[chnk.values]))
+            except:  # get here if client is closed or doesnt exist
+                dchunk.append(ra.reflectivity[chnk.values])
+                dchunk.append(slantrange)
+                dchunk.append(ra.soundspeed[chnk.values])
+                dchunk.append(ra.corr_pointing_angle[chnk.values])
+            dchunk.append(tx_openingangle)
+            dchunk.append(rx_openingangle)
+            if mext == '.s7k':
+                pass
+            elif mext == '.all':
+                try:
+                    # dchunk.append(self.client.scatter(ra.nearnormalcorrect[chnk.values]))
+                    dchunk.append(self.client.scatter(ra.pulselength[chnk.values]))
+                except:  # get here if client is closed or doesnt exist
+                    # dchunk.append(ra.nearnormalcorrect[chnk.values])
+                    dchunk.append(ra.pulselength[chnk.values])
+            elif mext == '.kmall':
+                try:
+                    dchunk.append(self.client.scatter(ra.pulselength[chnk.values]))
+                    dchunk.append(self.client.scatter(ra.tvg[chnk.values]))
+                    dchunk.append(self.client.scatter(ra.fixedgain[chnk.values]))
+                    dchunk.append(self.client.scatter(ra.absorption[chnk.values]))
+                except:  # get here if client is closed or doesnt exist
+                    dchunk.append(ra.pulselength[chnk.values])
+                    dchunk.append(ra.tvg[chnk.values])
+                    dchunk.append(ra.fixedgain[chnk.values])
+                    dchunk.append(ra.absorption[chnk.values])
+            else:
+                raise NotImplementedError(f'process_backscatter: sonar file type {mext} not currently supported')
+            dchunk.append(image_generation[cnt])
+            dchunk.append(backscatter_settings)
+            dchunk.append(mext)
+            data_for_workers.append(dchunk)
         return data_for_workers
 
     def initialize_intermediate_data(self, sec_ident: str, ky: str):
@@ -2071,6 +2193,50 @@ class Fqpr(ZarrBackend):
                 err = 'calculate_total_uncertainty: unable to find {}'.format(req)
                 err += ' in ping data {}.  You must run georef_xyz first.'.format(
                     self.multibeam.raw_ping[0].system_identifier)
+                self.logger.error(err)
+                raise ValueError(err)
+
+    def _validate_process_backscatter(self, subset_time: list, dump_data: bool, iparams: dict, rparams: dict, multibeam_extension: str):
+        """
+        Validation routine for running process_backscatter.  Ensures you have all the data you need before kicking
+        off the process
+
+        Parameters
+        ----------
+        subset_time
+            List of unix timestamps in seconds, used as ranges for times that you want to process.
+        dump_data
+            if True dump the futures to the multibeam datastore
+        iparams
+            dict of timestamp: installation parameters record
+        rparams
+            dict of timestamp: runtime parameters record
+        multibeam_extension
+            multibeam file extension for the files used in this fqpr
+        """
+        self._validate_subset_time(subset_time, dump_data)
+
+        # no in memory workflow built just yet
+
+        if not iparams:
+            self.logger.error('process_backscatter: an installation parameters record is required to process backscatter.  Unable to find one for this dataset.')
+            raise ValueError('process_backscatter: an installation parameters record is required to process backscatter.  Unable to find one for this dataset.')
+        if not rparams:
+            self.logger.error('process_backscatter: a runtime parameters record is required to process backscatter.  Unable to find one for this dataset.')
+            raise ValueError('process_backscatter: a runtime parameters record is required to process backscatter.  Unable to find one for this dataset.')
+
+        required = ['reflectivity', 'acrosstrack', 'alongtrack', 'depthoffset', 'soundspeed', 'corr_pointing_angle']
+        if multibeam_extension == '.s7k':
+            pass
+        elif multibeam_extension == '.all':
+            required += ['pulselength']
+        elif multibeam_extension == '.kmall':
+            required += ['pulselength', 'fixedgain', 'tvg', 'absorption']
+
+        for req in required:
+            if req not in list(self.multibeam.raw_ping[0].keys()):
+                err = 'process_backscatter: unable to find {}'.format(req)
+                err += ' in ping data {}.  This record is required for this filetype for processing backscatter.'.format(self.multibeam.raw_ping[0].system_identifier)
                 self.logger.error(err)
                 raise ValueError(err)
 
@@ -2799,6 +2965,70 @@ class Fqpr(ZarrBackend):
             endtime = perf_counter()
             self.logger.info('****Calculating total uncertainty complete: {}****\n'.format(seconds_to_formatted_string(int(endtime - starttime))))
 
+    def process_backscatter(self, subset_time: list = None, dump_data: bool = True, fixed_gain_corrected: bool = True,
+                            tvg_corrected: bool = True, transmission_loss_corrected: bool = True, area_corrected: bool = True):
+        """
+        Correct the raw reflectivity for system and environmental effects, leaving the backscatter target strength.  Some parameters
+        are sonar manufacturer specific, see backscatter module.
+
+        Parameters
+        ----------
+        subset_time
+            List of unix timestamps in seconds, used as ranges for times that you want to process.
+        dump_data
+            if True dump the futures to the multibeam datastore.  Set this to false for an entirely in memory
+            workflow
+        fixed_gain_corrected
+            remove the fixed gain from the raw reflectivity, if any
+        tvg_corrected
+            correct for time varying gain
+        transmission_loss_corrected
+            correct for transmission loss
+        area_corrected
+            correct for an approximation of the effect of the insonified area
+        """
+
+        mext = self.multibeam_extension
+        iparams, rparams = self.multibeam.return_runtime_and_installation_settings_dicts()
+        backscatter_settings = {'fixed_gain_corrected': fixed_gain_corrected, 'tvg_corrected': tvg_corrected,
+                                'transmission_loss_corrected': transmission_loss_corrected, 'area_corrected': area_corrected}
+        self._validate_process_backscatter(subset_time, dump_data, iparams, rparams, mext)
+        if dump_data:
+            self.logger.info('****Processing Backscatter****\n')
+            starttime = perf_counter()
+
+        skip_dask = False
+        if self.client is None:  # small datasets benefit from just running it without dask distributed
+            skip_dask = True
+
+        systems = self.multibeam.return_system_time_indexed_array(subset_time=subset_time)
+        for s_cnt, system in enumerate(systems):
+            if system is None:  # get here if one of the heads is disabled (set to None)
+                continue
+            ra = self.multibeam.raw_ping[s_cnt]
+            sys_ident = ra.system_identifier
+            if dump_data:
+                self.logger.info('Operating on system serial number = {}'.format(sys_ident))
+            self.initialize_intermediate_data(sys_ident, 'backscatter')
+            pings_per_chunk, max_chunks_at_a_time = self.get_cluster_params()
+
+            for applicable_index, timestmp, prefixes in system:
+                if dump_data:
+                    self.logger.info('using installation params {}'.format(timestmp))
+                idx_by_chunk = self.return_chunk_indices(applicable_index, pings_per_chunk)
+                if len(idx_by_chunk[0]):  # if there are pings in this system that align with this installation parameter record
+                    self._submit_data_to_cluster(ra, 'backscatter', idx_by_chunk, max_chunks_at_a_time,
+                                                 timestmp, prefixes, dump_data=dump_data, skip_dask=skip_dask,
+                                                 backscatter_settings=backscatter_settings)
+                else:
+                    self.logger.info('No pings found for {}-{}'.format(sys_ident, timestmp))
+
+        if dump_data:
+            self.multibeam.reload_pingrecords(skip_dask=skip_dask)
+            self.subset.redo_subset()
+            endtime = perf_counter()
+            self.logger.info('****Processing Backscatter complete: {}****\n'.format(seconds_to_formatted_string(int(endtime - starttime))))
+
     def export_pings_to_file(self, output_directory: str = None, file_format: str = 'csv', csv_delimiter=' ',
                              filter_by_detection: bool = True, format_type: str = 'xyz', z_pos_down: bool = True, export_by_identifiers: bool = True):
         """
@@ -2874,7 +3104,7 @@ class Fqpr(ZarrBackend):
     def _submit_data_to_cluster(self, rawping: xr.Dataset, mode: str, idx_by_chunk: list, max_chunks_at_a_time: int,
                                 timestmp: str, prefixes: str, dump_data: bool = True, skip_dask: bool = False,
                                 prefer_pp_nav: bool = True, vdatum_directory: str = None,
-                                cast_selection_method: str = 'nearest_in_time'):
+                                cast_selection_method: str = 'nearest_in_time', backscatter_settings: dict = None):
         """
         For all of the main processes, we break up our inputs into chunks, appended to a list (data_for_workers).
         Knowing the capacity of the cluster memory, we can determine how many chunks to run at a time
@@ -2886,7 +3116,7 @@ class Fqpr(ZarrBackend):
         rawping
             xarray Dataset for the ping records
         mode
-            one of ['orientation', 'bpv', sv_corr', 'georef', 'tpu']
+            one of ['orientation', 'bpv', 'sv_corr', 'georef', 'tpu', 'backscatter']
         idx_by_chunk
             values are the integer indexes of the pings to use, coords are the time of ping
         max_chunks_at_a_time
@@ -2907,6 +3137,8 @@ class Fqpr(ZarrBackend):
         cast_selection_method
             the method used to select the cast that goes with each chunk of the dataset, one of ['nearest_in_time',
             'nearest_in_time_four_hours', 'nearest_in_distance', 'nearest_in_distance_four_hours']
+        backscatter_settings
+            dict of settings for processing backscatter, see backscatter.py Bscatter.process
         """
 
         # clear out the intermediate data just in case there is old data there
@@ -2964,9 +3196,16 @@ class Fqpr(ZarrBackend):
                 chunk_function = self._generate_chunks_tpu
                 comp_time = 'tpu_time_complete'
                 chunkargs = [rawping, idx_by_chunk_subset, prefixes, timestmp, start_run_index]
+            elif mode == 'backscatter':
+                kluster_function = distrib_run_process_backscatter
+                chunk_function = self._generate_chunks_backscatter
+                comp_time = 'backscatter_time_complete'
+                runtime_chunks = self.return_runtime_idx_nearestintime(idx_by_chunk_subset)
+                self.bscatter_settings = return_backscatter_settings(self.multibeam_extension, **backscatter_settings)
+                chunkargs = [rawping, backscatter_settings, runtime_chunks, idx_by_chunk_subset, prefixes, timestmp, start_run_index]
             else:
-                self.logger.error('Mode must be one of ["orientation", "bpv", "sv_corr", "georef", "tpu"]')
-                raise ValueError('Mode must be one of ["orientation", "bpv", "sv_corr", "georef", "tpu"]')
+                self.logger.error('Mode must be one of ["orientation", "bpv", "sv_corr", "georef", "tpu", "backscatter"]')
+                raise ValueError('Mode must be one of ["orientation", "bpv", "sv_corr", "georef", "tpu", "backscatter"]')
 
             data_for_workers = chunk_function(*chunkargs, silent=silent)
             try:
@@ -3000,7 +3239,7 @@ class Fqpr(ZarrBackend):
         Parameters
         ----------
         mode
-            one of ['orientation', 'bpv', sv_corr', 'georef', 'tpu']
+            one of ['orientation', 'bpv', sv_corr', 'georef', 'tpu', 'backscatter']
         sys_ident
             the multibeam system identifier attribute, used as a key to find the intermediate data
         timestmp
@@ -3067,9 +3306,16 @@ class Fqpr(ZarrBackend):
                               'current_processing_status': 5,
                               'reference': {'tvu': 'None', 'thu': 'None'},
                               'units': {'tvu': 'meters (+ down)', 'thu': 'meters'}}]
+        elif mode == 'backscatter':
+            mode_settings = ['backscatter', ['backscatter'],
+                             'processed backscatter data',
+                             {'_process_backscatter_complete': self.backscatter_time_complete,
+                              'backscatter_settings': self.bscatter_settings,
+                              'reference': {'backscatter': 'None'},
+                              'units': {'backscatter': 'dB'}}]
         else:
-            self.logger.error('Mode must be one of ["orientation", "bpv", "sv_corr", "georef", "tpu"]')
-            raise ValueError('Mode must be one of ["orientation", "bpv", "sv_corr", "georef", "tpu"]')
+            self.logger.error('Mode must be one of ["orientation", "bpv", "sv_corr", "georef", "tpu", "backscatter"]')
+            raise ValueError('Mode must be one of ["orientation", "bpv", "sv_corr", "georef", "tpu", "backscatter"]')
 
         futs_data = []
         for f in self.intermediate_dat[sys_ident][mode_settings[0]][timestmp]:

@@ -6,7 +6,7 @@ from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal
 from HSTB.kluster.fqpr_project import return_project_data, reprocess_fqprs
 from HSTB.kluster import kluster_variables
 from HSTB.kluster.fqpr_convenience import generate_new_surface, import_processed_navigation, overwrite_raw_navigation, \
-    update_surface, reload_data, reload_surface, points_to_surface
+    update_surface, reload_data, reload_surface, points_to_surface, generate_new_mosaic
 
 
 class ActionWorker(QtCore.QThread):
@@ -607,6 +607,40 @@ class SurfaceWorker(QtCore.QThread):
             elif self.mode == 'from_points':
                 self.parent().debug_print(f'points_to_surface {self.opts}', logging.INFO)
                 self.fqpr_surface = points_to_surface(self.fqpr_instances, **self.opts)
+        except Exception as e:
+            self.error = True
+            self.exceptiontxt = traceback.format_exc()
+        self.finished.emit(True)
+
+
+class MosaicWorker(QtCore.QThread):
+    """
+    Executes code in a seperate thread.
+    """
+
+    started = Signal(bool)
+    finished = Signal(bool)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.fqpr_instances = None
+        self.fqpr_surface = None
+        self.opts = {}
+        self.error = False
+        self.exceptiontxt = None
+
+    def populate(self, fqpr_instances, opts):
+        self.fqpr_instances = fqpr_instances
+        self.fqpr_surface = None
+        self.opts = opts
+        self.error = False
+        self.exceptiontxt = None
+
+    def run(self):
+        self.started.emit(True)
+        try:
+            self.parent().debug_print(f'generate_new_mosaic {self.opts}', logging.INFO)
+            self.fqpr_surface = generate_new_mosaic(self.fqpr_instances, **self.opts)
         except Exception as e:
             self.error = True
             self.exceptiontxt = traceback.format_exc()

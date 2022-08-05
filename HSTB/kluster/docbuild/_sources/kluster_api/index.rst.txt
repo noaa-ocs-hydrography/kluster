@@ -16,6 +16,7 @@ API
    svcorrect
    georeference
    tpu
+   backscatter
    visualizations
    sat
    wobble

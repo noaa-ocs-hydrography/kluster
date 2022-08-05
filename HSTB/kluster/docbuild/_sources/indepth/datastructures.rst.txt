@@ -187,10 +187,13 @@ The attributes window in Kluster shows the attributes from both datasets for you
 - _compute_orientation_complete - the time of the last orientation process, this is the first step in the Kluster processing pipeline
 - _conversion_complete - the time of the last conversion process, the step that builds the Kluster datasets
 - _georeference_soundings_complete - the time of the last georeferencing process, the fourth step in the Kluster processing pipeline
+- _process_backscatter_complete - the time of the last process backscatter (see generate_new_mosaic), an optional 5th processing step in the pipeline
 - _sound_velocity_correct_complete - the time of the last sound velocity correction process, the third step in the Kluster processing pipeline
 - _soundings_last_cleaned - the time of the last sounding rejection process, either through filter or manually cleaning soundings in Points View
 - _total_uncertainty_complete - the time of the last TPU process, the fifth step in the Kluster processing pipeline
 - attributes_XXXXXXXXXXX - the attributes corresponding to a sound velocity profile, the XXXXXXXXXXX represents the time of the profile in UTC seconds
+- avg_table - generated during backscatter processing, a lookup of 'angle: backscatter corrector in dB' applied during create mosaic
+- backscatter_settings - a table generated during backscatter processing, contains the formulae and data types used during backscatter processing
 - current_processing_status - the current status of the FQPR record, the last successful process run, see 'status_lookup'
 - geohashes - the geohash regions that each line goes through, see 'Learn more about Kluster - Geohashes'
 - horizontal_crs - the epsg for the horizontal coordinate reference system that we used to build the 'x' 'y' and 'z' data

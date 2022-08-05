@@ -241,6 +241,9 @@ def _validate_sequential_read_ping(recs: dict):
                          'modetwo', 'yawpitchstab']
         required_ping_dtype = ['float64', 'uint32', 'float32', 'uint64', 'float32', 'float32', 'int32', 'float32',
                                'uint8', 'int32', 'float32', 'float32', 'uint8', 'u2-u5', 'u2-u5', 'u2-u5']
+    optional_ping = ['reflectivity', 'nearnormalcorrect', 'pulselength', 'absorption', 'tvg']
+    optional_ping_dtype = ['float32', 'float32', 'float32', 'float32', 'float32']
+
     try:
         assert all([pms in recs['ping'] for pms in required_ping])
     except AssertionError:
@@ -268,11 +271,12 @@ def _validate_sequential_read_ping(recs: dict):
         except AssertionError:
             raise ValueError(f'sequential_read: All ping records must be of the required data type. Records: {required_ping}, '
                              f'Dtype: {[recs["ping"][pms].dtype for pms in required_ping]}, Required Dtype: {required_ping_dtype}')
-        if 'reflectivity' in recs['ping']:
-            try:
-                assert recs['ping']['reflectivity'].dtype == 'float32'
-            except AssertionError:
-                raise ValueError(f'sequential_read: expected reflectivity record with dtype of "float32", found {recs["ping"]["reflectivity"].dtype}')
+        for prec, prectype in zip(optional_ping, optional_ping_dtype):
+            if prec in recs['ping']:
+                try:
+                    assert recs['ping'][prec].dtype == prectype
+                except AssertionError:
+                    raise ValueError(f'sequential_read: expected {prec} record with dtype of {prectype}, found {recs["ping"][prec].dtype}')
 
 
 def _validate_sequential_read_runtime(recs: dict):

@@ -1019,14 +1019,14 @@ class FqprVisualizations:
         That image is saved within the ping zarr folder.  This method will show the image for you to see.
         """
 
-        first_sysid = self.fqpr.multibeam.raw_ping[0].system_identifier
-        ping_path = self.fqpr._get_zarr_path('ping', first_sysid)
-        tvu_image = os.path.join(ping_path, 'vertical_tpu_sample.png')
-        if os.path.exists(tvu_image):
-            print('Opening {}'.format(tvu_image))
-            os.startfile(tvu_image)
-        else:
-            print('Unable to find {}'.format(tvu_image))
+        for rp in self.fqpr.multibeam.raw_ping:
+            ping_path = self.fqpr._get_zarr_path('ping', rp.system_identifier)
+            tvu_image = os.path.join(ping_path, 'vertical_tpu_sample.png')
+            if os.path.exists(tvu_image):
+                print('Opening {}'.format(tvu_image))
+                os.startfile(tvu_image)
+            else:
+                print('Unable to find {}'.format(tvu_image))
 
     def plot_thu_sample(self):
         """
@@ -1034,14 +1034,28 @@ class FqprVisualizations:
         That image is saved within the ping zarr folder.  This method will show the image for you to see.
         """
 
-        first_sysid = self.fqpr.multibeam.raw_ping[0].system_identifier
-        ping_path = self.fqpr._get_zarr_path('ping', first_sysid)
-        thu_image = os.path.join(ping_path, 'horizontal_tpu_sample.png')
-        if os.path.exists(thu_image):
-            print('Opening {}'.format(thu_image))
-            os.startfile(thu_image)
-        else:
-            print('Unable to find {}'.format(thu_image))
+        for rp in self.fqpr.multibeam.raw_ping:
+            ping_path = self.fqpr._get_zarr_path('ping', rp.system_identifier)
+            thu_image = os.path.join(ping_path, 'horizontal_tpu_sample.png')
+            if os.path.exists(thu_image):
+                print('Opening {}'.format(thu_image))
+                os.startfile(thu_image)
+            else:
+                print('Unable to find {}'.format(thu_image))
+
+    def plot_backscatter_sample(self):
+        """
+        After running process_backscatter, we get an image for the first ping to see the different components of the
+        backscatter processing.  This method will show the image for you to see.
+        """
+        for rp in self.fqpr.multibeam.raw_ping:
+            ping_path = self.fqpr._get_zarr_path('ping', rp.system_identifier)
+            bs_image = os.path.join(ping_path, 'backscatter_firstping_sample.png')
+            if os.path.exists(bs_image):
+                print('Opening {}'.format(bs_image))
+                os.startfile(bs_image)
+            else:
+                print('Unable to find {}'.format(bs_image))
 
 
 def save_animation_mpeg(anim_instance: FuncAnimation, output_pth: str):

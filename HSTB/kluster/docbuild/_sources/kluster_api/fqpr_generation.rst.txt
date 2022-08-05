@@ -46,3 +46,5 @@ fqpr\_generation module
    :skip: aviso_clear_model
    :skip: aviso_tide_correct
    :skip: determine_aviso_grid
+   :skip: distrib_run_process_backscatter
+   :skip: return_backscatter_settings

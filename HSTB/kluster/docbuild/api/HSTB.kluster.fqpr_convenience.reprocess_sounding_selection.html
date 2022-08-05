@@ -6,7 +6,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
-    <title>reprocess_sounding_selection &#8212; kluster 1.0.2 documentation</title>
+    <title>reprocess_sounding_selection &#8212; kluster 1.1.0 documentation</title>
     <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
     <link rel="stylesheet" type="text/css" href="../_static/alabaster.css" />
     <link rel="stylesheet" type="text/css" href="../_static/graphviz.css" />
@@ -16,7 +16,7 @@
     <script src="../_static/doctools.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="return_processed_data_folders" href="HSTB.kluster.fqpr_convenience.return_processed_data_folders.html" />
+    <link rel="next" title="return_avg_tables" href="HSTB.kluster.fqpr_convenience.return_avg_tables.html" />
     <link rel="prev" title="reload_surface" href="HSTB.kluster.fqpr_convenience.reload_surface.html" />
    
   <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
@@ -116,6 +116,10 @@ tstmp (xyzrph timestamp for each sounding)</p></li>
 <li class="toctree-l1"><a class="reference internal" href="../vessel_setup/index.html">Vessel Setup</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../processing/index.html">Processing</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../surface/index.html">Surfacing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mosaic/index.html">Backscatter</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mosaic/index.html#overview">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mosaic/index.html#about-avg-correction">About AVG Correction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mosaic/index.html#settings">Settings</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../sonar_acceptance/index.html">Sonar Acceptance</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../cleaning/index.html">Cleaning</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../products/index.html">Products</a></li>
@@ -142,6 +146,7 @@ tstmp (xyzrph timestamp for each sounding)</p></li>
 <li class="toctree-l2"><a class="reference internal" href="../kluster_api/svcorrect.html">svcorrect module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../kluster_api/georeference.html">georeference module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../kluster_api/tpu.html">tpu module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kluster_api/backscatter.html">backscatter module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../kluster_api/visualizations.html">visualizations module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../kluster_api/sat.html">sat module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../kluster_api/wobble.html">wobble module</a></li>
@@ -169,7 +174,7 @@ tstmp (xyzrph timestamp for each sounding)</p></li>
   <li><a href="../kluster_api/index.html">API</a><ul>
   <li><a href="../kluster_api/fqpr_convenience.html">fqpr_convenience module</a><ul>
       <li>Previous: <a href="HSTB.kluster.fqpr_convenience.reload_surface.html" title="previous chapter">reload_surface</a></li>
-      <li>Next: <a href="HSTB.kluster.fqpr_convenience.return_processed_data_folders.html" title="next chapter">return_processed_data_folders</a></li>
+      <li>Next: <a href="HSTB.kluster.fqpr_convenience.return_avg_tables.html" title="next chapter">return_avg_tables</a></li>
   </ul></li>
   </ul></li>
   </ul></li>

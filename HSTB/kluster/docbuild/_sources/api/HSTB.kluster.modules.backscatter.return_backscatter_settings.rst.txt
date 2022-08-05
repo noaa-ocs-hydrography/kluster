@@ -1,0 +1,6 @@
+return_backscatter_settings
+===========================
+
+.. currentmodule:: HSTB.kluster.modules.backscatter
+
+.. autofunction:: return_backscatter_settings

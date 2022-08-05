@@ -167,6 +167,7 @@ Build docker image using the provided dockerfile
    vessel_setup/index
    processing/index
    surface/index
+   mosaic/index
    sonar_acceptance/index
    cleaning/index
    products/index

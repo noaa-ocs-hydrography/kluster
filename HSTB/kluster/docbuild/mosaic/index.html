@@ -1,0 +1,165 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+    <title>Backscatter &#8212; kluster 1.1.0 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/alabaster.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/graphviz.css" />
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Sonar Acceptance" href="../sonar_acceptance/index.html" />
+    <link rel="prev" title="Surfacing" href="../surface/index.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <section id="backscatter">
+<h1>Backscatter<a class="headerlink" href="#backscatter" title="Permalink to this headline">¶</a></h1>
+<p>Added in Kluster 1.1, we can now generate processed backscatter and backscattter mosaics.  For more on the theory and background of backscatter processing, i’ll link to the <a class="reference external" href="https://geohab.org/backscatter-working-group/">Geohab Backscatter Working Group site</a> which hosts publications that explain the concepts in detail.  In particular, I recommend the ‘Backscatter measurements by seafloor-mapping sonars: Guidelines and Recommendations (2015)’.</p>
+<p>In essence, Kluster will (post v1.1) now include raw backscatter intensity from the sonar manufacturer, as well as any new variables that help with processing.  Processing backscatter will involve removing the manufacturer specific gains and adding in correctors based on the Kluster multibeam processing that should produce ideal backscatter strength estimations for the seafloor.</p>
+</section>
+<section id="overview">
+<h1>Overview<a class="headerlink" href="#overview" title="Permalink to this headline">¶</a></h1>
+<p>Let’s look at how to use this module in Kluster.  With a converted data instance selected, let’s go to Process - New Mosaic.</p>
+<a class="reference external image-reference" href="../_images/mosaic_1.png"><img alt="../_images/mosaic_1.png" src="../_images/mosaic_1.png" /></a>
+<p>Mosaic generation consists of three steps:</p>
+<ol class="arabic simple">
+<li><p>Process Backscatter - Generate a new processed ‘backscatter’ variable (i.e. folder in your converted data folder) from the ‘raw reflectivity’ that we converted from the raw multibeam files.  After running this process, you can compare the two using the Basic Plots tool.  This is not gridded yet (i.e. a mosaic) but it is now ready to be used in gridding.</p></li>
+</ol>
+<a class="reference external image-reference" href="../_images/mosaic_2.png"><img alt="../_images/mosaic_2.png" src="../_images/mosaic_2.png" /></a>
+<ol class="arabic simple" start="2">
+<li><p>AVG Corrector - The processed backscatter has a built in angular dependence to it (i.e stronger at nadir and weaker in the outer beams).  This is ok for some applications, but is not ideal when we make a gridded product.  Ideally we want all values normalized to a specific angle, so that all values align in the mosaic regardless of angle.  AVG Corrector, if checked, will correct for this angular dependence.  We basically always want this checked if we are creating a mosaic.</p></li>
+<li><p>Create Mosaic - The final step in mosaic generation is to actually create the mosaic.  We use the processed backscatter and the AVG Corrector (if checked) to build a processed backscatter mosaic, with the given resolution/method.</p></li>
+</ol>
+<p>The recommended process is to leave all values as default.</p>
+<p>The result of the process is a new backscatter mosaic that is available under Surfaces in the Project Tree.  Select the intensity layer to view the gridded backscatter data.  You can right click on the surface name to adjust the ‘Properties’ to change the display of the grid or select ‘Manage’ to see some other useful utilities.</p>
+<a class="reference external image-reference" href="../_images/mosaic_5.png"><img alt="../_images/mosaic_5.png" src="../_images/mosaic_5.png" /></a>
+</section>
+<section id="about-avg-correction">
+<h1>About AVG Correction<a class="headerlink" href="#about-avg-correction" title="Permalink to this headline">¶</a></h1>
+<p>So how does this correction actually work?  First, we need two parameters, bin size and reference angle.  With these two parameters, we can take a subset of your dataset, and build a lookup table of angle to corrector.</p>
+<p>For example, with a sonar that has beams from -70 to 70 degrees in a swath, with a bin size of 1 degree and a reference angle of 45 degrees, we:</p>
+<ol class="arabic simple">
+<li><p>Build bins for all angles (70 deg, 69 deg, 68 deg, etc.)</p></li>
+<li><p>Calculate the average backscatter for all beams in all bins (70: 1.234, 69: 5.235, etc.)</p></li>
+<li><p>Find the bin nearest the reference angle (45 for us, let’s say at 45 deg the binned average is 5.0)</p></li>
+<li><p>Return a table with the binned value minus the reference value (70: 1.234 - 5.0, 69: 5.235 - 5.0, etc.)</p></li>
+</ol>
+<p>This table is then saved to each converted data container as the avg_table attribute.  You can see this in the Attribute window in Kluster:</p>
+<a class="reference external image-reference" href="../_images/mosaic_3.png"><img alt="../_images/mosaic_3.png" src="../_images/mosaic_3.png" /></a>
+<p>The table is applied to the backscatter during the Create Mosaic process.  You don’t have to recreate this each time you run New Mosaic, to use an existing AVG table, select ‘Use Existing’ in New Mosaic.</p>
+</section>
+<section id="settings">
+<h1>Settings<a class="headerlink" href="#settings" title="Permalink to this headline">¶</a></h1>
+<p>After running ‘Process Backscatter’, Kluster will save a table of processing settings detailing the correctors applied.  This table will show the formulae and the data used during processing, often in manufacturer specific terms.  This exists primarily for advanced users who wonder what ‘fixed gain’ might mean with respect to a given sonar.  You should be able to use this table to better understand and possibly recreate to some degree, the corrections applied.</p>
+<a class="reference external image-reference" href="../_images/mosaic_4.png"><img alt="../_images/mosaic_4.png" src="../_images/mosaic_4.png" /></a>
+</section>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">kluster</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../requirements/index.html">Requirements</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../quickstart/index.html">Quickstart - Basic</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../quickstart_monitor/index.html">Quickstart - Monitor</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../faq/index.html">FAQ</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../vessel_setup/index.html">Vessel Setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../processing/index.html">Processing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../surface/index.html">Surfacing</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Backscatter</a></li>
+<li class="toctree-l1"><a class="reference internal" href="#overview">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="#about-avg-correction">About AVG Correction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="#settings">Settings</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../sonar_acceptance/index.html">Sonar Acceptance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../cleaning/index.html">Cleaning</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../products/index.html">Products</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../settings/index.html">Settings</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../indepth/index.html">Learn more about Kluster</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../for_developers/index.html">For Developers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../kluster_api/index.html">API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../changes.html">Changes List</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="../surface/index.html" title="previous chapter">Surfacing</a></li>
+      <li>Next: <a href="../sonar_acceptance/index.html" title="next chapter">Sonar Acceptance</a></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2020, Eric Younkin.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 4.3.2</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="../_sources/mosaic/index.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

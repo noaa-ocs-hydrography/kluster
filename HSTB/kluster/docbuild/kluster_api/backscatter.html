@@ -1,0 +1,216 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+    <title>backscatter module &#8212; kluster 1.1.0 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/alabaster.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/graphviz.css" />
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="avg_correct" href="../api/HSTB.kluster.modules.backscatter.avg_correct.html" />
+    <link rel="prev" title="Tpu" href="../api/HSTB.kluster.modules.tpu.Tpu.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <section id="backscatter-module">
+<h1>backscatter module<a class="headerlink" href="#backscatter-module" title="Permalink to this headline">¶</a></h1>
+<section id="module-HSTB.kluster.modules.backscatter">
+<span id="hstb-kluster-modules-backscatter-module"></span><h2>HSTB.kluster.modules.backscatter Module<a class="headerlink" href="#module-HSTB.kluster.modules.backscatter" title="Permalink to this headline">¶</a></h2>
+<section id="functions">
+<h3>Functions<a class="headerlink" href="#functions" title="Permalink to this headline">¶</a></h3>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="../api/HSTB.kluster.modules.backscatter.avg_correct.html#HSTB.kluster.modules.backscatter.avg_correct" title="HSTB.kluster.modules.backscatter.avg_correct"><code class="xref py py-obj docutils literal notranslate"><span class="pre">avg_correct</span></code></a>(beam_angles_degrees, avg_corrector)</p></td>
+<td><p>Return the backscatter corrector for the provided beamangle and avg_corrector dataset</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="../api/HSTB.kluster.modules.backscatter.distrib_run_process_backscatter.html#HSTB.kluster.modules.backscatter.distrib_run_process_backscatter" title="HSTB.kluster.modules.backscatter.distrib_run_process_backscatter"><code class="xref py py-obj docutils literal notranslate"><span class="pre">distrib_run_process_backscatter</span></code></a>(worker_dat)</p></td>
+<td><p>Convenience function for mapping process across cluster.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="../api/HSTB.kluster.modules.backscatter.generate_avg_corrector.html#HSTB.kluster.modules.backscatter.generate_avg_corrector" title="HSTB.kluster.modules.backscatter.generate_avg_corrector"><code class="xref py py-obj docutils literal notranslate"><span class="pre">generate_avg_corrector</span></code></a>(corrected_bscatter, ...)</p></td>
+<td><p>Compute a new angle varying gain corrector for the provided processed backscatter dataset.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="../api/HSTB.kluster.modules.backscatter.return_backscatter_settings.html#HSTB.kluster.modules.backscatter.return_backscatter_settings" title="HSTB.kluster.modules.backscatter.return_backscatter_settings"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_backscatter_settings</span></code></a>(multibeam_extension)</p></td>
+<td><p>Return the basic formula/descriptions for each corrector enabled and this given sonar file extension.</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="classes">
+<h3>Classes<a class="headerlink" href="#classes" title="Permalink to this headline">¶</a></h3>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="../api/HSTB.kluster.modules.backscatter.Allscatter.html#HSTB.kluster.modules.backscatter.Allscatter" title="HSTB.kluster.modules.backscatter.Allscatter"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Allscatter</span></code></a>(runtime_parameters, ...[, ...])</p></td>
+<td><p>Backscatter processing module for the Kongsberg .all format.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="../api/HSTB.kluster.modules.backscatter.BScatter.html#HSTB.kluster.modules.backscatter.BScatter" title="HSTB.kluster.modules.backscatter.BScatter"><code class="xref py py-obj docutils literal notranslate"><span class="pre">BScatter</span></code></a>(raw_intensity, slant_range, ...[, ...])</p></td>
+<td><p>Backscatter processing module for all sonars.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="../api/HSTB.kluster.modules.backscatter.Kmallscatter.html#HSTB.kluster.modules.backscatter.Kmallscatter" title="HSTB.kluster.modules.backscatter.Kmallscatter"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Kmallscatter</span></code></a>(runtime_parameters, ...[, ...])</p></td>
+<td><p>Backscatter processing module for the Kongsberg .kmall format.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="../api/HSTB.kluster.modules.backscatter.S7kscatter.html#HSTB.kluster.modules.backscatter.S7kscatter" title="HSTB.kluster.modules.backscatter.S7kscatter"><code class="xref py py-obj docutils literal notranslate"><span class="pre">S7kscatter</span></code></a>(runtime_parameters, ...[, ...])</p></td>
+<td><p>Backscatter processing module for the Reson .s7k format.</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+</section>
+</section>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">kluster</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../requirements/index.html">Requirements</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../quickstart/index.html">Quickstart - Basic</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../quickstart_monitor/index.html">Quickstart - Monitor</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../faq/index.html">FAQ</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../vessel_setup/index.html">Vessel Setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../processing/index.html">Processing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../surface/index.html">Surfacing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mosaic/index.html">Backscatter</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mosaic/index.html#overview">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mosaic/index.html#about-avg-correction">About AVG Correction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mosaic/index.html#settings">Settings</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../sonar_acceptance/index.html">Sonar Acceptance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../cleaning/index.html">Cleaning</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../products/index.html">Products</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../settings/index.html">Settings</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../indepth/index.html">Learn more about Kluster</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../for_developers/index.html">For Developers</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">API</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="fqpr_convenience.html">fqpr_convenience module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="fqpr_generation.html">fqpr_generation module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="fqpr_project.html">fqpr_project module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="fqpr_intelligence.html">fqpr_intelligence module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="fqpr_actions.html">fqpr_actions module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="fqpr_vessel.html">fqpr_vessel module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="monitor.html">monitor module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="xarray_conversion.html">xarray_conversion module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="orientation.html">orientation module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="beampointingvector.html">beampointingvector module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="svcorrect.html">svcorrect module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="georeference.html">georeference module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tpu.html">tpu module</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">backscatter module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#module-HSTB.kluster.modules.backscatter">HSTB.kluster.modules.backscatter Module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#functions">Functions</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#classes">Classes</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="visualizations.html">visualizations module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="sat.html">sat module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="wobble.html">wobble module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="export.html">export module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="subset.html">subset module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="rotations.html">rotations module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="pdal_entwine.html">pdal_entwine module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="dask_helpers.html">dask_helpers module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="fqpr_helpers.html">fqpr_helpers module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="gdal_helpers.html">gdal_helpers module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="numba_helpers.html">numba_helpers module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="pydro_helpers.html">pydro_helpers module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="xarray_helpers.html">xarray_helpers module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="utc_helpers.html">utc_helpers module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="logging_conf.html">logging_conf module</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../changes.html">Changes List</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  <li><a href="index.html">API</a><ul>
+      <li>Previous: <a href="../api/HSTB.kluster.modules.tpu.Tpu.html" title="previous chapter">Tpu</a></li>
+      <li>Next: <a href="../api/HSTB.kluster.modules.backscatter.avg_correct.html" title="next chapter">avg_correct</a></li>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2020, Eric Younkin.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 4.3.2</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="../_sources/kluster_api/backscatter.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

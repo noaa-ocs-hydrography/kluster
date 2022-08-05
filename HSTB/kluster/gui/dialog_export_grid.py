@@ -149,6 +149,7 @@ class ExportGridDialog(SaveStateDialog):
         self.input_pth = ''
         self.output_pth = ''
         self.canceled = False
+        self.isbackscatter = False
 
         self.browse_button.clicked.connect(self.grid_folder_browse)
         self.output_button.clicked.connect(self.output_file_browse)
@@ -215,6 +216,13 @@ class ExportGridDialog(SaveStateDialog):
         else:
             self.bag_vert_crs.setText(vertical_reference)
 
+    def update_isbackscatter(self, isbackscatter: bool):
+        if isbackscatter:
+            self.isbackscatter = isbackscatter
+            self.export_opts.clear()
+            self.export_opts.addItems(['geotiff', 'csv'])
+            self.zdirect_check.hide()
+
     def output_file_browse(self):
         curr_opts = self.export_opts.currentText().lower()
         if curr_opts == 'csv':
@@ -251,7 +259,8 @@ class ExportGridDialog(SaveStateDialog):
         if curr_opts == 'bag':
             vers = return_gdal_version()
             majr, minr, hfix = vers.split('.')
-            self.zdirect_check.hide()
+            if not self.isbackscatter:
+                self.zdirect_check.hide()
             if (int(majr) == 3 and int(minr) >= 2) or (int(majr) > 3):  # If this is the pydro environment, we know it has Entwine
                 self.status_msg.setStyleSheet("QLabel { color : " + kluster_variables.pass_color + "; }")
                 self.status_msg.setText('Gdal > 3.2 found, BAG export allowed')
@@ -263,7 +272,8 @@ class ExportGridDialog(SaveStateDialog):
         else:
             self.status_msg.setText('')
             self.ok_button.setEnabled(True)
-            self.zdirect_check.show()
+            if not self.isbackscatter:
+                self.zdirect_check.show()
 
         if curr_opts != 'geotiff':
             ext = curr_opts

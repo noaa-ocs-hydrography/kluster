@@ -1,0 +1,6 @@
+avg_correct
+===========
+
+.. currentmodule:: HSTB.kluster.modules.backscatter
+
+.. autofunction:: avg_correct
