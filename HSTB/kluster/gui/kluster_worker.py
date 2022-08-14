@@ -9,29 +9,53 @@ from HSTB.kluster.fqpr_convenience import generate_new_surface, import_processed
     update_surface, reload_data, reload_surface, points_to_surface, generate_new_mosaic
 
 
-class ActionWorker(QtCore.QThread):
-    """
-    Executes code in a seperate thread.
-    """
+class MyWorker(QtCore.QThread):
 
     started = Signal(bool)
     finished = Signal(bool)
 
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.error = False
+        self.action_type = None
+        self.errortxt = ''
+        self.exceptiontxt = None
+
+    def reset(self):
+        self.error = False
+        self.errortxt = ''
+        self.exceptiontxt = None
+
+    def log_exception(self, e: Exception):
+        self.error = True
+        self.errortxt = str(e)
+        self.exceptiontxt = traceback.format_exc()
+
+    def show_error(self):
+        if self.errortxt:
+            msgbox = QtWidgets.QMessageBox()
+            msgbox.setText(f'ERROR: {self.action_type}')
+            msgbox.setInformativeText(self.errortxt)
+            msgbox.setDetailedText(self.exceptiontxt)
+            msgbox.exec_()
+
+
+class ActionWorker(MyWorker):
+    """
+    Executes code in a seperate thread.
+    """
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
         self.action_container = None
         self.action_index = None
         self.result = None
-        self.action_type = None
-        self.error = False
-        self.exceptiontxt = None
 
     def populate(self, action_container, action_index):
+        super().reset()
         self.action_container = action_container
         self.action_index = action_index
         self.result = None
-        self.error = False
-        self.exceptiontxt = None
 
     def run(self):
         self.started.emit(True)
@@ -42,18 +66,14 @@ class ActionWorker(QtCore.QThread):
             self.action_type = action.action_type
             self.result = self.action_container.execute_action(self.action_index)
         except Exception as e:
-            self.error = True
-            self.exceptiontxt = traceback.format_exc()
+            super().log_exception(e)
         self.finished.emit(True)
 
 
-class OpenProjectWorker(QtCore.QThread):
+class OpenProjectWorker(MyWorker):
     """
     Thread that runs when the user drags in a new project file or opens a project using the menu
     """
-
-    started = Signal(bool)
-    finished = Signal(bool)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -62,21 +82,19 @@ class OpenProjectWorker(QtCore.QThread):
         self.force_add_surfaces = None
         self.new_fqprs = []
         self.new_surfaces = []
-        self.error = False
-        self.exceptiontxt = None
 
     def populate(self, new_project_path=None, force_add_fqprs=None, force_add_surfaces=None):
+        super().reset()
         self.new_project_path = new_project_path
         self.force_add_fqprs = force_add_fqprs
         self.force_add_surfaces = force_add_surfaces
         self.new_fqprs = []
         self.new_surfaces = []
-        self.error = False
-        self.exceptiontxt = None
 
     def run(self):
         self.started.emit(True)
         try:
+            self.action_type = 'Open Project'
             self.new_fqprs = []
             if self.new_project_path:
                 data = return_project_data(self.new_project_path)
@@ -100,37 +118,31 @@ class OpenProjectWorker(QtCore.QThread):
                 else:
                     self.parent().print('Unable to load surface from {}'.format(pth), logging.WARNING)
         except Exception as e:
-            self.error = True
-            self.exceptiontxt = traceback.format_exc()
+            super().log_exception(e)
         self.finished.emit(True)
 
 
-class DrawNavigationWorker(QtCore.QThread):
+class DrawNavigationWorker(MyWorker):
     """
     On opening a project, you have to get the navigation for each line and draw it in the 2d view
     """
-
-    started = Signal(bool)
-    finished = Signal(bool)
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self.project = None
         self.new_fqprs = None
         self.line_data = {}
-        self.error = False
-        self.exceptiontxt = None
 
     def populate(self, project, new_fqprs):
+        super().reset()
         self.project = project
         self.new_fqprs = new_fqprs
-        self.error = False
-        self.exceptiontxt = None
         self.line_data = {}
 
     def run(self):
         self.started.emit(True)
         try:
+            self.action_type = 'Draw Lines'
             for fq in self.new_fqprs:
                 self.parent().print('building tracklines for {}...'.format(fq), logging.INFO)
                 for ln in self.project.return_project_lines(proj=fq, relative_path=True):
@@ -139,18 +151,14 @@ class DrawNavigationWorker(QtCore.QThread):
                         self.line_data[ln] = [lats, lons]
                         self.parent().debug_print(f'project.return_line_navigation: drawing {ln}: {len(lats)} points, {lats[0]},{lons[0]} to {lats[-1]},{lons[-1]}', logging.INFO)
         except Exception as e:
-            self.error = True
-            self.exceptiontxt = traceback.format_exc()
+            super().log_exception(e)
         self.finished.emit(True)
 
 
-class DrawSurfaceWorker(QtCore.QThread):
+class DrawSurfaceWorker(MyWorker):
     """
     On opening a new surface, you have to get the surface tiles to display as in memory geotiffs in kluster_main
     """
-
-    started = Signal(bool)
-    finished = Signal(bool)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -159,22 +167,20 @@ class DrawSurfaceWorker(QtCore.QThread):
         self.resolution = None
         self.surface_layer_name = None
         self.surface_data = {}
-        self.error = False
-        self.exceptiontxt = None
 
     def populate(self, surface_path, surf_object, resolution, surface_layer_name):
+        super().reset()
         self.surface_path = surface_path
         self.surf_object = surf_object
         self.resolution = resolution
         # handle optional hillshade layer
         self.surface_layer_name = surface_layer_name
-        self.error = False
-        self.exceptiontxt = None
         self.surface_data = {}
 
     def run(self):
         self.started.emit(True)
         try:
+            self.action_type = 'Draw Surface'
             if self.surface_layer_name == 'tiles':
                 try:
                     x, y = self.surf_object.get_tile_boundaries()
@@ -201,18 +207,14 @@ class DrawSurfaceWorker(QtCore.QThread):
                         chunk_count += 1
                         self.parent().debug_print(f'surf_object.get_chunks_of_tiles: {self.surface_path} : {tilename} : {resolution}m geotransform {geo_transform} maxdimension {maxdim}', logging.INFO)
         except Exception as e:
-            self.error = True
-            self.exceptiontxt = traceback.format_exc()
+            super().log_exception(e)
         self.finished.emit(True)
 
 
-class LoadPointsWorker(QtCore.QThread):
+class LoadPointsWorker(MyWorker):
     """
     Executes code in a seperate thread.
     """
-
-    started = Signal(bool)
-    finished = Signal(bool)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -220,101 +222,83 @@ class LoadPointsWorker(QtCore.QThread):
         self.azimuth = None
         self.project = None
         self.points_data = None
-        self.error = False
-        self.exceptiontxt = None
 
     def populate(self, polygon=None, azimuth=None, project=None):
+        super().reset()
         self.polygon = polygon
         self.azimuth = azimuth
         self.project = project
         self.points_data = None
-        self.error = False
-        self.exceptiontxt = None
 
     def run(self):
         self.started.emit(True)
+        self.action_type = 'Load Points'
         try:
             self.parent().debug_print(f'project.return_soundings_in_polygon: Returning soundings within polygon {self.polygon}', logging.INFO)
             self.points_data = self.project.return_soundings_in_polygon(self.polygon)
         except Exception as e:
-            self.error = True
-            self.exceptiontxt = traceback.format_exc()
+            super().log_exception(e)
         self.finished.emit(True)
 
 
-class ImportNavigationWorker(QtCore.QThread):
+class ImportNavigationWorker(MyWorker):
     """
     Executes code in a seperate thread.
     """
-
-    started = Signal(bool)
-    finished = Signal(bool)
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self.fq_chunks = None
         self.fqpr_instances = []
-        self.error = False
-        self.exceptiontxt = None
 
     def populate(self, fq_chunks):
+        super().reset()
         self.fq_chunks = fq_chunks
         self.fqpr_instances = []
-        self.error = False
-        self.exceptiontxt = None
 
     def run(self):
         self.started.emit(True)
+        self.action_type = 'Import Navigation'
         try:
             for chnk in self.fq_chunks:
                 self.parent().debug_print(f'fqpr_convenience.import_processed_navigation {chnk[1]}', logging.INFO)
                 self.fqpr_instances.append(import_processed_navigation(chnk[0], **chnk[1]))
         except Exception as e:
-            self.error = True
-            self.exceptiontxt = traceback.format_exc()
+            super().log_exception(e)
         self.finished.emit(True)
 
 
-class OverwriteNavigationWorker(QtCore.QThread):
+class OverwriteNavigationWorker(MyWorker):
     """
     Executes code in a seperate thread.
     """
-
-    started = Signal(bool)
-    finished = Signal(bool)
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self.fq_chunks = None
         self.fqpr_instances = []
-        self.error = False
-        self.exceptiontxt = None
 
     def populate(self, fq_chunks):
+        super().reset()
         self.fq_chunks = fq_chunks
-        self.error = False
-        self.exceptiontxt = None
         self.fqpr_instances = []
 
     def run(self):
         self.started.emit(True)
+        self.action_type = 'Overwrite Navigation'
         try:
             for chnk in self.fq_chunks:
                 self.parent().debug_print(f'fqpr_convenience.overwrite_raw_navigation {chnk[1]}', logging.INFO)
                 self.fqpr_instances.append(overwrite_raw_navigation(chnk[0], **chnk[1]))
         except Exception as e:
-            self.error = True
-            self.exceptiontxt = traceback.format_exc()
+            super().log_exception(e)
         self.finished.emit(True)
 
 
-class ExportWorker(QtCore.QThread):
+class ExportWorker(MyWorker):
     """
     Executes code in a seperate thread.
     """
-
-    started = Signal(bool)
-    finished = Signal(bool)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -329,11 +313,10 @@ class ExportWorker(QtCore.QThread):
         self.formattype = 'xyz'
         self.filterset = False
         self.separateset = False
-        self.error = False
-        self.exceptiontxt = None
 
     def populate(self, fq_chunks, line_names, datablock, export_type, z_pos_down, delimiter, formattype, filterset,
                  separateset, basic_mode, line_mode, points_mode):
+        super().reset()
         if basic_mode:
             self.mode = 'basic'
         elif line_mode:
@@ -356,8 +339,6 @@ class ExportWorker(QtCore.QThread):
         self.formattype = formattype
         self.filterset = filterset
         self.separateset = separateset
-        self.error = False
-        self.exceptiontxt = None
 
     def export_process(self, fq, datablock=None):
         if self.mode == 'basic':
@@ -376,6 +357,7 @@ class ExportWorker(QtCore.QThread):
 
     def run(self):
         self.started.emit(True)
+        self.action_type = f'Export Dataset ({self.mode})'
         try:
             if self.mode in ['basic', 'line']:
                 for chnk in self.fq_chunks:
@@ -384,18 +366,14 @@ class ExportWorker(QtCore.QThread):
                 fq = self.fq_chunks[0][0]
                 self.fqpr_instances.append(self.export_process(fq, datablock=self.datablock))
         except Exception as e:
-            self.error = True
-            self.exceptiontxt = traceback.format_exc()
+            super().log_exception(e)
         self.finished.emit(True)
 
 
-class FilterWorker(QtCore.QThread):
+class FilterWorker(MyWorker):
     """
     Executes code in a seperate thread.
     """
-
-    started = Signal(bool)
-    finished = Signal(bool)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -411,10 +389,8 @@ class FilterWorker(QtCore.QThread):
         self.kwargs = None
         self.selected_index = []
 
-        self.error = False
-        self.exceptiontxt = None
-
     def populate(self, fq_chunks, line_names, filter_name, basic_mode, line_mode, points_mode, save_to_disk, kwargs):
+        super().reset()
         if basic_mode:
             self.mode = 'basic'
         elif line_mode:
@@ -433,9 +409,6 @@ class FilterWorker(QtCore.QThread):
         if self.kwargs is None:
             self.kwargs = {}
         self.selected_index = []
-
-        self.error = False
-        self.exceptiontxt = None
 
     def filter_process(self, fq, subset_time=None, subset_beam=None):
         if self.mode == 'basic':
@@ -461,6 +434,7 @@ class FilterWorker(QtCore.QThread):
 
     def run(self):
         self.started.emit(True)
+        self.action_type = f'Filter {self.filter_name} ({self.mode})'
         try:
             if self.mode in ['basic', 'line']:
                 for chnk in self.fq_chunks:
@@ -474,18 +448,14 @@ class FilterWorker(QtCore.QThread):
                     self.fqpr_instances.append(fq)
                     self.new_status.append(new_status)
         except Exception as e:
-            self.error = True
-            self.exceptiontxt = traceback.format_exc()
+            super().log_exception(e)
         self.finished.emit(True)
 
 
-class ExportTracklinesWorker(QtCore.QThread):
+class ExportTracklinesWorker(MyWorker):
     """
     Executes code in a seperate thread.
     """
-
-    started = Signal(bool)
-    finished = Signal(bool)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -495,10 +465,9 @@ class ExportTracklinesWorker(QtCore.QThread):
         self.export_type = ''
         self.mode = ''
         self.output_path = ''
-        self.error = False
-        self.exceptiontxt = None
 
     def populate(self, fq_chunks, line_names, export_type, basic_mode, line_mode, output_path):
+        super().reset()
         if basic_mode:
             self.mode = 'basic'
         elif line_mode:
@@ -509,8 +478,6 @@ class ExportTracklinesWorker(QtCore.QThread):
         self.fq_chunks = fq_chunks
         self.export_type = export_type
         self.output_path = output_path
-        self.error = False
-        self.exceptiontxt = None
 
     def export_process(self, fq):
         if self.mode == 'basic':
@@ -523,22 +490,19 @@ class ExportTracklinesWorker(QtCore.QThread):
 
     def run(self):
         self.started.emit(True)
+        self.action_type = f'Export Tracklines ({self.mode})'
         try:
             for chnk in self.fq_chunks:
                 self.fqpr_instances.append(self.export_process(chnk[0]))
         except Exception as e:
-            self.error = True
-            self.exceptiontxt = traceback.format_exc()
+            super().log_exception(e)
         self.finished.emit(True)
 
 
-class ExportGridWorker(QtCore.QThread):
+class ExportGridWorker(MyWorker):
     """
     Executes code in a seperate thread.
     """
-
-    started = Signal(bool)
-    finished = Signal(bool)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -547,20 +511,18 @@ class ExportGridWorker(QtCore.QThread):
         self.output_path = ''
         self.z_pos_up = True
         self.bag_kwargs = {}
-        self.error = False
-        self.exceptiontxt = None
 
     def populate(self, surf_instance, export_type, output_path, z_pos_up, bag_kwargs):
+        super().reset()
         self.surf_instance = surf_instance
         self.export_type = export_type
         self.output_path = output_path
         self.bag_kwargs = bag_kwargs
         self.z_pos_up = z_pos_up
-        self.error = False
-        self.exceptiontxt = None
 
     def run(self):
         self.started.emit(True)
+        self.action_type = f'Export Grid'
         try:
             self.parent().debug_print(f'surf_instance.export {self.output_path} export_type={self.export_type}, z_pos_up={self.z_pos_up}', logging.INFO)
             # None in the 4th arg to indicate you want to export all resolutions
@@ -568,38 +530,32 @@ class ExportGridWorker(QtCore.QThread):
                                       override_maximum_chunk_dimension=kluster_variables.chunk_size_export,
                                       **self.bag_kwargs)
         except Exception as e:
-            self.error = True
-            self.exceptiontxt = traceback.format_exc()
+            super().log_exception(e)
         self.finished.emit(True)
 
 
-class SurfaceWorker(QtCore.QThread):
+class SurfaceWorker(MyWorker):
     """
     Executes code in a seperate thread.
     """
-
-    started = Signal(bool)
-    finished = Signal(bool)
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self.fqpr_instances = None
         self.fqpr_surface = None
         self.opts = {}
-        self.error = False
-        self.exceptiontxt = None
         self.mode = 'from_fqpr'
 
     def populate(self, fqpr_instances, opts):
+        super().reset()
         self.fqpr_instances = fqpr_instances
         self.fqpr_surface = None
         self.opts = opts
-        self.error = False
-        self.exceptiontxt = None
         self.mode = 'from_fqpr'
 
     def run(self):
         self.started.emit(True)
+        self.action_type = f'New Surface'
         try:
             if self.mode == 'from_fqpr':
                 self.parent().debug_print(f'generate_new_surface {self.opts}', logging.INFO)
@@ -608,52 +564,42 @@ class SurfaceWorker(QtCore.QThread):
                 self.parent().debug_print(f'points_to_surface {self.opts}', logging.INFO)
                 self.fqpr_surface = points_to_surface(self.fqpr_instances, **self.opts)
         except Exception as e:
-            self.error = True
-            self.exceptiontxt = traceback.format_exc()
+            super().log_exception(e)
         self.finished.emit(True)
 
 
-class MosaicWorker(QtCore.QThread):
+class MosaicWorker(MyWorker):
     """
     Executes code in a seperate thread.
     """
-
-    started = Signal(bool)
-    finished = Signal(bool)
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self.fqpr_instances = None
         self.fqpr_surface = None
         self.opts = {}
-        self.error = False
-        self.exceptiontxt = None
 
     def populate(self, fqpr_instances, opts):
+        super().reset()
         self.fqpr_instances = fqpr_instances
         self.fqpr_surface = None
         self.opts = opts
-        self.error = False
-        self.exceptiontxt = None
 
     def run(self):
         self.started.emit(True)
+        self.action_type = f'New Mosaic'
         try:
             self.parent().debug_print(f'generate_new_mosaic {self.opts}', logging.INFO)
             self.fqpr_surface = generate_new_mosaic(self.fqpr_instances, **self.opts)
         except Exception as e:
-            self.error = True
-            self.exceptiontxt = traceback.format_exc()
+            super().log_exception(e)
         self.finished.emit(True)
 
 
-class SurfaceUpdateWorker(QtCore.QThread):
+class SurfaceUpdateWorker(MyWorker):
     """
     Executes code in a seperate thread.
     """
-
-    started = Signal(bool)
-    finished = Signal(bool)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -664,10 +610,9 @@ class SurfaceUpdateWorker(QtCore.QThread):
         self.remove_lines = None
         self.opts = {}
         self.all_resolutions = None
-        self.error = False
-        self.exceptiontxt = None
 
     def populate(self, fqpr_surface, add_fqpr_instances, add_lines, remove_fqpr_names, remove_lines, opts, all_resolutions):
+        super().reset()
         self.fqpr_surface = fqpr_surface
         self.add_fqpr_instances = add_fqpr_instances
         self.add_lines = add_lines
@@ -675,28 +620,23 @@ class SurfaceUpdateWorker(QtCore.QThread):
         self.remove_lines = remove_lines
         self.all_resolutions = all_resolutions
         self.opts = opts
-        self.error = False
-        self.exceptiontxt = None
 
     def run(self):
         self.started.emit(True)
+        self.action_type = f'Update Surface'
         try:
             self.parent().debug_print(f'update_surface add_fqpr={self.add_fqpr_instances}, add_lines={self.add_lines}, remove_fqpr={self.remove_fqpr_names}, remove_lines={self.remove_lines}, {self.opts}', logging.INFO)
             self.fqpr_surface, oldrez, newrez = update_surface(self.fqpr_surface, self.add_fqpr_instances, self.add_lines,
                                                                self.remove_fqpr_names, self.remove_lines, **self.opts)
         except Exception as e:
-            self.error = True
-            self.exceptiontxt = traceback.format_exc()
+            super().log_exception(e)
         self.finished.emit(True)
 
 
-class PatchTestUpdateWorker(QtCore.QThread):
+class PatchTestUpdateWorker(MyWorker):
     """
     Executes code in a seperate thread.
     """
-
-    started = Signal(bool)
-    finished = Signal(bool)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -710,11 +650,10 @@ class PatchTestUpdateWorker(QtCore.QThread):
         self.vdatum_directory = None
 
         self.result = []
-        self.error = False
-        self.exceptiontxt = None
 
     def populate(self, fqprs=None, newvalues=None, headindex=None, prefixes=None, timestamps=None, serial_number=None,
                  polygon=None, vdatum_directory=None):
+        super().reset()
         self.fqprs = fqprs
         self.newvalues = newvalues
         self.headindex = headindex
@@ -725,16 +664,14 @@ class PatchTestUpdateWorker(QtCore.QThread):
         self.vdatum_directory = vdatum_directory
 
         self.result = []
-        self.error = False
-        self.exceptiontxt = None
 
     def run(self):
         self.started.emit(True)
+        self.action_type = f'Patch Test'
         try:
             self.parent().debug_print(f'reprocess_fqprs fqprs={self.fqprs}, newvalues={self.newvalues}, headindex={self.headindex}, prefixes={self.prefixes}, timestamps={self.timestamps}, serial_number={self.serial_number}, polygon={self.polygon}, vdatum_directory={self.vdatum_directory}', logging.INFO)
             self.fqprs, self.result = reprocess_fqprs(self.fqprs, self.newvalues, self.headindex, self.prefixes, self.timestamps,
                                                       self.serial_number, self.polygon, self.vdatum_directory)
         except Exception as e:
-            self.error = True
-            self.exceptiontxt = traceback.format_exc()
+            super().log_exception(e)
         self.finished.emit(True)

@@ -95,7 +95,6 @@ class Fqpr(ZarrBackend):
         self.ideal_tx_vec = None
         self.ideal_rx_vec = None
         self._using_sbet = False
-        self._last_error = ''
 
         # these are populated after the corresponding process, such that we can write them to disk later
         self.orientation_time_complete = ''
@@ -205,8 +204,6 @@ class Fqpr(ZarrBackend):
 
     def print(self, msg: str, loglevel: int = logging.INFO):
         # all gui objects are going to use this method in printing
-        if loglevel == logging.ERROR:
-            self._last_error = msg
         if self.logger is not None:
             self.logger.log(loglevel, msg)
         else:
@@ -1660,6 +1657,7 @@ class Fqpr(ZarrBackend):
                 alt = xr.concat([ra.altitude[chnk] for chnk in idx_by_chunk], dim='time')
             except:  # no raw altitude for some reason...
                 if self.vert_ref in kluster_variables.ellipse_based_vertical_references:
+                    self.print('georef_xyz: No raw altitude found, and {} is an ellipsoidally based vertical reference'.format(self.vert_ref), logging.ERROR)
                     raise ValueError('georef_xyz: No raw altitude found, and {} is an ellipsoidally based vertical reference'.format(self.vert_ref))
                 else:  # we can continue because we aren't going to use altitude anyway
                     alt = xr.zeros_like(lon)
@@ -1798,6 +1796,7 @@ class Fqpr(ZarrBackend):
         elif mbes_ext in kluster_variables.sonar_uses_ifremer:  # for .kmall files, quality factor is a percentage of water depth, see IFREMER formula
             qf_type = 'ifremer'
         else:
+            self.print('Found multibeam file with {} extension, only {} supported by kluster'.format(mbes_ext, kluster_variables.supported_sonar), logging.ERROR)
             raise ValueError('Found multibeam file with {} extension, only {} supported by kluster'.format(mbes_ext, kluster_variables.supported_sonar))
 
         data_for_workers = []
@@ -1815,6 +1814,7 @@ class Fqpr(ZarrBackend):
 
         for cnt, chnk in enumerate(idx_by_chunk):
             if 'georef' in self.intermediate_dat[ra.system_identifier]:
+                self.print('_generate_chunks_tpu: in memory workflow not currently implemented for compute tpu', logging.ERROR)
                 raise NotImplementedError('_generate_chunks_tpu: in memory workflow not currently implemented for compute tpu')
             intermediate_index = cnt + run_index
             raw_point = ra.beampointingangle[chnk.values]
@@ -1961,6 +1961,7 @@ class Fqpr(ZarrBackend):
                     dchunk.append(ra.fixedgain[chnk.values])
                     dchunk.append(ra.absorption[chnk.values])
             else:
+                self.print(f'process_backscatter: sonar file type {mext} not currently supported', logging.ERROR)
                 raise NotImplementedError(f'process_backscatter: sonar file type {mext} not currently supported')
             dchunk.append(image_generation[cnt])
             dchunk.append(backscatter_settings)
@@ -2025,6 +2026,7 @@ class Fqpr(ZarrBackend):
                     if 'tx' not in list(ra.keys()):
                         if first_subset_time > np.min(ra.time):
                             msg = 'get_orientation_vectors: {}: If your first run of this function uses subset_time, it must include the first ping.'.format(sysid)
+                            self.print(msg, logging.ERROR)
                             raise NotImplementedError(msg)
 
     def _validate_get_orientation_vectors(self, subset_time: list, dump_data: bool):
@@ -2064,6 +2066,7 @@ class Fqpr(ZarrBackend):
         dump_data
             if True dump the futures to the multibeam datastore
         """
+
         self._validate_subset_time(subset_time, dump_data)
 
         # first check to see if there is any data in memory.  If so, we just assume that you have the data you need.
@@ -2092,6 +2095,7 @@ class Fqpr(ZarrBackend):
         dump_data
             if True dump the futures to the multibeam datastore
         """
+
         self._validate_subset_time(subset_time, dump_data)
 
         # first check to see if there is any data in memory.  If so, we just assume that you have the data you need.
@@ -2121,6 +2125,7 @@ class Fqpr(ZarrBackend):
         dump_data
             if True dump the futures to the multibeam datastore
         """
+
         self._validate_subset_time(subset_time, dump_data)
 
         if self.vert_ref is None:
@@ -2232,6 +2237,7 @@ class Fqpr(ZarrBackend):
         multibeam_extension
             multibeam file extension for the files used in this fqpr
         """
+
         self._validate_subset_time(subset_time, dump_data)
 
         # no in memory workflow built just yet
@@ -2254,7 +2260,7 @@ class Fqpr(ZarrBackend):
         for req in required:
             if req not in list(self.multibeam.raw_ping[0].keys()):
                 err = 'process_backscatter: unable to find {}'.format(req)
-                err += ' in ping data {}.  This record is required for this filetype for processing backscatter.'.format(self.multibeam.raw_ping[0].system_identifier)
+                err += ' in ping data.  This record is required for this filetype ({}) for processing backscatter.'.format(multibeam_extension)
                 self.print(err, logging.ERROR)
                 raise ValueError(err)
 
@@ -2291,16 +2297,19 @@ class Fqpr(ZarrBackend):
         """
 
         if self.multibeam is None:
+            self.print('Expect multibeam records before importing post processed navigation', logging.ERROR)
             raise ValueError('Expect multibeam records before importing post processed navigation')
 
         if errorfiles is not None:
             if len(navfiles) != len(errorfiles):
+                self.print('Expect the same number of nav/error files: \n\n{}\n{}'.format(navfiles, errorfiles), logging.ERROR)
                 raise ValueError('Expect the same number of nav/error files: \n\n{}\n{}'.format(navfiles, errorfiles))
         else:
             errorfiles = [None] * len(navfiles)
 
         if logfiles is not None:
             if len(navfiles) != len(logfiles):
+                self.print('Expect the same number of nav/log files: \n\n{}\n{}'.format(navfiles, logfiles), logging.ERROR)
                 raise ValueError('Expect the same number of nav/log files: \n\n{}\n{}'.format(navfiles, logfiles))
         else:
             logfiles = [None] * len(navfiles)
@@ -2346,6 +2355,7 @@ class Fqpr(ZarrBackend):
         """
 
         if self.multibeam is None:
+            self.print('Expect multibeam records before importing post processed navigation', logging.ERROR)
             raise ValueError('Expect multibeam records before importing post processed navigation')
 
         # remove any duplicate files, these would be files that already exist in the Fqpr instance.  Check by comparing
@@ -3530,6 +3540,7 @@ class Fqpr(ZarrBackend):
             try:
                 sel_start_time, sel_end_time = float(ping_times[0]), float(ping_times[1])
             except:
+                self.print('return_line_dict: ping_times must be a tuple of (start time utc seconds, end time utc seconds): {}'.format(ping_times), logging.ERROR)
                 raise ValueError('return_line_dict: ping_times must be a tuple of (start time utc seconds, end time utc seconds): {}'.format(ping_times))
             corrected_mfiles = {}  # we need to trim the line start/end times by the given ping_times
             for linename in mfiles.keys():
@@ -3939,14 +3950,15 @@ class Fqpr(ZarrBackend):
             try:
                 existing_epsg = int(self.multibeam.raw_ping[0].attrs['horizontal_crs'])
             except:
-                raise ValueError('return_next_action: Unable to convert current coordinate system to epsg: {}'.format(
-                    self.horizontal_crs))
+                self.print('return_next_action: Unable to convert current coordinate system to epsg: {}'.format(self.horizontal_crs), logging.ERROR)
+                raise ValueError('return_next_action: Unable to convert current coordinate system to epsg: {}'.format(self.horizontal_crs))
         else:
             existing_epsg = 1  # georeference has not been run yet, so we use this default value that always fails the next check
         if new_coordinate_system:
             try:
                 new_epsg = new_coordinate_system.to_epsg()
             except:
+                self.print('return_next_action: Unable to convert new coordinate system to epsg: {}'.format(new_coordinate_system), logging.ERROR)
                 raise ValueError('return_next_action: Unable to convert new coordinate system to epsg: {}'.format(new_coordinate_system))
             default_use_epsg = True
             default_use_coord = False
