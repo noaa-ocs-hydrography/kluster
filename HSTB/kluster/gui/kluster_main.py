@@ -904,6 +904,11 @@ class KlusterMain(QtWidgets.QMainWindow):
         """
         self.two_d.set_extents_from_meshes(pth)
 
+    def set_auto_processing(self, enable: bool):
+        if enable != self.actions.auto_checkbox.isChecked():
+            self.actions.auto_checkbox.setChecked(enable)
+            self.actions.auto_process()
+
     def _action_process(self, is_auto):
         if is_auto:
             self.intel.execute_action(0)
@@ -1217,6 +1222,7 @@ class KlusterMain(QtWidgets.QMainWindow):
             self.print(self.action_thread.exceptiontxt, logging.INFO)
             self.print('kluster_action: no data returned from action execution', logging.INFO)
             self.intel.update_intel_for_action_results(action_type=self.action_thread.action_type)
+            self.set_auto_processing(False)  # turn off auto processing if an action fails
         self.action_thread.populate(None, None)
         self._stop_action_progress()
 

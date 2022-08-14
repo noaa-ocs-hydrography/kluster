@@ -3206,7 +3206,6 @@ class Fqpr(ZarrBackend):
             else:
                 self.logger.error('Mode must be one of ["orientation", "bpv", "sv_corr", "georef", "tpu", "backscatter"]')
                 raise ValueError('Mode must be one of ["orientation", "bpv", "sv_corr", "georef", "tpu", "backscatter"]')
-
             data_for_workers = chunk_function(*chunkargs, silent=silent)
             try:
                 futs = self.client.map(kluster_function, data_for_workers)

@@ -741,9 +741,12 @@ class FqprIntel(LoggerClass):
         curr_acts, cur_dests = self.action_container.update_action_from_list('gridding', [self.designated_surface])
 
         if self.designated_surface:
-
-            if not self.project.path or (self.project.path and self.project.path_relative_to_project(self.designated_surface) not in self.project.surface_instances):
-                # self.print_msg(f'Designated surface {self.designated_surface} not currently loaded in project.', logging.WARNING)
+            try:
+                if not self.project.path or (self.project.path and self.project.path_relative_to_project(self.designated_surface) not in self.project.surface_instances):
+                    # self.print_msg(f'Designated surface {self.designated_surface} not currently loaded in project.', logging.WARNING)
+                    return
+            except:
+                self.print_msg('Designated surface must be on the same drive letter as the project!', logging.ERROR)
                 return
             relpath_surf = self.project.path_relative_to_project(self.designated_surface)
             surf = self.project.surface_instances[relpath_surf]
