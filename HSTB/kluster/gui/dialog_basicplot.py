@@ -59,6 +59,8 @@ class BasicPlotDialog(QtWidgets.QDialog):
         self.dataset_label = QtWidgets.QLabel('Source    ', self)
         self.hlayout_one.addWidget(self.dataset_label)
         self.dataset_dropdown = QtWidgets.QComboBox(self)
+        self.dataset_dropdown.setSizeAdjustPolicy(QtWidgets.QComboBox.AdjustToContents)
+
         self.hlayout_one.addWidget(self.dataset_dropdown)
         self.hlayout_one.addStretch()
 
@@ -66,6 +68,7 @@ class BasicPlotDialog(QtWidgets.QDialog):
         self.variable_label = QtWidgets.QLabel('Variable  ', self)
         self.hlayout_two.addWidget(self.variable_label)
         self.variable_dropdown = QtWidgets.QComboBox(self)
+        self.variable_dropdown.setSizeAdjustPolicy(QtWidgets.QComboBox.AdjustToContents)
         self.hlayout_two.addWidget(self.variable_dropdown)
         self.variable_dim_label = QtWidgets.QLabel('      Dimensions', self)
         self.hlayout_two.addWidget(self.variable_dim_label)
@@ -79,6 +82,7 @@ class BasicPlotDialog(QtWidgets.QDialog):
         self.plottype_label = QtWidgets.QLabel('Plot Type', self)
         self.hlayout_three.addWidget(self.plottype_label)
         self.plottype_dropdown = QtWidgets.QComboBox(self)
+        self.plottype_dropdown.setSizeAdjustPolicy(QtWidgets.QComboBox.AdjustToContents)
         self.hlayout_three.addWidget(self.plottype_dropdown)
         self.bincount_label = QtWidgets.QLabel('Bins')
         self.bincount_label.hide()
@@ -370,7 +374,7 @@ class BasicPlotDialog(QtWidgets.QDialog):
             translated_var = variable
 
         if not self.add_to_current_plot.isChecked() and dataset_name != 'custom':
-            if isinstance(dataset, list) and len(dataset) > 1:
+            if isinstance(dataset, list) and len(dataset) > 1:  # dual head
                 fig, self.recent_plot = plt.subplots(ncols=2)
                 fig.suptitle('{}: {} Plot of {}'.format(sonartype[0], plottype, translated_var))
             else:
@@ -488,6 +492,9 @@ class BasicPlotDialog(QtWidgets.QDialog):
             # set always on top
             plt.gcf().canvas.manager.window.setWindowFlags(self.windowFlags() | QtCore.Qt.WindowStaysOnTopHint)
             plt.gcf().canvas.manager.window.show()
+        else:  # adding to an existing plot, we need to update the plot to get a redraw
+            plt.gcf().canvas.draw()
+            plt.gcf().canvas.flush_events()
 
     def plot(self):
         """
