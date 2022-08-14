@@ -207,6 +207,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.project_tree.load_console_fqpr.connect(self.load_console_fqpr)
         self.project_tree.load_console_surface.connect(self.load_console_surface)
         self.project_tree.show_explorer.connect(self.show_in_explorer)
+        self.project_tree.show_log.connect(self.show_process_log)
         self.project_tree.show_properties.connect(self.show_layer_properties)
         self.project_tree.zoom_extents_fqpr.connect(self.zoom_extents_fqpr)
         self.project_tree.zoom_extents_surface.connect(self.zoom_extents_surface)
@@ -823,7 +824,26 @@ class KlusterMain(QtWidgets.QMainWindow):
         else:
             # this must be an auxiliary file, like a geotiff or a s57.  Show the containing folder
             absolute_path = os.path.dirname(pth)
+        self.print(f'Opening {absolute_path}', logging.INFO)
         os.startfile(absolute_path)
+
+    def show_process_log(self, pth: str):
+        """
+        Show the process log associated with the given
+
+        Parameters
+        ----------
+        pth
+            path to the grid folder
+        """
+        if not os.path.exists(pth):
+            absolute_path = self.project.absolute_path_from_relative(pth)
+        else:
+            # this must be an auxiliary file, like a geotiff or a s57.  Show the containing folder
+            absolute_path = os.path.dirname(pth)
+        logpath = os.path.join(absolute_path, 'logfile.txt')
+        self.print(f'Opening log file {logpath}', logging.INFO)
+        os.startfile(logpath)
 
     def show_layer_properties(self, layertype: str, pth: str):
         """

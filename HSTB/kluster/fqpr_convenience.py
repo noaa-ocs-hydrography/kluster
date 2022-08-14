@@ -1088,12 +1088,12 @@ def update_surface(surface_instance: Union[str, BathyGrid], add_fqpr: Union[Fqpr
             remove_fqpr = [remove_fqpr]
             if remove_lines and not isinstance(remove_lines[0], str):  # expect a list of lines when a single fqpr is provided
                 print(f'update_surface - remove: when a single fqpr data instance is removed by line, expect a list of line names: fqpr: {len(remove_fqpr)}, add_lines: {len(remove_lines)}')
-                return None, oldrez, newrez
+                raise ValueError(f'update_surface - remove: when a single fqpr data instance is removed by line, expect a list of line names: fqpr: {len(remove_fqpr)}, add_lines: {len(remove_lines)}')
             remove_lines = [remove_lines]
         else:  # list of fqprs provided
             if remove_lines and len(remove_fqpr) != len(remove_lines):
                 print(f'update_surface - remove: when a list of fqpr data instances are removed by line, expect a list of line names of the same length: fqpr: {len(remove_fqpr)}, add_lines: {len(remove_lines)}')
-                return None, oldrez, newrez
+                raise ValueError(f'update_surface - remove: when a list of fqpr data instances are removed by line, expect a list of line names of the same length: fqpr: {len(remove_fqpr)}, add_lines: {len(remove_lines)}')
 
         for cnt, rfqpr in enumerate(remove_fqpr):
             if remove_lines:
@@ -1106,23 +1106,21 @@ def update_surface(surface_instance: Union[str, BathyGrid], add_fqpr: Union[Fqpr
             add_fqpr = [add_fqpr]
             if add_lines and not isinstance(add_lines[0], str):  # expect a list of lines when a single fqpr is provided
                 print(f'update_surface - add: when a single fqpr data instance is added by line, expect a list of line names: fqpr: {len(add_fqpr)}, add_lines: {len(add_lines)}')
-                return None, oldrez, newrez
+                raise ValueError(f'update_surface - add: when a single fqpr data instance is added by line, expect a list of line names: fqpr: {len(add_fqpr)}, add_lines: {len(add_lines)}')
             add_lines = [add_lines]
         else:  # list of fqprs provided
             if add_lines and len(add_fqpr) != len(add_lines):
                 print(f'update_surface - add: when a list of fqpr data instances are added by line, expect a list of line names of the same length: fqpr: {len(add_fqpr)}, add_lines: {len(add_lines)}')
-                return None, oldrez, newrez
+                raise ValueError(f'update_surface - add: when a list of fqpr data instances are added by line, expect a list of line names of the same length: fqpr: {len(add_fqpr)}, add_lines: {len(add_lines)}')
 
         for fq in add_fqpr:
             if not fq.is_processed():
                 print(f'_get_unique_crs_vertref: {fq.output_folder} is not fully processed, current processing status={fq.status}')
-                return None, oldrez, newrez
+                raise ValueError(f'_get_unique_crs_vertref: {fq.output_folder} is not fully processed, current processing status={fq.status}')
 
         _validate_fqpr_for_gridding(add_fqpr)
 
         unique_crs, unique_vertref = _get_unique_crs_vertref(add_fqpr)
-        if unique_vertref is None or unique_crs is None:
-            return None, oldrez, newrez
 
         for cnt, afqpr in enumerate(add_fqpr):
             if add_lines:

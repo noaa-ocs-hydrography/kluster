@@ -1785,7 +1785,7 @@ class Fqpr(ZarrBackend):
 
         if 'qualityfactor' not in self.multibeam.raw_ping[0]:
             self.print("_generate_chunks_tpu: sonar uncertainty ('qualityfactor') must exist to calculate uncertainty", logging.ERROR)
-            return None
+            raise ValueError("_generate_chunks_tpu: sonar uncertainty ('qualityfactor') must exist to calculate uncertainty", logging.ERROR)
 
         roll = interp_across_chunks(self.multibeam.raw_att['roll'], tx_tstmp_idx + latency, daskclient=self.client)
 

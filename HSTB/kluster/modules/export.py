@@ -148,10 +148,10 @@ class FqprExport:
 
         if 'x' not in self.fqpr.multibeam.raw_ping[0]:
             self.fqpr.logger.error('export_pings_to_file: No xyz data found, please run All Processing - Georeference Soundings first.')
-            return None, None, None, None
+            raise ValueError('export_pings_to_file: No xyz data found, please run All Processing - Georeference Soundings first.')
         if file_format == 'entwine' and not is_pydro():
             self.fqpr.logger.error('export_pings_to_file: Only pydro environments support entwine tile building.  Please see https://entwine.io/configuration.html for instructions on installing entwine if you wish to use entwine outside of Kluster.  Kluster exported las files will work with the entwine build command')
-            return None, None, None, None
+            raise ValueError('export_pings_to_file: Only pydro environments support entwine tile building.  Please see https://entwine.io/configuration.html for instructions on installing entwine if you wish to use entwine outside of Kluster.  Kluster exported las files will work with the entwine build command')
 
         if output_directory is None:
             output_directory = self.fqpr.multibeam.converted_pth
@@ -169,7 +169,7 @@ class FqprExport:
             entwine_fldr_path, _ = _create_folder(output_directory, 'entwine_export')
         else:
             self.fqpr.logger.error('export_pings_to_file: Only csv, las and entwine format options supported at this time')
-            return None, None, None, None
+            raise ValueError('export_pings_to_file: Only csv, las and entwine format options supported at this time')
         return chunksize, fldr_path, entwine_fldr_path, suffix
 
     def export_lines_to_file(self, linenames: list = None, output_directory: str = None, file_format: str = 'csv', csv_delimiter=' ',
