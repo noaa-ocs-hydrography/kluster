@@ -1,3 +1,5 @@
+import os.path
+
 import numpy as np
 import traceback
 import logging
@@ -11,8 +13,8 @@ from HSTB.kluster.fqpr_convenience import generate_new_surface, import_processed
 
 class MyWorker(QtCore.QThread):
 
-    started = Signal(bool)
-    finished = Signal(bool)
+    tstarted = Signal(bool)
+    tfinished = Signal(bool)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -58,7 +60,7 @@ class ActionWorker(MyWorker):
         self.result = None
 
     def run(self):
-        self.started.emit(True)
+        self.tstarted.emit(True)
         try:
             action = self.action_container.actions[self.action_index]
             self.parent().debug_print(f'current action container')
@@ -67,7 +69,7 @@ class ActionWorker(MyWorker):
             self.result = self.action_container.execute_action(self.action_index)
         except Exception as e:
             super().log_exception(e)
-        self.finished.emit(True)
+        self.tfinished.emit(True)
 
 
 class OpenProjectWorker(MyWorker):
@@ -92,7 +94,7 @@ class OpenProjectWorker(MyWorker):
         self.new_surfaces = []
 
     def run(self):
-        self.started.emit(True)
+        self.tstarted.emit(True)
         try:
             self.action_type = 'Open Project'
             self.new_fqprs = []
@@ -119,7 +121,7 @@ class OpenProjectWorker(MyWorker):
                     self.parent().print('Unable to load surface from {}'.format(pth), logging.WARNING)
         except Exception as e:
             super().log_exception(e)
-        self.finished.emit(True)
+        self.tfinished.emit(True)
 
 
 class DrawNavigationWorker(MyWorker):
@@ -140,7 +142,7 @@ class DrawNavigationWorker(MyWorker):
         self.line_data = {}
 
     def run(self):
-        self.started.emit(True)
+        self.tstarted.emit(True)
         try:
             self.action_type = 'Draw Lines'
             for fq in self.new_fqprs:
@@ -152,7 +154,7 @@ class DrawNavigationWorker(MyWorker):
                         self.parent().debug_print(f'project.return_line_navigation: drawing {ln}: {len(lats)} points, {lats[0]},{lons[0]} to {lats[-1]},{lons[-1]}', logging.INFO)
         except Exception as e:
             super().log_exception(e)
-        self.finished.emit(True)
+        self.tfinished.emit(True)
 
 
 class DrawSurfaceWorker(MyWorker):
@@ -178,7 +180,7 @@ class DrawSurfaceWorker(MyWorker):
         self.surface_data = {}
 
     def run(self):
-        self.started.emit(True)
+        self.tstarted.emit(True)
         try:
             self.action_type = 'Draw Surface'
             if self.surface_layer_name == 'tiles':
@@ -208,7 +210,7 @@ class DrawSurfaceWorker(MyWorker):
                         self.parent().debug_print(f'surf_object.get_chunks_of_tiles: {self.surface_path} : {tilename} : {resolution}m geotransform {geo_transform} maxdimension {maxdim}', logging.INFO)
         except Exception as e:
             super().log_exception(e)
-        self.finished.emit(True)
+        self.tfinished.emit(True)
 
 
 class LoadPointsWorker(MyWorker):
@@ -231,14 +233,14 @@ class LoadPointsWorker(MyWorker):
         self.points_data = None
 
     def run(self):
-        self.started.emit(True)
+        self.tstarted.emit(True)
         self.action_type = 'Load Points'
         try:
             self.parent().debug_print(f'project.return_soundings_in_polygon: Returning soundings within polygon {self.polygon}', logging.INFO)
             self.points_data = self.project.return_soundings_in_polygon(self.polygon)
         except Exception as e:
             super().log_exception(e)
-        self.finished.emit(True)
+        self.tfinished.emit(True)
 
 
 class ImportNavigationWorker(MyWorker):
@@ -257,7 +259,7 @@ class ImportNavigationWorker(MyWorker):
         self.fqpr_instances = []
 
     def run(self):
-        self.started.emit(True)
+        self.tstarted.emit(True)
         self.action_type = 'Import Navigation'
         try:
             for chnk in self.fq_chunks:
@@ -265,7 +267,7 @@ class ImportNavigationWorker(MyWorker):
                 self.fqpr_instances.append(import_processed_navigation(chnk[0], **chnk[1]))
         except Exception as e:
             super().log_exception(e)
-        self.finished.emit(True)
+        self.tfinished.emit(True)
 
 
 class OverwriteNavigationWorker(MyWorker):
@@ -284,7 +286,7 @@ class OverwriteNavigationWorker(MyWorker):
         self.fqpr_instances = []
 
     def run(self):
-        self.started.emit(True)
+        self.tstarted.emit(True)
         self.action_type = 'Overwrite Navigation'
         try:
             for chnk in self.fq_chunks:
@@ -292,7 +294,7 @@ class OverwriteNavigationWorker(MyWorker):
                 self.fqpr_instances.append(overwrite_raw_navigation(chnk[0], **chnk[1]))
         except Exception as e:
             super().log_exception(e)
-        self.finished.emit(True)
+        self.tfinished.emit(True)
 
 
 class ExportWorker(MyWorker):
@@ -356,7 +358,7 @@ class ExportWorker(MyWorker):
         return fq
 
     def run(self):
-        self.started.emit(True)
+        self.tstarted.emit(True)
         self.action_type = f'Export Dataset ({self.mode})'
         try:
             if self.mode in ['basic', 'line']:
@@ -367,7 +369,7 @@ class ExportWorker(MyWorker):
                 self.fqpr_instances.append(self.export_process(fq, datablock=self.datablock))
         except Exception as e:
             super().log_exception(e)
-        self.finished.emit(True)
+        self.tfinished.emit(True)
 
 
 class FilterWorker(MyWorker):
@@ -433,7 +435,7 @@ class FilterWorker(MyWorker):
         return fq, new_status
 
     def run(self):
-        self.started.emit(True)
+        self.tstarted.emit(True)
         self.action_type = f'Filter {self.filter_name} ({self.mode})'
         try:
             if self.mode in ['basic', 'line']:
@@ -449,7 +451,7 @@ class FilterWorker(MyWorker):
                     self.new_status.append(new_status)
         except Exception as e:
             super().log_exception(e)
-        self.finished.emit(True)
+        self.tfinished.emit(True)
 
 
 class ExportTracklinesWorker(MyWorker):
@@ -489,14 +491,14 @@ class ExportTracklinesWorker(MyWorker):
         return fq
 
     def run(self):
-        self.started.emit(True)
+        self.tstarted.emit(True)
         self.action_type = f'Export Tracklines ({self.mode})'
         try:
             for chnk in self.fq_chunks:
                 self.fqpr_instances.append(self.export_process(chnk[0]))
         except Exception as e:
             super().log_exception(e)
-        self.finished.emit(True)
+        self.tfinished.emit(True)
 
 
 class ExportGridWorker(MyWorker):
@@ -521,7 +523,7 @@ class ExportGridWorker(MyWorker):
         self.z_pos_up = z_pos_up
 
     def run(self):
-        self.started.emit(True)
+        self.tstarted.emit(True)
         self.action_type = f'Export Grid'
         try:
             self.parent().debug_print(f'surf_instance.export {self.output_path} export_type={self.export_type}, z_pos_up={self.z_pos_up}', logging.INFO)
@@ -531,7 +533,7 @@ class ExportGridWorker(MyWorker):
                                       **self.bag_kwargs)
         except Exception as e:
             super().log_exception(e)
-        self.finished.emit(True)
+        self.tfinished.emit(True)
 
 
 class SurfaceWorker(MyWorker):
@@ -554,7 +556,7 @@ class SurfaceWorker(MyWorker):
         self.mode = 'from_fqpr'
 
     def run(self):
-        self.started.emit(True)
+        self.tstarted.emit(True)
         self.action_type = f'New Surface'
         try:
             if self.mode == 'from_fqpr':
@@ -565,7 +567,7 @@ class SurfaceWorker(MyWorker):
                 self.fqpr_surface = points_to_surface(self.fqpr_instances, **self.opts)
         except Exception as e:
             super().log_exception(e)
-        self.finished.emit(True)
+        self.tfinished.emit(True)
 
 
 class MosaicWorker(MyWorker):
@@ -586,14 +588,14 @@ class MosaicWorker(MyWorker):
         self.opts = opts
 
     def run(self):
-        self.started.emit(True)
+        self.tstarted.emit(True)
         self.action_type = f'New Mosaic'
         try:
             self.parent().debug_print(f'generate_new_mosaic {self.opts}', logging.INFO)
             self.fqpr_surface = generate_new_mosaic(self.fqpr_instances, **self.opts)
         except Exception as e:
             super().log_exception(e)
-        self.finished.emit(True)
+        self.tfinished.emit(True)
 
 
 class SurfaceUpdateWorker(MyWorker):
@@ -622,7 +624,7 @@ class SurfaceUpdateWorker(MyWorker):
         self.opts = opts
 
     def run(self):
-        self.started.emit(True)
+        self.tstarted.emit(True)
         self.action_type = f'Update Surface'
         try:
             self.parent().debug_print(f'update_surface add_fqpr={self.add_fqpr_instances}, add_lines={self.add_lines}, remove_fqpr={self.remove_fqpr_names}, remove_lines={self.remove_lines}, {self.opts}', logging.INFO)
@@ -630,7 +632,7 @@ class SurfaceUpdateWorker(MyWorker):
                                                                self.remove_fqpr_names, self.remove_lines, **self.opts)
         except Exception as e:
             super().log_exception(e)
-        self.finished.emit(True)
+        self.tfinished.emit(True)
 
 
 class PatchTestUpdateWorker(MyWorker):
@@ -666,7 +668,7 @@ class PatchTestUpdateWorker(MyWorker):
         self.result = []
 
     def run(self):
-        self.started.emit(True)
+        self.tstarted.emit(True)
         self.action_type = f'Patch Test'
         try:
             self.parent().debug_print(f'reprocess_fqprs fqprs={self.fqprs}, newvalues={self.newvalues}, headindex={self.headindex}, prefixes={self.prefixes}, timestamps={self.timestamps}, serial_number={self.serial_number}, polygon={self.polygon}, vdatum_directory={self.vdatum_directory}', logging.INFO)
@@ -674,4 +676,4 @@ class PatchTestUpdateWorker(MyWorker):
                                                       self.serial_number, self.polygon, self.vdatum_directory)
         except Exception as e:
             super().log_exception(e)
-        self.finished.emit(True)
+        self.tfinished.emit(True)

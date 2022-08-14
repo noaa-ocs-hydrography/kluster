@@ -233,36 +233,36 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.points_view.points_cleaned.connect(self.set_pointsview_points_status)
         self.points_view.patch_test_sig.connect(self.manual_patch_test)
 
-        self.action_thread.started.connect(self._start_action_progress)
-        self.action_thread.finished.connect(self._kluster_execute_action_results)
-        self.overwrite_nav_thread.started.connect(self._start_action_progress)
-        self.overwrite_nav_thread.finished.connect(self._kluster_overwrite_nav_results)
-        self.import_ppnav_thread.started.connect(self._start_action_progress)
-        self.import_ppnav_thread.finished.connect(self._kluster_import_ppnav_results)
-        self.surface_thread.started.connect(self._start_action_progress)
-        self.surface_thread.finished.connect(self._kluster_surface_generation_results)
-        self.mosaic_thread.started.connect(self._start_action_progress)
-        self.mosaic_thread.finished.connect(self._kluster_mosaic_generation_results)
-        self.surface_update_thread.started.connect(self._start_action_progress)
-        self.surface_update_thread.finished.connect(self._kluster_surface_update_results)
-        self.export_thread.started.connect(self._start_action_progress)
-        self.export_thread.finished.connect(self._kluster_export_results)
-        self.export_tracklines_thread.started.connect(self._start_action_progress)
-        self.export_tracklines_thread.finished.connect(self._kluster_export_tracklines_results)
-        self.export_grid_thread.started.connect(self._start_action_progress)
-        self.export_grid_thread.finished.connect(self._kluster_export_grid_results)
-        self.filter_thread.started.connect(self._start_action_progress)
-        self.filter_thread.finished.connect(self._kluster_filter_results)
-        self.open_project_thread.started.connect(self._start_action_progress)
-        self.open_project_thread.finished.connect(self._kluster_open_project_results)
-        self.draw_navigation_thread.started.connect(self._start_action_progress)
-        self.draw_navigation_thread.finished.connect(self._kluster_draw_navigation_results)
-        self.draw_surface_thread.started.connect(self._start_action_progress)
-        self.draw_surface_thread.finished.connect(self._kluster_draw_surface_results)
-        self.load_points_thread.started.connect(self._start_action_progress)
-        self.load_points_thread.finished.connect(self._kluster_load_points_results)
-        self.patch_test_load_thread.started.connect(self._start_action_progress)
-        self.patch_test_load_thread.finished.connect(self._kluster_update_manual_patch_test)
+        self.action_thread.tstarted.connect(self._start_action_progress)
+        self.action_thread.tfinished.connect(self._kluster_execute_action_results)
+        self.overwrite_nav_thread.tstarted.connect(self._start_action_progress)
+        self.overwrite_nav_thread.tfinished.connect(self._kluster_overwrite_nav_results)
+        self.import_ppnav_thread.tstarted.connect(self._start_action_progress)
+        self.import_ppnav_thread.tfinished.connect(self._kluster_import_ppnav_results)
+        self.surface_thread.tstarted.connect(self._start_action_progress)
+        self.surface_thread.tfinished.connect(self._kluster_surface_generation_results)
+        self.mosaic_thread.tstarted.connect(self._start_action_progress)
+        self.mosaic_thread.tfinished.connect(self._kluster_mosaic_generation_results)
+        self.surface_update_thread.tstarted.connect(self._start_action_progress)
+        self.surface_update_thread.tfinished.connect(self._kluster_surface_update_results)
+        self.export_thread.tstarted.connect(self._start_action_progress)
+        self.export_thread.tfinished.connect(self._kluster_export_results)
+        self.export_tracklines_thread.tstarted.connect(self._start_action_progress)
+        self.export_tracklines_thread.tfinished.connect(self._kluster_export_tracklines_results)
+        self.export_grid_thread.tstarted.connect(self._start_action_progress)
+        self.export_grid_thread.tfinished.connect(self._kluster_export_grid_results)
+        self.filter_thread.tstarted.connect(self._start_action_progress)
+        self.filter_thread.tfinished.connect(self._kluster_filter_results)
+        self.open_project_thread.tstarted.connect(self._start_action_progress)
+        self.open_project_thread.tfinished.connect(self._kluster_open_project_results)
+        self.draw_navigation_thread.tstarted.connect(self._start_action_progress)
+        self.draw_navigation_thread.tfinished.connect(self._kluster_draw_navigation_results)
+        self.draw_surface_thread.tstarted.connect(self._start_action_progress)
+        self.draw_surface_thread.tfinished.connect(self._kluster_draw_surface_results)
+        self.load_points_thread.tstarted.connect(self._start_action_progress)
+        self.load_points_thread.tfinished.connect(self._kluster_load_points_results)
+        self.patch_test_load_thread.tstarted.connect(self._start_action_progress)
+        self.patch_test_load_thread.tfinished.connect(self._kluster_update_manual_patch_test)
 
         self.monitor.monitor_file_event.connect(self.intel._handle_monitor_event)
         self.monitor.monitor_start.connect(self._create_new_project_if_not_exist)
@@ -437,6 +437,8 @@ class KlusterMain(QtWidgets.QMainWindow):
         vessel_view_action = QtWidgets.QAction('Vessel Offsets', self)
         vessel_view_action.triggered.connect(self._action_vessel_view)
 
+        qgis_action = QtWidgets.QAction('Start QGIS', self)
+        qgis_action.triggered.connect(self._action_qgis)
         file_analyzer = QtWidgets.QAction('File Analyzer', self)
         file_analyzer.triggered.connect(self._action_file_analyzer)
 
@@ -505,6 +507,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         setup.addAction(setup_client_action)
 
         tools = menubar.addMenu('Tools')
+        tools.addAction(qgis_action)
         tools.addAction(file_analyzer)
 
         process = menubar.addMenu('Process')
@@ -2096,7 +2099,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.export_tracklines_thread.show_error()
         self.export_tracklines_thread.populate(None, None, '', False, True, '')
 
-    def _start_action_progress(self):
+    def _start_action_progress(self, start: bool):
         """
         For worker threads not started through the action widget, we have to manually trigger starting the progress
         bar here.
@@ -2920,6 +2923,9 @@ class KlusterMain(QtWidgets.QMainWindow):
         else:
             widget.setWindowFlags(self.windowFlags() & ~QtCore.Qt.WindowStaysOnTopHint)
         widget.show()
+
+    def _action_qgis(self):
+        os.startfile('qgis.exe')
 
     def _action_file_analyzer(self):
         self._fileanalyzer = dialog_fileanalyzer.FileAnalyzerDialog(parent=self)

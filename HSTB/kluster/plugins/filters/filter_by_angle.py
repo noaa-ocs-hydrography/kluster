@@ -18,6 +18,9 @@ class Filter(BaseFilter):
             raise ValueError('filter_by_angle: Filter must have either min or max angle set')
         if min_angle is not None and max_angle is not None and min_angle >= max_angle:
             raise ValueError(f'filter_by_angle: minimum angle {min_angle} cannot be greater than maximum angle {max_angle}')
+        if 'corr_pointing_angle' not in self.fqpr.multibeam.raw_ping[0]:
+            raise ValueError(f'filter_by_angle: unable to find corrected beam angles, have you processed this data?')
+
         print(f'Running filter_by_angle ({min_angle},{max_angle}) on {self.fqpr.output_folder}')
         self.new_status = []  # new_status will be a list where each element is a 2d array of new detectioninfo (sounding flag) values
         for cnt, rp in enumerate(self.fqpr.multibeam.raw_ping):  # for each sonar head...
