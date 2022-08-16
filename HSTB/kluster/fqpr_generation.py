@@ -1944,10 +1944,10 @@ class Fqpr(ZarrBackend):
                 pass
             elif mext == '.all':
                 try:
-                    # dchunk.append(self.client.scatter(ra.nearnormalcorrect[chnk.values]))
+                    dchunk.append(self.client.scatter(ra.nearnormalcorrect[chnk.values]))
                     dchunk.append(self.client.scatter(ra.pulselength[chnk.values]))
                 except:  # get here if client is closed or doesnt exist
-                    # dchunk.append(ra.nearnormalcorrect[chnk.values])
+                    dchunk.append(ra.nearnormalcorrect[chnk.values])
                     dchunk.append(ra.pulselength[chnk.values])
             elif mext == '.kmall':
                 try:
@@ -2253,7 +2253,7 @@ class Fqpr(ZarrBackend):
         if multibeam_extension == '.s7k':
             pass
         elif multibeam_extension == '.all':
-            required += ['pulselength']
+            required += ['pulselength', 'nearnormalcorrect']
         elif multibeam_extension == '.kmall':
             required += ['pulselength', 'fixedgain', 'tvg', 'absorption']
 
