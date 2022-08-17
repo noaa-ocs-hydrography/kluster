@@ -56,6 +56,7 @@ class FqprProject(LoggerClass):
         super().__init__(**kwargs)
 
         self.client = None
+        self.skip_dask = False
         self.path = None
         self.is_gui = is_gui
         self.file_format = 1.0
@@ -215,16 +216,20 @@ class FqprProject(LoggerClass):
     def get_dask_client(self):
         """
         Project is the holder of the Dask client object.  Use this method to return the current Client.  Client is
-        currently setup with kluster_main.start_dask_client or kluster_main.open_dask_dashboard
+        currently setup with kluster_main.start_dask_client or kluster_main.open_dask_dashboard.  If skip_dask is set, will
+        not automatically start a client.
 
         If the client does not exist, we set it here and then set the client to the Fqpr and BatchRead instance
         """
 
-        if self.client is None or (self.client.status != 'running'):
-            self.client = dask_find_or_start_client()
-        needs_restart = client_needs_restart(self.client)  # handle memory leaks by restarting if memory utilization on fresh client is > 50%
-        if needs_restart:
-            self.client.restart()
+        if self.skip_dask:
+            self.client = None
+        else:
+            if self.client is None or (self.client.status != 'running'):
+                self.client = dask_find_or_start_client()
+            needs_restart = client_needs_restart(self.client)  # handle memory leaks by restarting if memory utilization on fresh client is > 50%
+            if needs_restart:
+                self.client.restart()
         for fqname, fqinstance in self.fqpr_instances.items():
             fqinstance.client = self.client
             fqinstance.multibeam.client = self.client

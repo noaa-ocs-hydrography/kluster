@@ -1128,7 +1128,7 @@ class FqprIntel(LoggerClass):
         """
         if self.action_container.actions:
             self.project.get_dask_client()  # start dask if it has not been started already
-            self.action_container.update_actions_client(self.project.client)
+            self.update_actions_client()
             if self.action_container.actions:
                 action = self.action_container.actions[idx]
                 action_type = action.action_type
@@ -1880,7 +1880,7 @@ def intel_process(filname: Union[str, list], outfold: str = None, coord_system: 
                   epsg: int = None, use_epsg: bool = False, vert_ref: str = 'waterline',
                   parallel_write: bool = True, vdatum_directory: str = None, force_coordinate_system: bool = True,
                   cast_selection_method: str = 'nearest_in_time', designated_surface: str = '',
-                  process_mode: str = 'normal', logger: logging.Logger = None, client: Client = None):
+                  process_mode: str = 'normal', logger: logging.Logger = None, client: Client = None, skip_dask: bool = False):
     """
     Use Kluster intelligence module to organize and process all input files.  Files can be a list of files, a single
     file, or a directory full of files.  Files can be multibeam files, .svp sound velocity profile files, SBET and
@@ -1922,7 +1922,9 @@ def intel_process(filname: Union[str, list], outfold: str = None, coord_system: 
         logging.Logger instance, if included will use this logger in Kluster
     client
         dask.distributed.Client instance, if you don't include this, it will automatically start a LocalCluster with the
-        default options
+        default options, unless you set skip_dask to True
+    skip_dask
+        if True, will not use the dask client
 
     Returns
     -------
@@ -1933,8 +1935,9 @@ def intel_process(filname: Union[str, list], outfold: str = None, coord_system: 
     """
 
     project = FqprProject(is_gui=False, project_path=outfold, logger=logger)
-    if client:
+    if client and not skip_dask:
         project.client = client
+    project.skip_dask = skip_dask
     if designated_surface:
         project.add_surface(designated_surface)
 
@@ -1970,7 +1973,7 @@ def intel_process_service(folder_path: Union[list, str], is_recursive: bool = Tr
                           epsg: int = None, use_epsg: bool = False, vert_ref: str = 'waterline',
                           parallel_write: bool = True, vdatum_directory: str = None, force_coordinate_system: bool = True,
                           cast_selection_method: str = 'nearest_in_time', designated_surface: str = '',
-                          process_mode: str = 'normal', logger: logging.Logger = None, client: Client = None):
+                          process_mode: str = 'normal', logger: logging.Logger = None, client: Client = None, skip_dask: bool = False):
     """
     Use Kluster intelligence module to start a new folder monitoring session and process all new files that show
     up in that directory.  Files can be multibeam files, .svp sound velocity profile files, SBET and
@@ -2014,13 +2017,16 @@ def intel_process_service(folder_path: Union[list, str], is_recursive: bool = Tr
         logging.Logger instance, if included will use this logger in Kluster
     client
         dask.distributed.Client instance, if you don't include this, it will automatically start a LocalCluster with the
-        default options
+        default options, unless you set skip_dask to True
+    skip_dask
+        if True, will not use the dask client
     """
 
     # consider daemonizing this at some point: https://daemoniker.readthedocs.io/en/latest/index.html
     project = FqprProject(is_gui=False, project_path=outfold, logger=logger)
-    if client:
+    if client and not skip_dask:
         project.client = client
+    project.skip_dask = skip_dask
     if designated_surface:
         project.add_surface(designated_surface)
 

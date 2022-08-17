@@ -76,6 +76,8 @@ if __name__ == "__main__":  # run from command line
                          help='If true, uses dask.distributed.progress to show progress bar, default is True')
     allproc.add_argument('-parallel', '--parallel_write', type=str2bool, required=False, nargs='?', const=True, default=True,
                          help='If true, writes to disk in parallel, turn this off to troubleshoot PermissionErrors, default is True')
+    allproc.add_argument('-skip', '--skip_dask', type=str2bool, required=False, nargs='?', const=False, default=False,
+                         help='if True, will not use the dask client, default is False')
     allproc.add_argument('-vdatum', '--vdatum_directory', required=False,
                          help="if 'NOAA MLLW' 'NOAA MHW' is the vertical reference, a path to the vdatum directory is required here.")
     allproc.add_argument('-csl', '--cast_selection_method', required=False, nargs='?', const=kluster_variables.default_cast_selection_method,
@@ -118,6 +120,8 @@ if __name__ == "__main__":  # run from command line
                            help='the method used to select the cast that goes with each chunk of the dataset, one of {}, default {}'.format(kluster_variables.default_cast_selection_method, kluster_variables.cast_selection_methods))
     intelproc.add_argument('-ds', '--designated_surface', required=False, nargs='?', const='', default='',
                            help='path to a Kluster Bathygrid surface.  If this is provided, newly processed data will be added to the surface as it is processed.')
+    intelproc.add_argument('-skip', '--skip_dask', type=str2bool, required=False, nargs='?', const=False, default=False,
+                           help='if True, will not use the dask client, default is False')
 
     intelservicehelp = 'R|Use Kluster intelligence module to start a new folder monitoring session and process all new files that show '
     intelservicehelp += 'up in the directory.  Files can be multibeam files, .svp sound velocity profile files, SBET and '
@@ -155,6 +159,8 @@ if __name__ == "__main__":  # run from command line
                                   kluster_variables.default_cast_selection_method, kluster_variables.cast_selection_methods))
     intelservice.add_argument('-ds', '--designated_surface', required=False, nargs='?', const='', default='',
                               help='path to a Kluster Bathygrid surface.  If this is provided, newly processed data will be added to the surface as it is processed.')
+    intelservice.add_argument('-skip', '--skip_dask', type=str2bool, required=False, nargs='?', const=False, default=False,
+                              help='if True, will not use the dask client, default is False')
 
     converthelp = 'R|Convert multibeam from raw files to xarray datasets within the kluster data structure\n'
     converthelp += 'example (relying on default arguments): convert -f fileone.all\n'
@@ -170,6 +176,8 @@ if __name__ == "__main__":  # run from command line
                              help='If true, uses dask.distributed.progress to show progress bar, default is True')
     convertproc.add_argument('-parallel', '--parallel_write', type=str2bool, required=False, nargs='?', const=True, default=True,
                              help='If true, writes to disk in parallel, turn this off to troubleshoot PermissionErrors, default is True')
+    convertproc.add_argument('-skip', '--skip_dask', type=str2bool, required=False, nargs='?', const=False, default=False,
+                             help='if True, will not use the dask client, default is False')
 
     procnavhelp = 'R|Import processed navigation (POSPac SBET) into converted kluster dataset (run convert first)\n'
     procnavhelp += 'example (with export log): import_processed_nav "C:/data_dir/em2045_20098_07_11_2018" -nf sbet.out -ef smrmsg.out -lf export.log\n'
@@ -301,20 +309,20 @@ if __name__ == "__main__":  # run from command line
                                    parallel_write=args.parallel_write, errorfiles=args.error_files, logfiles=args.export_log,
                                    weekstart_year=args.weekstart_year, weekstart_week=args.weekstart_week, override_datum=args.navigation_datum,
                                    max_gap_length=args.max_navigation_gap, vdatum_directory=args.vdatum_directory, overwrite=args.navigation_overwrite,
-                                   cast_selection_method=args.cast_selection_method)
+                                   cast_selection_method=args.cast_selection_method, skip_dask=args.skip_dask)
         elif funcname == 'intel_processing':
             intel_process(args.files, outfold=args.output_folder, coord_system=args.coordinate_system, use_epsg=args.use_epsg,
-                          vert_ref=args.vertical_reference, epsg=args.epsg_code,
+                          vert_ref=args.vertical_reference, epsg=args.epsg_code, skip_dask=args.skip_dask,
                           parallel_write=args.parallel_write, force_coordinate_system=args.force_coordinate_system, process_mode=args.process_mode,
                           vdatum_directory=args.vdatum_directory, cast_selection_method=args.cast_selection_method, designated_surface=args.designated_surface)
         elif funcname == 'intel_service':
             intel_process_service(args.folder, outfold=args.output_folder, coord_system=args.coordinate_system, vert_ref=args.vertical_reference,
-                                  use_epsg=args.use_epsg, epsg=args.epsg_code,
+                                  use_epsg=args.use_epsg, epsg=args.epsg_code, skip_dask=args.skip_dask,
                                   parallel_write=args.parallel_write, force_coordinate_system=args.force_coordinate_system, process_mode=args.process_mode,
                                   vdatum_directory=args.vdatum_directory, cast_selection_method=args.cast_selection_method, designated_surface=args.designated_surface)
         elif funcname == 'convert':
             convert_multibeam(args.files, input_datum=args.input_datum, outfold=args.output_folder, show_progress=args.show_progress,
-                              parallel_write=args.parallel_write)
+                              parallel_write=args.parallel_write, skip_dask=args.skip_dask)
         elif funcname == 'import_processed_nav':
             import_processed_navigation(reloaded_data, navfiles=args.navfiles, errorfiles=args.errorfiles, logfiles=args.logfiles,
                                         weekstart_year=args.gps_year, weekstart_week=args.gps_week, override_datum=args.datum,

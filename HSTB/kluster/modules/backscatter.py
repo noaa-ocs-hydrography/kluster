@@ -266,9 +266,9 @@ class S7kscatter(BScatter):
         # we rely on the runtime parameters for all of these variables.  Only the raw intensity is (time, beam) dim for s7k.
         self.absorption_db_m = float(self.runtime_parameters['absorption_db_km']) / 1000
         self.spreading_loss_db = float(self.runtime_parameters['spreading_loss_db'])
-        self.power_selection_db_re_1micropascal = 20 * np.log10(float(self.runtime_parameters['power_selection_db_re_1micropascal']))
+        self.power_selection_db_re_1micropascal = float(self.runtime_parameters['power_selection_db_re_1micropascal'])
         self.pulse_length = float(self.runtime_parameters['tx_pulse_width_seconds'])
-        self.gain_selection_db = 20 * np.log10(float(self.runtime_parameters['gain_selection_db']))
+        self.gain_selection_db = float(self.runtime_parameters['gain_selection_db'])
 
         self.tx_beam_width = tx_beam_width
         self.rx_beam_width = rx_beam_width

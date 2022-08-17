@@ -28,7 +28,7 @@ from bathycube.numba_cube import compile_now
 def perform_all_processing(filname: Union[str, list], navfiles: list = None, input_datum: Union[str, int] = None,
                            outfold: str = None, coord_system: str = 'WGS84',
                            vert_ref: str = 'waterline', orientation_initial_interpolation: bool = False,
-                           add_cast_files: Union[str, list] = None,
+                           add_cast_files: Union[str, list] = None, client: Client = None,
                            skip_dask: bool = False, show_progress: bool = True, parallel_write: bool = True,
                            vdatum_directory: str = None, cast_selection_method: str = 'nearest_in_time', **kwargs):
     """
@@ -61,9 +61,11 @@ def perform_all_processing(filname: Union[str, list], navfiles: list = None, inp
         see process_multibeam
     add_cast_files
         see process_multibeam
+    client
+        dask.distributed.Client instance, if you don't include this, it will automatically start a LocalCluster with the
+        default options, unless you set skip_dask to True
     skip_dask
-        if True, will not start/find the dask client.  Useful for small datasets where parallel processing actually
-        makes the process slower
+        if True, will not use the dask client
     show_progress
         If true, uses dask.distributed.progress.
     parallel_write
@@ -80,7 +82,7 @@ def perform_all_processing(filname: Union[str, list], navfiles: list = None, inp
         Fqpr object containing processed data
     """
 
-    fqpr_inst = convert_multibeam(filname, input_datum=input_datum, outfold=outfold, skip_dask=skip_dask,
+    fqpr_inst = convert_multibeam(filname, input_datum=input_datum, outfold=outfold, client=client, skip_dask=skip_dask,
                                   show_progress=show_progress, parallel_write=parallel_write)
     if fqpr_inst is not None:
         if navfiles is not None:
@@ -111,10 +113,10 @@ def convert_multibeam(filname: Union[str, list], input_datum: Union[str, int] = 
         full file path to a directory you want to contain all the zarr folders.  Will create this folder if it does
         not exist.  If not provided will automatically create folder next to lines.
     client
-        if you have already created a Client, pass it in here to use it
+        dask.distributed.Client instance, if you don't include this, it will automatically start a LocalCluster with the
+        default options, unless you set skip_dask to True
     skip_dask
-        if True, will not start/find the dask client.  Useful for small datasets where parallel processing actually
-        makes the process slower
+        if True, will not use the dask client
     show_progress
         If true, uses dask.distributed.progress.  Disabled for GUI, as it generates too much text
     parallel_write

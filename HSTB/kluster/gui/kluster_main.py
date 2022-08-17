@@ -2278,8 +2278,11 @@ class KlusterMain(QtWidgets.QMainWindow):
         start a new LocalCluster client if there is no client yet OR get the existing client you've setup.
         """
 
-        self.project.get_dask_client()
-        webbrowser.open_new(self.project.client.dashboard_link)
+        if not self.project.skip_dask:
+            self.project.get_dask_client()
+            webbrowser.open_new(self.project.client.dashboard_link)
+        else:
+            self.print('Unable to open Dask dashboard when in "No Client" mode', logging.ERROR)
 
     def open_youtube_playlist(self):
         """
@@ -2296,10 +2299,14 @@ class KlusterMain(QtWidgets.QMainWindow):
         dlog = dialog_daskclient.DaskClientStart(parent=self)
         if dlog.exec_():
             client = dlog.cl
-            if client is None:
+            if client is None and not dlog.noclient_box.isChecked():
                 self.print('start_dask_client: no client started successfully', logging.ERROR)
+            elif dlog.noclient_box.isChecked():
+                self.project.client = client
+                self.project.skip_dask = True
             else:
                 self.project.client = client
+                self.project.skip_dask = False
 
     def set_project_settings(self):
         """

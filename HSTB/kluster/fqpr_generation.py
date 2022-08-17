@@ -833,7 +833,7 @@ class Fqpr(ZarrBackend):
                 if self.multibeam.raw_ping[0].current_processing_status >= 3:  # have to start over at sound velocity now
                     self.write_attribute_to_ping_records({'current_processing_status': 2})
                     self.print('Setting processing status to 2, starting over at sound velocity correction', logging.INFO)
-            self.multibeam.reload_pingrecords(skip_dask=self.client is None)
+            self.multibeam.reload_pingrecords(skip_dask=self.multibeam.skip_dask)
             self.print('Successfully imported {} new casts'.format(len(cast_dict)), logging.INFO)
         else:
             self.print('Unable to import casts from {}'.format(src), logging.WARNING)
@@ -2475,7 +2475,7 @@ class Fqpr(ZarrBackend):
             # have to start over at georeference now, if there isn't any postprocessed navigation
             self.write_attribute_to_ping_records({'current_processing_status': 3})
             self.print('Setting processing status to 3, starting over at georeferencing', logging.INFO)
-        self.multibeam.reload_pingrecords(skip_dask=self.client is None)
+        self.multibeam.reload_pingrecords(skip_dask=self.multibeam.skip_dask)
 
         endtime = perf_counter()
         self.print('****Importing post processed navigation complete: {}****\n'.format(seconds_to_formatted_string(int(endtime - starttime))), logging.INFO)
@@ -2584,7 +2584,7 @@ class Fqpr(ZarrBackend):
             # have to start over at georeference now, if there isn't any postprocessed navigation
             self.write_attribute_to_ping_records({'current_processing_status': 3})
             self.print('Setting processing status to 3, starting over at georeferencing', logging.INFO)
-        self.multibeam.reload_pingrecords(skip_dask=self.client is None)
+        self.multibeam.reload_pingrecords(skip_dask=self.multibeam.skip_dask)
 
         endtime = perf_counter()
         self.print('****Overwriting raw navigation complete: {}****\n'.format(seconds_to_formatted_string(int(endtime - starttime))), logging.INFO)
@@ -2624,7 +2624,7 @@ class Fqpr(ZarrBackend):
                 except:  # not using dask distributed client
                     pass
                 self.write('ping', [ping_wise_data], time_array=ping_wise_times, attributes=attributes, sys_id=rp.system_identifier)
-        self.multibeam.reload_pingrecords(skip_dask=skip_dask)
+        self.multibeam.reload_pingrecords(skip_dask=self.multibeam.skip_dask)
         endtime = perf_counter()
         self.print('****Interpolation complete: {}****\n'.format(seconds_to_formatted_string(int(endtime - starttime))), logging.INFO)
 
