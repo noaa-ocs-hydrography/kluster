@@ -810,19 +810,23 @@ class FqprIntel(LoggerClass):
         output.update(self.svp_intel.unmatched_files)
         self.action_container.update_unmatched(output)
 
-    def regenerate_actions(self, reprocess_fqpr: str = None):
+    def regenerate_actions(self, also_update_conversion: bool = False, reprocess_fqpr: str = None):
         """
         Regenerate all the actions related to exising fqpr instances in the project.  Everytime an fqpr instance is
         removed or added to the project, we run this method.
 
         Parameters
         ----------
+        also_update_conversion
+            if True, will also regenerate conversion actions.  Generally only needed post conversion when new multibeam files are
+            added during conversion, and you need to clear out the file that just converted.
         reprocess_fqpr
             optional, the relative path (from project) for an fqpr instance, triggers full reprocessing for that instance,
             should only be used in emergency
         """
 
-        # print('Checking for new actions...')
+        if also_update_conversion:
+            self._regenerate_multibeam_actions()
         self._regenerate_gridding_actions()
         self._regenerate_processing_actions(reprocess_fqpr=reprocess_fqpr, keep_waterline_changes=self.keep_waterline_changes)
         self._regenerate_svp_actions()
@@ -1170,15 +1174,17 @@ class FqprIntel(LoggerClass):
             the action type of the action that was executed, action type is an attribute of the FqprAction
         """
 
+        also_update_conversion = False
         if action_type == 'multibeam':  # generated a new fqpr instance, have to rematch to project
             self.match_multibeam_files_to_project()
             self.match_navigation_files_to_project()
             self.match_svp_files_to_project()
+            also_update_conversion = True  # conversion actions need to be updated as well
         elif action_type == 'navigation':
             self.match_navigation_files_to_project()
         elif action_type == 'svp':
             self.match_svp_files_to_project()
-        self.regenerate_actions()
+        self.regenerate_actions(also_update_conversion=also_update_conversion)
 
     def clear(self):
         """
