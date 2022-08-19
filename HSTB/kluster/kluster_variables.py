@@ -94,6 +94,7 @@ ping_chunk_size = 1000  # chunk size (in pings) of each written chunk of data in
 navigation_chunk_size = 50000  # chunk size (in time) of each written chunk of data in the navigation records
 attitude_chunk_size = 20000  # chunk size (in time) of each written chunk of data in the attitude records
 max_profile_length = 80  # maximum layers in a sound velocity profile, will interpolate if greater than this length
+max_nav_tolerance = 0.5  # maximum time difference allowed in interpolated nav -> ping record.  If there is no record within this tolerance, nav is set to NaN
 
 cast_selection_methods = ['nearest_in_time', 'nearest_in_time_four_hours', 'nearest_in_distance',
                           'nearest_in_distance_four_hours']

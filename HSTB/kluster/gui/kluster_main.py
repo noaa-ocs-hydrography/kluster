@@ -2299,7 +2299,9 @@ class KlusterMain(QtWidgets.QMainWindow):
         dlog = dialog_daskclient.DaskClientStart(parent=self)
         if dlog.exec_():
             client = dlog.cl
-            if client is None and not dlog.noclient_box.isChecked():
+            if dlog.canceled:
+                self.print('start_dask_client: canceled', logging.INFO)
+            elif client is None and not dlog.noclient_box.isChecked():
                 self.print('start_dask_client: no client started successfully', logging.ERROR)
             elif dlog.noclient_box.isChecked():
                 self.project.client = client

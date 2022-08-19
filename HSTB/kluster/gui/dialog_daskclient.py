@@ -127,6 +127,7 @@ class DaskClientStart(SaveStateDialog):
         self.client_vbox.addLayout(self.button_layout)
 
         self.cl = None
+        self.canceled = False
         self.setLayout(self.client_vbox)
 
         self.remote_box.clicked.connect(self.remote_box_checked)
@@ -166,6 +167,7 @@ class DaskClientStart(SaveStateDialog):
         it out after user hits OK.
         """
 
+        self.canceled = False
         if self.local_box.isChecked() or self.remote_box.isChecked() or self.noclient_box.isChecked():
             self.accept()
             self.save_settings()
@@ -224,6 +226,7 @@ class DaskClientStart(SaveStateDialog):
             self.status_msg.setText('Please select one of the options above (Local, Remote, or No Client)')
 
     def cancel_client(self):
+        self.canceled = True
         self.accept()
 
 

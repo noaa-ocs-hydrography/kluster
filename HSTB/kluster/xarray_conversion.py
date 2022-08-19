@@ -372,7 +372,7 @@ def _sequential_to_xarray(rec: dict):
     dups = tot_records - len(index)
     finalnav = recs_to_merge['navigation'].isel(time=index)
     for systemid in recs_to_merge['ping']:
-        interp_nav = finalnav.reindex_like(recs_to_merge['ping'][systemid], method='nearest')
+        interp_nav = finalnav.reindex_like(recs_to_merge['ping'][systemid], method='nearest', tolerance=kluster_variables.max_nav_tolerance)
         recs_to_merge['ping'][systemid] = xr.merge([recs_to_merge['ping'][systemid], interp_nav])
         # build attributes for the navigation/attitude records
         recs_to_merge['ping'][systemid].attrs['min_lat'] = float(finalnav.latitude.min())

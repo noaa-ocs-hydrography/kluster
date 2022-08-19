@@ -116,8 +116,6 @@ class Fqpr(ZarrBackend):
         self.filter = FilterManager(self)
 
         self.debug = debug
-        self.logfile = None
-        self.logger = None
         self.initialize_log()
 
     def __repr__(self):
@@ -202,21 +200,6 @@ class Fqpr(ZarrBackend):
     def __copy__(self):
         return self.copy()
 
-    def print(self, msg: str, loglevel: int = logging.INFO):
-        # all gui objects are going to use this method in printing
-        if self.logger is not None:
-            self.logger.log(loglevel, msg)
-        else:
-            print(msg)
-
-    def debug_print(self, msg: str, loglevel: int = logging.INFO):
-        # all gui objects are going to use this method in debug printing
-        if self.debug:
-            if self.logger is not None:
-                self.logger.log(loglevel, msg)
-            else:
-                print(msg)
-
     @property
     def sonar_model(self):
         """
@@ -249,7 +232,7 @@ class Fqpr(ZarrBackend):
             cur_status = [rp.current_processing_status for rp in self.multibeam.raw_ping]
             does_match = all([cur_status[0] == curst for curst in cur_status])
             if not does_match:
-                print('Warning: found the processing status of the datasets across the heads do not match')
+                self.print('status: found the processing status of the datasets across the heads do not match', logging.WARNING)
                 cur_status = [min(cur_status)]
             cur_status_descrp = self.multibeam.raw_ping[0].attrs['status_lookup'][str(cur_status[0])]
         except:
@@ -527,7 +510,7 @@ class Fqpr(ZarrBackend):
                 # if it is processed, you should have all max processing status for each beam
                 isprocessed = bool((rp.processing_status.sel(time=middle_time, method='nearest') >= kluster_variables.max_processing_status).all())
                 return isprocessed
-        print('Warning: unable to find line {} in converted dataset'.format(line_name))
+        self.print('line_is_processed: unable to find line {} in converted dataset'.format(line_name), logging.WARNING)
         return None
 
     def line_attributes(self, line_name: str):
@@ -2326,7 +2309,7 @@ class Fqpr(ZarrBackend):
                     if rp.nav_files[filename] == new_file_times:
                         duplicate_navfiles.append(new_file)
             for fil in duplicate_navfiles:
-                print('{} is already a converted navigation file within this dataset'.format(fil))
+                self.print('{} is already a converted navigation file within this dataset, skipping'.format(fil), logging.WARNING)
                 navfiles_index = navfiles.index(fil)
                 if errorfiles is not None:
                     errorfiles.remove(errorfiles[navfiles_index])
@@ -2368,7 +2351,7 @@ class Fqpr(ZarrBackend):
                     if filename in self.multibeam.raw_ping[0].pos_files:
                         duplicate_navfiles.append(new_file)
             for fil in duplicate_navfiles:
-                print('{} is already a converted navigation file within this dataset'.format(fil))
+                self.print('{} is already a converted navigation file within this dataset'.format(fil), logging.WARNING)
                 navfiles.remove(fil)
 
         return navfiles
@@ -2500,28 +2483,29 @@ class Fqpr(ZarrBackend):
                     try:  # remove the currently loaded xarray dataset variable
                         self.multibeam.raw_ping[rpindex] = self.multibeam.raw_ping[rpindex].drop(rec)
                     except:
-                        print('WARNING: Unable to find loaded data matching record "{}"'.format(rec))
+                        self.print('remove_post_processed_navigation: Unable to find loaded data matching record "{}"'.format(rec), logging.ERROR)
                     try:  # then remove the matching zarr data on disk
                         self.delete('ping', rec, self.multibeam.raw_ping[rpindex].system_identifier)
                     except:
-                        print('WARNING: Unable to find data on disk matching record "{}" for sonar {}'.format(rec,
-                                                                                                              self.multibeam.raw_ping[rpindex].system_identifier))
+                        self.print('remove_post_processed_navigation: Unable to find data on disk matching record "{}" for sonar {}'.format(rec, self.multibeam.raw_ping[rpindex].system_identifier),
+                                   logging.ERROR)
                 for recattr in expected_attributes:
                     try:
                         self.multibeam.raw_ping[rpindex].attrs.pop(recattr)
                     except:
-                        print('WARNING: Unable to find loaded attribute data matching attribute "{}"'.format(recattr))
+                        self.print('remove_post_processed_navigation: Unable to find loaded attribute data matching attribute "{}"'.format(recattr), logging.ERROR)
                     try:
                         self.remove_attribute('ping', recattr, self.multibeam.raw_ping[0].system_identifier)
                     except:
-                        print('WARNING: Unable to find data on disk matching attribute "{}" for sonar {}'.format(recattr,
-                                                                                                                 self.multibeam.raw_ping[rpindex].system_identifier))
+                        self.print('remove_post_processed_navigation: Unable to find data on disk matching attribute "{}" for sonar {}'.format(recattr,
+                                                                                                                                               self.multibeam.raw_ping[rpindex].system_identifier),
+                                   logging.ERROR)
             if self.multibeam.raw_ping[0].current_processing_status >= 4:
                 # have to start over at georeference now, if you removed sbet data
                 self.write_attribute_to_ping_records({'current_processing_status': 3})
                 self.print('Setting processing status to 3, starting over at georeferencing', logging.INFO)
         else:
-            print('No post processed navigation found to remove')
+            self.print('remove_post_processed_navigation: No post processed navigation found to remove', logging.ERROR)
 
         endtime = perf_counter()
         self.print('****Removing post processed navigation complete: {}****\n'.format(seconds_to_formatted_string(int(endtime - starttime))), logging.INFO)
@@ -2556,20 +2540,20 @@ class Fqpr(ZarrBackend):
         except:
             navdata = None
         if not navdata:
-            print('Unable to generate xarray dataset from {}'.format(navfiles))
+            self.print('overwrite_raw_navigation: Unable to generate xarray dataset from {}'.format(navfiles), logging.ERROR)
             return
         for rp in self.multibeam.raw_ping:
             if navdata.time.values[0] > rp.time.values[-1] or navdata.time.values[-1] < rp.time.values[0]:
-                print('{}: No overlap found between POS data and raw navigation, probably due to incorrect date entered.')
-                print('Raw navigation: UTC seconds from {} to {}.  POS data: UTC seconds from {} to {}'.format(rp.time.values[0], rp.time.values[-1],
-                                                                                                               navdata.time.values[0], navdata.time.values[-1]))
+                self.print('overwrite_raw_navigation: No overlap found between POS data and raw navigation, probably due to incorrect date entered.', logging.ERROR)
+                self.print('Raw navigation: UTC seconds from {} to {}.  POS data: UTC seconds from {} to {}'.format(rp.time.values[0], rp.time.values[-1],
+                                                                                                                    navdata.time.values[0], navdata.time.values[-1]), logging.ERROR)
                 continue
             # find the nearest new record to each existing navigation record
             nav_wise_data = interp_across_chunks(navdata, rp.time, 'time')
-            print('{}: Overwriting with {} new navigation records'.format(rp.system_identifier, nav_wise_data.time.shape[0]))
+            self.print('overwrite_raw_navigation {}: Overwriting with {} new navigation records'.format(rp.system_identifier, nav_wise_data.time.shape[0]), logging.INFO)
             nan_check = np.isnan(nav_wise_data.latitude)
             if nan_check.any():
-                print('{}: Found {} records that are not in the new navigation data, keeping these original values'.format(rp.system_identifier, np.count_nonzero(nan_check)))
+                self.print('overwrite_raw_navigation {}: Found {} records that are not in the new navigation data, keeping these original values'.format(rp.system_identifier, np.count_nonzero(nan_check)), logging.INFO)
                 nav_wise_data = nav_wise_data.dropna('time', how='any')
 
             navdata_attrs = nav_wise_data.attrs
@@ -2610,10 +2594,6 @@ class Fqpr(ZarrBackend):
         for src in sources:
             self.print('****Performing interpolation of {}****\n'.format(list(src.keys())), logging.INFO)
         starttime = perf_counter()
-
-        skip_dask = False
-        if self.client is None:  # small datasets benefit from just running it without dask distributed
-            skip_dask = True
 
         for rp in self.multibeam.raw_ping:
             for source in sources:
@@ -3234,8 +3214,10 @@ class Fqpr(ZarrBackend):
             else:
                 self.print('Mode must be one of ["orientation", "bpv", "sv_corr", "georef", "tpu", "backscatter"]', logging.ERROR)
                 raise ValueError('Mode must be one of ["orientation", "bpv", "sv_corr", "georef", "tpu", "backscatter"]')
+            self.debug_print('Loading data for process', logging.INFO)
             data_for_workers = chunk_function(*chunkargs, silent=silent)
             try:
+                self.debug_print(f'Running {mode} process...', logging.INFO)
                 futs = self.client.map(kluster_function, data_for_workers)
                 if self.show_progress:
                     progress(futs, multi=False)
@@ -3250,6 +3232,7 @@ class Fqpr(ZarrBackend):
                     self.intermediate_dat[sys_ident][mode][timestmp].append([data, endtime])
             if dump_data:
                 self.__setattr__(comp_time, datetime.utcnow().strftime('%c'))
+                self.debug_print('writing to disk')
                 self.write_intermediate_futs_to_zarr(mode, rawping.system_identifier, timestmp, skip_dask=skip_dask)
                 endtime = perf_counter()
                 self.print('Processing chunk {} out of {} complete: {}'.format(rn + 1, tot_runs,
@@ -3345,13 +3328,14 @@ class Fqpr(ZarrBackend):
             raise ValueError('Mode must be one of ["orientation", "bpv", "sv_corr", "georef", "tpu", "backscatter"]')
 
         futs_data = []
+        self.debug_print('writing - combining datasets', logging.INFO)
         for f in self.intermediate_dat[sys_ident][mode_settings[0]][timestmp]:
             try:
                 futs_data.extend([self.client.submit(combine_arrays_to_dataset, f[0], mode_settings[1])])
             except:  # client is not setup or closed, this is if you want to run on just your machine
                 futs_data.extend([combine_arrays_to_dataset(f[0], mode_settings[1])])
-
         if futs_data:
+            self.debug_print('writing - gathering time information', logging.INFO)
             if not skip_dask:
                 time_arrs = self.client.gather(self.client.map(_return_xarray_time, futs_data))
             else:
@@ -3531,10 +3515,10 @@ class Fqpr(ZarrBackend):
                 line_names = [line_names]
             [mfiles.pop(lnme) for lnme in self.multibeam.raw_ping[0].multibeam_files.keys() if lnme not in line_names]
         if not mfiles and line_names:
-            # print('No lines found in dataset, looked only for {}.  Dataset lines: {}'.format(line_names, list(mfiles.keys())))
+            self.debug_print('No lines found in dataset, looked only for {}.  Dataset lines: {}'.format(line_names, list(mfiles.keys())), logging.WARNING)
             return {}
         elif not mfiles:
-            # print('No lines found in dataset.')
+            self.debug_print('No lines found in dataset.', logging.WARNING)
             return {}
         if ping_times:
             try:
@@ -3628,7 +3612,7 @@ class Fqpr(ZarrBackend):
             fqpr_max_y = self.multibeam.raw_ping[0].max_y
             fqpr_min_y = self.multibeam.raw_ping[0].min_y
         else:
-            print('Unable to query by northing/easting, georeference has not been performed')
+            self.print('Unable to query by northing/easting, georeference has not been performed', logging.ERROR)
             return False
 
         if geographic:
@@ -3773,7 +3757,7 @@ class Fqpr(ZarrBackend):
         if start_time and end_time:
             return trim_xyzrprh_to_times(self.multibeam.xyzrph, start_time, end_time)
         else:
-            print('return_line_xyzrph: Line {} is not a part of this converted data instance'.format(line_name))
+            self.print('return_line_xyzrph: Line {} is not a part of this converted data instance'.format(line_name), logging.ERROR)
             return None
 
     def return_soundings_in_polygon(self, polygon: np.ndarray, geographic: bool = True,
@@ -4054,11 +4038,16 @@ def validate_kluster_input_datum(new_datum: Union[str, int]):
     Parameters
     ----------
     new_datum
+        either nad83, wgs84 or an epsg integer code
 
     Returns
     -------
-
+    bool
+        True if datum provided is valid
+    CRS
+        CRS for provided datum
     """
+
     new_datum = str(new_datum)
     is_valid = True
     if new_datum.lower() == 'nad83':

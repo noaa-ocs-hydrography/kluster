@@ -1291,10 +1291,11 @@ class IntelModule(LoggerClass):
                 self.print_msg('File {} added as {}'.format(norm_filepath, attributes['type']))
                 return True
             else:
-                self.print_msg('Input data dictionary describes a file that already exists in Kluster Intelligence: {}'.format(attributes['file_path']), logging.ERROR)
+                self.print_msg('File already exists in Kluster Intelligence: {}'.format(attributes['file_path']), logging.ERROR)
                 return False
         else:
-            raise ValueError('Input data dictionary does not have a file_path key, found {}'.format(list(attributes.keys())))
+            self.print_msg('Input data dictionary does not have a file_path key, found {}'.format(list(attributes.keys())), logging.ERROR)
+            return False
 
     def remove_file(self, filepath: str):
         """

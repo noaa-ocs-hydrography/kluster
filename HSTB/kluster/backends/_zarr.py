@@ -7,6 +7,7 @@ from dask.distributed import wait, Client, progress, Future
 from typing import Union, Callable, Tuple, Any
 from itertools import groupby, count
 import shutil
+import logging
 
 from HSTB.kluster import kluster_variables
 from HSTB.kluster.backends._base import BaseBackend
@@ -80,7 +81,7 @@ class ZarrBackend(BaseBackend):
         zarr_path = self._get_zarr_path(dataset_name, sys_id)
         var_path = os.path.join(zarr_path, variable_name)
         if not os.path.exists(var_path):
-            print('Unable to remove variable {}, path does not exist: {}'.format(variable_name, var_path))
+            self.print('Unable to remove variable {}, path does not exist: {}'.format(variable_name, var_path), logging.ERROR)
         else:
             shutil.rmtree(var_path)
 
@@ -114,7 +115,7 @@ class ZarrBackend(BaseBackend):
         if zarr_path is not None:
             zarr_write_attributes(zarr_path, attributes)
         else:
-            print('Writing attributes is disabled for in-memory processing')
+            self.debug_print('Writing attributes is disabled for in-memory processing', logging.INFO)
 
     def remove_attribute(self, dataset_name: str, attribute: str, sys_id: str = None):
         """
@@ -124,7 +125,7 @@ class ZarrBackend(BaseBackend):
         if zarr_path is not None:
             zarr_remove_attribute(zarr_path, attribute)
         else:
-            print('Removing attributes is disabled for in-memory processing')
+            self.debug_print('Removing attributes is disabled for in-memory processing', logging.INFO)
 
 
 def _get_indices_dataset_notexist(input_time_arrays):
@@ -398,7 +399,7 @@ class ZarrWrite:
         if self.zarr_path is not None:
             self.open()
         else:
-            print('Warning: starting zarr_write with an empty rootgroup, writing to disk not supported')
+            print('WARNING: starting zarr_write with an empty rootgroup, writing to disk not supported')
             self.rootgroup = zarr.group()
 
     def open(self):
@@ -406,7 +407,8 @@ class ZarrWrite:
         Open the zarr data store, will create a new one if it does not exist.  Get all the existing array names.
         """
 
-        sync = zarr.ProcessSynchronizer(self.zarr_path + '.sync')
+        # sync = zarr.ProcessSynchronizer(self.zarr_path + '.sync')
+        sync = None
         self.rootgroup = zarr.open(self.zarr_path, mode='a', synchronizer=sync)
         self.get_array_names()
 
@@ -828,7 +830,6 @@ class ZarrWrite:
         timaxis
             index of the time dimension
         """
-
         # the last write will often be less than the block size.  This is allowed in the zarr store, but we
         #    need to correct the index for it.
         if timlength != data_loc_copy[1] - data_loc_copy[0]:
@@ -937,8 +938,8 @@ class ZarrWrite:
         """
 
         sync = None
-        if self.zarr_path:
-            sync = zarr.ProcessSynchronizer(self.zarr_path + '.sync')
+        # if self.zarr_path:
+        #     sync = zarr.ProcessSynchronizer(self.zarr_path + '.sync')
         newarr = self.rootgroup.create_dataset(var_name, shape=dims_of_arrays[var_name][1], chunks=chunksize,
                                                dtype=xarr[var_name].dtype, synchronizer=sync,
                                                fill_value=self._get_arr_nodatavalue(xarr[var_name].dtype))
@@ -1242,7 +1243,9 @@ def my_xarr_add_attribute(attrs: dict, outputpth: str):
     """
 
     # mode 'a' means read/write, create if doesnt exist
-    sync = zarr.ProcessSynchronizer(outputpth + '.sync')
+
+    # sync = zarr.ProcessSynchronizer(outputpth + '.sync')
+    sync = None
     rootgroup = zarr.open(outputpth, mode='a', synchronizer=sync)
     _my_xarr_to_zarr_writeattributes(rootgroup, attrs)
     return outputpth
