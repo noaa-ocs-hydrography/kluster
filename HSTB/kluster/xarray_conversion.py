@@ -1178,7 +1178,7 @@ class BatchRead(ZarrBackend):
 
     def _batch_read_file_setup(self):
         """
-        With given path to folder of kongsberg .all files (self.filfolder), return the paths to the individual .all
+        With given path to folder of multibeam files (self.filfolder), return the paths to the individual multibeam
         files and the path to the output folder for the netcdf/zarr converted files.  Create this folder, or a similarly
         named folder (with appended timestamp) if it already exists.
 
@@ -1223,13 +1223,13 @@ class BatchRead(ZarrBackend):
 
     def _batch_read_chunk_generation(self, fils: list):
         """
-        For each .all file, determine a good chunksize for the distributed read/processing and build a list with
+        For each multibeam file, determine a good chunksize for the distributed read/processing and build a list with
         files, start bytes and end bytes.
 
         Parameters
         ----------
         fils
-            list of paths to .all files
+            list of paths to multibeam files
 
         Returns
         -------
@@ -1262,7 +1262,7 @@ class BatchRead(ZarrBackend):
         Parameters
         ----------
         fils
-            strings for full file paths to .all files
+            strings for full file paths to multibeam files
 
         Returns
         -------
@@ -1581,7 +1581,7 @@ class BatchRead(ZarrBackend):
 
     def batch_read(self, output_mode: str = 'zarr'):
         """
-        General converter for .all files leveraging xarray and dask.distributed
+        General converter for multibeam files leveraging xarray and dask.distributed
         See batch_read, same process but working on memory efficiency
 
         Parameters
@@ -2102,8 +2102,8 @@ class BatchRead(ZarrBackend):
 
         profs = [x for x in self.raw_ping[0].attrs.keys() if x[0:7] == 'profile']
         if len(profs) == 0:
-            self.logger.error('No settings attributes found, possibly no install params in .all files')
-            raise ValueError('No settings attributes found, possibly no install params in .all files')
+            self.logger.error('No settings attributes found, possibly no install params in multibeam files')
+            raise ValueError('No settings attributes found, possibly no install params in multibeam files')
 
         prof_tims = [float(x.split('_')[1]) for x in profs]
         closest_tim = str(int(_closest_key_value(prof_tims, time_idx)))

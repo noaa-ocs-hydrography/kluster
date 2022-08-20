@@ -48,10 +48,11 @@ qgis_epsg = 4326
 max_beams = 400  # starting max beams in kluster (can grow beyond)
 epsg_nad83 = 6318
 epsg_wgs84 = 8999
-default_number_of_chunks = 4
-converted_files_at_once = 5
-geohash_precision = 7
-max_processing_status = 5
+default_number_of_chunks = 4  # if no dask client is used for parallel processing, we use this many chunks
+converted_files_at_once = 5  # we try to convert this many multibeam files at once
+max_converted_chunk_size = 4000  # we will try to use converted_files_at_once, but limit the files to this total file size in megabytes
+geohash_precision = 7  # our geohash string will have this many characters
+max_processing_status = 5  # when processing_status equals this value, the data is fully processed and ready to grid
 status_lookup = {0: 'converted', 1: 'orientation', 2: 'beamvector', 3: 'soundvelocity', 4: 'georeference', 5: 'tpu'}
 status_reverse_lookup = {'converted': 0, 'orientation': 1, 'beamvector': 2, 'soundvelocity': 3, 'georeference': 4, 'tpu': 5}
 
@@ -413,7 +414,7 @@ variable_descriptions = {'absorption': 'The mean absorption coefficient in dB/km
                          }
 
 int_parameters = ['converted_files_at_once', 'pings_per_las', 'pings_per_csv', 'max_profile_length', 'chunk_size_display',
-                  'chunk_size_export']
+                  'chunk_size_export', 'max_converted_chunk_size']
 float_parameters = ['default_heave_error', 'default_roll_sensor_error', 'default_pitch_sensor_error', 'default_heading_sensor_error',
                     'default_surface_sv_error', 'default_roll_patch_error', 'default_separation_model_error',
                     'default_waterline_error', 'default_horizontal_positioning_error', 'default_vertical_positioning_error',

@@ -143,12 +143,15 @@ def return_files_from_path(pth: str, in_chunks: bool = True):
 
     Provide an optional fileext argument if you want to specify files with a different extension
 
+    If in chunks
+
     Parameters
     ----------
     pth
         either a list of files, a string path to a directory or a string path to a file
     in_chunks
-        if True, returns lists of lists of size kluster_variables.converted_files_at_once
+        if True, returns lists of lists of length kluster_variables.converted_files_at_once, where each sublist is at a maximum
+        kluster_variables.max_converted_chunk_size in total file size
 
     Returns
     -------
@@ -178,11 +181,29 @@ def return_files_from_path(pth: str, in_chunks: bool = True):
     if not in_chunks:
         return fils
     else:
+        final_chunks = []
         maxchunks = kluster_variables.converted_files_at_once
+        maxchunksize = kluster_variables.max_converted_chunk_size
+        #  first divide the input files into groups of files with max number of files equal to maxchunks
         final_fils = [fils[i * maxchunks:(i + 1) * maxchunks] for i in range(int(np.ceil((len(fils) + maxchunks - 1) / maxchunks)))]
         if final_fils[-1] == []:
             final_fils = final_fils[:-1]
-        return final_fils
+        # now ensure each file group is at most equal to maxchunksize in terms of file size
+        for fils in final_fils:
+            final_fils = []
+            total_size = 0
+            for fil in fils:
+                fil_size = os.path.getsize(fil)
+                if (total_size + fil_size) >= maxchunksize and final_fils:
+                    final_chunks.append(final_fils)
+                    total_size = fil_size
+                    final_fils = [fil]
+                else:
+                    final_fils.append(fil)
+                    total_size += fil_size
+            if final_fils:
+                final_chunks.append(final_fils)
+        return final_chunks
 
 
 def return_directory_from_data(data: Union[list, str]):
