@@ -193,7 +193,7 @@ def return_files_from_path(pth: str, in_chunks: bool = True):
             final_fils = []
             total_size = 0
             for fil in fils:
-                fil_size = os.path.getsize(fil)
+                fil_size = os.path.getsize(fil) / 1000000  # file size in MB
                 if (total_size + fil_size) >= maxchunksize and final_fils:
                     final_chunks.append(final_fils)
                     total_size = fil_size
