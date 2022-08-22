@@ -10,7 +10,6 @@ import logging
 from HSTB.kluster.fqpr_generation import Fqpr
 from HSTB.kluster.dask_helpers import dask_find_or_start_client, client_needs_restart
 from HSTB.kluster.fqpr_convenience import reload_data, reload_surface, get_attributes_from_fqpr, reprocess_sounding_selection
-from HSTB.kluster.xarray_helpers import slice_xarray_by_dim
 from HSTB.kluster.fqpr_helpers import haversine
 from HSTB.kluster.fqpr_vessel import VesselFile, create_new_vessel_file, convert_from_fqpr_xyzrph, compare_dict_data, \
     split_by_timestamp, trim_xyzrprh_to_times

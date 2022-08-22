@@ -239,8 +239,8 @@ class KlusterExplorer(TableWithCopy):
         self.mode = explorer_mode
         self.clear_explorer_data()
         if explorer_mode == 'line':
-            self.setColumnCount(11)
-            self.headr = ['Name', 'Survey Identifier', 'EPSG', 'Min Time', 'Max Time', 'Start Latitude', 'Start Longitude', 'End Latitude', 'End Longitude', 'Heading', 'Source']
+            self.setColumnCount(12)
+            self.headr = ['Name', 'Survey Identifier', 'EPSG', 'Min Time', 'Max Time', 'Start Latitude', 'Start Longitude', 'End Latitude', 'End Longitude', 'Heading (deg)', 'Distance (m)', 'Source']
             self.setHorizontalHeaderLabels(self.headr)
             self.horizontalHeader().setStretchLastSection(True)
             self.setColumnWidth(0, 250)
@@ -252,8 +252,9 @@ class KlusterExplorer(TableWithCopy):
             self.setColumnWidth(6, 120)
             self.setColumnWidth(7, 120)
             self.setColumnWidth(8, 120)
-            self.setColumnWidth(9, 80)
-            self.setColumnWidth(10, 200)
+            self.setColumnWidth(9, 100)
+            self.setColumnWidth(10, 100)
+            self.setColumnWidth(11, 200)
         elif explorer_mode == 'point':
             self.setColumnCount(10)
             self.headr = ['index', 'line', 'time', 'beam', 'x', 'y', 'z', 'tvu', 'status', 'Source']
@@ -347,7 +348,11 @@ class KlusterExplorer(TableWithCopy):
                     newline_attr['Start Longitude'] = ln[1][3]
                     newline_attr['End Latitude'] = ln[1][4]
                     newline_attr['End Longitude'] = ln[1][5]
-                    newline_attr['Heading'] = '{:3.3f}'.format(ln[1][6]).zfill(7)
+                    newline_attr['Heading (deg)'] = '{:3.3f}'.format(ln[1][6]).zfill(7)
+                    if len(ln[1]) == 8:  # added distance in kluster 1.1.1
+                        newline_attr['Distance (m)'] = ln[1][7]
+                    else:
+                        newline_attr['Distance (m)'] = ''
                 except:
                     pass
                 if 'horizontal_crs' in attrs:

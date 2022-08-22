@@ -1,3 +1,4 @@
+import logging
 from typing import Union
 import numpy as np
 import os
@@ -546,9 +547,15 @@ class VectorLayer:
         else:
             lyr = self.ds.CreateLayer(layer_name, self.crs, geom_type)
             self._print_with_silent('Creating new layer {}'.format(layer_name))
-
+        lg = logging.getLogger()
         success_count = 0
         for coords in coords_dset:
+            # deal with gdal non-finite error
+            nanmask = np.isnan(coords)
+            if nanmask.any():
+                self._print_with_silent('WARNING: Found some NaN in coordinates, removing these elements...')
+                nanmask = np.logical_and(nanmask[:, 0], nanmask[:, 1])
+                coords = coords[~nanmask]
             feat = ogr.Feature(lyr.GetLayerDefn())
             if geom_type == ogr.wkbPolygon:
                 geom = self._create_polygon(coords)
@@ -560,11 +567,13 @@ class VectorLayer:
                 raise ValueError('Unrecognized geom_type {}'.format(geom_type))
             feat.SetGeometry(geom)
             err = lyr.CreateFeature(feat)
-            if not err:
+            if not err and ogr_output_file_exists(self.output_file):
                 success_count += 1
+            else:
+                print(f'ERROR: Unable to generate feature {self.output_file}')
             feat = None
         lyr = None
-        self._print_with_silent('Successfully written {} out of {} features in layer {}'.format(len(coords_dset), success_count, layer_name))
+        self._print_with_silent('Successfully written {} out of {} features in layer {}'.format(success_count, len(coords_dset), layer_name))
 
     def delete_layer(self, layer_name: str):
         """

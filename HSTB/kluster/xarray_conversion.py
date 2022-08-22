@@ -21,6 +21,7 @@ from HSTB.kluster.xarray_helpers import resize_zarr, xarr_to_netcdf, combine_xr_
 from HSTB.kluster.fqpr_helpers import seconds_to_formatted_string
 from HSTB.kluster.backends._zarr import ZarrBackend, my_xarr_add_attribute
 from HSTB.kluster.logging_conf import return_logger, return_log_name
+from HSTB.kluster.modules.georeference import distance_between_coordinates
 from HSTB.kluster import kluster_variables
 
 
@@ -1786,21 +1787,51 @@ class BatchRead(ZarrBackend):
             if len(line_times) == 2:  # this line needs the additional line metadata, otherwise it must have been computed already
                 line_time_start, line_time_end = line_times[0], line_times[1]
                 try:
+                    current_index = None
                     dstart = rp.interp(time=np.array([max(line_time_start, rp.time.values[0])]), method='nearest', assume_sorted=True)
                     start_position = [dstart.latitude.values, dstart.longitude.values]
+                    count = 0
+                    while np.isnan(start_position).any():  # first position is NaN, scroll through to find a good one
+                        if not current_index:
+                            current_index = np.where(rp.time.values == dstart.time)[0]
+                        current_index += 1
+                        dstart = rp.isel(time=current_index)
+                        start_position = [dstart.latitude.values, dstart.longitude.values]
+                        count += 1
+                        if count == 100:
+                            raise ValueError('Found bad position in the first 100 pings!')
                 except ValueError:
-                    print(f'WARNING: Unable to determine start position for line {line_name}')
+                    self.print(f'Unable to determine start position for line {line_name}', logging.ERROR)
                     continue
                 try:
+                    current_index = None
                     dend = rp.interp(time=np.array([min(line_time_end, rp.time.values[-1])]), method='nearest', assume_sorted=True)
                     end_position = [dend.latitude.values, dend.longitude.values]
+                    count = 0
+                    while np.isnan(end_position).any():  # first position is NaN, scroll through to find a good one
+                        if not current_index:
+                            current_index = np.where(rp.time.values == dend.time)[0]
+                        current_index -= 1
+                        dend = rp.isel(time=current_index)
+                        end_position = [dend.latitude.values, dend.longitude.values]
+                        count += 1
+                        if count == 100:
+                            raise ValueError('Found bad position in the last 100 pings!')
                 except ValueError:
-                    print(f'WARNING: Unable to determine end position for line {line_name}')
+                    self.print(f'Unable to determine end position for line {line_name}', logging.ERROR)
                     continue
                 line_az = self.raw_att.interp(time=np.array([line_time_start + (line_time_end - line_time_start) / 2]), method='nearest', assume_sorted=True).heading.values
+                line_nav = rp.sel(time=slice(float(dstart.time.values), float(dend.time.values)))
+                samp_idx = np.arange(0, line_nav.time.size, 15).tolist()  # downsample to every 15 pings
+                if samp_idx[-1] != line_nav.time.size - 1:  # ensuring you keep the last ping
+                    samp_idx += [line_nav.time.size - 1]
+                line_nav.isel(time=samp_idx)
+                line_dist = np.nansum(distance_between_coordinates(line_nav.latitude[:-1], line_nav.longitude[:-1],
+                                                                   line_nav.latitude[1:], line_nav.longitude[1:]))
                 line_dict[line_name] += [float(start_position[0]), float(start_position[1]), float(end_position[0]),
-                                         float(end_position[1]), round(float(line_az), 3)]
+                                         float(end_position[1]), round(float(line_az), 3), round(float(line_dist))]
 
+        self.logger.info('Metadata build complete')
         if save_pths is not None:
             for svpth in save_pths:  # write the new attributes to disk
                 my_xarr_add_attribute({'multibeam_files': line_dict}, svpth)
