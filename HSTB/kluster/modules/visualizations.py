@@ -546,25 +546,28 @@ class FqprVisualizations:
         profnames, casts, cast_times, castlocations = self.fqpr.return_all_profiles()
         all_lats = []
         all_longs = []
-        for profname, cast, casttime, castloc in zip(profnames, casts, cast_times, castlocations):
-            # filter cast by mintime/maxtime to only get casts in the subset range, if we have subsetted this fqpr instance
-            if filter_casts_by_time and not (min_search_time < casttime < max_search_time):
-                continue
-            if not castloc:  # should never get here, but this will get a fall back position of nearest nav point to the cast time
-                print('building cast position for cast {}'.format(profname))
-                # search times have a buffer, if the casttime is within the buffer but less than the dataset time, use the min dataset time
-                if casttime <= nav.time.min():
-                    castloc = [float(nav.latitude[0].values), float(nav.longitude[0].values)]
-                elif casttime >= nav.time.max():
-                    castloc = [float(nav.latitude[-1].values), float(nav.longitude[-1].values)]
-                else:
-                    interpnav = nav.interp(time=np.array([casttime]), method='nearest')
-                    castloc = [float(interpnav.latitude.values), float(interpnav.longitude.values)]
-            print('Plotting cast at position {}'.format(castloc))
-            plt.scatter(castloc[1], castloc[0], label=profname)
-            all_lats.append(castloc[0])
-            all_longs.append(castloc[1])
-
+        if casts:
+            for profname, cast, casttime, castloc in zip(profnames, casts, cast_times, castlocations):
+                # filter cast by mintime/maxtime to only get casts in the subset range, if we have subsetted this fqpr instance
+                if filter_casts_by_time and not (min_search_time < casttime < max_search_time):
+                    continue
+                if not castloc:  # should never get here, but this will get a fall back position of nearest nav point to the cast time
+                    print('building cast position for cast {}'.format(profname))
+                    # search times have a buffer, if the casttime is within the buffer but less than the dataset time, use the min dataset time
+                    if casttime <= nav.time.min():
+                        castloc = [float(nav.latitude[0].values), float(nav.longitude[0].values)]
+                    elif casttime >= nav.time.max():
+                        castloc = [float(nav.latitude[-1].values), float(nav.longitude[-1].values)]
+                    else:
+                        interpnav = nav.interp(time=np.array([casttime]), method='nearest')
+                        castloc = [float(interpnav.latitude.values), float(interpnav.longitude.values)]
+                print('Plotting cast at position {}'.format(castloc))
+                plt.scatter(castloc[1], castloc[0], label=profname)
+                all_lats.append(castloc[0])
+                all_longs.append(castloc[1])
+        else:
+            print('No profiles found!')
+            return
         plt.title('Sound Velocity Map')
         plt.xlabel('Longitude (degrees)')
         plt.ylabel('Latitude (degrees)')

@@ -240,6 +240,22 @@ class Fqpr(ZarrBackend):
         return cur_status_descrp
 
     @property
+    def total_distance_meters(self):
+        totaldist = 0
+        try:
+            mlinesdict = self.multibeam.raw_ping[0].attrs['multibeam_files']
+        except:
+            self.print('Unable to find "multibeam_files" attribute, required to return total distance.', logging.ERROR)
+            return totaldist
+        for line_name, line_attrs in mlinesdict.items():
+            if len(line_attrs) >= 8:
+                totaldist += line_attrs[7]
+            else:
+                self.print('Unable to calculate total distance, "distance" line attribute was added in Kluster 1.1.1', logging.ERROR)
+                return 0
+        return totaldist
+
+    @property
     def min_time(self):
         """
         Get the nicely formatted time in UTC for the start time of this fqpr object

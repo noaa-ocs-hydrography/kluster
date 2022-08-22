@@ -1346,6 +1346,95 @@ class CollapsibleWidget(QtWidgets.QWidget):
         content_animation.setEndValue(content_height)
 
 
+class ManageDialog(SaveStateDialog):
+    """
+    Dialog contains a summary of an object and some options for altering the data contained within.
+    """
+    update_surface = Signal(str)
+
+    def __init__(self, parent=None, title='', widgetname: str = 'ManageDialog', settings=None):
+        super().__init__(parent, settings, widgetname=widgetname)
+
+        self.setMinimumWidth(500)
+        self.setMinimumHeight(400)
+
+        self.setWindowTitle(title)
+        layout = QtWidgets.QVBoxLayout()
+
+        self.basicdata = QtWidgets.QTextEdit()
+        self.basicdata.setReadOnly(True)
+        self.basicdata.setText('')
+        layout.addWidget(self.basicdata)
+
+        self.managelabel = QtWidgets.QLabel('Manage: ')
+        layout.addWidget(self.managelabel)
+
+        calclayout = QtWidgets.QHBoxLayout()
+        self.calcbutton = QtWidgets.QPushButton('Calculate')
+        calclayout.addWidget(self.calcbutton)
+        self.calcdropdown = QtWidgets.QComboBox()
+        calclayout.addWidget(self.calcdropdown)
+        self.calcanswer = QtWidgets.QLineEdit('')
+        self.calcanswer.setReadOnly(True)
+        calclayout.addWidget(self.calcanswer)
+        layout.addLayout(calclayout)
+
+        plotlayout = QtWidgets.QHBoxLayout()
+        self.plotbutton = QtWidgets.QPushButton('Plot')
+        plotlayout.addWidget(self.plotbutton)
+        self.plotdropdown = QtWidgets.QComboBox()
+        szepolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Preferred)
+        szepolicy.setHorizontalStretch(2)
+        self.plotdropdown.setSizePolicy(szepolicy)
+        plotlayout.addWidget(self.plotdropdown)
+        self.bincount_label = QtWidgets.QLabel('Bins')
+        plotlayout.addWidget(self.bincount_label)
+        self.bincount = QtWidgets.QLineEdit('100', self)
+        plotlayout.addWidget(self.bincount)
+        layout.addLayout(plotlayout)
+
+        runlayout = QtWidgets.QHBoxLayout()
+        self.runbutton = QtWidgets.QPushButton('Run')
+        runlayout.addWidget(self.runbutton, 1)
+        self.rundropdown = QtWidgets.QComboBox()
+        self.rundropdown.addItems([])
+        runlayout.addWidget(self.rundropdown, 4)
+        layout.addLayout(runlayout)
+
+        self.calcbutton.clicked.connect(self.calculate_statistic)
+        self.plotbutton.clicked.connect(self.generate_plot)
+        self.runbutton.clicked.connect(self.run_function)
+
+        self.calcdropdown.currentTextChanged.connect(self.calc_tooltip_config)
+        self.plotdropdown.currentTextChanged.connect(self.plot_tooltip_config)
+        self.rundropdown.currentTextChanged.connect(self.run_tooltip_config)
+
+        self.setLayout(layout)
+        self.surf = None
+        self.plot_tooltip_config(None)
+
+    def populate(self, surf):
+        raise NotImplementedError('You must implement this method!')
+
+    def calculate_statistic(self, e):
+        raise NotImplementedError('You must implement this method!')
+
+    def generate_plot(self, e):
+        raise NotImplementedError('You must implement this method!')
+
+    def run_function(self, e):
+        raise NotImplementedError('You must implement this method!')
+
+    def calc_tooltip_config(self, e):
+        raise NotImplementedError('You must implement this method!')
+
+    def plot_tooltip_config(self, e):
+        raise NotImplementedError('You must implement this method!')
+
+    def run_tooltip_config(self, e):
+        raise NotImplementedError('You must implement this method!')
+
+
 class OutWindow(QtWidgets.QMainWindow):
     """
     Simple Window for viewing the widget for testing

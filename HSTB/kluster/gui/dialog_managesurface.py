@@ -3,66 +3,42 @@ import logging
 from datetime import datetime, timezone
 
 from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal
-from HSTB.kluster.gui.common_widgets import SaveStateDialog
+from HSTB.kluster.gui.common_widgets import ManageDialog
 from matplotlib.backends.backend_qt5agg import (FigureCanvasQTAgg, NavigationToolbar2QT as NavigationToolbar)
 import matplotlib.pyplot as plt
 
 
-class ManageSurfaceDialog(SaveStateDialog):
+class ManageSurfaceDialog(ManageDialog):
     """
     Dialog contains a summary of the surface data and some options for altering the data contained within.
     """
     update_surface = Signal(str)
 
-    def __init__(self, parent=None, title='', settings=None):
-        super().__init__(parent, settings, widgetname='ManageSurfaceDialog')
+    def __init__(self, parent=None, settings=None):
+        super().__init__(parent, 'Manage Surface', 'ManageSurfaceDialog', settings)
 
-        self.setMinimumWidth(500)
-        self.setMinimumHeight(400)
-
-        self.setWindowTitle('Manage Surface')
-        layout = QtWidgets.QVBoxLayout()
-
-        self.basicdata = QtWidgets.QTextEdit()
-        self.basicdata.setReadOnly(True)
-        self.basicdata.setText('')
-        layout.addWidget(self.basicdata)
-
-        self.managelabel = QtWidgets.QLabel('Manage: ')
-        layout.addWidget(self.managelabel)
-
-        calclayout = QtWidgets.QHBoxLayout()
-        self.calcbutton = QtWidgets.QPushButton('Calculate')
-        calclayout.addWidget(self.calcbutton)
-        self.calcdropdown = QtWidgets.QComboBox()
         self.calcdropdown.addItems(['area, sq nm', 'area, sq meters'])
-        calclayout.addWidget(self.calcdropdown)
-        self.calcanswer = QtWidgets.QLineEdit('')
-        self.calcanswer.setReadOnly(True)
-        calclayout.addWidget(self.calcanswer)
-        layout.addLayout(calclayout)
 
-        plotlayout = QtWidgets.QHBoxLayout()
-        self.plotbutton = QtWidgets.QPushButton('Plot')
-        plotlayout.addWidget(self.plotbutton)
-        self.plotdropdown = QtWidgets.QComboBox()
-        szepolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Preferred)
-        szepolicy.setHorizontalStretch(2)
-        self.plotdropdown.setSizePolicy(szepolicy)
-        plotlayout.addWidget(self.plotdropdown)
-        self.bincount_label = QtWidgets.QLabel('Bins')
-        plotlayout.addWidget(self.bincount_label)
-        self.bincount = QtWidgets.QLineEdit('100', self)
-        plotlayout.addWidget(self.bincount)
-        layout.addLayout(plotlayout)
+    def populate(self, surf):
+        """
+        Examine the surface and populate the controls with the correct data
+        """
 
-        self.calcbutton.clicked.connect(self.calculate_statistic)
-        self.plotbutton.clicked.connect(self.generate_plot)
-        self.plotdropdown.currentTextChanged.connect(self.plot_tooltip_config)
-
-        self.setLayout(layout)
-        self.surf = None
-        self.plot_tooltip_config(None)
+        self.surf = surf
+        self.managelabel.setText('Manage: {}'.format(os.path.split(surf.output_folder)[1]))
+        self.basicdata.setText(surf.__repr__())
+        allplots = ['Histogram, Density (count)', 'Histogram, Density (sq meters)']
+        if self.surf.is_backscatter:
+            allplots += ['Histogram, Intensity (dB)']
+        else:
+            allplots += ['Histogram, Depth (meters)', 'Depth vs Density (count)', 'Depth vs Density (sq meters)']
+            if 'vertical_uncertainty' in self.surf.layer_names:
+                allplots += ['Histogram, vertical uncertainty (2 sigma, meters)',
+                             'Histogram, horizontal uncertainty (2 sigma, meters)']
+            elif 'total_uncertainty' in self.surf.layer_names:
+                allplots += ['Histogram, total uncertainty (2 sigma, meters)']
+        allplots.sort()
+        self.plotdropdown.addItems(allplots)
 
     def plot_tooltip_config(self, e):
         plotname = self.plotdropdown.currentText()
@@ -85,26 +61,15 @@ class ManageSurfaceDialog(SaveStateDialog):
         elif plotname in ['Histogram, total uncertainty (2 sigma, meters)']:
             self.plotdropdown.setToolTip('Compute a histogram of the Total Uncertainty layer values in the gridded data in this surface')
 
-    def populate(self, surf):
-        """
-        Examine the surface and populate the controls with the correct data
-        """
+    def calc_tooltip_config(self, e):
+        calcname = self.calcdropdown.currentText()
+        if calcname == 'area, sq nm':
+            self.calcdropdown.setToolTip('Calculate the total area of the grid (only the populated cells) in square nautical miles')
+        elif calcname == 'area, sq meters':
+            self.calcdropdown.setToolTip('Calculate the total area of the grid (only the populated cells) in square meters')
 
-        self.surf = surf
-        self.managelabel.setText('Manage: {}'.format(os.path.split(surf.output_folder)[1]))
-        self.basicdata.setText(surf.__repr__())
-        allplots = ['Histogram, Density (count)', 'Histogram, Density (sq meters)']
-        if self.surf.is_backscatter:
-            allplots += ['Histogram, Intensity (dB)']
-        else:
-            allplots += ['Histogram, Depth (meters)', 'Depth vs Density (count)', 'Depth vs Density (sq meters)']
-            if 'vertical_uncertainty' in self.surf.layer_names:
-                allplots += ['Histogram, vertical uncertainty (2 sigma, meters)',
-                             'Histogram, horizontal uncertainty (2 sigma, meters)']
-            elif 'total_uncertainty' in self.surf.layer_names:
-                allplots += ['Histogram, total uncertainty (2 sigma, meters)']
-        allplots.sort()
-        self.plotdropdown.addItems(allplots)
+    def run_tooltip_config(self, e):
+        pass
 
     def calculate_statistic(self, e):
         stat = self.calcdropdown.currentText()
@@ -138,6 +103,9 @@ class ManageSurfaceDialog(SaveStateDialog):
         # set always on top
         plt.gcf().canvas.manager.window.setWindowFlags(self.windowFlags() | QtCore.Qt.WindowStaysOnTopHint)
         plt.gcf().canvas.manager.window.show()
+
+    def run_function(self, e):
+        pass
 
 
 if __name__ == '__main__':
