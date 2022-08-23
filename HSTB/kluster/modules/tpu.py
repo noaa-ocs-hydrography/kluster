@@ -1,4 +1,5 @@
-import os, sys
+import os
+import warnings
 import numpy as np
 import xarray as xr
 from typing import Union
@@ -367,29 +368,35 @@ class Tpu:
                 horiz_fname = os.path.join(os.path.splitext(self.plot_tpu)[0] + '_horizontal.png')
                 vert_fname = os.path.join(os.path.splitext(self.plot_tpu)[0] + '_vertical.png')
 
-        horiz_figure = plt.figure(figsize=(12, 9))
-        plt.title('horizontal_uncertainty (1sigma)')
-        plt.ylabel('meters')
-        plt.xlabel('ping')
-        for horz in horiz_components:
-            if horz in self.plot_components:
-                plt.plot(self.plot_components[horz], label=horz)
-        plt.legend()
-        if drive_plots_to_file:
-            plt.savefig(horiz_fname)
-        plt.close(horiz_figure)
+        # hide the "UserWarning: Starting a Matplotlib GUI outside of the main thread..." warning that you
+        #   get every time you make a figure in a separate thread.  We only save the figure, so the warning is unneccessary.
+        #   If you were to plt.show() it would probaby cause problems.
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
 
-        vert_figure = plt.figure(figsize=(12, 9))
-        plt.ylabel('meters')
-        plt.xlabel('ping')
-        plt.title('vertical_uncertainty (1sigma)')
-        for vert in vert_components:
-            if vert in self.plot_components:
-                plt.plot(self.plot_components[vert], label=vert)
-        plt.legend()
-        if drive_plots_to_file:
-            plt.savefig(vert_fname)
-        plt.close(vert_figure)
+            horiz_figure = plt.figure(figsize=(12, 9))
+            plt.title('horizontal_uncertainty (1sigma)')
+            plt.ylabel('meters')
+            plt.xlabel('ping')
+            for horz in horiz_components:
+                if horz in self.plot_components:
+                    plt.plot(self.plot_components[horz], label=horz)
+            plt.legend()
+            if drive_plots_to_file:
+                plt.savefig(horiz_fname)
+            plt.close(horiz_figure)
+
+            vert_figure = plt.figure(figsize=(12, 9))
+            plt.ylabel('meters')
+            plt.xlabel('ping')
+            plt.title('vertical_uncertainty (1sigma)')
+            for vert in vert_components:
+                if vert in self.plot_components:
+                    plt.plot(self.plot_components[vert], label=vert)
+            plt.legend()
+            if drive_plots_to_file:
+                plt.savefig(vert_fname)
+            plt.close(vert_figure)
 
     def _calculate_beam_angle_variance(self):
         """
