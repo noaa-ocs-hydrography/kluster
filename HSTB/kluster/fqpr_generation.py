@@ -29,7 +29,7 @@ from HSTB.kluster.xarray_helpers import combine_arrays_to_dataset, compare_and_f
     interp_across_chunks, slice_xarray_by_dim, get_beamwise_interpolation
 from HSTB.kluster.backends._zarr import ZarrBackend
 from HSTB.kluster.dask_helpers import dask_find_or_start_client, get_number_of_workers
-from HSTB.kluster.fqpr_helpers import build_crs, seconds_to_formatted_string
+from HSTB.kluster.fqpr_helpers import build_crs, seconds_to_formatted_string, print_progress_bar
 from HSTB.kluster.rotations import return_attitude_rotation_matrix
 from HSTB.kluster.logging_conf import return_logger
 from HSTB.kluster.fqpr_drivers import return_xarray_from_sbet, fast_read_sbet_metadata, return_xarray_from_posfiles
@@ -3171,7 +3171,6 @@ class Fqpr(ZarrBackend):
         tot_runs = int(np.ceil(len(idx_by_chunk) / max_chunks_at_a_time))
         for rn in range(tot_runs):
             silent = (rn != 0) or not dump_data  # only messages for the first chunk, and only when we are writing to disk
-            starttime = perf_counter()
             start_r = rn * max_chunks_at_a_time
             end_r = min(start_r + max_chunks_at_a_time, len(idx_by_chunk))  # clamp for last run
             idx_by_chunk_subset = idx_by_chunk[start_r:end_r].copy()
@@ -3231,12 +3230,14 @@ class Fqpr(ZarrBackend):
                 self.print('Mode must be one of ["orientation", "bpv", "sv_corr", "georef", "tpu", "backscatter"]', logging.ERROR)
                 raise ValueError('Mode must be one of ["orientation", "bpv", "sv_corr", "georef", "tpu", "backscatter"]')
             self.debug_print('Loading data for process', logging.INFO)
+            if self.show_progress and rn != 0:  # first run we skip progress as it prints out the run info
+                print_progress_bar(rn + 1, tot_runs, prefix=f'Loading chunk    {rn + 1}/{tot_runs}:')
             data_for_workers = chunk_function(*chunkargs, silent=silent)
             try:
                 self.debug_print(f'Running {mode} process...', logging.INFO)
+                if self.show_progress and rn != 0:  # first run we skip progress as it prints out the run info
+                    print_progress_bar(rn + 1, tot_runs, prefix=f'Processing chunk {rn + 1}/{tot_runs}:')
                 futs = self.client.map(kluster_function, data_for_workers)
-                if self.show_progress:
-                    progress(futs, multi=False)
                 endtimes = [len(c) for c in idx_by_chunk]
                 futs_with_endtime = [[f, endtimes[cnt]] for cnt, f in enumerate(futs)]
                 self.intermediate_dat[sys_ident][mode][timestmp].extend(futs_with_endtime)
@@ -3249,10 +3250,13 @@ class Fqpr(ZarrBackend):
             if dump_data:
                 self.__setattr__(comp_time, datetime.utcnow().strftime('%c'))
                 self.debug_print('writing to disk')
+                if self.show_progress:
+                    if rn == 0:  # first progress bar run should be on a new line
+                        print()
+                    print_progress_bar(rn + 1, tot_runs, prefix=f'Writing chunk    {rn + 1}/{tot_runs}:')
                 self.write_intermediate_futs_to_zarr(mode, rawping.system_identifier, timestmp, skip_dask=skip_dask)
-                endtime = perf_counter()
-                self.print('Processing chunk {} out of {} complete: {}'.format(rn + 1, tot_runs,
-                                                                               seconds_to_formatted_string(int(endtime - starttime))), logging.INFO)
+            if self.show_progress:
+                print_progress_bar(rn + 1, tot_runs, prefix=f'Chunk Complete   {rn + 1}/{tot_runs}:')
         if mode == 'georef' and self.vert_ref == 'Aviso MLLW':  # free up the memory associated with the aviso model after all runs
             aviso_clear_model()
 

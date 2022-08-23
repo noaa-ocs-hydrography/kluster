@@ -284,3 +284,45 @@ def haversine(lon1: Union[float, int, np.ndarray], lat1: Union[float, int, np.nd
     c = 2 * np.arcsin(np.sqrt(a))
     r = 6371  # Radius of earth in kilometers. Use 3956 for miles. Determines return value units.
     return c * r
+
+
+def print_progress_bar(iteration, total, prefix='Progress:', suffix='Complete', decimals=1, length=70, fill='█', print_end="\r"):
+    """
+    Call in a loop to generate a text progress bar, ex:
+
+    # A List of Items
+    items = list(range(0, 57))
+    l = len(items)
+
+    # Initial call to print 0% progress
+    printProgressBar(0, l, prefix = 'Progress:', suffix = 'Complete', length = 50)
+    for i, item in enumerate(items):
+        # Do stuff...
+        time.sleep(0.1)
+        # Update Progress Bar
+        printProgressBar(i + 1, l, prefix = 'Progress:', suffix = 'Complete', length = 50)
+
+    Parameters
+    ----------
+    iteration
+        current iteration out of the total iterations
+    total
+        total iterations
+    prefix
+        prefix string for the display
+    suffix
+        suffix string for the display
+    decimals
+        number of decimals in the progress percentage
+    length
+        character length of the bar
+    fill
+        bar fill character
+    print_end
+        end character
+    """
+
+    percent = ("{0:." + str(decimals) + "f}").format(100 * (iteration / float(total)))
+    filled_length = int(length * iteration // total)
+    bar = fill * filled_length + '-' * (length - filled_length)
+    print(f'\r{prefix} |{bar}| {percent}% {suffix}', end=print_end)

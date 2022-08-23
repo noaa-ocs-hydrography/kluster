@@ -44,20 +44,12 @@ class FqprProject(LoggerClass):
     |    fqp.add_fqpr(pd, skip_dask=True)
     """
 
-    def __init__(self, is_gui: bool = False, project_path: str = None, **kwargs):
-        """
-
-        Parameters
-        ----------
-        is_gui
-             if True, this project is attached to a gui, so we disable progress so that we aren't filling up the output window
-        """
+    def __init__(self, project_path: str = None, **kwargs):
         super().__init__(**kwargs)
 
         self.client = None
         self.skip_dask = False
         self.path = None
-        self.is_gui = is_gui
         self.file_format = 1.0
 
         self.vessel_file = None
@@ -415,7 +407,7 @@ class FqprProject(LoggerClass):
         """
 
         if type(pth) == str:
-            fq = reload_data(pth, skip_dask=skip_dask, silent=True, show_progress=not self.is_gui)
+            fq = reload_data(pth, skip_dask=skip_dask, silent=True, show_progress=True)
         else:  # pth is the new Fqpr instance, pull the actual path from the Fqpr attribution
             fq = pth
             pth = os.path.normpath(fq.multibeam.raw_ping[0].output_path)

@@ -370,7 +370,7 @@ class Tpu:
 
         # hide the "UserWarning: Starting a Matplotlib GUI outside of the main thread..." warning that you
         #   get every time you make a figure in a separate thread.  We only save the figure, so the warning is unneccessary.
-        #   If you were to plt.show() it would probaby cause problems.
+        #   If you were to plt.show() it would probably cause problems.
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
 

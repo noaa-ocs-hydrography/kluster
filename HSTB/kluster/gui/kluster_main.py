@@ -110,7 +110,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.widget_obj_names = []
 
         # fqpr = fully qualified ping record, the term for the datastore in kluster
-        self.project = FqprProject(is_gui=False, logger=self.logger)  # is_gui controls the progress bar text, used to disable it for gui, no longer doing that though
+        self.project = FqprProject(logger=self.logger)
         self.intel = FqprIntel(self.project, self, logger=self.logger)
         # settings, like the chosen vertical reference
         # ex: {'use_epsg': True, 'epsg': 26910, ...}

@@ -1107,8 +1107,10 @@ def distrib_zarr_write(zarr_path: str, xarrays: list, attributes: dict, chunk_si
     else:
         futs = [client.submit(zarr_write, zarr_path, xarrays[0], attributes, chunk_sizes, data_locs[0],
                               append_dim=append_dim, finalsize=finalsize, push_forward=push_forward)]
-        if show_progress:
-            progress(futs, multi=False)
+        #  I no longer show progress for the disk write, I find it creates too much stdout.  I just have a general
+        #    progress bar for each operation.
+        # if show_progress:
+        #     progress(futs, multi=False)
         wait(futs)
         if len(xarrays) > 1:
             for i in range(len(xarrays) - 1):
@@ -1117,8 +1119,8 @@ def distrib_zarr_write(zarr_path: str, xarrays: list, attributes: dict, chunk_si
                 if not write_in_parallel:  # wait on each future, write one data chunk at a time
                     wait(futs)
             if write_in_parallel:  # don't wait on the futures until you append all of them
-                if show_progress:
-                    progress(futs, multi=False)
+                # if show_progress:
+                #     progress(futs, multi=False)
                 wait(futs)
     return futs
 
