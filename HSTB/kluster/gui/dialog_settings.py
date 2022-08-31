@@ -266,12 +266,31 @@ class SettingsDialog(SaveStateDialog):
         processingfive.addWidget(self.kvar_tileexport_label)
         processingfive.addWidget(self.kvar_tileexport)
 
+        processingsix = QtWidgets.QHBoxLayout()
+        self.kvar_buildheave_label = QtWidgets.QLabel('EK/S Sonar - Build Heave')
+        self.kvar_buildheave = QtWidgets.QCheckBox('')
+        self.kvar_buildheave.setChecked(kluster_variables.ek_build_heave)
+        self.kvar_buildheave.setToolTip('EK/S 60/80 systems that use the raw file driver.  Will build a heave record using the traveltime/range during conversion.  Experimental, use at your own risk.')
+        processingsix.addWidget(self.kvar_buildheave_label)
+        processingsix.addWidget(self.kvar_buildheave)
+
+        processingseven = QtWidgets.QHBoxLayout()
+        self.kvar_ekfreqsel_label = QtWidgets.QLabel('EK/S Sonar - Frequency Selection')
+        self.kvar_ekfreqsel = QtWidgets.QComboBox()
+        self.kvar_ekfreqsel.addItems(['lowest', 'highest'])
+        self.kvar_ekfreqsel.setCurrentText(kluster_variables.ek_frequency_selection)
+        self.kvar_ekfreqsel.setToolTip('EK/S 60/80 systems that use the raw file driver.  Will select the lowest or highest frequency channel bottom detection.')
+        processingseven.addWidget(self.kvar_ekfreqsel_label)
+        processingseven.addWidget(self.kvar_ekfreqsel)
+
         self.processing_layout.addLayout(processingone)
         self.processing_layout.addLayout(processingoneone)
         self.processing_layout.addLayout(processingtwo)
         self.processing_layout.addLayout(processingthree)
         self.processing_layout.addLayout(processingfour)
         self.processing_layout.addLayout(processingfive)
+        self.processing_layout.addLayout(processingsix)
+        self.processing_layout.addLayout(processingseven)
         self.processing_layout.addStretch()
 
         self.processing_tab.setLayout(self.processing_layout)
@@ -465,6 +484,7 @@ class SettingsDialog(SaveStateDialog):
                     'max_converted_chunk_size': self.kvar_convsize.text(),
                     'pings_per_las': self.kvar_pingslas.text(), 'pings_per_csv': self.kvar_pingscsv.text(),
                     'chunk_size_display': self.kvar_tiledisplay.text(), 'chunk_size_export': self.kvar_tileexport.text(),
+                    'ek_build_heave': self.kvar_buildheave.isChecked(), 'ek_frequency_selection': self.kvar_ekfreqsel.currentText(),
                     'default_heave_error': self.kvar_heaveerror.text(), 'default_roll_sensor_error': self.kvar_rollerror.text(),
                     'default_pitch_sensor_error': self.kvar_pitcherror.text(), 'default_heading_sensor_error': self.kvar_yawerror.text(),
                     'default_beam_opening_angle': self.kvar_beamangle.text(), 'default_surface_sv_error': self.kvar_sverror.text(),
@@ -550,6 +570,8 @@ class SettingsDialog(SaveStateDialog):
             self.kvar_pingscsv.setValue(int(kluster_variables.kvar_initial_state['pings_per_csv']))
             self.kvar_tiledisplay.setValue(int(kluster_variables.kvar_initial_state['chunk_size_display']))
             self.kvar_tileexport.setValue(int(kluster_variables.kvar_initial_state['chunk_size_export']))
+            self.kvar_ekfreqsel.setCurrentText(kluster_variables.kvar_initial_state['ek_frequency_selection'])
+            self.kvar_buildheave.setChecked(bool(kluster_variables.kvar_initial_state['ek_build_heave']))
         elif curidx == 3:
             self.kvar_beamangle.setText(str(kluster_variables.kvar_initial_state['default_beam_opening_angle']))
             self.kvar_heaveerror.setText(str(kluster_variables.kvar_initial_state['default_heave_error']))

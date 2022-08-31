@@ -3929,7 +3929,10 @@ class Fqpr(ZarrBackend):
             nextline = self.return_next_unprocessed_line()
             if nextline:
                 kwargs['only_this_line'] = nextline
-                min_status = 1
+                try:  # added this base processing status attribute in kluster 1.1.1 to support singlebeam data which doesn't start with orientation
+                    min_status = int(self.multibeam.raw_ping[0].base_processing_status)
+                except:
+                    min_status = 1
             else:
                 return args, kwargs
 

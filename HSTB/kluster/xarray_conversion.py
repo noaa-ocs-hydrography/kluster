@@ -381,6 +381,12 @@ def _sequential_to_xarray(rec: dict):
         recs_to_merge['ping'][systemid].attrs['min_lon'] = float(finalnav.longitude.min())
         recs_to_merge['ping'][systemid].attrs['max_lon'] = float(finalnav.longitude.max())
 
+    # add a shortcut to get to georeferencing if this converted data has alongtrack/acrosstrack/depth already (see raw driver when .out/.bot files exist)
+    for systemid in recs_to_merge['ping']:
+        if 'depthoffset' in rec['ping']:
+            recs_to_merge['ping'][systemid].attrs['skip_to_georeferencing'] = True
+        break
+
     # Stuff that isn't of the same dimensions as the dataset are tacked on as attributes
     if 'profile' in rec:
         for t in rec['profile']['time']:
@@ -1571,9 +1577,15 @@ class BatchRead(ZarrBackend):
         fil_start_end_times = self._gather_file_level_metadata(self.fils)
         combattrs['multibeam_files'] = fil_start_end_times  # override with start/end time dict
         combattrs['output_path'] = self.converted_pth
-        if os.path.splitext(self.fils[0])[1] in kluster_variables.supported_singlebeam:
+        if 'skip_to_georeferencing' in combattrs:
+            combattrs.pop('skip_to_georeferencing')
+            combattrs['base_processing_status'] = 3
+            combattrs['current_processing_status'] = 3
+        elif os.path.splitext(self.fils[0])[1] in kluster_variables.supported_singlebeam:
+            combattrs['base_processing_status'] = 2
             combattrs['current_processing_status'] = 2
         else:
+            combattrs['base_processing_status'] = 0
             combattrs['current_processing_status'] = 0
         combattrs['kluster_version'] = klustervers
         combattrs['_conversion_complete'] = datetime.utcnow().strftime('%c')

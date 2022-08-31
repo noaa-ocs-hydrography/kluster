@@ -56,6 +56,10 @@ max_processing_status = 5  # when processing_status equals this value, the data 
 status_lookup = {0: 'converted', 1: 'orientation', 2: 'beamvector', 3: 'soundvelocity', 4: 'georeference', 5: 'tpu'}
 status_reverse_lookup = {'converted': 0, 'orientation': 1, 'beamvector': 2, 'soundvelocity': 3, 'georeference': 4, 'tpu': 5}
 
+# raw.py EK/ES processing
+ek_build_heave = False  # the raw.py EK/ES driver will build a heave record if you enable this.  If the bottom detects are noisy, this can produce questionable data
+ek_frequency_selection = 'highest'  # the raw.py EK/ES driver will choose either the 'lowest' frequency return or the 'highest' frequency return.
+
 excluded_files = ['9999.all']
 supported_sonar = ['.all', '.kmall', '.s7k', '.raw']
 supported_multibeam = ['.all', '.kmall', '.s7k']
@@ -420,7 +424,8 @@ float_parameters = ['default_heave_error', 'default_roll_sensor_error', 'default
                     'default_waterline_error', 'default_horizontal_positioning_error', 'default_vertical_positioning_error',
                     'default_beam_opening_angle', 'mem_restart_threshold']
 str_parameters = ['pass_color', 'error_color', 'warning_color', 'amplitude_color', 'phase_color',
-                  'reject_color', 'reaccept_color']
+                  'reject_color', 'reaccept_color', 'ek_frequency_selection']
+bool_parameters = ['ek_build_heave']
 
 # retain the default values before overwriting with values written to the kluster initialization file
 kvar_initial_state = globals().copy()
@@ -434,6 +439,8 @@ def restore_all_variables():
         globals()[varname] = float(kvar_initial_state[varname])
     for varname in int_parameters:
         globals()[varname] = int(kvar_initial_state[varname])
+    for varname in bool_parameters:
+        globals()[varname] = bool(kvar_initial_state[varname])
 
 
 def alter_variable(varname, varvalue):
@@ -443,6 +450,11 @@ def alter_variable(varname, varvalue):
         globals()[varname] = float(varvalue)
     elif varname in int_parameters:
         globals()[varname] = int(varvalue)
+    elif varname in bool_parameters:
+        if isinstance(varvalue, str):
+            globals()[varname] = varvalue.lower() == 'true'
+        else:
+            globals()[varname] = varvalue
     else:
         raise NotImplementedError(f'Unable to find matching parameter entry for {varname}, see kluster_variables')
 

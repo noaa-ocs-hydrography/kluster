@@ -241,8 +241,8 @@ def _validate_sequential_read_ping(recs: dict):
                          'modetwo', 'yawpitchstab']
         required_ping_dtype = ['float64', 'uint32', 'float32', 'uint64', 'float32', 'float32', 'int32', 'float32',
                                'uint8', 'int32', 'float32', 'float32', 'uint8', 'u2-u5', 'u2-u5', 'u2-u5']
-    optional_ping = ['reflectivity', 'nearnormalcorrect', 'pulselength', 'absorption', 'tvg']
-    optional_ping_dtype = ['float32', 'float32', 'float32', 'float32', 'float32']
+    optional_ping = ['reflectivity', 'nearnormalcorrect', 'pulselength', 'absorption', 'tvg', 'depthoffset', 'alongtrack', 'acrosstrack']
+    optional_ping_dtype = ['float32', 'float32', 'float32', 'float32', 'float32', 'float32', 'float32', 'float32']
 
     try:
         assert all([pms in recs['ping'] for pms in required_ping])
@@ -444,7 +444,8 @@ def sequential_read_multibeam(multibeam_file: str, start_pointer: int = 0, end_p
         sk.close()
     elif multibeam_extension == '.raw':
         rd = raw.readraw(multibeam_file, start_ptr=start_pointer, end_ptr=end_pointer)
-        recs = rd.sequential_read_records(first_installation_rec=first_installation_rec)
+        recs = rd.sequential_read_records(first_installation_rec=first_installation_rec, frequency_selection=kluster_variables.ek_frequency_selection,
+                                          build_heave=kluster_variables.ek_build_heave)
         rd.close()
     else:
         raise NotImplementedError('fqpr_drivers: {} is supported by kluster, but not currently supported by sequential_read_multibeam'.format(multibeam_file))
