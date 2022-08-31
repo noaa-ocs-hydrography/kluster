@@ -838,9 +838,8 @@ class ZarrWrite:
         # location for new data, assume constant chunksize (as we are doing this outside of this function)
         chunk_time_range = slice(data_loc_copy[0], data_loc_copy[1])
         # use the chunk_time_range for writes unless this variable is a non-time dim array (beam for example)
-        chunk_idx = tuple(
-            chunk_time_range if dims_of_arrays[var_name][1].index(i) == timaxis else slice(0, i) for i in
-            dims_of_arrays[var_name][1])
+        array_dims = dims_of_arrays[var_name][1]
+        chunk_idx = tuple(chunk_time_range if cnt == timaxis else slice(0, i) for cnt, i in enumerate(array_dims))
         self.rootgroup[var_name][chunk_idx] = zarr.array(xarr_data, shape=dims_of_arrays[var_name][1], chunks=chunksize)
 
     def _write_existing_rootgroup(self, xarr: xr.Dataset, data_loc_copy: Union[list, np.ndarray], var_name: str, dims_of_arrays: dict,
