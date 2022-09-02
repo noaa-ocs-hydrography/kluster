@@ -35,7 +35,7 @@ class BasicPlotDialog(QtWidgets.QDialog):
                             1: ['Line', 'Histogram', 'Scatter']}
         self.custom_plot_lookup = {'uncertainty': ['Vertical Sample', 'Horizontal Sample'],
                                    'backscatter': ['Backscatter Sample'],
-                                   'sound_velocity_profiles': ['Plot Profiles', 'Profile Map'],
+                                   'sound_velocity_profiles': ['Plot Profiles', 'Surface SV Comparison', 'Profile Map'],
                                    'sound_velocity_correct': ['2d scatter, color by depth', '2d scatter, color by sector',
                                                               '3d scatter, color by depth', '3d scatter, color by sector'],
                                    'georeferenced': ['2d scatter, color by depth', '2d scatter, color by sector',
@@ -471,6 +471,8 @@ class BasicPlotDialog(QtWidgets.QDialog):
                 data.plot.plot_sound_velocity_map()
             elif plottype == 'Plot Profiles':
                 data.plot.plot_sound_velocity_profiles()
+            elif plottype == 'Surface SV Comparison':
+                data.plot.plot_surface_sv_vs_profiles()
             elif plottype == 'Vertical Sample':
                 data.plot.plot_tvu_sample()
             elif plottype == 'Horizontal Sample':
@@ -687,6 +689,8 @@ class BasicPlotDialog(QtWidgets.QDialog):
             plot_expl = 'Plot = Animation of Vessel Orientation, corrected for attitude and mounting angles.  TX vector represents the transmitter, RX vector represents the receiver.'
         elif plottype == 'Plot Profiles':
             plot_expl = 'Plot = Plot of depth versus sound velocity values in each sound velocity profile.  All profiles from Kongsberg multibeam have been extended to 12000 meters.  Zoom in to see the shallow values.  Shows all casts regardless of specified time range'
+        elif plottype == 'Surface SV Comparison':
+            plot_expl = 'Plot = Plot of surface sound velocity vs the profile sound velocity value at transducer depth.  All profiles from Kongsberg multibeam have been extended to 12000 meters.  Zoom in to see the shallow values.  Shows all casts regardless of specified time range'
         elif plottype == 'Profile Map':
             plot_expl = 'Plot = Plot all lines within the specified time range and all sound velocity profiles.  Casts from multibeam have a position equal to the position of the vessel at the time of the cast.'
         elif plottype == 'Vertical Sample':

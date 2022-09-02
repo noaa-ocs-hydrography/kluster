@@ -1780,11 +1780,47 @@ class BatchRead(ZarrBackend):
                 rp.attrs['sonartype'] = self.sonartype
             self.logger.info('Constructed offsets successfully')
 
+    def get_nearest_runtime_parameters(self, query_time: float):
+        """
+        Return the runtime parameters dict object that is nearest in time to query_time
+
+        Parameters
+        ----------
+        query_time
+            time in UTC seconds that you need the nearest runtime parameters to
+
+        Returns
+        -------
+        dict
+            runtime parameters dict object that is nearest in time to the query time
+        """
+
+        settdict, runtimesettdict = self.return_runtime_and_installation_settings_dicts()
+        return get_nearest_runtime(str(query_time), runtimesettdict)
+
+    def get_nearest_install_parameters(self, query_time: float):
+        """
+        Return the install parameters dict object that is nearest in time to query_time
+
+        Parameters
+        ----------
+        query_time
+            time in UTC seconds that you need the nearest install parameters to
+
+        Returns
+        -------
+        dict
+            install parameters dict object that is nearest in time to the query time
+        """
+
+        settdict, runtimesettdict = self.return_runtime_and_installation_settings_dicts()
+        return get_nearest_runtime(str(query_time), settdict)
+
     def build_additional_line_metadata(self, save_pths: str = None):
         """
         After conversion, we run this additional step to build the line specific values to store as metadata.  The end result
         is a 'multibeam_files' attribute that stores [mintime, maxtime, start_latitude, start_longitude, end_latitude,
-        end_longitude, azimuth]
+        end_longitude, azimuth, distance]
 
         Parameters
         ----------
