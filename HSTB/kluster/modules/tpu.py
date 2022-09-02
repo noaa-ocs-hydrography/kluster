@@ -279,7 +279,7 @@ class Tpu:
         lens = []
         for cnt, dataset in enumerate([roll, beam_angles, acrosstrack_offset, depth_offset]):
             if not isinstance(dataset, (np.ndarray, np.generic, xr.DataArray)):
-                raise ValueError('tpu: {} must be either a numpy array or an xarray DataArray'.format(nms[cnt]))
+                raise ValueError('tpu: {} must be either a numpy array or an xarray DataArray, is of type {}'.format(nms[cnt], type(dataset)))
             lens.append(len(dataset))
 
         if roll_in_degrees:

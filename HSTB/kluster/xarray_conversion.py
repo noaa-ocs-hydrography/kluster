@@ -1117,7 +1117,7 @@ class BatchRead(ZarrBackend):
         keep_these_attributes = ['max_lat', 'max_lon', 'min_lat', 'min_lon', 'reference', 'units', 'pos_files']
         if self.raw_ping[0]:
             drop_these = [dvar for dvar in list(self.raw_ping[0].keys()) if dvar not in desired_vars]
-            subset_nav = self.raw_ping[0].drop(drop_these)
+            subset_nav = self.raw_ping[0].drop_vars(drop_these)
             subset_nav.attrs = {ky: self.raw_ping[0].attrs[ky] for ky in keep_these_attributes if ky in self.raw_ping[0].attrs}
             rnav = slice_xarray_by_dim(subset_nav, 'time', start_time=start_time, end_time=end_time)
             return rnav

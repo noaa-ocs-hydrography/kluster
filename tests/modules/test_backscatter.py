@@ -333,10 +333,48 @@ class TestAllscatter(unittest.TestCase):
                             0.002, 0.002, 0.002, 0.002, 0.002, 0.002, 0.002, 0.002, 0.002,
                             0.002, 0.002, 0.002, 0.002]], dtype=np.float32)
         cls.pulse_length = xr.DataArray(data=plength, coords={'time': [1495563079.5340009], 'beam': np.arange(400)})
+        nncorr = np.array([[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                           0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                           0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                           0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                           0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                           0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                           0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                           0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                           0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                           0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                           0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                           0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                           0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                           0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                           0.0, -0.11169027, -0.3416195, -0.5374424, -0.71223235, -1.0023311,
+                           -1.2839978, -1.4667435, -1.7569138, -2.0510612, -2.34331, -2.3936958,
+                           -2.342616, 0.0, 0.0, 0.0, -1.9203914, -1.8113763,
+                           -1.5293316, -1.3407072, -1.2092917, -0.86534995, -0.56182086, -0.45436418
+                           -0.09631482, 0.0, 0.0, 0.0, 0.0, 0.0,
+                           0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                           0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                           0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                           0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                           0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                           0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                           0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                           0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                           0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                           0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                           0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                           0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                           0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                           0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                           0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                           0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                           0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                           0.0, 0.0, 0.0, 0.0, 0.0]], dtype=np.float32)
+        cls.nearnormalcorrect = xr.DataArray(data=nncorr, coords={'time': [1495563079.5340009], 'beam': np.arange(400)})
 
     def setUp(self) -> None:
         self.bscatter = Allscatter(self.rdict, self.raw_intensity, self.slant_range, self.surface_sound_speed,
-                                   self.beam_angle, self.tx_beam_width, self.rx_beam_width, self.pulse_length, None)
+                                   self.beam_angle, self.tx_beam_width, self.rx_beam_width, self.nearnormalcorrect, self.pulse_length, None)
         self.rint_answer = -14.296875
         self.fgain_answer = 0.0
         self.areacorr_answer = 8.411084
@@ -763,7 +801,7 @@ class TestS7kscatter(unittest.TestCase):
         self.bscatter = S7kscatter(self.rdict, self.raw_intensity, self.slant_range, self.surface_sound_speed,
                                    self.beam_angle, self.tx_beam_width, self.rx_beam_width, None)
         self.rint_answer = 50.65509
-        self.fgain_answer = 74.767682
+        self.fgain_answer = 244.0
         self.areacorr_answer = -24.822943
         self.tvg_answer = 78.06239
         self.tlloss_answer = 54.541363
@@ -776,9 +814,9 @@ class TestS7kscatter(unittest.TestCase):
         assert self.bscatter.runtime_parameters == self.rdict
         assert self.bscatter.absorption_db_m == float(self.bscatter.runtime_parameters['absorption_db_km']) / 1000
         assert self.bscatter.spreading_loss_db == float(self.bscatter.runtime_parameters['spreading_loss_db'])
-        assert self.bscatter.power_selection_db_re_1micropascal == 20 * np.log10(float(self.bscatter.runtime_parameters['power_selection_db_re_1micropascal']))
+        assert self.bscatter.power_selection_db_re_1micropascal == float(self.bscatter.runtime_parameters['power_selection_db_re_1micropascal'])
         assert self.bscatter.pulse_length == float(self.bscatter.runtime_parameters['tx_pulse_width_seconds'])
-        assert self.bscatter.gain_selection_db == 20 * np.log10(float(self.bscatter.runtime_parameters['gain_selection_db']))
+        assert self.bscatter.gain_selection_db == float(self.bscatter.runtime_parameters['gain_selection_db'])
         assert self.bscatter.tx_beam_width == self.tx_beam_width
         assert self.bscatter.rx_beam_width == self.rx_beam_width
 

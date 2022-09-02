@@ -504,7 +504,7 @@ class FqprExport:
         if export_by_identifiers:
             for freq in np.unique(rp.frequency):
                 subset_rp = rp.where(rp.frequency == freq, drop=True)
-                for secid in np.unique(subset_rp.txsector_beam).astype(np.int):
+                for secid in np.unique(subset_rp.txsector_beam).astype(np.int32):
                     sec_subset_rp = subset_rp.where(subset_rp.txsector_beam == secid, drop=True)
                     if suffix:
                         dest_path = os.path.join(output_directory, '{}_{}_{}_{}.csv'.format(base_name, secid, freq, suffix))
@@ -642,7 +642,7 @@ class FqprExport:
         if export_by_identifiers:
             for freq in np.unique(rp.frequency):
                 subset_rp = rp.where(rp.frequency == freq, drop=True)
-                for secid in np.unique(subset_rp.txsector_beam).astype(np.int):
+                for secid in np.unique(subset_rp.txsector_beam).astype(np.int32):
                     sec_subset_rp = subset_rp.where(subset_rp.txsector_beam == secid, drop=True)
                     if suffix:
                         dest_path = os.path.join(output_directory, '{}_{}_{}_{}.las'.format(base_name, secid, freq, suffix))
