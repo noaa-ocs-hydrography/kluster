@@ -35,7 +35,7 @@ class BasicPlotDialog(QtWidgets.QDialog):
                             1: ['Line', 'Histogram', 'Scatter']}
         self.custom_plot_lookup = {'uncertainty': ['Vertical Sample', 'Horizontal Sample'],
                                    'backscatter': ['Backscatter Sample'],
-                                   'sound_velocity_profiles': ['Plot Profiles', 'Profile Map'],
+                                   'sound_velocity_profiles': ['Plot Profiles', 'Surface SV Comparison', 'Profile Map'],
                                    'sound_velocity_correct': ['2d scatter, color by depth', '2d scatter, color by sector',
                                                               '3d scatter, color by depth', '3d scatter, color by sector'],
                                    'georeferenced': ['2d scatter, color by depth', '2d scatter, color by sector',
@@ -59,6 +59,8 @@ class BasicPlotDialog(QtWidgets.QDialog):
         self.dataset_label = QtWidgets.QLabel('Source    ', self)
         self.hlayout_one.addWidget(self.dataset_label)
         self.dataset_dropdown = QtWidgets.QComboBox(self)
+        self.dataset_dropdown.setSizeAdjustPolicy(QtWidgets.QComboBox.AdjustToContents)
+
         self.hlayout_one.addWidget(self.dataset_dropdown)
         self.hlayout_one.addStretch()
 
@@ -66,6 +68,7 @@ class BasicPlotDialog(QtWidgets.QDialog):
         self.variable_label = QtWidgets.QLabel('Variable  ', self)
         self.hlayout_two.addWidget(self.variable_label)
         self.variable_dropdown = QtWidgets.QComboBox(self)
+        self.variable_dropdown.setSizeAdjustPolicy(QtWidgets.QComboBox.AdjustToContents)
         self.hlayout_two.addWidget(self.variable_dropdown)
         self.variable_dim_label = QtWidgets.QLabel('      Dimensions', self)
         self.hlayout_two.addWidget(self.variable_dim_label)
@@ -79,6 +82,7 @@ class BasicPlotDialog(QtWidgets.QDialog):
         self.plottype_label = QtWidgets.QLabel('Plot Type', self)
         self.hlayout_three.addWidget(self.plottype_label)
         self.plottype_dropdown = QtWidgets.QComboBox(self)
+        self.plottype_dropdown.setSizeAdjustPolicy(QtWidgets.QComboBox.AdjustToContents)
         self.hlayout_three.addWidget(self.plottype_dropdown)
         self.bincount_label = QtWidgets.QLabel('Bins')
         self.bincount_label.hide()
@@ -370,7 +374,7 @@ class BasicPlotDialog(QtWidgets.QDialog):
             translated_var = variable
 
         if not self.add_to_current_plot.isChecked() and dataset_name != 'custom':
-            if isinstance(dataset, list) and len(dataset) > 1:
+            if isinstance(dataset, list) and len(dataset) > 1:  # dual head
                 fig, self.recent_plot = plt.subplots(ncols=2)
                 fig.suptitle('{}: {} Plot of {}'.format(sonartype[0], plottype, translated_var))
             else:
@@ -467,6 +471,8 @@ class BasicPlotDialog(QtWidgets.QDialog):
                 data.plot.plot_sound_velocity_map()
             elif plottype == 'Plot Profiles':
                 data.plot.plot_sound_velocity_profiles()
+            elif plottype == 'Surface SV Comparison':
+                data.plot.plot_surface_sv_vs_profiles()
             elif plottype == 'Vertical Sample':
                 data.plot.plot_tvu_sample()
             elif plottype == 'Horizontal Sample':
@@ -488,6 +494,9 @@ class BasicPlotDialog(QtWidgets.QDialog):
             # set always on top
             plt.gcf().canvas.manager.window.setWindowFlags(self.windowFlags() | QtCore.Qt.WindowStaysOnTopHint)
             plt.gcf().canvas.manager.window.show()
+        else:  # adding to an existing plot, we need to update the plot to get a redraw
+            plt.gcf().canvas.draw()
+            plt.gcf().canvas.flush_events()
 
     def plot(self):
         """
@@ -680,6 +689,8 @@ class BasicPlotDialog(QtWidgets.QDialog):
             plot_expl = 'Plot = Animation of Vessel Orientation, corrected for attitude and mounting angles.  TX vector represents the transmitter, RX vector represents the receiver.'
         elif plottype == 'Plot Profiles':
             plot_expl = 'Plot = Plot of depth versus sound velocity values in each sound velocity profile.  All profiles from Kongsberg multibeam have been extended to 12000 meters.  Zoom in to see the shallow values.  Shows all casts regardless of specified time range'
+        elif plottype == 'Surface SV Comparison':
+            plot_expl = 'Plot = Plot of surface sound velocity vs the profile sound velocity value at transducer depth.  All profiles from Kongsberg multibeam have been extended to 12000 meters.  Zoom in to see the shallow values.  Shows all casts regardless of specified time range'
         elif plottype == 'Profile Map':
             plot_expl = 'Plot = Plot all lines within the specified time range and all sound velocity profiles.  Casts from multibeam have a position equal to the position of the vessel at the time of the cast.'
         elif plottype == 'Vertical Sample':

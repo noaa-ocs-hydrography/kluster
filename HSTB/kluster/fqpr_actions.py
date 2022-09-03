@@ -1,5 +1,7 @@
 import os, sys
 from dask.distributed import Client
+from typing import Union
+
 from HSTB.kluster import fqpr_convenience, fqpr_generation
 
 
@@ -90,10 +92,12 @@ class FqprActionContainer:
         for callback in self._observers:
             callback(None, self.unmatched, self.parent.autoprocessing_mode)
 
-    def update_actions_client(self, client: Client):
+    def update_actions_client(self, client: Union[Client, None]):
         """
         On executing an action, we trigger this to update the action with the new client that we might have
         generated AFTER building the action originally.
+
+        If client is None, dask is disabled so we ensure the action also has None for client.
 
         Parameters
         ----------
@@ -101,21 +105,22 @@ class FqprActionContainer:
             dask distributed client instance
         """
 
-        if client:
-            for action in self.actions:
-                for cnt, ar in enumerate(action.args):
-                    if isinstance(ar, Client):
-                        action.args[cnt] = client
-                    elif isinstance(ar, fqpr_generation.Fqpr):
-                        ar.client = client
-                        ar.multibeam.client = client
-                        action.args[cnt] = ar
-                if action.kwargs:
-                    if 'client' in action.kwargs:
-                        action.kwargs['client'] = client
-                    if 'fqpr_inst' in action.kwargs:
-                        action.kwargs['fqpr_inst'].client = client
-                        action.kwargs['fqpr_inst'].multibeam.client = client
+        for action in self.actions:
+            for cnt, ar in enumerate(action.args):
+                if isinstance(ar, Client):
+                    action.args[cnt] = client
+                elif isinstance(ar, fqpr_generation.Fqpr):
+                    ar.client = client
+                    ar.multibeam.client = client
+                    action.args[cnt] = ar
+            if action.kwargs:
+                if 'client' in action.kwargs:
+                    action.kwargs['client'] = client
+                if 'fqpr_inst' in action.kwargs:
+                    action.kwargs['fqpr_inst'].client = client
+                    action.kwargs['fqpr_inst'].multibeam.client = client
+                if 'skip_dask' in action.kwargs:
+                    action.kwargs['skip_dask'] = client is None
 
     def add_action(self, action: FqprAction):
         """
@@ -296,11 +301,23 @@ def build_multibeam_action(destination: str, line_list: list, client: Client = N
         newly generated multibeam conversion action
     """
 
-    args = [line_list, None, destination, client, False, True]
+    if client is not None:
+        skip_dask = False
+    else:
+        skip_dask = True
+    args = [line_list]
     if settings:
         allowed_kwargs = ['parallel_write', 'vdatum_directory']
         existing_kwargs = list(settings.keys())
         [settings.pop(ky) for ky in existing_kwargs if ky not in allowed_kwargs]
+    else:
+        settings = {}
+    settings['input_datum'] = None
+    settings['outfold'] = destination
+    settings['client'] = client
+    settings['skip_dask'] = skip_dask
+    settings['show_progress'] = True
+
     action = FqprAction(priority=1, action_type='multibeam', output_destination=destination, input_files=line_list,
                         text='Convert {} multibeam lines to {}'.format(len(line_list), destination),
                         tooltip_text='\n'.join(line_list), function=fqpr_convenience.convert_multibeam, args=args,

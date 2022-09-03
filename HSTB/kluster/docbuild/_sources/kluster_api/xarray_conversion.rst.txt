@@ -26,4 +26,4 @@ xarray\_conversion module
    :skip: return_offsets_from_posfile
    :skip: sequential_read_multibeam
    :skip: only_retain_earliest_entry
-   
+   :skip: distance_between_coordinates

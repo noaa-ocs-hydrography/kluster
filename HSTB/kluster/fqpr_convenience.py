@@ -28,7 +28,7 @@ from bathycube.numba_cube import compile_now
 def perform_all_processing(filname: Union[str, list], navfiles: list = None, input_datum: Union[str, int] = None,
                            outfold: str = None, coord_system: str = 'WGS84',
                            vert_ref: str = 'waterline', orientation_initial_interpolation: bool = False,
-                           add_cast_files: Union[str, list] = None,
+                           add_cast_files: Union[str, list] = None, client: Client = None,
                            skip_dask: bool = False, show_progress: bool = True, parallel_write: bool = True,
                            vdatum_directory: str = None, cast_selection_method: str = 'nearest_in_time', **kwargs):
     """
@@ -61,9 +61,11 @@ def perform_all_processing(filname: Union[str, list], navfiles: list = None, inp
         see process_multibeam
     add_cast_files
         see process_multibeam
+    client
+        dask.distributed.Client instance, if you don't include this, it will automatically start a LocalCluster with the
+        default options, unless you set skip_dask to True
     skip_dask
-        if True, will not start/find the dask client.  Useful for small datasets where parallel processing actually
-        makes the process slower
+        if True, will not use the dask client
     show_progress
         If true, uses dask.distributed.progress.
     parallel_write
@@ -80,7 +82,7 @@ def perform_all_processing(filname: Union[str, list], navfiles: list = None, inp
         Fqpr object containing processed data
     """
 
-    fqpr_inst = convert_multibeam(filname, input_datum=input_datum, outfold=outfold, skip_dask=skip_dask,
+    fqpr_inst = convert_multibeam(filname, input_datum=input_datum, outfold=outfold, client=client, skip_dask=skip_dask,
                                   show_progress=show_progress, parallel_write=parallel_write)
     if fqpr_inst is not None:
         if navfiles is not None:
@@ -111,10 +113,10 @@ def convert_multibeam(filname: Union[str, list], input_datum: Union[str, int] = 
         full file path to a directory you want to contain all the zarr folders.  Will create this folder if it does
         not exist.  If not provided will automatically create folder next to lines.
     client
-        if you have already created a Client, pass it in here to use it
+        dask.distributed.Client instance, if you don't include this, it will automatically start a LocalCluster with the
+        default options, unless you set skip_dask to True
     skip_dask
-        if True, will not start/find the dask client.  Useful for small datasets where parallel processing actually
-        makes the process slower
+        if True, will not use the dask client
     show_progress
         If true, uses dask.distributed.progress.  Disabled for GUI, as it generates too much text
     parallel_write
@@ -634,16 +636,16 @@ def _get_unique_crs_vertref(fqpr_instances: list):
 
     if not fqpr_instances:
         print('_get_unique_crs_vertref: no fqpr instances provided')
-        return None, None
+        raise ValueError('_get_unique_crs_vertref: no fqpr instances provided')
     if len(unique_crs) > 1:
         print('_get_unique_crs_vertref: Found multiple EPSG codes in the input data, data must be of the same code: {}'.format(unique_crs))
-        return None, None
+        raise ValueError('_get_unique_crs_vertref: Found multiple EPSG codes in the input data, data must be of the same code: {}'.format(unique_crs))
     if len(unique_vertref) > 1:
         print('_get_unique_crs_vertref: Found multiple vertical references in the input data, data must be of the same reference: {}'.format(unique_vertref))
-        return None, None
+        raise ValueError('_get_unique_crs_vertref: Found multiple vertical references in the input data, data must be of the same reference: {}'.format(unique_vertref))
     if not unique_crs:
         print('_get_unique_crs_vertref: No valid EPSG for {}'.format(fqpr_instances[0].horizontal_crs.to_proj4()))
-        return None, None
+        raise ValueError('_get_unique_crs_vertref: No valid EPSG for {}'.format(fqpr_instances[0].horizontal_crs.to_proj4()))
 
     # if the vertical reference is an ERS one, return the first WKT string.  We can't just get the unique WKT strings,
     #  as there might be differences in region (which we should probably concatenate or something)
@@ -658,16 +660,12 @@ def _validate_fqpr_for_gridding(fqpr_instances: list):
     Check to make sure all fqpr instances that we are trying to grid have the correct georeferenced data
     """
 
-    try:
-        all_have_soundings = np.all(['x' in rp for f in fqpr_instances for rp in f.multibeam.raw_ping])
-    except AttributeError:
-        print('_validate_fqpr_for_gridding: Invalid Fqpr instances passed in, could not find instance.multibeam.raw_ping[0].x')
-        return False
-
-    if not all_have_soundings:
-        print('_validate_fqpr_for_gridding: No georeferenced soundings found')
-        return False
-    return True
+    for f in fqpr_instances:
+        try:
+            assert 'x' in f.multibeam.raw_ping[0]
+        except AssertionError:
+            print(f'_validate_fqpr_for_gridding: {f.output_folder} - could not find "x" variable, have you georeferenced?')
+            raise ValueError(f'_validate_fqpr_for_gridding: {f.output_folder} - could not find "x" variable, have you georeferenced?')
 
 
 def generate_new_surface(fqpr_inst: Union[Fqpr, list] = None, grid_type: str = 'single_resolution', tile_size: float = 1024.0,
@@ -740,7 +738,6 @@ def generate_new_surface(fqpr_inst: Union[Fqpr, list] = None, grid_type: str = '
         if not isinstance(fqpr_inst, list):
             fqpr_inst = [fqpr_inst]
         if isinstance(fqpr_inst[0], Fqpr):
-            is_fqpr = True
             unique_crs, unique_vertref = _get_unique_crs_vertref(fqpr_inst)
         elif isinstance(fqpr_inst[0], dict):
             try:
@@ -754,18 +751,13 @@ def generate_new_surface(fqpr_inst: Union[Fqpr, list] = None, grid_type: str = '
             try:
                 assert all([fqpr_inst[0]['vert_ref'] == fq['vert_ref'] for fq in fqpr_inst])
             except:
-                raise ValueError("generate_new_surface: When using point data, all 'crs' keys must match")
-            is_fqpr = False
+                raise ValueError("generate_new_surface: When using point data, all 'vertical reference' keys must match")
             unique_crs = [fqpr_inst[0]['crs']]
             unique_vertref = [fqpr_inst[0]['vert_ref']]
         else:
             raise NotImplementedError('generate_new_surface: Expected input data to either be a FQPR instance, a list of FQPR instances or a dict of variables')
 
-        if unique_vertref is None or unique_crs is None:
-            return None
-
-        if not _validate_fqpr_for_gridding(fqpr_inst):
-            return None
+        _validate_fqpr_for_gridding(fqpr_inst)
 
         gridding_algorithm = gridding_algorithm.lower()
         if gridding_algorithm == 'cube' and fqpr_inst is not None:
@@ -810,30 +802,19 @@ def _validate_fqpr_for_mosaic(fqpr_instances: list):
     processed backscatter
     """
 
-    try:
-        all_have_soundings = np.all(['x' in rp for f in fqpr_instances for rp in f.multibeam.raw_ping])
-    except AttributeError:
-        print('_validate_fqpr_for_mosaic: Invalid Fqpr instances passed in, could not find instance.multibeam.raw_ping[0].x')
-        return False
+    for f in fqpr_instances:
+        try:
+            assert 'x' in f.multibeam.raw_ping[0]
+        except AssertionError:
+            print(f'_validate_fqpr_for_mosaic: {f.output_folder} - could not find "x" variable, have you georeferenced?')
+            raise ValueError(f'_validate_fqpr_for_mosaic: {f.output_folder} - could not find "x" variable, have you georeferenced?')
 
-    if not all_have_soundings:
-        for f in fqpr_instances:
-            if 'x' not in f.multibeam.raw_ping[0]:
-                print(f'_validate_fqpr_for_mosaic: No georeferenced soundings found in {f.output_folder}')
-        return False
-
-    try:
-        all_have_backscatter = np.all(['backscatter' in rp for f in fqpr_instances for rp in f.multibeam.raw_ping])
-    except AttributeError:
-        print('_validate_fqpr_for_mosaic: Invalid Fqpr instances passed in, could not find instance.multibeam.raw_ping[0].backscatter')
-        return False
-
-    if not all_have_backscatter:
-        for f in fqpr_instances:
-            if 'backscatter' not in f.multibeam.raw_ping[0]:
-                print(f'_validate_fqpr_for_mosaic: No processed backscatter found in {f.output_folder}')
-        return False
-    return True
+    for f in fqpr_instances:
+        try:
+            assert 'backscatter' in f.multibeam.raw_ping[0]
+        except AssertionError:
+            print(f'_validate_fqpr_for_mosaic: {f.output_folder} - could not find "backscatter" variable, have you processed backscatter?')
+            raise ValueError(f'_validate_fqpr_for_mosaic: {f.output_folder} - could not find "backscatter" variable, have you processed backscatter?')
 
 
 def return_avg_tables(fqpr_inst: list = None, avg_bin_size: float = 1.0, avg_angle: float = 45.0,
@@ -1002,9 +983,6 @@ def generate_new_mosaic(fqpr_inst: Union[Fqpr, list] = None, tile_size: float = 
         else:
             raise NotImplementedError('generate_new_mosaic: Expected input data to either be a FQPR instance a list of FQPR instances')
 
-        if unique_vertref is None or unique_crs is None:
-            return None
-
         if process_backscatter:
             for fq in fqpr_inst:
                 fq.process_backscatter(fixed_gain_corrected=process_backscatter_fixed_gain_corrected, tvg_corrected=process_backscatter_tvg_corrected,
@@ -1014,11 +992,9 @@ def generate_new_mosaic(fqpr_inst: Union[Fqpr, list] = None, tile_size: float = 
             avgtables = return_avg_tables(fqpr_inst, avg_bin_size, avg_angle, avg_line, overwrite_existing_avg)
 
         if create_mosaic:
-            if not _validate_fqpr_for_mosaic(fqpr_inst):
-                return None
+            _validate_fqpr_for_mosaic(fqpr_inst)
             if resolution is None and fqpr_inst is not None:
-                print('generate_new_mosaic: resolution must be provided and be a power of two value to create a non-empty mosaic')
-                return None
+                raise ValueError('generate_new_mosaic: resolution must be provided and be a power of two value to create a non-empty mosaic')
     if create_mosaic:
         print('Preparing data...')
         # add data to grid line by line
@@ -1098,11 +1074,10 @@ def update_surface(surface_instance: Union[str, BathyGrid], add_fqpr: Union[Fqpr
     if isinstance(surface_instance, str):
         surface_instance = reload_surface(surface_instance)
         if surface_instance is None:
-            return None, None, None
+            raise ValueError(f'update_surface: Unable to reload surface {surface_instance}')
 
     if surface_instance.is_backscatter:
-        print('update_surface: updating backscatter surfaces is not currently implemented')
-        return None, None, None
+        raise NotImplementedError('update_surface: updating backscatter surfaces is not currently implemented')
 
     if surface_instance.grid_algorithm == 'cube':
         print('compiling cube algorithm...')
@@ -1115,12 +1090,12 @@ def update_surface(surface_instance: Union[str, BathyGrid], add_fqpr: Union[Fqpr
             remove_fqpr = [remove_fqpr]
             if remove_lines and not isinstance(remove_lines[0], str):  # expect a list of lines when a single fqpr is provided
                 print(f'update_surface - remove: when a single fqpr data instance is removed by line, expect a list of line names: fqpr: {len(remove_fqpr)}, add_lines: {len(remove_lines)}')
-                return None, oldrez, newrez
+                raise ValueError(f'update_surface - remove: when a single fqpr data instance is removed by line, expect a list of line names: fqpr: {len(remove_fqpr)}, add_lines: {len(remove_lines)}')
             remove_lines = [remove_lines]
         else:  # list of fqprs provided
             if remove_lines and len(remove_fqpr) != len(remove_lines):
                 print(f'update_surface - remove: when a list of fqpr data instances are removed by line, expect a list of line names of the same length: fqpr: {len(remove_fqpr)}, add_lines: {len(remove_lines)}')
-                return None, oldrez, newrez
+                raise ValueError(f'update_surface - remove: when a list of fqpr data instances are removed by line, expect a list of line names of the same length: fqpr: {len(remove_fqpr)}, add_lines: {len(remove_lines)}')
 
         for cnt, rfqpr in enumerate(remove_fqpr):
             if remove_lines:
@@ -1133,24 +1108,21 @@ def update_surface(surface_instance: Union[str, BathyGrid], add_fqpr: Union[Fqpr
             add_fqpr = [add_fqpr]
             if add_lines and not isinstance(add_lines[0], str):  # expect a list of lines when a single fqpr is provided
                 print(f'update_surface - add: when a single fqpr data instance is added by line, expect a list of line names: fqpr: {len(add_fqpr)}, add_lines: {len(add_lines)}')
-                return None, oldrez, newrez
+                raise ValueError(f'update_surface - add: when a single fqpr data instance is added by line, expect a list of line names: fqpr: {len(add_fqpr)}, add_lines: {len(add_lines)}')
             add_lines = [add_lines]
         else:  # list of fqprs provided
             if add_lines and len(add_fqpr) != len(add_lines):
                 print(f'update_surface - add: when a list of fqpr data instances are added by line, expect a list of line names of the same length: fqpr: {len(add_fqpr)}, add_lines: {len(add_lines)}')
-                return None, oldrez, newrez
+                raise ValueError(f'update_surface - add: when a list of fqpr data instances are added by line, expect a list of line names of the same length: fqpr: {len(add_fqpr)}, add_lines: {len(add_lines)}')
 
         for fq in add_fqpr:
             if not fq.is_processed():
                 print(f'_get_unique_crs_vertref: {fq.output_folder} is not fully processed, current processing status={fq.status}')
-                return None, oldrez, newrez
+                raise ValueError(f'_get_unique_crs_vertref: {fq.output_folder} is not fully processed, current processing status={fq.status}')
 
-        if not _validate_fqpr_for_gridding(add_fqpr):
-            return None, oldrez, newrez
+        _validate_fqpr_for_gridding(add_fqpr)
 
         unique_crs, unique_vertref = _get_unique_crs_vertref(add_fqpr)
-        if unique_vertref is None or unique_crs is None:
-            return None, oldrez, newrez
 
         for cnt, afqpr in enumerate(add_fqpr):
             if add_lines:
@@ -1177,8 +1149,7 @@ def update_surface(surface_instance: Union[str, BathyGrid], add_fqpr: Union[Fqpr
                     elif surface_instance.grid_resolution.lower() == 'auto_density':
                         automode = 'density'
                     else:
-                        print('Unrecognized grid resolution: {}'.format(surface_instance.grid_resolution))
-                        return None, oldrez, newrez
+                        raise ValueError('Unrecognized grid resolution: {}'.format(surface_instance.grid_resolution))
             elif surface_instance.grid_resolution.lower() == 'auto_depth':
                 rez = None
                 automode = 'depth'
@@ -1186,8 +1157,7 @@ def update_surface(surface_instance: Union[str, BathyGrid], add_fqpr: Union[Fqpr
                 rez = None
                 automode = 'density'
             else:
-                print('Unrecognized grid resolution: {}'.format(surface_instance.grid_resolution))
-                return None, oldrez, newrez
+                raise ValueError('Unrecognized grid resolution: {}'.format(surface_instance.grid_resolution))
         else:
             rez = float(surface_instance.grid_resolution)
             automode = 'depth'  # the default value, this will not be used when resolution is specified

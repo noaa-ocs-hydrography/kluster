@@ -334,16 +334,31 @@ class FqprIntel(LoggerClass):
             if not silent:
                 self.print_msg('File is listed as an exluded file: {}'.format(infile), logging.ERROR)
         elif fileext in supported_mbes:
-            new_data, updated_type, rerun_mbes_file_match = self._add_to_intel(gather_multibeam_info(infile), self.multibeam_intel, 'multibeam')
+            try:
+                new_data, updated_type, rerun_mbes_file_match = self._add_to_intel(gather_multibeam_info(infile), self.multibeam_intel, 'multibeam')
+            except:
+                self.print_msg(f'Tried adding {infile} as a multibeam file based on file extension {fileext}, failed to add to intel module.')
         elif fileext in supported_svp:
-            new_data, updated_type, rerun_svp_file_match = self._add_to_intel(gather_svp_info(infile), self.svp_intel, 'svp')
+            try:
+                new_data, updated_type, rerun_svp_file_match = self._add_to_intel(gather_svp_info(infile), self.svp_intel, 'svp')
+            except:
+                self.print_msg(f'Tried adding {infile} as a sound velocity file based on file extension {fileext}, failed to add to intel module.')
         elif fileext in supported_sbet:  # sbet and smrmsg have the same file extension sometimes ('.out') depending on what the user has done
             if is_sbet(infile):
-                new_data, updated_type, rerun_nav_file_match = self._add_to_intel(gather_navfile_info(infile), self.nav_intel, 'navigation')
+                try:
+                    new_data, updated_type, rerun_nav_file_match = self._add_to_intel(gather_navfile_info(infile), self.nav_intel, 'navigation')
+                except:
+                    self.print_msg(f'Tried adding {infile} as a post processed navigation file based on file extension {fileext}, failed to add to intel module.')
             elif is_smrmsg(infile):
-                new_data, updated_type, rerun_nav_file_match = self._add_to_intel(gather_naverrorfile_info(infile), self.naverror_intel, 'naverror')
+                try:
+                    new_data, updated_type, rerun_nav_file_match = self._add_to_intel(gather_naverrorfile_info(infile), self.naverror_intel, 'naverror')
+                except:
+                    self.print_msg(f'Tried adding {infile} as a post processed navigation error file based on file extension {fileext}, failed to add to intel module.')
         elif fileext in supported_export_log:
-            new_data, updated_type, rerun_nav_file_match = self._add_to_intel(gather_exportlogfile_info(infile), self.navlog_intel, 'navlog')
+            try:
+                new_data, updated_type, rerun_nav_file_match = self._add_to_intel(gather_exportlogfile_info(infile), self.navlog_intel, 'navlog')
+            except:
+                self.print_msg(f'Tried adding {infile} as an export log file based on file extension {fileext}, failed to add to intel module.')
         else:
             if not silent:
                 self.print_msg('File is not of a supported type: {}'.format(infile), logging.ERROR)
@@ -741,9 +756,12 @@ class FqprIntel(LoggerClass):
         curr_acts, cur_dests = self.action_container.update_action_from_list('gridding', [self.designated_surface])
 
         if self.designated_surface:
-
-            if not self.project.path or (self.project.path and self.project.path_relative_to_project(self.designated_surface) not in self.project.surface_instances):
-                # self.print_msg(f'Designated surface {self.designated_surface} not currently loaded in project.', logging.WARNING)
+            try:
+                if not self.project.path or (self.project.path and self.project.path_relative_to_project(self.designated_surface) not in self.project.surface_instances):
+                    # self.print_msg(f'Designated surface {self.designated_surface} not currently loaded in project.', logging.WARNING)
+                    return
+            except:
+                self.print_msg('Designated surface must be on the same drive letter as the project!', logging.ERROR)
                 return
             relpath_surf = self.project.path_relative_to_project(self.designated_surface)
             surf = self.project.surface_instances[relpath_surf]
@@ -792,19 +810,23 @@ class FqprIntel(LoggerClass):
         output.update(self.svp_intel.unmatched_files)
         self.action_container.update_unmatched(output)
 
-    def regenerate_actions(self, reprocess_fqpr: str = None):
+    def regenerate_actions(self, also_update_conversion: bool = False, reprocess_fqpr: str = None):
         """
         Regenerate all the actions related to exising fqpr instances in the project.  Everytime an fqpr instance is
         removed or added to the project, we run this method.
 
         Parameters
         ----------
+        also_update_conversion
+            if True, will also regenerate conversion actions.  Generally only needed post conversion when new multibeam files are
+            added during conversion, and you need to clear out the file that just converted.
         reprocess_fqpr
             optional, the relative path (from project) for an fqpr instance, triggers full reprocessing for that instance,
             should only be used in emergency
         """
 
-        # print('Checking for new actions...')
+        if also_update_conversion:
+            self._regenerate_multibeam_actions()
         self._regenerate_gridding_actions()
         self._regenerate_processing_actions(reprocess_fqpr=reprocess_fqpr, keep_waterline_changes=self.keep_waterline_changes)
         self._regenerate_svp_actions()
@@ -1125,7 +1147,7 @@ class FqprIntel(LoggerClass):
         """
         if self.action_container.actions:
             self.project.get_dask_client()  # start dask if it has not been started already
-            self.action_container.update_actions_client(self.project.client)
+            self.update_actions_client()
             if self.action_container.actions:
                 action = self.action_container.actions[idx]
                 action_type = action.action_type
@@ -1152,15 +1174,17 @@ class FqprIntel(LoggerClass):
             the action type of the action that was executed, action type is an attribute of the FqprAction
         """
 
+        also_update_conversion = False
         if action_type == 'multibeam':  # generated a new fqpr instance, have to rematch to project
             self.match_multibeam_files_to_project()
             self.match_navigation_files_to_project()
             self.match_svp_files_to_project()
+            also_update_conversion = True  # conversion actions need to be updated as well
         elif action_type == 'navigation':
             self.match_navigation_files_to_project()
         elif action_type == 'svp':
             self.match_svp_files_to_project()
-        self.regenerate_actions()
+        self.regenerate_actions(also_update_conversion=also_update_conversion)
 
     def clear(self):
         """
@@ -1267,10 +1291,11 @@ class IntelModule(LoggerClass):
                 self.print_msg('File {} added as {}'.format(norm_filepath, attributes['type']))
                 return True
             else:
-                self.print_msg('Input data dictionary describes a file that already exists in Kluster Intelligence: {}'.format(attributes['file_path']), logging.ERROR)
+                self.print_msg('File already exists in Kluster Intelligence: {}'.format(attributes['file_path']), logging.ERROR)
                 return False
         else:
-            raise ValueError('Input data dictionary does not have a file_path key, found {}'.format(list(attributes.keys())))
+            self.print_msg('Input data dictionary does not have a file_path key, found {}'.format(list(attributes.keys())), logging.ERROR)
+            return False
 
     def remove_file(self, filepath: str):
         """
@@ -1877,7 +1902,7 @@ def intel_process(filname: Union[str, list], outfold: str = None, coord_system: 
                   epsg: int = None, use_epsg: bool = False, vert_ref: str = 'waterline',
                   parallel_write: bool = True, vdatum_directory: str = None, force_coordinate_system: bool = True,
                   cast_selection_method: str = 'nearest_in_time', designated_surface: str = '',
-                  process_mode: str = 'normal', logger: logging.Logger = None, client: Client = None):
+                  process_mode: str = 'normal', logger: logging.Logger = None, client: Client = None, skip_dask: bool = False):
     """
     Use Kluster intelligence module to organize and process all input files.  Files can be a list of files, a single
     file, or a directory full of files.  Files can be multibeam files, .svp sound velocity profile files, SBET and
@@ -1919,7 +1944,9 @@ def intel_process(filname: Union[str, list], outfold: str = None, coord_system: 
         logging.Logger instance, if included will use this logger in Kluster
     client
         dask.distributed.Client instance, if you don't include this, it will automatically start a LocalCluster with the
-        default options
+        default options, unless you set skip_dask to True
+    skip_dask
+        if True, will not use the dask client
 
     Returns
     -------
@@ -1930,8 +1957,9 @@ def intel_process(filname: Union[str, list], outfold: str = None, coord_system: 
     """
 
     project = FqprProject(is_gui=False, project_path=outfold, logger=logger)
-    if client:
+    if client and not skip_dask:
         project.client = client
+    project.skip_dask = skip_dask
     if designated_surface:
         project.add_surface(designated_surface)
 
@@ -1967,7 +1995,7 @@ def intel_process_service(folder_path: Union[list, str], is_recursive: bool = Tr
                           epsg: int = None, use_epsg: bool = False, vert_ref: str = 'waterline',
                           parallel_write: bool = True, vdatum_directory: str = None, force_coordinate_system: bool = True,
                           cast_selection_method: str = 'nearest_in_time', designated_surface: str = '',
-                          process_mode: str = 'normal', logger: logging.Logger = None, client: Client = None):
+                          process_mode: str = 'normal', logger: logging.Logger = None, client: Client = None, skip_dask: bool = False):
     """
     Use Kluster intelligence module to start a new folder monitoring session and process all new files that show
     up in that directory.  Files can be multibeam files, .svp sound velocity profile files, SBET and
@@ -2011,13 +2039,16 @@ def intel_process_service(folder_path: Union[list, str], is_recursive: bool = Tr
         logging.Logger instance, if included will use this logger in Kluster
     client
         dask.distributed.Client instance, if you don't include this, it will automatically start a LocalCluster with the
-        default options
+        default options, unless you set skip_dask to True
+    skip_dask
+        if True, will not use the dask client
     """
 
     # consider daemonizing this at some point: https://daemoniker.readthedocs.io/en/latest/index.html
     project = FqprProject(is_gui=False, project_path=outfold, logger=logger)
-    if client:
+    if client and not skip_dask:
         project.client = client
+    project.skip_dask = skip_dask
     if designated_surface:
         project.add_surface(designated_surface)
 

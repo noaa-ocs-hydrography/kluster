@@ -68,7 +68,6 @@ class TestFqprProject(unittest.TestCase):
     def test_project_setup(self):
         assert self.project.client is None
         assert self.project.path == os.path.join(self.expected_output, 'kluster_project.json')
-        assert not self.project.is_gui
         assert self.project.file_format == 1.0
         assert self.project.vessel_file is None
         assert not self.project.surface_instances

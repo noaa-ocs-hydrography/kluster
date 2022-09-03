@@ -266,9 +266,9 @@ class S7kscatter(BScatter):
         # we rely on the runtime parameters for all of these variables.  Only the raw intensity is (time, beam) dim for s7k.
         self.absorption_db_m = float(self.runtime_parameters['absorption_db_km']) / 1000
         self.spreading_loss_db = float(self.runtime_parameters['spreading_loss_db'])
-        self.power_selection_db_re_1micropascal = 20 * np.log10(float(self.runtime_parameters['power_selection_db_re_1micropascal']))
+        self.power_selection_db_re_1micropascal = float(self.runtime_parameters['power_selection_db_re_1micropascal'])
         self.pulse_length = float(self.runtime_parameters['tx_pulse_width_seconds'])
-        self.gain_selection_db = 20 * np.log10(float(self.runtime_parameters['gain_selection_db']))
+        self.gain_selection_db = float(self.runtime_parameters['gain_selection_db'])
 
         self.tx_beam_width = tx_beam_width
         self.rx_beam_width = rx_beam_width
@@ -327,12 +327,12 @@ class Allscatter(BScatter):
     absorption_description = 'runtime parameters AbsorptionCoefficent'
     tx_beam_width_description = 'runtime parameters TransmitBeamWidth'
     rx_beam_width_description = 'runtime parameters ReceiveBeamWidth'
-    near_normal_description = '(BSnormal_dB - BSoblique_dB) * (1 - sqrt((range - minrange) / ((minrange / crossoverangle) - minrange)))'
+    near_normal_description = '(BSoblique_dB - BSnormal_dB) * (1 - sqrt((range - minrange) / ((minrange / crossoverangle) - minrange)))'
     pulse_length_description = 'RangeandAngleDatagram SignalLength'
     raw_intensity_description = 'SeaBedImage89 Reflectivity'
 
     def __init__(self, runtime_parameters: dict, raw_intensity: xr.DataArray, slant_range: xr.DataArray, surface_sound_speed: xr.DataArray,
-                 beam_angle: xr.DataArray, tx_beam_width: float, rx_beam_width: float,
+                 beam_angle: xr.DataArray, tx_beam_width: float, rx_beam_width: float, near_normal_corrector: xr.DataArray,
                  pulse_length: xr.DataArray, plot_backscatter: str = None):
         super().__init__(raw_intensity, slant_range, surface_sound_speed, beam_angle, plot_backscatter)
         # Kluster will process in 1000 ping chunks.  This runtime parameters is the entry that is nearest in time to this
@@ -345,7 +345,7 @@ class Allscatter(BScatter):
         # note that the near_normal_corrector relies on a number of different variables from the .all file.  Instead
         #   of carrying all of that around in Kluster, Kluster will generate a 'nearnormal' variable on conversion.  See the
         #   par3 module nearnormal_correction function.
-        # self.near_normal_corrector = near_normal_corrector  # see near_normal_description
+        self.near_normal_corrector = near_normal_corrector  # see near_normal_description
         self.pulse_length = pulse_length  # see pulse_length_description
 
     @property
@@ -364,9 +364,7 @@ class Allscatter(BScatter):
         Kluster uses a basic model for calculating the tvg used by Kongsberg to remove from the raw reflectivity, also
         including the nearnormal corrector.
         """
-        # near normal corrector currently disabled, I can't get a good answer from the par3 nearnormal_correction
-        # return 2 * ((20 * np.log10(self.slant_range)) + self.attenuation) - self.near_normal_corrector
-        return 2 * ((20 * np.log10(self.slant_range)) + self.attenuation)
+        return 2 * ((20 * np.log10(self.slant_range)) + self.attenuation) - self.near_normal_corrector
 
     @classmethod
     def return_settings(cls, fixed_gain_corrected: bool = True, tvg_corrected: bool = True,
@@ -392,10 +390,8 @@ class Allscatter(BScatter):
         else:
             setts['fixed_gain_removed'] = 'disabled by user'
         if tvg_corrected:
-            # near normal corrector currently disabled, I can't get a good answer from the par3 nearnormal_correction
-            # setts['near_normal_corrector'] = cls.near_normal_description
-            # setts['tvg_removed'] = f'40 * log10(svcorr slant range) + (2 * {cls.absorption_description} * svcorr slant range) - (near_normal_corrector)'
-            setts['tvg_removed'] = f'40 * log10(svcorr slant range) + (2 * {cls.absorption_description} * svcorr slant range)'
+            setts['near_normal_corrector'] = cls.near_normal_description
+            setts['tvg_removed'] = f'40 * log10(svcorr slant range) + (2 * {cls.absorption_description} * svcorr slant range) - (near_normal_corrector)'
         else:
             setts['tvg_removed'] = 'disabled by user'
         return setts
@@ -497,7 +493,7 @@ def distrib_run_process_backscatter(worker_dat: list):
     backscatter_settings = worker_dat[-2]
     if multibeam_extension == '.all':
         bclass = Allscatter(worker_dat[0], worker_dat[1], worker_dat[2], worker_dat[3], worker_dat[4], worker_dat[5],
-                            worker_dat[6], worker_dat[7], plot_backscatter=worker_dat[8])
+                            worker_dat[6], worker_dat[7], worker_dat[8], plot_backscatter=worker_dat[9])
     elif multibeam_extension == '.s7k':
         bclass = S7kscatter(worker_dat[0], worker_dat[1], worker_dat[2], worker_dat[3], worker_dat[4], worker_dat[5],
                             worker_dat[6], plot_backscatter=worker_dat[7])

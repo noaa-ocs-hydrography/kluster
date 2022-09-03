@@ -141,7 +141,8 @@ def xarr_to_zarr(xarr: xr.Dataset, outputpth: str, attrs: dict = None):
     if not os.path.exists(outputpth):
         xarr.to_zarr(outputpth, mode='w-', compute=False)
     else:
-        sync = zarr.ProcessSynchronizer(outputpth + '.sync')
+        # sync = zarr.ProcessSynchronizer(outputpth + '.sync')
+        sync = None
         xarr.to_zarr(outputpth, mode='a', synchronizer=sync, compute=False, append_dim='time')
 
     return outputpth
@@ -733,7 +734,8 @@ def reload_zarr_records(pth: str, skip_dask: bool = False, sort_by: str = None):
     """
 
     if os.path.exists(pth):
-        sync = zarr.ProcessSynchronizer(pth + '.sync')
+        # sync = zarr.ProcessSynchronizer(pth + '.sync')
+        sync = None
         if not skip_dask:
             data = xr.open_zarr(pth, synchronizer=sync, consolidated=False,
                                 mask_and_scale=False, decode_coords=False, decode_times=False,

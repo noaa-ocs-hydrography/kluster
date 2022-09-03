@@ -467,7 +467,7 @@ class TestFqprGeneration(unittest.TestCase):
 
     def test_multibeam_files(self):
         self._access_processed_data()
-        start_time, end_time, start_lat, start_lon, end_lat, end_lon, azimuth = self.out.multibeam.raw_ping[0].multibeam_files['0009_20170523_181119_FA2806.all']
+        start_time, end_time, start_lat, start_lon, end_lat, end_lon, azimuth, dist = self.out.multibeam.raw_ping[0].multibeam_files['0009_20170523_181119_FA2806.all']
         assert start_time == 1495563079.364
         assert end_time == 1495563133.171
         assert start_lat == 47.78890945494799
@@ -475,8 +475,9 @@ class TestFqprGeneration(unittest.TestCase):
         assert end_lat == 47.78942111430487
         assert end_lon == -122.47841440033638
         assert azimuth == 307.92
+        assert dist == 113.0
         # can also use the function
-        start_time, end_time, start_lat, start_lon, end_lat, end_lon, azimuth = self.out.line_attributes('0009_20170523_181119_FA2806.all')
+        start_time, end_time, start_lat, start_lon, end_lat, end_lon, azimuth, dist = self.out.line_attributes('0009_20170523_181119_FA2806.all')
         assert start_time == 1495563079.364
         assert end_time == 1495563133.171
         assert start_lat == 47.78890945494799
@@ -484,6 +485,7 @@ class TestFqprGeneration(unittest.TestCase):
         assert end_lat == 47.78942111430487
         assert end_lon == -122.47841440033638
         assert azimuth == 307.92
+        assert dist == 113.0
 
     def test_subset_by_time(self):
         self._access_processed_data()
@@ -799,7 +801,7 @@ class TestFqprGeneration(unittest.TestCase):
     def test_export_dataset(self):
         self._access_processed_data()
         self.out.export_dataset('multibeam', self.multicheck)
-        self.check_export(self.expected_multi, 'time,mean_acrosstrack,mean_alongtrack,altitude,mean_beampointingangle,corr_altitude,corr_heave,mean_corr_pointing_angle,counter,mean_datum_uncertainty,mean_delay,mean_depthoffset,median_detectioninfo,median_frequency,nadir_geohash,latitude,longitude,mode,modetwo,median_processing_status,mean_pulselength,mean_qualityfactor,mean_reflectivity,mean_rel_azimuth,soundspeed,mean_thu,mean_tiltangle,mean_traveltime,mean_tvu,median_txsector_beam,mean_x,mean_y,yawpitchstab,mean_z')
+        self.check_export(self.expected_multi, 'time,mean_acrosstrack,mean_alongtrack,altitude,mean_beampointingangle,corr_altitude,corr_heave,mean_corr_pointing_angle,counter,mean_datum_uncertainty,mean_delay,mean_depthoffset,median_detectioninfo,median_frequency,nadir_geohash,latitude,longitude,mode,modetwo,mean_nearnormalcorrect,median_processing_status,mean_pulselength,mean_qualityfactor,mean_reflectivity,mean_rel_azimuth,soundspeed,mean_thu,mean_tiltangle,mean_traveltime,mean_tvu,median_txsector_beam,mean_x,mean_y,yawpitchstab,mean_z')
 
         self.out.export_dataset('raw navigation', self.navcheck)
         self.check_export(self.expected_nav, 'time,altitude,latitude,longitude')

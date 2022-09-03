@@ -1,6 +1,8 @@
 Backscatter
 ============
 
+NOTE: Backscatter processing is EXPERIMENTAL and the values will change as future updates are released.
+
 Added in Kluster 1.1, we can now generate processed backscatter and backscattter mosaics.  For more on the theory and background of backscatter processing, i'll link to the `Geohab Backscatter Working Group site <https://geohab.org/backscatter-working-group/>`_ which hosts publications that explain the concepts in detail.  In particular, I recommend the 'Backscatter measurements by seafloor-mapping sonars: Guidelines and Recommendations (2015)'.
 
 In essence, Kluster will (post v1.1) now include raw backscatter intensity from the sonar manufacturer, as well as any new variables that help with processing.  Processing backscatter will involve removing the manufacturer specific gains and adding in correctors based on the Kluster multibeam processing that should produce ideal backscatter strength estimations for the seafloor.

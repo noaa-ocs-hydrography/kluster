@@ -143,12 +143,15 @@ def return_files_from_path(pth: str, in_chunks: bool = True):
 
     Provide an optional fileext argument if you want to specify files with a different extension
 
+    If in chunks
+
     Parameters
     ----------
     pth
         either a list of files, a string path to a directory or a string path to a file
     in_chunks
-        if True, returns lists of lists of size kluster_variables.converted_files_at_once
+        if True, returns lists of lists of length kluster_variables.converted_files_at_once, where each sublist is at a maximum
+        kluster_variables.max_converted_chunk_size in total file size
 
     Returns
     -------
@@ -178,11 +181,29 @@ def return_files_from_path(pth: str, in_chunks: bool = True):
     if not in_chunks:
         return fils
     else:
+        final_chunks = []
         maxchunks = kluster_variables.converted_files_at_once
+        maxchunksize = kluster_variables.max_converted_chunk_size
+        #  first divide the input files into groups of files with max number of files equal to maxchunks
         final_fils = [fils[i * maxchunks:(i + 1) * maxchunks] for i in range(int(np.ceil((len(fils) + maxchunks - 1) / maxchunks)))]
         if final_fils[-1] == []:
             final_fils = final_fils[:-1]
-        return final_fils
+        # now ensure each file group is at most equal to maxchunksize in terms of file size
+        for fils in final_fils:
+            final_fils = []
+            total_size = 0
+            for fil in fils:
+                fil_size = os.path.getsize(fil) / 1000000  # file size in MB
+                if (total_size + fil_size) >= maxchunksize and final_fils:
+                    final_chunks.append(final_fils)
+                    total_size = fil_size
+                    final_fils = [fil]
+                else:
+                    final_fils.append(fil)
+                    total_size += fil_size
+            if final_fils:
+                final_chunks.append(final_fils)
+        return final_chunks
 
 
 def return_directory_from_data(data: Union[list, str]):
@@ -263,3 +284,43 @@ def haversine(lon1: Union[float, int, np.ndarray], lat1: Union[float, int, np.nd
     c = 2 * np.arcsin(np.sqrt(a))
     r = 6371  # Radius of earth in kilometers. Use 3956 for miles. Determines return value units.
     return c * r
+
+
+def print_progress_bar(iteration, total, prefix='Progress:', suffix='Complete', decimals=1, length=70, fill='█', print_end="\r"):
+    """
+    Call in a loop to generate a text progress bar, ex:
+    # A List of Items
+    items = list(range(0, 57))
+    l = len(items)
+    # Initial call to print 0% progress
+    printProgressBar(0, l, prefix = 'Progress:', suffix = 'Complete', length = 50)
+    for i, item in enumerate(items):
+    # Do stuff...
+    time.sleep(0.1)
+    # Update Progress Bar
+    printProgressBar(i + 1, l, prefix = 'Progress:', suffix = 'Complete', length = 50)
+
+    Parameters
+    ----------
+    iteration
+        current iteration out of the total iterations
+    total
+        total iterations
+    prefix
+        prefix string for the display
+    suffix
+        suffix string for the display
+    decimals
+        number of decimals in the progress percentage
+    length
+        character length of the bar
+    fill
+        bar fill character
+    print_end
+        end character
+    """
+
+    percent = ("{0:." + str(decimals) + "f}").format(100 * (iteration / float(total)))
+    filled_length = int(length * iteration // total)
+    bar = fill * filled_length + '-' * (length - filled_length)
+    print(f'\r{prefix} |{bar}| {percent}% {suffix}', end=print_end)

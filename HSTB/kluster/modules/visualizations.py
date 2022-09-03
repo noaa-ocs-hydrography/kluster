@@ -487,6 +487,48 @@ class FqprVisualizations:
         plt.xlabel('Sound Velocity (meters/second)')
         plt.ylabel('Depth (meters)')
 
+    def plot_surface_sv_vs_profiles(self, filter_by_time: bool = False):
+        profnames, casts, cast_times, castlocations = self.fqpr.return_all_profiles()
+
+        if filter_by_time:
+            min_search_time = float(self.fqpr.multibeam.raw_ping[0].time[0].values - 5)
+            max_search_time = float(self.fqpr.multibeam.raw_ping[0].time[-1].values + 5)
+
+        if profnames:
+            fig = plt.figure()
+            prof_points = [[], []]
+            minval = float(self.fqpr.multibeam.raw_ping[0].soundspeed.min())
+            maxval = float(self.fqpr.multibeam.raw_ping[0].soundspeed.max())
+            plt.plot(self.fqpr.multibeam.raw_ping[0].time, self.fqpr.multibeam.raw_ping[0].soundspeed, label='Surface Sound Velocity')
+            for profname, cast, casttime, castloc in zip(profnames, casts, cast_times, castlocations):
+                # filter cast by mintime/maxtime to only get casts in the subset range, if we have subsetted this fqpr instance
+                if filter_by_time and not (min_search_time < casttime < max_search_time):
+                    continue
+                iparams = self.fqpr.multibeam.get_nearest_install_parameters(str(casttime))
+                # draft rel rp minus transducer depth rel rp should be waterline location from sv sensors perspective
+                draft = float(iparams['transducer_1_vertical_location']) - float(iparams['waterline_vertical_location'])
+                try:
+                    nearest_sv_to_draft = cast[1][np.argmin(np.abs(np.array(cast[0]) - draft))]
+                except:
+                    print('WARNING: Unable to find a depth/sv value nearest to calculated draft ({})'.format(draft))
+                    continue
+                plt.text(float(casttime), nearest_sv_to_draft + ((maxval - minval) / 15), profname)
+                prof_points[0].append(float(casttime))
+                prof_points[1].append(nearest_sv_to_draft)
+                minval = np.min([minval, nearest_sv_to_draft])
+                maxval = np.max([maxval, nearest_sv_to_draft])
+                print(f'Plotting nearest sv ({nearest_sv_to_draft}m/s) value to draft ({draft}m) from profile {profname} using time {float(casttime)}')
+            if prof_points[0]:
+                plt.scatter(prof_points[0], prof_points[1])
+        else:
+            print('No sound velocity profiles found')
+        plt.legend()
+        plt.title('Sound Velocity Profiles vs Surface Sound Velocity')
+        plt.xlabel('Time (UTC Seconds)')
+        plt.ylabel('Sound Velocity (meters/second)')
+        plt.ylim(minval - 0.5, maxval + 0.5)
+        plt.show()
+
     def plot_sound_velocity_map(self, filter_casts_by_time: bool = False):
         """
         Plot a latitutde/longitude overview of all multibeam lines within the current Fqpr time range and all applicable
@@ -546,25 +588,28 @@ class FqprVisualizations:
         profnames, casts, cast_times, castlocations = self.fqpr.return_all_profiles()
         all_lats = []
         all_longs = []
-        for profname, cast, casttime, castloc in zip(profnames, casts, cast_times, castlocations):
-            # filter cast by mintime/maxtime to only get casts in the subset range, if we have subsetted this fqpr instance
-            if filter_casts_by_time and not (min_search_time < casttime < max_search_time):
-                continue
-            if not castloc:  # should never get here, but this will get a fall back position of nearest nav point to the cast time
-                print('building cast position for cast {}'.format(profname))
-                # search times have a buffer, if the casttime is within the buffer but less than the dataset time, use the min dataset time
-                if casttime <= nav.time.min():
-                    castloc = [float(nav.latitude[0].values), float(nav.longitude[0].values)]
-                elif casttime >= nav.time.max():
-                    castloc = [float(nav.latitude[-1].values), float(nav.longitude[-1].values)]
-                else:
-                    interpnav = nav.interp(time=np.array([casttime]), method='nearest')
-                    castloc = [float(interpnav.latitude.values), float(interpnav.longitude.values)]
-            print('Plotting cast at position {}'.format(castloc))
-            plt.scatter(castloc[1], castloc[0], label=profname)
-            all_lats.append(castloc[0])
-            all_longs.append(castloc[1])
-
+        if casts:
+            for profname, cast, casttime, castloc in zip(profnames, casts, cast_times, castlocations):
+                # filter cast by mintime/maxtime to only get casts in the subset range, if we have subsetted this fqpr instance
+                if filter_casts_by_time and not (min_search_time < casttime < max_search_time):
+                    continue
+                if not castloc:  # should never get here, but this will get a fall back position of nearest nav point to the cast time
+                    print('building cast position for cast {}'.format(profname))
+                    # search times have a buffer, if the casttime is within the buffer but less than the dataset time, use the min dataset time
+                    if casttime <= nav.time.min():
+                        castloc = [float(nav.latitude[0].values), float(nav.longitude[0].values)]
+                    elif casttime >= nav.time.max():
+                        castloc = [float(nav.latitude[-1].values), float(nav.longitude[-1].values)]
+                    else:
+                        interpnav = nav.interp(time=np.array([casttime]), method='nearest')
+                        castloc = [float(interpnav.latitude.values), float(interpnav.longitude.values)]
+                print('Plotting cast at position {}'.format(castloc))
+                plt.scatter(castloc[1], castloc[0], label=profname)
+                all_lats.append(castloc[0])
+                all_longs.append(castloc[1])
+        else:
+            print('No profiles found!')
+            return
         plt.title('Sound Velocity Map')
         plt.xlabel('Longitude (degrees)')
         plt.ylabel('Latitude (degrees)')

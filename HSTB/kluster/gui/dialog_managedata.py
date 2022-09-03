@@ -3,12 +3,12 @@ from datetime import datetime, timezone
 import logging
 
 from HSTB.kluster.gui.backends._qt import QtGui, QtCore, QtWidgets, Signal
-from HSTB.kluster.gui.common_widgets import SaveStateDialog
+from HSTB.kluster.gui.common_widgets import ManageDialog
 from matplotlib.backends.backend_qt5agg import (FigureCanvasQTAgg, NavigationToolbar2QT as NavigationToolbar)
 import matplotlib.pyplot as plt
 
 
-class ManageDataDialog(SaveStateDialog):
+class ManageDataDialog(ManageDialog):
     """
     Dialog contains a summary of the Fqpr data and some options for altering the data contained within.
 
@@ -16,43 +16,11 @@ class ManageDataDialog(SaveStateDialog):
     """
     refresh_fqpr = Signal(object, object)
 
-    def __init__(self, parent=None, title='', settings=None):
-        super().__init__(parent, settings, widgetname='ManageData')
+    def __init__(self, parent=None, settings=None):
+        super().__init__(parent, 'Manage Surface', 'ManageSurfaceDialog', settings)
 
-        self.setMinimumWidth(500)
-        self.setMinimumHeight(400)
-
-        self.setWindowTitle('Manage Data')
-        layout = QtWidgets.QVBoxLayout()
-
-        self.basicdata = QtWidgets.QTextEdit()
-        self.basicdata.setReadOnly(True)
-        self.basicdata.setText('')
-        layout.addWidget(self.basicdata)
-
-        self.managelabel = QtWidgets.QLabel('Manage: ')
-        layout.addWidget(self.managelabel)
-
-        buttonone = QtWidgets.QHBoxLayout()
-        self.sbetbutton = QtWidgets.QPushButton(' Remove SBET ')
-        buttonone.addWidget(self.sbetbutton)
-        buttonone.addStretch()
-
-        buttontwo = QtWidgets.QHBoxLayout()
-        self.svpbutton = QtWidgets.QPushButton(' Manage SVP ')
-        buttontwo.addWidget(self.svpbutton)
-        self.svpmapbutton = QtWidgets.QPushButton(' SVP Map ')
-        buttontwo.addWidget(self.svpmapbutton)
-        buttontwo.addStretch()
-
-        layout.addLayout(buttonone)
-        layout.addLayout(buttontwo)
-
-        self.sbetbutton.clicked.connect(self.remove_sbet)
-        self.svpbutton.clicked.connect(self.manage_svp)
-        self.svpmapbutton.clicked.connect(self.svp_map_display)
-
-        self.setLayout(layout)
+        self.calcdropdown.addItems(['distance, meters', 'distance, lnm'])
+        self.rundropdown.addItems(['SVP Editor', 'SVP Map', 'Remove SBET'])
         self.fqpr = None
         self.svpdialog = None
 
@@ -98,6 +66,8 @@ class ManageDataDialog(SaveStateDialog):
                 self.svpdialog = ManageSVPDialog(profnames, casts, cast_times, castlocations)
                 self.svpdialog.remove_cast_sig.connect(self.remove_svp)
                 self.svpdialog.exec_()
+            else:
+                print('No profiles found!')
 
     def svp_map_display(self, e):
         if self.fqpr is not None:
@@ -105,6 +75,48 @@ class ManageDataDialog(SaveStateDialog):
             # set always on top
             plt.gcf().canvas.manager.window.setWindowFlags(self.windowFlags() | QtCore.Qt.WindowStaysOnTopHint)
             plt.gcf().canvas.manager.window.show()
+
+    def plot_tooltip_config(self, e):
+        pass
+
+    def calc_tooltip_config(self, e):
+        calcname = self.calcdropdown.currentText()
+        if calcname == 'distance, meters':
+            self.calcdropdown.setToolTip('Calculate the total distance of all lines in the container in meters')
+        elif calcname == 'distance, lnm':
+            self.calcdropdown.setToolTip('Calculate the total distance of all lines in the container in linear nautical miles')
+
+    def run_tooltip_config(self, e):
+        runname = self.rundropdown.currentText()
+        if runname == 'SVP Editor':
+            self.rundropdown.setToolTip('Run the SVP Editor on all casts in this container.  Removing a cast may create a new processing action.')
+        elif runname == 'SVP Map':
+            self.rundropdown.setToolTip('Build an image of all lines and sound velocity cast locations')
+        elif runname == 'Remove SBET':
+            self.rundropdown.setToolTip('Remove the SBET(s) currently contained in this container.  May create a new processing action.')
+
+    def calculate_statistic(self, e):
+        if self.fqpr is not None:
+            stat = self.calcdropdown.currentText()
+            if stat in ['distance, meters', 'distance, lnm']:
+                dist = self.fqpr.total_distance_meters
+            if stat == 'distance, meters':
+                self.calcanswer.setText(str(round(dist, 3)))
+            elif stat == 'distance, lnm':
+                self.calcanswer.setText(str(round(dist * 0.000539957, 3)))
+            else:
+                raise ValueError(f'Unrecognized input for calculating statistic: {stat}')
+
+    def generate_plot(self, e):
+        pass
+
+    def run_function(self, e):
+        if self.rundropdown.currentText() == 'SVP Editor':
+            self.manage_svp(e)
+        elif self.rundropdown.currentText() == 'SVP Map':
+            self.svp_map_display(e)
+        elif self.rundropdown.currentText() == 'Remove SBET':
+            self.remove_sbet(e)
 
 
 class RemoveSBETDialog(QtWidgets.QMessageBox):
@@ -115,6 +127,7 @@ class RemoveSBETDialog(QtWidgets.QMessageBox):
                      '\n\nWARNING: Removing SBETs will generate a new georeferencing action to reprocess with multibeam navigation.')
         self.setStandardButtons(QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No)
         self.setDefaultButton(QtWidgets.QMessageBox.Yes)
+        self.setWindowFlags(self.windowFlags() | QtCore.Qt.WindowStaysOnTopHint)
 
     def run(self):
         result = self.exec_()
@@ -132,6 +145,7 @@ class RemoveSVPDialog(QtWidgets.QMessageBox):
                      '\n\nWARNING: Removing profiles will generate a new sound velocity action to reprocess with the remaining casts.')
         self.setStandardButtons(QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No)
         self.setDefaultButton(QtWidgets.QMessageBox.Yes)
+        self.setWindowFlags(self.windowFlags() | QtCore.Qt.WindowStaysOnTopHint)
 
     def run(self):
         result = self.exec_()
@@ -175,6 +189,8 @@ class ManageSVPDialog(QtWidgets.QDialog):
         self.cast_locations = castlocations  # list of [latitude, longitude] for each profile
 
         self.setWindowTitle('Manage Sound Velocity Profiles')
+        self.setWindowFlags(self.windowFlags() | QtCore.Qt.WindowStaysOnTopHint)
+
         layout = QtWidgets.QVBoxLayout()
 
         self.sc = MplCanvas(self, width=7, height=5, dpi=100)

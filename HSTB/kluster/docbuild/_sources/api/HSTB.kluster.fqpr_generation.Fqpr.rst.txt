@@ -15,11 +15,13 @@ Fqpr
       ~Fqpr.last_operation_date
       ~Fqpr.max_time
       ~Fqpr.min_time
+      ~Fqpr.multibeam_extension
       ~Fqpr.number_of_heads
       ~Fqpr.number_of_pings
       ~Fqpr.sbet_navigation
       ~Fqpr.sonar_model
       ~Fqpr.status
+      ~Fqpr.total_distance_meters
 
    .. rubric:: Methods Summary
 
@@ -56,6 +58,7 @@ Fqpr
       ~Fqpr.line_attributes
       ~Fqpr.line_is_processed
       ~Fqpr.overwrite_raw_navigation
+      ~Fqpr.process_backscatter
       ~Fqpr.read_from_source
       ~Fqpr.remove_post_processed_navigation
       ~Fqpr.remove_profile
@@ -78,6 +81,7 @@ Fqpr
       ~Fqpr.return_next_unprocessed_line
       ~Fqpr.return_processing_dashboard
       ~Fqpr.return_rounded_frequency
+      ~Fqpr.return_runtime_idx_nearestintime
       ~Fqpr.return_soundings_in_polygon
       ~Fqpr.return_total_pings
       ~Fqpr.return_total_soundings
@@ -103,11 +107,13 @@ Fqpr
    .. autoattribute:: last_operation_date
    .. autoattribute:: max_time
    .. autoattribute:: min_time
+   .. autoattribute:: multibeam_extension
    .. autoattribute:: number_of_heads
    .. autoattribute:: number_of_pings
    .. autoattribute:: sbet_navigation
    .. autoattribute:: sonar_model
    .. autoattribute:: status
+   .. autoattribute:: total_distance_meters
 
    .. rubric:: Methods Documentation
 
@@ -142,6 +148,7 @@ Fqpr
    .. automethod:: line_attributes
    .. automethod:: line_is_processed
    .. automethod:: overwrite_raw_navigation
+   .. automethod:: process_backscatter
    .. automethod:: read_from_source
    .. automethod:: remove_post_processed_navigation
    .. automethod:: remove_profile
@@ -164,6 +171,7 @@ Fqpr
    .. automethod:: return_next_unprocessed_line
    .. automethod:: return_processing_dashboard
    .. automethod:: return_rounded_frequency
+   .. automethod:: return_runtime_idx_nearestintime
    .. automethod:: return_soundings_in_polygon
    .. automethod:: return_total_pings
    .. automethod:: return_total_soundings

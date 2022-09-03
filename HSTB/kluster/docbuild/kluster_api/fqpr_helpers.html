@@ -6,7 +6,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
-    <title>fqpr_helpers module &#8212; kluster 1.1.0 documentation</title>
+    <title>fqpr_helpers module &#8212; kluster 1.1.1 documentation</title>
     <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
     <link rel="stylesheet" type="text/css" href="../_static/alabaster.css" />
     <link rel="stylesheet" type="text/css" href="../_static/graphviz.css" />
@@ -55,13 +55,16 @@
 <tr class="row-odd"><td><p><a class="reference internal" href="../api/HSTB.kluster.fqpr_helpers.haversine.html#HSTB.kluster.fqpr_helpers.haversine" title="HSTB.kluster.fqpr_helpers.haversine"><code class="xref py py-obj docutils literal notranslate"><span class="pre">haversine</span></code></a>(lon1, lat1, lon2, lat2)</p></td>
 <td><p>Calculate the great circle distance in kilometers between two points on the earth (specified in decimal degrees).</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="../api/HSTB.kluster.fqpr_helpers.return_directory_from_data.html#HSTB.kluster.fqpr_helpers.return_directory_from_data" title="HSTB.kluster.fqpr_helpers.return_directory_from_data"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_directory_from_data</span></code></a>(data)</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="../api/HSTB.kluster.fqpr_helpers.print_progress_bar.html#HSTB.kluster.fqpr_helpers.print_progress_bar" title="HSTB.kluster.fqpr_helpers.print_progress_bar"><code class="xref py py-obj docutils literal notranslate"><span class="pre">print_progress_bar</span></code></a>(iteration, total[, ...])</p></td>
+<td><p>Call in a loop to generate a text progress bar, ex: # A List of Items items = list(range(0, 57)) l = len(items) # Initial call to print 0% progress printProgressBar(0, l, prefix = 'Progress:', suffix = 'Complete', length = 50) for i, item in enumerate(items): # Do stuff.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="../api/HSTB.kluster.fqpr_helpers.return_directory_from_data.html#HSTB.kluster.fqpr_helpers.return_directory_from_data" title="HSTB.kluster.fqpr_helpers.return_directory_from_data"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_directory_from_data</span></code></a>(data)</p></td>
 <td><p>Given either a path to a zarr store, a path to a directory of multibeam files, a list of paths to multibeam files or a path to a single multibeam file, return the parent directory.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="../api/HSTB.kluster.fqpr_helpers.return_files_from_path.html#HSTB.kluster.fqpr_helpers.return_files_from_path" title="HSTB.kluster.fqpr_helpers.return_files_from_path"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_files_from_path</span></code></a>(pth[, in_chunks])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="../api/HSTB.kluster.fqpr_helpers.return_files_from_path.html#HSTB.kluster.fqpr_helpers.return_files_from_path" title="HSTB.kluster.fqpr_helpers.return_files_from_path"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_files_from_path</span></code></a>(pth[, in_chunks])</p></td>
 <td><p>Input files can be entered into an xarray_conversion.BatchRead instance as either a list, a path to a directory of multibeam files or as a path to a single file.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="../api/HSTB.kluster.fqpr_helpers.seconds_to_formatted_string.html#HSTB.kluster.fqpr_helpers.seconds_to_formatted_string" title="HSTB.kluster.fqpr_helpers.seconds_to_formatted_string"><code class="xref py py-obj docutils literal notranslate"><span class="pre">seconds_to_formatted_string</span></code></a>(seconds)</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="../api/HSTB.kluster.fqpr_helpers.seconds_to_formatted_string.html#HSTB.kluster.fqpr_helpers.seconds_to_formatted_string" title="HSTB.kluster.fqpr_helpers.seconds_to_formatted_string"><code class="xref py py-obj docutils literal notranslate"><span class="pre">seconds_to_formatted_string</span></code></a>(seconds)</p></td>
 <td><p>Get a nicely formatted time elapsed string</p></td>
 </tr>
 </tbody>

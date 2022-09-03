@@ -184,7 +184,7 @@ def georef_by_worker(sv_corr: list, alt: xr.DataArray, lon: xr.DataArray, lat: x
         if final_mask.any():
             z = z.where(final_mask, np.nan)
             vdatum_unc = vdatum_unc.where(final_mask, np.nan)
-            ghash = ghash.where(final_mask, b'       ')
+            ghash = ghash.where(final_mask, b' ' * kluster_variables.geohash_precision)
 
     return [x, y, z, corr_heave, corr_altitude, vdatum_unc, ghash]
 
@@ -315,7 +315,7 @@ def new_geohash(latitude: float, longitude: float, precision: int):
     """
 
     if np.isnan(latitude) or np.isnan(longitude):
-        return ''
+        return b' ' * precision
     return geohash.encode(latitude, longitude, precision=precision).encode()
 
 

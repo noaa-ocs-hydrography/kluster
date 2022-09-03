@@ -1,5 +1,3 @@
-from pyproj import CRS
-
 from HSTB.kluster.gui.dialog_surface import *
 
 
@@ -12,7 +10,7 @@ class MosaicDialog(SurfaceDialog):
         super().__init__(parent=parent, title=title, settings=settings)
 
         # first hide the non-mosaic related options
-        self.setWindowTitle('Generate New Mosaic')
+        self.setWindowTitle('(EXPERIMENTAL) Generate New Mosaic')
         self.basic_surface_group.setTitle('Run mosaic generation on the following files:')
         self.surf_method.clear()
         self.surf_method.addItems(['Mean'])

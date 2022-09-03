@@ -279,7 +279,3 @@ if __name__ == '__main__':
     fm = FilterManager()
     print('Filters currently loaded')
     print(fm.list_filters())
-
-    from HSTB.kluster.fqpr_convenience import reload_data
-    fq = reload_data(r"C:\collab\dasktest\data_dir\outputtest\tj_patch_test_710")
-    fq.filter.run_filter('filter_by_angle', min_angle=-45, max_angle=45)

@@ -110,7 +110,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.widget_obj_names = []
 
         # fqpr = fully qualified ping record, the term for the datastore in kluster
-        self.project = FqprProject(is_gui=False, logger=self.logger)  # is_gui controls the progress bar text, used to disable it for gui, no longer doing that though
+        self.project = FqprProject(logger=self.logger)
         self.intel = FqprIntel(self.project, self, logger=self.logger)
         # settings, like the chosen vertical reference
         # ex: {'use_epsg': True, 'epsg': 26910, ...}
@@ -207,6 +207,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.project_tree.load_console_fqpr.connect(self.load_console_fqpr)
         self.project_tree.load_console_surface.connect(self.load_console_surface)
         self.project_tree.show_explorer.connect(self.show_in_explorer)
+        self.project_tree.show_log.connect(self.show_process_log)
         self.project_tree.show_properties.connect(self.show_layer_properties)
         self.project_tree.zoom_extents_fqpr.connect(self.zoom_extents_fqpr)
         self.project_tree.zoom_extents_surface.connect(self.zoom_extents_surface)
@@ -232,36 +233,36 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.points_view.points_cleaned.connect(self.set_pointsview_points_status)
         self.points_view.patch_test_sig.connect(self.manual_patch_test)
 
-        self.action_thread.started.connect(self._start_action_progress)
-        self.action_thread.finished.connect(self._kluster_execute_action_results)
-        self.overwrite_nav_thread.started.connect(self._start_action_progress)
-        self.overwrite_nav_thread.finished.connect(self._kluster_overwrite_nav_results)
-        self.import_ppnav_thread.started.connect(self._start_action_progress)
-        self.import_ppnav_thread.finished.connect(self._kluster_import_ppnav_results)
-        self.surface_thread.started.connect(self._start_action_progress)
-        self.surface_thread.finished.connect(self._kluster_surface_generation_results)
-        self.mosaic_thread.started.connect(self._start_action_progress)
-        self.mosaic_thread.finished.connect(self._kluster_mosaic_generation_results)
-        self.surface_update_thread.started.connect(self._start_action_progress)
-        self.surface_update_thread.finished.connect(self._kluster_surface_update_results)
-        self.export_thread.started.connect(self._start_action_progress)
-        self.export_thread.finished.connect(self._kluster_export_results)
-        self.export_tracklines_thread.started.connect(self._start_action_progress)
-        self.export_tracklines_thread.finished.connect(self._kluster_export_tracklines_results)
-        self.export_grid_thread.started.connect(self._start_action_progress)
-        self.export_grid_thread.finished.connect(self._kluster_export_grid_results)
-        self.filter_thread.started.connect(self._start_action_progress)
-        self.filter_thread.finished.connect(self._kluster_filter_results)
-        self.open_project_thread.started.connect(self._start_action_progress)
-        self.open_project_thread.finished.connect(self._kluster_open_project_results)
-        self.draw_navigation_thread.started.connect(self._start_action_progress)
-        self.draw_navigation_thread.finished.connect(self._kluster_draw_navigation_results)
-        self.draw_surface_thread.started.connect(self._start_action_progress)
-        self.draw_surface_thread.finished.connect(self._kluster_draw_surface_results)
-        self.load_points_thread.started.connect(self._start_action_progress)
-        self.load_points_thread.finished.connect(self._kluster_load_points_results)
-        self.patch_test_load_thread.started.connect(self._start_action_progress)
-        self.patch_test_load_thread.finished.connect(self._kluster_update_manual_patch_test)
+        self.action_thread.tstarted.connect(self._start_action_progress)
+        self.action_thread.tfinished.connect(self._kluster_execute_action_results)
+        self.overwrite_nav_thread.tstarted.connect(self._start_action_progress)
+        self.overwrite_nav_thread.tfinished.connect(self._kluster_overwrite_nav_results)
+        self.import_ppnav_thread.tstarted.connect(self._start_action_progress)
+        self.import_ppnav_thread.tfinished.connect(self._kluster_import_ppnav_results)
+        self.surface_thread.tstarted.connect(self._start_action_progress)
+        self.surface_thread.tfinished.connect(self._kluster_surface_generation_results)
+        self.mosaic_thread.tstarted.connect(self._start_action_progress)
+        self.mosaic_thread.tfinished.connect(self._kluster_mosaic_generation_results)
+        self.surface_update_thread.tstarted.connect(self._start_action_progress)
+        self.surface_update_thread.tfinished.connect(self._kluster_surface_update_results)
+        self.export_thread.tstarted.connect(self._start_action_progress)
+        self.export_thread.tfinished.connect(self._kluster_export_results)
+        self.export_tracklines_thread.tstarted.connect(self._start_action_progress)
+        self.export_tracklines_thread.tfinished.connect(self._kluster_export_tracklines_results)
+        self.export_grid_thread.tstarted.connect(self._start_action_progress)
+        self.export_grid_thread.tfinished.connect(self._kluster_export_grid_results)
+        self.filter_thread.tstarted.connect(self._start_action_progress)
+        self.filter_thread.tfinished.connect(self._kluster_filter_results)
+        self.open_project_thread.tstarted.connect(self._start_action_progress)
+        self.open_project_thread.tfinished.connect(self._kluster_open_project_results)
+        self.draw_navigation_thread.tstarted.connect(self._start_action_progress)
+        self.draw_navigation_thread.tfinished.connect(self._kluster_draw_navigation_results)
+        self.draw_surface_thread.tstarted.connect(self._start_action_progress)
+        self.draw_surface_thread.tfinished.connect(self._kluster_draw_surface_results)
+        self.load_points_thread.tstarted.connect(self._start_action_progress)
+        self.load_points_thread.tfinished.connect(self._kluster_load_points_results)
+        self.patch_test_load_thread.tstarted.connect(self._start_action_progress)
+        self.patch_test_load_thread.tfinished.connect(self._kluster_update_manual_patch_test)
 
         self.monitor.monitor_file_event.connect(self.intel._handle_monitor_event)
         self.monitor.monitor_start.connect(self._create_new_project_if_not_exist)
@@ -436,6 +437,8 @@ class KlusterMain(QtWidgets.QMainWindow):
         vessel_view_action = QtWidgets.QAction('Vessel Offsets', self)
         vessel_view_action.triggered.connect(self._action_vessel_view)
 
+        qgis_action = QtWidgets.QAction('Start QGIS', self)
+        qgis_action.triggered.connect(self._action_qgis)
         file_analyzer = QtWidgets.QAction('File Analyzer', self)
         file_analyzer.triggered.connect(self._action_file_analyzer)
 
@@ -504,6 +507,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         setup.addAction(setup_client_action)
 
         tools = menubar.addMenu('Tools')
+        tools.addAction(qgis_action)
         tools.addAction(file_analyzer)
 
         process = menubar.addMenu('Process')
@@ -823,7 +827,26 @@ class KlusterMain(QtWidgets.QMainWindow):
         else:
             # this must be an auxiliary file, like a geotiff or a s57.  Show the containing folder
             absolute_path = os.path.dirname(pth)
+        self.print(f'Opening {absolute_path}', logging.INFO)
         os.startfile(absolute_path)
+
+    def show_process_log(self, pth: str):
+        """
+        Show the process log associated with the given
+
+        Parameters
+        ----------
+        pth
+            path to the grid folder
+        """
+        if not os.path.exists(pth):
+            absolute_path = self.project.absolute_path_from_relative(pth)
+        else:
+            # this must be an auxiliary file, like a geotiff or a s57.  Show the containing folder
+            absolute_path = os.path.dirname(pth)
+        logpath = os.path.join(absolute_path, 'logfile.txt')
+        self.print(f'Opening log file {logpath}', logging.INFO)
+        os.startfile(logpath)
 
     def show_layer_properties(self, layertype: str, pth: str):
         """
@@ -903,6 +926,11 @@ class KlusterMain(QtWidgets.QMainWindow):
             path to the converted data/surface
         """
         self.two_d.set_extents_from_meshes(pth)
+
+    def set_auto_processing(self, enable: bool):
+        if enable != self.actions.auto_checkbox.isChecked():
+            self.actions.auto_checkbox.setChecked(enable)
+            self.actions.auto_process()
 
     def _action_process(self, is_auto):
         if is_auto:
@@ -1185,7 +1213,7 @@ class KlusterMain(QtWidgets.QMainWindow):
     def _kluster_execute_action_results(self):
         """
         Read the results of the executed action.  Multibeam actions can generate new converted data that would need
-        to be showin in the project window.
+        to be shown in the project window.
         """
 
         # fqpr is now the output path of the Fqpr instance
@@ -1217,8 +1245,10 @@ class KlusterMain(QtWidgets.QMainWindow):
             self.print(self.action_thread.exceptiontxt, logging.INFO)
             self.print('kluster_action: no data returned from action execution', logging.INFO)
             self.intel.update_intel_for_action_results(action_type=self.action_thread.action_type)
-        self.action_thread.populate(None, None)
+            self.set_auto_processing(False)  # turn off auto processing if an action fails
         self._stop_action_progress()
+        self.action_thread.show_error()
+        self.action_thread.populate(None, None)
 
     def kluster_overwrite_nav(self):
         """
@@ -1275,8 +1305,9 @@ class KlusterMain(QtWidgets.QMainWindow):
         else:
             self.print('Error overwriting raw navigation', logging.ERROR)
             self.print(self.overwrite_nav_thread.exceptiontxt, logging.ERROR)
-        self.overwrite_nav_thread.populate(None)
         self._stop_action_progress()
+        self.overwrite_nav_thread.show_error()
+        self.overwrite_nav_thread.populate(None)
 
     def kluster_import_ppnav(self):
         """
@@ -1333,8 +1364,9 @@ class KlusterMain(QtWidgets.QMainWindow):
         else:
             self.print('Error importing post processed navigation', logging.ERROR)
             self.print(self.import_ppnav_thread.exceptiontxt, logging.ERROR)
-        self.import_ppnav_thread.populate(None)
         self._stop_action_progress()
+        self.import_ppnav_thread.show_error()
+        self.import_ppnav_thread.populate(None)
 
     def manual_patch_test(self, e):
         """
@@ -1437,8 +1469,9 @@ class KlusterMain(QtWidgets.QMainWindow):
         else:
             self.print('Error reprocessing patch test subset', logging.ERROR)
             self.print(self.patch_test_load_thread.exceptiontxt, logging.ERROR)
-        self.patch_test_load_thread.populate(None)
         self._stop_action_progress()
+        self.patch_test_load_thread.show_error()
+        self.patch_test_load_thread.populate(None)
 
     def kluster_auto_patch_test(self):
         """
@@ -1630,8 +1663,9 @@ class KlusterMain(QtWidgets.QMainWindow):
                     # now replace with the new values in the correct order
                     base_points_view_status[matches_sonar] = ninfo[fqheadsel][results_indices]
             self.points_view.override_sounding_status(base_points_view_status)
-        self.filter_thread.populate(None, None, '', True, False, False, True, None)
         self._stop_action_progress()
+        self.filter_thread.show_error()
+        self.filter_thread.populate(None, None, '', True, False, False, True, None)
 
     def kluster_surface_generation(self):
         """
@@ -1678,10 +1712,6 @@ class KlusterMain(QtWidgets.QMainWindow):
                                 # use the project client, or start a new LocalCluster if client is None
                                 # fq_inst.client = self.project.get_dask_client()
                                 fq_chunks.extend([fq_inst])
-                    for fq in fq_chunks:
-                        if not fq.is_processed(in_depth=False):
-                            self.print(f'{fq.output_folder} is not fully processed, current processing status={fq.status}', logging.ERROR)
-                            return
                     if not dlog.canceled:
                         # if the project has a client, use it here.  If None, BatchRead starts a new LocalCluster
                         self.output_window.clear()
@@ -1707,8 +1737,9 @@ class KlusterMain(QtWidgets.QMainWindow):
         else:
             self.print('Error building surface', logging.ERROR)
             self.print(self.surface_thread.exceptiontxt, logging.ERROR)
-        self.surface_thread.populate(None, {})
         self._stop_action_progress()
+        self.surface_thread.show_error()
+        self.surface_thread.populate(None, {})
 
     def kluster_mosaic_generation(self):
         """
@@ -1755,10 +1786,6 @@ class KlusterMain(QtWidgets.QMainWindow):
                                 # use the project client, or start a new LocalCluster if client is None
                                 # fq_inst.client = self.project.get_dask_client()
                                 fq_chunks.extend([fq_inst])
-                    for fq in fq_chunks:
-                        if not fq.is_processed(in_depth=False):
-                            self.print(f'{fq.output_folder} is not fully processed, current processing status={fq.status}', logging.ERROR)
-                            return
                     if not dlog.canceled:
                         # if the project has a client, use it here.  If None, BatchRead starts a new LocalCluster
                         self.output_window.clear()
@@ -1792,8 +1819,9 @@ class KlusterMain(QtWidgets.QMainWindow):
         else:
             self.print('Error building mosaic', logging.ERROR)
             self.print(self.mosaic_thread.exceptiontxt, logging.ERROR)
-        self.mosaic_thread.populate(None, {})
         self._stop_action_progress()
+        self.mosaic_thread.show_error()
+        self.mosaic_thread.populate(None, {})
 
     def kluster_surfacefrompoints_generation(self):
         """
@@ -1876,8 +1904,9 @@ class KlusterMain(QtWidgets.QMainWindow):
         else:
             self.print('Error updating surface', logging.ERROR)
             self.print(self.surface_update_thread.exceptiontxt, logging.ERROR)
-        self.surface_update_thread.populate(None, None, None, None, None, {}, None)
         self._stop_action_progress()
+        self.surface_update_thread.show_error()
+        self.surface_update_thread.populate(None, None, None, None, None, {}, None)
 
     def kluster_export_grid(self):
         """
@@ -1934,8 +1963,9 @@ class KlusterMain(QtWidgets.QMainWindow):
             self.print(self.export_grid_thread.exceptiontxt, logging.ERROR)
         else:
             self.print('Export complete.', logging.INFO)
-        self.export_grid_thread.populate(None, '', '', True, {})
         self._stop_action_progress()
+        self.export_grid_thread.show_error()
+        self.export_grid_thread.populate(None, '', '', True, {})
 
     def kluster_export(self):
         """
@@ -2003,8 +2033,9 @@ class KlusterMain(QtWidgets.QMainWindow):
             self.print(self.export_thread.exceptiontxt, logging.ERROR)
         else:
             self.print('Export complete.', logging.INFO)
-        self.export_thread.populate(None, None, [], '', False, 'comma', 'xyz', False, False, True, False, False)
         self._stop_action_progress()
+        self.export_thread.show_error()
+        self.export_thread.populate(None, None, [], '', False, 'comma', 'xyz', False, False, True, False, False)
 
     def kluster_export_tracklines(self):
         """
@@ -2064,10 +2095,11 @@ class KlusterMain(QtWidgets.QMainWindow):
             self.print(self.export_tracklines_thread.exceptiontxt, logging.ERROR)
         else:
             self.print('Export complete.', logging.INFO)
-        self.export_tracklines_thread.populate(None, None, '', False, True, '')
         self._stop_action_progress()
+        self.export_tracklines_thread.show_error()
+        self.export_tracklines_thread.populate(None, None, '', False, True, '')
 
-    def _start_action_progress(self):
+    def _start_action_progress(self, start: bool):
         """
         For worker threads not started through the action widget, we have to manually trigger starting the progress
         bar here.
@@ -2153,8 +2185,9 @@ class KlusterMain(QtWidgets.QMainWindow):
         else:
             self.print('Error on opening data', logging.ERROR)
             self.print(self.open_project_thread.exceptiontxt, logging.ERROR)
-        self.open_project_thread.populate(None)
         self._stop_action_progress()
+        self.open_project_thread.show_error()
+        self.open_project_thread.populate(None)
 
     def _kluster_draw_navigation_results(self):
         """
@@ -2168,8 +2201,9 @@ class KlusterMain(QtWidgets.QMainWindow):
         else:
             self.print('Error drawing lines from {}'.format(self.draw_navigation_thread.new_fqprs), logging.ERROR)
             self.print(self.draw_navigation_thread.exceptiontxt, logging.ERROR)
-        self.draw_navigation_thread.populate(None, None)
         self._stop_action_progress()
+        self.draw_navigation_thread.show_error()
+        self.draw_navigation_thread.populate(None, None)
         self.print('draw_navigation: Drawing navigation complete.', logging.INFO)
 
     def _kluster_draw_surface_results(self):
@@ -2204,8 +2238,9 @@ class KlusterMain(QtWidgets.QMainWindow):
         else:
             self.print('Error drawing surface {}'.format(self.draw_surface_thread.surface_path), logging.ERROR)
             self.print(self.draw_surface_thread.exceptiontxt, logging.ERROR)
-        self.draw_surface_thread.populate(None, None, None, None)
         self._stop_action_progress()
+        self.draw_surface_thread.show_error()
+        self.draw_surface_thread.populate(None, None, None, None)
         self.print('draw_surface: Drawing surface complete.', logging.INFO)
 
     def close_project(self):
@@ -2243,8 +2278,11 @@ class KlusterMain(QtWidgets.QMainWindow):
         start a new LocalCluster client if there is no client yet OR get the existing client you've setup.
         """
 
-        self.project.get_dask_client()
-        webbrowser.open_new(self.project.client.dashboard_link)
+        if not self.project.skip_dask:
+            self.project.get_dask_client()
+            webbrowser.open_new(self.project.client.dashboard_link)
+        else:
+            self.print('Unable to open Dask dashboard when in "No Client" mode', logging.ERROR)
 
     def open_youtube_playlist(self):
         """
@@ -2261,10 +2299,16 @@ class KlusterMain(QtWidgets.QMainWindow):
         dlog = dialog_daskclient.DaskClientStart(parent=self)
         if dlog.exec_():
             client = dlog.cl
-            if client is None:
+            if dlog.canceled:
+                self.print('start_dask_client: canceled', logging.INFO)
+            elif client is None and not dlog.noclient_box.isChecked():
                 self.print('start_dask_client: no client started successfully', logging.ERROR)
+            elif dlog.noclient_box.isChecked():
+                self.project.client = client
+                self.project.skip_dask = True
             else:
                 self.project.client = client
+                self.project.skip_dask = False
 
     def set_project_settings(self):
         """
@@ -2723,8 +2767,9 @@ class KlusterMain(QtWidgets.QMainWindow):
         self.two_d.finalize_points_tool()
         self.print('Selected {} Points for display'.format(pointcount), logging.INFO)
         # we retain the polygon/azimuth in case you are using the patch test tool
-        self.load_points_thread.populate(polygon=self.load_points_thread.polygon, azimuth=self.load_points_thread.azimuth)
         self._stop_action_progress()
+        self.load_points_thread.show_error()
+        self.load_points_thread.populate(polygon=self.load_points_thread.polygon, azimuth=self.load_points_thread.azimuth)
 
     def clear_points(self, clrsig: bool):
         """
@@ -2887,6 +2932,9 @@ class KlusterMain(QtWidgets.QMainWindow):
         else:
             widget.setWindowFlags(self.windowFlags() & ~QtCore.Qt.WindowStaysOnTopHint)
         widget.show()
+
+    def _action_qgis(self):
+        os.startfile('qgis.exe')
 
     def _action_file_analyzer(self):
         self._fileanalyzer = dialog_fileanalyzer.FileAnalyzerDialog(parent=self)

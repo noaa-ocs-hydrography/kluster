@@ -48,12 +48,17 @@ qgis_epsg = 4326
 max_beams = 400  # starting max beams in kluster (can grow beyond)
 epsg_nad83 = 6318
 epsg_wgs84 = 8999
-default_number_of_chunks = 4
-converted_files_at_once = 5
-geohash_precision = 7
-max_processing_status = 5
+default_number_of_chunks = 4  # if no dask client is used for parallel processing, we use this many chunks
+converted_files_at_once = 5  # we try to convert this many multibeam files at once
+max_converted_chunk_size = 4000  # we will try to use converted_files_at_once, but limit the files to this total file size in megabytes
+geohash_precision = 7  # our geohash string will have this many characters
+max_processing_status = 5  # when processing_status equals this value, the data is fully processed and ready to grid
 status_lookup = {0: 'converted', 1: 'orientation', 2: 'beamvector', 3: 'soundvelocity', 4: 'georeference', 5: 'tpu'}
 status_reverse_lookup = {'converted': 0, 'orientation': 1, 'beamvector': 2, 'soundvelocity': 3, 'georeference': 4, 'tpu': 5}
+
+# raw.py EK/ES processing
+ek_build_heave = False  # the raw.py EK/ES driver will build a heave record if you enable this.  If the bottom detects are noisy, this can produce questionable data
+ek_frequency_selection = 'highest'  # the raw.py EK/ES driver will choose either the 'lowest' frequency return or the 'highest' frequency return.
 
 excluded_files = ['9999.all']
 supported_sonar = ['.all', '.kmall', '.s7k', '.raw']
@@ -94,6 +99,7 @@ ping_chunk_size = 1000  # chunk size (in pings) of each written chunk of data in
 navigation_chunk_size = 50000  # chunk size (in time) of each written chunk of data in the navigation records
 attitude_chunk_size = 20000  # chunk size (in time) of each written chunk of data in the attitude records
 max_profile_length = 80  # maximum layers in a sound velocity profile, will interpolate if greater than this length
+max_nav_tolerance = 0.5  # maximum time difference allowed in interpolated nav -> ping record.  If there is no record within this tolerance, nav is set to NaN
 
 cast_selection_methods = ['nearest_in_time', 'nearest_in_time_four_hours', 'nearest_in_distance',
                           'nearest_in_distance_four_hours']
@@ -412,13 +418,14 @@ variable_descriptions = {'absorption': 'The mean absorption coefficient in dB/km
                          }
 
 int_parameters = ['converted_files_at_once', 'pings_per_las', 'pings_per_csv', 'max_profile_length', 'chunk_size_display',
-                  'chunk_size_export']
+                  'chunk_size_export', 'max_converted_chunk_size']
 float_parameters = ['default_heave_error', 'default_roll_sensor_error', 'default_pitch_sensor_error', 'default_heading_sensor_error',
                     'default_surface_sv_error', 'default_roll_patch_error', 'default_separation_model_error',
                     'default_waterline_error', 'default_horizontal_positioning_error', 'default_vertical_positioning_error',
                     'default_beam_opening_angle', 'mem_restart_threshold']
 str_parameters = ['pass_color', 'error_color', 'warning_color', 'amplitude_color', 'phase_color',
-                  'reject_color', 'reaccept_color']
+                  'reject_color', 'reaccept_color', 'ek_frequency_selection']
+bool_parameters = ['ek_build_heave']
 
 # retain the default values before overwriting with values written to the kluster initialization file
 kvar_initial_state = globals().copy()
@@ -432,6 +439,8 @@ def restore_all_variables():
         globals()[varname] = float(kvar_initial_state[varname])
     for varname in int_parameters:
         globals()[varname] = int(kvar_initial_state[varname])
+    for varname in bool_parameters:
+        globals()[varname] = bool(kvar_initial_state[varname])
 
 
 def alter_variable(varname, varvalue):
@@ -441,6 +450,11 @@ def alter_variable(varname, varvalue):
         globals()[varname] = float(varvalue)
     elif varname in int_parameters:
         globals()[varname] = int(varvalue)
+    elif varname in bool_parameters:
+        if isinstance(varvalue, str):
+            globals()[varname] = varvalue.lower() == 'true'
+        else:
+            globals()[varname] = varvalue
     else:
         raise NotImplementedError(f'Unable to find matching parameter entry for {varname}, see kluster_variables')
 

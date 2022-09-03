@@ -45,6 +45,7 @@ class KlusterOutput(QtWidgets.QTextEdit):
         self.setWindowTitle("Output")
         self.setObjectName('kluster_output')
         self.setReadOnly(True)
+        self.setLineWrapMode(QtWidgets.QTextEdit.NoWrap)
         # self.setStyleSheet(('font: 11pt "Consolas";'))
 
         self.stdout_obj = OutputWrapper(self, True)

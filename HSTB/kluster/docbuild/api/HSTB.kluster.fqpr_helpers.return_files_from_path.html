@@ -6,7 +6,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
-    <title>return_files_from_path &#8212; kluster 1.1.0 documentation</title>
+    <title>return_files_from_path &#8212; kluster 1.1.1 documentation</title>
     <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
     <link rel="stylesheet" type="text/css" href="../_static/alabaster.css" />
     <link rel="stylesheet" type="text/css" href="../_static/graphviz.css" />
@@ -43,11 +43,13 @@
 of multibeam files or as a path to a single file.  Here we return all the files in each of these scenarios as a list
 for the gui to display or to be analyzed in some other way</p>
 <p>Provide an optional fileext argument if you want to specify files with a different extension</p>
+<p>If in chunks</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>pth</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>) – either a list of files, a string path to a directory or a string path to a file</p></li>
-<li><p><strong>in_chunks</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code>) – if True, returns lists of lists of size kluster_variables.converted_files_at_once</p></li>
+<li><p><strong>in_chunks</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code>) – if True, returns lists of lists of length kluster_variables.converted_files_at_once, where each sublist is at a maximum
+kluster_variables.max_converted_chunk_size in total file size</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns</dt>

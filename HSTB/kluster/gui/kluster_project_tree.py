@@ -35,6 +35,7 @@ class KlusterProjectTree(QtWidgets.QTreeView):
     load_console_fqpr = Signal(str)
     load_console_surface = Signal(str)
     show_explorer = Signal(str)
+    show_log = Signal(str)
     show_properties = Signal(str, str)
     zoom_extents_fqpr = Signal(str)
     zoom_extents_surface = Signal(str)
@@ -136,6 +137,8 @@ class KlusterProjectTree(QtWidgets.QTreeView):
         load_in_console.triggered.connect(self.load_in_console_event)
         show_explorer_action = QtWidgets.QAction('Show in Explorer', self)
         show_explorer_action.triggered.connect(self.show_in_explorer_event)
+        show_log_action = QtWidgets.QAction('Show Log', self)
+        show_log_action.triggered.connect(self.show_log_event)
         zoom_extents = QtWidgets.QAction('Zoom Extents', self)
         zoom_extents.triggered.connect(self.zoom_extents_event)
         update_surface = QtWidgets.QAction('Update Surface', self)
@@ -150,6 +153,7 @@ class KlusterProjectTree(QtWidgets.QTreeView):
         self.right_click_menu_converted.addSeparator()
         self.right_click_menu_converted.addAction(load_in_console)
         self.right_click_menu_converted.addAction(show_explorer_action)
+        self.right_click_menu_converted.addAction(show_log_action)
         self.right_click_menu_converted.addAction(zoom_extents)
         self.right_click_menu_converted.addAction(close_dat)
 
@@ -254,6 +258,16 @@ class KlusterProjectTree(QtWidgets.QTreeView):
         sel_data = index.data()
 
         self.show_explorer.emit(sel_data)
+
+    def show_log_event(self, e: QtCore.QEvent):
+        """
+        Show the process log that goes with the Fqpr instance on right click
+        """
+        index = self.currentIndex()
+        mid_lvl_name = index.parent().data()
+        sel_data = index.data()
+
+        self.show_log.emit(sel_data)
 
     def zoom_extents_event(self, e):
         """

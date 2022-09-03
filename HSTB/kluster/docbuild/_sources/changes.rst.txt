@@ -1,6 +1,33 @@
 Changes List
 ============
 
+Kluster v1.1.1 (9/2/2022)
+---------------------------
+ - sync with drivers 0.3.2
+    - support .bot/.out bottom detection files with .raw driver
+ - include support for .raw file bottom detections, logged as separate .bot/.out files
+ - add option to not build heave on converting raw files (EK/S Sonar - Build Heave)
+ - add option to select using lowest/highest frequency (EK/S Sonar - Frequency Selection)
+
+ - resolve issues with gain and .s7k backscatter processing
+ - add new near_normal_corrector for .all backscatter processing
+ - add second_return filter for removing noise after loss of bottom tracking
+ - add Surface SV vs Profiles plot in basic plots - custom - sound velocity profiles
+ - turn off auto processing if an error is raised, display error in message box
+ - add a right click - fqpr - show log capability
+ - allow conversion to be run without a dask client
+ - conversion will now record line length
+ - added a new 'no client' option when starting a dask client
+ - allow horizontal scrolling in output window to deal with progress bar wrapping issues
+ - bug fix for writes where the time,beam dimensions are the same length
+ - bug fix for adding files with an extension that leads to misinterpreting the file type
+ - bug fix for updating conversion actions when new files are added during conversion
+ - bug fix for designated surface that is inaccessible
+ - bug fix for drawing lines with gaps in navigation
+ - bug fix for incorrectly interpolating nearest navigation across gaps that are too long (see max_nav_tolerance kluster variable)
+ - clean up all progress information into a single bar
+ - added parameter to force a file size limit on conversion chunks (see max_converted_chunk_size kluster variable)
+
 Kluster v1.1.0 (8/5/2022)
 ---------------------------
  - sync with drivers 0.3.0

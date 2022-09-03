@@ -90,7 +90,11 @@ Color of the soundings in Points View when colored by rejected and a sounding ha
 
 - Files converted at once
 
-The number of files that are converted at once, you can raise this if you have the memory to support it.  Can cause errors if you run out of memory.
+Conversion will convert this many files at once (within "Max converted chunk size" limit), raising this value can create memory issues in Kluster.
+
+- Max Converted Chunk Size (MB)
+
+Conversion will convert "Files converted at once" files at a time, where the total group file size is within this limit (in megabytes), raising this value can create memory issues in Kluster.
 
 - Pings per LAS file
 
@@ -107,6 +111,14 @@ Loading a grid layer will load the grid in chunks of this size, raising this val
 - Export grid chunk size
 
 Exporting a grid will save one chunk to a file, the chunk being this wide/high. raising this value can create overly large files for the backend and increase memory consumption.
+
+- EK/S Sonar - Build Heave
+
+EK/S 60/80 systems that use the raw file driver.  Will build a heave record using the traveltime/range during conversion.  Experimental, use at your own risk.
+
+- EK/S Sonar - Frequency Selection
+
+EK/S 60/80 systems that use the raw file driver.  Will select the lowest or highest frequency channel bottom detection.
 
 .. image:: settings_1_4.png
    :target: ../_images/settings_1_4.png
@@ -140,7 +152,6 @@ Percent transparency to apply to the surface layer(s)
 - Color Ranges
 
 With a populated surface, this shows the min/max that is used to color the surface in the map view.  You can override the min/max for a layer by selecting the override box and then entering in new values.
-
 
 Project Settings
 ----------------

@@ -21,6 +21,7 @@ from HSTB.kluster.xarray_helpers import resize_zarr, xarr_to_netcdf, combine_xr_
 from HSTB.kluster.fqpr_helpers import seconds_to_formatted_string
 from HSTB.kluster.backends._zarr import ZarrBackend, my_xarr_add_attribute
 from HSTB.kluster.logging_conf import return_logger, return_log_name
+from HSTB.kluster.modules.georeference import distance_between_coordinates
 from HSTB.kluster import kluster_variables
 
 
@@ -372,13 +373,19 @@ def _sequential_to_xarray(rec: dict):
     dups = tot_records - len(index)
     finalnav = recs_to_merge['navigation'].isel(time=index)
     for systemid in recs_to_merge['ping']:
-        interp_nav = finalnav.reindex_like(recs_to_merge['ping'][systemid], method='nearest')
+        interp_nav = finalnav.reindex_like(recs_to_merge['ping'][systemid], method='nearest', tolerance=kluster_variables.max_nav_tolerance)
         recs_to_merge['ping'][systemid] = xr.merge([recs_to_merge['ping'][systemid], interp_nav])
         # build attributes for the navigation/attitude records
         recs_to_merge['ping'][systemid].attrs['min_lat'] = float(finalnav.latitude.min())
         recs_to_merge['ping'][systemid].attrs['max_lat'] = float(finalnav.latitude.max())
         recs_to_merge['ping'][systemid].attrs['min_lon'] = float(finalnav.longitude.min())
         recs_to_merge['ping'][systemid].attrs['max_lon'] = float(finalnav.longitude.max())
+
+    # add a shortcut to get to georeferencing if this converted data has alongtrack/acrosstrack/depth already (see raw driver when .out/.bot files exist)
+    for systemid in recs_to_merge['ping']:
+        if 'depthoffset' in rec['ping']:
+            recs_to_merge['ping'][systemid].attrs['skip_to_georeferencing'] = True
+        break
 
     # Stuff that isn't of the same dimensions as the dataset are tacked on as attributes
     if 'profile' in rec:
@@ -985,6 +992,7 @@ class BatchRead(ZarrBackend):
         self.readsuccess = False
 
         self.client = client
+        self.skip_dask = skip_dask
         if not skip_dask and self.client is None:
             self.client = dask_find_or_start_client(address=self.address)
         if dashboard:
@@ -1109,7 +1117,7 @@ class BatchRead(ZarrBackend):
         keep_these_attributes = ['max_lat', 'max_lon', 'min_lat', 'min_lon', 'reference', 'units', 'pos_files']
         if self.raw_ping[0]:
             drop_these = [dvar for dvar in list(self.raw_ping[0].keys()) if dvar not in desired_vars]
-            subset_nav = self.raw_ping[0].drop(drop_these)
+            subset_nav = self.raw_ping[0].drop_vars(drop_these)
             subset_nav.attrs = {ky: self.raw_ping[0].attrs[ky] for ky in keep_these_attributes if ky in self.raw_ping[0].attrs}
             rnav = slice_xarray_by_dim(subset_nav, 'time', start_time=start_time, end_time=end_time)
             return rnav
@@ -1177,7 +1185,7 @@ class BatchRead(ZarrBackend):
 
     def _batch_read_file_setup(self):
         """
-        With given path to folder of kongsberg .all files (self.filfolder), return the paths to the individual .all
+        With given path to folder of multibeam files (self.filfolder), return the paths to the individual multibeam
         files and the path to the output folder for the netcdf/zarr converted files.  Create this folder, or a similarly
         named folder (with appended timestamp) if it already exists.
 
@@ -1222,13 +1230,13 @@ class BatchRead(ZarrBackend):
 
     def _batch_read_chunk_generation(self, fils: list):
         """
-        For each .all file, determine a good chunksize for the distributed read/processing and build a list with
+        For each multibeam file, determine a good chunksize for the distributed read/processing and build a list with
         files, start bytes and end bytes.
 
         Parameters
         ----------
         fils
-            list of paths to .all files
+            list of paths to multibeam files
 
         Returns
         -------
@@ -1243,7 +1251,10 @@ class BatchRead(ZarrBackend):
 
         # chnks_flat is now a list of lists representing chunks of each file
         chnks_flat = [c for subc in chnks for c in subc]
-        self.logger.info('{} file(s), Using {} chunk(s) in parallel'.format(len(fils), len(chnks_flat)))
+        if self.skip_dask:
+            self.logger.info('{} file(s), Using {} chunk(s)'.format(len(fils), len(chnks_flat)))
+        else:
+            self.logger.info('{} file(s), Using {} chunk(s) in parallel'.format(len(fils), len(chnks_flat)))
         for fil in fils:
             self.logger.info(fil)
 
@@ -1258,7 +1269,7 @@ class BatchRead(ZarrBackend):
         Parameters
         ----------
         fils
-            strings for full file paths to .all files
+            strings for full file paths to multibeam files
 
         Returns
         -------
@@ -1299,7 +1310,10 @@ class BatchRead(ZarrBackend):
         int
             total length of blocks
         """
-        xlens = self.client.gather(self.client.map(_return_xarray_timelength, input_xarrs))
+        if self.client is not None:
+            xlens = self.client.gather(self.client.map(_return_xarray_timelength, input_xarrs))
+        else:
+            xlens = [_return_xarray_timelength(ix) for ix in input_xarrs]
         balanced_data, totallength = _return_xarray_constant_blocks(xlens, input_xarrs, chunksize)
         self.logger.info('Rebalancing {} total {} records across {} blocks of size {}'.format(totallength, datatype,
                                                                                               len(balanced_data), chunksize))
@@ -1312,8 +1326,12 @@ class BatchRead(ZarrBackend):
             chunksize = totallength
 
         # merge old arrays to get new ones of chunksize
-        output_arrs = self.client.map(_merge_constant_blocks, balanced_data)
-        time_arrs = self.client.gather(self.client.map(_return_xarray_time, output_arrs))
+        if self.client is not None:
+            output_arrs = self.client.map(_merge_constant_blocks, balanced_data)
+            time_arrs = self.client.gather(self.client.map(_return_xarray_time, output_arrs))
+        else:
+            output_arrs = [_merge_constant_blocks(bd) for bd in balanced_data]
+            time_arrs = [_return_xarray_time(oa) for oa in output_arrs]
         del balanced_data
         return output_arrs, time_arrs, chunksize, totallength
 
@@ -1333,10 +1351,14 @@ class BatchRead(ZarrBackend):
         """
 
         # recfutures is a list of futures representing dicts from sequential read
-        recfutures = self.client.map(_run_sequential_read, chnks_flat)
-        if self.show_progress:
-            progress(recfutures, multi=False)
-        notempty = self.client.gather(self.client.map(_is_not_empty_sequential, recfutures))
+        if self.client is not None:
+            recfutures = self.client.map(_run_sequential_read, chnks_flat)
+            if self.show_progress:
+                progress(recfutures, multi=False)
+            notempty = self.client.gather(self.client.map(_is_not_empty_sequential, recfutures))
+        else:
+            recfutures = [_run_sequential_read(cf) for cf in chnks_flat]
+            notempty = [_is_not_empty_sequential(rcf) for rcf in recfutures]
         drop_futures = []
         for cnt, isnotempty in enumerate(notempty):
             if not isnotempty:  # this is an empty chunk, no ping records
@@ -1363,7 +1385,10 @@ class BatchRead(ZarrBackend):
         """
 
         # sort futures before doing anything else
-        mintims = self.client.gather(self.client.map(_return_xarray_mintime, input_xarrs))
+        if self.client is not None:
+            mintims = self.client.gather(self.client.map(_return_xarray_mintime, input_xarrs))
+        else:
+            mintims = [_return_xarray_mintime(ix) for ix in input_xarrs]
         sort_mintims = sorted(mintims)
         if mintims != sort_mintims:
             idx = [mintims.index(t) for t in sort_mintims]
@@ -1400,7 +1425,10 @@ class BatchRead(ZarrBackend):
             fpths = self._batch_read_write_zarr(datatype, opts, converted_pth, sysid=sysid)
 
         if fpths:
-            fpthsout = self.client.gather(fpths)
+            if self.client is not None:
+                fpthsout = self.client.gather(fpths)
+            else:
+                fpthsout = fpths
             if output_mode == 'zarr':
                 # pass None here to auto trim NaN time
                 # resize_zarr(fpthsout, totallen)
@@ -1434,8 +1462,12 @@ class BatchRead(ZarrBackend):
         output_fnames = [datatype + '.nc'] * len(opts[datatype]['output_arrs'])
         output_attributes = [opts[datatype]['final_attrs']] * len(opts[datatype]['output_arrs'])
         fname_idxs = [i for i in range(len(opts[datatype]['output_arrs']))]
-        fpths = self.client.map(xarr_to_netcdf, opts[datatype]['output_arrs'], output_pths, output_fnames,
-                                output_attributes, fname_idxs)
+        if self.client is not None:
+            fpths = self.client.map(xarr_to_netcdf, opts[datatype]['output_arrs'], output_pths, output_fnames,
+                                    output_attributes, fname_idxs)
+        else:
+            fpths = [xarr_to_netcdf(oa, op, of, oatt, fi) for oa, op, of, oatt, fi in zip(opts[datatype]['output_arrs'], output_pths, output_fnames,
+                                                                                          output_attributes, fname_idxs)]
         return fpths
 
     def _batch_read_write_zarr(self, datatype: str, opts: dict, converted_pth: str, sysid: str = None):
@@ -1469,7 +1501,7 @@ class BatchRead(ZarrBackend):
 
         # correct for existing data if it exists in the zarr data store
         _, fpths = self.write(datatype, opts[datatype]['output_arrs'], time_array=opts[datatype]['time_arrs'],
-                              attributes=opts[datatype]['final_attrs'], sys_id=sysid)
+                              attributes=opts[datatype]['final_attrs'], skip_dask=self.skip_dask, sys_id=sysid)
         fpth = fpths[0]  # Pick the first element, all are identical so it doesnt really matter
         return fpth
 
@@ -1491,8 +1523,12 @@ class BatchRead(ZarrBackend):
 
         base_xarrfut = input_xarrs
         next_xarrfut = input_xarrs[1:] + [None]
-        trim_arr = self.client.map(_assess_need_for_split_correction, base_xarrfut, next_xarrfut)
-        input_xarrs = self.client.map(_correct_for_splits, base_xarrfut, [trim_arr[-1]] + trim_arr[:-1])
+        if self.client is not None:
+            trim_arr = self.client.map(_assess_need_for_split_correction, base_xarrfut, next_xarrfut)
+            input_xarrs = self.client.map(_correct_for_splits, base_xarrfut, [trim_arr[-1]] + trim_arr[:-1])
+        else:
+            trim_arr = [_assess_need_for_split_correction(bx, nx) for bx, nx in zip(base_xarrfut, next_xarrfut)]
+            input_xarrs = [_correct_for_splits(bx, sta) for bx, sta in zip(base_xarrfut, [trim_arr[-1]] + trim_arr[:-1])]
         del trim_arr, base_xarrfut, next_xarrfut
         return input_xarrs
 
@@ -1516,7 +1552,10 @@ class BatchRead(ZarrBackend):
 
         base_xarrfut = input_xarrs
         next_xarrfut = input_xarrs[1:] + [None]
-        input_xarrs = self.client.map(_drop_next_att_nav_blob, base_xarrfut, next_xarrfut)
+        if self.client is not None:
+            input_xarrs = self.client.map(_drop_next_att_nav_blob, base_xarrfut, next_xarrfut)
+        else:
+            input_xarrs = [_drop_next_att_nav_blob(bx, nx) for bx, nx in zip(base_xarrfut, next_xarrfut)]
         del base_xarrfut, next_xarrfut
         return input_xarrs
 
@@ -1538,9 +1577,15 @@ class BatchRead(ZarrBackend):
         fil_start_end_times = self._gather_file_level_metadata(self.fils)
         combattrs['multibeam_files'] = fil_start_end_times  # override with start/end time dict
         combattrs['output_path'] = self.converted_pth
-        if os.path.splitext(self.fils[0])[1] in kluster_variables.supported_singlebeam:
+        if 'skip_to_georeferencing' in combattrs:
+            combattrs.pop('skip_to_georeferencing')
+            combattrs['base_processing_status'] = 3
+            combattrs['current_processing_status'] = 3
+        elif os.path.splitext(self.fils[0])[1] in kluster_variables.supported_singlebeam:
+            combattrs['base_processing_status'] = 2
             combattrs['current_processing_status'] = 2
         else:
+            combattrs['base_processing_status'] = 0
             combattrs['current_processing_status'] = 0
         combattrs['kluster_version'] = klustervers
         combattrs['_conversion_complete'] = datetime.utcnow().strftime('%c')
@@ -1549,7 +1594,7 @@ class BatchRead(ZarrBackend):
 
     def batch_read(self, output_mode: str = 'zarr'):
         """
-        General converter for .all files leveraging xarray and dask.distributed
+        General converter for multibeam files leveraging xarray and dask.distributed
         See batch_read, same process but working on memory efficiency
 
         Parameters
@@ -1569,60 +1614,72 @@ class BatchRead(ZarrBackend):
             msg = 'Only zarr and netcdf modes are supported at this time: {}'.format(output_mode)
             raise NotImplementedError(msg)
 
-        if self.client is None:
+        if not self.skip_dask and self.client is None:
             self.client = dask_find_or_start_client()
+            if self.client is None:
+                return None
 
+        self._batch_read_file_setup()
+        self.logger.info('****Running multibeam converter****')
+
+        chnks_flat = self._batch_read_chunk_generation(self.fils)
+        newrecfutures = self._batch_read_sequential(chnks_flat)
+
+        # xarrfutures is a list of futures representing xarray structures for each file chunk
         if self.client is not None:
-            self._batch_read_file_setup()
-            self.logger.info('****Running multibeam converter****')
-
-            chnks_flat = self._batch_read_chunk_generation(self.fils)
-            newrecfutures = self._batch_read_sequential(chnks_flat)
-
-            # xarrfutures is a list of futures representing xarray structures for each file chunk
             xarrfutures = self.client.map(_sequential_to_xarray, newrecfutures)
             if self.show_progress:
                 progress(xarrfutures, multi=False)
-            del newrecfutures
+        else:
+            xarrfutures = [_sequential_to_xarray(nrf) for nrf in newrecfutures]
+        del newrecfutures
 
-            finalpths = {'ping': [], 'attitude': []}
-            for datatype in ['ping', 'attitude']:
+        finalpths = {'ping': [], 'attitude': []}
+        for datatype in ['ping', 'attitude']:
+            if self.client is not None:
                 input_xarrs = self.client.map(_divide_xarray_futs, xarrfutures, [datatype] * len(xarrfutures))
-                input_xarrs = self._batch_read_sort_futures_by_time(input_xarrs)
+            else:
+                input_xarrs = [_divide_xarray_futs(xf, dxf) for xf, dxf in zip(xarrfutures, [datatype] * len(xarrfutures))]
+            input_xarrs = self._batch_read_sort_futures_by_time(input_xarrs)
+            if self.client is not None:
                 finalattrs = self.client.gather(self.client.map(gather_dataset_attributes, input_xarrs))
-                combattrs = combine_xr_attributes(finalattrs)
+            else:
+                finalattrs = [gather_dataset_attributes(ix) for ix in input_xarrs]
+            combattrs = combine_xr_attributes(finalattrs)
 
-                if datatype == 'ping':
-                    combattrs = self._batch_read_ping_specific_attribution(combattrs)
+            if datatype == 'ping':
+                combattrs = self._batch_read_ping_specific_attribution(combattrs)
+                if self.client is not None:
                     system_ids = self.client.gather(self.client.map(_return_xarray_system_ids, input_xarrs))
-                    totalsystems = sorted(np.unique([s for system in system_ids for s in system]))
-                    for system in totalsystems:
-                        self.logger.info('Operating on system identifier {}'.format(system))
-                        input_xarrs_by_system = self._batch_read_return_xarray_by_system(input_xarrs, system)
-                        opts = batch_read_configure_options()
-                        opts['ping']['final_attrs'] = combattrs
-                        if len(input_xarrs_by_system) > 1:
-                            # rebalance to get equal chunksize in time dimension (sector/beams are constant across)
-                            input_xarrs_by_system = self._batch_read_correct_block_boundaries(input_xarrs_by_system)
-                        opts[datatype]['output_arrs'], opts[datatype]['time_arrs'], opts[datatype]['chunksize'], totallen = self._batch_read_merge_blocks(input_xarrs_by_system, datatype, opts[datatype]['chunksize'])
-                        del input_xarrs_by_system
-                        finalpths[datatype].append(self._batch_read_write('zarr', datatype, opts, self.converted_pth, sysid=system))
-                        del opts
                 else:
+                    system_ids = [_return_xarray_system_ids(ix) for ix in input_xarrs]
+                totalsystems = sorted(np.unique([s for system in system_ids for s in system]))
+                for system in totalsystems:
+                    self.logger.info('Operating on system identifier {}'.format(system))
+                    input_xarrs_by_system = self._batch_read_return_xarray_by_system(input_xarrs, system)
                     opts = batch_read_configure_options()
-                    opts[datatype]['final_attrs'] = combattrs
-                    if len(input_xarrs) > 1:
-                        input_xarrs = self._batch_read_drop_duplicate_blobs(input_xarrs)
-                    opts[datatype]['output_arrs'], opts[datatype]['time_arrs'], opts[datatype]['chunksize'], totallen = self._batch_read_merge_blocks(input_xarrs, datatype, opts[datatype]['chunksize'])
-                    del input_xarrs
-                    finalpths[datatype].append(self._batch_read_write('zarr', datatype, opts, self.converted_pth))
+                    opts['ping']['final_attrs'] = combattrs
+                    if len(input_xarrs_by_system) > 1:
+                        # rebalance to get equal chunksize in time dimension (sector/beams are constant across)
+                        input_xarrs_by_system = self._batch_read_correct_block_boundaries(input_xarrs_by_system)
+                    opts[datatype]['output_arrs'], opts[datatype]['time_arrs'], opts[datatype]['chunksize'], totallen = self._batch_read_merge_blocks(input_xarrs_by_system, datatype, opts[datatype]['chunksize'])
+                    del input_xarrs_by_system
+                    finalpths[datatype].append(self._batch_read_write('zarr', datatype, opts, self.converted_pth, sysid=system))
                     del opts
+            else:
+                opts = batch_read_configure_options()
+                opts[datatype]['final_attrs'] = combattrs
+                if len(input_xarrs) > 1:
+                    input_xarrs = self._batch_read_drop_duplicate_blobs(input_xarrs)
+                opts[datatype]['output_arrs'], opts[datatype]['time_arrs'], opts[datatype]['chunksize'], totallen = self._batch_read_merge_blocks(input_xarrs, datatype, opts[datatype]['chunksize'])
+                del input_xarrs
+                finalpths[datatype].append(self._batch_read_write('zarr', datatype, opts, self.converted_pth))
+                del opts
 
-            endtime = perf_counter()
-            self.logger.info('****Distributed conversion complete: {}****\n'.format(seconds_to_formatted_string(int(endtime - starttime))))
+        endtime = perf_counter()
+        self.logger.info('****Distributed conversion complete: {}****\n'.format(seconds_to_formatted_string(int(endtime - starttime))))
 
-            return finalpths
-        return None
+        return finalpths
 
     def return_runtime_and_installation_settings_dicts(self):
         """
@@ -1656,8 +1713,12 @@ class BatchRead(ZarrBackend):
             input_xarrs selected sector, with xarrs dropped if they didn't contain the sector
         """
 
-        input_xarrs_by_sec = self.client.map(_divide_xarray_return_system, input_xarrs, [sysid] * len(input_xarrs))
-        empty_mask = self.client.gather(self.client.map(_divide_xarray_indicate_empty_future, input_xarrs_by_sec))
+        if self.client is not None:
+            input_xarrs_by_sec = self.client.map(_divide_xarray_return_system, input_xarrs, [sysid] * len(input_xarrs))
+            empty_mask = self.client.gather(self.client.map(_divide_xarray_indicate_empty_future, input_xarrs_by_sec))
+        else:
+            input_xarrs_by_sec = [_divide_xarray_return_system(ix, sysix) for ix, sysix in zip(input_xarrs, [sysid] * len(input_xarrs))]
+            empty_mask = [_divide_xarray_indicate_empty_future(ix) for ix in input_xarrs_by_sec]
         valid_input_xarrs = [in_xarr for cnt, in_xarr in enumerate(input_xarrs_by_sec) if empty_mask[cnt]]
         return valid_input_xarrs
 
@@ -1719,11 +1780,47 @@ class BatchRead(ZarrBackend):
                 rp.attrs['sonartype'] = self.sonartype
             self.logger.info('Constructed offsets successfully')
 
+    def get_nearest_runtime_parameters(self, query_time: float):
+        """
+        Return the runtime parameters dict object that is nearest in time to query_time
+
+        Parameters
+        ----------
+        query_time
+            time in UTC seconds that you need the nearest runtime parameters to
+
+        Returns
+        -------
+        dict
+            runtime parameters dict object that is nearest in time to the query time
+        """
+
+        settdict, runtimesettdict = self.return_runtime_and_installation_settings_dicts()
+        return get_nearest_runtime(str(query_time), runtimesettdict)
+
+    def get_nearest_install_parameters(self, query_time: float):
+        """
+        Return the install parameters dict object that is nearest in time to query_time
+
+        Parameters
+        ----------
+        query_time
+            time in UTC seconds that you need the nearest install parameters to
+
+        Returns
+        -------
+        dict
+            install parameters dict object that is nearest in time to the query time
+        """
+
+        settdict, runtimesettdict = self.return_runtime_and_installation_settings_dicts()
+        return get_nearest_runtime(str(query_time), settdict)
+
     def build_additional_line_metadata(self, save_pths: str = None):
         """
         After conversion, we run this additional step to build the line specific values to store as metadata.  The end result
         is a 'multibeam_files' attribute that stores [mintime, maxtime, start_latitude, start_longitude, end_latitude,
-        end_longitude, azimuth]
+        end_longitude, azimuth, distance]
 
         Parameters
         ----------
@@ -1738,21 +1835,51 @@ class BatchRead(ZarrBackend):
             if len(line_times) == 2:  # this line needs the additional line metadata, otherwise it must have been computed already
                 line_time_start, line_time_end = line_times[0], line_times[1]
                 try:
+                    current_index = None
                     dstart = rp.interp(time=np.array([max(line_time_start, rp.time.values[0])]), method='nearest', assume_sorted=True)
                     start_position = [dstart.latitude.values, dstart.longitude.values]
+                    count = 0
+                    while np.isnan(start_position).any():  # first position is NaN, scroll through to find a good one
+                        if not current_index:
+                            current_index = np.where(rp.time.values == dstart.time)[0]
+                        current_index += 1
+                        dstart = rp.isel(time=current_index)
+                        start_position = [dstart.latitude.values, dstart.longitude.values]
+                        count += 1
+                        if count == 100:
+                            raise ValueError('Found bad position in the first 100 pings!')
                 except ValueError:
-                    print(f'WARNING: Unable to determine start position for line {line_name}')
+                    self.print(f'Unable to determine start position for line {line_name}', logging.ERROR)
                     continue
                 try:
+                    current_index = None
                     dend = rp.interp(time=np.array([min(line_time_end, rp.time.values[-1])]), method='nearest', assume_sorted=True)
                     end_position = [dend.latitude.values, dend.longitude.values]
+                    count = 0
+                    while np.isnan(end_position).any():  # first position is NaN, scroll through to find a good one
+                        if not current_index:
+                            current_index = np.where(rp.time.values == dend.time)[0]
+                        current_index -= 1
+                        dend = rp.isel(time=current_index)
+                        end_position = [dend.latitude.values, dend.longitude.values]
+                        count += 1
+                        if count == 100:
+                            raise ValueError('Found bad position in the last 100 pings!')
                 except ValueError:
-                    print(f'WARNING: Unable to determine end position for line {line_name}')
+                    self.print(f'Unable to determine end position for line {line_name}', logging.ERROR)
                     continue
                 line_az = self.raw_att.interp(time=np.array([line_time_start + (line_time_end - line_time_start) / 2]), method='nearest', assume_sorted=True).heading.values
+                line_nav = rp.sel(time=slice(float(dstart.time.values), float(dend.time.values)))
+                samp_idx = np.arange(0, line_nav.time.size, 15).tolist()  # downsample to every 15 pings
+                if samp_idx[-1] != line_nav.time.size - 1:  # ensuring you keep the last ping
+                    samp_idx += [line_nav.time.size - 1]
+                line_nav.isel(time=samp_idx)
+                line_dist = np.nansum(distance_between_coordinates(line_nav.latitude[:-1], line_nav.longitude[:-1],
+                                                                   line_nav.latitude[1:], line_nav.longitude[1:]))
                 line_dict[line_name] += [float(start_position[0]), float(start_position[1]), float(end_position[0]),
-                                         float(end_position[1]), round(float(line_az), 3)]
+                                         float(end_position[1]), round(float(line_az), 3), round(float(line_dist))]
 
+        self.logger.info('Metadata build complete')
         if save_pths is not None:
             for svpth in save_pths:  # write the new attributes to disk
                 my_xarr_add_attribute({'multibeam_files': line_dict}, svpth)
@@ -2054,8 +2181,8 @@ class BatchRead(ZarrBackend):
 
         profs = [x for x in self.raw_ping[0].attrs.keys() if x[0:7] == 'profile']
         if len(profs) == 0:
-            self.logger.error('No settings attributes found, possibly no install params in .all files')
-            raise ValueError('No settings attributes found, possibly no install params in .all files')
+            self.logger.error('No settings attributes found, possibly no install params in multibeam files')
+            raise ValueError('No settings attributes found, possibly no install params in multibeam files')
 
         prof_tims = [float(x.split('_')[1]) for x in profs]
         closest_tim = str(int(_closest_key_value(prof_tims, time_idx)))

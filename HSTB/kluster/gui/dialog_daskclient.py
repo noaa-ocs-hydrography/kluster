@@ -105,6 +105,13 @@ class DaskClientStart(SaveStateDialog):
         self.remote_box.setLayout(self.remote_layout)
         self.client_vbox.addWidget(self.remote_box)
 
+        self.noclient_box = QtWidgets.QGroupBox('No Client')
+        self.noclient_box.setToolTip('Use this when you want to skip Dask parallel processing.')
+        self.noclient_box.setCheckable(True)
+        self.noclient_box.setChecked(False)
+        self.noclient_box.setLayout(QtWidgets.QHBoxLayout())
+        self.client_vbox.addWidget(self.noclient_box)
+
         self.status_msg = QtWidgets.QLabel('')
         self.status_msg.setStyleSheet("QLabel { color : " + kluster_variables.error_color + "; }")
         self.client_vbox.addWidget(self.status_msg)
@@ -120,10 +127,12 @@ class DaskClientStart(SaveStateDialog):
         self.client_vbox.addLayout(self.button_layout)
 
         self.cl = None
+        self.canceled = False
         self.setLayout(self.client_vbox)
 
-        self.remote_box.clicked.connect(self.uncheck_local_box)
-        self.local_box.clicked.connect(self.uncheck_remote_box)
+        self.remote_box.clicked.connect(self.remote_box_checked)
+        self.local_box.clicked.connect(self.local_box_checked)
+        self.noclient_box.clicked.connect(self.noclient_box_checked)
         self.ok_button.clicked.connect(self.setup_client)
         self.cancel_button.clicked.connect(self.cancel_client)
 
@@ -131,17 +140,26 @@ class DaskClientStart(SaveStateDialog):
                               ['number_threads', self.number_threads], ['remote_ip_address', self.remote_ip_address],
                               ['remote_ip_port', self.remote_ip_port], ['remote_fqdn_address', self.remote_fqdn_address],
                               ['remote_fqdn_port', self.remote_fqdn_port]]
-        self.checkbox_controls = [['local_box', self.local_box], ['remote_box', self.remote_box],
+        self.checkbox_controls = [['local_box', self.local_box], ['remote_box', self.remote_box], ['noclient_box', self.noclient_box],
                                   ['number_workers_checkbox', self.number_workers_checkbox],
                                   ['number_threads_checkbox', self.number_threads_checkbox],
                                   ['number_memory_checkbox', self.number_memory_checkbox]]
         self.read_settings()
 
-    def uncheck_local_box(self):
-        self.local_box.setChecked(False)
+    def remote_box_checked(self):
+        if self.remote_box.isChecked():
+            self.local_box.setChecked(False)
+            self.noclient_box.setChecked(False)
 
-    def uncheck_remote_box(self):
-        self.remote_box.setChecked(False)
+    def local_box_checked(self):
+        if self.local_box.isChecked():
+            self.remote_box.setChecked(False)
+            self.noclient_box.setChecked(False)
+
+    def noclient_box_checked(self):
+        if self.noclient_box.isChecked():
+            self.remote_box.setChecked(False)
+            self.local_box.setChecked(False)
 
     def setup_client(self):
         """
@@ -149,7 +167,8 @@ class DaskClientStart(SaveStateDialog):
         it out after user hits OK.
         """
 
-        if self.local_box.isChecked() or self.remote_box.isChecked():
+        self.canceled = False
+        if self.local_box.isChecked() or self.remote_box.isChecked() or self.noclient_box.isChecked():
             self.accept()
             self.save_settings()
             if self.local_box.isChecked():
@@ -189,7 +208,7 @@ class DaskClientStart(SaveStateDialog):
                 self.cl = dask_find_or_start_client(number_of_workers=numworker, threads_per_worker=threadsworker,
                                                     memory_per_worker=memoryworker, multiprocessing=multiprocessing,
                                                     logger=self.logger)
-            else:
+            elif self.remote_box.isChecked():
                 if self.remote_ip_radio.isChecked():
                     full_address = self.remote_ip_address.text() + ':' + self.remote_ip_port.text()
                 else:
@@ -200,10 +219,14 @@ class DaskClientStart(SaveStateDialog):
                     self.cl = dask_find_or_start_client(address=full_address, logger=self.logger)
                 except:  # throws dask socket.gaierror, i'm not bothering to make this explicit
                     self.print('Unable to connect to remote Dask instance', logging.ERROR)
+            else:
+                self.print('Running without client.', logging.INFO)
+                self.cl = None
         else:
-            self.status_msg.setText('Please select one of the options above (Local or Remote)')
+            self.status_msg.setText('Please select one of the options above (Local, Remote, or No Client)')
 
     def cancel_client(self):
+        self.canceled = True
         self.accept()
 
 

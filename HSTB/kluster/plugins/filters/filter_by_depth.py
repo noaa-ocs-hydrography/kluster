@@ -18,6 +18,9 @@ class Filter(BaseFilter):
             raise ValueError('filter_by_depth: Filter must have either min or max depth set')
         if min_depth is not None and max_depth is not None and min_depth >= max_depth:
             raise ValueError(f'filter_by_depth: minimum depth {min_depth} cannot be greater than maximum depth {max_depth}')
+        if 'z' not in self.fqpr.multibeam.raw_ping[0]:
+            raise ValueError(f'filter_by_depth: unable to find georeferenced depths, have you processed this data?')
+
         print(f'Running filter_by_depth ({min_depth},{max_depth}) on {self.fqpr.output_folder}')
         self.new_status = []  # new_status will be a list where each element is a 2d array of new detectioninfo (sounding flag) values
         for cnt, rp in enumerate(self.fqpr.multibeam.raw_ping):  # for each sonar head...

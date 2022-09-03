@@ -2017,13 +2017,17 @@ class MapView(QtWidgets.QMainWindow):
 
         # surface layers can be added in chunks, i.e. 'depth_1', 'depth_2', etc., but they should all use the same
         #  extents and global stats.  Figure out which category the layer fits into here.
-        formatted_layername = [aln for aln in acceptedlayernames if lyrname.find(aln) > -1][0]
+        if lyrname and surfname and resolution:
+            formatted_layername = [aln for aln in acceptedlayernames if lyrname.find(aln) > -1][0]
 
-        source = self.build_surface_source(surfname, formatted_layername, resolution)
-        search_string = os.path.splitext(source)[0].rstrip('_{}'.format(resolution))
-        matching_layer_names = [lyr for lyr in self.layer_manager.names_in_order if lyr.find(search_string) != -1]
-        match_resolution = [lyr for lyr in matching_layer_names if lyr.find('_{}.tif'.format(resolution)) != -1]
-        return match_resolution
+            source = self.build_surface_source(surfname, formatted_layername, resolution)
+            search_string = os.path.splitext(source)[0].rstrip('_{}'.format(resolution))
+            matching_layer_names = [lyr for lyr in self.layer_manager.names_in_order if lyr.find(search_string) != -1]
+            match_resolution = [lyr for lyr in matching_layer_names if lyr.find('_{}.tif'.format(resolution)) != -1]
+            return match_resolution
+        else:
+            self.print(f'_return_all_surface_tiles: Unable to load tiles associated with surface {surfname}, layer {lyrname}, resolution {resolution}', logging.WARNING)
+            return []
 
     def add_surface(self, surfname: str, lyrname: str, data: list, geo_transform: list, crs: Union[CRS, int], resolution: float):
         """
