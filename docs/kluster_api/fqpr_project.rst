@@ -12,7 +12,6 @@ fqpr\_project module
    :skip: reload_data
    :skip: reload_surface
    :skip: get_attributes_from_fqpr
-   :skip: slice_xarray_by_dim
    :skip: VesselFile
    :skip: create_new_vessel_file
    :skip: convert_from_fqpr_xyzrph

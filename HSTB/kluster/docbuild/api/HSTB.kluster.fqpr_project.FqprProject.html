@@ -6,7 +6,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
-    <title>FqprProject &#8212; kluster 1.1.0 documentation</title>
+    <title>FqprProject &#8212; kluster 1.1.1 documentation</title>
     <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
     <link rel="stylesheet" type="text/css" href="../_static/alabaster.css" />
     <link rel="stylesheet" type="text/css" href="../_static/graphviz.css" />
@@ -38,7 +38,7 @@
 <h1>FqprProject<a class="headerlink" href="#fqprproject" title="Permalink to this headline">¶</a></h1>
 <dl class="py class">
 <dt class="sig sig-object py" id="HSTB.kluster.fqpr_project.FqprProject">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">HSTB.kluster.fqpr_project.</span></span><span class="sig-name descname"><span class="pre">FqprProject</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">is_gui</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">project_path</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_project.FqprProject" title="Permalink to this definition">¶</a></dt>
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">HSTB.kluster.fqpr_project.</span></span><span class="sig-name descname"><span class="pre">FqprProject</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">project_path</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_project.FqprProject" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <a class="reference internal" href="HSTB.kluster.logging_conf.LoggerClass.html#HSTB.kluster.logging_conf.LoggerClass" title="HSTB.kluster.logging_conf.LoggerClass"><code class="xref py py-class docutils literal notranslate"><span class="pre">HSTB.kluster.logging_conf.LoggerClass</span></code></a></p>
 <p>The FqprProject class contains all the fqpr_generated.Fqpr objects and has methods for interacting with multiple
 of these objects as one big project.</p>
@@ -150,7 +150,7 @@ lines within a specific area, the FqprProject should be able to do this.</p>
 <td><p>With the given latitude/longitude polygon, return the soundings that are within the boundaries.</p></td>
 </tr>
 <tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_project.FqprProject.return_surface" title="HSTB.kluster.fqpr_project.FqprProject.return_surface"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_surface</span></code></a>(surface_name[, relative_path])</p></td>
-<td><p></p></td>
+<td><p>Return the bathygrid instance for the surface that matches the given surface path</p></td>
 </tr>
 <tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_project.FqprProject.return_surface_containers" title="HSTB.kluster.fqpr_project.FqprProject.return_surface_containers"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_surface_containers</span></code></a>(surface_name[, ...])</p></td>
 <td><p>Project has loaded surface and fqpr instances.</p></td>
@@ -269,8 +269,8 @@ in the existing fqpr instances in the project</p>
 <dt class="sig sig-object py" id="HSTB.kluster.fqpr_project.FqprProject.get_dask_client">
 <span class="sig-name descname"><span class="pre">get_dask_client</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_project.FqprProject.get_dask_client" title="Permalink to this definition">¶</a></dt>
 <dd><p>Project is the holder of the Dask client object.  Use this method to return the current Client.  Client is
-currently setup with kluster_main.start_dask_client or kluster_main.open_dask_dashboard</p>
-<p>If the client does not exist, we set it here and then set the client to the Fqpr and BatchRead instance</p>
+currently setup with kluster_main.start_dask_client or kluster_main.open_dask_dashboard.  If skip_dask is set, will
+not automatically start a client. If the client does not exist, we set it here and then set the client to the Fqpr and BatchRead instance</p>
 </dd></dl>
 
 <dl class="py method">
@@ -477,8 +477,7 @@ dict for that Fqpr, the system identifier, the head index, and the vesselfile na
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>line</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>) – line name</p></li>
-<li><p><strong>override_source</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]) – optional, one of [‘raw’, ‘processed’] if you want to specify the navigation source to be the raw
-multibeam data or the processed sbet</p></li>
+<li><p><strong>override_source</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]) – optional, one of [‘raw’, ‘processed’] if you want to specify the navigation source to be the raw multibeam data or the processed sbet</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns</dt>
@@ -601,7 +600,22 @@ the soundings.</p>
 <dl class="py method">
 <dt class="sig sig-object py" id="HSTB.kluster.fqpr_project.FqprProject.return_surface">
 <span class="sig-name descname"><span class="pre">return_surface</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">surface_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">relative_path</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_project.FqprProject.return_surface" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
+<dd><p>Return the bathygrid instance for the surface that matches the given surface path</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>surface_name</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>) – path to the surface on disk</p></li>
+<li><p><strong>relative_path</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code>) – if True, will assume the given name is a relative path to the project file</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>surface instance that matches the given surface name</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>BathyGrid.Bgrid</p>
+</dd>
+</dl>
+</dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="HSTB.kluster.fqpr_project.FqprProject.return_surface_containers">
@@ -648,8 +662,7 @@ of the fqpr instance soundings is out of date</p></li>
 <dd><p>Return the VesselFile instance for this project’s vessel_file path</p>
 <dl class="field-list simple">
 <dt class="field-odd">Returns</dt>
-<dd class="field-odd"><p>Instance of VesselFile for the vessel_file attribute path.  If self.vessel_file is not set, this returns
-None</p>
+<dd class="field-odd"><p>Instance of VesselFile for the vessel_file attribute path.  If self.vessel_file is not set, this returns None</p>
 </dd>
 <dt class="field-even">Return type</dt>
 <dd class="field-even"><p><a class="reference internal" href="HSTB.kluster.fqpr_vessel.VesselFile.html#HSTB.kluster.fqpr_vessel.VesselFile" title="HSTB.kluster.fqpr_vessel.VesselFile">VesselFile</a></p>

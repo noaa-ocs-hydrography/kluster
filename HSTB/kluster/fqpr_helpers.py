@@ -289,18 +289,16 @@ def haversine(lon1: Union[float, int, np.ndarray], lat1: Union[float, int, np.nd
 def print_progress_bar(iteration, total, prefix='Progress:', suffix='Complete', decimals=1, length=70, fill='█', print_end="\r"):
     """
     Call in a loop to generate a text progress bar, ex:
-
     # A List of Items
     items = list(range(0, 57))
     l = len(items)
-
     # Initial call to print 0% progress
     printProgressBar(0, l, prefix = 'Progress:', suffix = 'Complete', length = 50)
     for i, item in enumerate(items):
-        # Do stuff...
-        time.sleep(0.1)
-        # Update Progress Bar
-        printProgressBar(i + 1, l, prefix = 'Progress:', suffix = 'Complete', length = 50)
+    # Do stuff...
+    time.sleep(0.1)
+    # Update Progress Bar
+    printProgressBar(i + 1, l, prefix = 'Progress:', suffix = 'Complete', length = 50)
 
     Parameters
     ----------

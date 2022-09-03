@@ -11,11 +11,9 @@ from HSTB.kluster.fqpr_generation import Fqpr
 from HSTB.kluster.dask_helpers import dask_find_or_start_client, client_needs_restart
 from HSTB.kluster.fqpr_convenience import reload_data, reload_surface, get_attributes_from_fqpr, reprocess_sounding_selection
 from HSTB.kluster.fqpr_helpers import haversine
-from HSTB.kluster.fqpr_vessel import VesselFile, create_new_vessel_file, convert_from_fqpr_xyzrph, compare_dict_data, \
-    split_by_timestamp, trim_xyzrprh_to_times
+from HSTB.kluster.fqpr_vessel import VesselFile, create_new_vessel_file, convert_from_fqpr_xyzrph, compare_dict_data, split_by_timestamp, trim_xyzrprh_to_times
 from HSTB.kluster.modules.autopatch import PatchTest
 from HSTB.kluster.logging_conf import LoggerClass
-
 from bathygrid.bgrid import BathyGrid
 
 
@@ -43,10 +41,8 @@ class FqprProject(LoggerClass):
     | for pd in proj_data:
     |    fqp.add_fqpr(pd, skip_dask=True)
     """
-
     def __init__(self, project_path: str = None, **kwargs):
         super().__init__(**kwargs)
-
         self.client = None
         self.skip_dask = False
         self.path = None
@@ -127,7 +123,6 @@ class FqprProject(LoggerClass):
         str
             absolute file path
         """
-
         if self.path is None:
             self.print_msg('absolute_path_from_relative: path to project file not setup, is currently undefined.', logging.ERROR)
             raise ValueError('absolute_path_from_relative: path to project file not setup, is currently undefined.')
@@ -143,7 +138,6 @@ class FqprProject(LoggerClass):
         ----------
         pth
             path to the folder where you want a new project or existing project file
-
         """
         if self.path is None:
             if os.path.isdir(pth):  # user provided a directory
@@ -165,7 +159,6 @@ class FqprProject(LoggerClass):
         dict
             loaded project file data
         """
-
         if os.path.split(projfile)[1] != 'kluster_project.json':
             self.print_msg('_load_project_file: Expected a file named kluster_project.json, found {}'.format(projfile), logging.ERROR)
             raise IOError('_load_project_file: Expected a file named kluster_project.json, found {}'.format(projfile))
@@ -201,18 +194,14 @@ class FqprProject(LoggerClass):
         callback
             function to be called when the add/remove is called
         """
-
         self._project_observers.append(callback)
 
     def get_dask_client(self):
         """
         Project is the holder of the Dask client object.  Use this method to return the current Client.  Client is
         currently setup with kluster_main.start_dask_client or kluster_main.open_dask_dashboard.  If skip_dask is set, will
-        not automatically start a client.
-
-        If the client does not exist, we set it here and then set the client to the Fqpr and BatchRead instance
+        not automatically start a client. If the client does not exist, we set it here and then set the client to the Fqpr and BatchRead instance
         """
-
         if self.skip_dask:
             self.client = None
         else:
@@ -236,7 +225,6 @@ class FqprProject(LoggerClass):
         directory_path
             Path to a directory that is either empty or has converted data in it
         """
-
         for fil in os.listdir(directory_path):
             full_path = os.path.join(directory_path, fil)
             if os.path.isdir(full_path):
@@ -250,7 +238,6 @@ class FqprProject(LoggerClass):
         """
         Save the current FqprProject instance to file.  Use open_project to reload this instance.
         """
-
         if self.path is None:
             self.print_msg('kluster_project save_project - no data found, you must add data before saving a project', logging.ERROR)
             raise EnvironmentError('kluster_project save_project - no data found, you must add data before saving a project')
@@ -285,7 +272,6 @@ class FqprProject(LoggerClass):
         skip_dask
             if True, will not autostart a dask client. client is necessary for conversion/processing
         """
-
         data = self._load_project_file(projfile)
         self.path = projfile
         self.file_format = data['file_format']
@@ -321,7 +307,6 @@ class FqprProject(LoggerClass):
         update_with_project
             if True, will update the vessel file with the offsets and angles of all the fqpr instances in the project
         """
-
         if vessel_file_path:
             vessel_file = vessel_file_path
         elif self.path:
@@ -370,7 +355,6 @@ class FqprProject(LoggerClass):
         settings
             dictionary from the Qsettings store, see kluster_main._load_previously_used_settings
         """
-
         self.settings.update(settings)
         for relpath, fqpr_instance in self.fqpr_instances.items():
             self._update_fqpr_settings(fqpr_instance)
@@ -381,7 +365,6 @@ class FqprProject(LoggerClass):
         """
         Update an FQPR instance with the latest settings
         """
-
         if 'parallel_write' in self.settings:
             fq.parallel_write = self.settings['parallel_write']
         if 'filter_directory' in self.settings:
@@ -405,7 +388,6 @@ class FqprProject(LoggerClass):
         bool
             False if the fqpr was already in the project, True if added
         """
-
         if type(pth) == str:
             fq = reload_data(pth, skip_dask=skip_dask, silent=True, show_progress=True)
         else:  # pth is the new Fqpr instance, pull the actual path from the Fqpr attribution
@@ -441,7 +423,6 @@ class FqprProject(LoggerClass):
         relative_path
             if True, pth is a relative path (relative to self.path)
         """
-
         if relative_path:
             relpath = pth
         else:
@@ -489,7 +470,6 @@ class FqprProject(LoggerClass):
         pth
             path to surface file or existing Bathygrid object
         """
-
         if type(pth) == str:
             bg = reload_surface(pth)
             pth = os.path.normpath(pth)
@@ -516,7 +496,6 @@ class FqprProject(LoggerClass):
         relative_path
             if True, pth is a relative path (relative to self.path)
         """
-
         if relative_path:
             relpath = pth
         else:
@@ -540,7 +519,6 @@ class FqprProject(LoggerClass):
         relative_path
             if True, pth is a relative path (relative to self.path)
         """
-
         if relative_path:
             relpath = pth
         else:
@@ -578,7 +556,6 @@ class FqprProject(LoggerClass):
         visualization_type
             one of 'orientation', 'beam_vectors', 'corrected_beam_vectors'
         """
-
         for fq_name, fq_inst in self.fqpr_instances.items():
             if fq_name == pth:
                 if visualization_type == 'orientation':
@@ -605,7 +582,6 @@ class FqprProject(LoggerClass):
         Fqpr
             None if you can't find a line owner, else the fqpr_generation.Fqpr object associated with the line
         """
-
         if line in self.convert_path_lookup:
             convert_pth = self.convert_path_lookup[line]
             return self.fqpr_instances[convert_pth]
@@ -646,7 +622,6 @@ class FqprProject(LoggerClass):
         list
             list of fqpr_generation.Fqpr objects
         """
-
         return list(self.fqpr_instances.values())
 
     def return_project_lines(self, proj: str = None, relative_path: bool = True):
@@ -665,7 +640,6 @@ class FqprProject(LoggerClass):
         dict
             all line names in the project or just the line names associated with proj
         """
-
         if proj is not None:
             if type(proj) is str:
                 if relative_path:
@@ -686,7 +660,6 @@ class FqprProject(LoggerClass):
         dict
             sorted list of line names
         """
-
         total_lines = []
         for fq_proj in self.fqpr_lines:
             for fq_line in self.fqpr_lines[fq_proj]:
@@ -702,8 +675,7 @@ class FqprProject(LoggerClass):
         line
             line name
         override_source
-            optional, one of ['raw', 'processed'] if you want to specify the navigation source to be the raw
-            multibeam data or the processed sbet
+            optional, one of ['raw', 'processed'] if you want to specify the navigation source to be the raw multibeam data or the processed sbet
 
         Returns
         -------
@@ -712,7 +684,6 @@ class FqprProject(LoggerClass):
         np.array
             longitude values (geographic) downsampled in degrees
         """
-
         if override_source:
             draw_navigation = override_source
         elif 'draw_navigation' not in self.settings:
@@ -758,7 +729,6 @@ class FqprProject(LoggerClass):
         list
             line names that fall within the box
         """
-
         lines_in_box = []
 
         for fq_proj in self.fqpr_lines:
@@ -840,7 +810,6 @@ class FqprProject(LoggerClass):
         Fqpr
             fqpr instance that matches the serial numbers provided
         """
-
         out_path = None
         out_instance = None
         matches = 0
@@ -894,7 +863,6 @@ class FqprProject(LoggerClass):
         list
             list of loaded fqpr instances
         """
-
         fqpr_loaded = []
         fqpr_abs_paths = []
         for fq in fqpr_paths:
@@ -983,7 +951,6 @@ class FqprProject(LoggerClass):
         list
             list of relative paths to the fqpr instance for each line
         """
-
         line_dict = {}
         fqpaths = []
         for multibeam_line in line_list:  # first pass to get the azimuth and positions of the lines
@@ -1025,7 +992,6 @@ class FqprProject(LoggerClass):
         dict
             line dict containing the start position, end position and azimuth of each line
         """
-
         final_grouping = []
         az_grouping = [[], []]
         xyzrph = None
@@ -1122,10 +1088,8 @@ class FqprProject(LoggerClass):
         Returns
         -------
         VesselFile
-            Instance of VesselFile for the vessel_file attribute path.  If self.vessel_file is not set, this returns
-            None
+            Instance of VesselFile for the vessel_file attribute path.  If self.vessel_file is not set, this returns None
         """
-
         if self.vessel_file:
             if os.path.exists(self.vessel_file):
                 vf = VesselFile(self.vessel_file)
@@ -1136,6 +1100,21 @@ class FqprProject(LoggerClass):
         return vf
 
     def return_surface(self, surface_name: str, relative_path: bool = True):
+        """
+        Return the bathygrid instance for the surface that matches the given surface path
+
+        Parameters
+        ----------
+        surface_name
+            path to the surface on disk
+        relative_path
+            if True, will assume the given name is a relative path to the project file
+
+        Returns
+        -------
+        BathyGrid.Bgrid
+            surface instance that matches the given surface name
+        """
         try:
             if relative_path:
                 surf = self.surface_instances[surface_name]
@@ -1169,7 +1148,6 @@ class FqprProject(LoggerClass):
         dict
             dict of fqpr instances/line names that are in the project and not in the surface
         """
-
         surf = self.return_surface(surface_name, relative_path)
         if not surf:
             return {}, {}
@@ -1236,7 +1214,6 @@ class FqprProject(LoggerClass):
         dict
             single timestamp entry for the xyzrph record that we will use for all lines in the patch test
         """
-
         xyzrph = None
         for line in line_list:
             fq = self.convert_path_lookup[line]
@@ -1268,7 +1245,6 @@ class FqprProject(LoggerClass):
         list
             list of numpy arrays for the xyz data
         """
-
         lineone, linetwo = line_list
         fqone, fqtwo = self.convert_path_lookup[lineone], self.convert_path_lookup[linetwo]
         if fqone != fqtwo:
@@ -1339,7 +1315,6 @@ def open_project(project_path: str):
     FqprProject
         FqprProject instance intialized from the loaded json file
     """
-
     fqpr_proj = FqprProject()
     fqpr_proj.open_project(project_path)
     return fqpr_proj
@@ -1359,7 +1334,6 @@ def return_project_data(project_path: str):
     dict
         dict of the provided project data, ex: {'file_format': 1.0, 'fqpr_paths': ['C:\\collab\\dasktest\\data_dir\\outputtest\\tj_patch_test_710'], 'surface_paths': []}
     """
-
     fqp = FqprProject()
     data = fqp._load_project_file(project_path)
     return data
@@ -1397,7 +1371,6 @@ def reprocess_fqprs(fqprs: list, newvalues: list, headindex: int, prefixes: list
     list
         list of lists for each fqpr containing the reprocessed xyz data
     """
-
     if len(fqprs) != len(timestamps):
         raise ValueError(f'You must provide one timestamp entry for each fqpr object: number of fqprs ({len(fqprs)}), timestamps ({timestamps})')
     roll, pitch, heading, xlever, ylever, zlever, latency = newvalues

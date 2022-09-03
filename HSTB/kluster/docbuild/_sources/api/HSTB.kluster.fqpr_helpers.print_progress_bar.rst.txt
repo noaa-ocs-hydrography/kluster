@@ -1,0 +1,6 @@
+print_progress_bar
+==================
+
+.. currentmodule:: HSTB.kluster.fqpr_helpers
+
+.. autofunction:: print_progress_bar

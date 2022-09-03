@@ -6,7 +6,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
-    <title>Settings &#8212; kluster 1.1.0 documentation</title>
+    <title>Settings &#8212; kluster 1.1.1 documentation</title>
     <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
     <link rel="stylesheet" type="text/css" href="../_static/alabaster.css" />
     <link rel="stylesheet" type="text/css" href="../_static/graphviz.css" />
@@ -112,7 +112,11 @@ across days of data that you want to keep.  If you want to retain the waterline 
 <ul class="simple">
 <li><p>Files converted at once</p></li>
 </ul>
-<p>The number of files that are converted at once, you can raise this if you have the memory to support it.  Can cause errors if you run out of memory.</p>
+<p>Conversion will convert this many files at once (within “Max converted chunk size” limit), raising this value can create memory issues in Kluster.</p>
+<ul class="simple">
+<li><p>Max Converted Chunk Size (MB)</p></li>
+</ul>
+<p>Conversion will convert “Files converted at once” files at a time, where the total group file size is within this limit (in megabytes), raising this value can create memory issues in Kluster.</p>
 <ul class="simple">
 <li><p>Pings per LAS file</p></li>
 </ul>
@@ -129,6 +133,14 @@ across days of data that you want to keep.  If you want to retain the waterline 
 <li><p>Export grid chunk size</p></li>
 </ul>
 <p>Exporting a grid will save one chunk to a file, the chunk being this wide/high. raising this value can create overly large files for the backend and increase memory consumption.</p>
+<ul class="simple">
+<li><p>EK/S Sonar - Build Heave</p></li>
+</ul>
+<p>EK/S 60/80 systems that use the raw file driver.  Will build a heave record using the traveltime/range during conversion.  Experimental, use at your own risk.</p>
+<ul class="simple">
+<li><p>EK/S Sonar - Frequency Selection</p></li>
+</ul>
+<p>EK/S 60/80 systems that use the raw file driver.  Will select the lowest or highest frequency channel bottom detection.</p>
 <a class="reference external image-reference" href="../_images/settings_1_4.png"><img alt="../_images/settings_1_4.png" src="../_images/settings_1_4.png" /></a>
 <p>This screen allows you to control the default uncertainty values used when converting and processing data.</p>
 <p>Changes to these values will be reflected in the Setup - Vessel Offsets - Uncertainty screen for newly converted multibeam data.</p>

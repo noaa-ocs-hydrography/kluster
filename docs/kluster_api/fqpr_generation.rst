@@ -48,3 +48,4 @@ fqpr\_generation module
    :skip: determine_aviso_grid
    :skip: distrib_run_process_backscatter
    :skip: return_backscatter_settings
+   :skip: print_progress_bar
