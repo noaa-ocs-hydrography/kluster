@@ -1009,6 +1009,16 @@ class BatchRead(ZarrBackend):
         self.sonartype = None
         self.xyzrph = None
 
+    @property
+    def chunk_size(self):
+        """
+        Return the chunk size of the dataset for (time, beam)
+        """
+        if self.raw_ping is not None:
+            return self.raw_ping[0].beampointingangle.data.chunksize
+        else:
+            return None
+
     def read(self, build_offsets: bool = True):
         """
         Run the batch_read method on all available lines, writes to datastore (netcdf/zarr depending on self.filtype),

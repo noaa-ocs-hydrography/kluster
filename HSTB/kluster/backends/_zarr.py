@@ -824,7 +824,7 @@ class ZarrWrite:
         dims_of_arrays
             where keys are array names and values list of dims/shape.  Example: 'beampointingangle': [['time', 'sector', 'beam'], (5000, 3, 400)]
         chunksize
-            chunk shape used to create the zarr array
+            chunk shape used to create the zarr array.  REVISED with Kluster 1.1.1, existing metdata will specify the chunksize
         timlength
             Length of the time dimension for the input xarray Dataset
         timaxis
@@ -840,7 +840,8 @@ class ZarrWrite:
         # use the chunk_time_range for writes unless this variable is a non-time dim array (beam for example)
         array_dims = dims_of_arrays[var_name][1]
         chunk_idx = tuple(chunk_time_range if cnt == timaxis else slice(0, i) for cnt, i in enumerate(array_dims))
-        self.rootgroup[var_name][chunk_idx] = zarr.array(xarr_data, shape=dims_of_arrays[var_name][1], chunks=chunksize)
+        self.rootgroup[var_name][chunk_idx] = zarr.array(xarr_data, shape=dims_of_arrays[var_name][1],
+                                                         chunks=self.rootgroup[var_name].chunks)
 
     def _write_existing_rootgroup(self, xarr: xr.Dataset, data_loc_copy: Union[list, np.ndarray], var_name: str, dims_of_arrays: dict,
                                   chunksize: tuple, timlength: int, timaxis: int, startingshp: tuple, push_forward: list):
@@ -861,7 +862,7 @@ class ZarrWrite:
         dims_of_arrays
             where keys are array names and values list of dims/shape.  Example: 'beampointingangle': [['time', 'sector', 'beam'], (5000, 3, 400)]
         chunksize
-            chunk shape used to create the zarr array
+            chunk shape used to create the zarr array.  REVISED with Kluster 1.1.1, existing metdata will specify the chunksize
         timlength
             Length of the time dimension for the input xarray Dataset
         timaxis

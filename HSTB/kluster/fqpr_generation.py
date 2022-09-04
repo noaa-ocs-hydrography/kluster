@@ -1403,7 +1403,9 @@ class Fqpr(ZarrBackend):
             # client is closed or not setup, assume 4 chunks at a time for local processing
             # AttributeError, client is None, RuntimeError, client is closed
             totchunks = kluster_variables.default_number_of_chunks
-        return kluster_variables.ping_chunk_size, totchunks
+        totchunks = totchunks * kluster_variables.sets_of_chunks_at_a_time
+        pingchunksize = self.multibeam.chunk_size[0]
+        return pingchunksize, totchunks
 
     def _generate_chunks_orientation(self, ra: xr.Dataset, idx_by_chunk: list, timestmp: str, prefixes: str, silent: bool = False):
         """
@@ -2613,7 +2615,8 @@ class Fqpr(ZarrBackend):
 
         for rp in self.multibeam.raw_ping:
             for source in sources:
-                ping_wise_data = interp_across_chunks(source, rp.time, 'time').chunk(kluster_variables.ping_chunk_size)
+                pingchunksize = self.multibeam.chunk_size[0]
+                ping_wise_data = interp_across_chunks(source, rp.time, 'time').chunk(pingchunksize)
                 ping_wise_times = [ping_wise_data.time]
                 try:
                     ping_wise_data = self.client.scatter(ping_wise_data)

@@ -230,6 +230,10 @@ class TestFqprGeneration(unittest.TestCase):
 
         self.georef_xyz(dset='realdualhead')
 
+    def test_chunk_size(self):
+        self._access_processed_data()
+        assert self.out.multibeam.chunk_size == (kluster_variables.ping_chunk_size, self.out.multibeam.beampointingangle.shape[1])
+
     def test_return_total_soundings(self):
         self._access_processed_data()
         ts = self.out.return_total_soundings(min_time=1495563100, max_time=1495563130)
