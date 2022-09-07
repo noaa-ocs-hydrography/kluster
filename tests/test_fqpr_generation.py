@@ -232,7 +232,9 @@ class TestFqprGeneration(unittest.TestCase):
 
     def test_chunk_size(self):
         self._access_processed_data()
-        assert self.out.multibeam.chunk_size == (kluster_variables.ping_chunk_size, self.out.multibeam.beampointingangle.shape[1])
+        # the following isn't always true, it just so happens that the data for this multibeam file is entirely within one chunk
+        assert self.out.multibeam.chunk_size == (self.out.multibeam.raw_ping[0].beampointingangle.shape[0],
+                                                 self.out.multibeam.raw_ping[0].beampointingangle.shape[1])
 
     def test_return_total_soundings(self):
         self._access_processed_data()

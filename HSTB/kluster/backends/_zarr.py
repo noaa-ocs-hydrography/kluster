@@ -407,8 +407,7 @@ class ZarrWrite:
         Open the zarr data store, will create a new one if it does not exist.  Get all the existing array names.
         """
 
-        # sync = zarr.ProcessSynchronizer(self.zarr_path + '.sync')
-        sync = None
+        sync = zarr.ProcessSynchronizer(self.zarr_path + '.sync')
         self.rootgroup = zarr.open(self.zarr_path, mode='a', synchronizer=sync)
         self.get_array_names()
 
@@ -937,9 +936,8 @@ class ZarrWrite:
             is None (the case when this is not the first write in a set of distributed writes) this is still returned but not used.
         """
 
-        sync = None
-        # if self.zarr_path:
-        #     sync = zarr.ProcessSynchronizer(self.zarr_path + '.sync')
+        if self.zarr_path:
+            sync = zarr.ProcessSynchronizer(self.zarr_path + '.sync')
         newarr = self.rootgroup.create_dataset(var_name, shape=dims_of_arrays[var_name][1], chunks=chunksize,
                                                dtype=xarr[var_name].dtype, synchronizer=sync,
                                                fill_value=self._get_arr_nodatavalue(xarr[var_name].dtype))
@@ -1246,8 +1244,7 @@ def my_xarr_add_attribute(attrs: dict, outputpth: str):
 
     # mode 'a' means read/write, create if doesnt exist
 
-    # sync = zarr.ProcessSynchronizer(outputpth + '.sync')
-    sync = None
+    sync = zarr.ProcessSynchronizer(outputpth + '.sync')
     rootgroup = zarr.open(outputpth, mode='a', synchronizer=sync)
     _my_xarr_to_zarr_writeattributes(rootgroup, attrs)
     return outputpth

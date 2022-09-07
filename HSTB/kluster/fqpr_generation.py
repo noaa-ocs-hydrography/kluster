@@ -910,7 +910,7 @@ class Fqpr(ZarrBackend):
         msk = np.where(idx_mask)[0]
         idx = xr.DataArray(msk, dims=('time',), coords={'time': idx_mask.time[msk]})
 
-        if len(idx) < pings_per_chunk:
+        if len(idx) <= pings_per_chunk:
             # not enough data to warrant multiple chunks
             idx_by_chunk = [idx]
         else:

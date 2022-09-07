@@ -1,11 +1,12 @@
 import os
 import xarray as xr
 import numpy as np
+from osgeo import gdal
 from pyproj import Transformer, CRS, Geod
 from typing import Union
+from datetime import datetime
 import geohash
 from shapely import geometry
-from datetime import datetime
 import queue
 
 from HSTB.kluster.xarray_helpers import stack_nan_array, reform_nan_array
@@ -122,7 +123,11 @@ def georef_by_worker(sv_corr: list, alt: xr.DataArray, lon: xr.DataArray, lat: x
     corr_heave = None
     corr_altitude = None
     if vert_ref in kluster_variables.ellipse_based_vertical_references:
-        corr_altitude = alt
+        # first bring depths to the ellipse, then use vyperdatum below to transform to the desired ers datum
+        if vert_ref == 'ellipse':
+            corr_altitude = transform_ellipse(lon, lat, alt, input_crs, horizontal_crs)
+        else:
+            corr_altitude = alt
         corr_heave = xr.zeros_like(corr_altitude)
         corr_dpth = (depthoffset - corr_altitude.values[:, None]).astype(np.float32) * -1
     elif vert_ref == 'vessel':
@@ -189,6 +194,56 @@ def georef_by_worker(sv_corr: list, alt: xr.DataArray, lon: xr.DataArray, lat: x
     return [x, y, z, corr_heave, corr_altitude, vdatum_unc, ghash]
 
 
+def transform_ellipse(x: Union[np.array, xr.DataArray], y: Union[np.array, xr.DataArray], z: Union[np.array, xr.DataArray],
+                      source_datum: CRS, final_datum: CRS):
+    """
+    For ellipsoidally relative datums (mllw for instance) the ellipsoid transformation is included in the overall vertical
+    transformation.  If vertical reference is 'ellipse' we need a separate process to handle this transformation.  If the input/output
+    vertical datum is the same (i.e. both are NAD83/GRS80) we can return the existing z.  Otherwise, use PROJ to transform from
+    input vertical datum to output vertical datum.
+
+    Parameters
+    ----------
+    x
+        easting for each point in source_datum coordinate system
+    y
+        northing for each point in source_datum coordinate system
+    z
+        depth offset for each point in source_datum coordinate system
+    source_datum
+        The horizontal coordinate system of the xyz provided, should be a string identifier ('nad83') or an EPSG code
+        specifying the horizontal coordinate system
+    final_datum
+        horizontal coordinate system of the desired output data
+
+    Returns
+    -------
+    Union[np.array, xr.DataArray]
+        corrected altitude for ellipsoid transformation
+    """
+
+    expected_names = ['ITRF2008', 'ITRF2014', 'ITRF2020', 'WGS 84', 'WGS84', 'NAD83']
+    try:
+        input_name = expected_names[np.where([source_datum.name.find(en) != -1 for en in expected_names])[0][0]]
+    except:
+        raise ValueError(f'ERROR: Unable to determine the associated ellipsoid for input datum {source_datum.name}')
+    try:
+        final_name = expected_names[np.where([final_datum.name.find(en) != -1 for en in expected_names])[0][0]]
+    except:
+        raise ValueError(f'ERROR: Unable to determine the associated ellipsoid for output datum {final_datum.name}')
+    if input_name == final_name:
+        return z
+    else:
+        # currently use ITRF2014 as WGS84 equivalent
+        expected_epsg = {'ITRF2008': 7911, 'ITRF2014': 7912, 'ITRF2020': 9989, 'WGS 84': 7912, 'WGS84': 7912, 'NAD83': 6319}
+        georef_transformer = Transformer.from_crs(CRS.from_epsg(expected_epsg[input_name]), CRS.from_epsg(expected_epsg[final_name]), always_xy=True)
+        final_altitude = georef_transformer.transform(x, y, z)[-1]
+        if isinstance(z, np.ndarray):
+            return final_altitude
+        else:
+            return xr.DataArray(final_altitude, coords={'time': z.time})
+
+
 def transform_vyperdatum(x: np.array, y: np.array, z: np.array, source_datum: Union[str, int] = 'nad83',
                          final_datum: str = 'mllw', vdatum_directory: str = None, horizontal_crs: CRS = None):
     """
@@ -244,6 +299,35 @@ def transform_vyperdatum(x: np.array, y: np.array, z: np.array, source_datum: Un
     vp.transform_points((source_datum, 'ellipse'), final_datum, x, y, z=z, sample_distance=0.0001)  # sample distance in degrees
 
     return np.around(vp.z, 3), np.around(vp.unc, 3)
+
+
+def apply_grid_to_soundings(grid_file: str, x_loc: np.ndarray, y_loc: np.ndarray, sounding_datum: CRS):
+    # IN PROGRESS
+    dataset = gdal.Open(grid_file)
+    w_raster = f'/vsimem/{os.path.split(grid_file)[1]}_{datetime.now().timestamp()}/'
+    w_raster_ds = gdal.Warp(w_raster, grid_file, dstSRS=f'EPSG:{sounding_datum.to_epsg()}')
+
+    band = w_raster_ds.GetRasterBand(1)
+
+    cols = dataset.RasterXSize
+    rows = dataset.RasterYSize
+
+    transform = dataset.GetGeoTransform()
+
+    xOrigin = transform[0]
+    yOrigin = transform[3]
+    pixelWidth = transform[1]
+    pixelHeight = -transform[5]
+
+    data = band.ReadAsArray(0, 0, cols, rows)
+    #
+    # points_list = [(355278.165927, 4473095.13829), (355978.319525, 4472871.11636)]  # list of X,Y coordinates
+    #
+    # for point in points_list:
+    #     col = int((point[0] - xOrigin) / pixelWidth)
+    #     row = int((yOrigin - point[1]) / pixelHeight)
+    #
+    # data = row, col, data[row][col]
 
 
 def set_vyperdatum_vdatum_path(vdatum_path: str):
