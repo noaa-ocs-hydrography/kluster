@@ -2936,7 +2936,6 @@ class KlusterMain(QtWidgets.QMainWindow):
 
     def _action_qgis(self):
         if sys.platform == "linux":
-            qgis_executable =  "/usr/bin/qgis"
             subprocess.Popen(qgis_executable, 
                              shell=True, 
                              stdout=subprocess.PIPE, 

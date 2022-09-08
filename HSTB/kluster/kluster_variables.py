@@ -44,6 +44,9 @@ last_change_buffer_size = 50
 # _qgis backend
 qgis_epsg = 4326
 
+# QGIS exacutable PATH
+qgis_executable = "/usr/bin/qgis"
+
 # generic processing
 max_beams = 400  # starting max beams in kluster (can grow beyond)
 epsg_nad83 = 6318
