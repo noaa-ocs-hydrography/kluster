@@ -22,6 +22,7 @@ from pyproj import CRS, Transformer
 import qdarkstyle
 import matplotlib.pyplot as plt
 import logging
+import subprocess
 
 from HSTB.kluster.gui import dialog_vesselview, kluster_explorer, kluster_project_tree, kluster_3dview_v2, \
     kluster_output_window, kluster_2dview, kluster_actions, kluster_monitor, dialog_daskclient, dialog_surface, \
@@ -2934,7 +2935,20 @@ class KlusterMain(QtWidgets.QMainWindow):
         widget.show()
 
     def _action_qgis(self):
-        os.startfile('qgis.exe')
+        if sys.platform == "linux":
+            print(f'Starting QGIS:  Path={kluster_variables.linux_qgis_executable}')
+            subprocess.Popen(kluster_variables.linux_qgis_executable,
+                             shell=True, 
+                             stdout=subprocess.PIPE, 
+                             stderr=subprocess.PIPE)
+        else:
+            try:
+                rtn = subprocess.check_output(['where', 'qgis.exe'])
+                pth = rtn.rstrip().decode()
+            except:
+                pth = 'unknown'
+            print(f'Starting QGIS:  Path={pth}')
+            os.startfile('qgis.exe')
 
     def _action_file_analyzer(self):
         self._fileanalyzer = dialog_fileanalyzer.FileAnalyzerDialog(parent=self)
