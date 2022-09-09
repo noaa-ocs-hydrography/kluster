@@ -408,7 +408,7 @@ class TestZarr(unittest.TestCase):
         assert np.array_equal(self.zw.rootgroup['data2'], data_arr)
         assert np.array_equal(self.zw.rootgroup['time'], data_arr)
 
-    def _return_basic_datasets(self, start: int, end: int):
+    def _return_basic_datasets(self, start: int, end: int, override_beam_number: int = 400):
         dataset_name = 'ping'
         sysid = '123'
         datasets = []
@@ -416,8 +416,8 @@ class TestZarr(unittest.TestCase):
         attributes = {'test_attribute': 'abc'}
         for i in range(start, end):
             data_arr = np.arange(i * 10, (i * 10) + 10)
-            data2_arr = np.random.uniform(-1, 1, (10, 400))
-            beam_arr = np.arange(400)
+            data2_arr = np.random.uniform(-1, 1, (10, override_beam_number))
+            beam_arr = np.arange(override_beam_number)
             dataset = xr.Dataset({'counter': (['time'], data_arr), 'beampointingangle': (['time', 'beam'], data2_arr)},
                                  coords={'time': data_arr, 'beam': beam_arr})
             datasets.append(dataset)
@@ -703,6 +703,32 @@ class TestZarr(unittest.TestCase):
         assert np.array_equal(xdataset.beampointingangle.values, expectedangle)
         assert xdataset.attrs['test_attribute'] == 'abc'
 
+    def test_zarr_backend_expanding_beams(self):
+        # write new data to disk
+        dataset_name, firstdatasets, dataset_time_arrays, attributes, sysid = self._return_basic_datasets(0, 2)
+        zarr_path, _ = self.zb.write(dataset_name, firstdatasets, dataset_time_arrays, attributes, skip_dask=True,
+                                     sys_id=sysid)
+
+        # now write data with a larger beam dimension to ensure that it expands to accomodate
+        dataset_name, thirddatasets, dataset_time_arrays, attributes, sysid = self._return_basic_datasets(2, 4, override_beam_number=512)
+        zarr_path, _ = self.zb.write(dataset_name, thirddatasets, dataset_time_arrays, attributes, skip_dask=True,
+                                     sys_id=sysid)
+
+        xdataset = reload_zarr_records(zarr_path, skip_dask=True)
+
+        assert np.array_equal(xdataset.counter.values, np.arange(40))
+        assert np.array_equal(xdataset.time.values, np.arange(40))
+        assert np.array_equal(xdataset.beam.values, np.arange(512))
+        assert xdataset.beampointingangle.shape == (40, 512)
+
+        answer = np.concatenate([np.concatenate([firstdatasets[0].beampointingangle.values, np.full((10, 112), np.nan)], axis=1),
+                                 np.concatenate([firstdatasets[1].beampointingangle.values, np.full((10, 112), np.nan)], axis=1),
+                                 thirddatasets[0].beampointingangle.values, thirddatasets[1].beampointingangle.values], axis=0)
+        assert np.array_equal(xdataset.beampointingangle.values[~np.isnan(xdataset.beampointingangle.values)],
+                              answer[~np.isnan(answer)])
+        assert xdataset.beampointingangle.shape == answer.shape
+        assert xdataset.attrs['test_attribute'] == 'abc'
+
     def test_zarr_backend_delete(self):
         # write new data to disk
         dataset_name, firstdatasets, dataset_time_arrays, attributes, sysid = self._return_basic_datasets(0, 2)
@@ -730,6 +756,3 @@ class TestZarr(unittest.TestCase):
         with open(attrs, 'r') as attrsfile:
             data_on_disk = json.loads(attrsfile.read())
         assert data_on_disk == attributes
-
-
-
