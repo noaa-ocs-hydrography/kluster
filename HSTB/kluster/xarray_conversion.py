@@ -554,6 +554,24 @@ def _return_xarray_time(xarrs: Union[xr.DataArray, xr.Dataset]):
     return xarrs['time']
 
 
+def _return_xarray_beam(xarrs: Union[xr.DataArray, xr.Dataset]):
+    """
+    Access xarray object and return the number of beams
+
+    Parameters
+    ----------
+    xarrs
+        Dataset or DataArray that we want the time array from
+
+    Returns
+    -------
+    int
+        number of beams
+    """
+
+    return int(xarrs['beam'].shape[0])
+
+
 def _return_xarray_constant_blocks(xlens: list, xarrfutures: list, rec_length: int):
     """
     Sequential read operates on a file level.  Chunks determined for what makes sense in terms of distributed
@@ -853,9 +871,9 @@ def batch_read_configure_options():
 
     opts = {
         'ping': {'chunksize': kluster_variables.ping_chunk_size, 'chunks': kluster_variables.ping_chunks,
-                 'combine_attributes': True, 'output_arrs': [], 'time_arrs': [], 'final_pths': None, 'final_attrs': None},
+                 'combine_attributes': True, 'output_arrs': [], 'time_arrs': [], 'beam_shapes': [], 'final_pths': None, 'final_attrs': None},
         'attitude': {'chunksize': kluster_variables.attitude_chunk_size, 'chunks': kluster_variables.att_chunks,
-                     'combine_attributes': False, 'output_arrs': [], 'time_arrs': [], 'final_pths': None, 'final_attrs': None}
+                     'combine_attributes': False, 'output_arrs': [], 'time_arrs': [], 'beam_shapes': [], 'final_pths': None, 'final_attrs': None}
         }
     return opts
 
@@ -1315,6 +1333,8 @@ class BatchRead(ZarrBackend):
             futures representing data merged according to balanced_data
         list
             xarray DataArrays for the time dimension of each returned future
+        list
+            list of the max beams in each chunk, if this is a datatype=ping.  Otherwise None.
         int
             size of chunks operated on by workers, shortened if greater than the total size
         int
@@ -1339,11 +1359,19 @@ class BatchRead(ZarrBackend):
         if self.client is not None:
             output_arrs = self.client.map(_merge_constant_blocks, balanced_data)
             time_arrs = self.client.gather(self.client.map(_return_xarray_time, output_arrs))
+            if datatype == 'ping':
+                beam_shapes = self.client.gather(self.client.map(_return_xarray_beam, output_arrs))
+            else:
+                beam_shapes = None
         else:
             output_arrs = [_merge_constant_blocks(bd) for bd in balanced_data]
             time_arrs = [_return_xarray_time(oa) for oa in output_arrs]
+            if datatype == 'ping':
+                beam_shapes = [_return_xarray_beam(oa) for oa in output_arrs]
+            else:
+                beam_shapes = None
         del balanced_data
-        return output_arrs, time_arrs, chunksize, totallength
+        return output_arrs, time_arrs, beam_shapes, chunksize, totallength
 
     def _batch_read_sequential(self, chnks_flat: list):
         """
@@ -1510,8 +1538,13 @@ class BatchRead(ZarrBackend):
             opts[datatype]['final_attrs']['system_identifier'] = sysid
 
         # correct for existing data if it exists in the zarr data store
+        if datatype == 'ping':
+            max_beam_size = max(opts[datatype]['beam_shapes'])
+        else:
+            max_beam_size = None
         _, fpths = self.write(datatype, opts[datatype]['output_arrs'], time_array=opts[datatype]['time_arrs'],
-                              attributes=opts[datatype]['final_attrs'], skip_dask=self.skip_dask, sys_id=sysid)
+                              attributes=opts[datatype]['final_attrs'], skip_dask=self.skip_dask, sys_id=sysid,
+                              max_beam_size=max_beam_size)
         fpth = fpths[0]  # Pick the first element, all are identical so it doesnt really matter
         return fpth
 
@@ -1672,7 +1705,7 @@ class BatchRead(ZarrBackend):
                     if len(input_xarrs_by_system) > 1:
                         # rebalance to get equal chunksize in time dimension (sector/beams are constant across)
                         input_xarrs_by_system = self._batch_read_correct_block_boundaries(input_xarrs_by_system)
-                    opts[datatype]['output_arrs'], opts[datatype]['time_arrs'], opts[datatype]['chunksize'], totallen = self._batch_read_merge_blocks(input_xarrs_by_system, datatype, opts[datatype]['chunksize'])
+                    opts[datatype]['output_arrs'], opts[datatype]['time_arrs'], opts[datatype]['beam_shapes'], opts[datatype]['chunksize'], totallen = self._batch_read_merge_blocks(input_xarrs_by_system, datatype, opts[datatype]['chunksize'])
                     del input_xarrs_by_system
                     finalpths[datatype].append(self._batch_read_write('zarr', datatype, opts, self.converted_pth, sysid=system))
                     del opts
@@ -1681,7 +1714,7 @@ class BatchRead(ZarrBackend):
                 opts[datatype]['final_attrs'] = combattrs
                 if len(input_xarrs) > 1:
                     input_xarrs = self._batch_read_drop_duplicate_blobs(input_xarrs)
-                opts[datatype]['output_arrs'], opts[datatype]['time_arrs'], opts[datatype]['chunksize'], totallen = self._batch_read_merge_blocks(input_xarrs, datatype, opts[datatype]['chunksize'])
+                opts[datatype]['output_arrs'], opts[datatype]['time_arrs'], opts[datatype]['beam_shapes'], opts[datatype]['chunksize'], totallen = self._batch_read_merge_blocks(input_xarrs, datatype, opts[datatype]['chunksize'])
                 del input_xarrs
                 finalpths[datatype].append(self._batch_read_write('zarr', datatype, opts, self.converted_pth))
                 del opts
@@ -1880,10 +1913,11 @@ class BatchRead(ZarrBackend):
                     continue
                 line_az = self.raw_att.interp(time=np.array([line_time_start + (line_time_end - line_time_start) / 2]), method='nearest', assume_sorted=True).heading.values
                 line_nav = rp.sel(time=slice(float(dstart.time.values), float(dend.time.values)))
-                samp_idx = np.arange(0, line_nav.time.size, 15).tolist()  # downsample to every 15 pings
-                if samp_idx[-1] != line_nav.time.size - 1:  # ensuring you keep the last ping
-                    samp_idx += [line_nav.time.size - 1]
-                line_nav.isel(time=samp_idx)
+                if line_nav.time.size > 15 * 10:
+                    samp_idx = np.arange(0, line_nav.time.size, 15).tolist()  # downsample to every 15 pings
+                    if samp_idx[-1] != line_nav.time.size - 1:  # ensuring you keep the last ping
+                        samp_idx += [line_nav.time.size - 1]
+                    line_nav.isel(time=samp_idx)
                 line_dist = np.nansum(distance_between_coordinates(line_nav.latitude[:-1], line_nav.longitude[:-1],
                                                                    line_nav.latitude[1:], line_nav.longitude[1:]))
                 line_dict[line_name] += [float(start_position[0]), float(start_position[1]), float(end_position[0]),

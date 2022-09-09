@@ -47,13 +47,21 @@ class ZarrBackend(BaseBackend):
         """
         return get_write_indices_zarr(zarr_path, time_array, append_dim)
 
-    def _get_chunk_sizes(self, dataset_name: str):
+    def _get_chunk_sizes(self, dataset_name: str, max_beam_size: int = None):
         """
         Pull from kluster_variables to get the correct chunk size for each dataset
         """
 
         if dataset_name == 'ping':
-            return kluster_variables.ping_chunks
+            chnks = kluster_variables.ping_chunks
+            if max_beam_size is not None:
+                chnks['beam'] = (max_beam_size,)
+                for ky in chnks:
+                    if len(chnks[ky]) >= 2:
+                        chnkshape = list(chnks[ky])
+                        chnkshape[1] = max_beam_size
+                        chnks[ky] = tuple(chnkshape)
+            return chnks
         elif dataset_name in ['navigation', 'ppnav']:
             return kluster_variables.nav_chunks
         elif dataset_name == 'attitude':
@@ -86,7 +94,7 @@ class ZarrBackend(BaseBackend):
             shutil.rmtree(var_path)
 
     def write(self, dataset_name: str, data: Union[list, xr.Dataset, Future], time_array: list = None, attributes: dict = None,
-              sys_id: str = None, append_dim: str = 'time', skip_dask: bool = False):
+              sys_id: str = None, append_dim: str = 'time', skip_dask: bool = False, max_beam_size: int = None):
         """
         Write the provided data to disk, finding the correct zarr folder using dataset_name.  We need time_array to get
         the correct write indices for the data.  If attributes are provided, we write those as well as xarray Dataset
@@ -100,8 +108,8 @@ class ZarrBackend(BaseBackend):
         time_array = self._autodetermine_times(data, time_array, append_dim)
         zarr_path = self._get_zarr_path(dataset_name, sys_id)
         data_indices, final_size, push_forward = self._get_zarr_indices(zarr_path, time_array, append_dim)
-        chunks = self._get_chunk_sizes(dataset_name)
-        fpths = distrib_zarr_write(zarr_path, data, attributes, chunks, data_indices, final_size, push_forward, self.client,
+        chunks = self._get_chunk_sizes(dataset_name, max_beam_size=max_beam_size)
+        fpths = distrib_zarr_write(zarr_path, data, attributes, chunks, data_indices, (final_size, max_beam_size), push_forward, self.client,
                                    skip_dask=skip_dask, show_progress=self.show_progress,
                                    write_in_parallel=self.parallel_write)
         return zarr_path, fpths
@@ -563,7 +571,7 @@ class ZarrWrite:
         if attr in self.rootgroup.attrs:
             self.rootgroup.attrs.pop(attr)
 
-    def _check_fix_rootgroup_expand_dim(self, xarr: xr.Dataset):
+    def _check_fix_rootgroup_expand_dim(self, xarr: xr.Dataset, max_beam_count: int = None):
         """
         Check if this xarr is greater in the exand dimension (probably beam) than the existing rootgroup beam array.  If it is,
         we'll need to expand the rootgroup to cover the max beams of the xarr.
@@ -581,7 +589,10 @@ class ZarrWrite:
 
         if (self.expand_dim in self.rootgroup) and (self.expand_dim in xarr):
             last_expand = self.rootgroup[self.expand_dim].size
-            if last_expand < xarr[self.expand_dim].shape[0]:
+            if max_beam_count is not None:
+                if last_expand < max_beam_count:
+                    return True
+            elif last_expand < xarr[self.expand_dim].shape[0]:
                 return True  # last expand dim isn't long enough, need to fix the chunk
             else:
                 return False  # there is a chunk there, but it is of size equal to desired
@@ -615,7 +626,7 @@ class ZarrWrite:
                 nodata = ''
         return nodata
 
-    def fix_rootgroup_expand_dim(self, xarr: xr.Dataset):
+    def fix_rootgroup_expand_dim(self, xarr: xr.Dataset, max_beam_count: int = None):
         """
         Once we've determined that the xarr Dataset expand_dim is greater than the rootgroup expand_dim, expand the
         rootgroup expand_dim to match the xarr.  Fill the empty space with the appropriate no data value.
@@ -627,18 +638,25 @@ class ZarrWrite:
         """
 
         curr_expand_dim_size = self.rootgroup[self.expand_dim].size
+        if max_beam_count is not None:
+            newbeams = np.arange(max_beam_count)
+            beamshape = (max_beam_count,)
+        else:
+            newbeams = np.arange(xarr[self.expand_dim].shape[0])
+            beamshape = xarr[self.expand_dim].shape
+
         for var in self.zarr_array_names:
             newdat = None
             newshp = None
             if var == self.expand_dim:
-                newdat = np.arange(xarr[self.expand_dim].shape[0])
-                newshp = xarr[self.expand_dim].shape
+                newdat = newbeams
+                newshp = beamshape
             elif self.rootgroup[var].ndim >= 2:
                 if self.rootgroup[var].shape[1] == curr_expand_dim_size:  # you found an array with a beam dimension
                     nodata_value = self._get_arr_nodatavalue(self.rootgroup[var].dtype)
-                    newdat = self._inflate_expand_dim(self.rootgroup[var], xarr[self.expand_dim].shape[0], nodata_value)
+                    newdat = self._inflate_expand_dim(self.rootgroup[var], beamshape[0], nodata_value)
                     newshp = list(self.rootgroup[var].shape)
-                    newshp[1] = xarr[self.expand_dim].shape[0]
+                    newshp[1] = beamshape[0]
                     newshp = tuple(newshp)
             if newdat is not None:
                 self.rootgroup[var].resize(newshp)
@@ -672,7 +690,7 @@ class ZarrWrite:
         new_arr = np.concatenate((input_arr, appended_data), axis=1)
         return new_arr
 
-    def correct_rootgroup_dims(self, xarr: xr.Dataset):
+    def correct_rootgroup_dims(self, xarr: xr.Dataset, max_beam_count: int = None):
         """
         Correct for when the input xarray Dataset shape is greater than the rootgroup shape.  Most likely this is when
         the input xarray Dataset is larger in the beam dimension than the existing rootgroup arrays.
@@ -681,10 +699,12 @@ class ZarrWrite:
         ----------
         xarr
             xarray Dataset, data that we are trying to write to rootgroup
+        max_beam_count
+            override input dataset beam dimension with this value
         """
 
-        if self._check_fix_rootgroup_expand_dim(xarr):
-            self.fix_rootgroup_expand_dim(xarr)
+        if self._check_fix_rootgroup_expand_dim(xarr, max_beam_count):
+            self.fix_rootgroup_expand_dim(xarr, max_beam_count)
 
     def _write_adjust_max_beams(self, startingshp: tuple):
         """
@@ -706,11 +726,12 @@ class ZarrWrite:
         if len(startingshp) >= 2:
             current_max_beams = self.rootgroup['beam'].shape[0]
             startingshp = list(startingshp)
-            startingshp[1] = current_max_beams
+            if current_max_beams is not None and startingshp[1] is not None:
+                startingshp[1] = max(current_max_beams, startingshp[1])
             startingshp = tuple(startingshp)
         return startingshp
 
-    def _write_determine_shape(self, var: str, dims_of_arrays: dict, finalsize: int = None):
+    def _write_determine_shape(self, var: str, dims_of_arrays: dict, finalsize: tuple = None):
         """
         Given the size information and dimension names for the given variable, determine the axis to append to and the
         expected shape for the rootgroup array.
@@ -740,13 +761,29 @@ class ZarrWrite:
             # only need time dim info for time dependent variables
             timaxis = None
             timlength = None
-            startingshp = dims_of_arrays[var][1]
+            if var == 'beam' and finalsize:
+                startingshp = (finalsize[1],)
+            else:
+                startingshp = dims_of_arrays[var][1]
         else:
             # want to get the length of the time dimension, so you know which dim to append to
             timaxis = dims_of_arrays[var][0].index(self.append_dim)
             timlength = dims_of_arrays[var][1][timaxis]
-            startingshp = tuple(
-                finalsize if dims_of_arrays[var][1].index(x) == timaxis else x for x in dims_of_arrays[var][1])
+            if finalsize:
+                timesize = finalsize[0]
+                beamsize = finalsize[1]
+            else:
+                timesize = None
+                beamsize = None
+            startingshp = []
+            for cnt, dimname in enumerate(dims_of_arrays[var][0]):
+                if dimname == self.append_dim:
+                    startingshp.append(timesize)
+                elif dimname == self.expand_dim:
+                    startingshp.append(beamsize)
+                else:
+                    startingshp.append(dims_of_arrays[var][1][cnt])
+            startingshp = tuple(startingshp)
         return timaxis, timlength, startingshp
 
     def _push_existing_data_forward(self, variable_name: str, dims_of_arrays: dict, timaxis: int, push_forward: list,
@@ -943,8 +980,10 @@ class ZarrWrite:
                                                fill_value=self._get_arr_nodatavalue(xarr[var_name].dtype))
         newarr[:] = xarr[var_name].values
         newarr.resize(startingshp)
+        if var_name == 'beam' and xarr[var_name].shape != startingshp:
+            newarr[:] = np.arange(startingshp[0])
 
-    def write_to_zarr(self, xarr: xr.Dataset, attrs: dict, dataloc: Union[list, np.ndarray], finalsize: int = None,
+    def write_to_zarr(self, xarr: xr.Dataset, attrs: dict, dataloc: Union[list, np.ndarray], finalsize: tuple = None,
                       push_forward: list = None):
         """
         Take the input xarray Dataset and write each variable as arrays in a zarr rootgroup.  Write the attributes out
@@ -972,9 +1011,9 @@ class ZarrWrite:
             path to zarr data store
         """
         if finalsize is not None:
-            self.correct_rootgroup_dims(xarr)
+            self.correct_rootgroup_dims(xarr, finalsize[1])
         self.get_array_names()
-        dims_of_arrays = _my_xarr_to_zarr_build_arraydimensions(xarr)
+        dims_of_arrays = _my_xarr_to_zarr_build_arraydimensions(xarr, )
         self.write_attributes(attrs)
 
         for var in dims_of_arrays:
@@ -1009,7 +1048,7 @@ class ZarrWrite:
 
 
 def zarr_write(zarr_path: str, xarr: xr.Dataset, attrs: dict, desired_chunk_shape: dict, dataloc: Union[list, np.ndarray],
-               append_dim: str = 'time', finalsize: int = None, push_forward: list = None):
+               append_dim: str = 'time', finalsize: tuple = None, push_forward: list = None):
     """
     Convenience function for writing with ZarrWrite
 
@@ -1047,7 +1086,7 @@ def zarr_write(zarr_path: str, xarr: xr.Dataset, attrs: dict, desired_chunk_shap
 
 
 def distrib_zarr_write(zarr_path: str, xarrays: list, attributes: dict, chunk_sizes: dict, data_locs: list,
-                       finalsize: int, push_forward: list, client: Client, append_dim: str = 'time',
+                       finalsize: tuple, push_forward: list, client: Client, append_dim: str = 'time',
                        write_in_parallel: bool = False, skip_dask: bool = False, show_progress: bool = True):
     """
     A function for using the ZarrWrite class to write data to disk.  xarr and attrs are written to the datastore at
@@ -1071,7 +1110,7 @@ def distrib_zarr_write(zarr_path: str, xarrays: list, attributes: dict, chunk_si
         list of lists, either [start time index, end time index] for xarr, ex: [0,1000] if xarr time dimension is 1000 long,
         or np.array([4,5,6,7,1,2...]) for when data might not be continuous and we need to use a boolean mask
     finalsize
-        the final size of the time dimension of the written data, we resize the zarr to this size on the first write
+        the final size of the time, beam dimensions of the written data, we resize the zarr to this size on the first write
     push_forward
         list of [index of push, total amount to push] for each push
     client

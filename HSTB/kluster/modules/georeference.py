@@ -165,7 +165,10 @@ def georef_by_worker(sv_corr: list, alt: xr.DataArray, lon: xr.DataArray, lat: x
         vdatum_unc = xr.zeros_like(z)
 
     # compute the geohash for each beam return, the base32 encoded cell that the beam falls within, used for spatial indexing
-    ghash = compute_geohash(pos[1], pos[0], precision=kluster_variables.geohash_precision)
+    try:
+        ghash = compute_geohash(pos[1], pos[0], precision=kluster_variables.geohash_precision)
+    except:
+        ghash = np.array([' ' * kluster_variables.geohash_precision])
 
     if horizontal_crs.is_projected:
         # Transformer.transform input order is based on the CRS, see CRS.geodetic_crs.axis_info
@@ -424,9 +427,11 @@ def compute_geohash(latitude: np.array, longitude: np.array, precision: int):
     np.array
         array of bytestrings dtype='SX' where X is the precision you have given
     """
-
-    vectorhash = np.vectorize(new_geohash)
-    return vectorhash(latitude, longitude, precision)
+    if latitude.size > 1:
+        vectorhash = np.vectorize(new_geohash)
+        return vectorhash(latitude, longitude, precision)
+    else:
+        return new_geohash(latitude, longitude, precision)
 
 
 def decode_geohash(ghash: Union[str, bytes]):
