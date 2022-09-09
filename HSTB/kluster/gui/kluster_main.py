@@ -2936,11 +2936,18 @@ class KlusterMain(QtWidgets.QMainWindow):
 
     def _action_qgis(self):
         if sys.platform == "linux":
+            print(f'Starting QGIS:  Path={kluster_variables.linux_qgis_executable}')
             subprocess.Popen(kluster_variables.linux_qgis_executable,
                              shell=True, 
                              stdout=subprocess.PIPE, 
                              stderr=subprocess.PIPE)
         else:
+            try:
+                rtn = subprocess.check_output(['where', 'qgis.exe'])
+                pth = rtn.rstrip().decode()
+            except:
+                pth = 'unknown'
+            print(f'Starting QGIS:  Path={pth}')
             os.startfile('qgis.exe')
 
     def _action_file_analyzer(self):
