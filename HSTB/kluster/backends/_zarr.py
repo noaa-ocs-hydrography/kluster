@@ -980,7 +980,7 @@ class ZarrWrite:
                                                fill_value=self._get_arr_nodatavalue(xarr[var_name].dtype))
         newarr[:] = xarr[var_name].values
         newarr.resize(startingshp)
-        if var_name == 'beam' and xarr[var_name].shape != startingshp:
+        if var_name == 'beam' and startingshp[0] is not None and xarr[var_name].shape != startingshp:
             newarr[:] = np.arange(startingshp[0])
 
     def write_to_zarr(self, xarr: xr.Dataset, attrs: dict, dataloc: Union[list, np.ndarray], finalsize: tuple = None,

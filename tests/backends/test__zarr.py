@@ -172,7 +172,7 @@ class TestZarr(unittest.TestCase):
         indices = _get_indices_dataset_notexist([data_arr])
 
         dataset = xr.Dataset({'data': (['time'], data_arr), 'data2': (['time'], data_arr)}, coords={'time': data_arr})
-        self.zw.write_to_zarr(dataset, {'testthis': 123}, dataloc=indices[0], finalsize=100)
+        self.zw.write_to_zarr(dataset, {'testthis': 123}, dataloc=indices[0], finalsize=(100, 400))
 
         assert np.array_equal(self.zw.rootgroup['data'], data_arr)
         assert np.array_equal(self.zw.rootgroup['data2'], data_arr)
@@ -185,14 +185,14 @@ class TestZarr(unittest.TestCase):
         indices = _get_indices_dataset_notexist([data_arr])
 
         dataset = xr.Dataset({'data': (['time'], data_arr), 'data2': (['time'], data_arr)}, coords={'time': data_arr})
-        self.zw.write_to_zarr(dataset, None, dataloc=indices[0], finalsize=10)
+        self.zw.write_to_zarr(dataset, None, dataloc=indices[0], finalsize=(10, 400))
 
         data_arr2 = np.array([10, 11, 12, 13, 14])
         indices, push_forward, total_push = _get_indices_dataset_exists([data_arr2], self.zw.rootgroup['time'])
 
         dataset = xr.Dataset({'data': (['time'], data_arr2), 'data2': (['time'], data_arr2)},
                              coords={'time': data_arr2})
-        self.zw.write_to_zarr(dataset, None, dataloc=indices[0], finalsize=15)
+        self.zw.write_to_zarr(dataset, None, dataloc=indices[0], finalsize=(15, 400))
 
         assert np.array_equal(self.zw.rootgroup['data'], np.concatenate([data_arr, data_arr2]))
         assert np.array_equal(self.zw.rootgroup['data2'], np.concatenate([data_arr, data_arr2]))
@@ -204,14 +204,14 @@ class TestZarr(unittest.TestCase):
         indices = _get_indices_dataset_notexist([data_arr])
 
         dataset = xr.Dataset({'data': (['time'], data_arr), 'data2': (['time'], data_arr)}, coords={'time': data_arr})
-        self.zw.write_to_zarr(dataset, None, dataloc=indices[0], finalsize=10)
+        self.zw.write_to_zarr(dataset, None, dataloc=indices[0], finalsize=(10, 400))
 
         data_arr2 = np.array([3, 4, 5, 6, 7])
         new_data = np.array([999, 999, 999, 999, 999])
         indices, push_forward, total_push = _get_indices_dataset_exists([data_arr2], self.zw.rootgroup['time'])
 
         dataset = xr.Dataset({'data': (['time'], new_data), 'data2': (['time'], new_data)}, coords={'time': data_arr2})
-        self.zw.write_to_zarr(dataset, None, dataloc=indices[0], finalsize=10)
+        self.zw.write_to_zarr(dataset, None, dataloc=indices[0], finalsize=(10, 400))
 
         expected_answer = np.array([0, 1, 2, 999, 999, 999, 999, 999, 8, 9])
         assert np.array_equal(self.zw.rootgroup['data'], expected_answer)
@@ -224,7 +224,7 @@ class TestZarr(unittest.TestCase):
         indices = _get_indices_dataset_notexist([data_arr])
 
         dataset = xr.Dataset({'data': (['time'], data_arr), 'data2': (['time'], data_arr)}, coords={'time': data_arr})
-        self.zw.write_to_zarr(dataset, None, dataloc=indices[0], finalsize=20)
+        self.zw.write_to_zarr(dataset, None, dataloc=indices[0], finalsize=(20, 400))
 
         data_arr2 = [np.array([10, 11, 12, 13, 14, 15, 16, 17, 18, 19]),
                      np.array([20, 21, 22, 23, 24, 25, 26, 27, 28, 29])]
@@ -232,7 +232,7 @@ class TestZarr(unittest.TestCase):
 
         for cnt, arr in enumerate(data_arr2):
             if cnt == 0:
-                fsize = 30
+                fsize = (30, 400)
             else:
                 fsize = None
             dataset2 = xr.Dataset({'data': (['time'], arr), 'data2': (['time'], arr)}, coords={'time': arr})
@@ -251,7 +251,7 @@ class TestZarr(unittest.TestCase):
         indices = _get_indices_dataset_notexist([data_arr])
 
         dataset = xr.Dataset({'data': (['time'], data_arr), 'data2': (['time'], data_arr)}, coords={'time': data_arr})
-        self.zw.write_to_zarr(dataset, None, dataloc=indices[0], finalsize=20)
+        self.zw.write_to_zarr(dataset, None, dataloc=indices[0], finalsize=(20, 400))
 
         data_arr2 = [np.array([10, 11, 12, 13, 14, 15, 16, 17, 18, 19]),
                      np.array([20, 21, 22, 23, 24, 25, 26, 27, 28, 29])]
@@ -259,7 +259,7 @@ class TestZarr(unittest.TestCase):
 
         for cnt, arr in enumerate(data_arr2):
             if cnt == 0:
-                fsize = 40
+                fsize = (40, 400)
             else:
                 fsize = None
             dataset2 = xr.Dataset({'data': (['time'], arr), 'data2': (['time'], arr)}, coords={'time': arr})
@@ -277,14 +277,14 @@ class TestZarr(unittest.TestCase):
         indices = _get_indices_dataset_notexist([data_arr])
 
         dataset = xr.Dataset({'data': (['time'], data_arr), 'data2': (['time'], data_arr)}, coords={'time': data_arr})
-        self.zw.write_to_zarr(dataset, None, dataloc=indices[0], finalsize=105000)
+        self.zw.write_to_zarr(dataset, None, dataloc=indices[0], finalsize=(105000, 400))
 
         data_arr2 = [np.arange(150000)]
         indices, push_forward, total_push = _get_indices_dataset_exists(data_arr2, self.zw.rootgroup['time'])
 
         dataset2 = xr.Dataset({'data': (['time'], data_arr2[0]), 'data2': (['time'], data_arr2[0])},
                               coords={'time': data_arr2[0]})
-        self.zw.write_to_zarr(dataset2, None, dataloc=indices[0], finalsize=255000, push_forward=push_forward)
+        self.zw.write_to_zarr(dataset2, None, dataloc=indices[0], finalsize=(255000, 400), push_forward=push_forward)
 
         assert np.array_equal(self.zw.rootgroup['data'], np.arange(255000))
         assert np.array_equal(self.zw.rootgroup['data2'], np.arange(255000))
@@ -296,14 +296,14 @@ class TestZarr(unittest.TestCase):
         indices = _get_indices_dataset_notexist([data_arr])
 
         dataset = xr.Dataset({'data': (['time'], data_arr), 'data2': (['time'], data_arr)}, coords={'time': data_arr})
-        self.zw.write_to_zarr(dataset, None, dataloc=indices[0], finalsize=105000)
+        self.zw.write_to_zarr(dataset, None, dataloc=indices[0], finalsize=(105000, 400))
 
         data_arr2 = [np.arange(100000), np.arange(150000, 200000)]
         indices, push_forward, total_push = _get_indices_dataset_exists(data_arr2, self.zw.rootgroup['time'])
 
         for cnt, arr in enumerate(data_arr2):
             if cnt == 0:
-                fsize = 255000
+                fsize = (255000, 400)
             else:
                 fsize = None
             dataset2 = xr.Dataset({'data': (['time'], arr), 'data2': (['time'], arr)}, coords={'time': arr})
@@ -319,7 +319,7 @@ class TestZarr(unittest.TestCase):
         indices = _get_indices_dataset_notexist([data_arr])
 
         dataset = xr.Dataset({'data': (['time'], data_arr), 'data2': (['time'], data_arr)}, coords={'time': data_arr})
-        self.zw.write_to_zarr(dataset, None, dataloc=indices[0], finalsize=20)
+        self.zw.write_to_zarr(dataset, None, dataloc=indices[0], finalsize=(20, 400))
 
         data_arr2 = [np.array([30, 31, 32, 33, 34, 35, 36, 37, 38, 39]),
                      np.array([40, 41, 42, 43, 44, 45, 46, 47, 48, 49])]
@@ -327,7 +327,7 @@ class TestZarr(unittest.TestCase):
 
         for cnt, arr in enumerate(data_arr2):
             if cnt == 0:
-                fsize = 30
+                fsize = (30, 400)
             else:
                 fsize = None
             dataset2 = xr.Dataset({'data': (['time'], arr), 'data2': (['time'], arr)}, coords={'time': arr})
@@ -346,7 +346,7 @@ class TestZarr(unittest.TestCase):
         indices = _get_indices_dataset_notexist([data_arr])
 
         dataset = xr.Dataset({'data': (['time'], data_arr), 'data2': (['time'], data_arr)}, coords={'time': data_arr})
-        self.zw.write_to_zarr(dataset, None, dataloc=indices[0], finalsize=20)
+        self.zw.write_to_zarr(dataset, None, dataloc=indices[0], finalsize=(20, 400))
 
         data_arr2 = [np.array([50, 51, 52, 53, 54, 55, 56, 57, 58, 59]),
                      np.array([60, 61, 62, 63, 64, 65, 66, 67, 68, 69])]
@@ -354,7 +354,7 @@ class TestZarr(unittest.TestCase):
 
         for cnt, arr in enumerate(data_arr2):
             if cnt == 0:
-                fsize = 40
+                fsize = (40, 400)
             else:
                 fsize = None
             dataset2 = xr.Dataset({'data': (['time'], arr), 'data2': (['time'], arr)}, coords={'time': arr})
@@ -371,19 +371,19 @@ class TestZarr(unittest.TestCase):
         data_arr = np.arange(10)
         indices = _get_indices_dataset_notexist([data_arr])
         dataset = xr.Dataset({'data': (['time'], data_arr), 'data2': (['time'], data_arr)}, coords={'time': data_arr})
-        self.zw.write_to_zarr(dataset, None, dataloc=indices[0], finalsize=10)
+        self.zw.write_to_zarr(dataset, None, dataloc=indices[0], finalsize=(10, 400))
 
         data_arr2 = np.array([20, 21, 22, 23, 24, 25, 26, 27, 28, 29])
         indices, push_forward, total_push = _get_indices_dataset_exists([data_arr2], self.zw.rootgroup['time'])
         dataset2 = xr.Dataset({'data': (['time'], data_arr2), 'data2': (['time'], data_arr2)},
                               coords={'time': data_arr2})
-        self.zw.write_to_zarr(dataset2, None, dataloc=indices[0], finalsize=20, push_forward=push_forward)
+        self.zw.write_to_zarr(dataset2, None, dataloc=indices[0], finalsize=(20, 400), push_forward=push_forward)
 
         data_arr3 = np.array([10, 11, 12, 13, 14, 15, 16, 17, 18, 19])
         indices, push_forward, total_push = _get_indices_dataset_exists([data_arr3], self.zw.rootgroup['time'])
         dataset3 = xr.Dataset({'data': (['time'], data_arr3), 'data2': (['time'], data_arr3)},
                               coords={'time': data_arr3})
-        self.zw.write_to_zarr(dataset3, None, dataloc=indices[0], finalsize=30, push_forward=push_forward)
+        self.zw.write_to_zarr(dataset3, None, dataloc=indices[0], finalsize=(30, 400), push_forward=push_forward)
 
         expected_answer = np.array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
                                     17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29])
@@ -397,12 +397,12 @@ class TestZarr(unittest.TestCase):
         indices = _get_indices_dataset_notexist([data_arr])
 
         dataset = xr.Dataset({'data': (['time'], data_arr)}, coords={'time': data_arr})
-        self.zw.write_to_zarr(dataset, None, dataloc=indices[0], finalsize=10)
+        self.zw.write_to_zarr(dataset, None, dataloc=indices[0], finalsize=(10, 400))
 
         indices, push_forward, total_push = _get_indices_dataset_exists([data_arr], self.zw.rootgroup['time'])
 
         dataset = xr.Dataset({'data2': (['time'], data_arr)}, coords={'time': data_arr})
-        self.zw.write_to_zarr(dataset, None, dataloc=indices[0], finalsize=10)
+        self.zw.write_to_zarr(dataset, None, dataloc=indices[0], finalsize=(10, 400))
 
         assert np.array_equal(self.zw.rootgroup['data'], data_arr)
         assert np.array_equal(self.zw.rootgroup['data2'], data_arr)
