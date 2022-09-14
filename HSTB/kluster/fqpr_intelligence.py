@@ -8,6 +8,7 @@ from typing import Union
 from copy import deepcopy
 from collections import OrderedDict
 from dask.distributed import Client
+import traceback
 
 from HSTB.kluster.fqpr_drivers import fast_read_multibeam_metadata, fast_read_sbet_metadata, fast_read_errorfile_metadata, \
     read_pospac_export_log, is_sbet, is_smrmsg, read_soundvelocity_file
@@ -338,27 +339,32 @@ class FqprIntel(LoggerClass):
                 new_data, updated_type, rerun_mbes_file_match = self._add_to_intel(gather_multibeam_info(infile), self.multibeam_intel, 'multibeam')
             except:
                 self.print_msg(f'Tried adding {infile} as a multibeam file based on file extension {fileext}, failed to add to intel module.')
+                self.print_msg('Exception logged: {}'.format(traceback.format_exc(limit=1)))
         elif fileext in supported_svp:
             try:
                 new_data, updated_type, rerun_svp_file_match = self._add_to_intel(gather_svp_info(infile), self.svp_intel, 'svp')
             except:
                 self.print_msg(f'Tried adding {infile} as a sound velocity file based on file extension {fileext}, failed to add to intel module.')
+                self.print_msg('Exception logged: {}'.format(traceback.format_exc(limit=1)))
         elif fileext in supported_sbet:  # sbet and smrmsg have the same file extension sometimes ('.out') depending on what the user has done
             if is_sbet(infile):
                 try:
                     new_data, updated_type, rerun_nav_file_match = self._add_to_intel(gather_navfile_info(infile), self.nav_intel, 'navigation')
                 except:
                     self.print_msg(f'Tried adding {infile} as a post processed navigation file based on file extension {fileext}, failed to add to intel module.')
+                    self.print_msg('Exception logged: {}'.format(traceback.format_exc(limit=1)))
             elif is_smrmsg(infile):
                 try:
                     new_data, updated_type, rerun_nav_file_match = self._add_to_intel(gather_naverrorfile_info(infile), self.naverror_intel, 'naverror')
                 except:
                     self.print_msg(f'Tried adding {infile} as a post processed navigation error file based on file extension {fileext}, failed to add to intel module.')
+                    self.print_msg('Exception logged: {}'.format(traceback.format_exc(limit=1)))
         elif fileext in supported_export_log:
             try:
                 new_data, updated_type, rerun_nav_file_match = self._add_to_intel(gather_exportlogfile_info(infile), self.navlog_intel, 'navlog')
             except:
                 self.print_msg(f'Tried adding {infile} as an export log file based on file extension {fileext}, failed to add to intel module.')
+                self.print_msg('Exception logged: {}'.format(traceback.format_exc(limit=1)))
         else:
             if not silent:
                 self.print_msg('File is not of a supported type: {}'.format(infile), logging.ERROR)
