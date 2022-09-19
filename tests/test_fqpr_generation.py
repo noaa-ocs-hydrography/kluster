@@ -230,6 +230,12 @@ class TestFqprGeneration(unittest.TestCase):
 
         self.georef_xyz(dset='realdualhead')
 
+    def test_chunk_size(self):
+        self._access_processed_data()
+        # the following isn't always true, it just so happens that the data for this multibeam file is entirely within one chunk
+        assert self.out.multibeam.chunk_size == (self.out.multibeam.raw_ping[0].beampointingangle.shape[0],
+                                                 self.out.multibeam.raw_ping[0].beampointingangle.shape[1])
+
     def test_return_total_soundings(self):
         self._access_processed_data()
         ts = self.out.return_total_soundings(min_time=1495563100, max_time=1495563130)

@@ -154,9 +154,9 @@ class TestXArrayConversion(unittest.TestCase):
     def test_batch_read_configure_options(self):
         assert batch_read_configure_options() == {
             'ping': {'chunksize': kluster_variables.ping_chunk_size, 'chunks': kluster_variables.ping_chunks,
-                     'combine_attributes': True, 'output_arrs': [], 'time_arrs': [], 'final_pths': None,
+                     'combine_attributes': True, 'output_arrs': [], 'time_arrs': [], 'beam_shapes': [], 'final_pths': None,
                      'final_attrs': None},
             'attitude': {'chunksize': kluster_variables.attitude_chunk_size, 'chunks': kluster_variables.att_chunks,
-                         'combine_attributes': False, 'output_arrs': [], 'time_arrs': [], 'final_pths': None,
+                         'combine_attributes': False, 'output_arrs': [], 'time_arrs': [], 'beam_shapes': [], 'final_pths': None,
                          'final_attrs': None}}
 

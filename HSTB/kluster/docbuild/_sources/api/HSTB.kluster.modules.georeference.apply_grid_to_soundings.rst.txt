@@ -1,0 +1,6 @@
+apply_grid_to_soundings
+=======================
+
+.. currentmodule:: HSTB.kluster.modules.georeference
+
+.. autofunction:: apply_grid_to_soundings

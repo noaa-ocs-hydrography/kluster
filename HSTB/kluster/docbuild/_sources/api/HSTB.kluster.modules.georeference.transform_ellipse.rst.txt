@@ -1,0 +1,6 @@
+transform_ellipse
+=================
+
+.. currentmodule:: HSTB.kluster.modules.georeference
+
+.. autofunction:: transform_ellipse

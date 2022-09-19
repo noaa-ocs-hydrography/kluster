@@ -50,6 +50,7 @@ max_beams = 400  # starting max beams in kluster (can grow beyond)
 epsg_nad83 = 6318
 epsg_wgs84 = 8999
 default_number_of_chunks = 4  # if no dask client is used for parallel processing, we use this many chunks
+sets_of_chunks_at_a_time = 1  # total number of chunks processed at a time will be number_of_chunks * sets_of_chunks_at_a_time
 converted_files_at_once = 5  # we try to convert this many multibeam files at once
 max_converted_chunk_size = 4000  # we will try to use converted_files_at_once, but limit the files to this total file size in megabytes
 geohash_precision = 7  # our geohash string will have this many characters
@@ -96,7 +97,7 @@ chunk_size_display = 5000  # width/height of the loaded grid chunks, lowering th
 chunk_size_export = 20000  # width/height of the exported grid chunks, lowering this creates more grid files but should lower the memory needed
 
 # xarray conversion
-ping_chunk_size = 1000  # chunk size (in pings) of each written chunk of data in the ping records
+ping_chunk_size = 3000  # chunk size (in pings) of each written chunk of data in the ping records
 navigation_chunk_size = 50000  # chunk size (in time) of each written chunk of data in the navigation records
 attitude_chunk_size = 20000  # chunk size (in time) of each written chunk of data in the attitude records
 max_profile_length = 80  # maximum layers in a sound velocity profile, will interpolate if greater than this length

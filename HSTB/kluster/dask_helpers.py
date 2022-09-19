@@ -57,7 +57,7 @@ def dask_find_or_start_client(address: str = None, number_of_workers: int = None
     Parameters
     ----------
     address
-        ip address for existing or desired new dask server instance
+        ip address:port for existing or desired new dask server instance.  Will accept anything that dask.distributed.get_client accepts.
     number_of_workers
         integer number of workers in the LocalCluster, only used when address = None (local cluster)
     threads_per_worker
