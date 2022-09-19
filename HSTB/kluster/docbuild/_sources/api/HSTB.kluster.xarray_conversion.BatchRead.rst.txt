@@ -14,8 +14,6 @@ BatchRead
       ~BatchRead.build_additional_line_metadata
       ~BatchRead.build_offsets
       ~BatchRead.correct_for_counter_reset
-      ~BatchRead.get_nearest_install_parameters
-      ~BatchRead.get_nearest_runtime_parameters
       ~BatchRead.initialize_log
       ~BatchRead.is_dual_head
       ~BatchRead.read
@@ -27,7 +25,6 @@ BatchRead
       ~BatchRead.return_ping_counters_at_time
       ~BatchRead.return_prefix_for_rp
       ~BatchRead.return_raw_navigation
-      ~BatchRead.return_runtime_and_installation_settings_dicts
       ~BatchRead.return_rx_xyzrph
       ~BatchRead.return_system_time_indexed_array
       ~BatchRead.return_tpu_parameters
@@ -43,8 +40,6 @@ BatchRead
    .. automethod:: build_additional_line_metadata
    .. automethod:: build_offsets
    .. automethod:: correct_for_counter_reset
-   .. automethod:: get_nearest_install_parameters
-   .. automethod:: get_nearest_runtime_parameters
    .. automethod:: initialize_log
    .. automethod:: is_dual_head
    .. automethod:: read
@@ -56,7 +51,6 @@ BatchRead
    .. automethod:: return_ping_counters_at_time
    .. automethod:: return_prefix_for_rp
    .. automethod:: return_raw_navigation
-   .. automethod:: return_runtime_and_installation_settings_dicts
    .. automethod:: return_rx_xyzrph
    .. automethod:: return_system_time_indexed_array
    .. automethod:: return_tpu_parameters

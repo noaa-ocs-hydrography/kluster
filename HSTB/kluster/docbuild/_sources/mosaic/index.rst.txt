@@ -8,7 +8,8 @@ Added in Kluster 1.1, we can now generate processed backscatter and backscattter
 In essence, Kluster will (post v1.1) now include raw backscatter intensity from the sonar manufacturer, as well as any new variables that help with processing.  Processing backscatter will involve removing the manufacturer specific gains and adding in correctors based on the Kluster multibeam processing that should produce ideal backscatter strength estimations for the seafloor.
 
 Overview
-==========
+---------
+
 Let's look at how to use this module in Kluster.  With a converted data instance selected, let's go to Process - New Mosaic.
 
 .. image:: mosaic_1.png
@@ -33,7 +34,8 @@ The result of the process is a new backscatter mosaic that is available under Su
    :target: ../_images/mosaic_5.png
 
 About AVG Correction
-======================
+--------------------
+
 So how does this correction actually work?  First, we need two parameters, bin size and reference angle.  With these two parameters, we can take a subset of your dataset, and build a lookup table of angle to corrector.
 
 For example, with a sonar that has beams from -70 to 70 degrees in a swath, with a bin size of 1 degree and a reference angle of 45 degrees, we:
@@ -51,7 +53,8 @@ This table is then saved to each converted data container as the avg_table attri
 The table is applied to the backscatter during the Create Mosaic process.  You don't have to recreate this each time you run New Mosaic, to use an existing AVG table, select 'Use Existing' in New Mosaic.
 
 Settings
-==========
+---------
+
 After running 'Process Backscatter', Kluster will save a table of processing settings detailing the correctors applied.  This table will show the formulae and the data used during processing, often in manufacturer specific terms.  This exists primarily for advanced users who wonder what 'fixed gain' might mean with respect to a given sonar.  You should be able to use this table to better understand and possibly recreate to some degree, the corrections applied.
 
 .. image:: mosaic_4.png

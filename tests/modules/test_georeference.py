@@ -155,6 +155,61 @@ class TestGeoReference(unittest.TestCase):
         assert np.isnan(georef_z.values[0][10])
         assert np.isnan(georef_z.values[0][20])
 
+    def test_georef_ellipse_transform(self):
+        multibeam = self.dset.raw_ping[0].isel(time=0).expand_dims('time')
+        x = xr.DataArray(data=expected_alongtrack, dims=['time', 'beam'], coords={'time': multibeam.time.values,
+                                                                                  'beam': multibeam.beam.values})
+        y = xr.DataArray(data=expected_acrosstrack, dims=['time', 'beam'], coords={'time': multibeam.time.values,
+                                                                                   'beam': multibeam.beam.values})
+        z = xr.DataArray(data=expected_depth, dims=['time', 'beam'], coords={'time': multibeam.time.values,
+                                                                             'beam': multibeam.beam.values})
+        sv_corr = [x, y, z]
+
+        raw_attitude = self.dset.raw_att
+        heading = raw_attitude.heading.interp_like(z)
+        heave = raw_attitude.heave.interp_like(z)
+
+        altitude = multibeam.altitude
+        longitude = multibeam.longitude
+        latitude = multibeam.latitude
+
+        installation_params_time = list(self.dset.xyzrph['tx_r'].keys())[0]
+        waterline = float(self.dset.xyzrph['waterline'][installation_params_time])
+        vert_ref = 'ellipse'
+
+        # NAD83 to NAD83 will perform no additional vertical transformation, as the ellipse is identical
+        input_datum = CRS.from_epsg(6319)
+        output_datum = CRS.from_epsg(26910)
+        z_offset = 0.0
+        georef_x, georef_y, georef_z, corrected_heave, corrected_altitude, vdatumunc, geohashes = georef_by_worker(
+            sv_corr, altitude,
+            longitude, latitude,
+            heading, heave,
+            waterline, vert_ref,
+            input_datum,
+            output_datum,
+            z_offset)
+
+        assert np.allclose(georef_z, (z - corrected_altitude.values[0]) * -1)
+        assert np.allclose(altitude, corrected_altitude)
+
+        # ITRF08 to NAD83 will do an additional transformation from the source ellipsoid to the tartget one
+        # - I did a vdatum online test for this lat/lon, and the vert offset between the two (ITRF08/NAD83) is 0.343 meters
+        input_datum = CRS.from_epsg(7911)
+        output_datum = CRS.from_epsg(26910)
+        z_offset = 0.0
+        georef_x, georef_y, georef_z, corrected_heave, corrected_altitude, vdatumunc, geohashes = georef_by_worker(
+            sv_corr, altitude,
+            longitude, latitude,
+            heading, heave,
+            waterline, vert_ref,
+            input_datum,
+            output_datum,
+            z_offset)
+
+        assert np.allclose(georef_z, (z - corrected_altitude.values[0]) * -1)
+        assert np.allclose(altitude + 0.343, corrected_altitude)
+
     def test_geohash(self):
         newhash_vector = compute_geohash(np.array([43.123456789, 43.123456789, 43.123456789]),
                                          np.array([-73.123456789, -73.123456789, -73.123456789]), precision=7)

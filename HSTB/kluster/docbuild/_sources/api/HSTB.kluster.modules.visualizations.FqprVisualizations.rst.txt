@@ -10,10 +10,8 @@ FqprVisualizations
 
    .. autosummary::
 
-      ~FqprVisualizations.plot_backscatter_sample
       ~FqprVisualizations.plot_sound_velocity_map
       ~FqprVisualizations.plot_sound_velocity_profiles
-      ~FqprVisualizations.plot_surface_sv_vs_profiles
       ~FqprVisualizations.plot_thu_sample
       ~FqprVisualizations.plot_tvu_sample
       ~FqprVisualizations.soundings_plot_2d
@@ -23,10 +21,8 @@ FqprVisualizations
 
    .. rubric:: Methods Documentation
 
-   .. automethod:: plot_backscatter_sample
    .. automethod:: plot_sound_velocity_map
    .. automethod:: plot_sound_velocity_profiles
-   .. automethod:: plot_surface_sv_vs_profiles
    .. automethod:: plot_thu_sample
    .. automethod:: plot_tvu_sample
    .. automethod:: soundings_plot_2d

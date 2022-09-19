@@ -1,6 +1,22 @@
 Changes List
 ============
 
+Kluster v1.1.2 (9/19/2022)
+---------------------------
+ - sync with drivers 0.3.2
+    - bug fix with removing nonexistant nearnormlcorrect record in par3 module
+    - bug fix with sbet attribution on conversion to xarray dataset
+ - optimized chunk size to greatly improve performance (chunk size default is now 3000 pings instead of 1000 pings)
+ - ensure that writes will use the chunk size of the existing dataset on overwrite/append
+ - with vertical reference = ellipse, perform a datum transformation if the input/output datum do not match (NAD83-WGS84)
+
+ - bug fix with file locks, were mistakenly disabled in v1.1.1
+ - bug fix when number of beams grows beyond the number used in the initial chunk written
+   - conversion will now gather the maximum number of beams across all chunks to correctly write beam dimension to disk
+ - bug fix with geohash when NaN values are given for alongtrack/acrosstrack, will now return empty geohash string
+ - log exception if there is an issue with a file added to the intelligence engine
+ - update tests and documentation
+
 Kluster v1.1.1 (9/2/2022)
 ---------------------------
  - sync with drivers 0.3.2
