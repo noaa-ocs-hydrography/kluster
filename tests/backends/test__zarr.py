@@ -458,6 +458,71 @@ class TestZarr(unittest.TestCase):
         assert np.array_equal(xdataset.beampointingangle.values, expectedangle)
         assert xdataset.attrs['test_attribute'] == 'abc'
 
+    def test_zarr_backend_partial_insert_drop(self):
+        # write new data to disk, leave a gap at the last to simulate overlap where data does not exist
+        dataset_name, datasets, dataset_time_arrays, attributes, sysid = self._return_basic_datasets(0, 1)
+        newtime = datasets[0].time.values
+        newtime[-1] = 10
+        dataset_time_arrays = [newtime]
+        datasets = [xr.Dataset({'counter': (['time'], datasets[0].counter.data), 'beampointingangle': (['time', 'beam'], datasets[0].beampointingangle.data)},
+                               coords={'time': newtime, 'beam': datasets[0].beam.data})]
+        zarr_path, _ = self.zb.write(dataset_name, datasets, dataset_time_arrays, attributes, skip_dask=True, sys_id=sysid)
+
+        # now build data inside the existing data
+        dataset_name, datasets, dataset_time_arrays, attributes, sysid = self._return_basic_datasets(1, 2)
+        newtime = datasets[0].time.values
+        newtime[0] = 9
+        dataset_time_arrays = [newtime]
+        datasets = [xr.Dataset({'counter': (['time'], datasets[0].counter.data), 'beampointingangle': (['time', 'beam'], datasets[0].beampointingangle.data)},
+                               coords={'time': newtime, 'beam': datasets[0].beam.data})]
+        zarr_path, _ = self.zb.write(dataset_name, datasets, dataset_time_arrays, attributes, skip_dask=True, sys_id=sysid)
+
+        xdataset = reload_zarr_records(zarr_path, skip_dask=True)
+
+        expected_counter = np.array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 12, 13, 14, 15, 16, 17, 18, 19])
+        assert np.array_equal(xdataset.counter.values, expected_counter)
+
+        expected_time = np.array([0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19])
+        assert np.array_equal(xdataset.time.values, expected_time)
+
+        assert np.array_equal(xdataset.beam.values, np.arange(400))
+
+        assert xdataset.attrs['test_attribute'] == 'abc'
+
+    def test_zarr_backend_partial_insert_drop_prior(self):
+        # write new data to disk, leave a gap at the last to simulate overlap where data does not exist
+        dataset_name, datasets, dataset_time_arrays, attributes, sysid = self._return_basic_datasets(1, 2)
+        newtime = datasets[0].time.values
+        newtime[0] = 9
+        dataset_time_arrays = [newtime]
+        datasets = [xr.Dataset({'counter': (['time'], datasets[0].counter.data),
+                                'beampointingangle': (['time', 'beam'], datasets[0].beampointingangle.data)},
+                               coords={'time': newtime, 'beam': datasets[0].beam.data})]
+        zarr_path, _ = self.zb.write(dataset_name, datasets, dataset_time_arrays, attributes, skip_dask=True, sys_id=sysid)
+
+        # now build data inside the existing data
+        dataset_name, datasets, dataset_time_arrays, attributes, sysid = self._return_basic_datasets(0, 1)
+        newtime = datasets[0].time.values
+        newtime[-1] = 10
+        dataset_time_arrays = [newtime]
+        datasets = [xr.Dataset({'counter': (['time'], datasets[0].counter.data),
+                                'beampointingangle': (['time', 'beam'], datasets[0].beampointingangle.data)},
+                               coords={'time': newtime, 'beam': datasets[0].beam.data})]
+        zarr_path, _ = self.zb.write(dataset_name, datasets, dataset_time_arrays, attributes, skip_dask=True,
+                                     sys_id=sysid)
+
+        xdataset = reload_zarr_records(zarr_path, skip_dask=True)
+
+        expected_counter = np.array([0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19])
+        assert np.array_equal(xdataset.counter.values, expected_counter)
+
+        expected_time = np.array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 12, 13, 14, 15, 16, 17, 18, 19])
+        assert np.array_equal(xdataset.time.values, expected_time)
+
+        assert np.array_equal(xdataset.beam.values, np.arange(400))
+
+        assert xdataset.attrs['test_attribute'] == 'abc'
+
     def test_zarr_backend_partial_before(self):
         # write new data to disk
         dataset_name, datasets, dataset_time_arrays, attributes, sysid = self._return_basic_datasets(3, 7)
