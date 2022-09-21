@@ -3,7 +3,7 @@ Changes List
 
 Kluster v1.1.2 (9/19/2022)
 ---------------------------
- - sync with drivers 0.3.2
+ - sync with drivers 0.3.3
     - bug fix with removing nonexistant nearnormlcorrect record in par3 module
     - bug fix with sbet attribution on conversion to xarray dataset
  - optimized chunk size to greatly improve performance (chunk size default is now 3000 pings instead of 1000 pings)

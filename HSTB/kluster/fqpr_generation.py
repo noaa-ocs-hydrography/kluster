@@ -631,7 +631,7 @@ class Fqpr(ZarrBackend):
             raise ValueError("Unable to set vertical reference to {}: expected one of {}".format(vert_ref, kluster_variables.vertical_references))
         self.vert_ref = vert_ref
 
-    def read_from_source(self, build_offsets: bool = True):
+    def read_from_source(self, build_offsets: bool = True, skip_dask: bool = False):
         """
         Activate rawdat object's appropriate read class
 
@@ -640,6 +640,8 @@ class Fqpr(ZarrBackend):
         build_offsets
             if this is set, also build the xyzrph attribute, which is mandatory for processing later in Kluster.  Make
             it optional so that when processing chunks of files, we can just run it once at the end after read()
+        skip_dask
+            if False, will skip creating the dask client
         """
 
         if self.multibeam is not None:
@@ -648,7 +650,10 @@ class Fqpr(ZarrBackend):
                 self.multibeam.read(build_offsets=build_offsets)
             self.output_folder = self.multibeam.converted_pth
         else:
-            self.client = dask_find_or_start_client(address=self.address)
+            if not skip_dask:
+                self.client = dask_find_or_start_client(address=self.address)
+            else:
+                self.client = None
         self.initialize_log()
 
     def construct_crs(self, epsg: str = None, datum: str = 'WGS84', projected: bool = True, vert_ref: str = None):
