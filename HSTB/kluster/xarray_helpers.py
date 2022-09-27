@@ -535,7 +535,12 @@ def slice_xarray_by_dim(arr: Union[xr.Dataset, xr.DataArray], dimname: str = 'ti
                 # if this is true, you have start/end times that are outside the scope of the data.  The start/end times will
                 #  be equal to either the start of the dataset or the end of the dataset, depending on when they fall
                 return None
-    rnav = arr.sel(time=slice(nearest_start, nearest_end))
+    try:
+        rnav = arr.sel(time=slice(nearest_start, nearest_end))
+    except KeyError:
+        if isinstance(arr, xr.Dataset):
+            arr = fix_xarray_dataset_index(arr, 'time')
+        rnav = arr.sel(time=slice(nearest_start, nearest_end))
     rnav = rnav.chunk(rnav.sizes)  # do this to get past the unify chunks issue, since you are slicing here, you end up with chunks of different sizes
     return rnav
 
@@ -938,3 +943,36 @@ def get_beamwise_interpolation(pingtime: xr.DataArray, additional: xr.DataArray,
                                              beam_tstmp.coords, beam_tstmp.dims)
 
     return reformed_interpolated
+
+
+def fix_xarray_dataset_index(xarr: xr.Dataset, index_dim: str = 'time'):
+    """
+    Operations with xarray datasets require that the index is monotonic increasing and unique.  This function will ensure
+    this by dropping duplicate values found in the index, and then sorting to ensure that index is monotonic increasing.
+
+    Parameters
+    ----------
+    xarr
+        dataset that we want to fix the index of
+
+    Returns
+    -------
+    xr.Dataset
+        dataset with fixed index
+    """
+
+    if index_dim not in xarr:
+        raise ValueError(f'fix_xarray_dataset_index: Unable to fix dataset index, {index_dim} not found in dataset!')
+    if len(xarr[index_dim].dims) > 1:
+        raise ValueError(f'fix_xarray_dataset_index: Only 1dim indexes are currently supported found {index_dim}: {xarr[index_dim].dims}')
+    input_index = xarr[index_dim]
+    npdiff = np.diff(input_index)
+    diff_issue = npdiff <= 0
+    if diff_issue.any():  # index is out of order or there are duplicates
+        uniq, uidx = np.unique(input_index, return_index=True)  # remove duplicates
+        final_xarr = xarr.isel(time=uidx)
+        sort_idx = np.argsort(final_xarr[index_dim]).values  # sort the array
+        final_xarr = final_xarr.isel(time=sort_idx)
+        return final_xarr
+    else:
+        return xarr

@@ -409,6 +409,7 @@ def reload_data(converted_folder: str, require_raw_data: bool = True, skip_dask:
         if not silent:
             fqpr_inst.logger.info('****Reloading from file {}****'.format(converted_folder))
         fqpr_inst.multibeam.xyzrph = fqpr_inst.multibeam.raw_ping[0].xyzrph
+        fqpr_inst.fix_indices()
 
         # set new output path to the current directory of the reloaded data
         fqpr_inst.write_attribute_to_ping_records({'output_path': fqpr_inst.multibeam.converted_pth})

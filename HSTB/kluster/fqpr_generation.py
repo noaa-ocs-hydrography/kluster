@@ -26,7 +26,7 @@ from HSTB.kluster.modules.visualizations import FqprVisualizations
 from HSTB.kluster.modules.export import FqprExport
 from HSTB.kluster.modules.subset import FqprSubset
 from HSTB.kluster.xarray_helpers import combine_arrays_to_dataset, compare_and_find_gaps, \
-    interp_across_chunks, slice_xarray_by_dim, get_beamwise_interpolation
+    interp_across_chunks, slice_xarray_by_dim, get_beamwise_interpolation, fix_xarray_dataset_index
 from HSTB.kluster.backends._zarr import ZarrBackend
 from HSTB.kluster.dask_helpers import dask_find_or_start_client, get_number_of_workers
 from HSTB.kluster.fqpr_helpers import build_crs, seconds_to_formatted_string, print_progress_bar
@@ -4015,6 +4015,26 @@ class Fqpr(ZarrBackend):
             kwargs['run_beam_vec'] = True
 
         return args, kwargs
+
+    def fix_indices(self):
+        """
+        Resolve any issues with the time index that might have come up during conversion.  This method
+        will be occasionally run when issues arise with the index not being monotonic increasing or containing
+        duplicate values.
+        """
+
+        if self.multibeam is not None:
+            for cnt, rp in enumerate(self.multibeam.raw_ping):
+                start_size = rp.time.size
+                self.multibeam.raw_ping[cnt] = fix_xarray_dataset_index(rp, 'time')
+                if self.multibeam.raw_ping[cnt].time.size != start_size:
+                    self.print(f'fix_indices: Had to remove duplicates and sort multibeam dataset, initial ping count: {start_size}, new ping count: {self.multibeam.raw_ping[cnt].time.size}', logging.WARNING)
+            start_size = self.multibeam.raw_att.time.size
+            self.multibeam.raw_att = fix_xarray_dataset_index(self.multibeam.raw_att, 'time')
+            if self.multibeam.raw_att.time.size != start_size:
+                self.print(f'fix_indices: Had to remove duplicates and sort attitude dataset, initial record count: {start_size}, new record count: {self.multibeam.raw_att.time.size}', logging.WARNING)
+        else:
+            self.print('fix_indices: unable to complete, as multibeam class has not been initialized', logging.WARNING)
 
 
 def get_ping_times(pingrec_time: xr.DataArray, idx: xr.DataArray):

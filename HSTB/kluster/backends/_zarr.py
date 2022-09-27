@@ -154,7 +154,20 @@ def _get_indices_dataset_notexist(input_time_arrays):
     running_total = 0
     write_indices = []
     for input_time in input_time_arrays:
-        write_indices.append([0 + running_total, len(input_time) + running_total])
+        npdiff = np.diff(input_time)
+        diff_issue = npdiff <= 0
+        if diff_issue.any():  # times are out of order or there are duplicates
+            new_indices = np.arange(0, len(input_time))
+            uniq, uidx = np.unique(input_time, return_index=True)
+            if uidx.size != input_time.size:  # there are duplicates
+                new_indices_tmp = np.full(new_indices.shape, -1)
+                new_indices_tmp[uidx] = new_indices[uidx]
+                new_indices = new_indices_tmp
+            uniq_msk = new_indices != -1
+            new_indices[uniq_msk] = np.argsort(input_time[uniq_msk])
+            write_indices.append(new_indices + running_total)
+        else:
+            write_indices.append([0 + running_total, len(input_time) + running_total])
         running_total += len(input_time)
     return write_indices
 
