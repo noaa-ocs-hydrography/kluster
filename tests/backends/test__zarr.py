@@ -479,9 +479,15 @@ class TestZarr(unittest.TestCase):
 
         xdataset = reload_zarr_records(zarr_path, skip_dask=True)
 
+        # with existing counter values of array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
+        #  the new write with values array([10, 11, 12, 13, 14, 15, 16, 17, 18, 19]) will have the first value dropped as
+        #  the time for that value overlaps the existing data, and is a new time, which is not allowed
         expected_counter = np.array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 12, 13, 14, 15, 16, 17, 18, 19])
         assert np.array_equal(xdataset.counter.values, expected_counter)
 
+        # with existing counter values of array([ 0,  1,  2,  3,  4,  5,  6,  7,  8, 10])
+        #  the new write with values array([ 9, 11, 12, 13, 14, 15, 16, 17, 18, 19]) will have the first value dropped as
+        #  the time for that value overlaps the existing data, and is a new time, which is not allowed
         expected_time = np.array([0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19])
         assert np.array_equal(xdataset.time.values, expected_time)
 
