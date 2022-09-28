@@ -24,7 +24,7 @@ class TestFqprActions(unittest.TestCase):
     def test_build_multibeam_action(self):
         act = build_multibeam_action(self.expected_output, [self.testfile], settings={'parallel_write': False})
         assert act.args == [[self.testfile]]
-        assert act.kwargs == {'parallel_write': False, 'input_datum': None, 'outfold': self.expected_output, 'client': None, 'skip_dask': True, 'show_progress': True}
+        assert act.kwargs == {'parallel_write': False, 'input_datum': None, 'outfold': self.expected_output, 'client': None, 'skip_dask': False, 'show_progress': True}
         assert act.input_files == [self.testfile]
         assert act.action_type == 'multibeam'
         assert act.priority == 1

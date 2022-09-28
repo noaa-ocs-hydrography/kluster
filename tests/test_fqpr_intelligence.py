@@ -319,7 +319,7 @@ class TestFqprIntelligence(unittest.TestCase):
         assert action.kwargs['client'] is None
         assert action.kwargs['input_datum'] is None
         assert action.kwargs['show_progress']
-        assert action.kwargs['skip_dask']
+        assert not action.kwargs['skip_dask']
 
         self.fintel.execute_action()
         action = self.fintel.action_container.actions[0]
