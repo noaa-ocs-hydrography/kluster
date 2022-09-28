@@ -280,7 +280,7 @@ class FqprActionContainer:
             print('FqprActionContainer: no actions found.')
 
 
-def build_multibeam_action(destination: str, line_list: list, client: Client = None, settings: dict = None):
+def build_multibeam_action(destination: str, line_list: list, client: Client = None, settings: dict = None, skip_dask: bool = False):
     """
     Construct a convert multibeam action using the provided data
 
@@ -294,6 +294,8 @@ def build_multibeam_action(destination: str, line_list: list, client: Client = N
         optional, dask distributed client if using dask
     settings
         optional settings dictionary used to override kwargs (default processing options)
+    skip_dask
+        skip starting the dask client
 
     Returns
     -------
@@ -301,10 +303,8 @@ def build_multibeam_action(destination: str, line_list: list, client: Client = N
         newly generated multibeam conversion action
     """
 
-    if client is not None:
-        skip_dask = False
-    else:
-        skip_dask = True
+    if skip_dask:
+        client = None
     args = [line_list]
     if settings:
         allowed_kwargs = ['parallel_write', 'vdatum_directory']
@@ -325,7 +325,7 @@ def build_multibeam_action(destination: str, line_list: list, client: Client = N
     return action
 
 
-def update_kwargs_for_multibeam(destination: str, line_list: list, client: Client = None, settings: dict = None):
+def update_kwargs_for_multibeam(destination: str, line_list: list, client: Client = None, settings: dict = None, skip_dask: bool = False):
     """
     Build a dictionary of updated settings for an existing multibeam action, use this with FqprActionContainer to
     update the action.
@@ -340,6 +340,8 @@ def update_kwargs_for_multibeam(destination: str, line_list: list, client: Clien
         optional, dask distributed client if using dask
     settings
         optional settings dictionary used to override kwargs (default processing options)
+    skip_dask
+        skip starting the dask client
 
     Returns
     -------
@@ -347,7 +349,9 @@ def update_kwargs_for_multibeam(destination: str, line_list: list, client: Clien
         updated args and kwargs for the multibeam action
     """
 
-    args = [line_list, None, destination, client, False, True]
+    if skip_dask:
+        client = None
+    args = [line_list, None, destination, client, skip_dask, True]
     if settings:
         allowed_kwargs = ['parallel_write', 'vdatum_directory']
         existing_kwargs = list(settings.keys())

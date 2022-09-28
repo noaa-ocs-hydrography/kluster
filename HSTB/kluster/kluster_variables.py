@@ -46,7 +46,7 @@ qgis_epsg = 4326
 linux_qgis_executable = "/usr/bin/qgis"
 
 # generic processing
-max_beams = 400  # starting max beams in kluster (can grow beyond)
+max_beams = 512  # starting max beams in kluster (can grow beyond)
 epsg_nad83 = 6318
 epsg_wgs84 = 8999
 default_number_of_chunks = 4  # if no dask client is used for parallel processing, we use this many chunks
@@ -98,8 +98,8 @@ chunk_size_export = 20000  # width/height of the exported grid chunks, lowering 
 
 # xarray conversion
 ping_chunk_size = 3000  # chunk size (in pings) of each written chunk of data in the ping records
-navigation_chunk_size = 50000  # chunk size (in time) of each written chunk of data in the navigation records
-attitude_chunk_size = 20000  # chunk size (in time) of each written chunk of data in the attitude records
+navigation_chunk_size = 50000  # chunk size (in time) of each written chunk of data in the navigation records  (NO LONGER USED)
+attitude_chunk_size = 1200000  # chunk size (in time) of each written chunk of data in the attitude records
 max_profile_length = 80  # maximum layers in a sound velocity profile, will interpolate if greater than this length
 max_nav_tolerance = 0.5  # maximum time difference allowed in interpolated nav -> ping record.  If there is no record within this tolerance, nav is set to NaN
 

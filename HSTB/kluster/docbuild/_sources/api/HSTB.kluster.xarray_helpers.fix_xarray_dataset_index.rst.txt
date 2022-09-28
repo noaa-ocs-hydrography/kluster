@@ -1,0 +1,6 @@
+fix_xarray_dataset_index
+========================
+
+.. currentmodule:: HSTB.kluster.xarray_helpers
+
+.. autofunction:: fix_xarray_dataset_index

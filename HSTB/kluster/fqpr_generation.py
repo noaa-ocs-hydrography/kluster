@@ -26,7 +26,7 @@ from HSTB.kluster.modules.visualizations import FqprVisualizations
 from HSTB.kluster.modules.export import FqprExport
 from HSTB.kluster.modules.subset import FqprSubset
 from HSTB.kluster.xarray_helpers import combine_arrays_to_dataset, compare_and_find_gaps, \
-    interp_across_chunks, slice_xarray_by_dim, get_beamwise_interpolation
+    interp_across_chunks, slice_xarray_by_dim, get_beamwise_interpolation, fix_xarray_dataset_index
 from HSTB.kluster.backends._zarr import ZarrBackend
 from HSTB.kluster.dask_helpers import dask_find_or_start_client, get_number_of_workers
 from HSTB.kluster.fqpr_helpers import build_crs, seconds_to_formatted_string, print_progress_bar
@@ -631,7 +631,7 @@ class Fqpr(ZarrBackend):
             raise ValueError("Unable to set vertical reference to {}: expected one of {}".format(vert_ref, kluster_variables.vertical_references))
         self.vert_ref = vert_ref
 
-    def read_from_source(self, build_offsets: bool = True):
+    def read_from_source(self, build_offsets: bool = True, skip_dask: bool = False):
         """
         Activate rawdat object's appropriate read class
 
@@ -640,6 +640,8 @@ class Fqpr(ZarrBackend):
         build_offsets
             if this is set, also build the xyzrph attribute, which is mandatory for processing later in Kluster.  Make
             it optional so that when processing chunks of files, we can just run it once at the end after read()
+        skip_dask
+            if False, will skip creating the dask client
         """
 
         if self.multibeam is not None:
@@ -648,7 +650,10 @@ class Fqpr(ZarrBackend):
                 self.multibeam.read(build_offsets=build_offsets)
             self.output_folder = self.multibeam.converted_pth
         else:
-            self.client = dask_find_or_start_client(address=self.address)
+            if not skip_dask:
+                self.client = dask_find_or_start_client(address=self.address)
+            else:
+                self.client = None
         self.initialize_log()
 
     def construct_crs(self, epsg: str = None, datum: str = 'WGS84', projected: bool = True, vert_ref: str = None):
@@ -4010,6 +4015,26 @@ class Fqpr(ZarrBackend):
             kwargs['run_beam_vec'] = True
 
         return args, kwargs
+
+    def fix_indices(self):
+        """
+        Resolve any issues with the time index that might have come up during conversion.  This method
+        will be occasionally run when issues arise with the index not being monotonic increasing or containing
+        duplicate values.
+        """
+
+        if self.multibeam is not None:
+            for cnt, rp in enumerate(self.multibeam.raw_ping):
+                start_size = rp.time.size
+                self.multibeam.raw_ping[cnt] = fix_xarray_dataset_index(rp, 'time')
+                if self.multibeam.raw_ping[cnt].time.size != start_size:
+                    self.print(f'fix_indices: Had to remove duplicates and sort multibeam dataset, initial ping count: {start_size}, new ping count: {self.multibeam.raw_ping[cnt].time.size}', logging.WARNING)
+            start_size = self.multibeam.raw_att.time.size
+            self.multibeam.raw_att = fix_xarray_dataset_index(self.multibeam.raw_att, 'time')
+            if self.multibeam.raw_att.time.size != start_size:
+                self.print(f'fix_indices: Had to remove duplicates and sort attitude dataset, initial record count: {start_size}, new record count: {self.multibeam.raw_att.time.size}', logging.WARNING)
+        else:
+            self.print('fix_indices: unable to complete, as multibeam class has not been initialized', logging.WARNING)
 
 
 def get_ping_times(pingrec_time: xr.DataArray, idx: xr.DataArray):

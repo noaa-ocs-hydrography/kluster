@@ -27,3 +27,4 @@ xarray\_conversion module
    :skip: sequential_read_multibeam
    :skip: only_retain_earliest_entry
    :skip: distance_between_coordinates
+   :skip: fix_xarray_dataset_index

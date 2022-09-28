@@ -134,7 +134,8 @@ def convert_multibeam(filname: Union[str, list], input_datum: Union[str, int] = 
         mbes_read = BatchRead(filchunk, dest=outfold, client=client, skip_dask=skip_dask, show_progress=show_progress,
                               parallel_write=parallel_write)
         fqpr_inst = Fqpr(mbes_read, show_progress=show_progress, parallel_write=parallel_write)
-        fqpr_inst.read_from_source(build_offsets=False)
+        fqpr_inst.read_from_source(build_offsets=False, skip_dask=skip_dask)
+        outfold = fqpr_inst.multibeam.output_folder
     if fqpr_inst is not None:
         fqpr_inst.multibeam.build_offsets(save_pths=fqpr_inst.multibeam.final_paths['ping'])  # write offsets to ping rootgroup
         fqpr_inst.multibeam.build_additional_line_metadata(save_pths=fqpr_inst.multibeam.final_paths['ping'])
@@ -408,6 +409,7 @@ def reload_data(converted_folder: str, require_raw_data: bool = True, skip_dask:
         if not silent:
             fqpr_inst.logger.info('****Reloading from file {}****'.format(converted_folder))
         fqpr_inst.multibeam.xyzrph = fqpr_inst.multibeam.raw_ping[0].xyzrph
+        fqpr_inst.fix_indices()
 
         # set new output path to the current directory of the reloaded data
         fqpr_inst.write_attribute_to_ping_records({'output_path': fqpr_inst.multibeam.converted_pth})

@@ -91,9 +91,9 @@ class ManageSurfaceDialog(ManageDialog):
         elif plotname in ['Histogram, Density (sq meters)']:
             self.surf.plot_density_per_square_meter_histogram(number_of_bins=bincount)
         elif plotname in ['Depth vs Density (count)']:
-            self.surf.plot_density_vs_depth()
+            self.surf.plot_density_vs_depth(number_of_bins=bincount)
         elif plotname in ['Depth vs Density (sq meters)']:
-            self.surf.plot_density_per_square_meter_vs_depth()
+            self.surf.plot_density_per_square_meter_vs_depth(number_of_bins=bincount)
         elif plotname in ['Histogram, vertical uncertainty (2 sigma, meters)']:
             self.surf.plot_vertical_uncertainty_histogram(number_of_bins=bincount)
         elif plotname in ['Histogram, horizontal uncertainty (2 sigma, meters)']:

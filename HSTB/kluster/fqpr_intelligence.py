@@ -482,12 +482,12 @@ class FqprIntel(LoggerClass):
             if destination in cur_dests:
                 action = [a for a in curr_acts if a.output_destination == destination]
                 if len(action) == 1:
-                    settings = fqpr_actions.update_kwargs_for_multibeam(destination, line_list, self.project.client, self.general_settings)
+                    settings = fqpr_actions.update_kwargs_for_multibeam(destination, line_list, self.project.client, self.general_settings, skip_dask=self.project.skip_dask)
                     self.action_container.update_action(action[0], **settings)
                 elif len(action) > 1:
                     raise ValueError('Multibeam actions found with the same destinations, {}'.format(destination))
             else:
-                newaction = fqpr_actions.build_multibeam_action(destination, line_list, self.project.client, self.general_settings)
+                newaction = fqpr_actions.build_multibeam_action(destination, line_list, self.project.client, self.general_settings, skip_dask=self.project.skip_dask)
                 self.action_container.add_action(newaction)
 
     def _regenerate_nav_actions(self):

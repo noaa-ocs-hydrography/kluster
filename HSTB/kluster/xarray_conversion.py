@@ -17,7 +17,7 @@ from HSTB.kluster.fqpr_drivers import sequential_read_multibeam, fast_read_multi
     sonar_reference_point, par_sonar_translator, kmall_sonar_translator
 from HSTB.kluster.fqpr_vessel import only_retain_earliest_entry
 from HSTB.kluster.dask_helpers import dask_find_or_start_client
-from HSTB.kluster.xarray_helpers import resize_zarr, xarr_to_netcdf, combine_xr_attributes, reload_zarr_records, slice_xarray_by_dim
+from HSTB.kluster.xarray_helpers import resize_zarr, xarr_to_netcdf, combine_xr_attributes, reload_zarr_records, slice_xarray_by_dim, fix_xarray_dataset_index
 from HSTB.kluster.fqpr_helpers import seconds_to_formatted_string
 from HSTB.kluster.backends._zarr import ZarrBackend, my_xarr_add_attribute
 from HSTB.kluster.logging_conf import return_logger, return_log_name
@@ -461,13 +461,37 @@ def _return_xarray_mintime(xarrs: Union[xr.DataArray, xr.Dataset, dict]):
 
     Returns
     -------
-    bool
-        True if fut is data, False if not
+    float
+        minimum time of the array
     """
     try:
         return float(xarrs.time.min())
     except:  # dict provided, raw ping split by system identifier
         return float(list(xarrs.values())[0].time.min())
+
+
+def _return_xarray_time_bounds(xarrs: Union[xr.DataArray, xr.Dataset, dict]):
+    """
+    Access xarray object and return the (min, max) of the time dimension.
+
+    Parameters
+    ----------
+    xarrs
+        Dataset or DataArray that we want the time bounds from
+
+    Returns
+    -------
+    tuple
+        (min time, max time) in utc seconds
+    """
+    try:
+        return (float(xarrs.time.min()), float(xarrs.time.max()))
+    except:  # dict provided, raw ping split by system identifier
+        return (float(list(xarrs.values())[0].time.min()), float(list(xarrs.values())[0].time.max()))
+
+
+def _trim_to_time_bounds(xarr: Union[xr.DataArray, xr.Dataset, dict], time_bounds: tuple):
+    return xarr.where(np.logical_and(xarr.time > time_bounds[0], xarr.time < time_bounds[1]), drop=True)
 
 
 def _return_xarray_timelength(xarrs: xr.Dataset):
@@ -1312,6 +1336,23 @@ class BatchRead(ZarrBackend):
             dat[filname] = start_end_times
         return dat
 
+    def _batch_read_validate_blocks(self, input_xarrs: list):
+        if self.client is not None:
+            time_bounds = self.client.gather(self.client.map(_return_xarray_time_bounds, input_xarrs))
+        else:
+            time_bounds = [_return_xarray_time_bounds(oa) for oa in input_xarrs]
+
+        for cnt, t in enumerate(time_bounds):
+            if cnt == 0:
+                continue
+            if time_bounds[cnt - 1][1] >= t[0]:
+                self.print(f'Validation found overlap issue with block {cnt}, correcting for overlap between this block time bounds {t} and previous block time bounds {time_bounds[cnt - 1]}', logging.WARNING)
+                if self.client is not None:
+                    input_xarrs[cnt] = self.client.submit(_trim_to_time_bounds, input_xarrs[cnt], (time_bounds[cnt - 1][1], t[1]))
+                else:
+                    input_xarrs[cnt] = _trim_to_time_bounds(input_xarrs[cnt], (time_bounds[cnt - 1][1], t[1]))
+        return input_xarrs
+
     def _batch_read_merge_blocks(self, input_xarrs: list, datatype: str, chunksize: int):
         """
         Take the blocks workers have been working on up to this point (from reading raw files) and reorganize them
@@ -1358,6 +1399,7 @@ class BatchRead(ZarrBackend):
         # merge old arrays to get new ones of chunksize
         if self.client is not None:
             output_arrs = self.client.map(_merge_constant_blocks, balanced_data)
+            output_arrs = self._batch_read_validate_blocks(output_arrs)
             time_arrs = self.client.gather(self.client.map(_return_xarray_time, output_arrs))
             if datatype == 'ping':
                 beam_shapes = self.client.gather(self.client.map(_return_xarray_beam, output_arrs))
@@ -1365,6 +1407,7 @@ class BatchRead(ZarrBackend):
                 beam_shapes = None
         else:
             output_arrs = [_merge_constant_blocks(bd) for bd in balanced_data]
+            output_arrs = self._batch_read_validate_blocks(output_arrs)
             time_arrs = [_return_xarray_time(oa) for oa in output_arrs]
             if datatype == 'ping':
                 beam_shapes = [_return_xarray_beam(oa) for oa in output_arrs]
@@ -1879,7 +1922,11 @@ class BatchRead(ZarrBackend):
                 line_time_start, line_time_end = line_times[0], line_times[1]
                 try:
                     current_index = None
-                    dstart = rp.interp(time=np.array([max(line_time_start, rp.time.values[0])]), method='nearest', assume_sorted=True)
+                    try:
+                        dstart = rp.interp(time=np.array([max(line_time_start, rp.time.values[0])]), method='nearest', assume_sorted=True)
+                    except:
+                        rp = fix_xarray_dataset_index(rp, 'time')
+                        dstart = rp.interp(time=np.array([max(line_time_start, rp.time.values[0])]), method='nearest', assume_sorted=True)
                     start_position = [dstart.latitude.values, dstart.longitude.values]
                     count = 0
                     while np.isnan(start_position).any():  # first position is NaN, scroll through to find a good one
@@ -1912,7 +1959,12 @@ class BatchRead(ZarrBackend):
                     self.print(f'Unable to determine end position for line {line_name}', logging.ERROR)
                     continue
                 line_az = self.raw_att.interp(time=np.array([line_time_start + (line_time_end - line_time_start) / 2]), method='nearest', assume_sorted=True).heading.values
-                line_nav = rp.sel(time=slice(float(dstart.time.values), float(dend.time.values)))
+                try:
+                    line_nav = rp.sel(time=slice(float(dstart.time.values), float(dend.time.values)))
+                except:
+                    rp = fix_xarray_dataset_index(rp, 'time')
+                    line_nav = rp.sel(time=slice(float(dstart.time.values), float(dend.time.values)))
+
                 if line_nav.time.size > 15 * 10:
                     samp_idx = np.arange(0, line_nav.time.size, 15).tolist()  # downsample to every 15 pings
                     if samp_idx[-1] != line_nav.time.size - 1:  # ensuring you keep the last ping
