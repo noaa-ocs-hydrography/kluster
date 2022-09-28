@@ -1,6 +1,22 @@
 Changes List
 ============
 
+Kluster v1.1.3 (9/28/2022)
+---------------------------
+ - sync with drivers 0.3.4
+    - bug fix with sorts and duplicates in converted sbet data
+ - sync with vyperdatum 0.1.17
+    - bug with NaN values and sampled points workflow
+ - sync with bathygrid 1.3.11
+    - plots handle NaN values in cells
+ - increase attitude chunk size to improve performance
+ - resolve bug with 'No Client' dask setting not applying with first conversion action
+ - bug fix with forcing all converted file groups to use the same destination container
+ - add support in zarr backend for chunks with overlapping indices (where multibeam files have time overlap)
+ - resolve bug with plotting grid methods not taking bin size parameter
+ - bug fix for zarr backend and writes that include duplicate time values or times out of order
+ - reload_data will now fix the time indices to ensure monotonic increasing indices without duplicates
+
 Kluster v1.1.2 (9/19/2022)
 ---------------------------
  - sync with drivers 0.3.3
