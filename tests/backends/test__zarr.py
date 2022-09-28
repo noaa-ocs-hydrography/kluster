@@ -466,16 +466,27 @@ class TestZarr(unittest.TestCase):
         dataset_time_arrays = [newtime]
         datasets = [xr.Dataset({'counter': (['time'], datasets[0].counter.data), 'beampointingangle': (['time', 'beam'], datasets[0].beampointingangle.data)},
                                coords={'time': newtime, 'beam': datasets[0].beam.data})]
+        print(dataset_name)
+        print(datasets)
+        print(dataset_time_arrays)
+        print(attributes)
+        print(sysid)
+        print('----------------------------')
         zarr_path, _ = self.zb.write(dataset_name, datasets, dataset_time_arrays, attributes, skip_dask=True, sys_id=sysid)
 
         # now build data inside the existing data
-        dataset_name, datasets, dataset_time_arrays, attributes, sysid = self._return_basic_datasets(1, 2)
-        newtime = datasets[0].time.values
-        newtime[0] = 9
-        dataset_time_arrays = [newtime]
-        datasets = [xr.Dataset({'counter': (['time'], datasets[0].counter.data), 'beampointingangle': (['time', 'beam'], datasets[0].beampointingangle.data)},
-                               coords={'time': newtime, 'beam': datasets[0].beam.data})]
-        zarr_path, _ = self.zb.write(dataset_name, datasets, dataset_time_arrays, attributes, skip_dask=True, sys_id=sysid)
+        dataset_name2, datasets2, dataset_time_arrays2, attributes2, sysid2 = self._return_basic_datasets(1, 2)
+        newtime2 = datasets2[0].time.values
+        newtime2[0] = 9
+        dataset_time_arrays2 = [newtime2]
+        print(dataset_name2)
+        print(datasets2)
+        print(dataset_time_arrays2)
+        print(attributes2)
+        print(sysid2)
+        datasets2 = [xr.Dataset({'counter': (['time'], datasets2[0].counter.data), 'beampointingangle': (['time', 'beam'], datasets2[0].beampointingangle.data)},
+                                coords={'time': newtime2, 'beam': datasets2[0].beam.data})]
+        zarr_path, _ = self.zb.write(dataset_name2, datasets2, dataset_time_arrays2, attributes2, skip_dask=True, sys_id=sysid2)
 
         xdataset = reload_zarr_records(zarr_path, skip_dask=True)
 
