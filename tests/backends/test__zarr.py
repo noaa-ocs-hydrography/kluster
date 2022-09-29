@@ -418,10 +418,10 @@ class TestZarr(unittest.TestCase):
             data_arr = np.arange(i * 10, (i * 10) + 10)
             data2_arr = np.random.uniform(-1, 1, (10, override_beam_number))
             beam_arr = np.arange(override_beam_number)
-            dataset = xr.Dataset({'counter': (['time'], data_arr), 'beampointingangle': (['time', 'beam'], data2_arr)},
-                                 coords={'time': data_arr, 'beam': beam_arr})
+            dataset = xr.Dataset({'counter': (['time'], data_arr.copy()), 'beampointingangle': (['time', 'beam'], data2_arr)},
+                                 coords={'time': data_arr.copy(), 'beam': beam_arr})
             datasets.append(dataset)
-            dataset_time_arrays.append(data_arr)
+            dataset_time_arrays.append(data_arr.copy())
         return dataset_name, datasets, dataset_time_arrays, attributes, sysid
 
     def test_zarr_backend_newdata(self):
@@ -466,12 +466,6 @@ class TestZarr(unittest.TestCase):
         dataset_time_arrays = [newtime]
         datasets = [xr.Dataset({'counter': (['time'], datasets[0].counter.data), 'beampointingangle': (['time', 'beam'], datasets[0].beampointingangle.data)},
                                coords={'time': newtime, 'beam': datasets[0].beam.data})]
-        print(dataset_name)
-        print(datasets)
-        print(dataset_time_arrays)
-        print(attributes)
-        print(sysid)
-        print('----------------------------')
         zarr_path, _ = self.zb.write(dataset_name, datasets, dataset_time_arrays, attributes, skip_dask=True, sys_id=sysid)
 
         # now build data inside the existing data
@@ -479,11 +473,6 @@ class TestZarr(unittest.TestCase):
         newtime2 = datasets2[0].time.values
         newtime2[0] = 9
         dataset_time_arrays2 = [newtime2]
-        print(dataset_name2)
-        print(datasets2)
-        print(dataset_time_arrays2)
-        print(attributes2)
-        print(sysid2)
         datasets2 = [xr.Dataset({'counter': (['time'], datasets2[0].counter.data), 'beampointingangle': (['time', 'beam'], datasets2[0].beampointingangle.data)},
                                 coords={'time': newtime2, 'beam': datasets2[0].beam.data})]
         zarr_path, _ = self.zb.write(dataset_name2, datasets2, dataset_time_arrays2, attributes2, skip_dask=True, sys_id=sysid2)
