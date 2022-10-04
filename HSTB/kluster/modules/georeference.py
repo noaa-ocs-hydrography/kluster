@@ -8,6 +8,7 @@ from datetime import datetime
 import geohash
 from shapely import geometry
 import queue
+import traceback
 
 from HSTB.kluster.xarray_helpers import stack_nan_array, reform_nan_array
 from HSTB.kluster import kluster_variables
@@ -256,9 +257,9 @@ def transform_vyperdatum(x: np.array, y: np.array, z: np.array, source_datum: Un
     Parameters
     ----------
     x
-        easting for each point in source_datum coordinate system
+        longitude for each point in source_datum coordinate system
     y
-        northing for each point in source_datum coordinate system
+        latitude for each point in source_datum coordinate system
     z
         depth offset for each point in source_datum coordinate system
     source_datum
@@ -299,7 +300,13 @@ def transform_vyperdatum(x: np.array, y: np.array, z: np.array, source_datum: Un
         source_datum = kluster_variables.epsg_nad83
     elif source_datum == 'wgs84':
         source_datum = kluster_variables.epsg_wgs84
-    vp.transform_points((source_datum, 'ellipse'), final_datum, x, y, z=z, sample_distance=0.0001)  # sample distance in degrees
+    try:
+        vp.transform_points((source_datum, 'ellipse'), final_datum, x, y, z=z, sample_distance=0.0001)  # sample distance in degrees
+    except:
+        print('Unable to transform_points using sampling distance of 0.0001deg, trying transform of full dataset...')
+        print('Exception:')
+        print(traceback.format_exc())
+        vp.transform_points((source_datum, 'ellipse'), final_datum, x, y, z=z)  # sample distance in degrees
 
     return np.around(vp.z, 3), np.around(vp.unc, 3)
 
