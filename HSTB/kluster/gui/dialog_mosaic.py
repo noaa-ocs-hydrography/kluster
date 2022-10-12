@@ -7,7 +7,7 @@ class MosaicDialog(SurfaceDialog):
     """
 
     def __init__(self, parent=None, title='', settings=None):
-        super().__init__(parent=parent, title=title, settings=settings)
+        super().__init__(parent=parent, title=title, settings=settings, widgetname='mosaicsurface')
 
         # first hide the non-mosaic related options
         self.setWindowTitle('(EXPERIMENTAL) Generate New Mosaic')

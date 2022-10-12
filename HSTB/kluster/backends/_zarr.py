@@ -987,8 +987,8 @@ class ZarrWrite:
             # # seems to require me to ravel first, examples only show setting with integer, not sure what is going on here
             # self.rootgroup[var_name].set_mask_selection(zarr_mask, xarr_data.ravel())
 
-    def _write_new_dataset_rootgroup(self, xarr: xr.Dataset, var_name: str, dims_of_arrays: dict, chunksize: tuple,
-                                     startingshp: tuple):
+    def _write_new_dataset_rootgroup(self, xarr: xr.Dataset, data_loc_copy: Union[list, np.ndarray], var_name: str,
+                                     dims_of_arrays: dict, chunksize: tuple, startingshp: tuple):
         """
         Create a new rootgroup array from the input xarray Dataarray.  Use startingshp to resize the array to the
         expected shape of the array after ALL writes.  This must be the first write if there are multiple distributed
@@ -998,6 +998,9 @@ class ZarrWrite:
         ----------
         xarr
             data to write to zarr
+        data_loc_copy
+            either [start time index, end time index] for xarr, ex: [0,1000] if xarr time dimension is 1000 long,
+            or np.array([4,5,6,7,1,2...]) for when data might not be continuous and we need to use a boolean mask
         var_name
             variable name
         dims_of_arrays
@@ -1014,10 +1017,27 @@ class ZarrWrite:
         newarr = self.rootgroup.create_dataset(var_name, shape=dims_of_arrays[var_name][1], chunks=chunksize,
                                                dtype=xarr[var_name].dtype, synchronizer=sync,
                                                fill_value=self._get_arr_nodatavalue(xarr[var_name].dtype))
-        newarr[:] = xarr[var_name].values
         newarr.resize(startingshp)
-        if var_name == 'beam' and startingshp[0] is not None and xarr[var_name].shape != startingshp:
-            newarr[:] = np.arange(startingshp[0])
+        if var_name in ['xyz', 'beam']:  # dimensional array, not going to follow the data location array/list indices
+            if var_name == 'beam' and startingshp[0] is not None and xarr[var_name].shape != startingshp:
+                # special case where we need to grow/shrink the beam dimension, rewrite with the new beam number values
+                newarr[:] = np.arange(startingshp[0])
+            else:
+                newarr[:] = xarr[var_name].values
+        elif isinstance(data_loc_copy, list):  # [start index, end index]
+            newarr[data_loc_copy[0]:data_loc_copy[1]] = xarr[var_name].values
+        else:  # np.array([4,5,6,1,2,3,8,9...]), indices of the new data, might not be sorted
+            # sort lowers the chance that we end up with a gap in our data locations
+            sorted_order = data_loc_copy.argsort()
+            xarr_data = xarr[var_name].values[sorted_order]
+            data_loc_copy = data_loc_copy[sorted_order]
+            contiguous_chunks = [list(g) for k, g in groupby(data_loc_copy, key=lambda i, j=count(): i - next(j))]
+            idx_start = 0
+            for chnk in contiguous_chunks:
+                chnkdata = xarr_data[idx_start:idx_start + len(chnk)]
+                chnkidx = [chnk[0], chnk[-1] + 1]
+                newarr[chnkidx[0]:chnkidx[1]] = chnkdata
+                idx_start += len(chnk)
 
     def write_to_zarr(self, xarr: xr.Dataset, attrs: dict, dataloc: Union[list, np.ndarray], finalsize: tuple = None,
                       push_forward: list = None):
@@ -1083,7 +1103,7 @@ class ZarrWrite:
                     self._write_existing_rootgroup(xarr, data_loc_copy, var, dims_of_arrays, chunksize, timlength,
                                                    timaxis, None, None)
             else:
-                self._write_new_dataset_rootgroup(xarr, var, dims_of_arrays, chunksize, startingshp)
+                self._write_new_dataset_rootgroup(xarr, data_loc_copy, var, dims_of_arrays, chunksize, startingshp)
 
             # _ARRAY_DIMENSIONS is used by xarray for connecting dimensions with zarr arrays
             self.rootgroup[var].attrs['_ARRAY_DIMENSIONS'] = dims_of_arrays[var][0]

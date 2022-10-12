@@ -863,19 +863,18 @@ def return_avg_tables(fqpr_inst: list = None, avg_bin_size: float = 1.0, avg_ang
             found_fq = None
             for fq in fqpr_inst:
                 if fq.line_attributes(avg_line) is not None:
-                    found_fq = fq
+                    found_fq = fq.copy()  # copy so that if this is a subset already, you don't mess it up with the following subset
                     found_fq.subset_by_lines(avg_line)
                     break
             if found_fq is None:
                 raise ValueError(f'_avgcorrect_fqprs: was provided avg line = {avg_line}, but was unable to find this line in any of the provided fqpr instances')
         else:
-            found_fq = fqpr_inst[0]
+            found_fq = fqpr_inst[0].copy()
             first_line = list(found_fq.multibeam.raw_ping[0].multibeam_files.keys())[0]
             print(f'Using line {first_line} to determine AVG corrector...')
             found_fq.subset_by_lines(first_line)
         bscatter = xr.concat([rp.backscatter for rp in found_fq.multibeam.raw_ping], dim='time')
         bangle = xr.concat([np.rad2deg(rp.corr_pointing_angle) for rp in found_fq.multibeam.raw_ping], dim='time')
-        found_fq.restore_subset()
         avgtbl = generate_avg_corrector(bscatter, bangle, avg_bin_size, avg_angle)
         for fq in fqpr_inst:
             fq.write_attribute_to_ping_records({'avg_table': json.dumps(avgtbl)})
@@ -886,7 +885,7 @@ def return_avg_tables(fqpr_inst: list = None, avg_bin_size: float = 1.0, avg_ang
 
 
 def generate_new_mosaic(fqpr_inst: Union[Fqpr, list] = None, tile_size: float = 1024.0, gridding_algorithm: str = 'mean',
-                        resolution: float = None, process_backscatter: bool = True, create_mosaic: bool = True,
+                        resolution: float = 8.0, process_backscatter: bool = True, create_mosaic: bool = True,
                         angle_varying_gain: bool = True, avg_angle: float = 45.0, avg_line: str = None, avg_bin_size: float = 1.0,
                         overwrite_existing_avg: bool = True, process_backscatter_fixed_gain_corrected: bool = True,
                         process_backscatter_tvg_corrected: bool = True, process_backscatter_transmission_loss_corrected: bool = True,

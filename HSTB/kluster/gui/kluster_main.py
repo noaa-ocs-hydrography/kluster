@@ -1806,6 +1806,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         if pbscatter or avgon:
             # processing backscatter will add the backscatter_settings and avg_table attributes, so we need to refresh attribution
             for fqpr in self.mosaic_thread.fqpr_instances:
+                self.project.add_fqpr(fqpr)  # adding here will reload records to get the backscatter variable available
                 self.project.refresh_fqpr_attribution(fqpr.output_folder, relative_path=False)
 
         fq_surf = self.mosaic_thread.fqpr_surface

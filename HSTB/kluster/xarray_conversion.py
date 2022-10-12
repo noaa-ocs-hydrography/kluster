@@ -1143,6 +1143,13 @@ class BatchRead(ZarrBackend):
             # self.logger.warning('Unable to reload ping records (normal for in memory processing), no paths found: {}'.format(self.final_paths))
             pass
 
+    def reload_attituderecords(self, skip_dask: bool = False):
+        if 'attitude' in self.final_paths:
+            self.raw_att = reload_zarr_records(self.final_paths['attitude'][0], skip_dask=skip_dask)
+        else:
+            # self.logger.warning('Unable to reload ping records (normal for in memory processing), no paths found: {}'.format(self.final_paths))
+            pass
+
     def return_raw_navigation(self, start_time: float = None, end_time: float = None):
         """
         Return just the navigation side of the first ping record.  If a start time and end time are provided, will
