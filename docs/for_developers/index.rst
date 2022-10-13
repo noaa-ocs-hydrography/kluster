@@ -26,3 +26,4 @@ for the kluster processed data.
 .. toctree::
 
    fordev_sonar
+   fordev_release
