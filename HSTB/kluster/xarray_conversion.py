@@ -1143,6 +1143,13 @@ class BatchRead(ZarrBackend):
             # self.logger.warning('Unable to reload ping records (normal for in memory processing), no paths found: {}'.format(self.final_paths))
             pass
 
+    def reload_attituderecords(self, skip_dask: bool = False):
+        if 'attitude' in self.final_paths:
+            self.raw_att = reload_zarr_records(self.final_paths['attitude'][0], skip_dask=skip_dask)
+        else:
+            # self.logger.warning('Unable to reload ping records (normal for in memory processing), no paths found: {}'.format(self.final_paths))
+            pass
+
     def return_raw_navigation(self, start_time: float = None, end_time: float = None):
         """
         Return just the navigation side of the first ping record.  If a start time and end time are provided, will
@@ -1931,13 +1938,13 @@ class BatchRead(ZarrBackend):
                     count = 0
                     while np.isnan(start_position).any():  # first position is NaN, scroll through to find a good one
                         if not current_index:
-                            current_index = np.where(rp.time.values == dstart.time)[0]
+                            current_index = np.argmin(np.abs(rp.time.values - dstart.time.values))
                         current_index += 1
                         dstart = rp.isel(time=current_index)
                         start_position = [dstart.latitude.values, dstart.longitude.values]
                         count += 1
                         if count == 100:
-                            raise ValueError('Found bad position in the first 100 pings!')
+                            raise ValueError(f'Found bad position in the first 100 pings for line {line_name}!')
                 except ValueError:
                     self.print(f'Unable to determine start position for line {line_name}', logging.ERROR)
                     continue
@@ -1948,13 +1955,13 @@ class BatchRead(ZarrBackend):
                     count = 0
                     while np.isnan(end_position).any():  # first position is NaN, scroll through to find a good one
                         if not current_index:
-                            current_index = np.where(rp.time.values == dend.time)[0]
+                            current_index = np.argmin(np.abs(rp.time.values - dend.time.values))
                         current_index -= 1
                         dend = rp.isel(time=current_index)
                         end_position = [dend.latitude.values, dend.longitude.values]
                         count += 1
                         if count == 100:
-                            raise ValueError('Found bad position in the last 100 pings!')
+                            raise ValueError(f'Found bad position in the last 100 pings for line {line_name}!')
                 except ValueError:
                     self.print(f'Unable to determine end position for line {line_name}', logging.ERROR)
                     continue

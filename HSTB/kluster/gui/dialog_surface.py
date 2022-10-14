@@ -17,8 +17,8 @@ class SurfaceDialog(SaveStateDialog):
     Dialog for selecting surfacing options that we want to use to generate a new surface.
     """
 
-    def __init__(self, parent=None, title='', settings=None):
-        super().__init__(parent, settings, widgetname='surface')
+    def __init__(self, parent=None, title='', settings=None, widgetname='surface'):
+        super().__init__(parent, settings, widgetname=widgetname)
 
         self.setWindowTitle('Generate New Surface')
         self.toplayout = QtWidgets.QVBoxLayout()

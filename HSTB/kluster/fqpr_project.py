@@ -884,7 +884,8 @@ class FqprProject(LoggerClass):
                     fqlines = line_dict[fq]
                     basefq = self.fqpr_instances[fq].copy()
                     basefq.subset_by_lines(fqlines)  # trim the data to the desired lines that happen to be in this Fqpr object
-                    basefq.subset.backup_fqpr = {}  # don't retain the backup, we are making a whole new fqpr object here
+                    if concatenate:
+                        basefq.subset.backup_fqpr = {}  # don't retain the backup, we are making a whole new fqpr object here
                     fqpr_loaded.append(basefq)
                 else:  # this Fqpr instance does not contain any selected lines
                     fqpr_loaded.append(None)

@@ -462,12 +462,17 @@ class Fqpr(ZarrBackend):
             copy of the current Fqpr object
         """
         # cannnot deepcopy the dask client, must remove reference first
+        cl = self.client
         self.client = None
         self.multibeam.client = None
         copyfq = deepcopy(self)
         for cnt, rp in enumerate(self.multibeam.raw_ping):
             copyfq.multibeam.raw_ping[cnt].attrs = deepcopy(rp.attrs)
         copyfq.multibeam.raw_att.attrs = deepcopy(self.multibeam.raw_att.attrs)
+        self.client = cl
+        self.multibeam.client = cl
+        copyfq.client = cl
+        copyfq.multibeam.client = cl
         return copyfq
 
     def is_processed(self, in_depth: bool = False):
@@ -2648,6 +2653,23 @@ class Fqpr(ZarrBackend):
         if needs_interp:
             self.interp_to_ping_record(needs_interp, {'attitude_source': 'multibeam'})
 
+    def _reload_after_processing(self, skip_dask: bool):
+        """
+        After each full processing step, reload the raw_ping datasets to get the new metadata and variables.  If this
+        is a subset, we need to do the full reload including attitude data such that we can redo the subset after
+        reloading the ping datasets.
+
+        Parameters
+        ----------
+        skip_dask
+            if True, skip the dask client setup on reload
+        """
+
+        self.multibeam.reload_pingrecords(skip_dask=skip_dask)
+        if self.subset.is_subset:
+            self.multibeam.reload_attituderecords(skip_dask=skip_dask)
+        self.subset.redo_subset()
+
     def get_orientation_vectors(self, subset_time: list = None, dump_data: bool = True, initial_interp: bool = False):
         """
         Using attitude angles, mounting angles, build the tx/rx vectors that represent the orientation of the tx/rx at
@@ -2720,9 +2742,7 @@ class Fqpr(ZarrBackend):
             if dump_data:
                 del self.intermediate_dat[sys_ident]['orientation']
         if dump_data:
-            # after each full processing step, reload the raw_ping datasets to get the new metadata
-            self.multibeam.reload_pingrecords(skip_dask=skip_dask)
-            self.subset.redo_subset()
+            self._reload_after_processing(skip_dask)
             endtime = perf_counter()
             self.print('****Get Orientation Vectors complete: {}****\n'.format(seconds_to_formatted_string(int(endtime - starttime))), logging.INFO)
 
@@ -2782,8 +2802,7 @@ class Fqpr(ZarrBackend):
             if dump_data:
                 del self.intermediate_dat[sys_ident]['bpv']
         if dump_data:
-            self.multibeam.reload_pingrecords(skip_dask=skip_dask)
-            self.subset.redo_subset()
+            self._reload_after_processing(skip_dask)
             endtime = perf_counter()
             self.print('****Beam Pointing Vector generation complete: {}****\n'.format(seconds_to_formatted_string(int(endtime - starttime))), logging.INFO)
 
@@ -2854,8 +2873,7 @@ class Fqpr(ZarrBackend):
                 del self.intermediate_dat[sys_ident]['sv_corr']
 
         if dump_data:
-            self.multibeam.reload_pingrecords(skip_dask=skip_dask)
-            self.subset.redo_subset()
+            self._reload_after_processing(skip_dask)
             endtime = perf_counter()
             self.print('****Sound Velocity complete: {}****\n'.format(seconds_to_formatted_string(int(endtime - starttime))), logging.INFO)
 
@@ -2933,9 +2951,8 @@ class Fqpr(ZarrBackend):
                 del self.intermediate_dat[sys_ident]['georef']
 
         if dump_data:
-            self.multibeam.reload_pingrecords(skip_dask=skip_dask)
+            self._reload_after_processing(skip_dask)
             self._overwrite_georef_stats()
-            self.subset.redo_subset()
             endtime = perf_counter()
             self.print('****Georeferencing sound velocity corrected beam offsets complete: {}****\n'.format(seconds_to_formatted_string(int(endtime - starttime))), logging.INFO)
 
@@ -2992,8 +3009,7 @@ class Fqpr(ZarrBackend):
                     self.print('No pings found for {}-{}'.format(sys_ident, timestmp), logging.INFO)
 
         if dump_data:
-            self.multibeam.reload_pingrecords(skip_dask=skip_dask)
-            self.subset.redo_subset()
+            self._reload_after_processing(skip_dask)
             endtime = perf_counter()
             self.print('****Calculating total uncertainty complete: {}****\n'.format(seconds_to_formatted_string(int(endtime - starttime))), logging.INFO)
 
@@ -3056,8 +3072,7 @@ class Fqpr(ZarrBackend):
                     self.print('No pings found for {}-{}'.format(sys_ident, timestmp), logging.INFO)
 
         if dump_data:
-            self.multibeam.reload_pingrecords(skip_dask=skip_dask)
-            self.subset.redo_subset()
+            self._reload_after_processing(skip_dask)
             endtime = perf_counter()
             self.print('****Processing Backscatter complete: {}****\n'.format(seconds_to_formatted_string(int(endtime - starttime))), logging.INFO)
 

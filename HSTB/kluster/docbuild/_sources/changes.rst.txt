@@ -1,6 +1,17 @@
 Changes List
 ============
 
+Kluster v1.1.4 (10/14/2022)
+----------------------------
+ - if vyperdatum georeferencing fails, default to slower non-sampled workflow
+ - adding new variables to zarr datastore now correctly uses the indices of the data (seen on process backscatter with subset)
+ - fix for having a default resolution with generate_new_mosaic
+ - fix for no longer interfering with subset during return_avg_tables
+ - fix bug with surface and mosaic dialog accidentally saving under the same name
+ - fix subset bug with generating grids from individual lines multiple times in succession
+ - reload the ping records after processing backscatter in the GUI to get the backscatter variable back
+ - bug fix with the seeking valid navigation record on building metadata when there are navigation gaps at the start or end of lines
+
 Kluster v1.1.3 (9/28/2022)
 ---------------------------
  - sync with drivers 0.3.4
