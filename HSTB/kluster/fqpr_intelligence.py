@@ -1962,7 +1962,7 @@ def intel_process(filname: Union[str, list], outfold: str = None, coord_system: 
         list of Fqpr instances
     """
 
-    project = FqprProject(is_gui=False, project_path=outfold, logger=logger)
+    project = FqprProject(project_path=outfold, logger=logger)
     if client and not skip_dask:
         project.client = client
     project.skip_dask = skip_dask
@@ -2051,7 +2051,7 @@ def intel_process_service(folder_path: Union[list, str], is_recursive: bool = Tr
     """
 
     # consider daemonizing this at some point: https://daemoniker.readthedocs.io/en/latest/index.html
-    project = FqprProject(is_gui=False, project_path=outfold, logger=logger)
+    project = FqprProject(project_path=outfold, logger=logger)
     if client and not skip_dask:
         project.client = client
     project.skip_dask = skip_dask

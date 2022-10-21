@@ -1,3 +1,5 @@
+# This is in progress, still needs some work on the spec, I think related to vispy supporting file locations for linux
+
 # setting env variable SETUPTOOLS_USE_DISTUTILS to resolve setuptools/xarray issue with setuptools/distutils conflict, see xarray pull request #6096 and setuptools issue #2353
 export SETUPTOOLS_USE_DISTUTILS=stdlib
 cd ~/Documents/GitHub/kluster/HSTB/kluster/misc

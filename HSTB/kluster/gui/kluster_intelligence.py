@@ -657,7 +657,7 @@ class KlusterIntelligence(QtWidgets.QMainWindow):
 
         self.widget_obj_names = []
 
-        self.project = fqpr_project.FqprProject(is_gui=False)  # is_gui controls the progress bar text, used to disable it for gui, no longer
+        self.project = fqpr_project.FqprProject()  # is_gui controls the progress bar text, used to disable it for gui, no longer
 
         # fqpr = fully qualified ping record, the term for the datastore in kluster
         self.intelligence = fqpr_intelligence.FqprIntel(project=self.project)

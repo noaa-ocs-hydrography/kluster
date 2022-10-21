@@ -249,7 +249,7 @@ class KlusterProjectView(QtWidgets.QWidget):
 
             self.fil_text.setText(project_file)
             self.project_file = project_file
-            self.project = FqprProject(is_gui=True)
+            self.project = FqprProject()
             self.project.new_project_from_directory(directory)
             if self.parent:
                 self.parent.set_project(self.project)
@@ -287,7 +287,7 @@ class KlusterProjectView(QtWidgets.QWidget):
         if os.path.exists(project_path):
             self.clear_project()
             self.project_file = project_path
-            self.project = FqprProject(is_gui=True)
+            self.project = FqprProject()
             self.project.open_project(self.project_file, skip_dask=True)
             if self.parent:
                 self.parent.set_project(self.project)
