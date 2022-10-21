@@ -1,6 +1,12 @@
 Changes List
 ============
 
+Kluster v1.1.5 (10/21/2022)
+-----------------------------
+ - sync with drivers 0.3.5
+    - modify the fast read time method in par to support disorder found in some .all files that are trimmed after acquisition
+ - add UML diagrams in documentation in the for developers section
+
 Kluster v1.1.4 (10/14/2022)
 ----------------------------
  - if vyperdatum georeferencing fails, default to slower non-sampled workflow

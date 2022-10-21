@@ -27,3 +27,4 @@ for the kluster processed data.
 
    fordev_sonar
    fordev_release
+   fordev_uml

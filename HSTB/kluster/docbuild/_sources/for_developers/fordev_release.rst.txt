@@ -24,7 +24,7 @@ I also ensure that the built documentation is regenerated for this new version. 
 After I am satisfied with the changes and that I haven't broken anything, I complete a pull request for dev to Master with the new build.  I ensure that:
 
 - all __version__.py numbers have been incremented
-- all dev branches have been merged with master
+- all dev branches have been merged with master.  If you modify the dev branch in another repo like Bathygrid, ensure that the branch is merged with master.
 - new info is added to the changes.rst doc
 - the docbuild folder is updated with the new documentation
 
