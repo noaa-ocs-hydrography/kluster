@@ -43,6 +43,12 @@ from HSTB.shared import RegistryHelpers, path_to_supplementals
 from HSTB.kluster import kluster_variables
 from bathygrid.grid_variables import allowable_grid_root_names
 
+try:
+    from HSTB.drivers import woa
+    has_woa = True
+except ImportError:
+    has_woa = False
+
 # list of icons
 # https://joekuan.wordpress.com/2015/09/23/list-of-qt-icons/
 
@@ -535,24 +541,34 @@ class KlusterMain(QtWidgets.QMainWindow):
         klusterhelp.addAction(videos_action)
 
     def generate_woa_files(self):
-        print("read each fqpr and make a WOA for it")
-        try:
-            from HSTB.scripts import woa
-        except ImportError:
+        """ Makes a single SVP file that contains all the WOA positions and times to cover all the FQPR objects in the project
+
+        Returns
+        -------
+        output_filename
+            Full path to the output file, will be the same as the project ".json" file but with a "woa.svp" extension
+        """
+        if not has_woa:
+            self.print("Requires Hydroffice's SoundSpeedManager to be installed")
             # FIXME
-            print("put up a messagebox about needing Pydro/SSM")
+            self.print("put up a messagebox about needing Pydro/SSM")
+            return None
         output_filename = pathlib.Path(self.project.path).with_suffix(".woa.svp")
         try:
             os.remove(output_filename)
         except FileNotFoundError:
             pass
         except PermissionError:
-            print("WOA file is in use, Need to replace WOA file to avoid duplication of existing SV profiles")
+            self.print("WOA file is in use, will to append new casts.\nThis may result in duplication of existing SV profiles")
+        # so we don't repeat the world ocean atlas casts many times per month/position - compile a set of places we'd need
+        woa_points = set()
         for name, fqpr_inst in self.project.fqpr_instances.items():
             pings = fqpr_inst.multibeam.raw_ping[0]
-            woa.make_svp_file(pings.max_lat, pings.max_lon, datetime.fromtimestamp(pings.time[0]),
-                              pings.min_lat, pings.min_lon, datetime.fromtimestamp(pings.time[-1]),
-                              output_filename)
+            woa_points.update(woa.iter_woa_lat_lon_times_gridded(pings.max_lat, pings.max_lon, datetime.fromtimestamp(pings.time[0]),
+                                                                 pings.min_lat, pings.min_lon, datetime.fromtimestamp(pings.time[-1])))
+        # Now write all the sound speed profiles to a single Caris SVP
+        for lat, lon, dt in woa_points:
+            woa.make_svp_file(lat, lon, dt, output_filename)
 
         return output_filename
 

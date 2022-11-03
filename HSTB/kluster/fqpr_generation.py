@@ -1,4 +1,5 @@
 import os
+import pathlib
 from typing import Union
 from datetime import datetime
 from time import perf_counter
@@ -34,6 +35,12 @@ from HSTB.kluster.rotations import return_attitude_rotation_matrix
 from HSTB.kluster.logging_conf import return_logger
 from HSTB.kluster.fqpr_drivers import return_xarray_from_sbet, fast_read_sbet_metadata, return_xarray_from_posfiles
 from HSTB.kluster import kluster_variables
+
+try:
+    from HSTB.drivers import woa
+    has_woa = True
+except ImportError:
+    has_woa = False
 
 
 class Fqpr(ZarrBackend):
@@ -772,6 +779,17 @@ class Fqpr(ZarrBackend):
                     rp.attrs[ky].update(copy_dict[ky])
                 except:  # all other data ends up replacing which is fine
                     rp.attrs[ky] = copy_dict[ky]
+
+    def create_woa_casts(self):
+        if not has_woa:
+            print("Requires Hydroffice's SoundSpeedManager to be installed")
+            return None
+        output_filename = pathlib.Path(self.output_folder).join("woa.svp")
+        pings = self.multibeam.raw_ping[0]
+        woa.make_svp_file(pings.max_lat, pings.max_lon, datetime.fromtimestamp(pings.time[0]),
+                          pings.min_lat, pings.min_lon, datetime.fromtimestamp(pings.time[-1]),
+                          output_filename)
+        return str(output_filename)
 
     def import_sound_velocity_files(self, src: Union[str, list], cast_selection_method: str = 'nearest_in_time'):
         """
