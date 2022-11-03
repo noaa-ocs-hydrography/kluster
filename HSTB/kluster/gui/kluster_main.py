@@ -13,6 +13,7 @@ import matplotlib
 matplotlib.use('qt5agg')
 
 import sys
+import pathlib
 import webbrowser
 import numpy as np
 import multiprocessing
@@ -394,6 +395,8 @@ class KlusterMain(QtWidgets.QMainWindow):
 
         add_files_action = QtWidgets.QAction('Add Files', self)
         add_files_action.triggered.connect(self._action_filemenu_add_files)
+        add_woa_files_action = QtWidgets.QAction('Add WOA SVP', self)
+        add_woa_files_action.triggered.connect(self._action_filemenu_add_woa_files)
         add_converted_action = QtWidgets.QAction('Open Converted', self)
         add_converted_action.triggered.connect(self._action_filemenu_add_converted)
         add_surface_action = QtWidgets.QAction('Open Surface', self)
@@ -476,6 +479,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         menubar = self.menuBar()
         file = menubar.addMenu("File")
         file.addAction(add_files_action)
+        file.addAction(add_woa_files_action)
         file.addAction(add_converted_action)
         file.addAction(add_surface_action)
         file.addSeparator()
@@ -529,6 +533,28 @@ class KlusterMain(QtWidgets.QMainWindow):
         klusterhelp.addAction(docs_action)
         klusterhelp.addAction(odocs_action)
         klusterhelp.addAction(videos_action)
+
+    def generate_woa_files(self):
+        print("read each fqpr and make a WOA for it")
+        try:
+            from HSTB.scripts import woa
+        except ImportError:
+            # FIXME
+            print("put up a messagebox about needing Pydro/SSM")
+        output_filename = pathlib.Path(self.project.path).with_suffix(".woa.svp")
+        try:
+            os.remove(output_filename)
+        except FileNotFoundError:
+            pass
+        except PermissionError:
+            print("WOA file is in use, Need to replace WOA file to avoid duplication of existing SV profiles")
+        for name, fqpr_inst in self.project.fqpr_instances.items():
+            pings = fqpr_inst.multibeam.raw_ping[0]
+            woa.make_svp_file(pings.max_lat, pings.max_lon, datetime.fromtimestamp(pings.time[0]),
+                              pings.min_lat, pings.min_lon, datetime.fromtimestamp(pings.time[-1]),
+                              output_filename)
+
+        return output_filename
 
     def update_on_file_added(self, fil: Union[str, list] = ''):
         """
@@ -3017,10 +3043,18 @@ class KlusterMain(QtWidgets.QMainWindow):
         """
         Connect menu action 'Add Files' with file dialog and update_on_file_added
         """
-        msg, fil = RegistryHelpers.GetFilenameFromUserQT(self, RegistryKey='kluster', Title='Add any data file (multibeam, sbet, svp, etc.)',
+        success, fil = RegistryHelpers.GetFilenameFromUserQT(self, RegistryKey='kluster', Title='Add any data file (multibeam, sbet, svp, etc.)',
                                                          AppName='klusterproj', bMulti=True, bSave=False, fFilter='all files (*.*)')
-        if msg:
+        if success:
             self.update_on_file_added(fil)
+
+    def _action_filemenu_add_woa_files(self):
+        """
+        Connect menu action 'Add WOA SVP' with file dialog and update_on_file_added
+        """
+        filename = self.generate_woa_files()
+        self.print(f'Made WOA file at {filename}', logging.INFO)
+        self.update_on_file_added(str(filename))
 
     def _action_filemenu_add_converted(self):
         """
