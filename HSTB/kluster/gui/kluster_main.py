@@ -553,6 +553,10 @@ class KlusterMain(QtWidgets.QMainWindow):
             # FIXME
             self.print("put up a messagebox about needing Pydro/SSM")
             return None
+        if not woa.loaded:
+            # FIXME  put up question to user
+            print("downloading the WOA data - warning it's large")
+            woa.download_woa()
         output_filename = pathlib.Path(self.project.path).with_suffix(".woa.svp")
         try:
             os.remove(output_filename)
