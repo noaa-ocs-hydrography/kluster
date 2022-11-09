@@ -39,7 +39,8 @@ from HSTB.kluster.gdal_helpers import ogr_output_file_exists, gdal_output_file_e
 from HSTB.kluster.logging_conf import return_logger, add_file_handler, logfile_matches, logger_remove_file_handlers
 from HSTB.kluster import __version__ as kluster_version
 from HSTB.kluster import __file__ as kluster_init_file
-from HSTB.shared import RegistryHelpers, path_to_supplementals
+from HSTB.shared import RegistryHelpers
+from HSTB.resources import path_to_supplementals
 from HSTB.kluster import kluster_variables
 from bathygrid.grid_variables import allowable_grid_root_names
 
