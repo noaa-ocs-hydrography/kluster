@@ -210,15 +210,121 @@ def _get_indices_dataset_exists(input_time_arrays: list, zarr_time: zarr.Array):
         how many values need to be inserted to make room for this new data at the beginning of the zarr rootgroup
     """
 
-    running_total = 0
     push_forward = []
     total_push = 0
     write_indices = []
+
+    # general solution -
+    # Create a big array of all times
+    # get unique values with np.unique (this returns a sorted array)
+    # use searchsorted on zarr and input arrays to get their final respective indices
+    # Should handle the cases of:
+    #   an input duplicates the existing zarr array
+    #   an input duplicates it's own time
+    #   and multiple different inputs duplicate each other
+    from_zarr_id = -1
+    all_times = [zarr_time]
+    # next make input times with indices from 0 to len(input_time_arrays)
+    for i, input_time in enumerate(input_time_arrays):  # for each chunk of data that we are wanting to write, look at the times to see where it fits
+        all_times.append(input_time)
+    # then concatenate the zarr and time arrays
+    all_times = np.concatenate(all_times)
+    all_times = np.unique(all_times, axis=0)
+    zarr_indices = np.searchsorted(all_times, zarr_time)
+    # then split back out the sort values to the original input_time_arrays as write_indices
+    for i, input_time in enumerate(input_time_arrays):  # for each chunk of data that we are wanting to write, look at the times to see where it fits
+        write_indices.append(np.searchsorted(all_times, input_time))
+
+    # make push_forward values for all the spaces that were added to the zarr_time array
+    zarr_index_deltas = np.diff(zarr_indices)
+    # add a push_forward value for the beginning of the zarr_time array
+    if zarr_indices[0] > 0:
+        push_forward.append([0, int(zarr_indices[0])])
+        total_push += zarr_indices[0]
+    # make push_forward values for all the spaces that were added in the middle of the zarr_time array
+    for index in np.argwhere(zarr_index_deltas > 1):
+        start = index + 1 + total_push
+        amount = zarr_index_deltas[index] - 1
+        end = start + amount
+        push_forward.append([int(start), int(amount)])
+        total_push += amount
+    # If the new data is past the end of the zarr array we don't need to do a push_forward just add to the size (total_push)
+    if zarr_indices[-1] < len(all_times) - 1:
+        # FIXME - should zarr_indices[-1], -1, 0 or +1
+        amount = len(all_times) - 1 - zarr_indices[-1]
+        total_push += amount
+
+    return write_indices, push_forward, int(total_push)
+
+    # @TODO remove the code below when finished testing
+    #
+    # # create a combined array of all the input times and zarr times with pointers to where they came from, maybe an index to which input_time_array and zarr will be -1
+    # # make the zarr first with a -1 index
+    # write_indices = []
+    # from_zarr_id = -1
+    # all_arrays = [np.c_[zarr_time, np.arange(zarr_time_len), np.full([zarr_time_len], from_zarr_id)]]
+    # # next make input times with indices from 0 to len(input_time_arrays)
+    # for i, input_time in enumerate(input_time_arrays):  # for each chunk of data that we are wanting to write, look at the times to see where it fits
+    #     all_arrays.append(np.c_[input_time, np.arange(len(input_time)), np.full([len(input_time)], i)])
+    # # then concatenate the zarr and time arrays
+    # all_arrays = np.concatenate(all_arrays)
+    # # argsort the combined array
+    # indices = all_arrays[:, 0].argsort()
+    # # remove any duplicates from the zarr -- duplicates are supposed to be already removed from the input times
+    # # and Kluster can't have the same time twice
+    # deltas = np.diff(all_arrays[indices][:, 0]) == 0
+    # if deltas.any():
+    #     lower_indices = np.concatenate([deltas, [False]])
+    #     lower = all_arrays[indices][:-1][deltas]
+    #     upper_indices = np.concatenate([[False],deltas])
+    #     upper = all_arrays[indices][1:][deltas]
+    #     dupe_indices = np.logical_or(lower_indices, upper_indices)
+    #     zarr_indices = indices[np.logical_or(all_arrays[indices][:, 2] == from_zarr_id, ~dupe_indices)]
+    #     zarr_values_removed_input_dupes = all_arrays[zarr_indices]
+    #     input_indices = indices[np.logical_or(all_arrays[indices][:, 2] != from_zarr_id, ~dupe_indices)]
+    #     input_values_removed_input_dupes = all_arrays[input_indices]
+    #
+    #     if len(zarr_indices) != len(input_indices):
+    #         raise ValueError('There are duplicate times in the input_time array')
+    #
+    # else:
+    #     zarr_indices = input_indices = indices
+    #
+    # # then split back out the sort values to the original input_time_arrays as write_indices
+    # for i, input_time in enumerate(input_time_arrays):  # for each chunk of data that we are wanting to write, look at the times to see where it fits
+    #     write_indices.append(input_indices[all_arrays[input_indices][:, 2] == i])
+    #
+    # # make push_forward values for all the spaces that were added to the zarr_time array
+    # only_zarr_indices = zarr_indices[all_arrays[zarr_indices][:, 2] == from_zarr_id]
+    # zarr_index_deltas = np.diff(only_zarr_indices)
+    # # add a push_forward value for the beginning of the zarr_time array
+    # if zarr_indices[0] > 0:
+    #     push_forward.append([0, zarr_indices[0]])
+    #     total_push += zarr_indices[0]
+    # # make push_forward values for all the spaces that were added in the middle of the zarr_time array
+    # for index in np.argwhere(zarr_index_deltas > 1):
+    #     push_forward.append([zarr_indices[index], zarr_indices[index + 1] - zarr_indices[index]])
+    #     total_push += zarr_indices[index + 1] - zarr_indices[index]
+    # # If the new data is past the end of the zarr array we don't need to do a push_forward at all
+    # # # add a push_forward value for the end of the zarr_time array
+    # # if zarr_indices[-1] < len(all_arrays) - 1:
+    # #     # FIXME - should zarr_indices[-1], -1, 0 or +1
+    # #     num_cells = len(all_arrays) - 1  - zarr_indices[-1]
+    # #     push_forward.append([zarr_indices[-1] + 1, num_cells])
+    # #     total_push += num_cells
+
     # time arrays must be in order in case you have to do the 'partly in datastore' workaround
+    running_total = 0
     input_time_arrays.sort(key=lambda x: x[0])
     min_zarr_time = zarr_time[0]
     max_zarr_time = zarr_time[-1]
     zarr_time_len = len(zarr_time)
+
+    running_total = 0
+    push_forward = []
+    total_push = 0
+    write_indices = []
+
     for input_time in input_time_arrays:  # for each chunk of data that we are wanting to write, look at the times to see where it fits
         input_time_len = len(input_time)
         input_is_in_zarr = np.isin(input_time, zarr_time)  # where is there overlap with existing data
