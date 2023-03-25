@@ -226,10 +226,12 @@ def _get_indices_dataset_exists(input_time_arrays: list, zarr_time: zarr.Array):
             input_time = input_time.values
         if input_is_in_zarr.any():  # this input array is at least partly in this datastore already
             if not input_is_in_zarr.all():  # this input array is only partly in this datastore
-                starter_indices = np.full_like(input_time, -1)  # -1 for values that are outside the existing values
+                starter_indices = np.full_like(input_time, -1, np.int)  # -1 for values that are outside the existing values
                 inside_indices = search_not_sorted(zarr_time, input_time[input_is_in_zarr])  # get the indices for overwriting where there is overlap
                 starter_indices[input_is_in_zarr] = inside_indices
                 count_outside = len(starter_indices) - len(inside_indices)  # the number of values that do not overlap
+                # FIXME This is failing because it assumes the overlap is at beginning or end but Justy's data has some weird overlap
+                #     where some of the first 20 values overlap the existing.
                 if starter_indices[-1] == -1:  # this input_time contains times after the existing values
                     max_inside_index = inside_indices[-1]
                     # now add in a range starting with the last index for all values outside the zarr time range
@@ -256,6 +258,9 @@ def _get_indices_dataset_exists(input_time_arrays: list, zarr_time: zarr.Array):
                 # time will be in the order of lines received and saved to disk.  Have to get indices of input_time in zarr_time
                 write_indices.append(search_not_sorted(zarr_time, input_time) + total_push)
         else:  # zarr datastore exists, but this data is not in it.  Append to the existing datastore
+            # FIXME  -- Does this work if we load 4 sequential lines.  Say we load lines 1, 3 first then 2,4.  Would Line 2 get masked in the else
+            #       statement below?  It may not have "any()" but the overlap would be ok as it's in the middle of the existing data.
+            #       Better test, with the 10 lines from Justy load 1,5 then 3, 7 and see if line 3 disappears.
             if (min_zarr_time < input_time[0] < max_zarr_time) and input_time[-1] > max_zarr_time:
                 # input times aren't in the existing data, but they are within the minmax of the existing data
                 #  we just drop these overlapping values, as they must come from overlap across files, which should not exist anyway
@@ -332,12 +337,14 @@ def get_write_indices_zarr(output_pth: str, input_time_arrays: list, index_dim='
         rootgroup = zarr.open(output_pth, mode='r')  # only opens if the path exists
         zarr_time = rootgroup[index_dim]
         write_indices, push_forward, total_push = _get_indices_dataset_exists(input_time_arrays, zarr_time)
+        final_size = len(zarr_time) + total_push
     else:  # datastore doesn't exist, we just return the write indices equal to the shape of the input arrays
         write_indices = _get_indices_dataset_notexist(input_time_arrays)
-    if isinstance(write_indices[-1], list):
-        final_size = np.max([write_indices[-1][-1], len(zarr_time)]) + total_push
-    else:
-        final_size = np.max([write_indices[-1][-1] + 1, len(zarr_time)]) + total_push
+        final_size = write_indices[-1][-1]
+    # if isinstance(write_indices[-1], list):
+    #     final_size = np.max([write_indices[-1][-1], len(zarr_time)]) + total_push
+    # else:
+    #     final_size = np.max([write_indices[-1][-1] + 1, len(zarr_time)]) + total_push
     return write_indices, final_size, push_forward
 
 
@@ -1211,6 +1218,8 @@ def distrib_zarr_write(zarr_path: str, xarrays: list, attributes: dict, chunk_si
         #    progress bar for each operation.
         # if show_progress:
         #     progress(futs, multi=False)
+
+        # waiting here allows the first write to expand the array size using the push_forward and finalsize
         wait(futs)
         if len(xarrays) > 1:
             for i in range(len(xarrays) - 1):
