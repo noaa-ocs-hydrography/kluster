@@ -1,6 +1,13 @@
 Changes List
 ============
 
+Kluster v1.1.6 (03/28/2023)
+-----------------------------
+ - Add World Ocean Atlas support
+ - Bugfixes for data insertion
+    - Data with partial overlapping but partial mismatching times was failing
+    - Inserting lines both in between and after times of existing lines could partially fail
+
 Kluster v1.1.5 (10/21/2022)
 -----------------------------
  - sync with drivers 0.3.5
