@@ -89,7 +89,8 @@ def fast_read_multibeam_metadata(multibeam_file: str, gather_times: bool = True,
         mtype = 'kongsberg_all'
         aread = par3.AllRead(multibeam_file)
         if gather_times:
-            start_end = aread.fast_read_start_end_time()
+            # pass acceptable packet types (pings) so timing matches the checks later which look at ping times only
+            start_end = aread.fast_read_start_end_time(par3.ping_dtypes, 1)
         else:
             start_end = None
         if gather_serialnumber:
