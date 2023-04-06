@@ -11,6 +11,9 @@ import laspy
 from pyproj import CRS, Transformer
 import json
 
+import logging
+logger = logging.getLogger(__file__)
+
 from HSTB.kluster.modules.backscatter import generate_avg_corrector, avg_correct
 from HSTB.kluster.fqpr_drivers import return_xyz_from_multibeam
 from HSTB.kluster.xarray_conversion import BatchRead
@@ -345,19 +348,19 @@ def process_multibeam(fqpr_inst: Fqpr, run_orientation: bool = True, orientation
 
     fqpr_inst.construct_crs(epsg=epsg, datum=coord_system, projected=True, vert_ref=vert_ref)
     if run_orientation:
-        print("run_orientation...")
+        logger.warning("run_orientation...")
         fqpr_inst.get_orientation_vectors(initial_interp=orientation_initial_interpolation, subset_time=subset_time)
     if run_beam_vec:
-        print("run_beam_vec...")
+        logger.warning("run_beam_vec...")
         fqpr_inst.get_beam_pointing_vectors(subset_time=subset_time)
     if run_svcorr:
-        print("run_svcorr...")
+        logger.warning("run_svcorr...")
         fqpr_inst.sv_correct(add_cast_files=add_cast_files, cast_selection_method=cast_selection_method, subset_time=subset_time)
     if run_georef:
-        print("run_georef...")
+        logger.warning("run_georef...")
         fqpr_inst.georef_xyz(vdatum_directory=vdatum_directory, subset_time=subset_time)
     if run_tpu:
-        print("run_tpu...")
+        logger.warning("run_tpu...")
         fqpr_inst.calculate_total_uncertainty(subset_time=subset_time)
 
     # dask processes appear to suffer from memory leaks regardless of how carefully we track and wait on futures, reset the client here to clear memory after processing
@@ -367,7 +370,8 @@ def process_multibeam(fqpr_inst: Fqpr, run_orientation: bool = True, orientation
     return fqpr_inst
 
 
-def reload_data(converted_folder: str, require_raw_data: bool = True, skip_dask: bool = False, silent: bool = False,
+def reload_data(converted_folder: str, require_raw_data: bool = True,
+                client: Client = None, skip_dask: bool = False, silent: bool = False,
                 show_progress: bool = True):
     """
     Pick up from a previous session.  Load in all the data that exists for the session using the provided
@@ -404,7 +408,7 @@ def reload_data(converted_folder: str, require_raw_data: bool = True, skip_dask:
         return None
 
     if (require_raw_data and final_paths['ping'] and final_paths['attitude']) or (final_paths['ping']):
-        mbes_read = BatchRead(None, skip_dask=skip_dask, show_progress=show_progress)
+        mbes_read = BatchRead(None, client=client, skip_dask=skip_dask, show_progress=show_progress)
         mbes_read.final_paths = final_paths
         read_error = mbes_read.read_from_zarr_fils(final_paths['ping'], final_paths['attitude'][0], final_paths['logfile'])
         if read_error:
