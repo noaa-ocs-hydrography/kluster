@@ -345,14 +345,19 @@ def process_multibeam(fqpr_inst: Fqpr, run_orientation: bool = True, orientation
 
     fqpr_inst.construct_crs(epsg=epsg, datum=coord_system, projected=True, vert_ref=vert_ref)
     if run_orientation:
+        print("run_orientation...")
         fqpr_inst.get_orientation_vectors(initial_interp=orientation_initial_interpolation, subset_time=subset_time)
     if run_beam_vec:
+        print("run_beam_vec...")
         fqpr_inst.get_beam_pointing_vectors(subset_time=subset_time)
     if run_svcorr:
+        print("run_svcorr...")
         fqpr_inst.sv_correct(add_cast_files=add_cast_files, cast_selection_method=cast_selection_method, subset_time=subset_time)
     if run_georef:
+        print("run_georef...")
         fqpr_inst.georef_xyz(vdatum_directory=vdatum_directory, subset_time=subset_time)
     if run_tpu:
+        print("run_tpu...")
         fqpr_inst.calculate_total_uncertainty(subset_time=subset_time)
 
     # dask processes appear to suffer from memory leaks regardless of how carefully we track and wait on futures, reset the client here to clear memory after processing
