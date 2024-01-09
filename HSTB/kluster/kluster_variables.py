@@ -111,7 +111,7 @@ cast_selection_explanation = {'nearest_in_time': f'use the cast that is nearest 
                               'nearest_in_distance_four_hours': f'use the cast that is nearest in distance to each {ping_chunk_size} ping chunk as long as it is within four hours'}
 default_cast_selection_method = 'nearest_in_time'
 
-single_head_sonar = ['em122', 'em302', 'em710', 'em2040c', 'em2045', 'em2040', 'em2040p', 'em3002', 'em3020', 'me70']  # all single head sonar models
+single_head_sonar = ['em122', 'em302', 'em710', 'em2040c', 'em2045', 'em2040', 'em2042', 'em2040p', 'em3002', 'em3020', 'me70']  # all single head sonar models
 dual_head_sonar = ['em2040_dual_rx', 'em2040_dual_tx', 'em2045_dual', 'em2040_dual_tx_rx', 'em3020_dual']  # all dual head sonar models
 # tpu parameter names controls what gets passed to the tpu calculator
 tpu_parameter_names = ['tx_to_antenna_x', 'tx_to_antenna_y', 'tx_to_antenna_z', 'heave_error', 'roll_sensor_error',
