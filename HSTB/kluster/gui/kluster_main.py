@@ -50,6 +50,9 @@ try:
 except ImportError:
     has_woa = False
 
+from HSTB.shared.windows_taskbar import separate_taskbar
+separate_taskbar()
+
 # list of icons
 # https://joekuan.wordpress.com/2015/09/23/list-of-qt-icons/
 
