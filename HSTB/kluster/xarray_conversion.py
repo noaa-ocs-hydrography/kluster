@@ -26,13 +26,15 @@ from HSTB.kluster import kluster_variables
 
 
 sonar_translator = {'ek60': [None, 'tx', 'rx', None], 'ek80': [None, 'tx', 'rx', None],
-                    'em122': [None, 'tx', 'rx', None], 'em302': [None, 'tx', 'rx', None], 'em304': [None, 'tx', 'rx', None],
+                    'em122': [None, 'tx', 'rx', None], 'em124': [None, 'tx', 'rx', None],
+                    'em302': [None, 'tx', 'rx', None], 'em304': [None, 'tx', 'rx', None],
                     'em710': [None, 'tx', 'rx', None], 'em712': [None, 'tx', 'rx', None], 'em2040': [None, 'tx', 'rx', None],
                     'em2040_dual_rx': [None, 'tx', 'rx_port', 'rx_stbd'],
                     'em2040_dual_tx': ['tx_port', 'tx_stbd', 'rx_port', None],
                     'em2040_dual_tx_rx': ['tx_port', 'tx_stbd', 'rx_port', 'rx_stbd'],
-                    # EM2040c is represented in the .all file as em2045
-                    'em2045': [None, 'txrx', None, None], 'em2045_dual': [None, 'txrx_port', 'txrx_stbd', None],
+                    # EM2040c is represented in the .all file as em2045, and in later .kmall files as em2040c
+                    'em2040c': [None, 'txrx', None, None], 'em2045': [None, 'txrx', None, None],
+                    'em2045_dual': [None, 'txrx_port', 'txrx_stbd', None],
                     'em3002': [None, 'tx', 'rx', None], 'em2040p': [None, 'txrx', None, None],
                     'em3020': [None, 'tx', 'rx', None], 'em3020_dual': [None, 'txrx_port', 'txrx_stbd', None],
                     'me70': [None, 'txrx', None, None], '7125': [None, 'tx', 'rx', None], 't20': [None, 'tx', 'rx', None],
@@ -74,6 +76,10 @@ install_parameter_modifier = {'em2040_dual_tx_rx': {'rx_port': {'0': {'x': 0.011
                                                 '1': {'x': -0.0455, 'y': 0.0, 'z': -0.006}},
                                          'tx': {'0': {'x': 0.0038, 'y': 0.040, 'z': -0.006},
                                                 '1': {'x': 0.0038, 'y': 0.040, 'z': -0.006}}},
+                              'em2040c': {'rx': {'0': {'x': -0.0455, 'y': 0.0, 'z': -0.006},
+                                                 '1': {'x': -0.0455, 'y': 0.0, 'z': -0.006}},
+                                          'tx': {'0': {'x': 0.0038, 'y': 0.040, 'z': -0.006},
+                                                 '1': {'x': 0.0038, 'y': 0.040, 'z': -0.006}}},
                               'em2040p': {'rx': {'0': {'x': 0.204, 'y': 0.0, 'z': -0.0315},
                                                  '1': {'x': 0.204, 'y': 0.0, 'z': -0.0315},
                                                  '2': {'x': 0.204, 'y': 0.0, 'z': -0.0315}},
