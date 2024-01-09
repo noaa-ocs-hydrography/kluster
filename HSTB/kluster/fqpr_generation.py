@@ -784,11 +784,11 @@ class Fqpr(ZarrBackend):
         if not has_woa:
             print("Requires Hydroffice's SoundSpeedManager to be installed")
             return None
-        output_filename = pathlib.Path(self.output_folder).join("woa.svp")
+        output_filename = pathlib.Path(self.output_folder).joinpath("woa.svp")
         pings = self.multibeam.raw_ping[0]
-        woa.make_svp_file(pings.max_lat, pings.max_lon, datetime.fromtimestamp(pings.time[0]),
-                          pings.min_lat, pings.min_lon, datetime.fromtimestamp(pings.time[-1]),
-                          output_filename)
+        woa.make_svp_file_range(pings.max_lat, pings.max_lon, datetime.fromtimestamp(pings.time[0]),
+                                pings.min_lat, pings.min_lon, datetime.fromtimestamp(pings.time[-1]),
+                                output_filename)
         return str(output_filename)
 
     def import_sound_velocity_files(self, src: Union[str, list], cast_selection_method: str = 'nearest_in_time'):
