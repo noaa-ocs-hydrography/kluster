@@ -16,7 +16,7 @@ class TestZarr(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls) -> None:
-        cls.clsFolder = os.path.join(tempfile.tempdir, 'TestZarr')
+        cls.clsFolder = os.path.join(tempfile.gettempdir(), 'TestZarr')
         try:
             os.mkdir(cls.clsFolder)
         except FileExistsError:
@@ -482,14 +482,14 @@ class TestZarr(unittest.TestCase):
         # with existing counter values of array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
         #  the new write with values array([10, 11, 12, 13, 14, 15, 16, 17, 18, 19]) will have the first value dropped as
         #  the time for that value overlaps the existing data, and is a new time, which is not allowed
-        expected_counter = np.array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 12, 13, 14, 15, 16, 17, 18, 19])
+        expected_counter = np.array([0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 9, 11, 12, 13, 14, 15, 16, 17, 18, 19])
         answer = xdataset.counter.values
         assert np.array_equal(answer, expected_counter)
 
         # with existing counter values of array([ 0,  1,  2,  3,  4,  5,  6,  7,  8, 10])
         #  the new write with values array([ 9, 11, 12, 13, 14, 15, 16, 17, 18, 19]) will have the first value dropped as
         #  the time for that value overlaps the existing data, and is a new time, which is not allowed
-        expected_time = np.array([0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19])
+        expected_time = np.array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19])
         assert np.array_equal(xdataset.time.values, expected_time)
 
         assert np.array_equal(xdataset.beam.values, np.arange(400))
@@ -520,11 +520,11 @@ class TestZarr(unittest.TestCase):
 
         xdataset = reload_zarr_records(zarr_path, skip_dask=True)
 
-        expected_counter = np.array([0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19])
+        expected_counter = np.array([0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 9, 11, 12, 13, 14, 15, 16, 17, 18, 19])
         answer = xdataset.counter.values
         assert np.array_equal(answer, expected_counter)
 
-        expected_time = np.array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 12, 13, 14, 15, 16, 17, 18, 19])
+        expected_time = np.array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19])
         assert np.array_equal(xdataset.time.values, expected_time)
 
         assert np.array_equal(xdataset.beam.values, np.arange(400))
@@ -637,6 +637,67 @@ class TestZarr(unittest.TestCase):
                                         thirddatasets[0].beampointingangle])
         assert np.array_equal(xdataset.beampointingangle.values, expectedangle)
         assert xdataset.attrs['test_attribute'] == 'abc'
+
+    def test_zarr_backend_inbetween_and_overlap_and_after(self):
+        # Test complex array layouts.
+        # Times 0 - 9 will be written first and never overlapped
+        # Times 20 - 39 will be written and later have overlap from 30-39
+        # Times 50 - 89 will be written and later have overlap from 60-69 and 80-89
+        # Then a group of times 10 - 19, 30 - 49 and 60-80 will be written
+        # write new data to disk
+        dataset_name, d1, dataset_time_arrays, attributes, sysid = self._return_basic_datasets(1, 2)
+        zarr_path, _ = self.zb.write(dataset_name, d1, dataset_time_arrays, attributes, skip_dask=True,
+                                     sys_id=sysid)
+
+        # write next data to disk, with a gap between it and existing data
+        dataset_name, d2, dataset_time_arrays, attributes, sysid = self._return_basic_datasets(3, 5)
+        zarr_path, _ = self.zb.write(dataset_name, d2, dataset_time_arrays, attributes, skip_dask=True,
+                                     sys_id=sysid)
+
+        # write next data to disk, with a gap between it and existing data
+        dataset_name, d3, dataset_time_arrays, attributes, sysid = self._return_basic_datasets(6, 8)
+        zarr_path, _ = self.zb.write(dataset_name, d3, dataset_time_arrays, attributes, skip_dask=True,
+                                     sys_id=sysid)
+        # write next data to disk, with a gap between it and existing data
+        dataset_name, d4, dataset_time_arrays, attributes, sysid = self._return_basic_datasets(9, 10)
+        zarr_path, _ = self.zb.write(dataset_name, d4, dataset_time_arrays, attributes, skip_dask=True,
+                                     sys_id=sysid)
+        xdataset = reload_zarr_records(zarr_path, skip_dask=True)
+
+        input_datasets, input_times = [], []
+        for start, stop in [(0, 2),  # prepend + overlap + duplicates the times from the first group (goes first for the sort of inputs requirement)
+                            (1, 2),  # just overlap
+                            (2, 3),  # now write in between
+                            (4, 6),  # overlap + in between
+                            (9, 11),  # overlap + end
+                            ]:  # overlap plus at the end
+            dataset_name, seconddatasets, dataset_time_arrays, attributes, sysid = self._return_basic_datasets(start, stop)
+            consolidated_data = xr.concat(seconddatasets, dim='time')
+            consolidated_time_arrays = np.concatenate(dataset_time_arrays)
+            input_datasets.append(consolidated_data)
+            input_times.append(consolidated_time_arrays)
+        zarr_path, _ = self.zb.write(dataset_name, input_datasets, input_times, attributes, skip_dask=True,
+                                     sys_id=sysid)
+
+        xdataset = reload_zarr_records(zarr_path, skip_dask=True)
+        # left the range from 80-89 empty
+        assert np.array_equal(xdataset.counter.values, np.concatenate([np.arange(80), np.arange(90, 110)]))
+        assert np.array_equal(xdataset.time.values, np.concatenate([np.arange(80), np.arange(90, 110)]))
+        assert np.array_equal(xdataset.beam.values, np.arange(400))
+        # the angles are random numbers so we have to be right.
+        # The angle stored would be the last data sent to the zarr write function
+        expectedangle = np.concatenate([input_datasets[0].beampointingangle.values[:10],  # (0, 2) but the second half is overwritten by the next input
+                                        input_datasets[1].beampointingangle.values[:10],  # (1, 2)
+                                        input_datasets[2].beampointingangle.values[:10],  # (2, 3)
+                                        d2[0].beampointingangle.values[:10],  # (3, 5) from original setup
+                                        input_datasets[3].beampointingangle.values[:20],  # (4, 6)
+                                        d3[0].beampointingangle.values[:10],  # (6, 8) from original setup
+                                        d3[1].beampointingangle.values[:10],  # (6, 8) from original setup
+                                        input_datasets[4].beampointingangle.values[:20],  # (9, 10) from original setup
+                                        ])
+        assert np.array_equal(xdataset.beampointingangle.values, expectedangle)
+        assert xdataset.attrs['test_attribute'] == 'abc'
+
 
     def test_zarr_backend_alternating(self):
         # write new data to disk

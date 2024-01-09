@@ -44,7 +44,7 @@ class FqprProject(LoggerClass):
     def __init__(self, project_path: str = None, **kwargs):
         super().__init__(**kwargs)
         self.client = None
-        self.skip_dask = False
+        self.skip_dask = False  # FIXME @TODO Pydro is this the control for debugging without dask?
         self.path = None
         self.file_format = 1.0
 

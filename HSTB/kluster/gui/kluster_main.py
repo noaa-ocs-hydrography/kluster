@@ -13,6 +13,7 @@ import matplotlib
 matplotlib.use('qt5agg')
 
 import sys
+import pathlib
 import webbrowser
 import numpy as np
 import multiprocessing
@@ -38,9 +39,16 @@ from HSTB.kluster.gdal_helpers import ogr_output_file_exists, gdal_output_file_e
 from HSTB.kluster.logging_conf import return_logger, add_file_handler, logfile_matches, logger_remove_file_handlers
 from HSTB.kluster import __version__ as kluster_version
 from HSTB.kluster import __file__ as kluster_init_file
-from HSTB.shared import RegistryHelpers, path_to_supplementals
+from HSTB.shared import RegistryHelpers
+from HSTB.resources import path_to_supplementals
 from HSTB.kluster import kluster_variables
 from bathygrid.grid_variables import allowable_grid_root_names
+
+try:
+    from HSTB.drivers import woa
+    has_woa = True
+except ImportError:
+    has_woa = False
 
 # list of icons
 # https://joekuan.wordpress.com/2015/09/23/list-of-qt-icons/
@@ -394,6 +402,8 @@ class KlusterMain(QtWidgets.QMainWindow):
 
         add_files_action = QtWidgets.QAction('Add Files', self)
         add_files_action.triggered.connect(self._action_filemenu_add_files)
+        add_woa_files_action = QtWidgets.QAction('Add WOA SVP', self)
+        add_woa_files_action.triggered.connect(self._action_filemenu_add_woa_files)
         add_converted_action = QtWidgets.QAction('Open Converted', self)
         add_converted_action.triggered.connect(self._action_filemenu_add_converted)
         add_surface_action = QtWidgets.QAction('Open Surface', self)
@@ -476,6 +486,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         menubar = self.menuBar()
         file = menubar.addMenu("File")
         file.addAction(add_files_action)
+        file.addAction(add_woa_files_action)
         file.addAction(add_converted_action)
         file.addAction(add_surface_action)
         file.addSeparator()
@@ -529,6 +540,42 @@ class KlusterMain(QtWidgets.QMainWindow):
         klusterhelp.addAction(docs_action)
         klusterhelp.addAction(odocs_action)
         klusterhelp.addAction(videos_action)
+
+    def generate_woa_files(self):
+        """ Makes a single SVP file that contains all the WOA positions and times to cover all the FQPR objects in the project
+
+        Returns
+        -------
+        output_filename
+            Full path to the output file, will be the same as the project ".json" file but with a "woa.svp" extension
+        """
+        if not has_woa:
+            self.print("Requires Hydroffice's SoundSpeedManager to be installed")
+            # FIXME
+            self.print("put up a messagebox about needing Pydro/SSM")
+            return None
+        if not woa.loaded:
+            # FIXME  put up question to user
+            print("downloading the WOA data - warning it's large")
+            woa.download_woa()
+        output_filename = pathlib.Path(self.project.path).with_suffix(".woa.svp")
+        try:
+            os.remove(output_filename)
+        except FileNotFoundError:
+            pass
+        except PermissionError:
+            self.print("WOA file is in use, will to append new casts.\nThis may result in duplication of existing SV profiles")
+        # so we don't repeat the world ocean atlas casts many times per month/position - compile a set of places we'd need
+        woa_points = set()
+        for name, fqpr_inst in self.project.fqpr_instances.items():
+            pings = fqpr_inst.multibeam.raw_ping[0]
+            woa_points.update(woa.iter_woa_lat_lon_times_gridded(pings.max_lat, pings.max_lon, datetime.fromtimestamp(pings.time[0]),
+                                                                 pings.min_lat, pings.min_lon, datetime.fromtimestamp(pings.time[-1])))
+        # Now write all the sound speed profiles to a single Caris SVP
+        for lat, lon, dt in woa_points:
+            woa.make_svp_file(lat, lon, dt, output_filename)
+
+        return output_filename
 
     def update_on_file_added(self, fil: Union[str, list] = ''):
         """
@@ -3017,10 +3064,18 @@ class KlusterMain(QtWidgets.QMainWindow):
         """
         Connect menu action 'Add Files' with file dialog and update_on_file_added
         """
-        msg, fil = RegistryHelpers.GetFilenameFromUserQT(self, RegistryKey='kluster', Title='Add any data file (multibeam, sbet, svp, etc.)',
+        success, fil = RegistryHelpers.GetFilenameFromUserQT(self, RegistryKey='kluster', Title='Add any data file (multibeam, sbet, svp, etc.)',
                                                          AppName='klusterproj', bMulti=True, bSave=False, fFilter='all files (*.*)')
-        if msg:
+        if success:
             self.update_on_file_added(fil)
+
+    def _action_filemenu_add_woa_files(self):
+        """
+        Connect menu action 'Add WOA SVP' with file dialog and update_on_file_added
+        """
+        filename = self.generate_woa_files()
+        self.print(f'Made WOA file at {filename}', logging.INFO)
+        self.update_on_file_added(str(filename))
 
     def _action_filemenu_add_converted(self):
         """

@@ -233,6 +233,23 @@ def overwrite_raw_navigation(fqpr_inst: Fqpr, navfiles: list, weekstart_year: in
     return fqpr_inst
 
 
+def create_and_load_woa_casts(fqpr_inst: Fqpr, cast_selection_method: str = 'nearest_in_time'):
+    """
+    Parameters
+    ----------
+    fqpr_inst
+    cast_selection_method
+
+    Returns
+    -------
+
+    """
+    svp_filename = fqpr_inst.create_woa_casts()
+    if svp_filename:
+        import_sound_velocity(fqpr_inst, svp_filename, cast_selection_method=cast_selection_method)
+    return fqpr_inst
+
+
 def import_sound_velocity(fqpr_inst: Fqpr, sv_files: Union[str, list], cast_selection_method: str = 'nearest_in_time'):
     """
     Convenience function for passing in an instance of fqpr_generation.Fqpr and importing the provided sound velocity
