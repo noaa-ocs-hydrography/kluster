@@ -25,6 +25,7 @@ install:
   - conda install git pip
   - pip install git+https://github.com/noaa-ocs-hydrography/kluster.git#egg=hstb.kluster
   - pip install git+https://github.com/noaa-ocs-hydrography/shared.git#egg=hstb.shared
+  - pip install git+https://github.com/noaa-ocs-hydrography/hstb_resources.git#egg=hstb.resources
   - pip install git+https://github.com/noaa-ocs-hydrography/vyperdatum.git#egg=vyperdatum
   - pip install git+https://github.com/noaa-ocs-hydrography/bathygrid.git#egg=bathygrid
   - pip install -r requirements.txt
