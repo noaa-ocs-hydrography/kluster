@@ -3,8 +3,12 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
+.. We should build against the README.MD in the main repo directory and add the plugin that will allow using a MD file as the index.rst file
+
 kluster
 =======
+
+**NOTE: this document may be out of date, please see the `kluster documentation <https://kluster.readthedocs.io/en/latest/>`_ for the most up to date information**
 
 Known Issues
 ------------
@@ -123,11 +127,9 @@ Some dependencies need to be installed from the conda-forge channel.  I have an 
 
 Perform these in order:
 
-``conda create -n kluster_test python=3.8.8``
+``conda create -n kluster_test -c conda-forge python=3.8.12 qgis=3.18.3 vispy=0.9.4 pyside2=5.13.2 gdal=3.3.1 h5py python-geohash``
 
 ``conda activate kluster_test``
-
-``conda install -c conda-forge qgis=3.18.0 vispy=0.6.6 pyside2=5.13.2 gdal=3.2.1 h5py``
 
 ``pip install git+https://github.com/noaa-ocs-hydrography/kluster.git#egg=hstb.kluster``
 

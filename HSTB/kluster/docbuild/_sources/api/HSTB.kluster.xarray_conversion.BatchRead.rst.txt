@@ -6,6 +6,12 @@ BatchRead
 .. autoclass:: BatchRead
    :show-inheritance:
 
+   .. rubric:: Attributes Summary
+
+   .. autosummary::
+
+      ~BatchRead.chunk_size
+
    .. rubric:: Methods Summary
 
    .. autosummary::
@@ -14,17 +20,21 @@ BatchRead
       ~BatchRead.build_additional_line_metadata
       ~BatchRead.build_offsets
       ~BatchRead.correct_for_counter_reset
+      ~BatchRead.get_nearest_install_parameters
+      ~BatchRead.get_nearest_runtime_parameters
       ~BatchRead.initialize_log
       ~BatchRead.is_dual_head
       ~BatchRead.read
       ~BatchRead.read_from_netcdf_fils
       ~BatchRead.read_from_zarr_fils
+      ~BatchRead.reload_attituderecords
       ~BatchRead.reload_pingrecords
       ~BatchRead.return_all_profiles
       ~BatchRead.return_nearest_soundspeed_profile
       ~BatchRead.return_ping_counters_at_time
       ~BatchRead.return_prefix_for_rp
       ~BatchRead.return_raw_navigation
+      ~BatchRead.return_runtime_and_installation_settings_dicts
       ~BatchRead.return_rx_xyzrph
       ~BatchRead.return_system_time_indexed_array
       ~BatchRead.return_tpu_parameters
@@ -34,23 +44,31 @@ BatchRead
       ~BatchRead.return_xyz_prefixes_for_systems
       ~BatchRead.return_xyzrph_sorted_timestamps
 
+   .. rubric:: Attributes Documentation
+
+   .. autoattribute:: chunk_size
+
    .. rubric:: Methods Documentation
 
    .. automethod:: batch_read
    .. automethod:: build_additional_line_metadata
    .. automethod:: build_offsets
    .. automethod:: correct_for_counter_reset
+   .. automethod:: get_nearest_install_parameters
+   .. automethod:: get_nearest_runtime_parameters
    .. automethod:: initialize_log
    .. automethod:: is_dual_head
    .. automethod:: read
    .. automethod:: read_from_netcdf_fils
    .. automethod:: read_from_zarr_fils
+   .. automethod:: reload_attituderecords
    .. automethod:: reload_pingrecords
    .. automethod:: return_all_profiles
    .. automethod:: return_nearest_soundspeed_profile
    .. automethod:: return_ping_counters_at_time
    .. automethod:: return_prefix_for_rp
    .. automethod:: return_raw_navigation
+   .. automethod:: return_runtime_and_installation_settings_dicts
    .. automethod:: return_rx_xyzrph
    .. automethod:: return_system_time_indexed_array
    .. automethod:: return_tpu_parameters

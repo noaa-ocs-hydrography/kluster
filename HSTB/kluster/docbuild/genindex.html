@@ -5,7 +5,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Index &#8212; kluster 1.1.5 documentation</title>
+    <title>Index &#8212; kluster 1.1.7 documentation</title>
     <link rel="stylesheet" type="text/css" href="_static/pygments.css" />
     <link rel="stylesheet" type="text/css" href="_static/alabaster.css" />
     <link rel="stylesheet" type="text/css" href="_static/graphviz.css" />
@@ -201,6 +201,8 @@
 </li>
       <li><a href="api/HSTB.kluster.modules.svcorrect.cast_data_from_file.html#HSTB.kluster.modules.svcorrect.cast_data_from_file">cast_data_from_file() (in module HSTB.kluster.modules.svcorrect)</a>
 </li>
+      <li><a href="api/HSTB.kluster.xarray_conversion.BatchRead.html#HSTB.kluster.xarray_conversion.BatchRead.chunk_size">chunk_size (HSTB.kluster.xarray_conversion.BatchRead attribute)</a>
+</li>
       <li><a href="api/HSTB.kluster.fqpr_actions.FqprActionContainer.html#HSTB.kluster.fqpr_actions.FqprActionContainer.clear">clear() (HSTB.kluster.fqpr_actions.FqprActionContainer method)</a>
 
       <ul>
@@ -261,9 +263,13 @@
 </li>
       <li><a href="api/HSTB.kluster.xarray_conversion.BatchRead.html#HSTB.kluster.xarray_conversion.BatchRead.correct_for_counter_reset">correct_for_counter_reset() (HSTB.kluster.xarray_conversion.BatchRead method)</a>
 </li>
+      <li><a href="api/HSTB.kluster.fqpr_convenience.create_and_load_woa_casts.html#HSTB.kluster.fqpr_convenience.create_and_load_woa_casts">create_and_load_woa_casts() (in module HSTB.kluster.fqpr_convenience)</a>
+</li>
       <li><a href="api/HSTB.kluster.fqpr_project.create_new_project.html#HSTB.kluster.fqpr_project.create_new_project">create_new_project() (in module HSTB.kluster.fqpr_project)</a>
 </li>
       <li><a href="api/HSTB.kluster.fqpr_vessel.create_new_vessel_file.html#HSTB.kluster.fqpr_vessel.create_new_vessel_file">create_new_vessel_file() (in module HSTB.kluster.fqpr_vessel)</a>
+</li>
+      <li><a href="api/HSTB.kluster.fqpr_generation.Fqpr.html#HSTB.kluster.fqpr_generation.Fqpr.create_woa_casts">create_woa_casts() (HSTB.kluster.fqpr_generation.Fqpr method)</a>
 </li>
       <li><a href="api/HSTB.kluster.modules.beampointingvector.cross.html#HSTB.kluster.modules.beampointingvector.cross">cross() (in module HSTB.kluster.modules.beampointingvector)</a>
 </li>
@@ -389,6 +395,8 @@
 </li>
       <li><a href="api/HSTB.kluster.modules.wobble.fit_sin.html#HSTB.kluster.modules.wobble.fit_sin">fit_sin() (in module HSTB.kluster.modules.wobble)</a>
 </li>
+      <li><a href="api/HSTB.kluster.fqpr_generation.Fqpr.html#HSTB.kluster.fqpr_generation.Fqpr.fix_indices">fix_indices() (HSTB.kluster.fqpr_generation.Fqpr method)</a>
+</li>
       <li><a href="api/HSTB.kluster.xarray_helpers.fix_xarray_dataset_index.html#HSTB.kluster.xarray_helpers.fix_xarray_dataset_index">fix_xarray_dataset_index() (in module HSTB.kluster.xarray_helpers)</a>
 </li>
       <li><a href="api/HSTB.kluster.modules.backscatter.Allscatter.html#HSTB.kluster.modules.backscatter.Allscatter.fixed_gain">fixed_gain (HSTB.kluster.modules.backscatter.Allscatter attribute)</a>
@@ -475,10 +483,10 @@
 </li>
       <li><a href="api/HSTB.kluster.fqpr_convenience.get_attributes_from_zarr_stores.html#HSTB.kluster.fqpr_convenience.get_attributes_from_zarr_stores">get_attributes_from_zarr_stores() (in module HSTB.kluster.fqpr_convenience)</a>
 </li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="api/HSTB.kluster.fqpr_generation.Fqpr.html#HSTB.kluster.fqpr_generation.Fqpr.get_beam_pointing_vectors">get_beam_pointing_vectors() (HSTB.kluster.fqpr_generation.Fqpr method)</a>
 </li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="api/HSTB.kluster.xarray_helpers.get_beamwise_interpolation.html#HSTB.kluster.xarray_helpers.get_beamwise_interpolation">get_beamwise_interpolation() (in module HSTB.kluster.xarray_helpers)</a>
 </li>
       <li><a href="api/HSTB.kluster.fqpr_generation.Fqpr.html#HSTB.kluster.fqpr_generation.Fqpr.get_cluster_params">get_cluster_params() (HSTB.kluster.fqpr_generation.Fqpr method)</a>
@@ -495,7 +503,11 @@
 </li>
       <li><a href="api/HSTB.kluster.dask_helpers.get_max_cluster_allocated_memory.html#HSTB.kluster.dask_helpers.get_max_cluster_allocated_memory">get_max_cluster_allocated_memory() (in module HSTB.kluster.dask_helpers)</a>
 </li>
+      <li><a href="api/HSTB.kluster.xarray_conversion.BatchRead.html#HSTB.kluster.xarray_conversion.BatchRead.get_nearest_install_parameters">get_nearest_install_parameters() (HSTB.kluster.xarray_conversion.BatchRead method)</a>
+</li>
       <li><a href="api/HSTB.kluster.xarray_conversion.get_nearest_runtime.html#HSTB.kluster.xarray_conversion.get_nearest_runtime">get_nearest_runtime() (in module HSTB.kluster.xarray_conversion)</a>
+</li>
+      <li><a href="api/HSTB.kluster.xarray_conversion.BatchRead.html#HSTB.kluster.xarray_conversion.BatchRead.get_nearest_runtime_parameters">get_nearest_runtime_parameters() (HSTB.kluster.xarray_conversion.BatchRead method)</a>
 </li>
       <li><a href="api/HSTB.kluster.fqpr_actions.FqprActionContainer.html#HSTB.kluster.fqpr_actions.FqprActionContainer.get_next_action">get_next_action() (HSTB.kluster.fqpr_actions.FqprActionContainer method)</a>
 </li>
@@ -939,6 +951,8 @@
       </ul></li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/HSTB.kluster.fqpr_generation.Fqpr.html#HSTB.kluster.fqpr_generation.Fqpr.multibeam_extension">multibeam_extension (HSTB.kluster.fqpr_generation.Fqpr attribute)</a>
+</li>
       <li><a href="api/HSTB.kluster.fqpr_intelligence.MultibeamModule.html#HSTB.kluster.fqpr_intelligence.MultibeamModule">MultibeamModule (class in HSTB.kluster.fqpr_intelligence)</a>
 </li>
       <li><a href="api/HSTB.kluster.xarray_helpers.my_open_mfdataset.html#HSTB.kluster.xarray_helpers.my_open_mfdataset">my_open_mfdataset() (in module HSTB.kluster.xarray_helpers)</a>
@@ -1037,6 +1051,8 @@
 </li>
       <li><a href="api/HSTB.kluster.modules.backscatter.BScatter.html#HSTB.kluster.modules.backscatter.BScatter.plot_backscatter_components">plot_backscatter_components() (HSTB.kluster.modules.backscatter.BScatter method)</a>
 </li>
+      <li><a href="api/HSTB.kluster.modules.visualizations.FqprVisualizations.html#HSTB.kluster.modules.visualizations.FqprVisualizations.plot_backscatter_sample">plot_backscatter_sample() (HSTB.kluster.modules.visualizations.FqprVisualizations method)</a>
+</li>
       <li><a href="api/HSTB.kluster.modules.wobble.WobbleTest.html#HSTB.kluster.modules.wobble.WobbleTest.plot_correlation_table">plot_correlation_table() (HSTB.kluster.modules.wobble.WobbleTest method)</a>
 </li>
       <li><a href="api/HSTB.kluster.modules.wobble.WobbleTest.html#HSTB.kluster.modules.wobble.WobbleTest.plot_heave_sound_speed_one">plot_heave_sound_speed_one() (HSTB.kluster.modules.wobble.WobbleTest method)</a>
@@ -1046,6 +1062,8 @@
       <li><a href="api/HSTB.kluster.modules.visualizations.FqprVisualizations.html#HSTB.kluster.modules.visualizations.FqprVisualizations.plot_sound_velocity_map">plot_sound_velocity_map() (HSTB.kluster.modules.visualizations.FqprVisualizations method)</a>
 </li>
       <li><a href="api/HSTB.kluster.modules.visualizations.FqprVisualizations.html#HSTB.kluster.modules.visualizations.FqprVisualizations.plot_sound_velocity_profiles">plot_sound_velocity_profiles() (HSTB.kluster.modules.visualizations.FqprVisualizations method)</a>
+</li>
+      <li><a href="api/HSTB.kluster.modules.visualizations.FqprVisualizations.html#HSTB.kluster.modules.visualizations.FqprVisualizations.plot_surface_sv_vs_profiles">plot_surface_sv_vs_profiles() (HSTB.kluster.modules.visualizations.FqprVisualizations method)</a>
 </li>
       <li><a href="api/HSTB.kluster.modules.visualizations.FqprVisualizations.html#HSTB.kluster.modules.visualizations.FqprVisualizations.plot_thu_sample">plot_thu_sample() (HSTB.kluster.modules.visualizations.FqprVisualizations method)</a>
 </li>
@@ -1057,10 +1075,10 @@
 </li>
       <li><a href="api/HSTB.kluster.modules.wobble.WobbleTest.html#HSTB.kluster.modules.wobble.WobbleTest.plot_yaw_alignment">plot_yaw_alignment() (HSTB.kluster.modules.wobble.WobbleTest method)</a>
 </li>
-      <li><a href="api/HSTB.kluster.modules.sat.ExtinctionTest.html#HSTB.kluster.modules.sat.ExtinctionTest.plotv2">plotv2() (HSTB.kluster.modules.sat.ExtinctionTest method)</a>
-</li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/HSTB.kluster.modules.sat.ExtinctionTest.html#HSTB.kluster.modules.sat.ExtinctionTest.plotv2">plotv2() (HSTB.kluster.modules.sat.ExtinctionTest method)</a>
+</li>
       <li><a href="api/HSTB.kluster.fqpr_convenience.points_to_surface.html#HSTB.kluster.fqpr_convenience.points_to_surface">points_to_surface() (in module HSTB.kluster.fqpr_convenience)</a>
 </li>
       <li><a href="api/HSTB.kluster.modules.georeference.polygon_to_geohashes.html#HSTB.kluster.modules.georeference.polygon_to_geohashes">polygon_to_geohashes() (in module HSTB.kluster.modules.georeference)</a>
@@ -1076,6 +1094,8 @@
       <li><a href="api/HSTB.kluster.fqpr_actions.FqprAction.html#HSTB.kluster.fqpr_actions.FqprAction.print_summary">print_summary() (HSTB.kluster.fqpr_actions.FqprAction method)</a>
 </li>
       <li><a href="api/HSTB.kluster.modules.backscatter.BScatter.html#HSTB.kluster.modules.backscatter.BScatter.process">process() (HSTB.kluster.modules.backscatter.BScatter method)</a>
+</li>
+      <li><a href="api/HSTB.kluster.fqpr_generation.Fqpr.html#HSTB.kluster.fqpr_generation.Fqpr.process_backscatter">process_backscatter() (HSTB.kluster.fqpr_generation.Fqpr method)</a>
 </li>
       <li><a href="api/HSTB.kluster.fqpr_convenience.process_multibeam.html#HSTB.kluster.fqpr_convenience.process_multibeam">process_multibeam() (in module HSTB.kluster.fqpr_convenience)</a>
 </li>
@@ -1142,6 +1162,8 @@
       <li><a href="api/HSTB.kluster.fqpr_intelligence.FqprIntel.html#HSTB.kluster.fqpr_intelligence.FqprIntel.regenerate_actions">regenerate_actions() (HSTB.kluster.fqpr_intelligence.FqprIntel method)</a>
 </li>
       <li><a href="api/HSTB.kluster.fqpr_project.FqprProject.html#HSTB.kluster.fqpr_project.FqprProject.regenerate_fqpr_lines">regenerate_fqpr_lines() (HSTB.kluster.fqpr_project.FqprProject method)</a>
+</li>
+      <li><a href="api/HSTB.kluster.xarray_conversion.BatchRead.html#HSTB.kluster.xarray_conversion.BatchRead.reload_attituderecords">reload_attituderecords() (HSTB.kluster.xarray_conversion.BatchRead method)</a>
 </li>
       <li><a href="api/HSTB.kluster.fqpr_convenience.reload_data.html#HSTB.kluster.fqpr_convenience.reload_data">reload_data() (in module HSTB.kluster.fqpr_convenience)</a>
 </li>
@@ -1304,6 +1326,10 @@
       <li><a href="api/HSTB.kluster.xarray_conversion.BatchRead.html#HSTB.kluster.xarray_conversion.BatchRead.return_raw_navigation">return_raw_navigation() (HSTB.kluster.xarray_conversion.BatchRead method)</a>
 </li>
       <li><a href="api/HSTB.kluster.fqpr_generation.Fqpr.html#HSTB.kluster.fqpr_generation.Fqpr.return_rounded_frequency">return_rounded_frequency() (HSTB.kluster.fqpr_generation.Fqpr method)</a>
+</li>
+      <li><a href="api/HSTB.kluster.xarray_conversion.BatchRead.html#HSTB.kluster.xarray_conversion.BatchRead.return_runtime_and_installation_settings_dicts">return_runtime_and_installation_settings_dicts() (HSTB.kluster.xarray_conversion.BatchRead method)</a>
+</li>
+      <li><a href="api/HSTB.kluster.fqpr_generation.Fqpr.html#HSTB.kluster.fqpr_generation.Fqpr.return_runtime_idx_nearestintime">return_runtime_idx_nearestintime() (HSTB.kluster.fqpr_generation.Fqpr method)</a>
 </li>
       <li><a href="api/HSTB.kluster.xarray_conversion.BatchRead.html#HSTB.kluster.xarray_conversion.BatchRead.return_rx_xyzrph">return_rx_xyzrph() (HSTB.kluster.xarray_conversion.BatchRead method)</a>
 </li>
@@ -1539,6 +1565,8 @@
 <h2 id="T">T</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/HSTB.kluster.fqpr_generation.Fqpr.html#HSTB.kluster.fqpr_generation.Fqpr.total_distance_meters">total_distance_meters (HSTB.kluster.fqpr_generation.Fqpr attribute)</a>
+</li>
       <li><a href="api/HSTB.kluster.modules.tpu.Tpu.html#HSTB.kluster.modules.tpu.Tpu">Tpu (class in HSTB.kluster.modules.tpu)</a>
 </li>
       <li><a href="api/HSTB.kluster.modules.georeference.transform_ellipse.html#HSTB.kluster.modules.georeference.transform_ellipse">transform_ellipse() (in module HSTB.kluster.modules.georeference)</a>
