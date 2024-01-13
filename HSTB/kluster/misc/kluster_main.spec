@@ -4,6 +4,8 @@
 
 
 import sys, os
+import pathlib
+import logging
 import glob
 from PyInstaller.compat import is_win, is_darwin, is_linux
 from PyInstaller.utils.hooks import collect_submodules
@@ -12,7 +14,10 @@ import vispy.glsl
 import vispy.io
 
 block_cipher = None
-
+# The logging message was not showing up so used and exception to see the path
+# logging.log(logging.DEBUG, SPECPATH)
+# raise Exception(f"test {SPECPATH}")
+SPECPATH = str(pathlib.Path(SPECPATH).absolute())
 specfile_path = os.path.join(SPECPATH, 'kluster_main.spec')
 pydro_python_env_name = 'Pydro38'
 

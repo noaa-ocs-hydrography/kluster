@@ -1,8 +1,15 @@
 Changes List
 ============
 
-Kluster v1.1.6 (03/28/2023)
+Kluster v1.1.7 (01/12/2024)
 -----------------------------
+ - Bugfix for installation and minor documentation changes
+
+Kluster v1.1.6 (01/10/2024)
+-----------------------------
+ - Add support for em2040c with the new model identifier - #114
+ - Add support for em124 - #112
+ - Add support for em2042 - #113
  - Add World Ocean Atlas support
  - Bugfixes for data insertion
     - Data with partial overlapping but partial mismatching times was failing
