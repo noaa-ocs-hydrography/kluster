@@ -129,12 +129,12 @@ def ogr_output_file_exists(pth: str):
         True if the file exists
     """
 
-    ogr.UseExceptions()
+    # ogr.UseExceptions()
     try:
         openfil = ogr.Open(pth)
     except RuntimeError:
         openfil = None
-    ogr.DontUseExceptions()
+    # ogr.DontUseExceptions()
     if openfil is None:
         return False
     openfil = None

@@ -209,7 +209,7 @@ def _validate_sequential_read_installation(recs: dict):
                      'motion_sensor_1_athwart_location', 'motion_sensor_1_roll_angle',
                      'motion_sensor_1_pitch_angle', 'motion_sensor_1_heading_angle',
                      'waterline_vertical_location', 'active_position_system_number',
-                     'active_heading_sensor', 'position_1_datum']
+                     'position_1_datum']
     try:
         assert all([pms in recs['installation_params'] for pms in required_installation_params])
     except AssertionError:
