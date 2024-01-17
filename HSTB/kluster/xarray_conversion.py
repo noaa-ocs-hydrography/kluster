@@ -39,7 +39,7 @@ sonar_translator = {'ek60': [None, 'tx', 'rx', None], 'ek80': [None, 'tx', 'rx',
                     'em3002': [None, 'tx', 'rx', None], 'em2040p': [None, 'txrx', None, None],
                     'em3020': [None, 'tx', 'rx', None], 'em3020_dual': [None, 'txrx_port', 'txrx_stbd', None],
                     'me70': [None, 'txrx', None, None], '7125': [None, 'tx', 'rx', None], 't20': [None, 'tx', 'rx', None],
-                    't50': [None, 'tx', 'rx', None], 't51': [None, 'tx', 'rx', None]}
+                    't50': [None, 'tx', 'rx', None], 't51': [None, 'tx', 'rx', None], 'em30': [None, 'tx', 'rx', None]}
 
 # ensure that Kluster sonar translator supports all sonar_translators in multibeam drivers
 assert all([snr in sonar_translator for snr in par_sonar_translator.keys()])
@@ -2757,7 +2757,10 @@ def build_xyzrph(settdict: dict, runtime_settdict: dict, sonartype: str, logger:
 
         # do the same over motion sensor (which is still the POSMV), make assumption that its one of the motion
         #   entries
-        pos_motion_ident = settdict[tme]['active_heading_sensor'].split('_')
+        try:
+            pos_motion_ident = settdict[tme]['active_heading_sensor'].split('_')
+        except:
+            pos_motion_ident = "motion"
         pos_motion_ident = pos_motion_ident[0] + '_sensor_' + pos_motion_ident[1]  # 'motion_sensor_1'
 
         # for suffix in [['_vertical_location', '_motionz'], ['_along_location', '_motionx'],

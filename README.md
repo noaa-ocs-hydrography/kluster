@@ -48,12 +48,13 @@ Kluster has been tested on:
 
 - EK60, EK80 (Using Kluster amplitude detection, see Requirements in Documentation)
 - Reson 7125, T20, T51
-- EM2040/2040c/2040p
+- EM2042/2040/2040c/2040p
 - EM2040 dual tx/dual rx
 - EM710/712
 - EM3002
 - EM302/304
 - EM122
+- M3
 - ME70 Bathy Module
 
 Kluster is built from the ground up in Python, and was developed using Python 3.8.  Kluster includes modules developed by the hydrographic community such as (see [drivers](https://github.com/noaa-ocs-hydrography/drivers)):
