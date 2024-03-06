@@ -15,11 +15,13 @@ Fqpr
       ~Fqpr.last_operation_date
       ~Fqpr.max_time
       ~Fqpr.min_time
+      ~Fqpr.multibeam_extension
       ~Fqpr.number_of_heads
       ~Fqpr.number_of_pings
       ~Fqpr.sbet_navigation
       ~Fqpr.sonar_model
       ~Fqpr.status
+      ~Fqpr.total_distance_meters
 
    .. rubric:: Methods Summary
 
@@ -31,6 +33,7 @@ Fqpr
       ~Fqpr.close
       ~Fqpr.construct_crs
       ~Fqpr.copy
+      ~Fqpr.create_woa_casts
       ~Fqpr.determine_altitude_corr
       ~Fqpr.determine_induced_heave
       ~Fqpr.export_dataset
@@ -39,6 +42,7 @@ Fqpr
       ~Fqpr.export_soundings_to_file
       ~Fqpr.export_tracklines_to_file
       ~Fqpr.export_variable
+      ~Fqpr.fix_indices
       ~Fqpr.generate_starter_orientation_vectors
       ~Fqpr.georef_xyz
       ~Fqpr.get_beam_pointing_vectors
@@ -56,6 +60,7 @@ Fqpr
       ~Fqpr.line_attributes
       ~Fqpr.line_is_processed
       ~Fqpr.overwrite_raw_navigation
+      ~Fqpr.process_backscatter
       ~Fqpr.read_from_source
       ~Fqpr.remove_post_processed_navigation
       ~Fqpr.remove_profile
@@ -78,6 +83,7 @@ Fqpr
       ~Fqpr.return_next_unprocessed_line
       ~Fqpr.return_processing_dashboard
       ~Fqpr.return_rounded_frequency
+      ~Fqpr.return_runtime_idx_nearestintime
       ~Fqpr.return_soundings_in_polygon
       ~Fqpr.return_total_pings
       ~Fqpr.return_total_soundings
@@ -103,11 +109,13 @@ Fqpr
    .. autoattribute:: last_operation_date
    .. autoattribute:: max_time
    .. autoattribute:: min_time
+   .. autoattribute:: multibeam_extension
    .. autoattribute:: number_of_heads
    .. autoattribute:: number_of_pings
    .. autoattribute:: sbet_navigation
    .. autoattribute:: sonar_model
    .. autoattribute:: status
+   .. autoattribute:: total_distance_meters
 
    .. rubric:: Methods Documentation
 
@@ -117,6 +125,7 @@ Fqpr
    .. automethod:: close
    .. automethod:: construct_crs
    .. automethod:: copy
+   .. automethod:: create_woa_casts
    .. automethod:: determine_altitude_corr
    .. automethod:: determine_induced_heave
    .. automethod:: export_dataset
@@ -125,6 +134,7 @@ Fqpr
    .. automethod:: export_soundings_to_file
    .. automethod:: export_tracklines_to_file
    .. automethod:: export_variable
+   .. automethod:: fix_indices
    .. automethod:: generate_starter_orientation_vectors
    .. automethod:: georef_xyz
    .. automethod:: get_beam_pointing_vectors
@@ -142,6 +152,7 @@ Fqpr
    .. automethod:: line_attributes
    .. automethod:: line_is_processed
    .. automethod:: overwrite_raw_navigation
+   .. automethod:: process_backscatter
    .. automethod:: read_from_source
    .. automethod:: remove_post_processed_navigation
    .. automethod:: remove_profile
@@ -164,6 +175,7 @@ Fqpr
    .. automethod:: return_next_unprocessed_line
    .. automethod:: return_processing_dashboard
    .. automethod:: return_rounded_frequency
+   .. automethod:: return_runtime_idx_nearestintime
    .. automethod:: return_soundings_in_polygon
    .. automethod:: return_total_pings
    .. automethod:: return_total_soundings

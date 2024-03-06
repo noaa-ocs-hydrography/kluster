@@ -1,1 +1,3 @@
-cd C:\Pydro22_Dev\NOAA\site-packages\Python38\git_repos\kluster\docs && C:\Pydro22_Dev\Scripts\activate Pydro38 && sphinx-build -b html "C:\Pydro22_Dev\NOAA\site-packages\Python38\git_repos\kluster\docs" "C:\Pydro22_Dev\NOAA\site-packages\Python38\git_repos\kluster\docbuild"
+cd /D "%~dp0"
+call "%~dp0..\..\..\..\..\..\Scripts\activate" Pydro38
+sphinx-build -b html "%~dp0." "%~dp0..\docbuild"

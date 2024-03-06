@@ -23,7 +23,7 @@ REQUIRED = [
             'distributed~=2023.1.0',
             'fasteners~=0.18',
             'laspy~=2.3.0',
-            'matplotlib~=3.6.2',  # >=3.3.3 required, FuncAnimation and Pyside2/matplotlib do not play well in 3.2.1
+            'matplotlib~=3.7.5',  # >=3.3.3 required, FuncAnimation and Pyside2/matplotlib do not play well in 3.2.1
             'numba~=0.56.4',
             'openpyxl~=3.0.10',
             'psutil~=5.9.4',
@@ -45,6 +45,7 @@ REQUIRED = [
             'zarr~=2.13.3',
             'hstb.drivers @ git+https://github.com/selimnairb/HTSB-drivers.git#egg=hstb.drivers',
             'hstb.shared @ git+https://github.com/selimnairb/HSTB-shared.git#egg=hstb.shared',
+			'hstb.resources @ git+https://github.com/noaa-ocs-hydrography/hstb_resources.git#egg=hstb.resources',
             'vyperdatum @ git+https://github.com/selimnairb/vyperdatum.git#egg=vyperdatum',
             'bathygrid @ git+https://github.com/selimnairb/bathygrid.git#egg=bathygrid'
 

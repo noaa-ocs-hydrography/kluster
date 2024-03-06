@@ -10,6 +10,7 @@ First, I primarily work off of the dev branches of the Github repo(s).  Kluster 
 - Vyperdatum
 - Drivers
 - Shared
+- HSTB_resources
 
 Kluster has instructions for pip installing from the git repository, the install will use the master branch of each of these repositories. So you first must ensure that any changes you make are committed to dev and merged into the master branch.  Kluster, Bathygrid, BathyCube and Vyperdatum each have their own automated test suite (see the tests folder) that must be run before merging to master.  The tests can be run with UnitTest/pytest depending on the implementation.
 

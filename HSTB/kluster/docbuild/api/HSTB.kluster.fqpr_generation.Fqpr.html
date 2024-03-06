@@ -6,7 +6,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
-    <title>Fqpr &#8212; kluster 1.1.5 documentation</title>
+    <title>Fqpr &#8212; kluster 1.1.7 documentation</title>
     <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
     <link rel="stylesheet" type="text/css" href="../_static/alabaster.css" />
     <link rel="stylesheet" type="text/css" href="../_static/graphviz.css" />
@@ -89,20 +89,26 @@ Post-processing for Multi-Sector Multibeam Echosounders” by J.D. Beaudoin and 
 <tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.min_time" title="HSTB.kluster.fqpr_generation.Fqpr.min_time"><code class="xref py py-obj docutils literal notranslate"><span class="pre">min_time</span></code></a></p></td>
 <td><p>Get the nicely formatted time in UTC for the start time of this fqpr object</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.number_of_heads" title="HSTB.kluster.fqpr_generation.Fqpr.number_of_heads"><code class="xref py py-obj docutils literal notranslate"><span class="pre">number_of_heads</span></code></a></p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.multibeam_extension" title="HSTB.kluster.fqpr_generation.Fqpr.multibeam_extension"><code class="xref py py-obj docutils literal notranslate"><span class="pre">multibeam_extension</span></code></a></p></td>
+<td><p>The file extension of the multibeam file(s) used in this fqpr object</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.number_of_heads" title="HSTB.kluster.fqpr_generation.Fqpr.number_of_heads"><code class="xref py py-obj docutils literal notranslate"><span class="pre">number_of_heads</span></code></a></p></td>
 <td><p>Get the number of sonar heads for the sonar in this FQPR instance</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.number_of_pings" title="HSTB.kluster.fqpr_generation.Fqpr.number_of_pings"><code class="xref py py-obj docutils literal notranslate"><span class="pre">number_of_pings</span></code></a></p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.number_of_pings" title="HSTB.kluster.fqpr_generation.Fqpr.number_of_pings"><code class="xref py py-obj docutils literal notranslate"><span class="pre">number_of_pings</span></code></a></p></td>
 <td><p>Get the number of pings for the sonar in this FQPR instance</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.sbet_navigation" title="HSTB.kluster.fqpr_generation.Fqpr.sbet_navigation"><code class="xref py py-obj docutils literal notranslate"><span class="pre">sbet_navigation</span></code></a></p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.sbet_navigation" title="HSTB.kluster.fqpr_generation.Fqpr.sbet_navigation"><code class="xref py py-obj docutils literal notranslate"><span class="pre">sbet_navigation</span></code></a></p></td>
 <td><p>Return the sbet navigation for the first sonar head.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.sonar_model" title="HSTB.kluster.fqpr_generation.Fqpr.sonar_model"><code class="xref py py-obj docutils literal notranslate"><span class="pre">sonar_model</span></code></a></p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.sonar_model" title="HSTB.kluster.fqpr_generation.Fqpr.sonar_model"><code class="xref py py-obj docutils literal notranslate"><span class="pre">sonar_model</span></code></a></p></td>
 <td><p>Get the sonar type from the ping record</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.status" title="HSTB.kluster.fqpr_generation.Fqpr.status"><code class="xref py py-obj docutils literal notranslate"><span class="pre">status</span></code></a></p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.status" title="HSTB.kluster.fqpr_generation.Fqpr.status"><code class="xref py py-obj docutils literal notranslate"><span class="pre">status</span></code></a></p></td>
 <td><p>Get the processing status of the Fqpr</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.total_distance_meters" title="HSTB.kluster.fqpr_generation.Fqpr.total_distance_meters"><code class="xref py py-obj docutils literal notranslate"><span class="pre">total_distance_meters</span></code></a></p></td>
+<td><p></p></td>
 </tr>
 </tbody>
 </table>
@@ -131,29 +137,35 @@ Post-processing for Multi-Sector Multibeam Echosounders” by J.D. Beaudoin and 
 <tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.copy" title="HSTB.kluster.fqpr_generation.Fqpr.copy"><code class="xref py py-obj docutils literal notranslate"><span class="pre">copy</span></code></a>()</p></td>
 <td><p>Return a copy of this Fqpr instance.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.determine_altitude_corr" title="HSTB.kluster.fqpr_generation.Fqpr.determine_altitude_corr"><code class="xref py py-obj docutils literal notranslate"><span class="pre">determine_altitude_corr</span></code></a>(alt, raw_att, ...)</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.create_woa_casts" title="HSTB.kluster.fqpr_generation.Fqpr.create_woa_casts"><code class="xref py py-obj docutils literal notranslate"><span class="pre">create_woa_casts</span></code></a>()</p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.determine_altitude_corr" title="HSTB.kluster.fqpr_generation.Fqpr.determine_altitude_corr"><code class="xref py py-obj docutils literal notranslate"><span class="pre">determine_altitude_corr</span></code></a>(alt, raw_att, ...)</p></td>
 <td><p>We use the nav as provided by the POSMV.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.determine_induced_heave" title="HSTB.kluster.fqpr_generation.Fqpr.determine_induced_heave"><code class="xref py py-obj docutils literal notranslate"><span class="pre">determine_induced_heave</span></code></a>(ra, hve, raw_att, ...)</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.determine_induced_heave" title="HSTB.kluster.fqpr_generation.Fqpr.determine_induced_heave"><code class="xref py py-obj docutils literal notranslate"><span class="pre">determine_induced_heave</span></code></a>(ra, hve, raw_att, ...)</p></td>
 <td><p>From Kongsberg datagram doc: Note that heave is displayed and logged as positive downwards (the sign is changed) including roll and pitch induced lever arm translation to the system’s transmit transducer.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.export_dataset" title="HSTB.kluster.fqpr_generation.Fqpr.export_dataset"><code class="xref py py-obj docutils literal notranslate"><span class="pre">export_dataset</span></code></a>(dataset_name, dest_path)</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.export_dataset" title="HSTB.kluster.fqpr_generation.Fqpr.export_dataset"><code class="xref py py-obj docutils literal notranslate"><span class="pre">export_dataset</span></code></a>(dataset_name, dest_path)</p></td>
 <td><p>Run the export module to export each variable in the given dataset to one csv, writing to the provided path, see export.export_dataset_to_csv</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.export_lines_to_file" title="HSTB.kluster.fqpr_generation.Fqpr.export_lines_to_file"><code class="xref py py-obj docutils literal notranslate"><span class="pre">export_lines_to_file</span></code></a>([linenames, ...])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.export_lines_to_file" title="HSTB.kluster.fqpr_generation.Fqpr.export_lines_to_file"><code class="xref py py-obj docutils literal notranslate"><span class="pre">export_lines_to_file</span></code></a>([linenames, ...])</p></td>
 <td><p>Run the export module to export only the data belonging to the given lines to file, see export.export_lines_to_file</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.export_pings_to_file" title="HSTB.kluster.fqpr_generation.Fqpr.export_pings_to_file"><code class="xref py py-obj docutils literal notranslate"><span class="pre">export_pings_to_file</span></code></a>([output_directory, ...])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.export_pings_to_file" title="HSTB.kluster.fqpr_generation.Fqpr.export_pings_to_file"><code class="xref py py-obj docutils literal notranslate"><span class="pre">export_pings_to_file</span></code></a>([output_directory, ...])</p></td>
 <td><p>Run the export module to export point cloud relevant data to file, see export.export_pings_to_file</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.export_soundings_to_file" title="HSTB.kluster.fqpr_generation.Fqpr.export_soundings_to_file"><code class="xref py py-obj docutils literal notranslate"><span class="pre">export_soundings_to_file</span></code></a>(datablock[, ...])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.export_soundings_to_file" title="HSTB.kluster.fqpr_generation.Fqpr.export_soundings_to_file"><code class="xref py py-obj docutils literal notranslate"><span class="pre">export_soundings_to_file</span></code></a>(datablock[, ...])</p></td>
 <td><p>Run the export module to export given soundings to file, see export.export_soundings_to_file</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.export_tracklines_to_file" title="HSTB.kluster.fqpr_generation.Fqpr.export_tracklines_to_file"><code class="xref py py-obj docutils literal notranslate"><span class="pre">export_tracklines_to_file</span></code></a>([linenames, ...])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.export_tracklines_to_file" title="HSTB.kluster.fqpr_generation.Fqpr.export_tracklines_to_file"><code class="xref py py-obj docutils literal notranslate"><span class="pre">export_tracklines_to_file</span></code></a>([linenames, ...])</p></td>
 <td><p>Run the export module to export the navigation to vector file, see export.export_tracklines_to_file</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.export_variable" title="HSTB.kluster.fqpr_generation.Fqpr.export_variable"><code class="xref py py-obj docutils literal notranslate"><span class="pre">export_variable</span></code></a>(dataset_name, var_name, ...)</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.export_variable" title="HSTB.kluster.fqpr_generation.Fqpr.export_variable"><code class="xref py py-obj docutils literal notranslate"><span class="pre">export_variable</span></code></a>(dataset_name, var_name, ...)</p></td>
 <td><p>Run the export module to export the given variable to csv, writing to the provided path, see export.export_variable_to_csv</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.fix_indices" title="HSTB.kluster.fqpr_generation.Fqpr.fix_indices"><code class="xref py py-obj docutils literal notranslate"><span class="pre">fix_indices</span></code></a>()</p></td>
+<td><p>Resolve any issues with the time index that might have come up during conversion.</p></td>
 </tr>
 <tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.generate_starter_orientation_vectors" title="HSTB.kluster.fqpr_generation.Fqpr.generate_starter_orientation_vectors"><code class="xref py py-obj docutils literal notranslate"><span class="pre">generate_starter_orientation_vectors</span></code></a>([txrx, ...])</p></td>
 <td><p>Take in identifiers to find the correct xyzrph entry, and use the heading value to figure out if the transmitter/receiver (tx/rx) is oriented backwards.</p></td>
@@ -206,71 +218,77 @@ Post-processing for Multi-Sector Multibeam Echosounders” by J.D. Beaudoin and 
 <tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.overwrite_raw_navigation" title="HSTB.kluster.fqpr_generation.Fqpr.overwrite_raw_navigation"><code class="xref py py-obj docutils literal notranslate"><span class="pre">overwrite_raw_navigation</span></code></a>(navfiles, ...[, ...])</p></td>
 <td><p>Load from raw navigation files (currently just POS MV .000) to get lat/lon/altitude.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.read_from_source" title="HSTB.kluster.fqpr_generation.Fqpr.read_from_source"><code class="xref py py-obj docutils literal notranslate"><span class="pre">read_from_source</span></code></a>([build_offsets, skip_dask])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.process_backscatter" title="HSTB.kluster.fqpr_generation.Fqpr.process_backscatter"><code class="xref py py-obj docutils literal notranslate"><span class="pre">process_backscatter</span></code></a>([subset_time, ...])</p></td>
+<td><p>Correct the raw reflectivity for system and environmental effects, leaving the backscatter target strength.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.read_from_source" title="HSTB.kluster.fqpr_generation.Fqpr.read_from_source"><code class="xref py py-obj docutils literal notranslate"><span class="pre">read_from_source</span></code></a>([build_offsets, skip_dask])</p></td>
 <td><p>Activate rawdat object's appropriate read class</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.remove_post_processed_navigation" title="HSTB.kluster.fqpr_generation.Fqpr.remove_post_processed_navigation"><code class="xref py py-obj docutils literal notranslate"><span class="pre">remove_post_processed_navigation</span></code></a>()</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.remove_post_processed_navigation" title="HSTB.kluster.fqpr_generation.Fqpr.remove_post_processed_navigation"><code class="xref py py-obj docutils literal notranslate"><span class="pre">remove_post_processed_navigation</span></code></a>()</p></td>
 <td><p>import_post_processed_navigation will write navigation and navigation related attributes to the Fqpr instance.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.remove_profile" title="HSTB.kluster.fqpr_generation.Fqpr.remove_profile"><code class="xref py py-obj docutils literal notranslate"><span class="pre">remove_profile</span></code></a>(profile_name)</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.remove_profile" title="HSTB.kluster.fqpr_generation.Fqpr.remove_profile"><code class="xref py py-obj docutils literal notranslate"><span class="pre">remove_profile</span></code></a>(profile_name)</p></td>
 <td><p>Sound velocity profiles are stored in the Fqpr datastore as attributes with the 'profile_timestamp' format, ex: 'profile_1503411780'.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.restore_subset" title="HSTB.kluster.fqpr_generation.Fqpr.restore_subset"><code class="xref py py-obj docutils literal notranslate"><span class="pre">restore_subset</span></code></a>()</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.restore_subset" title="HSTB.kluster.fqpr_generation.Fqpr.restore_subset"><code class="xref py py-obj docutils literal notranslate"><span class="pre">restore_subset</span></code></a>()</p></td>
 <td><p>Restores the original data if subset_by_time has been run.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.return_additional_xyz_offsets" title="HSTB.kluster.fqpr_generation.Fqpr.return_additional_xyz_offsets"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_additional_xyz_offsets</span></code></a>(ra, prefixes, ...)</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.return_additional_xyz_offsets" title="HSTB.kluster.fqpr_generation.Fqpr.return_additional_xyz_offsets"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_additional_xyz_offsets</span></code></a>(ra, prefixes, ...)</p></td>
 <td><p>Apply tx to reference point offset to beams.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.return_all_profiles" title="HSTB.kluster.fqpr_generation.Fqpr.return_all_profiles"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_all_profiles</span></code></a>()</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.return_all_profiles" title="HSTB.kluster.fqpr_generation.Fqpr.return_all_profiles"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_all_profiles</span></code></a>()</p></td>
 <td><p>convenience for xarray_conversion.BatchRead.return_all_profiles</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.return_applicable_casts" title="HSTB.kluster.fqpr_generation.Fqpr.return_applicable_casts"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_applicable_casts</span></code></a>([method])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.return_applicable_casts" title="HSTB.kluster.fqpr_generation.Fqpr.return_applicable_casts"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_applicable_casts</span></code></a>([method])</p></td>
 <td><p>When we check for sound velocity correct actions, we look to see if any new sv profiles imported into the fqpr instance are applicable, by running the chosen method (default is cast nearest in time to the ping chunk).</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.return_cast_dict" title="HSTB.kluster.fqpr_generation.Fqpr.return_cast_dict"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_cast_dict</span></code></a>()</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.return_cast_dict" title="HSTB.kluster.fqpr_generation.Fqpr.return_cast_dict"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_cast_dict</span></code></a>()</p></td>
 <td><p>Return a dictionary object combining the profile data and the attribution for each cast</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.return_cast_idx_nearestindistance" title="HSTB.kluster.fqpr_generation.Fqpr.return_cast_idx_nearestindistance"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_cast_idx_nearestindistance</span></code></a>(idx_by_chunk)</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.return_cast_idx_nearestindistance" title="HSTB.kluster.fqpr_generation.Fqpr.return_cast_idx_nearestindistance"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_cast_idx_nearestindistance</span></code></a>(idx_by_chunk)</p></td>
 <td><p>Need to find the cast associated with each chunk of data.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.return_cast_idx_nearestindistance_fourhours" title="HSTB.kluster.fqpr_generation.Fqpr.return_cast_idx_nearestindistance_fourhours"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_cast_idx_nearestindistance_fourhours</span></code></a>(...)</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.return_cast_idx_nearestindistance_fourhours" title="HSTB.kluster.fqpr_generation.Fqpr.return_cast_idx_nearestindistance_fourhours"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_cast_idx_nearestindistance_fourhours</span></code></a>(...)</p></td>
 <td><p>Need to find the cast associated with each chunk of data.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.return_cast_idx_nearestintime" title="HSTB.kluster.fqpr_generation.Fqpr.return_cast_idx_nearestintime"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_cast_idx_nearestintime</span></code></a>(idx_by_chunk)</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.return_cast_idx_nearestintime" title="HSTB.kluster.fqpr_generation.Fqpr.return_cast_idx_nearestintime"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_cast_idx_nearestintime</span></code></a>(idx_by_chunk)</p></td>
 <td><p>Need to find the cast associated with each chunk of data.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.return_cast_idx_nearestintime_fourhours" title="HSTB.kluster.fqpr_generation.Fqpr.return_cast_idx_nearestintime_fourhours"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_cast_idx_nearestintime_fourhours</span></code></a>(...)</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.return_cast_idx_nearestintime_fourhours" title="HSTB.kluster.fqpr_generation.Fqpr.return_cast_idx_nearestintime_fourhours"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_cast_idx_nearestintime_fourhours</span></code></a>(...)</p></td>
 <td><p>Need to find the cast associated with each chunk of data.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.return_chunk_indices" title="HSTB.kluster.fqpr_generation.Fqpr.return_chunk_indices"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_chunk_indices</span></code></a>(idx_mask, pings_per_chunk)</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.return_chunk_indices" title="HSTB.kluster.fqpr_generation.Fqpr.return_chunk_indices"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_chunk_indices</span></code></a>(idx_mask, pings_per_chunk)</p></td>
 <td><p>Use self.get_cluster_params to figure out how big the chunks should be according to the cluster memory capacity and pass that number in here as pings_per_chunk.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.return_line_dict" title="HSTB.kluster.fqpr_generation.Fqpr.return_line_dict"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_line_dict</span></code></a>([line_names, ping_times])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.return_line_dict" title="HSTB.kluster.fqpr_generation.Fqpr.return_line_dict"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_line_dict</span></code></a>([line_names, ping_times])</p></td>
 <td><p>Return all the lines with associated start and stop times for all sectors in the fqpr dataset.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.return_line_time" title="HSTB.kluster.fqpr_generation.Fqpr.return_line_time"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_line_time</span></code></a>(line_name)</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.return_line_time" title="HSTB.kluster.fqpr_generation.Fqpr.return_line_time"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_line_time</span></code></a>(line_name)</p></td>
 <td><p>Return the start and end time for the given line name</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.return_line_xyzrph" title="HSTB.kluster.fqpr_generation.Fqpr.return_line_xyzrph"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_line_xyzrph</span></code></a>(line_name)</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.return_line_xyzrph" title="HSTB.kluster.fqpr_generation.Fqpr.return_line_xyzrph"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_line_xyzrph</span></code></a>(line_name)</p></td>
 <td><p>Return only the relevant xyzrph (kluster vessel config data) entries for the given line name.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.return_lines_for_times" title="HSTB.kluster.fqpr_generation.Fqpr.return_lines_for_times"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_lines_for_times</span></code></a>(times)</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.return_lines_for_times" title="HSTB.kluster.fqpr_generation.Fqpr.return_lines_for_times"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_lines_for_times</span></code></a>(times)</p></td>
 <td><p>Given the 1d array of times (utc seconds), return a same size object array with the string value of the line file name that matches the time.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.return_navigation" title="HSTB.kluster.fqpr_generation.Fqpr.return_navigation"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_navigation</span></code></a>([start_time, end_time, ...])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.return_navigation" title="HSTB.kluster.fqpr_generation.Fqpr.return_navigation"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_navigation</span></code></a>([start_time, end_time, ...])</p></td>
 <td><p>Return the navigation from the multibeam data for the first sonar head.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.return_next_action" title="HSTB.kluster.fqpr_generation.Fqpr.return_next_action"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_next_action</span></code></a>([new_vertical_reference, ...])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.return_next_action" title="HSTB.kluster.fqpr_generation.Fqpr.return_next_action"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_next_action</span></code></a>([new_vertical_reference, ...])</p></td>
 <td><p>Determine the next action to take, building the arguments for the fqpr_convenience.process_multibeam function.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.return_next_unprocessed_line" title="HSTB.kluster.fqpr_generation.Fqpr.return_next_unprocessed_line"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_next_unprocessed_line</span></code></a>()</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.return_next_unprocessed_line" title="HSTB.kluster.fqpr_generation.Fqpr.return_next_unprocessed_line"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_next_unprocessed_line</span></code></a>()</p></td>
 <td><p>Return the next unprocessed line in this container, see line_is_processed</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.return_processing_dashboard" title="HSTB.kluster.fqpr_generation.Fqpr.return_processing_dashboard"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_processing_dashboard</span></code></a>()</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.return_processing_dashboard" title="HSTB.kluster.fqpr_generation.Fqpr.return_processing_dashboard"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_processing_dashboard</span></code></a>()</p></td>
 <td><p>Return the necessary data for a dashboard like view of this fqpr instance.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.return_rounded_frequency" title="HSTB.kluster.fqpr_generation.Fqpr.return_rounded_frequency"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_rounded_frequency</span></code></a>()</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.return_rounded_frequency" title="HSTB.kluster.fqpr_generation.Fqpr.return_rounded_frequency"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_rounded_frequency</span></code></a>()</p></td>
 <td><p>Returns the frequency rounded to match the freq settings commonly given with sonar manufacturer settings.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.return_runtime_idx_nearestintime" title="HSTB.kluster.fqpr_generation.Fqpr.return_runtime_idx_nearestintime"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_runtime_idx_nearestintime</span></code></a>(idx_by_chunk)</p></td>
+<td><p>Find the runtime parameter that is nearest to each chunk in the provided chunk arrays</p></td>
 </tr>
 <tr class="row-even"><td><p><a class="reference internal" href="#HSTB.kluster.fqpr_generation.Fqpr.return_soundings_in_polygon" title="HSTB.kluster.fqpr_generation.Fqpr.return_soundings_in_polygon"><code class="xref py py-obj docutils literal notranslate"><span class="pre">return_soundings_in_polygon</span></code></a>(polygon[, ...])</p></td>
 <td><p>Using provided coordinates (in either horizontal_crs projected or geographic coordinates), return the soundings and sounding attributes for all soundings within the coordinates, see subset module.</p></td>
@@ -390,6 +408,12 @@ as sbet navigation and altitude are used by default if they exist unless you exp
 </dd></dl>
 
 <dl class="py attribute">
+<dt class="sig sig-object py" id="HSTB.kluster.fqpr_generation.Fqpr.multibeam_extension">
+<span class="sig-name descname"><span class="pre">multibeam_extension</span></span><a class="headerlink" href="#HSTB.kluster.fqpr_generation.Fqpr.multibeam_extension" title="Permalink to this definition">¶</a></dt>
+<dd><p>The file extension of the multibeam file(s) used in this fqpr object</p>
+</dd></dl>
+
+<dl class="py attribute">
 <dt class="sig sig-object py" id="HSTB.kluster.fqpr_generation.Fqpr.number_of_heads">
 <span class="sig-name descname"><span class="pre">number_of_heads</span></span><a class="headerlink" href="#HSTB.kluster.fqpr_generation.Fqpr.number_of_heads" title="Permalink to this definition">¶</a></dt>
 <dd><p>Get the number of sonar heads for the sonar in this FQPR instance</p>
@@ -450,6 +474,11 @@ as sbet navigation and altitude are used by default if they exist unless you exp
 </dd>
 </dl>
 </dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="HSTB.kluster.fqpr_generation.Fqpr.total_distance_meters">
+<span class="sig-name descname"><span class="pre">total_distance_meters</span></span><a class="headerlink" href="#HSTB.kluster.fqpr_generation.Fqpr.total_distance_meters" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
 
 <p class="rubric">Methods Documentation</p>
 <dl class="py method">
@@ -558,6 +587,11 @@ affecting this instance.</p>
 </dd></dl>
 
 <dl class="py method">
+<dt class="sig sig-object py" id="HSTB.kluster.fqpr_generation.Fqpr.create_woa_casts">
+<span class="sig-name descname"><span class="pre">create_woa_casts</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_generation.Fqpr.create_woa_casts" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
 <dt class="sig sig-object py" id="HSTB.kluster.fqpr_generation.Fqpr.determine_altitude_corr">
 <span class="sig-name descname"><span class="pre">determine_altitude_corr</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">alt</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">raw_att</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tx_tstmp_idx</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">prefixes</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">timestmp</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_generation.Fqpr.determine_altitude_corr" title="Permalink to this definition">¶</a></dt>
 <dd><p>We use the nav as provided by the POSMV.  This will be at the reference point designated by the POSMV.  As we
@@ -649,6 +683,14 @@ is reported at the tx of the primary system.  This will return all zeros for ind
 <dt class="sig sig-object py" id="HSTB.kluster.fqpr_generation.Fqpr.export_variable">
 <span class="sig-name descname"><span class="pre">export_variable</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dataset_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">var_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dest_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">reduce_method</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">zero_centered</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_generation.Fqpr.export_variable" title="Permalink to this definition">¶</a></dt>
 <dd><p>Run the export module to export the given variable to csv, writing to the provided path, see export.export_variable_to_csv</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="HSTB.kluster.fqpr_generation.Fqpr.fix_indices">
+<span class="sig-name descname"><span class="pre">fix_indices</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_generation.Fqpr.fix_indices" title="Permalink to this definition">¶</a></dt>
+<dd><p>Resolve any issues with the time index that might have come up during conversion.  This method
+will be occasionally run when issues arise with the index not being monotonic increasing or containing
+duplicate values.</p>
 </dd></dl>
 
 <dl class="py method">
@@ -968,6 +1010,26 @@ identify time gaps larger than the provided max_gap_length in seconds.</p>
 <li><p><strong>weekstart_year</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code>) – must provide the year of the pos mv file here</p></li>
 <li><p><strong>weekstart_week</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code>) – must provide the week of the pos mv file here</p></li>
 <li><p><strong>overwrite</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code>) – if True, will include files that are already in the navigation dataset as valid</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="HSTB.kluster.fqpr_generation.Fqpr.process_backscatter">
+<span class="sig-name descname"><span class="pre">process_backscatter</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">subset_time</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dump_data</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fixed_gain_corrected</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tvg_corrected</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">transmission_loss_corrected</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">area_corrected</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_generation.Fqpr.process_backscatter" title="Permalink to this definition">¶</a></dt>
+<dd><p>Correct the raw reflectivity for system and environmental effects, leaving the backscatter target strength.  Some parameters
+are sonar manufacturer specific, see backscatter module.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>subset_time</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">list</span></code>]) – List of unix timestamps in seconds, used as ranges for times that you want to process.</p></li>
+<li><p><strong>dump_data</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code>) – if True dump the futures to the multibeam datastore.  Set this to false for an entirely in memory
+workflow</p></li>
+<li><p><strong>fixed_gain_corrected</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code>) – remove the fixed gain from the raw reflectivity, if any</p></li>
+<li><p><strong>tvg_corrected</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code>) – correct for time varying gain</p></li>
+<li><p><strong>transmission_loss_corrected</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code>) – correct for transmission loss</p></li>
+<li><p><strong>area_corrected</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code>) – correct for an approximation of the effect of the insonified area</p></li>
 </ul>
 </dd>
 </dl>
@@ -1423,6 +1485,23 @@ it returns [70000].</p>
 </dd>
 <dt class="field-even">Return type</dt>
 <dd class="field-even"><p>np.array</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="HSTB.kluster.fqpr_generation.Fqpr.return_runtime_idx_nearestintime">
+<span class="sig-name descname"><span class="pre">return_runtime_idx_nearestintime</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">idx_by_chunk</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#HSTB.kluster.fqpr_generation.Fqpr.return_runtime_idx_nearestintime" title="Permalink to this definition">¶</a></dt>
+<dd><p>Find the runtime parameter that is nearest to each chunk in the provided chunk arrays</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>idx_by_chunk</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">list</span></code>) – list of xarray Datarrays, values are the integer indexes of the pings to use, coords are the time of ping</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>list of dict objects for the runtime parameters that is nearest to each chunk</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>list</p>
 </dd>
 </dl>
 </dd></dl>

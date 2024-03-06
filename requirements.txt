@@ -4,5 +4,6 @@ numpydoc
 pytest
 git+https://github.com/selimnairb/HTSB-drivers.git#egg=hstb.drivers
 git+https://github.com/selimnairb/HSTB-shared.git#egg=hstb.shared
+git+https://github.com/noaa-ocs-hydrography/hstb_resources.git#egg=hstb.resources
 git+https://github.com/selimnairb/vyperdatum.git#egg=vyperdatum
 git+https://github.com/selimnairb/bathygrid.git#egg=bathygrid

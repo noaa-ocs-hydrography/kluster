@@ -210,85 +210,50 @@ def _get_indices_dataset_exists(input_time_arrays: list, zarr_time: zarr.Array):
         how many values need to be inserted to make room for this new data at the beginning of the zarr rootgroup
     """
 
-    running_total = 0
     push_forward = []
     total_push = 0
     write_indices = []
-    # time arrays must be in order in case you have to do the 'partly in datastore' workaround
-    input_time_arrays.sort(key=lambda x: x[0])
-    min_zarr_time = zarr_time[0]
-    max_zarr_time = zarr_time[-1]
-    zarr_time_len = len(zarr_time)
-    for input_time in input_time_arrays:  # for each chunk of data that we are wanting to write, look at the times to see where it fits
-        input_time_len = len(input_time)
-        input_is_in_zarr = np.isin(input_time, zarr_time)  # where is there overlap with existing data
-        if isinstance(input_time, xr.DataArray):
-            input_time = input_time.values
-        if input_is_in_zarr.any():  # this input array is at least partly in this datastore already
-            if not input_is_in_zarr.all():  # this input array is only partly in this datastore
-                starter_indices = np.full_like(input_time, -1)  # -1 for values that are outside the existing values
-                inside_indices = search_not_sorted(zarr_time, input_time[input_is_in_zarr])  # get the indices for overwriting where there is overlap
-                starter_indices[input_is_in_zarr] = inside_indices
-                count_outside = len(starter_indices) - len(inside_indices)  # the number of values that do not overlap
-                if starter_indices[-1] == -1:  # this input_time contains times after the existing values
-                    max_inside_index = inside_indices[-1]
-                    # now add in a range starting with the last index for all values outside the zarr time range
-                    starter_indices[~input_is_in_zarr] = np.arange(max_inside_index + 1, max_inside_index + count_outside + 1)
-                    if input_time[-1] < max_zarr_time:  # data partially overlaps and is after existing data, but not at the end of the existing dataset
-                        push_forward.append([max_inside_index + 1 + total_push, count_outside])
-                    else:
-                        running_total += count_outside
-                    write_indices.append(starter_indices + total_push)
-                elif starter_indices[0] == -1:  # this input_time contains times before the existing values
-                    if input_time[0] < min_zarr_time:
-                        starter_indices = np.arange(input_time_len)
-                        push_forward.append([total_push, count_outside])
-                    else:
-                        min_inside_index = inside_indices[0]
-                        starter_indices = np.arange(input_time_len) + min_inside_index
-                        push_forward.append([min_inside_index + total_push, count_outside])
-                    write_indices.append(starter_indices + total_push)
-                    total_push += count_outside
-                else:
-                    raise NotImplementedError('_get_indices_dataset_exists: Found a gap in the overlap between the data provided and the existing dataset on disk')
-            else:
-                # input data is entirely within the existing zarr data, the input_time is going to be sorted, but the zarr
-                # time will be in the order of lines received and saved to disk.  Have to get indices of input_time in zarr_time
-                write_indices.append(search_not_sorted(zarr_time, input_time) + total_push)
-        else:  # zarr datastore exists, but this data is not in it.  Append to the existing datastore
-            if (min_zarr_time < input_time[0] < max_zarr_time) and input_time[-1] > max_zarr_time:
-                # input times aren't in the existing data, but they are within the minmax of the existing data
-                #  we just drop these overlapping values, as they must come from overlap across files, which should not exist anyway
-                drop_mask = input_time < max_zarr_time
-                total_dropped = np.count_nonzero(drop_mask)
-                starter_indices = np.full(input_time.shape, -1, np.int)  # -1 for values that are outside the existing values
-                starter_indices[~drop_mask] = np.arange(zarr_time.size, zarr_time.size + (input_time_len - total_dropped))
-                write_indices.append(starter_indices + total_push)
-                running_total += input_time_len - total_dropped
-            elif (min_zarr_time < input_time[-1] < max_zarr_time) and input_time[0] < min_zarr_time:
-                # input times aren't in the existing data, but they are within the minmax of the existing data
-                #  we just drop these overlapping values, as they must come from overlap across files, which should not exist anyway
-                drop_mask = input_time > min_zarr_time
-                total_dropped = np.count_nonzero(drop_mask)
-                starter_indices = np.full(input_time.shape, -1, np.int)  # -1 for values that are outside the existing values
-                starter_indices[~drop_mask] = np.arange(input_time_len - total_dropped)
-                write_indices.append(starter_indices + total_push)
-                push_forward.append([total_push, input_time_len - total_dropped])
-                total_push += input_time_len - total_dropped
-                running_total += input_time_len - total_dropped
-            elif input_time[0] < min_zarr_time:  # data is before existing data, have to push existing data up
-                write_indices.append([total_push, input_time_len + total_push])
-                push_forward.append([total_push, input_time_len])
-                total_push += input_time_len
-            elif input_time[0] > max_zarr_time:  # data is after existing data, just tack it on
-                write_indices.append([zarr_time_len + running_total + total_push, zarr_time_len + input_time_len + running_total + total_push])
-                running_total += input_time_len
-            else:   # data is in between existing data, but there is no overlap
-                next_value_index = np.where(zarr_time - input_time[0] > 0)[0][0]
-                write_indices.append([next_value_index + total_push, next_value_index + input_time_len + total_push])
-                push_forward.append([next_value_index + total_push, input_time_len])
-                total_push += input_time_len
-    return write_indices, push_forward, total_push
+
+    # general solution -
+    # Create a big array of all times
+    # get unique values with np.unique (this returns a sorted array)
+    # use searchsorted on zarr and input arrays to get their final respective indices
+    # Should handle the cases of:
+    #   an input duplicates the existing zarr array
+    #   an input duplicates it's own time
+    #   and multiple different inputs duplicate each other
+    from_zarr_id = -1
+    all_times = [zarr_time]
+    # next make input times with indices from 0 to len(input_time_arrays)
+    for i, input_time in enumerate(input_time_arrays):  # for each chunk of data that we are wanting to write, look at the times to see where it fits
+        all_times.append(input_time)
+    # then concatenate the zarr and time arrays
+    all_times = np.concatenate(all_times)
+    all_times = np.unique(all_times, axis=0)
+    zarr_indices = np.searchsorted(all_times, zarr_time)
+    # then split back out the sort values to the original input_time_arrays as write_indices
+    for i, input_time in enumerate(input_time_arrays):  # for each chunk of data that we are wanting to write, look at the times to see where it fits
+        write_indices.append(np.searchsorted(all_times, input_time))
+
+    # make push_forward values for all the spaces that were added to the zarr_time array
+    zarr_index_deltas = np.diff(zarr_indices)
+    # add a push_forward value for the beginning of the zarr_time array
+    if zarr_indices[0] > 0:
+        push_forward.append([0, int(zarr_indices[0])])
+        total_push += zarr_indices[0]
+    # make push_forward values for all the spaces that were added in the middle of the zarr_time array
+    for index in np.argwhere(zarr_index_deltas > 1):
+        start = index + 1 + total_push
+        amount = zarr_index_deltas[index] - 1
+        end = start + amount
+        push_forward.append([int(start), int(amount)])
+        total_push += amount
+    # Add space for any new data past the end of the zarr array, we don't need to do a push_forward just add to the size (total_push)
+    # if zarr_indices[-1] < len(all_times) - 1:
+    amount = len(all_times) - 1 - zarr_indices[-1]  # this is either ZERO or positive so don't need the if statement
+    total_push += amount
+
+    return write_indices, push_forward, int(total_push)
 
 
 def get_write_indices_zarr(output_pth: str, input_time_arrays: list, index_dim='time'):
@@ -332,12 +297,14 @@ def get_write_indices_zarr(output_pth: str, input_time_arrays: list, index_dim='
         rootgroup = zarr.open(output_pth, mode='r')  # only opens if the path exists
         zarr_time = rootgroup[index_dim]
         write_indices, push_forward, total_push = _get_indices_dataset_exists(input_time_arrays, zarr_time)
+        final_size = len(zarr_time) + total_push
     else:  # datastore doesn't exist, we just return the write indices equal to the shape of the input arrays
         write_indices = _get_indices_dataset_notexist(input_time_arrays)
-    if isinstance(write_indices[-1], list):
-        final_size = np.max([write_indices[-1][-1], len(zarr_time)]) + total_push
-    else:
-        final_size = np.max([write_indices[-1][-1] + 1, len(zarr_time)]) + total_push
+        final_size = write_indices[-1][-1]
+    # if isinstance(write_indices[-1], list):
+    #     final_size = np.max([write_indices[-1][-1], len(zarr_time)]) + total_push
+    # else:
+    #     final_size = np.max([write_indices[-1][-1] + 1, len(zarr_time)]) + total_push
     return write_indices, final_size, push_forward
 
 
@@ -1211,6 +1178,8 @@ def distrib_zarr_write(zarr_path: str, xarrays: list, attributes: dict, chunk_si
         #    progress bar for each operation.
         # if show_progress:
         #     progress(futs, multi=False)
+
+        # waiting here allows the first write to expand the array size using the push_forward and finalsize
         wait(futs)
         if len(xarrays) > 1:
             for i in range(len(xarrays) - 1):

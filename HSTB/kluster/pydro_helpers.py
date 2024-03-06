@@ -1,5 +1,5 @@
 import os
-from HSTB.shared import path_to_NOAA, path_to_root_env, path_to_conda, path_to_supplementals
+from HSTB.resources import path_to_NOAA, path_to_root_env, path_to_conda, path_to_supplementals
 
 
 def is_pydro():
