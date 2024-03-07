@@ -28,6 +28,14 @@ from bathygrid.convenience import create_grid, load_grid, BathyGrid
 from bathycube.numba_cube import compile_now
 
 
+if os.getenv('KLUSTER_HEADLESS', '0') == '1':
+    # We are running in headless mode, set the headless matplotlib backend.
+    # Note: This will limit output to PNG format.
+    # See: https://matplotlib.org/stable/users/explain/figure/backends.html
+    import matplotlib
+    matplotlib.use('agg')
+
+
 def perform_all_processing(filname: Union[str, list], navfiles: list = None, input_datum: Union[str, int] = None,
                            outfold: str = None, coord_system: str = 'WGS84',
                            vert_ref: str = 'waterline', orientation_initial_interpolation: bool = False,
