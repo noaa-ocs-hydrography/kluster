@@ -19,8 +19,8 @@ VERSION = ''
 # What packages are required for this module to be executed?
 REQUIRED = [
             'bokeh~=2.4.3',
-            'dask~=2024.1.0',
-            'distributed~=2024.1.0',
+            'dask~=2023.3.2',
+            'distributed~=2023.3.2',
             'fasteners~=0.19',
             'laspy~=2.5.3',
             'matplotlib~=3.7.5',  # >=3.3.3 required, FuncAnimation and Pyside2/matplotlib do not play well in 3.2.1
