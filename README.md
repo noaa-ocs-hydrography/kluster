@@ -102,15 +102,32 @@ Perform these in order:
 
 `conda create -n kluster_test -c conda-forge python=3.9.18 qgis=3.18.3 vispy=0.9.4 pyside2=5.13.2 gdal=3.3.1 h5py python-geohash`
 
-`conda activate kluster_test `
+`conda activate kluster_test`
 
-`pip install pyqtgraph==0.12.4 git+https://github.com/noaa-ocs-hydrography/kluster.git#egg=hstb.kluster `
+`pip install pyqtgraph==0.12.4 git+https://github.com/noaa-ocs-hydrography/kluster.git#egg=hstb.kluster`
 
 Start the GUI by activating the new environment and run Kluster as a module
 
 `(kluster_test) C:>python -m HSTB.kluster`
 
-###Docker
+#### Headless usage
+It is also possible to run Kluster without a GUI (in so-called 'headless' mode), such as in a container as part of batch processing system. In this
+mode, Kluster can be used with Python versions 3.9 through 3.11. To do so, using conda, do the following:
+
+```
+conda create -n kluster_headless -c conda-forge python=3.11.0 gdal h5py python-geohash
+conda activate kluster_headless
+pip install git+https://github.com/noaa-ocs-hydrography/kluster.git#egg=hstb.kluster
+```
+
+> Note: If you want to use a Python version greater than 3.9, you must create a separate environment from your
+> GUI kluster conda environment, and to NOT install the QGIS and pyside dependencies, which require GUI components.
+
+Now, you should be able to call functions in [HSTB.kluster.fqpr_convenience.py](HSTB/kluster/fqpr_convenience.py)
+from within your container or other headless/server environment. When doing so, make sure to set the environment
+variable `KLUSTER_HEADLESS` to a value of `1`.
+
+### Docker
 
 Build docker image using the provided dockerfile
 
