@@ -56,7 +56,7 @@ Kluster has been tested on:
 - EM122
 - ME70 Bathy Module
 
-Kluster is built from the ground up in Python, and was developed using Python 3.8.  Kluster includes modules developed by the hydrographic community such as (see [drivers](https://github.com/noaa-ocs-hydrography/drivers)):
+Kluster is built from the ground up in Python 3.  Kluster includes modules developed by the hydrographic community such as (see [drivers](https://github.com/noaa-ocs-hydrography/drivers)):
 
 - kmall - Kongsberg .kmall file reader
 - par3 - Kongsberg .all file reader
