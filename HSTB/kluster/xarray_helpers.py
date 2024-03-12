@@ -593,7 +593,7 @@ def interp_across_chunks(xarr: Union[xr.Dataset, xr.DataArray], new_times: xr.Da
                                            dims=['time'])
 
     chnk_idxs, chnkwise_times = _interp_across_chunks_construct_times(xarr, new_times, dimname)
-    xarrs_chunked = [xarr.isel({dimname: slice(i, j)}).chunk(j-i,) for i, j in chnk_idxs]
+    xarrs_chunked = [xarr.isel({dimname: slice(i, j)}).chunk({dimname: j-i}) for i, j in chnk_idxs]
     if daskclient is None:
         interp_arrs = []
         for ct, xar in enumerate(xarrs_chunked):

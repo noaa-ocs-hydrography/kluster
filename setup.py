@@ -18,34 +18,34 @@ VERSION = ''
 
 # What packages are required for this module to be executed?
 REQUIRED = [
-            'bokeh==2.4.2',
-            'dask==2021.12.0',
-            'distributed==2021.12.0',
-            'fasteners==0.16',
-            'laspy==2.0.3',
-            'matplotlib==3.5.1',  # >=3.3.3 required, FuncAnimation and Pyside2/matplotlib do not play well in 3.2.1
-            'numba==0.53.0',
-            'openpyxl==3.0.9',
-            'psutil==5.8.0',
-            'numpy==1.21.5',  # cannot be 1.19.4, see https://tinyurl.com/y3dm3h86
-            'pandas==1.3.5',
-            'pyshp==2.1.3',
-            'pyepsg==0.4.0',  # cartopy requirement not installed with conda install, duplicates pyproj functionality...
-            'pyopengl==3.1.5',
-            'pyproj==3.3.0',
-            'pyqtgraph==0.12.3',
-            'python-geohash==0.8.5',
-            'qdarkstyle==3.0.2',
-            's3fs==0.4.2',
-            'scipy==1.7.3',
-            'shapely==1.8.0',
-            'sortedcontainers==2.4.0',
-            'watchdog>=2.1.6',
-            'xarray==0.20.2',
-            'zarr==2.10.3',
+            'bokeh~=2.4.3',
+            'dask~=2023.3.2',
+            'distributed~=2023.3.2',
+            'fasteners~=0.19',
+            'laspy~=2.5.3',
+            'matplotlib~=3.7.5',  # >=3.3.3 required, FuncAnimation and Pyside2/matplotlib do not play well in 3.2.1
+            'numba~=0.59.0',
+            'openpyxl~=3.0.10',
+            'psutil~=5.9.8',
+            'numpy~=1.23.5',  # cannot be 1.19.4, see https://tinyurl.com/y3dm3h86
+            'pandas~=1.5.3',
+            'pyshp~=2.3.1',
+            'pyepsg~=0.4.0',  # cartopy requirement not installed with conda install, duplicates pyproj functionality...
+            'pyopengl~=3.1.7',
+            'pyproj~=3.6.1',
+            'pyqtgraph>=0.12.4',
+            'python-geohash~=0.8.5',
+            'qdarkstyle~=3.1',
+            's3fs~=2024.2.0',
+            'scipy~=1.10.0',
+            'shapely~=1.8.5',
+            'sortedcontainers~=2.4.0',
+            'watchdog~=2.3.1',
+            'xarray~=2024.2.0',
+            'zarr~=2.13.6',
             'hstb.drivers @ git+https://github.com/noaa-ocs-hydrography/drivers.git#egg=hstb.drivers',
             'hstb.shared @ git+https://github.com/noaa-ocs-hydrography/shared.git#egg=hstb.shared',
-			'hstb.resources @ git+https://github.com/noaa-ocs-hydrography/hstb_resources.git#egg=hstb.resources',
+            'hstb.resources @ git+https://github.com/noaa-ocs-hydrography/hstb_resources.git#egg=hstb.resources',
             'vyperdatum @ git+https://github.com/noaa-ocs-hydrography/vyperdatum.git#egg=vyperdatum',
             'bathygrid @ git+https://github.com/noaa-ocs-hydrography/bathygrid.git#egg=bathygrid'
 

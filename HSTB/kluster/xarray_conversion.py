@@ -516,7 +516,7 @@ def _return_xarray_timelength(xarrs: xr.Dataset):
         length of time dimension
     """
 
-    return xarrs.dims['time']
+    return xarrs['time'].size
 
 
 def _divide_xarray_return_system(xarr: dict, sysid: str):

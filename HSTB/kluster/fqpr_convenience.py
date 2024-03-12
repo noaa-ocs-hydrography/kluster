@@ -11,6 +11,9 @@ import laspy
 from pyproj import CRS, Transformer
 import json
 
+import logging
+logger = logging.getLogger(__file__)
+
 from HSTB.kluster.modules.backscatter import generate_avg_corrector, avg_correct
 from HSTB.kluster.fqpr_drivers import return_xyz_from_multibeam
 from HSTB.kluster.xarray_conversion import BatchRead
@@ -23,6 +26,14 @@ from HSTB.kluster import kluster_variables
 
 from bathygrid.convenience import create_grid, load_grid, BathyGrid
 from bathycube.numba_cube import compile_now
+
+
+if os.getenv('KLUSTER_HEADLESS', '0') == '1':
+    # We are running in headless mode, set the headless matplotlib backend.
+    # Note: This will limit output to PNG format.
+    # See: https://matplotlib.org/stable/users/explain/figure/backends.html
+    import matplotlib
+    matplotlib.use('agg')
 
 
 def perform_all_processing(filname: Union[str, list], navfiles: list = None, input_datum: Union[str, int] = None,
@@ -379,7 +390,8 @@ def process_multibeam(fqpr_inst: Fqpr, run_orientation: bool = True, orientation
     return fqpr_inst
 
 
-def reload_data(converted_folder: str, require_raw_data: bool = True, skip_dask: bool = False, silent: bool = False,
+def reload_data(converted_folder: str, require_raw_data: bool = True,
+                client: Client = None, skip_dask: bool = False, silent: bool = False,
                 show_progress: bool = True):
     """
     Pick up from a previous session.  Load in all the data that exists for the session using the provided
@@ -398,6 +410,8 @@ def reload_data(converted_folder: str, require_raw_data: bool = True, skip_dask:
         path to the parent folder containing all the zarr data store folders
     require_raw_data
         if True, raise exception if you can't find the raw data
+    client
+        Dask client to be used for interacting with an existing Dask cluster. If None, a new local cluster will be used.
     skip_dask
         if True, will not start/find the dask client.  Only use this if you are just reading attribution
     silent
@@ -416,7 +430,7 @@ def reload_data(converted_folder: str, require_raw_data: bool = True, skip_dask:
         return None
 
     if (require_raw_data and final_paths['ping'] and final_paths['attitude']) or (final_paths['ping']):
-        mbes_read = BatchRead(None, skip_dask=skip_dask, show_progress=show_progress)
+        mbes_read = BatchRead(None, client=client, skip_dask=skip_dask, show_progress=show_progress)
         mbes_read.final_paths = final_paths
         read_error = mbes_read.read_from_zarr_fils(final_paths['ping'], final_paths['attitude'][0], final_paths['logfile'])
         if read_error:
