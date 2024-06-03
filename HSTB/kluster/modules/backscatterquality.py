@@ -520,11 +520,14 @@ def backscatter_correction(results_dict):
     #Determining all the modes in the directory
     for fle in fles:
         mode = results_dict[fle]['mode']
-        bs_scalar_means.append(np.nanmean(results_dict[fle]['reflectivity_binned']))
+        # if mode == 'Medium':
+        #     bs_scalar_means.append(np.nanmean(results_dict[fle]['reflectivity_binned']))
         modes.append(mode)
     modes = list(set(modes))
 
-    bs_scalar_mean = np.mean(bs_scalar_means)
+    # bs_scalar_mean = np.mean(bs_scalar_means)
+    #bs_scalar_mean, medium mode 100m, -5.87 dB
+
     #populating a dictionary with key equal to mode and value equal to associated files
     mode_dict = {}
     for mode in modes:
@@ -545,7 +548,8 @@ def backscatter_correction(results_dict):
         bs_2_mean = np.nanmean(bs_2, axis=1)
         bs_mean = (bs_1_mean+bs_2_mean)/2
         bs_mean_corr = bs_mean #corrected mean backscatter for a given mode as a function of transducer relative angle
-        bs_corr = bs_mean_corr - bs_scalar_mean
+        bs_scalar_mean = np.nanmean(bs_mean_corr) #subtracting the average of the overall BS, to center each beam pattern at zero.
+        bs_corr = bs_mean_corr #This is effectively where the "sign" of the bs_cal is set. It's opposite of expectation, confirmed with JHC testing.
         mode_dict[mode]['bs_corr'] = bs_corr
         mode_dict[mode]['beam_angle_bins'] = beam_angle_bins
 
@@ -570,21 +574,26 @@ def make_calib_file(mode_dict, nadir_mask_angle):
     calib_file_dict = {}
 
     for mode in modes:
-        calib_vals = mode_dict[mode]['bs_corr']*(-1) #Flipping per JHC advice
-        sector_num = calib_vals.shape[0]
+        # calib_vals = mode_dict[mode]['bs_corr']*(-1) #Flipping per JHC advice
+        sector_num = mode_dict[mode]['bs_corr'].shape[0]
         calib_file_dict[mode] = {}
-
+        mode_bs_scalar_mean = []
         for sector in range(sector_num):
             angle_bins = mode_dict[mode]['beam_angle_bins']
             bs_corr = mode_dict[mode]['bs_corr'][sector]
             bs_corr = bs_corr.round(2)
-            calib_angles_sector = calib_angles[mode][int(np.remainder(sector,sector_num/2))]
+            if sector_num == 6:
+                calib_angles_sector = calib_angles[mode][int(np.remainder(sector,sector_num/2))]
+            elif sector_num == 3:
+                calib_angles_sector = calib_angles[mode][sector]
+            else:
+                print('Number of sectors is not equal to 3 or 6. Maybe you are using a 304? Or some other system? Either way it is not supported at this time')
             # bs_corr_sector = np.interp(calib_angles_sector, angle_bins, bs_corr)
             bs_corr_sector = np.ones(len(calib_angles_sector))
             bs_corr_sector[:] = np.nan
             for n in range(len(calib_angles_sector)):
                 bs_corr_sector[n] = bs_corr[np.argwhere(angle_bins == calib_angles_sector[n])]
-            if True in np.isnan(bs_corr_sector):
+            if True in np.isnan(bs_corr_sector) and False in np.isnan(bs_corr_sector):
                 ind1 = np.argwhere(np.isnan(bs_corr_sector) == False)[0][0]
                 ind2 = np.argwhere(np.isnan(bs_corr_sector) == False)[-1][0]
                 bs_corr_sector[:ind1] = bs_corr_sector[ind1+1]
@@ -592,62 +601,18 @@ def make_calib_file(mode_dict, nadir_mask_angle):
             if 0 in calib_angles_sector:
                 ind1 = np.argwhere(calib_angles_sector == nadir_mask_angle)[0][0]
                 ind2 = np.argwhere(calib_angles_sector == -nadir_mask_angle)[0][0]
-                bs_corr_sector[ind1:ind2] = np.interp(calib_angles_sector[ind1:ind2],
+                bs_corr_sector[ind1:ind2] = np.round(np.interp(calib_angles_sector[ind1:ind2],
                                                       [calib_angles_sector[ind2], calib_angles_sector[ind1]],
-                                                      [bs_corr_sector[ind2], bs_corr_sector[ind1]])
+                                                      [bs_corr_sector[ind2], bs_corr_sector[ind1]]), 2)
 
             calib_file_dict[mode][sector] = {'calib_angles': calib_angles_sector, 'bs_corr': bs_corr_sector}
+            mode_bs_scalar_mean.append(np.nanmean(calib_file_dict[mode][sector]['bs_corr']))
+
+        mode_bs_scalar_mean = np.mean(mode_bs_scalar_mean) #Centering each mode at zero, after masking out nadir spike.
+        for sector in range(sector_num):
+            calib_file_dict[mode][sector]['bs_corr'] = np.round(calib_file_dict[mode][sector]['bs_corr'] - mode_bs_scalar_mean, 2)
 
     return calib_file_dict
-
-def lc_nnic_improved(results_dict, crossover_angle):
-    fles = list(results_dict.keys())
-    beam_angle_bins = results_dict[fles[0]][5]['beam_angle_bins']
-    backscatter_mean_arr = np.empty((len(fles), len(beam_angle_bins)))
-    backscatter_mean_arr[:, :] = np.nan
-    r_binned_mean_arr = np.empty((len(fles), len(beam_angle_bins)))
-    r_binned_mean_arr[:, :] = np.nan
-    for n in range(len(fles)):
-        fle = fles[n]
-        backscatter_binned = results_dict[fle][1]['backscatter_binned']
-        backscatter_mean_fle = np.nanmean(backscatter_binned, axis=0)
-        backscatter_mean_arr[n,:] = backscatter_mean_fle
-        r_binned_mean_fle = results_dict[fle][4]['r_binned_mean']
-        r_binned_mean_arr[n,:] = r_binned_mean_fle
-    backscatter_mean = np.nanmean(backscatter_mean_arr, axis=0)
-    r_mean = np.nanmean(r_binned_mean_arr, axis=0)
-
-    r = r_mean
-    nnic = np.empty(len(r))
-    nnic[:] = np.nan
-    lc = np.empty(len(r))
-    lc[:] = np.nan
-    # Flat seafloor assumption
-    r_0 = np.nanmin(r)
-    bs_o_1 = backscatter_mean[np.argwhere(beam_angle_bins < crossover_angle)[0][0]]
-    bs_o_2 = backscatter_mean[np.argwhere(beam_angle_bins < -crossover_angle)[0][0]]
-    bs_o = np.mean((bs_o_1, bs_o_2))
-    bs_n = backscatter_mean[np.argwhere(r == r_0)][0][0]
-
-    for m in range(len(r)):
-        if r[m] <= r_0:
-            nnic[m] = -(bs_o - bs_n)
-            lc[m] = 0
-        elif r[m] <= (r_0 * (np.cos(crossover_angle * 3.14 / 180) ** (-1))):
-            nnic[m] = -(bs_o - bs_n) * (1 - np.sqrt((r[m] - r_0) / (r_0 * np.cos(crossover_angle * 3.14 / 180) ** (
-                -1) - r_0)))  # negative sign is not there in paper.
-            lc[m] = 20 * np.log10(r_0 / r[m])
-        elif r[m] > (r_0 * (np.cos(crossover_angle * 3.14 / 180) ** (-1))):
-            nnic[m] = 0
-            lc[m] = 20 * np.log10(r_0 / r[m])
-
-    lc_nnic = lc + nnic
-    bs_scalar_mean = np.nanmean(lc_nnic+bs_n)
-    #This constructs a single lc_nnic as a function of angle. Is this legit?
-    #This means there is no compensation for roll. Is the lc_nnic transducer relative or seafloor relative. Is the roll sufficiently small that it doesn't matter?
-
-    return lc_nnic, bs_scalar_mean
-
 def plot_curves(mode_dict):
     modes = list(mode_dict.keys())
     plt.ioff()
@@ -663,24 +628,233 @@ def plot_curves(mode_dict):
 def plot_calib_file(calib_file_dict):
     modes = list(calib_file_dict.keys())
     plt.ioff()
-    fig, ax = plt.subplots(len(modes),1)
+
     for n in range(len(modes)):
+        fig, ax = plt.subplots(1, 1)
         mode = modes[n]
         sectors = calib_file_dict[mode].keys()
         for sector in sectors:
-            ax[n].plot(calib_file_dict[mode][sector]['calib_angles'], calib_file_dict[mode][sector]['bs_corr'])
+            ax.plot(calib_file_dict[mode][sector]['calib_angles'], calib_file_dict[mode][sector]['bs_corr'], label=sector)
+        fig.suptitle(mode)
+        ax.legend()
+        plt.show()
+
+def read_calibtxtfle(fle):
+    # fle = r"D:\Fairweather\FA_2023_Backscatter_Calibration\Calib Files\From Kongsberg\Calib712_70_100.txt"
+    data = open(fle, 'r')
+    lines = data.readlines()
+    bscorr_dict = {}
+    for n in range(len(lines)):
+        line = lines[n]
+        if line[-2] == ' ': #Dealing with the hanging spaces in some of the files.
+            line_list = list(line)
+            line_list[-2] = ''
+            line = ''.join(line_list)
+            line = ''.join(line_list)
+        if line[0] == '#' and 'sector' not in line:
+            # line.split('Swath')[0]
+            mode = line.split('Swath')[0]
+            if 'Dual' in line and '1' in line:
+                swath = '1'
+            if 'Dual' in line and '2' in line:
+                swath = '2'
+            else:
+                swath = ''
+            if mode not in list(bscorr_dict.keys()):
+                bscorr_dict[mode] = {}
+        if line[0] == '#' and 'sector' in line:
+            sector = line[:-2]
+            if len(swath) != 0:
+                sector = sector + '_' + swath
+            bscorr_dict[mode][sector] = {'angles':[], 'bscorrs':[]}
+        if line.count(' ') == 1:
+            angle = int(line.split(' ')[0])
+            bscorr = float(line.split(' ')[1][:-2])
+            bscorr_dict[mode][sector]['angles'].append(angle)
+            bscorr_dict[mode][sector]['bscorrs'].append(bscorr)
+
+    modes = list(bscorr_dict.keys())
+    plt.ioff()
+
+    for n in range(len(modes)):
+        fig, ax = plt.subplots(1,1)
+        mode = modes[n]
+        sectors = bscorr_dict[mode].keys()
+        for sector in sectors:
+            ax.plot(bscorr_dict[mode][sector]['angles'], bscorr_dict[mode][sector]['bscorrs'], label = sector)
+            ax.legend()
+            fig.suptitle(mode)
+        plt.show()
+
+def write_calib_files_to_text(calib_file_dict, text_fle_dir):
+    modes = list(calib_file_dict.keys())
+    for mode in modes:
+        fout = text_fle_dir + r'\\'+mode+'.txt'
+        fo = open(fout, 'w')
+        sectors = calib_file_dict[mode].keys()
+        for sector in sectors:
+            fo.write('Sector '+str(sector)+'\n')
+            fo.write(str(len(calib_file_dict[mode][sector]['calib_angles'])) +'\n')
+            for n in range(len(calib_file_dict[mode][sector]['calib_angles'])):
+                fo.write(str(calib_file_dict[mode][sector]['calib_angles'][n]) + ' ' + str(calib_file_dict[mode][sector]['bs_corr'][n]) + '\n')
+        fo.close()
+
+def write_bscalib_files_712(calib_file_dict, text_fle_dir):
+    calib_file_sections = ['# Very Shallow - Single Swath', '# Very Shallow - Dual Swath 1', '# Very Shallow - Dual Swath 2',
+                           '# Shallow - Single Swath', '# Shallow - Dual Swath 1', '# Shallow - Dual Swath 2',
+                           '# Medium - Single Swath', '# Medium - Dual Swath 1', '# Medium - Dual Swath 2',
+                           '# Deep - Single Swath', '# Deep - Dual Swath 1', '# Deep - Dual Swath 2'
+                           '# Very Deep - Single Swath', '# Very Deep - Dual Swath 1, not used', '# Very Deep - Dual Swath 2, not used',
+                           '# Extra Deep - Single Swath', '# Extra Deep - Dual Swath 1, not used', '# Extra Deep - Dual Swath 2, not used']
+
+    modes = list(calib_file_dict.keys())
+    fout = text_fle_dir + r'\\' + 'Calib712_generated.txt'
+    fo = open(fout, 'w')
+    for n in range(len(calib_file_sections)):
+        calib_file_section = calib_file_sections[n]
+        section_mode = calib_file_section.split('-')[0][2:-1]
+        section_mode = section_mode[0] + section_mode[1:].lower()
+
+        if section_mode not in calib_file_dict.keys():
+            if 'Single' in calib_file_section:
+                section_sectors = [0, 1, 2]
+                write_calib_mode_section(calib_file_dict, section_mode, calib_file_section, section_sectors, fo, set_zeros=True)
+            elif 'Dual Swath 1' in calib_file_section:
+                section_sectors = [0, 1, 2]
+                write_calib_mode_section(calib_file_dict, section_mode, calib_file_section, section_sectors, fo, set_zeros=True)
+            elif 'Dual Swath 2' in calib_file_section:
+                section_sectors = [3, 4, 5]
+                write_calib_mode_section(calib_file_dict, section_mode, calib_file_section, section_sectors, fo, set_zeros=True)
+
+        else:
+            sectors = calib_file_dict[section_mode].keys()
+            if 'Single' in calib_file_section and len(sectors) == 3:
+                section_sectors = [0, 1, 2]
+                write_calib_mode_section(calib_file_dict, section_mode, calib_file_section, section_sectors, fo)
+            elif 'Single' in calib_file_section and len(sectors) == 6:
+                section_sectors = [0, 1, 2]
+                write_calib_mode_section(calib_file_dict, section_mode, calib_file_section, section_sectors, fo, set_zeros=True)
+            elif 'Dual Swath 1' in calib_file_section and len(sectors) == 6:
+                section_sectors = [0, 1, 2]
+                write_calib_mode_section(calib_file_dict, section_mode, calib_file_section, section_sectors, fo)
+            elif 'Dual Swath 1' in calib_file_section and len(sectors) == 3:
+                section_sectors = [0, 1, 2]
+                write_calib_mode_section(calib_file_dict, section_mode, calib_file_section, section_sectors, fo, set_zeros=True)
+            elif 'Dual Swath 2' in calib_file_section and len(sectors) == 3:
+                section_sectors = [3, 4, 5]
+                write_calib_mode_section(calib_file_dict, section_mode, calib_file_section, section_sectors, fo, set_zeros=True)
+    fo.close()
+
+def write_calib_mode_section(calib_file_dict, section_mode, calib_file_section, section_sectors, fo, set_zeros=False):
+    sector_section_names = {'0': '# Port sector', '1': '# Cent sector', '2': '# Stb sector',
+                            '3': '# Port sector', '4': '# Cent sector', '5': '# Stb sector'}
+
+    calib_angles = {'Very shallow': [np.flipud(np.arange(30,81,1)), np.flipud(np.arange(-50,51,1)), np.flipud(np.arange(-80,-29,1)),
+                                     np.flipud(np.arange(30,81,1)), np.flipud(np.arange(-50,51,1)), np.flipud(np.arange(-80,-29,1))],
+                  'Shallow': [np.flipud(np.arange(30,81,1)), np.flipud(np.arange(-50,51,1)), np.flipud(np.arange(-80,-29,1)),
+                              np.flipud(np.arange(30,81,1)), np.flipud(np.arange(-50,51,1)), np.flipud(np.arange(-80,-29,1))],
+                  'Medium': [np.flipud(np.arange(30,81,1)), np.flipud(np.arange(-50,51,1)), np.flipud(np.arange(-80,-29,1)),
+                             np.flipud(np.arange(30,81,1)), np.flipud(np.arange(-50,51,1)), np.flipud(np.arange(-80,-29,1))],
+                  'Deep': [np.flipud(np.arange(30, 81, 1)), np.flipud(np.arange(-50, 51, 1)), np.flipud(np.arange(-80, -29, 1)),
+                           np.flipud(np.arange(30, 81, 1)), np.flipud(np.arange(-50, 51, 1)), np.flipud(np.arange(-80, -29, 1))],
+                  'Very deep': [np.flipud(np.arange(20, 71, 1)), np.flipud(np.arange(-40, 41, 1)), np.flipud(np.arange(-70, -19, 1)),
+                                np.flipud(np.arange(20, 71, 1)), np.flipud(np.arange(-40, 41, 1)), np.flipud(np.arange(-70, -19, 1))],
+                  'Extra deep': [np.flipud(np.arange(20, 61, 1)), np.flipud(np.arange(-40, 41, 1)), np.flipud(np.arange(-60, -19, 1)),
+                                 np.flipud(np.arange(20, 61, 1)), np.flipud(np.arange(-40, 41, 1)), np.flipud(np.arange(-60, -19, 1))]
+                  }
+
+    mode_ids = {'Very shallow': '1', 'Shallow': '2', 'Medium': '3', 'Deep': '4', 'Very deep': '5', 'Extra deep': '6'}
+    mode_id = mode_ids[section_mode]
+    swath_ids = {'[0, 1, 2]': '0','[3, 4, 5]': '1'}
+    swath_id = swath_ids[str(section_sectors)]
+    sector_len = str(len(section_sectors))
+    section_id = mode_id + '   ' + swath_id + '   ' + sector_len
+    fo.write(calib_file_section + '\n')
+    fo.write(section_id + '\n')
+    for m in range(len(section_sectors)):
+        sector = section_sectors[m]
+        sector_section_name = sector_section_names[str(sector)]
+        fo.write(sector_section_name + '\n')
+        if set_zeros == True:
+            fo.write(str(len(calib_angles[section_mode][sector])))
+            for n in range(len(calib_angles[section_mode][sector])):
+                angle_str = str(calib_angles[section_mode][sector][n])
+                bs_corr_str = '0.00'
+                fo.write(angle_str + ' ' + bs_corr_str + '\n')
+
+        else:
+            fo.write(str(len(calib_file_dict[section_mode][sector]['calib_angles'])) + '\n')
+            for n in range(len(calib_file_dict[section_mode][sector]['calib_angles'])):
+                angle_str = str(calib_file_dict[section_mode][sector]['calib_angles'][n])
+                bs_corr_str = str(calib_file_dict[section_mode][sector]['bs_corr'][n])
+                if len(bs_corr_str.split('.')[-1]) == 1:
+                    bs_corr_str = bs_corr_str + '0'
+                fo.write(angle_str + ' ' + bs_corr_str + '\n')
+
+
+
+def plot_pre_calib_post_calib(pre_calib_fle, post_calib_fle, mode):
+    fles = [pre_calib_fle, post_calib_fle]
+    fig, ax = plt.subplots(len(fles), 1)
+    for n in range(len(fles)):
+        fle = fles[n]
+        km = kmall.kmall(fle)
+        reflectivity1 = []
+        while not km.eof:
+            km.decode_datagram()
+            if km.datagram_ident != 'MRZ':
+                km.skip_datagram()
+            else:
+                km.read_datagram()
+                ref1_ping = km.datagram_data['sounding']['reflectivity1_dB']
+                reflectivity1.append(ref1_ping)
+
+        reflectivity = np.array(reflectivity1)
+        inds_even = np.arange(0, len(reflectivity), 2)
+        inds_odd = np.arange(1, len(reflectivity), 2)
+
+        ax[n].plot(np.mean(reflectivity[inds_even], axis=0), label='First Swath')
+        ax[n].plot(np.mean(reflectivity[inds_odd], axis=0), label='Second Swath')
+        ax[n].legend()
+    ax[0].set_ylabel('dB')
+    ax[1].set_ylabel('dB')
+    ax[1].set_xlabel('Beam Index')
+    ax[1].title.set_text('Post-calibration: ' + fle.split(r'\\')[-1])
+    ax[0].title.set_text('Pre-calibration: ' + fle.split(r'\\')[-1])
+    ax[1].title.set_text('Post-calibration: ' + fle.split(r'\\')[-1])
+    fig.suptitle(mode)
     plt.show()
 
+
+
+
+
+
+
+
 if __name__ == "__main__":
+
 
     #Example of running bs_evaluation on a directory with .kmall data.
     # fle_dir = r'D:\Backscatter\OPR-O392-FA-23\H13776'
     # create_raw_bs_evaluation(fle_dir)
 
-    fle = r"D:\Fairweather\FA_2023_Backscatter_Calibration\100m Data Test 1\MBES\0002_20230404_101731.kmall"
+    # fle = r"D:\Fairweather\FA_2023_Backscatter_Calibration\100m Data Test 1\MBES\0002_20230404_101731.kmall"
     # data, results = prepare_backscatter_for_file(fle)
-    fle_dir = r'D:\Fairweather\FA_2023_Backscatter_Calibration\100m Data Test 1\MBES\Test'
+    print('Started processing: ', dt.datetime.now())
+
+    # fle_dir = r'D:\Fairweather\FA_2023_Backscatter_Calibration\100m Data Test 1\MBES\Calibration'
+    fle_dir = r'D:\Fairweather\FA_2023_Backscatter_Calibration\100m Data Test 1\MBES\Calibration'
     data_dict, results_dict = package_backscatter_from_dir(fle_dir)
-    mode_dir = backscatter_correction(results_dict)
+    mode_dict = backscatter_correction(results_dict)
+    calib_file_dict = make_calib_file(mode_dict, 15)
+    plot_calib_file(calib_file_dict)
+    write_calib_files_to_text(calib_file_dict, r'D:\Fairweather\FA_2023_Backscatter_Calibration\Calib Files\400m_Calib_File_Test')
+
+    print('Finished processing: ', dt.datetime.now())
+
+
+
+
 
     print('Complete')
