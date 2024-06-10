@@ -30,7 +30,8 @@ from HSTB.kluster.gui import dialog_vesselview, kluster_explorer, kluster_projec
     dialog_export, kluster_worker, kluster_interactive_console, dialog_basicplot, dialog_advancedplot, dialog_project_settings, \
     dialog_export_grid, dialog_layer_settings, dialog_settings, dialog_importppnav, dialog_overwritenav, dialog_surface_data, \
     dialog_about, dialog_patchtest, dialog_manualpatchtest, dialog_managedata, dialog_managesurface, \
-    dialog_reprocess, dialog_fileanalyzer, dialog_export_tracklines, dialog_filter, dialog_surfacefrompoints, dialog_mosaic
+    dialog_reprocess, dialog_fileanalyzer, dialog_export_tracklines, dialog_filter, dialog_surfacefrompoints, dialog_mosaic, \
+    dialog_backscatterquality
 from HSTB.kluster.fqpr_project import FqprProject
 from HSTB.kluster.fqpr_intelligence import FqprIntel
 from HSTB.kluster.fqpr_vessel import convert_from_fqpr_xyzrph, convert_from_vessel_xyzrph, compare_dict_data
@@ -455,6 +456,8 @@ class KlusterMain(QtWidgets.QMainWindow):
         qgis_action.triggered.connect(self._action_qgis)
         file_analyzer = QtWidgets.QAction('File Analyzer', self)
         file_analyzer.triggered.connect(self._action_file_analyzer)
+        backscatter_quality = QtWidgets.QAction('Backscatter Quality Analyzer', self)
+        backscatter_quality.triggered.connect(self._action_backscatter_quality)
 
         importppnav_action = QtWidgets.QAction('Import Processed Navigation', self)
         importppnav_action.triggered.connect(self._action_import_ppnav)
@@ -524,6 +527,7 @@ class KlusterMain(QtWidgets.QMainWindow):
         tools = menubar.addMenu('Tools')
         tools.addAction(qgis_action)
         tools.addAction(file_analyzer)
+        tools.addAction(backscatter_quality)
 
         process = menubar.addMenu('Process')
         process.addAction(overwritenav_action)
@@ -3005,6 +3009,12 @@ class KlusterMain(QtWidgets.QMainWindow):
         self._fileanalyzer = dialog_fileanalyzer.FileAnalyzerDialog(parent=self)
         self._fileanalyzer.setWindowFlags(self._fileanalyzer.windowFlags() | QtCore.Qt.WindowStaysOnTopHint)
         self._fileanalyzer.show()
+
+    def _action_backscatter_quality(self):
+        # self._backscatterquality = dialog_backscatterquality.BackscatterQualityDialog(parent=self)
+        self._backscatterquality = dialog_backscatterquality.BackscatterQualityDialog(parent=self)
+        self._backscatterquality.setWindowFlags(self._backscatterquality.windowFlags() | QtCore.Qt.WindowStaysOnTopHint)
+        self._backscatterquality.show()
 
     def _action_vessel_view(self):
         """

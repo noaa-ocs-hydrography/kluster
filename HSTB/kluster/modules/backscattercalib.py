@@ -58,6 +58,8 @@ def prepare_backscatter_for_file(fle):
     reflectivity2 = data['ping']['reflectivity']
     # reflectivity = reflectivity2
 
+    #7JUN2024 Need to add routine to check for corrupt pings and remove them
+
     # Adding Hacky Reflectivity1 Reader in here
     data = read_reflectivity1(fle, data)
     reflectivity = data['ping']['reflectivity1']
@@ -81,6 +83,13 @@ def prepare_backscatter_for_file(fle):
     tx_angle = pitch_tx + tiltangle
 
     r = twtt * approx_sv_mean / 2
+    r_0 = []
+    for p in range(len(r)):
+        r_ping = r[p]
+        r_0_ping = np.min(r_ping[r_ping > 10])
+        r_0.append(r_0_ping)
+    r_0 = np.array(r_0)
+
     r_0 = np.min(r, axis=1)
     r_0_array = np.ones(np.shape(r))
     for q in range(len(r_0)):
@@ -239,11 +248,11 @@ def read_reflectivity1(fle, data):
     reflectivity1 = []
     bs_oblique = []
     bs_normal = []
-    seabedimage_snippets = []
-    seabedimage_start = []
-    seabedimage_numsamples = []
-    seabedimage_centersample = []
-
+    # seabedimage_snippets = []
+    # seabedimage_start = []
+    # seabedimage_numsamples = []
+    # seabedimage_centersample = []
+    expected_num_beams = 400 #True for 712
     while not km.eof:
         km.decode_datagram()
         if km.datagram_ident != 'MRZ':
@@ -253,34 +262,39 @@ def read_reflectivity1(fle, data):
             ref1_ping = km.datagram_data['sounding']['reflectivity1_dB']
             bs_oblique_ping = km.datagram_data['rxInfo']['BSoblique_dB']
             bs_normal_ping = km.datagram_data['rxInfo']['BSnormal_dB']
-            seabedimage_snippets_ping = km.datagram_data['SIsample_desidB']  # snippets
-            seabedimage_start_ping = km.datagram_data['sounding']['SIstartRange_samples']
-            seabedimage_numsamples_ping = km.datagram_data['sounding']['SInumSamples']
-            seabedimage_centersample_ping = km.datagram_data['sounding']['SIcentreSample']
+            # seabedimage_snippets_ping = km.datagram_data['SIsample_desidB']  # snippets
+            # seabedimage_start_ping = km.datagram_data['sounding']['SIstartRange_samples']
+            # seabedimage_numsamples_ping = km.datagram_data['sounding']['SInumSamples']
+            # seabedimage_centersample_ping = km.datagram_data['sounding']['SIcentreSample']
+
+            if len(ref1_ping) != expected_num_beams:
+                ref1_ping = ref1_ping + [np.nan] * (expected_num_beams - len(ref1_ping))  # some pings have 256 pings, possibly due to bug in SIS. This pads it to make sure total beam number is same for each ping in whole array
+                print('Warning: Expected ' + str(expected_num_beams) + ' beams. Ping only has ' + str(
+                    len(ref1_ping)) + ' beams.')
 
             reflectivity1.append(ref1_ping)
             bs_oblique.append(bs_oblique_ping)
             bs_normal.append(bs_normal_ping)
-            seabedimage_snippets.append(seabedimage_snippets_ping)
-            seabedimage_start.append(seabedimage_start_ping)
-            seabedimage_numsamples.append(seabedimage_numsamples_ping)
-            seabedimage_centersample.append(seabedimage_centersample_ping)
+            # seabedimage_snippets.append(seabedimage_snippets_ping)
+            # seabedimage_start.append(seabedimage_start_ping)
+            # seabedimage_numsamples.append(seabedimage_numsamples_ping)
+            # seabedimage_centersample.append(seabedimage_centersample_ping)
 
     # Seabed Image Averaging
-    num_pings = len(bs_oblique)
-    num_beams = len(seabedimage_numsamples[0])
-    seabedimage = np.zeros((num_pings, num_beams))
-    seabedimage[:] = np.nan
-    seabedimage_center = np.zeros((num_pings, num_beams))
-    seabedimage_center[:] = np.nan
-    for p in range(num_pings):
-        for b in range(num_beams):
-            snippet_beam = seabedimage_snippets[p][
-                           seabedimage_start[p][b]:seabedimage_start[p][b] + seabedimage_numsamples[p][b]]
-            snippet_beam = np.array(snippet_beam) / 10
-            reflectivity_sb_beam = 10 * np.log10(1 / seabedimage_numsamples[p][b] * np.sum(10 ** (snippet_beam / 10)))
-            seabedimage[p, b] = reflectivity_sb_beam
-            seabedimage_center[p, b] = seabedimage_snippets[p][seabedimage_centersample[p][b]]
+    # num_pings = len(bs_oblique)
+    # num_beams = len(seabedimage_numsamples[0])
+    # seabedimage = np.zeros((num_pings, num_beams))
+    # seabedimage[:] = np.nan
+    # seabedimage_center = np.zeros((num_pings, num_beams))
+    # seabedimage_center[:] = np.nan
+    # for p in range(num_pings):
+    #     for b in range(num_beams):
+    #         snippet_beam = seabedimage_snippets[p][
+    #                        seabedimage_start[p][b]:seabedimage_start[p][b] + seabedimage_numsamples[p][b]]
+    #         snippet_beam = np.array(snippet_beam) / 10
+    #         reflectivity_sb_beam = 10 * np.log10(1 / seabedimage_numsamples[p][b] * np.sum(10 ** (snippet_beam / 10)))
+    #         seabedimage[p, b] = reflectivity_sb_beam
+    #         seabedimage_center[p, b] = seabedimage_snippets[p][seabedimage_centersample[p][b]]
 
     data['ping']['reflectivity1'] = reflectivity1
     return data
@@ -656,22 +670,24 @@ def plot_pre_calib_post_calib(pre_calib_fle, post_calib_fle, mode):
 
 if __name__ == '__main__':
     print('Started processing: ', dt.datetime.now())
-    fle_dir = r'D:\Fairweather\FA_2023_Backscatter_Calibration\100m Data Test 1\MBES\Calibration'
+    # fle_dir = r'D:\Fairweather\FA_2023_Backscatter_Calibration\100m Data Test 1\MBES\Calibration'
     # data_dict, results_dict = package_backscatter_from_dir(fle_dir)
 
     # with open(r'C:\Users\samuel.umfress\Documents\HSTB\Backscatter\Calib_Dev_Dump\data.pickle', 'wb') as f:
     #     # Pickle the 'data' dictionary using the highest protocol available.
     #     pickle.dump(results_dict, f, pickle.HIGHEST_PROTOCOL)
 
-    with open(r'C:\Users\samuel.umfress\Documents\HSTB\Backscatter\Calib_Dev_Dump\data.pickle', 'rb') as f:
-        # The protocol version used is detected automatically, so we do not
-        # have to specify it.
-        results_dict = pickle.load(f)
+    # with open(r'C:\Users\samuel.umfress\Documents\HSTB\Backscatter\Calib_Dev_Dump\data.pickle', 'rb') as f:
+    #     # The protocol version used is detected automatically, so we do not
+    #     # have to specify it.
+    #     results_dict = pickle.load(f)
 
+    fle_dir = r'C:\Users\samuel.umfress\Documents\HSTB\TJ\Backscatter_Calibration\Calibration'
+    data_dict, results_dict = package_backscatter_from_dir(fle_dir)
     mode_dict = backscatter_correction(results_dict)
     calib_file_dict = make_calib_file(mode_dict, 15, -15)
-    write_bscalib_files_712(calib_file_dict, r'C:\Users\samuel.umfress\Documents\HSTB\Backscatter\Calib_Dev_Dump')
-    read_calibtxtfle(r"C:\Users\samuel.umfress\Documents\HSTB\Backscatter\Calib_Dev_Dump\Calib712_generated.txt")
+    write_bscalib_files_712(calib_file_dict, r'C:\Users\samuel.umfress\Documents\HSTB\TJ\Backscatter_Calibration\Calib_Results')
+    # read_calibtxtfle(r"C:\Users\samuel.umfress\Documents\HSTB\Backscatter\Calib_Dev_Dump\Calib712_generated.txt")
 
 
     print('Finished processing: ', dt.datetime.now())
