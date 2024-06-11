@@ -17,11 +17,13 @@ class BackscatterQualityDialog(SaveStateDialog):
         self.setWindowTitle('Backscatter Quality Analyzer')
         self.mainlayout = QtWidgets.QVBoxLayout()
 
-        self.instructions_msg = QtWidgets.QLabel('See Output tab for the results of the function.\n'
+        self.instructions_msg = QtWidgets.QLabel('See Output tab in Kluster for progress messages.\n'
                                                  'This tool runs backscatter quality checks on .kmall or .all multibeam data. \n'
                                                  'The output is line-by-line image summaries and a csv statistical summary of the results.\n'
                                                  'This process searches all subdirectories in the selected folder. If same folder is selected multiple times,\n'
-                                                 'only new files will be analyzed.')
+                                                 'only new files will be analyzed. Results are saved in the specified directory. \n '
+                                                 'Check Files is an optional step that print the paths of all new detected files. \n'
+                                                 'Run will initiate the process.')
 
         self.proc_msg = QtWidgets.QLabel(f'Select a directory for analysis. Any files in subdirectories will also be included:')
         self.results_msg = QtWidgets.QLabel(f'Select a directory for results .csv report and images:')
