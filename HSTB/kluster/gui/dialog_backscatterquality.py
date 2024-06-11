@@ -47,9 +47,17 @@ class BackscatterQualityDialog(SaveStateDialog):
         self.hlayout_three = QtWidgets.QHBoxLayout()
         self.functioncombobox = QtWidgets.QComboBox()
         self.functioncombobox.setMinimumWidth(250)
+        self.checkfiles = QtWidgets.QPushButton('Check Files')
         self.functionrun = QtWidgets.QPushButton('Run')
+        self.hlayout_three.addWidget(self.checkfiles)
         self.hlayout_three.addWidget(self.functionrun)
         self.hlayout_three.addWidget(QtWidgets.QLabel(''))
+
+        self.pbar = QtWidgets.QProgressBar(self)
+        self.hlayout_four = QtWidgets.QHBoxLayout()
+        self.pbar.setGeometry(30,40,290,25)
+        self.hlayout_four.addWidget(self.pbar)
+        self.hlayout_four.addWidget(QtWidgets.QLabel(''))
 
         self.button_layout = QtWidgets.QHBoxLayout()
         self.button_layout.addStretch(1)
@@ -65,6 +73,7 @@ class BackscatterQualityDialog(SaveStateDialog):
         self.mainlayout.addWidget(self.results_msg)
         self.mainlayout.addLayout(self.hlayout_two)
         self.mainlayout.addLayout(self.hlayout_three)
+        self.mainlayout.addLayout(self.hlayout_four)
         self.mainlayout.addStretch()
         self.mainlayout.addLayout(self.button_layout)
 
@@ -78,6 +87,7 @@ class BackscatterQualityDialog(SaveStateDialog):
 
         self.browse_button_one.clicked.connect(self.get_proc_directory)
         self.browse_button_two.clicked.connect(self.get_results_directory)
+        self.checkfiles.clicked.connect(self.print_files)
         self.functionrun.clicked.connect(self.run_function)
         self.close_button.clicked.connect(self.close_button_clicked)
 
@@ -91,10 +101,19 @@ class BackscatterQualityDialog(SaveStateDialog):
         results_directory = QtWidgets.QFileDialog.getExistingDirectory(self, "Select Directory for Results")
         self.fil_text2.setText(results_directory)
 
+    def print_files(self):
+        processing_dir = self.fil_text1.text()
+        results_dir = self.fil_text2.text()
+        fles, results_csv, df_existing = backscatterquality.find_files(processing_dir, results_dir)
+        print('Total Number of new Lines to Process: ' + str(len(fles)))
+        for fle in fles:
+            print(fle)
+        print('Press Run to Proceed')
+
     def run_function(self, e):
         processing_dir = self.fil_text1.text()
         results_dir = self.fil_text2.text()
-        self.close()
+        # self.close()
         # backscatterquality.create_raw_bs_evaluation(processing_dir, results_dir)
         # print('Started processing: ', dt.datetime.now())
         fles, results_csv, df_existing = backscatterquality.find_files(processing_dir, results_dir)
@@ -105,8 +124,10 @@ class BackscatterQualityDialog(SaveStateDialog):
 
             results = backscatterquality.evaluate_raw_backscatter_for_file(fle)
             combined_results = backscatterquality.make_plot_for_line(fle, results, combined_results, results_dir)
+            self.pbar.setValue(int((q+1)*100/len(fles)))
+            QtWidgets.QApplication.processEvents()
         backscatterquality.assemble_results_csv(combined_results, results_csv, df_existing)
-        # print('Completed processing: ', dt.datetime.now())
+        print('Completed processing: ', dt.datetime.now())
 
 
     def close_button_clicked(self, e):
