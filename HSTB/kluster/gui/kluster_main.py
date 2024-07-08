@@ -3011,10 +3011,10 @@ class KlusterMain(QtWidgets.QMainWindow):
         self._fileanalyzer.show()
 
     def _action_backscatter_quality(self):
-        # self._backscatterquality = dialog_backscatterquality.BackscatterQualityDialog(parent=self)
         self._backscatterquality = dialog_backscatterquality.BackscatterQualityDialog(parent=self)
-        self._backscatterquality.setWindowFlags(self._backscatterquality.windowFlags() | QtCore.Qt.WindowStaysOnTopHint)
-        self._backscatterquality.show()
+        # self._backscatterquality.setWindowFlags(self._backscatterquality.windowFlags() | QtCore.Qt.WindowStaysOnTopHint)
+        self._backscatterquality.setWindowFlags(self._backscatterquality.windowFlags())
+        self._backscatterquality.exec_() #.exec_() instead of .show() makes window modal.
 
     def _action_vessel_view(self):
         """

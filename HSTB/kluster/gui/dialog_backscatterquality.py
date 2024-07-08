@@ -113,6 +113,8 @@ class BackscatterQualityDialog(SaveStateDialog):
         print('Press Run to Proceed')
 
     def run_function(self, e):
+        self.setEnabled(False)
+        QtWidgets.QApplication.processEvents()
         processing_dir = self.fil_text1.text()
         results_dir = self.fil_text2.text()
         # self.close()
@@ -122,15 +124,17 @@ class BackscatterQualityDialog(SaveStateDialog):
         combined_results = {}
         for q in range(len(fles)):
             fle = fles[q]
-            self.print('Opening ' + fle + ' for evaluation. File ' + str(q + 1) + ' of ' + str(len(fles)), logging.INFO)
-
+            progress_msg = 'Opening ' + fle + ' for evaluation. File ' + str(q + 1) + ' of ' + str(len(fles))
+            print(progress_msg)
+            QtWidgets.QApplication.processEvents()
             results = backscatterquality.evaluate_raw_backscatter_for_file(fle)
             combined_results = backscatterquality.make_plot_for_line(fle, results, combined_results, results_dir)
             self.pbar.setValue(int((q+1)*100/len(fles)))
-            QtWidgets.QApplication.processEvents()
+            # self.pbar.setFormat(progress_msg)
+
         backscatterquality.assemble_results_csv(combined_results, results_csv, df_existing)
         print('Completed processing: ', dt.datetime.now())
-
+        self.setEnabled(True)
 
     def close_button_clicked(self, e):
         self.close()

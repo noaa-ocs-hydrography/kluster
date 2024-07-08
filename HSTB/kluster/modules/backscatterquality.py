@@ -11,15 +11,7 @@ from HSTB.drivers import kmall
 import sys
 
 '''
-In development. Currently set up to be run as a script. 
-
-Functions are tools for backscatter quality analysis and calibration. 
-
-evaluate_raw_backscatter(fle) assess a .kmall or .all file and returns the number and index of the bad pings, 
-bad soundings, and detected sectors.
-
-create_raw_bs_evaluation(fle_dir) assess the contents of a directory using the evaluate_raw_backscatter_function, 
-creates a plot for each line, and compiles the results into a .csv.
+Functions to evaluate backscatter quality on a set of raw data (.all or .kmall lines). 
 '''
 
 # evaluate_raw_backscatter runs bad ping, bad sounding, and sector detection on a given line. Bad ping and sounding
@@ -179,6 +171,8 @@ def make_plot_for_line(fle, results, combined_results, results_dir):
     fig.colorbar(im, orientation='vertical')
     # aspect = ax[0].get_aspect()
     ax[1].imshow(reflectivity, aspect='auto', vmin=-70, vmax=10, cmap='gray')
+    ax[0].grid(False)
+    ax[1].grid(False)
 
     plt_label = 'Bad Pings, 10% of Soundings bad'
     for bad_ping1_ind in bad_ping1_inds:
@@ -215,8 +209,8 @@ def make_plot_for_line(fle, results, combined_results, results_dir):
     return combined_results
 
 def find_files(fle_dir, results_dir):
-    if os.path.isdir(fle_dir + '\\Results_Images') == False:
-        os.mkdir(fle_dir + '\\Results_Images')
+    if os.path.isdir(results_dir + '\\Results_Images') == False:
+        os.mkdir(results_dir + '\\Results_Images')
     fles_kmall = glob.glob(fle_dir + '\\**\\*.kmall', recursive=True)
     fles_all = glob.glob(fle_dir + '\\**\\*.all', recursive=True)
     fles = fles_kmall + fles_all
