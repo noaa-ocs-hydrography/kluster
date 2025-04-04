@@ -9,7 +9,7 @@ try:  # when running from pycharm console
 except ImportError:  # relative import as tests directory can vary in location depending on how kluster is installed
     from .test_datasets import RealFqpr, RealDualheadFqpr, SyntheticFqpr, load_dataset
 
-from math import isclose
+from pytest import approx
 from datetime import datetime
 import unittest
 import numpy as np
@@ -107,8 +107,8 @@ class TestFqprGeneration(unittest.TestCase):
         firstz = rp.z.values
 
         assert number_of_sectors == 1
-        assert isclose(firstbeam_angle, np.float32(74.640), rel_tol=0.001)
-        assert isclose(firstbeam_traveltime, np.float32(0.3360895), rel_tol=0.000001)
+        assert firstbeam_angle == approx(np.float32(74.640), 0.001)
+        assert firstbeam_traveltime == approx(np.float32(0.3360895), 0.000001)
         assert first_counter == 61967
         assert first_dinfo == 2
         assert first_mode == 'FM'
@@ -117,26 +117,22 @@ class TestFqprGeneration(unittest.TestCase):
         assert firstbeam_qualityfactor == 42
         assert first_soundspeed == np.float32(1488.6)
         assert first_tiltangle == np.float32(-0.44)
-        assert isclose(first_delay, np.float32(0.002206038), rel_tol=0.000001)
+        assert first_delay == approx(np.float32(0.002206038), 0.000001)
         assert first_frequency == 275000
         assert first_yawpitch == 'PY'
-        assert isclose(firstcorr_angle, np.float32(1.2028906), rel_tol=0.000001)
+        assert firstcorr_angle == approx(np.float32(1.2028906), 0.000001)
         assert firstcorr_altitude == np.float32(0.0)
-        assert isclose(firstcorr_heave, np.float32(-0.06), rel_tol=0.01)
-        assert isclose(firstdepth_offset, np.float32(92.162), rel_tol=0.001)
+        assert firstcorr_heave == approx(np.float32(-0.06), 0.01)
+        assert firstdepth_offset == approx(np.float32(92.162), 0.001)
         assert first_status == 5
-        assert isclose(firstrel_azimuth, np.float32(4.703383), rel_tol=0.00001)
-        assert isclose(firstrx[0], np.float32(0.7870753), rel_tol = 0.00001)
-        assert isclose(firstrx[1], np.float32(0.60869384), rel_tol=0.00001)
-        assert isclose(firstrx[2], np.float32(-0.100021675), rel_tol=0.00001)
-        assert isclose(firstthu, np.float32(8.10849), rel_tol=0.0001)
-        assert isclose(firsttvu, np.float32(2.444148), rel_tol=0.0001)
-        assert isclose(firsttx[0],np.float32(0.6074468), rel_tol=0.00001)
-        assert isclose(firsttx[1], np.float32(-0.79435784), rel_tol=0.00001)
-        assert isclose(firsttx[2], np.float32(0.0020107413), rel_tol=0.00001)
-        assert isclose(firstx, 539028.450, rel_tol=0.001)
-        assert isclose(firsty, 5292783.977, rel_tol=0.001)
-        assert isclose(firstz, np.float32(92.742), rel_tol=0.001)
+        assert firstrel_azimuth == approx(np.float32(4.703383), 0.00001)
+        assert firstrx == approx(np.array([0.7870753, 0.60869384, -0.100021675], dtype=np.float32), 0.00001)
+        assert firstthu == approx(np.float32(8.10849), 0.0001)
+        assert firsttvu == approx(np.float32(2.444148), 0.0001)
+        assert firsttx == approx(np.array([0.6074468, -0.79435784, 0.0020107413], dtype=np.float32), 0.00001)
+        assert firstx == approx(539028.450, 0.001)
+        assert firsty == approx(5292783.977, 0.001)
+        assert firstz == approx(np.float32(92.742), 0.001)
 
         assert rp.min_x == 538922.066
         assert rp.min_y == 5292774.566
@@ -879,11 +875,11 @@ class TestFqprGeneration(unittest.TestCase):
 
         # check for the expected tx orientation vectors
         for i in range(len(expected_tx)):
-            assert isclose(expected_tx[i], txvecdata[i], rel_tol=0.000001)
+            assert expected_tx[i] == approx(txvecdata[i], 0.000001)
 
         # check for the expected rx orientation vectors
         for i in range(len(expected_rx)):
-            assert isclose(expected_rx[i], rxvecdata[i], rel_tol=0.000001)
+            assert expected_rx[i] == approx(rxvecdata[i], 0.000001)
 
         fq.close()
         print('Passed: get_orientation_vectors')
@@ -937,11 +933,11 @@ class TestFqprGeneration(unittest.TestCase):
 
         # beam azimuth check
         for i in range(len(ba_data)):
-            assert isclose(ba_data[i], expected_ba[i], rel_tol=0.0000001)
+            assert ba_data[i] == approx(expected_ba[i], 0.0000001)
 
         # beam depression angle check
         for i in range(len(bda_data)):
-            assert isclose(bda_data[i], expected_bda[i], rel_tol=0.0000001)
+            assert bda_data[i] == approx(expected_bda[i], 0.0000001)
 
         fq.close()
         print('Passed: build_beam_pointing_vector')
@@ -1001,15 +997,15 @@ class TestFqprGeneration(unittest.TestCase):
 
         # forward offset check
         for i in range(len(x_data)):
-            assert isclose(x_data[i], expected_x[i], rel_tol=0.001)
+            assert x_data[i] == approx(expected_x[i], 0.001)
 
         # acrosstrack offset check
         for i in range(len(y_data)):
-            assert isclose(y_data[i], expected_y[i], rel_tol=0.001)
+            assert y_data[i] == approx(expected_y[i], 0.001)
 
         # depth offset check
         for i in range(len(z_data)):
-            assert isclose(z_data[i], expected_z[i], rel_tol=0.001)
+            assert z_data[i] == approx(expected_z[i], 0.001)
 
         fq.close()
         print('Passed: sv_correct')
@@ -1074,15 +1070,15 @@ class TestFqprGeneration(unittest.TestCase):
 
         # easting
         for i in range(len(x_data)):
-            assert isclose(x_data[i], expected_x[i], rel_tol=0.001)
+            assert x_data[i] == approx(expected_x[i], 0.001)
 
         # northing
         for i in range(len(y_data)):
-            assert isclose(y_data[i], expected_y[i], rel_tol=0.001)
+            assert y_data[i] == approx(expected_y[i], 0.001)
 
         # depth
         for i in range(len(z_data)):
-            assert isclose(z_data[i], expected_z[i], rel_tol=0.001)
+            assert z_data[i] == approx(expected_z[i], 0.001)
 
         fq.close()
         print('Passed: georef_xyz')
