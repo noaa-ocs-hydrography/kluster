@@ -132,7 +132,7 @@ class DistanceTool(qgis_gui.QgsMapTool):
     def __init__(self, canvas):
         self.canvas = canvas
         qgis_gui.QgsMapToolEmitPoint.__init__(self, self.canvas)
-        self.rubberBand = qgis_gui.QgsRubberBand(self.canvas, True)
+        self.rubberBand = qgis_gui.QgsRubberBand(self.canvas, qgis_core.QgsWkbTypes.GeometryType.PolygonGeometry)
         self.rubberBand.setColor(QtCore.Qt.darkGreen)
         self.rubberBand.setFillColor(QtCore.Qt.transparent)
         self.rubberBand.setWidth(4)
@@ -329,7 +329,7 @@ class SelectTool(qgis_gui.QgsMapToolEmitPoint):
     def __init__(self, canvas):
         self.canvas = canvas
         qgis_gui.QgsMapToolEmitPoint.__init__(self, self.canvas)
-        self.rubberBand = qgis_gui.QgsRubberBand(self.canvas, True)
+        self.rubberBand = qgis_gui.QgsRubberBand(self.canvas, qgis_core.QgsWkbTypes.GeometryType.PolygonGeometry)
         self.rubberBand.setColor(QtCore.Qt.transparent)
         self.rubberBand.setFillColor(QtGui.QColor(0, 0, 255, 50))
 
@@ -436,13 +436,13 @@ class RectangleMapTool(qgis_gui.QgsMapToolEmitPoint):
         self.base_color = QtCore.Qt.black
         self.canvas = canvas
         qgis_gui.QgsMapToolEmitPoint.__init__(self, self.canvas)
-        self.rubberBand = qgis_gui.QgsRubberBand(self.canvas, True)
+        self.rubberBand = qgis_gui.QgsRubberBand(self.canvas, qgis_core.QgsWkbTypes.GeometryType.PolygonGeometry)
         self.rubberBand.setColor(self.base_color)
         self.rubberBand.setFillColor(QtCore.Qt.transparent)
         self.rubberBand.setWidth(3)
 
         if show_direction:
-            self.direction_arrow = qgis_gui.QgsRubberBand(self.canvas, False)
+            self.direction_arrow = qgis_gui.QgsRubberBand(self.canvas, qgis_core.QgsWkbTypes.GeometryType.LineGeometry)
             self.direction_arrow.setColor(self.base_color)
             self.direction_arrow.setWidth(4)
         else:

@@ -2498,7 +2498,7 @@ class KlusterMain(QtWidgets.QMainWindow):
             self.two_d.canvas.setCanvasColor(QtCore.Qt.white)
             self.two_d.toolPoints.base_color = QtCore.Qt.black
             self.points_view.colorbar.fig.set_facecolor('white')
-            plt.style.use('seaborn')
+            plt.style.use('seaborn-v0_8')
         # now update the control if we are doing this manually, not through the checkbox event
         view_menu = [mn for mn in self.menuBar().actions() if mn.text() == 'View']
         if view_menu:
