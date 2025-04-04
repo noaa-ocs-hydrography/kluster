@@ -20,7 +20,7 @@ class TestFqprIntelligence(unittest.TestCase):
         cls.expected_data_folder = 'em2040_40111_05_23_2017'
         cls.expected_grid_folder = 'gridfolder'
 
-        cls.clsFolder = os.path.join(tempfile.tempdir, 'TestFqprIntelligence')
+        cls.clsFolder = os.path.join(tempfile.gettempdir(), 'TestFqprIntelligence')
         try:
             os.mkdir(cls.clsFolder)
         except FileExistsError:

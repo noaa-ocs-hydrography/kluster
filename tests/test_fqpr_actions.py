@@ -13,7 +13,7 @@ class TestFqprActions(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         cls.testfile = os.path.join(os.path.dirname(__file__), 'resources', '0009_20170523_181119_FA2806.all')
-        cls.expected_output = os.path.join(tempfile.tempdir, 'TestFqprAction')
+        cls.expected_output = os.path.join(tempfile.gettempdir(), 'TestFqprAction')
         os.mkdir(cls.expected_output)
         cls.testsv = os.path.join(os.path.dirname(cls.testfile), '2020_036_182635.svp')
 

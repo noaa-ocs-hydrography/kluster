@@ -33,7 +33,7 @@ class TestFqprVessel(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls) -> None:
-        cls.clsFolder = os.path.join(tempfile.tempdir, 'TestFqprVessel')
+        cls.clsFolder = os.path.join(tempfile.gettempdir(), 'TestFqprVessel')
         try:
             os.mkdir(cls.clsFolder)
         except FileExistsError:

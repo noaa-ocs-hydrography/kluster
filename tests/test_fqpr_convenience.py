@@ -13,7 +13,7 @@ class TestFqprConvenience(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         cls.testfile = os.path.join(os.path.dirname(__file__), 'resources', '0009_20170523_181119_FA2806.all')
-        cls.expected_output = os.path.join(tempfile.tempdir, 'TestFqprConvenience')
+        cls.expected_output = os.path.join(tempfile.gettempdir(), 'TestFqprConvenience')
 
         try:
             os.mkdir(cls.expected_output)

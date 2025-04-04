@@ -15,7 +15,7 @@ class TestGdalHelpers(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls) -> None:
-        cls.clsFolder = os.path.join(tempfile.tempdir, 'TestGdalHelpers')
+        cls.clsFolder = os.path.join(tempfile.gettempdir(), 'TestGdalHelpers')
         try:
             os.mkdir(cls.clsFolder)
         except FileExistsError:
