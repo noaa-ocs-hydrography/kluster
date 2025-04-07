@@ -76,6 +76,7 @@ class FqprExport:
 
         uncertainty_included = False
         nan_mask = ~np.isnan(ping_dataset['x'])
+        nan_mask = nan_mask.compute()
         x_stck = ping_dataset['x'][nan_mask]
         y_stck = ping_dataset['y'][nan_mask]
         z_stck = ping_dataset['z'][nan_mask]
@@ -503,9 +504,9 @@ class FqprExport:
             rp = rp.stack({'sounding': ('time', 'beam')})
         if export_by_identifiers:
             for freq in np.unique(rp.frequency):
-                subset_rp = rp.where(rp.frequency == freq, drop=True)
+                subset_rp = rp.where(rp.frequency.compute() == freq, drop=True)
                 for secid in np.unique(subset_rp.txsector_beam).astype(np.int32):
-                    sec_subset_rp = subset_rp.where(subset_rp.txsector_beam == secid, drop=True)
+                    sec_subset_rp = subset_rp.where(subset_rp.txsector_beam.compute() == secid, drop=True)
                     if suffix:
                         dest_path = os.path.join(output_directory, '{}_{}_{}_{}.csv'.format(base_name, secid, freq, suffix))
                     else:
@@ -641,9 +642,9 @@ class FqprExport:
             rp = rp.stack({'sounding': ('time', 'beam')})
         if export_by_identifiers:
             for freq in np.unique(rp.frequency):
-                subset_rp = rp.where(rp.frequency == freq, drop=True)
+                subset_rp = rp.where(rp.frequency.compute() == freq, drop=True)
                 for secid in np.unique(subset_rp.txsector_beam).astype(np.int32):
-                    sec_subset_rp = subset_rp.where(subset_rp.txsector_beam == secid, drop=True)
+                    sec_subset_rp = subset_rp.where(subset_rp.txsector_beam.compute() == secid, drop=True)
                     if suffix:
                         dest_path = os.path.join(output_directory, '{}_{}_{}_{}.las'.format(base_name, secid, freq, suffix))
                     else:
