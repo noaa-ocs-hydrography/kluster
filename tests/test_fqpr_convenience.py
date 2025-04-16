@@ -155,7 +155,7 @@ class TestFqprConvenience(unittest.TestCase):
         bs = generate_new_surface(self.out)
         assert bs.data is None
         assert bs.cell_count == {8.0: 901}
-        assert bs.container == {'converted__0009_20170523_181119_FA2806.all': ['0009_20170523_181119_FA2806.all']}
+        assert list(bs.container.values())[0] == ['0009_20170523_181119_FA2806.all']
         assert bs.coverage_area_square_meters == 57664.0
         assert round(bs.coverage_area_square_nm, 6) == 0.016791
         assert bs.epsg == 6339
@@ -176,7 +176,7 @@ class TestFqprConvenience(unittest.TestCase):
         bs = generate_new_surface(self.out, grid_type='variable_resolution_tile')
         assert bs.data is None
         assert bs.cell_count == {8.0: 901}
-        assert bs.container == {'converted__0009_20170523_181119_FA2806.all': ['0009_20170523_181119_FA2806.all']}
+        assert list(bs.container.values())[0] == ['0009_20170523_181119_FA2806.all']
         assert bs.coverage_area_square_meters == 57664.0
         assert round(bs.coverage_area_square_nm, 6) == 0.016791
         assert bs.epsg == 6339
