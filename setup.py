@@ -13,7 +13,7 @@ DESCRIPTION = 'Distributed hydrographic multibeam processing system'
 URL = 'https://github.com/noaa-ocs-hydrography/kluster'
 EMAIL = 'eric.g.younkin@noaa.gov'
 AUTHOR = 'Eric Younkin'
-REQUIRES_PYTHON = '>=3.8.10'
+REQUIRES_PYTHON = '>=3.11.3'
 VERSION = ''
 
 # What packages are required for this module to be executed?
@@ -23,26 +23,26 @@ REQUIRED = [
             'distributed~=2023.3.2',
             'fasteners~=0.19',
             'laspy~=2.5.3',
-            'matplotlib~=3.7.5',  # >=3.3.3 required, FuncAnimation and Pyside2/matplotlib do not play well in 3.2.1
+            'matplotlib~=3.8.3',  #Pydro24 3.8.3 ; >=3.3.3 required, FuncAnimation and Pyside2/matplotlib do not play well in 3.2.1
             'numba~=0.59.0',
-            'openpyxl~=3.0.10',
+            'openpyxl~=3.1.2', #Pydro24 3.1.2
             'psutil~=5.9.8',
-            'numpy~=1.23.5',  # cannot be 1.19.4, see https://tinyurl.com/y3dm3h86
-            'pandas~=1.5.3',
+            'numpy~=1.26.4',  #Pydro24 1.26.4 ; cannot be 1.19.4, see https://tinyurl.com/y3dm3h86
+            'pandas~=2.2.1', #Pydro24 2.2.1
             'pyshp~=2.3.1',
             'pyepsg~=0.4.0',  # cartopy requirement not installed with conda install, duplicates pyproj functionality...
             'pyopengl~=3.1.7',
             'pyproj~=3.6.1',
-            'pyqtgraph>=0.12.4',
+            'pyqtgraph>=0.13.4', #Pydro24 0.13.4
             'python-geohash~=0.8.5',
-            'qdarkstyle~=3.1',
+            'qdarkstyle~=3.2.3', #Pydro24 3.2.3
             's3fs~=2024.2.0',
-            'scipy~=1.10.0',
+            'scipy~=1.12.0',#Pydro24 1.12.0
             'shapely~=2.0.3',
             'sortedcontainers~=2.4.0',
-            'watchdog~=2.3.1',
+            'watchdog~=4.0.0', #Pydro24 4.0.0
             'xarray~=2024.2.0',
-            'zarr~=2.13.6',
+            'zarr~=2.17.1', #Pydro24 2.17.1
             'hstb.drivers @ git+https://github.com/selimnairb/HTSB-drivers.git#egg=hstb.drivers',
             'hstb.shared @ git+https://github.com/noaa-ocs-hydrography/shared.git#egg=hstb.shared',
             'hstb.resources @ git+https://github.com/noaa-ocs-hydrography/hstb_resources.git#egg=hstb.resources',
