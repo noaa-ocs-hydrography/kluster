@@ -296,6 +296,6 @@ def compute_geo_beam_pointing_angle(bv_geo: xr.DataArray, rx_angle: xr.DataArray
     new_pointing_angle = (np.pi / 2) - np.arctan(bv_geo.sel(bv_xyz='z') / bvangle_divisor)
     # flip the sign where the azimuth is pointing to port, allows us to maintain which side the angle is on
     newindx = np.ones_like(new_pointing_angle)
-    newindx = np.negative(newindx, out=newindx, where=rx_angle < 0)
+    newindx = np.negative(newindx, out=newindx, where=(rx_angle.values < 0))
     new_pointing_angle = new_pointing_angle * newindx
     return new_pointing_angle
