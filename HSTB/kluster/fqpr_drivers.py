@@ -198,18 +198,7 @@ def _validate_sequential_read_attitude(recs: dict):
 
 def _validate_sequential_read_installation(recs: dict):
     required_installation_params = ['time', 'serial_one', 'serial_two', 'installation_settings']
-    # the transducer entries here correspond to each tx/rx.  The number depends on where your sonar ends up in
-    #   xarray_conversion.sonar_translator.  But every sonar has transducer 1, so just check for that.
-    required_keys = ['sonar_model_number', 'transducer_1_vertical_location',
-                     'transducer_1_along_location', 'transducer_1_athwart_location',
-                     'transducer_1_heading_angle', 'transducer_1_roll_angle', 'transducer_1_pitch_angle',
-                     'position_1_time_delay', 'position_1_vertical_location', 'position_1_along_location',
-                     'position_1_athwart_location', 'motion_sensor_1_time_delay',
-                     'motion_sensor_1_vertical_location', 'motion_sensor_1_along_location',
-                     'motion_sensor_1_athwart_location', 'motion_sensor_1_roll_angle',
-                     'motion_sensor_1_pitch_angle', 'motion_sensor_1_heading_angle',
-                     'waterline_vertical_location', 'active_position_system_number',
-                     'active_heading_sensor', 'position_1_datum']
+
     try:
         assert all([pms in recs['installation_params'] for pms in required_installation_params])
     except AssertionError:
@@ -220,6 +209,29 @@ def _validate_sequential_read_installation(recs: dict):
         raise ValueError(f'sequential_read: All installation parameter records must be of the same size. Records: {["time", "installation_settings"]}, Sizes: {[recs["installation_params"][pms].size for pms in ["time", "installation_settings"]]}')
     if recs['installation_params']['installation_settings'].size:
         for irec in recs['installation_params']['installation_settings']:
+            #Motion system number (mot_num_ and position system number (pos_num) are added here for special case of onll
+            #motion system 2 and position system 2 being configured.
+            try:
+                mot_num = irec['active_heading_sensor'][-1]
+            except KeyError:
+                raise ValueError(f'sequential_read: active_heading_sensor not found in installation parameters entry: {irec}')
+            try:
+                pos_num = irec['active_position_system_number'][-1]
+            except KeyError:
+                raise ValueError(f'sequential_read: active_position_system_numer not found in installation parameters entry: {irec}')
+            # the transducer entries here correspond to each tx/rx.  The number depends on where your sonar ends up in
+            #   xarray_conversion.sonar_translator.  But every sonar has transducer 1, so just check for that.
+            required_keys = ['sonar_model_number', 'transducer_1_vertical_location',
+                             'transducer_1_along_location', 'transducer_1_athwart_location',
+                             'transducer_1_heading_angle', 'transducer_1_roll_angle', 'transducer_1_pitch_angle',
+                             f'position_{pos_num}_time_delay', f'position_{pos_num}_vertical_location',
+                             f'position_{pos_num}_along_location',
+                             f'position_{pos_num}_athwart_location', f'motion_sensor_{mot_num}_time_delay',
+                             f'motion_sensor_{mot_num}_vertical_location', f'motion_sensor_{mot_num}_along_location',
+                             f'motion_sensor_{mot_num}_athwart_location', f'motion_sensor_{mot_num}_roll_angle',
+                             f'motion_sensor_{mot_num}_pitch_angle', f'motion_sensor_{mot_num}_heading_angle',
+                             'waterline_vertical_location', 'active_position_system_number',
+                             'active_heading_sensor', 'position_1_datum']
             for ky in required_keys:
                 try:
                     assert ky in irec
