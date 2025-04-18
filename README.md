@@ -100,11 +100,11 @@ Some dependencies need to be installed from the conda-forge channel.  I have an 
 
 Perform these in order:
 
-`conda create -n kluster_test -c conda-forge python=3.9.18 qgis=3.18.3 vispy=0.9.4 pyside2=5.13.2 gdal=3.3.1 h5py python-geohash`
+`conda create -n kluster_test -c conda-forge python=3.11.8 qgis=3.36.0 vispy=0.14.2 pyside2=5.15.8 gdal=3.8.4 h5py python-geohash`
 
 `conda activate kluster_test`
 
-`pip install pyqtgraph==0.12.4 git+https://github.com/noaa-ocs-hydrography/kluster.git#egg=hstb.kluster`
+`pip install pyqtgraph==0.13.4 git+https://github.com/noaa-ocs-hydrography/kluster.git#egg=hstb.kluster`
 
 Start the GUI by activating the new environment and run Kluster as a module
 
