@@ -24,6 +24,7 @@ REQUIRED = [
             'fasteners~=0.19',
             'laspy~=2.5.3',
             'matplotlib~=3.8.3',  #Pydro24 3.8.3 ; >=3.3.3 required, FuncAnimation and Pyside2/matplotlib do not play well in 3.2.1
+            'numcodecs~=0.12.1', #Added to handle Zarr 2.17.1 issue, allegedly fixed in 2.18.
             'numba~=0.59.0',
             'openpyxl~=3.1.2', #Pydro24 3.1.2
             'psutil~=5.9.8',
@@ -43,7 +44,8 @@ REQUIRED = [
             'watchdog~=4.0.0', #Pydro24 4.0.0
             'xarray~=2024.2.0',
             'zarr~=2.17.1', #Pydro24 2.17.1
-            'hstb.drivers @ git+https://github.com/selimnairb/HTSB-drivers.git#egg=hstb.drivers',
+
+            'hstb.drivers @ git+https://github.com/noaa-ocs-hydrography/drivers.git#egg=hstb.drivers',
             'hstb.shared @ git+https://github.com/noaa-ocs-hydrography/shared.git#egg=hstb.shared',
             'hstb.resources @ git+https://github.com/noaa-ocs-hydrography/hstb_resources.git#egg=hstb.resources',
             'vyperdatum @ git+https://github.com/noaa-ocs-hydrography/vyperdatum.git#egg=vyperdatum',
