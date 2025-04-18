@@ -26,7 +26,7 @@ try:
     fes_grids = list(fes.regional_sep_catalog.keys())
     fes_grids = [fg for fg in fes_grids if os.path.exists(fes.__dict__[fg])]
     fes_found = True
-except ModuleNotFoundError:
+except:
     fes_found = False
     fes_grids = []
 
