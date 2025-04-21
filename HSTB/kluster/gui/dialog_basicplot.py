@@ -447,7 +447,7 @@ class BasicPlotDialog(QtWidgets.QDialog):
                 bincount = int(self.bincount.text())
                 data.plot.hist(ax=self.recent_plot[cnt], bins=bincount, label=identifier)
             elif plottype == 'Scatter':
-                dset.plot.scatter('time', variable, ax=self.recent_plot[cnt], label=identifier)
+                data.plot.scatter(ax=self.recent_plot[cnt], label=identifier)
             elif plottype == 'Image':
                 data.plot.imshow(ax=self.recent_plot[cnt], label=identifier)
             elif plottype == 'Contour':
