@@ -561,7 +561,7 @@ def build_highpass_filter_coeff(cutoff_freq: float, numtaps: int = 101, show_fre
         filter coefficients
     """
 
-    coef = firwin(numtaps, cutoff=cutoff_freq, window="hanning")
+    coef = firwin(numtaps, cutoff=cutoff_freq, window="hann")
     # Spectral inversion to get highpass from lowpass
     coef = -coef
     coef[int(numtaps / 2)] = coef[int(numtaps / 2)] + 1
