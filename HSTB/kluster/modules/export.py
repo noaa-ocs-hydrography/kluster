@@ -251,7 +251,8 @@ class FqprExport:
                                                  self.fqpr.multibeam.raw_ping[0].multibeam_files[line][1]
                 nav = self.fqpr.return_navigation(line_start_time, line_end_time)
                 if nav is not None:
-                    vl.write_to_layer(line, np.column_stack([nav.longitude.values, nav.latitude.values]), 2)  # ogr.wkbLineString
+                    line_layer = line.replace('.','_')
+                    vl.write_to_layer(line_layer, np.column_stack([nav.longitude.values, nav.latitude.values]), 2)  # ogr.wkbLineString
                 else:
                     print(f'export_lines_to_geopackage: unable to access raw navigation for line {line}')
         vl.close()
