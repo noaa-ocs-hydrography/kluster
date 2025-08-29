@@ -39,7 +39,8 @@ sonar_translator = {'ek60': [None, 'tx', 'rx', None], 'ek80': [None, 'tx', 'rx',
                     'em3002': [None, 'tx', 'rx', None], 'em2040p': [None, 'txrx', None, None],
                     'em3020': [None, 'tx', 'rx', None], 'em3020_dual': [None, 'txrx_port', 'txrx_stbd', None],
                     'me70': [None, 'txrx', None, None], '7125': [None, 'tx', 'rx', None], 't20': [None, 'tx', 'rx', None],
-                    't50': [None, 'tx', 'rx', None], 't51': [None, 'tx', 'rx', None]}
+                    't50': [None, 'tx', 'rx', None], 't51': [None, 'tx', 'rx', None],
+                    'norbitbathy': [None, 'tx', 'rx', None]}
 
 # ensure that Kluster sonar translator supports all sonar_translators in multibeam drivers
 assert all([snr in sonar_translator for snr in par_sonar_translator.keys()])
