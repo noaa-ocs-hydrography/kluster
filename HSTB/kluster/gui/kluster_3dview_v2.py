@@ -1645,7 +1645,7 @@ class ThreeDWidget(QtWidgets.QWidget):
                             try:
                                 tcntrl.setText(text_value)
                             except:
-                                tcntrl.setValue(float(text_value))
+                                tcntrl.setValue(float(text_value.replace(',', '.')))
             if self.checkbox_controls:
                 for cname, ccntrl in self.checkbox_controls:
                     check_value = settings.value('{}/{}_{}'.format(self.appname, self.widgetname, cname))
