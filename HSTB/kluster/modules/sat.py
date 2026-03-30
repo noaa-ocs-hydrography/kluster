@@ -103,7 +103,7 @@ class BaseTest:
                 freq_arr = np.round(self.frequency / 10000) * 10000
             else:
                 freq_arr = np.round(self.frequency / 1000) * 1000
-        return freq_arr.astype(np.int)
+        return freq_arr.astype(int)
 
     def _translate_label(self, mode, grp, lbl):
         """
@@ -282,9 +282,9 @@ class ExtinctionTest(BaseTest):
             atrack_by_idx = self.acrosstrack[idx]
             dpth_by_idx = self.depth[idx]
 
-            mindepth = np.int(np.min(dpth_by_idx))
+            mindepth = int(np.min(dpth_by_idx))
             maxdepth = np.ceil(np.max(dpth_by_idx))
-            minacross = np.int(np.min(atrack_by_idx))
+            minacross = int(np.min(atrack_by_idx))
             maxacross = np.ceil(np.max(atrack_by_idx))
 
             totalmindepth = min(mindepth, totalmindepth)
@@ -514,7 +514,7 @@ class PingPeriodTest(BaseTest):
             dpth_by_idx = self.depth[idx]
             diff_by_idx = self.time_dif[idx]
 
-            mindepth = np.int(np.min(dpth_by_idx))
+            mindepth = int(np.min(dpth_by_idx))
             maxdepth = np.ceil(np.max(dpth_by_idx))
 
             totalmindepth = min(mindepth, totalmindepth)
